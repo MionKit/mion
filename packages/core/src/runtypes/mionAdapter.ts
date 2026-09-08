@@ -9,7 +9,7 @@ import {getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunT
 import type {FnHashKey, GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '@mionjs/run-types';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types';
 import {getJitFnHashes} from '../routerUtils.ts';
-import {DECODE_FAMILY_BY_STRATEGY, STRATEGY_BY_ENCODE_FAMILY} from '../constants.ts';
+import {DECODE_FAMILY_BY_STRATEGY, STRATEGY_BY_ENCODE_FAMILY, type DecodeFamily} from '../constants.ts';
 import type {
   AnyFn,
   MionTypeFn,
@@ -28,13 +28,10 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 // those injected payloads into the JitCompiledFunctions/reflection shapes the router
 // already consumes, so dispatch and serialization code stay untouched.
 
-/** The VOCABULARY of fn keys a mion route marker may name (the router's helpers compute which of
- *  them each call actually requests from its `encoder` strategy). Order is irrelevant: the injected
- *  payload is projected by each entry tuple's family tag, never by position.
- *  ⚠️ The markers in the helper signatures MUST be spelled as InjectTypeFnArgs<T, 'val', 'verr', …> —
- *  a local type alias over the marker is NOT recognized by the mion scanner (verified 2026-07-11).
- *  `fmt` (formatTransform, the sanitizeParams lane) is only requested by the PARAMS markers: a return
- *  value is never sanitized. */
+/** The VOCABULARY of fn keys a route marker may name; the helpers compute which ones each call
+ *  requests from its `encoder`. Order is irrelevant, the payload is projected by family tag.
+ *  ⚠️ Markers must be spelled InjectTypeFnArgs<T, 'val', 'verr', …> in the helper signatures: a local
+ *  alias over the marker is NOT recognized by the scanner (verified 2026-07-11). */
 export const MION_FN_KEYS = [
   'val',
   'verr',
@@ -51,14 +48,9 @@ export const MION_FN_KEYS = [
   'fb',
 ] as const satisfies readonly FnHashKey[];
 
-/** fn keys requested for the HeadersSubset marker side (validation only, no serialization). */
-export const MION_HEADER_FN_KEYS = ['val', 'verr'] as const satisfies readonly FnHashKey[];
-
-/** Projects the injected marker payload onto its family tags. The resolver hands over an ARRAY of
- *  entry tuples whose slot 0 is the emitting family tag (`pj`, `cjr`, `tb`, …; the same tag
- *  `CompiledFnData.familyTag` carries), so the projection needs no positional contract: a route
- *  compiles only the families its strategy demands and the array is as short as that. A tuple with
- *  no tag (a missing stub) is skipped and the required-family check below reports it. */
+/** Projects the injected payload onto its family tags. Each entry tuple's slot 0 is the emitting
+ *  family (`pj`, `cjr`, `tb`, …, the tag `CompiledFnData.familyTag` carries), so no positional
+ *  contract is needed: the array is only as long as the families the strategy demanded. */
 function byFamilyTag(injected: unknown[]): Partial<Record<FnHashKey, unknown>> {
   const out: Record<string, unknown> = {};
   for (const tuple of injected) {
@@ -214,10 +206,11 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 
 const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
 const DECODE_FAMILIES = ['rj', 'cjr'] as const;
+type CompiledJsonFamilies = {strategy: JsonStrategy; encodeFamily: (typeof ENCODE_FAMILIES)[number]; decodeFamily: DecodeFamily};
 
-/** Reads the JSON strategy a fn set was compiled for off its injected families: exactly one encode
- *  family and its matching decode family. Anything else is a build / version skew and fails closed. */
-function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: string): JsonStrategy {
+/** The JSON strategy a fn set was compiled for, read off its injected families: exactly one encode
+ *  family and its matching decode family. Anything else is build / version skew and fails closed. */
+function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: string): CompiledJsonFamilies {
   const encodeFamilies = ENCODE_FAMILIES.filter((family) => fns[family] !== undefined);
   const decodeFamilies = DECODE_FAMILIES.filter((family) => fns[family] !== undefined);
   if (encodeFamilies.length !== 1 || decodeFamilies.length !== 1)
@@ -232,16 +225,11 @@ function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: s
       `RunTypes: mismatched JSON families for '${label}': encoder '${encodeFamilies[0]}' (${strategy}) needs decoder ` +
         `'${DECODE_FAMILY_BY_STRATEGY[strategy]}', got '${decodeFamilies[0]}'.`
     );
-  return strategy;
+  return {strategy, encodeFamily: encodeFamilies[0], decodeFamily: decodeFamilies[0]};
 }
 
-/**
- * Builds mion JitCompiledFunctions from one injected MionSideFns marker payload.
- * The payload is an array of entry tuples projected by family tag (byFamilyTag), so the set holds
- * exactly the families the route's `encoder` strategy compiled: the validators, ONE json pair, and
- * the binary pair only when the direction is `binary`.
- * Throws when the marker was never injected (plugin not active).
- */
+/** Builds mion JitCompiledFunctions from one injected marker payload: the validators, ONE json pair,
+ *  and the binary pair only when the direction is `binary`. Throws when the marker was never injected. */
 export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: string): JitCompiledFunctions {
   if (!isInjectedFnsArray(injected))
     throw new Error(
@@ -256,21 +244,18 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
       `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
         `val/verr are required). Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  const strategy = strategyFromFamilies(fns, label);
+  const {strategy, encodeFamily, decodeFamily} = strategyFromFamilies(fns, label);
   if ((fns.tb === undefined) !== (fns.fb === undefined))
     throw new Error(`RunTypes: the binary families for '${label}' must come as a pair (tb + fb), got only one.`);
   const hasBinary = fns.tb !== undefined;
-  const encodeFamily = ENCODE_FAMILIES.find((family) => fns[family] !== undefined)!;
-  const decodeFamily = DECODE_FAMILY_BY_STRATEGY[strategy];
   const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
   const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
   const encode = getRTFunction<'pj'>(fns[encodeFamily], identity as JsonEncodeFn);
   const decode = getRTFunction<'rj'>(fns[decodeFamily], identity as never);
   const hasUnknownKeys = getRTFunction<'huk'>(fns.huk, alwaysFalse);
   const unknownKeyErrors = getRTFunction<'uke'>(fns.uke, noUnknownKeyErrors);
-  // initialize the binary tuples (if requested) so their entries land in the cache;
-  // toBinary/fromBinary are only exposed when a REAL entry exists — an identity
-  // fallback would silently corrupt binary streams
+  // initialize the binary tuples so their entries land in the cache; they are only exposed when a
+  // REAL entry exists, an identity fallback would silently corrupt binary streams
   if (hasBinary) {
     getRTFunction<'tb'>(fns.tb);
     getRTFunction<'fb'>(fns.fb);

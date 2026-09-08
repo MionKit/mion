@@ -38,28 +38,18 @@ import type {
 } from '../types/encoder.ts';
 
 // ############# Route & MiddleFns initialization (INTERNAL) #############
-// These helpers initialize route & middleFn definition objects AND are the mion
-// injection points. They are NOT exported from the package: consumers reach them as
-// the closures `createMionRouter()` returns (src/router.ts, typed in src/types/mionRouter.ts),
-// which is what carries the router options into every declaration; only the internal
-// client / error / serializer routes call them directly.
-// The trailing marker params are filled at BUILD TIME by the
-// @mionjs/devtools vite plugin (wrapped by @mionjs/devtools mionVitePlugin) with
-// precompiled type functions for each call site's handler type.
+// These helpers initialize the definition objects AND are the mion injection points: the trailing
+// marker params are filled at BUILD TIME by @mionjs/devtools. Not exported from the package,
+// consumers reach them as the closures `createMionRouter()` returns; only the internal client /
+// error / serializer routes call them directly, and each of those pins its own `encoder`.
 //
-// ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a
-// marker is not recognized by the mion scanner. The fn key VOCABULARY is MION_FN_KEYS in
-// @mionjs/core; the payload is projected by family tag, so order does not matter. The four
-// strategy slots (encode / decode / toBinary / fromBinary) are COMPUTED from the `encoder`
-// literal of the route options (types/encoder.ts): a slot that resolves to `never` is not
-// compiled. `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 / CTA004).
-// Every helper is ONE call signature (see types/mionRouter.ts): `RO` is the route's own options
-// literal and defaults to the no-encoder shape. These direct helpers have NO router-wide default,
-// so a route that names no `encoder` falls straight through to the built-in one. That is what the
-// router's own internal routes want, and each of them pins its own `encoder` anyway; the factory's
-// typed helpers in types/mionRouter.ts carry the router options type instead.
-// The 'fmt' (formatTransform, the sanitizeParams lane) is requested on the PARAMS
-// markers only: a return value is never sanitized.
+// ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a marker is
+// not recognized by the mion scanner. The fn key vocabulary is MION_FN_KEYS in @mionjs/core; the
+// payload is projected by family tag, so order does not matter. The four strategy slots are computed
+// from the `encoder` literal (types/encoder.ts), and a slot resolving to `never` is not compiled.
+// `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 / CTA004). One call signature per
+// helper, mirrored in types/mionRouter.ts with the factory options; a change here needs one there.
+// 'fmt' (the sanitizeParams lane) is requested on the PARAMS markers only.
 
 export function route<H extends Handler, const RO extends RouteOptions = PlainRouteOptions>(
   handler: H,
@@ -98,81 +88,22 @@ export function route<H extends Handler, const RO extends RouteOptions = PlainRo
   };
 }
 
-/** Route handler for read-only queries. Uses GET with ?data=base64url on the client when payload fits. */
-export function query<H extends Handler, const RO extends RouteOptions = PlainRouteOptions>(
-  handler: H,
-  opts?: CompTimeArgs<RO>,
-  paramsFns?: InjectTypeFnArgs<
-    HandlerParams<H>,
-    'val',
-    'verr',
-    'huk',
-    'uke',
-    'fmt',
-    ParamsEncode<RO>,
-    ParamsDecode<RO>,
-    ParamsToBinary<RO>,
-    ParamsFromBinary<RO>
-  >,
-  returnFns?: InjectTypeFnArgs<
-    HandlerReturn<H>,
-    'val',
-    'verr',
-    'huk',
-    'uke',
-    ReturnEncode<RO>,
-    ReturnDecode<RO>,
-    ReturnToBinary<RO>,
-    ReturnFromBinary<RO>
-  >,
-  paramsId?: InjectRunTypeId<HandlerParams<H>>,
-  returnId?: InjectRunTypeId<HandlerReturn<H>>
-): RouteDef<H> {
-  return {
+/** `route()` with `isMutation` pinned. Typed `typeof route`, so both keep the marker signature the
+ *  scanner reads at the call site without spelling it out twice more. */
+function routeWithMutation(isMutation: boolean): typeof route {
+  return ((handler, opts, paramsFns, returnFns, paramsId, returnId) => ({
     type: HandlerType.route,
     handler,
-    options: {...opts, isMutation: false},
+    options: {...opts, isMutation},
     rtFns: {paramsFns, returnFns, paramsId, returnId},
-  };
+  })) as typeof route;
 }
 
+/** Route handler for read-only queries. Uses GET with ?data=base64url on the client when payload fits. */
+export const query = routeWithMutation(false);
+
 /** Route handler for mutations. Explicit alias for route() with isMutation: true. */
-export function mutation<H extends Handler, const RO extends RouteOptions = PlainRouteOptions>(
-  handler: H,
-  opts?: CompTimeArgs<RO>,
-  paramsFns?: InjectTypeFnArgs<
-    HandlerParams<H>,
-    'val',
-    'verr',
-    'huk',
-    'uke',
-    'fmt',
-    ParamsEncode<RO>,
-    ParamsDecode<RO>,
-    ParamsToBinary<RO>,
-    ParamsFromBinary<RO>
-  >,
-  returnFns?: InjectTypeFnArgs<
-    HandlerReturn<H>,
-    'val',
-    'verr',
-    'huk',
-    'uke',
-    ReturnEncode<RO>,
-    ReturnDecode<RO>,
-    ReturnToBinary<RO>,
-    ReturnFromBinary<RO>
-  >,
-  paramsId?: InjectRunTypeId<HandlerParams<H>>,
-  returnId?: InjectRunTypeId<HandlerReturn<H>>
-): RouteDef<H> {
-  return {
-    type: HandlerType.route,
-    handler,
-    options: {...opts, isMutation: true},
-    rtFns: {paramsFns, returnFns, paramsId, returnId},
-  };
-}
+export const mutation = routeWithMutation(true);
 
 export function middleFn<H extends Handler, const RO extends MiddleFnOptions = PlainMiddleFnOptions>(
   handler: H,

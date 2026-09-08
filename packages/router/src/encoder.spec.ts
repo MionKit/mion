@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The `encoder` option end to end at the router level: what a route literal and the factory literal
-// make the build compile, the pair the runtime resolves and ships, the framing derived from the
-// chain, and the wire of each strategy through dispatch.
+// The `encoder` option end to end: what the route and factory literals make the build compile, the
+// pair the runtime resolves, the framing derived from the chain, and each strategy's wire.
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getRouteExecutable, getRouteExecutionChain, getMiddleFnExecutable} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
@@ -15,8 +14,7 @@ import {registerBatches} from './batches.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {MION_BATCH_PATH} from '@mionjs/core';
 import {MION_ROUTES, SerializerModes, serializeBinaryBody, deserializeBinaryBody, type EncoderOption} from '@mionjs/core';
-import type {RemoteMethod, PlainRouteOptions, PlainMiddleFnOptions, PlainHeadersMiddleFnOptions} from './types/remoteMethods.ts';
-import type {ParamsEncode, ParamsDecode, ReturnEncode, ReturnDecode, ParamsToBinary} from './types/encoder.ts';
+import type {RemoteMethod} from './types/remoteMethods.ts';
 
 interface Pet {
   name: string;
@@ -127,14 +125,13 @@ describe('encoder strategies at the router level', () => {
       expect(exec.options.encoder).toEqual({params: 'binary', return: 'binary'});
       expect(exec.paramsJitFns.binary).toBeDefined();
       expect(exec.returnJitFns.binary).toBeDefined();
-      // jsonStrategyOf: the companion json pair of a binary direction is the BUILT-IN default,
-      // not the router-wide one, because the optimistic first request rides it
+      // the companion json pair of a binary direction is the BUILT-IN default, not the router-wide
+      // one, because the optimistic first request rides it
       expect(exec.paramsJitFns.json.strategy).toBe('clone');
     });
 
     it('refuses to register a route whose runtime pair differs from what the build compiled', () => {
-      // declared through the compact factory, initialized through a router with no encoder: the build
-      // compiled compact, the runtime resolves the defaults
+      // declared through the compact factory but initialized with no encoder: build compact, runtime defaults
       expect(() => createMionRouter({}).initRoutes({inherited})).toThrow(
         /is 'clone' at runtime but the build compiled 'compact'/
       );
