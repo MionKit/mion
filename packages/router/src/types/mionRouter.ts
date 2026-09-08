@@ -8,7 +8,6 @@
 import type {CompTimeArgs, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 import type {
   EncoderLiteralGuard,
-  NoEncoderOptions,
   ParamsDecode,
   ParamsEncode,
   ParamsFromBinary,
@@ -31,13 +30,13 @@ import type {
 } from './handlers.ts';
 import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 import type {
-  HeadersMiddleFnOptionsWithEncoder,
-  MiddleFnOptionsWithEncoder,
   PlainHeadersMiddleFnOptions,
   PlainMiddleFnOptions,
   PlainRouteOptions,
   RawMiddleFnOptions,
-  RouteOptionsWithEncoder,
+  MiddleFnOptions,
+  HeadersMiddleFnOptions,
+  RouteOptions,
 } from './remoteMethods.ts';
 import type {PublicApi} from './publicMethods.ts';
 
@@ -74,38 +73,9 @@ export type RouterCallContext<O extends RouterOptionsInput> = CallContext<Contex
 
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options. */
 export interface RouteHelper<O extends RouterOptionsInput> {
-  <H extends Handler<RouterCallContext<O>>>(
+  <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptions = PlainRouteOptions>(
     handler: H,
-    opts?: CompTimeArgs<PlainRouteOptions>,
-    paramsFns?: InjectTypeFnArgs<
-      HandlerParams<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      'fmt',
-      ParamsEncode<NoEncoderOptions, O>,
-      ParamsDecode<NoEncoderOptions, O>,
-      ParamsToBinary<NoEncoderOptions, O>,
-      ParamsFromBinary<NoEncoderOptions, O>
-    >,
-    returnFns?: InjectTypeFnArgs<
-      HandlerReturn<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      ReturnEncode<NoEncoderOptions, O>,
-      ReturnDecode<NoEncoderOptions, O>,
-      ReturnToBinary<NoEncoderOptions, O>,
-      ReturnFromBinary<NoEncoderOptions, O>
-    >,
-    paramsId?: InjectRunTypeId<HandlerParams<H>>,
-    returnId?: InjectRunTypeId<HandlerReturn<H>>
-  ): RouteDef<H>;
-  <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptionsWithEncoder>(
-    handler: H,
-    opts: CompTimeArgs<RO>,
+    opts?: CompTimeArgs<RO>,
     paramsFns?: InjectTypeFnArgs<
       HandlerParams<H>,
       'val',
@@ -136,38 +106,9 @@ export interface RouteHelper<O extends RouterOptionsInput> {
 
 /** `mion.middleFn`: declares a middleFn whose handler context is typed from the router options. */
 export interface MiddleFnHelper<O extends RouterOptionsInput> {
-  <H extends Handler<RouterCallContext<O>>>(
+  <H extends Handler<RouterCallContext<O>>, const RO extends MiddleFnOptions = PlainMiddleFnOptions>(
     handler: H,
-    opts?: CompTimeArgs<PlainMiddleFnOptions>,
-    paramsFns?: InjectTypeFnArgs<
-      HandlerParams<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      'fmt',
-      ParamsEncode<NoEncoderOptions, O>,
-      ParamsDecode<NoEncoderOptions, O>,
-      ParamsToBinary<NoEncoderOptions, O>,
-      ParamsFromBinary<NoEncoderOptions, O>
-    >,
-    returnFns?: InjectTypeFnArgs<
-      HandlerReturn<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      ReturnEncode<NoEncoderOptions, O>,
-      ReturnDecode<NoEncoderOptions, O>,
-      ReturnToBinary<NoEncoderOptions, O>,
-      ReturnFromBinary<NoEncoderOptions, O>
-    >,
-    paramsId?: InjectRunTypeId<HandlerParams<H>>,
-    returnId?: InjectRunTypeId<HandlerReturn<H>>
-  ): MiddleFnDef<H>;
-  <H extends Handler<RouterCallContext<O>>, const RO extends MiddleFnOptionsWithEncoder>(
-    handler: H,
-    opts: CompTimeArgs<RO>,
+    opts?: CompTimeArgs<RO>,
     paramsFns?: InjectTypeFnArgs<
       HandlerParams<H>,
       'val',
@@ -198,40 +139,9 @@ export interface MiddleFnHelper<O extends RouterOptionsInput> {
 
 /** `mion.headersFn`: declares a headers middleFn (2nd handler param a HeadersSubset) with the context typed from the router options. */
 export interface HeadersFnHelper<O extends RouterOptionsInput> {
-  <H extends HeaderHandler<RouterCallContext<O>>>(
+  <H extends HeaderHandler<RouterCallContext<O>>, const RO extends HeadersMiddleFnOptions = PlainHeadersMiddleFnOptions>(
     handler: H,
-    opts?: CompTimeArgs<PlainHeadersMiddleFnOptions>,
-    headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
-    paramsFns?: InjectTypeFnArgs<
-      HeaderHandlerParams<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      'fmt',
-      ParamsEncode<NoEncoderOptions, O>,
-      ParamsDecode<NoEncoderOptions, O>,
-      ParamsToBinary<NoEncoderOptions, O>,
-      ParamsFromBinary<NoEncoderOptions, O>
-    >,
-    returnFns?: InjectTypeFnArgs<
-      HandlerReturn<H>,
-      'val',
-      'verr',
-      'huk',
-      'uke',
-      ReturnEncode<NoEncoderOptions, O>,
-      ReturnDecode<NoEncoderOptions, O>,
-      ReturnToBinary<NoEncoderOptions, O>,
-      ReturnFromBinary<NoEncoderOptions, O>
-    >,
-    headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
-    paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
-    returnId?: InjectRunTypeId<HandlerReturn<H>>
-  ): HeadersMiddleFnDef<H>;
-  <H extends HeaderHandler<RouterCallContext<O>>, const RO extends HeadersMiddleFnOptionsWithEncoder>(
-    handler: H,
-    opts: CompTimeArgs<RO>,
+    opts?: CompTimeArgs<RO>,
     headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
     paramsFns?: InjectTypeFnArgs<
       HeaderHandlerParams<H>,
