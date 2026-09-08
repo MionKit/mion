@@ -36,6 +36,8 @@ describe('route & middleFns init functions', () => {
     returnFns: expect.any(Array),
     paramsId: expect.anything(),
     returnId: expect.anything(),
+    // the build-time answer to "does this handler return a promise" (see HandlerIsAsync)
+    isAsyncId: expect.anything(),
   };
 
   it('should initialize a Headers MiddleFn object', () => {

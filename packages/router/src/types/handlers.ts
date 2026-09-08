@@ -58,6 +58,18 @@ export type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ..
 /** The handler's resolved (awaited) return type. */
 export type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
+/** Whether the handler answers with a promise, decided by the type checker at the call site.
+ *  `HandlerReturn` above awaits the return type, so by the time anything is resolved the promise is
+ *  gone and no runtime check can tell an async handler from a sync one that returns a promise. This
+ *  is injected as its own runtype id; it resolves to one of exactly two literal types across the
+ *  whole program, so it interns nothing per route. */
+export type HandlerIsAsync<H extends AnyHandler> = true extends IsPromiseArm<ReturnType<H>> ? true : false;
+
+/** Distributes over a union, so ONE promise arm is enough. Written over a naked type parameter on
+ *  purpose: `ReturnType<H> extends PromiseLike<any>` does not distribute, and answered `false` for
+ *  `string | Promise<string>`, which would let dispatch skip an await it needed. */
+type IsPromiseArm<T> = T extends PromiseLike<any> ? true : false;
+
 /** The HeadersSubset param (2nd param) of a headers middleFn handler. */
 export type HeaderHandlerHeaders<H extends HeaderHandler> = Parameters<H> extends [any, infer HS, ...any[]] ? HS : never;
 

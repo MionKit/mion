@@ -39,6 +39,8 @@ const expectedRtFns = {
   returnFns: expect.any(Array),
   paramsId: expect.anything(),
   returnId: expect.anything(),
+  // the build-time answer to "does this handler return a promise" (see HandlerIsAsync)
+  isAsyncId: expect.anything(),
 };
 
 describe('createMionRouter helpers', () => {
