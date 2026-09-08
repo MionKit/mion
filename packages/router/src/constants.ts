@@ -25,6 +25,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
   skipClientRoutes: IS_TEST_ENV,
   /** Context pooling size == 100 by default */
   maxContextPoolSize: 100,
+  /** Every chain step is awaited by default, so the chain keeps yielding between steps */
+  alwaysAwait: true,
   /** Request body limit == 256KB by default */
   maxBodySize: 256000,
 } as Readonly<RouterOptions>;

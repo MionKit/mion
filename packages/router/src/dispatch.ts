@@ -71,6 +71,7 @@ async function runExecutionChain(
   opts: RouterOptions
 ): Promise<MionResponse> {
   const {response, request, executionChain} = context;
+  const alwaysAwait = opts.alwaysAwait;
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
   (response as Mutable<MionResponse>).serializer = executionChain.serializer;
@@ -81,7 +82,13 @@ async function runExecutionChain(
     try {
       // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
       // methodCaller is resolved when the method is registered, so the loop never has to pick one
-      const result = await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+      // With alwaysAwait off, a step the build proved synchronous is called without an await, so a
+      // chain of sync steps costs no promise frames. `isAsync` is decided by the type checker at the
+      // call site, not by inspecting the value, so a plain function returning a promise still awaits.
+      const result =
+        alwaysAwait || executable.isAsync
+          ? await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse)
+          : executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 
       if (result === undefined) continue;
       // ONE read answers "is this a mion error", for every branch below. The brand is an own property
