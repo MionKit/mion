@@ -762,17 +762,29 @@ export function genType(opts: GenOptions = DEFAULT_GEN_OPTIONS): GeneratedType {
  *  members than the source actually declares — which makes the generated value
  *  miss a required property. Declarations are in declaration order (a base
  *  always precedes what extends it), so one forward pass propagates through a
- *  chain and a diamond alike. **/
-function flattenHeritage(decls: Decl[]): void {
+ *  chain and a diamond alike.
+ *
+ *  `onDerived` runs on each derived declaration just BEFORE its flattened view
+ *  is rebuilt, with the inherited members it is about to merge and free to
+ *  replace `ownProps`. The type-modification fuzzer uses it to re-derive a
+ *  narrowing override against a base its own edits may have just retyped: the
+ *  hook has to ride the SAME forward pass, or a middle link in a chain would be
+ *  repaired against a base view that is still stale. **/
+export function flattenHeritage(
+  decls: Decl[],
+  onDerived?: (decl: Extract<Decl, {props: PropShape[]}>, inherited: PropShape[]) => void
+): void {
   const byName = new Map(decls.map((decl) => [decl.name, decl] as const));
   for (const decl of decls) {
     if (decl.kind !== 'interface' && decl.kind !== 'class') continue;
     if (!decl.extends?.length) continue;
     const bases = decl.extends.map((name) => byName.get(name)).filter((base): base is Decl => base !== undefined);
+    const inherited = inheritedProps(bases);
+    onDerived?.(decl, inherited);
     const own = decl.ownProps ?? [];
     const ownNames = new Set(own.map((prop) => prop.name));
     // An overridden member is supplied by `own`, so drop the base's version.
-    decl.props = [...inheritedProps(bases).filter((prop) => !ownNames.has(prop.name)), ...own];
+    decl.props = [...inherited.filter((prop) => !ownNames.has(prop.name)), ...own];
   }
 }
 
@@ -857,7 +869,7 @@ function compatibleParents(first: Decl, second: Decl): boolean {
 /** Merge the bases' flattened members into one inherited list, deduped by name
  *  (a diamond inherits its shared ancestor's member ONCE, which is what the
  *  checker does). First declaration wins, so the merge is order-stable. **/
-function inheritedProps(bases: Decl[]): PropShape[] {
+export function inheritedProps(bases: Decl[]): PropShape[] {
   const out: PropShape[] = [];
   const seen = new Set<string>();
   for (const base of bases) {

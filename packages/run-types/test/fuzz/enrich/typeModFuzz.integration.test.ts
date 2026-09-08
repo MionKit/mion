@@ -1,10 +1,11 @@
 // Type-modification fuzz of the FriendlyText/MockData reconciler. The second, wider
 // application of the enrich fuzzer (see enrichFuzz.integration.test.ts): instead of
 // editing a flat hardcoded `User`, it generates a RANDOM deep type (typeGen, FULL
-// named space — objects, arrays, unions, Map/Set, enums, named interfaces) and drives
-// random OPERATIONS on it (typeModify) — add / delete / retype / wrap / toggle-optional
-// a property, add a named sub-type, and mid-edit source corruptions — reconciling
-// through the real `gen --update` binary after every edit. `mion-bin/mion` must be
+// named space — objects, arrays, unions, Map/Set, enums, named interfaces, classes,
+// and `extends` heritage with a narrowing override) and drives random OPERATIONS on
+// it (typeModify) — add / delete / retype / wrap / toggle-optional a property, add a
+// named sub-type, and mid-edit source corruptions — reconciling through the real
+// `gen --update` binary after every edit. `mion-bin/mion` must be
 // built (root `pretest` does this); self-skips if absent.
 //
 // The default lane pins, over that full space, the reconciler's contracts (all HOLD
