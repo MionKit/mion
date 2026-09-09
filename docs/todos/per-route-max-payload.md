@@ -12,19 +12,20 @@ created: 2026-09-04
 Today one `maxBodySize` covers every route (256 KB, the router option and the platform's own).
 That is generous for a route that takes a user id and far too loose to be called secure by
 default. The types already say how big a request should be, and RunTypes already computes a
-per-type wire size at build time to seed the binary buffer. The goal: every route gets a request
-limit derived from that same computation (a configurable factor on top), a much smaller router
-default when the types cannot say, and a manual override on the route for the few that need more.
-One set of size parameters drives both the buffer seed and the limits, so they can never disagree.
+per-type wire size at build time. The goal: every route gets a request limit derived from that same
+computation (a configurable factor on top), a much smaller router default when the types cannot
+say, and a manual override on the route for the few that need more.
 
 ## Direction
 
 The implementer plans the details. What was checked:
 
-- **Start from the existing estimator and its config, not a new walk.** Every route already
-  carries `paramsBinarySizeEstimate` / `returnBinarySizeEstimate`
-  (`packages/core/src/runtypes/mionAdapter.ts`, read from the entry tuple's `binarySizeEstimate`
-  slot, `packages/run-types/src/runtypes/entryTuple.ts`). It comes from
+- **Start from the existing estimator and its config, not a new walk.** RunTypes computes a
+  per-type wire size at build time and carries it on the entry tuple's `binarySizeEstimate` slot
+  (`packages/run-types/src/runtypes/entryTuple.ts`). mion does NOT read it today: the router used
+  to surface it as `paramsBinarySizeEstimate` / `returnBinarySizeEstimate` to size a response
+  buffer, and both fields went with the binary wire, so the first step is reading the slot back
+  onto the route metadata for this purpose. It comes from
   `ts-go-runtypes/internal/cachegen/typefunctions/binary_size_estimate.go`, a walk that already
   accounts for numbers, strings, arrays, tuples, records, Map, Set, optional fields, unions and
   temporals, and anchors the unbounded parts on four knobs, `SizeEstimateConfig`:
@@ -34,21 +35,21 @@ The implementer plans the details. What was checked:
   options carry them as `SizeBias` / `SizeItems` / `SizeStringBytes` / `SizeMaxBytes`
   (`internal/compiler/resolver/resolver.go`, wired in `render.go`) and all four fold into the disk
   cache fingerprint. Trace how they reach the session from the plugin / CLI options and document
-  the user-facing names; today the estimate is documented only as a buffer seed.
+  the user-facing names; today the estimate is not documented for consumers at all.
 - **The limit is the estimate times a factor**, or the same walk run at `Bias` 1 (every optional
   present, every collection at `Items`, every string at `StringBytes`), whichever the implementer
   finds more honest, times a configurable multiplier (a router option, something like 4x by
   default, since the estimate targets the typical value and the limit must never refuse a valid
   one). A type whose variable parts are all bounded (`maxLength` on strings, `maxItems` on arrays,
   `packages/run-types/src/formats/structural.ts` and `scalars.ts`) gives an exact maximum and needs
-  no factor; the walk already reads those format bounds for the seed, so the same code decides
-  "exact" against "assumed". The estimate counts binary bytes; decide whether the limit is checked
-  against a JSON body as is (a JSON encoding is rarely smaller than the binary one, so the binary
-  number times the factor is a safe floor) or whether the walk gains a JSON mode.
-- **Make the parameters match, and rename freely.** The seed and the limits must read the SAME
-  four knobs; if the names are too binary-specific for what they now mean, rename them once, end
-  to end (constants, session options, protocol, the tuple slot `binarySizeEstimate`, the route
-  metadata fields, the docs). Breaking changes are fine here; the tuple slot is a wire format
+  no factor; the walk already reads those format bounds, so the same code decides
+  "exact" against "assumed". The estimate counts the bytes the RunTypes binary codec would write;
+  decide whether the limit is checked against a JSON body as is (a JSON encoding is rarely smaller
+  than the binary one, so that number times the factor is a safe floor) or whether the walk gains a
+  JSON mode.
+- **Rename freely.** If the names are too binary-specific for what they now mean, rename them once,
+  end to end (constants, session options, protocol, the tuple slot `binarySizeEstimate`, the new
+  route metadata fields, the docs). Breaking changes are fine here; the tuple slot is a wire format
   between resolver and runtime, so bump whatever fingerprint or version guards it.
 - **Resolution order, per route:** the route option, else the type-derived limit, else the router
   default. The router default drops from 256 KB to about 20 KB. The platform's own `maxBodySize`
@@ -103,8 +104,7 @@ The implementer plans the details. What was checked:
 
 - Every route resolves one request limit: the option, else the type-derived number, else the
   router default, and the resolved number is visible in the route metadata.
-- The seed and the limits read one set of size parameters, named for what they mean, with the
-  rename carried end to end.
+- The size parameters are named for what they mean, with any rename carried end to end.
 - The router default is lowered and documented; the platform limits stay the outer cap.
 - A request is resolved once: the adapter gets the chain and the limit before reading the body
   and hands the same handle to the dispatch; the node and uws reads stop at the per-route number,

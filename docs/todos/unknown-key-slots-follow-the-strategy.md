@@ -69,9 +69,8 @@ What was checked:
 
 The implementer plans the rest. Points to settle rather than assume:
 
-- **Which strategies actually guarantee no unknown keys.** `compact` is established above. `binary`
-  looks like the same story (the reader takes declared fields in order) but must be read, not
-  assumed. `clone`, `mutate` and `direct` all restore a keyed object in place, so they keep the pair.
+- **Which strategies actually guarantee no unknown keys.** `compact` is established above. `clone`,
+  `mutate` and `direct` all restore a keyed object in place, so they keep the pair.
 - **What the rule reports, and how loudly.** The user wrote `strictTypes: true` and it will do
   nothing, which is the shape of an Error rather than a Warning, matching how a widened `encoder` is
   a build error today. Needs a diagnostic code and a message that says why, not just that.
