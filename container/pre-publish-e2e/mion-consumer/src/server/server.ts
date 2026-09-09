@@ -43,11 +43,15 @@ const binaryRoutes = {
         },
         {encoder: 'binary'}
     ),
-    session: mion.middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
-        if (!token) return null;
-        if (token === 'invalid') return {valid: false};
-        return {valid: true, userId: 'user-123'};
-    }),
+    // it rides the binary routes' bodies, so it compiles the binary pair itself
+    session: mion.middleFn(
+        (_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+            if (!token) return null;
+            if (token === 'invalid') return {valid: false};
+            return {valid: true, userId: 'user-123'};
+        },
+        {encoder: 'binary'}
+    ),
 } satisfies Routes;
 
 // ============ All routes ============
