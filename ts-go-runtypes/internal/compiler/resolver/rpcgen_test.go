@@ -705,3 +705,40 @@ func TestRpc_ClientTsconfigUnresolvedPackagesFail(t *testing.T) {
 		t.Errorf("expected a generate error naming the client tsconfig and '@mionjs/client', got %q", resp.Error)
 	}
 }
+
+// TestRpc_TransformAppendsImportForFileOutsideCwd: a router-init module that
+// lives OUTSIDE the session's working dir is requested as `../<dir>/server.ts`,
+// and the transform must still append the batch import to it.
+//
+// This is the shape a fullstack test project has: the client program is the
+// batch source AND pulls its API entry in from a sibling package, so the vite
+// plugin hands the resolver a `..`-relative path. The path match used to be a
+// suffix test only, which no absolute path can ever satisfy against a spelling
+// starting with `..`, so every replacement carrying the program's own absolute
+// file name was silently dropped: the file came back transformed (its type
+// imports injected) but WITHOUT the batch import, and the server then answered
+// every batch with an unknown id.
+func TestRpc_TransformAppendsImportForFileOutsideCwd(t *testing.T) {
+	outDir := t.TempDir()
+	var cwd string
+	sources := rpcSources()
+	r := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.GenDir = outDir
+		resolverOpts.TransformRelative = true
+		cwd = resolverOpts.Cwd
+	})
+	generate(t, r)
+
+	// Same file, spelled as a sibling of the working dir: `../<dir>/server.ts`.
+	outside := "../" + filepath.Base(cwd) + "/server.ts"
+	code := transform(t, r, outside)
+	if !strings.Contains(code, "rpc/batches.generated.js") {
+		t.Fatalf("transform of %q did not append the batch import:\n%s", outside, code)
+	}
+	// The plain spelling must keep working, and both must produce the same file.
+	if inside := transform(t, r, "server.ts"); inside != code {
+		t.Errorf("the two spellings of the same file transformed differently:\n--- %q ---\n%s\n--- server.ts ---\n%s", outside, code, inside)
+	}
+}
