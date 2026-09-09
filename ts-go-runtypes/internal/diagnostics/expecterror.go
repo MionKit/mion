@@ -76,10 +76,9 @@ func Suppressible(code string) bool {
 // directive is found through the program's resolved path, so without it a
 // relative request would never match. Pass nil to compare paths verbatim.
 //
-// reportWrong gates the EXP codes. Silencing always happens; whether a
-// directive silenced nothing is only answerable against a WHOLE program's
-// findings, so a caller that holds part of them passes false.
-func ApplyExpectErrors(list []Diagnostic, directives []Directive, normalize func(string) string, reportWrong bool) []Diagnostic {
+// scope says what the calling pass could actually report, which is what keeps
+// the EXP codes from firing on a question this pass cannot answer. See PassScope.
+func ApplyExpectErrors(list []Diagnostic, directives []Directive, normalize func(string) string, scope PassScope) []Diagnostic {
 	if len(directives) == 0 {
 		return list
 	}
@@ -104,10 +103,13 @@ func ApplyExpectErrors(list []Diagnostic, directives []Directive, normalize func
 		survivors = append(survivors, diagnostic)
 	}
 
-	if !reportWrong {
+	if !scope.Reports {
 		return survivors
 	}
 	for index, directive := range directives {
+		if !scope.sawFile(normalize(directive.Site.FilePath)) {
+			continue
+		}
 		malformed := false
 		for _, code := range directive.Codes {
 			if Suppressible(code) {
@@ -120,12 +122,72 @@ func ApplyExpectErrors(list []Diagnostic, directives []Directive, normalize func
 				survivors = append(survivors, New(CodeExpectErrorUnknownCode, directive.Site, code))
 			}
 		}
-		if !malformed && !used[index] {
-			survivors = append(survivors, New(CodeExpectErrorUnused, directive.Site, directive.named()))
+		if malformed || used[index] || !scope.canJudge(directive) {
+			continue
 		}
+		survivors = append(survivors, New(CodeExpectErrorUnused, directive.Site, directive.named()))
 	}
 	return survivors
 }
+
+// PassScope says what the pass that produced a diagnostic list could report, so
+// a check only runs where its answer is real.
+//
+// Two things vary per pass and both used to be assumed:
+//
+//   - WHICH FILES it looked at. A per-file lint pass holds one file's findings,
+//     so a directive in some other file has not been given a chance to silence
+//     anything and must not be judged.
+//   - WHICH FAMILIES it could raise. The enrichment and mion-route families are
+//     opt-in per request, and the whole-program build pass never asks for them.
+//     Judging a `@mion-expect-error MRT002` there reported it unused while the
+//     editor's lint pass silenced it correctly, so the build demanded the
+//     deletion of a comment the editor needed.
+//
+// The malformed-directive checks (EXP002 / EXP003) read the comment text alone,
+// so they need only Files. EXP001 additionally needs Families, because "this
+// silenced nothing" is only true if the pass could have raised the thing it
+// names.
+type PassScope struct {
+	// Reports turns the EXP codes on. A pass that is only rewriting source
+	// leaves it false and silences without judging.
+	Reports bool
+	// Files the pass examined, in the caller's own spelling normalized by the
+	// same function ApplyExpectErrors was given. nil means every file.
+	Files map[string]bool
+	// Families the pass could raise. A directive is judged unused only when
+	// every family it could cover is in here; the bare form covers all of them.
+	Families map[Family]bool
+}
+
+// sawFile reports whether the pass examined path.
+func (scope PassScope) sawFile(path string) bool {
+	return scope.Files == nil || scope.Files[path]
+}
+
+// canJudge reports whether this pass could have raised everything the directive
+// covers, which is what makes "it silenced nothing" a fact rather than a guess.
+func (scope PassScope) canJudge(directive Directive) bool {
+	if len(directive.Codes) == 0 {
+		// The bare form covers every family, so only a pass that raised them all
+		// can call it unused.
+		for _, family := range allFamilies {
+			if !scope.Families[family] {
+				return false
+			}
+		}
+		return true
+	}
+	for _, code := range directive.Codes {
+		if !scope.Families[Definitions[code].Family] {
+			return false
+		}
+	}
+	return true
+}
+
+// allFamilies is every family a directive could ever silence.
+var allFamilies = []Family{FamilyPureFn, FamilyMarker, FamilyRunType, FamilyEnrich, FamilyMionRoute}
 
 // directiveKey addresses one silenced line. Diagnostics and directives are
 // matched on the file path as SPELLED in the site, which is the caller's own

@@ -709,7 +709,15 @@ func runCompile(args []string) {
 	// otherwise be reported once per pass. Dedupe collapses the identical
 	// repeats (same code, args and site) the way it does within one op.
 	errorCount := 0
-	for _, d := range downgrade.Apply(diagnostics.Dedupe(compileResult.Diagnostics)) {
+	for _, d := range diagnostics.Dedupe(compileResult.Diagnostics) {
+		// A downgraded finding is still printed, and carries the same one-word
+		// note the bundler adds: without it a configured-down finding reads as an
+		// ordinary warning, which is the thing downgrading is meant not to be.
+		if downgrade.Downgraded(d) {
+			d.Severity = diagnostics.SeverityWarning
+			fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(d)+" "+diagnostics.DowngradedNote)
+			continue
+		}
 		fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(d))
 		if d.Severity == diagnostics.SeverityError {
 			errorCount++

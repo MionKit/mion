@@ -14,6 +14,7 @@
 // staleness and Next runs its own dev server.
 
 import type {PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
+import {FAIL_ON_ERROR_REMOVED} from './core/downgradeErrors.ts';
 
 /** Options for the mion powered type transformation. */
 export interface MionRunTypesOptions {
@@ -123,9 +124,8 @@ const REMOVED_RUNTYPES_OPTIONS: Record<string, string> = {
   reflectionMode: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
   reflection: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
   failOnError:
-    'replaced by `downgradeErrors`, which names the codes to report as warnings instead of the whole catalog. ' +
-    "`failOnError: false` becomes `downgradeErrors: '*'`; `failOnError: true` was the default, so just drop it. " +
-    'For a bad call site in your own source prefer a `@mion-expect-error` comment on the line above it.',
+    FAIL_ON_ERROR_REMOVED +
+    '\n    For a bad call site in your own source prefer a `@mion-expect-error` comment on the line above it.',
 };
 
 /** Throws on any deepkit/AOT-era option a stale config still passes, naming the replacement.
