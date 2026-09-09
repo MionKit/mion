@@ -2,94 +2,39 @@
 
 > ⚠️ **Internal Package** - This package is private and not published to npm.
 
-Centralized test server utilities for mion packages. Provides pre-configured test servers with runtime type reflection for testing client-server communication.
-
-## Why This Package Exists
-
-Multiple packages in the mion monorepo need to test client-server communication:
-
-- `@mionjs/client` - Tests client functionality against a real server
-
-Instead of duplicating server code in each package, this package provides:
-
-- **Pre-built test servers** - JSON and binary serialization servers
-- **Server management utilities** - Start/stop servers, health checks, port management
-- **Jest integration** - Convenient `beforeAll`/`afterAll` hooks
-- **Shared types** - API types for type-safe client testing
+Centralized test server for mion packages. One route tree with runtime type reflection, used by
+`@mionjs/client` and the `platform-*` packages to test real client-server calls instead of
+duplicating a server in each of them.
 
 ## Usage
 
-### Basic Usage
+The package exports the route tree and its types; the tests own the server lifecycle through their
+own vitest `globalSetup` (see `packages/client/globalSetup.ts`).
 
 ```typescript
 import {initClient} from '@mionjs/client';
-import {createTestServerMiddleFns, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '@mionjs/test-server';
 import type {TestServerApi} from '@mionjs/test-server';
 
-describe('My Tests', () => {
-  const serverMiddleFns = createTestServerMiddleFns({
-    port: TEST_PORT_MAPPING.client,
-    serverType: 'json',
-  });
-
-  beforeAll(serverMiddleFns.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
-  afterAll(serverMiddleFns.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
-
-  it('should call a route', async () => {
-    const {routes} = initClient<TestServerApi>({
-      baseURL: serverMiddleFns.getBaseURL(),
-    });
-    const [result] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
-    expect(result).toBe('Hello John Doe');
-  });
-});
+const {routes} = initClient<TestServerApi>({baseURL});
+const [result] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
 ```
 
-### Binary Serialization Tests
+Set `MION_TEST_SERVER_AUTO_START=false` before importing this package in a test file, otherwise the
+server files auto-start on import. `MION_TEST_PORT` picks the port.
 
-```typescript
-import type {BinaryTestServerApi} from '@mionjs/test-server';
+## Route Groups
 
-const serverMiddleFns = createTestServerMiddleFns({
-  port: TEST_PORT_MAPPING.binarySerialization,
-  serverType: 'binary',
-});
-```
-
-## Port Mapping
-
-To avoid port conflicts when running tests in parallel, use the predefined port mapping:
-
-```typescript
-export const TEST_PORT_MAPPING = {
-  // Client package tests
-  client: 8086,
-  clientMethodsMetadata: 8087,
-  friendlyErrors: 8088,
-  binarySerialization: 8089,
-};
-```
+| Group     | What it covers                                                                |
+| --------- | ----------------------------------------------------------------------------- |
+| default   | The JSON wires, errors, headers, batches, drizzle-backed routes               |
+| `compact` | The positional wire, including a middleFn with no `encoder` of its own        |
 
 ## Exported Types
 
-| Type                  | Description                              |
-| --------------------- | ---------------------------------------- |
-| `TestServerApi`       | API type for JSON serialization server   |
-| `BinaryTestServerApi` | API type for binary serialization server |
-| `TestServerOptions`   | Configuration options for server startup |
-| `TestServerManager`   | Class for managing server lifecycle      |
-
-## How It Works
-
-1. **During development** - Runs TypeScript source files directly through Vite
-2. **With built packages** - Can also run from compiled `.dist` files
-
-The `TestServerManager` class:
-
-- Spawns a separate Node.js process for the server
-- Uses health checks to detect when server is ready
-- Handles graceful shutdown with SIGTERM/SIGKILL
-- Manages port conflicts automatically
+| Type              | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| `TestServerApi`   | API type of the whole route tree, for the client |
+| `SimpleUser`, `ComplexUser`, `NestedData`, `CompactEvent` | Payload shapes the routes use |
 
 ## Building
 
@@ -123,6 +68,5 @@ inspection only.
 ## Important Notes
 
 - **Private package** - Not published to npm, only used internally
-- **Requires reflection** - Server files must be compiled with type metadata
-- **Port management** - Always use `TEST_PORT_MAPPING` to avoid conflicts
-- **Timeout constants** - Use `JEST_TIMEOUT_CONSTANTS` for reliable test setup
+- **Requires reflection** - Server files must be built with the mion vite plugin so the type
+  functions are injected
