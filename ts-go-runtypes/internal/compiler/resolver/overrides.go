@@ -221,7 +221,7 @@ func (sess *Session) collectOverrideReplacements(files []string) []protocol.Repl
 	for filePath := range sess.overrideArgSpansByFile {
 		inRequest := false
 		for _, file := range files {
-			if sameTransformPath(filePath, file) {
+			if sameTransformPath(filePath, file, sess.absPath(file)) {
 				inRequest = true
 				break
 			}
