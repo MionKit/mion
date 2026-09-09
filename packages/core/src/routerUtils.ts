@@ -72,6 +72,15 @@ export const routesCache = {
   },
 
   /**
+   * Remove a method from the router cache, materialized jit fns included.
+   * The client uses it to drop metadata a stored cache restored from an older server build.
+   * @param id - The method id
+   */
+  removeMetadata(id: string): void {
+    delete methodsCache[id];
+  },
+
+  /**
    * Get the raw router cache object.
    * Use with caution - prefer using get/set/has methods.
    * @returns The router cache object
@@ -241,6 +250,29 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
   // Cache for future calls
   headerJitFunctionsCache.set(jitHash, jitFns);
   return jitFns;
+}
+
+/** True when every compiled function this method points at is already in the cache.
+ *
+ *  A stored client cache can lose a function without losing the method that names it: an eviction
+ *  that made room, a write the browser aborted half way, an older server build. getJitFunctionsFromHash
+ *  only finds out at call time, and then it throws. This checks presence instead, which costs a lookup
+ *  and never materializes any code, so a restore can refuse the method and refetch it. */
+export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
+  const utl = getRTUtils();
+  const encoder = metadata.options.encoder ?? DEFAULT_ENCODER;
+  const hasFullSet = (jitHash: string, strategy: JsonStrategy): boolean => {
+    if (jitHash === EMPTY_HASH) return true;
+    const hashes = getJitFnHashes(jitHash, strategy);
+    return (
+      utl.hasRTFn(hashes.isType) && utl.hasRTFn(hashes.typeErrors) && utl.hasRTFn(hashes.encode) && utl.hasRTFn(hashes.decode)
+    );
+  };
+  // Exactly what getJitFunctionsFromHash refuses to build, no more: the header sets are deliberately
+  // left out, because getHeaderJitFunctionsFromHash returns them empty instead of throwing (a client
+  // is never sent them, it only reads headersParam to tell a headers middleFn apart).
+  if (!hasFullSet(metadata.paramsJitHash, jsonStrategyOf(encoder.params, 'params'))) return false;
+  return hasFullSet(metadata.returnJitHash, jsonStrategyOf(encoder.return, 'return'));
 }
 
 /**
