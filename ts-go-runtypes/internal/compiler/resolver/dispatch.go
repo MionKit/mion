@@ -769,8 +769,17 @@ func typeIDFromEntryKey(key string) string {
 // JS scan-batcher's projectFile/samePath rule so transform partitions edits to
 // the right file. Matching on a separator boundary keeps `a/user.ts` from
 // claiming `another-user.ts`.
-func sameTransformPath(tagged, requested string) bool {
-	return tagged == requested || strings.HasSuffix(tagged, "/"+requested) || strings.HasSuffix(tagged, "\\"+requested)
+//
+// `requestedAbs` is the requested path resolved against the session's working
+// dir, and it is what makes a file OUTSIDE that dir work: such a file is
+// requested as `../sibling/src/entry.ts`, which no suffix of an absolute path
+// can ever end with, so every replacement carrying the program's own spelling
+// was silently dropped and the file came back transformed but incomplete.
+func sameTransformPath(tagged, requested, requestedAbs string) bool {
+	if tagged == requested || tagged == requestedAbs {
+		return true
+	}
+	return strings.HasSuffix(tagged, "/"+requested) || strings.HasSuffix(tagged, "\\"+requested)
 }
 
 // containsString reports whether values contains target.
@@ -1150,15 +1159,16 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			if sourceErr != nil {
 				return protocol.Response{Error: sourceErr.Error()}
 			}
+			fileAbs := sess.absPath(file)
 			var fileSites []protocol.Site
 			for _, site := range sites {
-				if sameTransformPath(site.File, file) {
+				if sameTransformPath(site.File, file, fileAbs) {
 					fileSites = append(fileSites, site)
 				}
 			}
 			var fileReplacements []protocol.Replacement
 			for _, replacement := range allReplacements {
-				if sameTransformPath(replacement.File, file) {
+				if sameTransformPath(replacement.File, file, fileAbs) {
 					fileReplacements = append(fileReplacements, replacement)
 				}
 			}
