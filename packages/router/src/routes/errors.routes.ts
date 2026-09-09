@@ -10,9 +10,12 @@ import type {CallContext} from '../types/context.ts';
 import {RpcError, FatalError, MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {route} from '../lib/handlers.ts';
 
-// These routes are declared outside any factory, so the build compiles them against the built-in
-// default encoder. They pin that same default explicitly, otherwise a router-wide `encoder` would
-// be the pair the runtime resolves and the two would disagree.
+// mion's own routes, registered by initRouter for every app. They are DECLARED here at module
+// level rather than through the router factory, because a marker call site inside the generic
+// `createMionRouter` would carry an unresolved type parameter and `initRouter` takes the widened
+// options type: either way the build compiles them against the built-in default encoder. So each
+// one PINS that default. Without the pin a router-wide `encoder` is the pair the runtime resolves,
+// it disagrees with what the build compiled, and the router refuses to start.
 const DEFAULT_WIRE = {encoder: {params: 'clone', return: 'clone'}} as const;
 
 export const mionErrorsRoutes = {
