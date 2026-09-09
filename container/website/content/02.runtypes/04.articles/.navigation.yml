@@ -1,3 +1,4 @@
 title: Articles
 navigation:
   icon: icon-park-outline:doc-detail
+  redirect: /runtypes/articles/binary-serialization

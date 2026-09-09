@@ -8,17 +8,9 @@
 import {MionResponse, MionRequest, CallContext, ResponseBody, RawRequestBody} from '../types/context.ts';
 import {RouterOptions} from '../types/general.ts';
 import {MiddleFnsCollection, MayReturnError} from '../types/publicMethods.ts';
-import {
-  AnyObject,
-  Mutable,
-  MION_ROUTES,
-  StatusCodes,
-  serializeBinaryBody as coreSerializeBinaryBody,
-  deserializeBinaryBody as coreDeserializeBinaryBody,
-  SerializerModes,
-} from '@mionjs/core';
+import {AnyObject, Mutable, MION_ROUTES, StatusCodes, SerializerModes} from '@mionjs/core';
 import {rawMiddleFn} from '../lib/handlers.ts';
-import {getRouteExecutable, getAnyExecutable, getRouterOptions, getPlatformConfig} from '../router.ts';
+import {getRouteExecutable, getRouterOptions, getPlatformConfig} from '../router.ts';
 import {getBatch, resolveBatchMaxBodySize} from '../batches.ts';
 import {RpcError, FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
@@ -29,7 +21,6 @@ import {onExecutableError} from '../lib/dispatchError.ts';
 /**
  * Deserializes the request body and stores it in the request body property.
  * This method is called before any other middleFn or route handler.
- * For binary requests, the body is parsed lazily per-method in dispatch.ts.
  * Registered through `rawMiddleFn`: it runs before the response contract exists,
  * so it throws rather than answering with a declared error.
  * @mion:rawMiddleFn
@@ -52,13 +43,6 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
         });
       }
       break;
-    case SerializerModes.binary: {
-      // binary
-      const rawBody = context.request.rawBody as Uint8Array;
-      const {body} = coreDeserializeBinaryBody(context.path, rawBody, false);
-      parsedBody = body;
-      break;
-    }
     case SerializerModes.json: // Object (pre-parsed body from platforms like Google Cloud Functions where Express auto-parses JSON)
       parsedBody = context.request.rawBody;
       break;
@@ -140,56 +124,9 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
       prepareBodyForJson(context, context.executionChain.methods, respBody);
       break;
     }
-    case SerializerModes.binary: {
-      // binary - use toBinary JIT function
-      response.headers.set('content-type', 'application/octet-stream');
-      if (serializeBinaryBody(context, context.executionChain.methods, respBody)) break;
-      // The binary envelope could not be written (typically a handler returned a value that does
-      // not match its declared type). Nothing binary is left to send, so the response falls back
-      // to the JSON envelope: the client always gets an error it can read instead of a dead socket.
-      response.serializer = SerializerModes.stringifyJson;
-      response.headers.set('content-type', 'application/json; charset=utf-8');
-      (response.body as Mutable<AnyObject>)['@thrownErrors'] = context.request.thrownErrors;
-      response.rawBody = stringifyBody(context, context.executionChain.methods, respBody);
-      break;
-    }
     default:
       throw new Error(`Invalid body type ${context.request.bodyType}`);
   }
-}
-
-/** Serializes response body to binary format using the core serializeBinaryBody function.
- *  The payload is read from `binSerializer` (getBufferView/getLength) by every platform adapter;
- *  rawBody is deliberately NOT set for binary — it used to hold a full getBuffer() copy of the
- *  payload that nothing consumed. */
-function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): boolean {
-  const response = context.response as Mutable<MionResponse>;
-  // a batch needs no special casing: the buffer is sized by summing the chain's own methods,
-  // whatever route each of them came from
-  const chain = withThrownErrors(executionChain, respBody);
-  try {
-    const {serializer, release} = coreSerializeBinaryBody(context.path, chain, respBody, true);
-    response.binSerializer = serializer;
-    response.releaseBinBuffer = release;
-    return true;
-  } catch (err: any) {
-    onExecutableError(context, getAnyExecutable(SERIALIZE_RESPONSE_ID)!, err);
-    return false;
-  }
-}
-
-/** Appends the `@thrownErrors` executable to the chain when the body carries thrown errors.
- *
- *  Thrown errors are added to the response body by `serializeResponseBody`, but `@thrownErrors` is
- *  not a member of any execution chain — the JSON lanes therefore serialize it as an explicit extra
- *  entry, and the binary lane, which walks the chain and nothing else, used to drop it entirely: a
- *  binary client got an EMPTY envelope for a request that threw, while its deserializer was already
- *  looking for exactly this key. Allocating here is fine — it only happens on an error response. */
-function withThrownErrors(executionChain: RemoteMethod[], respBody: ResponseBody): RemoteMethod[] {
-  if (!respBody[MION_ROUTES.thrownErrors]) return executionChain;
-  const method = getRouteExecutable(MION_ROUTES.thrownErrors);
-  if (!method) return executionChain;
-  return [...executionChain, method];
 }
 
 function stringifyBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): string {

@@ -16,7 +16,7 @@ import {getOrCreateGlobal} from './src/utils.ts';
 // line is a runtime break, not a type-only one.
 import '@mionjs/run-types/formats';
 // mion error classes (TypedError/RpcError) register themselves with the mion
-// class-serializer registry at the bottom of ./src/errors.ts (exported below), so JSON/binary
+// class-serializer registry at the bottom of ./src/errors.ts (exported below), so JSON
 // decoders rebuild real instances.
 
 const __mionLoadCounter = getOrCreateGlobal('mion.core.loadCounter', () => ({count: 0}));
@@ -33,12 +33,6 @@ if (__mionLoadCounter.count > 1 && typeof process !== 'undefined' && !process.en
 export * from './src/types/general.types.ts';
 export * from './src/types/method.types.ts';
 export * from './src/types/pureFunctions.types.ts';
-export * from './src/binary/options.ts';
-export * from './src/binary/dataView.ts';
-export * from './src/binary/bufferPool.ts';
-export * from './src/binary/sizeStats.ts';
-export * from './src/binary/bodySerializer.ts';
-export * from './src/binary/bodyDeserializer.ts';
 export * from './src/constants.ts';
 export * from './src/encoder.ts';
 export * from './src/errors.ts';

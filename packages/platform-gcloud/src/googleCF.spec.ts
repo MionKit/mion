@@ -6,10 +6,10 @@
  * ######## */
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter, getRouteExecutionChain} from '@mionjs/router';
+import {createMionRouter, resetRouter} from '@mionjs/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF.ts';
 import type {CallContext, Route} from '@mionjs/router';
-import {MION_ROUTES, PublicRpcError, StatusCodes, serializeBinaryBody, deserializeBinaryBody} from '@mionjs/core';
+import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';
@@ -44,15 +44,6 @@ describe('serverless router', () => {
   const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
   });
-
-  // the same two routes on the binary wire: the binary pair is compiled from the route literal
-  const changeUserNameBinary: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => myApp.db.changeUserName(user), {
-    encoder: 'binary',
-  });
-  const getDateBinary: Route = mion.route(
-    (ctx: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')},
-    {encoder: 'binary'}
-  );
 
   const updateHeaders: Route = mion.route((context: Context): void => {
     context.response.headers.set('x-something', 'true');
@@ -263,101 +254,6 @@ describe('serverless router', () => {
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['server']).toEqual('@mionjs');
-    });
-  });
-
-  describe('with encoder=binary', () => {
-    const port3 = 8090;
-    let server3: Server;
-
-    async function initServer3(portToUse: number) {
-      return new Promise<Server>((resolve, reject) => {
-        functions.http('HelloTestsBinary', googleCFHandler);
-        const expressServer = getTestServer('HelloTestsBinary');
-        expressServer.listen(portToUse, () => resolve(expressServer));
-      });
-    }
-
-    beforeAll(async () => {
-      resetGoogleCFOpts();
-      resetRouter();
-      const binaryRouter = createMionRouter({contextDataFactory: getSharedData});
-      binaryRouter.initRoutes({changeUserName: changeUserNameBinary, getDate: getDateBinary});
-      server3 = await initServer3(port3);
-    });
-
-    afterAll(async () => closeServer(server3));
-
-    it('should send binary request and receive binary response with Date objects', async () => {
-      const executionChain = getRouteExecutionChain('/getDate')!.methods;
-
-      // Serialize request body to binary
-      const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-      const requestBuffer = serializeBinaryBody('/getDate', executionChain, requestBody, false).serializer.getBuffer();
-
-      const response = await fetch(`http://127.0.0.1:${port3}/getDate`, {
-        method: 'POST',
-        headers: {'content-type': 'application/octet-stream'},
-        body: Buffer.from(requestBuffer),
-      });
-      const headers = Object.fromEntries(response.headers.entries());
-      const responseBuffer = await response.arrayBuffer();
-
-      // Deserialize binary response - uses routesCache to look up method JIT functions
-      const {body: responseBody} = deserializeBinaryBody('/getDate', responseBuffer, true);
-
-      expect(responseBody.getDate).toBeDefined();
-      expect(responseBody.getDate.date).toEqual(new Date('2022-04-22T00:17:00.000Z'));
-      expect(headers['content-type']).toEqual('application/octet-stream');
-      expect(headers['server']).toEqual('@mionjs');
-    });
-
-    it('should send binary request and receive binary response with complex objects', async () => {
-      const executionChain = getRouteExecutionChain('/changeUserName')!.methods;
-
-      // Serialize request body to binary
-      const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-      const requestBuffer = serializeBinaryBody('/changeUserName', executionChain, requestBody, false).serializer.getBuffer();
-
-      const response = await fetch(`http://127.0.0.1:${port3}/changeUserName`, {
-        method: 'POST',
-        headers: {'content-type': 'application/octet-stream'},
-        body: Buffer.from(requestBuffer),
-      });
-      const headers = Object.fromEntries(response.headers.entries());
-      const responseBuffer = await response.arrayBuffer();
-
-      // Deserialize binary response - uses routesCache to look up method JIT functions
-      const {body: responseBody} = deserializeBinaryBody('/changeUserName', responseBuffer, true);
-
-      expect(responseBody.changeUserName).toBeDefined();
-      expect(responseBody.changeUserName.name).toEqual('NewName');
-      expect(responseBody.changeUserName.surname).toEqual('Doe');
-      expect(headers['content-type']).toEqual('application/octet-stream');
-      expect(headers['server']).toEqual('@mionjs');
-    });
-
-    it('should handle optional parameters in binary mode', async () => {
-      const executionChain = getRouteExecutionChain('/getDate')!.methods;
-
-      // Serialize request body with no params (optional dataPoint)
-      const requestBody = {getDate: [undefined]};
-      const requestBuffer = serializeBinaryBody('/getDate', executionChain, requestBody, false).serializer.getBuffer();
-
-      const response = await fetch(`http://127.0.0.1:${port3}/getDate`, {
-        method: 'POST',
-        headers: {'content-type': 'application/octet-stream'},
-        body: Buffer.from(requestBuffer),
-      });
-      const headers = Object.fromEntries(response.headers.entries());
-      const responseBuffer = await response.arrayBuffer();
-
-      // Deserialize binary response - uses routesCache to look up method JIT functions
-      const {body: responseBody} = deserializeBinaryBody('/getDate', responseBuffer, true);
-
-      expect(responseBody.getDate).toBeDefined();
-      expect(responseBody.getDate.date).toEqual(new Date('2022-04-10T02:13:00.000Z'));
-      expect(headers['content-type']).toEqual('application/octet-stream');
     });
   });
 });

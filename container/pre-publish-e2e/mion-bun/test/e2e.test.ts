@@ -72,13 +72,13 @@ describe('published mion packages under bun', () => {
         expect(error?.type).toBe('intentional-error');
     });
 
-    test('round-trips the binary serializer through the packaged client', async () => {
+    test('round-trips the compact serializer through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
-        const [echoed, echoError] = await client.routes.binary.echo('Hello Binary Bun!').call();
+        const [echoed, echoError] = await client.routes.compact.echo('Hello Compact Bun!').call();
         expect(echoError).toBeUndefined();
-        expect(echoed).toBe('Hello Binary Bun!');
+        expect(echoed).toBe('Hello Compact Bun!');
 
-        const [user, userError] = await client.routes.binary.getSimpleUser('Alan', 41).call();
+        const [user, userError] = await client.routes.compact.getSimpleUser('Alan', 41).call();
         expect(userError).toBeUndefined();
         expect(user).toEqual({name: 'Alan', age: 41});
     });

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, FatalError, SerializerModes, StatusCodes} from '@mionjs/core';
+import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchRoute,
@@ -132,13 +132,6 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
       responseBody = JSON.stringify(routeResponse.body);
       singleHeaders['content-type'] = 'application/json; charset=utf-8';
       break;
-    case SerializerModes.binary:
-      // typed, so the client sees a mion error instead of an opaque 500
-      throw new FatalError({
-        statusCode: StatusCodes.SERVER_ERROR,
-        publicMessage: 'Binary responses are not supported on AWS Lambda',
-        type: 'binary-not-supported',
-      });
     default:
       throw new Error(`Unknown body type: ${bodyType}`);
   }

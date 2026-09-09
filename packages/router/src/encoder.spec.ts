@@ -10,11 +10,8 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getRouteExecutable, getRouteExecutionChain, getMiddleFnExecutable} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
-import {registerBatches} from './batches.ts';
 import {headersFromRecord} from './lib/headers.ts';
-import {MION_BATCH_PATH} from '@mionjs/core';
-import {MION_ROUTES, SerializerModes, serializeBinaryBody, deserializeBinaryBody, type EncoderOption} from '@mionjs/core';
-import type {RemoteMethod} from './types/remoteMethods.ts';
+import {MION_ROUTES, SerializerModes, type EncoderOption} from '@mionjs/core';
 
 interface Pet {
   name: string;
@@ -41,19 +38,16 @@ describe('encoder strategies at the router level', () => {
   describe('what the build compiles for each literal', () => {
     const plain = mion.route((ctx, p: Pet): Pet => p);
     const compact = mion.route((ctx, p: Pet): Pet => p, {encoder: 'compact'});
-    const returnBinary = mion.route((ctx, p: Pet): Pet => p, {encoder: {return: 'binary'}});
     const mixed = mion.route((ctx, p: Pet): Pet => p, {encoder: {params: 'clone', return: 'direct'}});
     const preset = {encoder: 'compact', description: 'positional'} as const;
     const fromPreset = mion.route((ctx, p: Pet): Pet => p, preset);
 
-    it('no literal anywhere: the built-in default, clone on both directions, no binary', () => {
+    it('no literal anywhere: the built-in default, clone on both directions', () => {
       mion.initRoutes({plain});
       const exec = getRouteExecutable('plain')!;
       expect(exec.options.encoder).toEqual({params: 'clone', return: 'clone'});
       expect(exec.paramsJitFns.json.strategy).toBe('clone');
       expect(exec.returnJitFns.json.strategy).toBe('clone');
-      expect(exec.paramsJitFns.binary).toBeUndefined();
-      expect(exec.returnJitFns.binary).toBeUndefined();
     });
 
     it('a string sets both directions', () => {
@@ -62,15 +56,6 @@ describe('encoder strategies at the router level', () => {
       expect(exec.options.encoder).toEqual({params: 'compact', return: 'compact'});
       expect(exec.paramsJitFns.json.strategy).toBe('compact');
       expect(exec.returnJitFns.json.strategy).toBe('compact');
-    });
-
-    it('binary on one direction adds the binary pair BESIDE that direction json pair', () => {
-      mion.initRoutes({returnBinary});
-      const exec = getRouteExecutable('returnBinary')!;
-      expect(exec.options.encoder).toEqual({params: 'clone', return: 'binary'});
-      expect(exec.paramsJitFns.binary).toBeUndefined();
-      expect(exec.returnJitFns.binary).toBeDefined();
-      expect(exec.returnJitFns.json.strategy).toBe('clone');
     });
 
     it('an object literal names each direction', () => {
@@ -117,17 +102,14 @@ describe('encoder strategies at the router level', () => {
       expect(exec.returnJitFns.json.strategy).toBe('compact');
     });
 
-    it('a route literal of binary beats a router-wide compact, and keeps the DEFAULT json pair beside it', () => {
+    it('a route literal of direct beats a router-wide compact', () => {
       const ownRouter = createMionRouter({encoder: 'compact'});
-      const goesBinary = ownRouter.route((ctx, p: Pet): Pet => p, {encoder: 'binary'});
-      ownRouter.initRoutes({goesBinary});
-      const exec = getRouteExecutable('goesBinary')!;
-      expect(exec.options.encoder).toEqual({params: 'binary', return: 'binary'});
-      expect(exec.paramsJitFns.binary).toBeDefined();
-      expect(exec.returnJitFns.binary).toBeDefined();
-      // the companion json pair of a binary direction is the BUILT-IN default, not the router-wide
-      // one, because the optimistic first request rides it
-      expect(exec.paramsJitFns.json.strategy).toBe('clone');
+      const goesDirect = ownRouter.route((ctx, p: Pet): Pet => p, {encoder: 'direct'});
+      ownRouter.initRoutes({goesDirect});
+      const exec = getRouteExecutable('goesDirect')!;
+      expect(exec.options.encoder).toEqual({params: 'direct', return: 'direct'});
+      expect(exec.paramsJitFns.json.strategy).toBe('direct');
+      expect(exec.returnJitFns.json.strategy).toBe('direct');
     });
 
     it('refuses to register a route whose runtime pair differs from what the build compiled', () => {
@@ -157,16 +139,14 @@ describe('encoder strategies at the router level', () => {
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
     const directRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: {return: 'direct'}});
     const compactRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'compact'});
-    const binaryRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'binary'});
     const directMiddleFn = mion.middleFn((ctx): string => 'stamp', {encoder: {return: 'direct'}});
     const silentMiddleFn = mion.middleFn((ctx): void => undefined, {encoder: {return: 'direct'}});
 
-    it('clone, mutate and compact returns frame as json; direct frames as stringifyJson; binary as binary', () => {
-      mion.initRoutes({defaultRoute, directRoute, compactRoute, binaryRoute});
+    it('clone, mutate and compact returns frame as json; direct frames as stringifyJson', () => {
+      mion.initRoutes({defaultRoute, directRoute, compactRoute});
       expect(getRouteExecutionChain('/defaultRoute')!.serializer).toBe(SerializerModes.json);
       expect(getRouteExecutionChain('/directRoute')!.serializer).toBe(SerializerModes.stringifyJson);
       expect(getRouteExecutionChain('/compactRoute')!.serializer).toBe(SerializerModes.json);
-      expect(getRouteExecutionChain('/binaryRoute')!.serializer).toBe(SerializerModes.binary);
     });
 
     it('a direct middleFn WITH return data makes its chain stringifyJson; one without data does not', () => {
@@ -175,39 +155,6 @@ describe('encoder strategies at the router level', () => {
       resetRouter();
       mion.initRoutes({silentMiddleFn, defaultRoute});
       expect(getRouteExecutionChain('/defaultRoute')!.serializer).toBe(SerializerModes.json);
-    });
-
-    it('a merged batch chain is binary only when every route answers binary', async () => {
-      mion.initRoutes({defaultRoute, directRoute, binaryRoute});
-      registerBatches({
-        mixedBinary: {routes: ['defaultRoute', 'binaryRoute']},
-        withDirect: {routes: ['defaultRoute', 'directRoute']},
-        allBinary: {routes: ['binaryRoute']},
-      });
-      const send = (id: string, body: Record<string, unknown[]>) => {
-        const request = {headers: headersFromRecord({}), body: JSON.stringify(body)};
-        return dispatchRoute(
-          MION_BATCH_PATH,
-          request.body,
-          request.headers,
-          headersFromRecord({}),
-          request,
-          {},
-          undefined,
-          `id=${id}`
-        );
-      };
-      const mixed = await send('mixedBinary', {defaultRoute: [pet()], binaryRoute: [pet()]});
-      expect(mixed.serializer).toBe(SerializerModes.json);
-      // json framing: the body holds each route's JSON-ready value, which the platform stringifies
-      const wire = {...pet(), born: pet().born.toISOString()};
-      expect(mixed.body.defaultRoute).toEqual(wire);
-      expect(mixed.body.binaryRoute).toEqual(wire);
-      const direct = await send('withDirect', {defaultRoute: [pet()], directRoute: [pet()]});
-      expect(direct.serializer).toBe(SerializerModes.stringifyJson);
-      expect(JSON.parse(direct.rawBody as string).directRoute.name).toBe('rex');
-      const all = await send('allBinary', {binaryRoute: [pet()]});
-      expect(all.serializer).toBe(SerializerModes.binary);
     });
   });
 
@@ -221,7 +168,6 @@ describe('encoder strategies at the router level', () => {
     const wideRow = {...pet(), secret: 'do not send', notes: 'internal', size: 42};
     const trimmedRoute = mion.route((ctx): Pick<Pet, 'name'> => wideRow as Pick<Pet, 'name'>);
     const mutateRoute = mion.route((ctx): Pick<Pet, 'name'> => ({...wideRow}) as Pick<Pet, 'name'>, {encoder: 'mutate'});
-    const binaryRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'binary'});
     const directRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'direct'});
 
     it('compact params arrive as positional arrays and the handler gets the objects back', async () => {
@@ -281,27 +227,57 @@ describe('encoder strategies at the router level', () => {
       expect(response.serializer).toBe(SerializerModes.stringifyJson);
       expect(JSON.parse(response.rawBody as string).directRoute).toEqual(JSON.parse(JSON.stringify(pet())));
     });
+  });
 
-    it('a JSON request to a binary route still decodes: binary is added beside the json pair', async () => {
-      mion.initRoutes({binaryRoute});
-      const response = await dispatchJson('binaryRoute', [pet()]);
+  // A middleFn declaring no `encoder` of its own inherits the route's wire like any chain member.
+  // Its params and its return value must BOTH survive the round trip: a chain member whose data is
+  // dropped from the body is silent data loss, which is what this pins against.
+  describe('a chain member with no encoder of its own', () => {
+    const stamp = compactMion.middleFn((ctx, tag?: string): {tag: string} | null => (tag ? {tag} : null));
+    const compactRoute = compactMion.route((ctx, p: Pet): Pet => p);
+
+    it('a plain middleFn carries its params AND its return value on the compact wire', async () => {
+      compactMion.initRoutes({stamp, compactRoute});
+      const stampExec = getMiddleFnExecutable('stamp')!;
+      const routeExec = getRouteExecutable('compactRoute')!;
+      // the middleFn rides the router-wide wire, exactly like the route
+      expect(stampExec.options.encoder).toEqual({params: 'compact', return: 'compact'});
+      expect(routeExec.options.encoder).toEqual({params: 'compact', return: 'compact'});
+
+      const encodeStamp = stampExec.paramsJitFns.json.encode.fn;
+      const encodeRoute = routeExec.paramsJitFns.json.encode.fn;
+      const body = {
+        stamp: JSON.parse(JSON.stringify(encodeStamp(['marked']))),
+        compactRoute: JSON.parse(JSON.stringify(encodeRoute([pet()]))),
+      };
+      const request = {headers: headersFromRecord({}), body: JSON.stringify(body)};
+      const response = await dispatchRoute('/compactRoute', request.body, request.headers, headersFromRecord({}), request, {});
       expect(response.hasErrors).toBe(false);
-      expect((response.body.binaryRoute as Pet).name).toBe('rex');
-      // and the binary wire works as well
-      const path = '/binaryRoute';
-      const chain = getRouteExecutionChain(path)!.methods as RemoteMethod[];
-      const buffer = serializeBinaryBody(path, chain, {binaryRoute: [pet()]}, false).serializer.getBuffer();
-      const binaryResponse = await dispatchRoute(
-        path,
-        buffer,
-        headersFromRecord({'content-type': 'application/octet-stream'}),
-        headersFromRecord({}),
-        {headers: headersFromRecord({}), body: buffer},
-        {},
-        SerializerModes.binary
-      );
-      const {body} = deserializeBinaryBody(path, binaryResponse.binSerializer!.getBufferView(), true);
-      expect(body.binaryRoute).toEqual(pet());
+      // the middleFn read its params (so they reached the server) and its return value is on the wire
+      const decodeStamp = stampExec.returnJitFns.json.decode.fn;
+      expect(decodeStamp(response.body.stamp)).toEqual({tag: 'marked'});
+      expect(response.body.compactRoute).toBeDefined();
+    });
+  });
+
+  // `binary` is not a wire strategy. The generic strategy error names the ones that are.
+  describe('an unknown strategy', () => {
+    it('rejects it on a route, on a middleFn and on the router option', () => {
+      const badRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'binary' as unknown as 'compact'});
+      expect(() => mion.initRoutes({badRoute})).toThrow(/invalid encoder strategy 'binary'/);
+      resetRouter();
+      const badMiddleFn = mion.middleFn((ctx): string => 'x', {encoder: 'binary' as unknown as 'compact'});
+      const okRoute = mion.route((ctx, p: Pet): Pet => p);
+      expect(() => mion.initRoutes({badMiddleFn, okRoute})).toThrow(/invalid encoder strategy 'binary'/);
+      resetRouter();
+      const badRouter = createMionRouter({encoder: 'binary' as unknown as 'compact'});
+      const inherits = badRouter.route((ctx, p: Pet): Pet => p);
+      expect(() => badRouter.initRoutes({inherits})).toThrow(/invalid encoder strategy 'binary'/);
+    });
+
+    it('names the strategies that do exist', () => {
+      const badRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'binary' as unknown as 'compact'});
+      expect(() => mion.initRoutes({badRoute})).toThrow(/clone, mutate, direct, compact/);
     });
   });
 });

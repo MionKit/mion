@@ -44,12 +44,10 @@ export const MION_FN_KEYS = [
   'cj',
   'rj',
   'cjr',
-  'tb',
-  'fb',
 ] as const satisfies readonly FnHashKey[];
 
 /** Projects the injected payload onto its family tags. Each entry tuple's slot 0 is the emitting
- *  family (`pj`, `cjr`, `tb`, …, the tag `CompiledFnData.familyTag` carries), so no positional
+ *  family (`pj`, `cjr`, `sj`, …, the tag `CompiledFnData.familyTag` carries), so no positional
  *  contract is needed: the array is only as long as the families the strategy demanded. */
 function byFamilyTag(injected: unknown[]): Partial<Record<FnHashKey, unknown>> {
   const out: Record<string, unknown> = {};
@@ -94,11 +92,6 @@ export interface RtMethodReflection {
   returnJitHash: string;
   hasReturnData: boolean;
   isAsync: boolean;
-  /** Compile-time binary size estimates (bytes) for the params / return types, read from the `tb`
-   *  entry tuples. Used to size a cold binary buffer to the type. SERVER-SIDE only — deliberately
-   *  kept off the client methods-metadata payload (getSerializableMethod's explicit field list). */
-  paramsBinarySizeEstimate?: number;
-  returnBinarySizeEstimate?: number;
   headersParam?: RtHeadersReflection;
   headersReturn?: RtHeadersReflection;
 }
@@ -231,8 +224,8 @@ function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: s
   return {strategy, encodeFamily: encodeFamilies[0], decodeFamily: decodeFamilies[0]};
 }
 
-/** Builds mion JitCompiledFunctions from one injected marker payload: the validators, ONE json pair,
- *  and the binary pair only when the direction is `binary`. Throws when the marker was never injected. */
+/** Builds mion JitCompiledFunctions from one injected marker payload: the validators and ONE json
+ *  pair. Throws when the marker was never injected. */
 export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: string): JitCompiledFunctions {
   if (!isInjectedFnsArray(injected))
     throw new Error(
@@ -248,29 +241,18 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
         `val/verr are required). Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
   const {strategy, encodeFamily, decodeFamily} = strategyFromFamilies(fns, label);
-  if ((fns.tb === undefined) !== (fns.fb === undefined))
-    throw new Error(`RunTypes: the binary families for '${label}' must come as a pair (tb + fb), got only one.`);
-  const hasBinary = fns.tb !== undefined;
   const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
   const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
   const encode = getRTFunction<'pj'>(fns[encodeFamily], identity as JsonEncodeFn);
   const decode = getRTFunction<'rj'>(fns[decodeFamily], identity as never);
   const hasUnknownKeys = getRTFunction<'huk'>(fns.huk, alwaysFalse);
   const unknownKeyErrors = getRTFunction<'uke'>(fns.uke, noUnknownKeyErrors);
-  // initialize the binary tuples so their entries land in the cache; they are only exposed when a
-  // REAL entry exists, an identity fallback would silently corrupt binary streams
-  if (hasBinary) {
-    getRTFunction<'tb'>(fns.tb);
-    getRTFunction<'fb'>(fns.fb);
-  }
   // formatTransform (sanitizeParams) follows the same rule: a real, non-noop entry or nothing
   if (fns.fmt !== undefined) getRTFunction<'fmt'>(fns.fmt);
   // getRTFunction initialized the injected tuples, so the full entries are now
   // resolvable from the mion cache under `<fnHashPrefix>_<typeId>`.
-  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, strategy, hasBinary);
+  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, strategy);
   const utl = getRTUtils();
-  const toBinaryEntry = hashes.toBinary ? utl.getRT(hashes.toBinary) : undefined;
-  const fromBinaryEntry = hashes.fromBinary ? utl.getRT(hashes.fromBinary) : undefined;
   const formatTransformEntry = hashes.formatTransform ? utl.getRT(hashes.formatTransform) : undefined;
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
@@ -282,7 +264,6 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
       encode: resolveFn(encode as AnyFn, encodeFamily, label, hashes.encode),
       decode: resolveFn(decode as AnyFn, decodeFamily, label, hashes.decode),
     },
-    ...(toBinaryEntry && fromBinaryEntry ? {binary: {toBinary: toBinaryEntry, fromBinary: fromBinaryEntry}} : {}),
     ...(formatTransformEntry && !formatTransformEntry.isNoop ? {formatTransform: formatTransformEntry} : {}),
   } as JitCompiledFunctions;
 }
@@ -385,10 +366,6 @@ export function getReflectionFromMarkers(
     returnJitHash: returnTypeId,
     hasReturnData: runTypeHasData(returnRunType),
     isAsync: resolveIsAsync(rtFns.isAsyncId, handler),
-    // Read off the registered cache entry: @mionjs/run-types 0.12.1 carries the compile-time
-    // estimate on CompiledFnData, so this is a named field rather than a tuple slot index.
-    paramsBinarySizeEstimate: paramsJitFns.binary?.toBinary.binarySizeEstimate,
-    returnBinarySizeEstimate: returnJitFns.binary?.toBinary.binarySizeEstimate,
   };
   // any handler returning a HeadersSubset (directly or in a union) sets response headers:
   // expose the declared names + validation fns so dispatch can apply/validate them

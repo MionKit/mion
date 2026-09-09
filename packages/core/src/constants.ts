@@ -47,11 +47,9 @@ export const MION_ROUTES = {
 
 /**
  * Mime types used by mion.
- * Only json and binary are supported out of the box.
  */
 export const MIME_TYPES = {
   json: 'application/json',
-  octetStream: 'application/octet-stream',
 } as const;
 
 /**
@@ -99,8 +97,6 @@ export const JIT_FUNCTION_IDS = {
   typeErrors: getFnHash('verr'),
   hasUnknownKeys: getFnHash('huk'), // strictTypes
   unknownKeyErrors: getFnHash('uke'), // strictTypes
-  toBinary: getFnHash('tb'),
-  fromBinary: getFnHash('fb'),
   formatTransform: getFnHash('fmt'), // sanitizeParams
   // the JSON families, one encoder per strategy and the two decoders (see ENCODE_FAMILY_BY_STRATEGY)
   pjs: getFnHash('pjs'),

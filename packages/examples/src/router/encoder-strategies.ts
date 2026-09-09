@@ -11,7 +11,7 @@ export const defaultMion = createMionRouter({basePath: 'api'});
 
 // start-compact
 // 'compact' drops the key names: an object rides as an array of its declared properties, in order.
-// 40 to 60 percent fewer bytes on real objects. Both ends must share the type, like binary.
+// 40 to 60 percent fewer bytes on real objects. Both ends must share the type.
 export const compactMion = createMionRouter({encoder: 'compact'});
 // end-compact
 

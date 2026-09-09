@@ -27,10 +27,10 @@ const routes = {
         return 'Success!';
     }),
 
-    // Binary lane: proves the packed serializer travels to bun too, not just node.
-    binary: {
-        echo: mion.route((_ctx, message: string): string => message, {encoder: 'binary'}),
-        getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'binary'}),
+    // Compact lane: proves the packed serializer travels to bun too, not just node.
+    compact: {
+        echo: mion.route((_ctx, message: string): string => message, {encoder: 'compact'}),
+        getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'compact'}),
     },
 } satisfies Routes;
 

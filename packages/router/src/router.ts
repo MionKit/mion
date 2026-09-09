@@ -29,7 +29,7 @@ import {
   isPublicExecutable,
 } from './types/guards.ts';
 import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveEncoder} from '@mionjs/core';
-import {getRawMethodReflection, getHandlerReflection, ensureBinaryJitFns, assertCompiledEncoder} from './lib/reflection.ts';
+import {getRawMethodReflection, getHandlerReflection, assertCompiledEncoder} from './lib/reflection.ts';
 import {getChainFraming} from './lib/framing.ts';
 import {callerForType} from './dispatch.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
@@ -218,13 +218,11 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   // no client asked for metadata, which is every request but the ones that did
   const metadataMiddleFn = middleFnsById.get(MION_ROUTES.methodsMetadata);
   if (metadataMiddleFn) useOnDemandMetadataCaller(metadataMiddleFn as RemoteMethod);
-  const binaryMiddlewares = new Set<string>();
-  recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
+  recursiveFlatRoutes(routes, [], [], [], 0);
   // every method this call could register is registered, and the options are frozen, so the
   // dispatcher's await rule is settled here instead of on every request
   alwaysAwait = routerOptions.alwaysAwait && hasAsyncMethods;
   allExecutablesIds = undefined; // the memoized id list must see the routes registered by this call
-  if (binaryMiddlewares.size > 0) compileBinaryForMiddleware(binaryMiddlewares);
   if (shouldFullGenerateSpec()) {
     return getPublicApi(routes);
   }
@@ -316,7 +314,6 @@ function recursiveFlatRoutes(
   currentPointer: string[] = [],
   preMiddleFns: RemoteMethod[] = [],
   postMiddleFns: RemoteMethod[] = [],
-  binaryMiddlewares: Set<string> = new Set(),
   nestLevel = 0
 ) {
   if (nestLevel > MAX_ROUTE_NESTING)
@@ -377,7 +374,6 @@ function recursiveFlatRoutes(
       newPointer,
       preMiddleFns,
       postMiddleFns,
-      binaryMiddlewares,
       nestLevel,
       index,
       entries,
@@ -393,7 +389,6 @@ function recursiveCreateExecutionChain(
   currentPointer: string[],
   preMiddleFns: RemoteMethod[],
   postMiddleFns: RemoteMethod[],
-  binaryMiddlewares: Set<string>,
   nestLevel: number,
   index: number,
   routeKeyedEntries: RouterKeyEntryList,
@@ -427,28 +422,18 @@ function recursiveCreateExecutionChain(
     const executionChain: MethodsExecutionChain = {
       routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
       methods,
-      serializer: getChainFraming(methods, routeMethod.options.encoder.return === 'binary'),
+      serializer: getChainFraming(methods),
     };
     const middleFnIds = getPublicMiddleFnIds(methods);
     // add middleware functions deps, so can be serialized with the router
     if (middleFnIds.length) routeMethod.middleFnIds = middleFnIds;
     flatRouter.set(path, executionChain);
-    // a binary route's middleFns ride the same binary bodies: check each compiled the binary pair
-    // (their own `encoder` or the router-wide one must say binary), warn otherwise
-    if (routeMethod.options.encoder.return === 'binary' || routeMethod.options.encoder.params === 'binary') {
-      for (const method of methods) {
-        if (method.type === HandlerType.middleFn || method.type === HandlerType.headersMiddleFn) {
-          binaryMiddlewares.add(method.id);
-        }
-      }
-    }
   } else if (!isExec) {
     recursiveFlatRoutes(
       routeEntry.routes,
       routeEntry.pathPointer,
       [...preMiddleFns, ...props.preLevelMiddleFns],
       [...props.postLevelMiddleFns, ...postMiddleFns],
-      binaryMiddlewares,
       nestLevel + 1
     );
   }
@@ -548,16 +533,6 @@ export function getExecutableFromRawMiddleFn(middleFn: RawMiddleFnDef, middleFnP
   rawMiddleFnsById.set(middleFnId, executable);
   routesCache.setMethodJitFns(middleFnId, executable as any);
   return executable;
-}
-
-/** Retroactively compiles binary JIT functions for middleware in the path of binary routes */
-function compileBinaryForMiddleware(binaryMiddlewareIds: Set<string>): void {
-  for (const id of binaryMiddlewareIds) {
-    // the internal mion methods pin their own encoder (the metadata middleFn answers json on purpose)
-    if (mionInternalRoutes.includes(id)) continue;
-    const method = middleFnsById.get(id);
-    if (method) ensureBinaryJitFns(method as MiddleFnMethod);
-  }
 }
 
 export function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteMethod {

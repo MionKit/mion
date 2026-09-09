@@ -15,8 +15,7 @@ import {
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, SerializerModes, configureBinary, toResponseBody} from '@mionjs/core';
-import type {BinaryOptionsPatch} from '@mionjs/core';
+import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {Server} from 'bun';
@@ -42,13 +41,6 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
   return httpOptions;
 }
 
-/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
- *  because Bun copies the response bytes synchronously, so the buffer is released as soon as the
- *  Response is constructed. */
-function applyBinaryOptions(binary: BinaryOptionsPatch): void {
-  configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
-}
-
 /** Dispatches one web Request through the router. Exported so the same handler mion serves can be
  *  mounted in a host that owns the socket: your own `Bun.serve({fetch: bunRequestHandler})`, or a
  *  vite dev server in middleware mode (see `asMiddleware`). */
@@ -58,15 +50,13 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   const queryStart = reqUrl.indexOf('?', pathStart);
   const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
-  const contentType = req.headers.get('content-type') || '';
-  const isBinary = contentType.startsWith('application/octet-stream');
   const responseHeaders = new Headers(defaultHeaders);
 
   // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
   // outside any mion envelope, and the router's own limit needs the size before parsing.
   try {
-    let rawBody: any = req.body ? (isBinary ? await req.arrayBuffer() : await req.text()) : undefined;
-    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+    let rawBody: any = req.body ? await req.text() : undefined;
+    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     const queryBody = decodeQueryBody(urlQuery, rawBody);
     if (queryBody) {
       rawBody = queryBody.rawBody;
@@ -85,15 +75,6 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
           });
     return fatalFail(error, responseHeaders);
   }
-}
-
-/** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
-function missingBinaryPayload(): RpcError<'unknown-error'> {
-  return new FatalError({
-    publicMessage: 'Internal Server Error',
-    type: 'unknown-error',
-    message: 'binary response without a payload',
-  });
 }
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
@@ -131,7 +112,6 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setBunHttpOpts(options);
-  applyBinaryOptions(httpOptions.binary);
 
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `http://localhost${port}`;
@@ -199,20 +179,6 @@ function reply(
         status: mionResp.statusCode,
         headers: responseHeaders,
       });
-    }
-    case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer;
-      if (!serializer) return fatalFail(missingBinaryPayload(), responseHeaders);
-      responseHeaders.set('content-length', String(serializer.getLength()));
-      // content-type already set by serializer
-      const response = new Response(toResponseBody(serializer.getBufferView()), {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-      // Bun copies the bytes into the Response synchronously (proven by
-      // bunHttp.binary.test.ts), so the buffer can go back immediately.
-      mionResp.releaseBinBuffer?.();
-      return response;
     }
     default: {
       const error = new FatalError({

@@ -124,11 +124,12 @@ export function useOnDemandMetadataCaller(executable: RemoteMethod): void {
 }
 
 export const mionClientMiddleFns = {
-  // params `binary`: the metadata ask piggybacks on ANY request, binary bodies included (the json
-  // pair rides beside it). return `clone`: it never mutates the cached metadata it returns and frames
-  // as json, so a chain's framing is still decided by its route (the middleFn forces stringifyJson
+  // Pins the built-in default on BOTH directions, whatever the router-wide encoder is: this middleFn
+  // is declared outside any factory, so the build compiles it against the default, and the metadata
+  // ask piggybacks on any request. It never mutates the cached metadata it returns and frames as
+  // json, so a chain's framing is still decided by its route (the middleFn forces stringifyJson
   // itself when it answers).
-  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {alwaysRun: true, encoder: {params: 'binary', return: 'clone'}}),
+  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {alwaysRun: true, encoder: {params: 'clone', return: 'clone'}}),
 } as const satisfies MiddleFnsCollection;
 
 export const mionClientRoutes = {
