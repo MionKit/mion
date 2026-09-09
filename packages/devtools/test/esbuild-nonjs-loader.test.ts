@@ -68,7 +68,7 @@ describe('esbuild build / @mionjs/devtools/runtypes/esbuild entry', () => {
               genDir: OUT_DIR,
               // Same opt-out as build-rollup.test.ts: the marker package's test
               // program deliberately contains Error-severity types.
-              failOnError: false,
+              downgradeErrors: '*',
             }),
           ],
         });

@@ -25,9 +25,13 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     expect(toRunTypesOptions({emitMode: 'both'}).emitMode).toBe('both');
   });
 
-  it('defaults failOnError to true so Error diagnostics halt the build', () => {
-    expect(toRunTypesOptions({}).failOnError).toBe(true);
-    expect(toRunTypesOptions({failOnError: false}).failOnError).toBe(false);
+  it('downgrades nothing by default so Error diagnostics halt the build', () => {
+    // Passed through UNDEFINED rather than defaulted, so a tsconfig-only
+    // `downgradeErrors` still reaches the host: the echo can only win over an
+    // absent option.
+    expect(toRunTypesOptions({}).downgradeErrors).toBeUndefined();
+    expect(toRunTypesOptions({downgradeErrors: '*'}).downgradeErrors).toBe('*');
+    expect(toRunTypesOptions({downgradeErrors: ['VL002']}).downgradeErrors).toEqual(['VL002']);
   });
 
   it('maps tsConfig onto the resolver tsconfig key and accepts the outDir alias', () => {
@@ -57,7 +61,7 @@ describe('neither preset maps resolver options on its own', () => {
       // These are the keys the shared mapping sets. A preset assigning one itself is
       // either a duplicate or a divergence; both are the failure this guards.
       const source = read(file);
-      for (const key of ['binary:', 'tsconfig:', 'failOnError:', 'patternSampleCount:', 'jsRuntime:']) {
+      for (const key of ['binary:', 'tsconfig:', 'downgradeErrors:', 'patternSampleCount:', 'jsRuntime:']) {
         expect(source, `${file} assigns ${key} itself instead of via toRunTypesOptions`).not.toContain(`    ${key}`);
       }
     });

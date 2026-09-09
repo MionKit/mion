@@ -666,14 +666,14 @@ describe('request-batch diagnostics and readable shapes', () => {
     });
   });
 
-  describe('failOnError: false', () => {
+  describe('downgradeErrors: [BAT001]', () => {
     register('the build goes on, the report lacks the unreadable batch, and its call gets no id', async () => {
       const bad =
         IMPORTS + `const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);\n`;
       const good = IMPORTS + `export const b = batch([routes.users.getById(1)]);\n`;
-      await withBuild({'bad.ts': bad, 'good.ts': good}, {failOnError: false}, async (run) => {
-        expect(run.error, 'a BAT001 must not halt under failOnError: false').toBeNull();
-        const hits = run.warns.filter((w) => w.includes('error BAT001:'));
+      await withBuild({'bad.ts': bad, 'good.ts': good}, {downgradeErrors: ['BAT001']}, async (run) => {
+        expect(run.error, 'a downgraded BAT001 must not halt the build').toBeNull();
+        const hits = run.warns.filter((w) => w.includes('warning BAT001:'));
         expect(hits.length, 'the diagnostic still surfaces as a warning').toBe(1);
         expect(hits[0]).toContain(`${fileTail('bad.ts')}(${lineOf(bad, '...prepared')},`);
         expect(run.sites.map((s) => path.basename(s.file))).toEqual(['good.ts']);

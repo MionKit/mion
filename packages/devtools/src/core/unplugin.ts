@@ -8,6 +8,7 @@ import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Family, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
+import {DOWNGRADE_ALL, isDowngraded, resolveDowngradeErrors, type DowngradeSet} from './downgradeErrors.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
@@ -41,7 +42,7 @@ export interface EnrichI18nSyncOptions {
 // value-preserving scaffold + reconcile the `mion enrich --update` CLI
 // does — NEVER translated content, NEVER an LLM. A production `vite build` never
 // writes: it runs a read-only completeness gate (the plugin analog of `enrich
-// --require-complete`) that warns, and under failOnError fails the build, when a
+// --require-complete`) that warns, and fails the build, when a
 // mirror is stale/missing OR still carries an unfilled @todo / blank value.
 export interface EnrichSyncOptions {
   // Auto gen + sync the FriendlyText mirrors under <genDir>/enriched/friendly/.
@@ -233,17 +234,28 @@ export interface PluginOptions {
   // so this trims the heaviest single wire item at no cost to debuggability in
   // a normal build. No effect in 'edits' mode (the FE generates its own map).
   sourcesContent?: boolean;
-  // Whether Error-severity build diagnostics (FMT002 param contradictions,
-  // root-position non-serializable types, …) FAIL the build/transform in every
-  // lane — `vite build`, vitest, dev serve — matching the documented contract
-  // ("Error = will throw at runtime, build must fail"). Default true. Set
-  // false for programs that deliberately contain error-case types (e.g. a
-  // test suite pinning the runtime alwaysThrow behavior): diagnostics then
-  // surface as bundler warnings only. Pure-fn extraction errors always halt
-  // regardless — files-mode has no fallback for a failed generation, so
-  // proceeding would break the build anyway. HMR updates never hard-fail
-  // mid-edit either way; the halt re-applies on the next build/test run.
-  failOnError?: boolean;
+  // Error-severity diagnostics (FMT002 param contradictions, root-position
+  // non-serializable types, …) FAIL the build/transform in every lane —
+  // `vite build`, vitest, dev serve — matching the documented contract
+  // ("Error = will throw at runtime, build must fail"). `downgradeErrors` names
+  // the codes to report as WARNINGS instead, so a project blocked on one
+  // finding keeps failing on every other; the finding is still printed, which
+  // is the difference between unblocking and hiding.
+  //
+  // `'*'` downgrades the lot. That is the adoption setting, for a project
+  // turning mion on that cannot yet name the codes it has not met; naming codes
+  // is what to reach for once they are known. `['*']` means the same.
+  //
+  // For a bad call site in your OWN source, prefer a `@mion-expect-error`
+  // comment on the line above it: precise, and an unused one is reported, so it
+  // cannot outlive the problem. This option is for findings you cannot annotate
+  // — raised inside a dependency, or carrying no source line at all.
+  //
+  // Pure-fn extraction errors halt regardless, `'*'` included: files-mode has no
+  // fallback for a failed generation, so proceeding would break the build
+  // anyway. HMR updates never hard-fail mid-edit either way; the halt re-applies
+  // on the next build/test run.
+  downgradeErrors?: string[] | typeof DOWNGRADE_ALL;
   // JS runtime (node/bun path) the resolver runs format-pattern checks on
   // (--js-runtime). Host-specific like `binary` — no tsconfig key. Default:
   // this plugin's own process.execPath, so the serve lane always has a
@@ -347,6 +359,19 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
   return [MARKER_MODULE, ...(markers?.packages ?? [])].flatMap((mod) => [`'${mod}`, `"${mod}`]);
 }
 
+// assertNoFailOnError stops a config that still carries the retired boolean.
+// Silence would be the worst outcome: the option is simply ignored, the build
+// goes strict, and a project that deliberately opted out starts failing with no
+// idea why.
+function assertNoFailOnError(options: PluginOptions): void {
+  if (!('failOnError' in options)) return;
+  throw new Error(
+    '[@mionjs/devtools] `failOnError` was removed. Use `downgradeErrors`:\n' +
+      `    failOnError: false  ->  downgradeErrors: '${DOWNGRADE_ALL}'\n` +
+      '    failOnError: true   ->  the default, drop the option'
+  );
+}
+
 // @mionjs/devtools is built on unplugin: ONE factory, many bundler entry
 // points (@mionjs/devtools/runtypes/vite, /rollup, /webpack, /rspack, /esbuild are
 // `unplugin.<bundler>` from this instance). Files-mode: the resolver writes
@@ -363,13 +388,17 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // Computed once per plugin instance: the fallback pre-filter's import probes
   // for the project's marker packages (null = package gate disabled).
   const markerProbes = markerImportProbes(options.markers);
-  // Error-severity diagnostics fail the build/transform in every lane unless
-  // explicitly opted out (see PluginOptions.failOnError). Precedence is
-  // tsc-style: the explicit plugin option wins, else the tsconfig `failOnError`
-  // echoed on the generate response (adopted in buildStart below), else the
-  // built-in true. Seeded with the option-or-true default so the transform lane
-  // is safe even if buildStart never ran on this host.
-  let failOnError: boolean = options.failOnError ?? true;
+  // `failOnError` was removed in favour of `downgradeErrors`; a config still
+  // carrying it would otherwise silently go strict, which is the opposite of
+  // what its author asked for.
+  assertNoFailOnError(options);
+  // Error-severity diagnostics fail the build/transform in every lane except
+  // the codes `downgradeErrors` names (see PluginOptions.downgradeErrors).
+  // Precedence is tsc-style: the explicit plugin option wins, else the tsconfig
+  // `downgradeErrors` echoed on the generate response (adopted in buildStart
+  // below), else nothing downgraded. Seeded from the option alone so the
+  // transform lane behaves even if buildStart never ran on this host.
+  let downgrade: DowngradeSet = resolveDowngradeErrors(options.downgradeErrors);
   // Resolve the pure-fn report tri-state into the two low-level resolver flags.
   // An explicit `false` wins even when a handler is set; an unset value with a
   // handler defaults to 'callback' (data, no file). Validated at the host
@@ -590,8 +619,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     if (result.addedRunTypes || result.addedPureFns) await resolver!.generate();
     // A file the buildStart scan couldn't have seen can introduce NEW
     // Error-severity diagnostics — surface them here so the transform fails
-    // per the failOnError contract (warnings already surfaced program-wide).
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], (d) => d.severity === Severity.Error, {halt: failOnError});
+    // per the strict contract (warnings already surfaced program-wide).
+    surfaceDiagnostics(ctx, result.diagnostics ?? [], (d) => d.severity === Severity.Error, {halt: true, downgrade});
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
     const fileResult = result.transformed[rel];
     if (!fileResult || typeof fileResult.code !== 'string') return null;
@@ -619,8 +648,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     let result = await resolver!.transform([rel], {emitEdits: true});
     if (result.addedRunTypes || result.addedPureFns) await resolver!.generate();
     // New Error-severity diagnostics from a file the buildStart scan couldn't
-    // have seen — fail the transform per the failOnError contract.
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], (d) => d.severity === Severity.Error, {halt: failOnError});
+    // have seen — fail the transform per the strict contract.
+    surfaceDiagnostics(ctx, result.diagnostics ?? [], (d) => d.severity === Severity.Error, {halt: true, downgrade});
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
     let fileResult = result.transformed[rel];
     if (!fileResult) return null;
@@ -719,7 +748,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   //   - INCOMPLETE: unfilled @todo scaffolds or blank values (empty label /
   //     message / pool) over the computed mirrors — the daemon's hygiene findings.
   //
-  // Both warn; under failOnError both fail the build. Dev/watch takes syncEnrich
+  // Both warn, and both fail the build. Dev/watch takes syncEnrich
   // instead, which writes the scaffolds and tolerates the blanks (the developer is
   // mid-authoring). Never mutates committed source.
   async function enrichDriftGate(ctx: any): Promise<void> {
@@ -736,7 +765,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // Unfilled @todo scaffolds + blank values over the computed mirrors. These
       // are Error-severity here (unlike dev): a production build must not ship an
       // app with blank labels/translations.
-      incomplete = (result.diagnostics ?? []).filter((d) => d.severity === Severity.Error);
+      incomplete = (result.diagnostics ?? []).filter((d) => d.severity === Severity.Error && !isDowngraded(downgrade, d));
     } catch {
       return;
     }
@@ -747,7 +776,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       );
     }
     for (const diagnostic of incomplete) ctx.warn?.(formatTscDiagnostic(diagnostic));
-    if (failOnError) {
+    // The stale-mirror half carries no diagnostic code, so only the wildcard can
+    // stand it down — which is exactly what the retired `failOnError: false` did.
+    if (!downgrade.all) {
       const parts: string[] = [];
       if (stale.length > 0) parts.push(`${stale.length} out of date or missing`);
       if (incomplete.length > 0) parts.push(`${incomplete.length} incomplete (unfilled @todo / blank value)`);
@@ -1034,10 +1065,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // CLI compile lane gets them too.
       const gen = await resolver!.generate();
       if (gen.outDir) genDirAbs = gen.outDir;
-      // Adopt the tsconfig-echoed failOnError as the halt default (the explicit
-      // plugin option still wins, then this echo, then the built-in true), so a
-      // tsconfig-only `failOnError: false` reaches the dependency-free host.
-      failOnError = options.failOnError ?? gen.failOnError ?? true;
+      // Adopt the tsconfig-echoed downgradeErrors (the explicit plugin option
+      // still wins, then this echo, then nothing downgraded), so a
+      // tsconfig-only setting reaches the dependency-free host.
+      downgrade = resolveDowngradeErrors(options.downgradeErrors ?? gen.downgradeErrors);
       // Pure-fn build report — fire the in-process callback with the whole
       // program's report (phase 'build'). Universal hook, so every adapter
       // (vite/rollup/rolldown/esbuild/rspack/webpack) gets it; a watch-mode
@@ -1054,9 +1085,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // virtual fallback, so a generation error is fatal). Every other family
       // (the RT render diagnostics — FMT002 param contradictions, root-position
       // non-serializable types, …) surfaces here too and halts per the
-      // failOnError contract, so dev/test lanes fail as loudly as `vite build`.
+      // downgradeErrors contract, so dev/test lanes fail as loudly as `vite build`.
       surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.family === Family.PureFn, {halt: true});
-      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.family !== Family.PureFn, {halt: failOnError});
+      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.family !== Family.PureFn, {halt: true, downgrade});
       // Enrichment auto-sync (opt-in). Dev/watch (vite serve) WRITES the demanded
       // mirrors up front — a whole-program pass so they exist before the first
       // edit; every other lane (a production build, a non-Vite bundler) runs the
@@ -1241,17 +1272,25 @@ export default unplugin;
 // `halt: false` is the HMR mode: a bad type during dev shouldn't kill
 // the server; the user is mid-edit. The diagnostic still flows to the
 // editor's Problems panel via `ctx.warn`.
+//
+// `downgrade` is where `downgradeErrors` takes effect, and doing it in this one
+// loop is what makes every halt site follow from it: a downgraded error prints
+// with the `warning` label plus a `(downgraded)` note, and stops counting
+// towards the halt. It is never hidden.
 function surfaceDiagnostics(
   ctx: any,
   diagnostics: Diagnostic[],
   filter: (d: Diagnostic) => boolean,
-  options: {halt: boolean}
+  options: {halt: boolean; downgrade?: DowngradeSet}
 ): void {
   let errorCount = 0;
   for (const diagnostic of diagnostics) {
     if (!filter(diagnostic)) continue;
-    ctx.warn?.(formatTscDiagnostic(diagnostic));
-    if (diagnostic.severity === Severity.Error) errorCount += 1;
+    const downgraded = options.downgrade !== undefined && isDowngraded(options.downgrade, diagnostic);
+    ctx.warn?.(
+      downgraded ? formatTscDiagnostic({...diagnostic, severity: Severity.Warning}, true) : formatTscDiagnostic(diagnostic)
+    );
+    if (diagnostic.severity === Severity.Error && !downgraded) errorCount += 1;
   }
   if (options.halt && errorCount > 0) {
     const noun = errorCount === 1 ? 'unsupported-type error' : 'unsupported-type errors';
@@ -1270,10 +1309,14 @@ function surfaceDiagnostics(
 // wire only carries the diagnostic code + optional positional args. Severity
 // is numeric on the wire — switch on it to pick the human label since
 // the canonical line format requires the word, not the digit.
-export function formatTscDiagnostic(d: Diagnostic): string {
+export function formatTscDiagnostic(d: Diagnostic, downgraded = false): string {
   const label = severityLabel(d.severity);
   const headline = renderHeadline(d.code, d.args);
-  let line = `${d.site.filePath}(${d.site.startLine},${d.site.startCol}): ${label} ${d.code}: ${headline}`;
+  // The note goes in the MESSAGE, after the code, so the `$tsc` matcher still
+  // reads the line: without it a configured-down finding is indistinguishable
+  // from one that was always a warning.
+  const suffix = downgraded ? ' (downgraded)' : '';
+  let line = `${d.site.filePath}(${d.site.startLine},${d.site.startCol}): ${label} ${d.code}: ${headline}${suffix}`;
   if (d.related && d.related.length > 0) {
     for (const r of d.related) {
       line += `\n  Related: ${r.filePath}(${r.startLine},${r.startCol}): ${r.message}`;

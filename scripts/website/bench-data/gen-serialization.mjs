@@ -248,13 +248,13 @@ async function loadSuiteWithPlugin() {
     // `extends` chain walks OUT of it, so bench.mjs mounts that chain too
     // (SERIALIZATION_TSCONFIG there must name this same file).
     //
-    // failOnError:false for the same reason packages/run-types/vitest.config.ts
+    // downgradeErrors:'*' for the same reason packages/run-types/vitest.config.ts
     // sets it — this is the marker package's OWN test program, and buildStart
     // scans everything tsconfig.test.json includes, alwaysThrow suites included.
     // Those deliberately hold Error-severity types (root-position symbols,
     // functions, …), so the strict default refuses to boot the project and the
     // bench dies before a single case is measured. Consumers keep the default.
-    plugins: [runtypesPlugin({binary: BIN, cwd: PACKAGE_ROOT, tsconfig: 'tsconfig.test.json', failOnError: false, ...OUTDIR_OPT})],
+    plugins: [runtypesPlugin({binary: BIN, cwd: PACKAGE_ROOT, tsconfig: 'tsconfig.test.json', downgradeErrors: '*', ...OUTDIR_OPT})],
   });
   try {
     const mod = await server.ssrLoadModule(SUITE_PATH);

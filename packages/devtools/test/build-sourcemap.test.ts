@@ -67,7 +67,7 @@ describe.each(['edits', 'go'] as const)('vite build / composite source map [tran
             // The marker package's test program deliberately contains
             // Error-severity types (alwaysThrow suites) — same opt-out as its
             // own vitest config.
-            failOnError: false,
+            downgradeErrors: '*',
           }) as never,
         ],
         build: {

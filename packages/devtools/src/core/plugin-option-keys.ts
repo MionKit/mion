@@ -28,7 +28,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   inlineMode: true,
   transformMode: true,
   sourcesContent: true,
-  failOnError: true,
+  downgradeErrors: true,
   jsRuntime: true,
   detachResolver: true,
   pureFnReport: true,

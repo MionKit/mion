@@ -50,9 +50,10 @@ describe('rollup build / @mionjs/devtools/runtypes/rollup entry', () => {
         tsconfig: 'tsconfig.test.json',
         genDir: OUT_DIR,
         // The marker package's test program deliberately contains
-        // Error-severity types (alwaysThrow suites) — same opt-out as its own
-        // vitest config; see fail-on-error.test.ts for the strict default.
-        failOnError: false,
+        // Error-severity types (alwaysThrow suites), across many codes and many
+        // files — the wildcard case; see downgrade-errors.test.ts for the
+        // strict default and the per-code form.
+        downgradeErrors: '*',
       }) as any;
       expect(plugin.name).toBe('@mionjs/devtools');
 

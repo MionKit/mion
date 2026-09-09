@@ -1,14 +1,19 @@
-// Error-severity diagnostics fail EVERY lane (the failOnError contract).
+// Error-severity diagnostics fail EVERY lane, and the two ways to stand one down.
 //
 // The documented severity line is "Warning = expected drop, fine; Error = will
 // throw at runtime, build must fail" — but the dev/test lanes used to reduce
 // Error diagnostics to bundler warnings that vitest output swallows, so a
 // contradictory format / non-validatable root could sit in a codebase with
 // green tests (found during the mion migration: FMT002 param contradictions
-// only failed `vite build`). buildStart now surfaces ALL diagnostic families
-// and halts on Error severity by default (failOnError: true); programs that
-// deliberately contain error-case types (like the marker package's own
-// alwaysThrow suites) opt out with failOnError: false and keep warnings-only.
+// only failed `vite build`). buildStart surfaces ALL diagnostic families and
+// halts on Error severity.
+//
+// A project blocked on a finding has two levers, and neither is a blanket:
+//   - `downgradeErrors: ['VL002']` reports those codes as warnings, still
+//     printed, still visible, just no longer fatal. `'*'` is the wildcard, for
+//     adoption, and is what the retired `failOnError: false` did.
+//   - `// @mion-expect-error VL002` above a call site REMOVES that finding, and
+//     an unused one is itself an error. Preferred whenever the site is yours.
 //
 // Driven through the rollup entry's hooks with a Rollup-like ctx whose
 // `error()` throws — exactly how Rollup/Vite/vitest react to ctx.error in
@@ -37,11 +42,12 @@ const TSCONFIG_SRC = JSON.stringify({
   include: ['*.ts'],
 });
 
-// Same project, but failOnError:false lives in the tsconfig plugin entry — the
-// value the Go side echoes on the generate response. A plugin using this tsconfig
-// with NO failOnError option must adopt the echo (options.failOnError ?? echoed
-// ?? true), proving the Go→JS failOnError parity.
-const TSCONFIG_FAILOFF_SRC = JSON.stringify({
+// Same project, but downgradeErrors lives in the tsconfig plugin entry — the
+// value the Go side echoes on the generate response. A plugin using this
+// tsconfig with NO downgradeErrors option must adopt the echo
+// (options.downgradeErrors ?? echoed), proving the Go→JS parity, and a LIST
+// proves the echo carries more than a boolean ever could.
+const TSCONFIG_DOWNGRADE_SRC = JSON.stringify({
   compilerOptions: {
     target: 'ES2022',
     module: 'ESNext',
@@ -49,7 +55,7 @@ const TSCONFIG_FAILOFF_SRC = JSON.stringify({
     strict: true,
     skipLibCheck: true,
     types: [],
-    plugins: [{name: 'mion', failOnError: false}],
+    plugins: [{name: 'mion', downgradeErrors: ['VL002']}],
   },
   include: ['*.ts'],
 });
@@ -60,6 +66,28 @@ const TSCONFIG_FAILOFF_SRC = JSON.stringify({
 // (static form + value-inferred form on equivalent T).
 const ERROR_ENTRY_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const bad = createValidateFn<symbol>();
+export const goodStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const goodReflected = getRunTypeId(sample);
+`;
+
+// The same Error program with a `@mion-expect-error` on the line above the bad
+// call. The finding is REMOVED, not downgraded, so nothing prints at all — and
+// the healthy marker sites below it still resolve.
+const EXPECT_ERROR_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+// @mion-expect-error VL002
+export const bad = createValidateFn<symbol>();
+export const goodStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const goodReflected = getRunTypeId(sample);
+`;
+
+// A directive over a HEALTHY call: nothing was reported there, so the comment is
+// stale and EXP001 fires. This is the check that stops these comments outliving
+// the problem they were added for, and it is what a config list can never do.
+const STALE_EXPECT_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+// @mion-expect-error VL002
+export const good = createValidateFn<{name: string}>();
 export const goodStatic = getRunTypeId<{name: string}>();
 const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
@@ -126,7 +154,7 @@ function makeCtx() {
   };
 }
 
-function makePlugin(entryDir: string, extra?: {failOnError?: boolean}) {
+function makePlugin(entryDir: string, extra?: Record<string, unknown>) {
   return runtypesRollup({
     binary: BIN,
     cwd: entryDir,
@@ -147,11 +175,13 @@ function writeFixture(dir: string, entrySrc: string, tsconfigSrc: string = TSCON
 const ERROR_DIR = path.join(FIXTURE_DIR, 'error-program');
 const WARNING_DIR = path.join(FIXTURE_DIR, 'warning-program');
 const UNRESOLVED_DIR = path.join(FIXTURE_DIR, 'unresolved-import-program');
-// Error program whose failOnError:false comes from the tsconfig, not a plugin option.
-const TSCONFIG_FAILOFF_DIR = path.join(FIXTURE_DIR, 'tsconfig-failoff-program');
+// Error program whose downgradeErrors comes from the tsconfig, not a plugin option.
+const TSCONFIG_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'tsconfig-downgrade-program');
 const COLLISION_DIR = path.join(FIXTURE_DIR, 'type-id-collision-program');
+const EXPECT_ERROR_DIR = path.join(FIXTURE_DIR, 'expect-error-program');
+const STALE_EXPECT_DIR = path.join(FIXTURE_DIR, 'stale-expect-program');
 
-describe('failOnError — Error-severity diagnostics fail the build in every lane', () => {
+describe('downgradeErrors — Error-severity diagnostics fail the build in every lane', () => {
   const register = hasBinary() ? it : it.skip;
 
   beforeAll(() => {
@@ -159,8 +189,10 @@ describe('failOnError — Error-severity diagnostics fail the build in every lan
     writeFixture(ERROR_DIR, ERROR_ENTRY_SRC);
     writeFixture(WARNING_DIR, WARNING_ENTRY_SRC);
     writeFixture(UNRESOLVED_DIR, UNRESOLVED_IMPORT_SRC);
-    writeFixture(TSCONFIG_FAILOFF_DIR, ERROR_ENTRY_SRC, TSCONFIG_FAILOFF_SRC);
+    writeFixture(TSCONFIG_DOWNGRADE_DIR, ERROR_ENTRY_SRC, TSCONFIG_DOWNGRADE_SRC);
     writeFixture(COLLISION_DIR, COLLISION_ENTRY_SRC, TSCONFIG_HASHLENGTH1_SRC);
+    writeFixture(EXPECT_ERROR_DIR, EXPECT_ERROR_SRC);
+    writeFixture(STALE_EXPECT_DIR, STALE_EXPECT_SRC);
   });
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
@@ -178,13 +210,16 @@ describe('failOnError — Error-severity diagnostics fail the build in every lan
     }
   });
 
-  register('failOnError: false — same program boots; diagnostics surface as warnings only', async () => {
-    const plugin = makePlugin(ERROR_DIR, {failOnError: false});
+  register("downgradeErrors: '*' — same program boots; the finding still prints, as a warning", async () => {
+    const plugin = makePlugin(ERROR_DIR, {downgradeErrors: '*'});
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx);
       const all = ctx.warnings.join('\n');
-      expect(all).toContain('error VL002');
+      // Downgraded, not hidden: the label flips and the note says why.
+      expect(all).toContain('warning VL002');
+      expect(all).toContain('(downgraded)');
+      expect(all).not.toContain('error VL002');
       // The transform still runs — the healthy sites inject; both getRunTypeId
       // call shapes resolve through the SAME entry module import.
       const transformed = (await callHook(plugin.transform, ctx, ERROR_ENTRY_SRC, path.join(ERROR_DIR, 'entry.ts'))) as {
@@ -192,6 +227,53 @@ describe('failOnError — Error-severity diagnostics fail the build in every lan
       } | null;
       expect(transformed).toBeTruthy();
       expect(transformed!.code).toContain('getRunTypeId');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('downgradeErrors names ONE code: that code stops halting, the rest do not', async () => {
+    const plugin = makePlugin(ERROR_DIR, {downgradeErrors: ['VL002']});
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx);
+      expect(ctx.warnings.join('\n')).toContain('warning VL002');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('a code the list does not name still halts — this is the whole point', async () => {
+    // MKR007 is a different Error in a different program. Naming VL002 must not
+    // buy amnesty for it, the way the retired blanket did.
+    const plugin = makePlugin(UNRESOLVED_DIR, {downgradeErrors: ['VL002']});
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      expect(ctx.warnings.join('\n')).toContain('error MKR007');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('a `@mion-expect-error` comment removes the finding outright', async () => {
+    const plugin = makePlugin(EXPECT_ERROR_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx); // must NOT throw — the finding is gone
+      const all = ctx.warnings.join('\n');
+      expect(all).not.toContain('VL002');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('an unused `@mion-expect-error` is itself an error (EXP001)', async () => {
+    const plugin = makePlugin(STALE_EXPECT_DIR);
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      expect(ctx.warnings.join('\n')).toContain('error EXP001');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -240,22 +322,24 @@ describe('failOnError — Error-severity diagnostics fail the build in every lan
     }
   });
 
-  register('tsconfig failOnError:false (echoed, no plugin option) downgrades the same Error to warnings only', async () => {
-    // failOnError comes ONLY from the tsconfig plugin entry; the plugin sets no
-    // failOnError option, so the halt default can only be the echoed tsconfig
-    // value (options.failOnError ?? echoed ?? true).
-    const plugin = makePlugin(TSCONFIG_FAILOFF_DIR);
+  register('tsconfig downgradeErrors (echoed, no plugin option) downgrades the same Error', async () => {
+    // The value comes ONLY from the tsconfig plugin entry, so a build that does
+    // not halt proves the echo reached the dependency-free host
+    // (options.downgradeErrors ?? echoed).
+    const plugin = makePlugin(TSCONFIG_DOWNGRADE_DIR);
     const ctx = makeCtx();
     try {
       await callHook(plugin.buildStart, ctx); // must NOT throw — the echo downgraded it
-      expect(ctx.warnings.join('\n')).toContain('error VL002');
+      expect(ctx.warnings.join('\n')).toContain('warning VL002');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
   });
 
-  register('plugin failOnError:true overrides a tsconfig failOnError:false (option > echo)', async () => {
-    const plugin = makePlugin(TSCONFIG_FAILOFF_DIR, {failOnError: true});
+  register('an explicit plugin option overrides the tsconfig echo (option > echo)', async () => {
+    // The tsconfig downgrades VL002; the plugin names a different code, so
+    // VL002 is strict again. An explicit option REPLACES the echo, never merges.
+    const plugin = makePlugin(TSCONFIG_DOWNGRADE_DIR, {downgradeErrors: ['MKR007']});
     const ctx = makeCtx();
     try {
       await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
@@ -263,5 +347,25 @@ describe('failOnError — Error-severity diagnostics fail the build in every lan
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
+  });
+
+  // Config-shape checks: these throw at the host boundary, before any build, so
+  // they need no binary and run everywhere.
+  it('rejects a downgradeErrors code that is not in the catalog', () => {
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL2']})).toThrow(/unknown diagnostic code/);
+  });
+
+  it('rejects a pure-function code: those mean generation failed', () => {
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['PFE9006']})).toThrow(/cannot downgrade PFE9006/);
+  });
+
+  it('accepts a Warning code and does nothing with it', () => {
+    // A code's severity can soften between releases; a list entry going inert
+    // must never break a consumer's build.
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL011']})).not.toThrow();
+  });
+
+  it('names the replacement when a config still passes the removed failOnError', () => {
+    expect(() => makePlugin(ERROR_DIR, {failOnError: false})).toThrow(/`failOnError` was removed/);
   });
 });

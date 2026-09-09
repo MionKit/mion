@@ -8,9 +8,9 @@ export default defineConfig({
   plugins: [
     // Needed by src/runtypes/* specs + the errors.ts class-serializer registration call site:
     // the @mionjs/devtools plugin injects the marker payloads at build time.
-    // failOnError defaults to false in mionVitePlugin (see its comment): the adapter's
-    // pure-fn helpers wrap mion marker APIs with runtime keys, producing expected
-    // non-fatal CTA003/PFN001 diagnostics.
+    // Strict, with nothing downgraded: the adapter's pure-fn helpers moved onto the
+    // untracked runtime-key APIs, so they no longer trip the scanner and this
+    // package has no CTA003/PFN001 left to stand down.
     mionVitePlugin({
       runTypes: {
         tsConfig: resolve(__dirname, 'tsconfig.json'),

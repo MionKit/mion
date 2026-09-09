@@ -33,7 +33,7 @@ export default defineConfig({
       // Same opt-out as the marker project: the suites deliberately contain
       // Error-severity types (the alwaysThrow cases), so the strict default
       // would refuse to boot.
-      failOnError: false,
+      downgradeErrors: '*',
     }),
   ],
   test: {
