@@ -7,7 +7,7 @@
 
 import {DEFAULT_ENCODER, EMPTY_HASH, getJitFnHashes, jsonStrategyOf} from '@mionjs/core';
 import type {CompiledFnData, MethodWithOptions, PureFunctionData} from '@mionjs/core';
-import type {MetadataRecordKey} from './metadataStore.ts';
+import type {MetadataRecordKey} from './storage.ts';
 
 /** The stored cache as one graph: methods point at compiled functions by hash, and those point at
  *  each other. Everything already parsed by the hydrator, so the sweep costs no extra reads. */

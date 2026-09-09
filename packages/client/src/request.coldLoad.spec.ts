@@ -22,7 +22,8 @@ import {
   takeMetadataCacheError,
   wasHydratedFromCache,
 } from './lib/clientMethodsMetadata.ts';
-import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting, type MetadataStore} from './lib/metadataStore.ts';
+import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from './lib/metadataStore.ts';
+import type {MetadataStore} from './lib/storage.ts';
 import type {ClientOptions} from './types.ts';
 
 const baseURL = TEST_SERVER_BASE_URL;

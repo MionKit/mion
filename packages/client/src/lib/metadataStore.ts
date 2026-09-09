@@ -5,42 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {STORAGE_KEY} from '../constants.ts';
+// The engines mion ships, and the one place an engine is chosen. The contract they implement, and
+// that an app's own engine implements, is in storage.ts.
+
+import {DEFAULT_STORAGE_ENGINE, STORAGE_KEY} from '../constants.ts';
+import type {MetadataKind, MetadataRecord, MetadataRecordKey, MetadataStore, StorageEngine} from './storage.ts';
 
 const STORE_GLOBAL_KEY = '__mion_metadata_store__';
 const OBJECT_STORE = 'metadata';
 const DB_VERSION = 1;
 /** A store that never answers (private mode has historically hung on open) must not hang the client */
 const OPEN_TIMEOUT_MS = 3000;
-
-/** What a record holds: a route's metadata, a compiled function, or a pure function */
-export type MetadataKind = 'm' | 'j' | 'p';
-
-/** One cache entry. `id` is the entry's own identity, never what its payload claims:
- *  'm' a methodId, 'j' a compiled function hash, 'p' a `${namespace}::${fnName}` pair. */
-export interface MetadataRecord {
-  baseURL: string;
-  kind: MetadataKind;
-  id: string;
-  /** the entry as text, so a read costs one structured clone of a string instead of a deep object */
-  json: string;
-  /** write time, the only recency signal the size cap needs */
-  ts: number;
-}
-
-/** Address of a single record within one baseURL */
-export type MetadataRecordKey = [MetadataKind, string];
-
-/** The async seam every cache read and write goes through. */
-export interface MetadataStore {
-  readonly kind: 'indexeddb' | 'memory';
-  /** Every record of one baseURL in a SINGLE indexed read, never a scan of the whole store */
-  readAll(baseURL: string): Promise<MetadataRecord[]>;
-  /** One transaction for a whole response; rejects on quota or abort so the caller can react */
-  write(records: MetadataRecord[]): Promise<void>;
-  remove(baseURL: string, keys: MetadataRecordKey[]): Promise<void>;
-  clear(baseURL?: string): Promise<void>;
-}
 
 /** In-memory store for SSR, Node, and any browser where IndexedDB is missing or blocked. */
 export class MemoryMetadataStore implements MetadataStore {
@@ -181,29 +156,59 @@ function openDatabase(): Promise<IDBDatabase | undefined> {
   });
 }
 
-/** Returns the process-wide store, opening it on first use.
+/** Opens one engine. Anything it cannot give us here is a cache miss, never a failed call, so every
+ *  refusal lands on the same fallback: keep the cache in memory for the life of the process. */
+async function openEngine(engine: StorageEngine): Promise<MetadataStore> {
+  if (engine === 'memory') return new MemoryMetadataStore();
+  if (engine === 'indexeddb') {
+    const db = await openDatabase();
+    return db ? new IdbMetadataStore(db) : new MemoryMetadataStore();
+  }
+  // an app's own engine
+  return (await engine()) ?? new MemoryMetadataStore();
+}
+
+/** One resolved store per engine, plus a stand-in that wins over all of them while testing.
  *  Memoized on globalThis so every module instance shares one connection. */
-export function getMetadataStore(): Promise<MetadataStore> {
-  const existing = (globalThis as any)[STORE_GLOBAL_KEY] as Promise<MetadataStore> | undefined;
+interface StoreRegistry {
+  override?: Promise<MetadataStore>;
+  byEngine: Map<StorageEngine, Promise<MetadataStore>>;
+}
+
+function getRegistry(): StoreRegistry {
+  let registry = (globalThis as any)[STORE_GLOBAL_KEY] as StoreRegistry | undefined;
+  if (!registry) {
+    registry = {byEngine: new Map()};
+    (globalThis as any)[STORE_GLOBAL_KEY] = registry;
+  }
+  return registry;
+}
+
+/** Returns the store for one engine, opening it on first use. */
+export function getMetadataStore(engine: StorageEngine = DEFAULT_STORAGE_ENGINE): Promise<MetadataStore> {
+  const registry = getRegistry();
+  if (registry.override) return registry.override;
+  const existing = registry.byEngine.get(engine);
   if (existing) return existing;
-  const pending = openDatabase()
-    .then((db) => (db ? new IdbMetadataStore(db) : new MemoryMetadataStore()))
-    .catch(() => new MemoryMetadataStore());
-  (globalThis as any)[STORE_GLOBAL_KEY] = pending;
+  const pending = openEngine(engine).catch(() => new MemoryMetadataStore());
+  registry.byEngine.set(engine, pending);
   return pending;
 }
 
-/** Puts a stand-in behind getMetadataStore(). Only for testing — the browser's own limits (a full
- *  disk, a refused write) cannot be produced any other way. */
+/** Puts a stand-in behind every engine. Only for testing — the browser's own limits (a full disk, a
+ *  refused write) cannot be produced any other way. */
 export function setMetadataStoreForTesting(store: MetadataStore): void {
-  (globalThis as any)[STORE_GLOBAL_KEY] = Promise.resolve(store);
+  getRegistry().override = Promise.resolve(store);
 }
 
-/** Drops the cached store instance and everything it holds. Only for testing — simulates a new page. */
+/** Drops every store instance and everything they hold. Only for testing — simulates a new page. */
 export async function resetMetadataStore(): Promise<void> {
-  const existing = (globalThis as any)[STORE_GLOBAL_KEY] as Promise<MetadataStore> | undefined;
+  const registry = (globalThis as any)[STORE_GLOBAL_KEY] as StoreRegistry | undefined;
   delete (globalThis as any)[STORE_GLOBAL_KEY];
-  if (!existing) return;
-  const store = await existing.catch(() => undefined);
-  await store?.clear().catch(() => undefined);
+  if (!registry) return;
+  const pending = [registry.override, ...registry.byEngine.values()].filter((entry) => entry !== undefined);
+  for (const entry of pending) {
+    const store = await entry.catch(() => undefined);
+    await store?.clear().catch(() => undefined);
+  }
 }

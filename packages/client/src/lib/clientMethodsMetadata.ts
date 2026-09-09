@@ -19,7 +19,8 @@ import type {
 } from '@mionjs/core';
 import {addSerializedJitCaches, routesCache} from '@mionjs/core';
 import {METADATA_CACHE_EVICTION_ROUNDS, METADATA_CACHE_MAX_BYTES} from '../constants.ts';
-import {getMetadataStore, type MetadataKind, type MetadataRecord, type MetadataRecordKey} from './metadataStore.ts';
+import {getMetadataStore} from './metadataStore.ts';
+import type {MetadataKind, MetadataRecord, MetadataRecordKey, MetadataStore, StorageEngine} from './storage.ts';
 import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 import {requestPersistenceWhenSilent} from './persistentStorage.ts';
 
@@ -39,6 +40,8 @@ interface StoredEntry {
 /** Everything the cache tracks for one server. One instance per baseURL, for the page's lifetime. */
 interface CacheState {
   baseURL: string;
+  /** the engine this server's cache lives on, so every read and write goes to the same store */
+  storageEngine: StorageEngine | undefined;
   hydration?: Promise<void>;
   /** method ids this page restored from the store rather than from the server */
   hydratedIds: Set<string>;
@@ -57,11 +60,13 @@ let flushChain: Promise<void> = Promise.resolve();
 let persistenceAsked = false;
 let pendingCacheError: RpcError<string> | undefined;
 
-function getState(baseURL: string): CacheState {
+function getState(options: ClientOptions): CacheState {
+  const baseURL = options.baseURL;
   let state = states.get(baseURL);
   if (!state) {
     state = {
       baseURL,
+      storageEngine: options.storageEngine,
       hydratedIds: new Set(),
       stored: new Map(),
       bytes: 0,
@@ -142,18 +147,19 @@ async function flushQueue(): Promise<void> {
   if (!writeQueue.length) return;
   const batch = writeQueue;
   writeQueue = [];
-  const byBaseURL = new Map<string, SerializableMethodsData[]>();
+  const byBaseURL = new Map<string, {options: ClientOptions; payloads: SerializableMethodsData[]}>();
   for (const item of batch) {
-    const list = byBaseURL.get(item.options.baseURL);
-    if (list) list.push(item.data);
-    else byBaseURL.set(item.options.baseURL, [item.data]);
+    const group = byBaseURL.get(item.options.baseURL);
+    if (group) group.payloads.push(item.data);
+    else byBaseURL.set(item.options.baseURL, {options: item.options, payloads: [item.data]});
   }
-  for (const [baseURL, payloads] of byBaseURL) await persistPayloads(baseURL, payloads);
+  for (const group of byBaseURL.values()) await persistPayloads(group.options, group.payloads);
 }
 
 /** Turns the payloads into records, dropping anything already down, then writes them as one unit. */
-async function persistPayloads(baseURL: string, payloads: SerializableMethodsData[]): Promise<void> {
-  const state = getState(baseURL);
+async function persistPayloads(options: ClientOptions, payloads: SerializableMethodsData[]): Promise<void> {
+  const baseURL = options.baseURL;
+  const state = getState(options);
   const ts = Date.now();
   const records = new Map<string, MetadataRecord>();
   const add = (kind: MetadataKind, id: string, value: unknown) => {
@@ -212,7 +218,7 @@ function recordBytes(record: MetadataRecord): number {
  *  (its own limit is tighter than ours) gets another batch of the oldest rows dropped and the write
  *  tried again. Only an empty store that still cannot take the write is reported. */
 async function writeRecords(state: CacheState, records: MetadataRecord[]): Promise<void> {
-  const store = await getMetadataStore();
+  const store = await getMetadataStore(state.storageEngine);
   const incoming = records.reduce((total, record) => total + recordBytes(record), 0);
   await evictOldest(state, store, state.bytes + incoming - METADATA_CACHE_MAX_BYTES);
 
@@ -242,11 +248,7 @@ async function writeRecords(state: CacheState, records: MetadataRecord[]): Promi
 /** Drops the oldest rows until at least `targetBytes` have been freed. Returns the bytes freed.
  *  Safe at any granularity: a method whose compiled functions went with it is refused on the next
  *  hydration and simply refetched. */
-async function evictOldest(
-  state: CacheState,
-  store: Awaited<ReturnType<typeof getMetadataStore>>,
-  targetBytes: number
-): Promise<number> {
+async function evictOldest(state: CacheState, store: MetadataStore, targetBytes: number): Promise<number> {
   if (targetBytes <= 0 || !state.stored.size) return 0;
   const oldestFirst = [...state.stored.values()].sort((a, b) => a.ts - b.ts);
   const keys: MetadataRecordKey[] = [];
@@ -303,7 +305,7 @@ function askForPersistenceOnce(): void {
 /** Restores everything this server cached, once per page. One indexed read, never a scan.
  *  Never rejects: a missing or blocked store is a cache miss, not an error. */
 export function hydrateMetadataCache(options: ClientOptions): Promise<void> {
-  const state = getState(options.baseURL);
+  const state = getState(options);
   if (!state.hydration) {
     state.hydration = hydrate(state).catch((error) => {
       console.warn('Failed to restore the remote method metadata cache:', error);
@@ -313,7 +315,7 @@ export function hydrateMetadataCache(options: ClientOptions): Promise<void> {
 }
 
 async function hydrate(state: CacheState): Promise<void> {
-  const store = await getMetadataStore();
+  const store = await getMetadataStore(state.storageEngine);
   const records = await store.readAll(state.baseURL);
   if (!records.length) return;
 
@@ -401,7 +403,7 @@ export async function purgeHydratedMetadata(ids: string[], options: ClientOption
     keys.push(['m', id]);
   }
   if (!keys.length) return;
-  const store = await getMetadataStore();
+  const store = await getMetadataStore(state.storageEngine);
   await store.remove(state.baseURL, keys).catch(() => undefined);
   for (const [kind, id] of keys) {
     const key = storedKey(kind, id);
@@ -426,7 +428,7 @@ function scheduleSweep(state: CacheState, alsoDelete: MetadataRecordKey[]): void
 async function sweepOrphans(state: CacheState, alsoDelete: MetadataRecordKey[] = []): Promise<void> {
   const keys = [...alsoDelete, ...findOrphans(state.graph)];
   if (!keys.length) return;
-  const store = await getMetadataStore();
+  const store = await getMetadataStore(state.storageEngine);
   await store.remove(state.baseURL, keys).catch(() => undefined);
   for (const [kind, id] of keys) {
     const key = storedKey(kind, id);

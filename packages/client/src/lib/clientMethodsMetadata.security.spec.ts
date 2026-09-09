@@ -13,7 +13,8 @@ import 'fake-indexeddb/auto';
 import {describe, beforeEach, afterEach, it, expect, vi} from 'vitest';
 import {flushMetadataCache, extractAndProcessMetadata, hydrateMetadataCache} from './clientMethodsMetadata.ts';
 import type {ClientOptions} from '../types.ts';
-import {getMetadataStore, resetMetadataStore, type MetadataRecord} from './metadataStore.ts';
+import {getMetadataStore, resetMetadataStore} from './metadataStore.ts';
+import type {MetadataRecord} from './storage.ts';
 import {MION_ROUTES} from '@mionjs/core';
 import {resetClientCaches} from './testUtils.ts';
 
