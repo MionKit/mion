@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
-const FIXTURE_DIR = path.resolve(__dirname, 'tmp-fail-on-error');
+const FIXTURE_DIR = path.resolve(__dirname, 'tmp-downgrade-errors');
 const OUT_DIR = path.join(FIXTURE_DIR, '.mion');
 
 const TSCONFIG_SRC = JSON.stringify({
