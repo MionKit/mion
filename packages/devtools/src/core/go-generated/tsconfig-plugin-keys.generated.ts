@@ -9,8 +9,8 @@
 export const TSCONFIG_PLUGIN_KEYS = [
   'binarySizing',
   'clientTsconfig',
+  'downgradeErrors',
   'emitMode',
-  'failOnError',
   'genDir',
   'hashLength',
   'i18n',

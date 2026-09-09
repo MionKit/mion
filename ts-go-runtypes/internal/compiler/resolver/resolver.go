@@ -113,10 +113,13 @@ type Options struct {
 	// changes no artifact, and transforms are never disk-cached, so it is not a
 	// fingerprint input.
 	OmitSourcesContent bool
-	// TsconfigFailOnError is the tsconfig plugin's failOnError (nil when unset);
-	// OpGenerate echoes it on Response.FailOnError so the dependency-free host
-	// can honor a tsconfig-only setting. The resolver never acts on it.
-	TsconfigFailOnError *bool
+	// TsconfigDowngradeErrors is the tsconfig plugin's downgradeErrors (nil when
+	// unset); OpGenerate echoes it on Response.DowngradeErrors so the
+	// dependency-free host can honor a tsconfig-only setting. The resolver never
+	// acts on it: downgrading is halt policy, applied by whoever decides whether
+	// to halt. Suppression (`@mion-expect-error`) IS applied here, because that
+	// one is a fact about the source rather than a policy.
+	TsconfigDowngradeErrors []string
 	// SingleThreaded forces single-checker mode on Programs built by
 	// SetSources. Mirrors program.Options.SingleThreaded. Also forces the
 	// serial scan path (a one-checker pool has nothing to fan out over).

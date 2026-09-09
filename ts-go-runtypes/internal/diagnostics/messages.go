@@ -26,6 +26,18 @@ type message struct {
 }
 
 var messagesByCode = map[string]message{
+	"EXP001": {
+		Headline: "Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+		Detail:   "`@mion-expect-error` silences a finding you already know about, and it is\nchecked the same way TypeScript checks `@ts-expect-error`: if the finding\nis gone, the comment itself is reported. That is what stops these comments\noutliving the problem they were added for, so a type that got fixed does\nnot keep a silencer parked over it forever.\n\nFix: delete the comment, or correct the code it names:\n-  // @mion-expect-error VL002\n+  // (nothing — the finding is gone)",
+	},
+	"EXP002": {
+		Headline: "`@mion-expect-error {0}` cannot silence that code: it is reported even when everything else is silenced.",
+		Detail:   "Two groups of codes are never suppressible. Pure-function codes report a\nfailed extraction, and the build writes generated files from that\nextraction, so continuing would ship missing output rather than risky\noutput. `EXP` codes are the check that keeps these comments honest, so a\ncomment cannot silence it either.\n\nFix: fix the reported call site instead of silencing it.",
+	},
+	"EXP003": {
+		Headline: "`@mion-expect-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are silencing.",
+		Detail:   "A code that is not in the catalog can never match a finding, so the comment\nwould silence nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are silencing:\n-  // @mion-expect-error VL2\n+  // @mion-expect-error VL002",
+	},
 	"CFG001": {
 		Headline: "Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.",
 		Detail:   "RunTypes derives every type query from your project tsconfig, the same\nfile your build uses. A tsconfig that was named (or found next to your\nproject) but is missing or does not parse stops the operation, exactly\nlike `tsc --project` would, instead of silently falling back to defaults\nthat could resolve your types differently.\n\nFix: repair the tsconfig (the message names the first parse problem),\nor point the tooling at the right file (the plugin/lint `tsconfig`\nsetting, or the CLI `--tsconfig` flag).",
