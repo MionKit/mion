@@ -331,12 +331,13 @@ type Response struct {
 	// to. A dev host re-transforms them when BatchesModule first appears after
 	// they were loaded without it.
 	RouterInitFiles []string `json:"routerInitFiles,omitempty"`
-	// FailOnError echoes the tsconfig plugin's failOnError on OpGenerate (nil
-	// when the tsconfig sets none) so the dependency-free host can honor a
-	// tsconfig-only setting; the plugin adopts it as the halt default (its own
-	// option wins, then this echo, then the built-in true). Emitted via the
-	// hand-rolled MarshalJSON below.
-	FailOnError *bool `json:"failOnError,omitempty"`
+	// DowngradeErrors echoes the tsconfig plugin's downgradeErrors on OpGenerate
+	// (nil when the tsconfig sets none) so the dependency-free host can honor a
+	// tsconfig-only setting; the plugin adopts it as its downgrade set (its own
+	// option wins, then this echo, then nothing downgraded). Either a list of
+	// codes or the single wildcard entry "*". Emitted via the hand-rolled
+	// MarshalJSON below.
+	DowngradeErrors []string `json:"downgradeErrors,omitempty"`
 	// Transformed carries one TransformResult per file for OpTransform: the
 	// fully rewritten source + its source map (+ the cache modules the file now
 	// imports). Keyed by file path, scoped to the request's Files.
@@ -725,8 +726,8 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	if len(response.RouterInitFiles) > 0 {
 		out["routerInitFiles"] = response.RouterInitFiles
 	}
-	if response.FailOnError != nil {
-		out["failOnError"] = *response.FailOnError
+	if response.DowngradeErrors != nil {
+		out["downgradeErrors"] = response.DowngradeErrors
 	}
 	if len(response.Transformed) > 0 {
 		out["transformed"] = response.Transformed

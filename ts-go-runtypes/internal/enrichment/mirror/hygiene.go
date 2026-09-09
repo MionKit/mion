@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/srcscan"
 )
 
 // hygiene.go detects the DIRTY enrichment tags this package's emitters write —
@@ -92,7 +93,7 @@ func IsEnrichmentFile(text string) bool {
 // and the resolver's breadcrumb-drift gate both key on it.
 func (scan *Scan) HasMarkerComment() bool {
 	for _, span := range scan.spans {
-		if strings.HasPrefix(scan.text[span.start:], MarkerCommentPrefix) {
+		if strings.HasPrefix(scan.text[span.Start:], MarkerCommentPrefix) {
 			return true
 		}
 	}
@@ -144,10 +145,10 @@ func (scan *Scan) CarcassMatches() [][2]int {
 // commentStartsAt reports whether a comment span starts exactly at offset.
 func (scan *Scan) commentStartsAt(offset int) bool {
 	for _, span := range scan.spans {
-		if span.start == offset {
+		if span.Start == offset {
 			return true
 		}
-		if span.start > offset {
+		if span.Start > offset {
 			return false // spans are in text order
 		}
 	}
@@ -180,14 +181,14 @@ func (scan *Scan) DirtyTags() []TagFinding {
 	}
 
 	for _, comment := range scan.spans {
-		body := text[comment.start:comment.end]
+		body := text[comment.Start:comment.End]
 		from := 0
 		for {
 			idx := strings.Index(body[from:], TodoTag)
 			if idx < 0 {
 				break
 			}
-			offset := comment.start + from + idx
+			offset := comment.Start + from + idx
 			from += idx + len(TodoTag)
 			after := offset + len(TodoTag)
 			if after < len(text) && isIdentByte(text[after]) {
@@ -400,15 +401,12 @@ func dslImportFamily(text string) MirrorFamily {
 	}
 }
 
-// commentSpan is a half-open [start, end) byte range covering one `//` line
+// commentSpan is a half-open [Start, End) byte range covering one `//` line
 // comment (through end of line) or one `/* … */` block comment (including its
-// delimiters). Spans are produced by scanComments (scanTags.go) — a linear pass
-// guided by the parse's literal-token oracle, so a tag inside string data
-// never counts as a comment and a comment inside a template interpolation
-// does.
-type commentSpan struct {
-	start, end int
-}
+// delimiters). Spans come from srcscan, THE shared comment lexer: a linear pass
+// guided by the parse's literal-token oracle, so a tag inside string data never
+// counts as a comment and a comment inside a template interpolation does.
+type commentSpan = srcscan.Span
 
 // insideRanges reports whether offset falls inside any half-open range.
 func insideRanges(ranges [][2]int, offset int) bool {

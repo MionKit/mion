@@ -214,6 +214,36 @@
       "example": null
     },
     {
+      "code": "EXP001",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.",
+      "detail": "`@mion-expect-error` silences a finding you already know about, and it is\nchecked the same way TypeScript checks `@ts-expect-error`: if the finding\nis gone, the comment itself is reported. That is what stops these comments\noutliving the problem they were added for, so a type that got fixed does\nnot keep a silencer parked over it forever.\n\nFix: delete the comment, or correct the code it names:\n-  // @mion-expect-error VL002\n+  // (nothing — the finding is gone)",
+      "summary": "A `@mion-expect-error` comment silenced nothing: the code it names was not reported on the line below it. The comment is checked the same way TypeScript checks `@ts-expect-error`, so a silencer can never outlive the problem it was added for. Delete the comment, or correct the code it names.",
+      "fix": "// @mion-expect-error VL002\nexport const report = createValidateFn<symbol>();",
+      "example": null
+    },
+    {
+      "code": "EXP002",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "`@mion-expect-error {0}` cannot silence that code: it is reported even when everything else is silenced.",
+      "detail": "Two groups of codes are never suppressible. Pure-function codes report a\nfailed extraction, and the build writes generated files from that\nextraction, so continuing would ship missing output rather than risky\noutput. `EXP` codes are the check that keeps these comments honest, so a\ncomment cannot silence it either.\n\nFix: fix the reported call site instead of silencing it.",
+      "summary": "A `@mion-expect-error` comment named a code that is always reported. Pure function codes report a failed extraction, and the build writes generated files from that extraction, so continuing would ship missing output rather than risky output. `EXP` codes are the check that keeps these comments honest, so a comment cannot silence one either. Fix the reported call site instead.",
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "EXP003",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "`@mion-expect-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are silencing.",
+      "detail": "A code that is not in the catalog can never match a finding, so the comment\nwould silence nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are silencing:\n-  // @mion-expect-error VL2\n+  // @mion-expect-error VL002",
+      "summary": "A `@mion-expect-error` comment named a code the catalog does not define, which is almost always a typo. Such a comment silences nothing while looking like it works. Copy the code out of the message you are silencing: it is the uppercase identifier, for example the `VL002` in `error VL002: Type ... can never be validated`.",
+      "fix": "// @mion-expect-error VL002",
+      "example": null
+    },
+    {
       "code": "MKR001",
       "subsystem": "markers",
       "severity": "warning",

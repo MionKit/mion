@@ -11,6 +11,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -18,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/enrichgen"
 )
 
@@ -92,14 +94,17 @@ type tsRuntypesPlugin struct {
 	// every location under genDir, the report path is convention, not config.
 	// Build-lane project option — the host plugin forwards the equivalent CLI flag.
 	PureFnReport *bool `json:"pureFnReport"`
-	// FailOnError controls whether Error-severity build diagnostics fail the
-	// host build/transform. It is read Go-side and ECHOED on the generate
-	// response (protocol.Response.FailOnError); the resolver never halts on it
-	// itself, so there is no CLI flag and no buildconfig merge — the JS host
-	// applies precedence (its own option, then this echo, then the true
-	// default). A pointer so an absent key (nil) is distinct from an explicit
-	// false. The enrich lane ignores it.
-	FailOnError *bool `json:"failOnError"`
+	// DowngradeErrors names the Error-severity codes to report as Warnings, so a
+	// project blocked on one finding keeps failing on every other. Either a list
+	// of codes (`["VL002"]`) or the wildcard `"*"`, which downgrades the lot and
+	// is the adoption setting for a project that cannot yet name the codes it has
+	// not met. It is read Go-side, ECHOED on the generate response
+	// (protocol.Response.DowngradeErrors) for the JS host, and applied by
+	// `mion compile` to its own exit code. nil means the key is absent, which is
+	// the strict default. The enrich lane ignores it.
+	//
+	// It replaced the boolean `failOnError`; see removedPluginKeys.
+	DowngradeErrors downgradeErrorsKey `json:"downgradeErrors"`
 	// BinarySizing groups the binary `dynamic` strategy's cold-start
 	// buffer-estimate knobs under one `binarySizing` object (like `i18n`). A nil
 	// object (absent key) keeps every binary default.
@@ -255,7 +260,11 @@ func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed 
 		if !ok {
 			fatal("tsconfig %s: cannot parse", tsconfigPath)
 		}
-		if plugin, ok := findTsRuntypesPlugin(pluginTsconfig); ok {
+		plugin, ok, err := findTsRuntypesPlugin(pluginTsconfig)
+		if err != nil {
+			fatal("tsconfig %s: %v", tsconfigPath, err)
+		}
+		if ok {
 			pluginSettings = pluginSettingsFrom(plugin)
 		}
 	}
@@ -333,19 +342,59 @@ func parseTsconfig(tsconfigPath string) (tsconfigShape, bool) {
 	return parsed, true
 }
 
+// downgradeErrorsKey decodes the tsconfig `downgradeErrors` value, which is
+// either a list of codes or the bare wildcard string. nil means the key was
+// absent. `["*"]` and `"*"` decode the same, so the tsconfig spelling and the
+// plugin spelling agree.
+type downgradeErrorsKey []string
+
+func (key *downgradeErrorsKey) UnmarshalJSON(data []byte) error {
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*key = downgradeErrorsKey{single}
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(data, &list); err != nil {
+		return fmt.Errorf("downgradeErrors must be a list of diagnostic codes or the string %q", diagnostics.DowngradeAll)
+	}
+	*key = list
+	return nil
+}
+
+// removedPluginKeys maps a retired tsconfig key to the message that tells the
+// reader what to write instead. A removed key still decodes (it is simply not
+// in the struct any more), so without this it would fall out as a generic
+// "unknown key" warning and the reader would have to guess the replacement.
+var removedPluginKeys = map[string]string{
+	"failOnError": "`failOnError` was removed. Use `downgradeErrors`:\n" +
+		"    failOnError: false  ->  downgradeErrors: \"*\"\n" +
+		"    failOnError: true   ->  the default, drop the key",
+}
+
 // findTsRuntypesPlugin scans compilerOptions.plugins[] for the entry whose
-// "name" is "mion". Entries that fail to decode are skipped.
-func findTsRuntypesPlugin(parsed tsconfigShape) (tsRuntypesPlugin, bool) {
+// "name" is "mion".
+//
+// An entry that names mion but does not decode is a hard error, never a skip:
+// one mistyped value would otherwise throw away the WHOLE entry — genDir,
+// markers, every key — and fall back to defaults with nothing said. Entries
+// naming another plugin are skipped, since a language-service plugin the
+// project uses for something else is none of our business.
+func findTsRuntypesPlugin(parsed tsconfigShape) (tsRuntypesPlugin, bool, error) {
 	for _, raw := range parsed.CompilerOptions.Plugins {
-		var plugin tsRuntypesPlugin
-		if err := json.Unmarshal(raw, &plugin); err != nil {
+		var named struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(raw, &named); err != nil || named.Name != "mion" {
 			continue
 		}
-		if plugin.Name == "mion" {
-			return plugin, true
+		var plugin tsRuntypesPlugin
+		if err := json.Unmarshal(raw, &plugin); err != nil {
+			return tsRuntypesPlugin{}, false, fmt.Errorf("tsconfig mion plugin entry: %w", err)
 		}
+		return plugin, true, nil
 	}
-	return tsRuntypesPlugin{}, false
+	return tsRuntypesPlugin{}, false, nil
 }
 
 // resolveBuildPlugin reads the compilerOptions.plugins[name=mion] entry
@@ -364,7 +413,11 @@ func resolveBuildPlugin(absCwd, tsconfigFlag string) (tsRuntypesPlugin, bool) {
 	if !ok {
 		return tsRuntypesPlugin{}, false
 	}
-	return findTsRuntypesPlugin(parsed)
+	plugin, found, err := findTsRuntypesPlugin(parsed)
+	if err != nil {
+		fatal("tsconfig %s: %v", buildTsconfigPath(absCwd, tsconfigFlag), err)
+	}
+	return plugin, found
 }
 
 // buildTsconfigPath anchors main's ALREADY-RESOLVED tsconfig path (the single

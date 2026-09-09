@@ -282,9 +282,20 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	var plugin tsRuntypesPlugin
 	if readBuildPlugin {
 		plugin, _ = resolveBuildPlugin(absCwd, tsconfigPath)
-		// A misspelt key is otherwise silently ignored; warn on stderr.
-		if unknown := unknownPluginKeys(absCwd, tsconfigPath); len(unknown) > 0 {
-			fmt.Fprintf(os.Stderr, "mion: ignoring unknown mion plugin key(s) in tsconfig: %v\n", unknown)
+		// A misspelt key is otherwise silently ignored; warn on stderr. A key that
+		// was REMOVED gets its own message naming the replacement, since "unknown
+		// key" would leave the reader guessing.
+		unknown := unknownPluginKeys(absCwd, tsconfigPath)
+		var stillUnknown []string
+		for _, key := range unknown {
+			if replacement, removed := removedPluginKeys[key]; removed {
+				fmt.Fprintf(os.Stderr, "mion: %s\n", replacement)
+				continue
+			}
+			stillUnknown = append(stillUnknown, key)
+		}
+		if len(stillUnknown) > 0 {
+			fmt.Fprintf(os.Stderr, "mion: ignoring unknown mion plugin key(s) in tsconfig: %v\n", stillUnknown)
 		}
 	}
 	merged := mergeBuildOptions(buildFlags{
@@ -388,7 +399,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		TsconfigPath:            tsconfigPath,
 		TsconfigGenDir:          tsconfigGenDir,
 		ClientTsconfig:          clientTsconfig,
-		TsconfigFailOnError:     plugin.FailOnError,
+		TsconfigDowngradeErrors: plugin.DowngradeErrors,
 		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
 		EnrichLocales:           pluginI18nLocales(plugin),
 		SingleThreaded:          merged.singleThreaded,
@@ -686,8 +697,19 @@ func runCompile(args []string) {
 	if compileErr != nil {
 		fatal("compile: %v", compileErr)
 	}
+	// The tsconfig `downgradeErrors` applies here exactly as it does in a bundler
+	// build: it is the project's answer to "what fails my build", and the CLI
+	// reads the same key rather than growing a flag of its own.
+	downgrade, downgradeErr := diagnostics.ResolveDowngrade(cfg.opts.TsconfigDowngradeErrors)
+	if downgradeErr != nil {
+		fatal("compile: %v", downgradeErr)
+	}
+	// A compile drives several ops, and each whole-program one answers the
+	// `@mion-expect-error` unused check for itself, so one stale comment would
+	// otherwise be reported once per pass. Dedupe collapses the identical
+	// repeats (same code, args and site) the way it does within one op.
 	errorCount := 0
-	for _, d := range compileResult.Diagnostics {
+	for _, d := range downgrade.Apply(diagnostics.Dedupe(compileResult.Diagnostics)) {
 		fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(d))
 		if d.Severity == diagnostics.SeverityError {
 			errorCount++
