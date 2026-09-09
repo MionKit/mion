@@ -10,7 +10,7 @@
 // middleFn or a plain function that returns a promise, must turn it on for the whole router.
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter, getHasAsyncMethods} from './router.ts';
+import {createMionRouter, resetRouter, getHasAsyncMethods, getAlwaysAwait} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {Routes} from './types/general.ts';
@@ -59,6 +59,25 @@ describe('the router should know whether anything in it is async', () => {
   it('say yes for a plain function that returns a promise', () => {
     mion.initRoutes(withPromiseArrow);
     expect(getHasAsyncMethods()).toBe(true);
+  });
+
+  // The dispatcher reads a value resolved at registration rather than recomputing it per request, so
+  // it has to be settled by the LAST registerRoutes call, after every method exists.
+  it('resolve the dispatcher await rule once registration is done', () => {
+    mion.initRoutes(syncOnly);
+    expect(getAlwaysAwait()).toBe(false);
+
+    resetRouter();
+    mion.initRoutes(withAsyncRoute);
+    expect(getAlwaysAwait()).toBe(true);
+  });
+
+  it('leave the await rule off when the option asks for it, even with async methods', () => {
+    resetRouter();
+    const off = createMionRouter({alwaysAwait: false});
+    off.initRoutes({slow: off.route(async (): Promise<string> => 'slow')});
+    expect(getHasAsyncMethods()).toBe(true);
+    expect(getAlwaysAwait()).toBe(false);
   });
 
   it('forget it again on reset', () => {
