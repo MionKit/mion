@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-06
 ---
 
@@ -142,3 +142,89 @@ Either the option ships with tests covering the three precedence cases and a dow
 appearing as a warning rather than halting the build, or this document is closed with a note
 saying the problem was judged not worth solving. Both are acceptable outcomes; leaving it open
 and unexamined is not.
+
+---
+
+## What shipped (2026-09-09)
+
+The conclusion above was re-examined, as this document asked. Two of its judgements
+were reversed and its proposed shape was not built.
+
+### The problem is real
+
+The spec's first open question asked whether anyone had hit this, and said to close
+the doc if not. Three of this repo's own configs set `failOnError: false` for exactly
+the reason described: `packages/run-types/vitest.config.ts`,
+`packages/run-types/vitest.converted.config.ts` and
+`scripts/website/bench-data/gen-serialization.mjs`.
+
+### Per-site suppression was rejected on a false premise
+
+The doc dismissed comment directives as needing "comment parsing in Go, which is new
+machinery". Both halves turned out to be wrong:
+
+- diagnostic sites are already anchored to the code token rather than to leading
+  trivia, done deliberately so a comment on the line above can take effect
+  (`internal/compiler/routerrules/routerrules.go` says so in as many words);
+- a parse-guided comment lexer already existed in
+  `internal/enrichment/mirror/scanTags.go`. It was lifted into `internal/srcscan`
+  and is now shared by both callers.
+
+The doc also missed the property that makes the comment the better tool: like
+`@ts-expect-error`, it self-cleans. An unused one is an error, so a silencer cannot
+outlive the problem it was added for. That is the answer to this doc's own fourth
+open question, and no config list can give it.
+
+### `failOnError` was removed, not widened
+
+The proposed `failOnError?: boolean | string[]` was rejected twice over. The name
+reads as "fail on these codes", the opposite of what it would do, and that reading
+describes a genuinely dangerous feature: a list of what fails means everything
+unlisted is forgiven, which is looser than `failOnError: false`.
+
+Widening it also left the blanket in place. `failOnError: false` forgives every error
+the team has not made yet, which is the thing this doc argued against. So the boolean
+is gone, and the blanket survives only as `downgradeErrors: '*'`, a spelling that
+reads as "downgrade the lot" rather than "do not check". It stays for adoption, where
+a project cannot list codes it has not met.
+
+### What was built
+
+- `// @mion-expect-error CODE` on the line above a finding removes it, and an unused
+  one is an error. Runs at the resolver's dispatch choke point, so it applies to the
+  build, `mion compile` and lint alike. Three new codes: EXP001 unused, EXP002 not
+  suppressible, EXP003 unknown code, routed to a new `invalid-expect-error` lint rule.
+- `downgradeErrors: string[] | '*'` reports named codes as warnings instead, marked
+  `(downgraded)` so a configured-down finding never reads as an ordinary warning.
+  Applied where the halt decision is made, so severity on the wire stays honest and
+  lint rule routing is untouched by a build setting.
+- `mion compile` honours the tsconfig key for its own exit code. It previously ignored
+  `failOnError` entirely. No new CLI flag: it reads the same key.
+- Pure-function codes are silenced by neither lever, `'*'` included. A failed
+  extraction means the build would ship output with pieces missing.
+- The generated diagnostic catalog now carries each code's family, which is what lets
+  the config validators reject a pure-function code at the host boundary.
+
+### Answers to the remaining open questions
+
+- **Should the CLI get the same thing?** Yes, and it needed no second surface. The CLI
+  already parses the same tsconfig entry.
+- **Does a downgraded diagnostic need marking?** Yes, one word. `(downgraded)` after
+  the message, inside the `tsc --pretty=false` line so editor problem matching still
+  works.
+- **Should there be a way to list what is downgraded?** Not needed as posed. The
+  comment self-cleans, which was the underlying worry, and an unknown or
+  non-suppressible code in `downgradeErrors` is rejected at config time.
+
+### Fixed along the way
+
+A mion plugin entry in tsconfig that failed to decode was silently skipped, throwing
+away `genDir`, `markers` and every other key with no message. It now fails loudly.
+
+### Not done
+
+The repo's own three opt-outs moved to `downgradeErrors: '*'` rather than naming
+codes. Those programs hold 45 deliberately bad call sites across 15 files spanning the
+cloning, serialization and validation families, so a code list would be neither short
+nor stable. Both new levers are for a project with a handful of findings, not for a
+suite built out of bad types.
