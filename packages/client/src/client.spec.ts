@@ -8,7 +8,9 @@
 import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
 import {initClient} from './client.ts';
 import {isMiddleFnInScope} from './request.ts';
-import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
+import {MiddlewareSubRequest, RouteSubRequest, type ClientOptions} from './types.ts';
+import {purgeHydratedMetadata} from './lib/clientMethodsMetadata.ts';
+import {getMetadataStore} from './lib/metadataStore.ts';
 import {isRpcError, HeadersSubset, MION_ROUTES, routesCache, resetRoutesCache, resetJitFunctionsCache} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
@@ -1041,9 +1043,17 @@ describe('client', () => {
 
     /** The metadata cache is shared by every client in the process; forgetting the ids under test
      * makes the next call a route's FIRST call again, whatever ran before */
-    function forgetMetadata(...ids: string[]): void {
+    /** A client that has never seen these methods: forgotten in memory AND in the store, so the call
+     *  really does have to guess the wire. */
+    async function forgetMetadata(...ids: string[]): Promise<void> {
       const cache = routesCache.getCache();
       ids.forEach((id) => delete cache[id]);
+      await purgeHydratedMetadata(ids, {baseURL} as ClientOptions);
+      const store = await getMetadataStore();
+      await store.remove(
+        baseURL,
+        ids.map((id) => ['m', id] as ['m', string])
+      );
     }
 
     /** Spies on fetch for one call and returns the calls it saw, the spy always restored. A prefill
@@ -1066,7 +1076,7 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
       // a scalar param, the simplest case of the optimistic path
-      forgetMetadata('calculateAge');
+      await forgetMetadata('calculateAge');
 
       const calls = await spyOnFetch(async () => {
         const [age, error] = await routes.calculateAge(1990).call();
@@ -1089,7 +1099,7 @@ describe('client', () => {
     it('first optimistic call with an EXPLICIT auth headersFn is one round trip (no retry)', async () => {
       const {routes, middleFns} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-      forgetMetadata('sayHello', 'auth');
+      await forgetMetadata('sayHello', 'auth');
 
       const calls = await spyOnFetch(async () => {
         const [greeting, error] = await routes.sayHello(someUser).call({middleFns: {auth: middleFns.auth(authHeaders)}});
@@ -1108,7 +1118,7 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
       middleFns.session('valid-token').prefill();
-      forgetMetadata('sayHello');
+      await forgetMetadata('sayHello');
 
       const calls = await spyOnFetch(async () => {
         const [greeting, error, fatal, middleFnResults] = await routes.sayHello(someUser).call();
@@ -1130,7 +1140,7 @@ describe('client', () => {
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middleFns.auth(authHeaders).prefill();
       middleFns.utils.scopeTag('tagged').prefill();
-      forgetMetadata('sayHello', 'utils/sumTwo');
+      await forgetMetadata('sayHello', 'utils/sumTwo');
 
       // a top-level route: the utils-scoped prefill is not in its group, so it is never sent
       const topLevelCalls = await spyOnFetch(async () => {

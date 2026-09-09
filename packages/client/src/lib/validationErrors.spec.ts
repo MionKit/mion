@@ -10,7 +10,7 @@ import {initClient} from '../client.ts';
 import {Email} from '@mionjs/run-types/formats';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
-import {getStorage} from './storage.ts';
+import {resetMetadataStore} from './metadataStore.ts';
 
 // Client-side validation errors. mion no longer ships a friendly-errors layer — human-readable
 // rendering is RunTypes' `createFriendlyText` (from a committed `FriendlyText<T>` map). These
@@ -22,8 +22,8 @@ describe('client-side validation errors', () => {
 
   const baseURL = TEST_SERVER_BASE_URL;
 
-  beforeEach(() => {
-    getStorage().clear();
+  beforeEach(async () => {
+    await resetMetadataStore();
   });
 
   describe('route validation errors with formats', () => {

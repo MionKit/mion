@@ -5,21 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import 'fake-indexeddb/auto';
 import {vi, describe, beforeEach, afterEach, it, expect} from 'vitest';
 import {fetchRemoteMethodsMetadata} from './fetchRemoteMethodsMetadata.ts';
 import {ClientOptions} from '../types.ts';
 import {routesCache} from '@mionjs/core';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {resetClientCaches} from './testUtils.ts';
-import {getStorage} from './storage.ts';
-import {STORAGE_KEY} from '../constants.ts';
+import {getMetadataStore, resetMetadataStore} from './metadataStore.ts';
+import {flushMetadataCache} from './clientMethodsMetadata.ts';
 
 describe('fetchRemoteMethodsMetadata', () => {
   const baseURL = TEST_SERVER_BASE_URL;
 
   let options: ClientOptions;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     options = {
       baseURL,
       fetchOptions: {},
@@ -27,11 +28,13 @@ describe('fetchRemoteMethodsMetadata', () => {
       suffix: '',
       validateParams: true,
       autoGenerateErrorId: false,
+      sanitizeParams: true,
       serializer: 'stringifyJson',
+      storageEngine: 'indexeddb',
     };
 
-    // Clear storage
-    getStorage().clear();
+    resetClientCaches();
+    await resetMetadataStore();
   });
 
   afterEach(() => {
@@ -88,24 +91,19 @@ describe('fetchRemoteMethodsMetadata', () => {
     expect(createProductJit.paramsJitFns.isType.fn([{invalid: 'object'}])).toBe(false);
   });
 
-  // The restoreAllDependencies function needs to be called to restore JIT functions before methods can be properly restored.
-  // Currently the test clears caches but doesn't call restoreAllDependencies.
-  it('should store and restore from localStorage', async () => {
+  it('restores everything on a cold page, without asking the server again', async () => {
     // First call - fetch from server
     await fetchRemoteMethodsMetadata(['sayHello'], options);
-
-    // Verify method was stored in routesCache
     expect(routesCache.hasMetadata('sayHello')).toBe(true);
 
-    // Verify data was stored in localStorage
-    const storageKey = `${STORAGE_KEY}:method-data:sayHello:${baseURL}`;
-    const storedData = getStorage().getItem(storageKey);
-    expect(storedData).toBeTruthy();
+    // the write is deferred off the response path on purpose
+    await flushMetadataCache();
+    const store = await getMetadataStore();
+    expect((await store.readAll(baseURL)).some((record) => record.kind === 'm' && record.id === 'sayHello')).toBe(true);
 
-    // Clear the caches to simulate app restart (but keep localStorage)
+    // Clear the in-memory caches to simulate a page reload, keeping what is stored
     resetClientCaches();
 
-    // Second call - should restore from localStorage without making HTTP request
     const originalFetch = global.fetch;
     const mockFetch = vi.fn();
     global.fetch = mockFetch;
@@ -113,35 +111,29 @@ describe('fetchRemoteMethodsMetadata', () => {
     try {
       await fetchRemoteMethodsMetadata(['sayHello'], options);
 
-      // Verify fetch was not called (data restored from localStorage)
+      // nothing went out: the stored copy answered
       expect(mockFetch).not.toHaveBeenCalled();
-
-      // Verify method is still available in routesCache
       expect(routesCache.hasMetadata('sayHello')).toBe(true);
 
-      // Verify JIT functions are available
+      // and the compiled functions rebuilt from it
       const methodWithJitFns = routesCache.getMethodJitFns('sayHello');
       expect(methodWithJitFns).toBeDefined();
-      expect(methodWithJitFns!.paramsJitFns).toBeDefined();
+      expect(methodWithJitFns!.paramsJitFns.isType.fn([{name: 'John', surname: 'Doe'}])).toBe(true);
     } finally {
-      // Restore original fetch
       global.fetch = originalFetch;
     }
   });
 
-  it('should store and restore method metadata from storage', async () => {
-    // Fetch method metadata from server first
+  it('stores the method metadata as one record per method', async () => {
     await fetchRemoteMethodsMetadata(['sayHello'], options);
-    const methodMeta = routesCache.getMetadata('sayHello');
-    expect(methodMeta).toBeDefined();
+    expect(routesCache.getMetadata('sayHello')).toBeDefined();
+    await flushMetadataCache();
 
-    // Verify data was stored
-    const storageKey = `${STORAGE_KEY}:method-data:sayHello:${baseURL}`;
-    const stored = getStorage().getItem(storageKey);
-    expect(stored).toBeTruthy();
+    const store = await getMetadataStore();
+    const record = (await store.readAll(baseURL)).find((entry) => entry.kind === 'm' && entry.id === 'sayHello');
+    expect(record).toBeTruthy();
 
-    // Verify stored data can be parsed back correctly
-    const parsed = JSON.parse(stored!);
+    const parsed = JSON.parse(record!.json);
     expect(parsed.id).toBe('sayHello');
     expect(parsed.paramsCount).toBeDefined();
     // param NAMES survive the wire round-trip, so a client can name the parameter that failed

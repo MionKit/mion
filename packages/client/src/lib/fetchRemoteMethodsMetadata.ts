@@ -7,7 +7,7 @@
 
 import {isRpcError, MION_ROUTES, getRoutePath, routesCache} from '@mionjs/core';
 import {ClientOptions, RequestBody} from '../types.ts';
-import {restoreFromLocalStorage} from './clientMethodsMetadata.ts';
+import {hydrateMetadataCache} from './clientMethodsMetadata.ts';
 import {deserializeResponseBody} from './serializer.ts';
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
@@ -16,7 +16,7 @@ export async function fetchRemoteMethodsMetadata(
   options: ClientOptions,
   signal?: AbortSignal
 ): Promise<void> {
-  restoreFromLocalStorage(methodIds, options);
+  await hydrateMetadataCache(options);
   const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
   if (!missingAfterLocal.length) return;
   const body: RequestBody = {
