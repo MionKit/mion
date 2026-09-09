@@ -36,9 +36,10 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
 
 // ####### REQUEST & RESPONSE #######
 
-export type RawRequestBody = string | ArrayBuffer | Uint8Array | AnyObject;
-/** Response body can be a string, an arrayBuffer, a Uint8Array, or an object (for pre-serialized responses) */
-export type RawResponseBody = string | ArrayBuffer | Uint8Array | AnyObject;
+/** Request body as the adapter hands it over: a JSON string, or an object a host already parsed */
+export type RawRequestBody = string | AnyObject;
+/** Response body can be a string or an object (for pre-serialized responses) */
+export type RawResponseBody = string | AnyObject;
 
 // type-mion-request-start
 /** Router's own request object, do not confuse with the underlying raw request */
