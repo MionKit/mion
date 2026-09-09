@@ -8,10 +8,18 @@
 // The `encoder` option end to end: what the route and factory literals make the build compile, the
 // pair the runtime resolves, the framing derived from the chain, and each strategy's wire.
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter, getRouteExecutable, getRouteExecutionChain, getMiddleFnExecutable} from './router.ts';
+import {
+  createMionRouter,
+  resetRouter,
+  getAnyExecutable,
+  getRouteExecutable,
+  getRouteExecutionChain,
+  getMiddleFnExecutable,
+} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {MION_ROUTES, SerializerModes, type EncoderOption} from '@mionjs/core';
+import type {RemoteMethod} from './types/remoteMethods.ts';
 
 interface Pet {
   name: string;
@@ -257,6 +265,60 @@ describe('encoder strategies at the router level', () => {
       const decodeStamp = stampExec.returnJitFns.json.decode.fn;
       expect(decodeStamp(response.body.stamp)).toEqual({tag: 'marked'});
       expect(response.body.compactRoute).toBeDefined();
+    });
+  });
+
+  // mion's own built-in methods (@thrownErrors, notFound, platformError, the metadata middleFn)
+  // are DECLARED at module level, through the same helper bodies the factory closes over. They
+  // cannot inherit a router-wide `encoder`: createMionRouter is generic, so a marker call site
+  // inside it would carry an unresolved type parameter, and initRouter takes the widened options
+  // type. The build therefore compiles them against the built-in default, and each one must PIN
+  // that default. An unpinned one resolves the router-wide value at runtime, disagrees with what
+  // the build compiled, and refuses to start.
+  describe("mion's own built-in methods", () => {
+    const plainRoute = mion.route((ctx, p: Pet): Pet => p);
+
+    // each built-in method's resolved pair must be the one its own compiled functions carry, never
+    // the router-wide value; a mismatch is what assertCompiledEncoder refuses to start on
+    const expectBuiltInsPinned = () => {
+      for (const id of Object.values(MION_ROUTES) as string[]) {
+        const method = getAnyExecutable(id) as RemoteMethod | undefined;
+        if (!method?.options?.encoder) continue;
+        expect([id, method.paramsJitFns.json.strategy]).toEqual([id, method.options.encoder.params]);
+        expect([id, method.returnJitFns.json.strategy]).toEqual([id, method.options.encoder.return]);
+      }
+    };
+
+    // one test per strategy, each with an INLINE literal: a variable holding the union would widen
+    // the encoder, which resolves to the default instead of the value under test
+    it('pin their own wire under a router-wide compact', () => {
+      const ownRouter = createMionRouter({encoder: 'compact'});
+      ownRouter.initRoutes({noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
+      expectBuiltInsPinned();
+    });
+
+    it('pin their own wire under a router-wide direct', () => {
+      const ownRouter = createMionRouter({encoder: 'direct'});
+      ownRouter.initRoutes({noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
+      expectBuiltInsPinned();
+    });
+
+    it('pin their own wire under a router-wide mutate', () => {
+      const ownRouter = createMionRouter({encoder: 'mutate'});
+      ownRouter.initRoutes({noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
+      expectBuiltInsPinned();
+    });
+
+    it('compile real functions, not noop placeholders', () => {
+      mion.initRoutes({plainRoute});
+      const thrown = getAnyExecutable(MION_ROUTES.thrownErrors) as RemoteMethod;
+      const metadata = getAnyExecutable(MION_ROUTES.methodsMetadata) as RemoteMethod;
+      // a typed built-in method needs its compiled functions like any other: a noop encoder here
+      // would mean the build never saw the call site
+      expect(thrown.returnJitFns.json.encode.isNoop).toBe(false);
+      expect(thrown.returnJitHash).not.toBe('');
+      expect(metadata.returnJitFns.json.encode.isNoop).toBe(false);
+      expect(metadata.returnJitHash).not.toBe('');
     });
   });
 
