@@ -13,6 +13,7 @@ import type {
   MethodsCache,
   MethodWithOptions,
   PureFunctionData,
+  SerializablePureFunction,
   SerializableMethodsData,
   PureFnsDataCache,
 } from '@mionjs/core';
@@ -340,8 +341,14 @@ async function hydrate(state: CacheState): Promise<void> {
       const separator = record.id.indexOf(PURE_FN_SEPARATOR);
       const namespace = record.id.slice(0, separator);
       const fnName = record.id.slice(separator + PURE_FN_SEPARATOR.length);
+      // the factory is rebuilt from `code`, so an entry without one restores to nothing callable.
+      // Refuse it here rather than let it into the cache; the server will be asked for it again.
+      if (typeof parsed?.code !== 'string') {
+        console.warn(`Ignoring cached pure function ${record.id}: it carries no code`);
+        continue;
+      }
       if (!pureFnDeps[namespace]) pureFnDeps[namespace] = Object.create(null);
-      pureFnDeps[namespace][fnName] = parsed as PureFunctionData;
+      pureFnDeps[namespace][fnName] = parsed as SerializablePureFunction;
       state.graph.pureFns[record.id] = parsed;
     } else {
       methods[record.id] = parsed as MethodWithOptions;

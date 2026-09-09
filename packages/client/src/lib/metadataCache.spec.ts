@@ -11,7 +11,7 @@
 
 import 'fake-indexeddb/auto';
 import {describe, beforeEach, afterEach, it, expect, vi} from 'vitest';
-import {DEFAULT_ENCODER, MION_ROUTES, getJitFnHashes, routesCache} from '@mionjs/core';
+import {DEFAULT_ENCODER, MION_ROUTES, getJitFnHashes, resolveCompiledPureFn, routesCache} from '@mionjs/core';
 import {
   extractAndProcessMetadata,
   flushMetadataCache,
@@ -155,6 +155,36 @@ describe('the metadata cache around its store', () => {
     // and the unusable row is gone, so it never costs another read
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect((await store.readAll(baseURL)).some((record) => record.kind === 'm')).toBe(false);
+  });
+
+  it('refuses a stored pure function that carries no code', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const inner = new MemoryMetadataStore();
+    setMetadataStoreForTesting(inner);
+    // the factory is rebuilt from `code`, so an entry without one restores to nothing callable
+    await inner.write([
+      {
+        baseURL,
+        kind: 'p',
+        id: 'ns::withCode',
+        json: JSON.stringify({fnName: 'withCode', namespace: 'ns', paramNames: ['utl'], code: 'return () => 1'}),
+        ts: 1,
+      },
+      {
+        baseURL,
+        kind: 'p',
+        id: 'ns::noCode',
+        json: JSON.stringify({fnName: 'noCode', namespace: 'ns', paramNames: ['utl']}),
+        ts: 1,
+      },
+    ]);
+
+    await hydrateMetadataCache(options);
+
+    expect(resolveCompiledPureFn('ns', 'withCode')).toBeDefined();
+    expect(resolveCompiledPureFn('ns', 'noCode')).toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('makes room and writes again when the browser refuses', async () => {
