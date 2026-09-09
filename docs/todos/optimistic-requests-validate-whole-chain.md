@@ -71,9 +71,6 @@ Pointers worth having before designing it:
 - `deserializeBodyParamsOrThrow` writes the decoded params back into `request.body` in place
   (`dispatch.ts:210`). A pre-pass must not end up decoding twice.
 - A raw middleFn has no declared params, so it has nothing to pre-validate.
-- The binary lane already decodes the whole body up front, in a serializer middleFn, before the chain
-  runs (`dispatch.ts:200-204` notes it). That is a useful reference for what "already validated"
-  looks like to the rest of dispatch.
 - The url query already reaches the server and is already parsed: `dispatchRoute` takes `urlQuery`
   (`dispatch.ts:35`), and `readBatchId` (`packages/router/src/batches.ts:138`) splits it today. The
   `?data=` query body (`packages/router/src/lib/queryBody.ts`) shares the same query string, so the
