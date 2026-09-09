@@ -112,4 +112,14 @@ describe('Compact encoder E2E', () => {
     expect(middleFnResults?.stamp?.tag).toBe('release');
     expect(middleFnResults?.stamp?.when).toBeInstanceOf(Date);
   });
+
+  it('a plain middleFn with no encoder of its own still rides a compact route', async () => {
+    const [user, error, fatal, middleFnResults] = await routes.compact.getSimpleUser('Ada', 36).call({
+      middleFns: {auth: middleFns.auth(authHeaders), plainStamp: middleFns.compact.plainStamp('kept')},
+    });
+    expect(error).toBeUndefined();
+    expect(fatal).toBeUndefined();
+    expect(user).toEqual({name: 'Ada', age: 36});
+    expect(middleFnResults?.plainStamp).toEqual({note: 'kept'});
+  });
 });
