@@ -10,8 +10,7 @@
  *
  * Centralized test server for mion packages.
  * Provides a single test server with runtime type reflection for testing
- * client-server communication with both JSON and binary serialization.
- * Binary routes use per-route {serializer: 'binary'} option.
+ * client-server communication.
  *
  * IMPORTANT: Set MION_TEST_SERVER_AUTO_START=false before importing this package
  * in test files to prevent automatic server startup when importing routes.

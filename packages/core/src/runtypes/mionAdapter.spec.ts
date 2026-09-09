@@ -25,18 +25,18 @@ type AnyHandler = (ctx: any, ...params: any[]) => any;
 type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
 type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
-// The built-in defaults with binary beside them: params `direct` (sj) and return `mutate` (pj).
+// The built-in defaults: params `direct` (sj) and return `mutate` (pj).
 function fakeRoute<H extends AnyHandler>(
   handler: H,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'sj', 'rj', 'tb', 'fb'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'pj', 'rj', 'tb', 'fb'>,
+  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'sj', 'rj'>,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'pj', 'rj'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
   return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
 }
 
-// `compact` on both directions, no binary: only the compact pair is compiled.
+// `compact` on both directions: only the compact pair is compiled.
 function fakeCompactRoute<H extends AnyHandler>(
   handler: H,
   paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'cj', 'cjr'>,
@@ -47,7 +47,7 @@ function fakeCompactRoute<H extends AnyHandler>(
   return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
 }
 
-// `clone` params, `direct` return, no binary.
+// `clone` params, `direct` return.
 function fakeCloneRoute<H extends AnyHandler>(
   handler: H,
   paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'pjs', 'rj'>,
@@ -104,14 +104,6 @@ describe('mionAdapter: reflection from injected markers', () => {
     expect(JSON.stringify(prepared)).toContain('1970-01-01T00:00:00.123Z');
   });
 
-  it('binary is a pair compiled BESIDE the json pair, never instead of it', () => {
-    const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-    expect(reflection.paramsJitFns.binary).toBeDefined();
-    expect(reflection.paramsJitFns.binary!.toBinary.fn).toBeTypeOf('function');
-    expect(reflection.paramsJitFns.binary!.fromBinary.fn).toBeTypeOf('function');
-    expect(reflection.paramsJitFns.json.encode.fn).toBeTypeOf('function');
-  });
-
   it('flags async handlers and void returns', () => {
     const reflection = getReflectionFromMarkers(fireAndForget.rtFns, fireAndForget.handler, 'fireAndForget');
     expect(reflection.isAsync).toBe(true);
@@ -143,24 +135,6 @@ describe('mionAdapter: reflection from injected markers', () => {
     expect(labelled.map((param) => param.optional)).toEqual([undefined, true]);
     // a non-tuple runtype yields no params rather than throwing
     expect(getParamsFromRunType(resolveInjectedRunType(savePet.rtFns.returnId))).toEqual([]);
-  });
-
-  // ############# compile-time binary size estimate #############
-  //
-  // Read off the registered cache entry (CompiledFnData.binarySizeEstimate, @mionjs/run-types
-  // 0.12.1+) instead of indexing a tuple slot by position.
-  //
-  // Still assert the value is PRESENT and plausible, not merely that the read compiles: if the
-  // field ever stops being populated the read returns undefined, every cold binary buffer
-  // quietly reverts to MIN_COLD_START_BYTES, and nothing else in the suite would notice. A
-  // silent performance regression needs a loud test.
-  it('carries the compile-time binary size estimate on the reflection', () => {
-    const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-    // a small object: a real byte count, not a placeholder or a whole default buffer
-    expect(reflection.returnBinarySizeEstimate).toBeDefined();
-    expect(reflection.returnBinarySizeEstimate).toBeGreaterThan(0);
-    expect(reflection.returnBinarySizeEstimate).toBeLessThan(4096);
-    expect(reflection.paramsBinarySizeEstimate).toBeGreaterThan(0);
   });
 
   it('resolves full jit entries (code/hash) from the mion cache via mion jit hashes', () => {
@@ -201,12 +175,10 @@ describe('mionAdapter: json strategy per compiled family set', () => {
   const compact = fakeCompactRoute((ctx: unknown, pet: Pet): Pet => pet);
   const clone = fakeCloneRoute((ctx: unknown, pet: Pet): Pet => pet);
 
-  it('compact on both directions: the positional pair, and no binary', () => {
+  it('compact on both directions: the positional pair', () => {
     const reflection = getReflectionFromMarkers(compact.rtFns, compact.handler, 'compact');
     expect(reflection.paramsJitFns.json.strategy).toBe('compact');
     expect(reflection.returnJitFns.json.strategy).toBe('compact');
-    expect(reflection.paramsJitFns.binary).toBeUndefined();
-    expect(reflection.returnJitFns.binary).toBeUndefined();
     // the wire is positional: an object rides as an array of its declared properties
     const encoded = reflection.returnJitFns.json.encode.fn!({name: 'rex', born: new Date(123)});
     expect(Array.isArray(encoded)).toBe(true);
@@ -230,7 +202,6 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     const hashes = getJitFnHashes(reflection.returnJitHash, 'compact');
     expect(hashes.encode).toBe(reflection.returnJitFns.json.encode.rtFnHash);
     expect(hashes.decode).toBe(reflection.returnJitFns.json.decode.rtFnHash);
-    expect(hashes.toBinary).toBeUndefined();
   });
 
   // hand-made payloads: an entry tuple's slot 0 is its family tag, the rest is never read here
@@ -250,12 +221,6 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr')).toThrow(
       /val\/verr are required/
     );
-  });
-
-  it('fails closed on a lone binary family (tb without fb)', () => {
-    expect(() =>
-      buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj'), tuple('tb')], 'x', 'loneTb')
-    ).toThrow(/must come as a pair/);
   });
 });
 

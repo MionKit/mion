@@ -9,7 +9,7 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import {getRouterOptions, getAlwaysAwait} from './router.ts';
-import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionjs/core';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {onExecutableError, markResponseFailed} from './lib/dispatchError.ts';
 import {acquireCallContext, releaseCallContext} from './callContext.ts';
@@ -239,9 +239,6 @@ Object.freeze(EMPTY_PARAMS);
 
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
   const params: any[] = (request.body[executable.id] as any[]) || EMPTY_PARAMS;
-  // For binary requests, params are already deserialized in the serializer middleFn
-  // (deserializeBinaryRequestBody in serializer.routes.ts)
-  if (request.bodyType === SerializerModes.binary) return params;
 
   // For JSON requests, the compiled decoder of the params strategy restores the typed shape
   const {decode} = executable.paramsJitFns.json;

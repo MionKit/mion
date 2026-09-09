@@ -6,11 +6,11 @@
  * ######## */
 
 import type {MethodWithJitFns} from '@mionjs/core';
-import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, jsonStrategyOf, type ResolvedEncoder} from '@mionjs/core';
+import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, type ResolvedEncoder} from '@mionjs/core';
 import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
-import {RouteOptions, MiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
+import {RouteOptions, MiddleFnOptions} from '../types/remoteMethods.ts';
 import {AnyHandlerDef, RawMiddleFnDef} from '../types/definitions.ts';
 
 // ############ This file is the only one consuming type reflection within the router ########
@@ -138,37 +138,8 @@ export function getRawMethodReflection(
   return createRawMiddleFnReflection(isAsyncHandler(handler));
 }
 
-// ############ Binary serialization ############
-
-const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new Set<string>());
-
-/**
- * Checks binary (de)serialization fns for a middleFn in a binary route's execution chain.
- * Since the mion migration tb/fb are compiled AT BUILD TIME per call site; a type
- * that is not binary-serializable (e.g. the mion metadata middleFn's union, which always
- * forces stringifyJson responses anyway) simply has no entries. That is a WARNING, not an
- * error: the wire already degrades safely — serializeBinaryBody skips methods without
- * toBinary, and deserializeBinaryBody throws a clear error only if a binary body actually
- * carries the method's key.
- */
-export function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): void {
-  const missing: string[] = [];
-  const hasParams = (method.paramsCount ?? 0) > 0;
-  if (hasParams && !method.paramsJitFns.binary) missing.push('params');
-  if (method.hasReturnData && !method.returnJitFns.binary) missing.push('return');
-  if (missing.length && !binaryWarned.has(method.id)) {
-    binaryWarned.add(method.id);
-    console.warn(
-      `mion: middleFn "${method.id}" has no binary serialization fns (${missing.join(', ')}); ` +
-        `its data will not ride binary bodies. Set encoder: 'binary' on the middleFn (or router-wide) ` +
-        `so the build compiles them, unless the type is not binary-serializable.`
-    );
-  }
-}
-
 /** Checks each direction's compiled strategy against the resolved one: they differ only when the
- *  build saw a different literal than the runtime value. A `binary` direction with no binary pair is
- *  a warning, like ensureBinaryJitFns: the type may not be binary-serializable, the json pair rides. */
+ *  build saw a different literal than the runtime value. */
 export function assertCompiledEncoder(methodId: string, encoder: ResolvedEncoder, reflection: MethodReflect): void {
   const sides = [
     ['params', reflection.paramsJitHash, reflection.paramsJitFns],
@@ -176,19 +147,12 @@ export function assertCompiledEncoder(methodId: string, encoder: ResolvedEncoder
   ] as const;
   for (const [direction, hash, fns] of sides) {
     if (hash === EMPTY_HASH) continue;
-    const wanted = jsonStrategyOf(encoder[direction], direction);
+    const wanted = encoder[direction];
     if (fns.json.strategy !== wanted)
       throw new Error(
         `mion: ${direction} encoder of "${methodId}" is '${encoder[direction]}' at runtime but the build compiled ` +
           `'${fns.json.strategy}'. Write the encoder option inline on the route (or as an \`as const\` preset) and the ` +
           `router-wide default as a literal on createMionRouter, so the build sees the same value the runtime reads.`
       );
-    if (encoder[direction] === 'binary' && !fns.binary && !binaryWarned.has(`${methodId}#${direction}`)) {
-      binaryWarned.add(`${methodId}#${direction}`);
-      console.warn(
-        `mion: ${direction} encoder of "${methodId}" is 'binary' but no binary functions were compiled for its type ` +
-          `(not binary-serializable?); its ${direction} will ride the json pair instead.`
-      );
-    }
   }
 }

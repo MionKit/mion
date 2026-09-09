@@ -8,11 +8,10 @@
 import {SerializerModes, type SerializerCode} from '@mionjs/core';
 import type {RemoteMethod} from '../types/remoteMethods.ts';
 
-/** How the response body reaches the platform, from the chain's encoder strategies: bytes for a
- *  `binary` return, a JSON string the router joins when any member with return data encodes
- *  `direct` (that encoder writes the string itself), otherwise a value the platform stringifies. */
-export function getChainFraming(methods: RemoteMethod[], routeIsBinary: boolean): SerializerCode {
-  if (routeIsBinary) return SerializerModes.binary;
+/** How the response body reaches the platform, from the chain's encoder strategies: a JSON string
+ *  the router joins when any member with return data encodes `direct` (that encoder writes the
+ *  string itself), otherwise a value the platform stringifies. */
+export function getChainFraming(methods: RemoteMethod[]): SerializerCode {
   for (const method of methods) {
     if (method.hasReturnData && method.returnJitFns.json.strategy === 'direct') return SerializerModes.stringifyJson;
   }

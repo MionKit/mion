@@ -10,13 +10,13 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Encoder strategies ##########################################
 // One strategy per direction (params: client encodes, server decodes; return: the reverse), named
-// after the RunTypes JSON encoder strategies plus `binary`. The decoder is implied. A BUILD-TIME
-// literal: the marker families a route compiles are derived from it in types.
+// after the RunTypes JSON encoder strategies. The decoder is implied. A BUILD-TIME literal: the
+// marker families a route compiles are derived from it in types.
 
 /** The RunTypes JSON encoder strategies a mion route can pick per direction. */
 export type JsonStrategy = JsonEncoderStrategy;
-/** A JSON strategy, or `binary` (which keeps the direction's default JSON pair compiled beside it). */
-export type WireStrategy = JsonStrategy | 'binary';
+/** The encoder strategy of one direction. */
+export type WireStrategy = JsonStrategy;
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
 export interface EncoderPair {
   params?: WireStrategy;
@@ -30,13 +30,11 @@ export interface ResolvedEncoder {
   return: WireStrategy;
 }
 // Response framing: HOW the body reaches the platform, derived from the chain's strategies.
-// `mutate` / `clone` / `compact` frame as `json`, `direct` as `stringifyJson`, `binary` as bytes.
+// `mutate` / `clone` / `compact` frame as `json`, `direct` as `stringifyJson`.
 
 export const SerializerModes = {
   /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */
   json: 1,
-  /** the body is binary (the toBinary compiled functions) */
-  binary: 2,
   /** the body is a JSON string the router joined from `direct` encoders */
   stringifyJson: 3,
   /** Client-only: sends plain JSON without compiled functions, fetches metadata in the same response */
@@ -148,11 +146,6 @@ export interface JitJsonFunctions {
   encode: MionTypeFn<JsonEncodeFn>;
   decode: MionTypeFn<JsonDecodeFn>;
 }
-/** The binary pair, compiled only when the direction's strategy is `binary`. */
-export interface JitBinaryFunctions {
-  toBinary: MionTypeFn<ToBinaryFn>;
-  fromBinary: MionTypeFn<FromBinaryFn>;
-}
 export interface JitCompiledFunctions {
   isType: MionTypeFn<IsTypeFn>;
   typeErrors: MionTypeFn<TypeErrorsFn>;
@@ -165,7 +158,6 @@ export interface JitCompiledFunctions {
    *  type declares a transform; never on a return fn set. */
   formatTransform?: MionTypeFn<FormatTransformFn>;
   json: JitJsonFunctions;
-  binary?: JitBinaryFunctions;
 }
 /** The mion cache keys (`<fnHash>_<typeId>`) of one fn set, flat so the deps lane can walk them. */
 export interface JitFunctionsHashes {
@@ -176,8 +168,6 @@ export interface JitFunctionsHashes {
   hasUnknownKeys?: string;
   unknownKeyErrors?: string;
   formatTransform?: string;
-  toBinary?: string;
-  fromBinary?: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type RestoreFromJsonFn = (value: JSONValue) => any;
@@ -190,10 +180,6 @@ export type IsTypeFn = (value: any) => boolean;
 export type HasUnknownKeysFn = (value: any) => boolean;
 /** Format transform function: rewrites the value in place and returns it (identity when noop) */
 export type FormatTransformFn = (value: any) => any;
-/** Binary serialization function - serializes value to the serializer context */
-export type ToBinaryFn = (value: any, serializer: DataViewSerializer) => void;
-/** Binary deserialization function - deserializes from the deserializer context and returns the value */
-export type FromBinaryFn = (value: undefined, deserializer: DataViewDeserializer) => any;
 
 // ############################# JIT CACHES ###################################
 
@@ -227,13 +213,3 @@ export type JSONString = string;
  *  @mionjs/run-types's DataOnly — the exact type mion's decoders return — so mion's public
  *  DataOnly matches decoder output. (mion's former hand-rolled mirror was removed.) */
 export type DataOnly<T> = RtDataOnly<T>;
-
-// ################# BINARY SERIALIZATION - IMPORTANT NOTE ##################################
-// DO NOT CHANGE THE INTERFACE NAMES AS THEY ARE HARDCODED IN THE JIT GENERATED CODE
-// ##########################################################################################
-
-// ⚠️ These interface NAMES are hardcoded in the JIT-generated code — re-exported under the
-// SAME names from @mionjs/run-types (the codec that actually implements them). mion's former
-// subset mirrors were deleted; every member it declared exists upstream verbatim.
-import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '@mionjs/run-types';
-export type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer};

@@ -9,7 +9,6 @@ import {getChainFraming} from './lib/framing.ts';
 import {
   RpcError,
   FatalError,
-  SerializerModes,
   StatusCodes,
   HandlerType,
   getNoopJitFns,
@@ -191,9 +190,6 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
   const seenIds = new Set<string>();
   const middleMethods: RemoteMethod[] = [];
   let firstRouteIndex = -1;
-  // the merged body is binary only when EVERY route answers binary: a json-only route in a binary
-  // envelope would be skipped by the binary writer, while every binary route also carries its json pair
-  let everyRouteBinary = true;
 
   // Build sets of start and end middleFn IDs for filtering
   const startMiddleFnIds = new Set(startMiddleFns.map((method) => method.id));
@@ -212,7 +208,6 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
 
     // Track the route index from the first route (relative to start middleFns)
     if (firstRouteIndex < 0) firstRouteIndex = chain.routeIndex;
-    if (chain.serializer !== SerializerModes.binary) everyRouteBinary = false;
 
     // Add middle methods from this route's chain, deduplicating by ID; start and end middleFns are added separately
     for (const method of chain.methods) {
@@ -231,7 +226,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     // Use the first route's routeIndex since that's where the first route handler is
     routeIndex: firstRouteIndex,
     methods,
-    serializer: getChainFraming(methods, everyRouteBinary),
+    serializer: getChainFraming(methods),
   };
 }
 

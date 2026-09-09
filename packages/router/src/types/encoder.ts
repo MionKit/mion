@@ -29,9 +29,6 @@ type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = FallbackTo<
   DirectionStrategy<EncoderOf<RouteOpts>, D>,
   FallbackTo<DirectionStrategy<EncoderOf<RouterOpts>, D>, DefaultEncoder[D]>
 >;
-/** `binary` keeps the direction's built-in default json pair compiled beside the binary pair. */
-type JsonStrategyOf<S, D extends Direction> = S extends 'binary' ? DefaultEncoder[D] : S;
-
 // Mirrored by ENCODE_FAMILY_BY_STRATEGY / DECODE_FAMILY_BY_STRATEGY in @mionjs/core.
 type EncodeFamily<S> = S extends 'clone'
   ? 'pjs'
@@ -43,26 +40,18 @@ type EncodeFamily<S> = S extends 'clone'
         ? 'cj'
         : never;
 type DecodeFamily<S> = S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
-type ToBinaryFamily<S> = S extends 'binary' ? 'tb' : never;
-type FromBinaryFamily<S> = S extends 'binary' ? 'fb' : never;
 
 /** Options naming no `encoder`, the default for a helper called outside the factory. */
 type NoEncoderOptions = Record<never, never>;
 
 type ParamsStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
 type ReturnStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
-type ParamsJson<RouteOpts, RouterOpts = NoEncoderOptions> = JsonStrategyOf<ParamsStrategy<RouteOpts, RouterOpts>, 'params'>;
-type ReturnJson<RouteOpts, RouterOpts = NoEncoderOptions> = JsonStrategyOf<ReturnStrategy<RouteOpts, RouterOpts>, 'return'>;
 
-// The four slots of each marker side that vary with the strategy, read by MarkerSlots below.
-type ParamsEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
-type ParamsDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ParamsJson<RouteOpts, RouterOpts>>;
-type ParamsToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-type ParamsFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-type ReturnEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
-type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ReturnJson<RouteOpts, RouterOpts>>;
-type ReturnToBinary<RouteOpts, RouterOpts = NoEncoderOptions> = ToBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-type ReturnFromBinary<RouteOpts, RouterOpts = NoEncoderOptions> = FromBinaryFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+// The two slots of each marker side that vary with the strategy, read by MarkerSlots below.
+type ParamsEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+type ParamsDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
+type ReturnEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
 
 /** Intersected onto the factory options so a widened `encoder` (plain string, union) is a type error. */
 export type EncoderLiteralGuard<Options> = Options extends {encoder: infer E}
@@ -93,9 +82,7 @@ export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoEncoderOptions
     'uke',
     'fmt',
     ParamsEncode<RouteOpts, RouterOpts>,
-    ParamsDecode<RouteOpts, RouterOpts>,
-    ParamsToBinary<RouteOpts, RouterOpts>,
-    ParamsFromBinary<RouteOpts, RouterOpts>
+    ParamsDecode<RouteOpts, RouterOpts>
   >,
   returnFns: InjectTypeFnArgs<
     Return,
@@ -104,9 +91,7 @@ export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoEncoderOptions
     'huk',
     'uke',
     ReturnEncode<RouteOpts, RouterOpts>,
-    ReturnDecode<RouteOpts, RouterOpts>,
-    ReturnToBinary<RouteOpts, RouterOpts>,
-    ReturnFromBinary<RouteOpts, RouterOpts>
+    ReturnDecode<RouteOpts, RouterOpts>
   >,
   paramsId: InjectRunTypeId<Params>,
   returnId: InjectRunTypeId<Return>,

@@ -43,20 +43,13 @@ export function createGoogleCFHandler(options?: Partial<GoogleCFOptions>) {
 export async function googleCFHandler(rawRequest: Request, rawResponse: Response): Promise<void> {
   // Express in Google Cloud Functions might parse the body automatically when Content-Type is application/json
   // We handle both cases: string body and already-parsed object body
-  // For binary requests, we need to handle the raw buffer
 
   // TODO use its own express headers wrapper instead headers from record
   rawResponse.setHeader('server', '@mionjs');
   const reqHeaders = headersFromIncomingMessage(rawRequest);
   const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
-  const contentType = rawRequest.headers['content-type'] || '';
-  const isBinary = contentType.startsWith('application/octet-stream');
-  let rawBody = isBinary ? (rawRequest as any).rawBody : rawRequest.body;
-  let reqBodyType: SerializerCode = isBinary
-    ? SerializerModes.binary
-    : typeof rawBody === 'string'
-      ? SerializerModes.stringifyJson
-      : SerializerModes.json;
+  let rawBody = rawRequest.body;
+  let reqBodyType: SerializerCode = typeof rawBody === 'string' ? SerializerModes.stringifyJson : SerializerModes.json;
   // Extract query string from Express request
   const urlQuery = rawRequest.originalUrl?.includes('?') ? rawRequest.originalUrl.split('?')[1] : undefined;
 
@@ -111,19 +104,6 @@ function reply(mionResp: MionResponse, resp: Response): void {
       resp.set('content-type', 'application/json; charset=utf-8');
       resp.set('content-length', `${Buffer.byteLength(jsonString, 'utf8')}`);
       resp.end(jsonString, 'utf8');
-      break;
-    }
-    case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer;
-      if (!serializer) {
-        unexpectedFail(resp, mionResp.headers, new FatalError({publicMessage: 'Internal Server Error', type: 'unknown-error'}));
-        break;
-      }
-      resp.set('content-length', `${serializer.getLength()}`);
-      // content-type already set by serializer
-      // Buffer.from copies the bytes out, so the buffer is free the moment end() is called.
-      resp.end(Buffer.from(serializer.getBufferView()));
-      mionResp.releaseBinBuffer?.();
       break;
     }
     default: {

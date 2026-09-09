@@ -22,36 +22,34 @@ type User = {name: string; surname: string};
 type SimpleUser = {name: string; age: number};
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
-// ============ Binary routes ============
+// ============ Compact routes ============
 
-const binaryRoutes = {
-    echo: mion.route((_ctx, message: string): string => message, {encoder: 'binary'}),
-    addNumbers: mion.route((_ctx, a: number, b: number): number => a + b, {encoder: 'binary'}),
-    getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'binary'}),
-    greet: mion.route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {encoder: 'binary'}),
+const compactRoutes = {
+    echo: mion.route((_ctx, message: string): string => message, {encoder: 'compact'}),
+    addNumbers: mion.route((_ctx, a: number, b: number): number => a + b, {encoder: 'compact'}),
+    getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'compact'}),
+    greet: mion.route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {encoder: 'compact'}),
     findUser: mion.route(
         (_ctx, id: string): SimpleUser | null => {
             if (id === 'not-found') return null;
             return {name: 'Found User', age: 30};
         },
-        {encoder: 'binary'}
+        {encoder: 'compact'}
     ),
     mayFail: mion.route(
         (_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
             if (shouldFail) return new RpcError({publicMessage: 'Intentional failure', type: 'intentional-error'});
             return 'Success!';
         },
-        {encoder: 'binary'}
+        {encoder: 'compact'}
     ),
-    // it rides the binary routes' bodies, so it compiles the binary pair itself
-    session: mion.middleFn(
-        (_ctx, token?: string): {valid: boolean; userId?: string} | null => {
-            if (!token) return null;
-            if (token === 'invalid') return {valid: false};
-            return {valid: true, userId: 'user-123'};
-        },
-        {encoder: 'binary'}
-    ),
+    // a PLAIN middleFn declaring no encoder of its own: its params and its return value must ride
+    // these routes' bodies like any other chain member
+    session: mion.middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+        if (!token) return null;
+        if (token === 'invalid') return {valid: false};
+        return {valid: true, userId: 'user-123'};
+    }),
 } satisfies Routes;
 
 // ============ All routes ============
@@ -93,8 +91,8 @@ const routes = {
         theme: prefId % 2 === 0 ? 'dark' : 'light',
     })),
 
-    // Binary routes
-    binary: binaryRoutes,
+    // Compact routes
+    compact: compactRoutes,
 } satisfies Routes;
 
 // ============ Server startup ============

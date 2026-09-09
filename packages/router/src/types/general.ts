@@ -35,7 +35,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   pathTransform?: (request: Req, path: string) => string;
   /** factory function to initialize shared call context data */
   contextDataFactory?: ContextDataFactory<ContextData>;
-  /** The router-wide encoder strategy: `clone`, `mutate`, `direct`, `compact` or `binary`. A string
+  /** The router-wide encoder strategy: `clone`, `mutate`, `direct` or `compact`. A string
    *  sets both directions, an object sets `params` and `return` separately. A BUILD-TIME literal, so
    *  a widened value is a type error; any route overrides either direction with its own `encoder`.
    *  @default {params: 'clone', return: 'clone'} */

@@ -47,7 +47,7 @@ Cross-package deps use the `workspace:*` protocol. All devDependencies live root
 
 The mion framework packages (`@mionjs/*`):
 
-- [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔mion reflection adapter under `src/runtypes/`).
+- [core](packages/core/) — shared framework foundation (`RpcError`/`TypedError`, router metadata, response framing, the mion↔mion reflection adapter under `src/runtypes/`).
 - [router](packages/router/) — HTTP routing and request handling. [client](packages/client/) — client-side utilities.
 - [devtools](packages/devtools/) (`@mionjs/devtools`) — Vite plugin (wraps `@mionjs/devtools`) + ESLint plugin.
 - [drizzle-orm](packages/drizzle-orm/) (`@mionjs/drizzle-orm`) — the dialect-agnostic slim recorder core (column/table/entry/sql recorders, flat Infer* models, refineTableType); never imports drizzle.
