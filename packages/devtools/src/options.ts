@@ -53,10 +53,11 @@ export interface MionRunTypesOptions {
   moduleMode?: TsRuntypesPluginOptions['moduleMode'];
   inlineMode?: TsRuntypesPluginOptions['inlineMode'];
   transformMode?: TsRuntypesPluginOptions['transformMode'];
-  /** Halt the build on Error-severity mion diagnostics (default true — the
-   *  RunTypes adapter is scanner-clean since the pure-fn helpers moved onto the
-   *  untracked runtime-key APIs, so strict mode is safe monorepo-wide). */
-  failOnError?: TsRuntypesPluginOptions['failOnError'];
+  /** Diagnostic codes to report as warnings instead of halting the build, or
+   *  `'*'` for all of them. Strict by default: the RunTypes adapter is
+   *  scanner-clean since the pure-fn helpers moved onto the untracked
+   *  runtime-key APIs, so strict mode is safe monorepo-wide. */
+  downgradeErrors?: TsRuntypesPluginOptions['downgradeErrors'];
   /** How many mockSamples to generate for a TypeFormat pattern that declares none.
    *  Pattern checks run on a real JS engine (the same `new RegExp` the emitted validator
    *  uses), so any JS regex is checkable — there is nothing to opt out of. Declared
@@ -121,6 +122,10 @@ const REMOVED_RUNTYPES_OPTIONS: Record<string, string> = {
   exclude: 'scan scope comes from the tsconfig program — narrow `exclude` in the tsconfig instead.',
   reflectionMode: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
   reflection: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
+  failOnError:
+    'replaced by `downgradeErrors`, which names the codes to report as warnings instead of the whole catalog. ' +
+    "`failOnError: false` becomes `downgradeErrors: '*'`; `failOnError: true` was the default, so just drop it. " +
+    'For a bad call site in your own source prefer a `@mion-expect-error` comment on the line above it.',
 };
 
 /** Throws on any deepkit/AOT-era option a stale config still passes, naming the replacement.
@@ -212,8 +217,10 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}, client?: MionCli
     // Strict by default: Error-severity mion diagnostics halt the build. The
     // RunTypes adapter no longer trips the scanner (its runtime-key wrappers ride
     // the untracked *ByKey APIs / the raw cache), so consumers get the documented
-    // "Error = build must fail" contract. Opt out per package with `failOnError: false`.
-    failOnError: rt.failOnError ?? true,
+    // "Error = build must fail" contract. Passed through UNDEFINED when unset,
+    // never defaulted, so a tsconfig-only `downgradeErrors` still reaches the
+    // host — the echo can only win over an absent option.
+    downgradeErrors: rt.downgradeErrors,
     patternSampleCount: rt.patternSampleCount,
     patternSampleRetries: rt.patternSampleRetries,
     jsRuntime: rt.jsRuntime,

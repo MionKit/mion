@@ -49,11 +49,13 @@ export default defineConfig({
       emitMode: 'both',
       // This test program DELIBERATELY contains Error-severity types (the
       // alwaysThrow suites pin the runtime throw for root-position symbols,
-      // functions, …), so the strict default (failOnError: true — Error
-      // diagnostics fail every lane, vitest included) would refuse to boot
-      // the project. This opt-out is the documented escape hatch for exactly
-      // this shape of program; consumers keep the strict default.
-      failOnError: false,
+      // functions, …), so the strict default would refuse to boot the project.
+      // 45 such call sites across 15 suite files, spanning the cloning,
+      // serialization and validation families: too many codes to name, which is
+      // what the wildcard is for. A consumer with a handful of findings should
+      // name the codes instead, or annotate the call site with
+      // `@mion-expect-error`.
+      downgradeErrors: '*',
       // The on-disk RT artifact cache follows TypeScript's incremental switch,
       // and `tsconfig.test.json` sets `incremental: false`, so these test runs
       // are cache-off with no knob — they never pollute node_modules/.cache
