@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -381,5 +382,92 @@ func TestMergeBuildOptions_MarkerPackageCheckFlagWinsOverTsconfig(t *testing.T) 
 	plugin := tsRuntypesPlugin{Markers: &markersPluginConfig{CheckPackage: boolPtr(true)}}
 	if !mergeBuildOptions(flags, plugin, "/proj").skipMarkerPackageCheck {
 		t.Error("expected --no-marker-package-check to win over the tsconfig entry")
+	}
+}
+
+// TestDowngradeErrorsKey covers the tsconfig `downgradeErrors` value in both
+// shapes it accepts, and the one it does not.
+func TestDowngradeErrorsKey(t *testing.T) {
+	parse := func(t *testing.T, value string) (tsRuntypesPlugin, bool, error) {
+		t.Helper()
+		dir := t.TempDir()
+		writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
+			`{ "compilerOptions": { "plugins": [ { "name": "mion", "downgradeErrors": `+value+` } ] } }`)
+		parsed, ok := parseTsconfig(filepath.Join(dir, "tsconfig.json"))
+		if !ok {
+			t.Fatal("tsconfig should parse")
+		}
+		return findTsRuntypesPlugin(parsed)
+	}
+
+	t.Run("list of codes", func(t *testing.T) {
+		plugin, ok, err := parse(t, `["VL002", "PJ001"]`)
+		if err != nil || !ok {
+			t.Fatalf("ok=%v err=%v", ok, err)
+		}
+		if len(plugin.DowngradeErrors) != 2 || plugin.DowngradeErrors[0] != "VL002" {
+			t.Errorf("downgradeErrors = %v", plugin.DowngradeErrors)
+		}
+	})
+
+	// The bare wildcard and the one-element list mean the same, so the tsconfig
+	// spelling and the plugin spelling agree.
+	t.Run("wildcard either way", func(t *testing.T) {
+		for _, value := range []string{`"*"`, `["*"]`} {
+			plugin, ok, err := parse(t, value)
+			if err != nil || !ok {
+				t.Fatalf("%s: ok=%v err=%v", value, ok, err)
+			}
+			if len(plugin.DowngradeErrors) != 1 || plugin.DowngradeErrors[0] != "*" {
+				t.Errorf("%s: downgradeErrors = %v", value, plugin.DowngradeErrors)
+			}
+		}
+	})
+
+	// A bad value used to drop the WHOLE mion entry silently, taking genDir,
+	// markers and every other key with it.
+	t.Run("a bad value is loud, not silent", func(t *testing.T) {
+		_, _, err := parse(t, `42`)
+		if err == nil {
+			t.Fatal("a mion entry that does not decode must be reported")
+		}
+	})
+}
+
+// TestFindTsRuntypesPlugin_KeepsOtherPluginsOut proves the loud-decode rule is
+// scoped to our own entry: another language-service plugin's shape is none of
+// our business, so it is skipped rather than erroring the run.
+func TestFindTsRuntypesPlugin_KeepsOtherPluginsOut(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{ "compilerOptions": { "plugins": [
+    { "name": "other", "downgradeErrors": 42 },
+    { "name": "mion", "genDir": "gen" }
+  ] } }`)
+	parsed, _ := parseTsconfig(filepath.Join(dir, "tsconfig.json"))
+	plugin, ok, err := findTsRuntypesPlugin(parsed)
+	if err != nil || !ok {
+		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+	if plugin.GenDir != "gen" {
+		t.Errorf("genDir = %q", plugin.GenDir)
+	}
+}
+
+// TestRemovedPluginKeys pins that a retired key is reported with the
+// replacement rather than as a bare "unknown key".
+func TestRemovedPluginKeys(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
+		`{ "compilerOptions": { "plugins": [ { "name": "mion", "failOnError": false } ] } }`)
+	unknown := unknownPluginKeys(dir, "tsconfig.json")
+	if len(unknown) != 1 || unknown[0] != "failOnError" {
+		t.Fatalf("failOnError is no longer a key, so it surfaces: %v", unknown)
+	}
+	message, removed := removedPluginKeys["failOnError"]
+	if !removed {
+		t.Fatal("failOnError needs a migration message, not a generic warning")
+	}
+	if !strings.Contains(message, "downgradeErrors") {
+		t.Errorf("the message must name the replacement, got %q", message)
 	}
 }

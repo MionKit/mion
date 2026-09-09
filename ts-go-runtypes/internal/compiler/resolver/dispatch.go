@@ -99,7 +99,7 @@ var familyAddedFlags = []familyAddedFlag{
 func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
 	if !request.IncludeMetrics {
 		response := sess.dispatch(request, nil)
-		response.Diagnostics = diagnostics.Dedupe(response.Diagnostics)
+		response.Diagnostics = sess.settleDiagnostics(response.Diagnostics, request.Op == protocol.OpGenerate)
 		return response
 	}
 	var memBefore runtime.MemStats
@@ -107,7 +107,7 @@ func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
 	metrics := &protocol.Metrics{RenderMs: map[string]float64{}}
 	start := time.Now()
 	response := sess.dispatch(request, metrics)
-	response.Diagnostics = diagnostics.Dedupe(response.Diagnostics)
+	response.Diagnostics = sess.settleDiagnostics(response.Diagnostics, request.Op == protocol.OpGenerate)
 	metrics.TotalMs = elapsedMs(start)
 	var memAfter runtime.MemStats
 	runtime.ReadMemStats(&memAfter)
@@ -1044,9 +1044,9 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if batchesModule != "" && len(routerInitFiles) == 0 {
 			genResponse.Diagnostics = append(genResponse.Diagnostics, diagnostics.New(diagnostics.CodeBatchNoRouterInit, diagnostics.Site{}, batchesModule))
 		}
-		// Echo the tsconfig plugin's failOnError (nil when unset) so the
+		// Echo the tsconfig plugin's downgradeErrors (nil when unset) so the
 		// dependency-free host can adopt a tsconfig-only setting, same as OutDir.
-		genResponse.FailOnError = sess.opts.TsconfigFailOnError
+		genResponse.DowngradeErrors = sess.opts.TsconfigDowngradeErrors
 		// Pure-fn build report (opt-in): populate the structured records for the
 		// in-process callback, and — when file output is enabled — write the JSON
 		// file alongside the generated modules so out-of-process consumers (a

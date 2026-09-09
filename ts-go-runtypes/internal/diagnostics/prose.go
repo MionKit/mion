@@ -33,6 +33,28 @@ type prose struct {
 }
 
 var proseByCode = map[string]prose{
+	// ─────────────────── expect-error directives (EXP) ───────────────────
+
+	// No Examples in this family. The example harness feeds a snippet through a
+	// single-FILE scan, but "did this comment silence anything" is only
+	// answerable against a whole program, so these codes are raised on the
+	// whole-program pass instead. They are covered by expecterror_test.go, which
+	// dispatches that pass directly.
+
+	CodeExpectErrorUnused: {
+		Summary: "A `@mion-expect-error` comment silenced nothing: the code it names was not reported on the line below it. The comment is checked the same way TypeScript checks `@ts-expect-error`, so a silencer can never outlive the problem it was added for. Delete the comment, or correct the code it names.",
+		Fix:     "// @mion-expect-error VL002\nexport const report = createValidateFn<symbol>();",
+	},
+
+	CodeExpectErrorNotSuppressible: {
+		Summary: "A `@mion-expect-error` comment named a code that is always reported. Pure function codes report a failed extraction, and the build writes generated files from that extraction, so continuing would ship missing output rather than risky output. `EXP` codes are the check that keeps these comments honest, so a comment cannot silence one either. Fix the reported call site instead.",
+	},
+
+	CodeExpectErrorUnknownCode: {
+		Summary: "A `@mion-expect-error` comment named a code the catalog does not define, which is almost always a typo. Such a comment silences nothing while looking like it works. Copy the code out of the message you are silencing: it is the uppercase identifier, for example the `VL002` in `error VL002: Type ... can never be validated`.",
+		Fix:     "// @mion-expect-error VL002",
+	},
+
 	// ──────────────────────── project config (CFG) ────────────────────────
 
 	CodeTsconfigLoadFailed: {

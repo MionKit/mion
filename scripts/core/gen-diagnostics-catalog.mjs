@@ -40,7 +40,7 @@ const SUBSYSTEMS = [
     key: 'markers',
     label: 'Markers and call sites',
     description: 'Raised at a marker call, before the build can turn your type into a function.',
-    prefixes: ['MKR', 'CTA', 'PFN', 'TMP', 'BAT'],
+    prefixes: ['MKR', 'CTA', 'PFN', 'TMP', 'BAT', 'EXP'],
   },
   {
     key: 'validation',
@@ -136,7 +136,12 @@ function tsString(value) {
 
 const entries = goRecords
   .map((record) => {
-    const lines = [`  ${record.code}: {`, `    headline: ${tsString(record.headline)},`, `    severity: ${tsString(record.severity)},`];
+    const lines = [
+      `  ${record.code}: {`,
+      `    headline: ${tsString(record.headline)},`,
+      `    severity: ${tsString(record.severity)},`,
+      `    family: ${tsString(record.family)},`,
+    ];
     if (record.detail) lines.push(`    detail: ${tsString(record.detail)},`);
     lines.push('  },');
     return lines.join('\n');
@@ -156,6 +161,9 @@ export interface DiagnosticEntry {
   readonly headline: string;
   /** Catalog severity: the default lint-rule tier this code routes to. */
   readonly severity: 'error' | 'warning' | 'info';
+  /** Which part of the compiler raises the code. Read by the config validators:
+   *  a purefn code can never be downgraded or suppressed. */
+  readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute';
   /** Optional multi-line detail block (explanation + code-example fix). */
   readonly detail?: string;
 }
