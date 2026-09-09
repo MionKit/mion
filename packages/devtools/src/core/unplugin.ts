@@ -836,7 +836,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       const gen = await resolver.generate();
       for (const file of gen.siteFiles) siteFiles.add(siteKey(file));
       reportGenerate(gen);
-      surfaceDiagnostics(ctx, gen.diagnostics ?? [], () => true, {halt: false});
+      surfaceDiagnostics(ctx, gen.diagnostics ?? [], () => true, {halt: false, downgrade});
     } catch {
       // A regenerate failure shouldn't tear down the dev server mid-edit.
     }
@@ -981,7 +981,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // Re-emit diagnostics so the editor's problem panel updates as the user
     // types. `halt: false` because HMR shouldn't tear down the dev server on a
     // single bad type — the user is mid-edit.
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], () => true, {halt: false});
+    surfaceDiagnostics(ctx, result.diagnostics ?? [], () => true, {halt: false, downgrade});
 
     const stale = staleSiteFiles(relevant.map((update) => update.file));
     // Report from the SHARED leaf, so every host gets it: Vite's
