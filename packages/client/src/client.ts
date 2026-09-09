@@ -25,6 +25,7 @@ import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
+import {takeMetadataCacheError} from './lib/clientMethodsMetadata.ts';
 
 export function initClient<RM extends RemoteApi>(
   options: InitClientOptions
@@ -271,6 +272,11 @@ export class MionClient {
         }
       }
     }
+
+    // A metadata cache write that could not be stored, even after making room for it. The request
+    // itself was fine, so this never rejects and never displaces a real error: it rides the first
+    // result whose undeclared slot is free, which is where request-scoped framework errors live.
+    if (undeclaredPart === undefined) undeclaredPart = takeMetadataCacheError();
 
     return [routeResultPart, routeErrorPart, undeclaredPart, middleFnsResults, middleFnsErrors] as any;
   }

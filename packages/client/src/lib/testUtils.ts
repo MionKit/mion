@@ -6,11 +6,14 @@
  * ######## */
 
 import {resetJitFnCaches, resetJitFunctionsCache, routesCache} from '@mionjs/core';
+import {resetMetadataCacheState} from './clientMethodsMetadata.ts';
 
-/** Resets all client caches. Only for testing — simulates app restart. */
+/** Resets all client caches. Only for testing — simulates app restart.
+ *  Leaves the stored cache alone: a page reload keeps it, which is the point of it. */
 export function resetClientCaches() {
   const cache = routesCache.getCache();
   for (const key in cache) delete cache[key];
   resetJitFnCaches();
   resetJitFunctionsCache();
+  resetMetadataCacheState();
 }

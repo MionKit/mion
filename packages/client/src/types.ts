@@ -70,6 +70,9 @@ export type BatchRouteErrors<Routes extends RouteSubRequest<any>[]> = {
 };
 // type-batch-route-errors-end
 
+/** One value for now. It stays a named option so an app can bring its own engine later. */
+export type StorageEngine = 'indexeddb';
+
 export interface ClientOptions extends CoreRouterOptions {
   /** Base URL of the server, i.e: http://localhost:3000 */
   baseURL: string;
@@ -92,6 +95,9 @@ export interface ClientOptions extends CoreRouterOptions {
    *  known, on the plain wire forms every server decoder accepts, and retries with the route's real
    *  encoder on an error. The wire itself is decided by the server's `encoder`, never by this option. */
   serializer: SerializerMode;
+  /** Where the client keeps what it learned about the remote methods, so a later visit does not have
+   *  to ask again. Falls back to memory wherever the browser's database is missing or blocked. */
+  storageEngine: StorageEngine;
   /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
   timeout?: number;
 }

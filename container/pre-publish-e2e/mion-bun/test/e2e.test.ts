@@ -22,37 +22,10 @@ setDefaultTimeout(60_000);
 const port = 8087;
 const baseURL = `http://127.0.0.1:${port}`;
 
-// @mionjs/client keeps its method metadata in Web Storage. bun has no localStorage,
-// and the client's own fallback would quietly cover for that — define one so the
-// real branch runs (mirrors the node consumer's memoryStorage stub).
-class MemoryStorage implements Storage {
-    private readonly entries = new Map<string, string>();
-    get length(): number {
-        return this.entries.size;
-    }
-    key(index: number): string | null {
-        return [...this.entries.keys()][index] ?? null;
-    }
-    getItem(key: string): string | null {
-        return this.entries.has(key) ? (this.entries.get(key) as string) : null;
-    }
-    setItem(key: string, value: string): void {
-        this.entries.set(key, String(value));
-    }
-    removeItem(key: string): void {
-        this.entries.delete(key);
-    }
-    clear(): void {
-        this.entries.clear();
-    }
-}
-
 let server: Server<any>;
 
 describe('published mion packages under bun', () => {
     beforeAll(async () => {
-        globalThis.localStorage = new MemoryStorage();
-        globalThis.sessionStorage = new MemoryStorage();
         setBunHttpOpts({port});
         server = await startBunServer();
     });

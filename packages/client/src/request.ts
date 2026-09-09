@@ -28,7 +28,12 @@ import {
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './lib/fetchRemoteMethodsMetadata.ts';
-import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
+import {
+  createMetadataSubRequest,
+  hydrateMetadataCache,
+  purgeHydratedMetadata,
+  wasHydratedFromCache,
+} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
@@ -42,6 +47,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   /** ids in the RequestErrors map whose error is thrown/undeclared (unexpected) rather than a declared response */
   readonly thrownErrorIds = new Set<string>();
   response: Response | undefined;
+  /** bounds the stale-metadata relearn below to one attempt per request */
+  private purgedStaleMetadata = false;
 
   constructor(
     public readonly options: ClientOptions,
@@ -82,7 +89,22 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   private async makeCall(originalSerializer: SerializerMode, skipOptimistic?: boolean): Promise<ResponseBody> {
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
-    const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+    let allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+    // an id this page never heard of may still be in the store from an earlier visit: one indexed
+    // read settles it, while guessing wrong costs the optimistic round trip AND its retry. Hydration
+    // runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
+    if (!allCached) {
+      await hydrateMetadataCache(this.options);
+      if (this.signal?.aborted) {
+        this.onError(
+          this.signal.reason ?? new DOMException('This operation was aborted', 'AbortError'),
+          'Request aborted',
+          errors
+        );
+        return Promise.reject(errors);
+      }
+      allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+    }
     // the optimistic first request sends the params on the plain wire forms every server decoder
     // accepts; what a decoder cannot read errors and the retry below sends the real encoder
     const isOptimistic = !allCached && !skipOptimistic;
@@ -153,8 +175,16 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
       // Never retry an aborted request — the user explicitly canceled it.
-      if (isOptimistic && !this.signal?.aborted && this.shouldRetryWithProperSerialization(deserialized)) {
-        return this.retryWithProperSerialization(originalSerializer);
+      if (!this.signal?.aborted && this.shouldRetryWithProperSerialization(deserialized)) {
+        if (isOptimistic) return this.retryWithProperSerialization(originalSerializer);
+        // Not optimistic, so the metadata came from somewhere. If that somewhere was the store it can
+        // predate the server's current build, and nothing else would ever correct it: drop those ids
+        // from memory and from the store, and let the retry go out optimistic and relearn them.
+        if (!this.purgedStaleMetadata && subRequestIds.some((id) => wasHydratedFromCache(id, this.options))) {
+          this.purgedStaleMetadata = true;
+          await purgeHydratedMetadata(subRequestIds, this.options);
+          return this.retryWithProperSerialization(originalSerializer);
+        }
       }
 
       this.resolveSubRequests(deserialized, errors, isOptimistic ? MION_ROUTES.methodsMetadata : undefined);

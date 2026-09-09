@@ -37,6 +37,11 @@ Two of them exist because of real bugs, keep them in mind when touching request 
 - A middleFn error NEVER appears in slot 1. Slot 1 is the route's declared union and nothing
   else, otherwise the typing of that slot would be a lie.
 
+One thing rides slot 2 that the router never saw: a metadata cache write the browser refused, after
+eviction ran out of things to give up. The request itself succeeded, so it never rejects and never
+displaces a real error; it takes the first free undeclared slot on a later call and is reported once
+(`packages/client/src/lib/clientMethodsMetadata.ts`, `takeMetadataCacheError`).
+
 ## Calls never throw
 
 Every failure comes back inside the tuple. The ONE method that throws is `typeErrors()`,

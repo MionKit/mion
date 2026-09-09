@@ -24,12 +24,23 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   autoGenerateErrorId: false,
   /** Default first-call mode: fetch the metadata first, then encode with the route's own strategy */
   serializer: 'stringifyJson',
+  /** Where the client keeps what it learned about the remote methods */
+  storageEngine: 'indexeddb',
 };
 
 /** Maximum safe URL length for GET requests with ?data= query param */
 export const MAX_GET_URL_LENGTH = 4096;
 
 export const STORAGE_KEY = 'mion:client';
+
+/** How much of the browser's space the metadata cache will use for one server before it starts
+ *  dropping its oldest entries. Well under what a browser normally grants, so the cache stays a
+ *  good neighbour to whatever else the page stores. */
+export const METADATA_CACHE_MAX_BYTES = 8 * 1024 * 1024;
+
+/** How many times a refused write may drop another batch of old entries and try again before the
+ *  failure is reported to the app. */
+export const METADATA_CACHE_EVICTION_ROUNDS = 5;
 
 /** Key for request-scoped client errors (transport, platform, framework) in the RequestErrors map.
  * Deliberately NOT a route or middleFn id so these errors can never land in a subrequest's slot. */

@@ -90,6 +90,7 @@
         "drizzle-orm": "0.45.2",
         "esbuild": "0.28.1",
         "eslint": "9.39.4",
+        "fake-indexeddb": "6.2.5",
         "husky": "9.1.7",
         "lint-staged": "16.4.0",
         "miniflare": "3.20250718.3",
