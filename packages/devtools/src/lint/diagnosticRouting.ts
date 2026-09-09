@@ -18,6 +18,7 @@ import {Family, Severity, type Diagnostic, type DiagnosticSite} from '../core/pr
 // `createValidateFn` and `createGetValidationErrorsFn` (VL + VE).
 export type RuleName =
   | 'broken-tsconfig'
+  | 'invalid-expect-error'
   | 'invalid-marker'
   | 'redundant-marker'
   | 'pure-functions'
@@ -78,6 +79,14 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     gate: 'compiler',
     description:
       'The project tsconfig the linter was pointed at (the tsconfig setting, or the default tsconfig.json) is missing or does not parse, so type-aware linting cannot run. The linter reads the same config as your build; fix the config or the configured path',
+  },
+  {
+    name: 'invalid-expect-error',
+    namespace: 'runtypes',
+    default: 'error',
+    gate: 'compiler',
+    description:
+      'A `@mion-expect-error` comment that is wrong: it silenced nothing (so it is stale and should be deleted, the same check TypeScript runs on an unused `@ts-expect-error`), it names a code that is always reported, or it names a code that does not exist',
   },
   {
     name: 'invalid-marker',
@@ -330,6 +339,7 @@ interface FamilyRules {
 // mionRouteFamily), so they are absent here.
 const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   CFG: {primary: 'broken-tsconfig'},
+  EXP: {primary: 'invalid-expect-error'},
   MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
   CTA: {primary: 'invalid-marker'},
   PFN: {primary: 'invalid-marker'},

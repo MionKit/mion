@@ -340,7 +340,7 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
     const plugin = makePlugin(project, {enrich: {friendly: true, mock: true}});
     try {
       // No committed mirrors on disk yet → every desired mirror is "missing" →
-      // the gate fails the build (failOnError defaults true) and writes NOTHING.
+      // the gate fails the build (nothing is downgraded by default) and writes NOTHING.
       await expect(driveBuild(plugin, project, 'build')).rejects.toThrow(/out of date or missing/);
       expect(fs.existsSync(project.friendlyMirror), 'drift gate must NOT write during a build').toBe(false);
       expect(fs.existsSync(project.mockMirror), 'drift gate must NOT write during a build').toBe(false);

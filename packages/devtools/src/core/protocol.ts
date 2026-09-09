@@ -550,10 +550,11 @@ export interface Response {
   // trigger a regenerate too
   batchSourceRoots?: string[];
   routerInitFiles?: string[];
-  // Echo of the tsconfig plugin's failOnError on `generate` (absent when the
+  // Echo of the tsconfig plugin's downgradeErrors on `generate` (absent when the
   // tsconfig sets none) so the dependency-free host can honor a tsconfig-only
-  // setting: the plugin's own option wins, then this echo, then the true default.
-  failOnError?: boolean;
+  // setting: the plugin's own option wins, then this echo, then nothing
+  // downgraded. Either a list of codes or the single wildcard entry '*'.
+  downgradeErrors?: string[];
   // One TransformResult per file for the `transform` op: rewritten source +
   // source map (+ the cache modules the file imports), keyed by file path.
   transformed?: Record<string, TransformResult>;

@@ -13,10 +13,11 @@ export interface RunTypesLoaderOptions {
   tsConfig?: string;
   /** RunTypes generated-output root (defaults to <cwd>/.mion). */
   genDir?: string;
-  /** Halt the load on Error-severity mion diagnostics. Default false for the Bun preload
-   *  lane so a single diagnostic doesn't abort the whole `bun test`/`bun run` process; genuine
-   *  missing injections still surface at runtime as MissingRtFnsError during route registration. */
-  failOnError?: boolean;
+  /** Diagnostic codes to report as warnings instead of halting the load, or `'*'` for all of
+   *  them. Defaults to `'*'` for the Bun preload lane so a single diagnostic doesn't abort the
+   *  whole `bun test`/`bun run` process; genuine missing injections still surface at runtime as
+   *  MissingRtFnsError during route registration. */
+  downgradeErrors?: string[] | '*';
 }
 
 /**
@@ -35,6 +36,6 @@ export function runTypesLoader(options: RunTypesLoaderOptions = {}): BunPlugin {
     tsconfig: options.tsConfig,
     genDir: options.genDir,
     transformMode: 'go',
-    failOnError: options.failOnError ?? false,
+    downgradeErrors: options.downgradeErrors ?? '*',
   }) as unknown as BunPlugin;
 }

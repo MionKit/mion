@@ -754,10 +754,10 @@ describe('the serialization bench mounts the marker tsconfig chain', () => {
   // dies with "N unsupported-type errors — build halted" before measuring a
   // single case. Its vitest config opts out for exactly this reason; the bench
   // loads the same program through the same plugin and has to as well.
-  it('opts out of failOnError, like the vitest config over the same program', () => {
+  it('downgrades every code, like the vitest config over the same program', () => {
     const call = /runtypesPlugin\(\{([^}]*)\}/.exec(readFileSync(GEN_SERIALIZATION, 'utf8'));
     expect(call).toBeTruthy();
-    expect(call![1]).toMatch(/failOnError:\s*false/);
+    expect(call![1]).toMatch(/downgradeErrors:\s*'\*'/);
   });
 });
 

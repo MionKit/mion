@@ -384,10 +384,10 @@ export interface GenerateResult {
   // Whole-program request-batch build report — same gating as pureFnSites; the
   // records the resolver also writes to `<genDir>/types/batches-report.json`.
   batchSites?: BatchSite[];
-  // Echo of the tsconfig plugin's failOnError (absent when the tsconfig sets
-  // none). The plugin adopts it as the halt default: options.failOnError ?? this
-  // ?? true.
-  failOnError?: boolean;
+  // Echo of the tsconfig plugin's downgradeErrors (absent when the tsconfig sets
+  // none). The plugin adopts it as its downgrade set:
+  // options.downgradeErrors ?? this ?? nothing.
+  downgradeErrors?: string[];
 }
 
 // EnrichResult is the shape returned by enrich(): the computed mirror files (the
@@ -524,7 +524,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       diagnostics: resp.diagnostics,
       pureFnSites: resp.pureFnSites,
       batchSites: resp.batchSites,
-      failOnError: resp.failOnError,
+      downgradeErrors: resp.downgradeErrors,
     };
   }
 
