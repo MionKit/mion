@@ -10,14 +10,9 @@
 // on how IndexedDB orders a compound key. fake-indexeddb runs the W3C suite, so it holds that line.
 
 import 'fake-indexeddb/auto';
-import {describe, beforeEach, it, expect} from 'vitest';
-import {
-  getMetadataStore,
-  MemoryMetadataStore,
-  resetMetadataStore,
-  type MetadataRecord,
-  type MetadataStore,
-} from './metadataStore.ts';
+import {describe, beforeEach, afterEach, it, expect} from 'vitest';
+import {getMetadataStore, MemoryMetadataStore, resetMetadataStore} from './metadataStore.ts';
+import type {MetadataRecord, MetadataStore, MetadataStoreFactory} from './storage.ts';
 
 const A = 'http://x';
 /** the classic bound-range bug: one baseURL is a prefix of the other */
@@ -26,6 +21,8 @@ const B = 'http://x/api';
 function record(baseURL: string, kind: MetadataRecord['kind'], id: string, json = '{}'): MetadataRecord {
   return {baseURL, kind, id, json, ts: 1};
 }
+
+const idsOfRecords = (records: MetadataRecord[]) => records.map((entry) => `${entry.kind}:${entry.id}`).sort();
 
 const arms: [string, () => Promise<MetadataStore>][] = [
   ['memory', async () => new MemoryMetadataStore()],
@@ -41,7 +38,7 @@ describe.each(arms)('metadata store (%s)', (name, makeStore) => {
     if (name === 'indexeddb') expect(store.kind).toBe('indexeddb');
   });
 
-  const idsOf = (records: MetadataRecord[]) => records.map((entry) => `${entry.kind}:${entry.id}`).sort();
+  const idsOf = idsOfRecords;
 
   it('one read returns every kind of one server, and nothing from another', async () => {
     await store.write([
@@ -117,5 +114,63 @@ describe('metadata store selection', () => {
     const poison = {...record(A, 'm', 'poison'), json: '{}', bad: () => 1} as unknown as MetadataRecord;
     await expect(store.write([record(A, 'm', 'good'), poison])).rejects.toBeTruthy();
     expect(await store.readAll(A)).toEqual([]);
+  });
+});
+
+describe('an engine of the app', () => {
+  beforeEach(async () => {
+    await resetMetadataStore();
+  });
+
+  afterEach(async () => {
+    await resetMetadataStore();
+  });
+
+  /** The smallest thing that satisfies the contract, written from the outside like an app would. */
+  function countingEngine() {
+    const inner = new MemoryMetadataStore();
+    let opened = 0;
+    const factory: MetadataStoreFactory = () => {
+      opened += 1;
+      const store: MetadataStore = {
+        kind: 'app-store',
+        readAll: (baseURL) => inner.readAll(baseURL),
+        write: (records) => inner.write(records),
+        remove: (baseURL, keys) => inner.remove(baseURL, keys),
+        clear: (baseURL) => inner.clear(baseURL),
+      };
+      return store;
+    };
+    return {factory, opened: () => opened};
+  }
+
+  it('is used instead of the browser database, and opened once', async () => {
+    const engine = countingEngine();
+
+    const store = await getMetadataStore(engine.factory);
+    expect(store.kind).toBe('app-store');
+    await store.write([record(A, 'm', 'sayHello')]);
+    expect(idsOfRecords(await (await getMetadataStore(engine.factory)).readAll(A))).toEqual(['m:sayHello']);
+    expect(engine.opened()).toBe(1);
+  });
+
+  it('keeps each engine apart, so one app never reads another engine cache', async () => {
+    const engine = countingEngine();
+    await (await getMetadataStore(engine.factory)).write([record(A, 'm', 'sayHello')]);
+
+    expect(await (await getMetadataStore('memory')).readAll(A)).toEqual([]);
+  });
+
+  it('falls back to memory when the engine cannot open a store', async () => {
+    const missing = await getMetadataStore(() => undefined);
+    expect(missing.kind).toBe('memory');
+
+    const broken = await getMetadataStore(() => Promise.reject(new Error('no room')));
+    expect(broken.kind).toBe('memory');
+  });
+
+  it('the memory engine is the in-memory store, whatever the browser offers', async () => {
+    const store = await getMetadataStore('memory');
+    expect(store.kind).toBe('memory');
   });
 });

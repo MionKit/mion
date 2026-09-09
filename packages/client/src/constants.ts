@@ -6,6 +6,10 @@
  * ######## */
 
 import {ClientOptions} from './types.ts';
+import type {StorageEngine} from './lib/storage.ts';
+
+/** The engine the client uses when an app does not name one. */
+export const DEFAULT_STORAGE_ENGINE: StorageEngine = 'indexeddb';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   baseURL: '',
@@ -25,7 +29,7 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   /** Default first-call mode: fetch the metadata first, then encode with the route's own strategy */
   serializer: 'stringifyJson',
   /** Where the client keeps what it learned about the remote methods */
-  storageEngine: 'indexeddb',
+  storageEngine: DEFAULT_STORAGE_ENGINE,
 };
 
 /** Maximum safe URL length for GET requests with ?data= query param */

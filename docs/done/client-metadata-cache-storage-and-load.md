@@ -102,8 +102,11 @@ should say what is cached, where it lives, and what a browser may evict, in plai
 One row per entry, not a blob per server: rows are content addressed, so each is written once and
 skipped forever after. A blob would be rewritten in full every time the app learned a new route.
 
-`storageEngine` is a named `ClientOptions` field with exactly one value, `'indexeddb'`. Nothing is
-built on it yet; it keeps the seam visible for an app bringing its own engine later.
+`storageEngine` is the `ClientOptions` field that picks between them: `'indexeddb'` (the default),
+`'memory'`, or a function of the app's own that opens a store. The contract that function returns is
+`MetadataStore` in `packages/client/src/lib/storage.ts`: four calls (`readAll`, `write`, `remove`,
+`clear`) and the rules the cache leans on. Each engine is opened once and memoized separately, and
+every engine falls back to memory when it cannot be opened.
 
 ### Size cap and eviction
 

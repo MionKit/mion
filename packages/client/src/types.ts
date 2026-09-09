@@ -9,6 +9,7 @@ import {RpcError} from '@mionjs/core';
 import type {CoreRouterOptions, InputFromRef, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './lib/typedEvent.ts';
+import type {StorageEngine} from './lib/storage.ts';
 
 // type-undeclared-error-start
 /** The `undeclared` slot: any error that is not part of a declared response: transport, platform,
@@ -70,9 +71,6 @@ export type BatchRouteErrors<Routes extends RouteSubRequest<any>[]> = {
 };
 // type-batch-route-errors-end
 
-/** One value for now. It stays a named option so an app can bring its own engine later. */
-export type StorageEngine = 'indexeddb';
-
 export interface ClientOptions extends CoreRouterOptions {
   /** Base URL of the server, i.e: http://localhost:3000 */
   baseURL: string;
@@ -96,7 +94,9 @@ export interface ClientOptions extends CoreRouterOptions {
    *  encoder on an error. The wire itself is decided by the server's `encoder`, never by this option. */
   serializer: SerializerMode;
   /** Where the client keeps what it learned about the remote methods, so a later visit does not have
-   *  to ask again. Falls back to memory wherever the browser's database is missing or blocked. */
+   *  to ask again. `indexeddb` (the default) uses the browser's own database, `memory` keeps it for
+   *  the life of the process, or pass a function that opens a store of your own (see MetadataStore).
+   *  Any engine falls back to memory wherever it cannot be opened. */
   storageEngine: StorageEngine;
   /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
   timeout?: number;
