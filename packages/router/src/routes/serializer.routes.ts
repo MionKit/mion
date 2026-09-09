@@ -85,8 +85,8 @@ function effectiveMaxBodySize(context: CallContext): number {
  *  read early with their own copy of the option). A string body is measured in UTF-16 code units,
  *  which is never more than its byte length, so the byte-exact adapter limit always fires first. */
 function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void {
-  const size = typeof rawBody === 'string' ? rawBody.length : (rawBody as ArrayBuffer).byteLength;
-  if (typeof size !== 'number' || size <= maxBodySize) return;
+  // a pre-parsed object body has no wire size here: the host that parsed it applied its own limit
+  if (typeof rawBody !== 'string' || rawBody.length <= maxBodySize) return;
   throw new FatalError({
     statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
     type: 'request-payload-too-large',
