@@ -8,12 +8,8 @@
 import {initClient} from '@mionjs/client';
 import {isRpcError, HeadersSubset} from '@mionjs/core';
 import {TestServerApi} from '../server/server.ts';
-import {installMemoryStorage} from '../lib/memoryStorage.ts';
-import {describe, it, expect, beforeAll, beforeEach, afterEach} from 'vitest';
+import {describe, it, expect, beforeEach, afterEach} from 'vitest';
 
-beforeAll(() => {
-    installMemoryStorage();
-});
 
 function createAuthHeaders(token: string): HeadersSubset<'Authorization'> {
     return new HeadersSubset({Authorization: token});
