@@ -15,7 +15,7 @@ const FACTORY_SRC = `import type {CompTimeArgs, InjectRunTypeId, InjectTypeFnArg
 
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
 type JsonStrategy = 'clone' | 'mutate' | 'direct' | 'compact';
-type WireStrategy = JsonStrategy | 'binary';
+type WireStrategy = JsonStrategy;
 type EncoderOption = WireStrategy | {params?: WireStrategy; return?: WireStrategy};
 export type RouteOptions = PlainRouteOptions | RouteOptionsWithEncoder;
 export type RouterOptions = {encoder?: EncoderOption; basePath?: string};
@@ -31,15 +31,10 @@ type Resolve<RO, O, D extends Direction, Default extends string> =
       ? Default
       : DirectionStrategy<EncoderOf<O>, D>
     : DirectionStrategy<EncoderOf<RO>, D>;
-type JsonOf<S, Default> = S extends 'binary' ? Default : S;
 type EncodeFamily<S> = S extends 'clone' ? 'pjs' : S extends 'mutate' ? 'pj' : S extends 'direct' ? 'sj' : S extends 'compact' ? 'cj' : never;
 type DecodeFamily<S> = S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
-type TbOf<S> = S extends 'binary' ? 'tb' : never;
-type FbOf<S> = S extends 'binary' ? 'fb' : never;
 type ParamsStrategy<RO, O> = Resolve<RO, O, 'params', 'direct'>;
 type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
-type ParamsJson<RO, O> = JsonOf<ParamsStrategy<RO, O>, 'direct'>;
-type ReturnJson<RO, O> = JsonOf<ReturnStrategy<RO, O>, 'mutate'>;
 
 export type PlainRouteOptions = {encoder?: never; description?: string};
 export type RouteOptionsWithEncoder = {encoder: EncoderOption; description?: string};
@@ -47,8 +42,8 @@ export type RouteOptionsWithEncoder = {encoder: EncoderOption; description?: str
 // The slots as a TUPLE, the way @mionjs/router's MarkerSlots does it: an alias wrapped directly
 // AROUND a marker hides it from the scanner, a tuple ELEMENT keeps the marker's own alias.
 type Slots<H extends Handler, RO, O> = [
-  paramsFns: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsJson<RO, O>>, DecodeFamily<ParamsJson<RO, O>>, TbOf<ParamsStrategy<RO, O>>, FbOf<ParamsStrategy<RO, O>>>,
-  returnFns: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnJson<RO, O>>, DecodeFamily<ReturnJson<RO, O>>, TbOf<ReturnStrategy<RO, O>>, FbOf<ReturnStrategy<RO, O>>>,
+  paramsFns: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsStrategy<RO, O>>, DecodeFamily<ParamsStrategy<RO, O>>>,
+  returnFns: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnStrategy<RO, O>>, DecodeFamily<ReturnStrategy<RO, O>>>,
   paramsId: InjectRunTypeId<Parameters<H>>,
 ];
 
@@ -133,17 +128,22 @@ export const r = mion.route(${HANDLER}, {encoder: 'compact'});
     expect(familiesOf(ret)).toEqual(['val', 'verr', 'cj', 'cjr']);
   });
 
-  register('binary on one direction ADDS tb/fb beside that direction default json pair', async () => {
+  // The router has no binary wire: no strategy resolves the tb/fb families, so a route never
+  // compiles the binary pair however its encoder is written.
+  register('no strategy compiles tb/fb', async () => {
     const response = await scan({
-      'binary.ts': `import {createRouter} from './factory';
+      'no-binary.ts': `import {createRouter} from './factory';
 const mion = createRouter();
-export const r = mion.route(${HANDLER}, {encoder: {return: 'binary'}});
+export const compact = mion.route(${HANDLER}, {encoder: 'compact'});
+export const direct = mion.route(${HANDLER}, {encoder: 'direct'});
+export const mixed = mion.route(${HANDLER}, {encoder: {params: 'clone', return: 'mutate'}});
 `,
     });
     expect(markerDiagsOf(response)).toEqual([]);
-    const {params, ret} = routeSites(response.sites, 'binary.ts');
-    expect(familiesOf(params)).toEqual(['val', 'verr', 'sj', 'rj']);
-    expect(familiesOf(ret)).toEqual(['val', 'verr', 'pj', 'rj', 'tb', 'fb']);
+    for (const site of response.sites) {
+      expect(familiesOf(site)).not.toContain('tb');
+      expect(familiesOf(site)).not.toContain('fb');
+    }
   });
 
   register('the factory literal is the router-wide default; a route literal overrides one direction', async () => {

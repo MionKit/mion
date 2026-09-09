@@ -6,8 +6,8 @@
 //
 // Two layers. The in-process layer drives `dispatchRoute` directly with seeded
 // attacks (random paths including prototype names, JSON bodies mutated from
-// valid ones, binary bodies with flipped bits, inflated counts and trailing
-// bytes, junk query bodies, hostile batch ids, hostile headers). The
+// valid ones, positional compact bodies mutated the same way, junk query
+// bodies, hostile batch ids, hostile headers). The
 // socket layer starts the node adapter on a free port and sends raw HTTP
 // (bad content-length, chunked overflow, junk `?data=`, prototype header
 // names, garbage), which is where the adapter rules live.
@@ -36,9 +36,9 @@ import {decodeQueryBody} from '../../../src/lib/queryBody.ts';
 import {MION_BATCH_PATH} from '@mionjs/core';
 import {registerBatches} from '../../../src/batches.ts';
 import type {MionResponse} from '../../../src/types/context.ts';
-import {HeadersSubset, MION_ROUTES, SerializerModes, serializeBinaryBody, toBase64Url} from '@mionjs/core';
+import {HeadersSubset, MION_ROUTES, SerializerModes, toBase64Url} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {binaryTestRoutes} from '@mionjs/test-server';
+import {compactTestRoutes} from '@mionjs/test-server';
 // relative on purpose: the router package does not depend on its own adapter, the lane does
 import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '../../../../platform-node/src/mionHttp.ts';
 
@@ -75,7 +75,6 @@ const LEAK_PHRASES = [
   /Cannot convert/,
   /DataView/,
   /JSON at position/,
-  /BinaryDecodeError/,
   /RangeError|TypeError|SyntaxError/,
   /\n\s+at /,
   /\/home\/|\/packages\/|node_modules/,
@@ -87,7 +86,6 @@ export const REQUEST_BUDGET_MS = 1500;
 
 function responseText(response: MionResponse): string {
   if (response.serializer === SerializerModes.stringifyJson) return String(response.rawBody ?? '');
-  if (response.serializer === SerializerModes.binary) return JSON.stringify(response.body);
   return JSON.stringify(response.body);
 }
 
@@ -102,8 +100,6 @@ export function checkResponse(response: MionResponse, elapsedMs: number): Array<
   if (header != null && !ERROR_HEADER.test(header))
     out.push(['SH-ENVELOPE', `x-rpc-error header is not a token: ${JSON.stringify(header)}`]);
   if (response.hasErrors && header == null) out.push(['SH-ENVELOPE', 'an error response without the x-rpc-error header']);
-  if (response.serializer === SerializerModes.binary && !response.binSerializer)
-    out.push(['SH-ENVELOPE', 'binary response without a payload']);
   const thrown = (response.body as Record<string, unknown>)[MION_ROUTES.thrownErrors];
   if (response.hasErrors && (!thrown || typeof thrown !== 'object'))
     out.push(['SH-ENVELOPE', 'hasErrors without a @thrownErrors object']);
@@ -152,7 +148,7 @@ const routes = {
     // eslint-disable-next-line @mionjs/no-throw-in-handlers -- throwing IS what this fixture pins
     throw new Error('handler exploded with a secret /home/user/app.ts:12');
   }),
-  binary: binaryTestRoutes,
+  compact: compactTestRoutes,
 };
 
 const VALID_USER: User = {
@@ -180,17 +176,7 @@ const validBodies = {
 };
 
 const JSON_ROUTES = Object.keys(validBodies);
-const BINARY_ROUTES = [
-  'echo',
-  'addNumbers',
-  'getSimpleUser',
-  'processSimpleUser',
-  'sumArray',
-  'reverseStrings',
-  'createComplexUser',
-  'createNestedData',
-  'greet',
-];
+const COMPACT_ROUTES = ['echo', 'addNumbers', 'getSimpleUser', 'processSimpleUser', 'processComplexUser', 'mixed', 'cloned'];
 const PROTO_NAMES = ['constructor', '__proto__', 'prototype', 'toString', 'valueOf', 'hasOwnProperty'];
 const JUNK_VALUES: unknown[] = [
   null,
@@ -283,7 +269,7 @@ const jsonAttacks: JsonAttack[] = [
   {id: 'json.non-object-root', run: (rng) => rng.pick([null, 0, false, '', 'str', 1e3, [], [1, 2]])},
   {
     id: 'json.unknown-route',
-    run: (rng, body) => ({[rng.pick([...PROTO_NAMES, 'nope', 'binary/echo', ''])]: [1], ...(body as object)}),
+    run: (rng, body) => ({[rng.pick([...PROTO_NAMES, 'nope', 'compact/echo', ''])]: [1], ...(body as object)}),
   },
   {
     id: 'json.params-not-array',
@@ -332,75 +318,23 @@ const textAttacks: Array<{id: string; run: (rng: Rng, text: string) => string}> 
   {id: 'text.junk', run: (rng) => Array.from({length: 1 + rng.int(64)}, () => String.fromCharCode(rng.int(0x7f))).join('')},
 ];
 
-// ############# binary body attacks #############
+// ############# compact body params #############
 
-function validBinaryWire(routeId: string): Uint8Array {
-  const path = `/binary/${routeId}`;
-  const chain = getRouteExecutionChain(path)!.methods;
+/** Valid PARAMS for a compact route, positional the way the compact encoder writes them. Kept as
+ *  literals rather than run through the compiled encoder: the point is to start from a body the
+ *  decoder accepts, then let the json attacks mutate it. */
+function validCompactParams(routeId: string): unknown[] {
   const params: Record<string, unknown[]> = {
     echo: ['hi'],
     addNumbers: [1, 2],
     getSimpleUser: ['Ana', 30],
-    processSimpleUser: [{name: 'Ana', age: 30}],
-    sumArray: [[1, 2, 3]],
-    reverseStrings: [['a', 'b']],
-    createComplexUser: ['id-1', 'Ana', 'ana@example.com'],
-    createNestedData: ['deep', [1, 2, 3]],
-    greet: ['Ana'],
+    processSimpleUser: [['Ana', 30]],
+    processComplexUser: [['id-1', 'Ana', 'ana@example.com', 30, true, '2024-01-01T00:00:00.000Z', ['s', 'c', 'z', 'co'], [], []]],
+    mixed: [['Ana', 30]],
+    cloned: [{name: 'Ana', age: 30}],
   };
-  const body = {[`binary/${routeId}`]: params[routeId] ?? []};
-  return new Uint8Array(serializeBinaryBody(path, chain, body, false).serializer.getBuffer());
+  return params[routeId] ?? [];
 }
-
-const binaryAttacks: Array<{id: string; run: (rng: Rng, wire: Uint8Array) => Uint8Array}> = [
-  {
-    id: 'bin.bit-flip',
-    run: (rng, wire) => {
-      const copy = new Uint8Array(wire);
-      for (let n = 1 + rng.int(3); n > 0; n--) copy[rng.int(copy.length)] ^= 1 << rng.int(8);
-      return copy;
-    },
-  },
-  {id: 'bin.truncate', run: (rng, wire) => wire.slice(0, rng.int(wire.length))},
-  {
-    id: 'bin.inflate-varint',
-    run: (rng, wire) => {
-      const copy = new Uint8Array(wire);
-      const at = 4 + rng.int(Math.max(1, copy.length - 4));
-      copy[at] = 0x80 | (copy[at] ?? 0);
-      return copy;
-    },
-  },
-  {
-    id: 'bin.count-bomb',
-    run: (rng, wire) => {
-      const copy = new Uint8Array(wire);
-      new DataView(copy.buffer).setUint32(0, rng.pick([0xffffffff, 0x80000000, 1000, 2]), true);
-      return copy;
-    },
-  },
-  {
-    id: 'bin.trailing',
-    run: (rng, wire) => {
-      const out = new Uint8Array(wire.length + 1 + rng.int(8));
-      out.set(wire);
-      for (let i = wire.length; i < out.length; i++) out[i] = rng.int(256);
-      return out;
-    },
-  },
-  {id: 'bin.random', run: (rng) => Uint8Array.from({length: rng.int(64)}, () => rng.int(256))},
-  {
-    id: 'bin.proto-key',
-    run: (rng) => {
-      const key = new TextEncoder().encode(rng.pick(PROTO_NAMES));
-      const out = new Uint8Array(5 + key.length);
-      new DataView(out.buffer).setUint32(0, 1, true);
-      out[4] = key.length;
-      out.set(key, 5);
-      return out;
-    },
-  },
-];
 
 // ############# query, batch and header attacks #############
 
@@ -480,7 +414,7 @@ function hostileHeaders(rng: Rng): Record<string, string> {
 function hostilePath(rng: Rng): string {
   return rng.pick([
     `/${rng.pick(JSON_ROUTES)}`,
-    `/binary/${rng.pick(BINARY_ROUTES)}`,
+    `/compact/${rng.pick(COMPACT_ROUTES)}`,
     `/${rng.pick(PROTO_NAMES)}`,
     '/nope',
     '/',
@@ -490,7 +424,7 @@ function hostilePath(rng: Rng): string {
     '/echoUser%00',
     '/' + 'p'.repeat(1000 + rng.int(3000)),
     MION_BATCH_PATH,
-    '/binary',
+    '/compact',
   ]);
 }
 
@@ -515,7 +449,7 @@ interface Attack {
   id: string;
   path: string;
   body: string | Uint8Array | undefined;
-  bodyType?: 'json' | 'binary';
+  bodyType?: 'json';
   urlQuery?: string;
   headers: Record<string, string>;
 }
@@ -525,7 +459,7 @@ interface Attack {
 const AUTH_HEADERS = {authorization: 'Bearer ok'};
 
 function buildAttack(rng: Rng): Attack {
-  const kind = rng.pick(['json', 'json', 'text', 'binary', 'binary', 'query', 'batch', 'headers', 'path'] as const);
+  const kind = rng.pick(['json', 'json', 'text', 'compact', 'compact', 'query', 'batch', 'headers', 'path'] as const);
   const hostile = kind === 'headers' || rng.chance(0.2);
   const headers = hostile ? {...(rng.chance(0.5) ? AUTH_HEADERS : {}), ...hostileHeaders(rng)} : {...AUTH_HEADERS};
   switch (kind) {
@@ -546,16 +480,16 @@ function buildAttack(rng: Rng): Attack {
         headers,
       };
     }
-    case 'binary': {
-      const routeId = rng.pick(BINARY_ROUTES);
-      const attack = rng.pick(binaryAttacks);
-      return {
-        id: attack.id,
-        path: `/binary/${routeId}`,
-        body: attack.run(rng, validBinaryWire(routeId)),
-        bodyType: 'binary',
-        headers,
-      };
+    case 'compact': {
+      // the compact wire is positional JSON, so the same body attacks apply to a shape the
+      // decoder reads by index rather than by key
+      const routeId = rng.pick(COMPACT_ROUTES);
+      const attack = rng.pick(jsonAttacks);
+      let body: unknown = {[`compact/${routeId}`]: validCompactParams(routeId)};
+      for (let n = 1 + rng.int(2); n > 0; n--) body = attack.run(rng, body as object);
+      // its own id prefix, so the family counter shows the compact lane fired on its own
+      const id = `compact.${attack.id.replace(/^json\./, '')}`;
+      return {id, path: `/compact/${routeId}`, body: JSON.stringify(body) ?? 'undefined', headers};
     }
     case 'query': {
       const attack = rng.pick(queryAttacks);
@@ -591,7 +525,7 @@ async function dispatchAttack(attack: Attack): Promise<MionResponse> {
   const reqHeaders = headersFromRecord(attack.headers);
   const respHeaders = headersFromRecord({});
   let body: string | Uint8Array | undefined = attack.body;
-  let bodyType: SerializerCode = attack.bodyType === 'binary' ? SerializerModes.binary : SerializerModes.stringifyJson;
+  let bodyType: SerializerCode = SerializerModes.stringifyJson;
   try {
     const query = decodeQueryBody(attack.urlQuery, body);
     if (query) {
@@ -750,8 +684,9 @@ export function socketAttacks(rng: Rng): SocketAttack[] {
     {id: 'sock.huge-header', request: JSON_POST('/echoUser', valid, `X-Big: ${'h'.repeat(9000 + rng.int(9000))}\r\n`)},
     {id: 'sock.bad-json', request: JSON_POST('/echoUser', valid.slice(0, rng.int(valid.length)))},
     {
-      id: 'sock.binary-junk',
-      request: `POST /binary/echo HTTP/1.1\r\nHost: x\r\nContent-Type: application/octet-stream\r\nContent-Length: 6\r\n\r\n\u0000\u0000\u0000\u0080\u0000\u0000`,
+      // an octet-stream body is not a wire the router speaks; it must answer an error, never crash
+      id: 'sock.octet-junk',
+      request: `POST /compact/echo HTTP/1.1\r\nHost: x\r\nContent-Type: application/octet-stream\r\nContent-Length: 6\r\n\r\n\u0000\u0000\u0000\u0080\u0000\u0000`,
     },
     {id: 'sock.proto-path', request: JSON_POST(`/${rng.pick(PROTO_NAMES)}`, valid)},
     {

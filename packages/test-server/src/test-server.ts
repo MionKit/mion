@@ -88,7 +88,7 @@ export type NewDbUser = InferInsertModel<typeof apiUsersTable>;
 export type DbUserPatch = InferUpdateModel<typeof apiUsersTable>;
 const dbUsersStore = new Map<string, DbUser>();
 
-// ============ Binary test types ============
+// ============ Shared payload types ============
 export type SimpleUser = {name: string; age: number};
 
 export type Address = {
@@ -121,119 +121,6 @@ export type NestedData = {
   };
 };
 
-// ============ Binary routes (defined separately so they can be exported for router-level tests) ============
-const binaryRoutesDef = {
-  // Simple routes for basic binary serialization testing
-  echo: route((_ctx, message: string): string => message, {encoder: 'binary'}),
-  addNumbers: route((_ctx, a: number, b: number): number => a + b, {encoder: 'binary'}),
-  getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'binary'}),
-  processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {encoder: 'binary'}),
-
-  // Array operations
-  sumArray: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0), {encoder: 'binary'}),
-  doubleArray: route((_ctx, numbers: number[]): number[] => numbers.map((n) => n * 2), {encoder: 'binary'}),
-  reverseStrings: route((_ctx, strings: string[]): string[] => strings.reverse(), {encoder: 'binary'}),
-
-  // Boolean operations
-  negate: route((_ctx, value: boolean): boolean => !value, {encoder: 'binary'}),
-  allTrue: route((_ctx, values: boolean[]): boolean => values.every((v) => v), {encoder: 'binary'}),
-
-  // Date operations
-  getCurrentDate: route((_ctx): Date => new Date(), {encoder: 'binary'}),
-  addDays: route(
-    (_ctx, date: Date, days: number): Date => {
-      const result = new Date(date);
-      result.setDate(result.getDate() + days);
-      return result;
-    },
-    {encoder: 'binary'}
-  ),
-
-  // Complex object operations
-  createComplexUser: route(
-    (_ctx, id: string, name: string, email: string): ComplexUser => ({
-      id,
-      name,
-      email,
-      age: 25,
-      isActive: true,
-      createdAt: new Date('2025-01-01T00:00:00Z'),
-      address: {
-        street: '123 Main St',
-        city: 'Test City',
-        zip: '12345',
-        country: 'Test Country',
-      },
-      tags: ['user', 'active'],
-      scores: [100, 95, 88],
-    }),
-    {encoder: 'binary'}
-  ),
-  updateComplexUser: route(
-    (_ctx, user: ComplexUser): ComplexUser => ({
-      ...user,
-      isActive: !user.isActive,
-      tags: [...user.tags, 'updated'],
-    }),
-    {encoder: 'binary'}
-  ),
-
-  // Deeply nested data
-  processNestedData: route((_ctx, data: NestedData): string => data.level1.level2.level3.value, {encoder: 'binary'}),
-  createNestedData: route(
-    (_ctx, value: string, numbers: number[]): NestedData => ({
-      level1: {level2: {level3: {value, numbers}}},
-    }),
-    {encoder: 'binary'}
-  ),
-
-  // Void return
-  logMessage: route(
-    (_ctx, message: string): void => {
-      console.log(`[Binary Server] ${message}`);
-    },
-    {encoder: 'binary'}
-  ),
-
-  // Error handling
-  mayFail: route(
-    (_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
-      if (shouldFail) return new RpcError({publicMessage: 'Intentional failure', type: 'intentional-error'});
-      return 'Success!';
-    },
-    {encoder: 'binary'}
-  ),
-
-  // Optional parameters
-  greet: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {encoder: 'binary'}),
-
-  // Nullable values
-  findUser: route(
-    (_ctx, id: string): SimpleUser | null => {
-      if (id === 'not-found') return null;
-      return {name: 'Found User', age: 30};
-    },
-    {encoder: 'binary'}
-  ),
-} satisfies Routes;
-
-/** Binary session middleFn, shared between binaryTestRoutes export and the merged server routes.
- *  It rides the binary routes' bodies, so it compiles the binary pair itself. */
-const binarySessionDef = middleFn(
-  (_ctx, token?: string): {valid: boolean; userId?: string} | null => {
-    if (!token) return null;
-    if (token === 'invalid') return {valid: false};
-    return {valid: true, userId: 'user-123'};
-  },
-  {encoder: 'binary'}
-);
-
-/** Binary routes exported separately for router-level tests (dispatch.binary.spec.ts) */
-export const binaryTestRoutes = {
-  ...binaryRoutesDef,
-  session: binarySessionDef,
-} satisfies Routes;
-
 // ============ Compact routes (per-route compact encoder: positional json, no key names on the wire) ============
 export type CompactEvent = {
   title: string;
@@ -243,7 +130,7 @@ export type CompactEvent = {
 };
 
 export const compactTestRoutes = {
-  // the same shapes the binary group covers, on the compact wire
+  // a spread of shapes on the compact wire
   echo: route((_ctx, message: string): string => message, {encoder: 'compact'}),
   addNumbers: route((_ctx, a: number, b: number): number => a + b, {encoder: 'compact'}),
   getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'compact'}),
@@ -307,6 +194,9 @@ export const compactTestRoutes = {
       encoder: 'compact',
     }
   ),
+  // a PLAIN middleFn in the same chain, declaring no encoder of its own: it must still carry its
+  // params AND its return value on a non-default wire, never be dropped from the body
+  plainStamp: middleFn((_ctx, note?: string): {note: string} | null => (note ? {note} : null)),
 } satisfies Routes;
 
 // A subclass of RpcError with fields of its own, declared next to its base in a route signature
@@ -556,8 +446,6 @@ const routes = {
     return ms;
   }),
 
-  // ============ Binary routes (per-route binary encoder) ============
-  binary: binaryTestRoutes,
   // ============ Compact routes (per-route compact encoder) ============
   compact: compactTestRoutes,
 } satisfies Routes;
@@ -590,7 +478,7 @@ async function startServer() {
   }
 }
 
-// Export the combined API type for the client tests (includes both JSON and binary routes)
+// Export the combined API type for the client tests
 export type TestServerApi = PublicApi<typeof routes>;
 
 // Start the server if this file is run directly

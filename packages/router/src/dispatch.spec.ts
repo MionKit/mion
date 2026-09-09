@@ -6,13 +6,12 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter, getRouteExecutionChain} from './router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
-import {serializeBinaryBody, deserializeBinaryBody, SerializerModes} from '@mionjs/core';
 import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
-import {HeadersSubset, RpcError, FatalError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
+import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
 
@@ -270,12 +269,14 @@ describe('Dispatch routes', () => {
       const response = await dispatchRoute('/abcd', request.body, request.headers, headersFromRecord({}), request, {});
       // Not-found errors are returned by the not-found route and stored in thrownErrors
       const error = response.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound];
-      const expected = new FatalError({
+      // the serialized body holds the error's WIRE shape (the encoder's projection of the declared
+      // RpcError), never the live instance: `message` and the fatal brand never travel.
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
         statusCode: StatusCodes.NOT_FOUND,
         type: 'route-not-found',
         publicMessage: 'Route not found',
       });
-      expect(error).toEqual(expected);
     });
 
     it('return an error if data is missing from header', async () => {
@@ -664,8 +665,8 @@ describe('StrictTypes validation', () => {
 describe('sanitizeParams', () => {
   type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
   const echoEmail = mion.route((ctx, email: CleanEmail): string => email);
-  // the same route on the binary wire: the binary pair is compiled from the route literal
-  const echoEmailBinary = mion.route((ctx, email: CleanEmail): string => email, {encoder: 'binary'});
+  // the same route on the compact wire: the positional pair is compiled from the route literal
+  const echoEmailCompact = mion.route((ctx, email: CleanEmail): string => email, {encoder: 'compact'});
   const RAW = ' John@Example.COM ';
   const CLEAN = 'john@example.com';
 
@@ -711,22 +712,13 @@ describe('sanitizeParams', () => {
     expect(cleanResponse.body.cleanRoute).toBe(CLEAN);
   });
 
-  it('sanitizes a binary request body too (the transform runs after decode, whatever the wire)', async () => {
-    createMionRouter({sanitizeParams: true}).initRoutes({echoEmail: echoEmailBinary});
-    const path = '/echoEmail';
-    const executionChain = getRouteExecutionChain(path)!.methods;
-    const requestBuffer = serializeBinaryBody(path, executionChain, {echoEmail: [RAW]}, false).serializer.getBuffer();
-    const response = await dispatchRoute(
-      path,
-      requestBuffer,
-      headersFromRecord({'content-type': 'application/octet-stream'}),
-      headersFromRecord({}),
-      {headers: headersFromRecord({}), body: requestBuffer},
-      {},
-      SerializerModes.binary
-    );
-    const {body} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
-    expect(body.echoEmail).toBe(CLEAN);
+  it('sanitizes a compact request body too (the transform runs after decode, whatever the wire)', async () => {
+    createMionRouter({sanitizeParams: true}).initRoutes({echoEmail: echoEmailCompact});
+    const encode = getRouteExecutable('echoEmail')!.paramsJitFns.json.encode.fn;
+    const wire = JSON.parse(JSON.stringify(encode([RAW])));
+    const response = await dispatchJson('echoEmail', wire);
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.echoEmail).toBe(CLEAN);
   });
 
   it('wrong-shaped input is a validation error, never a crash inside the transform', async () => {

@@ -24,17 +24,17 @@ server files auto-start on import. `MION_TEST_PORT` picks the port.
 
 ## Route Groups
 
-| Group     | What it covers                                                                |
-| --------- | ----------------------------------------------------------------------------- |
-| default   | The JSON wires, errors, headers, batches, drizzle-backed routes               |
-| `compact` | The positional wire, including a middleFn with no `encoder` of its own        |
+| Group     | What it covers                                                         |
+| --------- | ---------------------------------------------------------------------- |
+| default   | The JSON wires, errors, headers, batches, drizzle-backed routes        |
+| `compact` | The positional wire, including a middleFn with no `encoder` of its own |
 
 ## Exported Types
 
-| Type              | Description                                    |
-| ----------------- | ---------------------------------------------- |
-| `TestServerApi`   | API type of the whole route tree, for the client |
-| `SimpleUser`, `ComplexUser`, `NestedData`, `CompactEvent` | Payload shapes the routes use |
+| Type                                                      | Description                                      |
+| --------------------------------------------------------- | ------------------------------------------------ |
+| `TestServerApi`                                           | API type of the whole route tree, for the client |
+| `SimpleUser`, `ComplexUser`, `NestedData`, `CompactEvent` | Payload shapes the routes use                    |
 
 ## Building
 

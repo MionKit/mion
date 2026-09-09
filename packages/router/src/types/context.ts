@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyObject, DataViewSerializer, SerializerCode} from '@mionjs/core';
+import type {AnyObject, SerializerCode} from '@mionjs/core';
 import type {RpcError} from '@mionjs/core';
 import type {MethodsExecutionChain} from './remoteMethods.ts';
 
@@ -29,8 +29,7 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
   /** Id of the batch a batch request is running */
   readonly batchId?: string;
   /** Route ids a batch request is running, in call order. Exposed for consumers (logging,
-   *  metrics, middleFns that branch on the batch); mion itself sizes binary buffers from the
-   *  execution chain's own methods. */
+   *  metrics, middleFns that branch on the batch). */
   readonly batchRouteIds?: string[];
 }
 // type-call-context-end
@@ -46,7 +45,7 @@ export type RawResponseBody = string | ArrayBuffer | Uint8Array | AnyObject;
 export interface MionRequest {
   /** parsed headers */
   readonly headers: Readonly<Omit<MionHeaders, 'append' | 'set' | 'delete'>>;
-  /** Raw request body, can be string for json, arrayBuffer for binary or a javascript object in the case of pre-parsed body */
+  /** Raw request body, a string for json or a javascript object in the case of pre-parsed body */
   readonly rawBody: RawRequestBody;
   readonly bodyType: SerializerCode;
   /** parsed request body */
@@ -75,7 +74,7 @@ export interface MionResponse {
   readonly statusCode: number;
   /** response headers */
   readonly headers: Readonly<MionHeaders>;
-  /** Raw response body, can be string for json or an arrayBuffer for binary. */
+  /** Raw response body, a string for json. */
   readonly rawBody: RawResponseBody;
   readonly serializer: SerializerCode;
   /** the router response data, body should not be modified manually so marked as Read Only */
@@ -85,12 +84,6 @@ export interface MionResponse {
   /** The error that ended the execution chain (thrown, or a returned FatalError), the first one wins.
    *  Undefined while nothing halted. One place for an `alwaysRun` middleFn (a logger) to look. */
   readonly fatalError?: RpcError<string>;
-  readonly binSerializer?: DataViewSerializer | undefined;
-  /** Returns the binary response buffer to mion's pool. Platform adapters MUST call this once the
-   *  payload has been written or copied out — see each adapter for its safe point. Idempotent, and
-   *  a no-op when the buffer was not pooled. Until it is called the buffer is not reused, so a
-   *  missed call costs a reuse, never correctness. */
-  readonly releaseBinBuffer?: (() => void) | undefined;
 }
 // type-mion-response-end
 

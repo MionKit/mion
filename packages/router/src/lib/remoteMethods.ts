@@ -22,7 +22,6 @@ import {
   getRouterItemId,
   MAX_STACK_DEPTH,
   getJitFnHashes,
-  jsonStrategyOf,
   DEFAULT_ENCODER,
   resolveCompiledPureFn,
   EMPTY_HASH,
@@ -164,18 +163,16 @@ export function serializeMethodDeps(
 ) {
   const {paramsJitHash, returnJitHash} = method;
   // Skip serialization for empty hashes (no params or void return)
-  // Always request binary hashes so they are included when available (e.g. middleware in binary routes).
-  // serializeJitFn is only called when the JIT function exists in the store, so non-binary methods are unaffected.
   const utl = getRTUtils();
   const encoder = method.options.encoder ?? DEFAULT_ENCODER;
   if (paramsJitHash !== EMPTY_HASH) {
-    const paramsJitHashes = getJitFnHashes(paramsJitHash, jsonStrategyOf(encoder.params, 'params'), true);
+    const paramsJitHashes = getJitFnHashes(paramsJitHash, encoder.params);
     for (const k in paramsJitHashes) {
       if (utl.getRT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     }
   }
   if (returnJitHash !== EMPTY_HASH) {
-    const returnJitHashes = getJitFnHashes(returnJitHash, jsonStrategyOf(encoder.return, 'return'), true);
+    const returnJitHashes = getJitFnHashes(returnJitHash, encoder.return);
     let foundAny = false;
     for (const k in returnJitHashes) {
       if (utl.getRT(returnJitHashes[k])) {

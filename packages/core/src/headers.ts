@@ -18,7 +18,7 @@ export class HeadersSubset<Required extends string, Optional extends string = ne
 // type-headers-subset-end
 
 // ############# HeadersSubset -> mion class serializer #############
-// Registered here, alongside the class, so JSON/binary decoders rebuild a real instance
+// Registered here, alongside the class, so JSON decoders rebuild a real instance
 // (`instanceof HeadersSubset` holds after a round trip — the router's dispatch relies on
 // that check). The constructor takes the headers map, so `deserialize` is required: the
 // automatic zero-arg `new HeadersSubset()` is unavailable and would surface CLS002.

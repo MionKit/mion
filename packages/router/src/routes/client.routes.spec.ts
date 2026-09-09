@@ -504,9 +504,9 @@ describe('methodsMetadata middleware should force the stringifyJson framing', ()
     expect(metadata.methods).toHaveProperty('sayHello');
   });
 
-  it('should force stringifyJson when the route encodes binary', async () => {
+  it('should force stringifyJson when the route encodes direct', async () => {
     const routes = {
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: 'binary'}),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: 'direct'}),
     } satisfies Routes;
     mion.initRoutes(routes);
 

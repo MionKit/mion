@@ -116,8 +116,6 @@ export function acquireCallContext(
       body: {}, // Must be fresh - handlers write to this
       rawBody: '',
       serializer: SerializerModes.json,
-      binSerializer: undefined,
-      releaseBinBuffer: undefined,
     };
     // Reset execution chain and batch ids
     const {executionChain, batchId, batchRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
@@ -160,7 +158,8 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
 
 function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
   if (typeof rawBody === 'string') return SerializerModes.stringifyJson;
-  if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array) return SerializerModes.binary;
+  if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array)
+    throw new Error('mion: a byte request body has no encoder; send the body as a JSON string or a parsed object.');
   return SerializerModes.json;
 }
 

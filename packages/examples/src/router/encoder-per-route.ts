@@ -23,8 +23,8 @@ export const routes = {
   }),
 
   // only the return changes; the params keep the router default
-  echoBinary: mion.route((ctx, data: Measurement): Measurement => data, {
-    encoder: {return: 'binary'},
+  echoDirect: mion.route((ctx, data: Measurement): Measurement => data, {
+    encoder: {return: 'direct'},
   }),
 
   // the shared preset

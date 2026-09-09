@@ -14,19 +14,17 @@ import {
   MION_ROUTES,
   HandlerType,
   type SerializerMode,
-  serializeBinaryBody as coreSerializeBinaryBody,
-  deserializeBinaryBody as coreDeserializeBinaryBody,
 } from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
 import {extractAndProcessMetadata} from './clientMethodsMetadata.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';
 
-/** Result of serializing a request body - can be string (JSON) or Uint8Array (binary) */
-export type SerializedBody = string | Uint8Array;
+/** Result of serializing a request body */
+export type SerializedBody = string;
 
 /** Content-type header value for the serialized body */
-export type ContentType = 'application/json; charset=utf-8' | 'application/octet-stream';
+export type ContentType = 'application/json; charset=utf-8';
 
 /** Result of serializing a request body with its content type */
 export interface SerializedRequest {
@@ -50,11 +48,6 @@ export function serializeRequestBody(req: MionClientRequest<any, any>): Serializ
       return {
         body: serializeJSonBodyOptimistic(req),
         contentType: 'application/json; charset=utf-8',
-      };
-    case 'binary':
-      return {
-        body: serializeBinaryBody(req),
-        contentType: 'application/octet-stream',
       };
     default:
       throw new Error(`Invalid serializer mode ${String(serializerMode)}`);
@@ -107,31 +100,6 @@ function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
   return JSON.stringify(body, wireFormReplacer);
 }
 
-/** Serializes request body to binary format */
-function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
-  const subRequestIds = Object.keys(req.subRequestList);
-  const body: Record<string, any> = {};
-  const executionChain: MethodWithJitFns[] = [];
-
-  for (const id of subRequestIds) {
-    const subRequest = req.subRequestList[id];
-    let params = subRequest.params;
-    const method = routesCache.useMethodJitFns(id);
-
-    if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
-      params = getParamsWithoutHeadersSubset(params);
-    }
-
-    body[id] = params;
-    executionChain.push(method);
-  }
-
-  // getBufferView() is a zero-copy view of the serializer's own buffer, which nothing else
-  // references once this returns — so the request body needs no defensive copy.
-  const {serializer} = coreSerializeBinaryBody(req.path, executionChain, body, false);
-  return serializer.getBufferView();
-}
-
 /** Writes the params with the strategy the server compiled: `direct` writes the string itself. */
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validated: boolean): string {
   if (!method.paramsCount) return '';
@@ -175,9 +143,6 @@ export async function deserializeResponseBody(response: Response, options: Clien
     case !!contentType?.includes('application/json'):
       parsedBody = await deserializeJsonResponseBody(response, options);
       break;
-    case !!contentType?.includes('application/octet-stream'):
-      parsedBody = await deserializeBinaryResponseBody(response);
-      break;
     default:
       throw new RpcError({
         type: 'unsupported-content-type',
@@ -213,17 +178,6 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
   }
 }
 
-/** Deserializes binary response body */
-async function deserializeBinaryResponseBody(response: Response): Promise<ResponseBody> {
-  const arrayBuffer = await response.arrayBuffer();
-  const {body} = coreDeserializeBinaryBody('client-response', arrayBuffer, true);
-  // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
-  const {platformError, thrownErrors} = extractThrownErrors(body);
-  if (platformError) return {[MION_ROUTES.platformError]: platformError};
-  if (thrownErrors) body[MION_ROUTES.thrownErrors] = thrownErrors as any;
-  return body;
-}
-
 /** Extracts thrown (unexpected) errors from [MION_ROUTES.thrownErrors] WITHOUT flattening them into the
  * body, so the wire's returned-vs-thrown split survives for error classification. Thrown errors are not
  * strongly typed and deserialize as RpcError<string>. Returns a platformError as a special case. */
@@ -248,7 +202,7 @@ function extractThrownErrors(parsedBody: any): {
 }
 
 /** The request wire, decided by the server's resolved `encoder` and never by a client option:
- *  `optimistic` until the metadata is known, then binary or the JSON string the encoders write. */
+ *  `optimistic` until the metadata is known, then the JSON string the encoders write. */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {
     // When metadata is cached (e.g. after retry), use JIT serialization
@@ -257,9 +211,6 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
     if (allCached) return 'stringifyJson';
     return 'optimistic';
   }
-  const methodId = req.route?.id ?? req.batchSubRequests?.[0]?.id;
-  const method = routesCache.getMethodJitFns(methodId);
-  if (method?.options.encoder?.params === 'binary') return 'binary';
   return 'stringifyJson';
 }
 

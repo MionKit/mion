@@ -10,7 +10,6 @@ import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
 import type {NodeHttpOptions} from './types.ts';
-import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
@@ -39,13 +38,6 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
   return httpOptions;
 }
 
-/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
- *  because this adapter releases the buffer on the response's 'finish'/'close' events, once node is
- *  done with the view. */
-function applyBinaryOptions(binary: BinaryOptionsPatch): void {
-  configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
-}
-
 /** The platform config the router publishes: everything but node's native ServerOptions. */
 function serializablePlatformConfig(): Record<string, unknown> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -57,7 +49,6 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setNodeHttpOpts(options);
-  applyBinaryOptions(httpOptions.binary);
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${httpOptions.protocol}://localhost${port}`;
   if (!isTest && !httpOptions.asMiddleware)
@@ -159,11 +150,9 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     if (replied) return;
     // Buffer.concat allocates and copies even for one chunk, and a body-less request is the common
     // case for a GET: neither needs a buffer at all.
-    const contentType = httpReq.headers['content-type'] || '';
-    const isBinary = contentType.startsWith('application/octet-stream');
     const buffer = bodyChunks.length === 1 ? bodyChunks[0] : Buffer.concat(bodyChunks);
-    let reqRawBody: any = isBinary ? buffer : bodyChunks.length === 0 ? '' : buffer.toString();
-    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+    let reqRawBody: any = bodyChunks.length === 0 ? '' : buffer.toString();
+    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
 
     // Everything below is inside the guard: this listener is async, so a throw here would be an
     // unhandled rejection, which takes the whole process down under node's default.
@@ -213,15 +202,6 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   });
 }
 
-/** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
-function missingBinaryPayload(): RpcError<'unknown-error'> {
-  return new FatalError({
-    publicMessage: 'Internal Server Error',
-    type: 'unknown-error',
-    message: 'binary response without a payload',
-  });
-}
-
 function payloadTooLarge(): RpcError<'request-payload-too-large'> {
   return new FatalError({
     statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
@@ -255,20 +235,6 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
       const jsonString = JSON.stringify(mionResp.body);
       httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));
       httpResp.end(jsonString, 'utf8');
-      break;
-    }
-    case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer;
-      if (!serializer) return fatalFail(httpResp, mionResp.headers, missingBinaryPayload());
-      httpResp.setHeader('content-length', serializer.getLength());
-      // content-type already set by serializer
-      httpResp.end(serializer.getBufferView());
-      // The view aliases the (possibly pooled) buffer and node keeps it queued until the
-      // socket drains, so the buffer only goes back once the response is done. Both events
-      // fire on a normal response and 'close' alone on an abort; release is idempotent.
-      const releaseBuffer = () => mionResp.releaseBinBuffer?.();
-      httpResp.on('finish', releaseBuffer);
-      httpResp.on('close', releaseBuffer);
       break;
     }
     default: {

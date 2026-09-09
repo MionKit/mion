@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_ENCODER, EMPTY_HASH, getJitFnHashes, jsonStrategyOf} from '@mionjs/core';
+import {DEFAULT_ENCODER, EMPTY_HASH, getJitFnHashes} from '@mionjs/core';
 import type {CompiledFnData, MethodWithOptions, PureFunctionData} from '@mionjs/core';
 import type {MetadataRecordKey} from './storage.ts';
 
@@ -24,17 +24,17 @@ export interface CacheGraph {
 function methodRootHashes(metadata: MethodWithOptions): string[] {
   const encoder = metadata.options?.encoder ?? DEFAULT_ENCODER;
   const roots: string[] = [];
-  // `true` asks for the binary pair too: a root is anything the method COULD reach, and a hash the
-  // method never uses is simply absent from the store, which costs nothing here.
+  // a root is anything the method COULD reach, and a hash the method never uses is simply absent
+  // from the store, which costs nothing here
   const addSet = (jitHash: string, strategy: Parameters<typeof getJitFnHashes>[1]) => {
     if (!jitHash || jitHash === EMPTY_HASH) return;
-    // the binary pair is optional on the returned shape, so only the real strings become roots
-    for (const hash of Object.values(getJitFnHashes(jitHash, strategy, true)) as (string | undefined)[]) {
+    // the optional hashes are absent on the returned shape, so only the real strings become roots
+    for (const hash of Object.values(getJitFnHashes(jitHash, strategy)) as (string | undefined)[]) {
       if (typeof hash === 'string') roots.push(hash);
     }
   };
-  addSet(metadata.paramsJitHash, jsonStrategyOf(encoder.params, 'params'));
-  addSet(metadata.returnJitHash, jsonStrategyOf(encoder.return, 'return'));
+  addSet(metadata.paramsJitHash, encoder.params);
+  addSet(metadata.returnJitHash, encoder.return);
   if (metadata.headersParam) addSet(metadata.headersParam.jitHash, 'mutate');
   if (metadata.headersReturn) addSet(metadata.headersReturn.jitHash, 'mutate');
   return roots;

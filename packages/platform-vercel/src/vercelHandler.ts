@@ -15,7 +15,7 @@ import {
 } from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
-import {SerializerModes, toResponseBody} from '@mionjs/core';
+import {SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 
@@ -46,15 +46,13 @@ async function handleRequest(req: Request): Promise<Response> {
   const urlObj = new URL(reqUrl);
   const path = urlObj.pathname;
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const contentType = req.headers.get('content-type') || '';
-  const isBinary = contentType.startsWith('application/octet-stream');
   const responseHeaders = new Headers(defaultHeaders);
 
   // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
   // outside any mion envelope, and the router's own limit needs the size before parsing.
   try {
-    let rawBody: any = req.body ? (isBinary ? await req.arrayBuffer() : await req.text()) : undefined;
-    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+    let rawBody: any = req.body ? await req.text() : undefined;
+    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     const queryBody = decodeQueryBody(urlQuery, rawBody);
     if (queryBody) {
       rawBody = queryBody.rawBody;
@@ -92,15 +90,6 @@ function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
   return reply(routeResponse, responseHeaders);
 }
 
-/** The router swaps a failed binary encode for a JSON envelope, so this is a tripwire, never a path. */
-function missingBinaryPayload(): RpcError<'unknown-error'> {
-  return new FatalError({
-    publicMessage: 'Internal Server Error',
-    type: 'unknown-error',
-    message: 'binary response without a payload',
-  });
-}
-
 function reply(mionResp: MionResponse, responseHeaders: any): Response {
   const bodyType = mionResp.serializer;
   switch (bodyType) {
@@ -115,19 +104,6 @@ function reply(mionResp: MionResponse, responseHeaders: any): Response {
         status: mionResp.statusCode,
         headers: responseHeaders,
       });
-    }
-    case SerializerModes.binary: {
-      const serializer = mionResp.binSerializer;
-      if (!serializer) return fatalFail(missingBinaryPayload(), responseHeaders);
-      responseHeaders.set('content-length', String(serializer.getLength()));
-      const response = new Response(toResponseBody(serializer.getBufferView()), {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-      // `new Response(BufferSource)` copies the bytes per the Fetch spec, so the buffer is
-      // free immediately. This runtime is not pooled by default regardless.
-      mionResp.releaseBinBuffer?.();
-      return response;
     }
     default: {
       const error = new FatalError({

@@ -6,7 +6,6 @@
  * ######## */
 
 import type {AppOptions} from '@mionjs/bin-uws';
-import type {BinaryOptionsPatch} from '@mionjs/core';
 
 // type-uws-http-options-start
 export interface UwsHttpOptions {
@@ -23,12 +22,5 @@ export interface UwsHttpOptions {
    * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
    * */
   maxBodySize: number; // default 256KB
-  /**
-   * Binary serialization options: buffer pooling, response-size statistics, and the mion
-   * string cache. Pooling is armed by default on this platform — uWS copies the payload into its
-   * own send buffer synchronously during end(), so the pooled buffer can be handed back
-   * immediately after the reply is written. Turn it off with `{pool: {enabled: false}}`.
-   */
-  binary: BinaryOptionsPatch;
 }
 // type-uws-http-options-end

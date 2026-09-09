@@ -11,7 +11,6 @@ import {loadUws} from '@mionjs/bin-uws';
 import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
-import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
@@ -60,14 +59,6 @@ export function setUwsHttpOpts(options?: Partial<UwsHttpOptions>) {
   return httpOptions;
 }
 
-/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
- *  because uWS copies the payload into its own send buffer synchronously during end() — even under
- *  backpressure — so the adapter releases the pooled buffer right after the corked reply. The
- *  binary spec's concurrent large-payload test pins this assumption. */
-function applyBinaryOptions(binary: BinaryOptionsPatch): void {
-  configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
-}
-
 /** The platform config the router publishes: everything but the TLS file paths. */
 function serializablePlatformConfig(): Record<string, unknown> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -79,7 +70,6 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
   const isTest = getENV('NODE_ENV') === 'test';
 
   if (options) setUwsHttpOpts(options);
-  applyBinaryOptions(httpOptions.binary);
   const protocol = httpOptions.ssl ? 'https' : 'http';
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `${protocol}://localhost${port}`;
@@ -136,8 +126,6 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const query = req.getQuery();
   const urlQuery = query === '' ? undefined : query;
   const reqHeaders = headersFromUwsRequest(req);
-  // already in the snapshot above: reading it again crosses the native boundary for nothing
-  const contentType = reqHeaders.get('content-type') || '';
 
   const respHeaders = bufferedResponseHeaders(httpOptions.defaultResponseHeaders);
   respHeaders.set('server', '@mionjs');
@@ -149,9 +137,8 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   });
 
   const dispatchBody = (buffer: Buffer) => {
-    const isBinary = contentType.startsWith('application/octet-stream');
-    let reqRawBody: any = isBinary ? buffer : buffer.toString();
-    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.stringifyJson;
+    let reqRawBody: any = buffer.toString();
+    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a throw here runs inside uWS' native callback (or a microtask): it must become a response
     try {
       const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
@@ -205,11 +192,9 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     // ArrayBuffer is only a view; the outer Buffer.from is the one real memcpy). A body that took
     // several reads was assembled in C++ and its memory OWNERSHIP-TRANSFERRED to JS — no copy.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
-      // The window is valid for this synchronous callback. The JSON path turns it into a string
-      // right here (that IS the copy), so only a binary body, which is handed on as bytes, needs
-      // the retaining copy. The outer Buffer.from is the memcpy, so it is paid only when needed.
-      const view = Buffer.from(fullBody);
-      dispatchBody(contentType.startsWith('application/octet-stream') ? Buffer.from(view) : view);
+      // The window is valid for this synchronous callback, and dispatchBody turns it into a string
+      // right here (that IS the copy), so no retaining copy is needed.
+      dispatchBody(Buffer.from(fullBody));
       return;
     }
     // Bigger than one read can deliver → guaranteed the ownership-transferred path: use the buffer
@@ -260,18 +245,13 @@ function statusLine(statusCode: number): string {
 }
 
 function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionResponse) {
-  // The client is gone and uWS freed the response — touching it would crash. The only cleanup
-  // owed is handing a pooled binary buffer back.
-  if (state.aborted) {
-    mionResp.releaseBinBuffer?.();
-    return;
-  }
+  // The client is gone and uWS freed the response — touching it would crash.
+  if (state.aborted) return;
 
   // An unknown serializer becomes a fatal-error response BEFORE corking — uWS ignores a second
   // writeStatus inside the same cork, so the swap can't happen mid-write.
   const bodyType = mionResp.serializer;
-  const isKnownBodyType =
-    bodyType === SerializerModes.stringifyJson || bodyType === SerializerModes.json || bodyType === SerializerModes.binary;
+  const isKnownBodyType = bodyType === SerializerModes.stringifyJson || bodyType === SerializerModes.json;
   if (!isKnownBodyType) {
     const error = new FatalError({
       publicMessage: 'unknown-mion-response-format',
@@ -293,20 +273,6 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
     });
 
     switch (mionResp.serializer) {
-      case SerializerModes.binary: {
-        // the router swaps a failed binary encode for a JSON envelope, so an absent payload is a tripwire
-        const serializer = mionResp.binSerializer;
-        if (!serializer) {
-          res.end(JSON.stringify({}));
-          break;
-        }
-        res.end(serializer.getBufferView());
-        // uWS copies the payload into its own send buffer synchronously inside end() (also on
-        // the backpressure path), so unlike node there is nothing to wait for — the pooled
-        // buffer goes back immediately. Pinned by the binary spec's concurrent-load test.
-        mionResp.releaseBinBuffer?.();
-        break;
-      }
       case SerializerModes.json: {
         // Platform adapter stringifies the prepared body object
         res.end(JSON.stringify(mionResp.body));

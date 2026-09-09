@@ -238,7 +238,7 @@ export const isNativeError: (value: unknown) => boolean =
     : (value: unknown) => value instanceof Error;
 
 // ############# mion error classes -> mion class serializers #############
-// Registered here, alongside the class definitions, so JSON/binary decoders rebuild real
+// Registered here, alongside the class definitions, so JSON decoders rebuild real
 // instances (`instanceof RpcError` holds after a round trip). Loading @mionjs/core (which
 // re-exports this module) fires the registration before any decode runs.
 //

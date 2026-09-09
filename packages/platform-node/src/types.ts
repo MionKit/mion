@@ -6,7 +6,6 @@
  * ######## */
 
 import {ServerOptions} from 'https';
-import type {BinaryOptionsPatch} from '@mionjs/core';
 
 // type-node-http-options-start
 export interface NodeHttpOptions {
@@ -21,13 +20,6 @@ export interface NodeHttpOptions {
    * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
    * */
   maxBodySize: number; // default 256KB
-  /**
-   * Binary serialization options: buffer pooling, response-size statistics, and the mion
-   * string cache. Pooling is armed by default on this platform — node's 'finish'/'close' events
-   * give a proven-safe point to hand the buffer back, so responses reuse buffers instead of
-   * allocating one per request. Turn it off with `{pool: {enabled: false}}`.
-   */
-  binary: BinaryOptionsPatch;
   /**
    * The HOST owns the socket: `startNodeServer()` builds the server and publishes the platform
    * config but never calls `listen()`, and installs no SIGINT/SIGTERM handlers (they would exit

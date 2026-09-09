@@ -14,7 +14,7 @@ import {
   ROUTE_PATH_ROOT,
   EMPTY_HASH,
 } from './constants.ts';
-import {DEFAULT_ENCODER, jsonStrategyOf} from './encoder.ts';
+import {DEFAULT_ENCODER} from './encoder.ts';
 import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {
   CoreRouterOptions,
@@ -26,7 +26,7 @@ import type {
 import {getRTUtils} from '@mionjs/run-types';
 import {getOrCreateGlobal} from './utils.ts';
 
-// Null-prototype on purpose: the id comes off the wire (a binary body names its methods), so a plain
+// Null-prototype on purpose: the id comes off the wire (a body names its methods), so a plain
 // object would answer `constructor` / `toString` / `__proto__` with an inherited value. Every lookup
 // below is an own-key lookup for the same reason.
 const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => Object.create(null) as MethodsCache);
@@ -105,8 +105,8 @@ export const routesCache = {
 
     // the resolved encoder rides the metadata; a payload without one reads as the built-in defaults
     const encoder = metadata.options.encoder ?? DEFAULT_ENCODER;
-    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, jsonStrategyOf(encoder.params, 'params'));
-    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, jsonStrategyOf(encoder.return, 'return'));
+    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, encoder.params);
+    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, encoder.return);
     const headersParam = metadata.headersParam
       ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
       : undefined;
@@ -162,8 +162,8 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-/** The mion cache keys of one fn set for a JSON strategy; the binary keys only when asked for. */
-export function getJitFnHashes(jitHash: string, strategy: JsonStrategy, needsBinary: boolean = false): JitFunctionsHashes {
+/** The mion cache keys of one fn set for a JSON strategy. */
+export function getJitFnHashes(jitHash: string, strategy: JsonStrategy): JitFunctionsHashes {
   return {
     isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
     typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
@@ -174,18 +174,11 @@ export function getJitFnHashes(jitHash: string, strategy: JsonStrategy, needsBin
     // Named for every hash: the entry only exists when a params marker demanded it (the return
     // markers never do), so the deps lane ships it exactly when it is real.
     formatTransform: `${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`,
-    ...(needsBinary
-      ? {
-          toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
-          fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`,
-        }
-      : {}),
   };
 }
 
-/** Rebuilds a type's fn set from the mion cache (the client metadata lane): validators, the JSON pair
- *  of the given strategy, and the binary pair when both entries exist. Noop set for the empty hash,
- *  and results are cached per (strategy, hash). */
+/** Rebuilds a type's fn set from the mion cache (the client metadata lane): validators and the JSON
+ *  pair of the given strategy. Noop set for the empty hash, and results are cached per (strategy, hash). */
 export function getJitFunctionsFromHash(jitHash: string, strategy: JsonStrategy): JitCompiledFunctions {
   // Empty hash means no JIT functions were generated (optimization for no params or void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
@@ -197,7 +190,7 @@ export function getJitFunctionsFromHash(jitHash: string, strategy: JsonStrategy)
   // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
   // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
   const utl = getRTUtils();
-  const hashes = getJitFnHashes(jitHash, strategy, true);
+  const hashes = getJitFnHashes(jitHash, strategy);
   const isType = utl.getRT(hashes.isType);
   const typeErrors = utl.getRT(hashes.typeErrors);
   const encode = utl.getRT(hashes.encode);
@@ -216,11 +209,6 @@ export function getJitFunctionsFromHash(jitHash: string, strategy: JsonStrategy)
   const unknownKeyErrorsJit = utl.getRT(hashes.unknownKeyErrors!);
   if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit as JitCompiledFunctions['hasUnknownKeys'];
   if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit as JitCompiledFunctions['unknownKeyErrors'];
-  // the binary pair exists only for a `binary` direction, and only as a pair
-  const toBinaryJit = utl.getRT(hashes.toBinary!);
-  const fromBinaryJit = utl.getRT(hashes.fromBinary!);
-  if (toBinaryJit && fromBinaryJit)
-    jitFns.binary = {toBinary: toBinaryJit, fromBinary: fromBinaryJit} as JitCompiledFunctions['binary'];
   // sanitizeParams: exposed only as a LIVE entry, a noop transform has nothing to apply
   const formatTransformJit = utl.getRT(hashes.formatTransform!);
   if (formatTransformJit && !formatTransformJit.isNoop)
@@ -271,8 +259,8 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   // Exactly what getJitFunctionsFromHash refuses to build, no more: the header sets are deliberately
   // left out, because getHeaderJitFunctionsFromHash returns them empty instead of throwing (a client
   // is never sent them, it only reads headersParam to tell a headers middleFn apart).
-  if (!hasFullSet(metadata.paramsJitHash, jsonStrategyOf(encoder.params, 'params'))) return false;
-  return hasFullSet(metadata.returnJitHash, jsonStrategyOf(encoder.return, 'return'));
+  if (!hasFullSet(metadata.paramsJitHash, encoder.params)) return false;
+  return hasFullSet(metadata.returnJitHash, encoder.return);
 }
 
 /**
