@@ -8,7 +8,14 @@ import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Family, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
-import {DOWNGRADE_ALL, isDowngraded, resolveDowngradeErrors, type DowngradeSet} from './downgradeErrors.ts';
+import {
+  DOWNGRADED_NOTE,
+  FAIL_ON_ERROR_REMOVED,
+  isDowngraded,
+  resolveDowngradeErrors,
+  DOWNGRADE_ALL,
+  type DowngradeSet,
+} from './downgradeErrors.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
@@ -365,11 +372,7 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
 // idea why.
 function assertNoFailOnError(options: PluginOptions): void {
   if (!('failOnError' in options)) return;
-  throw new Error(
-    '[@mionjs/devtools] `failOnError` was removed. Use `downgradeErrors`:\n' +
-      `    failOnError: false  ->  downgradeErrors: '${DOWNGRADE_ALL}'\n` +
-      '    failOnError: true   ->  the default, drop the option'
-  );
+  throw new Error(`[@mionjs/devtools] ${FAIL_ON_ERROR_REMOVED}`);
 }
 
 // @mionjs/devtools is built on unplugin: ONE factory, many bundler entry
@@ -764,8 +767,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       }
       // Unfilled @todo scaffolds + blank values over the computed mirrors. These
       // are Error-severity here (unlike dev): a production build must not ship an
-      // app with blank labels/translations.
-      incomplete = (result.diagnostics ?? []).filter((d) => d.severity === Severity.Error && !isDowngraded(downgrade, d));
+      // app with blank labels/translations. EVERY one is kept, downgraded or not,
+      // because a downgrade lowers a finding, it never hides it; only the halt
+      // count below drops the downgraded ones.
+      incomplete = (result.diagnostics ?? []).filter((d) => d.severity === Severity.Error);
     } catch {
       return;
     }
@@ -775,18 +780,26 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         `@mionjs/devtools: enrichment mirror out of date or missing: ${stalePath} — run \`mion enrich --update\` and commit it.`
       );
     }
-    for (const diagnostic of incomplete) ctx.warn?.(formatTscDiagnostic(diagnostic));
+    let fatal = 0;
+    for (const diagnostic of incomplete) {
+      if (isDowngraded(downgrade, diagnostic)) {
+        ctx.warn?.(formatDowngraded(diagnostic));
+        continue;
+      }
+      ctx.warn?.(formatTscDiagnostic(diagnostic));
+      fatal += 1;
+    }
     // The stale-mirror half carries no diagnostic code, so only the wildcard can
     // stand it down — which is exactly what the retired `failOnError: false` did.
-    if (!downgrade.all) {
-      const parts: string[] = [];
-      if (stale.length > 0) parts.push(`${stale.length} out of date or missing`);
-      if (incomplete.length > 0) parts.push(`${incomplete.length} incomplete (unfilled @todo / blank value)`);
-      ctx.error?.(
-        `@mionjs/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
-          `Run \`mion enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
-      );
-    }
+    const staleCount = downgrade.all ? 0 : stale.length;
+    if (staleCount === 0 && fatal === 0) return;
+    const parts: string[] = [];
+    if (staleCount > 0) parts.push(`${staleCount} out of date or missing`);
+    if (fatal > 0) parts.push(`${fatal} incomplete (unfilled @todo / blank value)`);
+    ctx.error?.(
+      `@mionjs/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
+        `Run \`mion enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
+    );
   }
 
   // The separate batch source (the `clientTsconfig` program): its source files
@@ -1287,9 +1300,7 @@ function surfaceDiagnostics(
   for (const diagnostic of diagnostics) {
     if (!filter(diagnostic)) continue;
     const downgraded = options.downgrade !== undefined && isDowngraded(options.downgrade, diagnostic);
-    ctx.warn?.(
-      downgraded ? formatTscDiagnostic({...diagnostic, severity: Severity.Warning}, true) : formatTscDiagnostic(diagnostic)
-    );
+    ctx.warn?.(downgraded ? formatDowngraded(diagnostic) : formatTscDiagnostic(diagnostic));
     if (diagnostic.severity === Severity.Error && !downgraded) errorCount += 1;
   }
   if (options.halt && errorCount > 0) {
@@ -1309,13 +1320,21 @@ function surfaceDiagnostics(
 // wire only carries the diagnostic code + optional positional args. Severity
 // is numeric on the wire — switch on it to pick the human label since
 // the canonical line format requires the word, not the digit.
+// formatDowngraded renders a finding a `downgradeErrors` setting lowered: the
+// `warning` label plus the note that says it was configured down rather than
+// always being a warning. The two are always set together, so they live in one
+// place instead of being spelled out at each call site.
+export function formatDowngraded(d: Diagnostic): string {
+  return formatTscDiagnostic({...d, severity: Severity.Warning}, true);
+}
+
 export function formatTscDiagnostic(d: Diagnostic, downgraded = false): string {
   const label = severityLabel(d.severity);
   const headline = renderHeadline(d.code, d.args);
   // The note goes in the MESSAGE, after the code, so the `$tsc` matcher still
   // reads the line: without it a configured-down finding is indistinguishable
   // from one that was always a warning.
-  const suffix = downgraded ? ' (downgraded)' : '';
+  const suffix = downgraded ? ` ${DOWNGRADED_NOTE}` : '';
   let line = `${d.site.filePath}(${d.site.startLine},${d.site.startCol}): ${label} ${d.code}: ${headline}${suffix}`;
   if (d.related && d.related.length > 0) {
     for (const r of d.related) {

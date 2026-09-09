@@ -84,19 +84,8 @@ func (set DowngradeSet) Empty() bool {
 	return !set.all && len(set.codes) == 0
 }
 
-// Apply returns the list with every downgraded diagnostic's severity lowered to
-// Warning. Used by `mion compile`, which renders and counts in one pass; the
-// bundler plugin does the same demotion inside its own surfacing loop.
-func (set DowngradeSet) Apply(list []Diagnostic) []Diagnostic {
-	if set.Empty() {
-		return list
-	}
-	out := make([]Diagnostic, len(list))
-	for i, diagnostic := range list {
-		if set.Downgraded(diagnostic) {
-			diagnostic.Severity = SeverityWarning
-		}
-		out[i] = diagnostic
-	}
-	return out
-}
+// DowngradedNote marks a finding that a `downgradeErrors` setting lowered, so
+// it never reads as a warning that was always a warning. Both consumers print
+// it: `mion compile` after FormatDebug, the bundler plugin inside the tsc-shaped
+// line (after the message, so the `$tsc` problem matcher still parses it).
+const DowngradedNote = "(downgraded)"

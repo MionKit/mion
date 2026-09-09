@@ -99,7 +99,7 @@ var familyAddedFlags = []familyAddedFlag{
 func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
 	if !request.IncludeMetrics {
 		response := sess.dispatch(request, nil)
-		response.Diagnostics = sess.settleDiagnostics(response.Diagnostics, request.Op == protocol.OpGenerate)
+		response.Diagnostics = sess.settleDiagnostics(response.Diagnostics, request)
 		return response
 	}
 	var memBefore runtime.MemStats
@@ -107,7 +107,7 @@ func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
 	metrics := &protocol.Metrics{RenderMs: map[string]float64{}}
 	start := time.Now()
 	response := sess.dispatch(request, metrics)
-	response.Diagnostics = sess.settleDiagnostics(response.Diagnostics, request.Op == protocol.OpGenerate)
+	response.Diagnostics = sess.settleDiagnostics(response.Diagnostics, request)
 	metrics.TotalMs = elapsedMs(start)
 	var memAfter runtime.MemStats
 	runtime.ReadMemStats(&memAfter)

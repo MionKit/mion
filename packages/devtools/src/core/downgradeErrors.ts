@@ -14,12 +14,25 @@
 // for its exit code — and lint rule routing is left alone by a build setting.
 // The Go twin is ts-go-runtypes/internal/diagnostics/downgrade.go.
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
-import {Severity, type Diagnostic} from './protocol.ts';
+import {Family, Severity, type Diagnostic} from './protocol.ts';
 
 // DOWNGRADE_ALL is the wildcard shape: every Error code reports as a Warning.
 // The blunt instrument, kept for adoption, where a project turning mion on
 // cannot yet list the codes it has not met.
 export const DOWNGRADE_ALL = '*';
+
+// DOWNGRADED_NOTE marks a finding a `downgradeErrors` setting lowered, so it
+// never reads as a warning that was always a warning. Twin of
+// diagnostics.DowngradedNote on the Go side, which `mion compile` prints.
+export const DOWNGRADED_NOTE = '(downgraded)';
+
+// FAIL_ON_ERROR_REMOVED is the one migration message for the retired boolean.
+// Two host paths reach a config independently — the mion presets and the plain
+// bundler adapters — so both check, but they say the same thing.
+export const FAIL_ON_ERROR_REMOVED =
+  '`failOnError` was removed. Use `downgradeErrors`:\n' +
+  `    failOnError: false  ->  downgradeErrors: '${DOWNGRADE_ALL}'\n` +
+  '    failOnError: true   ->  the default, drop the option';
 
 // DowngradeSet is a resolved `downgradeErrors` value. `all` is the wildcard;
 // otherwise only the listed codes are downgraded.
@@ -70,8 +83,12 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
 // isDowngraded reports whether this diagnostic should be treated as a Warning.
 // Only Error severity is ever downgraded, and never the pure-fn family, so the
 // wildcard reproduces exactly what the retired `failOnError: false` did.
+//
+// The family comes off the WIRE, the same field the Go twin reads. The catalog
+// lookup above is for configured code STRINGS, which have no diagnostic to read
+// a family from; using it here would also mean an unrecognised code slipped
+// through the guard.
 export function isDowngraded(set: DowngradeSet, diagnostic: Diagnostic): boolean {
-  if (diagnostic.severity !== Severity.Error) return false;
-  if (DIAGNOSTIC_CATALOG[diagnostic.code]?.family === 'purefn') return false;
+  if (diagnostic.severity !== Severity.Error || diagnostic.family === Family.PureFn) return false;
   return set.all || set.codes.has(diagnostic.code);
 }

@@ -48,11 +48,7 @@ func generateDiagnostics(t *testing.T, source string) []string {
 	if response.Error != "" {
 		t.Fatalf("generate: %s", response.Error)
 	}
-	codes := make([]string, 0, len(response.Diagnostics))
-	for _, diagnostic := range response.Diagnostics {
-		codes = append(codes, diagnostic.Code)
-	}
-	return codes
+	return codesOf(response)
 }
 
 func TestExpectError_SilencesTheNamedCode(t *testing.T) {
@@ -213,4 +209,76 @@ func contains(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// ─── what a pass may judge ────────────────────────────────────────────────
+
+// optInFamilySource names MRT002, a mion-route code. That family is OPT-IN per
+// request: the whole-program build pass never asks for it, so only the lint pass
+// can say whether the directive silenced anything.
+const optInFamilySource = `import {createMionRouter} from '@mionjs/router';
+const mion = createMionRouter();
+// @mion-expect-error MRT002
+export const untyped = mion.route((ctx, name): string => 'x');
+`
+
+// TestExpectError_OptInFamilyIsNotJudgedByTheBuild pins the fix for a directive
+// that worked in the editor and failed the build. The build pass raises no
+// mion-route findings at all, so calling this comment unused there told the user
+// to delete a comment the editor still needed.
+func TestExpectError_OptInFamilyIsNotJudgedByTheBuild(t *testing.T) {
+	session := setupInline(t, map[string]string{"router.d.ts": routerRulesDTS, "routes.ts": optInFamilySource})
+
+	lint := session.Dispatch(protocol.Request{
+		Op:               protocol.OpScanFiles,
+		Files:            []string{"routes.ts"},
+		CheckRouterRules: true,
+	})
+	lintCodes := codesOf(lint)
+	if contains(lintCodes, "MRT002") {
+		t.Fatalf("the lint pass raises MRT002 and the directive names it, so it is silenced; got %v", lintCodes)
+	}
+	if contains(lintCodes, diagnostics.CodeExpectErrorUnused) {
+		t.Fatalf("the directive silenced MRT002, so it is used; got %v", lintCodes)
+	}
+
+	build := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if buildCodes := codesOf(build); contains(buildCodes, diagnostics.CodeExpectErrorUnused) {
+		t.Fatalf("the build never raises mion-route findings, so it cannot call this unused; got %v", buildCodes)
+	}
+}
+
+// TestExpectError_LintPassJudgesOnlyItsOwnFiles: the lint pass holds one file's
+// findings, so a directive in another file has not been given a chance to
+// silence anything and must not be reported.
+func TestExpectError_LintPassJudgesOnlyItsOwnFiles(t *testing.T) {
+	session := setupInline(t, map[string]string{
+		"entry.ts": withDirective("// @mion-expect-error VL002"),
+		"other.ts": `export const untouched = 1;\n`,
+	})
+	response := session.Dispatch(protocol.Request{
+		Op:                   protocol.OpScanFiles,
+		Files:                []string{"other.ts"},
+		IncludeRtDiagnostics: true,
+	})
+	if codes := codesOf(response); contains(codes, diagnostics.CodeExpectErrorUnused) {
+		t.Fatalf("entry.ts was not scanned, so its directive cannot be judged here; got %v", codes)
+	}
+}
+
+// TestExpectError_TypoIsReportedToTheLinter is what makes the
+// `invalid-expect-error` lint rule reachable: the lint pass runs scanFiles, and
+// a mistyped code is a fact about the comment text that any pass can check.
+func TestExpectError_TypoIsReportedToTheLinter(t *testing.T) {
+	session := setupInline(t, map[string]string{"entry.ts": withDirective("// @mion-expect-error VL2")})
+	response := session.Dispatch(protocol.Request{
+		Op:                   protocol.OpScanFiles,
+		Files:                []string{"entry.ts"},
+		IncludeRtDiagnostics: true,
+		CheckEnrich:          true,
+		CheckRouterRules:     true,
+	})
+	if codes := codesOf(response); !contains(codes, diagnostics.CodeExpectErrorUnknownCode) {
+		t.Fatalf("a typo must reach the editor, not just the build; got %v", codes)
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/srcscan"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
@@ -28,20 +29,62 @@ import (
 //
 // SILENCING runs on every op, because a directive is a fact about the source
 // whichever question was asked. REPORTING a wrong directive (the EXP codes)
-// runs only on the whole-program op, because "this directive silenced nothing"
-// is only answerable once, against every finding the program has. A build makes
-// several calls (a dump, a generate, a transform per file), and asking a
-// single-file op whether a directive was used would report every directive in
-// the project as unused.
+// runs only where the answer is real, which is what directiveScope works out.
 //
-// Cost when no directive exists is one substring scan per source file.
-func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, wholeProgram bool) []diagnostics.Diagnostic {
+// Cost when no directive exists is one substring scan per source file, and the
+// sweep is skipped entirely when there is neither a finding to silence nor a
+// report to make.
+func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request protocol.Request) []diagnostics.Diagnostic {
 	list = diagnostics.Dedupe(list)
+	scope := sess.directiveScope(request)
+	if len(list) == 0 && !scope.Reports {
+		return list
+	}
 	directives := sess.programDirectives()
 	if len(directives) == 0 {
 		return list
 	}
-	return diagnostics.ApplyExpectErrors(list, directives, sess.absPath, wholeProgram)
+	return diagnostics.ApplyExpectErrors(list, directives, sess.absPath, scope)
+}
+
+// directiveScope describes what this request could report, so the EXP codes
+// never fire on a question it cannot answer.
+//
+// Two ops report. OpGenerate is the BUILD pass: it covers every file but never
+// asks for the opt-in families, so it judges only directives naming codes it
+// could have raised. OpScanFiles is the LINT pass: it covers the files it was
+// given and, with both opt-ins set, every family for them, which is what makes
+// the editor the place a stale or mistyped directive shows up. Every other op
+// silences without judging.
+func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassScope {
+	families := map[diagnostics.Family]bool{
+		diagnostics.FamilyPureFn: true,
+		diagnostics.FamilyMarker: true,
+	}
+	switch request.Op {
+	case protocol.OpGenerate:
+		// A generate renders every entry, so the RunType family is always in play.
+		families[diagnostics.FamilyRunType] = true
+		return diagnostics.PassScope{Reports: true, Families: families}
+	case protocol.OpScanFiles:
+		// The RunType family only renders when the request asked for entries or
+		// for their diagnostics; a plain rewrite scan raises none of them.
+		if request.IncludeEntryModules || request.IncludeRtDiagnostics {
+			families[diagnostics.FamilyRunType] = true
+		}
+		if request.CheckEnrich {
+			families[diagnostics.FamilyEnrich] = true
+		}
+		if request.CheckRouterRules {
+			families[diagnostics.FamilyMionRoute] = true
+		}
+		files := make(map[string]bool, len(request.Files))
+		for _, file := range request.Files {
+			files[sess.absPath(file)] = true
+		}
+		return diagnostics.PassScope{Reports: true, Files: files, Families: families}
+	}
+	return diagnostics.PassScope{}
 }
 
 // programDirectives collects every directive in the program's non-declaration

@@ -49,6 +49,21 @@ const ctx = {
   },
 };
 
+// recordingCtx captures the warn log, for the cases that care what the gate
+// PRINTED rather than only whether it halted.
+function recordingCtx(): {warnings: string[]; warn(message: unknown): void; error(message: string): never} {
+  const warnings: string[] = [];
+  return {
+    warnings,
+    warn(message: unknown): void {
+      warnings.push(String(message));
+    },
+    error(message: string): never {
+      throw new Error(message);
+    },
+  };
+}
+
 interface Project {
   dir: string;
   models: string;
@@ -96,6 +111,7 @@ interface PluginOptionsLite {
     i18n?: {sourceLocale?: string; locales?: string[]; strict?: boolean};
     suppressHmr?: boolean;
   };
+  downgradeErrors?: string[] | '*';
 }
 
 // makePlugin instantiates the Vite plugin over the project. unplugin merges the
@@ -116,9 +132,9 @@ function makePlugin(project: Project, options: PluginOptionsLite) {
 
 // driveBuild runs configResolved + buildStart under a given Vite command. 'serve'
 // (default) is the write lane (dev/watch); 'build' is the read-only drift gate.
-async function driveBuild(plugin: any, project: Project, command: 'serve' | 'build' = 'serve'): Promise<void> {
-  await plugin.configResolved.call(ctx, {root: project.dir, command});
-  await plugin.buildStart.call(ctx);
+async function driveBuild(plugin: any, project: Project, command: 'serve' | 'build' = 'serve', on: any = ctx): Promise<void> {
+  await plugin.configResolved.call(on, {root: project.dir, command});
+  await plugin.buildStart.call(on);
 }
 
 // driveBuildStart runs the whole-program initial sync under a simulated `vite serve`.
@@ -373,6 +389,35 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
       await expect(driveBuild(incomplete, project, 'build')).rejects.toThrow(/not production-ready|incomplete/);
     } finally {
       await teardown(incomplete);
+    }
+  }, 60_000);
+
+  // A downgrade LOWERS a finding, it never hides one. The gate used to filter the
+  // downgraded ones out before printing, so `downgradeErrors` made an enrichment
+  // finding vanish from the build log entirely — the opposite of the contract.
+  it('under downgradeErrors the enrichment findings still print, marked, and stop halting', async () => {
+    const project = track(
+      setupProject([
+        {key: 'name', type: 'string'},
+        {key: 'age', type: 'number'},
+      ])
+    );
+    // A dev pass writes the mirrors in sync, carrying the scaffold blanks.
+    const dev = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      await driveBuildStart(dev, project);
+    } finally {
+      await teardown(dev);
+    }
+    const downgraded = makePlugin(project, {enrich: {friendly: true, mock: true}, downgradeErrors: '*'});
+    const on = recordingCtx();
+    try {
+      await driveBuild(downgraded, project, 'build', on); // must NOT throw
+      const all = on.warnings.join('\n');
+      expect(all, 'the finding is still reported').toMatch(/warning (FT|MD)0\d\d/);
+      expect(all, 'and marked so it does not read as an ordinary warning').toContain('(downgraded)');
+    } finally {
+      await teardown(downgraded);
     }
   }, 60_000);
 
