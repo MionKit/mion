@@ -4,6 +4,7 @@
   ],
   "rules": {
     "runtypes/broken-tsconfig": "error",
+    "runtypes/invalid-expect-error": "error",
     "runtypes/invalid-marker": "error",
     "runtypes/redundant-marker": "warn",
     "runtypes/pure-functions": "error",
