@@ -92,9 +92,12 @@ const defaultEndMiddleFns = {
   ...mionClientMiddleFns,
   mionSerializeResponse: serializerMiddleFns.mionSerializeResponse,
 };
-/** True once any registered method answers with a promise. Read per request by the dispatcher: a
- *  router with nothing async has nothing to await, so awaiting each step is pure overhead there. */
+/** True once any registered method answers with a promise. */
 let hasAsyncMethods = false;
+/** What the dispatcher reads per request. Both of its inputs are fixed once registration is done:
+ *  the router options are frozen and no further method can be registered, so it is resolved here
+ *  rather than recomputed on every call. */
+let alwaysAwait = false;
 let startMiddleFnsDef: MiddleFnsCollection = {...defaultStartMiddleFns};
 let endMiddleFnsDef: MiddleFnsCollection = {...defaultEndMiddleFns};
 export let startMiddleFns: RemoteMethod[] = [];
@@ -112,6 +115,9 @@ export const getComplexity = () => complexity;
 /** Whether ANY registered method answers with a promise. False means the whole router is
  *  synchronous, so the dispatcher can skip its awaits without changing a single result. */
 export const getHasAsyncMethods = () => hasAsyncMethods;
+/** Whether the dispatcher must await every chain step. The `alwaysAwait` option asks for it, and it
+ *  is only honoured when there is something async to wait for. */
+export const getAlwaysAwait = () => alwaysAwait;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
@@ -137,6 +143,7 @@ export const resetRouter = () => {
   startMiddleFns = [];
   endMiddleFns = [];
   hasAsyncMethods = false;
+  alwaysAwait = false;
   isRouterInitialized = false;
   isRouterCreated = false;
   allExecutablesIds = undefined;
@@ -213,6 +220,9 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   if (metadataMiddleFn) useOnDemandMetadataCaller(metadataMiddleFn as RemoteMethod);
   const binaryMiddlewares = new Set<string>();
   recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
+  // every method this call could register is registered, and the options are frozen, so the
+  // dispatcher's await rule is settled here instead of on every request
+  alwaysAwait = routerOptions.alwaysAwait && hasAsyncMethods;
   allExecutablesIds = undefined; // the memoized id list must see the routes registered by this call
   if (binaryMiddlewares.size > 0) compileBinaryForMiddleware(binaryMiddlewares);
   if (shouldFullGenerateSpec()) {
