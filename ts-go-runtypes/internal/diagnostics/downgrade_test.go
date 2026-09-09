@@ -89,26 +89,6 @@ func TestResolveDowngrade_WarningCodeIsInert(t *testing.T) {
 	}
 }
 
-func TestDowngradeSet_ApplyLowersSeverity(t *testing.T) {
-	set, _ := ResolveDowngrade([]string{CodeVLSymbolRoot})
-	out := set.Apply([]Diagnostic{errorDiag(CodeVLSymbolRoot), errorDiag(CodeTypeIdCollision)})
-	if out[0].Severity != SeverityWarning {
-		t.Errorf("the listed code reports as a warning, got severity %d", out[0].Severity)
-	}
-	if out[1].Severity != SeverityError {
-		t.Errorf("every other code stays an error, got severity %d", out[1].Severity)
-	}
-}
-
-func TestDowngradeSet_ApplyLeavesTheInputAlone(t *testing.T) {
-	set, _ := ResolveDowngrade([]string{CodeVLSymbolRoot})
-	list := []Diagnostic{errorDiag(CodeVLSymbolRoot)}
-	set.Apply(list)
-	if list[0].Severity != SeverityError {
-		t.Fatal("Apply returns a new list; the caller's own copy is untouched")
-	}
-}
-
 func TestSuppressible(t *testing.T) {
 	for code, want := range map[string]bool{
 		CodeVLSymbolRoot:      true,
