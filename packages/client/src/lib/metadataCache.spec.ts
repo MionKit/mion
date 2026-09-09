@@ -18,14 +18,8 @@ import {
   hydrateMetadataCache,
   takeMetadataCacheError,
 } from './clientMethodsMetadata.ts';
-import {
-  MemoryMetadataStore,
-  getMetadataStore,
-  resetMetadataStore,
-  setMetadataStoreForTesting,
-  type MetadataRecord,
-  type MetadataStore,
-} from './metadataStore.ts';
+import {MemoryMetadataStore, getMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from './metadataStore.ts';
+import type {MetadataRecord, MetadataStore} from './storage.ts';
 import {resetClientCaches} from './testUtils.ts';
 import type {ClientOptions} from '../types.ts';
 
@@ -260,6 +254,40 @@ describe('the metadata cache around its store', () => {
     await flushMetadataCache();
     expect(routesCache.hasMetadata('sayHi')).toBe(true);
     expect(takeMetadataCacheError()).toBeDefined();
+  });
+
+  it('keeps the cache on the engine the client named', async () => {
+    // the seam an app plugs into: everything the cache reads and writes goes through this store
+    const inner = new MemoryMetadataStore();
+    const calls: string[] = [];
+    const appStore: MetadataStore = {
+      kind: 'app-store',
+      readAll: (url) => {
+        calls.push('readAll');
+        return inner.readAll(url);
+      },
+      write: (records) => {
+        calls.push('write');
+        return inner.write(records);
+      },
+      remove: (url, keys) => inner.remove(url, keys),
+      clear: (url) => inner.clear(url),
+    };
+    const appOptions: ClientOptions = {...options, storageEngine: () => appStore};
+
+    extractAndProcessMetadata(MION_ROUTES.methodsMetadata, {[MION_ROUTES.methodsMetadata]: payload('sayHi', 'h1')}, appOptions);
+    await flushMetadataCache();
+
+    expect(calls).toContain('write');
+    expect((await inner.readAll(baseURL)).some((record) => record.id === 'sayHi')).toBe(true);
+    // and nothing landed in the engine the client did not name
+    expect(await (await getMetadataStore('indexeddb')).readAll(baseURL)).toEqual([]);
+
+    // a cold page on the same engine restores from it
+    resetClientCaches();
+    await hydrateMetadataCache(appOptions);
+    expect(calls).toContain('readAll');
+    expect(routesCache.hasMetadata('sayHi')).toBe(true);
   });
 
   it('writes a compiled function once, however many responses carry it', async () => {
