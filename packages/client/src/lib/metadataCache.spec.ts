@@ -290,6 +290,41 @@ describe('the metadata cache around its store', () => {
     expect(routesCache.hasMetadata('sayHi')).toBe(true);
   });
 
+  it('makes room in an app store too: eviction is the cache policy, not the store', async () => {
+    // the store only ever deletes what it is told. Everything else (the cap, oldest first, the
+    // retry) is the client's, so an app engine gets the same discipline without implementing it.
+    const inner = new MemoryMetadataStore();
+    const removed: string[] = [];
+    let refused = false;
+    const appStore: MetadataStore = {
+      kind: 'app-store',
+      readAll: (url) => inner.readAll(url),
+      write: (records) => {
+        if (refused) return inner.write(records);
+        refused = true;
+        return Promise.reject(new DOMException('quota', 'QuotaExceededError'));
+      },
+      remove: (url, keys) => {
+        removed.push(...keys.map(([kind, id]) => `${kind}:${id}`));
+        return inner.remove(url, keys);
+      },
+      clear: (url) => inner.clear(url),
+    };
+    const appOptions: ClientOptions = {...options, storageEngine: () => appStore};
+
+    await inner.write([{baseURL, kind: 'j', id: 'ancient', json: '{}', ts: 1}]);
+    await hydrateMetadataCache(appOptions);
+
+    extractAndProcessMetadata(MION_ROUTES.methodsMetadata, {[MION_ROUTES.methodsMetadata]: payload('sayHi', 'h1')}, appOptions);
+    await flushMetadataCache();
+
+    expect(removed).toContain('j:ancient');
+    const stored = await inner.readAll(baseURL);
+    expect(stored.some((record) => record.kind === 'm' && record.id === 'sayHi')).toBe(true);
+    expect(stored.some((record) => record.id === 'ancient')).toBe(false);
+    expect(takeMetadataCacheError()).toBeUndefined();
+  });
+
   it('writes a compiled function once, however many responses carry it', async () => {
     const inner = new MemoryMetadataStore();
     const written: string[] = [];
