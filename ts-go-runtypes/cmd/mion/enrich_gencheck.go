@@ -102,19 +102,7 @@ func runGenCheck(positional []string, genDirFlag string, asJSON, requireComplete
 		return findings[left].Code < findings[right].Code
 	})
 
-	// Same two reasons as the enrich health check, and the same trap: the
-	// unfilled-scaffold codes are LevelWarning, so `--require-complete` reads the
-	// Completeness bit rather than the finding's level.
-	hasError := false
-	for _, finding := range findings {
-		if requireComplete && diagnostics.IsCompleteness(finding.Code) {
-			hasError = true
-			continue
-		}
-		if finding.Severity == enrichment.Error {
-			hasError = true
-		}
-	}
+	exitCode := genCheckExitCode(findings, requireComplete)
 	if asJSON {
 		encoded, encodeErr := json.MarshalIndent(findings, "", "  ")
 		if encodeErr != nil {
@@ -127,10 +115,27 @@ func runGenCheck(positional []string, genDirFlag string, asJSON, requireComplete
 		}
 	}
 	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d mirror file(s), %d finding(s)\n", len(mirrorFiles), len(findings))
-	if hasError {
-		os.Exit(1)
+	os.Exit(exitCode)
+}
+
+// genCheckExitCode is the tree walk's exit-code policy, the twin of the
+// single-file lane's enrichFindingFails: a finding carrying the Completeness bit
+// fails only under --require-complete, and any Error-severity finding (a stale
+// carcass via hygieneSeverity, GE000/GE002/GE003 drift) fails both lanes. The
+// cosmetic GE001 location drift is a Warning and never fails.
+func genCheckExitCode(findings []driftFinding, requireComplete bool) int {
+	for _, finding := range findings {
+		if diagnostics.IsCompleteness(finding.Code) {
+			if requireComplete {
+				return 1
+			}
+			continue
+		}
+		if finding.Severity == enrichment.Error {
+			return 1
+		}
 	}
-	os.Exit(0)
+	return 0
 }
 
 // isUnder reports whether path is dir itself or lies within it (neither escaping
@@ -208,7 +213,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 	for _, hygiene := range enrichgen.HygieneDiagnostics(text, mirrorFile, isMockMirrorPath(mirrorFile)) {
 		findings = append(findings, driftFinding{
 			File:     mirrorFile,
-			Severity: severityFromDiag(hygiene.Severity),
+			Severity: hygieneSeverity(hygiene.Code),
 			Code:     hygiene.Code,
 			Message:  diagnostics.Definitions[hygiene.Code].Headline,
 			Line:     hygiene.Site.StartLine,
@@ -342,15 +347,16 @@ func isMockMirrorPath(mirrorFile string) bool {
 	return strings.Contains(filepath.ToSlash(mirrorFile), "/"+familyMock+"/")
 }
 
-// severityFromDiag maps a diagnostics.Severity onto the enrichment.Severity the
-// drift report carries.
-func severityFromDiag(severity diagnostics.Severity) enrichment.Severity {
-	switch severity {
-	case diagnostics.SeverityError:
-		return enrichment.Error
-	case diagnostics.SeverityWarning:
+// hygieneSeverity is the severity a tag-hygiene finding carries in the drift
+// report, read from the gate POLICY rather than the catalog level: an incomplete
+// finding (unfilled @todo, blank value; the Completeness bit) is a Warning the
+// default lane tolerates, and everything else the hygiene scan raises (a stale
+// @rtOrphan / @rtOrphanChild carcass) is WRONG content, an Error in both lanes.
+// The catalog level is LevelWarning for all of them (a mirror with a carcass
+// still runs), which is why it cannot drive this report.
+func hygieneSeverity(code string) enrichment.Severity {
+	if diagnostics.IsCompleteness(code) {
 		return enrichment.Warning
-	default:
-		return enrichment.Info
 	}
+	return enrichment.Error
 }
