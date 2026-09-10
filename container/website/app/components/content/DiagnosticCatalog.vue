@@ -5,6 +5,9 @@ import catalog from './go-generated/diagnostics-catalog.json';
 interface CodeEntry {
   code: string;
   subsystem: string;
+  /** The three-way level: did the build produce the code, and does it work. */
+  level: 'error' | 'runtimeError' | 'warning';
+  /** The level's two-way label form, what a tsc-shaped build line prints. */
   severity: 'error' | 'warning' | 'info';
   headline: string;
   detail: string | null;
@@ -54,7 +57,10 @@ function withInlineCode(text: string): string {
   return escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
-const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning', info: 'Info'};
+const levelLabel: Record<string, string> = {error: 'Error', runtimeError: 'RuntimeError', warning: 'Warning'};
+
+/** Badge class suffixes have to be valid CSS identifiers, so camelCase becomes a dash. */
+const levelClass: Record<string, string> = {error: 'error', runtimeError: 'runtime', warning: 'warning'};
 </script>
 
 <template>
@@ -62,11 +68,15 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
     <div class="diag-legend">
       <div class="diag-legend__card">
         <span class="diag-badge diag-badge--warning">Warning</span>
-        <p>A safe, expected drop, and the build keeps going. Anything with no data form (a method, a function-valued property, a symbol key) is left out of the generated function.</p>
+        <p>Worth knowing, nothing is wrong. Usually a member with no data form (a method, a function-valued property, a symbol key) left out of the generated function.</p>
+      </div>
+      <div class="diag-legend__card">
+        <span class="diag-badge diag-badge--runtime">RuntimeError</span>
+        <p>The code is written and it is broken when you call it. It throws, like a bare <code>symbol</code> that has nothing to validate, or it no longer checks what you asked for. You can stand one down with a comment or a setting.</p>
       </div>
       <div class="diag-legend__card">
         <span class="diag-badge diag-badge--error">Error</span>
-        <p>The generated function would throw the moment you call it, so the build stops. A whole value has no data form, like a type that resolves to <code>never</code> or a bare <code>symbol</code>. Change the type.</p>
+        <p>The build could not produce the code at all, so there is nothing to ship for that piece. Nothing you can set or write stands one down: the call would throw either way.</p>
       </div>
     </div>
 
@@ -88,7 +98,7 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
       <article v-for="entry in subsystem.entries" :id="entry.code" :key="entry.code" class="diag-entry">
         <header class="diag-entry__head">
           <a :href="`#${entry.code}`" class="diag-entry__code">{{ entry.code }}</a>
-          <span :class="['diag-badge', `diag-badge--${entry.severity}`]">{{ severityLabel[entry.severity] }}</span>
+          <span :class="['diag-badge', `diag-badge--${levelClass[entry.level]}`]">{{ levelLabel[entry.level] }}</span>
         </header>
 
         <pre class="diag-entry__headline"><code>{{ entry.headline }}</code></pre>
@@ -123,12 +133,12 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
 
 .diag-legend {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.9rem;
   margin: 1rem 0 1.5rem;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .diag-legend {
     grid-template-columns: 1fr;
   }
@@ -238,16 +248,18 @@ const severityLabel: Record<string, string> = {error: 'Error', warning: 'Warning
   border: 1px solid currentColor;
 }
 
+/* One ramp, three readable steps: the further from yellow, the less of your
+   build survives. */
 .diag-badge--error {
   color: var(--color-red-500, #ef4444);
 }
 
-.diag-badge--warning {
-  color: var(--color-amber-500, var(--color-yellow-500, #f59e0b));
+.diag-badge--runtime {
+  color: var(--color-orange-400, #fb923c);
 }
 
-.diag-badge--info {
-  color: var(--color-blue-500, #3b82f6);
+.diag-badge--warning {
+  color: var(--color-yellow-300, #fde047);
 }
 
 .diag-entry__headline {
