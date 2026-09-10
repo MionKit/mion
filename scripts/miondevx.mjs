@@ -76,9 +76,9 @@ const die = (msg, code = 1) => {
 // lanes (sequences / iterations) have fixed coverage — contention only costs
 // wall clock, so they may share a runner.
 //
-// ⚠ MION_FUZZ_ITER drives BOTH convert lanes (`convert` and `convertcli`):
-// exporting it in a shell widens the two at once. The tier blocks set it
-// per-lane, so `--quick` / `--soak` never collide.
+// ⚠ MION_FUZZ_ITER drives the two convert lanes (`convert` and `convertcli`)
+// AND `apiids`: exporting it in a shell widens all three at once. The tier
+// blocks set it per-lane, so `--quick` / `--soak` never collide.
 const FUZZ = {
   unit: {config: 'packages/run-types/test/fuzz/vitest.fuzz-unit.config.ts'},
   // Patterns are vitest positional filters: case-INSENSITIVE substring matches
@@ -124,6 +124,10 @@ const FUZZ = {
   // temp project, randomized form chains over the full generated type space,
   // per-leg id checks + the byte-equal type-form fixpoint oracle.
   convertcli: {patterns: ['convertFuzz.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
+  // The bundled-API id lane: the REAL binary compiles a server project and a
+  // client project (different tsconfig) per generated type; the server manifest
+  // must agree with the reflection marker, and `mion api-check` must pass.
+  apiids: {patterns: ['apiids/apiIdsFuzz.integration'], quick: {MION_FUZZ_ITER: '10'}, soak: {MION_FUZZ_ITER: '40'}},
   // Drizzle pure-types road: random table specs rendered as TYPE SOURCE,
   // scanned by the real resolver, tableFromType over the reflected graph must
   // equal a raw drizzle build (the wide in-process three-surface fuzz rides

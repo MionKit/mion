@@ -58,6 +58,7 @@ on:
           - race
           - convert
           - convertcli
+          - apiids
           - drizzletypes
       seed:
         description: 'MION_FUZZ_SEED — blank derives one from the run id (fresh ground)'
