@@ -9,7 +9,14 @@ import type {Prettify, RpcError, MethodMetadata, RemoteMethodOpts} from '@mionjs
 import type {ResolvedMiddleFnOptions, ResolvedRouteOptions} from './resolvedOptions.ts';
 import type {CallContext} from './context.ts';
 import type {Routes} from './general.ts';
-import type {Handler} from './handlers.ts';
+import type {
+  Handler,
+  HandlerIsAsync,
+  HandlerParams,
+  HandlerReturn,
+  HeaderHandlerHeaders,
+  HeaderHandlerParams,
+} from './handlers.ts';
 import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 import {HandlerType} from '@mionjs/core'; // do not import type only
 
@@ -42,11 +49,11 @@ export type PrivateDef = PrivateMiddleFnDef | RawMiddleFnDef;
 export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
     : Type[Property] extends MiddleFnDef<infer H, infer RO, infer O>
-    ? PublicMiddleFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>>
+    ? PublicMiddleFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>, MethodTypes<HandlerParams<H>, HandlerReturn<H>, never, HandlerIsAsync<H>>>
     : Type[Property] extends HeadersMiddleFnDef<infer H, infer RO, infer O>
-    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>>
+    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>, MethodTypes<HeaderHandlerParams<H>, HandlerReturn<H>, HeaderHandlerHeaders<H>, HandlerIsAsync<H>>>
     : Type[Property] extends RouteDef<infer H, infer RO, infer O> // Routes
-    ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>>
+    ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>, MethodTypes<HandlerParams<H>, HandlerReturn<H>, never, HandlerIsAsync<H>>>
         : Type[Property] extends Routes // Routes & PureRoutes (recursion)
         ? PublicApi<Type[Property]>
         : never;
@@ -59,31 +66,55 @@ export type RemoteApi = {
 };
 // type-remote-api-end
 
+/** The types the server compiled a method's validators and serializers from: the same aliases the
+ *  route helpers hand to their markers (HandlerParams / HandlerReturn / HeaderHandlerHeaders /
+ *  HandlerIsAsync), so a client build with `bundleApi` reads them off the API type and compiles the
+ *  very same functions under the very same ids. Type-only: never set at runtime. */
+export interface MethodTypes<Params = unknown, Return = unknown, Headers = unknown, Async extends boolean = boolean> {
+  /** the params tuple the server validates (a headers middleFn's start after its HeadersSubset) */
+  params: Params;
+  /** the awaited return type, declared errors included */
+  return: Return;
+  /** a headers middleFn's HeadersSubset parameter, `never` for every other method */
+  headers: Headers;
+  /** whether the server handler answers with a promise */
+  isAsync: Async;
+}
+
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
-export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts> extends MethodMetadata {
+export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes>
+  extends MethodMetadata {
   type: typeof HandlerType.route;
   middleFnIds: string[];
   headerNames: undefined;
   handler: H;
   /** the effective options, as the router resolved them */
   options: Opts;
+  /** type-only: the types the server compiled this route from, see MethodTypes */
+  readonly types?: Types;
 }
 
 /** Public MiddleFns, handler type is the same as RemoteMiddleFns but does not include the context  */
-export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts> extends MethodMetadata {
+export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes>
+  extends MethodMetadata {
   type: typeof HandlerType.middleFn;
   handler: H;
   /** the effective options, as the router resolved them */
   options: Opts;
+  /** type-only: the types the server compiled this middleFn from, see MethodTypes */
+  readonly types?: Types;
 }
 
 /** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
-export interface PublicHeadersFn<H extends Handler = any, Opts = RemoteMethodOpts> extends MethodMetadata {
+export interface PublicHeadersFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes>
+  extends MethodMetadata {
   type: typeof HandlerType.headersMiddleFn;
   headerNames: string[];
   handler: H;
   /** the effective options, as the router resolved them */
   options: Opts;
+  /** type-only: the types the server compiled this middleFn from, see MethodTypes */
+  readonly types?: Types;
 }
 
 /** Removes the context from handlers */
