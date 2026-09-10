@@ -1390,3 +1390,41 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     expect(gate).not.toMatch(/checkHome|CHECKS = \{/);
   });
 });
+
+// ############# the child-process server lane is gone, and stays gone #############
+// `server.runMode: 'childProcess'` spawned the mion API beside vite with vite-node: a second
+// process, a second resolver over the same program, a port poll. The preset now mounts the API
+// in the SAME process, so the lane's four options and its dependency have no reader left. A
+// config that quietly grows one back would spawn nothing and fail at the first batch, so pin it.
+// The OPTIONS, not the word "vite-node": that package is also vitest's own module loader, and
+// prose about it in that sense stays true. The dependency itself is covered by the manifest test.
+const CHILD_PROCESS_LANE = /runMode\s*:|waitTimeout\s*:|\bserverReady\b/;
+// Where the words are legitimate: history, the spec directories, the guard that REJECTS them (and
+// its spec), the note recording the removal, the vendored submodule and every isolated dependency
+// tree. `transform-wire.mjs` has a local `runMode` function of its own, unrelated to the option.
+const CHILD_PROCESS_LANE_EXEMPT =
+  /^(CHANGELOG\.md$|docs\/(todos|done)\/|ts-go-runtypes\/third_party\/|packages\/devtools\/src\/vite\/(mionVitePlugin|index)\.ts$|packages\/devtools\/src\/vite\/removedOptions\.spec\.ts$|packages\/devtools\/test\/repo-contracts\.test\.ts$|container\/benchmarks\/transform-wire\/transform-wire\.mjs$)|(^|\/)(_deps|node_modules)\//;
+
+describe('the child-process server lane leaves nothing behind', () => {
+  it('no manifest still declares vite-node', () => {
+    for (const manifest of ['package.json', 'packages/devtools/package.json']) {
+      const pkg = JSON.parse(readFileSync(join(REPO_ROOT, manifest), 'utf8')) as Record<string, Record<string, string>>;
+      for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+        expect(Object.keys(pkg[field] ?? {}), `${manifest} ${field}`).not.toContain('vite-node');
+      }
+    }
+  });
+
+  it('no tracked file still names the lane', () => {
+    const res = spawnSync('git', ['grep', '-I', '-l', '-E', CHILD_PROCESS_LANE.source, '--', '.'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    });
+    const offenders = res.stdout
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .filter((file) => !CHILD_PROCESS_LANE_EXEMPT.test(file));
+    expect(offenders, `these still name the removed child-process lane:\n${offenders.join('\n')}`).toEqual([]);
+  });
+});

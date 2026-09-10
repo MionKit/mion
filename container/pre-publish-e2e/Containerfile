@@ -72,9 +72,6 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 # editing mion-consumer/ source never invalidates this layer, and each run installs
 # just the changing @mionjs/* + @mionjs/* on top from verdaccio.
 #
-# vite-node is NOT pinned here: it arrives as a real dependency of the published
-# @mionjs/devtools, and it is that copy the managed server child has to run.
-#
 # Placed after the /e2e install so a mion-only bump never re-runs the heavier one.
 WORKDIR /e2e-mion
 COPY _deps-mion/package.json _deps-mion/pnpm-workspace.yaml _deps-mion/.npmrc ./

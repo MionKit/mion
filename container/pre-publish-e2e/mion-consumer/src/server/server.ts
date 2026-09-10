@@ -97,25 +97,30 @@ const routes = {
 
 // ============ Server startup ============
 
-const port = process.env.MION_TEST_PORT
+const defaultPort = process.env.MION_TEST_PORT
     ? parseInt(process.env.MION_TEST_PORT, 10)
     : process.argv[2]
       ? parseInt(process.argv[2], 10)
       : 8086;
 
-async function startServer() {
-    try {
-        mion.initRoutes(routes);
-        setNodeHttpOpts({port});
-        await startNodeServer();
-        console.log(`Test server started on port ${port}`);
-    } catch (error) {
-        console.error('Failed to start test server:', error);
-        process.exit(1);
-    }
+/** Starts this server and hands back the listening node server so the caller can close it.
+ *  The tests call this from their globalSetup, in the SAME process: one program, nothing spawned. */
+export async function startTestServer(port: number = defaultPort) {
+    mion.initRoutes(routes);
+    setNodeHttpOpts({port});
+    const server = await startNodeServer();
+    console.log(`Test server started on port ${port}`);
+    return server;
 }
 
 /** Export the API type for client tests */
 export type TestServerApi = PublicApi<typeof routes>;
 
-if (process.env.MION_TEST_SERVER_AUTO_START !== 'false') startServer();
+// Importing this module never starts a server; the env var is the explicit opt-in, used by the
+// compiled-server lane that runs the built bundle as a program of its own.
+if (process.env.MION_TEST_SERVER_AUTO_START === 'true') {
+    void startTestServer().catch((error) => {
+        console.error('Failed to start test server:', error);
+        process.exit(1);
+    });
+}

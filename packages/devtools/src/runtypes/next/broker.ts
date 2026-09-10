@@ -218,6 +218,13 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   // dependency, so any type change re-runs every marker-bearing file. Coarse,
   // but bounded: only files the scan found sites in are transformed at all, and
   // a transform is a couple of milliseconds.
+  //
+  // `rpc/` is in the listing for the same reason, one step removed. A Next app
+  // that hosts the mion API gets the batch table's import appended to its route
+  // handler, and that import appears (or vanishes) when a client adds its first
+  // batch or drops its last one — a change with no import edge for Turbopack to
+  // follow, exactly like an ambient type. The mapper modules under `rpc/pf/` are
+  // content-addressed like `types/`, hence the recursive listing.
   function countGenerated(): number {
     try {
       return fs.readdirSync(path.join(genDirAbs, 'types')).filter((name) => name.endsWith('.js')).length;
@@ -226,18 +233,30 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     }
   }
 
+  /** The generated tree as one sorted listing: `types/` plus `rpc/`, each entry prefixed by its
+   *  half so a name cannot collide across them. Missing halves simply contribute nothing. */
+  function generatedListing(): string[] {
+    const listing: string[] = [];
+    for (const half of ['types', 'rpc']) {
+      let names: string[];
+      try {
+        names = fs.readdirSync(path.join(genDirAbs, half), {recursive: true}) as string[];
+      } catch {
+        continue; // this half has not been generated
+      }
+      for (const name of names) listing.push(`${half}/${name}`);
+    }
+    return listing.sort();
+  }
+
   let lastStamp = '';
   let lastStampAt = 0;
   function refreshStamp(force = false): void {
     const now = Date.now();
     if (!force && now - lastStampAt < STAMP_THROTTLE_MS) return;
     lastStampAt = now;
-    let listing: string[];
-    try {
-      listing = fs.readdirSync(path.join(genDirAbs, 'types')).sort();
-    } catch {
-      return; // nothing generated yet
-    }
+    const listing = generatedListing();
+    if (listing.length === 0) return; // nothing generated yet
     const digest = createHash('sha256').update(listing.join('\n')).digest('hex').slice(0, 16);
     if (digest === lastStamp) return;
     debug(`stamp ${lastStamp || '(none)'} -> ${digest} (${listing.length} entries)`);
