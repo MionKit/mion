@@ -6,7 +6,14 @@
  * ######## */
 
 import {HandlerType} from '@mionjs/core';
-import type {HeadersFnHelper, MiddleFnHelper, RawMiddleFnHelper, RouteHelper, RouterOptionsInput} from '../types/mionRouter.ts';
+import type {
+  HeadersFnHelper,
+  MiddleFnHelper,
+  PinnedMutation,
+  RawMiddleFnHelper,
+  RouteHelper,
+  RouterOptionsInput,
+} from '../types/mionRouter.ts';
 
 // ############# Route & MiddleFns initialization (INTERNAL) #############
 // These bodies initialize the definition objects AND are the mion injection points: the trailing
@@ -29,11 +36,11 @@ export const route: RouteHelper<RouterOptionsInput> = (handler, opts, paramsFns,
 
 /** `route()` with `isMutation` pinned. Typed as the same helper, so both keep the marker signature
  *  the scanner reads at the call site. */
-function routeWithMutation(isMutation: boolean): RouteHelper<RouterOptionsInput> {
+function routeWithMutation<M extends boolean>(isMutation: M): RouteHelper<RouterOptionsInput, M> {
   return (handler, opts, paramsFns, returnFns, paramsId, returnId, isAsyncId) => ({
     type: HandlerType.route,
     handler,
-    options: {...opts, isMutation},
+    options: {...opts, isMutation} as PinnedMutation<typeof opts & object, M>,
     rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
   });
 }
