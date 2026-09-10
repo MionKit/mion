@@ -667,22 +667,31 @@ describe('request-batch diagnostics and readable shapes', () => {
   });
 
   describe('downgradeErrors: [BAT001]', () => {
-    register('the build goes on, the report lacks the unreadable batch, and its call gets no id', async () => {
-      const bad =
-        IMPORTS + `const prepared = [routes.users.getById(1)];\nexport const b = batch([...prepared, routes.orders.list(1)]);\n`;
-      const good = IMPORTS + `export const b = batch([routes.users.getById(1)]);\n`;
-      await withBuild({'bad.ts': bad, 'good.ts': good}, {downgradeErrors: ['BAT001']}, async (run) => {
-        expect(run.error, 'a downgraded BAT001 must not halt the build').toBeNull();
-        const hits = run.warns.filter((w) => w.includes('warning BAT001:'));
-        expect(hits.length, 'the diagnostic still surfaces as a warning').toBe(1);
-        expect(hits[0]).toContain(`${fileTail('bad.ts')}(${lineOf(bad, '...prepared')},`);
-        expect(run.sites.map((s) => path.basename(s.file))).toEqual(['good.ts']);
-        const [goodSite] = expectClean({...run, warns: []}, 'good.ts');
-        await expectInjected(run, 'good.ts', [goodSite]);
-        const badCode = await run.transform('bad.ts');
-        expect(badCode === null || !badCode.includes("'b_"), `the unreadable batch must ship without an id:\n${badCode}`).toBe(
-          true
-        );
+    // BAT001 is a fatal Error and cannot be stood down, and this test used to be
+    // the proof of why: it asserted that a downgraded BAT001 ships the batch
+    // WITHOUT its id. That bundle is not a working bundle — `batch()` throws
+    // `batch-missing-id` synchronously at call time, before any network work —
+    // so not halting buys nothing. The config is refused at the host boundary
+    // instead, where the user can still read what to do about it.
+    it('is refused: the batch ships with no id, so not halting buys nothing', () => {
+      expect(() =>
+        runtypesRollup({
+          binary: BIN,
+          cwd: FIXTURE_DIR,
+          tsconfig: 'tsconfig.json',
+          genDir: path.join(FIXTURE_DIR, '.mion'),
+          downgradeErrors: ['BAT001'],
+        })
+      ).toThrow(/cannot downgrade BAT001/);
+    });
+
+    register('BAT003 IS downgradeable: both ids are injected, they just collide', async () => {
+      // The contrast that makes the level real. A colliding id is real output
+      // that resolves to the wrong plan, so a project may choose to ship it.
+      const source =
+        IMPORTS + `export const a = batch([routes.users.getById(1)]);\nexport const b = batch([routes.users.getById(1)]);\n`;
+      await withBuild({'case.ts': source}, {downgradeErrors: ['BAT003']}, async (run) => {
+        expect(run.error, 'a downgraded BAT003 must not halt the build').toBeNull();
       });
     });
   });

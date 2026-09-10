@@ -52,9 +52,7 @@ export type RuleName =
   | 'no-unsafe-property-names';
 
 // RuleSpec is the single source of truth for a rule: the plugin namespace it is
-// registered under, its default level (follows the Go catalog LEVEL of the codes
-// it carries: `error` for a rule whose codes are fatal Errors or RuntimeErrors,
-// `warn` for one whose codes are Warnings), which cheap text pre-filter admits a
+// registered under, its default level, which cheap text pre-filter admits a
 // file to the resolver
 // pass (`compiler` scans any marker / RT / router file, `enrichment` only
 // generated mirror files), and
@@ -68,6 +66,12 @@ export interface RuleSpec {
   // namespaces, ONE table: index.ts partitions on this field so neither plugin
   // hand-lists its rules.
   readonly namespace: 'runtypes' | '@mionjs';
+  // The level a lint host reports this rule at by default. It must never be
+  // `warn` while the rule carries a code the Go catalog does not call a Warning:
+  // under-reporting a fatal or runtime error is the one direction that is wrong.
+  // The reverse is a rule author's call — a rule may ship at `error` while its
+  // codes are Warnings, which is how a finding can be worth an editor squiggle
+  // without being worth stopping a build (`enrichment-field` is exactly that).
   readonly default: 'error' | 'warn';
   readonly gate: 'compiler' | 'enrichment';
   readonly description: string;
@@ -253,7 +257,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'enrichment-field',
     namespace: 'runtypes',
-    default: 'warn',
+    default: 'error',
     gate: 'enrichment',
     description:
       'A FriendlyText / MockData entry that no longer matches its type: a field the type does not declare, a name colliding with the reserved rt$ prefix, or a plural template missing its mandatory other arm',

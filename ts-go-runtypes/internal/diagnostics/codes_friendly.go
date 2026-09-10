@@ -11,13 +11,14 @@ package diagnostics
 // build. MockData twins live in codes_mock.go; the mirror↔source linkage
 // codes in codes_gencheck.go.
 //
-// The levels ask what the reader of a rendered message SEES. Almost every
-// finding here degrades to a valid fallback (the generic "value is invalid", the
-// `other` plural arm, the raw field name), which is not enrichment but is not
-// wrong either: LevelWarning. FT005 is the exception and the only
-// LevelRuntimeError, because an unknown `$[…]` placeholder is echoed verbatim
-// into the text a user reads. FT011 is LevelError: a property colliding with the
-// reserved `rt$` prefix fails the enrich plan, so no mirror is written at all.
+// The levels ask what the reader of a rendered message SEES. Every content
+// finding here degrades: to the generic "value is invalid", to the `other`
+// plural arm, to the raw field name, or (FT005) to a message carrying the
+// literal `$[…]` token. Degraded text is enrichment that did not apply, not a
+// broken function — the validation still ran and the error still surfaced — so
+// they are all LevelWarning. FT011 is the one LevelError: a property colliding
+// with the reserved `rt$` prefix fails the enrich plan, so no mirror is written
+// at all.
 const (
 	CodeFriendlyUnknownField      = "FT002"
 	CodeFriendlyUnknownConstraint = "FT003"
@@ -37,7 +38,7 @@ func init() {
 	for _, definition := range []Definition{
 		{Code: CodeFriendlyUnknownField, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText map names a field the type does not declare"},
 		{Code: CodeFriendlyUnknownConstraint, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText rt$errors key is not a declared constraint of the field"},
-		{Code: CodeFriendlyBadPlaceholder, Family: FamilyEnrich, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "FriendlyText error template uses an unknown $[…] placeholder"},
+		{Code: CodeFriendlyBadPlaceholder, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText error template uses an unknown $[…] placeholder"},
 		{Code: CodeFriendlyPluralNoOther, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText plural template is missing the mandatory 'other' arm"},
 		{Code: CodeFriendlyPluralBadArm, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText plural template arm is not a CLDR category"},
 		{Code: CodeFriendlyPluralNoCount, Family: FamilyEnrich, Level: LevelWarning, Scope: ScopeNotSource, Title: "FriendlyText plural template on a constraint that carries no count"},
