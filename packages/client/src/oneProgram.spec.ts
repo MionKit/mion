@@ -14,12 +14,12 @@ import {HeadersSubset} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
-// The whole point of dropping the child-process server mode: client and API are ONE program now.
-// This package's own build is the batch source (it pulls the API entry in through the `source`
-// export condition), so the table lands under THIS package's genDir and the API — started in the
-// same process by globalSetup — answers the batches that table holds.
+// Client and API are ONE program here. This package's own build is the batch source (it pulls the
+// API entry in through the `source` export condition), so the table lands under THIS package's
+// genDir and the API — started in the same process by globalSetup — answers the batches it holds.
 //
-// The other specs would pass on a two-process setup too; these two would not.
+// The other specs talk to the API over HTTP and would pass however it was started; these two pin
+// that it is this build's own program serving them.
 
 const GEN_DIR = resolve(import.meta.dirname, '../.mion');
 

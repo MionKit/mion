@@ -31,8 +31,8 @@
 //                  appends the import inside the transform, so a Next app that is
 //                  the client (the usual case) does nothing: its API's own build
 //                  points at this app's tsconfig.
-//   does NOT port  the Vue SFC pass (not a Next concern) and middleware mode /
-//                  the managed server (Next runs its own dev server).
+//   does NOT port  the Vue SFC pass (not a Next concern) or the `server` block
+//                  (Next runs its own dev server and builds the API route itself).
 //   does NOT port  module-graph invalidation. The broker declares typeDeps AND a
 //                  stamp to Turbopack, which covers staleness including ambient
 //                  types that have no import edge to follow.

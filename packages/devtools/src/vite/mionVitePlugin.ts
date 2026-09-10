@@ -34,8 +34,8 @@ export type {MionClientPointer, MionRunTypesOptions};
 
 /** The mion API behind this vite run: ONE program, ONE process. In `vite dev` the entry is loaded
  *  through this vite server's own SSR pipeline and mounted as middleware (no port of its own), and
- *  `build` emits it as a second bundle beside the client one. There is no second process and no
- *  second resolver — a test that needs a real socket starts the API itself in its globalSetup. */
+ *  `build` emits it as a second bundle beside the client one. A test that needs a real socket
+ *  starts the API itself in its globalSetup. */
 export interface MionServerOptions {
   /** Absolute path to the server entry script: loaded through this vite server's SSR pipeline in
    *  dev, and the server bundle's input when `build` is set. */
@@ -218,23 +218,21 @@ function findRtPlugin(created: unknown): Plugin | undefined {
   return undefined;
 }
 
-// ############# removed server options (0.9 → 0.10) #############
-// The child-process lane is gone: one program, one process. These four keys only ever configured
-// the vite-node spawn, so a config still carrying them is not "slightly stale" — it is asking for a
-// second server that will never start. Detected at config time and thrown with what to do instead,
-// read through an index signature so an untyped vite.config.js is caught too, not just a typed one.
+// ############# unsupported server options #############
+// The mion API runs in the SAME process as vite, so none of these keys has anything to configure.
+// Detected at config time and thrown with what to do instead, read through an index signature so an
+// untyped vite.config.js is caught too, not just a typed one.
 const REMOVED_SERVER_OPTIONS: Record<string, string> = {
-  runMode:
-    "the child-process lane is gone and middleware mode is the only mode. Delete it — 'buildOnly' WAS the AOT harvest mode, and AOT is gone.",
+  runMode: 'the API is always mounted in this vite process; there is no mode to pick. Delete it.',
   viteConfig: 'there is no second vite process to configure. The API is loaded by THIS config. Delete it.',
-  waitTimeout: 'nothing polls a port any more. Delete it.',
-  env: 'there is no child process to pass env to. Set what the API needs in this process, or in the test that starts it.',
+  waitTimeout: 'nothing polls a port. Delete it.',
+  env: 'set what the API needs in this process, or in the test that starts it.',
 };
 const START_IT_YOURSELF =
   'A test that needs a real socket starts the API itself in its globalSetup (import the entry and call its start function), ' +
   'and `vite dev` already listens for you.';
 
-/** Throws on any child-process-era `server` key a stale config still passes, naming the replacement. */
+/** Throws on any unsupported `server` key a config passes, naming the replacement. */
 export function assertNoRemovedServerOptions(server: MionServerOptions | undefined): void {
   if (!server) return;
   const found: string[] = [];
