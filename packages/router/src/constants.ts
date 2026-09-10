@@ -23,8 +23,6 @@ export const DEFAULT_ROUTE_OPTIONS = {
   autoGenerateErrorId: false,
   /** client routes are initialized by default */
   skipClientRoutes: IS_TEST_ENV,
-  /** Context pooling size == 100 by default */
-  maxContextPoolSize: 100,
   /** Every chain step is awaited by default, so the chain keeps yielding between steps */
   alwaysAwait: true,
   /** Request body limit == 256KB by default */

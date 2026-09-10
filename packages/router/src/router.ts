@@ -47,7 +47,6 @@ import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionClientRoutes, mionClientMiddleFns, useOnDemandMetadataCaller} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearBatches} from './batches.ts';
-import {clearContextPool} from './callContext.ts';
 import {headersFn, middleFn, mutation, query, rawMiddleFn, route} from './lib/handlers.ts';
 import type {
   HeadersFnHelper,
@@ -150,7 +149,6 @@ export const resetRouter = () => {
   platformConfig = undefined;
   resetRemoteMethodsMetadata();
   resetRoutesCache();
-  clearContextPool();
   clearBatches();
   // Note: We intentionally do NOT call resetJitFnCaches() here because:
   // 1. JIT function caches are global and should persist across router resets
