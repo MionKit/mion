@@ -194,7 +194,7 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	// after Cascade (demand reflects only surviving entries) and before
 	// AddMissingStubs (a served built-in must be present so it never degrades to a
 	// KindMissing stub). A demanded built-in absent from the table is a PFE9012.
-	sess.serveBuiltinPureFns(graph, rtOpts.DiagSink)
+	sess.serveBuiltinPureFns(graph, rtOpts.DiagSink, rtOpts.EmitMode)
 	demanded, demandTags := demandedEntryKeys(dump.Sites)
 	graph.AddMissingStubs(demanded)
 	// allSingle: a dropped demanded key must stay importable at the bundle
@@ -693,7 +693,11 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 // now validated against the table instead of taken on faith (the exemption flip).
 // Runs post-Cascade so demand reflects only entries that will ship, and
 // pre-AddMissingStubs so a served built-in never degrades to a KindMissing stub.
-func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnostic) {
+// emitMode is the RENDER's mode, not the session's: the bundled-API mirror
+// renders in `functions` whatever the program's own mode, and a built-in body
+// shipped as a code string there would be rebuilt with `new Function` at the
+// first validation, exactly where a bundled client is not allowed to.
+func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnostic, emitMode constants.EmitMode) {
 	keys := make([]string, 0, len(graph))
 	for key := range graph {
 		keys = append(keys, key)
@@ -728,7 +732,7 @@ func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]d
 		return
 	}
 	entries, missing := builtinpurefns.Closure(demand)
-	graph.Merge(purefunctions.CollectEntries(entries, sess.opts.EmitMode))
+	graph.Merge(purefunctions.CollectEntries(entries, emitMode))
 	if diagSink == nil {
 		return
 	}
