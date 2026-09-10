@@ -26,6 +26,13 @@ var rpcImportRE = regexp.MustCompile(
 	`import '` + regexp.QuoteMeta(constants.RpcModulePrefix) + `([^']+)'`,
 )
 
+// apiImportRE matches a bundled API module import the transform injects at a
+// dispatch site, `from 'rtapi:/<basename>.js'`, capturing the basename under
+// <outDir>/api. Same `from` shape as the entry-module imports.
+var apiImportRE = regexp.MustCompile(
+	`from '` + regexp.QuoteMeta(constants.ApiModulePrefix) + `([^']+)` + regexp.QuoteMeta(constants.EntryModuleSuffix) + `'`,
+)
+
 // relativizeModuleImports rewrites every rtmod: import inside a generated
 // module's source into a path relative to that module. Both modules live under
 // <outDir>/types, so this is pure basename arithmetic — no outDir / filesystem
@@ -62,7 +69,7 @@ func relativizeUserImports(filePath, outDir, code string) string {
 		}
 		return "from '" + rel + "'"
 	})
-	return rpcImportRE.ReplaceAllStringFunc(code, func(match string) string {
+	code = rpcImportRE.ReplaceAllStringFunc(code, func(match string) string {
 		file := rpcImportRE.FindStringSubmatch(match)[1]
 		rel := relUserToRpc(filePath, outDir, file)
 		if rel == "" {
@@ -70,6 +77,25 @@ func relativizeUserImports(filePath, outDir, code string) string {
 		}
 		return "import '" + rel + "'"
 	})
+	return apiImportRE.ReplaceAllStringFunc(code, func(match string) string {
+		basename := apiImportRE.FindStringSubmatch(match)[1]
+		rel := relUserToApi(filePath, outDir, basename)
+		if rel == "" {
+			return match
+		}
+		return "from '" + rel + "'"
+	})
+}
+
+// relUserToApi is the specifier from a user file to <outDir>/api/<basename>.js,
+// the bundled-API twin of relUserToType. Empty when the two cannot be related.
+func relUserToApi(filePath, outDir, basename string) string {
+	target := filepath.Join(outDir, constants.ApiModuleDir, filepath.FromSlash(basename))
+	rel, err := filepath.Rel(filepath.Dir(filePath), target)
+	if err != nil {
+		return ""
+	}
+	return ensureDotPrefix(filepath.ToSlash(rel)) + moduleFileExt
 }
 
 // relUserToRpc is the specifier from a user file to <outDir>/rpc/<file>, the

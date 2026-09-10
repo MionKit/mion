@@ -76,8 +76,8 @@ type tsRuntypesPlugin struct {
 	// fetched). Absent or empty means the fetched lane.
 	BundleApi  string `json:"bundleApi"`
 	ModuleMode string `json:"moduleMode"`
-	EmitMode       string `json:"emitMode"`
-	InlineMode     string `json:"inlineMode"`
+	EmitMode   string `json:"emitMode"`
+	InlineMode string `json:"inlineMode"`
 
 	// I18n is the FriendlyText translation config. A pointer so an absent key
 	// (nil) keeps every i18n default dormant.

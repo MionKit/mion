@@ -26,12 +26,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/routerinit"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -82,38 +80,15 @@ func (sess *Session) batchSourceSession() (*Session, error) {
 	if sess.opts.ClientTsconfig == "" {
 		return sess, nil
 	}
-	if sess.batchSource != nil && !sess.batchSourceStale() {
-		return sess.batchSource, nil
+	tsconfig := sess.absPath(sess.opts.ClientTsconfig)
+	if sess.batchPeer.session != nil && sess.batchPeer.tsconfig == tsconfig && !sess.batchPeer.stale() {
+		return sess.batchPeer.session, nil
 	}
 	sess.closeBatchSource()
-	tsconfig := sess.absPath(sess.opts.ClientTsconfig)
-	prog, err := program.New(program.Options{Cwd: filepath.Dir(tsconfig), TsconfigPath: tsconfig, SingleThreaded: sess.opts.SingleThreaded})
+	client, err := sess.batchPeer.open(sess, tsconfig, "clientTsconfig", checkClientResolution)
 	if err != nil {
-		return nil, fmt.Errorf("clientTsconfig %s: %w", tsconfig, err)
-	}
-	// The client session only EXTRACTS (batches, mappers): no output root, no
-	// disk cache, no reports of its own.
-	opts := sess.opts
-	opts.ClientTsconfig = ""
-	opts.Cwd = filepath.Dir(tsconfig)
-	opts.TsconfigPath = tsconfig
-	opts.TsconfigGenDir = ""
-	opts.GenDir = ""
-	opts.CacheDir = ""
-	opts.CacheFollowsIncremental = false
-	opts.PureFnReportWire = false
-	opts.PureFnReportFile = false
-	client, err := New(prog, opts)
-	if err != nil {
-		return nil, fmt.Errorf("clientTsconfig %s: %w", tsconfig, err)
-	}
-	if err := checkClientResolution(client, tsconfig); err != nil {
-		client.Close()
 		return nil, err
 	}
-	sess.batchSource = client
-	sess.batchSourceTsconfig = tsconfig
-	sess.batchSourceStamps = stampProgramFiles(prog, tsconfig)
 	sess.hasBatchesMemo = nil
 	return client, nil
 }
@@ -141,60 +116,8 @@ func checkClientResolution(client *Session, tsconfig string) error {
 
 // closeBatchSource releases the client session, if any.
 func (sess *Session) closeBatchSource() {
-	if sess.batchSource == nil {
-		return
-	}
-	sess.batchSource.Close()
-	sess.batchSource = nil
-	sess.batchSourceTsconfig = ""
-	sess.batchSourceStamps = nil
+	sess.batchPeer.close()
 	sess.hasBatchesMemo = nil
-}
-
-// stampProgramFiles records mtime + size for every non-declaration source
-// file of prog plus its tsconfig, the set a later generate compares against.
-func stampProgramFiles(prog *program.Program, tsconfig string) map[string]string {
-	stamps := map[string]string{tsconfig: fileStamp(tsconfig)}
-	for _, sourceFile := range prog.TS.SourceFiles() {
-		if sourceFile == nil || sourceFile.IsDeclarationFile {
-			continue
-		}
-		stamps[sourceFile.FileName()] = fileStamp(sourceFile.FileName())
-	}
-	return stamps
-}
-
-// fileStamp is "<mtime>-<size>", or "" for a file that cannot be stat'ed.
-func fileStamp(path string) string {
-	info, err := os.Stat(path)
-	if err != nil {
-		return ""
-	}
-	return strconv.FormatInt(info.ModTime().UnixNano(), 10) + "-" + strconv.FormatInt(info.Size(), 10)
-}
-
-// batchSourceStale reports whether any stamped client file changed or went
-// away since the client session was built, or whether the client tsconfig now
-// matches a source file the session never saw (a new file under its include).
-func (sess *Session) batchSourceStale() bool {
-	for path, stamp := range sess.batchSourceStamps {
-		if fileStamp(path) != stamp {
-			return true
-		}
-	}
-	config, err := program.ParseInferredConfig(filepath.Dir(sess.batchSourceTsconfig), sess.batchSourceTsconfig)
-	if err != nil {
-		return true // let the rebuild report it
-	}
-	for _, file := range config.FileNames() {
-		if isDeclarationFileName(file) {
-			continue
-		}
-		if _, known := sess.batchSourceStamps[file]; !known {
-			return true
-		}
-	}
-	return false
 }
 
 func isDeclarationFileName(file string) bool {

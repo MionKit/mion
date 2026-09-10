@@ -39,6 +39,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
@@ -347,11 +348,20 @@ type Session struct {
 	// batchSource is the SEPARATE program the batch transport is generated
 	// from when Options.ClientTsconfig names one; nil while unbuilt, and when
 	// the batch source is this session's own program. Survives SetProgram /
-	// Reset (it is another project); batchSourceStamps (mtime + size of every
+	// Reset (it is another project); its stamps (mtime + size of every
 	// source file it was built from) decide when it is rebuilt. See rpcgen.go.
-	batchSource         *Session
-	batchSourceTsconfig string
-	batchSourceStamps   map[string]string
+	batchPeer peerProgram
+	// apiPeer is the SEPARATE program a CLIENT build resolves its API's routes
+	// in when Options.ApiTsconfig names one (the bundleApi lane); same
+	// lifecycle as batchPeer. See apigen.go.
+	apiPeer peerProgram
+	// apiFileCache memoises per-file dispatch-site extraction (the bundleApi
+	// lane) for the current Program, dropped alongside it.
+	apiFileCache *apimeta.FileCache
+	// apiSourceCandidates is what MET005 reports: how many initRoutes calls of
+	// the apiTsconfig program declared the client's route set on the last
+	// resolution ("" until one ran).
+	apiSourceCandidates string
 	// hasBatchesMemo caches whether the batch source holds at least one
 	// batch call, the transform's switch for appending the batch import. nil
 	// until computed; reset with the Program (own-program case) and whenever
@@ -542,6 +552,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		scannedFiles:        map[string]struct{}{},
 		pureFnFileCache:     purefunctions.NewFileCache(),
 		batchFileCache:      requestbatch.NewFileCache(),
+		apiFileCache:        apimeta.NewFileCache(),
 		routerInitFileCache: routerinit.NewFileCache(),
 		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		rtStore:             newRTStore(opts, prog.IsIncremental()),
@@ -562,6 +573,7 @@ func NewServer(opts Options) *Session {
 		scannedFiles:        map[string]struct{}{},
 		pureFnFileCache:     purefunctions.NewFileCache(),
 		batchFileCache:      requestbatch.NewFileCache(),
+		apiFileCache:        apimeta.NewFileCache(),
 		routerInitFileCache: routerinit.NewFileCache(),
 		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		// Server mode has no Program yet (installed later via setSources, always
@@ -599,6 +611,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.pureFnFileCache = purefunctions.NewFileCache()
 	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.routerInitFileCache = routerinit.NewFileCache()
+	sess.apiFileCache = apimeta.NewFileCache()
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
@@ -639,6 +652,7 @@ func (sess *Session) Reset() {
 	sess.pureFnFileCache = purefunctions.NewFileCache()
 	sess.batchFileCache = requestbatch.NewFileCache()
 	sess.routerInitFileCache = routerinit.NewFileCache()
+	sess.apiFileCache = apimeta.NewFileCache()
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
@@ -650,6 +664,7 @@ func (sess *Session) Reset() {
 
 func (sess *Session) Close() {
 	sess.closeBatchSource()
+	sess.apiPeer.close()
 	if sess.releaseLease != nil {
 		sess.releaseLease()
 		sess.releaseLease = nil

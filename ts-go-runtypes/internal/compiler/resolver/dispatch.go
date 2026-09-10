@@ -17,6 +17,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
@@ -829,12 +830,15 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// BAT0xx diagnostics flow unconditionally.
 		batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		sess.noteOwnBatches(batchSites)
+		// The bundled-API dispatch sites (a client built with bundleApi) splice
+		// their module binding the same way; MET0xx diagnostics flow with them.
+		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
 		prepStart := time.Now()
 		added := sess.cache.Added(before)
 		// Per-cache "did this scan change anything?" signals consumed by
 		// the Vite plugin's handleHotUpdate.
 		addedRunTypes := len(added) > 0
-		combinedDiagnostics := append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		// Opt-in enrichment-health pass (tag hygiene + FriendlyText/MockData
 		// content + breadcrumb drift) for the lint surfaces. Runs AFTER
@@ -850,7 +854,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		// Override arg-nulling replacements (scoped to the requested files) ride
 		// the same Replacements channel as pure-fn factory nullings.
-		allReplacements := append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), sess.collectOverrideReplacements(request.Files)...)
+		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		response := protocol.Response{
 			Sites:         sess.stampSiteModules(sites),
 			Replacements:  allReplacements,
@@ -1016,6 +1020,15 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if genErr != nil {
 			return protocol.Response{Error: genErr.Error()}
 		}
+		// The bundled-API lane (a client built with bundleApi): every dispatch
+		// site of the program, resolved and written under <outDir>/api/. Their
+		// files join SiteFiles (a file whose only marker use is `.call()` still
+		// needs the transform). Off, the lane removes a stale api/ tree.
+		apiSites, apiSiteDiagnostics := sess.collectProgramApiSites()
+		apiGenDiagnostics, apiErr := sess.generateApiBundle(outDir, apiSites)
+		if apiErr != nil {
+			return protocol.Response{Error: "generate: " + apiErr.Error()}
+		}
 		// Whole-program batch sites: their files join SiteFiles (a file whose only
 		// marker use is `batch([...])` still needs the transform), and the
 		// cross-file BAT003 collisions are only visible from here.
@@ -1042,7 +1055,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if rpcGenErr != nil {
 			return protocol.Response{Error: "generate: " + rpcGenErr.Error()}
 		}
-		siteFiles := append(append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...), routerInitFiles...)
+		siteFiles := append(append(append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...), apimeta.Files(apiSites)...), routerInitFiles...)
 		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
 		genResponse.BatchesModule = batchesModule
 		genResponse.BatchSourceFiles = rpc.files
@@ -1078,6 +1091,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			}
 		}
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
+		genResponse.Diagnostics = append(genResponse.Diagnostics, apiSiteDiagnostics...)
+		genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
 		// Marker diagnostics from the eager whole-program scan (MKR/CTA/TMP…)
 		// — persisted by scanAllProgramFiles; without this, buildStart (which
 		// consumes THIS response) never sees them.
@@ -1135,11 +1150,12 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		transformBatchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		sess.noteOwnBatches(transformBatchSites)
+		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
 		// Override arg-nulling replacements (scoped to the requested files) join
-		// the pure-fn factory nullings, the batch-id splices and the batch
-		// transport's import (appended to every router-init module); all are
-		// partitioned per file below.
-		allReplacements := append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), sess.collectOverrideReplacements(request.Files)...)
+		// the pure-fn factory nullings, the batch-id splices, the bundled-API
+		// bindings and the batch transport's import (appended to every
+		// router-init module); all are partitioned per file below.
+		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		allReplacements = append(allReplacements, sess.routerInitReplacements(request.Files)...)
 		sites = sess.stampSiteModules(sites)
 		added := sess.cache.Added(before)
@@ -1222,7 +1238,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				TypeDeps:   sess.cache.DeclFilesForFiles([]string{file}),
 			}
 		}
-		combinedDiagnostics := append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
+		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
 		response := protocol.Response{
 			Transformed:   transformed,

@@ -36,6 +36,7 @@ var outputDirAllowedMembers = map[string]bool{
 	".gitignore":           true,
 	".gitkeep":             true,
 	constants.RpcModuleDir: true, // "rpc": the batch table + its mapper modules
+	constants.ApiModuleDir: true, // "api": what a bundleApi client build bundles (see apigen.go)
 }
 
 // pureFnReportFileName is the default basename of the pure-fn build report,
