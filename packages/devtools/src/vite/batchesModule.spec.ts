@@ -25,16 +25,12 @@ const info = (batchesModule: string, routerInitFiles: string[] = ['/app/src/serv
 });
 
 describe('createBatchTransportSignals — the generate echo, as vite needs it', () => {
-  it('settles `generated` on the first echo and reports the module path from then on', async () => {
+  it('reports the module path from the first echo on', () => {
     const invalidated: string[][] = [];
     const signals = createBatchTransportSignals((files) => invalidated.push(files));
-    let settled = false;
-    void signals.generated.then(() => (settled = true));
     expect(signals.batchesModuleOf()).toBe('');
 
     signals.onGenerate(info('/app/.mion/rpc/batches.generated.js'));
-    await Promise.resolve();
-    expect(settled).toBe(true);
     expect(signals.batchesModuleOf()).toBe('/app/.mion/rpc/batches.generated.js');
     // the first echo is the buildStart one: the router-init modules are transformed AFTER it,
     // so nothing was loaded without the import and nothing is invalidated
@@ -65,10 +61,16 @@ describe('createBatchTransportSignals — the generate echo, as vite needs it', 
     expect(signals.batchesModuleOf()).toBe('');
   });
 
-  it('settles `generated` even when the first echo has no module (a server without batches)', async () => {
-    const signals = createBatchTransportSignals(() => {});
-    signals.onGenerate(info(''));
-    await expect(signals.generated).resolves.toBeUndefined();
+  it('never invalidates on the FIRST echo, module or not — nothing has been transformed yet', () => {
+    const withModule: string[][] = [];
+    const first = createBatchTransportSignals((files) => withModule.push(files));
+    first.onGenerate(info('/app/.mion/rpc/batches.generated.js'));
+    expect(withModule).toEqual([]);
+    const without: string[][] = [];
+    const second = createBatchTransportSignals((files) => without.push(files));
+    second.onGenerate(info(''));
+    expect(without).toEqual([]);
+    expect(second.batchesModuleOf()).toBe('');
   });
 });
 
@@ -78,11 +80,11 @@ describe('mionVitePlugin — the batch transport needs no plugin of its own', ()
     expect(names.some((name) => /batch/i.test(name ?? ''))).toBe(false);
   });
 
-  it('accepts the client pointer beside the run-mode server block', () => {
+  it('accepts the client pointer beside the server block', () => {
     expect(() =>
       mionVitePlugin({
         client: {tsConfig: '../client/tsconfig.json'},
-        server: {startScript: '/srv.ts', runMode: 'childProcess'},
+        server: {startScript: '/srv.ts'},
       })
     ).not.toThrow();
   });
