@@ -89,6 +89,13 @@ describe('Public Methods should', () => {
     );
   });
 
+  it('name an optional parameter as a plain string, so the metadata wire carries no union', async () => {
+    const optional = mion.middleFn((ctx, token?: string): string => token ?? '');
+    const api = mion.initRoutes({optional, plain: route1});
+    expect(api.optional.paramNames).toEqual(['token']);
+    expect(JSON.parse(JSON.stringify(api.optional)).paramNames).toEqual(['token']);
+  });
+
   it('carry the returned header names so a client can rebuild a HeadersSubset the route returns', async () => {
     const withHeaders = mion.route((ctx): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1'}));
     const api = mion.initRoutes({withHeaders, plain: route1});

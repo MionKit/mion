@@ -83,9 +83,10 @@ export interface RtHeadersReflection {
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
 export interface RtMethodReflection {
   paramsCount: number;
-  /** Parameter names from reflection; an entry is undefined for an unlabelled tuple member.
-   *  Rides the client methods-metadata payload so a client can name the parameter that failed. */
-  paramNames: (string | undefined)[];
+  /** Parameter names from reflection; '' for an unlabelled tuple member (a plain string, so the
+   *  value rides the metadata wire untagged). Rides the client methods-metadata payload so a client
+   *  can name the parameter that failed. */
+  paramNames: string[];
   paramsJitFns: JitCompiledFunctions;
   returnJitFns: JitCompiledFunctions;
   paramsJitHash: string;
@@ -363,7 +364,7 @@ export function getReflectionFromMarkers(
   const returnJitFns = buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`);
   const reflection: RtMethodReflection = {
     paramsCount: paramsArity,
-    paramNames: params.map((param) => param.name),
+    paramNames: params.map((param) => param.name ?? ''),
     paramsJitFns,
     returnJitFns,
     paramsJitHash: paramsTypeId,
