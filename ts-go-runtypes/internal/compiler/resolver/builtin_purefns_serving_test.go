@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
@@ -25,7 +26,7 @@ func TestServeBuiltin_ServesDemandedAndTransitive(t *testing.T) {
 	graph.Add(builtinSoftDepEntry("val_fmt", []string{"rtFormats::isDateString_YMD"}))
 
 	var diags []diagnostics.Diagnostic
-	(&Session{}).serveBuiltinPureFns(graph, &diags)
+	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
 	for _, key := range []string{"rt::newRunTypeErr", "rtFormats::isDateString_YMD", "rtFormats::isDateString"} {
 		entry := graph[key]
@@ -49,7 +50,7 @@ func TestServeBuiltin_MissingIsPFE9012(t *testing.T) {
 	graph.Add(builtinSoftDepEntry("verr_root", []string{"rt::newRunTypeErr", "rt::totallyMadeUp"}))
 
 	var diags []diagnostics.Diagnostic
-	(&Session{}).serveBuiltinPureFns(graph, &diags)
+	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
 	if graph["rt::newRunTypeErr"] == nil {
 		t.Error("the present built-in should still be served alongside the missing one")
@@ -76,7 +77,7 @@ func TestServeBuiltin_AnonymousUserKeyNotFlagged(t *testing.T) {
 	graph.Add(&entrymodules.Entry{Key: "rt::abc123def456", Kind: entrymodules.KindPureFn, ArgsText: "'rt::abc123def456'", SoftDeps: []string{"rt::xyz789hash012"}})
 
 	var diags []diagnostics.Diagnostic
-	(&Session{}).serveBuiltinPureFns(graph, &diags)
+	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
 	for _, diag := range diags {
 		if diag.Code == diagnostics.CodeMissingPureFnDep {
