@@ -64,7 +64,7 @@ Applies to the three package READMEs and the generated per-platform `@mionjs/nat
 ## TS RunTypes Go program (`ts-go-runtypes/`)
 
 The side-channel type resolver behind the `RunTypes/*` packages: a Go program that reaches into tsgo's checker (via the `oxc-project/tsgolint` shim) to answer call-site type queries at build time; the devtools spawn its compiled binary.
-Tests: `go -C ts-go-runtypes test ./internal/...`. ⚠️ `ts-go-runtypes/third_party/` is an OFF-LIMITS git submodule.
+Tests: `go -C ts-go-runtypes test ./internal/... ./cmd/...`. ⚠️ `ts-go-runtypes/third_party/` is an OFF-LIMITS git submodule.
 The full map and rules (directory layout, submodule/patch workflow, Marker test coverage rule) live in [ts-go-runtypes/CLAUDE.md](ts-go-runtypes/CLAUDE.md). Read it before touching anything under `ts-go-runtypes/`!
 
 ## Containers (`container/`)
@@ -122,7 +122,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - All JS: `pnpm test` (all 21 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`.
 - If one full run OOMs, `pnpm run test:ci` runs the SAME 21 projects in 7 batches, one vitest process per batch (resolver processes are ~200 MB each). The batches live in [scripts/core/test-batches.mjs](scripts/core/test-batches.mjs) and only GROUP the names `vitest.config.ts` declares: `pnpm run check:test-batches` (a CI gate, and the run's own preflight) fails if a project sits in no batch or in two. Adding a project means adding it to a batch.
   `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
-- Go: `go -C ts-go-runtypes test ./internal/...`.
+- Go: `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
 - **`pnpm test` needs a bootstrapped host** — plugin tests spawn `mion-bin/mion`, which needs the [third_party/](ts-go-runtypes/third_party/) submodules + patches applied, the Go resolver built, and the `@mionjs/devtools` dist built.
   `pnpm run pretest` ([scripts/core/build.mjs](scripts/core/build.mjs)) rebuilds all of that, but a fresh clone or a host missing Go / pnpm needs the setup skill first.
   Never report "tests pass" or "tests skipped" from an unbuilt host!
@@ -154,7 +154,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 
 ## Development workflow
 
-- Go-only tests (`go -C ts-go-runtypes test ./internal/...`) don't need the prebuilt binary, but they DO read the built marker dist (`packages/run-types/dist`, the real-package overlay the test fixtures resolve); `pnpm run check:builds` covers it.
+- Go-only tests (`go -C ts-go-runtypes test ./internal/... ./cmd/...`) don't need the prebuilt binary, but they DO read the built marker dist (`packages/run-types/dist`, the real-package overlay the test fixtures resolve); `pnpm run check:builds` covers it.
 - `pnpm run clean` ([scripts/core/clean.mjs](scripts/core/clean.mjs)) is a HARD clean — dists, `bin/`, tool caches, run artifacts AND every `node_modules`.
   `--keep-deps` keeps the install, `--dry-run` lists without deleting, `pnpm run fresh-start` cleans then reinstalls.
   Some of what it drops is expensive to rebuild (playground WASM, benchmark data), so prefer `--dry-run` first; `pnpm --filter <pkg> run clean` still wipes just one package's dist.
@@ -171,7 +171,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
-- **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
+- **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Go-side changes also need `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
 - **Docs are updated**, especially the website. Reflect the change in the site's content tree under [container/website/content/](container/website/content/) (follow the **Website docs style** section below).
 - If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped!
   Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.

@@ -68,7 +68,7 @@ jobs:
         run: pnpm run check:builds
       - name: Go test suite
         working-directory: ts-go-runtypes
-        run: go test ./internal/...
+        run: go test ./internal/... ./cmd/...
       - name: Go formatting + vet (our code only; never third_party)
         working-directory: ts-go-runtypes
         run: |
