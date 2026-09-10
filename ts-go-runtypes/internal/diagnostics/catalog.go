@@ -1,14 +1,19 @@
 // Package diagnostics is the centralised catalog of every non-fatal diagnostic the
 // Go binary can emit. Every diagnostic the resolver, pure-fn extractor, and
 // RT compiler surface flows through one of the typed constructors in this
-// package, so the full set of user-visible messages (codes, severities,
+// package, so the full set of user-visible messages (codes, levels,
 // templates) is auditable in one place.
 //
-// Wire format: severity and family are encoded as small unsigned integers
-// (uint8) to minimise payload size; the TS side mirrors the same numeric
-// values as `as const` literal-union enums. The full set of definitions is
-// registered via the codes_*.go files via init() so consumers can look up
-// any code's Family/Severity/Template at runtime.
+// Every code declares a Level, the three-way answer to "can the build still
+// produce code": LevelError (no), LevelRuntimeError (yes, and it is broken when
+// called), LevelWarning (yes, and nothing is wrong). That is the field a code
+// author writes; Severity is derived from it.
+//
+// Wire format: level, severity and family are encoded as small unsigned
+// integers (uint8) to minimise payload size; the TS side mirrors the same
+// numeric values as `as const` literal-union enums. The full set of definitions
+// is registered via the codes_*.go files via init() so consumers can look up
+// any code's Family/Level/Template at runtime.
 package diagnostics
 
 import (
@@ -16,13 +21,64 @@ import (
 	"strings"
 )
 
+// Level is a code's THREE-WAY classification, and the one field a code author
+// writes. It answers the only question a consumer needs: can the build still
+// produce code. Two questions pick it, asked in order:
+//
+//  1. If we let this through, does the build still produce the code for this?
+//  2. If it does, is that code broken when it runs?
+//
+// No → LevelError. Yes and yes → LevelRuntimeError. Yes and no → LevelWarning.
+//
+// Question 1 is per-SITE, not per-build. Only CFG001 stops a whole run; the
+// other fatal codes each leave one thing unbuilt (no cache entry, no injected
+// id, no extracted body) while the rest of the build proceeds. That is still
+// "no output" for the thing the finding is about, which is what makes standing
+// it down meaningless: not halting buys a call that throws either way.
+//
+// Numeric so the wire form stays compact and the TS side maps trivially to a
+// literal union. Severity is DERIVED from it (see severityOf): the level is the
+// verdict, severity is the word a tsc-shaped line and an editor's problem
+// matcher need.
+type Level uint8
+
+const (
+	// LevelError: the build produced NO code for the thing this is about. A
+	// project config that will not load (CFG001, the one whole-run stop), a
+	// marker whose id could not be computed so no site and no injected id ship
+	// (MKR003, MKR010, MKR014), a `batch()` the extractor could not read so no
+	// batch id is spliced (BAT001), an output path refused so the file the
+	// importer names never lands (CFG003).
+	// NEVER downgradeable and NEVER silenceable: there is nothing to accept, so
+	// not halting would only ship a call that throws anyway.
+	LevelError Level = 1
+	// LevelRuntimeError: output IS produced, and it throws or is wrong when
+	// called. Two shapes, both on this level. The loud one is an entry rendered
+	// as an alwaysThrow factory (VL002). The quiet one is a type that was read
+	// wrongly or could not be resolved, so it silently became `any` and the
+	// generated validator accepts every value (MKR007, MKR013, TMP001, CFG002) —
+	// a type the author DID write as `any` is not this, the permissive validator
+	// is then exactly what was asked for (VL021 / VE020 stay warnings).
+	// Downgradeable and silenceable: emitting and exiting non-zero is a
+	// legitimate thing for a consumer to do with one.
+	LevelRuntimeError Level = 2
+	// LevelWarning: worth knowing, nothing is wrong. A member with no data form
+	// left out of a generated function, an option that is a no-op on this type,
+	// an unfilled enrichment scaffold, a suppression comment that named the
+	// wrong code.
+	LevelWarning Level = 3
+)
+
 // Severity classifies a Diagnostic's impact. Numeric so the wire form stays
 // compact (single digit) and the TS side maps trivially to a literal union.
 //
-// Severity is purely informational: it does not control runtime behavior.
-// An Error-severity diagnostic still lets the build proceed; the runtime
-// factory is still rendered (it may throw on first call, but that's the
-// emitter's job, not the diagnostic's).
+// Severity is DERIVED from Level and is not authored per code: it is the
+// two-way label form the tsc-shaped output line and VS Code's problem matcher
+// need, so both LevelError and LevelRuntimeError read as "error" there. Code
+// that must tell the two apart reads Level, never Severity.
+//
+// Severity does not itself control runtime behavior: what acts on a finding is
+// the consumer.
 type Severity uint8
 
 const (
@@ -30,6 +86,32 @@ const (
 	SeverityWarning Severity = 2
 	SeverityInfo    Severity = 3
 )
+
+// severityOf is the Level → Severity projection. Both error levels collapse to
+// one word because the problem matcher only knows three, and "the build stopped"
+// versus "the build emitted something broken" is a Level question.
+func severityOf(level Level) Severity {
+	if level == LevelWarning {
+		return SeverityWarning
+	}
+	return SeverityError
+}
+
+// LevelLabel returns the stable string spelling of a Level, the form the
+// generated front-end catalog and the website diagnostics page carry. Unlike
+// SeverityLabel this is NOT a tsc word: it is our own three-way name, so it
+// keeps the two error levels apart.
+func LevelLabel(level Level) string {
+	switch level {
+	case LevelError:
+		return "error"
+	case LevelRuntimeError:
+		return "runtimeError"
+	case LevelWarning:
+		return "warning"
+	}
+	return "error"
+}
 
 // SeverityLabel returns the canonical lowercase string used by `tsc
 // --pretty=false` and VS Code's $tsc problem matcher.
@@ -127,10 +209,16 @@ type Related struct {
 // argument label, etc.). The Vite plugin resolves Code+Args → final
 // rendered message at format time. This mirrors the runtime alwaysThrow
 // pattern that already resolves error text JS-side from the diag code.
+// Level rides the wire next to Severity because the fatal-versus-emitted split
+// is what the downgrade and suppression rules key on, and a build-halt decision
+// must not depend on the GENERATED front-end catalog being in sync: a locally
+// built binary can run ahead of it. Severity stays for the label and the lint
+// tier.
 type Diagnostic struct {
 	Code     string    `json:"code"`
 	Family   Family    `json:"family"`
 	Severity Severity  `json:"severity"`
+	Level    Level     `json:"level"`
 	Args     []string  `json:"args,omitempty"`
 	Site     Site      `json:"site"`
 	Related  []Related `json:"related,omitempty"`
@@ -165,16 +253,22 @@ type Diagnostic struct {
 // through the real scan pipeline and asserts this code fires, so a shipped
 // example can never drift from the diagnostic it claims to demonstrate.
 type Definition struct {
-	Code     string
-	Family   Family
+	Code   string
+	Family Family
+	// Level is the code's three-way classification and the field a code author
+	// WRITES (see Level). Required: register panics on the zero value.
+	Level Level
+	// Severity is DERIVED from Level by register; never write it in a codes_*.go
+	// literal. It is the label form the tsc-shaped line needs.
 	Severity Severity
 	// Completeness marks a code as INCOMPLETE (not-yet-authored) enrichment rather
-	// than WRONG content: the unfilled @todo scaffolds (FT020/MD020). It is a
-	// gating-policy bit, ORTHOGONAL to Severity: these stay Severity-Error so the
-	// editor still flags them, but the default `enrich <file> --no-emit` health
-	// check ignores them (a freshly scaffolded mirror is expected to carry @todo
-	// blanks). Only the completeness gate (`enrich --require-complete`) fails on
-	// them.
+	// than WRONG content: the unfilled @todo scaffolds and blank values
+	// (FT020/FT023, MD020/MD023). It is a gating-policy bit, ORTHOGONAL to Level:
+	// the codes are LevelWarning (a mirror with blank labels still runs), so the
+	// default `enrich <file> --no-emit` health check reports and exits 0, and this
+	// bit is what the completeness gate (`enrich --require-complete`) and the
+	// bundler's production enrichment gate PROMOTE to a failure. Those two gates
+	// must key on this bit, never on the level, or they stop working.
 	Completeness bool
 	// Transient marks a verdict that depends on the machine the build ran on
 	// (wall-clock load, a budget that expired) rather than on the type itself:
@@ -214,7 +308,25 @@ func register(definition Definition) {
 	if definition.Scope == 0 {
 		panic("diag: code " + definition.Code + " declares no Scope (ScopeRoot / ScopeGraph / ScopeNotSource)")
 	}
+	if definition.Level == 0 {
+		panic("diag: code " + definition.Code + " declares no Level (LevelError / LevelRuntimeError / LevelWarning)")
+	}
+	if definition.Severity != 0 {
+		panic("diag: code " + definition.Code + " writes Severity; it is derived from Level")
+	}
+	definition.Severity = severityOf(definition.Level)
 	Definitions[definition.Code] = definition
+}
+
+// LevelOf returns a code's Level. An unregistered code reads as LevelError:
+// nothing may downgrade or silence a finding the catalog cannot vouch for, so
+// the unknown case fails closed.
+func LevelOf(code string) Level {
+	definition, registered := Definitions[code]
+	if !registered {
+		return LevelError
+	}
+	return definition.Level
 }
 
 // IsCompleteness reports whether a code marks INCOMPLETE (not-yet-authored)
@@ -251,6 +363,7 @@ func New(code string, site Site, args ...string) Diagnostic {
 		Code:     code,
 		Family:   definition.Family,
 		Severity: definition.Severity,
+		Level:    definition.Level,
 		Site:     site,
 	}
 	if len(args) > 0 {
@@ -271,6 +384,7 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 		Code:     code,
 		Family:   definition.Family,
 		Severity: definition.Severity,
+		Level:    definition.Level,
 		Site:     site,
 	}
 	if len(args) > 0 {

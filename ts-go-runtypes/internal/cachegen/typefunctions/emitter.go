@@ -468,8 +468,6 @@ const (
 	SlotNeverRoot           DiagSlot = "never-root"
 	SlotNonSerializableRoot DiagSlot = "ns-root"
 	SlotFunctionRoot        DiagSlot = "fn-root"
-	SlotArrayElement        DiagSlot = "array-element"
-	SlotNonSerializableElem DiagSlot = "ns-elem"
 
 	// Child-position silent-skip slots — factory degrades.
 	SlotFunctionPropDropped DiagSlot = "fn-prop-dropped"
@@ -578,19 +576,6 @@ func (ctx *EmitContext) DiagCodeForLeaf(leaf *reflection.RunType) string {
 func (ctx *EmitContext) RTThrowDiag(code string, inlineMsg string, args ...string) RTCode {
 	ctx.walker.EmitDiagnostic(code, args...)
 	return RTThrow(inlineMsg)
-}
-
-// RTThrowDiagSlot is the slot-keyed sibling of RTThrowDiag. Used by
-// emit code shared across multiple emitters — the slot resolves to the
-// active emitter's per-family code via DiagCodeFor. Falls back to bare
-// RTThrow (no diagnostic) when the emitter hasn't registered a code
-// for the slot.
-func (ctx *EmitContext) RTThrowDiagSlot(slot DiagSlot, inlineMsg string, args ...string) RTCode {
-	code := ctx.DiagCodeFor(slot)
-	if code == "" {
-		return RTThrow(inlineMsg)
-	}
-	return ctx.RTThrowDiag(code, inlineMsg, args...)
 }
 
 // EmitDiagnosticSlot is the slot-keyed sibling of EmitDiagnostic for

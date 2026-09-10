@@ -15,7 +15,6 @@ func TestRootThrowHeadline_PerFamily(t *testing.T) {
 		{diagnostics.CodeRJSymbolRoot, "Symbol", "Type `Symbol` can never be decoded from JSON — the generated function will always fail."},
 		{diagnostics.CodeSJFunctionRoot, "Function", "Type `Function` can never be stringified to JSON — the generated function will always fail."},
 		{diagnostics.CodeTBNonSerializableRoot, "Map", "Type `Map` can never be serialised to binary — the generated function will always fail."},
-		{diagnostics.CodeFBArrayElement, "Function", "Type `Function` can never be deserialised from binary — the generated function will always fail."},
 		{diagnostics.CodeVLSymbolRoot, "Symbol", "Type `Symbol` can never be validated — the generated function will always fail."},
 	}
 	for _, c := range cases {
@@ -32,12 +31,12 @@ func TestRootThrowWording_CoversEveryAlwaysThrowCode(t *testing.T) {
 	for _, code := range []string{
 		diagnostics.CodeVLNonSerializableRoot, diagnostics.CodeVLSymbolRoot,
 		diagnostics.CodeVENonSerializableRoot, diagnostics.CodeVESymbolRoot,
-		diagnostics.CodePJNeverRoot, diagnostics.CodePJNonSerializableRoot, diagnostics.CodePJFunctionRoot, diagnostics.CodePJArrayElement, diagnostics.CodePJSymbolRoot,
-		diagnostics.CodePJSNeverRoot, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodePJSFunctionRoot, diagnostics.CodePJSArrayElement, diagnostics.CodePJSSymbolRoot,
-		diagnostics.CodeRJNeverRoot, diagnostics.CodeRJNonSerializableRoot, diagnostics.CodeRJFunctionRoot, diagnostics.CodeRJArrayElement, diagnostics.CodeRJSymbolRoot,
-		diagnostics.CodeSJNeverRoot, diagnostics.CodeSJNonSerializableRoot, diagnostics.CodeSJFunctionRoot, diagnostics.CodeSJArrayElement, diagnostics.CodeSJSymbolRoot,
-		diagnostics.CodeTBNeverRoot, diagnostics.CodeTBNonSerializableRoot, diagnostics.CodeTBFunctionRoot, diagnostics.CodeTBArrayElement, diagnostics.CodeTBNonSerializableElem, diagnostics.CodeTBSymbolRoot,
-		diagnostics.CodeFBNeverRoot, diagnostics.CodeFBNonSerializableRoot, diagnostics.CodeFBFunctionRoot, diagnostics.CodeFBArrayElement, diagnostics.CodeFBNonSerializableElem, diagnostics.CodeFBSymbolRoot,
+		diagnostics.CodePJNeverRoot, diagnostics.CodePJNonSerializableRoot, diagnostics.CodePJFunctionRoot, diagnostics.CodePJSymbolRoot,
+		diagnostics.CodePJSNeverRoot, diagnostics.CodePJSNonSerializableRoot, diagnostics.CodePJSFunctionRoot, diagnostics.CodePJSSymbolRoot,
+		diagnostics.CodeRJNeverRoot, diagnostics.CodeRJNonSerializableRoot, diagnostics.CodeRJFunctionRoot, diagnostics.CodeRJSymbolRoot,
+		diagnostics.CodeSJNeverRoot, diagnostics.CodeSJNonSerializableRoot, diagnostics.CodeSJFunctionRoot, diagnostics.CodeSJSymbolRoot,
+		diagnostics.CodeTBNeverRoot, diagnostics.CodeTBNonSerializableRoot, diagnostics.CodeTBFunctionRoot, diagnostics.CodeTBSymbolRoot,
+		diagnostics.CodeFBNeverRoot, diagnostics.CodeFBNonSerializableRoot, diagnostics.CodeFBFunctionRoot, diagnostics.CodeFBSymbolRoot,
 	} {
 		if _, ok := rootThrowWording[code]; !ok {
 			t.Errorf("root-throw code %q has no throw wording", code)

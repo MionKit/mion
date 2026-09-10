@@ -7,19 +7,19 @@ package diagnostics
 // generated validator would accept any value with no signal to the user.
 const (
 	// CodeTemporalNotLoaded: a `Temporal.<Name>` type reference resolved to
-	// `any` because the Temporal lib isn't in the program. Error severity:
-	// the emitted validator would be a silent no-op (accept-anything), which
-	// is never what the author intended. Args: [qualifiedName] e.g.
+	// `any` because the Temporal lib isn't in the program. LevelRuntimeError: the
+	// build emits, and the emitted validator is a silent no-op (accept-anything),
+	// which is never what the author intended. Args: [qualifiedName] e.g.
 	// "Temporal.PlainDate". Fix: add "ESNext.Temporal" to compilerOptions.lib.
 	CodeTemporalNotLoaded = "TMP001"
 )
 
 func init() {
 	register(Definition{
-		Code:     CodeTemporalNotLoaded,
-		Family:   FamilyMarker,
-		Severity: SeverityError,
-		Scope:    ScopeGraph,
-		Title:    "Temporal type resolved to 'any': add \"ESNext.Temporal\" to compilerOptions.lib",
+		Code:   CodeTemporalNotLoaded,
+		Family: FamilyMarker,
+		Level:  LevelRuntimeError,
+		Scope:  ScopeGraph,
+		Title:  "Temporal type resolved to 'any': add \"ESNext.Temporal\" to compilerOptions.lib",
 	})
 }
