@@ -2,7 +2,10 @@
 // and serializers, and the route handler under app/api/ dispatches to them.
 import {createMionRouter, type PublicApi, type Routes} from '@mionjs/router';
 
-const mion = createMionRouter();
+// basePath is what puts `/api` into every route path. The catch-all handler lives under
+// app/api/, and a client resolves a route's ABSOLUTE path against its baseURL, which would
+// otherwise drop the prefix — so the router has to carry it, not the client.
+const mion = createMionRouter({basePath: '/api'});
 
 export type Greeting = {message: string; at: Date};
 

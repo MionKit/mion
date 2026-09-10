@@ -10,7 +10,8 @@ import type {MionApi} from '../../src/routes';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request): Promise<Response> {
-  const baseURL = new URL('/api', request.url).toString();
+  // The ORIGIN, not `/api`: the router's basePath already puts `/api` in every route path.
+  const baseURL = new URL('/', request.url).origin;
   const {routes} = initClient<MionApi>({baseURL});
 
   // JSON wire: a Date has to survive the round trip as a Date, which only the compiled
