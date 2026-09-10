@@ -171,3 +171,145 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
     }
   });
 });
+
+// The bundled-API lane through the same CLI: a server project whose initRoutes call the build
+// walks into a server manifest, a client project built with --bundle-api against the server's
+// tsconfig (its route types come from the server program), and `mion api-check` over the two gen
+// dirs, the prerelease gate for a split deployment.
+const API_ROUTER_DTS = `declare module '@mionjs/router' {
+  type Handler = (...args: any[]) => any;
+  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+  export type PublicApi<R> = {
+    [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
+      ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
+      : PublicApi<R[K]>;
+  };
+  export interface MionRouter { initRoutes<R>(routes: R): PublicApi<R> }
+  export function createMionRouter(): MionRouter;
+}
+`;
+function apiServerTs(extraParam: boolean): string {
+  const getById = extraParam
+    ? 'handler: (id: number, verbose: boolean, tenant: string): {id: number; name: string} => ({id, name: tenant})'
+    : "handler: (id: number, verbose: boolean): {id: number; name: string} => ({id, name: ''})";
+  return `import {createMionRouter} from '@mionjs/router';
+export const mion = createMionRouter();
+export const api = mion.initRoutes({users: {getById: {type: 1 as const, ${getById}}}, sum: {type: 1 as const, handler: (a: number, b: number): number => a + b}});
+`;
+}
+const API_CLIENT_DTS = `declare module '@mionjs/client' {
+  import type {InjectApiMetadata} from '@mionjs/run-types';
+  export interface RouteSubRequest<PH, Id extends string = string, RA = any> {
+    id: Id;
+    call(setup?: unknown, apiMetadata?: InjectApiMetadata<RA, Id>): Promise<unknown>;
+  }
+  type Handler = (...args: any[]) => any;
+  export type ClientRoutes<RA, Prefix extends string = '', Root = RA> = {
+    [K in keyof RA as RA[K] extends {type: 1} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 1; handler: infer H extends Handler}
+      ? (...params: Parameters<H>) => RouteSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
+      : ClientRoutes<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
+  };
+  export function initClient<RA>(o?: unknown, mode?: InjectApiMetadata<RA>): {routes: ClientRoutes<RA>};
+}
+`;
+// The client's own view of the API leaves out the boolean the server declares: with --api-tsconfig
+// the server program answers, so the compiled validators carry it anyway.
+const API_CLIENT_TS = `import {initClient} from '@mionjs/client';
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type Api = {
+  users: {getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: false}}};
+  sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
+};
+export const {routes} = initClient<Api>({baseURL: 'http://x'});
+export const a = routes.users.getById(1).call();
+`;
+
+/** Every file under dir, recursively, as its text. */
+function readTree(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...readTree(full));
+    else out.push(fs.readFileSync(full, 'utf8'));
+  }
+  return out;
+}
+
+function readManifest(genDir: string): {kind: string; mode?: string; methods: Record<string, {paramsId: string}>} {
+  return JSON.parse(fs.readFileSync(path.join(genDir, 'api', 'manifest.json'), 'utf8'));
+}
+
+describe('mion compile + api-check — a bundled client against its server', () => {
+  register('both builds write a manifest, api-check passes, and fails after a server-side type edit', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-apicheck-'));
+    try {
+      const server = writeProject(base, 'server', {'router.d.ts': API_ROUTER_DTS, 'server.ts': apiServerTs(false)});
+      const client = writeProject(base, 'client', {'client.d.ts': API_CLIENT_DTS, 'a.ts': API_CLIENT_TS});
+      const serverGen = path.join(server, '.mion');
+      const clientGen = path.join(client, '.mion');
+      const compileServer = () =>
+        runCli(['compile', '--cwd', server, '--tsconfig', 'tsconfig.json', '--gen-dir', serverGen], {label: 'apicheck-server'});
+      const apiCheck = (clientDir: string) =>
+        runCli(['api-check', '--server-gen-dir', serverGen, '--client-gen-dir', clientDir], {label: 'apicheck'});
+
+      // the server: no bundleApi, but its initRoutes call yields the server manifest
+      const serverRun = compileServer();
+      expect(serverRun.status, serverRun.report).toBe(0);
+      const serverManifest = readManifest(serverGen);
+      expect(serverManifest.kind).toBe('server');
+      expect(Object.keys(serverManifest.methods).sort()).toEqual(['sum', 'users/getById']);
+
+      // the client: bundled, its route types resolved in the server program
+      const clientRun = runCli(
+        [
+          'compile',
+          '--cwd',
+          client,
+          '--tsconfig',
+          'tsconfig.json',
+          '--gen-dir',
+          clientGen,
+          '--bundle-api',
+          'bundled',
+          '--api-tsconfig',
+          path.join(server, 'tsconfig.json'),
+        ],
+        {label: 'apicheck-client'}
+      );
+      expect(clientRun.status, clientRun.report).toBe(0);
+      const clientManifest = readManifest(clientGen);
+      expect(clientManifest.kind).toBe('client');
+      expect(clientManifest.mode).toBe('bundled');
+      expect(Object.keys(clientManifest.methods)).toEqual(['users/getById']);
+      expect(clientManifest.methods['users/getById'].paramsId).toBe(serverManifest.methods['users/getById'].paramsId);
+      // the emitted client carries the lane at initClient and the site module at the call, relativized
+      const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
+      expect(clientJs).toContain("'bundled'");
+      expect(clientJs).toMatch(/import \{ ?__rt_s\$2F[A-Za-z0-9_$]+ ?\} from '\.\.\/\.mion\/api\/[^']+\.js';/);
+      expect(clientJs).not.toContain('rtapi:');
+      // the validators came from the server program: they check the boolean the client never declared
+      const typeModules = readTree(path.join(clientGen, 'api', 'types'));
+      expect(typeModules.some((source) => source.includes('boolean'))).toBe(true);
+
+      const pass = apiCheck(clientGen);
+      expect(pass.status, pass.report).toBe(0);
+      expect(pass.stdout).toContain('1 bundled method(s) match');
+
+      // the server grows a parameter and is rebuilt; the client built against the old server no longer matches
+      fs.writeFileSync(path.join(server, 'src', 'server.ts'), apiServerTs(true));
+      const rebuilt = compileServer();
+      expect(rebuilt.status, rebuilt.report).toBe(0);
+      const fail = apiCheck(clientGen);
+      expect(fail.status).toBe(1);
+      expect(fail.stderr).toContain('users/getById: paramsId differs');
+      expect(fail.stderr).toContain('1 mismatch(es)');
+
+      // a build output without a manifest is a usage problem, not a mismatch
+      const missing = apiCheck(path.join(base, 'nowhere'));
+      expect(missing.status).toBe(2);
+      expect(missing.stderr).toContain('client manifest');
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+});
