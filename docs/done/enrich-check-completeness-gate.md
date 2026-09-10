@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-10
 ---
 
@@ -45,27 +45,30 @@ rot without anyone noticing.
 go -C ts-go-runtypes test ./cmd/mion -run TestReportEnrichDiagnostics_CompletenessGate -v
 ```
 
-## Plan (2026-09-10)
+## What shipped (2026-09-10)
 
 Root cause: the level split re-read every enrichment content code as `LevelWarning` (degraded text is
 enrichment that did not apply, not broken output), which is the right level for a BUILD. The three
 enrichment gates still decided "wrong content" from the level, so every non-completeness finding
 stopped failing: the single-file check (`reportEnrichDiagnostics`), the tree walk (`runGenCheck`, whose
-hygiene findings were mapped through `severityFromDiag`), and the devtools production gate
+hygiene findings were mapped through the catalog severity), and the devtools production gate
 (`enrichDriftGate` in `packages/devtools/src/core/unplugin.ts`, which filtered on
 `level !== Warning`). All three receive findings that are either INCOMPLETE (the catalog's
-`Completeness` bit) or WRONG; the catalog says so and says the gates must key on that bit.
+`Completeness` bit) or WRONG, and the catalog already said the gates must key on that bit.
 
-1. `cmd/mion/enrich_check.go`: a completeness finding fails only under `--require-complete`; any
-   other finding fails. No level test. Fix the stale "Error severity" comment on the worklist printer.
-2. `cmd/mion/enrich_gencheck.go`: hygiene findings get their severity from the policy (completeness
-   → Warning, carcass → Error) instead of the catalog level; the exit decision moves into
-   `genCheckExitCode` so it can be unit-tested. Cosmetic `GE001` stays a non-failing warning.
+1. `cmd/mion/enrich_check.go`: `enrichFindingFails` is the one exit policy. A completeness finding
+   fails only under `--require-complete`; any other finding fails both lanes. No level test.
+2. `cmd/mion/enrich_gencheck.go`: `hygieneSeverity` gives a hygiene finding its report severity from
+   the policy (completeness → Warning, carcass → Error), and `genCheckExitCode` holds the exit
+   decision so it is unit-testable. The cosmetic `GE001` location drift stays a non-failing warning.
 3. `packages/devtools/src/core/unplugin.ts`: the production gate keeps every finding the enrich op
-   returns (all hygiene: incomplete or stale) and names the stale carcass in its failure line.
-4. Tests: the existing Go gate test passes unchanged; a new Go test pins `genCheckExitCode` and the
-   hygiene severity per code; a new vitest case pins that an in-sync mirror carrying an
-   `@rtOrphanChild` carcass fails a production build.
-5. CI: `go test ./internal/... ./cmd/...` in `ci.yml`, `release-gate.yml`, `bump-tsgolint.mjs`, and
-   the CLAUDE.md spellings, so `cmd/mion` tests cannot rot again.
-6. Docs: one clause on the configuration page, the production gate also fails on a stale carcass.
+   returns (all hygiene: incomplete or stale) and names the `@rtOrphan` carcass in its failure line.
+4. Tests: the existing Go gate test passes unchanged. `enrich_gencheck_gate_test.go` pins
+   `genCheckExitCode` and `hygieneSeverity` per code. `enrich-plugin-sync.test.ts` gains a case where
+   an in-sync, fully authored mirror carrying an `@rtOrphanChild` carcass fails a production build
+   (it fails on the old filter, which let the build pass).
+5. CI: `go test ./internal/... ./cmd/...` in `ci.yml` (with a note on why `./cmd/...` rides along),
+   `release-gate.yml`, `bump-tsgolint.mjs`, and the CLAUDE.md spellings. The `cmd` tree adds well
+   under a second to the run and every package in it was already green apart from this test.
+6. Docs: the configuration page now says the production gate also fails on a stale carcass. The
+   `--no-emit` / `--require-complete` contract on the workflow page was already correct.
