@@ -36,6 +36,31 @@ Rules kept landing on the root node only (the prototype-named property check, th
 - **The slot list is gated.** `EachRefSlot` ([reflection/refslots.go](internal/reflection/refslots.go)) is the one enumeration of child-bearing slots; `refslots_test.go` fills every `*RunType` / `[]*RunType` field through Go reflection and fails when one is not visited, so a new slot cannot go unwired.
 - **Every diagnostic declares its Scope.** A registered code says whether it fires for the root type by design (`ScopeRoot`), anywhere in the type (`ScopeGraph`) or not from a type at all (`ScopeNotSource`); `register` panics without it. A `ScopeGraph` code with an `Example` in [diagnostics/prose.go](internal/diagnostics/prose.go) must also carry a `NestedExample`, the same trigger one object deeper, and `TestDiagExamples_TriggerAtDepth` in [compiler/resolver](internal/compiler/resolver/) feeds it through the real scan. That "same test, one level deeper" twin is the cheapest detector this class has: write it for any new rule, gate or not.
 
+## ⚠️ Every diagnostic declares its Level, and two questions pick it
+
+"Error" used to mean two unrelated things: the build could not produce the code, and the build produced code that is broken. Those want opposite things from a consumer, so a code now declares one of THREE levels in [diagnostics/catalog.go](internal/diagnostics/catalog.go), and `register` panics without it (`Severity` is derived from it, never written).
+
+Pick it by asking, in order:
+
+1. If we let this through, does the build still produce the code for this?
+2. If it does, is that code broken when it runs?
+
+No → `LevelError`. Yes and yes → `LevelRuntimeError`. Yes and no → `LevelWarning`.
+
+| Level | What it means | What a consumer may do |
+| --- | --- | --- |
+| `LevelError` | No code was produced for the thing: no cache entry, no injected id, no extracted body, no batch id | Stop. Never downgradeable, never silenceable |
+| `LevelRuntimeError` | Code IS written and it throws, or it no longer checks what was asked for | Report it. Emitting and exiting non-zero is legitimate, and `downgradeErrors` / `@mion-expect-error` may stand one down |
+| `LevelWarning` | Worth knowing, nothing is wrong | Report it |
+
+Three things that trip people up:
+
+- **Question 1 is per-SITE, not per-build.** Only `CFG001` stops a whole run. Every other fatal code leaves ONE thing unbuilt while the rest of the build proceeds. That is still "no output" for the thing the finding is about, and it is what makes standing it down meaningless: not halting buys a call that throws anyway.
+- **Read the emit path, not the intent.** The pure-fn family was documented as fatal as a block and is mostly not: only `PFE9005` withholds output, a purity violation compiles the offending body and ships it. Answer question 1 from what the code does.
+- **A permissive validator is only wrong when the type was not actually `any`.** A type the author wrote as `any` gets an accept-everything validator because that is what was asked for (`VL021` / `VE020` stay warnings). A type that BECAME `any` because a name, an import or a lib failed to resolve is a `LevelRuntimeError` (`MKR007`, `MKR013`, `TMP001`, `CFG002`); `detectSilentAnyInGraph` is what tells the two apart.
+
+`Completeness` is deliberately NOT a level: the unfilled-scaffold codes are warnings (a mirror with blank labels still runs), and that bit is what `enrich --require-complete` and the bundler's production enrichment gate promote. A gate keying on the level instead silently stops working.
+
 ## ⚠️ Marker test coverage rule
 
 Applies to any test exercising the marker API — Go under [internal/](internal/) AND the JS plugin under [packages/devtools/test/](../packages/devtools/test/):
