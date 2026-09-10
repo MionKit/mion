@@ -12,6 +12,8 @@ const PLUGIN_OPTION_KEY_TABLE = {
   cwd: true,
   tsconfig: true,
   clientTsconfig: true,
+  apiTsconfig: true,
+  bundleApi: true,
   genDir: true,
   emitMode: true,
   binarySizing: true,

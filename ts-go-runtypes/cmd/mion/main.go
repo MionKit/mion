@@ -127,6 +127,8 @@ func main() {
 type sharedFlags struct {
 	tsconfig                string
 	clientTsconfig          string
+	apiTsconfig             string
+	bundleApi               string
 	cwd                     string
 	hashLength              int
 	singleThreaded          bool
@@ -159,6 +161,10 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.StringVar(&s.tsconfig, "tsconfig", "", "tsconfig.json path (default: discover upward from --cwd, tsc-style)")
 	fs.StringVar(&s.clientTsconfig, "client-tsconfig", "",
 		"tsconfig `PATH` of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)")
+	fs.StringVar(&s.apiTsconfig, "api-tsconfig", "",
+		"tsconfig `PATH` of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)")
+	fs.StringVar(&s.bundleApi, "bundle-api", "",
+		"bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) (default: the tsconfig bundleApi plugin key, else off)")
 	fs.StringVar(&s.cwd, "cwd", "", "working directory (default: $PWD)")
 	fs.IntVar(&s.hashLength, "hash-length", 0, "short-id length for type hashes (0 = default 7)")
 	fs.BoolVar(&s.singleThreaded, "single-threaded", false, "single-threaded mode (also disables the parallel scan + renders)")
@@ -394,6 +400,31 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		}
 	}
 
+	// The API source, the mirror of the batch source above: --api-tsconfig
+	// (relative to cwd) over the tsconfig `apiTsconfig` plugin key (relative
+	// to the tsconfig's own directory). Empty means the API is in this program.
+	apiTsconfig := strings.TrimSpace(s.apiTsconfig)
+	if apiTsconfig != "" {
+		if !filepath.IsAbs(apiTsconfig) {
+			apiTsconfig = filepath.Join(absCwd, apiTsconfig)
+		}
+	} else if pluginApi := strings.TrimSpace(plugin.ApiTsconfig); pluginApi != "" {
+		apiTsconfig = pluginApi
+		if !filepath.IsAbs(apiTsconfig) {
+			apiTsconfig = filepath.Join(filepath.Dir(tsconfigPath), apiTsconfig)
+		}
+	}
+	// bundleApi: the flag over the tsconfig key, validated after the merge like
+	// the other modes (a bad value arrives from either side).
+	bundleApi := constants.BundleApiMode(strings.TrimSpace(s.bundleApi))
+	if bundleApi == constants.BundleApiOff {
+		bundleApi = constants.BundleApiMode(strings.TrimSpace(plugin.BundleApi))
+	}
+	if !bundleApi.Valid() {
+		fmt.Fprintf(os.Stderr, "mion: invalid bundle-api %q (want bundled | mixed)\n", string(bundleApi))
+		os.Exit(2)
+	}
+
 	opts := resolver.Options{
 		HashLength: merged.hashLength,
 		Marker: marker.Options{
@@ -404,6 +435,8 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		TsconfigPath:            tsconfigPath,
 		TsconfigGenDir:          tsconfigGenDir,
 		ClientTsconfig:          clientTsconfig,
+		ApiTsconfig:             apiTsconfig,
+		BundleApi:               bundleApi,
 		TsconfigDowngradeErrors: plugin.DowngradeErrors,
 		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
 		EnrichLocales:           pluginI18nLocales(plugin),

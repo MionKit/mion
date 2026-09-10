@@ -84,6 +84,18 @@ type Options struct {
 	// program is built lazily on the first generate and rebuilt when one of
 	// its stamped source files changes.
 	ClientTsconfig string
+	// ApiTsconfig names the tsconfig of the SEPARATE project that declares the
+	// mion API this (client) session's dispatch sites call. Under BundleApi the
+	// apimeta lane resolves every route's params and return in a peer program
+	// built over it and assigns their ids from that checker, so a different
+	// `lib`, `strictNullChecks` or path mapping on the API side cannot change
+	// an id. Absolute. Empty means the API is declared in this program.
+	ApiTsconfig string
+	// BundleApi switches the client-side apimeta lane on: the metadata and
+	// compiled functions of every route the program calls are emitted under
+	// <outDir>/api/ and injected at the dispatch sites; the mode literal is
+	// injected at initClient. Off (the zero value) skips the lane entirely.
+	BundleApi constants.BundleApiMode
 	// GenDir is the EXPLICIT output-root override (the serve --gen-dir flag —
 	// the host plugin's own genDir option, forwarded at spawn). resolveOutDir
 	// prefers it over TsconfigGenDir. Session config, not wire config: EVERY op

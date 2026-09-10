@@ -92,6 +92,22 @@ export interface PluginOptions {
   // program itself is then the batch source. Same key as the tsconfig plugin
   // entry's `clientTsconfig` and the CLI's `--client-tsconfig`.
   clientTsconfig?: string;
+  // The tsconfig of the SEPARATE project that declares the mion API this
+  // (client) project calls, relative to cwd or absolute. Under `bundleApi`
+  // the resolver builds that program next to its own and resolves every
+  // route's types there, so the client emits exactly the server's runtypes
+  // whatever this project's own `lib` or strictness. Leave it unset when
+  // client and API share one program. Same key as the tsconfig plugin entry's
+  // `apiTsconfig` and the CLI's `--api-tsconfig`.
+  apiTsconfig?: string;
+  // Bundle the metadata and compiled functions of every route this client
+  // calls into the client bundle, so it never asks the server for them:
+  //   - 'bundled': nothing is fetched at runtime; a route the build did not
+  //     see is an error at the call.
+  //   - 'mixed': the bundled routes are used as-is and the rest are fetched.
+  // Unset (the default) keeps the fetched lane. Same key as the tsconfig
+  // plugin entry's `bundleApi` and the CLI's `--bundle-api`.
+  bundleApi?: 'bundled' | 'mixed';
   // RunTypes generated-output root, resolved relative to cwd. The build writes
   // the generated cache modules under `<genDir>/types/` (gitignored) and the
   // committed enrichment under `<genDir>/enriched/`; each folder gets a README
@@ -531,6 +547,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // locales/sourceLocale defaulting from the tsconfig i18n block.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
       ...(options.clientTsconfig ? {clientTsconfig: options.clientTsconfig} : {}),
+      ...(options.apiTsconfig ? {apiTsconfig: options.apiTsconfig} : {}),
+      ...(options.bundleApi ? {bundleApi: options.bundleApi} : {}),
       transformRelative: true,
       ...(options.sourcesContent === false ? {omitSourcesContent: true} : {}),
       ...(enrichFriendly ? {enrichFriendly: true} : {}),
