@@ -1391,40 +1391,18 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
   });
 });
 
-// ############# the API runs in vite's own process, everywhere #############
-// The preset mounts the mion API in the SAME process as vite, so `server.runMode` / `waitTimeout`
-// / `serverReady` and the `vite-node` dependency have no reader anywhere in the tree. A config that
-// quietly grows one of them back would ask for a server that never starts and fail at the first
-// batch, so pin their absence.
-// The OPTIONS, not the word "vite-node": that package is also vitest's own module loader, and
-// prose about it in that sense stays true. The dependency itself is covered by the manifest test.
-const IN_PROCESS_ONLY = /runMode\s*:|waitTimeout\s*:|\bserverReady\b/;
-// Where the words are legitimate: history, the spec directories, the guard that REJECTS them and
-// its spec, the vendored submodule and every isolated dependency tree. `transform-wire.mjs` has a
-// local `runMode` function of its own, unrelated to the option.
-const IN_PROCESS_ONLY_EXEMPT =
-  /^(CHANGELOG\.md$|docs\/(todos|done)\/|ts-go-runtypes\/third_party\/|packages\/devtools\/src\/vite\/mionVitePlugin\.ts$|packages\/devtools\/src\/vite\/removedOptions\.spec\.ts$|packages\/devtools\/test\/repo-contracts\.test\.ts$|container\/benchmarks\/transform-wire\/transform-wire\.mjs$)|(^|\/)(_deps|node_modules)\//;
+// ############# the mion API runs in vite's own process #############
+// The preset mounts the API in the SAME vite process, so nothing in the tree needs `vite-node`.
+// It is a heavy dependency to re-acquire by accident (a second module runner in every consumer
+// install), so pin that neither manifest declares it.
 
-describe("nothing in the tree configures a server outside vite's process", () => {
-  it('no manifest still declares vite-node', () => {
+describe('no manifest declares vite-node', () => {
+  it('neither the root nor the devtools package pulls it in', () => {
     for (const manifest of ['package.json', 'packages/devtools/package.json']) {
       const pkg = JSON.parse(readFileSync(join(REPO_ROOT, manifest), 'utf8')) as Record<string, Record<string, string>>;
       for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
         expect(Object.keys(pkg[field] ?? {}), `${manifest} ${field}`).not.toContain('vite-node');
       }
     }
-  });
-
-  it('no tracked file names one of the unsupported options', () => {
-    const res = spawnSync('git', ['grep', '-I', '-l', '-E', IN_PROCESS_ONLY.source, '--', '.'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    });
-    const offenders = res.stdout
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .filter((file) => !IN_PROCESS_ONLY_EXEMPT.test(file));
-    expect(offenders, `these name an unsupported server option:\n${offenders.join('\n')}`).toEqual([]);
   });
 });

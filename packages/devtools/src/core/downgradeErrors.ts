@@ -26,14 +26,6 @@ export const DOWNGRADE_ALL = '*';
 // diagnostics.DowngradedNote on the Go side, which `mion compile` prints.
 export const DOWNGRADED_NOTE = '(downgraded)';
 
-// FAIL_ON_ERROR_REMOVED is the one migration message for the retired boolean.
-// Two host paths reach a config independently — the mion presets and the plain
-// bundler adapters — so both check, but they say the same thing.
-export const FAIL_ON_ERROR_REMOVED =
-  '`failOnError` was removed. Use `downgradeErrors`:\n' +
-  `    failOnError: false  ->  downgradeErrors: '${DOWNGRADE_ALL}'\n` +
-  '    failOnError: true   ->  the default, drop the option';
-
 // DowngradeSet is a resolved `downgradeErrors` value. `all` is the wildcard;
 // otherwise only the listed codes are downgraded.
 export interface DowngradeSet {
@@ -81,8 +73,7 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
 }
 
 // isDowngraded reports whether this diagnostic should be treated as a Warning.
-// Only Error severity is ever downgraded, and never the pure-fn family, so the
-// wildcard reproduces exactly what the retired `failOnError: false` did.
+// Only Error severity is ever downgraded, and never the pure-fn family.
 //
 // The family comes off the WIRE, the same field the Go twin reads. The catalog
 // lookup above is for configured code STRINGS, which have no diagnostic to read

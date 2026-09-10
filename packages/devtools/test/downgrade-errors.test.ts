@@ -1,17 +1,15 @@
 // Error-severity diagnostics fail EVERY lane, and the two ways to stand one down.
 //
 // The documented severity line is "Warning = expected drop, fine; Error = will
-// throw at runtime, build must fail" — but the dev/test lanes used to reduce
-// Error diagnostics to bundler warnings that vitest output swallows, so a
-// contradictory format / non-validatable root could sit in a codebase with
-// green tests (found during the mion migration: FMT002 param contradictions
-// only failed `vite build`). buildStart surfaces ALL diagnostic families and
-// halts on Error severity.
+// throw at runtime, build must fail", and it holds in every lane: a diagnostic
+// reduced to a bundler warning is one vitest output swallows, which would let a
+// contradictory format or a non-validatable root sit in a codebase with green
+// tests. buildStart surfaces ALL diagnostic families and halts on Error severity.
 //
 // A project blocked on a finding has two levers, and neither is a blanket:
 //   - `downgradeErrors: ['VL002']` reports those codes as warnings, still
 //     printed, still visible, just no longer fatal. `'*'` is the wildcard, for
-//     adoption, and is what the retired `failOnError: false` did.
+//     adoption.
 //   - `// @mion-expect-error VL002` above a call site REMOVES that finding, and
 //     an unused one is itself an error. Preferred whenever the site is yours.
 //
@@ -245,7 +243,7 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
 
   register('a code the list does not name still halts — this is the whole point', async () => {
     // MKR007 is a different Error in a different program. Naming VL002 must not
-    // buy amnesty for it, the way the retired blanket did.
+    // buy amnesty for it.
     const plugin = makePlugin(UNRESOLVED_DIR, {downgradeErrors: ['VL002']});
     const ctx = makeCtx();
     try {
@@ -363,9 +361,5 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     // A code's severity can soften between releases; a list entry going inert
     // must never break a consumer's build.
     expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL011']})).not.toThrow();
-  });
-
-  it('names the replacement when a config still passes the removed failOnError', () => {
-    expect(() => makePlugin(ERROR_DIR, {failOnError: false})).toThrow(/`failOnError` was removed/);
   });
 });

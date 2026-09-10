@@ -10,7 +10,7 @@ import {createRequire} from 'node:module';
 import type {Plugin} from 'vite';
 
 // ############# Vue SFC support #############
-// Typed mion code inside a `.vue` <script> used to be silently untransformed: the runtypes core
+// Typed mion code inside a `.vue` <script> needs a path of its own: the runtypes core
 // only transforms plain TS/JS ids, so a marker call in an SFC never got its compiled fns and failed
 // at RUNTIME (missing fns, or a route that never validates) instead of at build time.
 //

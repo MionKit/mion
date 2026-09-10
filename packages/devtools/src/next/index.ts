@@ -37,7 +37,7 @@
 //                  stamp to Turbopack, which covers staleness including ambient
 //                  types that have no import edge to follow.
 import {withRunTypes, type NextOptions} from '../runtypes/next/index.ts';
-import {assertNoRemovedOptions, toRunTypesOptions, type MionPresetOptions} from '../options.ts';
+import {toRunTypesOptions, type MionPresetOptions} from '../options.ts';
 
 export type {NextOptions};
 export {
@@ -75,11 +75,11 @@ type NextConfigLike = Record<string, unknown>;
  * ```
  */
 export async function withMion(nextConfig: NextConfigLike = {}, options: MionNextOptions = {}): Promise<NextConfigLike> {
-  assertNoRemovedOptions(options);
   if ((options as Record<string, unknown>).server !== undefined) {
     throw new Error(
-      `[withMion] the \`server\` option is gone: a Next app is the client, and the batch transport is generated ` +
-        `by the API's own build. Delete it; point the API's plugin at this app's tsconfig with \`client.tsConfig\` instead.`
+      `[withMion] there is no \`server\` option: Next runs its own dev server and builds your API route ` +
+        `with everything else. Serve the API from an \`app/api/[...mion]/route.ts\` handler, or, when it is a ` +
+        `separate project, point that project's plugin at this app's tsconfig with \`client.tsConfig\`.`
     );
   }
   const rt = options.runTypes ?? {};
