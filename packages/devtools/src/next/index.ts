@@ -84,7 +84,10 @@ export async function withMion(nextConfig: NextConfigLike = {}, options: MionNex
   }
   const rt = options.runTypes ?? {};
   const root = options.cwd ?? process.cwd();
-  const resolverOptions: NextOptions = {...toRunTypesOptions(rt, options.client), cwd: root};
+  const resolverOptions: NextOptions = {
+    ...toRunTypesOptions(rt, options.client, {api: options.api, bundleApi: options.bundleApi}),
+    cwd: root,
+  };
   return withRunTypes(nextConfig, resolverOptions);
 }
 

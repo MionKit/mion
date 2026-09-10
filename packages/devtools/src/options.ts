@@ -119,12 +119,37 @@ export function resolveRtBinary(explicit?: string): string | undefined {
   return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → platform binary)
 }
 
+/** The SEPARATE project that declares the mion API this client calls, the mirror of MionClientPointer.
+ *
+ *  A client built with `bundleApi` compiles, for every route it calls, the same validators and
+ *  serializers the server holds. Those come from the route's TypeScript types, and a type resolved
+ *  under different compiler settings (another `lib`, `strictNullChecks` off, other path mappings)
+ *  can differ from what the server compiled. Pointing the client at the API project's tsconfig makes
+ *  the resolver read the routes' types in a program built over THAT tsconfig, so the client emits
+ *  exactly the server's runtypes. A client that shares its program with the API needs no pointer.
+ *  The same pointer is the tsconfig plugin key `apiTsconfig` and the CLI flag `--api-tsconfig`. */
+export interface MionApiPointer {
+  /** Path to the API project's tsconfig (absolute, or relative to the vite root / Next cwd). */
+  tsConfig: string;
+}
+
+/** How a client gets its route metadata and compiled functions: bundled at build time, or bundled
+ *  with the fetched lane as the fallback for routes the bundle lacks. Unset keeps the fetched lane. */
+export type MionBundleApiMode = 'bundled' | 'mixed';
+
 /** The subset of a mion preset's options that both lanes read. */
 export interface MionPresetOptions {
   runTypes?: MionRunTypesOptions;
   /** The separate client project this API serves batches to. See MionClientPointer. */
   client?: MionClientPointer;
+  /** The separate project declaring the API this client calls. See MionApiPointer. */
+  api?: MionApiPointer;
+  /** Bundle the metadata and compiled functions of every route this client calls. See MionBundleApiMode. */
+  bundleApi?: MionBundleApiMode;
 }
+
+/** The client-side half of MionPresetOptions: what a client build bundles and where its API lives. */
+export type MionClientBundleOptions = Pick<MionPresetOptions, 'api' | 'bundleApi'>;
 
 /** Maps mion's `runTypes` block and `client` pointer onto the resolver's own options, and rejects
  *  the one emitMode mion cannot support. Shared by BOTH presets: a knob added here reaches the
@@ -133,7 +158,11 @@ export interface MionPresetOptions {
  *  Host-specific hooks are NOT set here. `onSiteFilesChanged` and `onGenerate` are vite's (they
  *  invalidate the module graph); the Next lane needs no equivalent because the broker declares
  *  typeDeps plus a stamp to Turbopack instead. */
-export function toRunTypesOptions(rt: MionRunTypesOptions = {}, client?: MionClientPointer): TsRuntypesPluginOptions {
+export function toRunTypesOptions(
+  rt: MionRunTypesOptions = {},
+  client?: MionClientPointer,
+  bundle: MionClientBundleOptions = {}
+): TsRuntypesPluginOptions {
   // Fail loudly rather than shipping a client whose validators have no body to rebuild from.
   // The type says 'code' | 'both', but configs are plain JS/JSON often written by hand.
   if ((rt.emitMode as string) === 'functions') {
@@ -146,6 +175,12 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}, client?: MionCli
   if (client !== undefined && !client.tsConfig) {
     throw new Error(`[mion] client.tsConfig must name the client project's tsconfig (absolute, or relative to the root).`);
   }
+  if (bundle.api !== undefined && !bundle.api.tsConfig) {
+    throw new Error(`[mion] api.tsConfig must name the API project's tsconfig (absolute, or relative to the root).`);
+  }
+  if (bundle.bundleApi !== undefined && bundle.bundleApi !== 'bundled' && bundle.bundleApi !== 'mixed') {
+    throw new Error(`[mion] bundleApi must be 'bundled' or 'mixed' (got '${String(bundle.bundleApi)}').`);
+  }
   // NOTE: project `references` in the tsconfig are fine — the mion resolver
   // drops them when building its scan program (they are a tsc --build concept).
   return {
@@ -154,6 +189,9 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}, client?: MionCli
     // Forwarded as given: the resolver resolves a relative path against its own cwd (the root
     // this plugin runs at), exactly like `tsconfig` above.
     clientTsconfig: client?.tsConfig,
+    // The client-side pair, forwarded as given like the client pointer above.
+    apiTsconfig: bundle.api?.tsConfig,
+    bundleApi: bundle.bundleApi,
     genDir: rt.genDir ?? rt.outDir,
     emitMode: rt.emitMode,
     moduleMode: rt.moduleMode,

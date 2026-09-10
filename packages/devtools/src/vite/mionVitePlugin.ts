@@ -11,10 +11,17 @@ import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
 import type {GenerateInfo, PluginOptions as TsRuntypesPluginOptions} from '../core/unplugin.ts';
 import type {Plugin, PluginOption} from 'vite';
 // Shared with the Next preset — see ./options.ts for why these live outside this file.
-import {resolveRtBinary, toRunTypesOptions, type MionClientPointer, type MionRunTypesOptions} from '../options.ts';
+import {
+  resolveRtBinary,
+  toRunTypesOptions,
+  type MionApiPointer,
+  type MionBundleApiMode,
+  type MionClientPointer,
+  type MionRunTypesOptions,
+} from '../options.ts';
 
 export {resolveRtBinary};
-export type {MionClientPointer, MionRunTypesOptions};
+export type {MionApiPointer, MionBundleApiMode, MionClientPointer, MionRunTypesOptions};
 
 // ############# mion vite plugin #############
 // A thin preset over the runtypes core: the resolver binary scans the program, rewrites
@@ -71,6 +78,12 @@ export interface MionPluginOptions {
   /** The separate client project this API serves batches to; unset when client and server share
    *  this program. See MionClientPointer. */
   client?: MionClientPointer;
+  /** The separate project declaring the API this client calls; unset when they share this program.
+   *  See MionApiPointer. */
+  api?: MionApiPointer;
+  /** Bundle the metadata and compiled functions of every route this client calls into the bundle.
+   *  See MionBundleApiMode. */
+  bundleApi?: MionBundleApiMode;
   /** The mion API this run hosts: mounted inside the dev server, and optionally emitted as a second
    *  bundle by `vite build`. One program, one process. */
   server?: MionServerOptions;
@@ -152,7 +165,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   };
 
   const rtPluginOptions: TsRuntypesPluginOptions = {
-    ...toRunTypesOptions(rt, options.client),
+    ...toRunTypesOptions(rt, options.client, {api: options.api, bundleApi: options.bundleApi}),
     onGenerate: transport.onGenerate,
     // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for
     // the old shape, because the import that named it was erased and vite has no edge to

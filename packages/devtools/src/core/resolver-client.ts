@@ -136,6 +136,12 @@ export interface ResolverClientOptions {
   // (`<outDir>/rpc/`). Relative paths resolve against the resolver's cwd.
   // Undefined means the program itself is the batch source.
   clientTsconfig?: string;
+  // Forwarded as --api-tsconfig: the tsconfig of the SEPARATE project that
+  // declares the API this (client) session calls; the bundleApi lane resolves
+  // the routes' types there. Undefined means the API is in this program.
+  apiTsconfig?: string;
+  // Forwarded as --bundle-api: switches the client-side bundleApi lane on.
+  bundleApi?: 'bundled' | 'mixed';
   // Forwarded as --transform-relative: transform rewrites the injected import
   // block's `rtmod:` specifiers to paths relative to the resolved output root
   // (files mode). The bundler plugin always sets it; the virtual-module lanes
@@ -633,6 +639,8 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   // override and the OpEnrich family / i18n selection.
   if (opts.genDir) args.push('--gen-dir', opts.genDir);
   if (opts.clientTsconfig) args.push('--client-tsconfig', opts.clientTsconfig);
+  if (opts.apiTsconfig) args.push('--api-tsconfig', opts.apiTsconfig);
+  if (opts.bundleApi) args.push('--bundle-api', opts.bundleApi);
   if (opts.transformRelative) args.push('--transform-relative');
   if (opts.omitSourcesContent) args.push('--omit-sources-content');
   if (opts.enrichFriendly) args.push('--enrich-friendly');
