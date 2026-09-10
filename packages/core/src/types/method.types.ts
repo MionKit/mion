@@ -25,10 +25,11 @@ export interface MethodMetadata {
   hasReturnData: boolean;
   /** Number of public method parameters (arity), derived from the params tuple runtype */
   paramsCount?: number;
-  /** Parameter names from the params tuple's member labels (undefined per unlabelled member).
-   *  Sourced from reflection, never from parsing handler.toString(), so they survive minification.
-   *  Rides the client methods-metadata payload so a client can name the parameter that failed. */
-  paramNames?: (string | undefined)[];
+  /** Parameter names from the params tuple's member labels ('' for an unlabelled member: a plain
+   *  string, never a union, so the value rides the metadata wire untagged). Sourced from reflection,
+   *  never from parsing handler.toString(), so they survive minification. Rides the client
+   *  methods-metadata payload so a client can name the parameter that failed. */
+  paramNames?: string[];
   /** JIT hash of the method parameters */
   paramsJitHash: string;
   /**  JIT  hash of the method return value */
