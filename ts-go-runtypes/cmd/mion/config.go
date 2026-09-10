@@ -63,7 +63,19 @@ type tsRuntypesPlugin struct {
 	// Relative to this tsconfig's directory. Absent when client and server
 	// share one program.
 	ClientTsconfig string `json:"clientTsconfig"`
-	ModuleMode     string `json:"moduleMode"`
+	// ApiTsconfig names the tsconfig of the SEPARATE project that declares the
+	// mion API this client project calls. Under `bundleApi` the client build
+	// resolves every route's types in a program opened over it, so the client
+	// emits exactly the server's runtypes whatever this tsconfig's own `lib` or
+	// strictness. Relative to this tsconfig's directory. Absent when client and
+	// API share one program.
+	ApiTsconfig string `json:"apiTsconfig"`
+	// BundleApi bundles the metadata and compiled functions of every route
+	// this client calls into the client itself: "bundled" (no metadata is
+	// fetched at runtime) or "mixed" (routes the bundle lacks are still
+	// fetched). Absent or empty means the fetched lane.
+	BundleApi  string `json:"bundleApi"`
+	ModuleMode string `json:"moduleMode"`
 	EmitMode       string `json:"emitMode"`
 	InlineMode     string `json:"inlineMode"`
 

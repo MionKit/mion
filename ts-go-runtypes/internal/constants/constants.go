@@ -507,6 +507,35 @@ const (
 	ModuleModeAllModules = "allModules"
 )
 
+// BundleApiMode is the client build's `bundleApi` option: whether the metadata
+// and compiled functions of the routes a mion client calls are bundled into the
+// client at build time. The --bundle-api CLI flag, the tsconfig plugin key and
+// the devtools option validate against this set; the value itself is injected
+// at the client's initClient site so the runtime picks the matching lane.
+type BundleApiMode string
+
+const (
+	// BundleApiOff (the default) bundles nothing: the client fetches its
+	// metadata from the server on first use.
+	BundleApiOff BundleApiMode = ""
+	// BundleApiBundled bundles every route the program calls; the client never
+	// asks the server for metadata and refuses a route it did not bundle.
+	BundleApiBundled BundleApiMode = "bundled"
+	// BundleApiMixed bundles the same set, and the client still fetches the
+	// routes the bundle lacks.
+	BundleApiMixed BundleApiMode = "mixed"
+)
+
+// Enabled reports whether the client lane bundles anything.
+func (mode BundleApiMode) Enabled() bool {
+	return mode == BundleApiBundled || mode == BundleApiMixed
+}
+
+// Valid reports whether mode is off or one of the two bundling modes.
+func (mode BundleApiMode) Valid() bool {
+	return mode == BundleApiOff || mode.Enabled()
+}
+
 // EmitMode selects what each compiled fn entry ships in its code/factory
 // slots — the --emit-mode CLI flag and the Vite plugin's `emitMode` option
 // validate against this set. NOT mirrored to TS (the plugin hard-codes the
