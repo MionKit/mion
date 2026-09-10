@@ -60,6 +60,13 @@ function debug(message: string): void {
 // NextOptions is the Next-lane surface: every PluginOptions knob, plus the one
 // thing only this host has. It composes PluginOptions rather than extending it
 // in place, so src/plugin-option-keys.ts and its parity test stay untouched.
+// isNextDev reports whether this Next invocation is `next dev`. Next sets
+// NODE_ENV before it loads the config: `development` for dev, `production` for a
+// build, so the config process (where the broker starts) can read the lane.
+export function isNextDev(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
+
 export interface NextOptions extends PluginOptions {
   // Where the broker listens. Derived from the project root by default; set it
   // only to keep two projects that share a root from sharing one resolver.
@@ -149,6 +156,10 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       ...pluginOptions,
       cwd: rootAbs,
       genDir,
+      // The broker has no bundler config to read the lane from, so it is `next
+      // dev` that says a RuntimeError reports without halting here (see
+      // PluginOptions.devServer); `next build` halts on it.
+      devServer: pluginOptions.devServer ?? isNextDev(),
       // No host gives this broker a buildEnd, so the resolver child must never
       // be the handle that keeps the Next process alive. Same reasoning as the
       // Bun runtime loader, which is what this option was added for.

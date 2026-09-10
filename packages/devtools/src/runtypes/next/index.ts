@@ -16,9 +16,9 @@
 // subpath needs), and why the real `next build` coverage lives in the e2e
 // container rather than in the vitest suite.
 import {unplugin} from '../../core/unplugin.ts';
-import {startBroker, socketPathFor, ownsBroker, type BrokerHandle, type NextOptions} from './broker.ts';
+import {startBroker, socketPathFor, ownsBroker, isNextDev, type BrokerHandle, type NextOptions} from './broker.ts';
 
-export {startBroker, socketPathFor, ownsBroker};
+export {startBroker, socketPathFor, ownsBroker, isNextDev};
 export type {BrokerHandle, NextOptions};
 
 /** The loader specifier to put in `turbopack.rules`. */
@@ -119,7 +119,9 @@ function withWebpackPlugin(nextConfig: NextConfigLike, options: NextOptions): Ne
 // socketPath is a broker-only concern; the webpack lane has no broker.
 function webpackPlugin(options: NextOptions): unknown {
   const {socketPath: _socketPath, ...pluginOptions} = options;
-  return unplugin.webpack(pluginOptions);
+  // webpack's own config carries no `next dev` signal the plugin could read, so
+  // the lane is decided here, exactly as the broker decides it for Turbopack.
+  return unplugin.webpack({...pluginOptions, devServer: pluginOptions.devServer ?? isNextDev()});
 }
 
 export default withRunTypes;
