@@ -768,7 +768,14 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     }
     let fatal = 0;
     for (const diagnostic of incomplete) {
-      if (isDowngraded(downgrade, diagnostic)) {
+      // A completeness finding is a LevelWarning, so isDowngraded never lowers
+      // it — but it is the halt reason here, and a project must still be able to
+      // stand it down the way it can any other build-halting finding. So this
+      // gate applies `downgradeErrors` to it directly, by code or by wildcard.
+      const standDown =
+        isDowngraded(downgrade, diagnostic) ||
+        (DIAGNOSTIC_CATALOG[diagnostic.code]?.completeness === true && (downgrade.all || downgrade.codes.has(diagnostic.code)));
+      if (standDown) {
         ctx.warn?.(formatDowngraded(diagnostic));
         continue;
       }

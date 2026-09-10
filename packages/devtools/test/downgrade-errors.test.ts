@@ -266,12 +266,16 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     }
   });
 
-  register('an unused `@mion-expect-error` is itself an error (EXP001)', async () => {
+  register('an unused `@mion-expect-error` is reported but does not halt (EXP001)', async () => {
+    // The build emits, and what it emitted is CORRECT: the only thing wrong is a
+    // comment. mion does not copy TypeScript here, where the same finding is an
+    // error, because in mion an error fails a build.
     const plugin = makePlugin(STALE_EXPECT_DIR);
     const ctx = makeCtx();
     try {
-      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
-      expect(ctx.warnings.join('\n')).toContain('error EXP001');
+      // ctx.error() throws, so a build that returns at all did not halt.
+      await callHook(plugin.buildStart, ctx);
+      expect(ctx.warnings.join('\n')).toContain('warning EXP001');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
@@ -353,12 +357,23 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL2']})).toThrow(/unknown diagnostic code/);
   });
 
-  it('rejects a pure-function code: those mean generation failed', () => {
-    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['PFE9006']})).toThrow(/cannot downgrade PFE9006/);
+  it('rejects a fatal Error: the build produces no code for it', () => {
+    // The rule is the LEVEL, not the pure-fn family. MKR014 emits no site and no
+    // injected id, so not halting would only ship a call that throws.
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['MKR014']})).toThrow(/cannot downgrade MKR014/);
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['BAT001']})).toThrow(/cannot downgrade BAT001/);
+  });
+
+  it('accepts a pure-function purity code: the impure body still ships', () => {
+    // PFE9006 used to be rejected by family. It compiles the offending body and
+    // writes it, so it is a RuntimeError and standing it down is a real choice.
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['PFE9006']})).not.toThrow();
+    // PFE9005 is the one pure-fn code that withholds output, so it stays fatal.
+    expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['PFE9005']})).toThrow(/cannot downgrade PFE9005/);
   });
 
   it('accepts a Warning code and does nothing with it', () => {
-    // A code's severity can soften between releases; a list entry going inert
+    // A code's level can soften between releases; a list entry going inert
     // must never break a consumer's build.
     expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL011']})).not.toThrow();
   });

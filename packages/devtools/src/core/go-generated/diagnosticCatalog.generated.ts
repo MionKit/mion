@@ -410,8 +410,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FT005: {
     headline: 'Unknown placeholder `$[{0}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.',
-    level: 'runtimeError',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       "Error-message templates substitute a fixed placeholder set; an unknown\nname renders literally instead of substituting.\n\nExample:\n- rt$errors: {minLength: '$[name] is too short'}\n+ rt$errors: {minLength: '$[label] is too short'}\n\nFix: use one of the recognised placeholders, or write the literal text\nwithout the `$[…]` wrapper.",
