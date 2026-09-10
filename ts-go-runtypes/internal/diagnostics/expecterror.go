@@ -8,11 +8,13 @@ import "strings"
 // offsets into line numbers is the caller's job (the resolver holds the parse
 // and the line map), so this package stays free of any compiler dependency.
 //
-// The contract mirrors TypeScript's `@ts-expect-error`: the directive sits on
-// the line above a finding and REMOVES it, and a directive that silenced
-// nothing is itself an error (EXP001). That reverse check is the reason the
-// directive is safer than a config-level ignore list: a silencer cannot
-// quietly outlive the problem it was added for.
+// The contract follows TypeScript's `@ts-expect-error`: the directive sits on
+// the line above a finding and REMOVES it, and a directive that silenced nothing
+// is itself reported (EXP001). That reverse check is the reason the directive is
+// safer than a config-level ignore list: a silencer cannot quietly outlive the
+// problem it was added for. It is reported as a WARNING, unlike TypeScript's,
+// which is an error: a comment that has gone stale says nothing about the
+// emitted code, so it must not fail a build.
 
 // DirectiveMarker is the word a suppression comment starts with. The comment
 // must be the first thing on its own line; a trailing comment after code is
@@ -34,9 +36,9 @@ type Directive struct {
 	Site Site
 }
 
-// notSuppressible lists the codes no directive may silence, on top of the
-// whole pure-fn family. A directive cannot silence the check that keeps
-// directives honest, or the two that report a malformed one.
+// notSuppressible lists the codes no directive may silence, on top of every
+// LevelError code. A directive cannot silence the check that keeps directives
+// honest, or the two that report a malformed one.
 var notSuppressible = map[string]bool{
 	CodeExpectErrorUnused:          true,
 	CodeExpectErrorNotSuppressible: true,
@@ -45,11 +47,12 @@ var notSuppressible = map[string]bool{
 
 // Suppressible reports whether a directive is allowed to silence code.
 //
-// Pure-fn codes never are: they report a FAILED extraction, and the build
-// writes generated files from that extraction, so continuing would ship
-// missing output rather than merely risky output. That is the same rule the
-// bundler plugin applies when it halts on the pure-fn family regardless of
-// how errors are otherwise configured.
+// A LevelError code never is: it means the build cannot produce output at all,
+// so continuing would ship missing output rather than merely risky output. That
+// is the same rule the bundler plugin applies when it halts on LevelError
+// regardless of how findings are otherwise configured. A LevelRuntimeError IS
+// suppressible: output exists, and the author may have written the bad type on
+// purpose (a test suite that checks what a broken validator does at runtime).
 //
 // An unrecognised code is not suppressible either, but the caller reports that
 // as EXP003 (a typo) rather than EXP002.
@@ -58,7 +61,7 @@ func Suppressible(code string) bool {
 	if !registered {
 		return false
 	}
-	if definition.Family == FamilyPureFn {
+	if definition.Level == LevelError {
 		return false
 	}
 	return !notSuppressible[code]

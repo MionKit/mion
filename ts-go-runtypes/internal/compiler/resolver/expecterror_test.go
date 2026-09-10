@@ -148,10 +148,14 @@ export const idReflected = getRunTypeId(sample);
 	}
 }
 
-func TestExpectError_PureFnCodeCannotBeSuppressed(t *testing.T) {
-	codes := generateDiagnostics(t, withDirective("// @mion-expect-error PFE9006"))
+// A fatal Error is never suppressible: the build produced no code for the thing,
+// so silencing the finding buys a call that throws either way. The rule is the
+// LEVEL, not the pure-fn family — a purity violation ships the compiled body, so
+// PFE9006 IS suppressible now.
+func TestExpectError_FatalCodeCannotBeSuppressed(t *testing.T) {
+	codes := generateDiagnostics(t, withDirective("// @mion-expect-error MKR014"))
 	if !contains(codes, diagnostics.CodeExpectErrorNotSuppressible) {
-		t.Fatalf("a pure-fn code is never suppressible, so EXP002; got %v", codes)
+		t.Fatalf("MKR014 emits no site, so it is never suppressible: expected EXP002; got %v", codes)
 	}
 	if contains(codes, diagnostics.CodeExpectErrorUnused) {
 		t.Fatalf("a malformed directive reports one problem, not two; got %v", codes)

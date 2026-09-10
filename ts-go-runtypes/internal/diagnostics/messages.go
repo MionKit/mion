@@ -288,10 +288,6 @@ var messagesByCode = map[string]message{
 		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
 		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
 	},
-	"PJ004": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-	},
 	"PJ005": {
 		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
 		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
@@ -307,10 +303,6 @@ var messagesByCode = map[string]message{
 	"PJS003": {
 		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
 		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-	},
-	"PJS004": {
-		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
-		Detail:   "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
 	},
 	"PJS005": {
 		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",
@@ -328,10 +320,6 @@ var messagesByCode = map[string]message{
 		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
 		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
 	},
-	"RJ004": {
-		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
-		Detail:   "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-	},
 	"RJ005": {
 		Headline: "Type `{0}` can never be decoded from JSON: the generated function will always fail.",
 		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
@@ -347,10 +335,6 @@ var messagesByCode = map[string]message{
 	"SJ003": {
 		Headline: "Type `{0}` can never be stringified to JSON: the generated function will always fail.",
 		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-	},
-	"SJ004": {
-		Headline: "Type `{0}` can never be stringified to JSON: the generated function will always fail.",
-		Detail:   "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
 	},
 	"SJ005": {
 		Headline: "Type `{0}` can never be stringified to JSON: the generated function will always fail.",
@@ -368,14 +352,6 @@ var messagesByCode = map[string]message{
 		Headline: "Type `{0}` can never be serialised to binary: the generated function will always fail.",
 		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
 	},
-	"TB004": {
-		Headline: "Type `{0}` can never be serialised to binary: the generated function will always fail.",
-		Detail:   "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-	},
-	"TB005": {
-		Headline: "Type `{0}` can never be serialised to binary: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
-	},
 	"TB006": {
 		Headline: "Type `{0}` can never be serialised to binary: the generated function will always fail.",
 		Detail:   "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
@@ -391,14 +367,6 @@ var messagesByCode = map[string]message{
 	"FB003": {
 		Headline: "Type `{0}` can never be deserialised from binary: the generated function will always fail.",
 		Detail:   "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-	},
-	"FB004": {
-		Headline: "Type `{0}` can never be deserialised from binary: the generated function will always fail.",
-		Detail:   "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-	},
-	"FB005": {
-		Headline: "Type `{0}` can never be deserialised from binary: the generated function will always fail.",
-		Detail:   "A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }",
 	},
 	"FB006": {
 		Headline: "Type `{0}` can never be deserialised from binary: the generated function will always fail.",

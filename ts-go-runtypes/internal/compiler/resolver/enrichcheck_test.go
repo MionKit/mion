@@ -146,8 +146,15 @@ func TestCheckEnrich_SinglePassFindings(t *testing.T) {
 	if args := byCode[diagnostics.CodeFriendlyUnknownField][0].Args; len(args) != 1 || args[0] != "nope" {
 		t.Errorf("FT002 args = %v, want [nope]", args)
 	}
-	if severity := byCode[diagnostics.CodeFriendlyTodo][0].Severity; severity != diagnostics.SeverityError {
-		t.Errorf("FT020 severity = %v, want Error", severity)
+	// An unfilled scaffold is a blank label, not broken output, so it is a
+	// Warning. What makes `enrich --require-complete` fail on it is the
+	// Completeness bit, which is deliberately not the level.
+	todo := byCode[diagnostics.CodeFriendlyTodo][0]
+	if todo.Level != diagnostics.LevelWarning {
+		t.Errorf("FT020 level = %v, want LevelWarning", todo.Level)
+	}
+	if !diagnostics.IsCompleteness(todo.Code) {
+		t.Error("FT020 must carry the Completeness bit: it is what --require-complete reads")
 	}
 
 	// No false positives: the live keys and the @rtType/@rtIds markers never

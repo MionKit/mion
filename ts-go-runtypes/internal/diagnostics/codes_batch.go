@@ -2,9 +2,18 @@ package diagnostics
 
 // Request-batch codes (BATxxx). Issued by the request-batch extractor when a
 // `batch([...])` call (recognised by the InjectBatchId brand on its resolved
-// signature) cannot be read statically, or when two batches collide. Every
-// code is an ERROR: the batch id is spliced into the call at build time and
-// a batch the build cannot read would otherwise ship without one.
+// signature) cannot be read statically, or when two batches collide.
+//
+// Two levels, split on whether the id is spliced. BAT001 / BAT002 / BAT004 /
+// BAT005 / BAT006 drop the whole site, so no id is injected and `batch()`
+// throws `batch-missing-id` synchronously at call time before any network work:
+// LevelError, there is no output to accept. BAT003 / BAT007 / BAT008 / BAT009
+// all DO inject an id, and the batch then fails against the server (an id that
+// resolves to the wrong plan, a mapper the server cannot register, or an id no
+// table row matches): LevelRuntimeError.
+//
+// BAT008 and BAT009 were warnings. Neither could honestly stay one: both ship a
+// batch call whose every request comes back a 404 `batch-unknown-id`.
 const (
 	// CodeBatchElementNotReadable: an element of the `[...]` routes argument is
 	// not a route call the build can trace to the client routes proxy. Args:
@@ -52,15 +61,15 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeBatchElementNotReadable, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`batch()` element is not a route call the build can read"},
-		{Code: CodeBatchSourceNotInBatch, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` source route is not in the batch, or runs after the route it feeds"},
-		{Code: CodeBatchIdCollision, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "Two different batches produced the same batch id"},
-		{Code: CodeBatchMapperNotReadable, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` mapper is not readable at build time"},
-		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
-		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
-		{Code: CodeBatchMapperMissing, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "A batch names an inline `inputFrom()` mapper the build produced no pure function for"},
-		{Code: CodeBatchOwnBatchIgnored, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "A `batch()` in the server program is ignored because the batch table comes from the client project named by `clientTsconfig`"},
-		{Code: CodeBatchNoRouterInit, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "The batch table was written but no module calls `createMionRouter` directly, so nothing imports it"},
+		{Code: CodeBatchElementNotReadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`batch()` element is not a route call the build can read"},
+		{Code: CodeBatchSourceNotInBatch, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` source route is not in the batch, or runs after the route it feeds"},
+		{Code: CodeBatchIdCollision, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Two different batches produced the same batch id"},
+		{Code: CodeBatchMapperNotReadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` mapper is not readable at build time"},
+		{Code: CodeBatchDuplicateRoute, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The same route is listed twice in one `batch()`"},
+		{Code: CodeBatchMappingParamOutOfRange, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "`inputFrom()` sits at an argument position the target route does not declare"},
+		{Code: CodeBatchMapperMissing, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A batch names an inline `inputFrom()` mapper the build produced no pure function for"},
+		{Code: CodeBatchOwnBatchIgnored, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A `batch()` in the server program is ignored because the batch table comes from the client project named by `clientTsconfig`"},
+		{Code: CodeBatchNoRouterInit, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The batch table was written but no module calls `createMionRouter` directly, so nothing imports it"},
 	} {
 		register(definition)
 	}

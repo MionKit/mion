@@ -187,8 +187,10 @@ createDup<string>();
 	if dupDiag == nil {
 		t.Fatalf("expected an MKR006 duplicate-fn-key diagnostic, got %+v", resp.Diagnostics)
 	}
-	if dupDiag.Severity != diagnostics.SeverityError {
-		t.Errorf("MKR006 severity = %v, want Error", dupDiag.Severity)
+	// LevelWarning: the scan dedupes the repeated key and emits the site
+	// normally, so what ships is correct and only the source is untidy.
+	if dupDiag.Level != diagnostics.LevelWarning {
+		t.Errorf("MKR006 level = %v, want LevelWarning", dupDiag.Level)
 	}
 	// The reported family is the FIRST REPEATED key ('verr'), NOT the first key
 	// of the list ('huk') — pins first-repeated-key reporting, not first-key.

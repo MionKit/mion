@@ -102,15 +102,18 @@ func runGenCheck(positional []string, genDirFlag string, asJSON, requireComplete
 		return findings[left].Code < findings[right].Code
 	})
 
+	// Same two reasons as the enrich health check, and the same trap: the
+	// unfilled-scaffold codes are LevelWarning, so `--require-complete` reads the
+	// Completeness bit rather than the finding's level.
 	hasError := false
 	for _, finding := range findings {
-		if finding.Severity != enrichment.Error {
+		if requireComplete && diagnostics.IsCompleteness(finding.Code) {
+			hasError = true
 			continue
 		}
-		if !requireComplete && diagnostics.IsCompleteness(finding.Code) {
-			continue
+		if finding.Severity == enrichment.Error {
+			hasError = true
 		}
-		hasError = true
 	}
 	if asJSON {
 		encoded, encodeErr := json.MarshalIndent(findings, "", "  ")

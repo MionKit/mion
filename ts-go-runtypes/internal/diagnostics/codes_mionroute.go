@@ -10,8 +10,15 @@ package diagnostics
 //
 // Emitted only when a caller opts in (Request.CheckRouterRules), so `mion
 // compile` and the bundler plugins never fail a build on one: a rule turned off
-// in an eslint config must mean off, and every one of these is Severity-Error
-// because that is the level the rules ship at.
+// in an eslint config must mean off.
+//
+// Every one is LevelRuntimeError. The build emits either way, and each of these
+// describes a route that is BROKEN once it runs: mion compiles the DECLARED
+// types, so a missing annotation leaves nothing validating the input or
+// serializing the response (MRT001 / MRT002), a throw or a non-RpcError arm makes
+// the declared return type untrue (MRT003 / MRT004), and a prototype-named
+// property can never round-trip (MRT005). Calling any of them "nothing is wrong"
+// would be false, which is why they are not warnings despite being lint-only.
 const (
 	// CodeRouteMissingReturnType: a handler with no written return type
 	// annotation. The build compiles the DECLARED type, so an inferred one
@@ -46,11 +53,11 @@ const (
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeRouteMissingReturnType, Family: FamilyMionRoute, Severity: SeverityError, Scope: ScopeNotSource, Title: "mion handler has no return type annotation"},
-		{Code: CodeRouteMissingParamType, Family: FamilyMionRoute, Severity: SeverityError, Scope: ScopeNotSource, Title: "mion handler parameter has no type annotation"},
-		{Code: CodeRouteThrowInHandler, Family: FamilyMionRoute, Severity: SeverityError, Scope: ScopeNotSource, Title: "mion handlers return errors, they never throw them"},
-		{Code: CodeRouteReturnedErrorType, Family: FamilyMionRoute, Severity: SeverityError, Scope: ScopeNotSource, Title: "mion handler answers with an error that is not an `RpcError`"},
-		{Code: CodeRouteUnsafePropertyName, Family: FamilyMionRoute, Severity: SeverityError, Scope: ScopeGraph, Title: "Property is named after a prototype slot and can never be data"},
+		{Code: CodeRouteMissingReturnType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler has no return type annotation"},
+		{Code: CodeRouteMissingParamType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler parameter has no type annotation"},
+		{Code: CodeRouteThrowInHandler, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handlers return errors, they never throw them"},
+		{Code: CodeRouteReturnedErrorType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler answers with an error that is not an `RpcError`"},
+		{Code: CodeRouteUnsafePropertyName, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Property is named after a prototype slot and can never be data"},
 	} {
 		register(definition)
 	}

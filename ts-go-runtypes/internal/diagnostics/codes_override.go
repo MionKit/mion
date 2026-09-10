@@ -6,6 +6,12 @@ package diagnostics
 // declarations targeting the same (type, function). There can be exactly one
 // override per (type, function): a second one (regardless of body) is an
 // error, since which wins would otherwise be order-dependent.
+//
+// LevelRuntimeError for both OVR001 and OVR002: each ships real output that is
+// wrong. OVR001 keeps the FIRST override, writes the loser's compiled module as
+// dead code and nulls both call sites, so one override the author wrote silently
+// does not apply. OVR002's redirect body loads a module that is not in the graph
+// and throws on the first call.
 const (
 	CodeDuplicateOverride = "OVR001"
 	// CodeOverrideMissingCfn is a build-time tripwire: a cfn redirect references
@@ -23,24 +29,24 @@ const (
 
 func init() {
 	register(Definition{
-		Code:     CodeDuplicateOverride,
-		Family:   FamilyMarker,
-		Severity: SeverityError,
-		Scope:    ScopeNotSource,
-		Title:    "Duplicate overrideX<T>: one override per (type, function)",
+		Code:   CodeDuplicateOverride,
+		Family: FamilyMarker,
+		Level:  LevelRuntimeError,
+		Scope:  ScopeNotSource,
+		Title:  "Duplicate overrideX<T>: one override per (type, function)",
 	})
 	register(Definition{
-		Code:     CodeOverrideMissingCfn,
-		Family:   FamilyMarker,
-		Severity: SeverityError,
-		Scope:    ScopeNotSource,
-		Title:    "Override redirect references a cfn module that did not render",
+		Code:   CodeOverrideMissingCfn,
+		Family: FamilyMarker,
+		Level:  LevelRuntimeError,
+		Scope:  ScopeNotSource,
+		Title:  "Override redirect references a cfn module that did not render",
 	})
 	register(Definition{
-		Code:     CodeOverrideValidateCrossFamily,
-		Family:   FamilyMarker,
-		Severity: SeverityWarning,
-		Scope:    ScopeNotSource,
-		Title:    "validate override also affects JSON/binary union decoders for this type",
+		Code:   CodeOverrideValidateCrossFamily,
+		Family: FamilyMarker,
+		Level:  LevelWarning,
+		Scope:  ScopeNotSource,
+		Title:  "validate override also affects JSON/binary union decoders for this type",
 	})
 }

@@ -94,17 +94,20 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 		return diags[left].Code < diags[right].Code
 	})
 
+	// Two independent reasons to fail, and the completeness one is NOT a level:
+	// the unfilled-scaffold codes are LevelWarning (a mirror with blank labels
+	// still runs), so this gate reads the Completeness bit directly. Keying it on
+	// the level instead would silently stop `--require-complete` from failing on
+	// anything.
 	hasError := false
 	for _, diag := range diags {
-		if diag.Severity != diagnostics.SeverityError {
+		if requireComplete && diagnostics.IsCompleteness(diag.Code) {
+			hasError = true
 			continue
 		}
-		// Completeness findings (unfilled @todo) only fail under --require-complete;
-		// the default health check reports them but exits 0.
-		if !requireComplete && diagnostics.IsCompleteness(diag.Code) {
-			continue
+		if diag.Level != diagnostics.LevelWarning {
+			hasError = true
 		}
-		hasError = true
 	}
 
 	if asJSON {
