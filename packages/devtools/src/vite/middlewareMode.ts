@@ -46,7 +46,7 @@ export const DEFAULT_MIDDLEWARE_EXCLUDE: RegExp[] = [
   /\.(m?[jt]sx?|vue|svelte|astro|css|scss|sass|less|styl|html|map|svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot|wasm)($|\?)/,
 ];
 
-/** Signals handed back to the plugin so `serverReady` settles from whichever lane is active. */
+/** Signals handed back to the plugin: they drive the 503 path, nothing leaves the preset. */
 export interface MiddlewareReadySignals {
   onReady: () => void;
   onError: (err: Error) => void;
@@ -56,7 +56,7 @@ export interface MiddlewareReadySignals {
   batchesModuleOf?: () => string;
 }
 
-/** The vite plugin that mounts the mion API in-process (`server.runMode: 'middleware'`). */
+/** The vite plugin that mounts the mion API in-process — the one way the preset runs it. */
 export function mionMiddlewarePlugin(options: MionServerOptions, signals: MiddlewareReadySignals): Plugin {
   const startScript = path.resolve(options.startScript);
   const platformId = options.platform ?? '@mionjs/platform-node';

@@ -112,7 +112,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 # The mion app: no runtime dependency at all (every @mionjs/* and @mionjs/*
 # package is bind-mounted from the workspace at run time), but its BUILD needs vite
 # plus the third-party packages the two mounted plugins import — unplugin for
-# @mionjs/devtools, and @rollup/pluginutils / vite-node / vite-plugin-dts for
+# @mionjs/devtools, and @rollup/pluginutils / vite-plugin-dts for
 # @mionjs/devtools. A hoisted node_modules is what lets the mounted packages resolve
 # them by walking up from their mount point.
 COPY _deps/pnpm-workspace.yaml _deps/.npmrc /mion-bench/apps/mion/

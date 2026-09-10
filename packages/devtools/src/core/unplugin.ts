@@ -1186,6 +1186,33 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     },
 
     vite: {
+      // An APP build (`vite build` with a `builder` block, e.g. the mion preset's client + server
+      // bundles) builds its environments SEQUENTIALLY, so each one's buildEnd would drop the
+      // refcount to zero, close the resolver, and make the next buildStart respawn it — a second
+      // full program scan for a program that has not changed. Holding one reference across the
+      // whole app build keeps it to one resolver.
+      //
+      // Driving the builds here is what `buildApp` is for; the `isBuilt` guard is Vite's own, so a
+      // host or plugin that already built them is left alone (and so is every legacy single
+      // environment build, which never calls this hook at all).
+      buildApp: {
+        order: 'post' as const,
+        async handler(builder: any) {
+          const environments: {isBuilt?: boolean}[] = Object.values(builder?.environments ?? {});
+          if (environments.length === 0 || environments.some((environment) => environment.isBuilt)) return;
+          activeBuilds += 1;
+          try {
+            for (const environment of environments) await builder.build(environment);
+          } finally {
+            activeBuilds -= 1;
+            if (activeBuilds <= 0) {
+              resolver?.close();
+              resolver = null;
+            }
+          }
+        },
+      },
+
       // configResolved captures Vite's resolved root, then spawns the
       // resolver eagerly. The marker package's vitest relies on the resolver
       // existing as soon as the workspace project initialises (before any
