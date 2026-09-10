@@ -162,6 +162,8 @@ packages/*/.uws-cache/
 
 # Consumer e2e fixture install artifacts (the fixture source IS tracked).
 /container/pre-publish-e2e/package-lock.json
+# the mion-next lane's round-trip report, written by build-all.mjs
+/container/pre-publish-e2e/apps/mion-next/selftest.json
 /logs/
 
 # Benchmark output (raw harness logs; aggregated summaries live in docs/)
