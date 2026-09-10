@@ -208,19 +208,26 @@ fails to compile and you fix the export.
 The `enrich --no-emit` mode cross-references the authored literal against the live `RunType` and
 reports:
 
-| Code  | Severity | Meaning                                                                                                                                                                                                      |
-| ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| FT001 | Info     | a field of `T` has no label (renders the raw name)                                                                                                                                                           |
-| FT002 | Error    | key is not a field of `T` — stale (field renamed/removed)                                                                                                                                                    |
-| FT003 | Warning  | `rt$errors` key isn't a constraint this field's format declares (TS catches this first as an excess-property error)                                                                                          |
-| FT004 | Error    | structural mismatch (object node where `T` is scalar, or vice-versa)                                                                                                                                         |
-| FT005 | Warning  | unknown `$[…]` placeholder for this constraint/context — checked per plural arm; also validates three-part format tokens (binding must be `val`/`index`; kind must be `number`/`date`/`relativeTime`/`list`) |
-| FT006 | Error    | a plural object is missing the mandatory `other` arm                                                                                                                                                         |
-| FT007 | Warning  | a plural-object arm key is not a CLDR category                                                                                                                                                               |
-| FT008 | Warning  | a plural object on a non-count-bearing constraint (dead arms)                                                                                                                                                |
-| FT009 | Error    | `rt$default` beside any other `rt$errors` key — the modes are mutually exclusive                                                                                                                             |
-| FT010 | Info     | `T`'s structural id changed since authored — review for drift                                                                                                                                                |
-| FT011 | Error    | a property of `T` is named `rt$…` — the reserved meta prefix (`enrich` refuses the type up front; rename the property)                                                                                       |
+| Code  | Level   | Meaning                                                                                                                                                                                                      |
+| ----- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FT001 | Warning | a field of `T` has no label (renders the raw name)                                                                                                                                                           |
+| FT002 | Warning | key is not a field of `T` — stale (field renamed/removed), so nothing ever reads it                                                                                                                          |
+| FT003 | Warning | `rt$errors` key isn't a constraint this field's format declares (TS catches this first as an excess-property error)                                                                                          |
+| FT004 | Warning | structural mismatch (object node where `T` is scalar, or vice-versa)                                                                                                                                         |
+| FT005 | Warning | unknown `$[…]` placeholder for this constraint/context — checked per plural arm; also validates three-part format tokens (binding must be `val`/`index`; kind must be `number`/`date`/`relativeTime`/`list`) |
+| FT006 | Warning | a plural object is missing the mandatory `other` arm                                                                                                                                                         |
+| FT007 | Warning | a plural-object arm key is not a CLDR category                                                                                                                                                               |
+| FT008 | Warning | a plural object on a non-count-bearing constraint (dead arms)                                                                                                                                                |
+| FT009 | Warning | `rt$default` beside any other `rt$errors` key — the modes are mutually exclusive, and the catch-all silently wins                                                                                            |
+| FT010 | Warning | `T`'s structural id changed since authored — review for drift                                                                                                                                                |
+| FT011 | Error   | a property of `T` is named `rt$…` — the reserved meta prefix (`enrich` refuses the type up front and writes no mirror; rename the property)                                                                  |
+
+Almost every content check is a **Warning**: the message still renders, it just falls
+back to something less specific (the generic "value is invalid", the `other` plural arm,
+the raw field name). Degraded text is enrichment that did not apply, not a broken
+function. **FT011 is the one Error**, because the enrich plan fails and no mirror file is
+written at all. The unfilled-scaffold codes (FT020 / FT023) are Warnings too, and what
+makes them fail `enrich --require-complete` is their completeness flag, not their level.
 
 These catch drift: rename a field and `FT002` flags the now-stale entry.
 
