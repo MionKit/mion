@@ -9,7 +9,6 @@
 // plugin resolves the host binary via the published @mionjs/bin-compiler launcher
 // (no binary option); set MION_E2E_BINARY=<abs path> for host iteration.
 import {execFileSync, spawn} from 'node:child_process';
-import {createServer} from 'node:net';
 import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -268,18 +267,9 @@ async function buildNext(app) {
   }
 }
 
-// A port nothing is listening on. `listen(0)` asks the OS for a free one; the tiny race between
-// closing and `next start` binding it is the standard cost and has never mattered here.
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const probe = createServer();
-    probe.once('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const {port} = probe.address();
-      probe.close(() => resolve(port));
-    });
-  });
-}
+// Fixed, like every other port in this container (the node consumer's 8086, the bun one's 8087):
+// the lanes run one at a time inside an image nothing else listens in, so a port is just a name.
+const MION_NEXT_PORT = 8088;
 
 async function waitForOk(url, child, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
@@ -305,14 +295,13 @@ async function buildMionNext(app) {
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
   execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
 
-  const port = await freePort();
-  const child = spawn(process.execPath, [nextBin, 'start', '--port', String(port)], {
+  const child = spawn(process.execPath, [nextBin, 'start', '--port', String(MION_NEXT_PORT)], {
     cwd: appDir,
     stdio: 'inherit',
     env: {...process.env, NODE_ENV: 'production'},
   });
   try {
-    const base = `http://127.0.0.1:${port}`;
+    const base = `http://127.0.0.1:${MION_NEXT_PORT}`;
     await waitForOk(`${base}/`, child, 90_000);
     const res = await waitForOk(`${base}/selftest`, child, 30_000);
     const report = await res.json();

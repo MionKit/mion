@@ -2,7 +2,7 @@
 // program the API is built from. That is the whole point: the build reads this batch, gives it
 // an id, and compiles it into the route handler next door, so the two cannot disagree.
 //
-// build-all.mjs starts the built app and fetches this route; test/build-outputs.test.mjs asserts
+// build-all.mjs serves the built app and fetches this route; test/build-outputs.test.mjs asserts
 // what it reported.
 import {batch, initClient} from '@mionjs/client';
 import type {MionApi} from '../../src/routes';
