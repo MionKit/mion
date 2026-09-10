@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionjs/core';
+import {HandlerType, RpcError} from '@mionjs/core';
 import type {CoreRouterOptions, InputFromRef, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {InjectApiMetadata} from '@mionjs/run-types';
@@ -267,32 +267,50 @@ export interface MiddlewareSubRequest<
 }
 // type-middleware-sub-request-end
 
-export type NonClientRoute = PublicMiddleFn | PublicHeadersFn;
+// The mapped types below tell a route, a middleFn and a group apart by the `type` discriminant every
+// public method carries (a group carries none), never by comparing the whole method structurally: a
+// PublicRoute's options and compiled types are deep conditional types, and comparing them per member
+// was the bulk of the client's type cost.
+type RouteLeaf = {type: typeof HandlerType.route; handler: PublicHandler};
+type MiddleFnLeaf = {type: typeof HandlerType.middleFn | typeof HandlerType.headersMiddleFn; handler: PublicHandler};
+type AnyLeaf = {type: number};
+
+/** What `ClientRoutes` leaves out: a middleFn (headers middleFns included). */
+export type NonClientRoute = MiddleFnLeaf;
 
 // `Prefix` is the key path of the level being mapped (`users/` one level down) and `Root` the whole
 // API: both ride down the recursion so every leaf names its full id and its API.
-export type ClientRoutes<RA extends RemoteApi, Prefix extends string = '', Root extends RemoteApi = RA> = Prettify<{
-  [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
-    ? (
-        ...params: Parameters<RA[Property]['handler']>
-      ) => RouteSubRequest<RA[Property]['handler'], `${Prefix}${Property & string}`, Root>
-    : RA[Property] extends RemoteApi
-      ? ClientRoutes<RA[Property], `${Prefix}${Property & string}/`, Root>
-      : never;
+export type ClientRoutes<
+  RA,
+  Prefix extends string = '',
+  Root extends RemoteApi = RA extends RemoteApi ? RA : RemoteApi,
+> = Prettify<{
+  [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends {
+    type: typeof HandlerType.route;
+    handler: infer H extends PublicHandler;
+  }
+    ? (...params: Parameters<H>) => RouteSubRequest<H, `${Prefix}${Property & string}`, Root>
+    : RA[Property] extends AnyLeaf
+      ? never
+      : ClientRoutes<RA[Property], `${Prefix}${Property & string}/`, Root>;
 }>;
 
-export type NonClientMiddleFn = PublicRoute | {[key: string]: PublicRoute};
+/** What `ClientMiddleFns` leaves out: a route, and a group holding nothing but routes. */
+export type NonClientMiddleFn = RouteLeaf | {[key: string]: RouteLeaf};
 
-export type ClientMiddleFns<RA extends RemoteApi, Prefix extends string = '', Root extends RemoteApi = RA> = Prettify<{
-  [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends
-    | PublicMiddleFn
-    | PublicHeadersFn
-    ? (
-        ...params: Parameters<RA[Property]['handler']>
-      ) => MiddlewareSubRequest<RA[Property]['handler'], `${Prefix}${Property & string}`, Root>
-    : RA[Property] extends RemoteApi
-      ? ClientMiddleFns<RA[Property], `${Prefix}${Property & string}/`, Root>
-      : never;
+export type ClientMiddleFns<
+  RA,
+  Prefix extends string = '',
+  Root extends RemoteApi = RA extends RemoteApi ? RA : RemoteApi,
+> = Prettify<{
+  [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends {
+    type: typeof HandlerType.middleFn | typeof HandlerType.headersMiddleFn;
+    handler: infer H extends PublicHandler;
+  }
+    ? (...params: Parameters<H>) => MiddlewareSubRequest<H, `${Prefix}${Property & string}`, Root>
+    : RA[Property] extends AnyLeaf
+      ? never
+      : ClientMiddleFns<RA[Property], `${Prefix}${Property & string}/`, Root>;
 }>;
 
 export type Cleaned<RMS extends RemoteApi> = {
