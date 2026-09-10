@@ -11,13 +11,14 @@ import type {CallContext} from './context.ts';
 import type {Routes} from './general.ts';
 import type {
   Handler,
+  HeaderHandler,
   HandlerIsAsync,
   HandlerParams,
   HandlerReturn,
   HeaderHandlerHeaders,
   HeaderHandlerParams,
 } from './handlers.ts';
-import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
+import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef} from './definitions.ts';
 import {HandlerType} from '@mionjs/core'; // do not import type only
 
 // ####### Raw MiddleFns #######
@@ -48,12 +49,12 @@ export type PrivateDef = PrivateMiddleFnDef | RawMiddleFnDef;
 // prettier-ignore
 export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
-    : Type[Property] extends MiddleFnDef<infer H, infer RO, infer O>
-    ? PublicMiddleFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>, MethodTypes<HandlerParams<H>, HandlerReturn<H>, never, HandlerIsAsync<H>>>
-    : Type[Property] extends HeadersMiddleFnDef<infer H, infer RO, infer O>
-    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>, MethodTypes<HeaderHandlerParams<H>, HandlerReturn<H>, HeaderHandlerHeaders<H>, HandlerIsAsync<H>>>
-    : Type[Property] extends RouteDef<infer H, infer RO, infer O> // Routes
-    ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>, MethodTypes<HandlerParams<H>, HandlerReturn<H>, never, HandlerIsAsync<H>>>
+    : Type[Property] extends {type: typeof HandlerType.route; handler: infer H extends Handler; options?: infer RO; routerOptions?: infer O}
+    ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>, HandlerMethodTypes<H>>
+    : Type[Property] extends {type: typeof HandlerType.headersMiddleFn; handler: infer H extends HeaderHandler; options?: infer RO; routerOptions?: infer O}
+    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>, HeadersHandlerMethodTypes<H>>
+    : Type[Property] extends {type: typeof HandlerType.middleFn; handler: infer H extends Handler; options?: infer RO; routerOptions?: infer O}
+    ? PublicMiddleFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>, HandlerMethodTypes<H>>
         : Type[Property] extends Routes // Routes & PureRoutes (recursion)
         ? PublicApi<Type[Property]>
         : never;
@@ -62,7 +63,7 @@ export type PublicApi<Type extends Routes> = Prettify<{
 // type-remote-api-start
 /** Same as Public Api but no type mapping, should be easier to use than PublicApi when non strong types are required. */
 export type RemoteApi = {
-  [key: string]: PublicRoute | PublicMiddleFn | PublicHeadersFn | RemoteApi;
+  [key: string]: PublicRoute<any, any, any> | PublicMiddleFn<any, any, any> | PublicHeadersFn<any, any, any> | RemoteApi;
 };
 // type-remote-api-end
 
@@ -79,6 +80,24 @@ export interface MethodTypes<Params = unknown, Return = unknown, Headers = unkno
   headers: Headers;
   /** whether the server handler answers with a promise */
   isAsync: Async;
+}
+
+/** The MethodTypes of a route or plain middleFn handler. An interface over `H` on purpose: its
+ *  members resolve only when read, so an API type carrying it costs a client nothing until a build
+ *  reads the compiled types off it. */
+export interface HandlerMethodTypes<H extends Handler> {
+  params: HandlerParams<H>;
+  return: HandlerReturn<H>;
+  headers: never;
+  isAsync: HandlerIsAsync<H>;
+}
+
+/** The MethodTypes of a headers middleFn handler: params after its HeadersSubset, which rides `headers`. */
+export interface HeadersHandlerMethodTypes<H extends Handler> {
+  params: HeaderHandlerParams<H>;
+  return: HandlerReturn<H>;
+  headers: HeaderHandlerHeaders<H>;
+  isAsync: HandlerIsAsync<H>;
 }
 
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
