@@ -13,7 +13,7 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 // End-to-end proof for the in-process API: the REAL test-server entry, transformed by
 // the REAL mion pipeline, loaded INSIDE a vite dev server and answering a real route over
-// HTTP — no child process, and no port of mion's own.
+// HTTP, with no port of mion's own.
 //
 // devtools' own middlewareMode.spec.ts stubs the router/adapter to test the mount mechanism in
 // isolation; this one is the integration the stubs cannot give: build-time type injection, router

@@ -3,7 +3,7 @@
 // smoke-next next door covers the type transform under Turbopack. This app covers the
 // framework half: `app/api/[...mion]/route.ts` re-exports the App Router handlers
 // @mionjs/platform-vercel builds from the routes, so one Next build produces both the
-// front end and the API, from one program. No second server, no proxy.
+// front end and the API, from one program.
 //
 // Container-only, like smoke-next: `next` is ~202MB and not a workspace dependency, so a
 // vitest equivalent would be permanently skipped. See

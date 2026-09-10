@@ -8,8 +8,6 @@
 /** Vite plugin for mion — a thin wrapper over the runtypes core since the mion migration */
 export {mionVitePlugin, resolveRtBinary} from './mionVitePlugin.ts';
 // (deriveRuntypesTsconfig workaround removed — the resolver now ignores tsconfig project references itself)
-// (serverReady is gone with the child-process lane: the API runs in THIS process, so there is no
-//  port to wait for. A test that needs a real socket starts the API itself in its globalSetup.)
 export type {
   MionClientPointer,
   MionPluginOptions,
