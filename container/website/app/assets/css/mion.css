@@ -1251,3 +1251,28 @@ section[data-slot='root']:not(.home-subsite-card)::before {
 .site-page {
   display: contents;
 }
+
+/* Diagnostic level badges, shared by the level cards (DiagnosticLevels.vue) and the
+   catalog entries (DiagnosticCatalog.vue). One ramp, three readable steps: the further
+   from yellow, the less of your build survives. */
+.diag-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.diag-badge--error {
+  color: var(--color-red-500);
+}
+
+.diag-badge--runtime {
+  color: var(--color-orange-400);
+}
+
+.diag-badge--warning {
+  color: var(--color-yellow-300);
+}
