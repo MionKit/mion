@@ -12,6 +12,7 @@ export * from './src/types/general.ts';
 export * from './src/types/guards.ts';
 export * from './src/types/handlers.ts';
 export * from './src/types/publicMethods.ts';
+export * from './src/types/resolvedOptions.ts';
 export * from './src/constants.ts';
 export * from './src/router.ts';
 export * from './src/dispatch.ts';

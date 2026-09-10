@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Prettify, RpcError, MethodMetadata} from '@mionjs/core';
+import type {Prettify, RpcError, MethodMetadata, RemoteMethodOpts} from '@mionjs/core';
+import type {ResolvedMiddleFnOptions, ResolvedRouteOptions} from './resolvedOptions.ts';
 import type {CallContext} from './context.ts';
 import type {Routes} from './general.ts';
 import type {Handler} from './handlers.ts';
@@ -33,17 +34,19 @@ export type PrivateDef = PrivateMiddleFnDef | RawMiddleFnDef;
 // ####### Remote Methods Metadata #######
 
 /** Data structure containing all public routes & middleFns.
- * is a Ts Mapped type the remove private middleFns and rawMiddleFns
+ * is a Ts Mapped type the remove private middleFns and rawMiddleFns.
+ * Each public method carries its EFFECTIVE options (route literal, then router literal, then the
+ * default), the values `initRoutes` returns at runtime and a client build reads off this type.
  */
 // prettier-ignore
 export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
-    : Type[Property] extends MiddleFnDef
-    ? PublicMiddleFn<PublicHandler<Type[Property]['handler']>>
-    : Type[Property] extends HeadersMiddleFnDef
-    ? PublicHeadersFn<PublicHandler<Type[Property]['handler']>>
-    : Type[Property] extends RouteDef // Routes
-    ? PublicRoute<PublicHandler<Type[Property]['handler']>>
+    : Type[Property] extends MiddleFnDef<infer H, infer RO, infer O>
+    ? PublicMiddleFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>>
+    : Type[Property] extends HeadersMiddleFnDef<infer H, infer RO, infer O>
+    ? PublicHeadersFn<PublicHandler<H>, ResolvedMiddleFnOptions<RO, O>>
+    : Type[Property] extends RouteDef<infer H, infer RO, infer O> // Routes
+    ? PublicRoute<PublicHandler<H>, ResolvedRouteOptions<RO, O>>
         : Type[Property] extends Routes // Routes & PureRoutes (recursion)
         ? PublicApi<Type[Property]>
         : never;
@@ -57,24 +60,30 @@ export type RemoteApi = {
 // type-remote-api-end
 
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
-export interface PublicRoute<H extends Handler = any> extends MethodMetadata {
+export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts> extends MethodMetadata {
   type: typeof HandlerType.route;
   middleFnIds: string[];
   headerNames: undefined;
   handler: H;
+  /** the effective options, as the router resolved them */
+  options: Opts;
 }
 
 /** Public MiddleFns, handler type is the same as RemoteMiddleFns but does not include the context  */
-export interface PublicMiddleFn<H extends Handler = any> extends MethodMetadata {
+export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts> extends MethodMetadata {
   type: typeof HandlerType.middleFn;
   handler: H;
+  /** the effective options, as the router resolved them */
+  options: Opts;
 }
 
 /** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
-export interface PublicHeadersFn<H extends Handler = any> extends MethodMetadata {
+export interface PublicHeadersFn<H extends Handler = any, Opts = RemoteMethodOpts> extends MethodMetadata {
   type: typeof HandlerType.headersMiddleFn;
   headerNames: string[];
   handler: H;
+  /** the effective options, as the router resolved them */
+  options: Opts;
 }
 
 /** Removes the context from handlers */

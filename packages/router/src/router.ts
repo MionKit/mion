@@ -194,8 +194,8 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
   return {
     options,
     route: route as RouteHelper<O>,
-    query: query as RouteHelper<O>,
-    mutation: mutation as RouteHelper<O>,
+    query: query as RouteHelper<O, false>,
+    mutation: mutation as RouteHelper<O, true>,
     middleFn: middleFn as MiddleFnHelper<O>,
     headersFn: headersFn as HeadersFnHelper<O>,
     rawMiddleFn: rawMiddleFn as RawMiddleFnHelper<O>,

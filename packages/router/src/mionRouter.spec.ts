@@ -13,6 +13,7 @@ import {HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CallContext} from './types/context.ts';
 import type {Routes} from './types/general.ts';
 import type {MionRouter, RouterCallContext, RouteHelper} from './types/mionRouter.ts';
+import type {PublicApi, RemoteApi} from './types/publicMethods.ts';
 
 type SharedData = {user: string | null; visits: number};
 const getSharedData = (): SharedData => ({user: null, visits: 0});
@@ -111,6 +112,85 @@ describe('createMionRouter types', () => {
     const handler = (ctx: CallContext, name: string): string => `${name}${ctx.path}`;
     const def = mion.route(handler);
     expectTypeOf(def.handler).toEqualTypeOf(handler);
+  });
+});
+
+describe('PublicApi resolved options', () => {
+  it('carries the effective options of each method on the API type, equal to what initRoutes returns', () => {
+    resetRouter();
+    const compact = createMionRouter({
+      encoder: 'compact',
+      strictTypes: true,
+      contextDataFactory: getSharedData,
+      getPublicRoutesData: true,
+    });
+    const defs = {
+      q: compact.query((ctx, n: number): string => `${n}`, {sanitizeParams: true, description: 'd'}),
+      m: compact.mutation((ctx, n: number): string => `${n}`, {encoder: {return: 'direct'}, strictTypes: false}),
+      r: compact.route((ctx): number => 1),
+      mf: compact.middleFn((ctx, s: string): string => s, {alwaysRun: true, validateReturn: true}),
+    } satisfies Routes;
+    type Api = PublicApi<typeof defs>;
+
+    expectTypeOf<Api['q']['options']>().toEqualTypeOf<{
+      alwaysRun: false;
+      validateParams: true;
+      validateReturn: false;
+      description: 'd';
+      encoder: {params: 'compact'; return: 'compact'};
+      isMutation: false;
+      strictTypes: true;
+      sanitizeParams: true;
+    }>();
+    expectTypeOf<Api['m']['options']['encoder']>().toEqualTypeOf<{params: 'compact'; return: 'direct'}>();
+    expectTypeOf<Api['m']['options']['isMutation']>().toEqualTypeOf<true>();
+    expectTypeOf<Api['m']['options']['strictTypes']>().toEqualTypeOf<false>();
+    expectTypeOf<Api['r']['options']['isMutation']>().toEqualTypeOf<undefined>();
+    expectTypeOf<Api['r']['options']['sanitizeParams']>().toEqualTypeOf<undefined>();
+    expectTypeOf<Api['mf']['options']>().toEqualTypeOf<{
+      alwaysRun: true;
+      validateParams: true;
+      validateReturn: true;
+      description: undefined;
+      encoder: {params: 'compact'; return: 'compact'};
+      strictTypes: true;
+      sanitizeParams: undefined;
+    }>();
+    // the definition keeps what the author wrote (plus the pinned isMutation); the router options ride by type only
+    expectTypeOf<NonNullable<typeof defs.q.options>>().toEqualTypeOf<
+      {readonly sanitizeParams: true; readonly description: 'd'} & {isMutation: false}
+    >();
+    expect(defs.q).not.toHaveProperty('routerOptions');
+
+    // runtime agrees with the type, field by field
+    const api = compact.initRoutes(defs);
+    expect(api.q.options).toEqual({
+      alwaysRun: false,
+      validateParams: true,
+      validateReturn: false,
+      description: 'd',
+      encoder: {params: 'compact', return: 'compact'},
+      isMutation: false,
+      strictTypes: true,
+      sanitizeParams: true,
+    });
+    expect(api.m.options).toEqual({
+      alwaysRun: false,
+      validateParams: true,
+      validateReturn: false,
+      encoder: {params: 'compact', return: 'direct'},
+      isMutation: true,
+      strictTypes: false,
+    });
+    expect(api.mf.options).toEqual({
+      alwaysRun: true,
+      validateParams: true,
+      validateReturn: true,
+      encoder: {params: 'compact', return: 'compact'},
+      strictTypes: true,
+    });
+    // the API type stays a RemoteApi, so initClient<Api>() keeps compiling
+    expectTypeOf<Api>().toMatchTypeOf<RemoteApi>();
   });
 });
 

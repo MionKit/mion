@@ -70,8 +70,10 @@ type HeadersRouteSlots<O, H extends HeaderHandler, RO> = MarkerSlots<HeaderHandl
 /** The two extra slots a headers middleFn carries for its HeadersSubset parameter. */
 type HeaderSlots<H extends HeaderHandler> = HeaderMarkerSlots<HeaderHandlerHeaders<H>>;
 
-/** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options. */
-export interface RouteHelper<O extends RouterOptionsInput> {
+/** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options.
+ *  `M` is the `isMutation` the helper pins (`query` false, `mutation` true, `route` nothing): the
+ *  returned definition's options literal carries it, the same way the helper body writes it. */
+export interface RouteHelper<O extends RouterOptionsInput, M extends boolean | undefined = undefined> {
   <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptions = PlainRouteOptions>(
     handler: H,
     opts?: CompTimeArgs<RO>,
@@ -80,8 +82,11 @@ export interface RouteHelper<O extends RouterOptionsInput> {
     paramsId?: RouteSlots<O, H, RO>[2],
     returnId?: RouteSlots<O, H, RO>[3],
     isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>
-  ): RouteDef<H>;
+  ): RouteDef<H, PinnedMutation<RO, M>, O>;
 }
+
+/** The route options literal with `isMutation` pinned by the helper (`route()` leaves it as written). */
+export type PinnedMutation<RO, M extends boolean | undefined> = M extends boolean ? RO & {isMutation: M} : RO;
 
 /** `mion.middleFn`: declares a middleFn whose handler context is typed from the router options. */
 export interface MiddleFnHelper<O extends RouterOptionsInput> {
@@ -93,7 +98,7 @@ export interface MiddleFnHelper<O extends RouterOptionsInput> {
     paramsId?: RouteSlots<O, H, RO>[2],
     returnId?: RouteSlots<O, H, RO>[3],
     isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>
-  ): MiddleFnDef<H>;
+  ): MiddleFnDef<H, RO, O>;
 }
 
 /**
@@ -120,7 +125,7 @@ export interface HeadersFnHelper<O extends RouterOptionsInput> {
     paramsId?: HeadersRouteSlots<O, H, RO>[2],
     returnId?: HeadersRouteSlots<O, H, RO>[3],
     isAsyncId?: InjectRunTypeId<HandlerIsAsync<H>>
-  ): HeadersMiddleFnDef<H>;
+  ): HeadersMiddleFnDef<H, RO, O>;
 }
 
 /** `mion.rawMiddleFn`: declares a raw middleFn (raw request/response access, no typed params, nothing compiled). */
@@ -135,9 +140,9 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   readonly options: Readonly<O>;
   readonly route: RouteHelper<O>;
   /** Read-only route: the client sends it as a GET when the payload fits in the url. */
-  readonly query: RouteHelper<O>;
+  readonly query: RouteHelper<O, false>;
   /** Route that changes data: always sent as a POST. */
-  readonly mutation: RouteHelper<O>;
+  readonly mutation: RouteHelper<O, true>;
   readonly middleFn: MiddleFnHelper<O>;
   readonly headersFn: HeadersFnHelper<O>;
   readonly rawMiddleFn: RawMiddleFnHelper<O>;
