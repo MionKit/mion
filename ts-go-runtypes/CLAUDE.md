@@ -50,7 +50,7 @@ No → `LevelError`. Yes and yes → `LevelRuntimeError`. Yes and no → `LevelW
 | Level | What it means | What a consumer may do |
 | --- | --- | --- |
 | `LevelError` | No code was produced for the thing: no cache entry, no injected id, no extracted body, no batch id | Stop. Never downgradeable, never silenceable |
-| `LevelRuntimeError` | Code IS written and it throws, or it no longer checks what was asked for | Report it. Emitting and exiting non-zero is legitimate, and `downgradeErrors` / `@mion-expect-error` may stand one down |
+| `LevelRuntimeError` | Code IS written and it throws, or it no longer checks what was asked for | Report it. Every build lane halts (emitting and exiting non-zero is legitimate); a dev server reports it and keeps running, which is the reason the level exists. `downgradeErrors` / `@mion-expect-error` may stand one down |
 | `LevelWarning` | Worth knowing, nothing is wrong | Report it |
 
 Three things that trip people up:

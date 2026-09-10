@@ -23,6 +23,7 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
+import runtypesVite from '../src/runtypes/vite.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = path.resolve(__dirname, 'tmp-downgrade-errors');
@@ -376,5 +377,103 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     // A code's level can soften between releases; a list entry going inert
     // must never break a consumer's build.
     expect(() => makePlugin(ERROR_DIR, {downgradeErrors: ['VL011']})).not.toThrow();
+  });
+});
+
+// The dev server is the ONE lane a RuntimeError never halts: the code is
+// written, it throws when called, and the developer is mid-edit, so the finding
+// is reported and the server keeps running. Vite says which lane it is through
+// its resolved config: `serve` in `development` is the dev server; vitest runs
+// `serve` in `test` mode and is a build lane; `build` is a build lane. A fatal
+// Error halts everywhere regardless: no code was produced for that piece.
+describe('the dev server reports a RuntimeError without halting; every build lane halts', () => {
+  const register = hasBinary() ? it : it.skip;
+
+  beforeAll(() => {
+    writeFixture(ERROR_DIR, ERROR_ENTRY_SRC);
+    writeFixture(COLLISION_DIR, COLLISION_ENTRY_SRC, TSCONFIG_HASHLENGTH1_SRC);
+  });
+  afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
+
+  function makeVitePlugin(entryDir: string, command: 'serve' | 'build', mode: string) {
+    const plugin = runtypesVite({
+      binary: BIN,
+      cwd: entryDir,
+      tsconfig: 'tsconfig.json',
+      genDir: path.join(entryDir, '.mion'),
+    }) as any;
+    callHook(plugin.configResolved, plugin, {root: entryDir, command, mode});
+    return plugin;
+  }
+
+  register('vite serve (development): a RuntimeError is reported as an error and the build goes on', async () => {
+    const plugin = makeVitePlugin(ERROR_DIR, 'serve', 'development');
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx); // ctx.error() throws, so returning at all means no halt
+      const all = ctx.warnings.join('\n');
+      // Reported with its real label: not downgraded, not hidden.
+      expect(all).toContain('error VL002');
+      expect(all).not.toContain('(downgraded)');
+      // The transform serves the file: the healthy sites still inject.
+      const transformed = (await callHook(plugin.transform, ctx, ERROR_ENTRY_SRC, path.join(ERROR_DIR, 'entry.ts'))) as {
+        code: string;
+      } | null;
+      expect(transformed).toBeTruthy();
+      expect(transformed!.code).toContain('getRunTypeId');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('vitest (serve command, test mode) is a build lane: it halts', async () => {
+    const plugin = makeVitePlugin(ERROR_DIR, 'serve', 'test');
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      expect(ctx.warnings.join('\n')).toContain('error VL002');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('vite build halts, so a production bundle never ships one', async () => {
+    const plugin = makeVitePlugin(ERROR_DIR, 'build', 'production');
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('a fatal Error (MKR014) halts on the dev server too: nothing was produced to serve', async () => {
+    const plugin = makeVitePlugin(COLLISION_DIR, 'serve', 'development');
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+      expect(ctx.warnings.join('\n')).toContain('error MKR014');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('the devServer option overrides what Vite says', async () => {
+    // A host that knows better than the resolved config (a custom dev loop, a
+    // test harness) names the lane itself.
+    const plugin = runtypesVite({
+      binary: BIN,
+      cwd: ERROR_DIR,
+      tsconfig: 'tsconfig.json',
+      genDir: path.join(ERROR_DIR, '.mion'),
+      devServer: false,
+    }) as any;
+    callHook(plugin.configResolved, plugin, {root: ERROR_DIR, command: 'serve', mode: 'development'});
+    const ctx = makeCtx();
+    try {
+      await expect(callHook(plugin.buildStart, ctx) as Promise<void>).rejects.toThrow(/unsupported-type error/);
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
   });
 });

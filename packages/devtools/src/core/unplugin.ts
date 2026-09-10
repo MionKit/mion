@@ -236,9 +236,11 @@ export interface PluginOptions {
   // a normal build. No effect in 'edits' mode (the FE generates its own map).
   sourcesContent?: boolean;
   // Error-severity diagnostics (FMT002 param contradictions, root-position
-  // non-serializable types, …) FAIL the build/transform in every lane —
-  // `vite build`, vitest, dev serve — matching the documented contract
-  // ("Error = will throw at runtime, build must fail"). `downgradeErrors` names
+  // non-serializable types, …) FAIL the build/transform in every build lane —
+  // `vite build`, vitest, every other bundler — matching the documented contract
+  // ("Error = will throw at runtime, build must fail"). A DEV SERVER is the one
+  // lane a RuntimeError never halts (see `devServer`): it is reported and the
+  // server keeps running. `downgradeErrors` names
   // the codes to report as WARNINGS instead, so a project blocked on one
   // finding keeps failing on every other; the finding is still printed, which
   // is the difference between unblocking and hiding.
@@ -272,6 +274,17 @@ export interface PluginOptions {
   // resolver response can be the build's only live handle and an unref'd child
   // would let the process exit mid-build.
   detachResolver?: boolean;
+  // Whether this host is a DEV SERVER, the one lane a RuntimeError never halts:
+  // the finding is reported, the generated function throws when called, and
+  // the developer keeps working. Every build lane halts on it, so a production
+  // bundle never ships one. A fatal Error halts everywhere regardless: no code
+  // was produced for that piece.
+  //
+  // Vite fills it in by itself from its resolved config (`serve` command, and
+  // not vitest's `test` mode: a test run is a build lane, its failure must be
+  // loud). A host with no config hook, the Next broker, sets it from `next dev`.
+  // Host bootstrap, not a project semantic — no tsconfig key.
+  devServer?: boolean;
   // Pure-fn build report — the structured, layout-independent record of every
   // pure fn this build generated (call-site span, callee attribution, registry
   // key, and the self-contained entry payload). For host tooling that relocates
@@ -441,6 +454,12 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // (dev/watch), anything else runs the read-only drift gate (a production build
   // must never mutate committed source).
   let viteCommand = '';
+  // Vite's mode, captured beside the command: vitest runs the serve command in
+  // `test` mode, and a test run is a build lane, not a dev server.
+  let viteMode = '';
+  // isDevServer answers the lane question for RuntimeErrors (see
+  // PluginOptions.devServer): reported everywhere, halting everywhere but here.
+  const isDevServer = (): boolean => options.devServer ?? (viteCommand === 'serve' && viteMode !== 'test');
 
   // ensureResolver spawns the resolver subprocess + wires the disk cache on
   // first use. Idempotent: under Vite the configResolved hook calls it early
@@ -595,16 +614,22 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // resolver's view and so silently clobbers an upstream enforce:'pre' plugin's
   // edit, but the returned sourceHash lets us at least DETECT and warn. It is
   // omitted on the 'edits'-mode fallback path (the drift is already known there).
+  // A file the buildStart scan couldn't have seen can introduce NEW error-level
+  // diagnostics (warnings were already surfaced program-wide). Same lane rule as
+  // buildStart: a fatal Error fails the transform everywhere, a RuntimeError
+  // everywhere but the dev server.
+  function surfaceNewErrors(ctx: any, diagnostics: Diagnostic[]): void {
+    surfaceDiagnostics(ctx, diagnostics, (d) => d.level === Level.Error, {halt: true});
+    surfaceDiagnostics(ctx, diagnostics, (d) => d.level === Level.RuntimeError, {halt: !isDevServer(), downgrade});
+  }
+
   async function transformViaGo(ctx: any, rel: string, driftCheck?: {code: string}) {
     const result = await resolver!.transform([rel]);
     // A file outside the buildStart Program may surface new types / pure fns;
     // regenerate so the modules its injected imports point at exist on disk
     // before the bundler resolves them. (write-only-on-change keeps it cheap.)
     if (result.addedRunTypes || result.addedPureFns) await resolver!.generate();
-    // A file the buildStart scan couldn't have seen can introduce NEW
-    // Error-severity diagnostics — surface them here so the transform fails
-    // per the strict contract (warnings already surfaced program-wide).
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], (d) => d.severity === Severity.Error, {halt: true, downgrade});
+    surfaceNewErrors(ctx, result.diagnostics ?? []);
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
     const fileResult = result.transformed[rel];
     if (!fileResult || typeof fileResult.code !== 'string') return null;
@@ -631,9 +656,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     const incomingHash = sourceHash(code);
     let result = await resolver!.transform([rel], {emitEdits: true});
     if (result.addedRunTypes || result.addedPureFns) await resolver!.generate();
-    // New Error-severity diagnostics from a file the buildStart scan couldn't
-    // have seen — fail the transform per the strict contract.
-    surfaceDiagnostics(ctx, result.diagnostics ?? [], (d) => d.severity === Severity.Error, {halt: true, downgrade});
+    surfaceNewErrors(ctx, result.diagnostics ?? []);
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
     let fileResult = result.transformed[rel];
     if (!fileResult) return null;
@@ -1091,13 +1114,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // no code for the thing (no cache entry, no injected id, no extracted body),
       // so carrying on would only ship a call that throws. Everything else — the
       // RuntimeErrors: FMT002 param contradictions, root-position non-serializable
-      // types, a type that read as `any` — halts per the downgradeErrors contract,
-      // so dev/test lanes fail as loudly as `vite build`. The split is the LEVEL;
+      // types, a type that read as `any` — halts per the downgradeErrors contract
+      // in every build lane (`vite build`, vitest, the other bundlers), and only
+      // reports on a dev server, where the code is written, throws when called,
+      // and the developer is mid-edit. The split is the LEVEL;
       // it used to be hardcoded to the pure-fn family, which was both too narrow
       // (a fatal marker or batch code is not pure-fn) and too broad (a purity
       // violation ships the compiled body, so it is a RuntimeError).
       surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level === Level.Error, {halt: true});
-      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level !== Level.Error, {halt: true, downgrade});
+      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level !== Level.Error, {halt: !isDevServer(), downgrade});
       // Enrichment auto-sync (opt-in). Dev/watch (vite serve) WRITES the demanded
       // mirrors up front — a whole-program pass so they exist before the first
       // edit; every other lane (a production build, a non-Vite bundler) runs the
@@ -1214,9 +1239,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // resolver eagerly. The marker package's vitest relies on the resolver
       // existing as soon as the workspace project initialises (before any
       // test transform), which is exactly when configResolved fires.
-      configResolved(cfg: {root: string; command?: string}) {
+      configResolved(cfg: {root: string; command?: string; mode?: string}) {
         viteRoot = cfg.root;
         if (cfg.command) viteCommand = cfg.command;
+        if (cfg.mode) viteMode = cfg.mode;
         ensureResolver();
       },
 

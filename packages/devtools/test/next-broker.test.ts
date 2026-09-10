@@ -235,4 +235,96 @@ describe('@mionjs/devtools / next broker', () => {
     },
     120_000
   );
+
+  // A RuntimeError (a validator for `symbol`, VL002) is reported by `next dev`
+  // and never stops it: the broker comes up, the loader gets its rewrite plus the
+  // warning. `next build` halts on it. The broker has no bundler config to read
+  // the lane from, so `next dev` says it through NODE_ENV (Next sets it before
+  // the config loads), and `devServer` names it outright. Both marker shapes ride
+  // along, per the marker coverage rule.
+  describe('a RuntimeError never stops next dev, and always stops next build', () => {
+    const BAD_ENTRY = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+export const alwaysThrows = createValidateFn<symbol>();
+export interface Account { id: number; label: string }
+export const staticId = getRunTypeId<Account>();
+const sample: Account = {id: 1, label: 'a'};
+export const reflectedId = getRunTypeId(sample);
+`;
+    function writeBadProject(): string {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      fs.writeFileSync(path.join(root, 'src/entry.ts'), BAD_ENTRY);
+      return root;
+    }
+    async function withNodeEnv<T>(value: string | undefined, run: () => Promise<T>): Promise<T> {
+      const previous = process.env.NODE_ENV;
+      if (value === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = value;
+      try {
+        return await run();
+      } finally {
+        if (previous === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = previous;
+      }
+    }
+
+    register(
+      'next dev (NODE_ENV=development): the file is rewritten and the finding rides along as a warning',
+      async () => {
+        const root = writeBadProject();
+        const entry = path.join(root, 'src/entry.ts');
+        const handle = await withNodeEnv('development', () =>
+          startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'})
+        );
+        try {
+          const reply = await askBroker(handle.socketPath, entry, BAD_ENTRY);
+          expect(reply.ok).toBe(true);
+          expect(reply.code).toContain('getRunTypeId');
+        } finally {
+          await handle.close();
+          fs.rmSync(root, {recursive: true, force: true});
+        }
+      },
+      120_000
+    );
+
+    register(
+      'next build (NODE_ENV=production): the broker halts and every loader request fails naming the code',
+      async () => {
+        const root = writeBadProject();
+        const entry = path.join(root, 'src/entry.ts');
+        const handle = await withNodeEnv('production', () =>
+          startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion'})
+        );
+        try {
+          const reply = await askBroker(handle.socketPath, entry, BAD_ENTRY);
+          expect(reply.ok).toBe(false);
+          expect(String(reply.error)).toMatch(/unsupported-type error/);
+        } finally {
+          await handle.close();
+          fs.rmSync(root, {recursive: true, force: true});
+        }
+      },
+      120_000
+    );
+
+    register(
+      'devServer: true names the lane without NODE_ENV',
+      async () => {
+        const root = writeBadProject();
+        const entry = path.join(root, 'src/entry.ts');
+        const handle = await withNodeEnv('production', () =>
+          startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '.mion', devServer: true})
+        );
+        try {
+          const reply = await askBroker(handle.socketPath, entry, BAD_ENTRY);
+          expect(reply.ok).toBe(true);
+        } finally {
+          await handle.close();
+          fs.rmSync(root, {recursive: true, force: true});
+        }
+      },
+      120_000
+    );
+  });
 });

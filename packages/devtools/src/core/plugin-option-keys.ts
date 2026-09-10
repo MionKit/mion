@@ -31,6 +31,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   downgradeErrors: true,
   jsRuntime: true,
   detachResolver: true,
+  devServer: true,
   pureFnReport: true,
   onPureFnReport: true,
   onBatchReport: true,
