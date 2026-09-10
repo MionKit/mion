@@ -129,20 +129,54 @@ func (bundle *apiBundle) syntheticSites() []protocol.Site {
 }
 
 // generateApiBundle resolves the program's dispatch sites and writes the
-// bundled-API tree under <outDir>/api/ (removing it when the lane is off or
-// nothing is bundled). Returns the diagnostics the resolution raised.
+// bundled-API tree under <outDir>/api/, plus the API manifest: the server's
+// (from this program's initRoutes calls) when the program initializes an API,
+// else the client's (the bundled methods). The dir is removed when neither
+// applies. Returns the diagnostics the resolution raised.
 func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]diagnostics.Diagnostic, error) {
 	apiDir := filepath.Join(outDir, constants.ApiModuleDir)
 	bundle, diags, err := sess.resolveApiBundle(sites)
 	if err != nil {
 		return diags, err
 	}
-	if bundle.empty() {
+	manifest := sess.serverApiManifest()
+	if bundle.empty() && manifest == nil {
 		if err := os.RemoveAll(apiDir); err != nil {
 			return diags, unwritableOutDirError(apiDir, err)
 		}
 		return diags, nil
 	}
+	files := map[string]string{}
+	if !bundle.empty() {
+		renderDiags, renderErr := sess.renderApiBundle(bundle, files)
+		diags = append(diags, renderDiags...)
+		if renderErr != nil {
+			return diags, renderErr
+		}
+		if manifest == nil {
+			manifest = bundle.clientManifest(sess.opts)
+		}
+	}
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		return diags, unwritableOutDirError(apiDir, err)
+	}
+	if _, err := materializeModules(apiDir, files); err != nil {
+		return diags, unwritableOutDirError(apiDir, err)
+	}
+	if err := pruneStaleModules(apiDir, files); err != nil {
+		return diags, unwritableOutDirError(apiDir, err)
+	}
+	if err := writeIfChanged(filepath.Join(apiDir, constants.ApiManifestFile), manifest.Render()); err != nil {
+		return diags, unwritableOutDirError(apiDir, err)
+	}
+	return diags, nil
+}
+
+// renderApiBundle renders the bundle's module tree into files (basename to
+// source, the materializeModules shape): the demanded families as a
+// SELF-CONTAINED client mirror under types/, one module per method, one per
+// site.
+func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string) ([]diagnostics.Diagnostic, error) {
 	// Stamp each synthetic site with its bundle module (allSingle mode) one by
 	// one: two methods can demand different families for the same type id, so
 	// a site is only its own, never looked up by id.
@@ -172,11 +206,9 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	pureFnGraph := purefunctions.CollectEntries(sess.userPureFnEntries(pureFnEntries), constants.EmitFunctions)
 	apiDump := protocol.Dump{RunTypes: sess.cache.Dump(), Sites: stamped}
 	typeModules, err := sess.collectEntryModules(apiDump, renderOpts, pureFnGraph, nil)
-	diags = append(diags, renderDiags...)
 	if err != nil {
-		return diags, fmt.Errorf("bundleApi: %w", err)
+		return renderDiags, fmt.Errorf("bundleApi: %w", err)
 	}
-	files := make(map[string]string, len(typeModules)+2*len(bundle.methods))
 	for basename, source := range typeModules {
 		files[typesSubdir+"/"+basename] = relativizeModuleImports(basename, source)
 	}
@@ -187,16 +219,83 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	for basename, ids := range bundle.siteMethods {
 		files[basename] = renderApiSiteModule(basename, ids)
 	}
-	if err := os.MkdirAll(apiDir, 0o755); err != nil {
-		return diags, unwritableOutDirError(apiDir, err)
+	return renderDiags, nil
+}
+
+// clientManifest is the manifest a client build writes: the bundled methods,
+// the lane and the API pointer it resolved them through.
+func (bundle *apiBundle) clientManifest(opts Options) *apimeta.Manifest {
+	manifest := &apimeta.Manifest{Kind: apimeta.ManifestKindClient, Mode: string(opts.BundleApi), ApiTsconfig: opts.ApiTsconfig, Methods: map[string]apimeta.ManifestMethod{}}
+	for _, id := range bundle.order {
+		manifest.Methods[id] = bundle.methods[id].manifestRow()
 	}
-	if _, err := materializeModules(apiDir, files); err != nil {
-		return diags, unwritableOutDirError(apiDir, err)
+	return manifest
+}
+
+// manifestRow is the method's manifest row: what api-check compares.
+func (entry *apiMethodEntry) manifestRow() apimeta.ManifestMethod {
+	return apimeta.ManifestMethod{
+		Type:        entry.method.Type,
+		ParamsId:    entry.paramsId,
+		ReturnId:    entry.returnId,
+		HeadersId:   entry.headersId,
+		Families:    entry.families,
+		Options:     entry.method.Options,
+		MiddleFnIds: entry.method.MiddleFnIds,
 	}
-	if err := pruneStaleModules(apiDir, files); err != nil {
-		return diags, unwritableOutDirError(apiDir, err)
+}
+
+// serverApiManifest is the manifest a server build writes: every public
+// method of every `initRoutes(...)` call in THIS program, ids assigned under
+// this program's checker (the same ids the route helpers' marker sites got, so
+// the walk adds nothing to the cache). Nil when the program initializes no
+// API. An id two calls declare with differing rows keeps the first row and
+// is listed as ambiguous (a program holding its spec files does that).
+func (sess *Session) serverApiManifest() *apimeta.Manifest {
+	if sess.Program == nil || sess.Program.TS == nil || !sess.importsRouter() {
+		return nil
 	}
-	return diags, nil
+	var manifest *apimeta.Manifest
+	ambiguous := map[string]bool{}
+	for _, sourceFile := range sess.Program.TS.SourceFiles() {
+		if sourceFile == nil || sourceFile.IsDeclarationFile || strings.Contains(sourceFile.FileName(), "/node_modules/") {
+			continue
+		}
+		if !strings.Contains(sourceFile.Text(), apimeta.InitRoutesName) {
+			continue
+		}
+		for _, apiType := range initRoutesApiTypes(sess.checker, sess.marker, sourceFile) {
+			tree, problem := apimeta.WalkApi(sess.checker, apiType)
+			if problem != "" || tree == nil {
+				continue
+			}
+			if manifest == nil {
+				manifest = &apimeta.Manifest{Kind: apimeta.ManifestKindServer, Methods: map[string]apimeta.ManifestMethod{}}
+			}
+			for _, method := range tree.Methods {
+				row := sess.newApiMethodEntry(tree.Checker, method).manifestRow()
+				existing, seen := manifest.Methods[method.Id]
+				if !seen {
+					manifest.Methods[method.Id] = row
+					continue
+				}
+				if !ambiguous[method.Id] && !apimeta.RowsEqual(existing, row) {
+					ambiguous[method.Id] = true
+					manifest.Ambiguous = append(manifest.Ambiguous, method.Id)
+				}
+			}
+		}
+	}
+	return manifest
+}
+
+// writeIfChanged writes content to path unless the file already holds it, so
+// an unchanged artifact keeps its mtime (and a watcher stays quiet).
+func writeIfChanged(path, content string) error {
+	if existing, err := os.ReadFile(path); err == nil && string(existing) == content {
+		return nil
+	}
+	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 // userPureFnEntries drops the built-in `rt::` / `rtFormats::` registrations an

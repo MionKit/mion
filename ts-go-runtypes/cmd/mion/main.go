@@ -52,6 +52,7 @@ Commands:
     enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
     convert     rewrite type declarations between the three authoring forms
     drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
+    api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)
 
 Run  mion <command> -h  for a command's own options.
 
@@ -96,6 +97,7 @@ var commands = map[string]func(args []string){
 	"enrich":          runEnrich,
 	"convert":         runConvert,
 	"drizzle-migrate": runDrizzleMigrate,
+	"api-check":       runApiCheck,
 }
 
 func main() {
