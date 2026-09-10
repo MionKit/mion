@@ -94,18 +94,9 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComp
 		return diags[left].Code < diags[right].Code
 	})
 
-	// Two independent reasons to fail, and the completeness one is NOT a level:
-	// the unfilled-scaffold codes are LevelWarning (a mirror with blank labels
-	// still runs), so this gate reads the Completeness bit directly. Keying it on
-	// the level instead would silently stop `--require-complete` from failing on
-	// anything.
 	hasError := false
 	for _, diag := range diags {
-		if requireComplete && diagnostics.IsCompleteness(diag.Code) {
-			hasError = true
-			continue
-		}
-		if diag.Level != diagnostics.LevelWarning {
+		if enrichFindingFails(diag.Code, requireComplete) {
 			hasError = true
 		}
 	}
@@ -156,10 +147,26 @@ func scaffoldWorklist(specs []mirror.Spec) []diagnostics.Diagnostic {
 	return out
 }
 
+// enrichFindingFails is the ONE exit-code policy behind both check lanes. Every
+// finding the enrichment checkers raise is one of two things: INCOMPLETE (an
+// unfilled @todo scaffold or a blank value, the catalog's Completeness bit) or
+// WRONG (a malformed map, a stale @rtOrphan carcass, breadcrumb drift). An
+// incomplete finding fails only the completeness gate (`--require-complete`); a
+// wrong one fails both lanes. The decision is NOT the finding's level: the
+// content codes are LevelWarning (degraded text still runs, so a BUILD does not
+// halt on them), and a gate keyed on the level would let a stale or malformed
+// mirror pass the check whose whole job is to catch it.
+func enrichFindingFails(code string, requireComplete bool) bool {
+	if diagnostics.IsCompleteness(code) {
+		return requireComplete
+	}
+	return true
+}
+
 // printEnrichWorklist surfaces the write lane's freshly-scaffolded diagnostics on
-// stderr — informational, so the scaffold still exits 0. The check gate that FAILS
-// on unfilled @todos (they are Error severity in the catalog) is the diagnostics-
-// only `enrich <file> --no-emit`.
+// stderr — informational, so the scaffold still exits 0. The check gate that
+// FAILS on unfilled @todos (under --require-complete, via their Completeness bit)
+// is the diagnostics-only `enrich <file> --no-emit`.
 func printEnrichWorklist(diags []diagnostics.Diagnostic) {
 	for _, diag := range diags {
 		fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(diag))
