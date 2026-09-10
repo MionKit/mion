@@ -11,7 +11,7 @@ import {createMionRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
 import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
-import {getJitFnHashes, HandlerType} from '@mionjs/core';
+import {getJitFnHashes, HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types';
 import type {InitializedTypeFn} from '@mionjs/run-types';
@@ -87,6 +87,17 @@ describe('Public Methods should', () => {
         paramsCount: 0,
       } as Partial<RouteMethod>)
     );
+  });
+
+  it('carry the returned header names so a client can rebuild a HeadersSubset the route returns', async () => {
+    const withHeaders = mion.route((ctx): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1'}));
+    const api = mion.initRoutes({withHeaders, plain: route1});
+
+    expect(api.withHeaders.headersReturn).toEqual({headerNames: ['x-user-id'], jitHash: expect.any(String)});
+    // functions never ride the metadata wire: the serializable copy holds names and hash only
+    expect(Object.keys(api.withHeaders.headersReturn as object).sort()).toEqual(['headerNames', 'jitHash']);
+    expect(JSON.parse(JSON.stringify(api.withHeaders)).headersReturn).toEqual(api.withHeaders.headersReturn);
+    expect(api.plain.headersReturn).toBeUndefined();
   });
 
   it('be able to convert serialized handler types to json, deserialize and use them for validation', async () => {
