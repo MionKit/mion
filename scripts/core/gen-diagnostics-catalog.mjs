@@ -139,9 +139,11 @@ const entries = goRecords
     const lines = [
       `  ${record.code}: {`,
       `    headline: ${tsString(record.headline)},`,
+      `    level: ${tsString(record.level)},`,
       `    severity: ${tsString(record.severity)},`,
       `    family: ${tsString(record.family)},`,
     ];
+    if (record.completeness) lines.push(`    completeness: true,`);
     if (record.detail) lines.push(`    detail: ${tsString(record.detail)},`);
     lines.push('  },');
     return lines.join('\n');
@@ -159,11 +161,19 @@ const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm miondevx core co
 export interface DiagnosticEntry {
   /** Single-line headline. Mandatory. */
   readonly headline: string;
-  /** Catalog severity: the default lint-rule tier this code routes to. */
+  /** The code's three-way classification: did the build produce the code for
+   *  this thing (\`error\`: no), and is what it produced broken when called
+   *  (\`runtimeError\`: yes). Read by the config validators, which refuse to
+   *  downgrade an \`error\`. */
+  readonly level: 'error' | 'runtimeError' | 'warning';
+  /** The level's two-way label form, the word the tsc-shaped output line and
+   *  the lint rule tier use. Derived from level, never authored. */
   readonly severity: 'error' | 'warning' | 'info';
-  /** Which part of the compiler raises the code. Read by the config validators:
-   *  a purefn code can never be downgraded or suppressed. */
+  /** Which part of the compiler raises the code. */
   readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute';
+  /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
+   *  are warnings, and this bit is what the completeness gates promote. */
+  readonly completeness?: boolean;
   /** Optional multi-line detail block (explanation + code-example fix). */
   readonly detail?: string;
 }
@@ -185,6 +195,7 @@ const codes = goRecords.map((record) => {
   return {
     code: record.code,
     subsystem,
+    level: record.level,
     severity: record.severity,
     headline: record.headline,
     detail: record.detail ?? null,
@@ -212,10 +223,10 @@ const output = {
 writeFileSync(websiteJsonPath, JSON.stringify(output, null, 2) + '\n');
 
 // Report so the dev sees coverage at a glance.
-const bySeverity = codes.reduce((acc, code) => ({...acc, [code.severity]: (acc[code.severity] ?? 0) + 1}), {});
+const byLevel = codes.reduce((acc, code) => ({...acc, [code.level]: (acc[code.level] ?? 0) + 1}), {});
 console.log(`gen-diag-catalog: wrote ${codes.length} codes to ${generatedTsPath.replace(repoRoot + '/', '')}`);
 console.log(`gen-diag-catalog: wrote ${codes.length} codes to ${websiteJsonPath.replace(repoRoot + '/', '')}`);
-console.log(`  severities: ${JSON.stringify(bySeverity)}`);
+console.log(`  levels: ${JSON.stringify(byLevel)}`);
 console.log(`  by subsystem: ${JSON.stringify(
   codes.reduce((acc, code) => ({...acc, [code.subsystem]: (acc[code.subsystem] ?? 0) + 1}), {}),
 )}`);

@@ -28,7 +28,7 @@ import {fileURLToPath} from 'node:url';
 import {parentPort, workerData} from 'node:worker_threads';
 import {getExePath} from '@mionjs/bin-compiler';
 import {readEnvCompat} from '../core/envCompat.ts';
-import {Family, Severity, type Diagnostic} from '../core/protocol.ts';
+import {Family, Level, Severity, type Diagnostic} from '../core/protocol.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient, type ResolverConnection} from '../core/resolver-client.ts';
 import {WAKE_INDEX, type LintWorkerData, type LintWorkerRequest, type LintWorkerResponse} from './session-protocol.ts';
 
@@ -130,7 +130,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       const message = error instanceof Error ? error.message : String(error);
       // A CFG001-tagged op error is the daemon refusing to load the project
       // tsconfig (strict like tsc) — deterministic, so retrying is pointless.
-      // Surface it as a real Error-severity lint diagnostic at the file top
+      // Surface it as a real fatal-Error lint diagnostic at the file top
       // (the config problem is the actionable finding) instead of reporting
       // the engine unavailable. The connection stays up: the daemon re-parses
       // on the next setSources, so a fixed config heals the very next lint.
@@ -142,6 +142,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
               code: 'CFG001',
               family: Family.Marker,
               severity: Severity.Error,
+              level: Level.Error,
               args: [message.replace(/^.*CFG001\s*/, '')],
               site: {filePath: request.file, startLine: 1, startCol: 1},
             },

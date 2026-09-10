@@ -9,11 +9,19 @@
 export interface DiagnosticEntry {
   /** Single-line headline. Mandatory. */
   readonly headline: string;
-  /** Catalog severity: the default lint-rule tier this code routes to. */
+  /** The code's three-way classification: did the build produce the code for
+   *  this thing (`error`: no), and is what it produced broken when called
+   *  (`runtimeError`: yes). Read by the config validators, which refuse to
+   *  downgrade an `error`. */
+  readonly level: 'error' | 'runtimeError' | 'warning';
+  /** The level's two-way label form, the word the tsc-shaped output line and
+   *  the lint rule tier use. Derived from level, never authored. */
   readonly severity: 'error' | 'warning' | 'info';
-  /** Which part of the compiler raises the code. Read by the config validators:
-   *  a purefn code can never be downgraded or suppressed. */
+  /** Which part of the compiler raises the code. */
   readonly family: 'purefn' | 'marker' | 'runtype' | 'enrich' | 'mionroute';
+  /** Set on the unfilled-enrichment-scaffold codes. Orthogonal to level: those
+   *  are warnings, and this bit is what the completeness gates promote. */
+  readonly completeness?: boolean;
   /** Optional multi-line detail block (explanation + code-example fix). */
   readonly detail?: string;
 }
@@ -22,6 +30,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT001: {
     headline:
       '`batch()` element is not a route call the build can read ({0}); write `routes.a.b(...)` inline or bind it to a `const`/`let` in this file.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -30,6 +39,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT002: {
     headline:
       '`inputFrom()` reads route `{0}` for route `{1}`, but the source is not in this batch or runs after the target; sources must be listed before the routes they feed.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -38,6 +48,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT003: {
     headline:
       'Batch id `{0}` is shared by two different batches; reorder the routes of one of them so the ids no longer collide.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -46,6 +57,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT004: {
     headline:
       '`inputFrom()` mapper is not readable at build time ({0}); pass an inline arrow function or a string literal mapper name.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -54,6 +66,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT005: {
     headline:
       'Route `{0}` is listed twice in this `batch()`; a batch runs each route once, so drop the duplicate or move it into a second batch.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -62,6 +75,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT006: {
     headline:
       '`inputFrom()` sits at argument index {0} of route `{2}`, which declares only {1} parameter(s); move the mapping to an argument the route declares.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -70,6 +84,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT007: {
     headline:
       'Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -78,7 +93,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT008: {
     headline:
       'This `batch()` is ignored: the batch table is generated from the client project `{0}`, and batches written in the server program itself never reach it.',
-    severity: 'warning',
+    level: 'runtimeError',
+    severity: 'error',
     family: 'marker',
     detail:
       "With `clientTsconfig` (the plugin's `client.tsConfig`, the CLI's\n`--client-tsconfig`) set, the server build reads its batches from that client\nprogram only. A `batch()` call in the server's own program, a test or a script\nfor instance, is not part of the table the server registers, so a request\nnaming its id is answered with an unknown batch id.\n\nFix: move the batch into the client project, or drop the client pointer when\nclient and server are one program.",
@@ -86,7 +102,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   BAT009: {
     headline:
       'The batch table {0} was written, but no module of this program calls `createMionRouter` directly, so nothing imports it; import it by hand in the module that creates the router.',
-    severity: 'warning',
+    level: 'runtimeError',
+    severity: 'error',
     family: 'marker',
     detail:
       "The build appends the table's import to every module that calls\n`createMionRouter` from `@mionjs/router`, following aliases, namespace imports\nand local barrels through the type checker. It cannot see a call made behind a\ndeclaration file (a wrapper shipped by another package), and this program\nnames `@mionjs/router` without any such direct call.\n\nFix: in the module that creates the router, add\n  import './<genDir>/rpc/batches.generated.js';\n(relative to that module), or call `createMionRouter` from a source file of this\nprogram.",
@@ -94,6 +111,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CES001: {
     headline:
       '`cloneExactShape` does not support unions with object members: the emitter cannot know which declared shape to rebuild at runtime.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -101,6 +119,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   CES003: {
     headline: '`cloneExactShape` cannot clone a function-typed value.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -109,6 +128,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CES010: {
     headline:
       'Property `{0}` is a function: `cloneExactShape` cannot rebuild it, so it is kept on the clone, SHARED BY REFERENCE.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -116,6 +136,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   CES011: {
     headline: "Method `{0}` is not copied onto the clone's own properties: methods ride the prototype.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -123,6 +144,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   CES012: {
     headline: 'Static member `{0}` is not part of instance data: `cloneExactShape` skips it.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail: 'Statics live on the class, not the instance; the clone rebuilds instance\ndata only.',
@@ -130,6 +152,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CES015: {
     headline:
       'Property `{0}` has a value type `cloneExactShape` cannot rebuild (symbol, Promise, or a non-serialisable built-in): it is kept on the clone, SHARED BY REFERENCE.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -138,6 +161,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CFG001: {
     headline:
       'Project tsconfig failed to load ({0}): the build, the linter, and the CLI all read this config, so nothing can run until it loads.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -146,6 +170,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CFG002: {
     headline:
       'The project `lib` declares no base ECMAScript library (loaded: {0}), so core globals like `Array` are missing and reflected types cannot be trusted.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -154,6 +179,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CFG003: {
     headline:
       '`mion compile` refused to write {0}: it lands outside outDir ({1}) because its source sits outside rootDir; move rootDir up so every file of the program is under it, or reach that module through its package name.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -162,6 +188,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CTA001: {
     headline:
       '`CompTimeArgs<T>` argument must be a literal at the call site, or a `const` whose initializer is itself entirely literal (a same-module or imported `const` both work).',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -169,6 +196,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   CTA002: {
     headline: '`CompTimeArgs<T>` literal nesting exceeds the depth cap (16), refactor to flatten.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -176,6 +204,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   CTA003: {
     headline: '`CompTimeArgs<T>` literal contains a forbidden construct ({0}). Only literals and nested literals are allowed.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -184,6 +213,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   CTA004: {
     headline:
       '`CompTimeArgs<T>` value comes from a `const` with a widened (non-literal) member ({0}); declare the const `as const`.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -192,14 +222,16 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   EXP001: {
     headline:
       'Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'marker',
     detail:
       '`@mion-expect-error` silences a finding you already know about, and it is\nchecked the same way TypeScript checks `@ts-expect-error`: if the finding\nis gone, the comment itself is reported. That is what stops these comments\noutliving the problem they were added for, so a type that got fixed does\nnot keep a silencer parked over it forever.\n\nFix: delete the comment, or correct the code it names:\n-  // @mion-expect-error VL002\n+  // (nothing — the finding is gone)',
   },
   EXP002: {
     headline: '`@mion-expect-error {0}` cannot silence that code: it is reported even when everything else is silenced.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'marker',
     detail:
       'Two groups of codes are never suppressible. Pure-function codes report a\nfailed extraction, and the build writes generated files from that\nextraction, so continuing would ship missing output rather than risky\noutput. `EXP` codes are the check that keeps these comments honest, so a\ncomment cannot silence it either.\n\nFix: fix the reported call site instead of silencing it.',
@@ -207,13 +239,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   EXP003: {
     headline:
       '`@mion-expect-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are silencing.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'marker',
     detail:
       'A code that is not in the catalog can never match a finding, so the comment\nwould silence nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are silencing:\n-  // @mion-expect-error VL2\n+  // @mion-expect-error VL002',
   },
   FB001: {
     headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -221,6 +255,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FB002: {
     headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -228,27 +263,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FB003: {
     headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
       "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
-  FB004: {
-    headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-  },
-  FB005: {
-    headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
-  },
   FB006: {
     headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -257,6 +280,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   FB010: {
     headline:
       'Property `{0}` is a function: `fromBinary` does not handle function values, so this property is silently not deserialised.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -264,6 +288,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FB011: {
     headline: "Method `{0}` is silently not deserialised by `fromBinary`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -271,6 +296,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FB012: {
     headline: "Static member `{0}` is silently not deserialised by `fromBinary`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -278,6 +304,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FB013: {
     headline: "Symbol-keyed property `{0}` is silently not deserialised by `fromBinary`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -286,6 +313,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   FB014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `fromBinary` drops them, so the union is deserialised as its remaining members.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -294,6 +322,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   FB015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `fromBinary` drops it, so this property is silently not deserialised.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -301,16 +330,19 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FMT001: {
     headline: 'TypeFormat mockSample "{0}" does not match its pattern /{1}/; fix the sample or the pattern.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
   },
   FMT002: {
     headline: 'Invalid type-format params: {0}',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
   },
   FMT003: {
     headline: 'TypeFormat mockSample violates a sibling constraint: {0}',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -319,6 +351,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   FMT004: {
     headline:
       'TypeFormat pattern /{0}/ cannot be checked: {1}; pattern validation requires a JavaScript runtime; install one or pass --js-runtime.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -326,6 +359,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FMT005: {
     headline: 'Cannot auto-generate mockSamples for pattern /{0}/: {1}; declare mockSamples explicitly.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -334,6 +368,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   FMT006: {
     headline:
       'Two sites share one cache entry for format `{0}` but declare different mockSamples: `{1}` here vs `{2}` at {3}. Make the pools identical, or declare one and leave the other out.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -342,6 +377,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   FMT007: {
     headline:
       'TypeFormat pattern /{0}/ could not be evaluated in time: {1}; the build was not able to tell whether the pattern is safe.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -350,6 +386,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   FMT008: {
     headline:
       'TypeFormat pattern /{0}/ can be made to backtrack exponentially: {1} (`{2}`); a crafted input would hang the validator.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -357,13 +394,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FT002: {
     headline: 'Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       "The FriendlyText map names a field the source type does not have\n(removed, renamed, or a typo). Its labels and messages can never be\nused.\n\nExample: `nick` no longer exists on the type:\n  interface User { name: string }\n  export const friendlyUser: FriendlyText<User> = {\n    name: {rt$label: 'Name'},\n-   nick: {rt$label: 'Nickname'},\n  };\n\nFix: remove the entry, or re-run the reconcile so the mirror follows\nthe type (a renamed field carries its authored values along):\n  mion enrich <source.ts> <Type> --update",
   },
   FT003: {
     headline: 'Error key `{0}` is not a declared constraint of this field: the message can never fire.',
+    level: 'warning',
     severity: 'warning',
     family: 'enrich',
     detail:
@@ -371,20 +410,23 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FT005: {
     headline: 'Unknown placeholder `$[{0}]`: expected one of `$[label]`, `$[val]`, `$[path]`, `$[index]`.',
-    severity: 'warning',
+    level: 'runtimeError',
+    severity: 'error',
     family: 'enrich',
     detail:
       "Error-message templates substitute a fixed placeholder set; an unknown\nname renders literally instead of substituting.\n\nExample:\n- rt$errors: {minLength: '$[name] is too short'}\n+ rt$errors: {minLength: '$[label] is too short'}\n\nFix: use one of the recognised placeholders, or write the literal text\nwithout the `$[…]` wrapper.",
   },
   FT006: {
     headline: 'Plural error template is missing the mandatory `other` arm: the render has no backstop.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       "Plural templates render the CLDR arm matching the count, and `other` is\nthe arm every locale falls back to. Without it some counts have no\nmessage at all.\n\nExample:\n  rt$errors: {\n    minLength: {\n      one: 'Needs one more character',\n+     other: 'Needs $[val] more characters',\n    },\n  }\n\nFix: add the `other` arm to the plural object.",
   },
   FT007: {
     headline: 'Unknown plural arm `{0}`: CLDR categories are `zero`, `one`, `two`, `few`, `many`, `other`.',
+    level: 'warning',
     severity: 'warning',
     family: 'enrich',
     detail:
@@ -392,6 +434,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FT008: {
     headline: 'Constraint `{0}` carries no count: a plural template here has dead arms; use a plain string.',
+    level: 'warning',
     severity: 'warning',
     family: 'enrich',
     detail:
@@ -399,13 +442,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FT009: {
     headline: '`rt$default` is mutually exclusive with per-constraint messages; use one mode or the other.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       "An `rt$errors` record is either ONE `rt$default` catch-all or a set of\nper-constraint keys, mirroring the TypeScript union. Mixing them makes\nthe intent ambiguous (which message wins?).\n\nExample:\n  rt$errors: {\n-   rt$default: 'Invalid name',\n    minLength: 'Name is too short',\n  }\n\nFix: keep `{rt$default: '…'}` alone, or keep the per-constraint keys\nand drop `rt$default`.",
   },
   FT011: {
     headline: 'Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.',
+    level: 'error',
     severity: 'error',
     family: 'enrich',
     detail:
@@ -413,34 +458,41 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FT020: {
     headline: 'Unfilled `@todo` placeholder; fill in the real labels/messages, then delete the `@todo` line.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
+    completeness: true,
     detail:
       "The generator stamps a `@todo` line on every freshly-scaffolded const in\na FriendlyText mirror file. It means \"this skeleton still carries\ngenerated blanks\". A clean, committed mirror has none.\n\nExample: a fresh scaffold:\n  /** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */\n- // @todo: generated skeleton, fill in real data, then delete this line\n  export const friendlyUser: FriendlyText<User> = {\n-   name: {rt$label: ''},\n+   name: {rt$label: 'Name'},\n  };\n\nFix: author the real labels and error messages for the const, then\ndelete the whole `@todo` line (the compiler never removes it for you).",
   },
   FT021: {
     headline: 'Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       'The reconcile commented this FriendlyText const out because its source\ntype was deleted or renamed. The carcass preserves your authored labels\nand messages so a reappearing type can restore them, but a clean,\ncommitted mirror has none.\n\nFix: if the type is really gone, prune the carcass:\n  mion enrich --prune\n\nFix: if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  mion enrich <source.ts> <NewName> --update',
   },
   FT022: {
     headline: 'Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline, but a\nclean, committed mirror has none.\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   /* @rtOrphanChild nick: {rt$label: 'Nickname'}, */\n    name: {rt$label: 'Name'},\n  };\n\nFix: if the field is really gone: `mion enrich --prune`.\nFix: if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
   },
   FT023: {
     headline: 'Unfilled blank value: a scaffolded label or message is still empty; fill in the real text.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
+    completeness: true,
     detail:
       "An empty string (`''`) at a `rt$label` / `rt$errors` slot is a generated\nblank that never got authored: it ships blank to the UI wherever the\nfriendly text is shown, so it is exactly as incomplete as a `@todo`\nmarker. This is why removing the `@todo` line without filling the values\nis not \"done\".\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   name: {rt$label: ''},\n+   name: {rt$label: 'Name'},\n  };\n\nFix: author the real label / message. Only the completeness gate\n(`mion enrich --require-complete`) fails on it; a plain\n`--no-emit` health check reports it without failing.",
   },
   GE000: {
     headline: 'Cannot read enrichment mirror file: {0}',
+    level: 'error',
     severity: 'error',
     family: 'enrich',
     detail:
@@ -448,6 +500,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   GE001: {
     headline: 'Mirror location drift: the source maps to `{0}` but this file lives at `{1}`; re-run `mion enrich` to relocate.',
+    level: 'warning',
     severity: 'warning',
     family: 'enrich',
     detail:
@@ -455,6 +508,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   GE002: {
     headline: 'Breadcrumb source `{0}` no longer exists ({1}): the mirror is orphaned; delete it or re-run `mion enrich`.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'enrich',
     detail:
@@ -462,6 +516,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   GE003: {
     headline: 'Source {0} no longer declares type `{1}`; re-run `mion enrich`.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'enrich',
     detail:
@@ -470,6 +525,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   HUK010: {
     headline:
       'Property `{0}` is a function: `hasUnknownKeys` does not handle function values, so this property is silently not checked.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -478,18 +534,21 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   JCP001: {
     headline:
       'Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
   },
   MD001: {
     headline: 'Unknown field `{0}`: the type does not declare it, so this MockData entry is dead.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       "The MockData map names a field the source type does not have (removed,\nrenamed, or a typo). Its pool/range can never feed a generated mock.\n\nExample: `nick` no longer exists on the type:\n  interface User { name: string }\n  export const mockUser: MockData<User> = {\n    name: {pool: ['Ada', 'Linus']},\n-   nick: {pool: ['ada99']},\n  };\n\nFix: remove the entry, or re-run the reconcile so the mirror follows\nthe type:\n  mion enrich <source.ts> <Type> --update",
   },
   MD011: {
     headline: 'Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.',
+    level: 'error',
     severity: 'error',
     family: 'enrich',
     detail:
@@ -497,35 +556,42 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MD020: {
     headline: 'Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
+    completeness: true,
     detail:
       "The generator stamps a `@todo` line on every freshly-scaffolded const in\na MockData mirror file. It means \"this skeleton still carries generated\nblanks\". A clean, committed mirror has none.\n\nExample: a fresh scaffold:\n  /** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */\n- // @todo: generated skeleton, fill in real data, then delete this line\n  export const mockUser: MockData<User> = {\n-   name: {pool: []},\n+   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n  };\n\nFix: author realistic sample pools/ranges for the const, then delete\nthe whole `@todo` line (the compiler never removes it for you).",
   },
   MD021: {
     headline: 'Stale `@rtOrphan` carcass; run `mion enrich --prune` to remove it (or restore the type).',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       'The reconcile commented this MockData const out because its source type\nwas deleted or renamed. The carcass preserves your authored pools and\nranges so a reappearing type can restore them, but a clean, committed\nmirror has none.\n\nFix: if the type is really gone, prune the carcass:\n  mion enrich --prune\n\nFix: if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  mion enrich <source.ts> <NewName> --update',
   },
   MD022: {
     headline: 'Stale `@rtOrphanChild` field carcass; run `mion enrich --prune` to remove it (or restore the field).',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
     detail:
       "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline, but a\nclean, committed mirror has none.\n\nExample:\n  export const mockUser: MockData<User> = {\n-   /* @rtOrphanChild nick: {pool: ['ada99']}, */\n    name: {pool: ['Ada', 'Linus']},\n  };\n\nFix: if the field is really gone: `mion enrich --prune`.\nFix: if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
   },
   MD023: {
     headline: 'Unfilled blank value: a scaffolded sample pool or range is still empty; fill in real data.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'enrich',
+    completeness: true,
     detail:
       "An empty pool (`pool: []`) is a generated blank that never got authored:\nit mocks nothing, so it is exactly as incomplete as a `@todo` marker.\nThis is why removing the `@todo` line without filling the values is not\n\"done\".\n\nExample:\n  export const mockUser: MockData<User> = {\n-   name: {pool: []},\n+   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n  };\n\nFix: author realistic sample data. Only the completeness gate\n(`mion enrich --require-complete`) fails on it; a plain\n`--no-emit` health check reports it without failing.",
   },
   MKR001: {
     headline:
       '`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.',
+    level: 'warning',
     severity: 'warning',
     family: 'marker',
     detail:
@@ -534,6 +600,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR003: {
     headline:
       'Marker call is inside a generic function: the type argument is unresolved, so no id can be computed at build time.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -541,6 +608,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MKR004: {
     headline: "`noLiterals: true` has no effect here: the type argument doesn't resolve to literal values.",
+    level: 'warning',
     severity: 'warning',
     family: 'marker',
     detail:
@@ -548,6 +616,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MKR005: {
     headline: '`noIsArrayCheck: true` has no effect here: the type argument is not an array type.',
+    level: 'warning',
     severity: 'warning',
     family: 'marker',
     detail:
@@ -555,7 +624,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MKR006: {
     headline: '`InjectTypeFnArgs` names the function family `{0}` more than once; remove the duplicate key.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'marker',
     detail:
       "An `InjectTypeFnArgs<T, …>` marker names each function family it needs for\n`T` once, in declaration order; the build injects one entry-module tuple\nper name and the wrapper forwards each to its factory. Naming a family\ntwice would inject a redundant identical tuple with no consumer, so it is\nalmost always a copy-paste slip and the build stops.\n\nFix: name each family at most once:\n-  id?: InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'verr'>;\n+  id?: InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'jsonEncoder'>;",
@@ -563,6 +633,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR007: {
     headline:
       'Marker type resolved to `any` because this file has an unresolved import (`{0}`): the generated functions would silently accept anything.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -571,6 +642,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR008: {
     headline:
       'This type is too deeply nested to reflect: computing its structural id hit the recursion depth cap, so the build stops here instead of crashing.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -579,6 +651,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR009: {
     headline:
       'Type `{0}` re-instantiates itself with fresh type arguments at every level (a self-instantiating generic), so its structural id never resolves. Reflect a monomorphic shape instead.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -587,6 +660,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR010: {
     headline:
       'Type argument contains the unresolved type parameter `{0}`: a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{0}` is declared.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -595,6 +669,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR011: {
     headline:
       'Generic type `{0}` is used without its required type argument(s): parameter `{1}` has no default, so the type cannot resolve to an id. See Related for where `{1}` is declared.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -603,7 +678,8 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR012: {
     headline:
       '`{0}` here was declared by `{1}`, which this project does not trust as a marker package, so the type argument was dropped and this call reflects `unknown`.',
-    severity: 'warning',
+    level: 'runtimeError',
+    severity: 'error',
     family: 'marker',
     detail:
       'A marker only counts when it is BOTH named correctly and declared by a\ntrusted package, so a same-named type of your own never drives rewrites.\nThis one has the right name but comes from a package that is not on the\nlist, so its type argument was ignored: the call still compiles and still\ngenerates a function, but for `unknown` rather than for your type — a\nvalidator over `unknown` accepts everything.\n\nFix: trust the package in your tsconfig plugin entry:\n   {\n     "name": "mion",\n+    "markers": {"packages": ["{1}"]}\n   }\n\nThe list is additive, so `@mionjs/run-types` keeps working alongside it.\nThe same setting exists on the bundler plugin (`markers`) and as the\n`--marker-packages` CLI flag.\n\nIf the package re-exports the markers rather than declaring its own\n(`export type {InjectRunTypeId} from \'@mionjs/run-types\'`), no setting is\nneeded — a re-export keeps RunTypes as the declaring package, so check\nwhether the package meant to re-export instead.',
@@ -611,6 +687,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR013: {
     headline:
       'Marker type resolved to `any` that was never written: `{0}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -619,6 +696,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MKR014: {
     headline:
       'Two different types get the same id `{0}`: `{1}` from {4}, and `{2}` here. Raise the `hashLength` option to {3} so every type keeps its own id.',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
@@ -626,6 +704,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MRT001: {
     headline: 'mion `{0}` handler has no return type annotation; write the type the handler answers with.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'mionroute',
     detail:
@@ -634,6 +713,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MRT002: {
     headline:
       'mion `{1}` handler parameter `{0}` has no type annotation; every parameter after the call context travels on the wire and must declare its type.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'mionroute',
     detail:
@@ -642,6 +722,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MRT003: {
     headline:
       'mion `{0}` handlers must return errors, not throw them; return an `RpcError` to let the chain continue, or a `FatalError` to stop the request.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'mionroute',
     detail:
@@ -650,6 +731,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MRT004: {
     headline:
       'mion `{1}` handler declares it can answer with `{0}`, which is not an `RpcError`; only an `RpcError` (or a subclass such as `FatalError`) carries the mion brand.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'mionroute',
     detail:
@@ -657,6 +739,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   MRT005: {
     headline: 'Property `{0}` is named after a prototype slot and can never be data; rename it.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'mionroute',
     detail:
@@ -665,13 +748,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   NE001: {
     headline:
       'Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.',
-    severity: 'error',
+    level: 'warning',
+    severity: 'warning',
     family: 'runtype',
     detail:
       "The runtime enumerability guard (which lets a value omit a property from\nthe wire when it isn't an enumerable own property) is applied ONLY to\noptional properties. That keeps the decoder's `DataOnly<T>` return type\nhonest: a guarded property is always one the type already allows to be\nabsent. A `@nonEnumerable` tag on a REQUIRED property is therefore ignored;\nthe property still serializes unconditionally.\n\nFix: make the property optional:\n-  /** @nonEnumerable */ token: string;\n+  /** @nonEnumerable */ token?: string;",
   },
   OVR001: {
     headline: 'Duplicate override for `{0}`: there can be exactly one override per (type, function).',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -680,6 +765,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   OVR002: {
     headline:
       'Override entry `{0}` references compiled function `{1}` which did not render: this would throw at runtime, so the build stops.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -687,6 +773,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   OVR010: {
     headline: 'Overriding `validate` for this type also changes how JSON and binary decoders narrow unions containing it.',
+    level: 'warning',
     severity: 'warning',
     family: 'marker',
     detail:
@@ -694,6 +781,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFE9004: {
     headline: 'Duplicate `registerPureFnFactory` for `{0}` with a different body; only one definition can win.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -701,6 +789,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFE9005: {
     headline: 'Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.',
+    level: 'error',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -709,6 +798,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PFE9006: {
     headline:
       "`this` is not allowed inside a `registerPureFnFactory` factory body; pure functions can't depend on a calling context.",
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -716,6 +806,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFE9007: {
     headline: '`async`/`await` is not allowed inside a `registerPureFnFactory` factory body.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -723,6 +814,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFE9008: {
     headline: '`yield` / generators are not allowed inside a `registerPureFnFactory` factory body.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -730,6 +822,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFE9009: {
     headline: '`import()` is not allowed inside a `registerPureFnFactory` factory body.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -737,6 +830,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFE9010: {
     headline: '`{0}` is not allowed inside a `registerPureFnFactory` factory body.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -745,6 +839,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PFE9011: {
     headline:
       "`{0}` is captured from outer scope inside a `registerPureFnFactory` factory; pure functions can't reach outside their own body.",
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -753,6 +848,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PFE9012: {
     headline:
       "Pure-fn `{0}` is referenced by a RT function but never registered; call `registerPureFnFactory('{1}::{2}', …)` first.",
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -760,6 +856,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFE9013: {
     headline: '`{0}.{1}` dependency argument must be a string literal or a same-scope `const` string.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
@@ -767,6 +864,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFN001: {
     headline: '`PureFunction<F>` argument must be an INLINE arrow or function expression.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -774,6 +872,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PFN002: {
     headline: '`PureFunction<F>` literal must not be imported or exported: the compiled copy must be the only one that can run.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -781,6 +880,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJ001: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -788,6 +888,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJ002: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -795,20 +896,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJ003: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
       "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
-  PJ004: {
-    headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-  },
   PJ005: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -817,6 +913,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJ010: {
     headline:
       'Property `{0}` is a function: `prepareForJson` does not handle function values, so this property is silently not encoded.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -824,6 +921,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJ011: {
     headline: "Method `{0}` is silently not encoded by `prepareForJson`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -831,6 +929,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJ012: {
     headline: "Static member `{0}` is silently not encoded by `prepareForJson`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -838,6 +937,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJ013: {
     headline: "Symbol-keyed property `{0}` is silently not encoded by `prepareForJson`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -846,6 +946,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJ014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `prepareForJson` drops them, so the union is encoded as its remaining members.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -854,6 +955,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJ015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJson` drops it, so this property is silently not encoded.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -861,6 +963,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJS001: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -868,6 +971,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJS002: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -875,20 +979,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJS003: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
       "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
-  PJS004: {
-    headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-  },
   PJS005: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -897,6 +996,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS010: {
     headline:
       'Property `{0}` is a function: `prepareForJsonSafe` does not handle function values, so this property is silently not encoded.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -904,6 +1004,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJS011: {
     headline: "Method `{0}` is silently not encoded by `prepareForJsonSafe`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -911,6 +1012,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJS012: {
     headline: "Static member `{0}` is silently not encoded by `prepareForJsonSafe`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -919,6 +1021,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS013: {
     headline:
       "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonSafe`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -927,6 +1030,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonSafe` drops them, so the union is encoded as its remaining members.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -935,6 +1039,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   PJS015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonSafe` drops it, so this property is silently not encoded.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -942,6 +1047,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ001: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -949,6 +1055,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ002: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -956,20 +1063,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ003: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
       "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
-  RJ004: {
-    headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-  },
   RJ005: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -978,6 +1080,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   RJ010: {
     headline:
       'Property `{0}` is a function: `restoreFromJson` does not handle function values, so this property is silently not decoded.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -985,6 +1088,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ011: {
     headline: "Method `{0}` is silently not decoded by `restoreFromJson`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -992,6 +1096,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ012: {
     headline: "Static member `{0}` is silently not decoded by `restoreFromJson`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -999,6 +1104,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ013: {
     headline: "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJson`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1007,6 +1113,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   RJ014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `restoreFromJson` drops them, so the union is decoded as its remaining members.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1015,6 +1122,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   RJ015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJson` drops it, so this property is silently not decoded.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1022,6 +1130,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   SJ001: {
     headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1029,6 +1138,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   SJ002: {
     headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1036,20 +1146,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   SJ003: {
     headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
       "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
-  SJ004: {
-    headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-  },
   SJ005: {
     headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1058,6 +1163,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   SJ010: {
     headline:
       'Property `{0}` is a function: `stringifyJson` does not handle function values, so this property is silently not stringified.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1065,6 +1171,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   SJ011: {
     headline: "Method `{0}` is silently not stringified by `stringifyJson`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1072,6 +1179,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   SJ012: {
     headline: "Static member `{0}` is silently not stringified by `stringifyJson`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1080,6 +1188,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   SJ013: {
     headline:
       "Symbol-keyed property `{0}` is silently not stringified by `stringifyJson`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1088,6 +1197,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   SJ014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `stringifyJson` drops them, so the union is stringified as its remaining members.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1096,6 +1206,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   SJ015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `stringifyJson` drops it, so this property is silently not stringified.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1103,6 +1214,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   TB001: {
     headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1110,6 +1222,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   TB002: {
     headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1117,27 +1230,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   TB003: {
     headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
       "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
-  TB004: {
-    headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Arrays of un-serialisable elements (`symbol[]`, `(() => void)[]`,\n`Map<K, V>[]`, etc.) can't be encoded: every element would need to be\nrepresentable, and these aren't. Dropping individual elements would\nchange the array length, so the encoder refuses rather than silently\nshipping a different shape.\n\nFix: change the element type to something serialisable:\n  -  type Items = (() => void)[];\n+  type Items = string[];",
-  },
-  TB005: {
-    headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
-  },
   TB006: {
     headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1146,6 +1247,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   TB010: {
     headline:
       'Property `{0}` is a function: `toBinary` does not handle function values, so this property is silently not serialised.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1153,6 +1255,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   TB011: {
     headline: "Method `{0}` is silently not serialised by `toBinary`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1160,6 +1263,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   TB012: {
     headline: "Static member `{0}` is silently not serialised by `toBinary`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1167,6 +1271,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   TB013: {
     headline: "Symbol-keyed property `{0}` is silently not serialised by `toBinary`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1175,6 +1280,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   TB014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `toBinary` drops them, so the union is serialised as its remaining members.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1183,6 +1289,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   TB015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `toBinary` drops it, so this property is silently not serialised.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1191,6 +1298,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   TMP001: {
     headline:
       "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
+    level: 'runtimeError',
     severity: 'error',
     family: 'marker',
     detail:
@@ -1199,6 +1307,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   UKE010: {
     headline:
       'Property `{0}` is a function: `unknownKeyErrors` does not handle function values, so this property is silently not checked.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1207,6 +1316,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   UKU010: {
     headline:
       'Property `{0}` is a function: `unknownKeysToUndefined` does not handle function values, so this property is silently not cleared.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1215,6 +1325,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   UKW010: {
     headline:
       'Property `{0}` is a function: `unknownKeysToUndefinedWire` does not handle function values, so this property is silently not cleared.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1222,6 +1333,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   UPN001: {
     headline: 'Property `{0}` is named after a prototype slot and can never be data: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1229,6 +1341,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VE001: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1236,6 +1349,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VE002: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1244,6 +1358,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VE010: {
     headline:
       'Property `{0}` is a function: `validationErrors` does not handle function values, so this property is silently not checked.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1251,6 +1366,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VE011: {
     headline: "Method `{0}` is silently not checked by `validationErrors`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1258,6 +1374,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VE012: {
     headline: "Static member `{0}` is silently not checked by `validationErrors`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1265,6 +1382,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VE013: {
     headline: "Symbol-keyed property `{0}` is silently not checked by `validationErrors`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1273,6 +1391,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VE015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validationErrors` drops it, so this property is silently not checked.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1280,6 +1399,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VE020: {
     headline: '`validationErrors` on `any` / `unknown` always returns an empty error array: nothing is checked.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1287,6 +1407,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VL001: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1294,6 +1415,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VL002: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
+    level: 'runtimeError',
     severity: 'error',
     family: 'runtype',
     detail:
@@ -1302,6 +1424,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VL010: {
     headline:
       'Property `{0}` is a function: `validate` does not handle function values, so this property is silently not validated.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1309,6 +1432,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VL011: {
     headline: "Method `{0}` is silently not validated by `validate`: methods aren't data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1316,6 +1440,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VL012: {
     headline: "Static member `{0}` is silently not validated by `validate`: statics aren't part of instance data.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1323,6 +1448,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VL013: {
     headline: "Symbol-keyed property `{0}` is silently not validated by `validate`: symbol keys aren't JSON-representable.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1331,6 +1457,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VL014: {
     headline:
       "Union member(s) of type `{0}` can't be represented as data: `validate` drops them, so the union is validated as its remaining members.",
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1339,6 +1466,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   VL015: {
     headline:
       'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `validate` drops it, so this property is silently not validated.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
@@ -1346,6 +1474,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   VL021: {
     headline: '`validate` on `any` / `unknown` always returns true: the validator accepts every value.',
+    level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:

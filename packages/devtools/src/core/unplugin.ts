@@ -3,9 +3,10 @@ import path from 'node:path';
 import {createUnplugin} from 'unplugin';
 import {getExePath} from '@mionjs/bin-compiler';
 import {renderHeadline} from './diagnosticCatalog.ts';
+import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 import {ResolverClient, type GenerateResult} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
-import {Family, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
+import {Level, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
 import {DOWNGRADED_NOTE, isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
@@ -745,12 +746,17 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
         if (existing !== file.content) stale.push(file.path);
       }
-      // Unfilled @todo scaffolds + blank values over the computed mirrors. These
-      // are Error-severity here (unlike dev): a production build must not ship an
-      // app with blank labels/translations. EVERY one is kept, downgraded or not,
+      // Unfilled @todo scaffolds + blank values over the computed mirrors, plus
+      // anything actually wrong with them. The scaffold codes are LevelWarning (a
+      // mirror with blank labels still runs), so this gate reads the CATALOG's
+      // completeness bit for them: a production build must not ship an app with
+      // blank labels/translations, and keying on the level instead would silently
+      // stop this gate failing on anything. EVERY one is kept, downgraded or not,
       // because a downgrade lowers a finding, it never hides it; only the halt
       // count below drops the downgraded ones.
-      incomplete = (result.diagnostics ?? []).filter((d) => d.severity === Severity.Error);
+      incomplete = (result.diagnostics ?? []).filter(
+        (d) => d.level !== Level.Warning || DIAGNOSTIC_CATALOG[d.code]?.completeness === true
+      );
     } catch {
       return;
     }
@@ -1074,13 +1080,17 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // rebuilds drop files whose sites are gone.
       siteFiles = new Set(gen.siteFiles.map(siteKey));
       reportGenerate(gen);
-      // Pure-fn extraction errors ALWAYS halt the build (files-mode has no
-      // virtual fallback, so a generation error is fatal). Every other family
-      // (the RT render diagnostics — FMT002 param contradictions, root-position
-      // non-serializable types, …) surfaces here too and halts per the
-      // downgradeErrors contract, so dev/test lanes fail as loudly as `vite build`.
-      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.family === Family.PureFn, {halt: true});
-      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.family !== Family.PureFn, {halt: true, downgrade});
+      // A fatal Error ALWAYS halts, and no setting reaches it: the build produced
+      // no code for the thing (no cache entry, no injected id, no extracted body),
+      // so carrying on would only ship a call that throws. Everything else — the
+      // RuntimeErrors: FMT002 param contradictions, root-position non-serializable
+      // types, a type that read as `any` — halts per the downgradeErrors contract,
+      // so dev/test lanes fail as loudly as `vite build`. The split is the LEVEL;
+      // it used to be hardcoded to the pure-fn family, which was both too narrow
+      // (a fatal marker or batch code is not pure-fn) and too broad (a purity
+      // violation ships the compiled body, so it is a RuntimeError).
+      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level === Level.Error, {halt: true});
+      surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.level !== Level.Error, {halt: true, downgrade});
       // Enrichment auto-sync (opt-in). Dev/watch (vite serve) WRITES the demanded
       // mirrors up front — a whole-program pass so they exist before the first
       // edit; every other lane (a production build, a non-Vite bundler) runs the
@@ -1277,8 +1287,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
 export default unplugin;
 
 // surfaceDiagnostics routes a diagnostic list through the bundler's plugin
-// context based on each entry's severity. The split is the rule that
-// makes the build fail (or not) on unsupported types:
+// context based on each entry's severity — which is the label form of its
+// level, so a fatal Error and a RuntimeError both count towards the halt here
+// and the LEVEL decides only whether `downgrade` can spare it. The split is the
+// rule that makes the build fail (or not) on unsupported types:
 //
 //   - SeverityError diagnostics ALWAYS get `ctx.warn` so the user sees
 //     every error in the build log (not just the first one). When
