@@ -12,7 +12,7 @@ import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {onExecutableError, markResponseFailed} from './lib/dispatchError.ts';
-import {acquireCallContext, releaseCallContext} from './callContext.ts';
+import {createCallContext} from './callContext.ts';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -35,30 +35,12 @@ export async function dispatchRoute<Req, Resp>(
   urlQuery?: string
 ): Promise<MionResponse> {
   const opts = getRouterOptions();
-  const usePooling = opts.maxContextPoolSize > 0;
-  const context = acquireCallContext(
-    usePooling,
-    path,
-    opts,
-    reqRawBody,
-    rawRequest,
-    reqHeaders,
-    respHeaders,
-    reqBodyType,
-    urlQuery
-  );
+  const context = createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
 
   // No catch: runExecutionChain handles every exception itself, and a catch that only re-rejects
-  // changes nothing. The finally stays, it is what hands a pooled context back on either path.
-  try {
-    await runExecutionChain(context, rawRequest, rawResponse, opts);
-    return context.response;
-  } finally {
-    // Release context back to pool if pooling is enabled
-    if (usePooling) {
-      releaseCallContext(context, opts.maxContextPoolSize);
-    }
-  }
+  // changes nothing.
+  await runExecutionChain(context, rawRequest, rawResponse, opts);
+  return context.response;
 }
 
 // ############# PRIVATE METHODS #############

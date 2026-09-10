@@ -44,7 +44,7 @@ import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '../../../../p
 
 // the test-server fixture module already created its own factory at import: clear the once-guard first
 resetRouter();
-const mion = createMionRouter({contextDataFactory: () => ({user: null}), maxBodySize: 64_000, maxContextPoolSize: 8});
+const mion = createMionRouter({contextDataFactory: () => ({user: null}), maxBodySize: 64_000});
 
 // ############# oracles #############
 
