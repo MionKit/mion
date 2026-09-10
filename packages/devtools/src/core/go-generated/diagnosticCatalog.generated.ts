@@ -588,6 +588,58 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "An empty pool (`pool: []`) is a generated blank that never got authored:\nit mocks nothing, so it is exactly as incomplete as a `@todo` marker.\nThis is why removing the `@todo` line without filling the values is not\n\"done\".\n\nExample:\n  export const mockUser: MockData<User> = {\n-   name: {pool: []},\n+   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n  };\n\nFix: author realistic sample data. Only the completeness gate\n(`mion enrich --require-complete`) fails on it; a plain\n`--no-emit` health check reports it without failing.",
   },
+  MET001: {
+    headline:
+      'The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundleApi needs `PublicApi<typeof routes>`.',
+    level: 'error',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      "With `bundleApi` on, the build reads the route a call names out of the client's\nAPI type: its handler types, the options the router resolved and the middleFns in\nits chain. That only works on the `PublicApi<typeof routes>` type the router\nexports; a loose `RemoteApi`, an `any`, or a member without its compiled types\ncarries none of it, and the build does not guess.\n\nFix: type the client with the API's PublicApi:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});",
+  },
+  MET002: {
+    headline: 'This call names the route `{0}`, which the API type does not declare; nothing is bundled for it.',
+    level: 'error',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      "The route id at a dispatch site comes from the client's own route types, so the\nonly way to reach this is an API type that disagrees with the routes the client\nwas written against (a stale declaration file, or a hand-written id).\n\nFix: rebuild the API's declarations, or point `apiTsconfig` at the API project\nso the build reads the routes from their source.",
+  },
+  MET003: {
+    headline:
+      "The route id at this call is `string` (a generic helper erased it), so nothing can be bundled for it and the call fails at runtime under `bundleApi: 'bundled'`.",
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      "Every dispatch point carries the route it calls as a literal in its type\n(`RouteSubRequest<Handler, 'users/getById'>`). A helper typed with a wide\n`RouteSubRequest<any>` widens that literal to `string`, and the build no longer\nknows which route to bundle for the call inside it.\n\nFix: keep the literal through the helper, or move the call out of it:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }\nOr build with `bundleApi: 'mixed'`, where such a call fetches its metadata.",
+  },
+  MET004: {
+    headline:
+      'The route id at this call is `string` (a generic helper erased it); the call fetches its metadata from the server instead of using the bundle.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'marker',
+    detail:
+      "Every dispatch point carries the route it calls as a literal in its type. A\nhelper typed with a wide `RouteSubRequest<any>` widens it to `string`, so the\nbuild cannot bundle for the call inside it. Under `bundleApi: 'mixed'` the call\nstill works: the client fetches that route's metadata on first use.\n\nFix (to bundle it too): keep the literal through the helper:\n-  function run(sub: RouteSubRequest<any>) { return sub.call() }\n+  function run<S extends RouteSubRequest<any>>(sub: S) { return sub.call() }",
+  },
+  MET005: {
+    headline:
+      'The API program {0} has {1} `initRoutes(...)` call(s) declaring the routes this client calls; bundleApi needs exactly one.',
+    level: 'error',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      "With `apiTsconfig` set, the build resolves every route's types in the API\nproject's own program, rooted at its `mion.initRoutes(routes)` call. It picks the\ncall whose API declares the same routes the client calls; none, or more than\none, leaves nothing to root at.\n\nFix: point `apiTsconfig` at a tsconfig whose program initializes that API once\n(a dedicated tsconfig for the server entry works), or drop the pointer when the\nclient and the API share one program.",
+  },
+  MET006: {
+    headline: 'Option `{0}` of `{1}` is not a literal on the API type, so the bundled metadata leaves it unset.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'marker',
+    detail:
+      "The bundled metadata copies each method's options off the API type, where they\nare the literals the route and the router were declared with. A value computed\nat runtime (a variable, a call) has no literal to copy, and the client then runs\nthat method with the option unset, which can differ from the server.\n\nFix: write the option as a literal at the route or the router:\n-  mion.route(handler, {strictTypes: isProd})\n+  mion.route(handler, {strictTypes: true})",
+  },
   MKR001: {
     headline:
       '`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.',
