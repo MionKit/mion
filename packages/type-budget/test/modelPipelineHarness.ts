@@ -165,7 +165,12 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     // declaration), which more than covered the strategy slots the helpers gained,
     // and each helper is ONE call signature whose options type parameter defaults to
     // the no-encoder shape: one extra instantiation, ~235 fewer duplicated lines.
-    budget: 409,
+    // 409 -> 525: the API type carries what a client build with `bundleApi` reads
+    // off it. Each definition keeps the route's options literal and the router's
+    // (RouteDef<H, RO, O>), and PublicApi resolves the effective options per method
+    // and names the types the server compiled it from (an interface over the
+    // handler, resolved only when read).
+    budget: 525,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -197,7 +202,12 @@ type UsersApi = typeof usersApi;
     // 2558 -> 2589 (and step 4 612 -> 580): initRoutes became synchronous, so the
     // Promise unwrap left the route-api step and the client reads the api directly.
     // 2589 -> 2500: the flat definition types (step 4) are read by the client too.
-    budget: 2500,
+    // 2500 -> 3048: every subrequest names its route and its API in its type (the
+    // template-literal id per route, the marker slot on each dispatch point), and
+    // the client reads the richer public methods of step 4. Its mapping now keys on
+    // the `type` discriminant instead of comparing each method structurally, which
+    // measured 475 cheaper than the structural check over the new methods.
+    budget: 3048,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -443,8 +453,11 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *  13077 -> 13144: the typed router factory (steps 4 and 5 above).
  *
  *  13144 -> 12883: the flat definition and option types of the per-route encoder
- *  strategies (steps 4 and 5 above). **/
-export const PIPELINE_TOTAL_BUDGET = 12883;
+ *  strategies (steps 4 and 5 above).
+ *
+ *  12883 -> 13560: the API type carries the resolved options and the compiled
+ *  types, and every subrequest its route id and API (steps 4 and 5 above). **/
+export const PIPELINE_TOTAL_BUDGET = 13560;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
