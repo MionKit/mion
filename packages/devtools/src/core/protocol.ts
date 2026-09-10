@@ -576,9 +576,27 @@ export interface Response {
   error?: string;
 }
 
-// Severity classifies a Diagnostic's impact. Numeric on the wire to
-// match the Go-side encoding; mirror the `as const` literal-union enum
-// shape so consumers can `switch (d.severity)` against the named values.
+// Level is a diagnostic's three-way classification and the field a code author
+// writes on the Go side. It answers one question: did the build produce the code
+// for this thing (Error: no), and is what it produced broken when called
+// (RuntimeError: yes). Anything deciding whether a finding may be downgraded or
+// silenced reads THIS, never severity.
+//
+// It rides the wire rather than being looked up in the generated catalog because
+// a locally built binary can run ahead of that catalog, and a build-halt decision
+// must not depend on the two being in sync.
+export const Level = {
+  Error: 1,
+  RuntimeError: 2,
+  Warning: 3,
+} as const;
+export type Level = (typeof Level)[keyof typeof Level];
+
+// Severity is the LABEL form of Level: the word the tsc-shaped output line and
+// VS Code's problem matcher need, so both error levels read as "error" here.
+// Numeric on the wire to match the Go-side encoding; mirror the `as const`
+// literal-union enum shape so consumers can `switch (d.severity)` against the
+// named values.
 export const Severity = {
   Error: 1,
   Warning: 2,
@@ -629,12 +647,13 @@ export interface EnrichFile {
 // Diagnostic mirrors the Go-side diag.Diagnostic. The Family
 // discriminator tells the consumer which subsystem produced it (purefn
 // extractor, marker scanner, runtype RT compiler); the Code is the
-// stable identifier (PFE9004, CTA001, PFN001, VL010, SJ001, …) and Severity
-// classifies impact.
+// stable identifier (PFE9004, CTA001, PFN001, VL010, SJ001, …), Level says
+// whether the build produced code for it and whether that code works, and
+// Severity is the label form of the level.
 //
 // The user-facing message is NOT carried on the wire. Per-code message
 // templates live in the GENERATED dictionary `./diagnosticCatalog.generated.ts`
-// (emitted from internal/diagnostics/messages.go via `pnpm run gen:diag-catalog`)
+// (emitted from internal/diagnostics/messages.go via `pnpm miondevx core codegen diag`)
 // and resolve at format time against `args` — typically 0–2 positional
 // substitution values (a property name, a kind label, etc.). The Vite
 // plugin renders the final tsc-style line by looking up Code+Args in the
@@ -643,6 +662,7 @@ export interface Diagnostic {
   code: string;
   family: Family;
   severity: Severity;
+  level: Level;
   args?: string[];
   site: DiagnosticSite;
   related?: DiagnosticRelated[];

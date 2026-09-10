@@ -234,7 +234,7 @@ type Diagnostic struct {
 // single-line message (mandatory for every code; `{0}`, `{1}` placeholders
 // substitute against Diagnostic.Args), Detail the optional multi-line
 // explanation + example fix. They are authored in messages.go and folded
-// onto the Definition at init; `gen:diag-catalog` exports them into the
+// onto the Definition at init; `miondevx core codegen diag` exports them into the
 // GENERATED front-end dictionary (packages/devtools/src/
 // diagnosticCatalog.generated.ts), so the wire keeps carrying only
 // code + args while Go stays the single source of every message.

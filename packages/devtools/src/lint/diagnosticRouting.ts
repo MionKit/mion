@@ -52,8 +52,10 @@ export type RuleName =
   | 'no-unsafe-property-names';
 
 // RuleSpec is the single source of truth for a rule: the plugin namespace it is
-// registered under, its default level (mirrors the Go catalog severity of the
-// codes it carries), which cheap text pre-filter admits a file to the resolver
+// registered under, its default level (follows the Go catalog LEVEL of the codes
+// it carries: `error` for a rule whose codes are fatal Errors or RuntimeErrors,
+// `warn` for one whose codes are Warnings), which cheap text pre-filter admits a
+// file to the resolver
 // pass (`compiler` scans any marker / RT / router file, `enrichment` only
 // generated mirror files), and
 // the one-line description lint hosts show. index.ts builds its `rules`
@@ -83,7 +85,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'invalid-expect-error',
     namespace: 'runtypes',
-    default: 'error',
+    default: 'warn',
     gate: 'compiler',
     description:
       'A `@mion-expect-error` comment that is wrong: it silenced nothing (so it is stale and should be deleted, the same check TypeScript runs on an unused `@ts-expect-error`), it names a code that is always reported, or it names a code that does not exist',
@@ -211,7 +213,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'non-enumerable',
     namespace: 'runtypes',
-    default: 'error',
+    default: 'warn',
     gate: 'compiler',
     description:
       'A property marked @nonEnumerable that is not optional — a non-enumerable property can be absent from a plain object, so the type must allow undefined',
@@ -235,7 +237,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'no-enrichment-todo',
     namespace: 'runtypes',
-    default: 'error',
+    default: 'warn',
     gate: 'enrichment',
     description:
       'An unfilled @todo placeholder the generator scaffolded in a FriendlyText / MockData file — fill in the value, then delete the tag line',
@@ -243,7 +245,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'no-orphan-carcass',
     namespace: 'runtypes',
-    default: 'error',
+    default: 'warn',
     gate: 'enrichment',
     description:
       'A commented-out @rtOrphan / @rtOrphanChild block the generator left behind when a type or field disappeared — restore the type, or run `mion gen --prune` to remove it',
@@ -251,7 +253,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'enrichment-field',
     namespace: 'runtypes',
-    default: 'error',
+    default: 'warn',
     gate: 'enrichment',
     description:
       'A FriendlyText / MockData entry that no longer matches its type: a field the type does not declare, a name colliding with the reserved rt$ prefix, or a plural template missing its mandatory other arm',
@@ -382,6 +384,25 @@ function codePrefix(code: string): string {
 // enrich code is treated as a field/content finding rather than dropped.
 function enrichFamily(code: string): FamilyRules {
   switch (code) {
+    // Field findings: the map names something the type does not declare, or
+    // collides with the reserved `rt$` prefix. Named per code because the tier
+    // used to be picked by severity, which only worked while every field code
+    // was an error; FT002 and MD001 are Warnings now (a dead entry nothing
+    // reads), and without these arms they would route to the message rule.
+    case 'FT002':
+    case 'FT011':
+    case 'MD001':
+    case 'MD011':
+      return {primary: 'enrichment-field'};
+    // Message findings: the template is wrong, so what a user reads is wrong or
+    // falls back. Also named per code, for the same reason in reverse.
+    case 'FT003':
+    case 'FT005':
+    case 'FT006':
+    case 'FT007':
+    case 'FT008':
+    case 'FT009':
+      return {primary: 'enrichment-message'};
     case 'FT020':
     case 'MD020':
     case 'FT023':
@@ -491,7 +512,7 @@ export function renderMessage(diagnostic: Diagnostic): string {
   const known = diagnostic.code in DIAGNOSTIC_CATALOG;
   const headline = known
     ? renderHeadline(diagnostic.code, diagnostic.args)
-    : '(message unavailable — regenerate the catalog via `pnpm run gen:diag-catalog`)';
+    : '(message unavailable — regenerate the catalog via `pnpm miondevx core codegen diag`)';
   let message = `[${diagnostic.code}] ${headline}`;
   for (const related of diagnostic.related ?? []) {
     message += `\n  related: ${related.filePath}(${related.startLine},${related.startCol}): ${related.message}`;

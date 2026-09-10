@@ -5,7 +5,7 @@ package diagnostics
 // placeholders substitute against Diagnostic.Args) and the optional
 // multi-line Detail block (explanation + example fix, surfaced in IDE hover
 // and verbose logs). The wire never carries this text: the binary ships
-// code + args only; `pnpm run gen:diag-catalog` exports this map into the
+// code + args only; `pnpm miondevx core codegen diag` exports this map into the
 // GENERATED front-end dictionary
 // (packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts) that the
 // bundler plugin, the lint plugin, and the runtime alwaysThrow factory all
