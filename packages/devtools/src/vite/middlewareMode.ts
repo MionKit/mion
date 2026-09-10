@@ -16,13 +16,11 @@ import type {MionServerOptions} from './mionVitePlugin.ts';
 // Runs the mion API INSIDE the vite dev server: the entry is loaded through vite's own SSR pipeline
 // (`ssrLoadModule`, so it shares the module graph with the app) and its request handler is mounted
 // as connect middleware. This is the idiomatic "backend of a frontend" setup for Nuxt/SSR — one
-// process, one port, no child server.
+// process, one port.
 //
-// It is a restore, not an invention: the pre-migration plugin did the same thing, except the
-// "don't open a port" half rode `MION_COMPILE=middleware` + `isMionCompileMode()`, both deleted with
-// the AOT sweep. It is now an ordinary platform option (`asMiddleware`) the plugin sets on the
-// adapter before loading the entry, so an unchanged entry — `mion.initRoutes(routes); startNodeServer();` —
-// works in both run modes.
+// The "don't open a port" half is an ordinary platform option (`asMiddleware`) the plugin sets on
+// the adapter before loading the entry, so an unchanged entry works as written:
+// `mion.initRoutes(routes); startNodeServer();`
 
 /** Node-style handler, as exported by @mionjs/platform-node. */
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => void;

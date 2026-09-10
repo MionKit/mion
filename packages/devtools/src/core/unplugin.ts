@@ -8,14 +8,7 @@ import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Family, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
-import {
-  DOWNGRADED_NOTE,
-  FAIL_ON_ERROR_REMOVED,
-  isDowngraded,
-  resolveDowngradeErrors,
-  DOWNGRADE_ALL,
-  type DowngradeSet,
-} from './downgradeErrors.ts';
+import {DOWNGRADED_NOTE, isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
@@ -366,15 +359,6 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
   return [MARKER_MODULE, ...(markers?.packages ?? [])].flatMap((mod) => [`'${mod}`, `"${mod}`]);
 }
 
-// assertNoFailOnError stops a config that still carries the retired boolean.
-// Silence would be the worst outcome: the option is simply ignored, the build
-// goes strict, and a project that deliberately opted out starts failing with no
-// idea why.
-function assertNoFailOnError(options: PluginOptions): void {
-  if (!('failOnError' in options)) return;
-  throw new Error(`[@mionjs/devtools] ${FAIL_ON_ERROR_REMOVED}`);
-}
-
 // @mionjs/devtools is built on unplugin: ONE factory, many bundler entry
 // points (@mionjs/devtools/runtypes/vite, /rollup, /webpack, /rspack, /esbuild are
 // `unplugin.<bundler>` from this instance). Files-mode: the resolver writes
@@ -391,10 +375,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // Computed once per plugin instance: the fallback pre-filter's import probes
   // for the project's marker packages (null = package gate disabled).
   const markerProbes = markerImportProbes(options.markers);
-  // `failOnError` was removed in favour of `downgradeErrors`; a config still
-  // carrying it would otherwise silently go strict, which is the opposite of
-  // what its author asked for.
-  assertNoFailOnError(options);
   // Error-severity diagnostics fail the build/transform in every lane except
   // the codes `downgradeErrors` names (see PluginOptions.downgradeErrors).
   // Precedence is tsc-style: the explicit plugin option wins, else the tsconfig
@@ -790,7 +770,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       fatal += 1;
     }
     // The stale-mirror half carries no diagnostic code, so only the wildcard can
-    // stand it down — which is exactly what the retired `failOnError: false` did.
+    // stand it down.
     const staleCount = downgrade.all ? 0 : stale.length;
     if (staleCount === 0 && fatal === 0) return;
     const parts: string[] = [];
