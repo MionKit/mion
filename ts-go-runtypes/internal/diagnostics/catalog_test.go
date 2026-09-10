@@ -120,17 +120,18 @@ func TestFormatDebug_AppendsRelatedLines(t *testing.T) {
 }
 
 // TestIsCompleteness pins the completeness tier: only the unfilled-@todo scaffold
-// codes are completeness (they fail solely under the CLI completeness gate); every
-// wrong/stale code (malformed content, orphan carcasses) is not, so it fails
-// every check lane. Flipping FT020/MD020's Completeness bit, or arming it on a
-// wrong/stale code, breaks the exit-code contract and this test.
+// codes are completeness, and they are the reason the bit exists as something
+// SEPARATE from the level. They are LevelWarning (a mirror with blank labels
+// still runs), so `enrich --require-complete` and the bundler's production
+// enrichment gate must read this bit, never the level. Flipping the bit, or
+// arming it on a wrong/stale code, breaks the exit-code contract and this test.
 func TestIsCompleteness(t *testing.T) {
 	for _, code := range []string{CodeFriendlyTodo, CodeMockTodo, CodeFriendlyBlankValue, CodeMockBlankValue} {
 		if !IsCompleteness(code) {
 			t.Errorf("%s must be a completeness code", code)
 		}
-		if Definitions[code].Severity != SeverityError {
-			t.Errorf("%s must stay Error severity (editor still flags it)", code)
+		if Definitions[code].Level != LevelWarning {
+			t.Errorf("%s is a blank label, not broken output: it must be LevelWarning", code)
 		}
 	}
 	for _, code := range []string{
@@ -153,8 +154,8 @@ func TestIsTransient(t *testing.T) {
 	if !IsTransient(CodeFMTPatternTimeout) {
 		t.Errorf("%s must be transient, a timeout depends on host load", CodeFMTPatternTimeout)
 	}
-	if Definitions[CodeFMTPatternTimeout].Severity != SeverityError {
-		t.Errorf("%s must stay Error severity (a runaway pattern must not ship)", CodeFMTPatternTimeout)
+	if Definitions[CodeFMTPatternTimeout].Level != LevelRuntimeError {
+		t.Errorf("%s must stay LevelRuntimeError (the entry ships, carrying the unverified pattern)", CodeFMTPatternTimeout)
 	}
 	for _, code := range []string{CodeFMTSampleMismatch, CodeFMTInvalidParams, CodeFMTSampleBounds, CodeFMTMissingJsRuntime, CodeFMTSampleGenFailed, CodeFMTSampleConflict} {
 		if IsTransient(code) {
@@ -210,4 +211,93 @@ func TestRegister_PanicsWithoutScope(t *testing.T) {
 		}
 	}()
 	register(Definition{Code: "ZZZ001", Family: FamilyRunType, Severity: SeverityError, Title: "no scope"})
+}
+
+// TestEveryCodeDeclaresALevel is the catalog-wide invariant: register panics
+// without a Level, so a registered code always has one, and Severity is always
+// the projection of it. A hand-written Severity would drift from the level the
+// downgrade and suppression rules read; register refuses one, and this pins it.
+func TestEveryCodeDeclaresALevel(t *testing.T) {
+	for code, definition := range Definitions {
+		switch definition.Level {
+		case LevelError, LevelRuntimeError:
+			if definition.Severity != SeverityError {
+				t.Errorf("%s: level %d must project to SeverityError, got %d", code, definition.Level, definition.Severity)
+			}
+		case LevelWarning:
+			if definition.Severity != SeverityWarning {
+				t.Errorf("%s: LevelWarning must project to SeverityWarning, got %d", code, definition.Severity)
+			}
+		default:
+			t.Errorf("%s declares no Level", code)
+		}
+		if LevelOf(code) != definition.Level {
+			t.Errorf("%s: LevelOf disagrees with the definition", code)
+		}
+	}
+	if LevelOf("ZZZZ999") != LevelError {
+		t.Error("an unregistered code must read as fatal: nothing may downgrade or silence what the catalog cannot vouch for")
+	}
+}
+
+// TestRegisterRejectsWrittenSeverity: Severity is derived, so writing one in a
+// codes_*.go literal is a mistake that would silently disagree with the level.
+func TestRegisterRejectsWrittenSeverity(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("register must refuse a hand-written Severity")
+		}
+	}()
+	register(Definition{Code: "ZZZ001", Family: FamilyMarker, Level: LevelWarning, Severity: SeverityError, Scope: ScopeNotSource})
+}
+
+// TestRegisterRequiresLevel is the Scope rule's twin.
+func TestRegisterRequiresLevel(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("register must refuse a code with no Level")
+		}
+	}()
+	register(Definition{Code: "ZZZ002", Family: FamilyMarker, Scope: ScopeNotSource})
+}
+
+// TestLevelsThatMoved pins the codes whose level CHANGED in the three-level
+// split, in both directions, with the mechanical fact behind each. Without this
+// a later edit could quietly re-lump them.
+func TestLevelsThatMoved(t *testing.T) {
+	for code, want := range map[string]Level{
+		// Down to Warning: the build emits, and what it emits is correct.
+		CodeMarkerDuplicateFnKey:          LevelWarning, // the scan dedupes; output is sane
+		CodeNonEnumerableRequiresOptional: LevelWarning, // an ineffective tag, the function is right
+		CodeExpectErrorUnused:             LevelWarning, // only a comment is wrong
+		CodeExpectErrorNotSuppressible:    LevelWarning,
+		CodeExpectErrorUnknownCode:        LevelWarning,
+		CodeFriendlyTodo:                  LevelWarning, // blank labels, the app runs
+		CodeFriendlyUnknownField:          LevelWarning, // a dead map entry nothing reads
+		// Up from Warning: the build emits something broken.
+		CodeMarkerUntrustedPackage: LevelRuntimeError, // reflects `unknown`, accepts everything
+		CodeBatchOwnBatchIgnored:   LevelRuntimeError, // an id no table row matches, every request 404s
+		CodeBatchNoRouterInit:      LevelRuntimeError, // the table is written, nothing imports it
+		// Error, and staying there: no code was produced for the thing.
+		CodeMarkerFreeTypeParameter: LevelError,
+		CodeTypeIdCollision:         LevelError,
+		CodeBatchElementNotReadable: LevelError,
+		CodeEmitOutsideRootDir:      LevelError,
+	} {
+		if got := Definitions[code].Level; got != want {
+			t.Errorf("%s: level %d, want %d", code, got, want)
+		}
+	}
+}
+
+func TestLevelLabel(t *testing.T) {
+	for level, want := range map[Level]string{
+		LevelError:        "error",
+		LevelRuntimeError: "runtimeError",
+		LevelWarning:      "warning",
+	} {
+		if got := LevelLabel(level); got != want {
+			t.Errorf("LevelLabel(%d) = %q, want %q", level, got, want)
+		}
+	}
 }

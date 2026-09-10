@@ -615,8 +615,11 @@ func TestRpc_OwnBatchesWarnWhenClientPointerSet(t *testing.T) {
 	var warned []string
 	for _, diag := range gen.Diagnostics {
 		if diag.Code == "BAT008" {
-			if diag.Severity != diagnostics.SeverityWarning {
-				t.Errorf("BAT008 must be a warning, got %v", diag.Severity)
+			// The id IS injected, and no table row matches it, so every request
+			// naming it comes back a 404 `batch-unknown-id`. That is broken
+			// output, not a warning.
+			if diag.Level != diagnostics.LevelRuntimeError {
+				t.Errorf("BAT008 must be a RuntimeError, got level %v", diag.Level)
 			}
 			warned = append(warned, filepath.Base(diag.Site.FilePath))
 		}
@@ -629,7 +632,8 @@ func TestRpc_OwnBatchesWarnWhenClientPointerSet(t *testing.T) {
 
 // TestRpc_NoRouterInitButRouterImported: a server whose router is created
 // behind a declaration-file wrapper (the one shape the detector cannot see)
-// still gets rpc/ written, plus a BAT009 warning; nothing is appended.
+// still gets rpc/ written, plus a BAT009 RuntimeError (the table is written and
+// nothing imports it, so every batch request 404s); nothing is appended.
 func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
 	sources := rpcSources()
 	delete(sources, "server.ts")
@@ -647,12 +651,12 @@ func TestRpc_NoRouterInitButRouterImported(t *testing.T) {
 	}
 	warned := false
 	for _, diag := range gen.Diagnostics {
-		if diag.Code == "BAT009" && diag.Severity == diagnostics.SeverityWarning && len(diag.Args) > 0 && strings.Contains(diag.Args[0], "batches.generated.js") {
+		if diag.Code == "BAT009" && diag.Level == diagnostics.LevelRuntimeError && len(diag.Args) > 0 && strings.Contains(diag.Args[0], "batches.generated.js") {
 			warned = true
 		}
 	}
 	if !warned {
-		t.Errorf("expected a BAT009 warning naming the table, got %+v", gen.Diagnostics)
+		t.Errorf("expected a BAT009 RuntimeError naming the table, got %+v", gen.Diagnostics)
 	}
 	if code := transform(t, r, "server.ts"); strings.Contains(code, "batches.generated") {
 		t.Errorf("nothing must be appended without a router-init module:\n%s", code)

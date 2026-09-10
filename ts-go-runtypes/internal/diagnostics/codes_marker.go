@@ -2,11 +2,23 @@ package diagnostics
 
 // Marker-scanner codes (MKRxxx). Issued by the resolver when a marker call
 // compiles correctly but uses an anti-pattern.
+//
+// The levels here split on ONE mechanical fact: whether the scan still emits a
+// SITE for the call. No site means no cache entry and no injected id, so the
+// call ships un-rewritten and throws `no id injected` — LevelError, because
+// there is no output to accept (MKR003, MKR008, MKR009, MKR010, MKR011,
+// MKR014). A site that IS emitted but built from a type that was read wrongly
+// ships a validator that accepts everything — LevelRuntimeError (MKR007,
+// MKR012, MKR013, and TMP001 / CFG002 elsewhere).
 const (
 	CodeMarkerFunctionCallArg         = "MKR001"
 	CodeMarkerFreeTypeParameter       = "MKR003"
 	CodeValidateOptionsNoLiteralsNoop = "MKR004"
 	CodeValidateOptionsNoArrayNoop    = "MKR005"
+	// CodeMarkerDuplicateFnKey: LevelWarning. The scan DEDUPES the repeated key
+	// and emits the site normally, so what ships is correct; the only thing wrong
+	// is a copy-paste slip in the source. It used to fail the build, which the
+	// two questions do not support.
 	CodeMarkerDuplicateFnKey          = "MKR006"
 	CodeMarkerAnyFromUnresolvedImport = "MKR007"
 	// CodeStructuralIdDepthExceeded fires when the structural-id walk hits its
@@ -46,7 +58,10 @@ const (
 	// succeeds and the generated validator accepts everything). Args: [0] the
 	// marker name, [1] the declaring package. A same-named brand declared by the
 	// USING file's own package never trips it: that is the local-brand case the
-	// gate exists to keep inert.
+	// gate exists to keep inert. LevelRuntimeError, raised from LevelWarning: the
+	// entry ships, `unknown` compiles to the accept-everything noop, and the
+	// comment above already calls that the worst shape of failure. A warning was
+	// the one level it could not honestly be.
 	CodeMarkerUntrustedPackage = "MKR012"
 	// CodeMarkerUnresolvedTypeName: a marker's type checked as the checker's
 	// ERROR type — `any` the author never wrote — because a written type name
@@ -75,6 +90,11 @@ const (
 // CompTimeArgs-marker codes (CTAxxx). Issued by the resolver when a
 // CompTimeArgs<T>-branded parameter receives an argument the Go scanner
 // cannot statically evaluate at build time.
+//
+// LevelRuntimeError, all four. The typeId is injected as normal and the entry
+// ships; the option readers just fall back to their DEFAULTS when the
+// expression is not a readable literal. So what ships is a working function
+// compiled under options the author did not write.
 const (
 	CodeCompTimeArgsNonLiteral         = "CTA001"
 	CodeCompTimeArgsDepthExceeded      = "CTA002"
@@ -87,6 +107,10 @@ const (
 // inline arrow / function expression. Purity violations themselves are
 // reported via the existing PFE9006-PFE9011 codes from the purefns
 // package, reused unchanged.
+//
+// LevelRuntimeError: the marker's own typeId entry ships, but the pure-fn
+// walker bails without an entry, so the generated `utl.getPureFn(key)` names a
+// module that was never written and throws when the function is called.
 const (
 	CodePureFunctionNotLiteral     = "PFN001"
 	CodePureFunctionExternalHandle = "PFN002"
@@ -109,42 +133,46 @@ const (
 	// global, `number[]` checks as an empty object, so the emitted validator
 	// accepts anything and no diagnostic fires anywhere. The silent-`any` guard
 	// family cannot see it — MKR013 keys on a written type NAME, and array sugar
-	// writes none. Args: [0] the loaded lib files, or "(none)".
+	// writes none. LevelRuntimeError: the whole cache tree is written and the
+	// rewritten source ships, it is just built on types that cannot be trusted.
+	// Args: [0] the loaded lib files, or "(none)".
 	CodeUnsupportedLibSelection = "CFG002"
 	// CodeEmitOutsideRootDir: `mion compile` would have to write an emitted file
 	// outside the tsconfig `outDir`, because the program reaches a source file
 	// outside its `rootDir` (a `paths` entry into a sibling package, a relative
 	// import above the source root). tsc refuses the same program (TS6059); so
 	// does the compile lane: the file is not written, and the importer that IS
-	// written would point at it, so this is an error, never a warning. Args:
+	// written would point at it, so this is an error, never a warning.
+	// LevelError: the offending path is deleted from the write map, so the file
+	// the importer names never lands. Args:
 	// [0] the output path that was refused, [1] the outDir.
 	CodeEmitOutsideRootDir = "CFG003"
 )
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeMarkerFunctionCallArg, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "Marker invokes a function just to read its return type"},
-		{Code: CodeMarkerFreeTypeParameter, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeRoot, Title: "Marker call inside a generic function: type argument is unresolved"},
-		{Code: CodeValidateOptionsNoLiteralsNoop, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "`ValidateOptions.noLiterals` has no effect on this type: the option is a no-op"},
-		{Code: CodeValidateOptionsNoArrayNoop, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "`ValidateOptions.noIsArrayCheck` has no effect on this type: the option is a no-op"},
-		{Code: CodeMarkerDuplicateFnKey, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "`InjectTypeFnArgs` names the same function family more than once"},
-		{Code: CodeMarkerAnyFromUnresolvedImport, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Marker type resolved to `any`: an import in this file failed to resolve"},
-		{Code: CodeStructuralIdDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Type is too deeply nested: structural-id computation hit its depth cap"},
-		{Code: CodeMarkerSelfInstantiatingGeneric, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Type re-instantiates itself with fresh type arguments: a self-instantiating generic cannot resolve to a structural id"},
-		{Code: CodeMarkerUnresolvedTypeParameter, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Marker type argument contains an unresolved type parameter: generics must be fully resolved at the call site"},
-		{Code: CodeMarkerUnresolvedGenericType, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Generic type used without its required type arguments: a default-less parameter cannot be resolved"},
-		{Code: CodeMarkerUntrustedPackage, Family: FamilyMarker, Severity: SeverityWarning, Scope: ScopeNotSource, Title: "Marker-named type declared by an untrusted package: the type argument was dropped, so the call reflects `unknown`"},
-		{Code: CodeMarkerUnresolvedTypeName, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeGraph, Title: "Marker type resolved to `any` that was never written: a type name failed to resolve"},
-		{Code: CodeTypeIdCollision, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "Two different types produced the same short type id: raise `hashLength`"},
-		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},
-		{Code: CodeCompTimeArgsDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> literal nesting exceeds depth cap (16), refactor to flatten"},
-		{Code: CodeCompTimeArgsForbiddenConstruct, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> literal contains a forbidden construct (computed property, function call, ternary, template substitution, or a non-mergeable spread)"},
-		{Code: CodeCompTimeArgsWidenedConst, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> const argument has a widened (non-literal) member, declare the const `as const` so its values stay literal"},
-		{Code: CodePureFunctionNotLiteral, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "PureFunction<F> argument must be an inline arrow or function expression"},
-		{Code: CodePureFunctionExternalHandle, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "PureFunction<F> literal must not be imported or exported, bind it to an inline or module-private function so only the compiled copy can run"},
-		{Code: CodeTsconfigLoadFailed, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "Project tsconfig failed to load: every lane reads this config, so the operation stops"},
-		{Code: CodeUnsupportedLibSelection, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "The project's TypeScript `lib` leaves the required globals undeclared, so reflected types cannot be trusted"},
-		{Code: CodeEmitOutsideRootDir, Family: FamilyMarker, Severity: SeverityError, Scope: ScopeNotSource, Title: "An emitted file would land outside `outDir` because its source sits outside `rootDir`; it is not written"},
+		{Code: CodeMarkerFunctionCallArg, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "Marker invokes a function just to read its return type"},
+		{Code: CodeMarkerFreeTypeParameter, Family: FamilyMarker, Level: LevelError, Scope: ScopeRoot, Title: "Marker call inside a generic function: type argument is unresolved"},
+		{Code: CodeValidateOptionsNoLiteralsNoop, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`ValidateOptions.noLiterals` has no effect on this type: the option is a no-op"},
+		{Code: CodeValidateOptionsNoArrayNoop, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`ValidateOptions.noIsArrayCheck` has no effect on this type: the option is a no-op"},
+		{Code: CodeMarkerDuplicateFnKey, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "`InjectTypeFnArgs` names the same function family more than once"},
+		{Code: CodeMarkerAnyFromUnresolvedImport, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Marker type resolved to `any`: an import in this file failed to resolve"},
+		{Code: CodeStructuralIdDepthExceeded, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Type is too deeply nested: structural-id computation hit its depth cap"},
+		{Code: CodeMarkerSelfInstantiatingGeneric, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Type re-instantiates itself with fresh type arguments: a self-instantiating generic cannot resolve to a structural id"},
+		{Code: CodeMarkerUnresolvedTypeParameter, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Marker type argument contains an unresolved type parameter: generics must be fully resolved at the call site"},
+		{Code: CodeMarkerUnresolvedGenericType, Family: FamilyMarker, Level: LevelError, Scope: ScopeGraph, Title: "Generic type used without its required type arguments: a default-less parameter cannot be resolved"},
+		{Code: CodeMarkerUntrustedPackage, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Marker-named type declared by an untrusted package: the type argument was dropped, so the call reflects `unknown`"},
+		{Code: CodeMarkerUnresolvedTypeName, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Marker type resolved to `any` that was never written: a type name failed to resolve"},
+		{Code: CodeTypeIdCollision, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "Two different types produced the same short type id: raise `hashLength`"},
+		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},
+		{Code: CodeCompTimeArgsDepthExceeded, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> literal nesting exceeds depth cap (16), refactor to flatten"},
+		{Code: CodeCompTimeArgsForbiddenConstruct, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> literal contains a forbidden construct (computed property, function call, ternary, template substitution, or a non-mergeable spread)"},
+		{Code: CodeCompTimeArgsWidenedConst, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "CompTimeArgs<T> const argument has a widened (non-literal) member, declare the const `as const` so its values stay literal"},
+		{Code: CodePureFunctionNotLiteral, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "PureFunction<F> argument must be an inline arrow or function expression"},
+		{Code: CodePureFunctionExternalHandle, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "PureFunction<F> literal must not be imported or exported, bind it to an inline or module-private function so only the compiled copy can run"},
+		{Code: CodeTsconfigLoadFailed, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "Project tsconfig failed to load: every lane reads this config, so the operation stops"},
+		{Code: CodeUnsupportedLibSelection, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The project's TypeScript `lib` leaves the required globals undeclared, so reflected types cannot be trusted"},
+		{Code: CodeEmitOutsideRootDir, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "An emitted file would land outside `outDir` because its source sits outside `rootDir`; it is not written"},
 	} {
 		register(definition)
 	}

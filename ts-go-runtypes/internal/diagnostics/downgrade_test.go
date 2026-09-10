@@ -45,18 +45,33 @@ func TestResolveDowngrade_Wildcard(t *testing.T) {
 		if !set.All() {
 			t.Fatalf("%v is the wildcard", values)
 		}
-		if !set.Downgraded(errorDiag(CodeTypeIdCollision)) {
-			t.Fatal("the wildcard covers every Error code")
+		if !set.Downgraded(errorDiag(CodeVLSymbolRoot)) {
+			t.Fatal("the wildcard covers every RuntimeError code")
+		}
+		if set.Downgraded(errorDiag(CodeTypeIdCollision)) {
+			t.Fatal("the wildcard never reaches a fatal Error: MKR014 emits no site, so not halting buys nothing")
 		}
 	}
 }
 
-// The wildcard reproduces the retired `failOnError: false` exactly, and that
-// never stopped a pure-fn error halting either.
-func TestResolveDowngrade_WildcardSparesPureFn(t *testing.T) {
+// The wildcard spares every LevelError code, and the rule is now the LEVEL, not
+// the pure-fn family: the fatal set spans four families, and pure-fn itself is
+// mostly NOT fatal (a purity violation ships the compiled body, so it is a
+// RuntimeError and a consumer may stand it down).
+func TestResolveDowngrade_WildcardSparesFatal(t *testing.T) {
 	set, _ := ResolveDowngrade([]string{DowngradeAll})
-	if set.Downgraded(errorDiag(CodePurityThis)) {
-		t.Fatal("a pure-fn error means generation failed, so it is never downgraded")
+	for _, code := range []string{
+		CodeDestructuredParam,       // purefn: no entry, no rewrite
+		CodeMarkerFreeTypeParameter, // marker: no site, no injected id
+		CodeBatchElementNotReadable, // batch: no batch id spliced
+		CodeTsconfigLoadFailed,      // config: nothing runs at all
+	} {
+		if set.Downgraded(errorDiag(code)) {
+			t.Errorf("%s produced no output, so the wildcard must not downgrade it", code)
+		}
+	}
+	if !set.Downgraded(errorDiag(CodePurityThis)) {
+		t.Fatal("a purity violation ships the compiled body, so it is downgradeable")
 	}
 }
 
@@ -70,10 +85,16 @@ func TestResolveDowngrade_RejectsUnknownCode(t *testing.T) {
 	}
 }
 
-func TestResolveDowngrade_RejectsPureFnCode(t *testing.T) {
-	_, err := ResolveDowngrade([]string{CodePurityThis})
+func TestResolveDowngrade_RejectsFatalCode(t *testing.T) {
+	_, err := ResolveDowngrade([]string{CodeMarkerFreeTypeParameter})
 	if err == nil {
-		t.Fatal("a pure-fn code cannot be downgraded, so listing one is an error")
+		t.Fatal("a fatal Error cannot be downgraded, so listing one is an error")
+	}
+	if !strings.Contains(err.Error(), "cannot produce output") {
+		t.Errorf("the message says why, got %q", err)
+	}
+	if _, err := ResolveDowngrade([]string{CodePurityThis}); err != nil {
+		t.Fatalf("a RuntimeError code IS listable, pure-fn family included: %v", err)
 	}
 }
 
@@ -85,17 +106,24 @@ func TestResolveDowngrade_WarningCodeIsInert(t *testing.T) {
 		t.Fatalf("a Warning code is accepted: %v", err)
 	}
 	if set.Downgraded(errorDiag(CodeVLMethodDropped)) {
-		t.Fatal("only Error severity is ever downgraded")
+		t.Fatal("only a RuntimeError is ever downgraded")
 	}
 }
 
+// Suppressible follows the LEVEL. A RuntimeError may be silenced (the author can
+// mean the broken type, e.g. a suite that checks what a throwing validator does);
+// a fatal Error may not, because the call throws whether or not it is silenced.
 func TestSuppressible(t *testing.T) {
 	for code, want := range map[string]bool{
-		CodeVLSymbolRoot:      true,
-		CodeTypeIdCollision:   true,
-		CodePurityThis:        false, // pure-fn: generation failed
-		CodeExpectErrorUnused: false, // the check that keeps directives honest
-		"VL2":                 false, // not a code at all
+		CodeVLSymbolRoot:            true,  // alwaysThrow entry ships
+		CodePurityThis:              true,  // the impure body ships compiled
+		CodeMarkerUntrustedPackage:  true,  // accept-everything entry ships
+		CodeTypeIdCollision:         false, // no site, no injected id
+		CodeMarkerFreeTypeParameter: false, // same
+		CodeDestructuredParam:       false, // no pure-fn entry, no rewrite
+		CodeBatchElementNotReadable: false, // no batch id spliced
+		CodeExpectErrorUnused:       false, // the check that keeps directives honest
+		"VL2":                       false, // not a code at all
 	} {
 		if got := Suppressible(code); got != want {
 			t.Errorf("Suppressible(%q) = %v, want %v", code, got, want)

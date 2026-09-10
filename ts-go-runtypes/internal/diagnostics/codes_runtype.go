@@ -45,7 +45,6 @@ const (
 	CodePJNeverRoot               = "PJ001"
 	CodePJNonSerializableRoot     = "PJ002"
 	CodePJFunctionRoot            = "PJ003"
-	CodePJArrayElement            = "PJ004"
 	CodePJSymbolRoot              = "PJ005"
 	CodePJFunctionPropDropped     = "PJ010"
 	CodePJMethodDropped           = "PJ011"
@@ -60,7 +59,6 @@ const (
 	CodePJSNeverRoot               = "PJS001"
 	CodePJSNonSerializableRoot     = "PJS002"
 	CodePJSFunctionRoot            = "PJS003"
-	CodePJSArrayElement            = "PJS004"
 	CodePJSSymbolRoot              = "PJS005"
 	CodePJSFunctionPropDropped     = "PJS010"
 	CodePJSMethodDropped           = "PJS011"
@@ -75,7 +73,6 @@ const (
 	CodeRJNeverRoot               = "RJ001"
 	CodeRJNonSerializableRoot     = "RJ002"
 	CodeRJFunctionRoot            = "RJ003"
-	CodeRJArrayElement            = "RJ004"
 	CodeRJSymbolRoot              = "RJ005"
 	CodeRJFunctionPropDropped     = "RJ010"
 	CodeRJMethodDropped           = "RJ011"
@@ -90,7 +87,6 @@ const (
 	CodeSJNeverRoot               = "SJ001"
 	CodeSJNonSerializableRoot     = "SJ002"
 	CodeSJFunctionRoot            = "SJ003"
-	CodeSJArrayElement            = "SJ004"
 	CodeSJSymbolRoot              = "SJ005"
 	CodeSJFunctionPropDropped     = "SJ010"
 	CodeSJMethodDropped           = "SJ011"
@@ -105,8 +101,6 @@ const (
 	CodeTBNeverRoot               = "TB001"
 	CodeTBNonSerializableRoot     = "TB002"
 	CodeTBFunctionRoot            = "TB003"
-	CodeTBNonSerializableElem     = "TB005"
-	CodeTBArrayElement            = "TB004"
 	CodeTBSymbolRoot              = "TB006"
 	CodeTBFunctionPropDropped     = "TB010"
 	CodeTBMethodDropped           = "TB011"
@@ -121,8 +115,6 @@ const (
 	CodeFBNeverRoot               = "FB001"
 	CodeFBNonSerializableRoot     = "FB002"
 	CodeFBFunctionRoot            = "FB003"
-	CodeFBNonSerializableElem     = "FB005"
-	CodeFBArrayElement            = "FB004"
 	CodeFBSymbolRoot              = "FB006"
 	CodeFBFunctionPropDropped     = "FB010"
 	CodeFBMethodDropped           = "FB011"
@@ -132,17 +124,23 @@ const (
 	CodeFBNonSerializablePropDrop = "FB015"
 )
 
-// Format family: TypeFormat (pattern / mockSample) build-time checks.
+// Format family: TypeFormat (pattern / mockSample) build-time checks. Every one
+// is LevelRuntimeError: a format finding is raised through EmitDiagnostic, which
+// surfaces the problem WITHOUT changing what the emitter writes, so the entry
+// always renders. What ships is a validator that was never verified (FMT004,
+// FMT007), one built from contradictory params (FMT002), one that can be hung by
+// a crafted input (FMT008), or a mock function that cannot produce a valid value
+// (FMT001, FMT003, FMT005, FMT006).
 const (
 	// CodeFMTSampleMismatch: a declared mockSample does not match the
-	// format's own pattern. Error severity: the sample is supposed to be
+	// format's own pattern. The sample is supposed to be
 	// a canonical valid value, so a mismatch is always a type-definition
 	// bug. Args: [sample, pattern-source].
 	CodeFMTSampleMismatch = "FMT001"
 
 	// CodeFMTInvalidParams: a format's params violate an invariant
 	// (mutually-exclusive options, out-of-range bound, missing required
-	// mockSamples, unknown enum value, …). Error severity: the type
+	// mockSamples, unknown enum value, …). The type
 	// definition is malformed and the emitted validator would be
 	// unreachable or wrong. Args: [violation message]. Replaces the
 	// build-time `validateParams` throw (run JS-side at JIT compile; we
@@ -152,7 +150,7 @@ const (
 	// CodeFMTSampleBounds: a declared mockSample violates a statically
 	// checkable sibling constraint (length / minLength / maxLength, or one
 	// of the plain-string char/value ops allowedChars / disallowedChars /
-	// disallowedValues). Error severity, same doctrine as FMT001: a sample
+	// disallowedValues). Same doctrine as FMT001: a sample
 	// is a canonical valid value, so one that its own siblings reject is a
 	// type-definition bug (it would feed createMockDataFn an invalid value,
 	// or be filtered out at mock time). Args: [comma-joined offending
@@ -163,8 +161,8 @@ const (
 
 	// CodeFMTMissingJsRuntime: a pattern needs the JS engine (compile
 	// check + sample-vs-pattern check run on the real `new RegExp`) but no
-	// engine could run: no node/bun found, or the sidecar died. Error
-	// severity, fail-closed: the build refuses what it can't verify.
+	// engine could run: no node/bun found, or the sidecar died. Fail-closed, and the
+	// entry still renders, so what ships is a validator nothing checked.
 	// Emitted once per pattern-bearing site; projects with zero patterns
 	// never need a JS runtime. Args: [pattern source, reason].
 	CodeFMTMissingJsRuntime = "FMT004"
@@ -173,7 +171,7 @@ const (
 	// build could not auto-generate any: generation is disabled
 	// (patternSampleCount 0), randexp cannot handle the construct, or the
 	// whole retry budget yielded nothing that survives the pattern and its
-	// length bounds. Error severity: a pattern without samples cannot mock,
+	// length bounds. A pattern without samples cannot mock,
 	// so the type definition must declare them. Args: [pattern source,
 	// reason].
 	CodeFMTSampleGenFailed = "FMT005"
@@ -183,8 +181,8 @@ const (
 	// id-relevant) but each DECLARES a different mockSamples pool. The shared
 	// entry can only carry one, so it mocks from whichever interned first,
 	// deterministic for a fixed input, but adding or reordering unrelated code
-	// can silently change which pool wins. Error severity: the build fails
-	// rather than pick for you. Declared-vs-absent is NOT a conflict (absence is
+	// can silently change which pool wins. The build reports it rather than pick
+	// for you. Declared-vs-absent is NOT a conflict (absence is
 	// not an opinion, the declared pool is adopted), and auto-generated pools
 	// are deterministic per pattern so they cannot disagree. Args: [format name,
 	// the pool in use, the conflicting pool, the site that interned first].
@@ -192,7 +190,7 @@ const (
 
 	// CodeFMTPatternTimeout: the JS engine could not finish evaluating a
 	// pattern against one sample inside the sidecar's match budget, even on
-	// the quiet retry. Error severity, same doctrine as FMT004: the emitted
+	// the quiet retry. Same doctrine as FMT004: the emitted
 	// validator would run that same regex, so a pattern that really does
 	// backtrack catastrophically must not ship. The verdict is TRANSIENT,
 	// though: a saturated host blows the budget on a perfectly fine pattern,
@@ -206,8 +204,8 @@ const (
 	// crafted input. Found by a STATIC check on the pattern source
 	// (internal/regexsafety), so unlike FMT007 it runs on every host,
 	// needs no JS engine, and its verdict is a property of the pattern
-	// itself — deterministic, and safe to cache. Error severity: the
-	// validator would be a denial-of-service hole. Escape hatch for a
+	// itself — deterministic, and safe to cache. What ships is a
+	// validator that is a denial-of-service hole. Escape hatch for a
 	// pattern the check reads wrongly: `unsafePattern: true` on the
 	// pattern params.
 	// Args: [pattern source, reason, offending sub-expression].
@@ -249,8 +247,13 @@ const (
 )
 
 func init() {
-	// Root-position errors: render a throwing factory. ScopeRoot: the same
-	// trigger inside a property is a child-position drop (the …01x warnings).
+	// Root-position errors: LevelRuntimeError. The entry RENDERS, as an alwaysThrow
+	// factory, so the cache module is written and the generated function throws the
+	// moment it is called. That is the textbook RuntimeError, and the reason the
+	// level is not LevelError: there is real output, and a consumer that reports it
+	// and exits non-zero has done the right thing.
+	// ScopeRoot: the same trigger inside a property is a child-position drop (the
+	// …01x warnings).
 	for _, code := range []string{
 		CodeVLNonSerializableRoot, CodeVLSymbolRoot,
 		CodeVENonSerializableRoot, CodeVESymbolRoot,
@@ -262,16 +265,7 @@ func init() {
 		CodeFBNeverRoot, CodeFBNonSerializableRoot, CodeFBFunctionRoot, CodeFBSymbolRoot,
 		CodeCESUnionRoot, CodeCESFunctionRoot,
 	} {
-		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeRoot, Title: "RunType root-position error"})
-	}
-	// Propagating element errors: an unsupported array element or a
-	// non-serializable element fails the whole entry from wherever the array
-	// sits, so the emit walker raises them at any depth (ScopeGraph).
-	for _, code := range []string{
-		CodePJArrayElement, CodePJSArrayElement, CodeRJArrayElement, CodeSJArrayElement,
-		CodeTBArrayElement, CodeTBNonSerializableElem, CodeFBArrayElement, CodeFBNonSerializableElem,
-	} {
-		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "RunType propagating element error"})
+		register(Definition{Code: code, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeRoot, Title: "RunType root-position error"})
 	}
 
 	// Composite invariant breach: a JSON composite entry references a
@@ -279,8 +273,8 @@ func init() {
 	// have rendered it (real, noop short-form, or alwaysThrow); the emitted
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build
 	// fails loudly here instead.
-	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeNotSource, Title: "JSON composite references an unrendered primitive entry"})
-	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "property named after a prototype slot"})
+	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "JSON composite references an unrendered primitive entry"})
+	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "property named after a prototype slot"})
 
 	// Child-position warnings: the factory still emits, just drops the member.
 	// The *UnionMemberDropped codes (…014) are the DataOnly union-member drop:
@@ -305,25 +299,29 @@ func init() {
 		CodeHUKFunctionPropDropped, CodeUKEFunctionPropDropped, CodeUKUFunctionPropDropped, CodeUKWFunctionPropDropped,
 		CodeCESFunctionPropDropped, CodeCESMethodDropped, CodeCESStaticDropped, CodeCESNonSerializablePropDrop,
 	} {
-		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
+		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
 	}
 
-	// Root any/unknown: noop validators that accept every value. Warning
-	// severity (not Info): the user opted into a permissive type, often
-	// without realising the runtime is no longer enforcing the schema.
-	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeRoot, Title: "validationErrors root any/unknown: identity fallback"})
-	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Scope: ScopeRoot, Title: "validate root any/unknown: identity fallback"})
+	// Root any/unknown: noop validators that accept every value. LevelWarning, not
+	// LevelRuntimeError, and the line between the two matters: here the type really
+	// IS `any` or `unknown`, written by the author, so a validator that accepts
+	// everything is exactly what was asked for. The RuntimeError case is the type
+	// that was NOT any and became it anyway, because a name, an import or a lib
+	// failed to resolve (MKR007 / MKR013 / TMP001 / CFG002). The user is told
+	// because the runtime is no longer enforcing a schema, not because it is wrong.
+	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeRoot, Title: "validationErrors root any/unknown: identity fallback"})
+	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeRoot, Title: "validate root any/unknown: identity fallback"})
 
 	// Format-family: a mockSample that contradicts its own pattern is a
 	// type-definition bug; surface it as an error.
 	// A format annotation is checked wherever it sits (ScopeGraph); the
 	// missing-runtime code is about the host, not the type.
-	register(Definition{Code: CodeFMTSampleMismatch, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format mockSample does not match pattern"})
-	register(Definition{Code: CodeFMTInvalidParams, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "invalid type-format params"})
-	register(Definition{Code: CodeFMTSampleBounds, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format mockSample violates a sibling constraint"})
-	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeNotSource, Title: "format pattern checks need a JS runtime and none was found"})
-	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format pattern mockSamples could not be auto-generated"})
-	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "two sites declare different mockSamples for one shared format entry"})
-	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Transient: true, Title: "format pattern evaluation timed out"})
-	register(Definition{Code: CodeFMTPatternUnsafe, Family: FamilyRunType, Severity: SeverityError, Scope: ScopeGraph, Title: "format pattern can be made to backtrack exponentially"})
+	register(Definition{Code: CodeFMTSampleMismatch, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format mockSample does not match pattern"})
+	register(Definition{Code: CodeFMTInvalidParams, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "invalid type-format params"})
+	register(Definition{Code: CodeFMTSampleBounds, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format mockSample violates a sibling constraint"})
+	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "format pattern checks need a JS runtime and none was found"})
+	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format pattern mockSamples could not be auto-generated"})
+	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "two sites declare different mockSamples for one shared format entry"})
+	register(Definition{Code: CodeFMTPatternTimeout, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Transient: true, Title: "format pattern evaluation timed out"})
+	register(Definition{Code: CodeFMTPatternUnsafe, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "format pattern can be made to backtrack exponentially"})
 }
