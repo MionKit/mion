@@ -156,6 +156,6 @@ describe('message rendering', () => {
 
   it('never drops an unknown code — renders the regenerate-catalog fallback with the code prefix', () => {
     const message = renderMessage(diagnostic({code: 'ZZ999'}));
-    expect(message).toBe('[ZZ999] (message unavailable — regenerate the catalog via `pnpm run gen:diag-catalog`)');
+    expect(message).toBe('[ZZ999] (message unavailable — regenerate the catalog via `pnpm miondevx core codegen diag`)');
   });
 });

@@ -16,7 +16,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
-import {Family, Severity, type Diagnostic} from '../src/core/protocol.ts';
+import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {ResolverClient} from '../src/core/resolver-client.ts';
 import {BARE_CWD, BIN, hasBinary, withInlineSources, evalEntryModules, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
@@ -303,6 +303,7 @@ export const x = registerPureFnFactory('rt::rounder', function () {
       code: 'PFE9004',
       family: Family.PureFn,
       severity: Severity.Error,
+      level: Level.RuntimeError,
       args: ['rt::collideFn'],
       site: {
         filePath: '/abs/path/x.ts',
@@ -419,6 +420,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
       code: 'PFE9004',
       family: Family.PureFn,
       severity: Severity.Error,
+      level: Level.RuntimeError,
       args: ['rt::fn'],
       site: {
         filePath: '/abs/b.ts',

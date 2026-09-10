@@ -1,6 +1,6 @@
-// The `downgradeErrors` rule: report a named Error code as a Warning instead,
-// so one known finding stops halting a build while every other Error still
-// does.
+// The `downgradeErrors` rule: report a named RuntimeError code as a Warning
+// instead, so one known finding stops halting a build while every other one
+// still does.
 //
 // It DOWNGRADES, it never hides. The finding is still printed on every build,
 // which is the difference between "unblock me" and "make this problem
@@ -8,17 +8,23 @@
 // outright but is site-local and self-cleaning, so it is the better tool
 // whenever the call site is in your own source.
 //
-// Severity on the wire stays whatever the catalog says: it is informational,
-// and what acts on it is the consumer. So the downgrade is applied where the
-// halt decision is made — here for the bundler plugin, and in `mion compile`
+// What may be downgraded follows the LEVEL: a RuntimeError can, because output
+// was produced and reporting it while carrying on is a legitimate choice. A
+// fatal Error never can, because there is no output to carry on with — not
+// halting would only ship a call that throws anyway.
+//
+// Severity on the wire stays whatever the catalog says: it is the label form,
+// and what acts on a finding is the consumer. So the downgrade is applied where
+// the halt decision is made — here for the bundler plugin, and in `mion compile`
 // for its exit code — and lint rule routing is left alone by a build setting.
 // The Go twin is ts-go-runtypes/internal/diagnostics/downgrade.go.
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
-import {Family, Severity, type Diagnostic} from './protocol.ts';
+import {Level, type Diagnostic} from './protocol.ts';
 
-// DOWNGRADE_ALL is the wildcard shape: every Error code reports as a Warning.
-// The blunt instrument, kept for adoption, where a project turning mion on
-// cannot yet list the codes it has not met.
+// DOWNGRADE_ALL is the wildcard shape: every RuntimeError code reports as a
+// Warning, and it never reaches a fatal Error. The blunt instrument, kept for
+// adoption, where a project turning mion on cannot yet list the codes it has
+// not met.
 export const DOWNGRADE_ALL = '*';
 
 // DOWNGRADED_NOTE marks a finding a `downgradeErrors` setting lowered, so it
@@ -41,10 +47,10 @@ export const NONE: DowngradeSet = {all: false, codes: new Set()};
 // boundary rather than silently protecting nothing.
 //
 // An unknown code throws (a typo would otherwise read as a working downgrade).
-// A pure-fn code throws: those halt regardless, because a failed extraction
-// means the build would ship missing output. A Warning or Info code is accepted
-// and simply does nothing — a code's severity may soften between releases and
-// that must never break a consumer's build.
+// A fatal Error throws: those halt regardless, because the build produced no
+// code for the thing. A Warning is accepted and simply does nothing — a code's
+// level may soften between releases and that must never break a consumer's
+// build.
 export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | undefined): DowngradeSet {
   if (value === undefined) return NONE;
   if (value === DOWNGRADE_ALL) return {all: true, codes: new Set()};
@@ -62,9 +68,9 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
         `[@mionjs/devtools] downgradeErrors names unknown diagnostic code ${JSON.stringify(code)} — copy it from the message you are silencing (the uppercase id, e.g. VL002)`
       );
     }
-    if (entry.family === 'purefn') {
+    if (entry.level === 'error') {
       throw new Error(
-        `[@mionjs/devtools] downgradeErrors cannot downgrade ${code} — a pure-function error means generation failed, so the build would ship missing output`
+        `[@mionjs/devtools] downgradeErrors cannot downgrade ${code} — the build produces no code for it, so carrying on would ship missing output`
       );
     }
     codes.add(code);
@@ -73,13 +79,14 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
 }
 
 // isDowngraded reports whether this diagnostic should be treated as a Warning.
-// Only Error severity is ever downgraded, and never the pure-fn family.
+// Only a RuntimeError is ever downgraded: a fatal Error has no output to accept
+// and a Warning is already one.
 //
-// The family comes off the WIRE, the same field the Go twin reads. The catalog
+// The level comes off the WIRE, the same field the Go twin reads. The catalog
 // lookup above is for configured code STRINGS, which have no diagnostic to read
-// a family from; using it here would also mean an unrecognised code slipped
+// a level from; using it here would also mean an unrecognised code slipped
 // through the guard.
 export function isDowngraded(set: DowngradeSet, diagnostic: Diagnostic): boolean {
-  if (diagnostic.severity !== Severity.Error || diagnostic.family === Family.PureFn) return false;
+  if (diagnostic.level !== Level.RuntimeError) return false;
   return set.all || set.codes.has(diagnostic.code);
 }

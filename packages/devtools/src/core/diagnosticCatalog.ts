@@ -3,7 +3,7 @@
 // The Go binary ships only the diagnostic Code (and optional positional
 // Args) over the wire; the message templates live in the GENERATED
 // dictionary (./diagnosticCatalog.generated.ts, emitted by
-// `pnpm run gen:diag-catalog` from the authoritative Go catalog in
+// `pnpm miondevx core codegen diag` from the authoritative Go catalog in
 // internal/diagnostics/messages.go). This module owns the render step shared by
 // the Vite plugin's diagnostics (`this.warn`/`this.error`), the lint
 // plugin, and the runtime alwaysThrow factory: resolve `{0}`, `{1}`, …
@@ -12,7 +12,7 @@
 // code examples) for free.
 //
 // Wording changes go in internal/diagnostics/messages.go, never here — regenerate
-// with `pnpm run gen:diag-catalog`.
+// with `pnpm miondevx core codegen diag`.
 
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 
