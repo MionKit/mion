@@ -575,8 +575,13 @@ const familyMeta: Record<string, FamilyMeta> = {
 // Tuple registration
 // =============================================================================
 
-// Keys whose subtree already registered — prunes the recursive walk both
-// within a call (cycle guard) and across calls (overlapping closures).
+// Keys whose subtree already registered — prunes the recursive walk across
+// calls (overlapping closures). The prune holds only while the entry is still
+// in the registry: `removeFromRTCache` / `removeRunType` (a test reset, an
+// app-restart simulation) drop an entry, and the next injection of the same
+// tuple must register it again, so collectClosure re-checks the registry
+// before trusting a processed key. Cycles inside one call are cut by the
+// per-call `visiting` set instead.
 const processedKeys = new Set<string>();
 
 /** Registers `root`'s full dependency closure into rtUtils (children first,
@@ -588,7 +593,7 @@ export function initFromTuple(root: EntryTuple): void {
   if (!isEntryTuple(root)) return;
   const utils = getRTUtils();
   const fresh: EntryTuple[] = [];
-  collectClosure(root, utils, fresh);
+  collectClosure(root, utils, fresh, new Set<string>());
   // Phase 2: wire each freshly-registered entry's ref slots — every referenced
   // entry now exists, so index/`c(id)` lookups resolve, including cycles. Data
   // bundles patch their nodes from the parallel `rels` array (by row index);
@@ -631,19 +636,40 @@ function wireBundleRelations(utils: RTUtils, tuple: RunTypeBundleTuple): void {
 }
 
 // collectClosure walks a tuple's deps() thunks post-order: deps register
-// before their dependents, the processed-keys guard terminates cycles (and
-// skips subtrees an earlier root already registered), and every newly
-// registered tuple lands in `fresh` for the caller's phase-2 ini pass.
-// Dep-less entries carry undefined in the slot and skip straight to
-// registration.
-function collectClosure(tuple: unknown, utils: RTUtils, fresh: EntryTuple[]): void {
+// before their dependents, the `visiting` set terminates cycles, the
+// processed-keys guard skips subtrees an earlier root already registered (as
+// long as the registry still holds them), and every newly registered tuple
+// lands in `fresh` for the caller's phase-2 ini pass. Dep-less entries carry
+// undefined in the slot and skip straight to registration.
+function collectClosure(tuple: unknown, utils: RTUtils, fresh: EntryTuple[], visiting: Set<string>): void {
   if (!isEntryTuple(tuple) || isMissingTuple(tuple)) return;
   const key = entryTupleKey(tuple);
-  if (processedKeys.has(key)) return;
+  if (visiting.has(key)) return;
+  visiting.add(key);
+  if (processedKeys.has(key) && isStillRegistered(utils, tuple)) return;
   processedKeys.add(key);
   const deps = tuple[SLOT_DEPS] as EntryDepsThunk | undefined;
-  if (deps) for (const dep of deps()) collectClosure(dep, utils, fresh);
+  if (deps) for (const dep of deps()) collectClosure(dep, utils, fresh, visiting);
   if (registerTuple(utils, tuple)) fresh.push(tuple);
+}
+
+// isStillRegistered says whether a processed tuple's entry is still in the
+// registry, so the cross-call prune never hides an entry a removal dropped.
+// A facade and a missing stub register nothing, so they always count; a data
+// bundle counts by its first row, since a removal that empties it drops rows
+// wholesale (the bundle key is a content hash over every row, and checking
+// them all would cost O(rows) on every getRunType call).
+function isStillRegistered(utils: RTUtils, tuple: EntryTuple): boolean {
+  const slot0 = tuple[SLOT_KIND];
+  const key = entryTupleKey(tuple);
+  if (typeof slot0 === 'string') return utils.hasRTFn(key);
+  if (slot0 === KIND_RUN_TYPE) return utils.hasRunType(key);
+  if (slot0 === KIND_PURE_FN) return utils.hasPureFnByKey(key);
+  if (slot0 === KIND_RUN_TYPE_BUNDLE) {
+    const rows = (tuple[SLOT_ROWS] ?? []) as readonly RunTypeRow[];
+    return rows.length === 0 || utils.hasRunType(rows[0][0] as string);
+  }
+  return true;
 }
 
 /** Registers a single tuple in the cache matching its kind. Returns true when
