@@ -26,7 +26,7 @@ export interface BunHttpOptions {
    * config but never calls `Bun.serve()`, and installs no SIGINT/SIGTERM handlers (they would exit
    * the host's process). Mount `bunRequestHandler` wherever the host wants it — your own
    * `Bun.serve({fetch})`, or a vite dev server through
-   * `mionVitePlugin({server: {runMode: 'middleware', platform: '@mionjs/platform-bun'}})`.
+   * `mionVitePlugin({server: {startScript, platform: '@mionjs/platform-bun'}})`.
    */
   asMiddleware: boolean;
 }
