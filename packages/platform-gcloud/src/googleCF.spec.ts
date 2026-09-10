@@ -50,6 +50,8 @@ describe('serverless router', () => {
     context.response.headers.set('server', 'my-server');
   });
 
+  const echoQuery: Route = mion.route((ctx: Context): string => ctx.urlQuery ?? '<undefined>');
+
   // fake express server passing the request and response to the google cloud function handler
   const port = 8097;
   let server: Server;
@@ -74,7 +76,7 @@ describe('serverless router', () => {
     beforeAll(async () => {
       resetGoogleCFOpts();
       resetRouter();
-      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      mion.initRoutes({changeUserName, getDate, updateHeaders, echoQuery});
       server = await initServer(port);
     });
 
@@ -95,6 +97,26 @@ describe('serverless router', () => {
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['content-length']).toEqual('47');
       expect(headers['server']).toEqual('@mionjs');
+    });
+
+    it('keeps the whole query string, including a second ? inside it', async () => {
+      // `?` is a legal character inside a query string, so everything after the FIRST one is the
+      // query: splitting on every `?` would silently drop the parameters that follow
+      const response = await fetch(`http://127.0.0.1:${port}/api/echoQuery?a=1?b=2&c=3`, {
+        method: 'POST',
+        body: JSON.stringify({echoQuery: []}),
+      });
+
+      expect(await response.json()).toEqual({echoQuery: 'a=1?b=2&c=3'});
+    });
+
+    it('reports no query string as undefined', async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/echoQuery`, {
+        method: 'POST',
+        body: JSON.stringify({echoQuery: []}),
+      });
+
+      expect(await response.json()).toEqual({echoQuery: '<undefined>'});
     });
 
     it('get an ok response from a route when content type is json', async () => {
