@@ -142,6 +142,14 @@ line in all three starters), `01.rpc/05.platforms/01.node-js.md`, `03.client/03.
 
 ## Fixed along the way
 
+**Two bugs a mion API under `/api` always had.** The client resolves a route's ABSOLUTE path
+against its `baseURL`, so `/api` put there is dropped (`new URL('/sayHello', 'http://host/api')` is
+`http://host/sayHello`), and the client builds its paths from its OWN `basePath`, so setting it only
+on the router leaves the very first call (the route metadata fetch) outside the catch-all handler.
+The shipped Vercel example and its docs told readers to put `/api` in the `baseURL`; both ends now
+carry `basePath: '/api'` instead. Found by the new e2e lane, which is the first thing in the repo to
+call a mion API mounted under a prefix.
+
 **A resolver bug this change is the first to hit.** A router-init module OUTSIDE the session's
 working dir is requested as `../pkg/entry.ts`, and `sameTransformPath` matched only by suffix, which
 no absolute path can satisfy against a spelling starting with `..`. Every replacement carrying the
