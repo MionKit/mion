@@ -550,6 +550,11 @@ type Replacement struct {
 	// entry exports under its binding name), so the plugin imports `{<Text>}`
 	// directly. Empty for plain text substitutions.
 	ImportFrom string `json:"importFrom,omitempty"`
+	// ImportBinding, when non-empty, is the export name the import clause
+	// brings in when Text is not that name: a trailing-slot splice whose Text
+	// carries `undefined` padding and a leading comma before the binding (the
+	// bundled-API lane). Empty means Text IS the binding, as above.
+	ImportBinding string `json:"importBinding,omitempty"`
 }
 
 // TransformResult is the per-file output of OpTransform. Two wire shapes,

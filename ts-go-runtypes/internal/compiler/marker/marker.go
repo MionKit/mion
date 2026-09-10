@@ -98,6 +98,15 @@ const (
 	// id in; the resolver's marker walk does not inject for it (no createX
 	// id/fnId), so it carries no scanCall case.
 	KindInjectBatchId
+	// KindInjectApiMetadata is the mion client's API metadata injection marker
+	// (InjectApiMetadata<Api, Id>): the trailing parameter of a client dispatch
+	// point (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`) and,
+	// without an Id, of `initClient`. The apimeta lane recognises the call by
+	// this brand, reads the API type and the route id off the alias's type
+	// arguments, and fills the slot with an import of the generated module
+	// carrying that route's metadata and compiled functions (the mode literal
+	// at initClient). No scanCall case, like KindInjectBatchId.
+	KindInjectApiMetadata
 )
 
 // DefaultName is the symbol name the resolver looks for for the
@@ -137,6 +146,10 @@ const DefaultInjectPureFnHashName = "InjectPureFnHash"
 // injection marker (InjectBatchId<Routes>).
 const DefaultInjectBatchIdName = "InjectBatchId"
 
+// DefaultInjectApiMetadataName is the symbol name for the mion client's API
+// metadata injection marker (InjectApiMetadata<Api, Id>).
+const DefaultInjectApiMetadataName = "InjectApiMetadata"
+
 // DefaultModule is the package the marker types must be declared in.
 const DefaultModule = "@mionjs/run-types"
 
@@ -172,6 +185,7 @@ const (
 	BrandInjectTypeFnArgs    = "__rtInjectTypeFnArgsBrand"
 	BrandInjectPureFnHash    = "__rtInjectPureFnHashBrand"
 	BrandInjectBatchId       = "__rtInjectBatchIdBrand"
+	BrandInjectApiMetadata   = "__rtInjectApiMetadataBrand"
 )
 
 // DefaultSpecs returns the canonical marker set: one spec per supported
@@ -186,6 +200,7 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultInjectTypeFnArgsName, Module: DefaultModule, Kind: KindInjectTypeFnArgs, BrandProperty: BrandInjectTypeFnArgs},
 		{Name: DefaultInjectPureFnHashName, Module: DefaultModule, Kind: KindInjectPureFnHash, BrandProperty: BrandInjectPureFnHash},
 		{Name: DefaultInjectBatchIdName, Module: DefaultModule, Kind: KindInjectBatchId, BrandProperty: BrandInjectBatchId},
+		{Name: DefaultInjectApiMetadataName, Module: DefaultModule, Kind: KindInjectApiMetadata, BrandProperty: BrandInjectApiMetadata},
 		// CompTimeHints is an identity alias (no phantom brand exists on
 		// any resolved type), so BrandProperty stays empty — detection is
 		// purely syntactic via the written annotation (comptimeargs node check).
@@ -518,6 +533,51 @@ func fnKeysFromAlias(tsType *checker.Type, spec Spec, opts Options) ([]string, b
 		return nil, false
 	}
 	return keys, true
+}
+
+// ApiMetadataArgs reads the two type arguments of an InjectApiMetadata<Api, Id>
+// alias: the API type and the Id type (a string literal, a union of literals for
+// a batch, `string` when a generic helper widened it). The initClient anchor
+// writes no Id (the alias defaults it to `never`, and the instantiation then
+// carries only the written argument), so id is nil there. ok is false when
+// paramType is not that alias. An optional `apiMetadata?:` parameter resolves
+// to `InjectApiMetadata<…> | undefined`, so the union members are walked
+// exactly like FnKeysForInjectTypeFnArgs.
+func ApiMetadataArgs(paramType *checker.Type, opts Options) (api *checker.Type, id *checker.Type, ok bool) {
+	if paramType == nil {
+		return nil, nil, false
+	}
+	opts = WithDefaults(opts)
+	spec, found := specForKind(opts.Specs, KindInjectApiMetadata)
+	if !found {
+		return nil, nil, false
+	}
+	if api, id, ok = apiMetadataArgsFromAlias(paramType, spec, opts); ok {
+		return api, id, true
+	}
+	if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
+		for _, member := range paramType.Types() {
+			if api, id, ok = apiMetadataArgsFromAlias(member, spec, opts); ok {
+				return api, id, true
+			}
+		}
+	}
+	return nil, nil, false
+}
+
+func apiMetadataArgsFromAlias(tsType *checker.Type, spec Spec, opts Options) (*checker.Type, *checker.Type, bool) {
+	alias, ok := aliasForSpec(tsType, spec, opts)
+	if !ok {
+		return nil, nil, false
+	}
+	typeArguments := alias.TypeArguments()
+	if len(typeArguments) == 0 || typeArguments[0] == nil {
+		return nil, nil, false
+	}
+	if len(typeArguments) == 1 {
+		return typeArguments[0], nil, true
+	}
+	return typeArguments[0], typeArguments[1], true
 }
 
 // IsFreeTypeParameter reports whether tsType is a still-unresolved type

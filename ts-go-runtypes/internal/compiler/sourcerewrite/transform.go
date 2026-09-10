@@ -195,6 +195,37 @@ func siteModuleFor(site protocol.Site, index int, fnId string) string {
 	return entryBasename(site.ID, fnId)
 }
 
+// SiteImport is one entry-module import a site's injected binding needs: the
+// binding identifier and the basename of the module exporting it (under the
+// output root's types/ dir).
+type SiteImport struct {
+	Binding  string
+	Basename string
+}
+
+// SiteImports lists the entry-module imports one site's binding needs, one per
+// fnId (a reflection site has one, its bare id). Exported for the bundled-API
+// lane, which renders the same bindings into a generated module instead of a
+// user file.
+func SiteImports(site protocol.Site) []SiteImport {
+	if site.ID == "" {
+		return nil
+	}
+	fnIds := siteFnIds(site)
+	out := make([]SiteImport, 0, len(fnIds))
+	for index, fnId := range fnIds {
+		out = append(out, SiteImport{Binding: entryBinding(site.ID, fnId), Basename: siteModuleFor(site, index, fnId)})
+	}
+	return out
+}
+
+// SlotBinding is slotBinding, exported for the bundled-API lane: the text a
+// marker slot receives, an array of bindings for a multi-function site, else
+// the lone binding.
+func SlotBinding(site protocol.Site) string {
+	return slotBinding(site)
+}
+
 // buildImportBlock collects every entry-module import the rewritten file needs
 // and renders the deduped import statements as a SINGLE physical line. One
 // clause shape everywhere: every module exports each entry under its binding
@@ -224,6 +255,10 @@ func buildImportBlock(sites []protocol.Site, replacements []protocol.Replacement
 	}
 	for _, rep := range replacements {
 		if rep.ImportFrom == "" {
+			continue
+		}
+		if rep.ImportBinding != "" {
+			addClause(rep.ImportFrom, rep.ImportBinding)
 			continue
 		}
 		addClause(rep.ImportFrom, rep.Text)

@@ -236,6 +236,10 @@ export interface Replacement {
   // `text` IS the module's export name (every entry exports under its binding
   // name), so the rewrite imports `{<text>}` directly.
   importFrom?: string;
+  // The export name the import clause brings in when `text` is not that name
+  // (a trailing-slot splice padded with `undefined`, the bundled-API lane).
+  // Absent means `text` is the binding.
+  importBinding?: string;
 }
 
 // PureFnSite mirrors Go protocol.PureFnSite — one generated pure-fn entry in the
