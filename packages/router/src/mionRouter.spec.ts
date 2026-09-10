@@ -189,6 +189,9 @@ describe('PublicApi resolved options', () => {
       encoder: {params: 'compact', return: 'compact'},
       strictTypes: true,
     });
+    // the API type also names the exact types the server compiled each method from
+    expectTypeOf<NonNullable<Api['q']['types']>>().toEqualTypeOf<{params: [n: number]; return: string; headers: never; isAsync: false}>();
+    expectTypeOf<NonNullable<Api['mf']['types']>['params']>().toEqualTypeOf<[s: string]>();
     // the API type stays a RemoteApi, so initClient<Api>() keeps compiling
     expectTypeOf<Api>().toMatchTypeOf<RemoteApi>();
   });
