@@ -96,6 +96,13 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         : executable.options,
   };
   if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
+  // the client rebuilds a returned HeadersSubset from these names, so they must ride the wire
+  if (executable.headersReturn) {
+    newRemoteMethod.headersReturn = {
+      headerNames: executable.headersReturn.headerNames,
+      jitHash: executable.headersReturn.jitHash,
+    };
+  }
   if (executable.middleFnIds) newRemoteMethod.middleFnIds = executable.middleFnIds;
   publicMethods.set(executable.id, newRemoteMethod);
   return newRemoteMethod as MethodWithOptions;
