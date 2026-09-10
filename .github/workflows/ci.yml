@@ -138,7 +138,7 @@ jobs:
       # The env values mirror the registry's quick blocks; values, exclude list
       # and the trailing slash on `test/fuzz/` (it keeps the devtools
       # fuzz-lane-contracts test out of this slice) are pinned by that same test.
-      # Local replay: `pnpm miondevx core fuzz <enrich|i18n|typemod|convertcli> --quick`.
+      # Local replay: `pnpm miondevx core fuzz <enrich|i18n|typemod|convertcli|apiids> --quick`.
       - name: JS fuzz sweep (count-based lanes at quick budgets)
         env:
           MION_FUZZ_ENRICH_SEQUENCES: '12'

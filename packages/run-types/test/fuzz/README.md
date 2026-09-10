@@ -61,6 +61,7 @@ test/fuzz/
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 ├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
 ├── security/                    # attack the DECODERS: hostile bytes, JSON trees, format pumps (SB-*, SJ-*, SF-*)
+├── apiids/                      # a bundled mion client ships the server's exact runtypes (A1–A3)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
@@ -500,6 +501,29 @@ yields a 5xx (SH-NO5XX), no response carries engine error text or a file path
 `Object.prototype` is untouched after the run (SH-PROTO). Replay a finding
 with `MION_FUZZ_SEED=<seed> pnpm miondevx core fuzz sechttp`.
 
+### `apiids/` — a bundled mion client ships the server's runtypes
+
+The mion side of the id story. With `bundleApi` on, a client build compiles the
+validators and serializers of every route it calls, and with `apiTsconfig` it
+resolves the route types in the server's own program. The lane drives the real
+binary over two real temp projects per generated data type: a SERVER (strict,
+one `initRoutes` call over two routes taking and returning the type) and a
+CLIENT (`strictNullChecks` off, an older lib, calling both routes).
+
+- **A1** the server manifest's `paramsId` / `returnId` equal the ids the
+  reflection marker assigns to the same types (a probes file, both
+  `getRunTypeId` call shapes), so the API tree walk and the marker scanner
+  agree.
+- **A2** the client build reports no `MET` diagnostic and bundles exactly the
+  routes it calls.
+- **A3** `mion api-check` over the two gen dirs exits 0: the client shipped the
+  server's exact runtypes, tsconfig differences and all.
+
+The negative control is a fixed test beside the sweep: a type with an explicit
+`| undefined` member, built WITHOUT the pointer under the client's tsconfig,
+fails api-check on `paramsId`. Runner: `apiIdsFuzz.ts`; replay with
+`MION_FUZZ_SEED`, widen with `MION_FUZZ_ITER`.
+
 ### `enrich/` — model-based (stateful) fuzzers
 
 Three **sequence** fuzzers: instead of one input, they feed a _sequence_ of
@@ -539,7 +563,7 @@ The `miondevx` front door builds the binary first, then runs the suite:
 pnpm miondevx core fuzz <lane…> [--quick|--soak]
 #   lane ∈   unit | value | types | nondata | roundtrip | size | cloning |
 #            secbinary | secjson | secformat | secgen |
-#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | all
+#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | apiids | all
 #   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)
 #   --soak   the release tier: the long soak knobs (see the miondevx.mjs FUZZ table)
 ```
