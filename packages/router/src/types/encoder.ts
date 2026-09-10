@@ -44,8 +44,10 @@ type DecodeFamily<S> = S extends 'compact' ? 'cjr' : S extends string ? 'rj' : n
 /** Options naming no `encoder`, the default for a helper called outside the factory. */
 type NoEncoderOptions = Record<never, never>;
 
-type ParamsStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
-type ReturnStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
+/** The params-side strategy literal a route resolves to, also read by the resolved-options view of the API type. */
+export type ParamsStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
+/** The return-side strategy literal a route resolves to. */
+export type ReturnStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
 
 // The two slots of each marker side that vary with the strategy, read by MarkerSlots below.
 type ParamsEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
