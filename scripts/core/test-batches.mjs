@@ -49,7 +49,7 @@ export const BATCHES = [
     projects: ['drizzle-root', 'drizzle-pg', 'drizzle-mysql', 'drizzle-sqlite', 'devtools', 'platform-aws', 'platform-gcloud'],
   },
   {name: 'mion-platforms', projects: ['platform-node', 'platform-vercel', 'platform-cloudflare', 'platform-uws', 'bin-uws']},
-  {name: 'mion-rest', projects: ['client', 'type-budget']},
+  {name: 'mion-rest', projects: ['client', 'client-bundled', 'client-mixed', 'type-budget']},
 ];
 
 // The project config paths listed under `test.projects` in the root vitest config.

@@ -7,6 +7,7 @@
 
 import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
 import {
+  BundleApiMode,
   ClientOptions,
   MiddlewareSubRequest,
   InitClientOptions,
@@ -27,6 +28,7 @@ import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {takeMetadataCacheError} from './lib/clientMethodsMetadata.ts';
+import {registerBundledApi} from './lib/bundledApi.ts';
 
 /**
  * Creates the client: the typed `routes` / `middleFns` proxies plus the client itself.
@@ -41,8 +43,9 @@ export function initClient<RM extends RemoteApi>(
   const clientOptions = {
     ...DEFAULT_PREFILL_OPTIONS,
     ...options,
+    bundleApi: toBundleApiMode(bundleApiMode),
   };
-  const client = new MionClient(clientOptions, toBundleApiMode(bundleApiMode));
+  const client = new MionClient(clientOptions);
   const rootProxy = new MethodProxy([], client, clientOptions);
   return {
     client,
@@ -51,15 +54,13 @@ export function initClient<RM extends RemoteApi>(
   };
 }
 
-/** The lane a built client runs its metadata on: bundled at build time, or bundled with a fetch fallback. */
-export type BundleApiMode = 'bundled' | 'mixed';
-
 function toBundleApiMode(injected: unknown): BundleApiMode | undefined {
   if (injected === undefined) return undefined;
   if (injected === 'bundled' || injected === 'mixed') return injected;
+  const shown = typeof injected === 'string' ? injected : typeof injected;
   throw new RpcError({
     type: 'bundle-api-invalid-mode',
-    publicMessage: `initClient received an unknown bundleApi mode '${String(injected)}'; expected 'bundled' or 'mixed'.`,
+    publicMessage: `initClient received an unknown bundleApi mode '${shown}'; expected 'bundled' or 'mixed'.`,
   });
 }
 
@@ -78,11 +79,17 @@ export class MionClient {
     return this.globalAbortController.signal;
   }
 
-  constructor(
-    private clientOptions: ClientOptions,
-    /** set by the build through `initClient`'s trailing marker; undefined means the fetched lane */
-    readonly bundleApiMode?: BundleApiMode
-  ) {}
+  constructor(private clientOptions: ClientOptions) {}
+
+  /** The lane the build put this client on; undefined means the fetched lane. */
+  get bundleApiMode(): BundleApiMode | undefined {
+    return this.clientOptions.bundleApi;
+  }
+
+  /** Registers the metadata and compiled functions a dispatch point received from the build. */
+  useBundledApi(apiMetadata: unknown): void {
+    if (apiMetadata !== undefined) registerBundledApi(apiMetadata);
+  }
 
   /** Aborts all in-flight requests. New requests after this call work normally. */
   abort(): void {

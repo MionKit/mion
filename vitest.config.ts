@@ -43,6 +43,10 @@ export default defineConfig({
       'packages/core/vitest.config.ts',
       'packages/router/vitest.config.ts',
       'packages/client/vitest.config.ts',
+      // The bundleApi lanes of the client: the same sources and test server, built with the
+      // metadata bundled at the call sites ('bundled') or bundled with the fetch fallback ('mixed').
+      'packages/client/vitest.bundled.config.ts',
+      'packages/client/vitest.mixed.config.ts',
       'packages/platform-aws/vitest.config.ts',
       'packages/platform-gcloud/vitest.config.ts',
       'packages/platform-node/vitest.config.ts',

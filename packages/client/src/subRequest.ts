@@ -45,8 +45,10 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     });
   }
 
-  /** Prefills MiddleFn's parameters and returns TypedEvent for event handler registration */
-  prefill(): TypedEvent<S, E> {
+  /** Prefills MiddleFn's parameters and returns TypedEvent for event handler registration.
+   *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  prefill(apiMetadata?: unknown): TypedEvent<S, E> {
+    this.client.useBundledApi(apiMetadata);
     this.client.prefill(this as MiddlewareSubRequest<any>).catch((errors: RequestErrors) => {
       console.error('Prefill error:', findSubRequestError(this, errors));
     });
@@ -85,8 +87,10 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     return this.client.removePrefill(this as MiddlewareSubRequest<any>);
   }
 
-  /** Calls a remote route with optional setup (middleFns, signal, timeout) */
-  call(setup?: CallSetup<any>): Promise<any> {
+  /** Calls a remote route with optional setup (middleFns, signal, timeout).
+   *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  call(setup?: CallSetup<any>, apiMetadata?: unknown): Promise<any> {
+    this.client.useBundledApi(apiMetadata);
     return this.client.execute(
       this as unknown as RouteSubRequest<any>,
       undefined,
@@ -97,8 +101,10 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     );
   }
 
-  /** Validates parameters and returns type errors */
-  typeErrors(): Promise<RunTypeError[]> {
+  /** Validates parameters and returns type errors.
+   *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  typeErrors(apiMetadata?: unknown): Promise<RunTypeError[]> {
+    this.client.useBundledApi(apiMetadata);
     return this.client
       .typeErrors(this as SubRequest<any>)
       .catch((errors: RequestErrors) => Promise.reject(findSubRequestError(this, errors)));
