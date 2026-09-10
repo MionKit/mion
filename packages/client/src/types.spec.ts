@@ -52,9 +52,11 @@ describe('subrequest types carry the route id and the API', () => {
       .parameter(0)
       .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello'> | undefined>();
     const auth = middleFns.auth(new HeadersSubset({Authorization: 'x'}));
+    expect(auth.id).toBe('auth');
     expectTypeOf<typeof auth.prefill>().parameter(0).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'auth'> | undefined>();
     // a batch names every route it runs, as a union of ids
     const built = batch([hello, routes.utils.sumTwo(1)]);
+    expect(typeof built.call).toBe('function');
     expectTypeOf<typeof built.call>()
       .parameter(1)
       .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello' | 'utils/sumTwo'> | undefined>();
