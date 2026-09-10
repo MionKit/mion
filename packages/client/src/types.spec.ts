@@ -47,18 +47,22 @@ describe('subrequest types carry the route id and the API', () => {
 
   it('gives every dispatch point a marker typed with the API and the id', () => {
     const hello = routes.sayHello({name: 'a', surname: 'b'});
-    expectTypeOf(hello.call).parameter(1).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello'> | undefined>();
-    expectTypeOf(hello.typeErrors).parameter(0).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello'> | undefined>();
+    expectTypeOf<typeof hello.call>().parameter(1).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello'> | undefined>();
+    expectTypeOf<typeof hello.typeErrors>()
+      .parameter(0)
+      .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello'> | undefined>();
     const auth = middleFns.auth(new HeadersSubset({Authorization: 'x'}));
-    expectTypeOf(auth.prefill).parameter(0).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'auth'> | undefined>();
+    expectTypeOf<typeof auth.prefill>().parameter(0).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'auth'> | undefined>();
     // a batch names every route it runs, as a union of ids
     const built = batch([hello, routes.utils.sumTwo(1)]);
-    expectTypeOf(built.call).parameter(1).toEqualTypeOf<
-      InjectApiMetadata<TestServerApi, 'sayHello' | 'utils/sumTwo'> | undefined
-    >();
+    expectTypeOf<typeof built.call>()
+      .parameter(1)
+      .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello' | 'utils/sumTwo'> | undefined>();
     expectTypeOf<ApiOf<[typeof hello]>>().toEqualTypeOf<TestServerApi>();
     // the anchor: initClient's own slot carries the API and no id
-    expectTypeOf(initClient<TestServerApi>).parameter(1).toEqualTypeOf<InjectApiMetadata<TestServerApi> | undefined>();
+    expectTypeOf(initClient<TestServerApi>)
+      .parameter(1)
+      .toEqualTypeOf<InjectApiMetadata<TestServerApi> | undefined>();
   });
 
   it('a helper that erases the route name widens the id to string', () => {

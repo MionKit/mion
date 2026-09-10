@@ -82,8 +82,7 @@ export interface MethodTypes<Params = unknown, Return = unknown, Headers = unkno
 }
 
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
-export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes>
-  extends MethodMetadata {
+export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes> extends MethodMetadata {
   type: typeof HandlerType.route;
   middleFnIds: string[];
   headerNames: undefined;
@@ -95,8 +94,7 @@ export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts, T
 }
 
 /** Public MiddleFns, handler type is the same as RemoteMiddleFns but does not include the context  */
-export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes>
-  extends MethodMetadata {
+export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes> extends MethodMetadata {
   type: typeof HandlerType.middleFn;
   handler: H;
   /** the effective options, as the router resolved them */
@@ -106,8 +104,7 @@ export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts
 }
 
 /** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
-export interface PublicHeadersFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes>
-  extends MethodMetadata {
+export interface PublicHeadersFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes> extends MethodMetadata {
   type: typeof HandlerType.headersMiddleFn;
   headerNames: string[];
   handler: H;
