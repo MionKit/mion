@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/** Vite plugin for mion — a thin wrapper over the runtypes core since the mion migration */
+/** Vite plugin for mion — a thin preset over the runtypes core */
 export {mionVitePlugin, resolveRtBinary} from './mionVitePlugin.ts';
-// (deriveRuntypesTsconfig workaround removed — the resolver now ignores tsconfig project references itself)
 export type {
   MionClientPointer,
   MionPluginOptions,

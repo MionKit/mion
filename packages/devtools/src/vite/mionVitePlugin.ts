@@ -11,26 +11,16 @@ import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
 import type {GenerateInfo, PluginOptions as TsRuntypesPluginOptions} from '../core/unplugin.ts';
 import type {Plugin, PluginOption} from 'vite';
 // Shared with the Next preset — see ./options.ts for why these live outside this file.
-import {
-  assertNoRemovedOptions,
-  resolveRtBinary,
-  toRunTypesOptions,
-  type MionClientPointer,
-  type MionRunTypesOptions,
-} from '../options.ts';
+import {resolveRtBinary, toRunTypesOptions, type MionClientPointer, type MionRunTypesOptions} from '../options.ts';
 
 export {resolveRtBinary};
 export type {MionClientPointer, MionRunTypesOptions};
 
-// ############# mion vite plugin — mion migration #############
-// The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
-// generation. All of that is replaced by the runtypes core: the resolver binary
-// scans the program, rewrites mion.route()/mion.middleFn()/createX call sites with precompiled
-// function tuples and writes the generated cache modules under <srcDir>/.mion/.
-//
-// This wrapper keeps the old `mionVitePlugin({runTypes: {tsConfig}})` call shape so the
-// existing vite/vitest configs across the monorepo keep working unchanged. The legacy
-// deepkit/AOT/pure-fn options are REMOVED — see the migration guard below.
+// ############# mion vite plugin #############
+// A thin preset over the runtypes core: the resolver binary scans the program, rewrites
+// mion.route()/mion.middleFn()/createX call sites with precompiled function tuples, and writes
+// the generated cache modules under <srcDir>/.mion/. This file adds mion's own choices on top —
+// the in-process API, the server bundle, and the batch transport's module-graph wiring.
 
 /** The mion API behind this vite run: ONE program, ONE process. In `vite dev` the entry is loaded
  *  through this vite server's own SSR pipeline and mounted as middleware (no port of its own), and
@@ -125,8 +115,6 @@ export function createBatchTransportSignals(invalidate: (files: string[]) => voi
 
 export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
   const rt = options.runTypes ?? {};
-  assertNoRemovedOptions(options);
-  assertNoRemovedServerOptions(options.server);
   const transport = createBatchTransportSignals((files) => invalidateFiles(files));
   // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`),
   // while the module vite serves is `Comp.vue`. mion reports stale site files by the
@@ -216,35 +204,6 @@ function findRtPlugin(created: unknown): Plugin | undefined {
     else if (typeof (next as Plugin | undefined)?.transform === 'function') return next as Plugin;
   }
   return undefined;
-}
-
-// ############# unsupported server options #############
-// The mion API runs in the SAME process as vite, so none of these keys has anything to configure.
-// Detected at config time and thrown with what to do instead, read through an index signature so an
-// untyped vite.config.js is caught too, not just a typed one.
-const REMOVED_SERVER_OPTIONS: Record<string, string> = {
-  runMode: 'the API is always mounted in this vite process; there is no mode to pick. Delete it.',
-  viteConfig: 'there is no second vite process to configure. The API is loaded by THIS config. Delete it.',
-  waitTimeout: 'nothing polls a port. Delete it.',
-  env: 'set what the API needs in this process, or in the test that starts it.',
-};
-const START_IT_YOURSELF =
-  'A test that needs a real socket starts the API itself in its globalSetup (import the entry and call its start function), ' +
-  'and `vite dev` already listens for you.';
-
-/** Throws on any unsupported `server` key a config passes, naming the replacement. */
-export function assertNoRemovedServerOptions(server: MionServerOptions | undefined): void {
-  if (!server) return;
-  const found: string[] = [];
-  const block = server as unknown as Record<string, unknown>;
-  for (const [key, hint] of Object.entries(REMOVED_SERVER_OPTIONS)) {
-    if (block[key] !== undefined) found.push(`  - server.${key}: ${hint}`);
-  }
-  if (found.length === 0) return;
-  throw new Error(
-    `[mionVitePlugin] removed option${found.length > 1 ? 's' : ''} in your \`server\` block (the mion API now runs in ` +
-      `the SAME process as vite — one program, one resolver):\n${found.join('\n')}\n${START_IT_YOURSELF}`
-  );
 }
 
 // ############# server bundle (`server.build`) #############

@@ -14,7 +14,6 @@
 // staleness and Next runs its own dev server.
 
 import type {PluginOptions as TsRuntypesPluginOptions} from './core/unplugin.ts';
-import {FAIL_ON_ERROR_REMOVED} from './core/downgradeErrors.ts';
 
 /** Options for the mion powered type transformation. */
 export interface MionRunTypesOptions {
@@ -99,79 +98,19 @@ export interface MionClientPointer {
   tsConfig: string;
 }
 
-let legacyBinEnvNoticeShown = false;
-
-// ############# removed-option migration guard (0.8 → 0.9) #############
-// These deepkit/AOT-era options were accepted-and-ignored through the mion migration and are
-// now gone from the types. Deleting them from the interfaces alone only fails a TYPED config; a plain
-// vite.config.js would silently drop them, which is worse than the notice it replaces. So the keys are
-// still detected at config time and throw with what to do instead — loud in both lanes, which is the
-// end state the deprecation was aiming at. Remove this guard at 1.0.
-const TRANSPORT_HINT =
-  'The batch transport is automatic: the SERVER build generates `<genDir>/rpc/batches.generated.js` ' +
-  'from the client program and imports it by itself. Delete this option; when the client is a separate ' +
-  'project, point `client.tsConfig` on the server plugin at its tsconfig.';
-const REMOVED_PLUGIN_OPTIONS: Record<string, string> = {
-  aotCaches: 'AOT caches are obsolete — the mion generated modules ARE the compiled artifact. Delete this option.',
-  serverPureFunctions: `pure-fn extraction rides the batch transport now. ${TRANSPORT_HINT}`,
-  serverMappers: `the serverMapFrom transport became the batch transport. ${TRANSPORT_HINT}`,
-  batches: TRANSPORT_HINT,
-};
-const REMOVED_RUNTYPES_OPTIONS: Record<string, string> = {
-  compilerOptions: 'the deepkit type-compiler is gone; there is nothing to configure. Delete this option.',
-  include: 'scan scope comes from the tsconfig program — narrow `include` in the tsconfig instead.',
-  exclude: 'scan scope comes from the tsconfig program — narrow `exclude` in the tsconfig instead.',
-  reflectionMode: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
-  reflection: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
-  failOnError:
-    FAIL_ON_ERROR_REMOVED +
-    '\n    For a bad call site in your own source prefer a `@mion-expect-error` comment on the line above it.',
-};
-
-/** Throws on any deepkit/AOT-era option a stale config still passes, naming the replacement.
- *  Reads through an index signature so untyped JS/JSON configs are caught too, not just typed ones. */
-export function assertNoRemovedOptions(options: MionPresetOptions): void {
-  const found: string[] = [];
-  const root = options as Record<string, unknown>;
-  for (const [key, hint] of Object.entries(REMOVED_PLUGIN_OPTIONS)) {
-    if (root[key] !== undefined) found.push(`  - ${key}: ${hint}`);
-  }
-  const rt = (options.runTypes ?? {}) as Record<string, unknown>;
-  for (const [key, hint] of Object.entries(REMOVED_RUNTYPES_OPTIONS)) {
-    if (rt[key] !== undefined) found.push(`  - runTypes.${key}: ${hint}`);
-  }
-  if (found.length === 0) return;
-  throw new Error(
-    `[mionVitePlugin] removed option${found.length > 1 ? 's' : ''} in your config (they stopped doing anything ` +
-      `at the mion migration and are now gone):\n${found.join('\n')}`
-  );
-}
-
 /** Resolves the mion resolver binary: explicit option → @mionjs/bin-compiler getExePath(),
  *  which honours the MION_BIN env var and then the published platform package.
  *
- *  mion deliberately reads NO env var of its own. MION_BIN (RunTypes 0.11.0+) covers BOTH the
- *  transform lane and the ESLint lane, whereas mion's old TS_RUNTYPES_BIN reached only this one —
- *  and since the two lanes run in SEPARATE processes, a mion-side variable can never make them
- *  agree. One variable, both lanes, no divergence.
+ *  mion reads NO env var of its own. MION_BIN covers BOTH the transform lane and the ESLint lane,
+ *  and since the two run in SEPARATE processes, a mion-side variable could never make them agree.
+ *  One variable, both lanes, no divergence.
  *
  *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId, so a locally
  *  built binary at a different version silently produces caches that diverge from CI/user installs
  *  (the `<typeId>` half of every `<fnHash>_<typeId>` key stops matching; the fnHash prefixes
- *  themselves are version-stable since RunTypes 0.9.3). The same caution applies to MION_BIN. */
+ *  themselves are version-stable). The same caution applies to MION_BIN. */
 export function resolveRtBinary(explicit?: string): string | undefined {
-  if (explicit) return explicit;
-  // TS_RUNTYPES_BIN is retired. Warn rather than ignore it silently: a user who set it would
-  // otherwise be switched to a different binary (the platform package) without being told.
-  if (process.env.TS_RUNTYPES_BIN && !process.env.MION_BIN && !process.env.RT_BIN && !legacyBinEnvNoticeShown) {
-    legacyBinEnvNoticeShown = true;
-    console.warn(
-      '[mion] TS_RUNTYPES_BIN is no longer read and is being IGNORED. Use MION_BIN instead — ' +
-        'it is honoured by @mionjs/bin-compiler for both the vite transform and the ESLint lane, ' +
-        'so they cannot end up on different binaries (whose typeIds would diverge).'
-    );
-  }
-  return undefined; // @mionjs/bin-compiler getExePath() takes over (MION_BIN → published platform binary)
+  return explicit; // otherwise @mionjs/bin-compiler getExePath() takes over (MION_BIN → platform binary)
 }
 
 /** The subset of a mion preset's options that both lanes read. */
@@ -187,7 +126,7 @@ export interface MionPresetOptions {
  *
  *  Host-specific hooks are NOT set here. `onSiteFilesChanged` and `onGenerate` are vite's (they
  *  invalidate the module graph); the Next lane needs no equivalent because the broker declares
- *  typeDeps plus a stamp to Turbopack instead, and a Next app is the client, never the API. */
+ *  typeDeps plus a stamp to Turbopack instead. */
 export function toRunTypesOptions(rt: MionRunTypesOptions = {}, client?: MionClientPointer): TsRuntypesPluginOptions {
   // Fail loudly rather than shipping a client whose validators have no body to rebuild from.
   // The type says 'code' | 'both', but configs are plain JS/JSON often written by hand.
