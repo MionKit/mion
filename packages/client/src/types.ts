@@ -101,7 +101,14 @@ export interface ClientOptions extends CoreRouterOptions {
   storageEngine: StorageEngine;
   /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
   timeout?: number;
+  /** Filled by the build through `initClient`'s trailing marker, never by hand: `bundled` means every
+   *  route the program calls came in with its call site and nothing is fetched or stored; `mixed`
+   *  means the bundled routes are used as they are and the rest are fetched as usual. */
+  bundleApi?: BundleApiMode;
 }
+
+/** The lane a built client runs its metadata on. */
+export type BundleApiMode = 'bundled' | 'mixed';
 
 type PublicHandler = (...args: any[]) => Promise<any>;
 type PublicMethod = PublicRoute | PublicMiddleFn | PublicHeadersFn;
@@ -197,8 +204,11 @@ export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
 
 // type-route-sub-request-start
 /** structure returned from the proxy, containing info of the remote route to execute */
-export interface RouteSubRequest<PH extends PublicHandler, Id extends string = string, RA extends RemoteApi = RemoteApi>
-  extends SubRequest<PH, Id> {
+export interface RouteSubRequest<
+  PH extends PublicHandler,
+  Id extends string = string,
+  RA extends RemoteApi = RemoteApi,
+> extends SubRequest<PH, Id> {
   /** Validates Route's parameters and returns type errors */
   typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<RunTypeError[]>;
 
@@ -233,8 +243,11 @@ export interface RouteSubRequest<PH extends PublicHandler, Id extends string = s
 
 // type-middleware-sub-request-start
 /** structure returned from the proxy, containing info of the remote middleFn to execute */
-export interface MiddlewareSubRequest<PH extends PublicHandler, Id extends string = string, RA extends RemoteApi = RemoteApi>
-  extends SubRequest<PH, Id> {
+export interface MiddlewareSubRequest<
+  PH extends PublicHandler,
+  Id extends string = string,
+  RA extends RemoteApi = RemoteApi,
+> extends SubRequest<PH, Id> {
   /** Validates MiddleFn's parameters and returns type errors */
   typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<RunTypeError[]>;
   /** Prefills MiddleFn's parameters for any future request and returns TypedEvent */

@@ -5,10 +5,23 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isRpcError, MION_ROUTES, getRoutePath, routesCache} from '@mionjs/core';
+import {isRpcError, MION_ROUTES, RpcError, getRoutePath, routesCache} from '@mionjs/core';
 import {ClientOptions, RequestBody} from '../types.ts';
 import {hydrateMetadataCache} from './clientMethodsMetadata.ts';
 import {deserializeResponseBody} from './serializer.ts';
+
+/** The error a `bundled` client raises for a method its bundle does not carry: the build only
+ *  bundles what the program calls through its own dispatch points, so the server is never asked. */
+export function bundledMetadataMissingError(missing: string[]): RpcError<'route-metadata-not-found'> {
+  return new RpcError({
+    type: 'route-metadata-not-found',
+    publicMessage:
+      `Metadata for ${missing.join(', ')} is not in the bundle. The build (bundleApi: 'bundled') bundles only the routes ` +
+      `and middleFns the program calls through their own call sites; a method reached another way (a generic helper, ` +
+      `client.prefill(...) / client.typeErrors(...), a call the build reported) is not fetched either. ` +
+      `Call it through its own subrequest, or build with bundleApi: 'mixed' to fetch what the bundle lacks.`,
+  });
+}
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(
@@ -16,6 +29,12 @@ export async function fetchRemoteMethodsMetadata(
   options: ClientOptions,
   signal?: AbortSignal
 ): Promise<void> {
+  // a bundled client never asks the server nor the store: what the build did not bundle is an error
+  if (options.bundleApi === 'bundled') {
+    const missing = methodIds.filter((id) => !routesCache.hasMetadata(id));
+    if (missing.length) throw bundledMetadataMissingError(missing);
+    return;
+  }
   await hydrateMetadataCache(options);
   const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
   if (!missingAfterLocal.length) return;

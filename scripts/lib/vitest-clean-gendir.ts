@@ -33,11 +33,12 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.dist', 'dist', 'build', 'mi
 const MAX_DEPTH = 5;
 // The generated halves inside a `.mion` dir: the cache modules, the enrichment
 // mirrors (test trees only; a real project's `enriched/` is committed and never
-// sits under a test root), the README, and `rpc/`, the batch transport the
-// resolver regenerates on every generate. Only these are swept, never the
-// folder itself: a hand-placed file beside them is not ours. Per-target
-// `.mion-<target>` dirs are RunTypes-only and go wholesale.
-export const RUNTYPES_HALVES = ['types', 'enriched', 'rpc', 'README.md'];
+// sits under a test root), the README, `rpc/`, the batch transport the
+// resolver regenerates on every generate, and `api/`, the bundled-API modules
+// and manifest. Only these are swept, never the folder itself: a hand-placed
+// file beside them is not ours. Per-target `.mion-<target>` dirs are
+// RunTypes-only and go wholesale.
+export const RUNTYPES_HALVES = ['types', 'enriched', 'rpc', 'api', 'README.md'];
 
 async function removeGenDirs(dir: string, depth: number): Promise<void> {
   let entries;

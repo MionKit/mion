@@ -1,0 +1,18 @@
+{
+  // The program of the mixed-lane client project: the client sources, the test server they pull in
+  // through the `source` condition, and only THIS lane's specs. The fetched-lane specs stay out:
+  // they type subrequests as the wide `RouteSubRequest<any>` on purpose, which under bundleApi is a
+  // reported widened id.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "noEmit": true,
+    "rootDir": "../..",
+    "customConditions": ["source"]
+  },
+  "include": ["src/**/*.ts", "test/lib/**/*.ts", "test/mixed/**/*.ts"],
+  "exclude": ["node_modules", ".dist", "src/**/*.spec.ts"]
+}

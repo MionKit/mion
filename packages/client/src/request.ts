@@ -90,10 +90,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
     let allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+    // a bundled client has everything it will ever have at the call site: no store to read, no wire
+    // to guess; a method the bundle lacks is refused below, at the metadata step
+    const bundled = this.options.bundleApi === 'bundled';
     // an id this page never heard of may still be in the store from an earlier visit: one indexed
     // read settles it, while guessing wrong costs the optimistic round trip AND its retry. Hydration
     // runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
-    if (!allCached) {
+    if (!allCached && !bundled) {
       await hydrateMetadataCache(this.options);
       if (this.signal?.aborted) {
         this.onError(
@@ -107,7 +110,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
     // the optimistic first request sends the params on the plain wire forms every server decoder
     // accepts; what a decoder cannot read errors and the retry below sends the real encoder
-    const isOptimistic = !allCached && !skipOptimistic;
+    const isOptimistic = !allCached && !skipOptimistic && !bundled;
 
     try {
       if (isOptimistic) {

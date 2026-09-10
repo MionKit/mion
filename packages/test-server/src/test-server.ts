@@ -428,6 +428,9 @@ const routes = {
     ctx.shared.httpMethod = rawReq?.method || 'UNKNOWN';
   }),
 
+  // A route answering with headers: the client rebuilds the HeadersSubset from the response headers
+  respondHeaders: route((_ctx, tag: string): HeadersSubset<'x-mion-echo'> => new HeadersSubset({'x-mion-echo': tag})),
+
   // query() route — client should use GET with ?data= for small payloads
   getRequestInfo: query((ctx, message: string): {message: string; httpMethod: string; urlQuery: string | undefined} => ({
     message,
