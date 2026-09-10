@@ -9,6 +9,8 @@
 import {RpcError, FatalError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
+import type {Server as HttpServer} from 'node:http';
+import type {Server as HttpsServer} from 'node:https';
 // Import format types (regular import to ensure JIT functions are created)
 import {String, Email, UUIDv4, Transform} from '@mionjs/run-types/formats';
 import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
@@ -450,39 +452,35 @@ const routes = {
   compact: compactTestRoutes,
 } satisfies Routes;
 
-// Get port from env var, command line args, or use default
-const port = process.env.MION_TEST_PORT
+// Port used when the caller names none: env var, command line arg, or the default.
+const defaultPort = process.env.MION_TEST_PORT
   ? parseInt(process.env.MION_TEST_PORT, 10)
   : process.argv[2]
     ? parseInt(process.argv[2], 10)
     : 8076;
 
-async function startServer() {
-  try {
-    // Initialize the router with the routes (also registers the internal mion routes: methodsMetadataById, etc.)
-    mion.initRoutes(routes);
-
-    // Set HTTP options
-    setNodeHttpOpts({port});
-
-    // Start server
-    await startNodeServer();
-
-    console.log(`Test server started on port ${port}`);
-
-    // Note: Graceful shutdown is already handled by @mionjs/platform-node package
-    // It automatically listens for SIGINT and closes the server gracefully
-  } catch (error) {
-    console.error('Failed to start test server:', error);
-    process.exit(1);
-  }
+/** Starts this test server on `port` and hands back the listening node server, so the caller can
+ *  close it. This is how a test project gets a real socket now: its vitest globalSetup imports this
+ *  module and calls it, in the SAME process (one program, one resolver, nothing spawned). */
+export async function startTestServer(port: number = defaultPort): Promise<HttpServer | HttpsServer> {
+  // Registers the routes, the internal mion routes (methodsMetadataById, …) included.
+  mion.initRoutes(routes);
+  setNodeHttpOpts({port});
+  const server = await startNodeServer();
+  console.log(`Test server started on port ${port}`);
+  // Graceful shutdown on SIGINT is already handled by @mionjs/platform-node.
+  return server;
 }
 
 // Export the combined API type for the client tests
 export type TestServerApi = PublicApi<typeof routes>;
 
-// Start the server if this file is run directly
-// In ESM, we can't easily detect if the file is run directly vs imported,
-// so we use an environment variable to control whether to start the server.
-// The test-server-utils.ts sets this variable when spawning the server process.
-if (process.env.MION_TEST_SERVER_AUTO_START !== 'false') void startServer();
+// Importing this module NEVER starts a server; the env var is the explicit opt-in, used by the
+// lanes that run the entry as a program of its own (the compiled-server e2e lane, and the
+// middleware-mode e2e spec, which loads this entry through a vite dev server).
+if (process.env.MION_TEST_SERVER_AUTO_START === 'true') {
+  void startTestServer().catch((error) => {
+    console.error('Failed to start test server:', error);
+    process.exit(1);
+  });
+}

@@ -12,12 +12,12 @@
  * Provides a single test server with runtime type reflection for testing
  * client-server communication.
  *
- * IMPORTANT: Set MION_TEST_SERVER_AUTO_START=false before importing this package
- * in test files to prevent automatic server startup when importing routes.
- * The test server files will auto-start by default unless this variable is set.
- *
- * Test servers should be started using globalSetup in vitest/jest config.
+ * Importing this package never starts a server. A test project starts one IN ITS OWN PROCESS from
+ * a vitest globalSetup: `const server = await startTestServer(port)`, closed again in `teardown`.
  * See packages/client/globalSetup.ts for an example.
+ *
+ * Set MION_TEST_SERVER_AUTO_START=true to make the entry start a server on import instead, which is
+ * what the lanes that run it as a program of its own do.
  */
 
 // Re-export routes and types from test-server (safe to import)

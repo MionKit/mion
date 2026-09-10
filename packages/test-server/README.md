@@ -19,8 +19,23 @@ const {routes} = initClient<TestServerApi>({baseURL});
 const [result] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
 ```
 
-Set `MION_TEST_SERVER_AUTO_START=false` before importing this package in a test file, otherwise the
-server files auto-start on import. `MION_TEST_PORT` picks the port.
+Importing this package never starts a server. Start one from a vitest `globalSetup`, in the same
+process as the tests:
+
+```ts
+import {startTestServer} from '@mionjs/test-server';
+
+let server;
+export async function setup() {
+  server = await startTestServer(8086);
+}
+export async function teardown() {
+  await new Promise((done) => server.close(done));
+}
+```
+
+Set `MION_TEST_SERVER_AUTO_START=true` to start on import instead, which is what the lanes that run
+the entry as a program of its own do. `MION_TEST_PORT` picks the default port.
 
 ## Route Groups
 

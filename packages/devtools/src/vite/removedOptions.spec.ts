@@ -54,17 +54,47 @@ describe('mionVitePlugin removed options', () => {
     expect(() => mionVitePlugin({aotCaches: undefined, runTypes: {exclude: undefined}} as never)).not.toThrow();
   });
 
-  it("no longer warns on server.runMode 'middleware' — that mode is back, and is the default", () => {
+  it('leaves a plain server block alone — mounting in-process is the only mode', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'middleware'}})).not.toThrow();
-    expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'childProcess'}})).not.toThrow();
+    expect(() => mionVitePlugin({server: {startScript: '/srv.ts'}})).not.toThrow();
+    expect(() => mionVitePlugin({server: {startScript: '/srv.ts', build: {outDir: 'dist-api'}}})).not.toThrow();
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
+});
 
-  it("still rejects 'buildOnly' — it WAS the AOT harvest mode", () => {
-    // Typed configs get this from the union; the runtime half is what covers a plain vite.config.js.
+// The child-process lane and its four options went with it. Same reasoning as the block above: an
+// untyped vite.config.js would drop them silently and quietly never start the server it asked for.
+const removedServer = [
+  ['runMode', {runMode: 'childProcess'}],
+  ['viteConfig', {viteConfig: '/srv.vite.config.ts'}],
+  ['waitTimeout', {waitTimeout: 30000}],
+  ['env', {env: {MION_TEST_PORT: '8086'}}],
+] as const;
+
+describe('mionVitePlugin removed server options', () => {
+  it.each(removedServer)('throws on server.%s, naming it', (name, block) => {
+    expect(() => mionVitePlugin({server: {startScript: '/srv.ts', ...block}} as never)).toThrow(new RegExp(`server\\.${name}`));
+  });
+
+  it('names every removed server key it found, not just the first', () => {
+    const call = () =>
+      mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'childProcess', waitTimeout: 1, env: {}}} as never);
+    expect(call).toThrow(/server\.runMode/);
+    expect(call).toThrow(/server\.waitTimeout/);
+    expect(call).toThrow(/server\.env/);
+  });
+
+  it('points at the replacement: start the API yourself, vite dev already listens', () => {
+    expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'childProcess'}} as never)).toThrow(/globalSetup/);
+  });
+
+  it("still rejects 'buildOnly' — it WAS the AOT harvest mode, and runMode is gone besides", () => {
     expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'buildOnly'}} as never)).toThrow(/buildOnly/);
+  });
+
+  it('ignores an explicit undefined — an absent key is not a stale config', () => {
+    expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: undefined, env: undefined}} as never)).not.toThrow();
   });
 });
 

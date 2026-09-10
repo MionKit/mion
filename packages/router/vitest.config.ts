@@ -24,9 +24,7 @@ export default defineConfig({
       reporter: ['text', 'html'],
       include: ['src/**'],
     },
-    env: {
-      // Prevent test-server modules from auto-starting servers when imported
-      MION_TEST_SERVER_AUTO_START: 'false',
-    },
+    // No MION_TEST_SERVER_AUTO_START here: importing the test-server module never starts a server,
+    // the var is the opt-in for the lanes that DO want one.
   },
 });
