@@ -12,10 +12,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request): Promise<Response> {
   // The ORIGIN, not `/api`: the router's basePath already puts `/api` in every route path.
   const baseURL = new URL('/', request.url).origin;
-  const {routes} = initClient<MionApi>({baseURL});
+  // basePath on BOTH ends: the router puts `/api` into every route path, and the client has to
+  // build the same path or its very first call (the route metadata fetch) lands outside the
+  // catch-all handler and comes back as Next's 404 page.
+  const {routes} = initClient<MionApi>({baseURL, basePath: '/api'});
 
-  // JSON wire: a Date has to survive the round trip as a Date, which only the compiled
-  // serializer can do.
   const [greeting, greetingError] = await routes.sayHello('mion').call();
   // Compact wire: the same client, a route whose encoder is positional.
   const [sum, sumError] = await routes.addNumbers(40, 2).call();
