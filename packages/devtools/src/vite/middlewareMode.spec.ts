@@ -201,14 +201,14 @@ describe('middleware mode (in-process vite dev server)', () => {
     expect(loads()).toBe(1); // loaded once, not per request
   });
 
-  it('resolves serverReady through onReady once the API is mounted', async () => {
+  it('signals onReady once the API is mounted', async () => {
     await startDevServer({basePath: '/api'});
     await fetch(`${baseUrl}/api/users.get`);
     expect(ready.resolved).toBe(true);
     expect(ready.error).toBeUndefined();
   });
 
-  it('answers 503 with the real cause when the entry throws, and reports it to serverReady', async () => {
+  it('answers 503 with the real cause when the entry throws, and reports it to onError', async () => {
     await startDevServer({basePath: '/api', entry: `throw new Error('boom: routes are broken');\n`});
     const res = await fetch(`${baseUrl}/api/users.get`);
     expect(res.status).toBe(503);
@@ -331,10 +331,10 @@ startNodeServer();
   });
 
   it('survives a broken API instead of taking the dev server down with it', async () => {
-    // Through the REAL plugin, so the real `serverReady` signals are wired: its rejection has no
-    // consumer in a plain `vite dev`, and an unhandled one kills the process — which is exactly
-    // what a single bad import in the API used to do. Vitest fails this test on any unhandled
-    // rejection, which is the assertion.
+    // Through the REAL plugin, so the preset's own signals are wired: a broken API must surface as
+    // a 503 and NOT as an unhandled rejection that kills the process, which is exactly what a
+    // single bad import in the API used to do. Vitest fails this test on any unhandled rejection,
+    // which is the assertion.
     const plugins = (
       mionVitePlugin({
         server: {startScript: path.join(root, 'src', 'entry.ts'), platform: '/nope.js'},
@@ -373,21 +373,20 @@ startNodeServer();
   });
 });
 
-describe('runMode selects the lane', () => {
+describe('the server block mounts in-process, and only in-process', () => {
   const pluginNames = (options: MionServerOptions): string[] =>
     (mionVitePlugin({server: options}) as unknown as Plugin[]).flat().map((plugin) => (plugin as Plugin)?.name);
 
-  it('mounts in-process by default — middleware is the idiomatic fullstack mode', () => {
+  it('mounts in-process — one program, one process, no lane to choose', () => {
     expect(pluginNames({startScript: '/srv.ts'})).toContain('mion-middleware-server');
   });
 
-  it('still spawns a child process when asked for one', () => {
-    const names = pluginNames({startScript: '/srv.ts', runMode: 'childProcess'});
-    expect(names).toContain('mion-server-orchestrator');
-    expect(names).not.toContain('mion-middleware-server');
+  it('spawns nothing: the orchestrator that ran vite-node is gone', () => {
+    expect(pluginNames({startScript: '/srv.ts'})).not.toContain('mion-server-orchestrator');
   });
 
-  it('never spawns anything in middleware mode', () => {
-    expect(pluginNames({startScript: '/srv.ts', runMode: 'middleware'})).not.toContain('mion-server-orchestrator');
+  it('adds the server-bundle plugin only when server.build asks for it', () => {
+    expect(pluginNames({startScript: '/srv.ts'})).not.toContain('mion-server-bundle');
+    expect(pluginNames({startScript: '/srv.ts', build: {}})).toContain('mion-server-bundle');
   });
 });

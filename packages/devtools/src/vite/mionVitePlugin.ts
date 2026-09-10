@@ -5,10 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import path from 'node:path';
-import {readFileSync} from 'node:fs';
-import {spawn, type ChildProcess} from 'node:child_process';
-import {createRequire} from 'node:module';
 import tsRuntypes from '../runtypes/vite.ts';
 import {mionMiddlewarePlugin} from './middlewareMode.ts';
 import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
@@ -36,43 +32,38 @@ export type {MionClientPointer, MionRunTypesOptions};
 // existing vite/vitest configs across the monorepo keep working unchanged. The legacy
 // deepkit/AOT/pure-fn options are REMOVED — see the migration guard below.
 
-/** The mion server that backs a vite dev/test run — either mounted INSIDE the vite process
- *  ('middleware', the default) or spawned beside it via vite-node ('childProcess'). A dev and test
- *  convenience only: an API that is started on its own never sets it, and the batch transport
- *  needs nothing from it (the SERVER build generates that from its own or its client's program). */
+/** The mion API behind this vite run: ONE program, ONE process. In `vite dev` the entry is loaded
+ *  through this vite server's own SSR pipeline and mounted as middleware (no port of its own), and
+ *  `build` emits it as a second bundle beside the client one. There is no second process and no
+ *  second resolver — a test that needs a real socket starts the API itself in its globalSetup. */
 export interface MionServerOptions {
   /** Absolute path to the server entry script: loaded through this vite server's SSR pipeline in
-   *  middleware mode, spawned with vite-node in childProcess mode. */
+   *  dev, and the server bundle's input when `build` is set. */
   startScript: string;
-  /** The server's own vite config, the one vite-node runs `startScript` under (childProcess mode);
-   *  its directory is the child's working directory. */
-  viteConfig?: string;
-  /** How the API runs (default 'middleware'):
-   *  - 'middleware': loaded in the SAME vite process through `ssrLoadModule` and mounted as
-   *    dev-server middleware. One process, one port, shared module graph — the idiomatic
-   *    Nuxt/SSR/fullstack setup, and the only mode where the API sees vite's SSR pipeline.
-   *  - 'childProcess': spawned beside vite with vite-node and awaited through `serverReady`
-   *    (port polling). Separate process and port — for e2e/client tests that need a real socket.
-   *  ('buildOnly' is gone: it WAS the AOT harvest mode, and AOT is gone.) */
-  runMode?: 'middleware' | 'childProcess';
-  /** Max ms to wait for the server port to accept connections (default 30000). childProcess only. */
-  waitTimeout?: number;
-  /** Extra env vars for the server process (e.g. MION_TEST_PORT). childProcess only. */
-  env?: Record<string, string>;
-  /** MIDDLEWARE mode: mount prefix for the API. Defaults to the router's own `basePath`, which is
+  /** Opt in to the SERVER bundle: `vite build` then emits BOTH the client static files and the API,
+   *  from this one config. Off by default, so a `build.lib` project is untouched. */
+  build?: MionServerBuildOptions;
+  /** DEV: mount prefix for the API. Defaults to the router's own `basePath`, which is
    *  what route paths already carry — set this only to mount somewhere else. With no basePath at
    *  all mion serves at the root and `exclude` decides what reaches vite instead. */
   basePath?: string;
-  /** MIDDLEWARE mode: platform adapter module to take the request handler from
+  /** DEV: platform adapter module to take the request handler from
    *  (default '@mionjs/platform-node' — node-style, no Request is materialized). A fetch-style
    *  adapter (e.g. '@mionjs/platform-bun') is bridged from node req/res automatically. */
   platform?: string;
-  /** MIDDLEWARE mode + no basePath: paths NOT served by mion, so vite's own internals and static
+  /** DEV + no basePath: paths NOT served by mion, so vite's own internals and static
    *  assets still work. Defaults to DEFAULT_MIDDLEWARE_EXCLUDE. */
   exclude?: RegExp[];
-  /** MIDDLEWARE mode: re-load the API when its sources change (default true). The reload resets
+  /** DEV: re-load the API when its sources change (default true). The reload resets
    *  the router first, since `initRoutes` refuses to run twice. */
   hotReload?: boolean;
+}
+
+/** The SERVER half of a two-bundle build (`server.build`). */
+export interface MionServerBuildOptions {
+  /** Where the server bundle lands, relative to the vite root (default 'dist-server'). The client
+   *  bundle keeps `build.outDir`, so the two never share a directory. */
+  outDir?: string;
 }
 
 /** Batch transport, zero config: the SERVER build's resolver reads every `batch([...])` call and
@@ -90,8 +81,8 @@ export interface MionPluginOptions {
   /** The separate client project this API serves batches to; unset when client and server share
    *  this program. See MionClientPointer. */
   client?: MionClientPointer;
-  /** Dev/test only: how the mion API behind this run is started, mounted in-process or spawned
-   *  with vite-node and awaited via serverReady. */
+  /** The mion API this run hosts: mounted inside the dev server, and optionally emitted as a second
+   *  bundle by `vite build`. One program, one process. */
   server?: MionServerOptions;
 }
 
@@ -109,32 +100,25 @@ export interface MionPluginOptions {
  * ```
  */
 /** What the vite preset keeps of the batch transport: the resolver's generate echo, folded into
- *  the three things vite needs. `generated` settles once the first (buildStart) generate reported,
- *  which the managed child server waits for: vite runs buildStart hooks in parallel, so nothing
- *  else orders the child's entry transform after the table is on disk, and a child that started
- *  ahead of it would import nothing and answer every batch with an unknown id. `batchesModuleOf`
- *  is the table's current path ('' when there is none), which the middleware's `add` listener
- *  compares against. And a later generate where the module APPEARS or VANISHES (a client adds its
- *  first batch, or drops its last one, while the dev server runs) calls `invalidate` with the
- *  router-init modules: they were transformed without (or with) the import, so they must be
- *  transformed again. Exported for its spec; the preset is its only other caller. */
+ *  the two things vite needs. `batchesModuleOf` is the table's current path ('' when there is none),
+ *  which the middleware's `add` listener compares against. And a later generate where the module
+ *  APPEARS or VANISHES (a client adds its first batch, or drops its last one, while the dev server
+ *  runs) calls `invalidate` with the router-init modules: they were transformed without (or with)
+ *  the import, so they must be transformed again. The FIRST generate never invalidates — nothing has
+ *  been transformed yet at that point. Exported for its spec; the preset is its only other caller. */
 export function createBatchTransportSignals(invalidate: (files: string[]) => void): {
   onGenerate: (info: GenerateInfo) => void;
-  generated: Promise<void>;
   batchesModuleOf: () => string;
 } {
-  let generatedResolve: (() => void) | undefined;
-  const generated = new Promise<void>((resolve) => (generatedResolve = resolve));
+  let firstGenerateDone = false;
   let batchesModule = '';
   return {
-    generated,
     batchesModuleOf: () => batchesModule,
     onGenerate: (info) => {
       const presenceChanged = (info.batchesModule !== '') !== (batchesModule !== '');
       batchesModule = info.batchesModule;
-      if (presenceChanged && generatedResolve === undefined) invalidate(info.routerInitFiles);
-      generatedResolve?.();
-      generatedResolve = undefined;
+      if (presenceChanged && firstGenerateDone) invalidate(info.routerInitFiles);
+      firstGenerateDone = true;
     },
   };
 }
@@ -142,7 +126,7 @@ export function createBatchTransportSignals(invalidate: (files: string[]) => voi
 export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
   const rt = options.runTypes ?? {};
   assertNoRemovedOptions(options);
-  const runMode = options.server?.runMode ?? 'middleware';
+  assertNoRemovedServerOptions(options.server);
   const transport = createBatchTransportSignals((files) => invalidateFiles(files));
   // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`),
   // while the module vite serves is `Comp.vue`. mion reports stale site files by the
@@ -206,42 +190,17 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
   } satisfies Plugin);
   if (options.server) {
     const server = options.server;
-    // Read through the union rather than trusting it: a plain vite.config.js still carrying
-    // 'buildOnly' would otherwise fall into the childProcess branch and silently spawn a server
-    // the config never asked for.
-    if ((runMode as string) !== 'middleware' && (runMode as string) !== 'childProcess') {
-      throw new Error(
-        `[mionVitePlugin] unknown server.runMode '${String(runMode)}'. Use 'middleware' (default: the API runs inside ` +
-          `the vite dev server) or 'childProcess' (spawned beside it for e2e). 'buildOnly' is gone — it WAS ` +
-          `the AOT harvest mode, and AOT is gone.`
-      );
-    }
-    if (runMode === 'middleware') {
-      // In-process: the API is loaded through THIS vite server's SSR pipeline and mounted as
-      // dev-server middleware. Nothing is spawned, and nothing happens outside `vite dev`.
-      extraPlugins.unshift(
-        mionMiddlewarePlugin(server, {
-          onReady: () => serverReadyResolve?.(),
-          onError: (err) => serverReadyReject?.(err),
-          batchesModuleOf: transport.batchesModuleOf,
-        })
-      );
-    } else {
-      // Server startup is deferred to buildStart so only the project actually RUNNING
-      // spawns it (in vitest workspace mode every project config gets evaluated), and past the
-      // first generate, so a batch table this program generates is on disk before the child
-      // transforms its entry (the child's own resolver generates the child's table; this wait is
-      // for the shared-program case). A generate that never reports (it failed) must not hang the
-      // build: after the server's own wait budget the child is spawned anyway and serverReady says why.
-      extraPlugins.unshift({
-        name: 'mion-server-orchestrator',
-        async buildStart() {
-          const budget = new Promise<void>((resolve) => setTimeout(resolve, server.waitTimeout ?? 30000).unref());
-          await Promise.race([transport.generated, budget]);
-          startManagedServer(server);
-        },
-      } satisfies Plugin);
-    }
+    // In-process: the API is loaded through THIS vite server's SSR pipeline and mounted as
+    // dev-server middleware. Nothing is spawned, and nothing happens outside `vite dev`.
+    // `onReady`/`onError` only feed the 503 path now — no promise leaves this preset.
+    extraPlugins.unshift(
+      mionMiddlewarePlugin(server, {
+        onReady: () => {},
+        onError: () => {},
+        batchesModuleOf: transport.batchesModuleOf,
+      })
+    );
+    if (server.build) extraPlugins.unshift(serverBundlePlugin(server, server.build));
   }
   return [...extraPlugins, plugins];
 }
@@ -259,93 +218,68 @@ function findRtPlugin(created: unknown): Plugin | undefined {
   return undefined;
 }
 
-// ############# managed server process #############
+// ############# removed server options (0.9 → 0.10) #############
+// The child-process lane is gone: one program, one process. These four keys only ever configured
+// the vite-node spawn, so a config still carrying them is not "slightly stale" — it is asking for a
+// second server that will never start. Detected at config time and thrown with what to do instead,
+// read through an index signature so an untyped vite.config.js is caught too, not just a typed one.
+const REMOVED_SERVER_OPTIONS: Record<string, string> = {
+  runMode:
+    "the child-process lane is gone and middleware mode is the only mode. Delete it — 'buildOnly' WAS the AOT harvest mode, and AOT is gone.",
+  viteConfig: 'there is no second vite process to configure. The API is loaded by THIS config. Delete it.',
+  waitTimeout: 'nothing polls a port any more. Delete it.',
+  env: 'there is no child process to pass env to. Set what the API needs in this process, or in the test that starts it.',
+};
+const START_IT_YOURSELF =
+  'A test that needs a real socket starts the API itself in its globalSetup (import the entry and call its start function), ' +
+  'and `vite dev` already listens for you.';
 
-let serverReadyResolve: (() => void) | undefined;
-let serverReadyReject: ((err: Error) => void) | undefined;
-let serverStarted = false;
-let serverChild: ChildProcess | undefined;
-
-/** Resolves once the managed mion server (options.server) accepts connections.
- *  Only ever resolves in processes whose running project configured `server` —
- *  await it from that project's globalSetup (the old plugin's contract). */
-export const serverReady: Promise<void> = new Promise((resolve, reject) => {
-  serverReadyResolve = resolve;
-  serverReadyReject = reject;
-});
-// Nobody awaits this in a plain `vite dev` — it exists for test/e2e globalSetups. Without a handler
-// attached HERE, a rejection has no consumer and node kills the process: in middleware mode that
-// means one broken import in the API takes the whole dev server down instead of showing a 503 (seen
-// for real). Attaching a no-op handler swallows nothing — a consumer's own `await serverReady`
-// still rejects.
-void serverReady.catch(() => {});
-
-/** Resolves vite-node's CLI from THIS package's own dependency tree.
- *
- *  Not `pnpm exec vite-node`: vite-node is a dependency of @mionjs/devtools, not of the consumer,
- *  so under a strict (non-hoisting) install it never reaches the consumer's node_modules/.bin and
- *  the spawn dies with "Command vite-node not found". It also assumed every consumer runs pnpm.
- *  Resolving from here and spawning it with the current node binary is package-manager agnostic
- *  and finds the exact vite-node this package was published against. */
-function resolveViteNodeCli(): string {
-  // via package.json + its `bin` field: vite-node's exports map does not expose the CLI file
-  // (only './package.json' and the library subpaths), so a direct subpath resolve is refused.
-  const manifestPath = createRequire(import.meta.url).resolve('vite-node/package.json');
-  const bin = (JSON.parse(readFileSync(manifestPath, 'utf8')) as {bin?: string | Record<string, string>}).bin;
-  const relative = typeof bin === 'string' ? bin : bin?.['vite-node'];
-  if (!relative) throw new Error('[mionVitePlugin] vite-node is installed but declares no `vite-node` bin.');
-  return path.resolve(path.dirname(manifestPath), relative);
-}
-
-/** Spawns the server entry through vite-node (its own vite config → its own marker injection). */
-function startManagedServer(server: MionServerOptions): void {
-  if (serverStarted) return;
-  serverStarted = true;
-  const port = parseInt(server.env?.MION_TEST_PORT ?? process.env.MION_TEST_PORT ?? '8076', 10);
-  const waitTimeout = server.waitTimeout ?? 30000;
-  const args = [resolveViteNodeCli()];
-  if (server.viteConfig) args.push('--config', server.viteConfig);
-  args.push(server.startScript);
-  const child = spawn(process.execPath, args, {
-    cwd: server.viteConfig ? path.dirname(server.viteConfig) : path.dirname(server.startScript),
-    env: {...process.env, ...server.env, MION_TEST_SERVER_AUTO_START: 'true'},
-    stdio: ['ignore', 'inherit', 'inherit'],
-  });
-  // unref so the child never keeps the parent's event loop alive (vitest must be able
-  // to exit when tests finish); the exit hook below still tears the server down.
-  child.unref();
-  serverChild = child;
-  const killChild = () => {
-    if (serverChild && !serverChild.killed) serverChild.kill('SIGTERM');
-  };
-  process.once('exit', killChild);
-  child.once('error', (err) => {
-    serverChild = undefined;
-    serverReadyReject?.(new Error(`[mionVitePlugin] failed to spawn managed server: ${err.message}`));
-  });
-  child.once('exit', (code) => {
-    serverChild = undefined;
-    if (code && code !== 0) serverReadyReject?.(new Error(`[mionVitePlugin] managed server exited with code ${code}`));
-  });
-  void waitForPort(port, waitTimeout).then(
-    () => serverReadyResolve?.(),
-    (err) => {
-      killChild();
-      serverReadyReject?.(err);
-    }
+/** Throws on any child-process-era `server` key a stale config still passes, naming the replacement. */
+export function assertNoRemovedServerOptions(server: MionServerOptions | undefined): void {
+  if (!server) return;
+  const found: string[] = [];
+  const block = server as unknown as Record<string, unknown>;
+  for (const [key, hint] of Object.entries(REMOVED_SERVER_OPTIONS)) {
+    if (block[key] !== undefined) found.push(`  - server.${key}: ${hint}`);
+  }
+  if (found.length === 0) return;
+  throw new Error(
+    `[mionVitePlugin] removed option${found.length > 1 ? 's' : ''} in your \`server\` block (the mion API now runs in ` +
+      `the SAME process as vite — one program, one resolver):\n${found.join('\n')}\n${START_IT_YOURSELF}`
   );
 }
 
-/** Polls the port until something accepts a TCP connection (any HTTP response counts). */
-async function waitForPort(port: number, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      await fetch(`http://127.0.0.1:${port}/`, {method: 'GET'});
-      return; // any response means the server is listening
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-  }
-  throw new Error(`[mionVitePlugin] managed server did not accept connections on port ${port} within ${timeoutMs}ms`);
+// ############# server bundle (`server.build`) #############
+
+/** Declares the SERVER half of a two-bundle build, so one `vite build` emits the client static files
+ *  AND the API.
+ *
+ *  It rides vite's built-in `ssr` environment rather than a third one of its own: `buildApp()` builds
+ *  EVERY environment in the config, and the defaults already carry `client` + `ssr`, so a third named
+ *  environment would emit three bundles. `ssr` is already `consumer: 'server'` — it IS the server half.
+ *
+ *  `builder` is what switches `vite build` off its legacy single-environment path onto `buildApp()`;
+ *  its two shared flags are what keep the run to ONE resolver. Without `sharedConfigBuild` vite
+ *  re-resolves the config FILE once per environment, which calls `mionVitePlugin()` again and spawns a
+ *  second resolver in configResolved that is then discarded and never closed. */
+function serverBundlePlugin(server: MionServerOptions, build: MionServerBuildOptions): Plugin {
+  return {
+    name: 'mion-server-bundle',
+    config() {
+      return {
+        builder: {sharedConfigBuild: true, sharedPlugins: true},
+        environments: {
+          ssr: {
+            // One @mionjs instance across both bundles: two copies mean two route registries.
+            resolve: {noExternal: [/@mionjs\//]},
+            build: {
+              outDir: build.outDir ?? 'dist-server',
+              emptyOutDir: true,
+              rollupOptions: {input: server.startScript},
+            },
+          },
+        },
+      };
+    },
+  } satisfies Plugin;
 }
