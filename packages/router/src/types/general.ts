@@ -55,15 +55,6 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   /** client routes are initialized by default */
   skipClientRoutes: boolean;
   /**
-   * Maximum size of the CallContext pool for reduced memory allocations.
-   * When set to a value > 0, CallContext objects are reused from a pool
-   * instead of creating new ones for each request. This can improve
-   * performance in high-throughput scenarios by reducing GC pressure.
-   * Set to 0 to disable pooling.
-   * @default 0 (disabled)
-   */
-  maxContextPoolSize: number;
-  /**
    * Await every step of the execution chain, even one that returned a plain value.
    * The await is what makes the chain yield between steps, so a long chain never holds the event
    * loop. It is honoured only when the router HAS something async in it: when every registered

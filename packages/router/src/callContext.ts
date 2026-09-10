@@ -6,39 +6,14 @@
  * ######## */
 
 import {getRouteExecutionChain} from './router.ts';
-import type {CallContext, MionRequest, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
+import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
-import {
-  Mutable,
-  StatusCodes,
-  SerializerModes,
-  SerializerCode,
-  FatalError,
-  MION_ROUTES,
-  MION_BATCH_PATH,
-  getRoutePath,
-} from '@mionjs/core';
+import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH, getRoutePath} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
-
-// ############# POOL STATE #############
-
-let contextPool: CallContext[] = [];
-
-/** Get current pool statistics for monitoring */
-export function getContextPoolStats(): {poolSize: number} {
-  return {
-    poolSize: contextPool.length,
-  };
-}
-
-/** Clear the context pool - useful for testing */
-export function clearContextPool(): void {
-  contextPool = [];
-}
 
 // ############# CONTEXT CREATION #############
 
-/** Creates a new CallContext without pooling (original behavior) */
+/** Creates the CallContext for one request */
 export function createCallContext(
   path: string,
   opts: RouterOptions,
@@ -68,8 +43,6 @@ export function createCallContext(
       body: {},
       rawBody: '',
       serializer: SerializerModes.json,
-      binSerializer: undefined,
-      releaseBinBuffer: undefined,
     },
     executionChain,
     shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
@@ -77,81 +50,6 @@ export function createCallContext(
     batchId,
     batchRouteIds,
   } as CallContext;
-}
-
-/** Acquires a CallContext from the pool or creates a new one */
-export function acquireCallContext(
-  usePooling: boolean,
-  path: string,
-  opts: RouterOptions,
-  reqRawBody: RawRequestBody,
-  rawRequest: unknown,
-  reqHeaders: MionHeaders,
-  respHeaders: MionHeaders,
-  reqBodyType?: SerializerCode,
-  urlQuery?: string
-): CallContext {
-  if (!usePooling) return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
-  const pooledContext = contextPool.pop();
-  const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-
-  if (pooledContext) {
-    // Reuse the pooled context shell, but create fresh body objects
-    const ctx = pooledContext as Mutable<CallContext>;
-    ctx.path = transformedPath;
-    // Reset request - reuse the request object shell
-    const req = ctx.request as Mutable<MionRequest>;
-    req.headers = reqHeaders;
-    req.rawBody = reqRawBody;
-    req.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
-    req.body = {}; // Must be fresh - handlers write to this
-    req.thrownErrors = undefined;
-    // The response is built here, not on release: it is handed to the platform adapter and must not
-    // be shared with the next request, so it is a fresh object either way.
-    ctx.response = {
-      statusCode: StatusCodes.OK,
-      hasErrors: false,
-      fatalError: undefined,
-      headers: respHeaders,
-      body: {}, // Must be fresh - handlers write to this
-      rawBody: '',
-      serializer: SerializerModes.json,
-    };
-    // Reset execution chain and batch ids
-    const {executionChain, batchId, batchRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
-    ctx.executionChain = executionChain;
-    ctx.batchId = batchId;
-    ctx.batchRouteIds = batchRouteIds;
-    // Reset shared data
-    ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
-    // Reset urlQuery
-    ctx.urlQuery = urlQuery;
-    return ctx;
-  }
-  // No pooled context available, create new one
-  return createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
-}
-
-/** Releases a CallContext back to the pool for reuse */
-export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void {
-  if (contextPool.length < maxPoolSize) {
-    const mutableCtx = ctx as Mutable<CallContext>;
-    const req = mutableCtx.request as Mutable<MionRequest>;
-    // Clear request data - safe to mutate since request is not returned to caller
-    req.rawBody = '';
-    req.body = null as any; // Will be set when context is acquired
-    req.thrownErrors = undefined;
-    // Drop the response instead of rebuilding it: the old one may still be referenced by the caller,
-    // so it must not be mutated, but every one of its fields was overwritten on acquire anyway.
-    // A fresh object is built there, once, rather than built here and rewritten field by field.
-    mutableCtx.response = undefined as any;
-    mutableCtx.shared = null as any;
-    mutableCtx.executionChain = null as any;
-    mutableCtx.batchId = undefined;
-    mutableCtx.batchRouteIds = undefined;
-    contextPool.push(ctx);
-  }
-  // If pool is full, let the context be garbage collected
 }
 
 // ############# HELPER FUNCTIONS #############
