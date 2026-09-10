@@ -69,6 +69,33 @@ test('smoke-next: the shared subset passes after the Turbopack build', () => {
   );
 });
 
+// mion-next is the framework half of the Next story: the app HOSTS the mion API through an App
+// Router catch-all handler. build-all.mjs builds it, serves it with `next start` and fetches the
+// app's own /selftest route, which does the calling; this reads what that reported.
+//
+// A batch is the assertion that matters. Its id is baked into the server by the same build that
+// gave the client's call site that id, so a batch that answers proves client and API really did
+// come out of ONE program — which is the whole reason the API lives in the app.
+test('mion-next: the app serves its own mion API, on both wires and in a batch', () => {
+  const report = path.join(APPS, 'mion-next', 'selftest.json');
+  assert.ok(existsSync(report), 'mion-next: selftest.json is missing — did build-all.mjs run for it?');
+  const {json, compact, batch} = JSON.parse(readFileSync(report, 'utf8'));
+
+  // JSON wire: the Date came back as a Date, which only the compiled serializer can do.
+  assert.equal(json.error, '', `mion-next JSON round trip failed: ${json.error}`);
+  assert.equal(json.message, 'Hello mion!');
+  assert.equal(json.atIsDate, true, 'mion-next: the Date did not survive the JSON round trip');
+
+  // Compact wire: the same client, a route whose encoder is positional.
+  assert.equal(compact.error, '', `mion-next compact round trip failed: ${compact.error}`);
+  assert.equal(compact.sum, 42);
+
+  // Batch: one request, both routes, run by the id this build compiled into the server.
+  assert.equal(batch.error, '', `mion-next batch failed: ${batch.error}`);
+  assert.equal(batch.message, 'Hello batch!');
+  assert.equal(batch.sum, 3);
+});
+
 // React escapes the JSON it renders into the page; undo just enough to parse it.
 function decodeEntities(text) {
   return text
