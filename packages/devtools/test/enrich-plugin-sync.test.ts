@@ -455,4 +455,50 @@ describeIfBinary('@mionjs/devtools / plugin-driven enrichment sync', () => {
       await teardown(build);
     }
   }, 60_000);
+
+  // A carcass is WRONG content, not an unfilled blank: it is a LevelWarning in the
+  // catalog (the mirror still runs) and carries no completeness bit, so a gate
+  // that reads either lets it through. The gate used to do exactly that.
+  it('a production build FAILS on in-sync but STALE mirrors (an @rtOrphan carcass)', async () => {
+    const project = track(
+      setupProject([
+        {key: 'name', type: 'string'},
+        {key: 'age', type: 'number'},
+      ])
+    );
+    const dev = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      await driveBuildStart(dev, project);
+      // Author every blank, so the only thing left to find is the carcass below.
+      for (const mirror of [project.friendlyMirror, project.mockMirror]) {
+        const authored = fs
+          .readFileSync(mirror, 'utf8')
+          .split('\n')
+          .filter((line) => !line.includes('@todo'))
+          .join('\n')
+          .replaceAll("''", "'authored'")
+          .replaceAll(': []', ": ['sample']");
+        fs.writeFileSync(mirror, authored);
+      }
+      // Drop a field from the source: the value-preserving sync parks its
+      // authored data under an @rtOrphanChild carcass instead of deleting it,
+      // and the mirrors are IN SYNC with that carcass in place.
+      fs.writeFileSync(project.models, renderModels([{key: 'name', type: 'string'}]));
+      await hotUpdate(dev, project.models);
+      expect(fs.readFileSync(project.friendlyMirror, 'utf8'), 'the dropped field rides a carcass').toContain('@rtOrphanChild');
+    } finally {
+      await teardown(dev);
+    }
+    // In sync, complete, yet stale: the production gate must fail on the carcass
+    // alone (nothing is out of date or missing).
+    const stale = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      let failure = '';
+      await driveBuild(stale, project, 'build').catch((error: Error) => (failure = error.message));
+      expect(failure, 'the carcass halts the build').toMatch(/not production-ready.*stale/);
+      expect(failure, 'and it is the carcass, not drift').not.toContain('out of date');
+    } finally {
+      await teardown(stale);
+    }
+  }, 60_000);
 });
