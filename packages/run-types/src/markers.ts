@@ -295,3 +295,22 @@ export type InjectPureFnHash<F> = string & {
 export type InjectBatchId<Routes> = string & {
   readonly __rtInjectBatchIdBrand?: Routes;
 };
+
+/**
+ * API metadata injection marker for a mion client built with `bundleApi`. A client dispatch point
+ * (`routes.x(...).call()`, `middleFns.y(...).prefill()`, `typeErrors()`, `batch([...]).call()`)
+ * declares it as its trailing parameter, typed with the API and the id of the route it calls
+ * (`call(setup?, apiMetadata?: InjectApiMetadata<Api, Id>)`): absent at author time, the build
+ * resolves that route (plus every middleFn in its chain) out of the API type, compiles the same
+ * validators and serializers the server holds, and fills the slot with an import of the generated
+ * module carrying them. `initClient(options, mode?: InjectApiMetadata<Api>)` (no `Id`) is the
+ * anchor that receives the mode literal, `'bundled'` or `'mixed'`. Without the build option nothing
+ * is injected and the client fetches its metadata from the server as before.
+ *
+ * `Api` and `Id` are phantom type parameters read by the build; the runtime value is what the
+ * build injected. Same `string & {brand}` shape as `InjectRunTypeId` so the Go marker scanner
+ * resolves the alias identically.
+ */
+export type InjectApiMetadata<Api, Id extends string = never> = string & {
+  readonly __rtInjectApiMetadataBrand?: [Api, Id];
+};

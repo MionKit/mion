@@ -4,6 +4,7 @@ export {
   type InjectTypeFnArgs,
   type InjectPureFnHash,
   type InjectBatchId,
+  type InjectApiMetadata,
   type CompTimeArgs,
   type CompTimeFnArgs,
   type CompTimeHints,
