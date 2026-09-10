@@ -14,6 +14,7 @@ import {Routes} from './types/general.ts';
 import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
+import {findMionQueryParam} from './lib/urlQuery.ts';
 
 const shared = {auth: {me: null as any}};
 const getSharedData = (): typeof shared => shared;
@@ -752,6 +753,46 @@ describe('sanitizeParams', () => {
     createMionRouter({sanitizeParams: true}).initRoutes({shout});
     const response = await dispatchJson('shout', [RAW]);
     expect(response.body.shout).toBe('UPPER@CASE.COM');
+  });
+});
+
+// ############# the query reader, driven through a real dispatch #############
+describe('findMionQueryParam through a real dispatch', () => {
+  const pageOf = mion.route((ctx: CallContext): string => {
+    const page = findMionQueryParam(ctx.urlQuery, 'page');
+    return page === undefined ? 'no page' : `page:${page}`;
+  });
+
+  beforeEach(() => resetRouter());
+
+  const dispatchWithQuery = (urlQuery?: string) => {
+    const request = {headers: headersFromRecord({}), body: JSON.stringify({pageOf: []})};
+    return dispatchRoute('/pageOf', request.body, request.headers, headersFromRecord({}), request, {}, undefined, urlQuery);
+  };
+
+  it('reads a parameter off ctx.urlQuery mid-chain', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    expect((await dispatchWithQuery('page=2')).body.pageOf).toBe('page:2');
+    expect((await dispatchWithQuery('sort=asc&page=2&limit=10')).body.pageOf).toBe('page:2');
+  });
+
+  it('an absent parameter is undefined, and one with no value is empty', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    expect((await dispatchWithQuery()).body.pageOf).toBe('no page');
+    expect((await dispatchWithQuery('sort=asc')).body.pageOf).toBe('no page');
+    expect((await dispatchWithQuery('page')).body.pageOf).toBe('page:');
+  });
+
+  it('the value arrives raw, so the handler decides how to convert it', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    expect((await dispatchWithQuery('page=a%2Fb')).body.pageOf).toBe('page:a%2Fb');
+  });
+
+  it('a bare flag next to it changes nothing', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    const response = await dispatchWithQuery('page=2&flag');
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.pageOf).toBe('page:2');
   });
 });
 

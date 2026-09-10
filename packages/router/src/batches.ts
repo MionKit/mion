@@ -21,6 +21,7 @@ import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
 import {getRouteExecutionChain, getRouterOptions, getPlatformConfig, startMiddleFns, endMiddleFns} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
+import {findMionQueryParam} from './lib/urlQuery.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
 import {BatchExecutionResult} from './types/context.ts';
@@ -133,18 +134,16 @@ export function resolveBatchMaxBodySize(entry: BatchEntry): number {
 // ############# REQUEST RESOLUTION #############
 
 /** Reads the batch id out of the query string (`id=<batchId>`, the only parameter the batch
- *  endpoint reads). Anything else, missing or undecodable, is an unknown id. */
+ *  endpoint reads). Anything else, missing or undecodable, is an unknown id. The id is the one
+ *  query value that IS percent-decoded, so it survives a `/` or a space in a route name. */
 export function readBatchId(urlQuery: string | undefined): string | undefined {
-  if (!urlQuery) return undefined;
-  for (const part of urlQuery.split('&')) {
-    if (!part.startsWith('id=')) continue;
-    try {
-      return decodeURIComponent(part.slice(3)) || undefined;
-    } catch {
-      return undefined;
-    }
+  const rawId = findMionQueryParam(urlQuery, 'id');
+  if (rawId === undefined) return undefined;
+  try {
+    return decodeURIComponent(rawId) || undefined;
+  } catch {
+    return undefined;
   }
-  return undefined;
 }
 
 /** Resolves a batch request to its merged execution chain by id. Runs while the call context is

@@ -7,6 +7,7 @@
 
 import {fromBase64Url, FatalError, RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
+import {findMionQueryParam} from './urlQuery.ts';
 
 // `atob` throws a raw InvalidCharacterError on anything that is not base64: every adapter used to
 // call this outside its guard, so one `GET /route?data=!` took the node and uws processes down with
@@ -25,7 +26,7 @@ export interface QueryBodyResult {
 export function decodeQueryBody(urlQuery: string | undefined, rawBody: unknown): QueryBodyResult | undefined {
   if (rawBody) return undefined;
   if (!urlQuery) return undefined;
-  const dataValue = extractDataParam(urlQuery);
+  const dataValue = findMionQueryParam(urlQuery, 'data');
   if (!dataValue) return undefined;
   try {
     return {rawBody: fromBase64Url(dataValue), bodyType: SerializerModes.stringifyJson};
@@ -41,16 +42,4 @@ function invalidQueryBody(originalError?: unknown): RpcError<'invalid-query-body
     publicMessage: 'Invalid query body: the data parameter is not base64url encoded.',
     originalError: originalError as Error | undefined,
   });
-}
-
-function extractDataParam(urlQuery: string): string | undefined {
-  if (urlQuery.startsWith('data=')) {
-    const ampIndex = urlQuery.indexOf('&', 5);
-    return ampIndex === -1 ? urlQuery.slice(5) : urlQuery.slice(5, ampIndex);
-  }
-  const idx = urlQuery.indexOf('&data=');
-  if (idx === -1) return undefined;
-  const start = idx + 6;
-  const ampIndex = urlQuery.indexOf('&', start);
-  return ampIndex === -1 ? urlQuery.slice(start) : urlQuery.slice(start, ampIndex);
 }
