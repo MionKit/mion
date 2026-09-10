@@ -63,19 +63,28 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
 
 describe('enrichment routing (per-concern rules, named for what they catch)', () => {
   const cases: Array<[string, Severity, RuleName]> = [
-    ['FT020', Severity.Error, 'no-enrichment-todo'],
-    ['MD020', Severity.Error, 'no-enrichment-todo'],
-    ['FT023', Severity.Error, 'no-enrichment-todo'],
-    ['MD023', Severity.Error, 'no-enrichment-todo'],
-    ['FT021', Severity.Error, 'no-orphan-carcass'],
-    ['FT022', Severity.Error, 'no-orphan-carcass'],
-    ['MD021', Severity.Error, 'no-orphan-carcass'],
-    ['MD022', Severity.Error, 'no-orphan-carcass'],
-    ['FT002', Severity.Error, 'enrichment-field'],
-    ['FT006', Severity.Error, 'enrichment-field'],
+    // The content codes route PER CODE now, not by severity. Every one of them
+    // is a Warning since the three-level split, so a severity tier could not
+    // tell a field finding from a message finding any more — and never really
+    // could: FT006 (a plural template missing its `other` arm) is a message
+    // finding that only landed on the field rule because it happened to be an
+    // error.
+    ['FT020', Severity.Warning, 'no-enrichment-todo'],
+    ['MD020', Severity.Warning, 'no-enrichment-todo'],
+    ['FT023', Severity.Warning, 'no-enrichment-todo'],
+    ['MD023', Severity.Warning, 'no-enrichment-todo'],
+    ['FT021', Severity.Warning, 'no-orphan-carcass'],
+    ['FT022', Severity.Warning, 'no-orphan-carcass'],
+    ['MD021', Severity.Warning, 'no-orphan-carcass'],
+    ['MD022', Severity.Warning, 'no-orphan-carcass'],
+    ['FT002', Severity.Warning, 'enrichment-field'],
+    ['FT011', Severity.Error, 'enrichment-field'],
+    ['MD001', Severity.Warning, 'enrichment-field'],
+    ['MD011', Severity.Error, 'enrichment-field'],
     ['FT003', Severity.Warning, 'enrichment-message'],
     ['FT005', Severity.Warning, 'enrichment-message'],
-    ['MD001', Severity.Error, 'enrichment-field'],
+    ['FT006', Severity.Warning, 'enrichment-message'],
+    ['FT009', Severity.Warning, 'enrichment-message'],
     ['GE000', Severity.Error, 'enrichment-broken-source'],
     ['GE002', Severity.Error, 'enrichment-broken-source'],
     ['GE001', Severity.Warning, 'enrichment-misplaced-file'],
@@ -85,15 +94,20 @@ describe('enrichment routing (per-concern rules, named for what they catch)', ()
   });
 
   it('routes a FUTURE enrich code to the field tier matching its severity', () => {
+    // Unnamed codes keep the old severity tier, so a locally built binary ahead
+    // of the catalog still reports rather than dropping the finding.
     expect(ruleOf({code: 'FT099', family: Family.Enrich, severity: Severity.Error})).toBe('enrichment-field');
     expect(ruleOf({code: 'FT098', family: Family.Enrich, severity: Severity.Warning})).toBe('enrichment-message');
   });
 });
 
-// Go↔JS drift guard: every code the Go catalog can emit must route to a rule
-// whose DEFAULT level matches the code's catalog severity. A new Go prefix, or
-// a severity move, that the routing table doesn't cover fails here at PR time
-// (mirrors the constant-sync tests in prefilter.test.ts).
+// Go↔JS drift guard: every code the Go catalog can emit must route to a rule,
+// and that rule must never UNDER-report it — a code the catalog does not call a
+// Warning cannot land on a rule that defaults to `warn`. The reverse is allowed
+// on purpose: a rule may ship at `error` while its codes are Warnings, which is
+// how a finding earns an editor squiggle without stopping a build. A new Go
+// prefix, or a level move, that the routing table doesn't cover fails here at PR
+// time (mirrors the constant-sync tests in prefilter.test.ts).
 describe('catalog coverage — every code routes to a rule with the matching default', () => {
   const RULE_DEFAULT = new Map<RuleName, 'error' | 'warn'>(RULE_SPECS.map((spec) => [spec.name, spec.default]));
   const enrichPrefixes = new Set(['FT', 'MD', 'GE']);
@@ -107,8 +121,11 @@ describe('catalog coverage — every code routes to a rule with the matching def
       const prefix = code.match(/^[A-Z]+/)![0];
       const family = enrichPrefixes.has(prefix) ? Family.Enrich : Family.RunType;
       const routed = ruleOf({code, family, severity: severityEnum[entry.severity]});
-      const expectedDefault = entry.severity === 'error' ? 'error' : 'warn';
-      expect(RULE_DEFAULT.get(routed), `${code} (${entry.severity}) routed to ${routed}`).toBe(expectedDefault);
+      const ruleDefault = RULE_DEFAULT.get(routed);
+      expect(ruleDefault, `${code} routed to ${routed}, which is not a registered rule`).toBeDefined();
+      if (entry.level !== 'warning') {
+        expect(ruleDefault, `${code} is a ${entry.level} but ${routed} only warns`).toBe('error');
+      }
     }
   });
 });
