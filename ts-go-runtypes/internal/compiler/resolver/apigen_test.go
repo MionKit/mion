@@ -3,9 +3,11 @@ package resolver_test
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -368,19 +370,10 @@ export const b = routes.sum(1, 2).call();
 	}
 }
 
-// writeApiServerProject writes an on-disk API project the apiTsconfig pointer
-// can name: an ambient router whose initRoutes returns the PublicApi shape,
-// and a source file initializing the routes. The handler's params tuple
-// carries a boolean the client's own declaration lacks, so a validator
-// mentioning `boolean` proves the ids came from this program.
-func writeApiServerProject(t *testing.T, dir string, initCalls int) string {
-	t.Helper()
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	tsconfig := filepath.Join(dir, "tsconfig.json")
-	writeFile(t, tsconfig, `{"compilerOptions": {"strict": true, "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "noEmit": true}, "include": ["*.ts"]}`)
-	writeFile(t, filepath.Join(dir, "router.d.ts"), `declare module '@mionjs/router' {
+// apiServerRouterDTS is an ambient router whose initRoutes returns the
+// PublicApi shape, for the on-disk API project the apiTsconfig pointer names
+// and for the inline "server build" session of the manifest tests.
+const apiServerRouterDTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
   type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
@@ -391,12 +384,37 @@ func writeApiServerProject(t *testing.T, dir string, initCalls int) string {
   export interface MionRouter { initRoutes<R>(routes: R): PublicApi<R> }
   export function createMionRouter(): MionRouter;
 }
-`)
+`
+
+// apiServerRoutesTS is the API project's source: initCalls `initRoutes`
+// calls over the same two routes. getById's params tuple carries a boolean
+// the client's own declaration lacks, so a validator mentioning `boolean`
+// proves the ids came from this program; extraParam adds a third parameter,
+// the kind of server-side edit api-check exists to catch.
+func apiServerRoutesTS(initCalls int, extraParam bool) string {
+	getById := "handler: (id: number, verbose: boolean): {id: number; name: string} => ({id, name: ''})"
+	if extraParam {
+		getById = "handler: (id: number, verbose: boolean, tenant: string): {id: number; name: string} => ({id, name: tenant})"
+	}
 	source := "import {createMionRouter} from '@mionjs/router';\nconst mion = createMionRouter();\n"
 	for i := 0; i < initCalls; i++ {
-		source += "export const api" + string(rune('0'+i)) + " = mion.initRoutes({users: {getById: {type: 1 as const, handler: (id: number, verbose: boolean): {id: number; name: string} => ({id, name: ''})}}, sum: {type: 1 as const, handler: (a: number, b: number): number => a + b}});\n"
+		source += "export const api" + string(rune('0'+i)) + " = mion.initRoutes({users: {getById: {type: 1 as const, " + getById + "}}, sum: {type: 1 as const, handler: (a: number, b: number): number => a + b}});\n"
 	}
-	writeFile(t, filepath.Join(dir, "routes.ts"), source)
+	return source
+}
+
+// writeApiServerProject writes the on-disk API project the apiTsconfig
+// pointer can name: the ambient router and a source file initializing the
+// routes initCalls times.
+func writeApiServerProject(t *testing.T, dir string, initCalls int) string {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tsconfig := filepath.Join(dir, "tsconfig.json")
+	writeFile(t, tsconfig, `{"compilerOptions": {"strict": true, "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler", "noEmit": true}, "include": ["*.ts"]}`)
+	writeFile(t, filepath.Join(dir, "router.d.ts"), apiServerRouterDTS)
+	writeFile(t, filepath.Join(dir, "routes.ts"), apiServerRoutesTS(initCalls, false))
 	return tsconfig
 }
 
@@ -479,5 +497,139 @@ func TestApiGen_ApiTsconfigNeedsOneMatchingInitRoutes(t *testing.T) {
 	diags = metDiags(gen.Diagnostics)
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaSourceAmbiguous {
 		t.Fatalf("expected one MET005, got %+v", diags)
+	}
+}
+
+func readManifest(t *testing.T, genDir string) *apimeta.Manifest {
+	t.Helper()
+	manifest, err := apimeta.ReadManifest(filepath.Join(genDir, constants.ApiModuleDir, constants.ApiManifestFile))
+	if err != nil {
+		t.Fatalf("reading the manifest under %s: %v", genDir, err)
+	}
+	return manifest
+}
+
+// TestApiGen_ClientManifestListsTheBundledMethods: a client build writes a
+// client manifest holding exactly the bundled methods, with the ids, families,
+// options and chains the modules carry.
+func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
+	genDir := t.TempDir()
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiMixed, "")
+	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	manifest := readManifest(t, genDir)
+	if manifest.Kind != apimeta.ManifestKindClient || manifest.Mode != "mixed" {
+		t.Fatalf("expected a client manifest under mixed, got kind %q mode %q", manifest.Kind, manifest.Mode)
+	}
+	ids := make([]string, 0, len(manifest.Methods))
+	for id := range manifest.Methods {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	if got := strings.Join(ids, ","); got != "auth,sum,users/audit,users/getById" {
+		t.Fatalf("bundled ids: %s", got)
+	}
+	getById := manifest.Methods["users/getById"]
+	if getById.Type != 1 || getById.ParamsId == "" || getById.ReturnId == "" || getById.HeadersId != "" {
+		t.Errorf("getById row: %+v", getById)
+	}
+	if got := strings.Join(getById.MiddleFnIds, ","); got != "auth,users/audit" {
+		t.Errorf("getById chain: %s", got)
+	}
+	if got := strings.Join(getById.Families, ","); got != "val,verr,huk,uke,fmt,pjs,rj,val,verr,huk,uke,pjs,rj" {
+		t.Errorf("getById families: %s", got)
+	}
+	if getById.Options["validateParams"] != true {
+		t.Errorf("getById options: %+v", getById.Options)
+	}
+	if auth := manifest.Methods["auth"]; auth.Type != 3 || auth.HeadersId == "" || len(auth.MiddleFnIds) != 0 {
+		t.Errorf("auth row: %+v", auth)
+	}
+}
+
+// TestApiGen_ManifestsAgreeAcrossProjects: the server build's manifest (kind
+// server, from its initRoutes call) and a client built with apiTsconfig over
+// the same project compare equal; a server-side edit of a handler no longer
+// does, on exactly the field that changed.
+func TestApiGen_ManifestsAgreeAcrossProjects(t *testing.T) {
+	serverTsconfig := writeApiServerProject(t, filepath.Join(t.TempDir(), "server"), 1)
+	serverGen := t.TempDir()
+	server := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, serverGen, "", "")
+	if gen := server.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("server generate: %s", gen.Error)
+	}
+	serverManifest := readManifest(t, serverGen)
+	if serverManifest.Kind != apimeta.ManifestKindServer || len(serverManifest.Methods) != 2 || len(serverManifest.Ambiguous) != 0 {
+		t.Fatalf("server manifest: %+v", serverManifest)
+	}
+	clientGen := t.TempDir()
+	client := setupApi(t, map[string]string{"client.d.ts": apiClientDTS, "client.ts": apiPeerClientTS}, clientGen, constants.BundleApiBundled, serverTsconfig)
+	if gen := client.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("client generate: %s", gen.Error)
+	}
+	clientManifest := readManifest(t, clientGen)
+	if clientManifest.Kind != apimeta.ManifestKindClient || clientManifest.ApiTsconfig != serverTsconfig || len(clientManifest.Methods) != 1 {
+		t.Fatalf("client manifest: %+v", clientManifest)
+	}
+	if mismatches := apimeta.Compare(clientManifest, serverManifest); len(mismatches) != 0 {
+		t.Fatalf("the two builds disagree: %v", mismatches)
+	}
+
+	// the server grows a parameter: its manifest moves, the client's (built
+	// against the old server) no longer matches on paramsId
+	editedGen := t.TempDir()
+	edited := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(1, true)}, editedGen, "", "")
+	if gen := edited.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("edited server generate: %s", gen.Error)
+	}
+	mismatches := apimeta.Compare(clientManifest, readManifest(t, editedGen))
+	if len(mismatches) != 1 || mismatches[0].Id != "users/getById" || mismatches[0].Field != "paramsId" {
+		t.Fatalf("expected one paramsId mismatch on users/getById, got %v", mismatches)
+	}
+}
+
+// TestApiGen_ServerManifestFlagsAnAmbiguousId: two initRoutes calls declaring
+// one id with different types list it as ambiguous; equal declarations do not.
+func TestApiGen_ServerManifestFlagsAnAmbiguousId(t *testing.T) {
+	sameGen := t.TempDir()
+	same := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": apiServerRoutesTS(2, false)}, sameGen, "", "")
+	if gen := same.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	if manifest := readManifest(t, sameGen); len(manifest.Ambiguous) != 0 || len(manifest.Methods) != 2 {
+		t.Fatalf("equal declarations must not be ambiguous: %+v", manifest)
+	}
+	differGen := t.TempDir()
+	source := apiServerRoutesTS(1, false) + strings.Replace(strings.TrimPrefix(apiServerRoutesTS(1, true), apiServerRoutesTS(0, true)), "api0", "api1", 1)
+	differ := setupApi(t, map[string]string{"router.d.ts": apiServerRouterDTS, "routes.ts": source}, differGen, "", "")
+	if gen := differ.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	manifest := readManifest(t, differGen)
+	if got := strings.Join(manifest.Ambiguous, ","); got != "users/getById" {
+		t.Fatalf("ambiguous ids: %q (%+v)", got, manifest)
+	}
+	client := &apimeta.Manifest{Kind: apimeta.ManifestKindClient, Methods: map[string]apimeta.ManifestMethod{"users/getById": manifest.Methods["users/getById"]}}
+	if mismatches := apimeta.Compare(client, manifest); len(mismatches) != 1 || !strings.Contains(mismatches[0].Server, "more than once") {
+		t.Fatalf("a client row for an ambiguous id must fail the check: %v", mismatches)
+	}
+}
+
+// TestApiGen_NoApiMeansNoApiDir: a program that neither bundles nor
+// initializes an API writes no api/ dir, and a stale one is removed.
+func TestApiGen_NoApiMeansNoApiDir(t *testing.T) {
+	genDir := t.TempDir()
+	stale := filepath.Join(genDir, constants.ApiModuleDir)
+	if err := os.MkdirAll(stale, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(stale, constants.ApiManifestFile), "{}")
+	r := setupApi(t, map[string]string{"a.ts": "import {getRunTypeId} from '@mionjs/run-types';\nexport const id = getRunTypeId<{a: number}>();\n"}, genDir, "", "")
+	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("a stale api/ dir must be removed, stat: %v", err)
 	}
 }
