@@ -464,6 +464,24 @@ const (
 	// (its own, or the `clientTsconfig` one), so the server owns every file it
 	// loads and never reads a client tree.
 	RpcModuleDir = "rpc"
+	// ApiModuleDir is the folder under the output root that holds what a mion
+	// CLIENT build bundles under `bundleApi`: one module per route or middleFn
+	// the program calls (`api/m/<id>.js`, its metadata plus the compiled
+	// function tuples it imports from `types/`), one module per dispatch site
+	// shape (`api/s/<id>.js`, the route with its middleFn chain, or the union a
+	// batch runs) and `api/manifest.json`, the id table `mion api-check`
+	// compares against the server's.
+	ApiModuleDir = "api"
+	// ApiManifestFile is the id manifest's name under ApiModuleDir, written by
+	// BOTH builds: the server's from its initRoutes call, the client's from the
+	// routes it bundled.
+	ApiManifestFile = "manifest.json"
+	// ApiModulePrefix is the render-time specifier scheme for a bundled API
+	// module (`rtapi:/s/<id>.js`), the sibling of EntryModulePrefix: the
+	// transform imports it at a dispatch site, and the same relativizers that
+	// turn `rtmod:/` into a path under <outDir>/types turn this one into a
+	// path under <outDir>/api.
+	ApiModulePrefix = "rtapi:/"
 	// BatchesModuleFile is the batch table module's name under RpcModuleDir.
 	BatchesModuleFile = "batches.generated.js"
 	// RpcModulePrefix is the render-time specifier scheme for the batch
