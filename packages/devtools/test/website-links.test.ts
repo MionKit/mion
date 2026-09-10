@@ -9,7 +9,10 @@
 //   - no in-site link goes through a domain (runtypes.pages.dev is redirect-only now,
 //     and an absolute mion.pages.dev link would silently skip the client router);
 //   - every in-site redirect target in public/_redirects resolves the same way, and
-//     the legacy runtypes.pages.dev redirects all point at mion.pages.dev.
+//     the legacy runtypes.pages.dev redirects all point at mion.pages.dev;
+//   - every '#anchor' link lands on a heading that exists on the page it targets.
+//     Nothing renders the site here either, so a link to a section that was renamed
+//     or removed leaves the reader where they stood, with no error anywhere.
 
 import {describe, it, expect} from 'vitest';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
@@ -159,6 +162,108 @@ describe('website-internal-links', () => {
       )
       .map(({file, line, target}) => `${file}:${line} -> ${target}`);
     expect(unprefixed).toEqual([]);
+  });
+});
+
+// Anchor links: `](/page#x)`, `](#x)`, `to="/page#x"`, `href="#x"`. An empty path is the
+// page the link sits on. External URLs are left alone, only in-site targets are resolved.
+const ANCHOR_LINK = /(?:\]\(|to="|href=")((?!https?:)[^\s)"']*#[^\s)"']+)/g;
+
+// Headings are indexed with a leading-space tolerance: inside an MDC component the
+// markdown is indented by its nesting, and those headings still get an id.
+const HEADING = /^\s*#{1,6}\s+(.*)$/;
+
+/**
+ * The id Nuxt Content gives a heading: its rendered text, lowercased, with everything
+ * that is not a letter, a digit or a space dropped and the spaces turned into dashes.
+ */
+function headingSlug(text: string): string {
+  return text
+    .replace(/`/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*|\*|__|_/g, '')
+    .replace(/<[^>]*>/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9 -]/g, '')
+    .replace(/\s+/g, '-');
+}
+
+/** Every heading id each page of the site publishes, keyed by the page's route. */
+function pageHeadings(): Map<string, Set<string>> {
+  const headings = new Map<string, Set<string>>();
+  const visit = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) {
+        visit(full);
+        continue;
+      }
+      if (!name.endsWith('.md')) continue;
+      const slugs = new Set<string>();
+      let inFence = false;
+      for (const line of readFileSync(full, 'utf8').split('\n')) {
+        // A '#' inside a fenced block is a comment or a shell prompt, never a heading.
+        if (/^\s*```/.test(line)) inFence = !inFence;
+        else if (!inFence) {
+          const heading = HEADING.exec(line);
+          if (heading) slugs.add(headingSlug(heading[1]!));
+        }
+      }
+      headings.set(routeOfFile(posix.relative(REPO_ROOT, full.split('\\').join('/'))), slugs);
+    }
+  };
+  visit(CONTENT_DIR);
+  return headings;
+}
+
+function anchorLinks(): Link[] {
+  const links: Link[] = [];
+  const visit = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) {
+        visit(full);
+        continue;
+      }
+      if (!name.endsWith('.md') && name !== '.navigation.yml') continue;
+      const rel = posix.relative(REPO_ROOT, full.split('\\').join('/'));
+      readFileSync(full, 'utf8')
+        .split('\n')
+        .forEach((text, i) => {
+          for (const match of text.matchAll(ANCHOR_LINK)) links.push({file: rel, line: i + 1, target: match[1]!});
+        });
+    }
+  };
+  visit(CONTENT_DIR);
+  return links;
+}
+
+describe('website-anchor-links', () => {
+  const headings = pageHeadings();
+  const links = anchorLinks();
+
+  it('finds the headings and anchor links it claims to check', () => {
+    expect(headings.get('/rpc/server/routes')?.has('call-context')).toBe(true);
+    expect(headings.get('/rpc/server/request-and-response')?.has('mionrequest')).toBe(true);
+    // A heading nested inside an MDC card still publishes an id.
+    expect(headings.get('/rpc/introduction/about-mion-rpc')?.has('rpc-like')).toBe(true);
+    expect(links.length).toBeGreaterThan(20);
+    expect(links.some(({target}) => target.startsWith('#'))).toBe(true);
+  });
+
+  it('lands every anchor link on a heading that exists', () => {
+    const broken = links
+      .map(({file, line, target}) => {
+        const [path, anchor] = target.split('#') as [string, string];
+        const route = path === '' ? routeOfFile(file) : withoutTrailingSlash(path);
+        const slugs = headings.get(route);
+        if (!slugs) return `${file}:${line} -> ${target} (no such page: ${route})`;
+        if (!slugs.has(anchor)) return `${file}:${line} -> ${target} (no heading '#${anchor}' on ${route})`;
+        return undefined;
+      })
+      .filter((entry) => entry !== undefined);
+    expect(broken).toEqual([]);
   });
 });
 

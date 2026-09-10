@@ -60,7 +60,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    * instead of creating new ones for each request. This can improve
    * performance in high-throughput scenarios by reducing GC pressure.
    * Set to 0 to disable pooling.
-   * @default 0 (disabled)
+   * @default 100
    */
   maxContextPoolSize: number;
   /**
