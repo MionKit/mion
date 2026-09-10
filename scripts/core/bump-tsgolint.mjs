@@ -119,8 +119,8 @@ export function main(argv) {
   if (skipTests) {
     warn('--skip-tests: skipping the Go + JS suites. Run them before you commit.');
   } else {
-    info('Running the Go suite (go test ./internal/...)...');
-    goOk = run('go', ['test', './internal/...'], {cwd: join(REPO_ROOT, 'ts-go-runtypes')}) === 0;
+    info('Running the Go suite (go test ./internal/... ./cmd/...)...');
+    goOk = run('go', ['test', './internal/...', './cmd/...'], {cwd: join(REPO_ROOT, 'ts-go-runtypes')}) === 0;
     info('Running the JS suite (pnpm test)...');
     jsOk = run('pnpm', ['test']) === 0;
   }

@@ -122,12 +122,15 @@ jobs:
       # MION_FUZZ_ITER widens both Go fuzz sweeps under internal/convert to the
       # `convert` lane's quick budget (mirrors the registry, pinned by
       # fuzz-lane-contracts.test.ts). Local replay: `pnpm miondevx core fuzz convert --quick`.
+      # ./cmd/... rides along: the `mion` CLI's own gates (the enrich check exit
+      # codes among them) live there and once rotted unnoticed when only
+      # ./internal/... ran.
       - name: Go test suite (fuzz sweeps at quick budgets)
         if: needs.changes.outputs.go == 'true'
         working-directory: ts-go-runtypes
         env:
           MION_FUZZ_ITER: '30'
-        run: go test ./internal/...
+        run: go test ./internal/... ./cmd/...
       # The count-based JS fuzz lanes at their QUICK budgets (fixed coverage, so
       # vitest's file parallelism only costs wall clock), plus the fuzz-adjacent
       # regression/smoke/unit tests in the same tree. The ten time-boxed lanes
