@@ -8,7 +8,8 @@
 // Drive: `node build-all.mjs [appName…]` (default: all). In-container the RT
 // plugin resolves the host binary via the published @mionjs/bin-compiler launcher
 // (no binary option); set MION_E2E_BINARY=<abs path> for host iteration.
-import {execFileSync} from 'node:child_process';
+import {execFileSync, spawn} from 'node:child_process';
+import {createServer} from 'node:net';
 import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -81,6 +82,12 @@ const APP_LIST = [
   // workspace dep, so a vitest equivalent would never run) — see
   // packages/devtools/src/runtypes/next/CLAUDE.md.
   {name: 'smoke-next', adapter: 'next'},
+  // The mion half of the Next story: the app HOSTS the API through an App Router catch-all
+  // handler, so one build produces the front end and the API from one program. smoke-next
+  // covers the transform under Turbopack; this covers the framework on top of it, including a
+  // batch, which only works when the client's call site and the server's table come from the
+  // same build.
+  {name: 'mion-next', adapter: 'mionNext'},
 ];
 
 async function buildVite(app) {
@@ -261,7 +268,64 @@ async function buildNext(app) {
   }
 }
 
-const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext};
+// A port nothing is listening on. `listen(0)` asks the OS for a free one; the tiny race between
+// closing and `next start` binding it is the standard cost and has never mattered here.
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const {port} = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+}
+
+async function waitForOk(url, child, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error(`mion-next: \`next start\` exited with ${child.exitCode} before serving ${url}`);
+    try {
+      const res = await fetch(url);
+      if (res.ok) return res;
+    } catch {
+      // not listening yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`mion-next: ${url} did not answer within ${timeoutMs}ms`);
+}
+
+// mion-next is built like smoke-next and then SERVED: the API only exists at request time, so
+// the round trip runs against a real `next start`. The app's own /selftest route does the
+// calling (its batch has to be in the app's program), and this driver only reads the report and
+// writes it where the assertions can find it.
+async function buildMionNext(app) {
+  const appDir = path.join(APPS, app.name);
+  const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
+  execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+
+  const port = await freePort();
+  const child = spawn(process.execPath, [nextBin, 'start', '--port', String(port)], {
+    cwd: appDir,
+    stdio: 'inherit',
+    env: {...process.env, NODE_ENV: 'production'},
+  });
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    await waitForOk(`${base}/`, child, 90_000);
+    const res = await waitForOk(`${base}/selftest`, child, 30_000);
+    const report = await res.json();
+    // Fail here as well as in the assertions: a broken lane should not need `node --test` to say so.
+    const failures = [report.json.error, report.compact.error, report.batch.error].filter(Boolean);
+    if (failures.length) throw new Error(`mion-next: the app reported errors: ${failures.join(' | ')}`);
+    writeFileSync(path.join(appDir, 'selftest.json'), `${JSON.stringify(report, null, 2)}\n`);
+  } finally {
+    child.kill('SIGTERM');
+  }
+}
+
+const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext, mionNext: buildMionNext};
 
 async function main() {
   const requested = process.argv.slice(2);
