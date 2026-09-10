@@ -1,6 +1,8 @@
 import {createMionRouter, Routes} from '@mionjs/router';
 
-const mion = createMionRouter();
+// The catch-all handler is mounted under `/api`, so the ROUTER carries that prefix: a client
+// resolves a route's absolute path against its baseURL, which would drop a prefix set there.
+const mion = createMionRouter({basePath: '/api'});
 
 const routes = {
   sayHello: mion.route((ctx, name: string): string => {
