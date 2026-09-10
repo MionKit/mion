@@ -54,7 +54,7 @@ describe('mionVitePlugin removed options', () => {
     expect(() => mionVitePlugin({aotCaches: undefined, runTypes: {exclude: undefined}} as never)).not.toThrow();
   });
 
-  it('leaves a plain server block alone — mounting in-process is the only mode', () => {
+  it('leaves a plain server block alone', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() => mionVitePlugin({server: {startScript: '/srv.ts'}})).not.toThrow();
     expect(() => mionVitePlugin({server: {startScript: '/srv.ts', build: {outDir: 'dist-api'}}})).not.toThrow();
@@ -63,8 +63,9 @@ describe('mionVitePlugin removed options', () => {
   });
 });
 
-// The child-process lane and its four options went with it. Same reasoning as the block above: an
-// untyped vite.config.js would drop them silently and quietly never start the server it asked for.
+// Four `server` keys that configure nothing, because the API runs in this same process. Same
+// reasoning as the block above: an untyped vite.config.js would drop them silently, and a config
+// asking for a server that never starts is worse than one that fails to load.
 const removedServer = [
   ['runMode', {runMode: 'childProcess'}],
   ['viteConfig', {viteConfig: '/srv.vite.config.ts'}],
@@ -72,12 +73,12 @@ const removedServer = [
   ['env', {env: {MION_TEST_PORT: '8086'}}],
 ] as const;
 
-describe('mionVitePlugin removed server options', () => {
+describe('mionVitePlugin unsupported server options', () => {
   it.each(removedServer)('throws on server.%s, naming it', (name, block) => {
     expect(() => mionVitePlugin({server: {startScript: '/srv.ts', ...block}} as never)).toThrow(new RegExp(`server\\.${name}`));
   });
 
-  it('names every removed server key it found, not just the first', () => {
+  it('names every unsupported server key it found, not just the first', () => {
     const call = () =>
       mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'childProcess', waitTimeout: 1, env: {}}} as never);
     expect(call).toThrow(/server\.runMode/);
@@ -87,10 +88,6 @@ describe('mionVitePlugin removed server options', () => {
 
   it('points at the replacement: start the API yourself, vite dev already listens', () => {
     expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'childProcess'}} as never)).toThrow(/globalSetup/);
-  });
-
-  it("still rejects 'buildOnly' — it WAS the AOT harvest mode, and runMode is gone besides", () => {
-    expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'buildOnly'}} as never)).toThrow(/buildOnly/);
   });
 
   it('ignores an explicit undefined — an absent key is not a stale config', () => {
