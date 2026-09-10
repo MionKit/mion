@@ -19,7 +19,8 @@ import {
   BatchResult,
 } from './types.ts';
 import type {RemoteApi} from '@mionjs/router';
-import type {RpcError} from '@mionjs/core';
+import type {InjectApiMetadata} from '@mionjs/run-types';
+import {RpcError} from '@mionjs/core';
 import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
@@ -27,20 +28,39 @@ import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {takeMetadataCacheError} from './lib/clientMethodsMetadata.ts';
 
+/**
+ * Creates the client: the typed `routes` / `middleFns` proxies plus the client itself.
+ * `bundleApiMode` is filled by the build when its `bundleApi` option is on (`'bundled'` or
+ * `'mixed'`): the metadata and compiled functions of every route the program calls are then
+ * injected at the call sites, so the client never asks the server for them.
+ */
 export function initClient<RM extends RemoteApi>(
-  options: InitClientOptions
+  options: InitClientOptions,
+  bundleApiMode?: InjectApiMetadata<RM>
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
   const clientOptions = {
     ...DEFAULT_PREFILL_OPTIONS,
     ...options,
   };
-  const client = new MionClient(clientOptions);
+  const client = new MionClient(clientOptions, toBundleApiMode(bundleApiMode));
   const rootProxy = new MethodProxy([], client, clientOptions);
   return {
     client,
     routes: rootProxy.proxy as ClientRoutes<RM>,
     middleFns: rootProxy.proxy as ClientMiddleFns<RM>,
   };
+}
+
+/** The lane a built client runs its metadata on: bundled at build time, or bundled with a fetch fallback. */
+export type BundleApiMode = 'bundled' | 'mixed';
+
+function toBundleApiMode(injected: unknown): BundleApiMode | undefined {
+  if (injected === undefined) return undefined;
+  if (injected === 'bundled' || injected === 'mixed') return injected;
+  throw new RpcError({
+    type: 'bundle-api-invalid-mode',
+    publicMessage: `initClient received an unknown bundleApi mode '${String(injected)}'; expected 'bundled' or 'mixed'.`,
+  });
 }
 
 export class MionClient {
@@ -58,7 +78,11 @@ export class MionClient {
     return this.globalAbortController.signal;
   }
 
-  constructor(private clientOptions: ClientOptions) {}
+  constructor(
+    private clientOptions: ClientOptions,
+    /** set by the build through `initClient`'s trailing marker; undefined means the fetched lane */
+    readonly bundleApiMode?: BundleApiMode
+  ) {}
 
   /** Aborts all in-flight requests. New requests after this call work normally. */
   abort(): void {

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["@types/node"],
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "rootDir": "../..",
+    "customConditions": ["source"]
+  },
+  "include": ["."],
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
+}

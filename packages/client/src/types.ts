@@ -8,6 +8,7 @@
 import {RpcError} from '@mionjs/core';
 import type {CoreRouterOptions, InputFromRef, Prettify, RunTypeError, SerializerMode, ValidationError} from '@mionjs/core';
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
+import type {InjectApiMetadata} from '@mionjs/run-types';
 import type {TypedEvent} from './lib/typedEvent.ts';
 import type {StorageEngine} from './lib/storage.ts';
 
@@ -142,11 +143,17 @@ export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplif
   Extract<HandlerResponse<PH>, RpcError<string, any>> | ValidationError
 >;
 
+// The three type parameters of a subrequest: the handler, the route id as a literal (the key path
+// the proxy joins with `/`, so `routes.users.getById(1)` is `RouteSubRequest<H, 'users/getById'>`),
+// and the whole API. The proxy mints the id at runtime; the literal exists so the id survives
+// destructuring and aliasing, and so a build with `bundleApi` reads, at each dispatch point, which
+// route of which API the site calls. The defaults keep every `RouteSubRequest<H>` use compiling.
+
 // type-sub-request-start
 /** Represents a remote method (sub request) */
-export interface SubRequest<PH extends PublicHandler> {
+export interface SubRequest<PH extends PublicHandler, Id extends string = string> {
   pointer: string[];
-  id: string;
+  id: Id;
   isResolved: boolean;
   params: Parameters<PH>;
   /** The resolved value after the request completes successfully */
@@ -167,37 +174,53 @@ export interface CallSetup<H extends Record<string, MiddlewareSubRequest<any>> =
   timeout?: number;
 }
 
+/** The API a list of subrequests was created from (one API per client, so the union collapses). */
+export type ApiOf<Routes extends SubRequest<any>[]> = Routes[number] extends RouteSubRequest<any, any, infer RA> ? RA : never;
+
 /** Builder returned by batch() - call .call() to execute */
 export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
   /** Execute the batch */
-  call(setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number}): Promise<BatchResult<Routes>>;
+  call(
+    setup?: {middleFns?: never; signal?: AbortSignal; timeout?: number},
+    apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>
+  ): Promise<BatchResult<Routes>>;
   /** Execute the batch with middleware */
-  call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
-    middleFns: H;
-    signal?: AbortSignal;
-    timeout?: number;
-  }): Promise<BatchResult<Routes, H>>;
+  call<H extends Record<string, MiddlewareSubRequest<any>>>(
+    setup: {
+      middleFns: H;
+      signal?: AbortSignal;
+      timeout?: number;
+    },
+    apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>
+  ): Promise<BatchResult<Routes, H>>;
 }
 
 // type-route-sub-request-start
 /** structure returned from the proxy, containing info of the remote route to execute */
-export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+export interface RouteSubRequest<PH extends PublicHandler, Id extends string = string, RA extends RemoteApi = RemoteApi>
+  extends SubRequest<PH, Id> {
   /** Validates Route's parameters and returns type errors */
-  typeErrors: () => Promise<RunTypeError[]>;
+  typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<RunTypeError[]>;
 
   /** Calls a remote route and returns a Result 5-tuple */
-  call(setup?: {
-    middleFns?: never;
-    signal?: AbortSignal;
-    timeout?: number;
-  }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
+  call(
+    setup?: {
+      middleFns?: never;
+      signal?: AbortSignal;
+      timeout?: number;
+    },
+    apiMetadata?: InjectApiMetadata<RA, Id>
+  ): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>>;
 
   /** Calls a remote route with middleFns */
-  call<H extends Record<string, MiddlewareSubRequest<any>>>(setup: {
-    middleFns: H;
-    signal?: AbortSignal;
-    timeout?: number;
-  }): Promise<
+  call<H extends Record<string, MiddlewareSubRequest<any>>>(
+    setup: {
+      middleFns: H;
+      signal?: AbortSignal;
+      timeout?: number;
+    },
+    apiMetadata?: InjectApiMetadata<RA, Id>
+  ): Promise<
     Result<
       HandlerSuccessResponse<PH>,
       Simplify<HandlerErrors<PH>>,
@@ -210,11 +233,12 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
 
 // type-middleware-sub-request-start
 /** structure returned from the proxy, containing info of the remote middleFn to execute */
-export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
+export interface MiddlewareSubRequest<PH extends PublicHandler, Id extends string = string, RA extends RemoteApi = RemoteApi>
+  extends SubRequest<PH, Id> {
   /** Validates MiddleFn's parameters and returns type errors */
-  typeErrors: () => Promise<RunTypeError[]>;
+  typeErrors(apiMetadata?: InjectApiMetadata<RA, Id>): Promise<RunTypeError[]>;
   /** Prefills MiddleFn's parameters for any future request and returns TypedEvent */
-  prefill: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
+  prefill(apiMetadata?: InjectApiMetadata<RA, Id>): TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
   /** Removes prefilled value */
   removePrefill: () => Promise<void>;
   /** Returns the TypedEvent for this middleFn so typed handlers can be registered without prefilling */
@@ -232,23 +256,29 @@ export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubReque
 
 export type NonClientRoute = PublicMiddleFn | PublicHeadersFn;
 
-export type ClientRoutes<RA extends RemoteApi> = Prettify<{
+// `Prefix` is the key path of the level being mapped (`users/` one level down) and `Root` the whole
+// API: both ride down the recursion so every leaf names its full id and its API.
+export type ClientRoutes<RA extends RemoteApi, Prefix extends string = '', Root extends RemoteApi = RA> = Prettify<{
   [Property in keyof RA as RA[Property] extends NonClientRoute ? never : Property]: RA[Property] extends PublicRoute
-    ? (...params: Parameters<RA[Property]['handler']>) => RouteSubRequest<RA[Property]['handler']>
+    ? (
+        ...params: Parameters<RA[Property]['handler']>
+      ) => RouteSubRequest<RA[Property]['handler'], `${Prefix}${Property & string}`, Root>
     : RA[Property] extends RemoteApi
-      ? ClientRoutes<RA[Property]>
+      ? ClientRoutes<RA[Property], `${Prefix}${Property & string}/`, Root>
       : never;
 }>;
 
 export type NonClientMiddleFn = PublicRoute | {[key: string]: PublicRoute};
 
-export type ClientMiddleFns<RA extends RemoteApi> = Prettify<{
+export type ClientMiddleFns<RA extends RemoteApi, Prefix extends string = '', Root extends RemoteApi = RA> = Prettify<{
   [Property in keyof RA as RA[Property] extends NonClientMiddleFn ? never : Property]: RA[Property] extends
     | PublicMiddleFn
     | PublicHeadersFn
-    ? (...params: Parameters<RA[Property]['handler']>) => MiddlewareSubRequest<RA[Property]['handler']>
+    ? (
+        ...params: Parameters<RA[Property]['handler']>
+      ) => MiddlewareSubRequest<RA[Property]['handler'], `${Prefix}${Property & string}`, Root>
     : RA[Property] extends RemoteApi
-      ? ClientMiddleFns<RA[Property]>
+      ? ClientMiddleFns<RA[Property], `${Prefix}${Property & string}/`, Root>
       : never;
 }>;
 
