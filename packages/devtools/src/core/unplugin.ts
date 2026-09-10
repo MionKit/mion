@@ -752,8 +752,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   //
   //   - DRIFT: an on-disk mirror missing or differing from the freshly computed
   //     one (a source type moved and the mirror wasn't reconciled).
-  //   - INCOMPLETE: unfilled @todo scaffolds or blank values (empty label /
-  //     message / pool) over the computed mirrors — the daemon's hygiene findings.
+  //   - INCOMPLETE or STALE: unfilled @todo scaffolds, blank values (empty label
+  //     / message / pool) and parked @rtOrphan carcasses over the computed
+  //     mirrors — the daemon's hygiene findings.
   //
   // Both warn, and both fail the build. Dev/watch takes syncEnrich
   // instead, which writes the scaffolds and tolerates the blanks (the developer is
@@ -769,17 +770,17 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
         if (existing !== file.content) stale.push(file.path);
       }
-      // Unfilled @todo scaffolds + blank values over the computed mirrors, plus
-      // anything actually wrong with them. The scaffold codes are LevelWarning (a
-      // mirror with blank labels still runs), so this gate reads the CATALOG's
-      // completeness bit for them: a production build must not ship an app with
-      // blank labels/translations, and keying on the level instead would silently
-      // stop this gate failing on anything. EVERY one is kept, downgraded or not,
-      // because a downgrade lowers a finding, it never hides it; only the halt
-      // count below drops the downgraded ones.
-      incomplete = (result.diagnostics ?? []).filter(
-        (d) => d.level !== Level.Warning || DIAGNOSTIC_CATALOG[d.code]?.completeness === true
-      );
+      // The hygiene findings over the computed mirrors: unfilled @todo scaffolds
+      // and blank values (the catalog's completeness bit) plus stale @rtOrphan /
+      // @rtOrphanChild carcasses. EVERY one halts a production build, so every one
+      // is kept: a release must ship neither blank labels/translations nor a
+      // mirror still carrying parked leftovers. None of them is read off the
+      // level: all these codes are LevelWarning (a mirror with a blank label or a
+      // carcass still runs, so a BUILD does not halt on them by level), and a
+      // level filter here silently let the carcasses through. Downgraded ones
+      // are kept too, because a downgrade lowers a finding, it never hides it;
+      // only the halt count below drops them.
+      incomplete = result.diagnostics ?? [];
     } catch {
       return;
     }
@@ -811,7 +812,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     if (staleCount === 0 && fatal === 0) return;
     const parts: string[] = [];
     if (staleCount > 0) parts.push(`${staleCount} out of date or missing`);
-    if (fatal > 0) parts.push(`${fatal} incomplete (unfilled @todo / blank value)`);
+    if (fatal > 0) parts.push(`${fatal} incomplete or stale (unfilled @todo / blank value / @rtOrphan carcass)`);
     ctx.error?.(
       `@mionjs/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
         `Run \`mion enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
