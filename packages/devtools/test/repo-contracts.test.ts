@@ -49,6 +49,10 @@ interface RegistryEntry {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../..');
+/** A scan of every tracked file (a git grep, or git ls-files plus a read of each) is not a 5 s job
+ *  on a loaded machine: inside a test:ci batch the old-repository grep took 6 s and failed the
+ *  batch, while it passes in 34 ms alone. */
+const WHOLE_TREE_TIMEOUT = 60_000;
 
 // The three packages that actually go to npm. The per-platform
 // @mionjs/native-compiler-* packages are assembled at publish time by
@@ -141,16 +145,20 @@ describe('published packages point at this repository', () => {
     });
   }
 
-  it('no tracked file outside docs/ names the old ts-run-types repository', () => {
-    // -I skips binaries; the pathspecs exclude the history records + specs under docs/ and the
-    // vendored submodule. The needle is split so this file never matches itself.
-    const oldRepo = ['MionKit', 'ts-run-types'].join('/');
-    const res = spawnSync('git', ['grep', '-I', '-l', oldRepo, '--', '.', ':!docs', ':!ts-go-runtypes/third_party'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    });
-    expect(res.stdout.trim().split('\n').filter(Boolean)).toEqual([]);
-  });
+  it(
+    'no tracked file outside docs/ names the old ts-run-types repository',
+    () => {
+      // -I skips binaries; the pathspecs exclude the history records + specs under docs/ and the
+      // vendored submodule. The needle is split so this file never matches itself.
+      const oldRepo = ['MionKit', 'ts-run-types'].join('/');
+      const res = spawnSync('git', ['grep', '-I', '-l', oldRepo, '--', '.', ':!docs', ':!ts-go-runtypes/third_party'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      });
+      expect(res.stdout.trim().split('\n').filter(Boolean)).toEqual([]);
+    },
+    WHOLE_TREE_TIMEOUT
+  );
 
   it("the client's undeclared slot is never called the fatal slot", () => {
     // `FatalError` is a typed, declared halt; the result tuple's slot 2 holds what NOBODY declared.
@@ -205,17 +213,21 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
   const doneRef = spec('done', 'some-finding');
   const todoRef = spec('todos', 'next-thing');
 
-  it('the tracked tree has no such reference', () => {
-    // -I skips binaries; git grep only sees tracked files. The exemptions are applied
-    // in JS (one regex for both the real sweep and the rule tests below).
-    const res = spawnSync('git', ['grep', '-I', '-l', '-E', SPEC_REFERENCE.source, '--', '.'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    });
-    const candidates = res.stdout.trim().split('\n').filter(Boolean);
-    const entries = candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')}));
-    expect(specReferenceOffenders(entries)).toEqual([]);
-  });
+  it(
+    'the tracked tree has no such reference',
+    () => {
+      // -I skips binaries; git grep only sees tracked files. The exemptions are applied
+      // in JS (one regex for both the real sweep and the rule tests below).
+      const res = spawnSync('git', ['grep', '-I', '-l', '-E', SPEC_REFERENCE.source, '--', '.'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+      });
+      const candidates = res.stdout.trim().split('\n').filter(Boolean);
+      const entries = candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')}));
+      expect(specReferenceOffenders(entries)).toEqual([]);
+    },
+    WHOLE_TREE_TIMEOUT
+  );
 
   it('fails on a reference in code, a workflow, a doc, a skill or a parked spec', () => {
     const text = `see ${doneRef} for why`;
@@ -884,22 +896,26 @@ describe('tracked sources carry no raw NUL byte', () => {
   // Two files carried one, and the rtUtils.ts one blocked a rebase.
   const SCANNED = ['*.ts', '*.tsx', '*.js', '*.mjs', '*.cjs', '*.go', '*.json', '*.md'];
 
-  it('no tracked source file contains a literal NUL', () => {
-    const listed = spawnSync('git', ['ls-files', '-z', '--', ...SCANNED], {
-      cwd: REPO_ROOT,
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    expect(listed.status).toBe(0);
-    const files = listed.stdout
-      .toString('utf8')
-      .split('\u0000')
-      .filter(Boolean)
-      .filter((file) => !file.startsWith('ts-go-runtypes/third_party/') && !file.includes('/testdata/'));
-    expect(files.length).toBeGreaterThan(500);
+  it(
+    'no tracked source file contains a literal NUL',
+    () => {
+      const listed = spawnSync('git', ['ls-files', '-z', '--', ...SCANNED], {
+        cwd: REPO_ROOT,
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      expect(listed.status).toBe(0);
+      const files = listed.stdout
+        .toString('utf8')
+        .split('\u0000')
+        .filter(Boolean)
+        .filter((file) => !file.startsWith('ts-go-runtypes/third_party/') && !file.includes('/testdata/'));
+      expect(files.length).toBeGreaterThan(500);
 
-    const offenders = files.filter((file) => readFileSync(join(REPO_ROOT, file)).includes(0));
-    expect(offenders).toEqual([]);
-  });
+      const offenders = files.filter((file) => readFileSync(join(REPO_ROOT, file)).includes(0));
+      expect(offenders).toEqual([]);
+    },
+    WHOLE_TREE_TIMEOUT
+  );
 });
 
 // ── mion server benchmarks (container/mion-bench) ──────────────────────────────
