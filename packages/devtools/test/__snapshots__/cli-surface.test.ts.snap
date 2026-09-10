@@ -14,6 +14,8 @@ the tsconfig outDir; requires a tsconfig; no stdio protocol.
 (tsc --noEmit-style).
 
 Flags:
+  --api-tsconfig PATH
+    	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
   --binary-sizing-bias dynamic
     	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
   --binary-sizing-items int
@@ -22,6 +24,8 @@ Flags:
     	per-type cap on the binary cold-start estimate (default 65536)
   --binary-sizing-string-bytes int
     	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
+  --bundle-api string
+    	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) (default: the tsconfig bundleApi plugin key, else off)
   --client-tsconfig PATH
     	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
   --cwd string
@@ -135,6 +139,8 @@ default), stdin (a {"sources":{…}} handshake line, one inferred Program), or o
 (no startup Program; the client drives setSources / scanFiles / dump).
 
 Flags:
+  --api-tsconfig PATH
+    	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
   --binary-sizing-bias dynamic
     	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
   --binary-sizing-items int
@@ -143,6 +149,8 @@ Flags:
     	per-type cap on the binary cold-start estimate (default 65536)
   --binary-sizing-string-bytes int
     	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
+  --bundle-api string
+    	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) (default: the tsconfig bundleApi plugin key, else off)
   --client-tsconfig PATH
     	tsconfig PATH of a SEPARATE mion client project: this (server) build generates the batch transport (<genDir>/rpc/) from its batch() calls and inline inputFrom mappers (default: the tsconfig clientTsconfig plugin key, else this program)
   --cwd string
@@ -226,6 +234,7 @@ Commands:
     enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
     convert     rewrite type declarations between the three authoring forms
     drizzle-migrate  move a drizzle schema onto the slim @mionjs/drizzle-orm-* packages
+    api-check   compare a client build's bundled API manifest against the server build's (a prerelease gate)
 
 Run  mion <command> -h  for a command's own options.
 
