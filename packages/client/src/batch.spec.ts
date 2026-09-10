@@ -642,7 +642,7 @@ describe('inputFrom mapping shapes end to end', () => {
     expect(errors).toEqual([undefined, undefined]);
     expect(org).toEqual({id: 240, name: 'Org 240'});
     expect(middleFnErrors).toEqual({});
-    expect(middleFnResults.session).toMatchObject({userId: 'user-123', role: 'admin'});
+    expect(middleFnResults?.session).toMatchObject({userId: 'user-123', role: 'admin'});
   });
 
   it('a prefilled middleFn is restored inside a batch with mappings', async () => {
