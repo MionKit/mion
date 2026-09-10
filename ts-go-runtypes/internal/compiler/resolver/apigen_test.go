@@ -633,3 +633,34 @@ func TestApiGen_NoApiMeansNoApiDir(t *testing.T) {
 		t.Fatalf("a stale api/ dir must be removed, stat: %v", err)
 	}
 }
+
+// TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions: the built-in pure fns a
+// bundled validator depends on (rt::newRunTypeErr and friends) ride the api/
+// mirror as live factories like everything else in it, never as code strings,
+// whatever the program's own emit mode. A code string there would be rebuilt
+// with `new Function` at the first validation, on the client that bundled its
+// API precisely to run without dynamic code.
+func TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions(t *testing.T) {
+	genDir := t.TempDir()
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiBundled, "")
+	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	apiDir := filepath.Join(genDir, constants.ApiModuleDir)
+	var pureFnModules []string
+	for _, file := range listGenerated(t, apiDir) {
+		if strings.HasPrefix(file, "types/pf/") {
+			pureFnModules = append(pureFnModules, file)
+		}
+	}
+	if len(pureFnModules) == 0 {
+		t.Fatalf("expected the mirror to serve built-in pure fns, got:\n%s", strings.Join(listGenerated(t, apiDir), "\n"))
+	}
+	for _, file := range pureFnModules {
+		source := readGenerated(t, apiDir, file)
+		// functions mode: the code slot is a hole and the live factory follows the dep list
+		if !strings.Contains(source, "],,[],function") || strings.Contains(source, ",'return ") || strings.Contains(source, ",'const ") {
+			t.Errorf("%s must ship a live factory and no code string:\n%s", file, source)
+		}
+	}
+}
