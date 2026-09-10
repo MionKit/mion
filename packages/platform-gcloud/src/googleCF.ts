@@ -50,8 +50,11 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
   const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
   let rawBody = rawRequest.body;
   let reqBodyType: SerializerCode = typeof rawBody === 'string' ? SerializerModes.stringifyJson : SerializerModes.json;
-  // Extract query string from Express request
-  const urlQuery = rawRequest.originalUrl?.includes('?') ? rawRequest.originalUrl.split('?')[1] : undefined;
+  // Extract query string from Express request. Everything after the FIRST `?`: a second one is a
+  // legal character inside a query, so splitting on it would drop the rest of the parameters.
+  const originalUrl = rawRequest.originalUrl;
+  const queryIndex = originalUrl ? originalUrl.indexOf('?') : -1;
+  const urlQuery = queryIndex === -1 ? undefined : originalUrl.slice(queryIndex + 1);
 
   try {
     const queryBody = decodeQueryBody(urlQuery, rawBody);
