@@ -52,7 +52,7 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 # Node 26 dropped the bundled corepack shim (it ships only npm), so install the
 # repo-pinned pnpm globally. Pinning keeps it deterministic and bakes pnpm into
 # the image, so a pulled image needs no first-run package-manager download.
-ARG PNPM_VERSION=11.1.1
+ARG PNPM_VERSION=11.8.0
 RUN npm install -g pnpm@${PNPM_VERSION}
 
 # Bun, for the benchmark suite's SECOND runtime lane. The benchmarks run each
@@ -95,6 +95,22 @@ RUN if ! command -v g++ >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1 
         apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 make g++ \
         && rm -rf /var/lib/apt/lists/*; \
     fi
+
+# Build against the headers the base image ALREADY ships (/usr/local/include/node)
+# instead of letting node-gyp fetch a matching tarball from nodejs.org. Same Node,
+# so it is the more correct source, and it drops a network call from every build.
+#
+# It is also the only way this builds behind an egress proxy. With HTTP(S)_PROXY
+# set, node-gyp's download path builds an `EnvHttpProxyAgent` out of pnpm's own
+# bundled undici and hands it to Node 26's INTERNAL undici, which refuses it
+# ("InvalidArgumentError: invalid onError method") and rolls the install back.
+#
+# node-gyp only reads this from 12.4.0 on, so the pnpm that RUNS the install has
+# to be 11.8.0 or later (11.1.1 bundles node-gyp 12.3.0, which ignores it and
+# downloads anyway). That pnpm is the one `_deps/package.json` names in
+# `packageManager`, NOT the ARG above: pnpm self-manages down to it out of the
+# store. Both are kept equal to the repo's own root `packageManager`.
+ENV npm_config_nodedir=/usr/local
 
 # == Website deps (/app) ======================================================
 # Copy only the package-manager manifests so the dependency graph + lockfile are
