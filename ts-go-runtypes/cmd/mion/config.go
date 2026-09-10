@@ -94,11 +94,12 @@ type tsRuntypesPlugin struct {
 	// every location under genDir, the report path is convention, not config.
 	// Build-lane project option — the host plugin forwards the equivalent CLI flag.
 	PureFnReport *bool `json:"pureFnReport"`
-	// DowngradeErrors names the Error-severity codes to report as Warnings, so a
+	// DowngradeErrors names the RuntimeError codes to report as Warnings, so a
 	// project blocked on one finding keeps failing on every other. Either a list
 	// of codes (`["VL002"]`) or the wildcard `"*"`, which downgrades the lot and
 	// is the adoption setting for a project that cannot yet name the codes it has
-	// not met. It is read Go-side, ECHOED on the generate response
+	// not met. A fatal Error is out of reach either way: the build produced no
+	// code for it, so not halting would only ship a call that throws. It is read Go-side, ECHOED on the generate response
 	// (protocol.Response.DowngradeErrors) for the JS host, and applied by
 	// `mion compile` to its own exit code. nil means the key is absent, which is
 	// the strict default. The enrich lane ignores it.
