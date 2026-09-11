@@ -34,9 +34,9 @@ const small = mion.route((ctx: CallContext, n: number): number => n, {maxBodySiz
 
 /** One raw HTTP exchange: returns the status line and the body text, or 'closed' when the server
  *  hung up before answering. */
-function rawRequest(head: string, body: string, delayMs = 0): Promise<{status: number; body: string}> {
+function rawRequest(head: string, body: string, delayMs = 0, rawPort?: number): Promise<{status: number; body: string}> {
   return new Promise((resolve, reject) => {
-    const socket = createConnection({host: '127.0.0.1', port}, () => {
+    const socket = createConnection({host: '127.0.0.1', port: rawPort ?? port}, () => {
       socket.write(head);
       setTimeout(() => socket.write(body), delayMs);
     });
@@ -163,5 +163,82 @@ describe('node adapter hardening', () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/listHeaders`, {method: 'POST', body: '{"listHeaders":[]}'});
     const body = await response.json();
     expect(body.listHeaders).toEqual(expect.arrayContaining(['x-one=1', 'server=@mionjs']));
+  });
+});
+
+// An unknown path resolves to the not-found chain, which never reads the body: the 404 goes out
+// before the body has even finished arriving, and node drains the rest so the same connection
+// serves the next request. Driven over one raw socket so both facts are observable.
+describe('node adapter: an unknown path never reads the body', () => {
+  const notFoundPort = port + 1;
+  let server: Server;
+
+  beforeAll(async () => {
+    resetNodeHttpOpts();
+    resetRouter();
+    mion.initRoutes({echo});
+    setNodeHttpOpts({port: notFoundPort, maxBodySize: 1_000_000});
+    server = await startNodeServer();
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  /** Writes a request head and a first slice of its body, waits for the full response, then writes
+   *  the rest of the body followed by a second request on the SAME socket and waits for that
+   *  response too. Answers both status lines. */
+  function twoOnOneSocket(head: string, firstSlice: string, rest: string, second: string): Promise<[number, number]> {
+    return new Promise((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port: notFoundPort}, () => socket.write(head + firstSlice));
+      let data = '';
+      let phase = 1;
+      const statuses: number[] = [];
+      socket.setEncoding('utf8');
+      socket.on('error', reject);
+      socket.on('data', (chunk) => {
+        data += chunk;
+        // one full response = headers + a body of the declared content-length
+        const headerEnd = data.indexOf('\r\n\r\n');
+        if (headerEnd < 0) return;
+        const length = Number(/content-length: (\d+)/i.exec(data)?.[1] ?? 0);
+        if (Buffer.byteLength(data) < headerEnd + 4 + length) return;
+        statuses.push(Number(/^HTTP\/1\.1 (\d{3})/.exec(data)?.[1] ?? 0));
+        data = '';
+        if (phase === 1) {
+          phase = 2;
+          socket.write(rest + second);
+        } else {
+          socket.destroy();
+          resolve([statuses[0], statuses[1]]);
+        }
+      });
+      setTimeout(() => {
+        socket.destroy();
+        reject(new Error(`timed out after ${statuses.length} response(s)`));
+      }, 3000);
+    });
+  }
+
+  it('answers 404 before the body finishes and serves a second request on the same connection', async () => {
+    const body = '{'.padEnd(1000, 'x');
+    const [first, second] = await twoOnOneSocket(
+      `POST /api/nope HTTP/1.1\r\nHost: x\r\nContent-Length: ${body.length}\r\nContent-Type: application/json\r\n\r\n`,
+      body.slice(0, 10),
+      body.slice(10),
+      `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: 37\r\nContent-Type: application/json\r\n\r\n{"echo":[{"name":"a","surname":"b"}]}`
+    );
+    expect(first).toBe(StatusCodes.NOT_FOUND);
+    expect(second).toBe(200);
+  });
+
+  it('the 404 carries the route-not-found envelope and no parse error for a body that is not JSON', async () => {
+    const {status, body} = await rawRequest(
+      `POST /api/nope HTTP/1.1\r\nHost: x\r\nContent-Length: 9\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n`,
+      '{not json',
+      0,
+      notFoundPort
+    );
+    expect(status).toBe(StatusCodes.NOT_FOUND);
+    expect(envelope(body)[MION_ROUTES.notFound].type).toBe('route-not-found');
+    expect(envelope(body)['mionDeserializeRequest']).toBeUndefined();
   });
 });

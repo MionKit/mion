@@ -172,6 +172,35 @@ describe('bun router should', () => {
     setBunHttpOpts({port});
   });
 
+  test('an unknown path answers 404 without reading the body, and the server keeps serving', async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/nope`, {method: 'POST', body: '{not json'});
+    expect(response.status).toBe(StatusCodes.NOT_FOUND);
+    const body = (await response.json()) as Record<string, any>;
+    expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
+    expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest']).toBeUndefined();
+    const alive = await fetch(`http://127.0.0.1:${port}/api/getDate`, {method: 'POST', body: '{}'});
+    expect(alive.status).toBe(200);
+  });
+
+  test('a declared content-length bounds what req.text() reads: trailing bytes never reach the body', async () => {
+    // the reader trusts content-length and calls req.text(): bun must hand over exactly that many
+    // bytes, so a body followed by junk on the same socket still parses as the body alone
+    const json = JSON.stringify({getDate: [{date: '2022-04-10T02:13:00.000Z'}]});
+    const head = `POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: ${json.length}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n`;
+    const {createConnection} = await import('node:net');
+    const first = await new Promise<string>((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(head + json + '<<<junk after the body>>>'));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      socket.on('close', () => resolve(data));
+      setTimeout(() => socket.destroy(), 2000);
+    });
+    expect(first.slice(0, 400)).toContain('HTTP/1.1 200');
+    expect(first).toContain('"date":"2022-04-10T02:13:00.000Z"');
+  });
+
   test('get an ok response from a route with Date objects with a router created in the test (default encoder)', async () => {
     // Stop the main server
     void server.stop(true);

@@ -22,7 +22,7 @@ interface WorkerResponse {
 }
 
 /** Creates a Miniflare instance with the test server bundle loaded as a service worker */
-function createMiniflare(setupCode: string): Miniflare {
+function createMiniflare(setupCode: string, port?: number): Miniflare {
   const bundleCode = readFileSync(CLOUDFLARE_BUNDLE_PATH, 'utf-8');
   // Service worker format: the IIFE bundle sets up CloudflareTestServer on globalThis,
   // then we call setup (storing the promise) and register the fetch handler.
@@ -40,6 +40,7 @@ function createMiniflare(setupCode: string): Miniflare {
   return new Miniflare({
     script: workerScript,
     compatibilityDate: '2024-01-01',
+    ...(port === undefined ? {} : {port}),
   });
 }
 
@@ -184,5 +185,38 @@ describe('cloudflare handler (workerd runtime)', () => {
       expect(result.headers['content-type']).toContain('application/json');
       expect(result.headers['server']).toEqual('@mionjs');
     });
+  });
+});
+
+// The reader trusts a declared content-length and calls request.text(): workerd must hand over
+// exactly that many bytes. Driven over a raw socket against Miniflare's own listener.
+describe('cloudflare handler (workerd runtime): content-length bounds the body', () => {
+  const port = 8571;
+  let mf: Miniflare;
+
+  beforeAll(async () => {
+    mf = createMiniflare('{}', port);
+    await mf.ready;
+  });
+
+  afterAll(async () => {
+    await mf?.dispose();
+  });
+
+  it('trailing bytes after the declared length never reach the body', async () => {
+    const {createConnection} = await import('node:net');
+    const json = JSON.stringify({getDate: [{date: '2022-04-10T02:13:00.000Z'}]});
+    const head = `POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: ${json.length}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n`;
+    const first = await new Promise<string>((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(head + json + '<<<junk after the body>>>'));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      socket.on('close', () => resolve(data));
+      setTimeout(() => socket.destroy(), 3000);
+    });
+    expect(first.slice(0, 400)).toContain('HTTP/1.1 200');
+    expect(first).toContain('"date":"2022-04-10T02:13:00.000Z"');
   });
 });
