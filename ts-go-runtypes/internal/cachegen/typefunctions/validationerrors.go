@@ -271,6 +271,14 @@ func baseKindGuard(rt *reflection.RunType, vλl, numberMode string) string {
 			// base-kind error instead of throwing.
 			return vλl + " instanceof " + info.Builtin
 		}
+		// The Map / Set structural formats read `.size`: guard on the collection
+		// class so a wrong-kind value reports only the base error.
+		if rt.SubKind == reflection.SubKindMap {
+			return vλl + " instanceof Map"
+		}
+		if rt.SubKind == reflection.SubKindSet {
+			return vλl + " instanceof Set"
+		}
 		// Native Date format (KindClass + SubKindDate): guard the min/max
 		// bound check so it only runs on a valid Date — `.getTime()` on a
 		// non-Date would throw instead of pushing a clean error.
