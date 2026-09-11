@@ -8,8 +8,8 @@
 import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
-  dispatchResolved,
-  resolveRequest,
+  dispatchWithContext,
+  createCallContext,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
@@ -64,23 +64,15 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
   const urlQuery = queryIndex === -1 ? undefined : originalUrl.slice(queryIndex + 1);
 
   try {
-    // express already read (and may have parsed) the body, so the route is resolved for its limit
-    // and its chain in one lookup and the router checks a string body's size before parsing
-    const resolved = resolveRequest(rawRequest.path, urlQuery, rawRequest);
+    // express already read (and may have parsed) the body, so the context is built with it in one
+    // lookup and the router checks a string body's size before parsing
     const queryBody = decodeQueryBody(urlQuery, rawBody);
     if (queryBody) {
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const routeResponse = await dispatchResolved(
-      resolved,
-      rawBody,
-      reqHeaders,
-      respHeaders,
-      rawRequest,
-      rawResponse,
-      reqBodyType
-    );
+    const context = createCallContext(rawRequest.path, urlQuery, rawRequest, reqHeaders, respHeaders, rawBody, reqBodyType);
+    const routeResponse = await dispatchWithContext(context, rawRequest, rawResponse);
     reply(routeResponse, rawResponse);
   } catch (err) {
     const error =
