@@ -12,6 +12,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  requestPayloadTooLarge,
 } from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
@@ -21,7 +22,7 @@ import type {NodeHttpOptions} from './types.ts';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
-import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
+import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
@@ -140,7 +141,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const declaredLength = Number(httpReq.headers['content-length']);
   if (declaredLength > maxBodySize) {
     replied = true;
-    fatalFail(httpResponse, respHeaders, payloadTooLarge());
+    fatalFail(httpResponse, respHeaders, requestPayloadTooLarge());
     httpReq.destroy();
     return;
   }
@@ -151,7 +152,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     if (size > maxBodySize) {
       replied = true;
       bodyChunks.length = 0;
-      fatalFail(httpResponse, respHeaders, payloadTooLarge());
+      fatalFail(httpResponse, respHeaders, requestPayloadTooLarge());
       httpReq.destroy();
       return;
     }
@@ -216,14 +217,6 @@ function toRpcError(e: unknown): RpcError<string> {
         type: 'unknown-error',
         originalError: e as Error,
       });
-}
-
-function payloadTooLarge(): RpcError<'request-payload-too-large'> {
-  return new FatalError({
-    statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
-    publicMessage: 'Payload Too Large',
-    type: 'request-payload-too-large',
-  });
 }
 
 // only called when there is an http error or weird unhandled route errors

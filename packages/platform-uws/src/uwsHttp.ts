@@ -12,6 +12,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  requestPayloadTooLarge,
 } from '@mionjs/router';
 import {STATUS_CODES} from 'http';
 import {loadUws} from '@mionjs/bin-uws';
@@ -19,7 +20,7 @@ import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@m
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
-import {getENV, SerializerModes, StatusCodes} from '@mionjs/core';
+import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {bufferedResponseHeaders, headersFromUwsRequest, forEachHeader} from './headers.ts';
@@ -204,12 +205,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     if (state.replied) return;
     if (fullBody === null) {
       state.replied = true;
-      const error = new FatalError({
-        statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
-        publicMessage: 'Payload Too Large',
-        type: 'request-payload-too-large',
-      });
-      fatalFail(res, state, respHeaders, error);
+      fatalFail(res, state, respHeaders, requestPayloadTooLarge());
       return;
     }
 
