@@ -13,10 +13,11 @@ import {
   decodeQueryBody,
   setPlatformConfig,
   MionResponse,
+  readRequestBody,
 } from '@mionjs/router';
 import {DEFAULT_VERCEL_OPTIONS} from './constants.ts';
 import type {VercelHandlerOptions} from './types.ts';
-import {SerializerModes, readBodyWithin} from '@mionjs/core';
+import {SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 
@@ -56,7 +57,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // limit, and the body is read against that limit as it arrives (a stream past it is cancelled
     // mid-flight); the router checks the size once more before parsing
     const context = createCallContext(path, urlQuery, req, req.headers, responseHeaders);
-    let rawBody: any = await readBodyWithin(req, context.maxBodySize);
+    let rawBody: any = await readRequestBody(req, context.maxBodySize);
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     const queryBody = decodeQueryBody(urlQuery, rawBody);
     if (queryBody) {
