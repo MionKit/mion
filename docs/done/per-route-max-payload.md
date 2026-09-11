@@ -58,6 +58,12 @@ each answer.
   also sizes its one server-wide native limit to the largest route limit at start); aws and gcloud
   receive an already assembled body from the platform, so only the router's check before parsing
   applies there. Batches sum their member routes' limits plus the envelope on the entry.
+- **The bound is checked against the real serializer.** A fuzz lane (`jsonsize`,
+  `test/fuzz/type/jsonSizeBound`) generates bounded types, compiles them, mocks values and measures
+  both `JSON.stringify` and the compiled JSON encoder's output against the root's `jsonMaxBytes`;
+  its first run caught the two wire envelopes the walk did not budget (the `[null]` root wrap of an
+  `undefined` / `void` root and the flat union's `[index,` … `]` wrap), which the walk now counts.
+  A Go test pins that the per-kind walk sizes every node `WalkGraph` reaches on a bounded graph.
 - **No response side.** What a handler answers is the developer's responsibility: nothing measures,
   caps or reports a response size. The compiler still emits `jsonMaxBytes` on return roots (it is
   a generic RunTypes property of every bounded reflection root); mion reads it for params only. A

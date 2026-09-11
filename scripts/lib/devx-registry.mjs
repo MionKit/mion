@@ -81,7 +81,7 @@ export const AREAS = {
       {
         name: 'fuzz',
         args: '<suite…>',
-        summary: 'run fuzz lanes: unit|value|types|nondata|roundtrip|size|cloning|elision|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|drizzletypes|all',
+        summary: 'run fuzz lanes: unit|value|types|nondata|roundtrip|size|jsonsize|cloning|elision|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|drizzletypes|all',
         flags: [
           ['--quick', 'the per-PR budget tier (ci.yml)'],
           ['--soak', 'the release tier (release-gate.yml / fuzz-soak.yml)'],

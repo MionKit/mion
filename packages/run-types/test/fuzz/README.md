@@ -57,6 +57,7 @@ test/fuzz/
 ├── roundtrip/                   # one type, every codec strategy must agree (RT-*)
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
 ├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
+│                                # (type/ also hosts the JSON size bound lane, JS-MAX-*)
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 ├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
 ├── security/                    # attack the DECODERS: hostile bytes, JSON trees, format pumps (SB-*, SJ-*, SF-*)
@@ -284,6 +285,22 @@ every estimate stays under) must trigger growth and still round-trip.
   under every config),
   `binaryDynamicGrow` + `binaryEncoderResize` (the grow-in-place path — the
   buffer-overflow / adaptive-history regressions), `binaryIndexSig.smoke` (F1).
+
+### `type/jsonSizeBound` — the JSON size bound against the serializer
+
+Targets the build-time `jsonMaxBytes` (the Go `jsonsize` walk, emitted on every
+fully bounded reflection root, the number the mion router derives request limits
+from). The generator runs in `boundedSizes` mode (every string leaf a bounded
+format, every array a `maxItems`, every Map / Set a `maxSize`, no records or
+bigints), so most generated types carry a bound; values come from the product
+`createMockDataFn`, and the two DataOnly presets run so dropped members are
+measured against the encoder that drops them.
+
+- **JS-MAX-STRINGIFY**: `JSON.stringify(value)` in UTF-8 bytes never passes the bound.
+- **JS-MAX-ENCODER**: the compiled JSON encoder's output never passes it either.
+- `jsonSizeFuzzRunner.ts` keeps a deterministic floor whose hand-inflated value
+  MUST pass the bound (the negative control), so the comparison cannot go vacuous.
+- Test: `jsonSizeBound.integration` (the soak, `MION_FUZZ_JSONSIZE_SOAK_MS`).
 
 ### `cloning/` — the compiled clone vs a reference interpreter
 
@@ -657,6 +674,7 @@ Grouped by mode.
 | type (build tier)         | **TR1** resolver-clean · **TR2** every-site-resolved · **TR3** every-module-evaluates · **TR4** every-factory-materialises                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | roundtrip                 | **RT-VALIDATE** · **RT-AGREE** · **RT-STABLE** · **RT-FAILAGREE** · **RT-NATIVE** · **RT-THROW**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | binary size               | **O-SIZE-NOGROW** · **O-SIZE-ROUNDTRIP** · **O-SIZE-GREW**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| JSON size bound           | **JS-MAX-STRINGIFY** · **JS-MAX-ENCODER**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | cloning                   | **O15** clone-reference · **O16** clone-isolation · **O17** clone-consistency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | security / binary         | **SB-THROWS** decode returns or throws an Error · **SB-BOUNDS** index never past the buffer on return · **SB-TOTAL** validate(decoded) is a boolean, an accepted value re-encodes · **SB-REJECT** ruled-out bytes never validate · **SB-TIME** decode inside its budget · **SB-ISOLATION** the valid wire still round-trips after every attack · **SB-OOM** heap cap or hang, as a crash record · **SB-PROTO** sane prototypes and no inherited keys on the decoded value                                                                                                                                                                                                                            |
 | security / generated code | **GC-PARSE** the body compiles as strict JS · **GC-TEXT** no raw control byte or line terminator · **GC-INJECT** a planted marker never escapes its literal · **GC-REBUILD** key-writing loops onto a fresh object carry the prototype-name guard, no Object.assign · **GC-COUNT** binary counts go through desCount / desCountU32 · **GC-REGEXP** every new RegExp( takes a build-time literal · **GC-ACCESS** no bare non-identifier property access · **GC-GUARD** a JSON decoder checks the wire shape before it converts a value · **GC-IDENTITY** `instanceof` only against a JavaScript built-in, a user class only by exact constructor against `cix_<id>.cls`, and never `constructor.name` |
