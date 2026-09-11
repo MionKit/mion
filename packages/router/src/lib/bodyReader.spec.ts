@@ -1,8 +1,7 @@
 import {describe, it, expect} from 'vitest';
-import {readRequestBody as read} from './bodyReader.ts';
-import type {BodyReadStrategy} from './bodyReader.ts';
+import {readRequestBody as read, BodyReadStrategy} from './bodyReader.ts';
 
-const STRATEGIES: BodyReadStrategy[] = ['stream', 'text', 'buffered'];
+const STRATEGIES = Object.entries(BodyReadStrategy) as [string, BodyReadStrategy][];
 
 /** A request whose body streams the given chunks, counting how many were pulled and whether the
  *  stream was cancelled. No content-length is set, so the reader takes the chunked path. */
@@ -30,7 +29,7 @@ const encode = (text: string) => new TextEncoder().encode(text);
 const declared = (body: string) =>
   new Request('http://localhost/x', {method: 'POST', body, headers: {'content-length': String(encode(body).byteLength)}});
 
-describe.each(STRATEGIES)('readRequestBody, %s strategy', (strategy) => {
+describe.each(STRATEGIES)('readRequestBody, %s strategy', (_name, strategy) => {
   const readRequestBody = (req: Request, max: number) => read(req, max, strategy);
 
   it('resolves undefined for a request without a body', async () => {
@@ -74,7 +73,7 @@ describe.each(STRATEGIES)('readRequestBody, %s strategy', (strategy) => {
     const chunks = Array.from({length: 10}, () => encode('0123456789'));
     const {req, state} = streamed(chunks);
     await expect(readRequestBody(req, 25)).rejects.toMatchObject({type: 'request-payload-too-large'});
-    if (strategy === 'buffered') return; // the bytes are taken whole (bun bounds them natively first)
+    if (strategy === BodyReadStrategy.buffered) return; // the bytes are taken whole (bun bounds them natively first)
     expect(state.cancelled).toBe(true);
     expect(state.pulled).toBe(3); // 10 + 10 + 10 > 25, the fourth is never pulled
   });

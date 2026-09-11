@@ -14,6 +14,7 @@ import {
   setPlatformConfig,
   MionResponse,
   readRequestBody,
+  BodyReadStrategy,
 } from '@mionjs/router';
 import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
 import type {CloudflareHandlerOptions, CloudflareExecutionContext, CloudflarePlatformContext} from './types.ts';
@@ -69,7 +70,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (context.readsBody) {
-      rawBody = await readRequestBody(req, context.maxBodySize, 'text');
+      rawBody = await readRequestBody(req, context.maxBodySize, BodyReadStrategy.text);
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;

@@ -17,7 +17,8 @@ export function requestPayloadTooLarge(): RpcError<'request-payload-too-large'> 
 }
 
 /**
- * How a fetch-style runtime reads a body fastest. Measured on each runtime with a real server:
+ * How a fetch-style runtime reads a body fastest, a numeric code so the per-request check is one
+ * integer compare. Measured on each runtime with a real server:
  * - `stream`: pull the body stream and decode once. Node's Request (undici, the vercel node
  *   runtime), where `text()` is slower than its own stream at every size.
  * - `text`: `text()` when a content-length is declared, the stream otherwise. Workerd, where both
@@ -26,7 +27,8 @@ export function requestPayloadTooLarge(): RpcError<'request-payload-too-large'> 
  *   before the handler runs and its stream reader is over ten times slower than `text()`; the
  *   server-wide native limit is the one true mid-flight guard there.
  */
-export type BodyReadStrategy = 'stream' | 'text' | 'buffered';
+export const BodyReadStrategy = {stream: 1, text: 2, buffered: 3} as const;
+export type BodyReadStrategy = (typeof BodyReadStrategy)[keyof typeof BodyReadStrategy];
 
 // One decoder for every request: a non-streaming `decode` call keeps no state between calls, so
 // sharing it is safe. A streaming decode (`{stream: true}`) would not be, which is why the stream
@@ -50,10 +52,10 @@ export async function readRequestBody(
   if (declared !== null) {
     if (Number(declared) > maxBodySize) throw requestPayloadTooLarge();
     // the runtime delivers exactly content-length bytes: one native decode
-    if (strategy !== 'stream') return req.text();
+    if (strategy !== BodyReadStrategy.stream) return req.text();
     return readStream(req, maxBodySize);
   }
-  if (strategy !== 'buffered') return readStream(req, maxBodySize);
+  if (strategy !== BodyReadStrategy.buffered) return readStream(req, maxBodySize);
   // no content-length on a runtime whose stream reader is the slow path: take the bytes whole
   // (the native server limit already bounded them) and refuse past the limit before decoding
   const bytes = await req.arrayBuffer();

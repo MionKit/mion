@@ -13,10 +13,9 @@
 //   pnpm exec vitest bench --project router bodyReader
 
 import {bench, describe} from 'vitest';
-import {readRequestBody, requestPayloadTooLarge} from './bodyReader.ts';
-import type {BodyReadStrategy} from './bodyReader.ts';
+import {readRequestBody, requestPayloadTooLarge, BodyReadStrategy} from './bodyReader.ts';
 
-const STRATEGIES: BodyReadStrategy[] = ['stream', 'text', 'buffered'];
+const STRATEGIES = Object.entries(BodyReadStrategy) as [string, BodyReadStrategy][];
 
 /** The first shipped reader, kept here as the comparison point. */
 async function baseline(req: Request, maxBodySize: number): Promise<string | undefined> {
@@ -79,8 +78,8 @@ for (const [label, body] of Object.entries(bodies)) {
     bench('baseline', async () => {
       await baseline(declared(body), LIMIT);
     });
-    for (const strategy of STRATEGIES) {
-      bench(strategy, async () => {
+    for (const [name, strategy] of STRATEGIES) {
+      bench(name, async () => {
         await readRequestBody(declared(body), LIMIT, strategy);
       });
     }
@@ -91,8 +90,8 @@ describe('chunked body, 1 KB in 4 pieces, no content-length', () => {
   bench('baseline', async () => {
     await baseline(chunked(bodies['1 KB'], 4), LIMIT);
   });
-  for (const strategy of STRATEGIES) {
-    bench(strategy, async () => {
+  for (const [name, strategy] of STRATEGIES) {
+    bench(name, async () => {
       await readRequestBody(chunked(bodies['1 KB'], 4), LIMIT, strategy);
     });
   }
@@ -104,6 +103,6 @@ describe('no body (a GET)', () => {
     await baseline(get(), LIMIT);
   });
   bench('stream', async () => {
-    await readRequestBody(get(), LIMIT, 'stream');
+    await readRequestBody(get(), LIMIT, BodyReadStrategy.stream);
   });
 });
