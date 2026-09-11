@@ -1,7 +1,8 @@
 // Package structural holds the Go-side emitters for the structural format
-// families — formattedArray (base kind array/tuple) and formattedObject (object
-// literal / record plus the bare `object` keyword). First formats whose base
-// is not a primitive: the JSON Schema door lowers uniqueItems / maxItems /
+// families — formattedArray (base kind array/tuple), formattedObject (object
+// literal / record plus the bare `object` keyword) and the formattedSet /
+// formattedMap pair (collectionformat.go, the builtin collection classes on
+// the array keywords). First formats whose base is not a primitive: the JSON Schema door lowers uniqueItems / maxItems /
 // minProperties / maxProperties / additionalProperties: false onto them, and
 // the intersection collapse lifts the brand off the base exactly like the
 // negation sentinel (single non-sentinel base ∧ brand member).
@@ -73,14 +74,50 @@ func uniqueItemsCheck(ctx formats.EmitContext, vλl string) string {
 		"for (const item of a) {const key = canon(item);if (seen.has(key)) return false;seen.add(key);}return true;})(" + vλl + ")"
 }
 
-func arrayConditions(params map[string]any, vλl string, ctx formats.EmitContext) []string {
+// lengthConditions is the validate-lane half of the count bounds shared by
+// the three collection families: `minItems` / `maxItems` over `lenExpr`
+// (`v.length` for an array or tuple, `v.size` for a Set or Map).
+func lengthConditions(params map[string]any, lenExpr string) []string {
 	var conditions []string
 	if value, ok := formats.ReadNumberParam(params, "minItems"); ok {
-		conditions = append(conditions, vλl+".length >= "+formats.FormatNumber(value))
+		conditions = append(conditions, lenExpr+" >= "+formats.FormatNumber(value))
 	}
 	if value, ok := formats.ReadNumberParam(params, "maxItems"); ok {
-		conditions = append(conditions, vλl+".length <= "+formats.FormatNumber(value))
+		conditions = append(conditions, lenExpr+" <= "+formats.FormatNumber(value))
 	}
+	return conditions
+}
+
+// lengthErrorStatements is the errors-lane twin of lengthConditions: one
+// canonical error per violated bound, reported under the family `fmtName`
+// with the base kind word `expected`.
+func lengthErrorStatements(params map[string]any, lenExpr, pathExpr, errorsArr, expected, fmtName string) []string {
+	var statements []string
+	if value, ok := formats.ReadNumberParam(params, "minItems"); ok {
+		statements = append(statements,
+			"if ("+lenExpr+" < "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, expected, fmtName, "minItems", formats.FormatNumber(value)))
+	}
+	if value, ok := formats.ReadNumberParam(params, "maxItems"); ok {
+		statements = append(statements,
+			"if ("+lenExpr+" > "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, expected, fmtName, "maxItems", formats.FormatNumber(value)))
+	}
+	return statements
+}
+
+// boundsContradiction is the build-time `maxItems < minItems` check shared by
+// the collection families; `publicName` is the type-first wrapper the
+// diagnostic names (`FormattedArray` / `FormattedSet` / `FormattedMap`).
+func boundsContradiction(params map[string]any, publicName string) []string {
+	maxValue, hasMax := formats.ReadNumberParam(params, "maxItems")
+	minValue, hasMin := formats.ReadNumberParam(params, "minItems")
+	if hasMax && hasMin && maxValue < minValue {
+		return []string{publicName + ": `maxItems` cannot be less than `minItems`"}
+	}
+	return nil
+}
+
+func arrayConditions(params map[string]any, vλl string, ctx formats.EmitContext) []string {
+	conditions := lengthConditions(params, vλl+".length")
 	if unique, _ := formats.ReadBoolParam(params, "uniqueItems"); unique {
 		conditions = append(conditions, uniqueItemsCheck(ctx, vλl))
 	}
@@ -99,15 +136,7 @@ func (formattedArrayEmitter) EmitValidationErrorsCheck(annotation *reflection.Fo
 		return ""
 	}
 	params := annotation.Params
-	var statements []string
-	if value, ok := formats.ReadNumberParam(params, "minItems"); ok {
-		statements = append(statements,
-			"if ("+vλl+".length < "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "minItems", formats.FormatNumber(value)))
-	}
-	if value, ok := formats.ReadNumberParam(params, "maxItems"); ok {
-		statements = append(statements,
-			"if ("+vλl+".length > "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "maxItems", formats.FormatNumber(value)))
-	}
+	statements := lengthErrorStatements(params, vλl+".length", pathExpr, errorsArr, "array", formattedArrayName)
 	if unique, _ := formats.ReadBoolParam(params, "uniqueItems"); unique {
 		statements = append(statements,
 			"if (!("+uniqueItemsCheck(ctx, vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "uniqueItems", "true"))
@@ -121,12 +150,5 @@ func (formattedArrayEmitter) ValidateParams(annotation *reflection.FormatAnnotat
 	if annotation == nil {
 		return nil
 	}
-	params := annotation.Params
-	var errs []string
-	maxValue, hasMax := formats.ReadNumberParam(params, "maxItems")
-	minValue, hasMin := formats.ReadNumberParam(params, "minItems")
-	if hasMax && hasMin && maxValue < minValue {
-		errs = append(errs, "FormattedArray: `maxItems` cannot be less than `minItems`")
-	}
-	return errs
+	return boundsContradiction(annotation.Params, "FormattedArray")
 }
