@@ -6,8 +6,8 @@
  * ######## */
 
 import {
-  dispatchResolved,
-  resolveRequest,
+  dispatchWithContext,
+  createCallContext,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
@@ -52,18 +52,18 @@ async function handleRequest(req: Request): Promise<Response> {
   // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
   // outside any mion envelope, and the router's own limit needs the size before parsing.
   try {
-    // the route is resolved BEFORE the body is read: one lookup gives the chain and the request
+    // the context is built BEFORE the body is read: one lookup gives the chain and the request
     // limit, and the body is read against that limit as it arrives (a stream past it is cancelled
     // mid-flight); the router checks the size once more before parsing
-    const resolved = resolveRequest(path, urlQuery, req);
-    let rawBody: any = await readBodyWithin(req, resolved.maxBodySize);
+    const context = createCallContext(path, urlQuery, req, req.headers, responseHeaders);
+    let rawBody: any = await readBodyWithin(req, context.maxBodySize);
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     const queryBody = decodeQueryBody(urlQuery, rawBody);
     if (queryBody) {
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const platformResp = await dispatchResolved(resolved, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType);
+    const platformResp = await dispatchWithContext(context, req, undefined, rawBody, reqBodyType);
     return reply(platformResp, responseHeaders);
   } catch (e) {
     const error =

@@ -6,8 +6,8 @@
  * ######## */
 
 import {
-  dispatchResolved,
-  resolveRequest,
+  dispatchWithContext,
+  createCallContext,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
@@ -153,14 +153,14 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     state.aborted = true;
   });
 
-  // The route is resolved BEFORE the body, synchronously: one lookup gives the chain and the
+  // The context is built BEFORE the body, synchronously: one lookup gives the chain and the
   // request limit the route settled at registration, so the native read below stops at the route's
-  // own number and the same handle goes to the dispatch. The raw request object is built once, the
+  // own number and the same context goes to the dispatch. The raw request object is built once, the
   // one a pathTransform reads and the one the handlers see.
   const rawRequest = {path, urlQuery, headers: reqHeaders};
-  let resolved: ReturnType<typeof resolveRequest>;
+  let context: ReturnType<typeof createCallContext>;
   try {
-    resolved = resolveRequest(path, urlQuery, rawRequest);
+    context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders);
   } catch (e) {
     state.replied = true;
     fatalFail(res, state, respHeaders, toRpcError(e));
@@ -183,7 +183,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    dispatchResolved(resolved, reqRawBody, reqHeaders, respHeaders, rawRequest, res, reqBodyType)
+    dispatchWithContext(context, rawRequest, res, reqRawBody, reqBodyType)
       .then((mionResponse) => {
         if (state.replied) return;
         state.replied = true;
@@ -200,7 +200,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
   // maxSize, which is exactly the maxBodySize contract. The size is the route's own resolved limit
   // (the adapter's option for a route whose types could not say).
-  res.collectBody(resolved.maxBodySize, (fullBody) => {
+  res.collectBody(context.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {
       state.replied = true;

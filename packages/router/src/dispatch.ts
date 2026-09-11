@@ -12,8 +12,7 @@ import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {onExecutableError, markResponseFailed} from './lib/dispatchError.ts';
-import {createCallContext, resolveRequest} from './callContext.ts';
-import type {ResolvedRequest} from './types/context.ts';
+import {createCallContext, getRequestBodyType} from './callContext.ts';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -25,10 +24,8 @@ import type {ResolvedRequest} from './types/context.ts';
 
 // ############# PUBLIC METHODS #############
 
-/** Resolves the route from the path and dispatches: the one-call form for callers that already
- *  have the body (tests, a host that parsed it). An adapter that reads the body itself calls
- *  `resolveRequest` first, reads against `resolved.maxBodySize`, then `dispatchResolved`. Async so
- *  a resolve-time throw (an unknown batch id, a throwing pathTransform) is a rejection like before. */
+/** The one-call form for a caller that already has the body (tests, a host that parsed it):
+ *  builds the context and dispatches. */
 export async function dispatchRoute<Req, Resp>(
   path: string,
   reqRawBody: RawRequestBody,
@@ -39,33 +36,28 @@ export async function dispatchRoute<Req, Resp>(
   reqBodyType?: SerializerCode,
   urlQuery?: string
 ): Promise<MionResponse> {
-  return dispatchResolved(
-    resolveRequest(path, urlQuery, rawRequest),
-    reqRawBody,
-    reqHeaders,
-    respHeaders,
-    rawRequest,
-    rawResponse,
-    reqBodyType
-  );
+  const context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+  return dispatchWithContext(context, rawRequest, rawResponse);
 }
 
-/** Runs a request already resolved by `resolveRequest`, so the route is looked up ONCE per request. */
-export async function dispatchResolved<Req, Resp>(
-  resolved: ResolvedRequest,
-  reqRawBody: RawRequestBody,
-  reqHeaders: MionHeaders,
-  respHeaders: MionHeaders,
+/** Dispatches a request whose context already exists. A streaming adapter built it BEFORE reading
+ *  the body (to read against `context.maxBodySize`) and passes the body here; it is attached to
+ *  `context.request` on the way in. A context built with its body passes nothing more. */
+export async function dispatchWithContext<Req, Resp>(
+  context: CallContext,
   rawRequest: Req,
   rawResponse?: Resp,
+  reqRawBody?: RawRequestBody,
   reqBodyType?: SerializerCode
 ): Promise<MionResponse> {
-  const opts = getRouterOptions();
-  const context = createCallContext(resolved, opts, reqRawBody, reqHeaders, respHeaders, reqBodyType);
-
+  if (reqRawBody !== undefined) {
+    const request = context.request as Mutable<MionRequest>;
+    request.rawBody = reqRawBody;
+    request.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
+  }
   // No catch: runExecutionChain handles every exception itself, and a catch that only re-rejects
   // changes nothing.
-  await runExecutionChain(context, rawRequest, rawResponse, opts);
+  await runExecutionChain(context, rawRequest, rawResponse, getRouterOptions());
   return context.response;
 }
 

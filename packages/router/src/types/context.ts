@@ -129,14 +129,3 @@ export interface BatchExecutionResult {
   /** Route ids of the batch, surfaced on the CallContext for consumers */
   batchRouteIds?: string[];
 }
-
-/** A request resolved BEFORE its body is read: what `resolveRequest` hands an adapter and what
- *  `dispatchResolved` takes back, so the route lookup happens once per request. */
-export interface ResolvedRequest extends BatchExecutionResult {
-  /** The path after `pathTransform`, the one the chain was looked up by */
-  path: string;
-  urlQuery?: string;
-  /** The limit to read the body against: the route's own option, else the number derived from
-   *  its types, else the platform adapter's `maxBodySize` */
-  maxBodySize: number;
-}
