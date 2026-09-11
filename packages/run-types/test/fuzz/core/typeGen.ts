@@ -455,6 +455,13 @@ export const FORMAT_LEAF_NAMES = Object.keys(FORMAT_LEAVES) as readonly FormatLe
  *  file at the package
  *  root, so both resolve these relative imports to the same shipped
  *  sources. **/
+/** The format leaves whose values have a JSON maximum: every number leaf (a
+ *  number always spells at most 24 bytes) and the one bounded string leaf. The
+ *  json-size lane's `formatLeafPool`. **/
+export const BOUNDED_FORMAT_LEAVES: readonly FormatLeafName[] = (Object.keys(FORMAT_LEAVES) as FormatLeafName[]).filter(
+  (name) => FORMAT_LEAVES[name].family === 'number' || name === 'maxLen8'
+);
+
 export const FUZZ_FORMAT_PREAMBLE = "import type * as TF from './src/formats/index.ts';";
 
 /** The PACKAGE-import twin, for lanes whose fixtures live in a real on-disk
@@ -652,6 +659,13 @@ export interface GenOptions {
    *  the value lanes' generators don't enforce the constraints, so a
    *  valid-value draw could violate them. **/
   structuralFormats?: boolean;
+  /** Emit only types whose JSON size has a maximum: every string leaf is a
+   *  bounded format, every array carries `maxItems`, every Map / Set a
+   *  `maxSize`, and the open-ended kinds (records, bigint) are never drawn.
+   *  The json-size lane sets it so most generated types carry a
+   *  `jsonMaxBytes` to check the serializer against; pair it with a
+   *  `formatLeafPool` of bounded leaves (BOUNDED_FORMAT_LEAVES). **/
+  boundedSizes?: boolean;
   /** The format leaves this lane may draw (default: all of FORMAT_LEAF_NAMES).
    *  The scratch-dir lanes pass SCRATCH_FORMAT_LEAVES — the only leaves their
    *  import-free preamble can spell. **/
@@ -1159,23 +1173,27 @@ function genParams(ctx: Ctx, depth: number): TypeShape[] {
 /** Generate a shape at `depth`, branching into compounds until maxDepth. **/
 export function genShape(ctx: Ctx, depth: number): TypeShape {
   if (depth >= ctx.opts.maxDepth || chance(0.4)) return genLeaf(ctx);
+  const bounded = ctx.opts.boundedSizes === true;
   const builders: Array<() => TypeShape> = [
     () => withArrayStructural(ctx, {kind: 'array', elem: genShape(ctx, depth + 1)}),
     () => genTuple(ctx, depth),
     () => genObject(ctx, depth),
     () => genUnion(ctx, depth),
-    () => withRecordStructural(ctx, {kind: 'record', value: genShape(ctx, depth + 1)}),
   ];
+  // an index signature has no key bound, so a record never has a JSON maximum
+  if (!bounded) builders.push(() => withRecordStructural(ctx, {kind: 'record', value: genShape(ctx, depth + 1)}));
   // Intersections + Map/Set round-trip, so every preset can emit them (the
-  // primitive-brand arm inside genIntersection stays gated on `wild`).
+  // primitive-brand arm inside genIntersection stays gated on `wild`). A Map
+  // key is a plain string or number; the bounded lane keys by number, or by a
+  // bounded string leaf, so the key has a maximum too.
+  const mapKey = (): TypeShape =>
+    bounded
+      ? pick<TypeShape>([{kind: 'number'}, {kind: 'format', name: 'maxLen8'}])
+      : pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]);
   builders.push(
     () => genIntersection(ctx, depth),
     () =>
-      withMapStructural(ctx, {
-        kind: 'map',
-        key: pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]),
-        value: genShape(ctx, depth + 1),
-      }),
+      withMapStructural(ctx, {kind: 'map', key: mapKey(), value: genShape(ctx, depth + 1)}),
     () => withSetStructural(ctx, {kind: 'set', elem: genShape(ctx, depth + 1)})
   );
   // Promise + function + RegExp are DataOnly-stripped — gated on nonDataTypes.
@@ -1197,12 +1215,17 @@ export function genShape(ctx: Ctx, depth: number): TypeShape {
 }
 
 function genLeaf(ctx: Ctx): TypeShape {
+  const bounded = ctx.opts.boundedSizes === true;
+  // a plain string and a bigint have no JSON maximum: the bounded lane draws
+  // the bounded format leaves instead (its formatLeafPool). Every other lane
+  // keeps the exact list order below: the draw is by index, so a reordering
+  // would move every seed-pinned type.
   const serial: Array<() => TypeShape> = [
     () => ({kind: 'number'}),
-    () => ({kind: 'string'}),
+    ...(bounded ? [] : [(): TypeShape => ({kind: 'string'})]),
     () => ({kind: 'boolean'}),
     () => ({kind: 'null'}),
-    () => ({kind: 'bigint'}),
+    ...(bounded ? [] : [(): TypeShape => ({kind: 'bigint'})]),
     () => ({kind: 'date'}),
     () => ({kind: 'undefined'}),
     () => genLiteral(),
@@ -1252,6 +1275,8 @@ function genLiteral(): TypeShape {
  *  (structuralFormats lanes only). Small bounds; the convergence oracle
  *  never draws values. **/
 function withArrayStructural(ctx: Ctx, shape: TypeShape & {kind: 'array'}): TypeShape {
+  // the bounded lane draws values, so only the bound the product mock honours
+  if (ctx.opts.boundedSizes) return {...shape, structural: {maxItems: 1 + int(4)}};
   if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
   const structural: CollectionStructural = {};
   if (chance(0.6)) structural.uniqueItems = true;
@@ -1268,6 +1293,8 @@ function withArrayStructural(ctx: Ctx, shape: TypeShape & {kind: 'array'}): Type
  *  `FormattedSet` / `FormattedMap` both take `FormattedCollectionParams`
  *  verbatim. **/
 function withSetStructural(ctx: Ctx, shape: TypeShape & {kind: 'set'}): TypeShape {
+  // the bounded lane draws values, so only the bound the product mock honours
+  if (ctx.opts.boundedSizes) return {...shape, structural: {maxItems: 1 + int(4)}};
   if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
   const structural: CollectionStructural = {};
   if (chance(0.5)) structural.uniqueItems = true;
@@ -1279,6 +1306,8 @@ function withSetStructural(ctx: Ctx, shape: TypeShape & {kind: 'set'}): TypeShap
   return {...shape, structural};
 }
 function withMapStructural(ctx: Ctx, shape: TypeShape & {kind: 'map'}): TypeShape {
+  // the bounded lane draws values, so only the bound the product mock honours
+  if (ctx.opts.boundedSizes) return {...shape, structural: {maxItems: 1 + int(4)}};
   if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
   const structural: CollectionStructural = {};
   if (chance(0.4)) structural.uniqueItems = true;
@@ -1598,9 +1627,9 @@ export function describeShape(shape: TypeShape, depth = 0): string {
     case 'record':
       return `Rec<${describeShape(shape.value, depth + 1)}>`;
     case 'map':
-      return `Map<${describeShape(shape.key, depth + 1)},${describeShape(shape.value, depth + 1)}>`;
+      return `Map<${describeShape(shape.key, depth + 1)},${describeShape(shape.value, depth + 1)}>${shape.maxSize === undefined ? '' : `≤${shape.maxSize}`}`;
     case 'set':
-      return `Set<${describeShape(shape.elem, depth + 1)}>`;
+      return `Set<${describeShape(shape.elem, depth + 1)}>${shape.maxSize === undefined ? '' : `≤${shape.maxSize}`}`;
     case 'promise':
       return `Promise<${describeShape(shape.value, depth + 1)}>`;
     case 'function':

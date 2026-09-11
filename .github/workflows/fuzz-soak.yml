@@ -44,6 +44,7 @@ on:
           - nondata
           - roundtrip
           - size
+          - jsonsize
           - cloning
           - elision
           - secbinary

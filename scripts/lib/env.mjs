@@ -151,6 +151,7 @@ export const REGISTRY = [
   {name: 'MION_FUZZ_SOAK_MS', scope: 'dev', task: '-', desc: 'value fuzz soak duration in ms'},
   {name: 'MION_FUZZ_TYPES_SOAK_MS', scope: 'dev', task: '-', desc: 'type fuzz soak duration in ms'},
   {name: 'MION_FUZZ_SIZE_SOAK_MS', scope: 'dev', task: '-', desc: 'binary-size fuzz soak duration in ms'},
+  {name: 'MION_FUZZ_JSONSIZE_SOAK_MS', scope: 'dev', task: '-', desc: 'JSON size bound fuzz (jsonMaxBytes vs the serializer) soak duration in ms'},
   {name: 'MION_FUZZ_ROUNDTRIP_SOAK_MS', scope: 'dev', task: '-', desc: 'round-trip fuzz soak duration in ms'},
   {name: 'MION_FUZZ_ELISION_SOAK_MS', scope: 'dev', task: '-', desc: 'elision form-equivalence fuzz soak duration in ms'},
   {name: 'MION_FUZZ_NONDATA_SOAK_MS', scope: 'dev', task: '-', desc: 'non-data type fuzz soak duration in ms'},

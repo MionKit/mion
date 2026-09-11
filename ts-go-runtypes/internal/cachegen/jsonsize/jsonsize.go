@@ -44,6 +44,14 @@ const (
 	// form); an astral character is two units, so 12 bytes, which the same
 	// rule covers.
 	stringUnitBytes = 6
+	// The encoder's wire envelopes (cachegen/typefunctions): a root `undefined`
+	// / `void` has no JSON document of its own, so the composite encoder ships
+	// `[null]` (rootNeedsDataOnlyWrap); a flat union may wrap every member in
+	// `[<memberIndex>,` … `]` or `[-1,` … `]` (union_flat_layout.go). The walk
+	// budgets both whenever they CAN apply: this is a bound, never a size, and
+	// the json-size fuzz lane (test/fuzz/type/jsonSizeBound) checks it against
+	// the compiled encoder's real output.
+	rootUndefinedBytes = 6 // `[null]`
 	// depthCap bounds recursion through ID-less inline nodes; ID-bearing nodes
 	// are memoized and cycle-checked by id instead.
 	depthCap = 64
@@ -77,6 +85,9 @@ type Result struct {
 // claimed bounded (the default arm).
 func MaxBytes(rt *reflection.RunType, refTable map[string]*reflection.RunType) Result {
 	walker := newWalker(refTable)
+	if root := walker.deref(rt); root != nil && (root.Kind == reflection.KindUndefined || root.Kind == reflection.KindVoid) {
+		return bounded(rootUndefinedBytes)
+	}
 	return walker.walk(rt, "", 0)
 }
 
@@ -406,7 +417,11 @@ func (w *walker) objectBytes(rt *reflection.RunType, path string, depth int) Res
 	return bounded(total)
 }
 
-// unionBytes: the largest member, bounded only when every member is.
+// unionBytes: the largest member plus the flat-union envelope, bounded only
+// when every member is. The encoder wraps a member as `[<index>,value]` (or
+// `[-1,value]`) whenever the union carries a transform or an object member;
+// the walk cannot see the emitter's layout decision, so it always budgets the
+// widest envelope the member count allows.
 func (w *walker) unionBytes(rt *reflection.RunType, path string, depth int) Result {
 	if len(rt.Children) == 0 {
 		return bounded(nullBytes)
@@ -419,7 +434,13 @@ func (w *walker) unionBytes(rt *reflection.RunType, path string, depth int) Resu
 		}
 		largest = max(largest, result.Bytes)
 	}
-	return bounded(largest)
+	return bounded(largest + unionEnvelopeBytes(len(rt.Children)))
+}
+
+// unionEnvelopeBytes: `[` + the widest member index (`-1`, or the last index)
+// + `,` + `]`.
+func unionEnvelopeBytes(members int) int {
+	return 1 + max(len("-1"), len(strconv.Itoa(members-1))) + 1 + 1
 }
 
 // classBytes: the builtins with a fixed JSON spelling are constants; a Map is
