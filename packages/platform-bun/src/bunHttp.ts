@@ -15,6 +15,7 @@ import {
   MionResponse,
   getMaxRouteBodySize,
   readRequestBody,
+  BodyReadStrategy,
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
@@ -66,7 +67,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (context.readsBody) {
-      rawBody = await readRequestBody(req, context.maxBodySize, 'buffered');
+      rawBody = await readRequestBody(req, context.maxBodySize, BodyReadStrategy.buffered);
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;
