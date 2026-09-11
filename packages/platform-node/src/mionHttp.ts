@@ -146,6 +146,45 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     return;
   }
 
+  async function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
+    // Everything below is inside the guard: this runs from a listener, so a throw here would be an
+    // unhandled rejection, which takes the whole process down under node's default.
+    try {
+      const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
+      if (queryBody) {
+        reqRawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+      }
+      const mionResponse = await dispatchWithContext(context, httpReq, httpResponse, reqRawBody, reqBodyType);
+      if (replied || httpResponse.writableEnded) return;
+      replied = true;
+      reply(httpResponse, mionResponse);
+    } catch (e) {
+      if (replied) return;
+      replied = true;
+      fatalFail(httpResponse, respHeaders, toRpcError(e));
+    }
+  }
+
+  httpResponse.on('error', (e) => {
+    if (replied) return;
+    replied = true;
+    const error = new FatalError({
+      publicMessage: 'Connection Error',
+      type: 'response-connection-error',
+      originalError: e,
+    });
+    fatalFail(httpResponse, respHeaders, error);
+  });
+
+  // A not-found chain (an unknown path or batch id) has no route to feed: dispatch right away with
+  // no body and no data listener. Node discards whatever the client still sends once the response
+  // ends, so a kept-alive connection stays usable and nothing is ever buffered.
+  if (!context.readsBody) {
+    void dispatch('', SerializerModes.stringifyJson, false);
+    return;
+  }
+
   httpReq.on('data', (data) => {
     if (replied) return;
     size += data.length;
@@ -170,42 +209,12 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     fatalFail(httpResponse, respHeaders, error);
   });
 
-  httpReq.on('end', async () => {
+  httpReq.on('end', () => {
     if (replied) return;
     // Buffer.concat allocates and copies even for one chunk, and a body-less request is the common
     // case for a GET: neither needs a buffer at all.
-    const buffer = bodyChunks.length === 1 ? bodyChunks[0] : Buffer.concat(bodyChunks);
-    let reqRawBody: any = bodyChunks.length === 0 ? '' : buffer.toString();
-    let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-
-    // Everything below is inside the guard: this listener is async, so a throw here would be an
-    // unhandled rejection, which takes the whole process down under node's default.
-    try {
-      const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
-      if (queryBody) {
-        reqRawBody = queryBody.rawBody;
-        reqBodyType = queryBody.bodyType;
-      }
-      const mionResponse = await dispatchWithContext(context, httpReq, httpResponse, reqRawBody, reqBodyType);
-      if (replied || httpResponse.writableEnded) return;
-      replied = true;
-      reply(httpResponse, mionResponse);
-    } catch (e) {
-      if (replied) return;
-      replied = true;
-      fatalFail(httpResponse, respHeaders, toRpcError(e));
-    }
-  });
-
-  httpResponse.on('error', (e) => {
-    if (replied) return;
-    replied = true;
-    const error = new FatalError({
-      publicMessage: 'Connection Error',
-      type: 'response-connection-error',
-      originalError: e,
-    });
-    fatalFail(httpResponse, respHeaders, error);
+    const buffer = bodyChunks.length === 1 ? bodyChunks[0] : Buffer.concat(bodyChunks, size);
+    void dispatch(bodyChunks.length === 0 ? '' : buffer.toString(), SerializerModes.stringifyJson, true);
   });
 }
 

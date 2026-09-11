@@ -26,6 +26,9 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
   readonly executionChain: MethodsExecutionChain;
   /** The request limit this request was read against: the chain's number capped by the platform's */
   readonly maxBodySize: number;
+  /** False when the path or batch id resolved to a not-found chain: the adapter skips the body
+   *  read and the router never parses it, while the global middleFns still run */
+  readonly readsBody: boolean;
   /** Query string from URL, used by the batch endpoint (`id=<batchId>`) and by query routes */
   readonly urlQuery?: string;
   /** Id of the batch a batch request is running */

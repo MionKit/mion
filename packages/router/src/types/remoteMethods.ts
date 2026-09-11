@@ -117,4 +117,7 @@ export interface MethodsExecutionChain {
    *  members' params types), settled at registration so a request pays one field read. Undefined
    *  when the types cannot say: the request then takes the platform adapter's `maxBodySize`. */
   maxBodySize?: number;
+  /** False only for mion's own not-found chains (an unknown path, an unknown batch id): the request
+   *  has no route to feed, so the adapter never reads its body and the router never parses it. */
+  readsBody: boolean;
 }

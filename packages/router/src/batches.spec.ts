@@ -320,7 +320,8 @@ describe('batches', () => {
 
   // ############# unknown id #############
   // The id is the ONLY untrusted input. Anything that does not name a registered batch is the same
-  // 404, thrown while the context is acquired, before the body is read.
+  // 404, resolved while the context is acquired: the not-found chain answers it and the body is
+  // never read.
   describe('batch id resolution', () => {
     const route1 = mion.route((ctx): string => 'result1');
 
@@ -355,7 +356,9 @@ describe('batches', () => {
       ['invalid percent-encoding', 'id=%E0%A4%A'],
       ['the known id as a value of another parameter', 'batch=known'],
     ])('refuses %s with batch-unknown-id before the body is read', async (_label, urlQuery) => {
-      await expect(dispatchBatch(getDefaultRequest({route1: []}), urlQuery)).rejects.toMatchObject({
+      const response = await dispatchBatch(getDefaultRequest({route1: []}), urlQuery);
+      expect(response.statusCode).toBe(StatusCodes.NOT_FOUND);
+      expect(thrownErrors(response)[MION_ROUTES.batchNotFound]).toMatchObject({
         type: 'batch-unknown-id',
         statusCode: StatusCodes.NOT_FOUND,
       });
@@ -570,7 +573,8 @@ describe('batches', () => {
       expect(getBatchIds().sort()).toEqual(['added', 'kept']);
       // a kept id gets a fresh entry, so its merged chain is rebuilt from the new definition
       expect(getBatch('kept')?.chains.size).toBe(0);
-      await expect(dispatchBatch(getDefaultRequest({route1: []}), 'id=old')).rejects.toMatchObject({type: 'batch-unknown-id'});
+      const dropped = await dispatchBatch(getDefaultRequest({route1: []}), 'id=old');
+      expect(thrownErrors(dropped)[MION_ROUTES.batchNotFound]).toMatchObject({type: 'batch-unknown-id'});
       const response = await dispatchBatch(getDefaultRequest({route1: []}), 'id=added');
       expect(response.hasErrors).toBe(false);
       expect(response.body.route1).toBe('result1');

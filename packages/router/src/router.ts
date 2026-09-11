@@ -434,6 +434,8 @@ function recursiveCreateExecutionChain(
       methods,
       serializer: getChainFraming(methods),
       maxBodySize,
+      // a not-found chain has no route to feed: the body is never read or parsed for it
+      readsBody: routeMethod.id !== MION_ROUTES.notFound && routeMethod.id !== MION_ROUTES.batchNotFound,
     };
     const middleFnIds = getPublicMiddleFnIds(methods);
     // add middleware functions deps, so can be serialized with the router

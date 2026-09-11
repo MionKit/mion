@@ -187,19 +187,17 @@ export function readBatchId(urlQuery: string | undefined): string | undefined {
 }
 
 /** Resolves a batch request to its merged execution chain by id. Runs while the call context is
- *  acquired, BEFORE the request body is deserialized, so an unknown id costs the server nothing
- *  but a Map lookup. The id is the only untrusted input and it is never echoed back. */
-export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions, urlQuery?: string): BatchExecutionResult {
+ *  acquired, BEFORE the request body is read, so an unknown id costs the server nothing but a Map
+ *  lookup: it answers undefined and the caller resolves the batch not-found chain. The id is the
+ *  only untrusted input and it is never echoed back. */
+export function getBatchExecutionChain(
+  rawRequest: unknown,
+  opts: RouterOptions,
+  urlQuery?: string
+): BatchExecutionResult | undefined {
   const batchId = readBatchId(urlQuery);
   const entry = batchId ? getBatch(batchId) : undefined;
-  if (!entry) {
-    throw new FatalError({
-      statusCode: StatusCodes.NOT_FOUND,
-      type: 'batch-unknown-id',
-      publicMessage:
-        'Batch id not registered on this server. Batches are compiled by the build; rebuild the client and the server together.',
-    });
-  }
+  if (!entry) return undefined;
 
   // The chain is built from the TRANSFORMED paths, and pathTransform may read the request (a tenant
   // header, the host), so with a transform the chains are kept per resolved path list: the same id
@@ -274,6 +272,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     methods,
     serializer: getChainFraming(methods),
     maxBodySize: resolveBatchMaxBodySize(entry, memberChains),
+    readsBody: true,
   };
 }
 

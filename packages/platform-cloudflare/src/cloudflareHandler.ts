@@ -65,12 +65,16 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     // limit, and the body is read against that limit as it arrives (a stream past it is cancelled
     // mid-flight); the router checks the size once more before parsing
     const context = createCallContext(path, urlQuery, req, req.headers, responseHeaders);
-    let rawBody: any = await readRequestBody(req, context.maxBodySize);
+    let rawBody: any;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-    const queryBody = decodeQueryBody(urlQuery, rawBody);
-    if (queryBody) {
-      rawBody = queryBody.rawBody;
-      reqBodyType = queryBody.bodyType;
+    // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
+    if (context.readsBody) {
+      rawBody = await readRequestBody(req, context.maxBodySize);
+      const queryBody = decodeQueryBody(urlQuery, rawBody);
+      if (queryBody) {
+        rawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+      }
     }
     const platformResp = await dispatchWithContext(context, req, platformContext, rawBody, reqBodyType);
     return reply(platformResp, responseHeaders);

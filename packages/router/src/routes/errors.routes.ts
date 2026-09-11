@@ -46,6 +46,20 @@ export const mionErrorsRoutes = {
     });
   }, DEFAULT_WIRE),
   /**
+   * Route that answers a batch request whose id names no registered batch. Resolved while the
+   * context is acquired, so the chain runs like any other not-found: the global middleFns see the
+   * request, the body is never read. The id is the only untrusted input and it is never echoed.
+   */
+  [MION_ROUTES.batchNotFound]: route((ctx: CallContext): RpcError<'batch-unknown-id'> => {
+    // eslint-disable-next-line @mionjs/no-throw-in-handlers -- deliberate, a router error, see notFound
+    throw new FatalError({
+      statusCode: StatusCodes.NOT_FOUND,
+      type: 'batch-unknown-id',
+      publicMessage:
+        'Batch id not registered on this server. Batches are compiled by the build; rebuild the client and the server together.',
+    });
+  }, DEFAULT_WIRE),
+  /**
    * Platform error route for strongly typing platform/adapter errors.
    * Platform errors occur before reaching the router or outside the router
    * and are platform/adapter related (e.g., HTTP server errors, connection issues).
