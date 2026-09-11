@@ -47,17 +47,23 @@ export type * from './refineFormat.ts';
 // See the note on their declaration in ../runtypes/typeFormat.ts: declaration
 // emit can only print a symbol-keyed member it can name.
 export type {FormatBrand, NominalBrand} from '../runtypes/typeFormat.ts';
-// The structural wrapper TYPES (`FormattedArray` / `FormattedObject` + their
-// params bags) — the type-first spelling of the array/object keywords, beside
-// the other format types. The value-first spelling is the trailing params bag
-// on `RT.array` / `RT.object` / `RT.record`.
+// The structural wrapper TYPES (`FormattedArray` / `FormattedObject` /
+// `FormattedSet` / `FormattedMap` + their params bags) — the type-first
+// spelling of the collection keywords, beside the other format types. The
+// value-first spelling is the trailing params bag on `RT.array` / `RT.object` /
+// `RT.record` / `RT.set` / `RT.map`.
 export type {
   FormattedArray,
   FormattedObject,
+  FormattedSet,
+  FormattedMap,
   FormattedArrayParams,
   FormattedObjectParams,
+  FormattedMapParams,
   FormattedArrayParamsValueFirst,
   FormattedObjectParamsValueFirst,
+  FormattedSetParamsValueFirst,
+  FormattedMapParamsValueFirst,
   StructuralBrand,
 } from './structural.ts';
 

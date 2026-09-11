@@ -99,6 +99,38 @@ export type FormattedArray<Base extends readonly unknown[], P extends FormattedA
   ([keyof ArrayLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_ARRAY_NAME, ArrayLiteralPart<P>>) &
   ContainsSlot<P>;
 
+// ─────────────────────────── Set / Map params ───────────────────────────
+// A Set is an array on the wire and a Map is an array of `[key, value]`
+// pairs, so both ride the ARRAY keywords: the same names land in the generated
+// JSON Schema, the size estimator reads the same `maxItems`, and one Go helper
+// serves the three families. The resolver lifts the brand onto the Map / Set
+// class node the way it lifts a format brand onto `Date`.
+
+/** The literal format-name strings of the Set / Map brands. Kept in sync with
+ *  the Go emitters (structural/collectionformat.go) and the generated catalog. */
+export const FORMATTED_SET_NAME = 'formattedSet';
+export const FORMATTED_MAP_NAME = 'formattedMap';
+
+/** A Set base carrying every array keyword in `P`: `minItems` / `maxItems`
+ *  count the members (read off `.size`), `uniqueItems` is deep JSON equality
+ *  over the members (a `Set<{id: number}>` may hold two structurally equal
+ *  objects), `contains` is the member type at least one member must match.
+ *  The literal bounds ride the `formattedSet` brand, `contains` rides the same
+ *  child sentinel `FormattedArray` uses. **/
+export type FormattedSet<Base extends ReadonlySet<unknown>, P extends FormattedArrayParams> = Base &
+  ([keyof ArrayLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_SET_NAME, ArrayLiteralPart<P>>) &
+  ContainsSlot<P>;
+
+/** The Map keywords: the two count bounds of the array bag, counting entries.
+ *  A `Pick` of `FormattedArrayParams`, never a twin, so the vocabulary cannot
+ *  drift. `uniqueItems` / `contains` are absent on purpose: a Map's keys are
+ *  unique by construction and its key type is already a full type. **/
+export type FormattedMapParams<Contains = unknown> = Pick<FormattedArrayParams<Contains>, 'minItems' | 'maxItems'>;
+
+/** A Map base carrying the entry-count bounds in `P`, on the `formattedMap` brand. **/
+export type FormattedMap<Base extends ReadonlyMap<unknown, unknown>, P extends FormattedMapParams> = Base &
+  ([keyof ArrayLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_MAP_NAME, ArrayLiteralPart<P>>);
+
 // ─────────────────────────── Object params ──────────────────────────
 
 /** Every object constraint keyword, as one bag. `minProperties`/
@@ -183,6 +215,27 @@ type ArrayParamsType<P> = Flatten<
 export type FormattedArrayFrom<T extends readonly unknown[], P> = FormattedArray<
   T,
   Extract<ArrayParamsType<P>, FormattedArrayParams>
+>;
+
+/** The `set` builder's params: the array bag with a `RunType` in the
+ *  `contains` slot, the SAME alias the `array` builder takes. **/
+export type FormattedSetParamsValueFirst = FormattedArrayParamsValueFirst;
+
+/** The `map` builder's params: the two count bounds carry no type slot, so the
+ *  value-first bag IS the type-first one. **/
+export type FormattedMapParamsValueFirst = FormattedMapParams;
+
+/** The type-first `FormattedSet` a value-first `set(item, params)` call
+ *  produces, through the same params mapping as `FormattedArrayFrom`. **/
+export type FormattedSetFrom<T extends ReadonlySet<unknown>, P> = FormattedSet<
+  T,
+  Extract<ArrayParamsType<P>, FormattedArrayParams>
+>;
+
+/** The type-first `FormattedMap` a value-first `map(key, value, params)` call produces. **/
+export type FormattedMapFrom<T extends ReadonlyMap<unknown, unknown>, P> = FormattedMap<
+  T,
+  Extract<Flatten<Pick<P, Extract<keyof P, 'minItems' | 'maxItems'>>>, FormattedMapParams>
 >;
 
 /** The `object` / `record` builders' params — `FormattedObjectParams` with
