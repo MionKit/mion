@@ -243,11 +243,14 @@ function cmdSuite(cfg, suite) {
 // body handling scales, notably uws' zero-copy path above 512 KiB) but the question a
 // reader actually has is how the frameworks compare as the body grows, and every
 // competitor already raises its body limit for exactly these sizes.
-function cmdSweep(cfg) {
+function cmdSweep(cfg, only) {
   ensurePrereqs(cfg);
   buildMionApp(cfg);
   const failed = [];
-  for (const app of APPS) {
+  // `sweep <app>` runs the sizes for one lane, the way `one <app>` runs the suites for one
+  const apps = only ? [findApp(only)] : APPS;
+  if (only && !apps[0]) die(`mion-bench: unknown app '${only}'. Try one of: ${APP_NAMES.join(', ')}`);
+  for (const app of apps) {
     for (const size of SWEEP_SIZES) {
       if (!runOne(cfg, app, undefined, size)) failed.push(`${app.name}/${size}`);
     }
@@ -304,7 +307,9 @@ function cmdRepeat(cfg, appName, suiteArg, runs) {
   }
 }
 
-function aggregate(cfg) {
+function aggregate(cfg, rest = []) {
+  // `aggregate --compare <before> <after>` reads two results dirs and needs neither to be ours
+  if (rest[0] === '--compare') return run('node', [join(BENCH_DIR, 'aggregate.mjs'), ...rest]);
   if (!existsSync(RESULTS_DIR)) return;
   run('node', [join(BENCH_DIR, 'aggregate.mjs')]);
 }
@@ -361,12 +366,12 @@ function dispatch(cfg, args, runs) {
     case 'servers': return (requireEngine(cfg), cmdServers(cfg));
     case 'one': return (requireEngine(cfg), cmdServers(cfg, rest[0]));
     case 'suite': return (requireEngine(cfg), cmdSuite(cfg, rest[0]));
-    case 'sweep': return (requireEngine(cfg), cmdSweep(cfg));
+    case 'sweep': return (requireEngine(cfg), cmdSweep(cfg, rest[0]));
     case 'repeat': return (requireEngine(cfg), cmdRepeat(cfg, rest[0], rest[1], runs));
     case 'build': return (requireEngine(cfg), ensurePrereqs(cfg), buildMionApp(cfg));
     case 'website': return (requireEngine(cfg), cmdWebsite(cfg));
     case 'gen-docs': return genDocs();
-    case 'aggregate': return aggregate(cfg);
+    case 'aggregate': return aggregate(cfg, rest);
     case 'shell': return (requireEngine(cfg), ensurePrereqs(cfg), runInContainer(cfg, findApp('mion'), ['bash']));
     case 'login': return image.cmdLogin({target: 'mion-bench'});
     case 'push': return image.cmdPush({target: 'mion-bench'});

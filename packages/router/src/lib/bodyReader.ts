@@ -16,33 +16,55 @@ export function requestPayloadTooLarge(): RpcError<'request-payload-too-large'> 
   });
 }
 
+/**
+ * How a fetch-style runtime reads a body fastest. Measured on each runtime with a real server:
+ * - `stream`: pull the body stream and decode once. Node's Request (undici, the vercel node
+ *   runtime), where `text()` is slower than its own stream at every size.
+ * - `text`: `text()` when a content-length is declared, the stream otherwise. Workerd, where both
+ *   are native and only the stream can stop an upload mid-flight.
+ * - `buffered`: `text()` or `arrayBuffer()`, never the stream reader. Bun buffers the body natively
+ *   before the handler runs and its stream reader is over ten times slower than `text()`; the
+ *   server-wide native limit is the one true mid-flight guard there.
+ */
+export type BodyReadStrategy = 'stream' | 'text' | 'buffered';
+
 // One decoder for every request: a non-streaming `decode` call keeps no state between calls, so
-// sharing it is safe. A streaming decode (`{stream: true}`) would not be, which is why the chunked
-// path below collects bytes and decodes ONCE instead of decoding chunk by chunk.
+// sharing it is safe. A streaming decode (`{stream: true}`) would not be, which is why the stream
+// path collects bytes and decodes ONCE instead of decoding chunk by chunk.
 const utf8 = new TextDecoder();
 
 /**
- * Reads a fetch-style request body as text against the route's request limit.
- *
- * A body with a `content-length` is the common case (every fetch client sends one for a string
- * body): the number is checked and the body read with `req.text()`, the runtime's own native
- * decode, which on bun is the buffered fast path and everywhere else one decode of the whole body.
- * The runtime guarantees the body is exactly that many bytes. A body without one (chunked) is
- * pulled in chunks with the running size counted, cancelled the moment it passes the limit so the
- * rest is never pulled, and decoded once at the end.
- *
- * Sizes are counted in bytes, never less than the character count the router checks again before
- * parsing, so the byte-exact refusal here always fires first. Resolves undefined for a request
- * without a body and throws the same 413 the router would.
+ * Reads a fetch-style request body as text against the route's request limit, the way the
+ * runtime reads fastest (`strategy`). A declared `content-length` past the limit is refused
+ * before a byte is read. Sizes are counted in bytes, never less than the character count the
+ * router checks again before parsing, so the byte-exact refusal here always fires first. Resolves
+ * undefined for a request without a body and throws the same 413 the router would.
  */
-export async function readRequestBody(req: Request, maxBodySize: number): Promise<string | undefined> {
+export async function readRequestBody(
+  req: Request,
+  maxBodySize: number,
+  strategy: BodyReadStrategy
+): Promise<string | undefined> {
   if (!req.body) return undefined;
   const declared = req.headers.get('content-length');
   if (declared !== null) {
     if (Number(declared) > maxBodySize) throw requestPayloadTooLarge();
-    return req.text();
+    // the runtime delivers exactly content-length bytes: one native decode
+    if (strategy !== 'stream') return req.text();
+    return readStream(req, maxBodySize);
   }
-  const reader = req.body.getReader();
+  if (strategy !== 'buffered') return readStream(req, maxBodySize);
+  // no content-length on a runtime whose stream reader is the slow path: take the bytes whole
+  // (the native server limit already bounded them) and refuse past the limit before decoding
+  const bytes = await req.arrayBuffer();
+  if (bytes.byteLength > maxBodySize) throw requestPayloadTooLarge();
+  return utf8.decode(bytes);
+}
+
+/** Pulls the body chunk by chunk with the running size counted, cancels the stream the moment it
+ *  passes the limit so the rest is never pulled, and decodes ONCE at the end. */
+async function readStream(req: Request, maxBodySize: number): Promise<string> {
+  const reader = req.body!.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
   for (;;) {

@@ -66,7 +66,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (context.readsBody) {
-      rawBody = await readRequestBody(req, context.maxBodySize);
+      rawBody = await readRequestBody(req, context.maxBodySize, 'buffered');
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;
