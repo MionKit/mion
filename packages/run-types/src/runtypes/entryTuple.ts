@@ -117,6 +117,10 @@ const RUN_TYPE_FIELD_KEYS = [
   'values',
   'notSupported',
   'nonEnumerable',
+  // Trailing, reflection ROOTS only: the compact-JSON maximum of a fully
+  // bounded type (cachegen/jsonsize). A hole on every nested row and on an
+  // unbounded root, so those rows are byte-identical to the layout before it.
+  'jsonMaxBytes',
 ] as const;
 
 /** Named view of one runtype ROW inside the data bundle: RunType's scalar

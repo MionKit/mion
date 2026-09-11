@@ -27,6 +27,7 @@ type buildFlags struct {
 	moduleMode              string
 	pureFnReportWire        bool
 	pureFnReportFile        bool
+	jsonMaxBytes            bool
 	binarySizingBias        float64
 	binarySizingItems       int
 	binarySizingStringBytes int
@@ -51,6 +52,7 @@ type buildOptions struct {
 	moduleMode              string
 	pureFnReportWire        bool
 	pureFnReportFile        bool
+	jsonMaxBytes            bool
 	binarySizingBias        float64
 	binarySizingItems       int
 	binarySizingStringBytes int
@@ -82,6 +84,7 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		moduleMode:              flags.moduleMode,
 		pureFnReportWire:        flags.pureFnReportWire,
 		pureFnReportFile:        flags.pureFnReportFile,
+		jsonMaxBytes:            flags.jsonMaxBytes,
 		binarySizingBias:        flags.binarySizingBias,
 		binarySizingItems:       flags.binarySizingItems,
 		binarySizingStringBytes: flags.binarySizingStringBytes,
@@ -129,6 +132,11 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	// A configured file always implies the report data is produced.
 	if out.pureFnReportFile {
 		out.pureFnReportWire = true
+	}
+	// jsonMaxBytes: the flag carries the binary default (on); the tsconfig value
+	// fills in only when the flag was not passed, tsc-style.
+	if !flags.set["json-max-bytes"] && plugin.JSONMaxBytes != nil {
+		out.jsonMaxBytes = *plugin.JSONMaxBytes
 	}
 
 	// Binary cold-start sizing knobs: a tsconfig value fills in only when the

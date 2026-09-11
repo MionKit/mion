@@ -208,6 +208,14 @@ type Options struct {
 	// does, so BOTH are disk-fingerprint inputs.
 	PatternSampleCount   int
 	PatternSampleRetries int
+	// JSONMaxBytes emits, on every reflection ROOT row whose type is fully
+	// bounded, the largest compact-JSON byte size a valid value can have
+	// (row slot 21): what a framework derives per-route request and response
+	// limits from. On by default; a project that does not want type-derived
+	// limits turns it off (tsconfig `jsonMaxBytes: false`, `--json-max-bytes=false`)
+	// and the slot is never computed nor emitted. A disk-fingerprint input:
+	// it changes the emitted root rows.
+	JSONMaxBytes bool
 	// PureFnReportWire enables the structured build report (pure fns + batches):
 	// OpGenerate and OpScanFiles populate Response.PureFnSites and
 	// Response.BatchSites (whole program on generate, the rescanned files' delta
@@ -469,6 +477,7 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 		SizeMaxBytes:         opts.SizeMaxBytes,
 		PatternSampleCount:   opts.PatternSampleCount,
 		PatternSampleRetries: opts.PatternSampleRetries,
+		JSONMaxBytes:         opts.JSONMaxBytes,
 	})
 	return diskcache.New(baseDir, fp)
 }

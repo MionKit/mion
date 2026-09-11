@@ -123,6 +123,14 @@ export interface RunType<T = unknown> extends SchemaChecks {
    *  ignore. The node is kept in the reflected tree so reflection stays
    *  complete; only the node itself is flagged, never its children. */
   notSupported?: boolean;
+  /** The largest compact-JSON byte size a valid value of this type can have,
+   *  computed at build time (the Go `jsonsize` walk). Present only on a
+   *  reflection ROOT whose type is fully bounded (every string has a `length` /
+   *  `maxLength`, every array a `length` / `maxItems`, every Map / Set a
+   *  `maxSize`, and so on); absent on nested nodes and on any type with an
+   *  unbounded part. The mion router derives per-route request and response
+   *  limits from it. */
+  jsonMaxBytes?: number;
   flags?: unknown;
   description?: unknown;
   defaultVal?: unknown;

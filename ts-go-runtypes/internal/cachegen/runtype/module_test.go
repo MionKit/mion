@@ -35,11 +35,17 @@ func emit(t *testing.T, runTypes []*reflection.RunType) string {
 // site per root) and renders the resulting graph.
 func emitModules(t *testing.T, roots []string, runTypes []*reflection.RunType) map[string]string {
 	t.Helper()
+	return emitModulesWith(t, roots, runTypes, true)
+}
+
+// emitModulesWith is emitModules with the project's jsonMaxBytes switch explicit.
+func emitModulesWith(t *testing.T, roots []string, runTypes []*reflection.RunType, jsonMaxBytes bool) map[string]string {
+	t.Helper()
 	sites := make([]protocol.Site, 0, len(roots))
 	for _, root := range roots {
 		sites = append(sites, protocol.Site{ID: root})
 	}
-	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites})
+	graph := CollectEntries(protocol.Dump{RunTypes: runTypes, Sites: sites}, jsonMaxBytes)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("entrymodules.Render: %v", err)
@@ -132,7 +138,7 @@ func TestNoReflectionRoots(t *testing.T) {
 	graph := CollectEntries(protocol.Dump{
 		RunTypes: []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}},
 		Sites:    []protocol.Site{{ID: "x1", FnId: "Qm3p"}}, // createX site, not reflection
-	})
+	}, true)
 	if len(graph) != 0 {
 		t.Fatalf("expected empty graph for fn-only sites, got %d entries", len(graph))
 	}
@@ -368,7 +374,9 @@ func TestKnownFieldsCovered(t *testing.T) {
 		Values:       []any{"v"},
 		NotSupported: true,
 	}})
-	expected := `['FULL',20,2004,'TN','NM','L',!0,!0,!0,!0,2,!0,7,!0,['f1'],'D','DEF',{'k':1},['v'],!0]`
+	// slot 20 (nonEnumerable) is false, a hole; slot 21 is the jsonMaxBytes of a
+	// non-serializable class root, which serializes as `null` (4 bytes)
+	expected := `['FULL',20,2004,'TN','NM','L',!0,!0,!0,!0,2,!0,7,!0,['f1'],'D','DEF',{'k':1},['v'],!0,,4]`
 	if !strings.Contains(out, expected) {
 		t.Errorf("expected fully-populated row:\n  %s\ngot:\n%s", expected, out)
 	}
@@ -399,5 +407,46 @@ func TestNoLegacyTopLevelExports(t *testing.T) {
 	}
 	if strings.Contains(out, "rt(") {
 		t.Errorf("legacy `rt(…)` skeleton calls must not appear in:\n%s", out)
+	}
+}
+
+// TestJSONMaxBytesSlot — slot 21 carries the compact-JSON maximum of a
+// reflection ROOT whose type is fully bounded; a nested row never carries it
+// and an unbounded root renders the slot as a hole (trimmed away).
+func TestJSONMaxBytesSlot(t *testing.T) {
+	boundedString := &reflection.RunType{ID: "s36", Kind: reflection.KindString,
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"maxLength": 36.0}}}
+	member := &reflection.RunType{ID: "m0", Kind: reflection.KindTupleMember, Child: reflection.NewRef("s36")}
+	tuple := &reflection.RunType{ID: "tup", Kind: reflection.KindTuple, Children: []*reflection.RunType{reflection.NewRef("m0")}}
+	plain := &reflection.RunType{ID: "plain", Kind: reflection.KindString}
+	nodes := []*reflection.RunType{tuple, member, boundedString, plain}
+	modules := emitModules(t, []string{"tup", "plain"}, nodes)
+	bundle := modules[constants.RunTypesBundleBasename]
+	// root: `[` + (2 + 6*36) + `]` = 220 at slot 21, after 17 holes
+	if !strings.Contains(bundle, "['tup',26,,,,,,,,,,,,,,,,,,,,220]") {
+		t.Errorf("expected the bounded root row to carry jsonMaxBytes 220, got:\n%s", bundle)
+	}
+	if !strings.Contains(bundle, "['s36',5]") {
+		t.Errorf("expected the nested row without the slot, got:\n%s", bundle)
+	}
+	if !strings.Contains(bundle, "['plain',5]") {
+		t.Errorf("expected the unbounded root row without the slot, got:\n%s", bundle)
+	}
+	// allModules mode: the per-node module of the root carries the same number
+	perNode := CollectEntriesPerNode(protocol.Dump{RunTypes: nodes, Sites: []protocol.Site{{ID: "tup"}, {ID: "plain"}}}, true)
+	if got := perNode["tup"].ArgsText; !strings.HasSuffix(got, ",220") {
+		t.Errorf("per-node root args should end with the jsonMaxBytes slot, got: %s", got)
+	}
+	if got := perNode["s36"].ArgsText; got != "'s36',5" {
+		t.Errorf("per-node nested args should carry no slot, got: %s", got)
+	}
+	// the project switch off: no root carries the slot, in either module mode
+	bundleOff := bundleOf(t, emitModulesWith(t, []string{"tup", "plain"}, nodes, false))
+	if !strings.Contains(bundleOff, "['tup',26]") || strings.Contains(bundleOff, "220") {
+		t.Errorf("jsonMaxBytes off: expected the root row without the slot, got:\n%s", bundleOff)
+	}
+	perNodeOff := CollectEntriesPerNode(protocol.Dump{RunTypes: nodes, Sites: []protocol.Site{{ID: "tup"}, {ID: "plain"}}}, false)
+	if got := perNodeOff["tup"].ArgsText; got != "'tup',26" {
+		t.Errorf("jsonMaxBytes off: per-node root args should carry no slot, got: %s", got)
 	}
 }

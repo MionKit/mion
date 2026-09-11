@@ -20,6 +20,7 @@ import {
   RemoteMethodOpts,
   CoreRouterOptions,
   SerializerModes,
+  DEFAULT_MAX_BODY_SIZE,
 } from '@mionjs/core';
 import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
@@ -158,6 +159,9 @@ describe('Client Routes should', () => {
     validateReturn: false,
     description: undefined,
     isMutation: undefined,
+    // every chain here carries `auth`, whose `token: string` has no maximum, so each route publishes
+    // the platform's number (the shared default with no adapter)
+    maxBodySize: DEFAULT_MAX_BODY_SIZE,
   };
   const defaultMiddleFnOpts: RemoteMethodOpts = {
     alwaysRun: false,
@@ -262,7 +266,7 @@ describe('Client Routes should', () => {
       paramsCount: 0,
       paramNames: [],
       pointer: ['last'],
-      options: defaultMiddleFnOpts,
+      options: {...defaultMiddleFnOpts},
     },
   } satisfies MethodsCache;
 

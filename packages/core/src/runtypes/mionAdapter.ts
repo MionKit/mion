@@ -92,6 +92,9 @@ export interface RtMethodReflection {
   returnJitHash: string;
   hasReturnData: boolean;
   isAsync: boolean;
+  /** The build-time compact-JSON maximum of the params tuple / return value (see `jsonMaxBytes` on
+   *  RunType); undefined when the type has an unbounded part. */
+  paramsJsonMaxBytes?: number;
   headersParam?: RtHeadersReflection;
   headersReturn?: RtHeadersReflection;
 }
@@ -353,7 +356,8 @@ export function getReflectionFromMarkers(
   const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
   const returnTypeId = resolveInjectedTypeId(rtFns.returnId, `${methodId}#return`);
   const returnRunType = resolveInjectedRunType(rtFns.returnId);
-  const params = getParamsFromRunType(resolveInjectedRunType(rtFns.paramsId));
+  const paramsRunType = resolveInjectedRunType(rtFns.paramsId);
+  const params = getParamsFromRunType(paramsRunType);
   const paramsArity = params.length;
   const paramsJitFns = buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`);
   const returnJitFns = buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`);
@@ -367,6 +371,9 @@ export function getReflectionFromMarkers(
     hasReturnData: runTypeHasData(returnRunType),
     isAsync: resolveIsAsync(rtFns.isAsyncId, handler),
   };
+  // the size maxima ride the reflection ROOT rows the markers already inject, so this is one
+  // property read per direction and no walk at runtime
+  if (typeof paramsRunType?.jsonMaxBytes === 'number') reflection.paramsJsonMaxBytes = paramsRunType.jsonMaxBytes;
   // any handler returning a HeadersSubset (directly or in a union) sets response headers:
   // expose the declared names + validation fns so dispatch can apply/validate them
   const returnHeaderNames = getHeaderNamesFromRunType(returnRunType);
