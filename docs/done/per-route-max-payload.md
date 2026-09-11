@@ -56,8 +56,9 @@ each answer.
   is the two steps in one. Node checks `content-length` and the chunk loop against the context's
   number and destroys the stream;
   uws passes it to `collectBody`; bun, cloudflare and vercel read the fetch-style body through
-  `readBodyWithin` (core), which refuses a declared `content-length` over the limit before a byte
-  is read and cancels a streamed body mid-flight the moment the running byte count passes it (bun
+  the router's `readRequestBody`, which refuses a declared `content-length` over the limit before a
+  byte is read and, where the runtime streams, cancels a streamed body mid-flight the moment the
+  running byte count passes it (bun
   also sizes its one server-wide native limit to the largest route limit at start); aws and gcloud
   receive an already assembled body from the platform, so only the router's check before parsing
   applies there. Batches sum their member routes' limits plus the envelope on the entry.
