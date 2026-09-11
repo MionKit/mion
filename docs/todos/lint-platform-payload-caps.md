@@ -42,5 +42,8 @@ The implementer plans the details. What was checked:
   counted), AWS Lambda 6 MB buffered and 200 MB streamed, Google 10 MB on 1st gen and 32 MB on 2nd
   gen (10 MB streamed), Cloudflare and the self-hosted runtimes none. The response numbers live
   nowhere in the code today; this doc is their home until the diagnostic ships.
+- **Severity level.** The Go catalog has Error, RuntimeError and Warning; these findings never
+  affect the build, so decide whether a fourth, lint-only level is warranted before adding the
+  first of them (see `packages/devtools/src/lint/CLAUDE.md`).
 - **Docs**: the linter page lists the new rule names; the security page's ceilings table can grow a
   response column back once the response diagnostic exists.

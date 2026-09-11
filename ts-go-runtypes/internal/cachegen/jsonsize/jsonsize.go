@@ -65,15 +65,32 @@ type Result struct {
 
 // MaxBytes walks rt and returns its Result. refTable resolves KindRef child
 // sentinels (the session cache, or the dump's node index).
+//
+// This is a per-kind descent, not reflection.WalkGraph: the JSON size of a
+// node is a function of its kind and of the slots that reach the wire (a
+// property's Child, a tuple's Children, a Map's key / value Arguments), so
+// each arm reads exactly those slots and every other slot (Parameters,
+// Return, TypeMeta, the union discriminators, Extends / Implements) is
+// deliberately not sized. The guard against a forgotten slot is
+// TestMaxBytes_VisitsEveryWireSlot, which pins that on a bounded graph the
+// walk reaches every node WalkGraph reaches; a kind with no arm is never
+// claimed bounded (the default arm).
 func MaxBytes(rt *reflection.RunType, refTable map[string]*reflection.RunType) Result {
-	walker := &walker{refTable: refTable, memo: map[string]Result{}, inflight: map[string]bool{}}
+	walker := newWalker(refTable)
 	return walker.walk(rt, "", 0)
+}
+
+func newWalker(refTable map[string]*reflection.RunType) *walker {
+	return &walker{refTable: refTable, memo: map[string]Result{}, inflight: map[string]bool{}, visited: map[string]bool{}}
 }
 
 type walker struct {
 	refTable map[string]*reflection.RunType
 	memo     map[string]Result
 	inflight map[string]bool
+	// visited records every id-bearing node the walk sized, for the slot
+	// coverage test.
+	visited map[string]bool
 }
 
 func (w *walker) deref(rt *reflection.RunType) *reflection.RunType {
@@ -102,6 +119,7 @@ func (w *walker) walk(rt *reflection.RunType, path string, depth int) Result {
 		return unbounded(path, "nesting too deep")
 	}
 	if rt.ID != "" {
+		w.visited[rt.ID] = true
 		if cached, ok := w.memo[rt.ID]; ok {
 			return cached
 		}
@@ -373,7 +391,9 @@ func (w *walker) objectBytes(rt *reflection.RunType, path string, depth int) Res
 		if path == "" {
 			memberPath = member.Name
 		}
-		value := w.walk(member.Child, memberPath, depth+1)
+		// walked through the property node itself (its arm sizes the Child), so
+		// the property is memoized and counted as visited like every other node
+		value := w.walk(child, memberPath, depth+1)
 		if !value.Bounded {
 			return value
 		}

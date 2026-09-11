@@ -135,47 +135,8 @@ export function setPlatformConfig(config: Record<string, unknown>): void {
   if (isRouterInitialized) applyMaxBodySizeCap();
 }
 
-/** The platform's own request ceiling the adapter published, in bytes; undefined means none. */
-function readMaxBodySizeCap(config: Record<string, unknown> | undefined): number | undefined {
-  const cap = config?.maxBodySizeCap;
-  return typeof cap === 'number' ? cap : undefined;
-}
-
-/** Nothing mion resolves passes the platform's own request ceiling: a route (or batch) limit, or
- *  the adapter's number, above it would promise a size the platform refuses before mion runs, so
- *  it is brought down to the ceiling. Applied once, when the adapter has published its config AND
- *  the routes are registered, whichever comes last. */
-function applyMaxBodySizeCap(): void {
-  const cap = readMaxBodySizeCap(platformConfig);
-  if (cap === undefined) return;
-  for (const chain of flatRouter.values()) {
-    if (chain.maxBodySize === undefined || chain.maxBodySize <= cap) continue;
-    chain.maxBodySize = cap;
-    const route = chain.methods[chain.routeIndex];
-    if (route.options.maxBodySize !== undefined) route.options.maxBodySize = cap;
-  }
-  capBatchBodySizes(cap);
-}
-
 /** Returns the platform adapter config set by setPlatformConfig(). */
 export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
-
-/** The request limit a route takes when its own option is unset and its types cannot say: the
- *  platform adapter's `maxBodySize`, published with its config when the server starts, else the
- *  shared default (a router driven with no adapter, as in tests). */
-export const getPlatformMaxBodySize = (): number => platformMaxBodySize;
-
-/** The platform's own request ceiling, when the adapter published one. */
-export const getPlatformRequestCap = (): number | undefined => readMaxBodySizeCap(platformConfig);
-
-/** The largest request limit any registered route or batch resolves to: what a platform with ONE
- *  native, server-wide read limit (bun) sets that limit to at start, so it never refuses a body a
- *  route allows. */
-export function getMaxRouteBodySize(): number {
-  let largest = getPlatformMaxBodySize();
-  for (const chain of flatRouter.values()) largest = Math.max(largest, chain.maxBodySize ?? getPlatformMaxBodySize());
-  return Math.max(largest, getMaxBatchBodySize());
-}
 
 export const resetRouter = () => {
   flatRouter.clear();
@@ -709,4 +670,45 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
 /** Path replacement as is not available in edge runtime */
 function joinPath(...parts: string[]): string {
   return parts.filter(Boolean).join('/');
+}
+
+// ############# PLATFORM SIZE LIMITS #############
+
+/** The request limit a route takes when its own option is unset and its types cannot say: the
+ *  platform adapter's `maxBodySize`, published with its config when the server starts, else the
+ *  shared default (a router driven with no adapter, as in tests). */
+export const getPlatformMaxBodySize = (): number => platformMaxBodySize;
+
+/** The platform's own request ceiling, when the adapter published one. */
+export const getPlatformRequestCap = (): number | undefined => readMaxBodySizeCap(platformConfig);
+
+/** The largest request limit any registered route or batch resolves to: what a platform with ONE
+ *  native, server-wide read limit (bun) sets that limit to at start, so it never refuses a body a
+ *  route allows. */
+export function getMaxRouteBodySize(): number {
+  let largest = getPlatformMaxBodySize();
+  for (const chain of flatRouter.values()) largest = Math.max(largest, chain.maxBodySize ?? getPlatformMaxBodySize());
+  return Math.max(largest, getMaxBatchBodySize());
+}
+
+/** The platform's own request ceiling the adapter published, in bytes; undefined means none. */
+function readMaxBodySizeCap(config: Record<string, unknown> | undefined): number | undefined {
+  const cap = config?.maxBodySizeCap;
+  return typeof cap === 'number' ? cap : undefined;
+}
+
+/** Nothing mion resolves passes the platform's own request ceiling: a route (or batch) limit, or
+ *  the adapter's number, above it would promise a size the platform refuses before mion runs, so
+ *  it is brought down to the ceiling. Applied once, when the adapter has published its config AND
+ *  the routes are registered, whichever comes last. */
+function applyMaxBodySizeCap(): void {
+  const cap = readMaxBodySizeCap(platformConfig);
+  if (cap === undefined) return;
+  for (const chain of flatRouter.values()) {
+    if (chain.maxBodySize === undefined || chain.maxBodySize <= cap) continue;
+    chain.maxBodySize = cap;
+    const route = chain.methods[chain.routeIndex];
+    if (route.options.maxBodySize !== undefined) route.options.maxBodySize = cap;
+  }
+  capBatchBodySizes(cap);
 }
