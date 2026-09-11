@@ -41,6 +41,8 @@ export const MION_ROUTES = {
   platformError: 'mion@platformError',
   /** not-found route. This route is called when a requested route doesn't exist */
   notFound: 'mion@notFound',
+  /** not-found route for a batch request whose id names no registered batch */
+  batchNotFound: 'mion@batchNotFound',
   /**
    * !IMPORTANT!!
    * This is technically not a route, but a special key used to store unexpected errors in the response body.
