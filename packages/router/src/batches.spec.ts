@@ -8,7 +8,7 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, setPlatformConfig} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
-import {resolveRequest} from './callContext.ts';
+import {createCallContext} from './callContext.ts';
 import {MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {
@@ -595,7 +595,9 @@ describe('batches', () => {
       registerBatches({one: {routes: ['echo']}});
       const entry = getBatch('one')!;
       expect(entry.maxBodySize).toBeUndefined();
-      expect(resolveRequest(MION_BATCH_PATH, 'id=one', {}).maxBodySize).toBe(64 + 2);
+      expect(createCallContext(MION_BATCH_PATH, 'id=one', {}, headersFromRecord({}), headersFromRecord({})).maxBodySize).toBe(
+        64 + 2
+      );
       expect(entry.maxBodySize).toBe(64 + 2);
     });
 
@@ -604,7 +606,9 @@ describe('batches', () => {
       mion.initRoutes({echo, capped});
       setPlatformConfig({maxBodySize: 64});
       registerBatches({two: {routes: ['echo', 'capped']}});
-      expect(resolveRequest(MION_BATCH_PATH, 'id=two', {}).maxBodySize).toBe(64 + 10 + 2);
+      expect(createCallContext(MION_BATCH_PATH, 'id=two', {}, headersFromRecord({}), headersFromRecord({})).maxBodySize).toBe(
+        64 + 10 + 2
+      );
     });
 
     it('resolveBatchMaxBodySize keeps the limit once fixed', async () => {

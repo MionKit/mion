@@ -6,44 +6,42 @@
  * ######## */
 
 import {getRouteExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
-import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult, ResolvedRequest} from './types/context.ts';
+import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH, getRoutePath} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
 
-// ############# REQUEST RESOLUTION #############
-
-/**
- * Resolves a request from what an adapter has BEFORE the body: the path, the query string and the
- * raw request (`pathTransform` may read it). One Map lookup gives the execution chain AND the
- * request limit: the route's own option, else the number its types derived at registration, else
- * the platform adapter's `maxBodySize`. The adapter reads the body against `maxBodySize` (node
- * stops the stream, uws stops the native read) and hands the same handle to `dispatchResolved`, so
- * nothing is looked up twice. An unknown path resolves to the not-found chain; an unknown batch id
- * throws a FatalError.
- */
-export function resolveRequest(path: string, urlQuery: string | undefined, rawRequest: unknown): ResolvedRequest {
-  const opts = getRouterOptions();
-  const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-  const resolved = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts) as ResolvedRequest;
-  resolved.path = transformedPath;
-  resolved.urlQuery = urlQuery;
-  return resolved;
-}
-
 // ############# CONTEXT CREATION #############
 
-/** Creates the CallContext for one request from its resolved handle */
+/**
+ * Builds the CallContext for one request. One route lookup gives the execution chain and
+ * `maxBodySize` (the route's own option, else the number its types derived at registration, else
+ * the platform adapter's). A streaming adapter calls this BEFORE the body, reads against
+ * `context.maxBodySize` (node stops the stream, uws the native read, bun / cloudflare / vercel
+ * cancel it), then hands the body to `dispatchWithContext`; a caller that already has the body
+ * passes it here. An unknown path resolves to the not-found chain; an unknown batch id throws a
+ * FatalError.
+ */
 export function createCallContext(
-  resolved: ResolvedRequest,
-  opts: RouterOptions,
-  reqRawBody: RawRequestBody,
+  path: string,
+  urlQuery: string | undefined,
+  rawRequest: unknown,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
+  reqRawBody?: RawRequestBody,
   reqBodyType?: SerializerCode
 ): CallContext {
+  const opts = getRouterOptions();
+  const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
+  const {executionChain, maxBodySize, batchId, batchRouteIds} = getExecutionChain(
+    path,
+    transformedPath,
+    urlQuery,
+    rawRequest,
+    opts
+  );
   return {
-    path: resolved.path,
+    path: transformedPath,
     request: {
       headers: reqHeaders,
       rawBody: reqRawBody,
@@ -60,18 +58,20 @@ export function createCallContext(
       rawBody: '',
       serializer: SerializerModes.json,
     },
-    executionChain: resolved.executionChain,
-    maxBodySize: resolved.maxBodySize,
+    executionChain,
+    maxBodySize,
     shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
-    urlQuery: resolved.urlQuery,
-    batchId: resolved.batchId,
-    batchRouteIds: resolved.batchRouteIds,
+    urlQuery,
+    batchId,
+    batchRouteIds,
   } as CallContext;
 }
 
 // ############# HELPER FUNCTIONS #############
 
-function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
+/** The wire form of a body: a string is stringified JSON, anything else a parsed object. A body
+ *  not yet read (a context built before it) reads as an object until the body arrives. */
+export function getRequestBodyType(rawBody: RawRequestBody | undefined): SerializerCode {
   if (typeof rawBody === 'string') return SerializerModes.stringifyJson;
   if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array)
     throw new Error('mion: a byte request body has no encoder; send the body as a JSON string or a parsed object.');

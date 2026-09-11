@@ -48,10 +48,13 @@ each answer.
   unbounded route when the metadata is read). A middleFn's `maxBodySize` is its own contribution;
   the metadata middleFn in every chain declares 4 KB so its unbounded `string[]` does not send
   every chain to the adapter's number.
-- **One lookup per request.** `resolveRequest(path, urlQuery, rawRequest)` returns the chain and
-  the limit (the chain's number, else the adapter's) from the one Map lookup, before the body;
-  `dispatchResolved(resolved, …)` runs it. `dispatchRoute(path, …)` keeps its signature. Node
-  checks `content-length` and the chunk loop against the resolved number and destroys the stream;
+- **One lookup per request.** A streaming adapter builds the real `CallContext` BEFORE the body
+  (`createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders)`, the one Map lookup),
+  reads the body against `context.maxBodySize` (the chain's number, else the adapter's), then
+  `dispatchWithContext(context, rawRequest, rawResponse, rawBody, bodyType)` attaches the body and
+  runs the chain. `dispatchRoute(path, …)` keeps its signature for a caller that has the body and
+  is the two steps in one. Node checks `content-length` and the chunk loop against the context's
+  number and destroys the stream;
   uws passes it to `collectBody`; bun, cloudflare and vercel read the fetch-style body through
   `readBodyWithin` (core), which refuses a declared `content-length` over the limit before a byte
   is read and cancels a streamed body mid-flight the moment the running byte count passes it (bun

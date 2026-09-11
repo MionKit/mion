@@ -65,7 +65,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
   (context.request as Mutable<MionRequest>).body = parsedBody;
 }
 
-/** The router-level check of the request limit `resolveRequest` settled for this request (the
+/** The router-level check of the request limit the context carries for this request (the
  *  chain's own number, capped by the platform's). The node / uws adapters already stopped the
  *  read at the same number; this is what holds on a platform that hands the body over whole. A
  *  string body is measured in UTF-16 code units, which is never more than its byte length, so the

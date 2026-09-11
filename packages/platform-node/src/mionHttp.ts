@@ -6,14 +6,14 @@
  * ######## */
 
 import {
-  dispatchResolved,
-  resolveRequest,
+  dispatchWithContext,
+  createCallContext,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
 } from '@mionjs/router';
-import type {ResolvedRequest} from '@mionjs/router';
+import type {CallContext} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
@@ -117,13 +117,13 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const reqHeaders = headersFromIncomingMessage(httpReq);
   const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
 
-  // The route is resolved BEFORE the body: one lookup gives the chain and the request limit the
+  // The context is built BEFORE the body: one lookup gives the chain and the request limit the
   // route settled at registration, so the read below stops at the route's own number and the same
-  // handle goes to the dispatch. A throw here (an unknown batch id, a throwing pathTransform) is
+  // context goes to the dispatch. A throw here (an unknown batch id, a throwing pathTransform) is
   // answered like a too-large body: before a byte is buffered, with the stream destroyed.
-  let resolved: ResolvedRequest;
+  let context: CallContext;
   try {
-    resolved = resolveRequest(path, urlQuery, httpReq);
+    context = createCallContext(path, urlQuery, httpReq, reqHeaders, respHeaders);
   } catch (e) {
     replied = true;
     fatalFail(httpResponse, respHeaders, toRpcError(e));
@@ -132,7 +132,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   }
   // read once per request rather than per chunk: the route's own number, or the adapter's option
   // for a route whose types could not say
-  const maxBodySize = resolved.maxBodySize;
+  const maxBodySize = context.maxBodySize;
 
   // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
   // one, and on the running size before each chunk is kept. The request stream is then destroyed so
@@ -185,15 +185,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
-      const mionResponse = await dispatchResolved(
-        resolved,
-        reqRawBody,
-        reqHeaders,
-        respHeaders,
-        httpReq,
-        httpResponse,
-        reqBodyType
-      );
+      const mionResponse = await dispatchWithContext(context, httpReq, httpResponse, reqRawBody, reqBodyType);
       if (replied || httpResponse.writableEnded) return;
       replied = true;
       reply(httpResponse, mionResponse);
