@@ -213,7 +213,7 @@ export const AREAS = {
           {
             name: 'aggregate',
             summary: 'aggregate recorded runs',
-            flags: [['--compare <before> <after>', 'print the change between two results dirs, lane by lane']],
+            flags: [['--compare <before after>', 'print the change between two results dirs (before, after), lane by lane']],
             ...noBuild,
           },
           {name: 'shell', summary: 'debug shell inside the mion-bench container'},
