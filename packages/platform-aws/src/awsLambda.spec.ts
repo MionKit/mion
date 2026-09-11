@@ -49,14 +49,20 @@ describe('serverless router', () => {
     context.response.headers.set('server', 'my-server');
   });
 
-  const getDefaultGatewayEvent = (body: string, path: string, httpMethod = 'POST', headers: APIGatewayProxyEventHeaders = {}) => {
+  const getDefaultGatewayEvent = (
+    body: string,
+    path: string,
+    httpMethod = 'POST',
+    headers: APIGatewayProxyEventHeaders = {},
+    isBase64Encoded = false
+  ) => {
     const context = {} as any;
     const event = createEvent('aws:apiGateway', {
       body,
       headers,
       multiValueHeaders: {},
       httpMethod,
-      isBase64Encoded: false,
+      isBase64Encoded,
       path,
       pathParameters: null,
       queryStringParameters: null,
@@ -150,6 +156,91 @@ describe('serverless router', () => {
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       // expect(headers['content-length']).toEqual('47'); // AWS manages content-length automatically
       expect(headers['server']).toEqual('@mionjs');
+
+      // Restore router state for subsequent tests
+      resetAwsLambdaOpts();
+      resetRouter();
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
+    });
+  });
+
+  describe('with a base64 encoded body (isBase64Encoded: true)', () => {
+    const toBase64 = (text: string) => Buffer.from(text).toString('base64');
+    const getBase64GatewayEvent = (body: string, path: string) => getDefaultGatewayEvent(toBase64(body), path, 'POST', {}, true);
+
+    beforeAll(async () => {
+      resetAwsLambdaOpts();
+      resetRouter();
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
+    });
+
+    it('serves a base64 encoded event exactly like its plain twin', async () => {
+      const requestData = JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]});
+      const plain = getDefaultGatewayEvent(requestData, '/api/changeUserName');
+      const encoded = getBase64GatewayEvent(requestData, '/api/changeUserName');
+      expect(encoded.event.body).not.toEqual(plain.event.body);
+
+      const plainResponse = await awsLambdaHandler(plain.event, plain.context);
+      const encodedResponse = await awsLambdaHandler(encoded.event, encoded.context);
+
+      expect(encodedResponse).toEqual(plainResponse);
+      expect(JSON.parse(encodedResponse.body)).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
+      expect(encodedResponse.isBase64Encoded).toBeUndefined();
+    });
+
+    it('serves a base64 encoded event with Date objects like its plain twin', async () => {
+      const requestData = JSON.stringify({getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]});
+      const plain = getDefaultGatewayEvent(requestData, '/api/getDate');
+      const encoded = getBase64GatewayEvent(requestData, '/api/getDate');
+
+      const plainResponse = await awsLambdaHandler(plain.event, plain.context);
+      const encodedResponse = await awsLambdaHandler(encoded.event, encoded.context);
+
+      expect(encodedResponse).toEqual(plainResponse);
+      expect(JSON.parse(encodedResponse.body)).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+    });
+
+    it('leaves a plain body alone when isBase64Encoded is false', async () => {
+      const requestData = JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]});
+      const {event, context} = getDefaultGatewayEvent(requestData, '/api/changeUserName', 'POST', {}, false);
+
+      const awsResponse = await awsLambdaHandler(event, context);
+
+      expect(JSON.parse(awsResponse.body)).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
+    });
+
+    it('answers a base64 body that is not JSON with the parse error, never a crash', async () => {
+      const {event, context} = getBase64GatewayEvent('not json at all', '/api/changeUserName');
+
+      const awsResponse = await awsLambdaHandler(event, context);
+      const parsedResponse = JSON.parse(awsResponse.body);
+
+      expect(awsResponse.statusCode).toEqual(StatusCodes.UNEXPECTED_ERROR);
+      expect(parsedResponse[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toEqual('parsing-json-request-error');
+    });
+
+    it('a decoded body over maxBodySize is a 413', async () => {
+      resetAwsLambdaOpts();
+      resetRouter();
+      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', maxBodySize: 50}).initRoutes({changeUserName});
+      const requestData = JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]});
+      expect(requestData.length).toBeGreaterThan(50);
+      const {event, context} = getBase64GatewayEvent(requestData, '/api/changeUserName');
+
+      const awsResponse = await awsLambdaHandler(event, context);
+      const parsedResponse = JSON.parse(awsResponse.body);
+
+      expect(awsResponse.statusCode).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(parsedResponse[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toEqual('request-payload-too-large');
+
+      // the limit measures the decoded text: a short body whose base64 form is over the limit is served
+      const shortData = JSON.stringify({changeUserName: [{name: 'J', surname: 'D'}]});
+      expect(shortData.length).toBeLessThanOrEqual(50);
+      expect(toBase64(shortData).length).toBeGreaterThan(50);
+      const short = getBase64GatewayEvent(shortData, '/api/changeUserName');
+      const shortResponse = await awsLambdaHandler(short.event, short.context);
+      expect(shortResponse.statusCode).toEqual(StatusCodes.OK);
+      expect(JSON.parse(shortResponse.body)).toEqual({changeUserName: {name: 'NewName', surname: 'D'}});
 
       // Restore router state for subsequent tests
       resetAwsLambdaOpts();
