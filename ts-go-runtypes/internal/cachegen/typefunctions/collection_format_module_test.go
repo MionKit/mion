@@ -58,3 +58,43 @@ func renderErrorsToString(t *testing.T, dump protocol.Dump) string {
 	t.Helper()
 	return joinEntries(t, FamilyByKey("validationErrors").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
 }
+
+// containsSetDump is a `FormattedSet<Set<unknown>, {contains: number;
+// minContains: 1; maxContains: 2}>`: the contains check rides the class
+// node's Contains slot, no brand params at all.
+func containsSetDump() protocol.Dump {
+	item := &reflection.RunType{ID: "si", Kind: reflection.KindParameter, SubKind: reflection.SubKindSetItem, Name: "item",
+		Child: &reflection.RunType{ID: "unk", Kind: reflection.KindUnknown}}
+	set := &reflection.RunType{ID: "set", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, TypeName: "Set",
+		Arguments:    []*reflection.RunType{item},
+		SchemaChecks: reflection.SchemaChecks{Contains: []*reflection.ContainsCheck{{Child: &reflection.RunType{ID: "num", Kind: reflection.KindNumber}, Min: 1, Max: 2}}}}
+	return protocol.Dump{RunTypes: []*reflection.RunType{set}}
+}
+
+// TestCollectionFormat_ContainsIteratesASetWithForOf — a Set is not
+// indexable, so the contains count walks it with `for…of` (the array loop
+// stays an index loop) and the errors lane reports the `set` kind word.
+func TestCollectionFormat_ContainsIteratesASetWithForOf(t *testing.T) {
+	validate := renderToString(t, containsSetDump())
+	for _, fragment := range []string{
+		"for (const ci0 of v) {if (Number.isFinite(ci0)) cn0++;}",
+		"return (cn0 >= 1 && cn0 <= 2);",
+	} {
+		if !strings.Contains(validate, fragment) {
+			t.Errorf("validate: expected fragment %q in:\n%s", fragment, validate)
+		}
+	}
+	if strings.Contains(validate, "v.length") || strings.Contains(validate, "v[ci0]") {
+		t.Errorf("validate: a Set must not be indexed:\n%s", validate)
+	}
+	errors := renderErrorsToString(t, containsSetDump())
+	for _, fragment := range []string{
+		"for (const ci0 of v) {",
+		"er.push({expected:'set',path:[...pth],format:{name:'contains',formatPath:['minContains'],val:1}})",
+		"er.push({expected:'set',path:[...pth],format:{name:'contains',formatPath:['maxContains'],val:2}})",
+	} {
+		if !strings.Contains(errors, fragment) {
+			t.Errorf("errors: expected fragment %q in:\n%s", fragment, errors)
+		}
+	}
+}

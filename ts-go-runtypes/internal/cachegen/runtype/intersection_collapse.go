@@ -149,11 +149,16 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 	// recognised builtin-class member alongside a brand member, project the
 	// class, and lift the annotation — the same shape a bare `Date` node
 	// gets, plus the FormatAnnotation a string format gets.
-	if classMember, annotation := splitBuiltinClassBrand(cache.typeChecker, objectMembers); classMember != nil && annotation != nil {
+	if classMember, annotation, containsSpecs := splitBuiltinClassBrand(cache.typeChecker, objectMembers); classMember != nil && (annotation != nil || len(containsSpecs) > 0) {
 		// Reuse the standalone-Date class projector so SubKind / ClassRef /
-		// classType wiring stay identical, then lift the brand on top.
+		// classType wiring stay identical, then lift the brand on top. A
+		// `contains` slot on a Set base (FormattedSet) rides the class node
+		// exactly as it rides an array node below.
 		cache.projectClass(classMember, node)
 		node.FormatAnnotation = annotation
+		for _, spec := range containsSpecs {
+			node.Contains = append(node.Contains, &reflection.ContainsCheck{Child: cache.Serialize(spec.child), Min: spec.minCount, Max: spec.maxCount})
+		}
 		return
 	}
 
@@ -420,30 +425,44 @@ func (cache *Cache) projectPrimitiveInto(tsType *checker.Type, node *reflection.
 // matches the class projector so future builtin formats slot in.
 var builtinClassNames = map[string]bool{"Date": true, "Map": true, "Set": true, "RegExp": true}
 
+// containsSpec is one `__rtContains` sentinel member read off a builtin-class
+// intersection, before its child is serialized.
+type containsSpec struct {
+	child              *checker.Type
+	minCount, maxCount float64
+}
+
 // splitBuiltinClassBrand inspects the object members of an intersection
 // for the `Builtin & {brand}` shape: exactly one member is a recognised
-// builtin class (by symbol name) and exactly one carries a TypeFormat
-// brand. Returns (classMember, annotation) when both are present, else
-// (nil, nil) so the caller falls back to the normal object merge.
-func splitBuiltinClassBrand(typeChecker *checker.Checker, objectMembers []*checker.Type) (*checker.Type, *reflection.FormatAnnotation) {
+// builtin class (by symbol name), at most one carries a TypeFormat brand,
+// and any number carry a `__rtContains` sentinel (a FormattedSet's
+// `contains` slot). Returns the class member, the annotation (nil when the
+// class carries only contains slots) and the contains specs; a nil class
+// member sends the caller to the normal object merge.
+func splitBuiltinClassBrand(typeChecker *checker.Checker, objectMembers []*checker.Type) (*checker.Type, *reflection.FormatAnnotation, []containsSpec) {
 	var classMember *checker.Type
 	var annotation *reflection.FormatAnnotation
+	var containsSpecs []containsSpec
 	for _, member := range objectMembers {
 		if found := typeid.FormatAnnotationFromType(typeChecker, member); found != nil {
 			if annotation != nil {
-				return nil, nil // two brands — not the shape we handle
+				return nil, nil, nil // two brands — not the shape we handle
 			}
 			annotation = found
 			continue
 		}
+		if childType, minCount, maxCount, ok := typeid.ContainsSpecFromMember(typeChecker, member); ok {
+			containsSpecs = append(containsSpecs, containsSpec{child: childType, minCount: minCount, maxCount: maxCount})
+			continue
+		}
 		if isBuiltinClassMember(member) {
 			if classMember != nil {
-				return nil, nil // two builtin classes — ambiguous
+				return nil, nil, nil // two builtin classes — ambiguous
 			}
 			classMember = member
 		}
 	}
-	return classMember, annotation
+	return classMember, annotation, containsSpecs
 }
 
 // isBuiltinClassMember reports whether member is a brandable builtin class —

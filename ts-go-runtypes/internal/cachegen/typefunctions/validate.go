@@ -263,7 +263,7 @@ func (e ValidateEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expected
 		}
 		code := base.Code
 		for _, containsCheck := range rt.Contains {
-			check := emitContainsCount(ctx, containsCheck)
+			check := emitContainsCount(ctx, rt, containsCheck)
 			if code == "" || code == "true" {
 				code = check
 			} else {
@@ -315,7 +315,7 @@ func (e ValidateEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expected
 // bounded). The child compiles through CompileChild with an element
 // accessor, so heavy children arrive as call expressions exactly like
 // union arms and negation children.
-func emitContainsCount(ctx *EmitContext, containsCheck *reflection.ContainsCheck) string {
+func emitContainsCount(ctx *EmitContext, rt *reflection.RunType, containsCheck *reflection.ContainsCheck) string {
 	boundsOver := func(countExpr string) string {
 		conditions := []string{countExpr + " >= " + formats.FormatNumber(containsCheck.Min)}
 		if containsCheck.Max >= 0 {
@@ -326,19 +326,46 @@ func emitContainsCount(ctx *EmitContext, containsCheck *reflection.ContainsCheck
 	if ctx.ResolveRef(containsCheck.Child) == nil {
 		panic("validate: unresolvable contains child — dropping it would silently weaken validation")
 	}
-	iVar := ctx.NextLocalVar("ci")
-	ctx.SetChildAccessor(ctx.Vλl + "[" + iVar + "]")
+	loop := containsLoop(ctx, rt)
+	ctx.SetChildAccessor(loop.itemExpr)
 	childRT := ctx.CompileChild(containsCheck.Child, CodeE)
 	ctx.SetChildAccessor("")
 	if childRT.Type != CodeE {
 		panic("validate: contains child did not compile to a boolean expression — dropping it would silently weaken validation")
 	}
 	if childRT.Code == "" {
-		return boundsOver(ctx.Vλl + ".length")
+		return boundsOver(loop.countExpr)
 	}
 	nVar := ctx.NextLocalVar("cn")
-	return "((() => {let " + nVar + " = 0;for (let " + iVar + " = 0; " + iVar + " < " + ctx.Vλl + ".length; " + iVar + "++) {if (" +
+	return "((() => {let " + nVar + " = 0;" + loop.head + "{if (" +
 		childRT.Code + ") " + nVar + "++;}return " + boundsOver(nVar) + ";})())"
+}
+
+// containsIteration is how a contains check walks its base: an index loop
+// over an array / tuple, a `for…of` over a Set (FormattedSet). `head` is the
+// loop statement head, `itemExpr` the child accessor inside it, `countExpr`
+// the whole-collection count an any/unknown child resolves to, and
+// `expected` the base kind word the errors lane reports.
+type containsIteration struct {
+	head, itemExpr, countExpr, expected string
+}
+
+func containsLoop(ctx *EmitContext, rt *reflection.RunType) containsIteration {
+	iVar := ctx.NextLocalVar("ci")
+	if rt != nil && rt.Kind == reflection.KindClass && rt.SubKind == reflection.SubKindSet {
+		return containsIteration{
+			head:      "for (const " + iVar + " of " + ctx.Vλl + ") ",
+			itemExpr:  iVar,
+			countExpr: ctx.Vλl + ".size",
+			expected:  "set",
+		}
+	}
+	return containsIteration{
+		head:      "for (let " + iVar + " = 0; " + iVar + " < " + ctx.Vλl + ".length; " + iVar + "++) ",
+		itemExpr:  ctx.Vλl + "[" + iVar + "]",
+		countExpr: ctx.Vλl + ".length",
+		expected:  "array",
+	}
 }
 
 // emitPatternPropCheck: keys matching the entry's source must have values
