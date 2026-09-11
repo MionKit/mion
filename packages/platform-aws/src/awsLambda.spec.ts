@@ -222,7 +222,9 @@ describe('serverless router', () => {
     it('a decoded body over maxBodySize is a 413', async () => {
       resetAwsLambdaOpts();
       resetRouter();
-      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/', maxBodySize: 50}).initRoutes({changeUserName});
+      // `changeUserName` takes a plain SimpleUser (unbounded strings), so the adapter's number applies
+      setAwsLambdaOpts({maxBodySize: 50});
+      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'}).initRoutes({changeUserName});
       const requestData = JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]});
       expect(requestData.length).toBeGreaterThan(50);
       const {event, context} = getBase64GatewayEvent(requestData, '/api/changeUserName');
