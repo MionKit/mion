@@ -19,8 +19,8 @@ import {getBatchExecutionChain} from './batches.ts';
  * the platform adapter's). A streaming adapter calls this BEFORE the body, reads against
  * `context.maxBodySize` (node stops the stream, uws the native read, bun / cloudflare / vercel
  * cancel it), then hands the body to `dispatchWithContext`; a caller that already has the body
- * passes it here. An unknown path resolves to the not-found chain; an unknown batch id throws a
- * FatalError.
+ * passes it here. An unknown path or an unknown batch id resolves to a not-found chain that
+ * never reads the body (`readsBody` false) but still runs the global middleFns.
  */
 export function createCallContext(
   path: string,
@@ -60,6 +60,7 @@ export function createCallContext(
     },
     executionChain,
     maxBodySize,
+    readsBody: executionChain.readsBody,
     shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
     urlQuery,
     batchId,
@@ -90,20 +91,24 @@ function getExecutionChain(
   // Batch endpoint: the original path ends with the batch key, under any prefix
   // (/mion-batch, /api/v1/mion-batch). The chain is resolved by the id in the query string.
   const isBatchPath = hasPrefix ? originalPath.endsWith(MION_BATCH_PATH) : originalPath === MION_BATCH_PATH;
-  if (isBatchPath) return getBatchExecutionChain(rawRequest, opts, urlQuery);
+  if (isBatchPath) return getBatchExecutionChain(rawRequest, opts, urlQuery) ?? notFoundChain(MION_ROUTES.batchNotFound, opts);
 
   // Normal path - get execution chain from router using transformed path
-  let executionChain = getRouteExecutionChain(transformedPath);
+  const executionChain = getRouteExecutionChain(transformedPath);
+  if (!executionChain) return notFoundChain(MION_ROUTES.notFound, opts);
+  return {executionChain, maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize()};
+}
+
+/** One of mion's own not-found chains (an unknown path, an unknown batch id): registered by
+ *  initRouter, so its absence is a bug rather than a request error. */
+function notFoundChain(routeId: string, opts: RouterOptions): BatchExecutionResult {
+  const executionChain = getRouteExecutionChain(getRoutePath([routeId], opts));
   if (!executionChain) {
-    const notFoundPath = getRoutePath([MION_ROUTES.notFound], opts);
-    executionChain = getRouteExecutionChain(notFoundPath);
-    if (!executionChain) {
-      throw new FatalError({
-        statusCode: StatusCodes.UNEXPECTED_ERROR,
-        type: 'not-found',
-        publicMessage: 'Not-found route is not registered. This should never happen.',
-      });
-    }
+    throw new FatalError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      type: 'not-found',
+      publicMessage: 'Not-found route is not registered. This should never happen.',
+    });
   }
   return {executionChain, maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize()};
 }

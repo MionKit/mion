@@ -168,12 +168,12 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     return;
   }
 
-  const dispatchBody = (buffer: Buffer) => {
-    let reqRawBody: any = buffer.toString();
+  const dispatchBody = (buffer: Buffer | undefined) => {
+    let reqRawBody: any = buffer ? buffer.toString() : '';
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a throw here runs inside uWS' native callback (or a microtask): it must become a response
     try {
-      const queryBody = decodeQueryBody(urlQuery, reqRawBody || undefined);
+      const queryBody = buffer ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
       if (queryBody) {
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
@@ -201,6 +201,14 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
   // maxSize, which is exactly the maxBodySize contract. The size is the route's own resolved limit
   // (the adapter's option for a route whose types could not say).
+  // A not-found chain (an unknown path or batch id) has no route to feed: the body is consumed
+  // as it arrives and dropped (a no-op reader keeps the connection reusable), never assembled.
+  if (!context.readsBody) {
+    res.onData(() => {});
+    dispatchBody(undefined);
+    return;
+  }
+
   res.collectBody(context.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {

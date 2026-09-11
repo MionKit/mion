@@ -225,10 +225,10 @@ describe('security: batches', () => {
   it('an unknown id is refused before the body is parsed', async () => {
     mion.initRoutes({routeA});
     // a body that would fail to parse: the id check comes first, so the body is never read
-    await expect(dispatch(MION_BATCH_PATH, '{not json', 'id=unknown')).rejects.toMatchObject({
-      type: 'batch-unknown-id',
-      statusCode: StatusCodes.NOT_FOUND,
-    });
+    const response = await dispatch(MION_BATCH_PATH, '{not json', 'id=unknown');
+    expect(response.statusCode).toBe(StatusCodes.NOT_FOUND);
+    expect(thrownErrors(response)[MION_ROUTES.batchNotFound]).toMatchObject({type: 'batch-unknown-id'});
+    expect(thrownErrors(response)['mionDeserializeRequest']).toBeUndefined();
   });
 
   it.each([
@@ -241,29 +241,21 @@ describe('security: batches', () => {
   ])('a junk id (%s) is batch-unknown-id and keeps the engine text off the wire', async (_label, urlQuery) => {
     mion.initRoutes({routeA});
     registerBatches({real: {routes: ['routeA']}});
-    let caught: any;
-    try {
-      await dispatch(MION_BATCH_PATH, '{}', urlQuery);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toMatchObject({type: 'batch-unknown-id', statusCode: StatusCodes.NOT_FOUND});
-    for (const phrase of ENGINE_TEXT) expect(JSON.stringify(caught)).not.toMatch(phrase);
-    expect(JSON.stringify(caught)).not.toMatch(/URI malformed/);
+    const response = await dispatch(MION_BATCH_PATH, '{}', urlQuery);
+    expect(response.statusCode).toBe(StatusCodes.NOT_FOUND);
+    expect(thrownErrors(response)[MION_ROUTES.batchNotFound]).toMatchObject({type: 'batch-unknown-id'});
+    for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
+    expect(JSON.stringify(response.body)).not.toMatch(/URI malformed/);
   });
 
   it('the id is never echoed in the public message', async () => {
     mion.initRoutes({routeA});
     const id = 'secretTenantBatchId';
-    let caught: any;
-    try {
-      await dispatch(MION_BATCH_PATH, '{}', `id=${id}`);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toMatchObject({type: 'batch-unknown-id'});
-    expect(caught.publicMessage).not.toContain(id);
-    expect(JSON.stringify(caught)).not.toContain(id);
+    const response = await dispatch(MION_BATCH_PATH, '{}', `id=${id}`);
+    const error = thrownErrors(response)[MION_ROUTES.batchNotFound];
+    expect(error).toMatchObject({type: 'batch-unknown-id'});
+    expect(error.publicMessage).not.toContain(id);
+    expect(JSON.stringify(response.body)).not.toContain(id);
   });
 });
 
