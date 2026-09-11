@@ -29,6 +29,8 @@ const listHeaders = mion.route((ctx: CallContext): string[] => {
   ctx.response.headers.set('x-one', '1');
   return [...ctx.response.headers.entries()].map(([name, value]) => `${name}=${value}`);
 });
+// a per-route limit BELOW the adapter's cap: the read must stop at the route's own number
+const small = mion.route((ctx: CallContext, n: number): number => n, {maxBodySize: 40});
 
 /** One raw HTTP exchange: returns the status line and the body text, or 'closed' when the server
  *  hung up before answering. */
@@ -60,7 +62,7 @@ describe('node adapter hardening', () => {
   beforeAll(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    mion.initRoutes({echo, hasHeader, listHeaders});
+    mion.initRoutes({echo, hasHeader, listHeaders, small});
     setNodeHttpOpts({port, maxBodySize: MAX_BODY});
     server = await startNodeServer();
   });
@@ -109,6 +111,36 @@ describe('node adapter hardening', () => {
     );
     expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     expect(envelope(body)[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+  });
+
+  it('a declared content-length past the ROUTE limit is refused before a body byte is read, under the adapter cap', async () => {
+    const {status, body} = await rawRequest(
+      `POST /api/small HTTP/1.1\r\nHost: x\r\nContent-Length: 50\r\nContent-Type: application/json\r\n\r\n`,
+      '{"small":',
+      50
+    );
+    expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(envelope(body)[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+  });
+
+  it('a chunked body past the ROUTE limit is refused mid-stream, under the adapter cap', async () => {
+    const chunk = 'x'.repeat(25);
+    const chunked = `${chunk.length.toString(16)}\r\n${chunk}\r\n`;
+    const {status, body} = await rawRequest(
+      `POST /api/small HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\n\r\n`,
+      chunked + chunked + '0\r\n\r\n'
+    );
+    expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(envelope(body)[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+  });
+
+  it('a body at the route limit dispatches and one byte over is refused, both under the adapter cap', async () => {
+    const valid = '{"small":[7]}';
+    const atLimit = valid + ' '.repeat(40 - valid.length);
+    const ok = await fetch(`http://127.0.0.1:${port}/api/small`, {method: 'POST', body: atLimit});
+    expect(await ok.json()).toEqual({small: 7});
+    const over = await fetch(`http://127.0.0.1:${port}/api/small`, {method: 'POST', body: atLimit + ' '});
+    expect(over.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
   });
 
   it('a body inside the limit still dispatches', async () => {

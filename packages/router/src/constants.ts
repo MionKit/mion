@@ -25,8 +25,8 @@ export const DEFAULT_ROUTE_OPTIONS = {
   skipClientRoutes: IS_TEST_ENV,
   /** Every chain step is awaited by default, so the chain keeps yielding between steps */
   alwaysAwait: true,
-  /** Request body limit == 256KB by default */
-  maxBodySize: 256000,
+  /** A type-derived request limit is the JSON maximum times this factor */
+  maxBodySizeFactor: 2,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;

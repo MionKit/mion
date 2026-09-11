@@ -9,7 +9,7 @@
 // dispatchRoute in process. Every assertion here is a contract the sechttp fuzz lane also checks.
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {createMionRouter, resetRouter, getAllExecutablesIds} from './router.ts';
+import {createMionRouter, resetRouter, getAllExecutablesIds, setPlatformConfig} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
@@ -68,7 +68,8 @@ describe('security: request body', () => {
   });
 
   it('a body larger than maxBodySize is a 413 before anything is parsed', async () => {
-    createMionRouter({maxBodySize: 16}).initRoutes({echoUser});
+    mion.initRoutes({echoUser});
+    setPlatformConfig({maxBodySize: 16});
     const response = await dispatch('/echoUser', JSON.stringify({echoUser: [{name: 'Leo', surname: 'Tungsten'}]}));
     expect(response.statusCode).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     const error = thrownErrors(response)['mionDeserializeRequest'];
@@ -77,7 +78,8 @@ describe('security: request body', () => {
   });
 
   it('a body inside maxBodySize is dispatched', async () => {
-    createMionRouter({maxBodySize: 200}).initRoutes({echoUser});
+    mion.initRoutes({echoUser});
+    setPlatformConfig({maxBodySize: 200});
     const response = await dispatch('/echoUser', JSON.stringify({echoUser: [{name: 'Leo', surname: 'Tungsten'}]}));
     expect(response.hasErrors).toBe(false);
   });
@@ -92,7 +94,8 @@ describe('security: request body', () => {
   });
 
   it('a request nested deeper than the validator can walk is a typed error, not an unknown one', async () => {
-    createMionRouter({maxBodySize: 16_000_000}).initRoutes({echoTree});
+    mion.initRoutes({echoTree});
+    setPlatformConfig({maxBodySize: 16_000_000});
     const response = await dispatch('/echoTree', `{"echoTree":[${nested(200_000)}]}`);
     const error = thrownErrors(response)['echoTree'];
     expect(error.type).toBe('request-nesting-too-deep');
@@ -101,7 +104,8 @@ describe('security: request body', () => {
   });
 
   it('a request nested deeper than the decoder can walk is the same typed error', async () => {
-    createMionRouter({maxBodySize: 16_000_000}).initRoutes({echoDated});
+    mion.initRoutes({echoDated});
+    setPlatformConfig({maxBodySize: 16_000_000});
     const depth = 200_000;
     const body =
       '{"date":"2024-01-01T00:00:00.000Z","child":'.repeat(depth) + '{"date":"2024-01-01T00:00:00.000Z"}' + '}'.repeat(depth);

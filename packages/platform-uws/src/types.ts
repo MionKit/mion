@@ -21,6 +21,11 @@ export interface UwsHttpOptions {
    * 256KB by default, same as lambda payload
    * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
    * */
-  maxBodySize: number; // default 256KB
+  /** The request limit a route takes when its own option is unset and its types cannot say (128 KB by
+   *  default). A route's `maxBodySize` option always wins over it. */
+  maxBodySize: number;
+  /** The platform's own request ceiling in bytes, which no other option can raise; unset because this
+   *  platform has none. The router never resolves a limit above it when set. */
+  maxBodySizeCap?: number;
 }
 // type-uws-http-options-end

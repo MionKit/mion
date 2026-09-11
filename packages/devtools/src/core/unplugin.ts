@@ -178,6 +178,12 @@ export interface PluginOptions {
   // patterns whose candidates often miss the declared length bounds. The
   // canonical home is the tsconfig `patternSampleRetries` knob.
   patternSampleRetries?: number;
+  // Emit, on every reflection root whose type is fully bounded, the largest
+  // compact-JSON size a valid value can have (the row's `jsonMaxBytes`), which
+  // a framework turns into per-route request and response limits. On by
+  // default; `false` emits none, so a project that keeps its own limits pays
+  // nothing for them. Canonical home is the tsconfig `jsonMaxBytes` key.
+  jsonMaxBytes?: boolean;
   // Which packages are allowed to declare the marker types (InjectRunTypeId,
   // InjectTypeFnArgs, CompTimeArgs, PureFunction, …). Lets a library ship the
   // brands itself instead of depending on mion just for types.
@@ -508,6 +514,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ...(options.hashLength !== undefined ? {hashLength: options.hashLength} : {}),
       ...(options.patternSampleCount !== undefined ? {patternSampleCount: options.patternSampleCount} : {}),
       ...(options.patternSampleRetries !== undefined ? {patternSampleRetries: options.patternSampleRetries} : {}),
+      ...(options.jsonMaxBytes !== undefined ? {jsonMaxBytes: options.jsonMaxBytes} : {}),
       ...(options.markers?.packages?.length ? {markerPackages: options.markers.packages} : {}),
       ...(options.markers?.checkPackage === false ? {markerPackageCheck: false} : {}),
       ...(options.jsRuntime ? {jsRuntime: options.jsRuntime} : {}),

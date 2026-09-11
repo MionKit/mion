@@ -8,7 +8,8 @@
 import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
-  dispatchRoute,
+  dispatchResolved,
+  resolveRequest,
   getRouterFatalErrorResponse,
   headersFromRecord,
   resetRouter,
@@ -59,21 +60,15 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
   // Reconstruct query string from AWS parsed query parameters
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
   try {
+    // the body arrives whole with the event, so the route is resolved for its limit and its chain
+    // in one lookup and the router checks the size before parsing
+    const resolved = resolveRequest(rawRequest.path, urlQuery, rawRequest);
     const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
     if (queryBody) {
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const routeResponse = await dispatchRoute(
-      rawRequest.path,
-      rawBody,
-      reqHeaders,
-      respHeaders,
-      rawRequest,
-      awsContext,
-      reqBodyType,
-      urlQuery
-    );
+    const routeResponse = await dispatchResolved(resolved, rawBody, reqHeaders, respHeaders, rawRequest, awsContext, reqBodyType);
     return reply(routeResponse, respHeaders);
   } catch (err) {
     const error =

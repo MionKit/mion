@@ -72,6 +72,7 @@ Shared options (same meaning under every command):
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
+    --json-max-bytes=false      emit no compact-JSON maximum on reflection roots (per-route size limits off; default on)
     --pprof-cpu PATH / --pprof-heap PATH
     -h, --help          show help
     --version           print version (binary + pinned tsgo revision) and exit
@@ -138,6 +139,7 @@ type sharedFlags struct {
 	jsRuntime               string
 	pureFnReportWire        bool
 	pureFnReportFile        bool
+	jsonMaxBytes            bool
 	binarySizingBias        float64
 	binarySizingItems       int
 	binarySizingStringBytes int
@@ -176,6 +178,8 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"emit the structured build report (pure fns + request batches) ON THE WIRE (Response.pureFnSites / Response.batchSites) on generate/scan")
 	fs.BoolVar(&s.pureFnReportFile, "pure-fn-report-file", false,
 		"also write the whole-program reports as JSON to <genDir>/types/pure-fns-report.json and <genDir>/types/batches-report.json")
+	fs.BoolVar(&s.jsonMaxBytes, "json-max-bytes", true,
+		"emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none")
 	fs.Float64Var(&s.binarySizingBias, "binary-sizing-bias", constants.DefaultSizeBias,
 		"binary `dynamic` cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)")
 	fs.IntVar(&s.binarySizingItems, "binary-sizing-items", constants.DefaultSizeItems,
@@ -311,6 +315,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		moduleMode:              s.moduleMode,
 		pureFnReportWire:        s.pureFnReportWire,
 		pureFnReportFile:        s.pureFnReportFile,
+		jsonMaxBytes:            s.jsonMaxBytes,
 		binarySizingBias:        s.binarySizingBias,
 		binarySizingItems:       s.binarySizingItems,
 		binarySizingStringBytes: s.binarySizingStringBytes,
@@ -416,6 +421,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		JSEngine:             jsengine.NewSidecar(s.jsRuntime),
 		PureFnReportWire:     merged.pureFnReportWire,
 		PureFnReportFile:     merged.pureFnReportFile,
+		JSONMaxBytes:         merged.jsonMaxBytes,
 		SizeBias:             merged.binarySizingBias,
 		SizeItems:            merged.binarySizingItems,
 		SizeStringBytes:      merged.binarySizingStringBytes,

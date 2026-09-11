@@ -5,29 +5,45 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRouteExecutionChain} from './router.ts';
-import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
+import {getRouteExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
+import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult, ResolvedRequest} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH, getRoutePath} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
 
+// ############# REQUEST RESOLUTION #############
+
+/**
+ * Resolves a request from what an adapter has BEFORE the body: the path, the query string and the
+ * raw request (`pathTransform` may read it). One Map lookup gives the execution chain AND the
+ * request limit: the route's own option, else the number its types derived at registration, else
+ * the platform adapter's `maxBodySize`. The adapter reads the body against `maxBodySize` (node
+ * stops the stream, uws stops the native read) and hands the same handle to `dispatchResolved`, so
+ * nothing is looked up twice. An unknown path resolves to the not-found chain; an unknown batch id
+ * throws a FatalError.
+ */
+export function resolveRequest(path: string, urlQuery: string | undefined, rawRequest: unknown): ResolvedRequest {
+  const opts = getRouterOptions();
+  const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
+  const resolved = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts) as ResolvedRequest;
+  resolved.path = transformedPath;
+  resolved.urlQuery = urlQuery;
+  return resolved;
+}
+
 // ############# CONTEXT CREATION #############
 
-/** Creates the CallContext for one request */
+/** Creates the CallContext for one request from its resolved handle */
 export function createCallContext(
-  path: string,
+  resolved: ResolvedRequest,
   opts: RouterOptions,
   reqRawBody: RawRequestBody,
-  rawRequest: unknown,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
-  reqBodyType?: SerializerCode,
-  urlQuery?: string
+  reqBodyType?: SerializerCode
 ): CallContext {
-  const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-  const {executionChain, batchId, batchRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
   return {
-    path: transformedPath,
+    path: resolved.path,
     request: {
       headers: reqHeaders,
       rawBody: reqRawBody,
@@ -44,11 +60,12 @@ export function createCallContext(
       rawBody: '',
       serializer: SerializerModes.json,
     },
-    executionChain,
+    executionChain: resolved.executionChain,
+    maxBodySize: resolved.maxBodySize,
     shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
-    urlQuery,
-    batchId,
-    batchRouteIds,
+    urlQuery: resolved.urlQuery,
+    batchId: resolved.batchId,
+    batchRouteIds: resolved.batchRouteIds,
   } as CallContext;
 }
 
@@ -61,7 +78,7 @@ function getRequestBodyType(rawBody: RawRequestBody): SerializerCode {
   return SerializerModes.json;
 }
 
-/** Gets the execution chain for a path, handling the batch endpoint specially */
+/** Gets the execution chain (and its request limit) for a path, handling the batch endpoint specially */
 function getExecutionChain(
   originalPath: string,
   transformedPath: string,
@@ -88,5 +105,5 @@ function getExecutionChain(
       });
     }
   }
-  return {executionChain};
+  return {executionChain, maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize()};
 }

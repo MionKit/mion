@@ -6,16 +6,18 @@
  * ######## */
 
 import {
-  dispatchRoute,
+  dispatchResolved,
+  resolveRequest,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
   MionResponse,
+  getMaxRouteBodySize,
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, SerializerModes} from '@mionjs/core';
+import {getENV, SerializerModes, readBodyWithin} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {Server} from 'bun';
@@ -55,14 +57,18 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
   // outside any mion envelope, and the router's own limit needs the size before parsing.
   try {
-    let rawBody: any = req.body ? await req.text() : undefined;
+    // the route is resolved BEFORE the body is read: one lookup gives the chain and the request
+    // limit, and the body is read against that limit as it arrives (a stream past it is cancelled
+    // mid-flight); the router checks the size once more before parsing
+    const resolved = resolveRequest(path, urlQuery, req);
+    let rawBody: any = await readBodyWithin(req, resolved.maxBodySize);
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     const queryBody = decodeQueryBody(urlQuery, rawBody);
     if (queryBody) {
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const platformResp = await dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType, urlQuery);
+    const platformResp = await dispatchResolved(resolved, rawBody, req.headers, responseHeaders, req, undefined, reqBodyType);
     return reply(platformResp, responseHeaders);
   } catch (e) {
     const error =
@@ -73,6 +79,9 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
             type: 'unknown-error',
             originalError: e as Error,
           });
+    // a body refused mid-flight leaves unread chunks on the socket: close it with the answer so
+    // they are never parsed as the next request of a kept-alive connection
+    if (error.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
     return fatalFail(error, responseHeaders);
   }
 }
@@ -123,11 +132,15 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
     return undefined;
   }
   if (!isTest) console.log(`mion bun server running on ${url}`);
+  // published BEFORE the server is sized: the routes whose types could not say take this number
+  setPlatformConfig(serializablePlatformConfig());
   const server = Bun.serve({
     port: httpOptions.port,
     ...httpOptions.options,
-    // after the user's own serve options, so they cannot silently switch the limit off
-    maxRequestBodySize: httpOptions.maxBodySize,
+    // after the user's own serve options, so they cannot silently switch the limit off. Bun has ONE
+    // native, server-wide read limit, so it is sized to the largest limit any route resolves to; the
+    // router then applies each route's own number before parsing.
+    maxRequestBodySize: getMaxRouteBodySize(),
     fetch: bunRequestHandler,
     error: bunErrorHandler,
   });
@@ -140,8 +153,6 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
   process.on('SIGINT', shutdownHandler);
   process.on('SIGTERM', shutdownHandler);
-
-  setPlatformConfig(serializablePlatformConfig());
 
   // Hint to Bun's GC after initialization to clean up any temporary allocations
   if (typeof Bun !== 'undefined' && Bun.gc) {

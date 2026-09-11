@@ -148,9 +148,9 @@ func elapsedMs(start time.Time) float64 {
 func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunctions.RenderOpts, pureFnGraph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, error) {
 	var graph entrymodules.Graph
 	if sess.opts.ModuleMode == constants.ModuleModeAllModules {
-		graph = runtype.CollectEntriesPerNode(dump)
+		graph = runtype.CollectEntriesPerNode(dump, sess.opts.JSONMaxBytes)
 	} else {
-		graph = runtype.CollectEntries(dump)
+		graph = runtype.CollectEntries(dump, sess.opts.JSONMaxBytes)
 	}
 
 	familyGraphs, err := sess.collectFamilies(dump, rtOpts, metrics)

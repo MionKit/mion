@@ -125,8 +125,10 @@ describe('uws http router', () => {
       mion.initRoutes({changeUserName, getDate, updateHeaders});
       const smallServer = await startUwsServer({port: smallPort});
 
-      const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-      const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
+      // `changeUserName` takes a plain `SimpleUser` (unbounded strings), so it is the adapter's number
+      // that applies; `getDate` derives its own limit from its types and would ignore a 1-byte adapter
+      const requestData = {changeUserName: [{name: 'a', surname: 'b'}]};
+      const response = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
         method: 'POST',
         body: JSON.stringify(requestData),
       });
@@ -185,9 +187,25 @@ describe('uws http router', () => {
       resetUwsHttpOpts();
       resetRouter();
       setUwsHttpOpts({port: bigPort, maxBodySize: 4_000_000});
-      const countTags: Route = mion.route((context: Context, tags: string[]): number => tags.length);
-      mion.initRoutes({countTags});
+      // `string[]` has no maximum, so the route would take the router default (20 KB): the route
+      // option raises its own limit; `tiny` shows a per-route number reaching collectBody
+      const countTags: Route = mion.route((context: Context, tags: string[]): number => tags.length, {maxBodySize: 4_000_000});
+      const tiny: Route = mion.route((context: Context, n: number): number => n, {maxBodySize: 40});
+      mion.initRoutes({countTags, tiny});
       const bigServer = await startUwsServer({port: bigPort});
+
+      const tinyBody = '{"tiny":[1]}';
+      const tinyOk = await fetch(`http://127.0.0.1:${bigPort}/api/tiny`, {
+        method: 'POST',
+        body: tinyBody + ' '.repeat(40 - tinyBody.length),
+      });
+      expect(await tinyOk.json()).toEqual({tiny: 1});
+      const tinyOver = await fetch(`http://127.0.0.1:${bigPort}/api/tiny`, {
+        method: 'POST',
+        body: tinyBody + ' '.repeat(41 - tinyBody.length),
+      });
+      expect(tinyOver.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect((await tinyOver.json())['@thrownErrors']['mion@platformError'].type).toBe('request-payload-too-large');
 
       const post = async (tagCount: number) => {
         const body = JSON.stringify({countTags: [Array.from({length: tagCount}, (_, i) => `tag-number-${i}-padding-padding`)]});

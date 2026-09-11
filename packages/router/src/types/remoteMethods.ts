@@ -62,10 +62,17 @@ interface RouteOptionsBase {
   isMutation?: boolean | undefined;
   strictTypes?: boolean;
   sanitizeParams?: boolean;
+  /** Largest request body this route accepts, in bytes. Wins over the number derived from the
+   *  types and over the router option. */
+  maxBodySize?: number;
 }
 interface MiddleFnOptionsBase {
   description?: string;
   validateParams?: boolean;
+  /** This middleFn's contribution to the request limit of every chain it sits in, in bytes, for a
+   *  middleFn whose params type has no maximum (a plain `string[]`). Without it such a middleFn
+   *  sends every chain it sits in to the router default. */
+  maxBodySize?: number;
   validateReturn?: boolean;
   alwaysRun?: boolean;
   strictTypes?: boolean;
@@ -106,4 +113,8 @@ export interface MethodsExecutionChain {
   methods: RemoteMethod[];
   /** Precalculated serializer code for the route's response body type */
   serializer: SerializerCode;
+  /** The chain's resolved request limit in bytes (route option, else the sum derived from the
+   *  members' params types), settled at registration so a request pays one field read. Undefined
+   *  when the types cannot say: the request then takes the platform adapter's `maxBodySize`. */
+  maxBodySize?: number;
 }

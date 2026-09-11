@@ -8,6 +8,7 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, setPlatformConfig} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
+import {resolveRequest} from './callContext.ts';
 import {MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {
@@ -585,35 +586,40 @@ describe('batches', () => {
 
   // ############# request body limit #############
   describe('batch body size', () => {
+    // `text: string` has no maximum, so the route's chain takes the platform adapter's number
     const echo = mion.route((ctx, text: string): string => text);
 
-    it('resolveBatchMaxBodySize fixes the router limit on the entry at first use', async () => {
-      createMionRouter({maxBodySize: 64}).initRoutes({echo});
+    it("a batch sums its member routes' resolved limits plus the envelope, fixed on the entry at first use", async () => {
+      mion.initRoutes({echo});
+      setPlatformConfig({maxBodySize: 64});
       registerBatches({one: {routes: ['echo']}});
       const entry = getBatch('one')!;
       expect(entry.maxBodySize).toBeUndefined();
-      expect(resolveBatchMaxBodySize(entry)).toBe(64);
-      expect(entry.maxBodySize).toBe(64);
+      expect(resolveRequest(MION_BATCH_PATH, 'id=one', {}).maxBodySize).toBe(64 + 2);
+      expect(entry.maxBodySize).toBe(64 + 2);
     });
 
-    it('resolveBatchMaxBodySize prefers the platform limit when the adapter publishes one', async () => {
-      createMionRouter({maxBodySize: 64}).initRoutes({echo});
-      setPlatformConfig({maxBodySize: 32});
-      registerBatches({one: {routes: ['echo']}});
-      expect(resolveBatchMaxBodySize(getBatch('one')!)).toBe(32);
+    it("a member with its own option contributes that number, not the platform's", async () => {
+      const capped = mion.route((ctx, text: string): string => text, {maxBodySize: 10});
+      mion.initRoutes({echo, capped});
+      setPlatformConfig({maxBodySize: 64});
+      registerBatches({two: {routes: ['echo', 'capped']}});
+      expect(resolveRequest(MION_BATCH_PATH, 'id=two', {}).maxBodySize).toBe(64 + 10 + 2);
     });
 
     it('resolveBatchMaxBodySize keeps the limit once fixed', async () => {
-      createMionRouter({maxBodySize: 64}).initRoutes({echo});
+      mion.initRoutes({echo});
       registerBatches({one: {routes: ['echo']}});
       const entry = getBatch('one')!;
       entry.maxBodySize = 10;
-      expect(resolveBatchMaxBodySize(entry)).toBe(10);
+      expect(resolveBatchMaxBodySize(entry, [])).toBe(10);
     });
 
     it('a batch body one byte over the limit is refused, a body at the limit passes', async () => {
       const body = JSON.stringify({echo: ['hello']});
-      createMionRouter({maxBodySize: body.length}).initRoutes({echo});
+      // the member chain takes the platform number, the batch adds the two braces
+      mion.initRoutes({echo});
+      setPlatformConfig({maxBodySize: body.length - 2});
       registerBatches({one: {routes: ['echo']}});
 
       const atLimit = await dispatchBatch({headers: headersFromRecord({}), body}, 'id=one');
@@ -626,9 +632,10 @@ describe('batches', () => {
       expect(overLimit.headers.get('x-rpc-error')).toBe('request-payload-too-large');
     });
 
-    it('a batch reads the limit fixed on its entry, not the router option', async () => {
+    it('a batch reads the limit fixed on its entry, not the platform number', async () => {
       const body = JSON.stringify({echo: ['hello']});
-      createMionRouter({maxBodySize: 1_000_000}).initRoutes({echo});
+      mion.initRoutes({echo});
+      setPlatformConfig({maxBodySize: 1_000_000});
       registerBatches({one: {routes: ['echo']}});
       getBatch('one')!.maxBodySize = body.length - 1;
 

@@ -53,6 +53,9 @@ type FingerprintInputs struct {
 	// re-derive every cached entry a sample-less pattern reaches.
 	PatternSampleCount   int
 	PatternSampleRetries int
+	// JSONMaxBytes is the root-row slot 21 switch: on and off render different
+	// root rows, so the two settings never share cache entries.
+	JSONMaxBytes bool
 }
 
 // Fingerprint hashes inputs into a stable 12-hex-char prefix used as the
@@ -82,10 +85,11 @@ type FingerprintInputs struct {
 // generated samples baked into emitted formatAnnotations. "v10"->"v11"
 // added the binary identity (BinaryVersion + BinaryStamp) so a rebuilt
 // DEV binary with changed emitters stops serving the previous build's
-// cached function bodies.
+// cached function bodies. "v11"->"v12" added the JSONMaxBytes switch
+// (root-row slot 21 on or off).
 func Fingerprint(inputs FingerprintInputs) string {
 	var sb strings.Builder
-	sb.WriteString("v11\n")
+	sb.WriteString("v12\n")
 	sb.WriteString(inputs.BinaryVersion)
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.BinaryStamp)
@@ -107,6 +111,8 @@ func Fingerprint(inputs FingerprintInputs) string {
 	sb.WriteString(strconv.Itoa(inputs.PatternSampleCount))
 	sb.WriteByte('\n')
 	sb.WriteString(strconv.Itoa(inputs.PatternSampleRetries))
+	sb.WriteByte('\n')
+	sb.WriteString(strconv.FormatBool(inputs.JSONMaxBytes))
 	sb.WriteByte('\n')
 	sum := sha256.Sum256([]byte(sb.String()))
 	return hex.EncodeToString(sum[:])[:12]

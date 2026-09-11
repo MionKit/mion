@@ -66,12 +66,11 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    */
   alwaysAwait: boolean;
   /**
-   * Largest request body the router accepts, in bytes (a string body is measured in characters).
-   * Checked before the body is parsed, so it holds on every platform, including the ones whose
-   * runtime has no limit of its own (cloudflare, aws, gcloud, vercel) and the `?data=` query body.
-   * The node, uws and bun adapters also stop reading early with their own copy of the option.
-   * A larger body is answered with a 413 `request-payload-too-large` error.
-   * @default 256000
+   * Multiplier applied to a request limit DERIVED from the types. The derived number is the largest
+   * compact JSON a valid body can be, counted at the escaped worst case, so the factor only has to
+   * cover whitespace and other formatting a client may add. Never applied to a route's own
+   * `maxBodySize` option. A route whose types cannot say takes the platform adapter's `maxBodySize`.
+   * @default 2
    */
-  maxBodySize: number;
+  maxBodySizeFactor: number;
 }

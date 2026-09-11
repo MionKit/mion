@@ -32,6 +32,12 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
     expect(args[idx + 1]).toBe('0');
   });
 
+  it('forwards jsonMaxBytes only when false, as `--json-max-bytes=false`', () => {
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {jsonMaxBytes: false})).toContain('--json-max-bytes=false');
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {jsonMaxBytes: true}).join(' ')).not.toContain('json-max-bytes');
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {}).join(' ')).not.toContain('json-max-bytes');
+  });
+
   it('forwards patternSampleRetries as `--pattern-sample-retries <n>`', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {patternSampleRetries: 25});
     const idx = args.indexOf('--pattern-sample-retries');

@@ -94,6 +94,13 @@ type tsRuntypesPlugin struct {
 	// every location under genDir, the report path is convention, not config.
 	// Build-lane project option — the host plugin forwards the equivalent CLI flag.
 	PureFnReport *bool `json:"pureFnReport"`
+	// JSONMaxBytes is the type-derived size limit switch: `true` (the default
+	// when absent) emits, on every fully bounded reflection root, the largest
+	// compact-JSON size a valid value can have, which mion turns into per-route
+	// request and response limits; `false` emits nothing and a framework falls
+	// back to its own numbers. A pointer so an absent key keeps the default.
+	// Build-lane project option — the host plugin forwards `--json-max-bytes=false`.
+	JSONMaxBytes *bool `json:"jsonMaxBytes"`
 	// DowngradeErrors names the RuntimeError codes to report as Warnings, so a
 	// project blocked on one finding keeps failing on every other. Either a list
 	// of codes (`["VL002"]`) or the wildcard `"*"`, which downgrades the lot and

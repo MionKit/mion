@@ -1563,9 +1563,9 @@ describe('client', () => {
   // block locks in that single-slot contract (it deliberately reverses the previous fan-out-to-
   // every-slot behaviour).
   describe('platform error dispatch', () => {
-    // Test server uses platform-node's default maxBodySize (256KB).
-    // A 300_000-char string in a JSON body comfortably exceeds it and reliably triggers
-    // a 'request-payload-too-large' platform error returned by the platform adapter.
+    // The test server's routes take `string` params with no maximum, so they take the node adapter's
+    // maxBodySize (128 KB by default). A 300_000-char string in a JSON body exceeds it and reliably
+    // triggers a 'request-payload-too-large' platform error.
     const HUGE_PAYLOAD = 'x'.repeat(300_000);
 
     it('platform error appears in the undeclared slot on a single route call', async () => {

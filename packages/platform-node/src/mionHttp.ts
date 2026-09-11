@@ -5,7 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
+import {
+  dispatchResolved,
+  resolveRequest,
+  getRouterFatalErrorResponse,
+  resetRouter,
+  decodeQueryBody,
+  setPlatformConfig,
+} from '@mionjs/router';
+import type {ResolvedRequest} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
@@ -104,12 +112,27 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const urlQuery = queryIndex === -1 ? undefined : nodeUrl.substring(queryIndex + 1);
   let size = 0;
   const bodyChunks: Buffer[] = [];
-  // read once per request rather than per chunk: options cannot change mid-request
-  const maxBodySize = httpOptions.maxBodySize;
 
   httpResponse.setHeader('server', '@mionjs');
   const reqHeaders = headersFromIncomingMessage(httpReq);
   const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
+
+  // The route is resolved BEFORE the body: one lookup gives the chain and the request limit the
+  // route settled at registration, so the read below stops at the route's own number and the same
+  // handle goes to the dispatch. A throw here (an unknown batch id, a throwing pathTransform) is
+  // answered like a too-large body: before a byte is buffered, with the stream destroyed.
+  let resolved: ResolvedRequest;
+  try {
+    resolved = resolveRequest(path, urlQuery, httpReq);
+  } catch (e) {
+    replied = true;
+    fatalFail(httpResponse, respHeaders, toRpcError(e));
+    httpReq.destroy();
+    return;
+  }
+  // read once per request rather than per chunk: the route's own number, or the adapter's option
+  // for a route whose types could not say
+  const maxBodySize = resolved.maxBodySize;
 
   // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
   // one, and on the running size before each chunk is kept. The request stream is then destroyed so
@@ -162,15 +185,14 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
-      const mionResponse = await dispatchRoute(
-        path,
+      const mionResponse = await dispatchResolved(
+        resolved,
         reqRawBody,
         reqHeaders,
         respHeaders,
         httpReq,
         httpResponse,
-        reqBodyType,
-        urlQuery
+        reqBodyType
       );
       if (replied || httpResponse.writableEnded) return;
       replied = true;
@@ -178,15 +200,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     } catch (e) {
       if (replied) return;
       replied = true;
-      const error =
-        e instanceof RpcError
-          ? e
-          : new FatalError({
-              publicMessage: 'Unknown Error',
-              type: 'unknown-error',
-              originalError: e as Error,
-            });
-      fatalFail(httpResponse, respHeaders, error);
+      fatalFail(httpResponse, respHeaders, toRpcError(e));
     }
   });
 
@@ -200,6 +214,16 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     });
     fatalFail(httpResponse, respHeaders, error);
   });
+}
+
+function toRpcError(e: unknown): RpcError<string> {
+  return e instanceof RpcError
+    ? e
+    : new FatalError({
+        publicMessage: 'Unknown Error',
+        type: 'unknown-error',
+        originalError: e as Error,
+      });
 }
 
 function payloadTooLarge(): RpcError<'request-payload-too-large'> {

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/jsonsize"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -33,7 +34,9 @@ const bundleKeyLength = 10
 // the bundle content does and the runtime's processed-keys guard re-registers
 // an evolved bundle after an HMR reload (the module NAME stays fixed; the
 // Vite plugin invalidates it on addedRunTypes).
-func CollectEntries(dump protocol.Dump) entrymodules.Graph {
+// jsonMaxBytes is the project's `jsonMaxBytes` switch: false leaves slot 21 off every root row
+// (a consumer that does not derive request limits from the types pays nothing for them).
+func CollectEntries(dump protocol.Dump, jsonMaxBytes bool) entrymodules.Graph {
 	graph := entrymodules.Graph{}
 	nodes := indexNodes(dump.RunTypes)
 	// Bundle rows are the reflection-only roots' graphs. Circular createX types
@@ -50,6 +53,7 @@ func CollectEntries(dump protocol.Dump) entrymodules.Graph {
 	for i, id := range rows {
 		indexOf[id] = i
 	}
+	rootJSONMax := rootJSONMaxBytes(rowRoots, nodes, jsonMaxBytes)
 
 	var rowsText strings.Builder
 	var footer strings.Builder
@@ -62,7 +66,7 @@ func CollectEntries(dump protocol.Dump) entrymodules.Graph {
 			rowsText.WriteString(",\n")
 		}
 		rowsText.WriteByte('[')
-		rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id]), ","))
+		rowsText.WriteString(strings.Join(renderFactoryArgs(nodes[id], rootJSONMax[id]), ","))
 		rowsText.WriteByte(']')
 		// Ref relations ride the parallel `rels` array as row INDICES (see
 		// renderRelations); only expression-specials (classType / bigint /
@@ -160,12 +164,13 @@ func indexNodes(runTypes []*reflection.RunType) map[string]*reflection.RunType {
 // scoping happens at the dump layer (scopedDump for scanFiles, full cache for
 // dump). Measured slower than the bundle on dense reflection graphs (the
 // reason the bundle replaced it) — kept as the allModules escape hatch.
-func CollectEntriesPerNode(dump protocol.Dump) entrymodules.Graph {
+func CollectEntriesPerNode(dump protocol.Dump, jsonMaxBytes bool) entrymodules.Graph {
 	graph := make(entrymodules.Graph, len(dump.RunTypes))
 	// Same extra-demand wiring as the bundle path: a mock-shaped reflection
 	// site's fmt entries ride the root node's own module (the injected import
 	// target in allModules mode) as SoftDeps.
 	extraDeps := reflectionSiteDemandKeys(dump.Sites)
+	rootJSONMax := rootJSONMaxBytes(reflectionRoots(dump.Sites), indexNodes(dump.RunTypes), jsonMaxBytes)
 	for _, runType := range dump.RunTypes {
 		if runType == nil || runType.ID == "" {
 			continue
@@ -178,13 +183,35 @@ func CollectEntriesPerNode(dump protocol.Dump) entrymodules.Graph {
 		graph.Add(&entrymodules.Entry{
 			Key:      runType.ID,
 			Kind:     entrymodules.KindRunType,
-			ArgsText: strings.Join(renderFactoryArgs(runType), ","),
+			ArgsText: strings.Join(renderFactoryArgs(runType, rootJSONMax[runType.ID]), ","),
 			InitBody: footer.String(),
 			Deps:     collectRefDeps(runType),
 			SoftDeps: extraDeps[runType.ID],
 		})
 	}
 	return graph
+}
+
+// rootJSONMaxBytes computes the compact-JSON maximum (cachegen/jsonsize) of
+// every reflection root whose type is fully bounded, keyed by id. Only roots
+// carry the number: mion reads it off the params / return roots it injects,
+// and a nested row would only bloat every bundle. An unbounded root is absent
+// from the map, so its row renders the slot as a hole.
+func rootJSONMaxBytes(roots []string, nodes map[string]*reflection.RunType, enabled bool) map[string]int {
+	if !enabled {
+		return nil
+	}
+	out := make(map[string]int, len(roots))
+	for _, root := range roots {
+		node := nodes[root]
+		if node == nil {
+			continue
+		}
+		if result := jsonsize.MaxBytes(node, nodes); result.Bounded {
+			out[root] = result.Bytes
+		}
+	}
+	return out
 }
 
 // reflectionRoots returns the deduped, sorted ids of every reflection-only
