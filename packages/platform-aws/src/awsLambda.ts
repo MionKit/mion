@@ -47,7 +47,7 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 }
 
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
-  let rawBody: any = rawRequest.body || '';
+  let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
   const rawRespHeaders: Record<string, string> = {
     server: '@mionjs',
@@ -89,6 +89,17 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
 }
 
 // ############# PRIVATE METHODS #############
+
+/** API Gateway and Lambda Function URLs base64-encode the body (`isBase64Encoded: true`) for binary
+ *  media types and some proxy setups. The router only ever sees text, so the body is decoded here
+ *  and the router's `maxBodySize` check measures the decoded text, not the base64 wire form. A
+ *  body that is not base64 decodes to garbage and fails the router's JSON parse like any other bad
+ *  body: `Buffer.from(..., 'base64')` never throws. */
+function decodeEventBody(rawRequest: APIGatewayEvent): string {
+  const body = rawRequest.body || '';
+  if (!body || !rawRequest.isBase64Encoded) return body;
+  return Buffer.from(body, 'base64').toString();
+}
 
 /** One pass into one string: the filter/map/join chain built three arrays and two closures per
  *  invocation. Same output, `undefined` values skipped and both parts still percent-encoded. */
@@ -136,6 +147,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
       throw new Error(`Unknown body type: ${bodyType}`);
   }
 
+  // the body is always text, so `isBase64Encoded` stays at API Gateway's default (false)
   const resp: APIGatewayProxyResult = {
     statusCode: routeResponse.statusCode,
     headers: singleHeaders,
