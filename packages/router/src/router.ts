@@ -288,15 +288,6 @@ export function shouldFullGenerateSpec(): boolean {
   return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true';
 }
 
-export function getRouteExecutableFromPath(path: string): RouteMethod {
-  const executionChain = flatRouter.get(path);
-  if (!executionChain) {
-    // Return the not-found route executable
-    return getAnyExecutable(MION_ROUTES.notFound) as RouteMethod;
-  }
-  return executionChain.methods[executionChain.routeIndex] as RouteMethod;
-}
-
 // ############# PRIVATE METHODS #############
 
 /**
