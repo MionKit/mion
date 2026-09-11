@@ -44,6 +44,44 @@ const closeServer = (server: any) =>
     else resolve();
   });
 
+// The reader trusts a declared content-length and calls req.text(): the runtime must hand over
+// exactly that many bytes. On the dev server that runtime is node's HTTP parser.
+describe('vercel dev server: content-length bounds the body', () => {
+  const port = 8763;
+  let server: any;
+
+  beforeAll(async () => {
+    resetVercelHandlerOpts();
+    setVercelHandlerOpts();
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    server = await startVercelDevServer({port});
+  });
+
+  afterAll(async () => {
+    await closeServer(server);
+  });
+
+  it('trailing bytes after the declared length never reach the body', async () => {
+    const {createConnection} = await import('node:net');
+    const json = JSON.stringify({getDate: [{date: '2022-04-10T02:13:00.000Z'}]});
+    const head = `POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: ${json.length}\r\nContent-Type: application/json\r\n\r\n`;
+    // node's parser refuses junk after a body with a 400 for the whole socket, so the bytes that
+    // follow are a second, valid request: the first answer must still be the date alone
+    const second = `POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}`;
+    const first = await new Promise<string>((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(head + json + second));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      socket.on('close', () => resolve(data));
+      setTimeout(() => socket.destroy(), 2000);
+    });
+    expect(first.slice(0, 400)).toContain('HTTP/1.1 200');
+    expect(first).toContain('"date":"2022-04-10T02:13:00.000Z"');
+  });
+});
+
 describe('vercel dev server (node) - stringifyJson', () => {
   const port = 8761;
   let server: any;
