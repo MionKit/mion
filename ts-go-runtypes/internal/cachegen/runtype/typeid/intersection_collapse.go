@@ -140,8 +140,8 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 	// properties (inconsistent with the projected KindClass/SubKindDate
 	// node, and divergent from how an atomic format's id keeps the brand
 	// out of the member set).
-	if classMember, formatKey, ok := computer.splitBuiltinClassBrandID(objectMembers); ok {
-		return computer.Compute(classMember) + formatKey
+	if classMember, brandKey, ok := computer.splitBuiltinClassBrandID(objectMembers); ok {
+		return computer.Compute(classMember) + brandKey
 	}
 
 	if len(objectMembers) > 0 {
@@ -169,8 +169,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 				continue
 			}
 			if childType, minCount, maxCount, ok := ContainsSpecFromMember(computer.typeChecker, objectMember); ok {
-				containsIDs = append(containsIDs,
-					computer.Compute(childType)+":"+strconv.FormatFloat(minCount, 'g', -1, 64)+":"+strconv.FormatFloat(maxCount, 'g', -1, 64))
+				containsIDs = append(containsIDs, containsIDKey(computer.Compute(childType), minCount, maxCount))
 				continue
 			}
 			if specs, ok := PatternPropsFromMember(computer.typeChecker, objectMember); ok {
@@ -314,13 +313,16 @@ var builtinClassNamesID = map[string]bool{"Date": true, "Map": true, "Set": true
 
 // splitBuiltinClassBrandID detects the `Builtin & {brand}` shape among an
 // intersection's object members: exactly one recognised builtin-class
-// member plus exactly one TypeFormat-brand member. Returns the class
-// member, the canonical format key (folded into the id so two brands that
-// differ only in params hash distinctly), and ok=true. Mirrors the
-// serialize-side splitBuiltinClassBrand — keep them in sync.
+// member plus at most one TypeFormat-brand member and any number of
+// `__rtContains` sentinel members (a FormattedSet's `contains` slot).
+// Returns the class member, the key folded into the id (the contains key
+// then the canonical format key, the order the object branch uses, so two
+// brands that differ only in params hash distinctly), and ok=true. Mirrors
+// the serialize-side splitBuiltinClassBrand — keep them in sync.
 func (computer *Computer) splitBuiltinClassBrandID(objectMembers []*checker.Type) (*checker.Type, string, bool) {
 	var classMember *checker.Type
 	var formatKey string
+	var containsIDs []string
 	var brandCount int
 	for _, member := range objectMembers {
 		if annotation := FormatAnnotationFromType(computer.typeChecker, member); annotation != nil {
@@ -331,6 +333,10 @@ func (computer *Computer) splitBuiltinClassBrandID(objectMembers []*checker.Type
 			formatKey += FormatAnnotationStructuralKey(annotation)
 			continue
 		}
+		if childType, minCount, maxCount, ok := ContainsSpecFromMember(computer.typeChecker, member); ok {
+			containsIDs = append(containsIDs, containsIDKey(computer.Compute(childType), minCount, maxCount))
+			continue
+		}
 		if computer.isBuiltinClassMemberID(member) {
 			if classMember != nil {
 				return nil, "", false // two builtin classes — ambiguous
@@ -338,10 +344,20 @@ func (computer *Computer) splitBuiltinClassBrandID(objectMembers []*checker.Type
 			classMember = member
 		}
 	}
-	if classMember == nil || brandCount == 0 {
+	if classMember == nil || (brandCount == 0 && len(containsIDs) == 0) {
 		return nil, "", false
 	}
-	return classMember, formatKey, true
+	containsKey := ""
+	if len(containsIDs) > 0 {
+		containsKey = "c{" + computer.sortedJoin(containsIDs) + "}"
+	}
+	return classMember, containsKey + formatKey, true
+}
+
+// containsIDKey is one contains check's contribution to an id: the child id
+// and the occurrence bounds.
+func containsIDKey(childID string, minCount, maxCount float64) string {
+	return childID + ":" + strconv.FormatFloat(minCount, 'g', -1, 64) + ":" + strconv.FormatFloat(maxCount, 'g', -1, 64)
 }
 
 // isBuiltinClassMemberID is the id-side mirror of the serialize-side

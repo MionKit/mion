@@ -188,8 +188,8 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 			if ctx.ResolveRef(containsCheck.Child) == nil {
 				panic("validationErrors: unresolvable contains child — dropping it would silently weaken validation")
 			}
-			iVar := ctx.NextLocalVar("ci")
-			ctx.SetChildAccessor(ctx.Vλl + "[" + iVar + "]")
+			loop := containsLoop(ctx, rt)
+			ctx.SetChildAccessor(loop.itemExpr)
 			childRT := ctx.CompileChild(containsCheck.Child, CodeS)
 			ctx.SetChildAccessor("")
 			nVar := ctx.NextLocalVar("cn")
@@ -200,19 +200,19 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 				count = "const " + nVar + " = 0;"
 			case childRT.Code == "":
 				// any/unknown child matches every item.
-				count = "const " + nVar + " = " + ctx.Vλl + ".length;"
+				count = "const " + nVar + " = " + loop.countExpr + ";"
 			default:
 				scratch := ctx.NextLocalVar("cer")
-				count = "let " + nVar + " = 0;for (let " + iVar + " = 0; " + iVar + " < " + ctx.Vλl + ".length; " + iVar + "++) {" +
+				count = "let " + nVar + " = 0;" + loop.head + "{" +
 					"const " + scratch + " = [];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
 					"if (" + scratch + ".length === 0) " + nVar + "++;}"
 			}
 			check := count +
 				"if (" + nVar + " < " + formats.FormatNumber(containsCheck.Min) + ") " +
-				formats.FormatErrCall("pth", "er", "array", "contains", "minContains", formats.FormatNumber(containsCheck.Min))
+				formats.FormatErrCall("pth", "er", loop.expected, "contains", "minContains", formats.FormatNumber(containsCheck.Min))
 			if containsCheck.Max >= 0 {
 				check += ";if (" + nVar + " > " + formats.FormatNumber(containsCheck.Max) + ") " +
-					formats.FormatErrCall("pth", "er", "array", "contains", "maxContains", formats.FormatNumber(containsCheck.Max))
+					formats.FormatErrCall("pth", "er", loop.expected, "contains", "maxContains", formats.FormatNumber(containsCheck.Max))
 			}
 			check = wrapFormatCheckPath(ctx, check)
 			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
