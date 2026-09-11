@@ -63,7 +63,8 @@ func TestMaxBytes_Scalars(t *testing.T) {
 	}{
 		{"boolean", boolean, 5},
 		{"null", &reflection.RunType{Kind: reflection.KindNull}, 4},
-		{"undefined", &reflection.RunType{Kind: reflection.KindUndefined}, 4},
+		{"undefined root", &reflection.RunType{Kind: reflection.KindUndefined}, 6}, // `[null]`, the composite encoder's root wrap
+		{"void root", &reflection.RunType{Kind: reflection.KindVoid}, 6},
 		{"number", num, 24},
 		{"date", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindDate}, 32},
 		{"string literal", &reflection.RunType{Kind: reflection.KindLiteral, Literal: "a\"b"}, 6},
@@ -164,7 +165,10 @@ func TestMaxBytes_Object(t *testing.T) {
 
 func TestMaxBytes_Union(t *testing.T) {
 	union := &reflection.RunType{Kind: reflection.KindUnion, Children: []*reflection.RunType{boolean, num, &reflection.RunType{Kind: reflection.KindNull}}}
-	expectBounded(t, "largest member", MaxBytes(union, noRefs), 24)
+	// the largest member plus the `[-1,` … `]` envelope the flat encoder may write
+	expectBounded(t, "largest member plus envelope", MaxBytes(union, noRefs), 24+5)
+	nested := arrayFmt(&reflection.RunType{Kind: reflection.KindUndefined}, map[string]any{"maxItems": 1.0})
+	expectBounded(t, "nested undefined is null", MaxBytes(nested, noRefs), 2+4)
 	mixed := &reflection.RunType{Kind: reflection.KindUnion, Children: []*reflection.RunType{num, plainString}}
 	expectUnbounded(t, "unbounded member", MaxBytes(mixed, noRefs), "|1: string without maxLength")
 }

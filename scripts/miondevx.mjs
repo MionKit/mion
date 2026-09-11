@@ -94,6 +94,8 @@ const FUZZ = {
   roundtrip: {patterns: ['allStrategyRoundtrip.integration'], quick: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '10000'}, soak: {MION_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
   elision: {patterns: ['elision/elisionFuzz.integration'], quick: {MION_FUZZ_ELISION_SOAK_MS: '10000'}, soak: {MION_FUZZ_ELISION_SOAK_MS: '60000'}},
   size: {patterns: ['binarySizeEstimate.integration'], quick: {MION_FUZZ_SIZE_SOAK_MS: '10000'}, soak: {MION_FUZZ_SIZE_SOAK_MS: '60000'}},
+  // The JSON size bound: the build-time jsonMaxBytes against what the serializer really emits (test/fuzz/type/jsonSizeBound).
+  jsonsize: {patterns: ['type/jsonSizeBound.integration'], quick: {MION_FUZZ_JSONSIZE_SOAK_MS: '10000'}, soak: {MION_FUZZ_JSONSIZE_SOAK_MS: '60000'}},
   // The security lanes: hostile bytes / JSON trees / format pump strings
   // against the decoders (test/fuzz/security/, the vulnerability dictionary).
   secbinary: {patterns: ['security/binaryDecodeFuzz.integration'], quick: {MION_FUZZ_SECBINARY_SOAK_MS: '10000'}, soak: {MION_FUZZ_SECBINARY_SOAK_MS: '60000'}},
