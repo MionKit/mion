@@ -86,11 +86,9 @@ each answer.
 
 ## Deferred, each as its own todo
 
-- The validator collection cap (refusing an array longer than `Items` / a string longer than
-  `StringBytes` during validation): it changes what the validator accepts for every unbounded type
-  and needs a validate variant in the Go emitter; the byte limit already bounds the work a request
-  can cause.
-- A lint rule that errors on any variable-length type without a maximum, fed by the walk's
-  recorded unbounded path.
+- Build-time diagnostics for an option or a return type above the platform's request or
+  response ceiling, emitted by the resolver like mion's other rules.
+- A diagnostic on any variable-length type without a maximum, fed by the walk's recorded
+  unbounded path.
 - A client-side pre-check that refuses an oversize call before sending it, from the
   `maxBodySize` the metadata now carries.

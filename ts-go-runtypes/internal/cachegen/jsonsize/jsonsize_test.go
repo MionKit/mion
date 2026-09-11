@@ -222,3 +222,56 @@ func toAny(items []map[string]any) []any {
 	}
 	return out
 }
+
+// TestMaxBytes_VisitsEveryWireSlot — the size walk is a per-kind descent (it
+// reads only the slots that reach the wire), so this pins that on a bounded
+// graph spanning every compound kind it sizes, it reaches every id-bearing
+// node reflection.WalkGraph reaches: a forgotten child slot would leave a
+// node unvisited here before it could leave it unsized in a route's limit.
+func TestMaxBytes_VisitsEveryWireSlot(t *testing.T) {
+	withID := func(id string, rt *reflection.RunType) *reflection.RunType {
+		rt.ID = id
+		return rt
+	}
+	param := func(id string, sub reflection.ReflectionSubKind, child *reflection.RunType) *reflection.RunType {
+		return &reflection.RunType{ID: id, Kind: reflection.KindParameter, SubKind: sub, Child: child}
+	}
+	refs := map[string]*reflection.RunType{}
+	add := func(rt *reflection.RunType) *reflection.RunType {
+		refs[rt.ID] = rt
+		return rt
+	}
+	add(withID("s", stringFmt(map[string]any{"maxLength": 3.0})))
+	add(withID("n", &reflection.RunType{Kind: reflection.KindNumber}))
+	add(withID("b", &reflection.RunType{Kind: reflection.KindBoolean}))
+	add(withID("d", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindDate}))
+	add(withID("arr", arrayFmt(reflection.NewRef("s"), map[string]any{"maxItems": 2.0})))
+	add(withID("m0", &reflection.RunType{Kind: reflection.KindTupleMember, Child: reflection.NewRef("n")}))
+	add(withID("m1", &reflection.RunType{Kind: reflection.KindTupleMember, Child: reflection.NewRef("b")}))
+	add(withID("tup", &reflection.RunType{Kind: reflection.KindTuple, Children: []*reflection.RunType{reflection.NewRef("m0"), reflection.NewRef("m1")}}))
+	add(withID("u", &reflection.RunType{Kind: reflection.KindUnion, Children: []*reflection.RunType{reflection.NewRef("n"), reflection.NewRef("d")}}))
+	add(param("mk", reflection.SubKindMapKey, reflection.NewRef("s")))
+	add(param("mv", reflection.SubKindMapValue, reflection.NewRef("tup")))
+	add(withID("map", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindMap,
+		Arguments:        []*reflection.RunType{reflection.NewRef("mk"), reflection.NewRef("mv")},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedMap", Params: map[string]any{"maxSize": 2.0}}}))
+	add(param("si", reflection.SubKindSetItem, reflection.NewRef("u")))
+	add(withID("set", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet,
+		Arguments:        []*reflection.RunType{reflection.NewRef("si")},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedSet", Params: map[string]any{"maxSize": 1.0}}}))
+	add(withID("p0", prop("list", reflection.NewRef("arr"), false)))
+	add(withID("p1", prop("byKey", reflection.NewRef("map"), true)))
+	add(withID("p2", prop("tags", reflection.NewRef("set"), false)))
+	root := add(withID("root", object(reflection.NewRef("p0"), reflection.NewRef("p1"), reflection.NewRef("p2"))))
+
+	walker := newWalker(refs)
+	if result := walker.walk(root, "", 0); !result.Bounded {
+		t.Fatalf("fixture must be bounded, got %s", result.UnboundedPath)
+	}
+	reflection.WalkGraph(root, refs, func(node *reflection.RunType) reflection.WalkAction {
+		if node.ID != "" && !walker.visited[node.ID] {
+			t.Errorf("node %q (kind %d) is reachable through a child slot but the size walk never sized it", node.ID, node.Kind)
+		}
+		return reflection.WalkContinue
+	})
+}
