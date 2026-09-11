@@ -11,7 +11,7 @@ import type {Routes} from '../types/general.ts';
 import type {MionResponse, RawRequestBody} from '../types/context.ts';
 import {HeadersSubset, RpcError, SerializerModes, StatusCodes, isRpcError} from '@mionjs/core';
 import {createMionRouter, getRouterOptions, getRouteExecutionChain, resetRouter} from '../router.ts';
-import {createCallContext} from '../callContext.ts';
+import {createCallContext, resolveRequest} from '../callContext.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import {deserializeRequestBody, serializeResponseBody} from './serializer.routes.ts';
 
@@ -81,7 +81,7 @@ function getNewJsonContext(path: string, body: any) {
   const rawBody: RawRequestBody = JSON.stringify(body);
   const reqHeaders = headersFromRecord({auth: 'token'});
   const respHeaders = headersFromRecord({});
-  const context = createCallContext(path, opts, rawBody, {}, reqHeaders, respHeaders);
+  const context = createCallContext(resolveRequest(path, undefined, {}), opts, rawBody, reqHeaders, respHeaders);
   // Set bodyType from ExecutionChain (as done in runExecutionChain)
   const executionChain = getRouteExecutionChain(path)!;
   if (executionChain) {

@@ -16,7 +16,7 @@ func TestCircularCreateXEmitsNoBundle(t *testing.T) {
 		RunTypes: []*reflection.RunType{{ID: "circ", Kind: reflection.KindObject, IsCircular: true}},
 		Sites:    []protocol.Site{{ID: "circ", FnId: "va1"}},
 	}
-	graph := CollectEntries(dump)
+	graph := CollectEntries(dump, true)
 	if len(graph) != 0 {
 		t.Fatalf("expected no runtype modules for a circular createX-only site, got %d", len(graph))
 	}
@@ -30,7 +30,7 @@ func TestNonCircularCreateXEmitsNoBundle(t *testing.T) {
 		RunTypes: []*reflection.RunType{{ID: "plain", Kind: reflection.KindObject}},
 		Sites:    []protocol.Site{{ID: "plain", FnId: "va1"}},
 	}
-	graph := CollectEntries(dump)
+	graph := CollectEntries(dump, true)
 	if len(graph) != 0 {
 		t.Fatalf("expected no runtype modules for a non-circular createX-only site, got %d", len(graph))
 	}
@@ -43,7 +43,7 @@ func TestCircularReflectionStillEmitsBundle(t *testing.T) {
 		RunTypes: []*reflection.RunType{{ID: "circ", Kind: reflection.KindObject, IsCircular: true}},
 		Sites:    []protocol.Site{{ID: "circ"}}, // reflection-only (FnId empty)
 	}
-	graph := CollectEntries(dump)
+	graph := CollectEntries(dump, true)
 	if len(graph) == 0 {
 		t.Fatalf("expected reflection modules for a getRunTypeId circular site, got none")
 	}

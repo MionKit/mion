@@ -24,6 +24,7 @@ func baseFlags() buildFlags {
 		moduleMode:           "default",
 		patternSampleCount:   100,
 		patternSampleRetries: 10,
+		jsonMaxBytes:         true,
 	}
 }
 
@@ -36,6 +37,7 @@ func TestMergeBuildOptions_DefaultsWhenEmpty(t *testing.T) {
 		hashLength: 0, emitMode: "code", inlineMode: "default", moduleMode: "default",
 		genDir:             filepath.Join("/proj", ".mion"),
 		patternSampleCount: 100, patternSampleRetries: 10,
+		jsonMaxBytes: true,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("merge defaults = %+v, want %+v", got, want)
@@ -55,6 +57,7 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		ParallelRender:       boolPtr(false),
 		PatternSampleCount:   intPtr(25),
 		PatternSampleRetries: intPtr(4),
+		JSONMaxBytes:         boolPtr(false),
 	}
 	got := mergeBuildOptions(baseFlags(), plugin, "/proj")
 	want := buildOptions{
@@ -68,6 +71,7 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		moduleMode:            "allSingle",
 		patternSampleCount:    25,
 		patternSampleRetries:  4,
+		jsonMaxBytes:          false,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("merge from tsconfig = %+v, want %+v", got, want)
@@ -469,5 +473,24 @@ func TestRemovedPluginKeys(t *testing.T) {
 	}
 	if !strings.Contains(message, "downgradeErrors") {
 		t.Errorf("the message must name the replacement, got %q", message)
+	}
+}
+
+// TestMergeBuildOptions_JSONMaxBytesFlagWins: an explicit --json-max-bytes (either
+// value) wins over the tsconfig `jsonMaxBytes`; the tsconfig fills in only when
+// the flag was not passed, and an absent key keeps the binary default (on).
+func TestMergeBuildOptions_JSONMaxBytesFlagWins(t *testing.T) {
+	flags := baseFlags()
+	flags.set["json-max-bytes"] = true
+	flags.jsonMaxBytes = true
+	if got := mergeBuildOptions(flags, tsRuntypesPlugin{JSONMaxBytes: boolPtr(false)}, "/proj"); !got.jsonMaxBytes {
+		t.Errorf("--json-max-bytes must win over tsconfig jsonMaxBytes:false")
+	}
+	flags.jsonMaxBytes = false
+	if got := mergeBuildOptions(flags, tsRuntypesPlugin{JSONMaxBytes: boolPtr(true)}, "/proj"); got.jsonMaxBytes {
+		t.Errorf("--json-max-bytes=false must win over tsconfig jsonMaxBytes:true")
+	}
+	if got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{}, "/proj"); !got.jsonMaxBytes {
+		t.Errorf("an absent tsconfig key must keep the default (on)")
 	}
 }

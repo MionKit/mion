@@ -10,8 +10,7 @@ import {RouterOptions} from '../types/general.ts';
 import {MiddleFnsCollection, MayReturnError} from '../types/publicMethods.ts';
 import {AnyObject, Mutable, MION_ROUTES, StatusCodes, SerializerModes} from '@mionjs/core';
 import {rawMiddleFn} from '../lib/handlers.ts';
-import {getRouteExecutable, getRouterOptions, getPlatformConfig} from '../router.ts';
-import {getBatch, resolveBatchMaxBodySize} from '../batches.ts';
+import {getRouteExecutable} from '../router.ts';
 import {RpcError, FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {onExecutableError} from '../lib/dispatchError.ts';
@@ -27,7 +26,7 @@ import {onExecutableError} from '../lib/dispatchError.ts';
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
   if (!context.request.rawBody) return; // empty body
-  rejectOversizedBody(context.request.rawBody, effectiveMaxBodySize(context));
+  rejectOversizedBody(context.request.rawBody, context.maxBodySize);
   let parsedBody: any;
   switch (context.request.bodyType) {
     case SerializerModes.stringifyJson: // jit stringify json
@@ -66,24 +65,11 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
   (context.request as Mutable<MionRequest>).body = parsedBody;
 }
 
-/** ONE limit per deployment: a platform that has its own `maxBodySize` (node, uws, bun) publishes it
- *  in the platform config and the router honours that number, so the two never disagree; every
- *  other platform (cloudflare, aws, gcloud, vercel, or a router driven directly) gets the router
- *  option. */
-function effectiveMaxBodySize(context: CallContext): number {
-  // A batch request reads its limit from the batch's table entry (today the same number, fixed on
-  // the entry at first use, so a per-batch limit has one place to land).
-  if (context.batchId) {
-    const entry = getBatch(context.batchId);
-    if (entry) return resolveBatchMaxBodySize(entry);
-  }
-  const platformLimit = getPlatformConfig()?.maxBodySize;
-  return typeof platformLimit === 'number' ? platformLimit : getRouterOptions().maxBodySize;
-}
-
-/** The router-level body limit every adapter inherits (the node / uws / bun adapters also stop the
- *  read early with their own copy of the option). A string body is measured in UTF-16 code units,
- *  which is never more than its byte length, so the byte-exact adapter limit always fires first. */
+/** The router-level check of the request limit `resolveRequest` settled for this request (the
+ *  chain's own number, capped by the platform's). The node / uws adapters already stopped the
+ *  read at the same number; this is what holds on a platform that hands the body over whole. A
+ *  string body is measured in UTF-16 code units, which is never more than its byte length, so the
+ *  byte-exact adapter limit always fires first. */
 function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void {
   // a pre-parsed object body has no wire size here: the host that parsed it applied its own limit
   if (typeof rawBody !== 'string' || rawBody.length <= maxBodySize) return;
@@ -144,9 +130,12 @@ function stringifyBody(context: CallContext, executionChain: RemoteMethod[], res
     }
   }
 
-  // Serialize thrownErrors if they exist
-  const thrownErrors = respBody['@thrownErrors'];
+  // Serialize thrownErrors if they exist. Read off the REQUEST after the loop: a failure raised
+  // inside it (a stringify error) creates the map when it is the
+  // first error, and the body's slot was assigned before the loop ran.
+  const thrownErrors = context.request.thrownErrors;
   if (thrownErrors) {
+    (respBody as Mutable<ResponseBody>)['@thrownErrors'] = thrownErrors;
     const method = getRouteExecutable(MION_ROUTES.thrownErrors)!;
     try {
       const jsonValue = stringifyHandlerReturnValue(method, thrownErrors);
@@ -201,9 +190,10 @@ function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[]
       onPrepareForJsonExecutableError(context, method, e);
     }
   }
-  // Prepare thrownErrors if they exist
-  const thrownErrors = respBody['@thrownErrors'];
+  // Prepare thrownErrors if they exist, read off the request after the loop (see stringifyBody)
+  const thrownErrors = context.request.thrownErrors;
   if (thrownErrors) {
+    (respBody as Mutable<ResponseBody>)['@thrownErrors'] = thrownErrors;
     const method = getRouteExecutable(MION_ROUTES.thrownErrors)!;
     try {
       const preparedValue = prepareHandlerReturnValue(method, thrownErrors);

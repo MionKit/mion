@@ -20,7 +20,14 @@ import (
 // runtime's index-only access, exactly like the old `u` alias did, but
 // costs zero bytes. Trailing holes are trimmed off. The first two args
 // (`id`, `kind`) are always present.
-func renderFactoryArgs(runType *reflection.RunType) []string {
+// jsonMaxBytes is the compact-JSON maximum of a reflection ROOT (slot 21, see
+// cachegen/jsonsize); 0 renders a hole, which is what every non-root and every
+// unbounded root gets, so those rows are unchanged.
+func renderFactoryArgs(runType *reflection.RunType, jsonMaxBytes int) []string {
+	jsonMaxArg := ""
+	if jsonMaxBytes > 0 {
+		jsonMaxArg = strconv.Itoa(jsonMaxBytes)
+	}
 	args := []string{
 		quoteJS(runType.ID),             // 0: id
 		strconv.Itoa(int(runType.Kind)), // 1: kind
@@ -43,6 +50,7 @@ func renderFactoryArgs(runType *reflection.RunType) []string {
 		valuesArg(runType.Values),       // 18: values
 		boolArg(runType.NotSupported),   // 19: notSupported
 		boolArg(runType.NonEnumerable),  // 20: nonEnumerable
+		jsonMaxArg,                      // 21: jsonMaxBytes (reflection roots only)
 	}
 	return trimTrailingUndefined(args)
 }

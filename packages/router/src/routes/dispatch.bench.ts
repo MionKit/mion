@@ -14,7 +14,7 @@
 // the code, so compare every other case against it before believing a delta.
 
 import {bench, describe} from 'vitest';
-import {createMionRouter, resetRouter} from '../router.ts';
+import {createMionRouter, resetRouter, setPlatformConfig} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import {decodeQueryBody} from '../lib/queryBody.ts';
@@ -59,6 +59,9 @@ const chainRoutes = {
 
 resetRouter();
 mion.initRoutes({...routes, ...chainRoutes});
+// the routes here take `string` params with no maximum: publish a generous number, as an adapter
+// would, so no case ever measures a 413
+setPlatformConfig({maxBodySize: 1_000_000});
 registerBatches({benchPair: {routes: ['syncNoParams', 'syncObjectParam']}});
 
 const item: Item = {id: 'id-1', name: 'name-1', tags: ['a', 'b'], score: 1};

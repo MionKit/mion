@@ -12,7 +12,8 @@ import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {onExecutableError, markResponseFailed} from './lib/dispatchError.ts';
-import {createCallContext} from './callContext.ts';
+import {createCallContext, resolveRequest} from './callContext.ts';
+import type {ResolvedRequest} from './types/context.ts';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -24,6 +25,10 @@ import {createCallContext} from './callContext.ts';
 
 // ############# PUBLIC METHODS #############
 
+/** Resolves the route from the path and dispatches: the one-call form for callers that already
+ *  have the body (tests, a host that parsed it). An adapter that reads the body itself calls
+ *  `resolveRequest` first, reads against `resolved.maxBodySize`, then `dispatchResolved`. Async so
+ *  a resolve-time throw (an unknown batch id, a throwing pathTransform) is a rejection like before. */
 export async function dispatchRoute<Req, Resp>(
   path: string,
   reqRawBody: RawRequestBody,
@@ -34,8 +39,29 @@ export async function dispatchRoute<Req, Resp>(
   reqBodyType?: SerializerCode,
   urlQuery?: string
 ): Promise<MionResponse> {
+  return dispatchResolved(
+    resolveRequest(path, urlQuery, rawRequest),
+    reqRawBody,
+    reqHeaders,
+    respHeaders,
+    rawRequest,
+    rawResponse,
+    reqBodyType
+  );
+}
+
+/** Runs a request already resolved by `resolveRequest`, so the route is looked up ONCE per request. */
+export async function dispatchResolved<Req, Resp>(
+  resolved: ResolvedRequest,
+  reqRawBody: RawRequestBody,
+  reqHeaders: MionHeaders,
+  respHeaders: MionHeaders,
+  rawRequest: Req,
+  rawResponse?: Resp,
+  reqBodyType?: SerializerCode
+): Promise<MionResponse> {
   const opts = getRouterOptions();
-  const context = createCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+  const context = createCallContext(resolved, opts, reqRawBody, reqHeaders, respHeaders, reqBodyType);
 
   // No catch: runExecutionChain handles every exception itself, and a catch that only re-rejects
   // changes nothing.

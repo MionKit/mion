@@ -34,6 +34,12 @@ describe('toRunTypesOptions — the mapping both presets share', () => {
     expect(toRunTypesOptions({downgradeErrors: ['VL002']}).downgradeErrors).toEqual(['VL002']);
   });
 
+  it('maps derivedPayloadLimits onto the resolver jsonMaxBytes key, undefined passing through', () => {
+    expect(toRunTypesOptions({}).jsonMaxBytes).toBeUndefined();
+    expect(toRunTypesOptions({derivedPayloadLimits: false}).jsonMaxBytes).toBe(false);
+    expect(toRunTypesOptions({derivedPayloadLimits: true}).jsonMaxBytes).toBe(true);
+  });
+
   it('maps tsConfig onto the resolver tsconfig key and accepts the outDir alias', () => {
     expect(toRunTypesOptions({tsConfig: '/p/tsconfig.json'}).tsconfig).toBe('/p/tsconfig.json');
     expect(toRunTypesOptions({outDir: 'gen'}).genDir).toBe('gen');

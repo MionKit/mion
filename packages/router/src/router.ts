@@ -28,9 +28,10 @@ import {
   isAnyMiddleFnDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveEncoder} from '@mionjs/core';
+import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveEncoder, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledEncoder} from './lib/reflection.ts';
 import {getChainFraming} from './lib/framing.ts';
+import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {
@@ -46,7 +47,7 @@ import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionClientRoutes, mionClientMiddleFns, useOnDemandMetadataCaller} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
-import {clearBatches} from './batches.ts';
+import {capBatchBodySizes, clearBatches, getMaxBatchBodySize} from './batches.ts';
 import {headersFn, middleFn, mutation, query, rawMiddleFn, route} from './lib/handlers.ts';
 import type {
   HeadersFnHelper,
@@ -82,6 +83,8 @@ let isRouterInitialized = false;
 let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
+/** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
+let platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
 
 /** Global middleFns to be run before and after any other middleFns or routes set through `mion.initRoutes` */
 const defaultStartMiddleFns = {
@@ -120,13 +123,59 @@ export const getAlwaysAwait = () => alwaysAwait;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
-/** Sets platform adapter config. Called automatically by platform adapters. */
+/** Sets platform adapter config. Called automatically by platform adapters. The adapter's
+ *  `maxBodySize` and `maxBodySizeCap` are settled here, once, so no request reads the config. */
 export function setPlatformConfig(config: Record<string, unknown>): void {
   platformConfig = config;
+  const published = config.maxBodySize;
+  platformMaxBodySize = Math.min(
+    typeof published === 'number' ? published : DEFAULT_MAX_BODY_SIZE,
+    readMaxBodySizeCap(config) ?? Infinity
+  );
+  if (isRouterInitialized) applyMaxBodySizeCap();
+}
+
+/** The platform's own request ceiling the adapter published, in bytes; undefined means none. */
+function readMaxBodySizeCap(config: Record<string, unknown> | undefined): number | undefined {
+  const cap = config?.maxBodySizeCap;
+  return typeof cap === 'number' ? cap : undefined;
+}
+
+/** Nothing mion resolves passes the platform's own request ceiling: a route (or batch) limit, or
+ *  the adapter's number, above it would promise a size the platform refuses before mion runs, so
+ *  it is brought down to the ceiling. Applied once, when the adapter has published its config AND
+ *  the routes are registered, whichever comes last. */
+function applyMaxBodySizeCap(): void {
+  const cap = readMaxBodySizeCap(platformConfig);
+  if (cap === undefined) return;
+  for (const chain of flatRouter.values()) {
+    if (chain.maxBodySize === undefined || chain.maxBodySize <= cap) continue;
+    chain.maxBodySize = cap;
+    const route = chain.methods[chain.routeIndex];
+    if (route.options.maxBodySize !== undefined) route.options.maxBodySize = cap;
+  }
+  capBatchBodySizes(cap);
 }
 
 /** Returns the platform adapter config set by setPlatformConfig(). */
 export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
+
+/** The request limit a route takes when its own option is unset and its types cannot say: the
+ *  platform adapter's `maxBodySize`, published with its config when the server starts, else the
+ *  shared default (a router driven with no adapter, as in tests). */
+export const getPlatformMaxBodySize = (): number => platformMaxBodySize;
+
+/** The platform's own request ceiling, when the adapter published one. */
+export const getPlatformRequestCap = (): number | undefined => readMaxBodySizeCap(platformConfig);
+
+/** The largest request limit any registered route or batch resolves to: what a platform with ONE
+ *  native, server-wide read limit (bun) sets that limit to at start, so it never refuses a body a
+ *  route allows. */
+export function getMaxRouteBodySize(): number {
+  let largest = getPlatformMaxBodySize();
+  for (const chain of flatRouter.values()) largest = Math.max(largest, chain.maxBodySize ?? getPlatformMaxBodySize());
+  return Math.max(largest, getMaxBatchBodySize());
+}
 
 export const resetRouter = () => {
   flatRouter.clear();
@@ -147,6 +196,7 @@ export const resetRouter = () => {
   isRouterCreated = false;
   allExecutablesIds = undefined;
   platformConfig = undefined;
+  platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
   resetRemoteMethodsMetadata();
   resetRoutesCache();
   clearBatches();
@@ -190,7 +240,9 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
     rawMiddleFn: rawMiddleFn as RawMiddleFnHelper<O>,
     initRoutes<R extends Routes>(routes: R): PublicApi<R> {
       initRouter(options);
-      return registerRoutes(routes);
+      const api = registerRoutes(routes);
+      if (platformConfig) applyMaxBodySizeCap();
+      return api;
     },
   };
 }
@@ -408,10 +460,19 @@ function recursiveCreateExecutionChain(
     const routeMethod = routeEntry as RouteMethod;
     const levelMethods = [...preMiddleFns, ...props.preLevelMiddleFns, routeEntry, ...props.postLevelMiddleFns, ...postMiddleFns];
     const methods = [...startMiddleFns, ...levelMethods, ...endMiddleFns];
+    // an internal route (not-found, the error routes) is reached by paths that name no real route,
+    // so it takes the platform's number rather than the tiny one its own no-params tuple derives
+    const maxBodySize = mionInternalRoutes.includes(routeMethod.id)
+      ? routeMethod.options.maxBodySize
+      : resolveChainMaxBodySize(methods, routeMethod, routerOptions);
+    // the resolved number is what the route publishes in its metadata; undefined means the
+    // platform's, filled in when the metadata is read (the adapter has started by then)
+    if (maxBodySize !== undefined) routeMethod.options.maxBodySize = maxBodySize;
     const executionChain: MethodsExecutionChain = {
       routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
       methods,
       serializer: getChainFraming(methods),
+      maxBodySize,
     };
     const middleFnIds = getPublicMiddleFnIds(methods);
     // add middleware functions deps, so can be serialized with the router
@@ -488,6 +549,9 @@ export function getExecutableFromMiddleFn(
         sanitizeParams: middleFn.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
     };
+    // a middleFn's maxBodySize is its OWN contribution to every chain it sits in, never resolved;
+    // written only when set, so the metadata a client receives carries no `undefined` key
+    if (middleFn.options?.maxBodySize !== undefined) executable.options.maxBodySize = middleFn.options.maxBodySize;
   }
 
   if (executable.isAsync) hasAsyncMethods = true;
@@ -562,6 +626,8 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
     };
+    // the route option as written; the chain resolution overwrites it with the resolved number
+    if (route.options?.maxBodySize !== undefined) executable.options.maxBodySize = route.options.maxBodySize;
   }
   if (executable.isAsync) hasAsyncMethods = true;
   routesById.set(routeId, executable);

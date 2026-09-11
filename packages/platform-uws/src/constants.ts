@@ -5,14 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
 import {UwsHttpOptions} from './types.ts';
 
 export const DEFAULT_UWS_HTTP_OPTIONS: UwsHttpOptions = {
   port: 80,
   defaultResponseHeaders: {},
-  /**
-   * 256KB by default, same as lambda payload
-   * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
-   * */
-  maxBodySize: 256000, // 256KB
+  /** What a route takes when its own `maxBodySize` option is unset and its types cannot say: the
+   *  shared 128 KB default, far under every platform's own ceiling */
+  maxBodySize: DEFAULT_MAX_BODY_SIZE,
 };

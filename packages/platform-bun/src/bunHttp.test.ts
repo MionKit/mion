@@ -125,22 +125,43 @@ describe('bun router should', () => {
     setBunHttpOpts(bunOpts);
     mion.initRoutes({changeUserName, getDate, updateHeaders});
     const smallServer = await startBunServer();
-    const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-    const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
+    // `changeUserName` takes a plain `SimpleUser` (unbounded strings), so it is the adapter's number
+    // that applies; `getDate` derives its own limit from its types and would ignore a 10-byte adapter
+    const requestData = {changeUserName: [{name: 'a', surname: 'b'}]};
+    const response = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
       method: 'POST',
       body: JSON.stringify(requestData),
     });
     // Bun.serve refuses the body itself with maxRequestBodySize; when it hands the request over
-    // anyway (the option was reported broken in oven-sh/bun#6031), the router's own limit answers
-    // with the mion envelope. Either way the status is 413 and the next request is served.
+    // anyway (the option was reported broken in oven-sh/bun#6031), the adapter's own read against
+    // the route limit answers with the mion envelope. Either way the status is 413 and the next
+    // request is served.
     expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     const text = await response.text();
     if (response.headers.get('content-type')?.startsWith('application/json')) {
       const body = JSON.parse(text) as Record<string, any>;
-      expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest'].type).toBe('request-payload-too-large');
+      expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('request-payload-too-large');
       expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
     }
-    const alive = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {method: 'POST', body: '{}'});
+    // a chunked body with no content-length is read against the route limit as it streams in
+    const streamed = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
+      method: 'POST',
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          const chunk = new TextEncoder().encode(JSON.stringify(requestData));
+          controller.enqueue(chunk);
+          controller.enqueue(chunk);
+          controller.close();
+        },
+      }),
+      duplex: 'half',
+    } as RequestInit);
+    expect(streamed.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(streamed.headers.get('connection')).toBe('close');
+    await streamed.text();
+    // the refused stream's connection is closed by the server (`connection: close`); Bun's own fetch
+    // client still reuses it once and gets a 400, so the liveness check opens a fresh connection
+    const alive = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {method: 'POST', body: '{}', keepalive: false});
     expect(alive.status).toBe(200);
 
     void smallServer.stop(true);

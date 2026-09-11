@@ -69,6 +69,12 @@ export interface MionRunTypesOptions {
    *  budget is `patternSampleCount * patternSampleRetries` — raise this for heavily
    *  constrained patterns whose random draws often miss. */
   patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
+  /** Derive every route's request size limit from its types (default true): the
+   *  compiler emits the largest JSON a bounded type allows and the router refuses anything past
+   *  it. `false` turns the whole feature off in one place, the compiler emits nothing for it and
+   *  every route takes its own `maxBodySize` option or the platform adapter's number. Maps onto
+   *  the resolver's `jsonMaxBytes` option (also settable in tsconfig). */
+  derivedPayloadLimits?: boolean;
   /** JS runtime used to run the pattern-checking sidecar. node and bun are found
    *  automatically on PATH; set this (or the upstream `MION_JS_RUNTIME` env var) only to
    *  point at another runtime. When no runtime can be started the build fails closed
@@ -162,6 +168,7 @@ export function toRunTypesOptions(rt: MionRunTypesOptions = {}, client?: MionCli
     downgradeErrors: rt.downgradeErrors,
     patternSampleCount: rt.patternSampleCount,
     patternSampleRetries: rt.patternSampleRetries,
+    jsonMaxBytes: rt.derivedPayloadLimits,
     jsRuntime: rt.jsRuntime,
   };
 }

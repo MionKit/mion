@@ -19,7 +19,14 @@ import {
 } from '@mionjs/core';
 import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
-import {getRouteExecutionChain, getRouterOptions, getPlatformConfig, startMiddleFns, endMiddleFns} from './router.ts';
+import {
+  getRouteExecutionChain,
+  getPlatformMaxBodySize,
+  getPlatformRequestCap,
+  getRouterOptions,
+  startMiddleFns,
+  endMiddleFns,
+} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
 import {RouterOptions} from './types/general.ts';
@@ -47,7 +54,8 @@ export interface BatchEntry {
   readonly mappings: readonly BatchMapping[];
   /** Merged chains keyed by the pathTransform-resolved paths ('' when there is no transform) */
   readonly chains: Map<string, MethodsExecutionChain>;
-  /** Largest request body this batch accepts, resolved on first use (see resolveBatchMaxBodySize) */
+  /** Largest request body this batch accepts: the sum of its member routes' resolved limits plus
+   *  the envelope, fixed on the entry when its first chain is built (see resolveBatchMaxBodySize) */
   maxBodySize?: number;
 }
 
@@ -120,15 +128,47 @@ export function clearBatches(): void {
   mappingMethodCache.clear();
 }
 
-/** Largest body a batch request accepts: fixed on the entry at first use so the limit is read from
- *  the table, and initialised from the same number a plain route gets today (the platform's own
- *  limit when it publishes one, else the router option). */
-export function resolveBatchMaxBodySize(entry: BatchEntry): number {
-  if (entry.maxBodySize === undefined) {
-    const platformLimit = getPlatformConfig()?.maxBodySize;
-    entry.maxBodySize = typeof platformLimit === 'number' ? platformLimit : getRouterOptions().maxBodySize;
-  }
+/** Largest body a batch request accepts: the sum of its member routes' resolved limits (each
+ *  already carries its factor and its envelope; a member whose types cannot say counts the
+ *  platform's number) plus the outer braces, fixed on the entry the first time its chain is built
+ *  so the limit is read from the table. */
+export function resolveBatchMaxBodySize(entry: BatchEntry, memberChains: MethodsExecutionChain[]): number {
+  if (entry.maxBodySize === undefined) entry.maxBodySize = sumChainMaxBodySize(memberChains);
   return entry.maxBodySize;
+}
+
+function sumChainMaxBodySize(chains: MethodsExecutionChain[]): number {
+  let total = 2;
+  for (const chain of chains) total += chain.maxBodySize ?? getPlatformMaxBodySize();
+  return Math.min(total, getPlatformRequestCap() ?? Infinity);
+}
+
+/** Brings every batch limit already settled down to the platform's request ceiling (the ones not
+ *  yet settled read the ceiling when they are). */
+export function capBatchBodySizes(maxRequestSize: number): void {
+  for (const entry of batchesById.values()) {
+    if (entry.maxBodySize !== undefined && entry.maxBodySize > maxRequestSize) entry.maxBodySize = maxRequestSize;
+  }
+}
+
+/** The largest limit any registered batch resolves to, over the member routes' untransformed
+ *  paths: what bun sizes its native server limit with (see getMaxRouteBodySize). */
+export function getMaxBatchBodySize(): number {
+  const opts = getRouterOptions();
+  let largest = 0;
+  for (const entry of batchesById.values()) {
+    if (entry.maxBodySize !== undefined) {
+      largest = Math.max(largest, entry.maxBodySize);
+      continue;
+    }
+    const chains: MethodsExecutionChain[] = [];
+    for (const routeId of entry.routes) {
+      const chain = getRouteExecutionChain(getRoutePath(routeId.split(ROUTER_ITEM_SEPARATOR_CHAR), opts));
+      if (chain) chains.push(chain);
+    }
+    largest = Math.max(largest, sumChainMaxBodySize(chains));
+  }
+  return largest;
 }
 
 // ############# REQUEST RESOLUTION #############
@@ -174,7 +214,12 @@ export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions,
     executionChain = buildMergedExecutionChain(entry, transformedPaths);
     entry.chains.set(chainKey, executionChain);
   }
-  return {executionChain, batchId: entry.id, batchRouteIds: entry.routes as string[]};
+  return {
+    executionChain,
+    maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize(),
+    batchId: entry.id,
+    batchRouteIds: entry.routes as string[],
+  };
 }
 
 /**
@@ -188,6 +233,7 @@ export function getBatchExecutionChain(rawRequest: unknown, opts: RouterOptions,
 function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]): MethodsExecutionChain {
   const seenIds = new Set<string>();
   const middleMethods: RemoteMethod[] = [];
+  const memberChains: MethodsExecutionChain[] = [];
   let firstRouteIndex = -1;
 
   // Build sets of start and end middleFn IDs for filtering
@@ -205,6 +251,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
       });
     }
 
+    memberChains.push(chain);
     // Track the route index from the first route (relative to start middleFns)
     if (firstRouteIndex < 0) firstRouteIndex = chain.routeIndex;
 
@@ -226,6 +273,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     routeIndex: firstRouteIndex,
     methods,
     serializer: getChainFraming(methods),
+    maxBodySize: resolveBatchMaxBodySize(entry, memberChains),
   };
 }
 

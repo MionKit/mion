@@ -29,7 +29,7 @@ import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
 import {runFuzzLoop, type FuzzLoopResult} from '../../../../run-types/test/fuzz/core/runLoop.ts';
 import {mulberry32} from '../../../../run-types/test/fuzz/core/seededRng.ts';
-import {createMionRouter, resetRouter, getRouteExecutionChain} from '../../../src/router.ts';
+import {createMionRouter, resetRouter, getRouteExecutionChain, setPlatformConfig} from '../../../src/router.ts';
 import {dispatchRoute} from '../../../src/dispatch.ts';
 import {headersFromRecord} from '../../../src/lib/headers.ts';
 import {decodeQueryBody} from '../../../src/lib/queryBody.ts';
@@ -44,7 +44,7 @@ import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '../../../../p
 
 // the test-server fixture module already created its own factory at import: clear the once-guard first
 resetRouter();
-const mion = createMionRouter({contextDataFactory: () => ({user: null}), maxBodySize: 64_000});
+const mion = createMionRouter({contextDataFactory: () => ({user: null})});
 
 // ############# oracles #############
 
@@ -440,6 +440,8 @@ interface Lane {
 async function openLane(): Promise<Lane> {
   resetRouter();
   mion.initRoutes(routes);
+  // the in-process lane has no adapter: publish the same 64 KB the socket lane's node adapter uses
+  setPlatformConfig({maxBodySize: 64_000});
   // the one batch the fixture server knows, so a known-id attack reaches a real chain
   registerBatches({[KNOWN_BATCH_ID]: KNOWN_BATCH});
   return {violations: [], applied: {}, statuses: {}, protoBefore: protoSnapshot()};

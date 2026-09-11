@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
+import {
+  dispatchResolved,
+  resolveRequest,
+  getRouterFatalErrorResponse,
+  resetRouter,
+  decodeQueryBody,
+  setPlatformConfig,
+} from '@mionjs/router';
 import {STATUS_CODES} from 'http';
 import {loadUws} from '@mionjs/bin-uws';
 import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
@@ -119,6 +126,16 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 // setUwsHttpOpts). uWS contract: `req` is only valid synchronously inside this call, so everything
 // the async dispatch needs is snapshotted before the first await; `res` stays valid until the
 // response ends or onAborted fires.
+function toRpcError(e: unknown): RpcError<string> {
+  return e instanceof RpcError
+    ? e
+    : new FatalError({
+        publicMessage: 'Unknown Error',
+        type: 'unknown-error',
+        originalError: e as Error,
+      });
+}
+
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const state = {replied: false, aborted: false};
   // Everything read from `req` happens HERE, synchronously.
@@ -136,6 +153,20 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     state.aborted = true;
   });
 
+  // The route is resolved BEFORE the body, synchronously: one lookup gives the chain and the
+  // request limit the route settled at registration, so the native read below stops at the route's
+  // own number and the same handle goes to the dispatch. The raw request object is built once, the
+  // one a pathTransform reads and the one the handlers see.
+  const rawRequest = {path, urlQuery, headers: reqHeaders};
+  let resolved: ReturnType<typeof resolveRequest>;
+  try {
+    resolved = resolveRequest(path, urlQuery, rawRequest);
+  } catch (e) {
+    state.replied = true;
+    fatalFail(res, state, respHeaders, toRpcError(e));
+    return;
+  }
+
   const dispatchBody = (buffer: Buffer) => {
     let reqRawBody: any = buffer.toString();
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
@@ -152,7 +183,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, {path, urlQuery, headers: reqHeaders}, res, reqBodyType, urlQuery)
+    dispatchResolved(resolved, reqRawBody, reqHeaders, respHeaders, rawRequest, res, reqBodyType)
       .then((mionResponse) => {
         if (state.replied) return;
         state.replied = true;
@@ -161,19 +192,15 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       .catch((e) => {
         if (state.replied) return;
         state.replied = true;
-        const error = new FatalError({
-          publicMessage: 'Unknown Error',
-          type: 'unknown-error',
-          originalError: e as Error,
-        });
-        fatalFail(res, state, respHeaders, error);
+        fatalFail(res, state, respHeaders, toRpcError(e));
       });
   };
 
   // collectBody assembles the whole request body natively (it rides uWS' onDataV2, which knows the
   // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
-  // maxSize, which is exactly the maxBodySize contract.
-  res.collectBody(httpOptions.maxBodySize, (fullBody) => {
+  // maxSize, which is exactly the maxBodySize contract. The size is the route's own resolved limit
+  // (the adapter's option for a route whose types could not say).
+  res.collectBody(resolved.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {
       state.replied = true;

@@ -15,7 +15,7 @@ import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from './cloudflareHandler.ts';
 
-const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/', maxBodySize: 64});
+const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
 
 type SimpleUser = {name: string; surname: string};
 const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
@@ -25,7 +25,7 @@ describe('cloudflare adapter hardening', () => {
 
   beforeAll(async () => {
     resetCloudflareHandlerOpts();
-    setCloudflareHandlerOpts({basePath: ''});
+    setCloudflareHandlerOpts({basePath: '', maxBodySize: 64});
     resetRouter();
     mion.initRoutes({echo});
     handler = createCloudflareHandler();
@@ -47,10 +47,38 @@ describe('cloudflare adapter hardening', () => {
     expect(response.headers.get('x-rpc-error')).toBe('invalid-query-body');
   });
 
-  it('a body over the router limit is a 413', async () => {
+  it('a body over the adapter limit is a 413', async () => {
     const response = await post('/api/echo', JSON.stringify({echo: [{name: 'x'.repeat(60), surname: 'y'}]}));
     expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
+  });
+
+  it('a streamed body over the route limit is cancelled before it is fully read', async () => {
+    let pulled = 0;
+    let cancelled = false;
+    const chunk = new TextEncoder().encode('x'.repeat(40));
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        if (pulled > 10) controller.close();
+        else controller.enqueue(chunk);
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const request = new Request('http://localhost/api/echo', {
+      method: 'POST',
+      body,
+      headers: {'content-type': 'application/json'},
+      duplex: 'half',
+    } as RequestInit);
+    const response = await handler.fetch(request);
+    expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
+    // the 64-byte limit is passed on the second 40-byte chunk: the rest of the stream is never pulled
+    expect(cancelled).toBe(true);
+    expect(pulled).toBeLessThan(4);
   });
 
   it('a body inside the limit dispatches', async () => {

@@ -7,7 +7,14 @@
 
 import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {dispatchRoute, getRouterFatalErrorResponse, resetRouter, decodeQueryBody, setPlatformConfig} from '@mionjs/router';
+import {
+  dispatchResolved,
+  resolveRequest,
+  getRouterFatalErrorResponse,
+  resetRouter,
+  decodeQueryBody,
+  setPlatformConfig,
+} from '@mionjs/router';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants.ts';
@@ -57,20 +64,22 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
   const urlQuery = queryIndex === -1 ? undefined : originalUrl.slice(queryIndex + 1);
 
   try {
+    // express already read (and may have parsed) the body, so the route is resolved for its limit
+    // and its chain in one lookup and the router checks a string body's size before parsing
+    const resolved = resolveRequest(rawRequest.path, urlQuery, rawRequest);
     const queryBody = decodeQueryBody(urlQuery, rawBody);
     if (queryBody) {
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const routeResponse = await dispatchRoute(
-      rawRequest.path,
+    const routeResponse = await dispatchResolved(
+      resolved,
       rawBody,
       reqHeaders,
       respHeaders,
       rawRequest,
       rawResponse,
-      reqBodyType,
-      urlQuery
+      reqBodyType
     );
     reply(routeResponse, rawResponse);
   } catch (err) {

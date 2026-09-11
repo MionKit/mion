@@ -24,6 +24,8 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
   shared: ContextData;
   /** The execution chain of the current route */
   readonly executionChain: MethodsExecutionChain;
+  /** The request limit this request was read against: the chain's number capped by the platform's */
+  readonly maxBodySize: number;
   /** Query string from URL, used by the batch endpoint (`id=<batchId>`) and by query routes */
   readonly urlQuery?: string;
   /** Id of the batch a batch request is running */
@@ -119,8 +121,22 @@ export interface ResponseBody extends Record<string, any> {
 /** Result of resolving a request to its execution chain (getBatchExecutionChain for a batch) */
 export interface BatchExecutionResult {
   executionChain: MethodsExecutionChain;
+  /** The request limit of the chain (a batch: the sum of its member routes'), the platform's number
+   *  filled in where the types could not say */
+  maxBodySize: number;
   /** Id of the batch, surfaced on the CallContext */
   batchId?: string;
   /** Route ids of the batch, surfaced on the CallContext for consumers */
   batchRouteIds?: string[];
+}
+
+/** A request resolved BEFORE its body is read: what `resolveRequest` hands an adapter and what
+ *  `dispatchResolved` takes back, so the route lookup happens once per request. */
+export interface ResolvedRequest extends BatchExecutionResult {
+  /** The path after `pathTransform`, the one the chain was looked up by */
+  path: string;
+  urlQuery?: string;
+  /** The limit to read the body against: the route's own option, else the number derived from
+   *  its types, else the platform adapter's `maxBodySize` */
+  maxBodySize: number;
 }

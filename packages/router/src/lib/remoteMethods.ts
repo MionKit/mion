@@ -17,7 +17,7 @@ import type {
   PureFnsDataCache,
 } from '@mionjs/core';
 import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef} from '../types/guards.ts';
-import {getMiddleFnExecutable, getRouteExecutable, isPrivateDefinition} from '../router.ts';
+import {getMiddleFnExecutable, getRouteExecutable, isPrivateDefinition, getPlatformMaxBodySize} from '../router.ts';
 import {
   getRouterItemId,
   MAX_STACK_DEPTH,
@@ -26,6 +26,7 @@ import {
   resolveCompiledPureFn,
   EMPTY_HASH,
   getOrCreateGlobal,
+  HandlerType,
 } from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types';
 
@@ -87,7 +88,12 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     pointer: executable.pointer,
     paramsCount: executable.paramsCount ?? 0,
     paramNames: executable.paramNames,
-    options: executable.options,
+    // a route whose types could not say takes the platform's number: filled in here, once, so the
+    // client sees the limit the server really applies (the adapter has published it by now)
+    options:
+      executable.type === HandlerType.route && executable.options.maxBodySize === undefined
+        ? {...executable.options, maxBodySize: getPlatformMaxBodySize()}
+        : executable.options,
   };
   if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
   if (executable.middleFnIds) newRemoteMethod.middleFnIds = executable.middleFnIds;

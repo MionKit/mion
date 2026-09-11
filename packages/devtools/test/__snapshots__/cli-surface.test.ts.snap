@@ -36,6 +36,8 @@ Flags:
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
   --js-runtime string
     	JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
+  --json-max-bytes
+    	emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
   --module-mode string
@@ -165,6 +167,8 @@ Flags:
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
   --js-runtime string
     	JS runtime path the format-pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
+  --json-max-bytes
+    	emit on every fully bounded reflection root the largest compact-JSON size a valid value can have (per-route size limits); --json-max-bytes=false emits none
   --marker-packages packages
     	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @mionjs/run-types is always accepted
   --module-mode string
@@ -242,6 +246,7 @@ Shared options (same meaning under every command):
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
+    --json-max-bytes=false      emit no compact-JSON maximum on reflection roots (per-route size limits off; default on)
     --pprof-cpu PATH / --pprof-heap PATH
     -h, --help          show help
     --version           print version (binary + pinned tsgo revision) and exit

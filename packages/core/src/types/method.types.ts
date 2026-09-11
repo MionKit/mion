@@ -72,6 +72,15 @@ export interface RemoteMethodOpts {
    * only: headers and return values are never sanitized. Runs even when `validateParams` is off.
    */
   sanitizeParams?: boolean;
+  /**
+   * Largest request body this route accepts, in bytes. On a route it is the RESOLVED limit of the
+   * whole chain (route option, else the sum derived from every member's params types times the
+   * router's `maxBodySizeFactor`, else the platform adapter's `maxBodySize`), what the adapters stop
+   * the read at and the router checks before parsing. On a middleFn it is the member's own declared contribution
+   * to that sum, for a middleFn whose params type has no maximum. Rides the methods metadata so a
+   * client can refuse an oversize call before sending it.
+   */
+  maxBodySize?: number;
 }
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {
@@ -104,6 +113,9 @@ export interface HeadersMethodWithJitFns extends HeadersMetaData {
 export interface MethodWithJitFns extends MethodMetadata {
   paramsJitFns: JitCompiledFunctions;
   returnJitFns: JitCompiledFunctions;
+  /** Largest compact-JSON size of a valid params tuple, from the build (`jsonMaxBytes` on the
+   *  params reflection root); undefined when any param type has no maximum. */
+  paramsJsonMaxBytes?: number;
   headersParam?: HeadersMethodWithJitFns;
   headersReturn?: HeadersMethodWithJitFns;
 }

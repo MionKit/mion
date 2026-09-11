@@ -99,6 +99,9 @@ export interface ResolverClientOptions {
   // Forwarded as --pattern-sample-retries: the per-sample draw multiplier
   // for pattern sample generation (undefined = the binary default, 10).
   patternSampleRetries?: number;
+  // false forwards --json-max-bytes=false: no root row carries its compact-JSON
+  // maximum. Undefined/true keeps the resolver default (emitted).
+  jsonMaxBytes?: boolean;
   // Extra packages allowed to declare the marker types, forwarded as
   // --marker-packages at spawn. Session config, not a per-request field: the
   // resolver folds it into its marker options once when the Program is built,
@@ -617,6 +620,7 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.hashLength !== undefined) args.push('--hash-length', String(opts.hashLength));
   if (opts.patternSampleCount !== undefined) args.push('--pattern-sample-count', String(opts.patternSampleCount));
   if (opts.patternSampleRetries !== undefined) args.push('--pattern-sample-retries', String(opts.patternSampleRetries));
+  if (opts.jsonMaxBytes === false) args.push('--json-max-bytes=false');
   if (opts.markerPackages?.length) args.push('--marker-packages', opts.markerPackages.join(','));
   if (opts.markerPackageCheck === false) args.push('--no-marker-package-check');
   // Always passed: the resolver's format-pattern checks run on a real JS

@@ -137,8 +137,10 @@ describe('node http router', () => {
       const smallServer = await startNodeServer({port: smallPort});
       expect(smallServer.listening).toBe(true);
 
-      const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-      const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
+      // `changeUserName` takes a plain `SimpleUser` (unbounded strings), so it is the adapter's number
+      // that applies; `getDate` derives its own limit from its types and would ignore a 1-byte adapter
+      const requestData = {changeUserName: [{name: 'a', surname: 'b'}]};
+      const response = await fetch(`http://127.0.0.1:${smallPort}/api/changeUserName`, {
         method: 'POST',
         body: JSON.stringify(requestData),
       });

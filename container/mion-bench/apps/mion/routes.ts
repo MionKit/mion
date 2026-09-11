@@ -15,7 +15,8 @@ import {Routes, createMionRouter} from '@mionjs/router';
 import {SimpleUser, User} from '../../shared/models.ts';
 
 // One router per process, created and initialized HERE: the three server entries
-// import this file and then listen.
+// import this file and then listen. The route params here (a User with plain strings) have no
+// maximum, so every route takes the adapter's maxBodySize, which each server entry sets.
 const mion = createMionRouter();
 
 const routes = {

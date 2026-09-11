@@ -19,6 +19,11 @@ export const PATH_SEPARATOR = '/';
 export const ROUTE_PATH_ROOT = PATH_SEPARATOR;
 export const ROUTER_ITEM_SEPARATOR_CHAR = '/';
 export const MAX_STACK_DEPTH = 50;
+/** The request body limit every platform adapter defaults to, in bytes: what a route takes when its
+ *  own `maxBodySize` option is unset and its params types cannot say how big a body can be. Every
+ *  hosted platform allows far more (Vercel 4.5 MB, AWS Lambda 6 MB, Google Cloud 10 MB and up,
+ *  Cloudflare 100 MB and up), so this is a deliberate floor, not a platform ceiling. */
+export const DEFAULT_MAX_BODY_SIZE = 128_000;
 
 /** Reserved route name of the batch endpoint: a batch request is `POST <basePath>/mion-batch?id=<batchId>` */
 export const MION_BATCH_KEY = 'mion-batch';

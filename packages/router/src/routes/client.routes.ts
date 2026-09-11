@@ -128,7 +128,14 @@ export const mionClientMiddleFns = {
   // declared at module level, so the build compiles it against the default whatever the router-wide
   // encoder is. It never mutates the cached metadata it returns and frames as json, so a chain's
   // framing is still decided by its route (the middleFn forces stringifyJson itself when it answers).
-  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {alwaysRun: true, encoder: {params: 'clone', return: 'clone'}}),
+  // It sits in EVERY chain and takes an unbounded `string[]` of ids, so it declares a fixed
+  // contribution to each chain's request limit: room for the ids a client piggybacks on its first
+  // call (bulk metadata has its own route). Without it every chain would take the platform's number.
+  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {
+    alwaysRun: true,
+    encoder: {params: 'clone', return: 'clone'},
+    maxBodySize: 4096,
+  }),
 } as const satisfies MiddleFnsCollection;
 
 export const mionClientRoutes = {
