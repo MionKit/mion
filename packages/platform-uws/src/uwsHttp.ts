@@ -168,12 +168,12 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     return;
   }
 
-  const dispatchBody = (buffer: Buffer | undefined) => {
-    let reqRawBody: any = buffer ? buffer.toString() : '';
+  const dispatchBody = (rawBody: string, readQueryBody: boolean) => {
+    let reqRawBody: any = rawBody;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a throw here runs inside uWS' native callback (or a microtask): it must become a response
     try {
-      const queryBody = buffer ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
+      const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
       if (queryBody) {
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
@@ -205,7 +205,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // as it arrives and dropped (a no-op reader keeps the connection reusable), never assembled.
   if (!context.readsBody) {
     res.onData(() => {});
-    dispatchBody(undefined);
+    dispatchBody('', false);
     return;
   }
 
@@ -219,13 +219,13 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
 
     // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test):
     // a body that arrived in ONE socket read is handed as a zero-copy window into uWS' receive
-    // buffer and DETACHED when this callback returns — it must be copied here (Buffer.from over an
-    // ArrayBuffer is only a view; the outer Buffer.from is the one real memcpy). A body that took
-    // several reads was assembled in C++ and its memory OWNERSHIP-TRANSFERRED to JS — no copy.
+    // buffer and DETACHED when this callback returns. Buffer.from over an ArrayBuffer is only a
+    // view, so the ONE copy is the native UTF-8 decode into the string, done synchronously here
+    // while the window is still valid. A body that took several reads was assembled in C++ and its
+    // memory OWNERSHIP-TRANSFERRED to JS, so it can be decoded from a microtask.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
-      // The window is valid for this synchronous callback, and dispatchBody turns it into a string
-      // right here (that IS the copy), so no retaining copy is needed.
-      dispatchBody(Buffer.from(fullBody));
+      // a body-less request (every GET) skips the view and the decode altogether
+      dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString(), true);
       return;
     }
     // Bigger than one read can deliver → guaranteed the ownership-transferred path: use the buffer
@@ -244,7 +244,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
         fatalFail(res, state, respHeaders, error);
         return;
       }
-      dispatchBody(Buffer.from(fullBody));
+      dispatchBody(Buffer.from(fullBody).toString(), true);
     });
   });
 }

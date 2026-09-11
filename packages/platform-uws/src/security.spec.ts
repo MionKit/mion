@@ -79,3 +79,38 @@ describe('uws adapter hardening', () => {
     expect(error).toMatchObject({type: 'parsing-json-request-error', publicMessage: 'Invalid json request body.'});
   });
 });
+
+describe('uws adapter: an unknown path never reads the body', () => {
+  const notFoundPort = port + 1;
+  let server: UwsServer;
+
+  beforeAll(async () => {
+    resetUwsHttpOpts();
+    resetRouter();
+    mion.initRoutes({echo});
+    setUwsHttpOpts({port: notFoundPort});
+    server = await startUwsServer();
+  });
+
+  afterAll(() => server.close());
+
+  it('answers 404 without parsing a body that is not JSON, and the connection serves the next request', async () => {
+    const response = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {method: 'POST', body: '{not json'});
+    expect(response.status).toBe(StatusCodes.NOT_FOUND);
+    const body = await response.json();
+    expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
+    expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest']).toBeUndefined();
+
+    // a large body on the same kept-alive connection is drained, never assembled
+    const big = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {method: 'POST', body: 'x'.repeat(600_000)});
+    expect(big.status).toBe(StatusCodes.NOT_FOUND);
+    await big.text();
+
+    const alive = await fetch(`http://127.0.0.1:${notFoundPort}/api/echo`, {
+      method: 'POST',
+      body: '{"echo":[{"name":"a","surname":"b"}]}',
+    });
+    expect(alive.status).toBe(200);
+    expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
+  });
+});

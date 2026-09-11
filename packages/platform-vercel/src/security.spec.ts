@@ -86,3 +86,42 @@ describe('vercel adapter hardening', () => {
     expect(await response.json()).toEqual({echo: {name: 'a', surname: 'b'}});
   });
 });
+
+describe('vercel adapter: an unknown path never reads the body', () => {
+  let handler: ReturnType<typeof createVercelHandler>;
+
+  beforeAll(async () => {
+    resetVercelHandlerOpts();
+    setVercelHandlerOpts({maxBodySize: 64});
+    resetRouter();
+    mion.initRoutes({echo});
+    handler = createVercelHandler();
+  });
+
+  it('answers 404 with the stream never pulled and no parse error', async () => {
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(new TextEncoder().encode('{not json'));
+        controller.close();
+      },
+    });
+    const request = new Request('http://localhost/api/nope', {
+      method: 'POST',
+      body,
+      headers: {'content-type': 'application/json'},
+      duplex: 'half',
+    } as RequestInit);
+    const response = await handler.POST(request);
+    expect(response.status).toBe(StatusCodes.NOT_FOUND);
+    expect(response.headers.get('x-rpc-error')).toBe('route-not-found');
+    const errors = (await response.json())[MION_ROUTES.thrownErrors];
+    expect(errors[MION_ROUTES.notFound].type).toBe('route-not-found');
+    expect(errors['mionDeserializeRequest']).toBeUndefined();
+    // a ReadableStream pulls once on construction to fill its queue, reader or not: the body
+    // being unused is the proof that nothing read it
+    expect(pulled).toBeLessThanOrEqual(1);
+    expect(request.bodyUsed).toBe(false);
+  });
+});
