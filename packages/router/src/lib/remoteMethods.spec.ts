@@ -96,6 +96,14 @@ describe('Public Methods should', () => {
     expect(JSON.parse(JSON.stringify(api.optional)).paramNames).toEqual(['token']);
   });
 
+  it('name an unlabelled parameter with an empty string, never a null on the wire', async () => {
+    const destructured = mion.route((ctx, [first, second]: [string, number]): string => `${first}${second}`);
+    const api = mion.initRoutes({destructured, plain: route1});
+    expect(api.destructured.paramNames).toEqual(['']);
+    // JSON turns an undefined member into null, which a client would then show as the parameter's name
+    expect(JSON.parse(JSON.stringify(api.destructured)).paramNames).toEqual(['']);
+  });
+
   it('carry the returned header names so a client can rebuild a HeadersSubset the route returns', async () => {
     const withHeaders = mion.route((ctx): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1'}));
     const api = mion.initRoutes({withHeaders, plain: route1});
