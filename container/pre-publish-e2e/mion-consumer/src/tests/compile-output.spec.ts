@@ -17,11 +17,14 @@ import {spawn, type ChildProcess} from 'child_process';
 //   mion compile --cwd client-app --tsconfig tsconfig.json --gen-dir .mion-cli
 //
 // The server and the client are SEPARATE projects here: the server compile generates the batch
-// table and the inline inputFrom mapper modules from the client-app program (not from its own,
-// which also holds the round-trip specs' batches) into .mion-cli/rpc/, appends the table's import
-// to the emitted router-init module, and the client compile splices the batch id and mapper hash
-// into the emitted flow. The last test boots the emitted server under plain node and runs the
-// emitted client flow against it.
+// table and the inline inputFrom mapper modules from the client-app program into .mion-cli/rpc/,
+// appends the table's import to the emitted router-init module, and the client compile splices
+// the batch id and mapper hash into the emitted flow. The last test boots the emitted server
+// under plain node and runs the emitted client flow against it.
+//
+// tsconfig.compile.json excludes src/tests/ so the server program carries no batch of its own:
+// with a client pointer set, one written here never reaches the table and the build says so
+// fatally (BAT008).
 
 const rootDir = resolve(__dirname, '../..');
 const outDir = resolve(rootDir, 'dist-cli');
@@ -81,8 +84,7 @@ describe('mion compile output', () => {
         }
         expect(table).not.toContain(rootDir);
         expect(table).not.toContain('clientRoot');
-        // the table comes from the client project alone: its one batch, not the specs' batches in
-        // the server's own program
+        // the table comes from the client project alone, and that project holds exactly one batch
         const ids = [...table.matchAll(/"(b_[A-Za-z0-9_-]+)"/g)].map((m) => m[1]);
         expect(ids).toHaveLength(1);
         const mappers = readdirSync(resolve(genDir, 'rpc/pf/rt'));

@@ -5,5 +5,10 @@
     "rootDir": ".",
     "outDir": "dist-cli",
     "rewriteRelativeImportExtensions": true
-  }
+  },
+  // src/tests/ is out of the SERVER program on purpose, and not just to keep specs out of a
+  // production emit: this compile names a separate client project with --client-tsconfig, so the
+  // batch table is built from THAT program and a `batch()` written here would never reach it.
+  // json.spec.ts has two, and the build reports each one fatally (BAT008).
+  "exclude": ["node_modules", "dist", "dist-cli", "src/tests"]
 }
