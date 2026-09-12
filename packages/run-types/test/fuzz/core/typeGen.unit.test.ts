@@ -19,6 +19,7 @@ import {
   DATA_GEN_OPTIONS,
   type Decl,
   type GeneratedType,
+  type PropShape,
   type TypeShape,
 } from './typeGen.ts';
 
@@ -365,20 +366,26 @@ describe('typeGen — structural params detection', () => {
     }
   });
 
+  // A COMPLETE PropShape, typed rather than cast: the first draft cast an
+  // incomplete literal with `as GeneratedType`, which compiles right up until
+  // the fields it omits matter. Building it through a typed helper is what makes
+  // the omission a compile error here instead of in CI.
+  const prop = (name: string, shape: TypeShape): PropShape => ({name, shape, optional: false, readonly: false, method: false});
+
   it('finds a bag nested anywhere in the generated type, and agrees with the preamble gate', () => {
     const boundedSet: TypeShape = {kind: 'set', elem: {kind: 'string'}, structural: bag};
     const nested: GeneratedType = {
       decls: [],
-      root: {kind: 'object', props: [{name: 'tags', shape: {kind: 'array', elem: boundedSet}}]},
-    } as GeneratedType;
+      root: {kind: 'object', props: [prop('tags', {kind: 'array', elem: boundedSet})]},
+    };
     expect(genHasStructuralParams(nested)).toBe(true);
     // A structural bag is also a `TF.*` spelling, so the preamble gate agrees.
     expect(usesFormatLeaves(nested)).toBe(true);
 
     const plain: GeneratedType = {
       decls: [],
-      root: {kind: 'object', props: [{name: 'tags', shape: {kind: 'set', elem: {kind: 'string'}}}]},
-    } as GeneratedType;
+      root: {kind: 'object', props: [prop('tags', {kind: 'set', elem: {kind: 'string'}})]},
+    };
     expect(genHasStructuralParams(plain)).toBe(false);
   });
 
@@ -388,7 +395,7 @@ describe('typeGen — structural params detection', () => {
         {kind: 'type', name: 'Scores', shape: {kind: 'map', key: {kind: 'string'}, value: {kind: 'number'}, structural: bag}},
       ],
       root: {kind: 'ref', name: 'Scores'},
-    } as GeneratedType;
+    };
     expect(genHasStructuralParams(viaDecl)).toBe(true);
   });
 });
