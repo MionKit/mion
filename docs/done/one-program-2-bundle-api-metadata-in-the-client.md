@@ -70,8 +70,9 @@ lives in the type, so it survives destructuring, aliasing and a subrequest store
 (`packages/router/src/types/definitions.ts`); the helpers return the merged literal
 (`ResolvedRouteOptions` / `ResolvedMiddleFnOptions`, `types/resolvedOptions.ts`); `PublicRoute`,
 `PublicMiddleFn` and `PublicHeadersFn` expose `options` and a `types` member
-(`MethodTypes<Params, Return, Headers, Async>`) naming exactly the types each method was compiled
-from, so the build never re-derives them through the client's view types.
+(`HandlerMethodTypes<H>`, `HeadersHandlerMethodTypes<H>`, both `MethodTypes`) naming exactly the
+types each method was compiled from, so the build never re-derives them through the client's view
+types.
 
 ### Go: the `apimeta` lane (`internal/compiler/apimeta/`)
 
@@ -89,10 +90,11 @@ fns included. The transform injects the site module's binding at the call (`Impo
 replacement, the `rtapi:/` scheme relativized like `rtmod:/`) and the lane as a string at
 `initClient`.
 
-Diagnostics (`diagnostics/codes_apimeta.go`): MET001 unreadable API type (error), MET002 a route the
-API does not declare (error), MET003 a widened id under `bundled` (runtime error), MET004 the same
-under `mixed` (warning), MET005 the `apiTsconfig` program has no single matching `initRoutes`
-(error), MET006 a non-literal option on a bundled method (warning).
+Diagnostics (`diagnostics/codes_apimeta.go`): MET001 unreadable API type, MET002 a route the API does
+not declare, MET003 a widened id under `bundled`, MET005 the `apiTsconfig` program has no single
+matching `initRoutes`, all four errors because each drops the site and nothing is injected at the
+call; MET004 the widened id under `mixed`, where the fetched lane still answers, and MET006 a
+non-literal option on a bundled method, both warnings.
 
 ### Manifests and `mion api-check`
 

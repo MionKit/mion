@@ -2,7 +2,7 @@
 // plus the drift gate that keeps those batches covering every project.
 //
 // Why batches at all: a resolver process is ~200 MB, so one `vitest run` over all
-// 21 projects OOMs on a small host. Splitting the run into groups that each start
+// 23 projects OOMs on a small host. Splitting the run into groups that each start
 // and tear down on their own keeps the peak down.
 //
 // Why a gate: the batch list used to be hand-written into package.json with no tie
