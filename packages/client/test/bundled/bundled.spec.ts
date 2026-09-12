@@ -154,6 +154,22 @@ describe('a client built with bundleApi: bundled', () => {
     expect(result?.headers['x-mion-echo']).toBe('bundled');
   });
 
+  it('reports a payload the build did not write in the undeclared slot, never by throwing', async () => {
+    const {client, routes, middleFns} = initClient<TestServerApi>({baseURL});
+    // what a `<genDir>/api/` tree written by another @mionjs/devtools version would inject: the
+    // envelope is right and the method row is not, which the guard has to catch before it is read
+    expect(() => client.useBundledApi({methods: [{id: 'sayHello'}]})).not.toThrow();
+
+    const [result, error, undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
+    expect(result).toBe('Hello John Doe');
+    expect(error).toBeUndefined();
+    expect(undeclared?.type).toBe('bundle-api-invalid-payload');
+
+    // reported once, so it never displaces a real error on every later call
+    const [, , second] = await routes.sayHello(user).call(withAuth(middleFns));
+    expect(second).toBeUndefined();
+  });
+
   it('refuses a method the bundle does not carry, naming the option', async () => {
     const {client, routes} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();

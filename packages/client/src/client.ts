@@ -28,7 +28,7 @@ import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {takeMetadataCacheError} from './lib/clientMethodsMetadata.ts';
-import {registerBundledApi} from './lib/bundledApi.ts';
+import {registerBundledApi, takeBundledApiError} from './lib/bundledApi.ts';
 
 /**
  * Creates the client: the typed `routes` / `middleFns` proxies plus the client itself.
@@ -304,9 +304,11 @@ export class MionClient {
       }
     }
 
-    // A metadata cache write that could not be stored, even after making room for it. The request
-    // itself was fine, so this never rejects and never displaces a real error: it rides the first
-    // result whose undeclared slot is free, which is where request-scoped framework errors live.
+    // Two framework errors the router never saw, riding the first result whose undeclared slot is
+    // free rather than rejecting: a bundled payload the build did not write (the call still ran,
+    // on whatever metadata the cache already held), and a metadata cache write the browser refused
+    // after eviction ran out of things to give up.
+    if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
     if (undeclaredPart === undefined) undeclaredPart = takeMetadataCacheError();
 
     return [routeResultPart, routeErrorPart, undeclaredPart, middleFnsResults, middleFnsErrors] as any;
