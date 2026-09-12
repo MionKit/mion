@@ -22,6 +22,7 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
+  globSync,
   readFileSync,
   readdirSync,
   statSync,
@@ -354,5 +355,57 @@ describe.skipIf(!hasBinary)('CLI surface — the e2e fixture only uses verbs thi
         expect(accepted, `${file} passes '${flag}' to '${verb}', which does not accept it`).toContain(flag);
       }
     }
+  });
+});
+
+// Same class, same fixture, a different way to go stale: the mion consumer compiles its
+// server with `--client-tsconfig`, so the batch table is generated from THAT project and a
+// `batch()` in the server's own program never reaches it. The build reports each one (BAT008)
+// and, since that code became a RuntimeError, `mion compile` exits 1. That is how the release
+// gate went red on main: the compile tsconfig pulled in src/tests/, whose specs batch against
+// the running server. Nothing on the host runs the fixture, so read its own compile argv and
+// resolve the same file set the compiler would.
+describe('the e2e mion consumer keeps batches out of its --client-tsconfig program', () => {
+  const CONSUMER = resolve(REPO_ROOT, 'container/pre-publish-e2e/mion-consumer');
+  // tsconfigs are JSONC; only whole-line comments appear in these, and no string holds a `//`.
+  const readConfig = (rel: string): Record<string, string[] | string | undefined> =>
+    JSON.parse(readFileSync(join(CONSUMER, rel), 'utf8').replace(/^\s*\/\/.*$/gm, ''));
+
+  // `include` / `exclude` from the nearest config that states them, walking `extends`.
+  function globsOf(rel: string, key: 'include' | 'exclude'): string[] {
+    for (let at: string | undefined = rel; at; ) {
+      const config = readConfig(at);
+      if (config[key]) return config[key] as string[];
+      const parent = config.extends as string | undefined;
+      at = parent && join(dirname(at), parent);
+    }
+    return [];
+  }
+
+  const compileArgv = (JSON.parse(readFileSync(join(CONSUMER, 'package.json'), 'utf8')).scripts.compile as string).split(/\s+/);
+  const serverTsconfig = compileArgv[compileArgv.indexOf('--tsconfig') + 1];
+  const exclude = globsOf(serverTsconfig, 'exclude');
+  const programFiles = globsOf(serverTsconfig, 'include')
+    .flatMap((pattern) => globSync(pattern, {cwd: CONSUMER}))
+    .filter((file) => !exclude.some((entry) => file === entry || file.startsWith(`${entry}/`)));
+  const BATCH_CALL = /\bbatch\s*\(\s*\[/;
+
+  it('reads a real program out of the fixture (the parse must not silently match nothing)', () => {
+    expect(compileArgv).toContain('--client-tsconfig');
+    // the exclude match above is a path-prefix one, the way tsc treats a wildcard-free entry
+    expect(exclude.filter((entry) => entry.includes('*'))).toEqual([]);
+    expect(programFiles).toContain(join('src', 'server', 'server.ts'));
+  });
+
+  it('no file of that program calls batch()', () => {
+    for (const file of programFiles) {
+      expect(BATCH_CALL.test(readFileSync(join(CONSUMER, file), 'utf8')), `${file} batches inside the server program`).toBe(
+        false
+      );
+    }
+  });
+
+  it('the specs it excludes do batch, so the guard has teeth', () => {
+    expect(BATCH_CALL.test(readFileSync(join(CONSUMER, 'src/tests/json.spec.ts'), 'utf8'))).toBe(true);
   });
 });
