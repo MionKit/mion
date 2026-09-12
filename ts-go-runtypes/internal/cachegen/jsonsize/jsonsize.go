@@ -4,7 +4,7 @@
 // The number backs the per-route request and response limits of the mion
 // router: a route whose params are fully bounded (every string carries a
 // `length` / `maxLength`, every array a `length` / `maxItems`, every Map / Set
-// a `maxSize`, and every scalar has a fixed longest spelling) gets a limit
+// a `maxItems`, and every scalar has a fixed longest spelling) gets a limit
 // derived from its types, while a type with any unbounded part reports
 // Bounded=false and the route falls back to the router default.
 //
@@ -445,15 +445,16 @@ func unionEnvelopeBytes(members int) int {
 
 // classBytes: the builtins with a fixed JSON spelling are constants; a Map is
 // an array of `[key,value]` pairs and a Set an array of items, both bounded
-// only by a `maxSize`; a plain user class is unbounded.
+// only by a `maxItems` (the count key of their structural bag); a plain user
+// class is unbounded.
 func (w *walker) classBytes(rt *reflection.RunType, path string, depth int) Result {
 	switch rt.SubKind {
 	case reflection.SubKindDate:
 		return bounded(dateBytes)
 	case reflection.SubKindMap:
-		count, ok := maxLengthParam(rt, "size", "maxSize")
+		count, ok := maxLengthParam(rt, "length", "maxItems")
 		if !ok {
-			return unbounded(path, "Map without maxSize")
+			return unbounded(path, "Map without maxItems")
 		}
 		key, value := w.mapElements(rt, path, depth)
 		if !key.Bounded {
@@ -464,9 +465,9 @@ func (w *walker) classBytes(rt *reflection.RunType, path string, depth int) Resu
 		}
 		return bounded(collectionBytes(count, key.Bytes+value.Bytes+3))
 	case reflection.SubKindSet:
-		count, ok := maxLengthParam(rt, "size", "maxSize")
+		count, ok := maxLengthParam(rt, "length", "maxItems")
 		if !ok {
-			return unbounded(path, "Set without maxSize")
+			return unbounded(path, "Set without maxItems")
 		}
 		item := w.setElement(rt, path, depth)
 		if !item.Bounded {

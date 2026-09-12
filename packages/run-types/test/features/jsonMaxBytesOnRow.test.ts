@@ -20,7 +20,7 @@ interface Item {
   id: TF.String<{maxLength: 36}>;
   qty: number;
 }
-type Page = TF.List<Item, 50>;
+type Page = TF.FormattedArray<Item[], {maxItems: 50}>;
 type Params = [orderId: TF.String<{maxLength: 36}>, items: Page];
 
 const ITEM_BYTES = 1 + 5 + (2 + 6 * 36) + 1 + 6 + 24 + 1; // {"id":<218>,"qty":<24>}
@@ -72,16 +72,16 @@ describe('jsonMaxBytes on the reflection root', () => {
 
   it('(static) sized Map and Set roots are bounded like arrays of their entries', () => {
     // a Map is an array of [key, value] pairs: [ + 2 × ([24,5]) + , + ]
-    expect(getRunType<TF.SizedMap<number, boolean, 2>>().jsonMaxBytes).toBe(2 + 2 * (24 + 5 + 3) + 1);
+    expect(getRunType<TF.FormattedMap<Map<number, boolean>, {maxItems: 2}>>().jsonMaxBytes).toBe(2 + 2 * (24 + 5 + 3) + 1);
     // a Set is an array of its members
-    expect(getRunType<TF.SizedSet<number, 3>>().jsonMaxBytes).toBe(2 + 3 * 24 + 2);
+    expect(getRunType<TF.FormattedSet<Set<number>, {maxItems: 3}>>().jsonMaxBytes).toBe(2 + 3 * 24 + 2);
   });
 
   it('(reflect) the value-first map / set builders converge on the same numbers', () => {
-    const sizedMap = RT.map(TF.number(), RT.boolean(), {maxSize: 2});
-    const sizedSet = RT.set(TF.number(), {maxSize: 3});
-    expect(getRunTypeId(sizedMap)).toBe(getRunTypeId<TF.SizedMap<number, boolean, 2>>());
-    expect(getRunTypeId(sizedSet)).toBe(getRunTypeId<TF.SizedSet<number, 3>>());
+    const sizedMap = RT.map(TF.number(), RT.boolean(), {maxItems: 2});
+    const sizedSet = RT.set(TF.number(), {maxItems: 3});
+    expect(getRunTypeId(sizedMap)).toBe(getRunTypeId<TF.FormattedMap<Map<number, boolean>, {maxItems: 2}>>());
+    expect(getRunTypeId(sizedSet)).toBe(getRunTypeId<TF.FormattedSet<Set<number>, {maxItems: 3}>>());
     expect(getRunType(sizedMap).jsonMaxBytes).toBe(2 + 2 * (24 + 5 + 3) + 1);
     expect(getRunType(sizedSet).jsonMaxBytes).toBe(2 + 3 * 24 + 2);
   });

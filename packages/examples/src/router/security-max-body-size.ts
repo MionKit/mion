@@ -18,7 +18,7 @@ const routes = {
     (
       ctx,
       orderId: TF.String<{maxLength: 36}>,
-      items: TF.List<Item, 50>
+      items: TF.FormattedArray<Item[], {maxItems: 50}>
     ): number => items.length
   ),
 
