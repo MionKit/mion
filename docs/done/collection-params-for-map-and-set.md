@@ -36,15 +36,21 @@ deprecated alias for one release (the convention `packages/run-types/src/index.t
 
 - Renamed `FormattedArrayParams<Contains>` to `FormattedCollectionParams<Contains>`, with
   `/** @deprecated … */ export type FormattedArrayParams<Contains = unknown> = FormattedCollectionParams<Contains>;`.
-- `FormattedMap<Base, P extends FormattedCollectionParams>` gained `ContainsSlot<P>` exactly like
-  `FormattedSet`. `FormattedMapParams` was DELETED, not aliased: it was new on this branch and
-  never published (only `FormattedArrayParams` / `FormattedArrayParamsValueFirst` are on main, so
-  only those two keep an alias).
+- `FormattedMap` gained `ContainsSlot<P>` exactly like `FormattedSet`.
+- `FormattedMapParams` survived, but as a CONSTRAINT rather than the old `Pick`:
+  `FormattedCollectionParams<readonly [unknown, unknown]>`, the whole bag with the one
+  type-carrying slot narrowed to the pair a Map entry is. Left unconstrained (as it first shipped
+  in this change), `{contains: number}` on a Map compiled happily and produced a validator that
+  ALWAYS REJECTS, because a non-pair child matches no entry so the count never leaves 0. Nothing
+  downstream can tell that from a deliberately strict constraint, so the error belongs at the call
+  site. `FormattedMapParamsValueFirst` is its value-first twin
+  (`FormattedCollectionParams<RunType<readonly [unknown, unknown]>>`), and `FormattedMapFrom`
+  extracts against the narrowed bag.
 - `FormattedArrayParamsValueFirst` became `FormattedCollectionParamsValueFirst` (deprecated alias
-  kept). `FormattedSetParamsValueFirst` / `FormattedMapParamsValueFirst` were DROPPED rather than
-  re-aliased: all three collection builders now name the one bag, and neither was published.
-  `FormattedMapFrom` goes through `CollectionParamsType<P>` like `FormattedSetFrom`. The internal
-  names (`ArrayLiteralKeys`, `ArrayLiteralPart`, `ArrayParamsType`) renamed to `Collection…`.
+  kept). `FormattedSetParamsValueFirst` was DROPPED rather than re-aliased: an array and a Set take
+  the one bag verbatim, and the name was new on this branch and never published. The internal names
+  (`ArrayLiteralKeys`, `ArrayLiteralPart`, `ArrayParamsType`) renamed to `Collection…`. An array and
+  a Set keep the UNCONSTRAINED slot on purpose: their entry is a single value of any type.
 - `packages/run-types/src/formats/index.ts` exports the new names and the aliases;
   `packages/run-types/src/builders/compose.ts` (`array` 90-107, `map` 342-370, `set` 372-390) and
   `ts-go-runtypes/internal/convert/print.go` (the comment at 415-420) follow the rename.
@@ -139,6 +145,10 @@ Marker rule: every case pairs the type-first spelling with its builder twin, bot
 - `test/suites/format-validation/CollectionBuilders.test.ts`: the Map twins with `contains` and
   `uniqueItems` equal their type-first ids; both deprecated aliases still name the renamed bags
   (compile-time `Equal`).
+- `test/types/structural.test.ts` `assertionsMapContainsTakesAPair`: the pair shapes accepted, and
+  a bare entry type / three slots / one slot / an optional slot REJECTED, in both spellings, pinned
+  with `@ts-expect-error` (a directive that stops firing reds the file with TS2578). This is the
+  right home because every failure in the class is silent.
 - Go: `collectionformat_test.go` (`TestFormattedMap_IgnoresUniqueItems` REPLACED by a both-families
   `TestCollectionFormats_UniqueItemsGoesThroughThePureFn`, plus `uniqueItems` in the Map errors
   expectation), `collection_format_module_test.go` (`TestCollectionFormat_ContainsIteratesAMapWithForOf`),
@@ -174,9 +184,10 @@ and `pnpm miondevx core fuzz convert`.
   (tuple child, `unknown` slots skip), `minContains` / `maxContains` and `uniqueItems` (pairs
   compared by value, primitive keys skipped) validate, report errors, mock, convert both ways
   and print in the JSON Schema output, each equal to its `RT.map` twin's id.
-- `FormattedCollectionParams` is the exported name; `FormattedArrayParams` and
-  `FormattedArrayParamsValueFirst` still resolve as deprecated aliases; `FormattedMapParams` and
-  the two unpublished `…ParamsValueFirst` names are gone.
+- `FormattedCollectionParams` is the exported name and `FormattedMapParams` is its
+  pair-constrained narrowing (a non-pair `contains` on a Map is a TYPE ERROR, not a validator that
+  always rejects); `FormattedArrayParams` and `FormattedArrayParamsValueFirst` still resolve as
+  deprecated aliases; the unpublished `FormattedSetParamsValueFirst` is gone.
 - The suite cases, builder cases, Go tests and fuzz shapes above are in; `pnpm test`,
   `go -C ts-go-runtypes test ./internal/... ./cmd/...`, `pnpm run lint`,
   `pnpm miondevx core codegen all --check` green; the docs rows and examples updated.
