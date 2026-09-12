@@ -48,7 +48,7 @@ Then **read the whole diff yourself**: `git diff <merge-base>..HEAD`. On a large
 
 Both are written before the code and often never updated. Treat them as claims to test, not as context to trust.
 
-**Find the spec.** A `docs/todos/x.md -> docs/done/x.md` rename in the diff is this PR's spec. No rename means either the spec is still in `docs/todos/` or there is no spec. Read the whole file, including its metadata header, `Done when` and `Out of scope`.
+**Find the spec.** A file renamed out of `docs/todos/` into `docs/done/` in the diff is this PR's spec. No rename means either the spec is still in `docs/todos/` or there is no spec. Read the whole file, including its metadata header, `Done when` and `Out of scope`.
 
 **Read the PR description and the labels**, when there is a PR. Labels gate CI lanes here, so note which ones are on it: a rule in the root CLAUDE.md says which the diff needs, and the G group checks the two against each other. Reviewing a branch with no PR yet turns that into an item for when it opens.
 
