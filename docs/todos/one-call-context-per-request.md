@@ -35,6 +35,13 @@ tests. `ResolvedRequest` is derived from `CallContext` with `Omit`, so the two c
 
 ## What was already tried, and what it measured
 
+> **Every number below is a guide, not a baseline.** They were taken on one machine, on one day, and
+> that machine drifted 35% against itself within an hour (see the measurement section). They tell you
+> which effects are worth chasing and roughly how big they were. They are NOT a baseline to compare a
+> change against. Capture your own baseline first, on your machine, in the same window as the
+> candidate you are testing, and compare against that. A change judged against a number copied from
+> this doc proves nothing.
+
 Three shapes were benchmarked in-process with the work equalised (`resolveStrategy.bench.ts`, in the
 router package). A full in-process dispatch of a validated route was 3,550 ns for scale:
 
@@ -91,6 +98,13 @@ against it on both memory and requests per second, interleaved in one window.
 ## How to measure this properly
 
 This was the hard part. Read all of it before trusting a number.
+
+**Step one is your own baseline, before writing any code.** Check out the branch point unchanged and
+run the lanes below on your machine, in the window you will do the work in. That run is what every
+candidate is compared against. Do not start from the numbers in this doc: they came from a different
+machine on a different day, and the same unchanged code there measured 46.5 and then 63.4 req/s on
+the same lane an hour apart. Re-take the baseline whenever hours pass or the machine's load changes,
+and always re-take it interleaved with the candidate rather than reusing an old run.
 
 **The server benchmark drifts enormously between runs.** The same unchanged code measured 46.5 req/s
 on the 4 MB lane and 63.4 req/s about an hour later, a 35% swing. Absolute numbers from different
@@ -162,6 +176,7 @@ models a real streamed body spanning event-loop turns.
 ## Done when
 
 There is one `CallContext` object per request, and an interleaved three-round comparison on the 4 MB
-lane shows memory and requests per second no worse than the split, with the in-process bench no
+lane, against a baseline YOU captured on YOUR machine in the same window (never the numbers quoted in
+this doc), shows memory and requests per second no worse than the split, with the in-process bench no
 slower. Or: the investigation shows the earlier result does not hold, the reason is written down, and
 the merged shape ships on that evidence.
