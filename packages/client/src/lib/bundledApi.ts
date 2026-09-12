@@ -100,8 +100,13 @@ function bundledMethodToCacheEntry(method: BundledMethod): MethodWithOptsAndJitF
     returnJitHash: reflection.returnJitHash,
     paramsJitFns: reflection.paramsJitFns,
     returnJitFns: reflection.returnJitFns,
+    // `options.maxBodySize` is the route's own declared limit or nothing: the number the server
+    // settles for a chain that declares none (its types times the router factor, else the platform
+    // adapter's) is only known at the server's registration, and the client never enforces it
     options: method.options,
   };
+  // the build-time maximum of the params tuple rides the reflection root, like on the server
+  if (reflection.paramsJsonMaxBytes !== undefined) entry.paramsJsonMaxBytes = reflection.paramsJsonMaxBytes;
   if (reflection.headersParam) entry.headersParam = reflection.headersParam;
   if (reflection.headersReturn) entry.headersReturn = reflection.headersReturn;
   if (method.middleFnIds && method.middleFnIds.length) entry.middleFnIds = method.middleFnIds;

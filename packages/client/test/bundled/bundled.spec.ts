@@ -197,6 +197,17 @@ function serializable(method: MethodWithOptions | undefined): Record<string, unk
   return JSON.parse(JSON.stringify(out));
 }
 
+/** Drops the one field a bundle cannot know: the request limit the server settles for a chain that
+ *  declares none (its types times the router factor, else the platform adapter's number) exists
+ *  only at the server's registration. A limit a route declares itself stays and must match. */
+function withoutSettledLimit(row: Record<string, unknown> | undefined, bundled: Record<string, unknown> | undefined) {
+  if (!row || !bundled) return row;
+  const options = {...(row.options as Record<string, unknown>)};
+  const bundledOptions = bundled.options as Record<string, unknown>;
+  if (bundledOptions.maxBodySize === undefined) delete options.maxBodySize;
+  return {...row, options};
+}
+
 describe('parity: what the bundle registers equals what the server answers', () => {
   it('method by method, jit hashes included', async () => {
     resetClientCaches();
@@ -227,7 +238,10 @@ describe('parity: what the bundle registers equals what the server answers', () 
       expect.arrayContaining(['sayHello', 'auth', 'utils/sumTwo', 'compact/addNumbers', 'getRequestInfo', 'respondHeaders'])
     );
     for (const id of bundledIds) {
-      expect(serializable(routesCache.getMetadata(id)), id).toEqual(serializable(answer.methods[id]));
+      const bundled = serializable(routesCache.getMetadata(id));
+      expect(bundled, id).toEqual(withoutSettledLimit(serializable(answer.methods[id]), bundled));
     }
+    // the params maximum the build computed rides the bundled entry as it rides the server's
+    expect(typeof routesCache.getMetadata('utils/sumTwo')?.paramsJsonMaxBytes).toBe('number');
   });
 });

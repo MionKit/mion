@@ -35,6 +35,10 @@ export type ResolvedRouteOptions<RO, O> = {
   isMutation: Named<RO, 'isMutation'>;
   strictTypes: Pick3<Named<RO, 'strictTypes'>, Named<O, 'strictTypes'>, undefined>;
   sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;
+  /** The route's OWN limit when it declares one. The number the router settles for a chain that
+   *  declares none (derived from the types times the router factor, else the platform adapter's)
+   *  exists only at the server's registration, so the type does not carry it. */
+  maxBodySize: Named<RO, 'maxBodySize'>;
 };
 
 /** A middleFn's effective options (headers middleFns included). */
@@ -46,4 +50,6 @@ export type ResolvedMiddleFnOptions<RO, O> = {
   encoder: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   strictTypes: Pick3<Named<RO, 'strictTypes'>, Named<O, 'strictTypes'>, undefined>;
   sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;
+  /** The middleFn's own contribution to the request limit of the chains it sits in, when declared. */
+  maxBodySize: Named<RO, 'maxBodySize'>;
 };

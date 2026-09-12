@@ -123,9 +123,6 @@ against the bundled ids.
   (`initFromTuple` trusted its processed-keys set; it now re-checks the registry).
 - The built-in pure fns a bundled validator depends on were rendered in the session's emit mode, not
   the mirror's, so a client built from a `code`-mode program shipped them as code strings.
-- The level split had made the wrong-content enrichment codes warnings, which silently stopped the
-  enrich health check from failing on stale mirror content; a `Stale` catalog bit, read by both
-  check gates like the `Completeness` bit, restores the contract.
 
 ## Tests
 

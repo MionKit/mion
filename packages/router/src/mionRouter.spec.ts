@@ -126,7 +126,11 @@ describe('PublicApi resolved options', () => {
     });
     const defs = {
       q: compact.query((ctx, n: number): string => `${n}`, {sanitizeParams: true, description: 'd'}),
-      m: compact.mutation((ctx, n: number): string => `${n}`, {encoder: {return: 'direct'}, strictTypes: false}),
+      m: compact.mutation((ctx, n: number): string => `${n}`, {
+        encoder: {return: 'direct'},
+        strictTypes: false,
+        maxBodySize: 4096,
+      }),
       r: compact.route((ctx): number => 1),
       mf: compact.middleFn((ctx, s: string): string => s, {alwaysRun: true, validateReturn: true}),
     } satisfies Routes;
@@ -141,7 +145,12 @@ describe('PublicApi resolved options', () => {
       isMutation: false;
       strictTypes: true;
       sanitizeParams: true;
+      maxBodySize: undefined;
     }>();
+    // a limit the route declares rides the type; the number the router settles for a route that
+    // declares none exists only at registration, so the type says undefined there
+    expectTypeOf<Api['m']['options']['maxBodySize']>().toEqualTypeOf<4096>();
+    expectTypeOf<Api['r']['options']['maxBodySize']>().toEqualTypeOf<undefined>();
     expectTypeOf<Api['m']['options']['encoder']>().toEqualTypeOf<{params: 'compact'; return: 'direct'}>();
     expectTypeOf<Api['m']['options']['isMutation']>().toEqualTypeOf<true>();
     expectTypeOf<Api['m']['options']['strictTypes']>().toEqualTypeOf<false>();
@@ -155,6 +164,7 @@ describe('PublicApi resolved options', () => {
       encoder: {params: 'compact'; return: 'compact'};
       strictTypes: true;
       sanitizeParams: undefined;
+      maxBodySize: undefined;
     }>();
     // the definition keeps what the author wrote (plus the pinned isMutation); the router options ride by type only
     expectTypeOf<NonNullable<typeof defs.q.options>>().toEqualTypeOf<
@@ -162,9 +172,13 @@ describe('PublicApi resolved options', () => {
     >();
     expect(defs.q).not.toHaveProperty('routerOptions');
 
-    // runtime agrees with the type, field by field
+    // runtime agrees with the type, field by field. The one field the type leaves undefined and the
+    // runtime fills is a route's settled request limit (its types times the router factor, else
+    // the platform's number), which only exists at registration.
     const api = compact.initRoutes(defs);
-    expect(api.q.options).toEqual({
+    const {maxBodySize: settledLimit, ...qOptions} = api.q.options;
+    expect(typeof settledLimit).toBe('number');
+    expect(qOptions).toEqual({
       alwaysRun: false,
       validateParams: true,
       validateReturn: false,
@@ -181,6 +195,7 @@ describe('PublicApi resolved options', () => {
       encoder: {params: 'compact', return: 'direct'},
       isMutation: true,
       strictTypes: false,
+      maxBodySize: 4096,
     });
     expect(api.mf.options).toEqual({
       alwaysRun: true,
