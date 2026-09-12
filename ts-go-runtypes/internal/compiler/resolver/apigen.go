@@ -320,6 +320,7 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 	trees := map[*checker.Type]*apimeta.Tree{}
 	problems := map[*checker.Type]string{}
 	var peerTree *apimeta.Tree
+	var peerCandidates string
 	peerTried := false
 	widenedReported := map[string]bool{}
 	for _, site := range sites {
@@ -343,13 +344,13 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 			if !peerTried {
 				peerTried = true
 				var peerErr error
-				peerTree, peerErr = sess.apiSourceTree(tree.Ids())
+				peerTree, peerCandidates, peerErr = sess.apiSourceTree(tree.Ids())
 				if peerErr != nil {
 					return nil, diags, peerErr
 				}
 			}
 			if peerTree == nil {
-				diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaSourceAmbiguous, site.DiagSite(), sess.absPath(sess.opts.ApiTsconfig), sess.apiSourceCandidates))
+				diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaSourceAmbiguous, site.DiagSite(), sess.absPath(sess.opts.ApiTsconfig), peerCandidates))
 				continue
 			}
 			tree = peerTree
@@ -388,11 +389,11 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 // apiSourceTree opens the `apiTsconfig` program and returns the walked API of
 // the ONE `initRoutes(...)` call whose routes are exactly the client's; nil
 // when none or several match (the caller reports MET005 with the count).
-func (sess *Session) apiSourceTree(clientIds []string) (*apimeta.Tree, error) {
+func (sess *Session) apiSourceTree(clientIds []string) (*apimeta.Tree, string, error) {
 	tsconfig := sess.absPath(sess.opts.ApiTsconfig)
 	peer, err := sess.apiPeer.open(sess, tsconfig, "apiTsconfig", nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var matches []*apimeta.Tree
 	wanted := strings.Join(clientIds, "\n")
@@ -413,11 +414,11 @@ func (sess *Session) apiSourceTree(clientIds []string) (*apimeta.Tree, error) {
 			}
 		}
 	}
-	sess.apiSourceCandidates = fmt.Sprint(len(matches))
+	candidates := fmt.Sprint(len(matches))
 	if len(matches) != 1 {
-		return nil, nil
+		return nil, candidates, nil
 	}
-	return matches[0], nil
+	return matches[0], candidates, nil
 }
 
 // initRoutesApiTypes returns the resolved return type (the instantiated

@@ -357,10 +357,6 @@ type Session struct {
 	// apiFileCache memoises per-file dispatch-site extraction (the bundleApi
 	// lane) for the current Program, dropped alongside it.
 	apiFileCache *apimeta.FileCache
-	// apiSourceCandidates is what MET005 reports: how many initRoutes calls of
-	// the apiTsconfig program declared the client's route set on the last
-	// resolution ("" until one ran).
-	apiSourceCandidates string
 	// hasBatchesMemo caches whether the batch source holds at least one
 	// batch call, the transform's switch for appending the batch import. nil
 	// until computed; reset with the Program (own-program case) and whenever
