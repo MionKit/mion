@@ -152,6 +152,9 @@ function dataArrayLength(node: MockDataNode | undefined, random: MockRandom): nu
 // surface loudly, not spin.
 const STRUCTURAL_MOCK_ATTEMPTS = 32;
 
+/** One `contains` entry as the wire carries it on a node. **/
+type ContainsEntry = {child: RunType; min: number; max: number};
+
 /** Dispatch wrapper: structural-format nodes reject-sample from the base
  *  generator — enrichment pools included — and keep the first candidate
  *  satisfying the constraints, so `validate(mock())` holds. A pool whose
@@ -326,7 +329,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // construction can prove (min > max, or a matched item the element
       // type definitively rejects) throw loudly instead of shipping an
       // unsound mock.
-      const containsChecks = (runType.contains ?? []) as {child: RunType; min: number; max: number}[];
+      const containsChecks = (runType.contains ?? []) as ContainsEntry[];
       if (containsChecks.length > 0) {
         const matchedByEntry: unknown[][] = [];
         for (const entry of containsChecks) {
@@ -450,7 +453,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // slots cannot be spliced): pass only when the bounds are provably
       // met — min 0 with the loose over-count inside max — else give up
       // loudly rather than ship a maybe-invalid mock.
-      const tupleContains = (runType.contains ?? []) as {child: RunType; min: number; max: number}[];
+      const tupleContains = (runType.contains ?? []) as ContainsEntry[];
       for (const entry of tupleContains) {
         const overCount = shaped.filter((item) => childSchemaMatches(item, entry.child)).length;
         if (entry.min > 0 || (entry.max >= 0 && overCount > entry.max)) {
@@ -799,8 +802,8 @@ function mergeChildOptions(options: RunTypeMockOptions, childMock: MockOptions):
   return {...options, mock: {...childMock, random: childMock.random ?? parentMock.random}};
 }
 
-/** A structural annotation's `minItems` / `maxItems` (the array keywords the
- *  formattedArray / formattedSet / formattedMap families share) clamp a
+/** A structural annotation's `minItems` / `maxItems` (the collection keywords
+ *  the formattedArray / formattedSet / formattedMap families share) clamp a
  *  collection draw into its bounds, so the mockSwitch rejection loop rarely has
  *  to retry. **/
 function clampToItemBounds(params: Record<string, unknown> | undefined, length: number): number {
@@ -816,10 +819,75 @@ function structuralParamsOf(runType: RunType, name: string): Record<string, unkn
   return annotation?.name === name ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
 }
 
+// How many times a matched draw may be redrawn after collapsing on insert.
+const COLLECTION_DRAW_ATTEMPTS = 32;
+
+/** The `contains` / `uniqueItems` draw BOTH collection mock arms run, so the
+ *  Set and Map shapes cannot drift: exactly `min` constructed matches per
+ *  `contains` entry (each checked against the collection's own member types by
+ *  the caller's `drawMatch`), then fillers the loose matcher DEFINITIVELY
+ *  rejects, up to the clamped entry count.
+ *
+ *  `insertKeyOf` is what the collection itself dedupes on (a Set member, a Map
+ *  key) under SameValueZero. Both arms finish by inserting, and a colliding
+ *  insert silently drops an entry — which would under-satisfy a `contains` min
+ *  and ship a mock the validator rejects, with nothing to catch it (a
+ *  contains-only node carries no format annotation, so mockSwitch never
+ *  reject-samples it). Every draw is therefore rejected on a key already taken
+ *  and redrawn; only an exhausted MATCH redraw throws. `uniqueItems` adds the
+ *  by-value dedupe on top, keyed by canonical JSON over the whole entry. **/
+function drawCollectionEntries<T>(spec: {
+  length: number;
+  containsChecks: ContainsEntry[];
+  unique: boolean;
+  drawMatch: (child: RunType) => T;
+  drawFiller: () => T;
+  insertKeyOf: (entry: T) => unknown;
+  collapseError: string;
+}): T[] {
+  const entries: T[] = [];
+  // SameValueZero membership, which IS the Map / Set insert rule; an object key
+  // or member is a fresh reference every draw, so it can never collide here.
+  const takenKeys = new Set<unknown>();
+  const seenValues = new Set<string>();
+  const keep = (entry: T): boolean => {
+    const insertKey = spec.insertKeyOf(entry);
+    if (takenKeys.has(insertKey)) return false;
+    if (spec.unique) {
+      const valueKey = canonicalJson(entry);
+      if (seenValues.has(valueKey)) return false;
+      seenValues.add(valueKey);
+    }
+    takenKeys.add(insertKey);
+    entries.push(entry);
+    return true;
+  };
+  for (const check of spec.containsChecks) {
+    if (check.max >= 0 && check.min > check.max) {
+      throw new Error('Cannot mock contains: minContains exceeds maxContains — the schema is provably empty.');
+    }
+    for (let n = 0; n < check.min; n++) {
+      let placed = false;
+      for (let attempt = 0; attempt < COLLECTION_DRAW_ATTEMPTS && !placed; attempt++) placed = keep(spec.drawMatch(check.child));
+      if (!placed) throw new Error(spec.collapseError);
+    }
+  }
+  let attempts = 0;
+  while (entries.length < spec.length && attempts < Math.max(spec.length, 1) * COLLECTION_DRAW_ATTEMPTS) {
+    attempts++;
+    const filler = spec.drawFiller();
+    if (spec.containsChecks.some((check) => childSchemaMatches(filler, check.child))) continue;
+    keep(filler);
+  }
+  return entries;
+}
+
 /** Map mock builder. Key/value types live at `runType.arguments[i].child`
  *  (the wire stores them as KindParameter wrappers). A formattedMap annotation
- *  clamps the entry draw into its bounds; keys that collide shrink the Map,
- *  which the rejection loop's retries cover. **/
+ *  shapes the draw the way the Set arm does, over the `[key, value]` PAIR that
+ *  is a Map's entry: the count is clamped into the bounds, `contains` entries
+ *  are satisfied by construction from the TUPLE child, and `uniqueItems` fills
+ *  duplicate-aware by the pair's JSON value. **/
 function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): Map<unknown, unknown> {
   const mOps = options.mock as MockOptions;
   const random = mOps.random ?? nativeMockRandom;
@@ -828,20 +896,41 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const valueType = args[1]?.child as RunType | undefined;
   const result = new Map<unknown, unknown>();
   if (!keyType || !valueType) return result;
-  const length = clampToItemBounds(
-    structuralParamsOf(runType, 'formattedMap'),
-    mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)
-  );
-  for (let i = 0; i < length; i++) {
-    const key = mockRunType(keyType, options, stack);
-    const value = mockRunType(valueType, options, stack);
-    result.set(key, value);
-  }
+  const mapParams = structuralParamsOf(runType, 'formattedMap');
+  const entries = drawCollectionEntries<[unknown, unknown]>({
+    length: clampToItemBounds(mapParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
+    containsChecks: (runType.contains ?? []) as ContainsEntry[],
+    unique: mapParams?.uniqueItems === true,
+    // A Map's contains child is a TUPLE over the `[key, value]` pair. A slot
+    // left `unknown` means "skip this half", so a draw from it that the Map's
+    // own key / value type rejects is REDRAWN from that type and the repaired
+    // pair re-checked against the child; only a pair that still fails is a real
+    // contradiction (`contains: [number, unknown]` on a `Map<string, …>`).
+    drawMatch: (child) => {
+      const drawn = mockRunType(child, options, stack);
+      const pair: [unknown, unknown] = Array.isArray(drawn) && drawn.length === 2 ? [drawn[0], drawn[1]] : [undefined, undefined];
+      if (!childSchemaMatches(pair[0], keyType)) pair[0] = mockRunType(keyType, options, stack);
+      if (!childSchemaMatches(pair[1], valueType)) pair[1] = mockRunType(valueType, options, stack);
+      if (!childSchemaMatches(pair, child)) {
+        throw new Error(
+          'Cannot mock contains: the contains child and the Map entry type are contradictory (a Map entry is its ' +
+            '[key, value] pair). Provide a MockData pool for this type (enrich).'
+        );
+      }
+      return pair;
+    },
+    drawFiller: () => [mockRunType(keyType, options, stack), mockRunType(valueType, options, stack)],
+    insertKeyOf: (pair) => pair[0],
+    collapseError:
+      'Cannot mock contains: a Map holds one entry per key, so the drawn matches collapsed and minContains cannot ' +
+      'be reached. Provide a MockData pool for this type (enrich).',
+  });
+  for (const [key, value] of entries) result.set(key, value);
   return result;
 }
 
 /** Set mock builder. Element type lives at `runType.arguments[0].child`. A
- *  formattedSet annotation (the array keywords) shapes the draw the way the
+ *  formattedSet annotation (the collection keywords) shapes the draw the way the
  *  array arm does: the count is clamped into the bounds, `contains` entries
  *  are satisfied by construction (exactly `min` child mocks per entry among
  *  fillers the child definitively rejects) and `uniqueItems` fills
@@ -853,38 +942,26 @@ function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const elementType = args[0]?.child as RunType | undefined;
   if (!elementType) return new Set<unknown>();
   const setParams = structuralParamsOf(runType, 'formattedSet');
-  const length = clampToItemBounds(setParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength));
-  const containsChecks = (runType.contains ?? []) as {child: RunType; min: number; max: number}[];
-  const members: unknown[] = [];
-  for (const entry of containsChecks) {
-    if (entry.max >= 0 && entry.min > entry.max) {
-      throw new Error('Cannot mock contains: minContains exceeds maxContains — the schema is provably empty.');
-    }
-    for (let n = 0; n < entry.min; n++) {
-      const item = mockRunType(entry.child, options, stack);
+  const members = drawCollectionEntries<unknown>({
+    length: clampToItemBounds(setParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
+    containsChecks: (runType.contains ?? []) as ContainsEntry[],
+    unique: setParams?.uniqueItems === true,
+    drawMatch: (child) => {
+      const item = mockRunType(child, options, stack);
       if (!childSchemaMatches(item, elementType)) {
         throw new Error(
           'Cannot mock contains: the contains child and the Set member type are contradictory. ' +
             'Provide a MockData pool for this type (enrich).'
         );
       }
-      members.push(item);
-    }
-  }
-  const unique = setParams?.uniqueItems === true;
-  const seen = new Set<string>(unique ? members.map(canonicalJson) : []);
-  let attempts = 0;
-  while (members.length < length && attempts < Math.max(length, 1) * 32) {
-    attempts++;
-    const filler = mockRunType(elementType, options, stack);
-    if (containsChecks.some((entry) => childSchemaMatches(filler, entry.child))) continue;
-    if (unique) {
-      const key = canonicalJson(filler);
-      if (seen.has(key)) continue;
-      seen.add(key);
-    }
-    members.push(filler);
-  }
+      return item;
+    },
+    drawFiller: () => mockRunType(elementType, options, stack),
+    insertKeyOf: (member) => member,
+    collapseError:
+      'Cannot mock contains: a Set holds one copy of a member, so the drawn matches collapsed and minContains ' +
+      'cannot be reached. Provide a MockData pool for this type (enrich).',
+  });
   return new Set(members);
 }
 
