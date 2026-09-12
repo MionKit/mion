@@ -55,11 +55,9 @@ diff, and say in the review list which groups you dropped and why.
 
 ## C - comments (include when comments were added or changed)
 
-- C1 Each comment says something the code cannot say by itself.
-- C2 One line where one line does the job.
-- C3 No comment describes behaviour the diff just changed.
-- C4 No commented-out code, no ownerless TODO, no leftover debug note.
-- C5 A comment that carries a real reason, constraint or invariant stays.
+No items here. The comment rules live in the code style section of the root
+CLAUDE.md, so this group is sourced entirely from that file. Keep the group and
+its pass, read the items out of the file.
 
 ## B - behaviour and tests (include when code changed)
 

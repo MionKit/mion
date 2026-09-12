@@ -136,6 +136,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - `InjectRunTypeId` (capital T mid-word) — same casing as `RunType`.
 - Prefer type casting over assertions.
 - No `@param` / `@returns` in JSDoc; prefer one-liner comments and one-line `if`s.
+- **A comment earns its line or it goes.** Keep it only if it says something the code cannot: the reason behind a surprising choice, the constraint that forced it, an ordering requirement or invariant. One line where one line does the job. Delete anything that restates the code below it, and never leave commented-out code, an ownerless TODO, or a comment describing behaviour the change just made stale.
 - Use meaningful names in Go + TS; avoid one-letter abbreviations like `p`, `c`, `t`; when a struct field has a JSON tag, reuse that name for the local variable. Loop indices (`i`, `k`, `v`) and `err` are fine.
 
 ## Environment variables
