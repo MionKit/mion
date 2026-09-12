@@ -1,8 +1,12 @@
 # Global review checks
 
 The criteria that are not written in any CLAUDE.md: ordinary good-engineering
-review. The repo rules come from the CLAUDE.md files at review time; this file is
-the other half, and it is a **catalog to filter**, never a list to run whole.
+review. This file is the **second** source and the smaller one. The guidelines
+themselves live in the CLAUDE.md files above each changed directory, they are
+read in full at review time, and they win wherever the two overlap.
+
+It is a **catalog to filter**, never a list to run whole, and never a substitute
+for reading those files.
 
 Each item has an id, so the review list, the pass briefs and the final report can
 all point at the same thing. Include an item only when its trigger is in the
