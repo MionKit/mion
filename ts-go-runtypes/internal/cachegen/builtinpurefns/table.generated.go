@@ -9,6 +9,14 @@ package builtinpurefns
 var builtinEntries = []builtinEntry{
 	{
 		namespace:    "rt",
+		functionName: "canonicalJson",
+		bodyHash:     "thLFSpC1LBHJ6x",
+		paramNames:   nil,
+		code:         "// JSON equality as a string key: numbers by mathematical value (so 0 and -0\n  // collide, 1 and 1.0 collide), objects by unordered key set, arrays by order.\n  // The runtime twin the mock walker uses is `canonicalJson` in\n  // mocking/structuralFormat.ts — the two MUST agree or mocks drift from\n  // validators.\n  //\n  // A primitive's key carries its `typeof` prefix (a string is JSON-quoted\n  // instead), so a raw string can never collide with the canonical form of an\n  // object: the string '{}' and the value {} are different entries.\n  // The recursion rides a factory-LOCAL const, not the returned function's own\n  // name: a factory body is inlined without its lexical environment, so a\n  // returned function that names itself reads as an outer capture (PFE9011).\n  const canonical = (value) => {\n    if (value === null || typeof value !== 'object') {\n      return typeof value === 'string' ? JSON.stringify(value) : typeof value + ':' + String(value);\n    }\n    if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';\n    return (\n      '{' +\n      Object.keys(value)\n        .sort()\n        .map((key) => JSON.stringify(key) + ':' + canonical(value[key]))\n        .join(',') +\n      '}'\n    );\n  };\n  return function _canonicalJson(value) {\n    return canonical(value);\n  };",
+		deps:         nil,
+	},
+	{
+		namespace:    "rt",
 		functionName: "countEnumKeys",
 		bodyHash:     "UK-pJ-Sd7C03ja",
 		paramNames:   nil,
@@ -49,11 +57,27 @@ var builtinEntries = []builtinEntry{
 	},
 	{
 		namespace:    "rt",
-		functionName: "uniqueItems",
-		bodyHash:     "ewWo27ZnsVirFd",
-		paramNames:   nil,
-		code:         "// The 2020-12 `uniqueItems` predicate: JSON equality — numbers by\n  // mathematical value (so 0 and -0 collide), objects by unordered key set,\n  // arrays by order. `canon` is built once here at registration rather than\n  // once per validator call, which is why this lives in a pure fn instead of\n  // inline in the emitted body.\n  //\n  // Only objects and arrays pay for canonicalisation; primitives key a Set\n  // directly, so an array of numbers or strings never builds a string. Set\n  // membership is SameValueZero, which is exactly the partition the canonical\n  // form produced (0 with -0, NaN with itself). The two sets are kept SEPARATE\n  // so a raw string can never collide with the canonical form of an object —\n  // the string '{}' and the value {} are different items.\n  const canon = (x) => {\n    if (x === null || typeof x !== 'object') {\n      return typeof x === 'string' ? JSON.stringify(x) : typeof x + ':' + String(x);\n    }\n    if (Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';\n    return (\n      '{' +\n      Object.keys(x)\n        .sort()\n        .map((k) => JSON.stringify(k) + ':' + canon(x[k]))\n        .join(',') +\n      '}'\n    );\n  };\n  return function _uniqueItems(arr) {\n    // A Map (FormattedMap): its ENTRY is the `[key, value]` pair, so the\n    // keyword compares PAIRS. A primitive key is unique by construction\n    // (SameValueZero), which makes its pair unique too — skipped, so a Map\n    // with primitive keys allocates nothing however large its values. An\n    // object key may repeat by content, so its whole pair is canonicalised.\n    if (arr instanceof Map) {\n      let objects = null;\n      for (const [key, value] of arr) {\n        if (key === null || typeof key !== 'object') continue;\n        if (objects === null) objects = new Set();\n        const pairKey = canon([key, value]);\n        if (objects.has(pairKey)) return false;\n        objects.add(pairKey);\n      }\n      return true;\n    }\n    // A Set (FormattedSet): its primitive members are unique by construction\n    // (SameValueZero), so only object members are canonicalised and a Set of\n    // primitives allocates nothing.\n    if (!Array.isArray(arr)) {\n      let objects = null;\n      for (const item of arr) {\n        if (item === null || typeof item !== 'object') continue;\n        if (objects === null) objects = new Set();\n        const key = canon(item);\n        if (objects.has(key)) return false;\n        objects.add(key);\n      }\n      return true;\n    }\n    const len = arr.length;\n    if (len < 2) return true;\n    const primitives = new Set();\n    let objects = null;\n    for (let i = 0; i < len; i++) {\n      const item = arr[i];\n      if (item === null || typeof item !== 'object') {\n        if (primitives.has(item)) return false;\n        primitives.add(item);\n        continue;\n      }\n      if (objects === null) objects = new Set();\n      const key = canon(item);\n      if (objects.has(key)) return false;\n      objects.add(key);\n    }\n    return true;\n  };",
-		deps:         nil,
+		functionName: "uniqueArrayItems",
+		bodyHash:     "q3ejx74Tm76r8V",
+		paramNames:   []string{"utl"},
+		code:         "const canonicalJson = utl.getPureFn('rt::canonicalJson');\n  // An array (FormattedArray, plain or tuple) compares its ITEMS, and nothing\n  // in it is unique by construction. Primitives key a Set directly — Set\n  // membership is SameValueZero, exactly the partition the canonical form\n  // produces (0 with -0, NaN with itself) — so an array of numbers or strings\n  // builds no strings at all. The two sets stay SEPARATE so a raw string\n  // cannot collide with an object's canonical form.\n  return function _uniqueArrayItems(arr) {\n    const len = arr.length;\n    if (len < 2) return true;\n    const primitives = new Set();\n    let objects = null;\n    for (let i = 0; i < len; i++) {\n      const item = arr[i];\n      if (item === null || typeof item !== 'object') {\n        if (primitives.has(item)) return false;\n        primitives.add(item);\n        continue;\n      }\n      if (objects === null) objects = new Set();\n      const key = canonicalJson(item);\n      if (objects.has(key)) return false;\n      objects.add(key);\n    }\n    return true;\n  };",
+		deps:         []string{"rt::canonicalJson"},
+	},
+	{
+		namespace:    "rt",
+		functionName: "uniqueMapEntries",
+		bodyHash:     "uaCjtB1paHIP7G",
+		paramNames:   []string{"utl"},
+		code:         "const canonicalJson = utl.getPureFn('rt::canonicalJson');\n  // A Map (FormattedMap) compares its ENTRIES, the `[key, value]` PAIRS that\n  // are its wire form. A primitive map key is unique by construction, which\n  // makes its whole pair unique too, so it is skipped — a\n  // `Map<string, BigObject>` canonicalises nothing however large its values.\n  // An object key may repeat by content, so its pair is canonicalised whole:\n  // two content-equal keys with DIFFERENT values are two different entries and\n  // pass.\n  return function _uniqueMapEntries(map) {\n    let objects = null;\n    for (const [key, value] of map) {\n      if (key === null || typeof key !== 'object') continue;\n      if (objects === null) objects = new Set();\n      const pairKey = canonicalJson([key, value]);\n      if (objects.has(pairKey)) return false;\n      objects.add(pairKey);\n    }\n    return true;\n  };",
+		deps:         []string{"rt::canonicalJson"},
+	},
+	{
+		namespace:    "rt",
+		functionName: "uniqueSetMembers",
+		bodyHash:     "TbnGBILabdgEJI",
+		paramNames:   []string{"utl"},
+		code:         "const canonicalJson = utl.getPureFn('rt::canonicalJson');\n  // A Set (FormattedSet) compares its MEMBERS, and its primitive members are\n  // already unique by construction (SameValueZero), so only object members are\n  // canonicalised and a Set of primitives allocates nothing. That is the whole\n  // difference from the array walk, and the reason a `Set<{id: number}>` needs\n  // the keyword at all: it may hold two structurally equal objects.\n  return function _uniqueSetMembers(set) {\n    let objects = null;\n    for (const member of set) {\n      if (member === null || typeof member !== 'object') continue;\n      if (objects === null) objects = new Set();\n      const key = canonicalJson(member);\n      if (objects.has(key)) return false;\n      objects.add(key);\n    }\n    return true;\n  };",
+		deps:         []string{"rt::canonicalJson"},
 	},
 	{
 		namespace:    "rtFormats",

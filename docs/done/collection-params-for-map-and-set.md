@@ -67,15 +67,32 @@ deprecated alias for one release (the convention `packages/run-types/src/index.t
 - The collapses already promote a `__rtContains` member onto any builtin class base
   (`cachegen/runtype/intersection_collapse.go` `splitBuiltinClassBrand`,
   `typeid/intersection_collapse.go` `splitBuiltinClassBrandID`, both Map-agnostic); nothing to do.
-- `collectionformat.go`: the `unique bool` field is gone; both families read `uniqueItems`
-  through the existing `uniqueItemsCheck` (one struct, two names, the same three keywords).
-- `rt::uniqueItems` (`packages/run-types/src/runtypes/pure-fns-utils.ts`) gained an
-  `arr instanceof Map` arm before the Set arm. Worth recording WHY it is not a correctness fix: a
-  Map entry is always a `[key, value]` ARRAY, so the pre-existing Set arm already canonicalised
-  every pair and already answered correctly. The Map arm is there to skip pairs whose key is a
-  primitive (unique by construction under SameValueZero, so their pairs cannot repeat), which is
-  what stops a `Map<string, BigObject>` canonicalising every value for nothing. Table regenerated
-  with `pnpm miondevx core codegen builtinpurefns`.
+- `collectionformat.go`: the `unique bool` field is gone; both families read `uniqueItems`, each
+  naming its OWN predicate through a `uniquePureFn` field (`uniqueItemsCheck` takes the pure-fn
+  name). Its nil-context fallback stays family-agnostic on purpose: `for…of` walks an array, a Set
+  and a Map alike, so the one inlined IIFE that serves the direct emitter tests needs no copy per
+  family.
+- `rt::uniqueItems` was SPLIT into one predicate per family plus the shared key they all
+  depend on (`packages/run-types/src/runtypes/pure-fns-utils.ts`): `rt::uniqueArrayItems`,
+  `rt::uniqueSetMembers`, `rt::uniqueMapEntries` and `rt::canonicalJson`. One rule, three walks:
+  the three collections disagree on what an entry is and on what is already unique by
+  construction, so a function each keeps every emitted module to the walk its own base needs (an
+  array-only program ships no Set or Map arm) and drops the runtime kind test. The Map walk skips
+  pairs whose key is a primitive, unique by construction under SameValueZero, which is what stops
+  a `Map<string, BigObject>` canonicalising every value for nothing. `canonicalJson` is named for
+  the hand-written twin the mock walker uses (`mocking/structuralFormat.ts`), which it must agree
+  with or mocks drift from validators. Table regenerated with
+  `pnpm miondevx core codegen builtinpurefns` (46 entries).
+
+  Two traps the split walked into, both worth knowing before touching a pure fn:
+  - A returned function cannot recurse by its OWN name: a factory body is inlined without its
+    lexical environment, so the self-reference reads as an outer capture and the purity checker
+    fails it with `PFE9011`. The recursion rides a factory-local const instead.
+  - The dependency edge is recognised through the `CompTimeArgs<string>` brand on `getPureFn`'s
+    first parameter, so `utl` must be typed as the real `RTUtils` (a type-only import, so the file
+    stays runtime dependency-free). A hand-rolled local shape with a plain `string` parameter
+    compiles and reads fine but records `deps: nil`, and the emitted module then never imports the
+    dependency and throws when called.
 - Schema output: `collectionBag(node, false)` (`schemadoc/render.go:565-583`) already appends
   `structuralParts`, and `contains` renders through `node.Contains` generically (a tuple child
   prints as `{type: 'array', prefixItems: […]}`), so a bounded Map prints `contains` and
