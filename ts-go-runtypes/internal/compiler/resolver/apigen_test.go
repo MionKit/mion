@@ -3,6 +3,7 @@ package resolver_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -614,6 +615,60 @@ func TestApiGen_ServerManifestFlagsAnAmbiguousId(t *testing.T) {
 	if mismatches := apimeta.Compare(client, manifest); len(mismatches) != 1 || !strings.Contains(mismatches[0].Server, "more than once") {
 		t.Fatalf("a client row for an ambiguous id must fail the check: %v", mismatches)
 	}
+}
+
+// apiMarkerClientTS is the client program plus both getRunTypeId call shapes
+// over the very type a bundled route is compiled from, so the ids they inject
+// can be compared with each other and with the manifest's.
+const apiMarkerClientTS = `import {initClient} from '@mionjs/client';
+import {getRunTypeId} from '@mionjs/run-types';
+import type {Api} from './api.ts';
+export const {routes} = initClient<Api>({baseURL: 'http://x'});
+export const a = routes.users.getById(1).call();
+export const staticId = getRunTypeId<[id: number]>();
+declare const params: [id: number];
+export const valueId = getRunTypeId(params);
+`
+
+// TestApiGen_MarkerFormsAgreeWithTheBundledParamsId: the marker coverage rule of
+// ts-go-runtypes/CLAUDE.md, in the suite where it is observable. The STATIC form
+// `getRunTypeId<T>()` and the REFLECTION form `getRunTypeId(value)` over the same
+// params tuple inject the same id, and that id is the `paramsId` the bundled
+// route's manifest row carries: a client bundles the very type the ids name.
+func TestApiGen_MarkerFormsAgreeWithTheBundledParamsId(t *testing.T) {
+	genDir := t.TempDir()
+	r := setupApi(t, apiSources(apiMarkerClientTS), genDir, constants.BundleApiBundled, "")
+	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
+	if tr.Error != "" {
+		t.Fatalf("transform: %s", tr.Error)
+	}
+	if diags := metDiags(tr.Diagnostics); len(diags) != 0 {
+		t.Fatalf("unexpected MET diagnostics: %+v", diags)
+	}
+	code := tr.Transformed["client.ts"].Code
+	staticForm := injectedId(t, code, "staticId")
+	valueForm := injectedId(t, code, "valueId")
+	if staticForm != valueForm {
+		t.Fatalf("the two getRunTypeId forms must resolve to one id, got %q and %q:\n%s", staticForm, valueForm, code)
+	}
+
+	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	if paramsId := readManifest(t, genDir).Methods["users/getById"].ParamsId; paramsId != staticForm {
+		t.Fatalf("the bundled route's paramsId %q must be the id both marker forms name, %q", paramsId, staticForm)
+	}
+}
+
+// injectedId reads the entry-module binding the transform injected at
+// `export const <name> = getRunTypeId(...)`, whose suffix is the type's id.
+func injectedId(t *testing.T, code, name string) string {
+	t.Helper()
+	match := regexp.MustCompile(`export const ` + name + ` = getRunTypeId(?:<[^>]*>)?\([^)]*__rt_(\w+)\)`).FindStringSubmatch(code)
+	if match == nil {
+		t.Fatalf("no injected id for %s in:\n%s", name, code)
+	}
+	return match[1]
 }
 
 // TestApiGen_NoApiMeansNoApiDir: a program that neither bundles nor
