@@ -219,13 +219,6 @@ func SiteImports(site protocol.Site) []SiteImport {
 	return out
 }
 
-// SlotBinding is slotBinding, exported for the bundled-API lane: the text a
-// marker slot receives, an array of bindings for a multi-function site, else
-// the lone binding.
-func SlotBinding(site protocol.Site) string {
-	return slotBinding(site)
-}
-
 // buildImportBlock collects every entry-module import the rewritten file needs
 // and renders the deduped import statements as a SINGLE physical line. One
 // clause shape everywhere: every module exports each entry under its binding
@@ -304,11 +297,11 @@ func groupSitesByPos(sites []protocol.Site) [][]protocol.Site {
 	return groups
 }
 
-// slotBinding renders the entry-tuple binding one marker slot injects: an ARRAY
+// SlotBinding renders the entry-tuple binding one marker slot injects: an ARRAY
 // of bindings for a multi-function InjectTypeFnArgs<T, F1, F2, …> site
 // (len(FnIds) > 1), else the lone binding — a scalar fn binding, or the bare
 // reflection id when FnId is empty (InjectRunTypeId).
-func slotBinding(site protocol.Site) string {
+func SlotBinding(site protocol.Site) string {
 	if len(site.FnIds) > 1 {
 		bindings := make([]string, 0, len(site.FnIds))
 		for _, fnId := range site.FnIds {
@@ -349,7 +342,7 @@ func buildGroupInsertion(group []protocol.Site) string {
 	parts := make([]string, 0, maxIndex-argsCount+1)
 	for index := argsCount; index <= maxIndex; index++ {
 		if slot, ok := byIndex[index]; ok {
-			parts = append(parts, slotBinding(slot))
+			parts = append(parts, SlotBinding(slot))
 		} else {
 			// A non-marker optional parameter between argsCount and the last
 			// marker: a positional call must fill it, so pad with `undefined`.

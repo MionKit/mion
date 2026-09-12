@@ -1,7 +1,6 @@
 package apimeta
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -286,9 +285,4 @@ func (tree *Tree) Select(ids []string) (methods []*Method, missing []string) {
 		}
 	}
 	return methods, missing
-}
-
-// Describe renders a method for reports and tests.
-func (method *Method) Describe() string {
-	return fmt.Sprintf("%s(type=%d nest=%d chain=%v async=%v options=%v)", method.Id, method.Type, method.NestLevel, method.MiddleFnIds, method.IsAsync, method.Options)
 }

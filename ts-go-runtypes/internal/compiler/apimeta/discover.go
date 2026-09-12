@@ -33,7 +33,7 @@ func isApiMetadataCall(typeChecker *checker.Checker, markerOpts marker.Options, 
 	if callExpr == nil || callExpr.Expression == nil {
 		return false, 0, nil
 	}
-	if !isDispatchCalleeName(calleeIdentifierName(callExpr)) {
+	if !isDispatchCalleeName(marker.CalleeIdentifierName(callExpr)) {
 		return false, 0, nil
 	}
 	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)

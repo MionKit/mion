@@ -967,3 +967,23 @@ func findAmbientModuleName(node *ast.Node) string {
 	}
 	return ""
 }
+
+// CalleeIdentifierName is the name a call expression calls, whether written
+// bare (`call(...)`) or through a property access (`route.call(...)`); empty
+// when it is neither. A lane's cheap textual pre-filter runs on it, before the
+// resolved signature decides anything.
+func CalleeIdentifierName(callExpr *ast.CallExpression) string {
+	if callExpr == nil || callExpr.Expression == nil {
+		return ""
+	}
+	expr := callExpr.Expression
+	switch expr.Kind {
+	case ast.KindIdentifier:
+		return expr.Text()
+	case ast.KindPropertyAccessExpression:
+		if name := expr.AsPropertyAccessExpression().Name(); name != nil {
+			return name.Text()
+		}
+	}
+	return ""
+}

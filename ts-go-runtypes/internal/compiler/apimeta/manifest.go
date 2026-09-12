@@ -132,8 +132,8 @@ func Compare(client, server *Manifest) []Mismatch {
 }
 
 // RowsEqual says whether two rows would pass the check.
-func RowsEqual(a, b ManifestMethod) bool {
-	return len(compareRows("", a, b)) == 0
+func RowsEqual(clientRow, serverRow ManifestMethod) bool {
+	return len(compareRows("", clientRow, serverRow)) == 0
 }
 
 func compareRows(id string, clientRow, serverRow ManifestMethod) []Mismatch {

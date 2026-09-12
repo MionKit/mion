@@ -39,10 +39,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// ClientModule is the package that declares the client surface: the dispatch
-// methods and `initClient`.
-const ClientModule = "@mionjs/client"
-
 // RouterModule is the package that declares the router, whose `initRoutes`
 // call roots the API walk in a program named by `apiTsconfig`.
 const RouterModule = "@mionjs/router"
@@ -184,7 +180,7 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 		sites = append(sites, fileSites...)
 		diags = append(diags, fileDiags...)
 	}
-	sortDiagnostics(diags)
+	diagnostics.Sort(diags)
 	return sites, diags
 }
 
@@ -277,7 +273,7 @@ func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnos
 		TrailingComma: callExpr.Arguments != nil && callExpr.Arguments.HasTrailingComma(),
 		ApiType:       apiType,
 		Checker:       scope.typeChecker,
-		CalleeName:    calleeIdentifierName(callExpr),
+		CalleeName:    marker.CalleeIdentifierName(callExpr),
 		sourceFile:    scope.sourceFile,
 		callNode:      call,
 	}
@@ -367,35 +363,4 @@ func Files(sites []Site) []string {
 	}
 	sort.Strings(files)
 	return files
-}
-
-// calleeIdentifierName returns the callee identifier text: `f(...)` yields
-// "f", `obj.f(...)` yields "f"; anything else yields "".
-func calleeIdentifierName(callExpr *ast.CallExpression) string {
-	if callExpr == nil || callExpr.Expression == nil {
-		return ""
-	}
-	expr := callExpr.Expression
-	switch expr.Kind {
-	case ast.KindIdentifier:
-		return expr.Text()
-	case ast.KindPropertyAccessExpression:
-		if name := expr.AsPropertyAccessExpression().Name(); name != nil {
-			return name.Text()
-		}
-	}
-	return ""
-}
-
-func sortDiagnostics(diags []diagnostics.Diagnostic) {
-	sort.SliceStable(diags, func(i, j int) bool {
-		a, b := diags[i].Site, diags[j].Site
-		if a.FilePath != b.FilePath {
-			return a.FilePath < b.FilePath
-		}
-		if a.StartLine != b.StartLine {
-			return a.StartLine < b.StartLine
-		}
-		return a.StartCol < b.StartCol
-	})
 }
