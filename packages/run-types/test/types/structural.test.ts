@@ -21,6 +21,7 @@
 
 import {describe, expect, test} from 'vitest';
 import * as TF from '../../src/formats/index.ts';
+import * as RT from '../../src/builders/index.ts';
 import type {RunType, InferType, DataOnly} from '../../src/index.ts';
 import type {CarriedKey} from '../../src/builders/static.ts';
 
@@ -29,8 +30,52 @@ describe('structural brand keys — type-only assertions', () => {
     expect(typeof assertionsStructuralBrandKeys).toBe('function');
     expect(typeof assertionsRecoveredTypesCarryNoMetadata).toBe('function');
     expect(typeof assertionsCarriedKeyIsExhaustive).toBe('function');
+    expect(typeof assertionsMapContainsTakesAPair).toBe('function');
   });
 });
+
+// ── A Map's `contains` child must be a two-slot tuple ──
+//
+// A Map's ENTRY is its `[key, value]` pair, so `contains` on a Map is matched
+// against a pair. A child of any other shape matches NO entry, which means
+// `{contains: number}` would compile into a validator that always rejects, and
+// nothing downstream can tell that from a deliberately strict constraint: the
+// emitted count simply stays 0, so `minContains: 1` never holds. That is the
+// silent-failure class this file exists for, so the slot is CONSTRAINED
+// (`FormattedMapParams`) and the rejections are pinned here. An array and a Set
+// keep the unconstrained slot on purpose, since their entry is a single value.
+function assertionsMapContainsTakesAPair(): void {
+  // ACCEPTED — a pair, either half pinned or left `unknown` to skip it.
+  type Roles = TF.FormattedMap<Map<string, number>, {contains: ['admin', unknown]}>;
+  type Scores = TF.FormattedMap<Map<string, number>, {contains: [unknown, 100]; maxContains: 1}>;
+  type Bounded = TF.FormattedMap<Map<string, number>, {minItems: 1; uniqueItems: true}>;
+
+  // REJECTED — a bare entry type. This is the one that matters: it reads
+  // plausibly (it is what an array or a Set takes) and it can never match.
+  // @ts-expect-error — a Map's contains child is the [key, value] pair, not the value type
+  type BareValue = TF.FormattedMap<Map<string, number>, {contains: number}>;
+  // @ts-expect-error — three slots is not an entry
+  type TooManySlots = TF.FormattedMap<Map<string, number>, {contains: [string, number, boolean]}>;
+  // @ts-expect-error — one slot is not an entry
+  type TooFewSlots = TF.FormattedMap<Map<string, number>, {contains: [string]}>;
+  // @ts-expect-error — an optional slot makes the length 1 | 2, so it is not an entry either
+  type OptionalSlot = TF.FormattedMap<Map<string, number>, {contains: [string, number?]}>;
+
+  // The value-first twin carries the same constraint through `RT.map`.
+  const pairSchema = RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('admin'), RT.unknown()]})});
+  // @ts-expect-error — a single-value schema is not a Map entry schema
+  const bareSchema = RT.map(TF.string(), TF.number(), {contains: TF.number()});
+
+  void (null as unknown as Roles);
+  void (null as unknown as Scores);
+  void (null as unknown as Bounded);
+  void (null as unknown as BareValue);
+  void (null as unknown as TooManySlots);
+  void (null as unknown as TooFewSlots);
+  void (null as unknown as OptionalSlot);
+  void pairSchema;
+  void bareSchema;
+}
 
 // ── Structural brand keys: exactly what a FormattedObject/FormattedArray exposes ──
 //
