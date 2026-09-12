@@ -7,7 +7,8 @@
 
 import {
   dispatchWithContext,
-  createCallContext,
+  resolveRequest,
+  createContextFromResolved,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
@@ -19,7 +20,7 @@ import {loadUws} from '@mionjs/bin-uws';
 import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
-import type {MionHeaders, MionResponse} from '@mionjs/router';
+import type {MionHeaders, MionResponse, ResolvedRequest} from '@mionjs/router';
 import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
@@ -154,14 +155,15 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     state.aborted = true;
   });
 
-  // The context is built BEFORE the body, synchronously: one lookup gives the chain and the
-  // request limit the route settled at registration, so the native read below stops at the route's
-  // own number and the same context goes to the dispatch. The raw request object is built once, the
-  // one a pathTransform reads and the one the handlers see.
+  // The route is resolved BEFORE the body, synchronously, the context only once the body is in
+  // hand: one lookup gives the chain and the request limit the route settled at registration, so
+  // the native read below stops at the route's own number, while the context (and the body hanging
+  // off it) stays short-lived, which is what keeps the garbage collector cheap on a big body. The
+  // raw request object is built once, the one a pathTransform reads and the one the handlers see.
   const rawRequest = {path, urlQuery, headers: reqHeaders};
-  let context: ReturnType<typeof createCallContext>;
+  let resolved: ResolvedRequest;
   try {
-    context = createCallContext(path, urlQuery, rawRequest, reqHeaders, respHeaders);
+    resolved = resolveRequest(path, urlQuery, rawRequest);
   } catch (e) {
     state.replied = true;
     fatalFail(res, state, respHeaders, toRpcError(e));
@@ -184,7 +186,8 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    dispatchWithContext(context, rawRequest, res, reqRawBody, reqBodyType)
+    const context = createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+    dispatchWithContext(context, rawRequest, res)
       .then((mionResponse) => {
         if (state.replied) return;
         state.replied = true;
@@ -203,13 +206,13 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // (the adapter's option for a route whose types could not say).
   // A not-found chain (an unknown path or batch id) has no route to feed: the body is consumed
   // as it arrives and dropped (a no-op reader keeps the connection reusable), never assembled.
-  if (!context.readsBody) {
+  if (!resolved.readsBody) {
     res.onData(() => {});
     dispatchBody('', false);
     return;
   }
 
-  res.collectBody(context.maxBodySize, (fullBody) => {
+  res.collectBody(resolved.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {
       state.replied = true;

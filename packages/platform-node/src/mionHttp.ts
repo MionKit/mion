@@ -7,14 +7,15 @@
 
 import {
   dispatchWithContext,
-  createCallContext,
+  resolveRequest,
+  createContextFromResolved,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
   requestPayloadTooLarge,
 } from '@mionjs/router';
-import type {CallContext} from '@mionjs/router';
+import type {ResolvedRequest} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
@@ -118,13 +119,14 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const reqHeaders = headersFromIncomingMessage(httpReq);
   const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
 
-  // The context is built BEFORE the body: one lookup gives the chain and the request limit the
-  // route settled at registration, so the read below stops at the route's own number and the same
-  // context goes to the dispatch. A throw here (an unknown batch id, a throwing pathTransform) is
+  // The route is resolved BEFORE the body, the context only after it: one lookup gives the chain
+  // and the request limit the route settled at registration, so the read below stops at the route's
+  // own number, while the context (and the body hanging off it) stays young enough for the cheap
+  // half of the garbage collector. A throw here (an unknown batch id, a throwing pathTransform) is
   // answered like a too-large body: before a byte is buffered, with the stream destroyed.
-  let context: CallContext;
+  let resolved: ResolvedRequest;
   try {
-    context = createCallContext(path, urlQuery, httpReq, reqHeaders, respHeaders);
+    resolved = resolveRequest(path, urlQuery, httpReq);
   } catch (e) {
     replied = true;
     fatalFail(httpResponse, respHeaders, toRpcError(e));
@@ -133,7 +135,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   }
   // read once per request rather than per chunk: the route's own number, or the adapter's option
   // for a route whose types could not say
-  const maxBodySize = context.maxBodySize;
+  const maxBodySize = resolved.maxBodySize;
 
   // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
   // one, and on the running size before each chunk is kept. The request stream is then destroyed so
@@ -155,7 +157,8 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
-      const mionResponse = await dispatchWithContext(context, httpReq, httpResponse, reqRawBody, reqBodyType);
+      const context = createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+      const mionResponse = await dispatchWithContext(context, httpReq, httpResponse);
       if (replied || httpResponse.writableEnded) return;
       replied = true;
       reply(httpResponse, mionResponse);
@@ -180,7 +183,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // A not-found chain (an unknown path or batch id) has no route to feed: dispatch right away with
   // no body and no data listener. Node discards whatever the client still sends once the response
   // ends, so a kept-alive connection stays usable and nothing is ever buffered.
-  if (!context.readsBody) {
+  if (!resolved.readsBody) {
     void dispatch('', SerializerModes.stringifyJson, false);
     return;
   }

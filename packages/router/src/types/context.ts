@@ -122,6 +122,17 @@ export interface ResponseBody extends Record<string, any> {
 // type-response-body-end
 
 /** Result of resolving a request to its execution chain (getBatchExecutionChain for a batch) */
+/** A request resolved to its chain and its request limit, before any context exists: what a
+ *  streaming adapter reads the body against. */
+export interface ResolvedRequest extends BatchExecutionResult {
+  /** The path after `pathTransform`, the one the context carries */
+  path: string;
+  /** The query string as it came off the url, carried so the context needs no second parse */
+  urlQuery: string | undefined;
+  /** False for mion's own not-found chains: the body is never read or parsed for them */
+  readsBody: boolean;
+}
+
 export interface BatchExecutionResult {
   executionChain: MethodsExecutionChain;
   /** The request limit of the chain (a batch: the sum of its member routes'), the platform's number
