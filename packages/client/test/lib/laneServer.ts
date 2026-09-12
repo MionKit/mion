@@ -41,22 +41,31 @@ export async function setup(project: TestProject): Promise<void> {
     stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
   });
   child = spawned;
-  const port = await new Promise<number>((resolve, reject) => {
+  const port = await startedPort(spawned, project.name).catch((error: unknown) => {
+    // vitest never runs teardown for a globalSetup that threw, so the fork would outlive the run
+    spawned.kill();
+    child = undefined;
+    throw error;
+  });
+  project.provide('laneServerBaseURL', `http://localhost:${port}`);
+}
+
+function startedPort(spawned: ChildProcess, name: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`lane server for ${project.name} did not start within ${START_TIMEOUT_MS}ms`)),
+      () => reject(new Error(`lane server for ${name} did not start within ${START_TIMEOUT_MS}ms`)),
       START_TIMEOUT_MS
     );
     spawned.once('message', (message: {port?: number}) => {
       clearTimeout(timer);
-      if (typeof message?.port !== 'number') return reject(new Error(`lane server for ${project.name} sent no port`));
+      if (typeof message?.port !== 'number') return reject(new Error(`lane server for ${name} sent no port`));
       resolve(message.port);
     });
     spawned.once('exit', (code) => {
       clearTimeout(timer);
-      reject(new Error(`lane server for ${project.name} exited with code ${code} before it listened`));
+      reject(new Error(`lane server for ${name} exited with code ${code} before it listened`));
     });
   });
-  project.provide('laneServerBaseURL', `http://localhost:${port}`);
 }
 
 export async function teardown(): Promise<void> {
