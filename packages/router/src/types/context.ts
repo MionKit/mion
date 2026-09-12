@@ -121,25 +121,10 @@ export interface ResponseBody extends Record<string, any> {
 }
 // type-response-body-end
 
-/** Result of resolving a request to its execution chain (getBatchExecutionChain for a batch) */
-/** A request resolved to its chain and its request limit, before any context exists: what a
- *  streaming adapter reads the body against. */
-export interface ResolvedRequest extends BatchExecutionResult {
-  /** The path after `pathTransform`, the one the context carries */
-  path: string;
-  /** The query string as it came off the url, carried so the context needs no second parse */
-  urlQuery: string | undefined;
-  /** False for mion's own not-found chains: the body is never read or parsed for them */
-  readsBody: boolean;
-}
-
-export interface BatchExecutionResult {
-  executionChain: MethodsExecutionChain;
-  /** The request limit of the chain (a batch: the sum of its member routes'), the platform's number
-   *  filled in where the types could not say */
-  maxBodySize: number;
-  /** Id of the batch, surfaced on the CallContext */
-  batchId?: string;
-  /** Route ids of the batch, surfaced on the CallContext for consumers */
-  batchRouteIds?: string[];
-}
+/**
+ * A request resolved to its execution chain and its request limit, before any context exists: what
+ * a streaming adapter reads the body against, and what `createContextFromResolved` then builds the
+ * context from. Derived from `CallContext` by dropping everything the body brings with it, so the
+ * two can never drift: a new field on the context is resolved here unless it is named below.
+ */
+export type ResolvedRequest = Omit<CallContext, 'request' | 'response' | 'shared'>;
