@@ -75,12 +75,10 @@ each answer.
   a generic RunTypes property of every bounded reflection root); mion reads it for params only. A
   lint that warns when a return type could exceed the platform's response ceiling is its own todo.
   Fixed on the way: a first error raised inside the serialize loop used to be lost.
-- **New sugar and a new format family.** `List<T, MaxItems, MinItems = 0>` over `FormattedArray`;
-  `formattedMap` / `formattedSet` with `minSize` / `maxSize` (type-first `FormattedMap` /
-  `FormattedSet`, sugar `SizedMap` / `SizedSet`, value-first `map(k, v, {maxSize})` /
-  `set(v, {maxSize})`), validated, mocked, printed by `mion convert` and folded by the id like
-  `formattedArray`. The errors lane's class guard used to treat every class as a Date, which hid
-  the new checks; it now guards Map / Set on their own class.
+- **The bounded collection formats come from the branch this stacks on.** A maximum reaches a
+  route through `FormattedArray<T[], {maxItems}>`, `FormattedSet<Set<T>, {maxItems}>` and
+  `FormattedMap<Map<K, V>, {maxItems}>` (and their value-first builders). No new sugar ships here:
+  the size walk reads whatever maximum those formats put on the type.
 - **One global switch.** The build option `derivedPayloadLimits` on the mion presets (the resolver's
   `jsonMaxBytes`, also a tsconfig plugin key and the `--json-max-bytes` flag, on by default) turns the
   feature off: the compiler emits no slot 21 at all, so every route takes its option or the adapter's

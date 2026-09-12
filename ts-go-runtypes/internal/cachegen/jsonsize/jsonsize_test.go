@@ -183,7 +183,7 @@ func TestMaxBytes_MapAndSet(t *testing.T) {
 	}
 	sized := func(sub reflection.ReflectionSubKind, name string, args ...*reflection.RunType) *reflection.RunType {
 		return &reflection.RunType{Kind: reflection.KindClass, SubKind: sub, Arguments: args,
-			FormatAnnotation: &reflection.FormatAnnotation{Name: name, Params: map[string]any{"maxSize": 2.0}}}
+			FormatAnnotation: &reflection.FormatAnnotation{Name: name, Params: map[string]any{"maxItems": 2.0}}}
 	}
 	mapRT := sized(reflection.SubKindMap, "formattedMap", reflection.NewRef("k"), reflection.NewRef("v"))
 	// `[` + 2 × `[24,5]` + `,` + `]`
@@ -191,9 +191,9 @@ func TestMaxBytes_MapAndSet(t *testing.T) {
 	setRT := sized(reflection.SubKindSet, "formattedSet", reflection.NewRef("i"))
 	expectBounded(t, "sized set", MaxBytes(setRT, refs), 2+2*24+1)
 	plainMap := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindMap, Arguments: []*reflection.RunType{reflection.NewRef("k"), reflection.NewRef("v")}}
-	expectUnbounded(t, "plain map", MaxBytes(plainMap, refs), ": Map without maxSize")
+	expectUnbounded(t, "plain map", MaxBytes(plainMap, refs), ": Map without maxItems")
 	plainSet := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{reflection.NewRef("i")}}
-	expectUnbounded(t, "plain set", MaxBytes(plainSet, refs), ": Set without maxSize")
+	expectUnbounded(t, "plain set", MaxBytes(plainSet, refs), ": Set without maxItems")
 }
 
 func TestMaxBytes_RefsMemoAndCycle(t *testing.T) {
@@ -258,11 +258,11 @@ func TestMaxBytes_VisitsEveryWireSlot(t *testing.T) {
 	add(param("mv", reflection.SubKindMapValue, reflection.NewRef("tup")))
 	add(withID("map", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindMap,
 		Arguments:        []*reflection.RunType{reflection.NewRef("mk"), reflection.NewRef("mv")},
-		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedMap", Params: map[string]any{"maxSize": 2.0}}}))
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedMap", Params: map[string]any{"maxItems": 2.0}}}))
 	add(param("si", reflection.SubKindSetItem, reflection.NewRef("u")))
 	add(withID("set", &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet,
 		Arguments:        []*reflection.RunType{reflection.NewRef("si")},
-		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedSet", Params: map[string]any{"maxSize": 1.0}}}))
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedSet", Params: map[string]any{"maxItems": 1.0}}}))
 	add(withID("p0", prop("list", reflection.NewRef("arr"), false)))
 	add(withID("p1", prop("byKey", reflection.NewRef("map"), true)))
 	add(withID("p2", prop("tags", reflection.NewRef("set"), false)))
