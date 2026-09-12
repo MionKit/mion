@@ -131,12 +131,25 @@ For everything the agents send back, nothing reaches the user unverified:
 - **The rule is real.** A repo-rule finding must quote the line it breaks, and you confirm that line exists. If it does not, drop it or relabel it as taste.
 - **The simpler option is really simpler.** Does it remove more lines than it adds, and keep the behaviour? If you cannot show that, drop it.
 - **It is in scope.** The change under review is the diff. A problem in untouched code is not this PR's finding; route it in step 7.
-- **Merge duplicates.** The T and A groups overlap by design, so one finding often arrives twice. One entry, best evidence.
+- **Merge duplicates, and only duplicates.** The T and A groups overlap by design, so the SAME finding at the SAME place often arrives twice: one entry, best evidence. Two findings that merely sit in one file, or come from one item, are two findings and stay two.
+- **Count what survived.** Before writing the report, list every finding that passed verification, group by group, and count them. That count is what the report must contain. An item that reported several findings contributes several.
 - **An off-list finding is welcome but marked.** An agent that spots something serious outside its items reports it flagged as off-list; keep it, and say it was not on the approved list.
 
 ## Step 7 - Report, then ask
 
 Answer the list. Order by severity, not by group.
+
+**Report every finding that survived step 6. Filtering is the USER's job, never yours.** A verified
+finding is dropped only by them. You do not get to leave one out because it is small, because it is
+the second one from the same item, because another finding is in the same file, because the report
+is getting long, or because you privately disagree: disagreeing is what the severity levels and the
+push-back reply are for. If a finding is too small to write a line for, it was too small to verify,
+so it should have gone in step 6.
+
+Check the count before you send: the report's entries must equal the number you counted in step 6.
+If the report has fewer, you dropped something, so go back and find it. Grouping several findings
+into one bullet hides them just as effectively as deleting them, so give each its own entry with its
+own id and location.
 
 ```markdown
 ## Review: <branch> vs <base>   (N files, +X / -Y lines)
@@ -168,6 +181,7 @@ Then ask what to do. The root CLAUDE.md sets where a finding goes: related ones 
 
 - **Do not start reviewing before the list is approved.** Steps 1 to 3 are reading and listing.
 - **Do not edit code.** This skill reviews. Fixes happen after the user picks them, as their own step.
+- **Do not filter the findings.** Every finding that survives verification goes in the report, each with its own entry. Deciding which ones matter is the user's call, and they cannot make it about a finding they never saw. Summarising the list IS filtering it.
 - **Do not run tests, builds or lint, and never report a test result you did not produce.** This review reads. The host is often not bootstrapped, and "tests pass" from an unbuilt host is a false claim. Reporting that a behaviour has no test is fine and expected.
 - **Do not build the list from the catalog alone.** The CLAUDE.md files are the guidelines; the catalog only covers what they do not.
 - **Do not skip re-reading a CLAUDE.md** because you read it earlier in this session or in a previous review. They change, and the list is only as current as the read behind it.
@@ -184,6 +198,8 @@ Then ask what to do. The root CLAUDE.md sets where a finding goes: related ones 
 - **`origin/main..HEAD` is not the change.** Use the merge-base range from the script, or upstream commits show up as the author's work.
 - **A spec that reads perfectly can still be stalled.** It was written before the code. Check it against the diff, not against itself.
 - **The list is the deliverable of the first half.** If it is vague ("check the docs are good"), the pass will be vague too. Each item should be checkable against a line of the diff.
+- **A long report is not a failure mode; a short one hiding findings is.** The pressure to tidy peaks exactly when the passes did their job and came back with a lot. Twenty entries the user skims in a minute beat twelve they trust and act on, because the eight you cut are the ones nobody ever sees again. Every finding that survives verification is already worth a line: that is what surviving verification means.
+- **The second finding under one item is the one that goes missing.** An item that reports two things reads as one thing by the time it reaches the report. Count per FINDING, never per item.
 - **The docs group finds the most and gets argued with the most.** Quote the guideline and show the rewritten sentence. A concrete shorter sentence wins an argument that adjectives do not.
 - **The docs style rules are written down and they move.** Read `container/website/CLAUDE.md` during the review, including the pages it says to read first. It also says which tools may touch that tree, which decides what a valid fix looks like.
 - **New file, low bar to question it.** Ask what it would cost to put the code in the file that already owns that job. Often nothing.
