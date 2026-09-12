@@ -248,7 +248,7 @@ func TestEstimate_CycleTerminates(t *testing.T) {
 	}
 }
 
-// A bounded Map / Set (formattedMap / formattedSet on the array keywords)
+// A bounded Map / Set (formattedMap / formattedSet on the collection keywords)
 // tightens the entry count the way a bounded array does: `maxItems` replaces
 // cfg.Items, an unbounded collection still assumes cfg.Items entries.
 func TestEstimate_MapSetReadMaxItems(t *testing.T) {

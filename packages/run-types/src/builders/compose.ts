@@ -38,10 +38,8 @@ import type {RunType} from '../runtypes/types.ts';
 import type {ExactParams} from '../runtypes/builderTypes.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
 import type {
-  FormattedArrayParamsValueFirst,
+  FormattedCollectionParamsValueFirst,
   FormattedObjectParamsValueFirst,
-  FormattedSetParamsValueFirst,
-  FormattedMapParamsValueFirst,
   FormattedArrayFrom,
   FormattedObjectFrom,
   FormattedSetFrom,
@@ -89,17 +87,18 @@ import type {
 /** An array builder. `array(string())` → `RunType<string[]>`; with a trailing
  *  structural-format params bag, `array(number(), {uniqueItems: true, maxItems: 3})`
  *  → `RunType<FormattedArray<number[], …>>`, the value-first spelling of the
- *  JSON Schema array keywords (`minItems`/`maxItems`/`uniqueItems`/`contains`
- *  + `minContains`/`maxContains`). **/
+ *  JSON Schema collection keywords (`minItems`/`maxItems`/`uniqueItems`/
+ *  `contains` + `minContains`/`maxContains`), the same bag `set` and `map`
+ *  take. **/
 export function array<T>(item: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<T[]>): RunType<T[]>;
-export function array<T, const P extends FormattedArrayParamsValueFirst>(
+export function array<T, const P extends FormattedCollectionParamsValueFirst>(
   item: CompTimeArgs<RunType<T>>,
-  params: CompTimeArgs<ExactParams<P, FormattedArrayParamsValueFirst>>,
+  params: CompTimeArgs<ExactParams<P, FormattedCollectionParamsValueFirst>>,
   id?: InjectRunTypeId<FormattedArrayFrom<T[], P>>
 ): RunType<FormattedArrayFrom<T[], P>>;
 export function array(
   item: RunType,
-  arg2?: FormattedArrayParamsValueFirst | InjectRunTypeId<unknown>,
+  arg2?: FormattedCollectionParamsValueFirst | InjectRunTypeId<unknown>,
   arg3?: InjectRunTypeId<unknown>
 ): RunType {
   const base = {type: 'array', child: item};
@@ -343,8 +342,11 @@ export function record(
 
 /** A `Map` builder — `map(string(), number())` → `RunType<Map<string, number>>`.
  *  Both the key and value schemas are validated per entry. A trailing params
- *  bag bounds the entry count with the array keywords, `map(k, v, {maxItems: 10})`
- *  → `RunType<FormattedMap<Map<K, V>, …>>`, the value-first twin of `FormattedMap`.
+ *  bag is the collection bag, `map(k, v, {maxItems: 10})` →
+ *  `RunType<FormattedMap<Map<K, V>, …>>`, the value-first twin of `FormattedMap`.
+ *  A Map's entry is its `[key, value]` pair, so `contains` takes a TUPLE schema,
+ *  `map(string(), number(), {contains: tuple({required: [literal('ada'), unknown()]})})`,
+ *  and `uniqueItems` compares pairs by value.
  *
  *  Two overloads, like `array`: a single signature with an optional bag was
  *  measured and rejected (test/types/builderCost.compile.test.ts), the bare
@@ -354,16 +356,16 @@ export function map<K, V>(
   valueSchema: CompTimeArgs<RunType<V>>,
   id?: InjectRunTypeId<Map<K, V>>
 ): RunType<Map<K, V>>;
-export function map<K, V, const P extends FormattedMapParamsValueFirst>(
+export function map<K, V, const P extends FormattedCollectionParamsValueFirst>(
   keySchema: CompTimeArgs<RunType<K>>,
   valueSchema: CompTimeArgs<RunType<V>>,
-  params: CompTimeArgs<ExactParams<P, FormattedMapParamsValueFirst>>,
+  params: CompTimeArgs<ExactParams<P, FormattedCollectionParamsValueFirst>>,
   id?: InjectRunTypeId<FormattedMapFrom<Map<K, V>, P>>
 ): RunType<FormattedMapFrom<Map<K, V>, P>>;
 export function map(
   keySchema: RunType,
   valueSchema: RunType,
-  arg3?: FormattedMapParamsValueFirst | InjectRunTypeId<unknown>,
+  arg3?: FormattedCollectionParamsValueFirst | InjectRunTypeId<unknown>,
   arg4?: InjectRunTypeId<unknown>
 ): RunType {
   const base = {type: 'map', index: keySchema, child: valueSchema};
@@ -372,18 +374,18 @@ export function map(
 }
 
 /** A `Set` builder — `set(string())` → `RunType<Set<string>>`. Each member is
- *  validated against the value schema. A trailing params bag is the array bag,
- *  `set(string(), {maxItems: 5, uniqueItems: true})` →
+ *  validated against the value schema. A trailing params bag is the collection
+ *  bag, `set(string(), {maxItems: 5, uniqueItems: true})` →
  *  `RunType<FormattedSet<Set<string>, …>>`, the value-first twin of `FormattedSet`. **/
 export function set<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRunTypeId<Set<V>>): RunType<Set<V>>;
-export function set<V, const P extends FormattedSetParamsValueFirst>(
+export function set<V, const P extends FormattedCollectionParamsValueFirst>(
   valueSchema: CompTimeArgs<RunType<V>>,
-  params: CompTimeArgs<ExactParams<P, FormattedSetParamsValueFirst>>,
+  params: CompTimeArgs<ExactParams<P, FormattedCollectionParamsValueFirst>>,
   id?: InjectRunTypeId<FormattedSetFrom<Set<V>, P>>
 ): RunType<FormattedSetFrom<Set<V>, P>>;
 export function set(
   valueSchema: RunType,
-  arg2?: FormattedSetParamsValueFirst | InjectRunTypeId<unknown>,
+  arg2?: FormattedCollectionParamsValueFirst | InjectRunTypeId<unknown>,
   arg3?: InjectRunTypeId<unknown>
 ): RunType {
   const base = {type: 'set', child: valueSchema};
