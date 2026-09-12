@@ -303,3 +303,23 @@ func TestMaxBytes_VisitsEveryWireSlot(t *testing.T) {
 		return reflection.WalkContinue
 	})
 }
+
+// A binary view (typed array, ArrayBuffer, SharedArrayBuffer, DataView) is a
+// non-serialisable class: DataOnly strips it, so the encoder writes nothing for
+// it in an object and a `null` in a tuple slot. `JSON.stringify` of the raw
+// value disagrees for a typed array, which is why the bound is a wire bound.
+func TestMaxBytes_NonSerializableIsWireBound(t *testing.T) {
+	binaryView := func() *reflection.RunType {
+		return &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindNonSerializable}
+	}
+	expectBounded(t, "root", MaxBytes(binaryView(), noRefs), 4)
+	// `{` + `"p0":` + 4 + `}`
+	expectBounded(t, "object member", MaxBytes(object(prop("p0", binaryView(), false)), noRefs), 1+5+4+1)
+	// `[` + 4 + `,` + 4 + `]`
+	expectBounded(t, "array element", MaxBytes(arrayFmt(binaryView(), map[string]any{"maxItems": 2.0}), noRefs), 2+4+1+4)
+	tuple := &reflection.RunType{Kind: reflection.KindTuple, Children: []*reflection.RunType{
+		{Kind: reflection.KindTupleMember, Child: binaryView()}, {Kind: reflection.KindTupleMember, Child: boolean},
+	}}
+	// `[` + `null` + `,` + `false` + `]`
+	expectBounded(t, "tuple member", MaxBytes(tuple, noRefs), 2+4+1+5)
+}

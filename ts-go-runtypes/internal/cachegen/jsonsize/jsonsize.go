@@ -11,7 +11,9 @@
 // The walk is a sibling of the binary cold-start estimator
 // (cachegen/typefunctions/binary_size_estimate.go) but answers a different
 // question: not "how many bytes will a typical binary encoding take" but "how
-// many bytes can a compact JSON body of this type reach, at most". So every
+// many bytes can a compact JSON body of this type reach, at most". The body it
+// bounds is the one the compiled encoder writes, not `JSON.stringify` of a raw
+// JS value: the two part ways wherever DataOnly drops a member. So every
 // arm is a worst case: 6 bytes per UTF-16 unit for a string (the `\uXXXX`
 // escape form), 24 for a number (the longest `JSON.stringify` double), every
 // optional member present, the largest union member. The `compact` encoder
@@ -540,6 +542,13 @@ func (w *walker) classBytes(rt *reflection.RunType, path string, depth int) Resu
 	case reflection.SubKindTemporalDuration:
 		return unbounded(path, "Duration digits have no bound")
 	case reflection.SubKindNonSerializable:
+		// The bound covers the WIRE, not `JSON.stringify` of the raw value.
+		// DataOnly strips every non-serialisable class, so the encoder writes
+		// nothing for it (a `null` in a tuple slot), and `nullBytes` is that
+		// worst case. `JSON.stringify` disagrees for a typed array, which it
+		// keeps as one `"<index>":<number>` pair per element with no maximum
+		// the type declares; the json-size fuzz lane's stringify oracle drops
+		// binary views for that reason.
 		return bounded(nullBytes)
 	case reflection.SubKindNone:
 		// A user class takes the registered-serializer road when one exists
