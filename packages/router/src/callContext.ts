@@ -6,7 +6,7 @@
  * ######## */
 
 import {getRouteExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
-import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult} from './types/context.ts';
+import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult, ResolvedRequest} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH, getRoutePath} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
@@ -14,23 +14,16 @@ import {getBatchExecutionChain} from './batches.ts';
 // ############# CONTEXT CREATION #############
 
 /**
- * Builds the CallContext for one request. One route lookup gives the execution chain and
- * `maxBodySize` (the route's own option, else the number its types derived at registration, else
- * the platform adapter's). A streaming adapter calls this BEFORE the body, reads against
- * `context.maxBodySize` (node stops the stream, uws the native read, bun / cloudflare / vercel
- * cancel it), then hands the body to `dispatchWithContext`; a caller that already has the body
- * passes it here. An unknown path or an unknown batch id resolves to a not-found chain that
- * never reads the body (`readsBody` false) but still runs the global middleFns.
+ * Resolves a request to its execution chain and its request limit, with NO context allocated yet.
+ * A streaming adapter calls this BEFORE the body so it can read against `maxBodySize` (the route's
+ * own option, else the number its types derived at registration, else the platform adapter's), then
+ * builds the context with `createContextFromResolved` once the body is in hand. Keeping the context
+ * out of the read is what stops a large body from being written into an already-promoted object,
+ * which costs the garbage collector real throughput on node. An unknown path or an unknown batch id
+ * resolves to a not-found chain that never reads the body (`readsBody` false) but still runs the
+ * global middleFns.
  */
-export function createCallContext(
-  path: string,
-  urlQuery: string | undefined,
-  rawRequest: unknown,
-  reqHeaders: MionHeaders,
-  respHeaders: MionHeaders,
-  reqRawBody?: RawRequestBody,
-  reqBodyType?: SerializerCode
-): CallContext {
+export function resolveRequest(path: string, urlQuery: string | undefined, rawRequest: unknown): ResolvedRequest {
   const opts = getRouterOptions();
   const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
   const {executionChain, maxBodySize, batchId, batchRouteIds} = getExecutionChain(
@@ -42,6 +35,25 @@ export function createCallContext(
   );
   return {
     path: transformedPath,
+    urlQuery,
+    executionChain,
+    maxBodySize,
+    readsBody: executionChain.readsBody,
+    batchId,
+    batchRouteIds,
+  };
+}
+
+/** Builds the CallContext of an already-resolved request, with the body when there is one. */
+export function createContextFromResolved(
+  resolved: ResolvedRequest,
+  reqHeaders: MionHeaders,
+  respHeaders: MionHeaders,
+  reqRawBody?: RawRequestBody,
+  reqBodyType?: SerializerCode
+): CallContext {
+  return {
+    path: resolved.path,
     request: {
       headers: reqHeaders,
       rawBody: reqRawBody,
@@ -58,14 +70,29 @@ export function createCallContext(
       rawBody: '',
       serializer: SerializerModes.json,
     },
-    executionChain,
-    maxBodySize,
-    readsBody: executionChain.readsBody,
-    shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
-    urlQuery,
-    batchId,
-    batchRouteIds,
+    executionChain: resolved.executionChain,
+    maxBodySize: resolved.maxBodySize,
+    readsBody: resolved.readsBody,
+    shared: getRouterOptions().contextDataFactory?.() ?? {},
+    urlQuery: resolved.urlQuery,
+    batchId: resolved.batchId,
+    batchRouteIds: resolved.batchRouteIds,
   } as CallContext;
+}
+
+/** The one-call form: resolve and build the context together, for a caller that already has the
+ *  body (a host that parsed it, `dispatchRoute`, a test). */
+export function createCallContext(
+  path: string,
+  urlQuery: string | undefined,
+  rawRequest: unknown,
+  reqHeaders: MionHeaders,
+  respHeaders: MionHeaders,
+  reqRawBody?: RawRequestBody,
+  reqBodyType?: SerializerCode
+): CallContext {
+  const resolved = resolveRequest(path, urlQuery, rawRequest);
+  return createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
 }
 
 // ############# HELPER FUNCTIONS #############
