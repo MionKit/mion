@@ -6,7 +6,7 @@
  * ######## */
 
 import {getRouteExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
-import type {CallContext, MionHeaders, RawRequestBody, BatchExecutionResult, ResolvedRequest} from './types/context.ts';
+import type {CallContext, MionHeaders, RawRequestBody, ResolvedRequest} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH, getRoutePath} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
@@ -26,22 +26,7 @@ import {getBatchExecutionChain} from './batches.ts';
 export function resolveRequest(path: string, urlQuery: string | undefined, rawRequest: unknown): ResolvedRequest {
   const opts = getRouterOptions();
   const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-  const {executionChain, maxBodySize, batchId, batchRouteIds} = getExecutionChain(
-    path,
-    transformedPath,
-    urlQuery,
-    rawRequest,
-    opts
-  );
-  return {
-    path: transformedPath,
-    urlQuery,
-    executionChain,
-    maxBodySize,
-    readsBody: executionChain.readsBody,
-    batchId,
-    batchRouteIds,
-  };
+  return getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
 }
 
 /** Builds the CallContext of an already-resolved request, with the body when there is one. */
@@ -113,22 +98,33 @@ function getExecutionChain(
   urlQuery: string | undefined,
   rawRequest: unknown,
   opts: RouterOptions
-): BatchExecutionResult {
+): ResolvedRequest {
   const hasPrefix = !!opts.basePath;
   // Batch endpoint: the original path ends with the batch key, under any prefix
   // (/mion-batch, /api/v1/mion-batch). The chain is resolved by the id in the query string.
   const isBatchPath = hasPrefix ? originalPath.endsWith(MION_BATCH_PATH) : originalPath === MION_BATCH_PATH;
-  if (isBatchPath) return getBatchExecutionChain(rawRequest, opts, urlQuery) ?? notFoundChain(MION_ROUTES.batchNotFound, opts);
+  if (isBatchPath) {
+    return (
+      getBatchExecutionChain(transformedPath, rawRequest, opts, urlQuery) ??
+      notFoundChain(MION_ROUTES.batchNotFound, transformedPath, urlQuery, opts)
+    );
+  }
 
   // Normal path - get execution chain from router using transformed path
   const executionChain = getRouteExecutionChain(transformedPath);
-  if (!executionChain) return notFoundChain(MION_ROUTES.notFound, opts);
-  return {executionChain, maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize()};
+  if (!executionChain) return notFoundChain(MION_ROUTES.notFound, transformedPath, urlQuery, opts);
+  return {
+    path: transformedPath,
+    urlQuery,
+    executionChain,
+    maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize(),
+    readsBody: executionChain.readsBody,
+  };
 }
 
 /** One of mion's own not-found chains (an unknown path, an unknown batch id): registered by
  *  initRouter, so its absence is a bug rather than a request error. */
-function notFoundChain(routeId: string, opts: RouterOptions): BatchExecutionResult {
+function notFoundChain(routeId: string, path: string, urlQuery: string | undefined, opts: RouterOptions): ResolvedRequest {
   const executionChain = getRouteExecutionChain(getRoutePath([routeId], opts));
   if (!executionChain) {
     throw new FatalError({
@@ -137,5 +133,11 @@ function notFoundChain(routeId: string, opts: RouterOptions): BatchExecutionResu
       publicMessage: 'Not-found route is not registered. This should never happen.',
     });
   }
-  return {executionChain, maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize()};
+  return {
+    path,
+    urlQuery,
+    executionChain,
+    maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize(),
+    readsBody: executionChain.readsBody,
+  };
 }

@@ -31,7 +31,7 @@ import {getMethodCaller} from './dispatch.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
-import {BatchExecutionResult} from './types/context.ts';
+import {ResolvedRequest} from './types/context.ts';
 import type {CallContext} from './types/context.ts';
 
 // ############# BATCH REGISTRY #############
@@ -191,10 +191,11 @@ export function readBatchId(urlQuery: string | undefined): string | undefined {
  *  lookup: it answers undefined and the caller resolves the batch not-found chain. The id is the
  *  only untrusted input and it is never echoed back. */
 export function getBatchExecutionChain(
+  path: string,
   rawRequest: unknown,
   opts: RouterOptions,
   urlQuery?: string
-): BatchExecutionResult | undefined {
+): ResolvedRequest | undefined {
   const batchId = readBatchId(urlQuery);
   const entry = batchId ? getBatch(batchId) : undefined;
   if (!entry) return undefined;
@@ -213,8 +214,11 @@ export function getBatchExecutionChain(
     entry.chains.set(chainKey, executionChain);
   }
   return {
+    path,
+    urlQuery,
     executionChain,
     maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize(),
+    readsBody: executionChain.readsBody,
     batchId: entry.id,
     batchRouteIds: entry.routes as string[],
   };
