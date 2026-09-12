@@ -35,16 +35,14 @@ import {
   genType,
   renderGenerated,
   describeType,
-  childShapes,
   FUZZ_FORMAT_PREAMBLE_PACKAGE,
+  genHasStructuralParams,
   type GeneratedType,
-  type TypeShape,
 } from '../core/typeGen.ts';
 import {genValidValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {
   CONVERT_GEN_OPTIONS,
   isConvertibleGen,
-  declShapes,
   createConvertProject,
   destroyConvertProject,
   convertLeg,
@@ -261,10 +259,13 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
   // E3 — behavior floor on the STATIC form (the elided spelling is the
   // feature's risk surface), on the diagnostics-clean value-generable tier.
   // Structural-format shapes (contains / uniqueItems / min-max entries) are
-  // excluded: shapeValue does not model those constraints (its home lanes
-  // never generate them), so its "conforming" values can be honestly invalid
-  // — they still get full E0-E2 coverage.
-  if (staticSide.errorDiagnostics.length > 0 || !valueOracleSafe(gen) || genHasStructuralFormat(gen)) return;
+  // excluded on EVERY collection, Sets and Maps included: shapeValue does not
+  // model those constraints (its home lanes never generate them), so its
+  // "conforming" values can be honestly invalid. The predicate lives in typeGen
+  // beside the shapes, because the copy that used to live here listed only
+  // array and record and so let bounded Sets and Maps through. They still get
+  // full E0-E2 coverage.
+  if (staticSide.errorDiagnostics.length > 0 || !valueOracleSafe(gen) || genHasStructuralParams(gen)) return;
   let tuples: Record<string, readonly unknown[]>;
   try {
     tuples = evalEntryModules(staticSide.modules);
@@ -296,17 +297,6 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
 
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-// Structural formats ride `shape.structural` on array / record nodes.
-function shapeHasStructuralFormat(shape: TypeShape): boolean {
-  if ((shape.kind === 'array' || shape.kind === 'record') && shape.structural !== undefined) return true;
-  return childShapes(shape).some(shapeHasStructuralFormat);
-}
-
-function genHasStructuralFormat(gen: GeneratedType): boolean {
-  if (shapeHasStructuralFormat(gen.root)) return true;
-  return gen.decls.some((decl) => declShapes(decl).some(shapeHasStructuralFormat));
 }
 
 // Wide-space values may carry bigint / Map / Set, which JSON.stringify cannot
