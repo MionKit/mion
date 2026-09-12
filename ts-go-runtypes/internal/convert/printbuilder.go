@@ -141,7 +141,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return rt(fmt.Sprintf("map(%s, %s)", keyText, valueText))
+			return ctx.collectionBuilder(node, "map", keyText+", "+valueText)
 		case reflection.SubKindSet:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 1 {
@@ -151,7 +151,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			if itemDiag != nil {
 				return "", itemDiag
 			}
-			return rt(fmt.Sprintf("set(%s)", itemText))
+			return ctx.collectionBuilder(node, "set", itemText)
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(node.SubKind); ok {
 			// The natural value-first spelling: the no-params temporal
@@ -431,4 +431,25 @@ func (ctx *printContext) recordKeyText(indexes []indexSignature) (string, *Diagn
 	}
 	ctx.needs.useRT = true
 	return fmt.Sprintf("%s.union([%s])", ctx.names.RT, strings.Join(sortArms(keyTexts), ", ")), nil, true
+}
+
+// collectionBuilder spells a Map / Set builder call, with the
+// formattedMap / formattedSet params bag (the array keywords) as the trailing
+// argument when the node carries one (`RT.set(v, {maxItems: 10})`, `contains`
+// included), mirroring the array arm; a payload outside the public bag
+// escapes whole.
+func (ctx *printContext) collectionBuilder(node *reflection.RunType, builder, argsText string) (string, *Diagnostic) {
+	if !hasStructuralPayload(node) {
+		ctx.needs.useRT = true
+		return ctx.names.RT + "." + fmt.Sprintf("%s(%s)", builder, argsText), nil
+	}
+	if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
+		return ctx.builderEscape(node)
+	}
+	parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.builderExpr, TargetBuilders)
+	if partsDiag != nil {
+		return "", partsDiag
+	}
+	ctx.needs.useRT = true
+	return ctx.names.RT + "." + fmt.Sprintf("%s(%s, {%s})", builder, argsText, strings.Join(parts, ", ")), nil
 }

@@ -314,14 +314,14 @@ func (r *docRenderer) classText(node *reflection.RunType) string {
 			return r.degrade("a Map with an unreadable argument list rendered as {}")
 		}
 		return fmt.Sprintf(
-			"{type: 'array', items: {type: 'array', prefixItems: [%s, %s], minItems: 2, items: false}, jsType: 'Map'}",
-			r.expr(arguments[0]), r.expr(arguments[1]))
+			"{type: 'array', items: {type: 'array', prefixItems: [%s, %s], minItems: 2, items: false}, jsType: 'Map'%s}",
+			r.expr(arguments[0]), r.expr(arguments[1]), r.collectionBag(node, false))
 	case reflection.SubKindSet:
 		arguments := r.nativeArguments(node)
 		if len(arguments) != 1 {
 			return r.degrade("a Set with an unreadable argument list rendered as {}")
 		}
-		return fmt.Sprintf("{type: 'array', items: %s, uniqueItems: true, jsType: 'Set'}", r.expr(arguments[0]))
+		return fmt.Sprintf("{type: 'array', items: %s, uniqueItems: true, jsType: 'Set'%s}", r.expr(arguments[0]), r.collectionBag(node, true))
 	case reflection.SubKindNonSerializable:
 		return r.degrade("a non-serializable class rendered as {} (it never reaches the wire)")
 	}
@@ -559,6 +559,29 @@ func (r *docRenderer) objectText(node *reflection.RunType) string {
 		out += fmt.Sprintf(", tsReadonly: [%s]", strings.Join(readonlyParts, ", "))
 	}
 	return out + additionalText + r.structuralBag(node, tsIndexesText) + RTFormatParamsSuffix(defaulted) + "}"
+}
+
+// collectionBag renders the structural parts a bounded Map / Set
+// (formattedMap / formattedSet, the array keywords) carries on its OUTER
+// array, after the jsType key, exactly as the KindArray branch renders them.
+// A Set's spelling already prints `uniqueItems: true`, so that key is dropped
+// for it rather than printed twice.
+func (r *docRenderer) collectionBag(node *reflection.RunType, isSet bool) string {
+	if !HasStructuralPayload(node) {
+		return ""
+	}
+	params := map[string]any{}
+	for key, value := range StructuralAnnotationParams(node) {
+		if isSet && key == "uniqueItems" {
+			continue
+		}
+		params[key] = value
+	}
+	out := ""
+	if parts := r.structuralParts(node, params); len(parts) > 0 {
+		out = ", " + strings.Join(parts, ", ")
+	}
+	return out + RTFormatParamsSuffix(DefaultedStructuralParams(params))
 }
 
 // structuralBag renders the leading-comma bag of tsIndexes + structural parts

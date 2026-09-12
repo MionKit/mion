@@ -380,8 +380,9 @@ func (e *sizeEstimator) stringContentBounds(rt *reflection.RunType) (int, int) {
 	return minLen, maxLen
 }
 
-// collectionBytes — varint count prefix + count·element, for arrays (and reused
-// for tuple rest). count is cfg.Items, tightened by a length / maxItems bound.
+// collectionBytes — varint count prefix + count·element, for arrays (reused
+// for tuple rest, and for Map / Set, whose bounds ride the same `maxItems`).
+// count is cfg.Items, tightened by a length / maxItems bound.
 func (e *sizeEstimator) collectionBytes(rt *reflection.RunType, elementBytes int) int {
 	count := e.cfg.Items
 	if rt != nil && rt.FormatAnnotation != nil {
@@ -562,10 +563,10 @@ func (e *sizeEstimator) classBytes(rt *reflection.RunType, depth int) int {
 		return 8
 	case reflection.SubKindMap:
 		key, val := e.mapElement(rt, depth)
-		return varintByteLen(e.cfg.Items) + e.cfg.Items*(key+val)
+		return e.collectionBytes(rt, key+val)
 	case reflection.SubKindSet:
 		item := e.setElement(rt, depth)
-		return varintByteLen(e.cfg.Items) + e.cfg.Items*item
+		return e.collectionBytes(rt, item)
 	case reflection.SubKindTemporalInstant:
 		return 12 // int64 seconds + int32 sub-second nanos
 	case reflection.SubKindTemporalPlainTime:

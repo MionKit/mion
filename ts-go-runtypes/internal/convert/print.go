@@ -413,7 +413,8 @@ func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation,
 
 // structuralParamsPubliclySpellable reports whether a structural annotation's
 // literal params can be reconstructed through the PUBLIC params bags
-// (FormattedArrayParams / FormattedObjectParams, formats/structural.ts). A
+// (FormattedArrayParams / FormattedObjectParams, and FormattedMapParams, the
+// array bag's count keys, formats/structural.ts). A
 // payload outside that surface — `uniqueItems: false` (the bag declares
 // `uniqueItems?: true`), or an unknown key from a hand-spelled sentinel —
 // must ride the exact raw-brand spelling instead: the generic bag either
@@ -424,6 +425,7 @@ func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) 
 		return true
 	}
 	isNumber := func(value any) bool { _, ok := value.(float64); return ok }
+	isTrue := func(value any) bool { flag, ok := value.(bool); return ok && flag }
 	isStringList := func(value any) bool {
 		list, ok := value.([]any)
 		if !ok {
@@ -442,7 +444,7 @@ func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) 
 		allowed = map[string]func(any) bool{
 			"minItems":    isNumber,
 			"maxItems":    isNumber,
-			"uniqueItems": func(value any) bool { flag, ok := value.(bool); return ok && flag },
+			"uniqueItems": isTrue,
 		}
 	case "formattedObject":
 		allowed = map[string]func(any) bool{
@@ -451,6 +453,18 @@ func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) 
 			"closed":         isStringList,
 			"closedPatterns": isStringList,
 			"additionalOwn":  isStringList,
+		}
+	case "formattedSet":
+		// The array bag, verbatim.
+		allowed = map[string]func(any) bool{
+			"minItems":    isNumber,
+			"maxItems":    isNumber,
+			"uniqueItems": isTrue,
+		}
+	case "formattedMap":
+		allowed = map[string]func(any) bool{
+			"minItems": isNumber,
+			"maxItems": isNumber,
 		}
 	default:
 		return true

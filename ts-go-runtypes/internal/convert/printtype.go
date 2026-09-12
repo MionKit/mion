@@ -259,7 +259,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return fmt.Sprintf("Map<%s, %s>", keyText, valueText), nil
+			return ctx.collectionSpelling(node, fmt.Sprintf("Map<%s, %s>", keyText, valueText), "FormattedMap")
 		case reflection.SubKindSet:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 1 {
@@ -269,7 +269,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			if itemDiag != nil {
 				return "", itemDiag
 			}
-			return fmt.Sprintf("Set<%s>", itemText), nil
+			return ctx.collectionSpelling(node, fmt.Sprintf("Set<%s>", itemText), "FormattedSet")
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(node.SubKind); ok {
 			// The registry's Builtin is the qualified global spelling
@@ -628,4 +628,24 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 // signature, string-keyed, with no named members beside it.
 func plainStringIndex(members []*objectMember, indexes []indexSignature) bool {
 	return len(indexes) == 1 && len(members) == 0 && indexes[0].key.Kind == reflection.KindString
+}
+
+// collectionSpelling wraps a Map / Set spelling in its structural wrapper
+// (`TF.FormattedSet<Set<T>, {maxItems: 10}>`) when the node carries the
+// formattedSet / formattedMap annotation or a contains slot, exactly as the
+// array arm does with FormattedArray; a payload outside the public params bag
+// takes the raw brand.
+func (ctx *printContext) collectionSpelling(node *reflection.RunType, baseText, wrapper string) (string, *Diagnostic) {
+	if !hasStructuralPayload(node) {
+		return baseText, nil
+	}
+	if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
+		return ctx.rawStructuralBrandType(node, baseText)
+	}
+	parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
+	if partsDiag != nil {
+		return "", partsDiag
+	}
+	ctx.needs.useTF = true
+	return fmt.Sprintf("%s.%s<%s, {%s}>", ctx.names.TF, wrapper, baseText, strings.Join(parts, ", ")), nil
 }
