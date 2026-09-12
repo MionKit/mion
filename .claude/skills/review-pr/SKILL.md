@@ -58,15 +58,34 @@ Do not judge the spec yet. It becomes items `S1` to `S4` on the list, and you ch
 
 ## Step 3 - Build the review list
 
-Two sources, both filtered by what the diff actually contains.
+The list is built fresh every review, from the files in front of you. Nothing is
+carried over from a previous review or from memory.
 
-**Repo rules.** Read, in full, every CLAUDE.md the script named, most specific last since it wins on conflict. Where one points at another document for an area this diff touches, follow the pointer. Then pull out the rules that could apply to these changed files, one line each, quoting or closely paraphrasing the rule and naming the file it came from. Drop rules for areas the diff does not touch.
+**Start with the CLAUDE.md files. They are the guidelines.** Read every one the
+script named, in full, for every review, most specific last since it wins on
+conflict. They evolve, so a rule you remember is a rule you are getting wrong.
+Where one points at another document for an area this diff touches, follow the
+pointer and read that too.
 
-Read the files each review. They change, and a remembered rule is a wrong rule.
+Turn them into items: the rules that could apply to these changed files, one line
+each, quoting or closely paraphrasing the rule and naming the file it came from.
+Drop rules for areas the diff does not touch, and say which areas you dropped.
+Show the count per file so the coverage is visible:
 
-**General checks.** [global-checks.md](global-checks.md) is the catalog of what no CLAUDE.md covers: ordinary engineering review, grouped and triggered. Take the groups whose trigger the diff meets.
+```
+CLAUDE.md                        14 rules apply
+packages/router/CLAUDE.md         4 rules apply
+container/website/CLAUDE.md       9 rules apply   (docs changed)
+```
 
-Then merge both into one list, grouped by the pass that will check it:
+**Then top up from the catalog.** [global-checks.md](global-checks.md) holds the
+ordinary engineering checks that no CLAUDE.md covers, grouped and triggered. Add
+the groups whose trigger the diff meets. It is the smaller half and it never
+substitutes for reading the CLAUDE.md files: where a catalog item and a repo rule
+say the same thing, keep the repo rule and drop the catalog item, because the
+repo rule is quotable and current.
+
+Merge both into one list, grouped by the pass that will check it:
 
 | Group | Covers | Pass owner |
 | --- | --- | --- |
@@ -78,7 +97,8 @@ Then merge both into one list, grouped by the pass that will check it:
 | C | comments | comments agent |
 | B | behaviour and tests | behaviour agent |
 
-Number every item inside its group and tag its source, so a finding can point at one line:
+Number every item inside its group and tag its source, so a finding can point at
+one line:
 
 ```
 D4  [global]                                  Plain language, what it does for the reader
@@ -86,7 +106,8 @@ D9  [repo: container/website/CLAUDE.md]       Titles are Title Case and name the
 G2  [repo: CLAUDE.md]                         Every new env var is registered and MION_ prefixed
 ```
 
-A repo rule about documentation goes in group D, not G, so the agent who reads the docs is the one who checks it.
+A repo rule about documentation goes in group D, not G, so the agent who reads
+the docs is the one who checks it.
 
 ## Step 4 - Get the list approved
 
@@ -148,6 +169,8 @@ Then ask what to do. The root CLAUDE.md sets where a finding goes: related ones 
 - **Do not start reviewing before the list is approved.** Steps 1 to 3 are reading and listing.
 - **Do not edit code.** This skill reviews. Fixes happen after the user picks them, as their own step.
 - **Do not run tests, builds or lint, and never report a test result you did not produce.** This review reads. The host is often not bootstrapped, and "tests pass" from an unbuilt host is a false claim. Reporting that a behaviour has no test is fine and expected.
+- **Do not build the list from the catalog alone.** The CLAUDE.md files are the guidelines; the catalog only covers what they do not.
+- **Do not skip re-reading a CLAUDE.md** because you read it earlier in this session or in a previous review. They change, and the list is only as current as the read behind it.
 - **Do not copy rules out of a CLAUDE.md into this skill.** They are read per review, quoted from the file, and cited by file name.
 - **Do not run a whole group the diff does not trigger.** An item that cannot apply produces noise and hides the ones that can.
 - **Do not report a rule you cannot quote.** Cite the line or call it taste.
