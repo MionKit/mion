@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-11
 ---
 
@@ -32,16 +32,21 @@ Decisions taken with the maintainer:
    `Set<{id: number}>` holds two structurally equal members today while the generated schema
    already promises `uniqueItems: true`.
 2. **No sugar aliases.** Only `FormattedMap` / `FormattedSet` ship, like the array/object family.
-3. **One signature per builder**, `set(item, params?, id?)`, and `array` / `record` / `object`
-   move to the same shape in the same PR.
+3. **One signature per builder** was the plan; it was built, measured and rejected. `set(item,
+   params?, id?)` with `const P extends Bag = {}` type-checks and both marker shapes resolve, but
+   it costs on every row of the type-cost budgets (`test/types/builderCost.compile.test.ts`, a
+   one-way ratchet): +7 first-call instantiations per builder even with a result type gated on
+   the empty bag, +4 per call with a bag, about +95 on each utility wrapper, +111 on nested
+   arrays. The maintainer chose to keep the overloads; `map` / `set` copy the `array` pattern
+   and the measurement is recorded in the budget file's rejected list.
 
 ## What happens to PR #268
 
 Keep the branch and the PR (its description and the three review threads are the history).
-Rewrite the single commit into the series in the Plan below, force-push with lease, and answer
-the three threads: the two "why an overload" threads with "no overload any more, one signature
-with an optional bag, same for array / record / object", the "similar options" thread with
-"Set takes FormattedArrayParams, Map its count keys". PR #265
+Rewritten as the eight commits below and force-pushed with lease. The three review threads
+are answered: the two "why an overload" threads with the budget measurement above (the overload
+is what keeps a bare call at its plain type cost), the "similar options" thread with "Set takes
+FormattedArrayParams, Map its count keys". PR #265
 (https://github.com/MionKit/mion/pull/265) is stacked on this branch and reads `maxSize` in
 `ts-go-runtypes/internal/cachegen/jsonsize/jsonsize.go:454-469`; after this lands it rebases and
 switches to `maxItems`.
@@ -186,8 +191,8 @@ merge (163+) and loses the Set identity. `splitBuiltinClassBrandID`
   `ContainsCheck{Child: cache.Serialize(childType), Min, Max}` per member to `node.Contains`
   after `projectClass`, exactly as the object branch does at 185-186. Accept a class member
   whose only companions are sentinels (brand absent). A `__rtPatternProps` / `__rtPropNames`
-  member on a Map / Set base emits a diagnostic (`CodeFMTInvalidParams` or a sibling code),
-  never silent.
+  member on a Map / Set base stays ignored, as before: the collapse has no diagnostic channel,
+  and no public type can spell one there (`FormattedSet` takes the array bag).
 - Id side: `splitBuiltinClassBrandID` returns a `containsKey` built the way the object branch
   builds it (`"c{" + sortedJoin(containsIDs) + "}"`, 218-220) and the id becomes
   `Compute(classMember) + containsKey + formatKey`.
@@ -203,32 +208,20 @@ merge (163+) and loses the Set identity. `splitBuiltinClassBrandID`
   `ContainsCheck`; a typeid test proving that id differs from `Set<number>` and equals the
   value-first twin's.
 
-### Commit 4: one signature per builder
+### Commit 4: the map and set builders take the bag (overloads kept)
 
-`packages/run-types/src/builders/compose.ts`. The transform pads a skipped optional parameter
+`packages/run-types/src/builders/compose.ts`: `map(key, value, params, id?)` and `set(item,
+params, id?)` as second overloads over `FormattedMapParamsValueFirst` /
+`FormattedSetParamsValueFirst`, the exact `array` pattern, the `isFormatParams` sniff telling the
+bag from an injected id. `array` / `record` / `object` are untouched.
+
+The single-signature shape was built first: the transform pads a skipped optional parameter
 with `undefined` (`ts-go-runtypes/internal/compiler/sourcerewrite/transform.go:290-321`) and an
-optional `id?:` marker is recognised (`compiler/marker/marker.go:476`), so `set(string())` rewrites
-to `set(string(), undefined, id)` and no overload is needed:
-
-    export function set<V, const P extends FormattedSetParamsValueFirst = {}>(
-      item: CompTimeArgs<RunType<V>>,
-      params?: CompTimeArgs<ExactParams<P, FormattedSetParamsValueFirst>>,
-      id?: InjectRunTypeId<FormattedSetFrom<Set<V>, P>>
-    ): RunType<FormattedSetFrom<Set<V>, P>>
-
-`map(key, value, params?, id?)` the same over `FormattedMapParamsValueFirst`. With `P = {}` the
-return collapses to `RunType<Set<V>>` (no brand is added for an empty bag), so the id of a bare
-`set(string())` is unchanged from today.
-
-- `array` (compose.ts:90-107) and `object` (518-535) become one signature each; `record`
-  (298-337) becomes two (value-only, key+value) since its first two positions are ambiguous at
-  runtime; the `isFormatParams` sniff (compose.ts:55) stays only there.
-- `packages/run-types/test/types/builderCost.compile.test.ts` rows `array(string())` and
-  `set(string())` (lines 379-389) get a `map(...)` sibling; re-measure, set the budgets to the new
-  numbers and record before/after in the file's log comment.
-- Fallback, only if the marker scanner cannot see the marker through the defaulted `P` (prove it
-  with both `getRunTypeId` shapes first): keep overloads on all five builders and say so on the
-  two review threads.
+optional `id?:` marker is recognised (`compiler/marker/marker.go:476`), so `set(string())` rewrote
+to `set(string(), undefined, id)`, every suite passed, and both marker shapes resolved. It lost on
+the type-cost budgets alone (decision 3 above); the numbers live in
+`test/types/builderCost.compile.test.ts` next to the other rejected experiments, so the next
+person does not re-run it. `map(string, number)` already had a budget row.
 
 ### Commit 5: JSON Schema output, size estimator, convert
 
@@ -260,12 +253,21 @@ return collapses to `RunType<Set<V>>` (no brand is added for an empty bag), so t
 - `mocking/mockType.ts`: extract the array clamp (312-320) into one helper over `minItems` /
   `maxItems` and call it from `mockMap` / `mockSet` (805-835). `mockOversized.ts` needs nothing
   (Map / Set are not descended, a bounded one is never a target).
-- `runtypes/dataOnly.ts` (219-231) rebuilds `Map<…>` / `Set<…>` and drops the brand and the
-  contains slot. Re-attach them after projecting, using the same sentinel probes the array arm
-  keeps (189-207). `test/types/dataonly.compile.test.ts`: `DataOnly<FormattedSet<Set<string>, {maxItems: 2}>>`
-  keeps the brand; a runtime test pins `getRunTypeId<DataOnly<X>>() === getRunTypeId<X>()`.
-- Keep the PR's `StripRunTypeMeta` arm; pin `StripRunTypeMeta<FormattedSet<Set<string>, {maxItems: 2}>>`
-  equals `Set<string>` (and the Map twin) in `test/types/stripmeta.compile.test.ts`.
+- `runtypes/dataOnly.ts` needs NOTHING, the spec was wrong here: the sentinel keep-probe
+  (`DataOnlySentinelKept`, before the collection ladder) already keeps any branded container
+  whole, a branded Set or Map included, exactly like a branded array (the brand marks the exact
+  shape the validator was compiled for, so the members are not projected). A re-attach in the
+  ladder was written, cost about +350 instantiations on every plain Map (an `Extract` over a
+  Map's method keys) and was dropped. `test/types/dataonly.compile.test.ts` pins the kept
+  brand, the kept contains slot and the unprojected members.
+- `StripRunTypeMeta`: the PR's arm only subtracted the brand, so a contains-only Set stayed
+  branded. The collection arm now rebuilds `Map<K, V>` / `Set<U>` (readonly variants kept) from
+  the inferred key / value types, dropping every sentinel at once;
+  `test/types/stripmeta.compile.test.ts` pins Set, Map, ReadonlySet and a contains-only Set.
+- `runtypes/pure-fns-utils.ts` `rt::uniqueItems` was index-based and silently accepted every
+  Set; it now walks a Set with `for…of`, canonicalising object members only (primitives are
+  unique by construction), the array path byte for byte as before. The built-in pure-fn table
+  is regenerated (`pnpm miondevx core codegen builtinpurefns`).
 
 ### Commit 7: docs and examples. Commit 8: fuzz lane. (Both below.)
 
@@ -284,9 +286,11 @@ value-first builder twin, both `getRunTypeId` shapes.
 - `test/suites/value-first-define/index.ts`: `RT.set(TF.string(), {maxItems: 3, uniqueItems: true})`,
   `RT.set(RT.unknown(), {contains: TF.number()})`, `RT.map(TF.string(), TF.number(), {maxItems: 2})`,
   next to the array cases at lines 144-146.
-- Bare builders keep their ids: `getRunTypeId(RT.set(TF.string()))` equals the id on `main`,
-  same for `map`, `array`, `record`, `object` (pins the one-signature change).
-- Compile tests: `dataonly`, `stripmeta`, `builderCost` (above).
+- `test/suites/format-validation/CollectionBuilders.test.ts`: a bare `set()` / `map()` keeps
+  the plain collection id, and each bagged builder equals its type-first twin in both marker
+  shapes.
+- Compile tests: `dataonly`, `stripmeta` (new blocks, budgets pinned at their measurement),
+  `builderCost` (unchanged budgets, the single-signature measurement recorded).
 - Go: `collectionformat_test.go`, the module-level render test, the contains loop tests in both
   lanes, the collapse and typeid tests, `render_test.go`, `binary_size_estimate_test.go`, the
   convert roundtrip, `gen_test.go` catalog sync, `TestBaseKindGuard_ClassSubKinds`.
@@ -328,13 +332,13 @@ value-first) then covers both families; no value lane draws them.
 - `TF.FormattedSet<Set<string>, {maxItems: 3; uniqueItems: true; contains: …}>` and
   `TF.FormattedMap<Map<K, V>, {minItems: 1; maxItems: 2}>` validate, report errors, mock and
   convert in both directions, and each equals its builder twin's id.
-- `RT.set(item, params?)`, `RT.map(key, value, params?)`, `RT.array`, `RT.record`, `RT.object`
-  each have one signature per argument shape; bare calls keep their `main` ids; the builder cost
-  budgets are re-pinned.
+- `RT.set(item, params)` and `RT.map(key, value, params)` exist as overloads beside the bare
+  forms; bare calls keep their `main` ids; the builder cost budgets are untouched.
 - The generated JSON Schema carries the bounds; the size estimator reads `maxItems` on Map / Set.
-- `DataOnly` and `StripRunTypeMeta` behave on a branded Map / Set and are pinned by compile tests.
+- `DataOnly` keeps a branded Map / Set whole and `StripRunTypeMeta` recovers the bare
+  collection, both pinned by compile tests.
 - The four JS cases, the value-first cases, the Go tests and the fuzz shapes above are in;
   `pnpm test`, `go -C ts-go-runtypes test ./internal/... ./cmd/...`, `pnpm run lint`,
   `pnpm miondevx core codegen all --check` are green.
-- PR #268 is force-pushed as the series above, its three review threads answered, and PR #265's
-  author is told to rebase and switch to `maxItems`.
+- PR #268 is force-pushed as the series above and its three review threads answered. PR #265
+  still has to rebase and switch its `jsonsize` walk to `maxItems`.
