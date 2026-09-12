@@ -55,7 +55,9 @@ function thrownErrors(response: Awaited<ReturnType<typeof dispatch>>): Record<st
 }
 
 describe('per-route request limits', () => {
-  const bounded = mion.route((ctx, orderId: TF.String<{maxLength: 36}>, items: TF.List<Item, 3>): number => items.length);
+  const bounded = mion.route(
+    (ctx, orderId: TF.String<{maxLength: 36}>, items: TF.FormattedArray<Item[], {maxItems: 3}>): number => items.length
+  );
   const loose = mion.route((ctx, text: string): string => text);
   const overridden = mion.route((ctx, text: string): string => text, {maxBodySize: 100});
   const gate = mion.middleFn((ctx, tags: string[]): void => undefined);
@@ -186,7 +188,9 @@ describe('per-route request limits', () => {
 describe("the platform's own request ceiling", () => {
   const loose = mion.route((ctx, text: string): string => text);
   const big = mion.route((ctx, text: string): string => text, {maxBodySize: 9_000});
-  const bounded = mion.route((ctx, items: TF.List<TF.String<{maxLength: 36}>, 1000>): number => items.length);
+  const bounded = mion.route(
+    (ctx, items: TF.FormattedArray<TF.String<{maxLength: 36}>[], {maxItems: 1000}>): number => items.length
+  );
 
   beforeEach(() => resetRouter());
 

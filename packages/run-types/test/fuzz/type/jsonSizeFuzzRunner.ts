@@ -57,7 +57,7 @@ export const BOUNDED_PRESETS: ReadonlyArray<{name: string; opts: GenOptions}> = 
 /** Values drawn per checked type. **/
 const VALUES_PER_TYPE = 4;
 
-/** The deterministic floor: `{tag: String<{maxLength: 8}>, items: List<number, 3>}`.
+/** The deterministic floor: `{tag: String<{maxLength: 8}>, items: FormattedArray<number[], {maxItems: 3}>}`.
  *  Its mock is checked like any other type, and a hand-inflated value must land
  *  OVER the bound: the proof the comparison has teeth. **/
 export const FLOOR_TYPE: GeneratedType = {

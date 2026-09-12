@@ -1192,8 +1192,7 @@ export function genShape(ctx: Ctx, depth: number): TypeShape {
       : pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]);
   builders.push(
     () => genIntersection(ctx, depth),
-    () =>
-      withMapStructural(ctx, {kind: 'map', key: mapKey(), value: genShape(ctx, depth + 1)}),
+    () => withMapStructural(ctx, {kind: 'map', key: mapKey(), value: genShape(ctx, depth + 1)}),
     () => withSetStructural(ctx, {kind: 'set', elem: genShape(ctx, depth + 1)})
   );
   // Promise + function + RegExp are DataOnly-stripped — gated on nonDataTypes.
@@ -1627,9 +1626,9 @@ export function describeShape(shape: TypeShape, depth = 0): string {
     case 'record':
       return `Rec<${describeShape(shape.value, depth + 1)}>`;
     case 'map':
-      return `Map<${describeShape(shape.key, depth + 1)},${describeShape(shape.value, depth + 1)}>${shape.maxSize === undefined ? '' : `≤${shape.maxSize}`}`;
+      return `Map<${describeShape(shape.key, depth + 1)},${describeShape(shape.value, depth + 1)}>${shape.structural?.maxItems === undefined ? '' : `≤${shape.structural.maxItems}`}`;
     case 'set':
-      return `Set<${describeShape(shape.elem, depth + 1)}>${shape.maxSize === undefined ? '' : `≤${shape.maxSize}`}`;
+      return `Set<${describeShape(shape.elem, depth + 1)}>${shape.structural?.maxItems === undefined ? '' : `≤${shape.structural.maxItems}`}`;
     case 'promise':
       return `Promise<${describeShape(shape.value, depth + 1)}>`;
     case 'function':
