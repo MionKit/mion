@@ -45,6 +45,12 @@ const SERVER_TS = `import {createMionRouter} from '@mionjs/router';
 export const mion = createMionRouter();
 export const api = mion.initRoutes({});
 `;
+// A batch written in the SERVER's own program while a client project is named: it never
+// reaches the table generated from that client, so the build reports it fatally (BAT008).
+const SERVER_OWN_BATCH_TS = `import {batch} from '@mionjs/client';
+import {routes} from './routes.ts';
+export const own = batch([routes.users.getById(2)]);
+`;
 const TSCONFIG = `{
   "compilerOptions": {
     "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler",
@@ -121,6 +127,45 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
       // a client is not a server: no rpc/ of its own, no import appended
       expect(fs.existsSync(path.join(client, '.mion', 'rpc'))).toBe(false);
       expect(clientJs).not.toContain('batches.generated');
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+
+  // The release gate rode into this on main: the pre-publish e2e consumer compiled with
+  // --client-tsconfig while its own program still pulled in the vitest specs, which batch
+  // against the running server. BAT008 was a warning when the fixture was written and is a
+  // RuntimeError now, so the compile exits 1 and the whole lane dies. Pin the exit code here,
+  // on the host, rather than only in the container the gate runs.
+  register('a batch in the server program itself fails the compile with BAT008', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-mion-own-'));
+    try {
+      const client = writeProject(base, 'client', {'client.d.ts': CLIENT_DTS, 'routes.ts': ROUTES_TS, 'a.ts': CLIENT_TS});
+      const server = writeProject(base, 'server', {
+        'client.d.ts': CLIENT_DTS,
+        'router.d.ts': ROUTER_DTS,
+        'routes.ts': ROUTES_TS,
+        'server.ts': SERVER_TS,
+        'ownBatch.ts': SERVER_OWN_BATCH_TS,
+      });
+
+      const run = runCli(
+        [
+          'compile',
+          '--cwd',
+          server,
+          '--tsconfig',
+          'tsconfig.json',
+          '--client-tsconfig',
+          path.join(client, 'tsconfig.json'),
+          '--gen-dir',
+          path.join(server, '.mion'),
+        ],
+        {label: 'compile-cli-mion-own-batch'}
+      );
+      expect(run.status, run.report).not.toBe(0);
+      expect(`${run.stdout}${run.stderr}`).toContain('BAT008');
+      expect(`${run.stdout}${run.stderr}`).toContain('ownBatch.ts');
     } finally {
       fs.rmSync(base, {recursive: true, force: true});
     }
