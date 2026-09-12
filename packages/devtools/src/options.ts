@@ -135,7 +135,7 @@ export interface MionApiPointer {
 
 /** How a client gets its route metadata and compiled functions: bundled at build time, or bundled
  *  with the fetched lane as the fallback for routes the bundle lacks. Unset keeps the fetched lane. */
-export type MionBundleApiMode = 'bundled' | 'mixed';
+export type MionBundleApiMode = NonNullable<TsRuntypesPluginOptions['bundleApi']>;
 
 /** The subset of a mion preset's options that both lanes read. */
 export interface MionPresetOptions {
