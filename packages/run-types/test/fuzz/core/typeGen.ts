@@ -483,18 +483,31 @@ export const FUZZ_FORMAT_SCRATCH_PREAMBLE = [
   '}',
 ].join('\n');
 
-/** True when any shape in the generated type renders a `TF.*` spelling —
- *  format leaves or structural array/record/set/map decorations — i.e.
- *  exactly when the renderers must prepend a format preamble. **/
-export function usesFormatLeaves(gen: GeneratedType): boolean {
+/** Does this shape carry a structural params bag? The kinds that CAN are the
+ *  four the generator decorates, and this is the ONE place that list lives.
+ *  A copy of it drifted once (the elision lane's E3 gate listed only array and
+ *  record), which silently let bounded Sets and Maps into an oracle whose value
+ *  generator does not model the constraints, so a conforming-by-construction
+ *  value could be honestly invalid. Every reader goes through here. **/
+export function hasStructuralParams(shape: TypeShape): boolean {
+  switch (shape.kind) {
+    case 'array':
+    case 'record':
+    case 'set':
+    case 'map':
+      return shape.structural !== undefined;
+    default:
+      return false;
+  }
+}
+
+// Walk every shape a generated type reaches (declaration members and the root),
+// stopping at the first hit. Shared by the two whole-type predicates below.
+function anyShape(gen: GeneratedType, predicate: (shape: TypeShape) => boolean): boolean {
   let found = false;
   const walk = (shape: TypeShape): void => {
     if (found) return;
-    if (
-      shape.kind === 'format' ||
-      ((shape.kind === 'array' || shape.kind === 'record' || shape.kind === 'set' || shape.kind === 'map') &&
-        shape.structural !== undefined)
-    ) {
+    if (predicate(shape)) {
       found = true;
       return;
     }
@@ -506,6 +519,20 @@ export function usesFormatLeaves(gen: GeneratedType): boolean {
   }
   walk(gen.root);
   return found;
+}
+
+/** True when any shape in the generated type renders a `TF.*` spelling —
+ *  format leaves or structural array/record/set/map decorations — i.e.
+ *  exactly when the renderers must prepend a format preamble. **/
+export function usesFormatLeaves(gen: GeneratedType): boolean {
+  return anyShape(gen, (shape) => shape.kind === 'format' || hasStructuralParams(shape));
+}
+
+/** True when any shape in the generated type carries a structural params bag.
+ *  A lane whose VALUE generator does not model the collection keywords must gate
+ *  its conformance oracles on this. **/
+export function genHasStructuralParams(gen: GeneratedType): boolean {
+  return anyShape(gen, hasStructuralParams);
 }
 
 /** Every direct child shape of a node (shared by the small walkers here and

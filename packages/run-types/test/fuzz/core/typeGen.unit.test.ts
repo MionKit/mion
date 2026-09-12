@@ -13,6 +13,9 @@ import {
   describeType,
   countNodes,
   isRecursive,
+  hasStructuralParams,
+  genHasStructuralParams,
+  usesFormatLeaves,
   DATA_GEN_OPTIONS,
   type Decl,
   type GeneratedType,
@@ -327,3 +330,65 @@ function balanced(text: string): boolean {
   }
   return stack.length === 0 && inStr === null;
 }
+
+// A lane whose VALUE generator does not model the collection keywords gates its
+// conformance oracles on `genHasStructuralParams`, so the set of kinds that can
+// CARRY a params bag has to be complete. It was not: the elision lane kept its
+// own copy listing only array and record, which let a bounded Set or Map into
+// an oracle that then generated a value ignoring `minItems` / `contains` /
+// `uniqueItems` and reported the validator's correct rejection as a violation.
+// EVERY collection the generator decorates must be detected.
+describe('typeGen — structural params detection', () => {
+  const bag = {maxItems: 3} as const;
+
+  it('detects a params bag on every collection kind, not just array and record', () => {
+    const str: TypeShape = {kind: 'string'};
+    const decorated: TypeShape[] = [
+      {kind: 'array', elem: str, structural: bag},
+      {kind: 'set', elem: str, structural: bag},
+      {kind: 'map', key: str, value: str, structural: bag},
+      {kind: 'record', value: str, structural: {minProperties: 1}},
+    ];
+    for (const shape of decorated) {
+      expect(hasStructuralParams(shape), `${shape.kind} must be detected`).toBe(true);
+    }
+    // The same shapes WITHOUT a bag are not structural.
+    const bare: TypeShape[] = [
+      {kind: 'array', elem: str},
+      {kind: 'set', elem: str},
+      {kind: 'map', key: str, value: str},
+      {kind: 'record', value: str},
+      {kind: 'string'},
+    ];
+    for (const shape of bare) {
+      expect(hasStructuralParams(shape), `bare ${shape.kind} must not be detected`).toBe(false);
+    }
+  });
+
+  it('finds a bag nested anywhere in the generated type, and agrees with the preamble gate', () => {
+    const boundedSet: TypeShape = {kind: 'set', elem: {kind: 'string'}, structural: bag};
+    const nested: GeneratedType = {
+      decls: [],
+      root: {kind: 'object', props: [{name: 'tags', shape: {kind: 'array', elem: boundedSet}}]},
+    } as GeneratedType;
+    expect(genHasStructuralParams(nested)).toBe(true);
+    // A structural bag is also a `TF.*` spelling, so the preamble gate agrees.
+    expect(usesFormatLeaves(nested)).toBe(true);
+
+    const plain: GeneratedType = {
+      decls: [],
+      root: {kind: 'object', props: [{name: 'tags', shape: {kind: 'set', elem: {kind: 'string'}}}]},
+    } as GeneratedType;
+    expect(genHasStructuralParams(plain)).toBe(false);
+  });
+
+  it('finds a bag reached only through a declaration', () => {
+    const viaDecl: GeneratedType = {
+      decls: [
+        {kind: 'type', name: 'Scores', shape: {kind: 'map', key: {kind: 'string'}, value: {kind: 'number'}, structural: bag}},
+      ],
+      root: {kind: 'ref', name: 'Scores'},
+    } as GeneratedType;
+    expect(genHasStructuralParams(viaDecl)).toBe(true);
+  });
+});
