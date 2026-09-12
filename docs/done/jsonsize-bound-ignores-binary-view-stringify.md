@@ -122,4 +122,9 @@ up in the soak output only as bystanders next to a typed array.
   the derived limit measures the body the client sends, so a member that never reaches the wire
   costs nothing toward it.
 
-A 7 minute soak reports zero violations on both oracles.
+An 8 minute soak over 3700+ types reports zero violations on both oracles.
+
+The first soak of this change still showed a few `JS-MAX-ENCODER` violations on flat unions. They
+were the separate flat-union merged-property bug, not this one: seed 4070727106 bounded
+`({1}&{1})[]` at 70 while the encoder emitted 73, and the merged-property fix raises that bound to
+78. That fix is in `main`, and the clean soak ran on top of it.
