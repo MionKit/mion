@@ -1,6 +1,9 @@
 package diagnostics
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // Dedupe drops repeats of the SAME diagnostic — identical code, family,
 // severity, args, site and related list — keeping the first occurrence and
@@ -89,4 +92,19 @@ func writeInt(key *strings.Builder, value int) {
 	for shift := 0; shift < 64; shift += 8 {
 		key.WriteByte(byte(unsigned >> shift))
 	}
+}
+
+// Sort orders diagnostics by their site: file, then line, then column. Stable,
+// so two findings at one position keep the order the lane produced them in.
+func Sort(diags []Diagnostic) {
+	sort.SliceStable(diags, func(i, j int) bool {
+		left, right := diags[i].Site, diags[j].Site
+		if left.FilePath != right.FilePath {
+			return left.FilePath < right.FilePath
+		}
+		if left.StartLine != right.StartLine {
+			return left.StartLine < right.StartLine
+		}
+		return left.StartCol < right.StartCol
+	})
 }

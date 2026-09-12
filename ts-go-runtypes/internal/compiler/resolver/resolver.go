@@ -345,11 +345,10 @@ type Session struct {
 	// the current Program (the modules the batch import is appended to),
 	// dropped alongside it.
 	routerInitFileCache *routerinit.FileCache
-	// batchSource is the SEPARATE program the batch transport is generated
-	// from when Options.ClientTsconfig names one; nil while unbuilt, and when
-	// the batch source is this session's own program. Survives SetProgram /
-	// Reset (it is another project); its stamps (mtime + size of every
-	// source file it was built from) decide when it is rebuilt. See rpcgen.go.
+	// batchPeer is the SEPARATE program the batch transport is generated from
+	// when Options.ClientTsconfig names one; its session stays nil while
+	// unbuilt, and when the batch source is this session's own program. See
+	// rpcgen.go, and peerProgram for the lifecycle both peers share.
 	batchPeer peerProgram
 	// apiPeer is the SEPARATE program a CLIENT build resolves its API's routes
 	// in when Options.ApiTsconfig names one (the bundleApi lane); same

@@ -63,7 +63,6 @@ func (peer *peerProgram) open(parent *Session, tsconfig, label string, check fun
 	return session, nil
 }
 
-// close releases the peer session, if any.
 func (peer *peerProgram) close() {
 	if peer.session == nil {
 		return
