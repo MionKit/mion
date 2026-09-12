@@ -245,6 +245,14 @@ func (e ValidateEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expected
 	// accessor; an empty child (any/unknown — `contains: true`) counts every
 	// item, so the length itself is the count.
 	if rt != nil && len(rt.Contains) > 0 {
+		// Build-time contradiction check, here rather than in a format
+		// emitter's ValidateParams: the occurrence bounds ride the
+		// `__rtContains` sentinel (rt.Contains), not the brand params, and a
+		// contains-ONLY node carries no FormatAnnotation at all, so the
+		// ValidateParams splice above never sees either.
+		for _, msg := range containsContradictions(rt) {
+			ctx.EmitDiagnostic(diagnostics.CodeFMTInvalidParams, msg)
+		}
 		// An unvalidatable base (an unsupported member bubbled CodeNS up)
 		// PROPAGATES: the walker escalates NS to the alwaysThrow lane, which
 		// never silently weakens anything — the splice must not turn that
@@ -339,6 +347,50 @@ func emitContainsCount(ctx *EmitContext, rt *reflection.RunType, containsCheck *
 	nVar := ctx.NextLocalVar("cn")
 	return "((() => {let " + nVar + " = 0;" + loop.head + "{if (" +
 		childRT.Code + ") " + nVar + "++;}return " + boundsOver(nVar) + ";})())"
+}
+
+// containsContradictions reports the `contains` param combinations that are
+// PROVABLY EMPTY: no value can satisfy them, so the emitted validator always
+// rejects and the author almost certainly meant something else. Same bar the
+// scalar families set with `gt >= lt` (formats/numeric), and the same
+// FMT002 code.
+//
+// Deliberately only provable emptiness, never suspicion. `minContains: 0` makes
+// `contains` vacuous but is legal 2020-12 and may be generated, and a child that
+// the entry type happens to reject is a satisfiability question this layer
+// cannot answer.
+func containsContradictions(rt *reflection.RunType) []string {
+	label := structuralWrapperName(rt)
+	var errs []string
+	for _, containsCheck := range rt.Contains {
+		if containsCheck.Max >= 0 && containsCheck.Min > containsCheck.Max {
+			errs = append(errs, label+": `minContains` cannot be greater than `maxContains`")
+		}
+		// A collection of at most N entries cannot hold more than N matching
+		// ones, so a larger minContains can never be met.
+		if rt.FormatAnnotation == nil {
+			continue
+		}
+		if maxItems, ok := formats.ReadNumberParam(rt.FormatAnnotation.Params, "maxItems"); ok && containsCheck.Min > maxItems {
+			errs = append(errs, label+": `minContains` cannot be greater than `maxItems`")
+		}
+	}
+	return errs
+}
+
+// structuralWrapperName is the type-first wrapper a diagnostic names, picked
+// from the node's own base so the message points at the spelling the author
+// wrote. A contains-only node has no annotation, so the base kind decides.
+func structuralWrapperName(rt *reflection.RunType) string {
+	if rt.Kind == reflection.KindClass {
+		switch rt.SubKind {
+		case reflection.SubKindSet:
+			return "FormattedSet"
+		case reflection.SubKindMap:
+			return "FormattedMap"
+		}
+	}
+	return "FormattedArray"
 }
 
 // containsIteration is how a contains check walks its base: an index loop
