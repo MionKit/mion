@@ -101,10 +101,6 @@ export interface ClientOptions extends CoreRouterOptions {
   storageEngine: StorageEngine;
   /** Default timeout in ms for all requests. Per-request timeout in CallSetup overrides this. */
   timeout?: number;
-  /** Filled by the build through `initClient`'s trailing marker, never by hand: `bundled` means every
-   *  route the program calls came in with its call site and nothing is fetched or stored; `mixed`
-   *  means the bundled routes are used as they are and the rest are fetched as usual. */
-  bundleApi?: BundleApiMode;
 }
 
 /** The lane a built client runs its metadata on. */

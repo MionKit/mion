@@ -16,7 +16,8 @@ import {BIN, hasBinary, writeMarkerPackage} from '../../test/helpers/inline.ts';
 
 // The bundled-API lane through a REAL vite build over a REAL program: with `bundleApi` on, the
 // resolver writes `<genDir>/api/` (one module per route or middleFn the program calls, the site
-// modules, the manifest), the transform injects the lane at initClient and each site's module at
+// modules, the manifest), the transform imports the lane module into the file calling initClient
+// and injects each site's module at
 // its dispatch call, and rollup inlines it all into a self-contained artifact that carries live
 // functions and no code string, so it runs where dynamic code is forbidden.
 //
@@ -45,7 +46,8 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => MiddlewareSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
       : ClientMiddleFns<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown, mode?: InjectApiMetadata<RA>): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
+  export function setBundleApiMode(mode: 'bundled' | 'mixed'): void;
 }
 `;
 // The client's view of the API (PublicApi<typeof routes>): a headers middleFn, a called route and
@@ -68,8 +70,10 @@ export const a = routes.users.getById(1).call();
 export const b = middleFns.auth({headers: {authorization: 'x'}}).prefill();
 `;
 // Records the lane injected at initClient and the module injected at each dispatch point.
-const CLIENT_STUB = `export function initClient(options, mode) {
+const CLIENT_STUB = `export function setBundleApiMode(mode) {
   globalThis.__mode = mode;
+}
+export function initClient(options) {
   const make = (id) => ({
     id,
     call: (setup, bundle) => { (globalThis.__bundles ??= {})[id] = bundle; return Promise.resolve(); },

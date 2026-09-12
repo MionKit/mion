@@ -6,6 +6,7 @@
  * ######## */
 
 import {isRpcError, MION_ROUTES, RpcError, getRoutePath, routesCache} from '@mionjs/core';
+import {getBundleApiMode} from './bundledApi.ts';
 import {ClientOptions, RequestBody} from '../types.ts';
 import {hydrateMetadataCache} from './clientMethodsMetadata.ts';
 import {deserializeResponseBody} from './serializer.ts';
@@ -30,7 +31,7 @@ export async function fetchRemoteMethodsMetadata(
   signal?: AbortSignal
 ): Promise<void> {
   // a bundled client never asks the server nor the store: what the build did not bundle is an error
-  if (options.bundleApi === 'bundled') {
+  if (getBundleApiMode() === 'bundled') {
     const missing = methodIds.filter((id) => !routesCache.hasMetadata(id));
     if (missing.length) throw bundledMetadataMissingError(missing);
     return;

@@ -8,7 +8,7 @@
 import {describe, it, expect, expectTypeOf} from 'vitest';
 import {initClient} from './client.ts';
 import {batch} from './batch.ts';
-import type {ApiOf, MiddlewareSubRequest, RouteSubRequest} from './types.ts';
+import type {ApiOf, InitClientOptions, MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import type {TestServerApi} from '@mionjs/test-server';
 import type {InjectApiMetadata} from '@mionjs/run-types';
 import {HeadersSubset} from '@mionjs/core';
@@ -61,10 +61,9 @@ describe('subrequest types carry the route id and the API', () => {
       .parameter(1)
       .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello' | 'utils/sumTwo'> | undefined>();
     expectTypeOf<ApiOf<[typeof hello]>>().toEqualTypeOf<TestServerApi>();
-    // the anchor: initClient's own slot carries the API and no id
-    expectTypeOf(initClient<TestServerApi>)
-      .parameter(1)
-      .toEqualTypeOf<InjectApiMetadata<TestServerApi> | undefined>();
+    // initClient takes options and nothing else: the lane is a build option, and it arrives
+    // through the module the build writes, never through a slot a caller could fill
+    expectTypeOf(initClient<TestServerApi>).parameters.toEqualTypeOf<[InitClientOptions]>();
   });
 
   it('a helper that erases the route name widens the id to string', () => {

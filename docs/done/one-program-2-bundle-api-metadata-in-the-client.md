@@ -61,8 +61,11 @@ marker kind in `internal/compiler/marker`). `RouteSubRequest<PH, Id, RA>` and
 (`ClientRoutes` / `ClientMiddleFns` thread the key path down with the same join `getRouterItemId`
 uses), and each dispatch method takes a trailing marker slot: `.call()`, `.typeErrors()`,
 `.prefill()`, and a batch's `.call()` (whose marker names the union of its routes' ids).
-`initClient` carries the mode-only anchor, so the runtime knows its lane without an option. The id
-lives in the type, so it survives destructuring, aliasing and a subrequest stored in a variable.
+The id lives in the type, so it survives destructuring, aliasing and a subrequest stored in a
+variable. The marker does ONLY that: the lane itself is a build option, not a call-site fact, so it
+reaches the client as `<genDir>/api/lane.js`, a generated module calling `setBundleApiMode` that the
+transform imports into every file calling `initClient`, the way the batch table reaches a server.
+`initClient` therefore takes options and nothing else.
 
 ### The API type carries each route's effective options
 
@@ -78,7 +81,7 @@ types.
 
 Modelled on `requestbatch/`: a cheap textual pre-filter, then the brand on the resolved signature;
 the marker's type arguments give the API and the id (a literal, a union of literals for a batch,
-`string` for a widened helper, `never` for the anchor). The API type is walked once per checker and
+`string` for a widened helper). The API type is walked once per checker and
 root (`tree.go`: members in checker order, the `PublicApi` filter mirrored, options read as a
 literal object), the route plus its execution chain selected the way `router.ts` composes it,
 params / return / headers ids assigned under the checker that owns the types

@@ -28,6 +28,7 @@ import {
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {fetchRemoteMethodsMetadata} from './lib/fetchRemoteMethodsMetadata.ts';
+import {getBundleApiMode} from './lib/bundledApi.ts';
 import {
   createMetadataSubRequest,
   hydrateMetadataCache,
@@ -92,7 +93,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     let allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
     // a bundled client has everything it will ever have at the call site: no store to read, no wire
     // to guess; a method the bundle lacks is refused below, at the metadata step
-    const bundled = this.options.bundleApi === 'bundled';
+    const bundled = getBundleApiMode() === 'bundled';
     // an id this page never heard of may still be in the store from an earlier visit: one indexed
     // read settles it, while guessing wrong costs the optimistic round trip AND its retry. Hydration
     // runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
