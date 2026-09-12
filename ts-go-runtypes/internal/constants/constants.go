@@ -467,7 +467,8 @@ const (
 	// ApiModuleDir is the folder under the output root that holds what a mion
 	// CLIENT build bundles under `bundleApi`: one module per route or middleFn
 	// the program calls (`api/m/<id>.js`, its metadata plus the compiled
-	// function tuples it imports from `types/`), one module per dispatch site
+	// function tuples it imports from the client mirror under `api/types/`),
+	// one module per dispatch site
 	// shape (`api/s/<id>.js`, the route with its middleFn chain, or the union a
 	// batch runs) and `api/manifest.json`, the id table `mion api-check`
 	// compares against the server's.
@@ -549,7 +550,6 @@ func (mode BundleApiMode) Enabled() bool {
 	return mode == BundleApiBundled || mode == BundleApiMixed
 }
 
-// Valid reports whether mode is off or one of the two bundling modes.
 func (mode BundleApiMode) Valid() bool {
 	return mode == BundleApiOff || mode.Enabled()
 }
