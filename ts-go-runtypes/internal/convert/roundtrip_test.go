@@ -141,20 +141,25 @@ func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
 }
 
 func TestChain_BoundedSetAndMap(t *testing.T) {
-	// The Map / Set bounds ride the formattedMap / formattedSet brands on the
-	// ARRAY keywords: `TF.FormattedSet<Set<string>, {maxItems: 3; uniqueItems:
-	// true}>` spells as `RT.set(TF.string(), {maxItems: 3, uniqueItems: true})`
-	// on the builders road and comes back on the type road, id-exact at every
-	// leg like FormattedArray; a `contains` Set rides its child slot both ways.
+	// A Map and a Set both ride the formattedMap / formattedSet brands on the
+	// whole COLLECTION bag: `TF.FormattedSet<Set<string>, {maxItems: 3;
+	// uniqueItems: true}>` spells as `RT.set(TF.string(), {maxItems: 3,
+	// uniqueItems: true})` on the builders road and comes back on the type road,
+	// id-exact at every leg like FormattedArray. `contains` rides its child slot
+	// both ways, and on a Map that child is the TUPLE its entry is.
 	source := "import * as TF from '@mionjs/run-types/formats';\n" +
 		"export type Tags = TF.FormattedSet<Set<string>, {maxItems: 3; uniqueItems: true}>;\n" +
 		"export type Mixed = TF.FormattedSet<Set<unknown>, {contains: number; minContains: 2}>;\n" +
-		"export type Lookup = TF.FormattedMap<Map<string, number>, {minItems: 1; maxItems: 2}>;\n"
+		"export type Lookup = TF.FormattedMap<Map<string, number>, {minItems: 1; maxItems: 2}>;\n" +
+		"export type Pairs = TF.FormattedMap<Map<{id: number}, string>, {uniqueItems: true}>;\n" +
+		"export type Roles = TF.FormattedMap<Map<string, number>, {contains: [unknown, 100]; maxContains: 1}>;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	for _, expected := range []string{
 		"RT.set(TF.string(), {maxItems: 3, uniqueItems: true})",
 		"RT.set(RT.unknown(), {contains: TF.number(), minContains: 2})",
 		"RT.map(TF.string(), TF.number(), {maxItems: 2, minItems: 1})",
+		"RT.map(RT.object({id: TF.number()}), TF.string(), {uniqueItems: true})",
+		"RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.unknown(), RT.literal(100)]}), maxContains: 1})",
 	} {
 		if !strings.Contains(builderForm, expected) {
 			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
@@ -165,6 +170,8 @@ func TestChain_BoundedSetAndMap(t *testing.T) {
 		"TF.FormattedSet<Set<string>, {maxItems: 3, uniqueItems: true}>",
 		"TF.FormattedSet<Set<unknown>, {contains: number, minContains: 2}>",
 		"TF.FormattedMap<Map<string, number>, {maxItems: 2, minItems: 1}>",
+		"TF.FormattedMap<Map<{id: number}, string>, {uniqueItems: true}>",
+		"TF.FormattedMap<Map<string, number>, {contains: [unknown, 100], maxContains: 1}>",
 	} {
 		if !strings.Contains(typeForm, expected) {
 			t.Errorf("type form missing %q:\n%s", expected, typeForm)
@@ -174,7 +181,7 @@ func TestChain_BoundedSetAndMap(t *testing.T) {
 
 func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
 	// `uniqueItems: false` sits OUTSIDE the public params bag
-	// (FormattedArrayParams declares `uniqueItems?: true`), so the generic
+	// (FormattedCollectionParams declares `uniqueItems?: true`), so the generic
 	// `RT.array(…, {uniqueItems: false})` spelling resolved a DIFFERENT id and
 	// a follow-up --to type dropped the brand entirely. The brand must ride
 	// the raw StructuralBrand spelling instead — the structural twin of the

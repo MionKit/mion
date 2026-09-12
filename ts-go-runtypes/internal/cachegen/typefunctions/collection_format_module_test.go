@@ -71,6 +71,45 @@ func containsSetDump() protocol.Dump {
 	return protocol.Dump{RunTypes: []*reflection.RunType{set}}
 }
 
+// containsMapDump is a `FormattedMap<Map<string, number>, {contains: [unknown,
+// number]}>`: the contains child is the TUPLE a Map entry is, checked against
+// each `[key, value]` pair the default iterator yields. Only the loop variable
+// matters here, so the tuple stands in as a plain number child — the pair walk
+// is what the test pins.
+func containsMapDump() protocol.Dump {
+	key := &reflection.RunType{ID: "mk", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapKey, Name: "key",
+		Child: &reflection.RunType{ID: "str", Kind: reflection.KindString}}
+	value := &reflection.RunType{ID: "mv", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapValue, Name: "value",
+		Child: &reflection.RunType{ID: "num", Kind: reflection.KindNumber}}
+	mapNode := &reflection.RunType{ID: "map", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, TypeName: "Map",
+		Arguments:    []*reflection.RunType{key, value},
+		SchemaChecks: reflection.SchemaChecks{Contains: []*reflection.ContainsCheck{{Child: &reflection.RunType{ID: "cnum", Kind: reflection.KindNumber}, Min: 1, Max: -1}}}}
+	return protocol.Dump{RunTypes: []*reflection.RunType{mapNode}}
+}
+
+// TestCollectionFormat_ContainsIteratesAMapWithForOf — a Map is not indexable
+// either, and its default iterator yields the `[key, value]` pair that IS its
+// entry, so the same `for…of` head serves it; the errors lane reports the `map`
+// kind word.
+func TestCollectionFormat_ContainsIteratesAMapWithForOf(t *testing.T) {
+	validate := renderToString(t, containsMapDump())
+	if !strings.Contains(validate, "for (const ci0 of v) {") {
+		t.Errorf("validate: expected the pair walk `for (const ci0 of v)` in:\n%s", validate)
+	}
+	if strings.Contains(validate, "v.length") || strings.Contains(validate, "v[ci0]") {
+		t.Errorf("validate: a Map must not be indexed:\n%s", validate)
+	}
+	errors := renderErrorsToString(t, containsMapDump())
+	for _, fragment := range []string{
+		"for (const ci0 of v) {",
+		"er.push({expected:'map',path:[...pth],format:{name:'contains',formatPath:['minContains'],val:1}})",
+	} {
+		if !strings.Contains(errors, fragment) {
+			t.Errorf("errors: expected fragment %q in:\n%s", fragment, errors)
+		}
+	}
+}
+
 // TestCollectionFormat_ContainsIteratesASetWithForOf — a Set is not
 // indexable, so the contains count walks it with `for…of` (the array loop
 // stays an index loop) and the errors lane reports the `set` kind word.

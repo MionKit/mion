@@ -413,8 +413,8 @@ func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation,
 
 // structuralParamsPubliclySpellable reports whether a structural annotation's
 // literal params can be reconstructed through the PUBLIC params bags
-// (FormattedArrayParams / FormattedObjectParams, and FormattedMapParams, the
-// array bag's count keys, formats/structural.ts). A
+// (FormattedCollectionParams, shared by the array / Set / Map wrappers, and
+// FormattedObjectParams — formats/structural.ts). A
 // payload outside that surface — `uniqueItems: false` (the bag declares
 // `uniqueItems?: true`), or an unknown key from a hand-spelled sentinel —
 // must ride the exact raw-brand spelling instead: the generic bag either
@@ -440,7 +440,10 @@ func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) 
 	}
 	var allowed map[string]func(any) bool
 	switch annotation.Name {
-	case "formattedArray":
+	case "formattedArray", "formattedSet", "formattedMap":
+		// One collection bag for the three families: an array counts its
+		// items, a Set its members, a Map its `[key, value]` pairs, and
+		// `uniqueItems` reads the same way on all three.
 		allowed = map[string]func(any) bool{
 			"minItems":    isNumber,
 			"maxItems":    isNumber,
@@ -453,18 +456,6 @@ func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) 
 			"closed":         isStringList,
 			"closedPatterns": isStringList,
 			"additionalOwn":  isStringList,
-		}
-	case "formattedSet":
-		// The array bag, verbatim.
-		allowed = map[string]func(any) bool{
-			"minItems":    isNumber,
-			"maxItems":    isNumber,
-			"uniqueItems": isTrue,
-		}
-	case "formattedMap":
-		allowed = map[string]func(any) bool{
-			"minItems": isNumber,
-			"maxItems": isNumber,
 		}
 	default:
 		return true

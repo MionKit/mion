@@ -35,7 +35,7 @@ func TestCollectionFormats_RegisteredUnderKindClass(t *testing.T) {
 	}
 }
 
-// TestCollectionFormats_SizeBoundsReadSize — the array keywords over `.size`,
+// TestCollectionFormats_SizeBoundsReadSize — the count keywords over `.size`,
 // each bound alone and together, inline (nothing to hoist).
 func TestCollectionFormats_SizeBoundsReadSize(t *testing.T) {
 	cases := []struct {
@@ -65,37 +65,28 @@ func TestCollectionFormats_SizeBoundsReadSize(t *testing.T) {
 	}
 }
 
-// TestFormattedSet_UniqueItemsGoesThroughThePureFn — the Set family calls the
-// same `rt::uniqueItems` alias the array family does (it iterates with
-// for…of, so a Set needs no adapter) and never inlines the canonical form.
-func TestFormattedSet_UniqueItemsGoesThroughThePureFn(t *testing.T) {
-	ctx := newStubCtx()
-	emitter := lookupCollection(t, formattedSetName)
-	got := emitter.EmitValidateCheck(setAnnotation(map[string]any{"uniqueItems": true, "maxItems": 3.0}), "v", ctx)
+// TestCollectionFormats_UniqueItemsGoesThroughThePureFn — BOTH families call
+// the same `rt::uniqueItems` alias the array family does and never inline the
+// canonical form. The pure fn iterates with for…of, so a Set needs no adapter
+// and a Map's own arm there compares its `[key, value]` pairs.
+func TestCollectionFormats_UniqueItemsGoesThroughThePureFn(t *testing.T) {
+	for _, family := range []struct {
+		name       string
+		annotation func(map[string]any) *reflection.FormatAnnotation
+	}{{formattedSetName, setAnnotation}, {formattedMapName, mapAnnotation}} {
+		ctx := newStubCtx()
+		emitter := lookupCollection(t, family.name)
+		got := emitter.EmitValidateCheck(family.annotation(map[string]any{"uniqueItems": true, "maxItems": 3.0}), "v", ctx)
 
-	if got != "v.size <= 3 && uniqueItems(v)" {
-		t.Fatalf("check = %q, want the size bound and the pure-fn alias", got)
-	}
-	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rt::uniqueItems" {
-		t.Fatalf("pure fns = %v, want exactly [rt::uniqueItems]", ctx.pureFns)
-	}
-	if strings.Contains(got, "const canon") {
-		t.Errorf("emitted body must not inline the canonical form; got %q", got)
-	}
-}
-
-// TestFormattedMap_IgnoresUniqueItems — a Map's keys are unique by
-// construction; the keyword is not part of its bag and the emitter stays
-// total by ignoring it.
-func TestFormattedMap_IgnoresUniqueItems(t *testing.T) {
-	ctx := newStubCtx()
-	emitter := lookupCollection(t, formattedMapName)
-	got := emitter.EmitValidateCheck(mapAnnotation(map[string]any{"uniqueItems": true, "maxItems": 3.0}), "v", ctx)
-	if got != "v.size <= 3" {
-		t.Errorf("check = %q, want only the size bound", got)
-	}
-	if len(ctx.pureFns) != 0 {
-		t.Errorf("a Map must not pull the uniqueItems pure fn; got %v", ctx.pureFns)
+		if got != "v.size <= 3 && uniqueItems(v)" {
+			t.Fatalf("%s: check = %q, want the size bound and the pure-fn alias", family.name, got)
+		}
+		if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rt::uniqueItems" {
+			t.Fatalf("%s: pure fns = %v, want exactly [rt::uniqueItems]", family.name, ctx.pureFns)
+		}
+		if strings.Contains(got, "const canon") {
+			t.Errorf("%s: emitted body must not inline the canonical form; got %q", family.name, got)
+		}
 	}
 }
 
@@ -113,8 +104,9 @@ func TestCollectionFormats_ErrorsLane(t *testing.T) {
 	}
 
 	got = lookupCollection(t, formattedMapName).EmitValidationErrorsCheck(
-		mapAnnotation(map[string]any{"maxItems": 2.0}), "v", "pth", "er", newStubCtx())
-	want = "if (v.size > 2) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['maxItems'],val:2}})"
+		mapAnnotation(map[string]any{"maxItems": 2.0, "uniqueItems": true}), "v", "pth", "er", newStubCtx())
+	want = "if (v.size > 2) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['maxItems'],val:2}});" +
+		"if (!(uniqueItems(v))) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['uniqueItems'],val:true}})"
 	if got != want {
 		t.Errorf("map errors = %q\nwant %q", got, want)
 	}

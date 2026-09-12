@@ -342,22 +342,31 @@ func emitContainsCount(ctx *EmitContext, rt *reflection.RunType, containsCheck *
 }
 
 // containsIteration is how a contains check walks its base: an index loop
-// over an array / tuple, a `for…of` over a Set (FormattedSet). `head` is the
-// loop statement head, `itemExpr` the child accessor inside it, `countExpr`
-// the whole-collection count an any/unknown child resolves to, and
-// `expected` the base kind word the errors lane reports.
+// over an array / tuple, a `for…of` over a Set or Map (FormattedSet /
+// FormattedMap). `head` is the loop statement head, `itemExpr` the child
+// accessor inside it, `countExpr` the whole-collection count an any/unknown
+// child resolves to, and `expected` the base kind word the errors lane reports.
+//
+// A Map needs no separate head: its default iterator yields `[key, value]`
+// arrays, which IS its entry (and its wire form), so a Map's contains child is
+// a TUPLE compiled against the same loop variable.
 type containsIteration struct {
 	head, itemExpr, countExpr, expected string
 }
 
 func containsLoop(ctx *EmitContext, rt *reflection.RunType) containsIteration {
 	iVar := ctx.NextLocalVar("ci")
-	if rt != nil && rt.Kind == reflection.KindClass && rt.SubKind == reflection.SubKindSet {
+	if rt != nil && rt.Kind == reflection.KindClass &&
+		(rt.SubKind == reflection.SubKindSet || rt.SubKind == reflection.SubKindMap) {
+		expected := "set"
+		if rt.SubKind == reflection.SubKindMap {
+			expected = "map"
+		}
 		return containsIteration{
 			head:      "for (const " + iVar + " of " + ctx.Vλl + ") ",
 			itemExpr:  iVar,
 			countExpr: ctx.Vλl + ".size",
-			expected:  "set",
+			expected:  expected,
 		}
 	}
 	return containsIteration{
