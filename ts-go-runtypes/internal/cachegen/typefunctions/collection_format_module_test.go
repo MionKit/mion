@@ -30,7 +30,7 @@ func TestCollectionFormat_ValidateSplicesAfterTheSetBody(t *testing.T) {
 		"instanceof Set)) return false;",
 		".values()) {",
 		"&& (v.size >= 1 && v.size <= 2 && ",
-		"utl.getPureFn('rt::uniqueItems')",
+		"utl.getPureFn('rt::uniqueSetMembers')",
 	} {
 		if !strings.Contains(out, fragment) {
 			t.Errorf("expected fragment %q in:\n%s", fragment, out)
