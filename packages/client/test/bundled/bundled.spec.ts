@@ -257,7 +257,9 @@ describe('parity: what the bundle registers equals what the server answers', () 
       const bundled = serializable(routesCache.getMetadata(id));
       expect(bundled, id).toEqual(withoutSettledLimit(serializable(answer.methods[id]), bundled));
     }
-    // the params maximum the build computed rides the bundled entry as it rides the server's
-    expect(typeof routesCache.getMethodJitFns('utils/sumTwo')?.paramsJsonMaxBytes).toBe('number');
+    // the params byte ceiling is the server's request limit, so a bundled entry carries no more of
+    // it than a fetched one does
+    expect(routesCache.getMethodJitFns('utils/sumTwo')).toBeDefined();
+    expect(routesCache.getMethodJitFns('utils/sumTwo')).not.toHaveProperty('paramsJsonMaxBytes');
   });
 });

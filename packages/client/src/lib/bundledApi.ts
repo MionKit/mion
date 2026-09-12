@@ -135,6 +135,9 @@ function bundledMethodToCacheEntry(method: BundledMethod): MethodWithOptsAndJitF
     // adapter's) is only known at the server's registration, and the client never enforces it
     options: method.options,
   };
+  // the params byte ceiling is the SERVER's: it settles a chain's request limit once at
+  // registration. The client enforces no limit, and the fetched lane is never sent it either
+  delete entry.paramsJsonMaxBytes;
   if (method.middleFnIds && method.middleFnIds.length) entry.middleFnIds = method.middleFnIds;
   return entry;
 }
