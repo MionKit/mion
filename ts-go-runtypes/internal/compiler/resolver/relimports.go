@@ -33,6 +33,14 @@ var apiImportRE = regexp.MustCompile(
 	`from '` + regexp.QuoteMeta(constants.ApiModulePrefix) + `([^']+)` + regexp.QuoteMeta(constants.EntryModuleSuffix) + `'`,
 )
 
+// apiSideEffectImportRE matches the lane module's side-effect import the
+// transform appends to a module calling `initClient`,
+// `import 'rtapi:/lane.js'`. A side-effect import has no `from`, hence its own
+// pattern, the twin of rpcImportRE.
+var apiSideEffectImportRE = regexp.MustCompile(
+	`import '` + regexp.QuoteMeta(constants.ApiModulePrefix) + `([^']+)` + regexp.QuoteMeta(constants.EntryModuleSuffix) + `'`,
+)
+
 // relativizeModuleImports rewrites every rtmod: import inside a generated
 // module's source into a path relative to that module. Both modules live under
 // <outDir>/types, so this is pure basename arithmetic — no outDir / filesystem
@@ -72,6 +80,14 @@ func relativizeUserImports(filePath, outDir, code string) string {
 	code = rpcImportRE.ReplaceAllStringFunc(code, func(match string) string {
 		file := rpcImportRE.FindStringSubmatch(match)[1]
 		rel := relUserToRpc(filePath, outDir, file)
+		if rel == "" {
+			return match
+		}
+		return "import '" + rel + "'"
+	})
+	code = apiSideEffectImportRE.ReplaceAllStringFunc(code, func(match string) string {
+		basename := apiSideEffectImportRE.FindStringSubmatch(match)[1]
+		rel := relUserToApi(filePath, outDir, basename)
 		if rel == "" {
 			return match
 		}

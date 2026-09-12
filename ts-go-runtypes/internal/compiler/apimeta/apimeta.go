@@ -62,8 +62,6 @@ type Site struct {
 	InjectPad     int
 	ArgsCount     int
 	TrailingComma bool
-	// Anchor marks the `initClient` site: the mode literal goes here, no ids.
-	Anchor bool
 	// Ids are the route / middleFn ids the site calls, sorted and unique. One
 	// for a route or middleFn call, several for a batch. nil for the anchor.
 	Ids []string
@@ -279,8 +277,6 @@ func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnos
 	}
 	ids, kind := readIds(idType)
 	switch kind {
-	case idsAnchor:
-		site.Anchor = true
 	case idsLiteral:
 		site.Ids = ids
 	case idsWidened:
@@ -290,7 +286,7 @@ func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnos
 		}
 		return nil, []diagnostics.Diagnostic{scope.diag(code, call)}
 	default:
-		return nil, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeApiMetaUnreadable, call, "the route id type is neither a string literal nor `never`")}
+		return nil, []diagnostics.Diagnostic{scope.diag(diagnostics.CodeApiMetaUnreadable, call, "the route id type is not a string literal")}
 	}
 	return site, nil
 }
@@ -299,22 +295,17 @@ type idsKind int
 
 const (
 	idsUnreadable idsKind = iota
-	idsAnchor
 	idsLiteral
 	idsWidened
 )
 
-// readIds classifies the marker's Id type argument: absent or `never` is the
-// anchor, a string literal or a union of them names the ids, `string` is a
-// widened id.
+// readIds classifies the marker's Id type argument: a string literal or a
+// union of them names the ids a site calls, `string` is a widened id.
 func readIds(idType *checker.Type) ([]string, idsKind) {
 	if idType == nil {
-		return nil, idsAnchor
+		return nil, idsUnreadable
 	}
 	flags := checker.Type_flags(idType)
-	if flags&checker.TypeFlagsNever != 0 {
-		return nil, idsAnchor
-	}
 	if flags&checker.TypeFlagsStringLiteral != 0 {
 		if value, ok := idType.AsLiteralType().Value().(string); ok {
 			return []string{value}, idsLiteral

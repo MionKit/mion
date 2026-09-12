@@ -47,7 +47,7 @@ const apiClientDTS = `declare module '@mionjs/client' {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>): Promise<unknown>;
   }
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R]): BatchBuilder<R>;
-  export function initClient<RA>(o?: unknown, mode?: InjectApiMetadata<RA>): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
 }
 `
 
@@ -220,9 +220,13 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 			if !strings.HasPrefix(line, "import ") {
 				continue
 			}
-			from := line[strings.LastIndex(line, "'")+1:]
-			_ = from
 			specifier := line[strings.Index(line, "from '")+6 : len(line)-2]
+			// a bare package specifier is the bundler's to resolve (lane.js imports the client
+			// package, as the batch module imports the router's); only a relative one must land
+			// on a file this tree generated
+			if !strings.HasPrefix(specifier, ".") {
+				continue
+			}
 			target := filepath.ToSlash(filepath.Join(filepath.Dir(file), specifier))
 			if !live[target] {
 				t.Errorf("%s imports %s, which was not generated", file, target)
@@ -235,10 +239,10 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 	}
 }
 
-// TestApiGen_TransformInjectsModeAndSiteBindings: the rewritten client file
+// TestApiGen_TransformInjectsLaneImportAndSiteBindings: the rewritten client file
 // carries the mode literal at initClient and, at every dispatch site, an
 // import of its site module relative to the file.
-func TestApiGen_TransformInjectsModeAndSiteBindings(t *testing.T) {
+func TestApiGen_TransformInjectsLaneImportAndSiteBindings(t *testing.T) {
 	genDir := t.TempDir()
 	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiMixed, "")
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
@@ -249,8 +253,11 @@ func TestApiGen_TransformInjectsModeAndSiteBindings(t *testing.T) {
 		t.Fatalf("unexpected MET diagnostics: %+v", diags)
 	}
 	code := tr.Transformed["client.ts"].Code
-	if !strings.Contains(code, "initClient<Api>({baseURL: 'http://x'}, 'mixed')") {
-		t.Errorf("the anchor did not receive the mode:\n%s", code)
+	if !strings.Contains(code, "import '../001/api/lane.js';") {
+		t.Errorf("the file calling initClient did not get the lane import:\n%s", code)
+	}
+	if strings.Contains(code, "initClient<Api>({baseURL: 'http://x'},") {
+		t.Errorf("initClient takes no injected argument any more:\n%s", code)
 	}
 	if !strings.Contains(code, ".call(undefined, __rt_s$2Fusers$2FgetById)") {
 		t.Errorf("the route call did not receive its binding:\n%s", code)
@@ -283,7 +290,7 @@ func TestApiGen_OffMeansNothing(t *testing.T) {
 		t.Fatalf("transform: %s", tr.Error)
 	}
 	code := tr.Transformed["client.ts"].Code
-	if strings.Contains(code, "__rt_s$2F") || strings.Contains(code, "'bundled'") || strings.Contains(code, "'mixed'") {
+	if strings.Contains(code, "__rt_s$2F") || strings.Contains(code, "api/lane.js") {
 		t.Errorf("nothing must be injected with the lane off:\n%s", code)
 	}
 	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
@@ -629,6 +636,35 @@ export const staticId = getRunTypeId<[id: number]>();
 declare const params: [id: number];
 export const valueId = getRunTypeId(params);
 `
+
+// TestApiGen_LaneRidesAModuleNotTheInitClientCall: the lane is a build option,
+// so it reaches the client as a generated module imported for its side effect
+// into every file that calls `initClient`, the way the batch table reaches a
+// server. Nothing is spliced into the call, so there is no slot a caller could
+// fill with a lane the build did not compile.
+func TestApiGen_LaneRidesAModuleNotTheInitClientCall(t *testing.T) {
+	genDir := t.TempDir()
+	r := setupApi(t, apiSources(apiClientTS), genDir, constants.BundleApiMixed, "")
+	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
+		t.Fatalf("generate: %s", gen.Error)
+	}
+	lane := readGenerated(t, filepath.Join(genDir, constants.ApiModuleDir), constants.ApiLaneFile+".js")
+	if !strings.Contains(lane, "setBundleApiMode('mixed')") || !strings.Contains(lane, apimeta.ClientModule) {
+		t.Fatalf("the lane module must set the mode through the client package:\n%s", lane)
+	}
+
+	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"client.ts"}})
+	if tr.Error != "" {
+		t.Fatalf("transform: %s", tr.Error)
+	}
+	code := tr.Transformed["client.ts"].Code
+	if strings.Count(code, "api/lane.js") != 1 {
+		t.Errorf("exactly one lane import belongs in a file calling initClient:\n%s", code)
+	}
+	if strings.Contains(code, "'mixed'") {
+		t.Errorf("the mode must not be spliced into the source:\n%s", code)
+	}
+}
 
 // TestApiGen_MarkerFormsAgreeWithTheBundledParamsId: the marker coverage rule of
 // ts-go-runtypes/CLAUDE.md, in the suite where it is observable. The STATIC form
