@@ -178,6 +178,13 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
   Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.
 - **A superseded spec is rewritten from scratch**, never cross-referenced. Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
 - **No other file ever names a `docs/todos/` or `docs/done/` document.** Not a doc, a skill, a workflow, a test, or a code comment: those specs get deleted eventually, so every such reference rots. Put the reasoning in the file that needs it. A spec may list the documents that could go stale once it merges, but that list lives inside the spec.
+- **Label the PR so the CI lanes it needs actually run.** The heavy lanes are opt-in per PR ([pr-heavy.yml](.github/workflows/pr-heavy.yml), [drizzle-e2e.yml](.github/workflows/drizzle-e2e.yml)). With no label they never run and GitHub still shows the PR green, so an unlabelled PR can merge untested:
+  - `website`: builds the docs site. Add it for [container/website/](container/website/) and for [packages/examples/](packages/examples/), whose files the pages import.
+  - `bench`: runs the validation benchmarks. Add it for [container/benchmarks/](container/benchmarks/) or their deps.
+  - `pre-publish-e2e`: packs every package, publishes to a throwaway registry and runs the consumer lanes. Add it for package exports, `package.json` changes, public API renames, anything a consumer installs.
+  - `drizzle-e2e`: runs drizzle's own suites against real databases. Add it for [packages/drizzle-orm/](packages/drizzle-orm/) and its dialect packages, or [container/drizzle-e2e/](container/drizzle-e2e/).
+  - `skip-defaults` does the opposite, it opts OUT of the default lint / typecheck / test lanes. Only for a PR that cannot affect them.
+  Adding a label re-triggers its lane, and it keeps running on every later commit, so label at open time rather than at the end.
 
 ## Git workflow
 
