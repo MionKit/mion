@@ -149,6 +149,8 @@ const ShortKeys = RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 
 const BoundedTags = RT.set(TF.string(), {maxItems: 3, uniqueItems: true});
 const NumberSomewhere = RT.set(RT.unknown(), {contains: TF.number()});
 const SmallLookup = RT.map(TF.string(), TF.number(), {maxItems: 2});
+const UniqueLookup = RT.map(RT.object({id: TF.number()}), TF.string(), {uniqueItems: true});
+const AdminSomewhere = RT.map(TF.string(), TF.number(), {contains: RT.tuple({required: [RT.literal('admin'), RT.unknown()]})});
 
 export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
   flat_mixed: {
@@ -526,7 +528,7 @@ export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
   },
 
   structural_set_format: {
-    title: 'formattedSet — maxItems + uniqueItems on a Set, the array keywords',
+    title: 'formattedSet — maxItems + uniqueItems on a Set, the collection keywords',
     validate: () => createValidateFn<InferType<typeof BoundedTags>>(),
     validateReflect: () => {
       const v = new Set(['a']) as unknown as InferType<typeof BoundedTags>;
@@ -593,6 +595,64 @@ export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
         {a: 1},
         5,
       ],
+    }),
+  },
+
+  structural_map_unique: {
+    title: 'formattedMap — uniqueItems on a Map, over its [key, value] pairs',
+    validate: () => createValidateFn<InferType<typeof UniqueLookup>>(),
+    validateReflect: () => {
+      const v = new Map([[{id: 1}, 'a']]) as unknown as InferType<typeof UniqueLookup>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof UniqueLookup>>(),
+    deserializeValidateReflect: () => {
+      const v = new Map([[{id: 1}, 'a']]) as unknown as InferType<typeof UniqueLookup>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof UniqueLookup>>(),
+    getSamples: () => ({
+      valid: [
+        new Map(),
+        // Same key content, different values: two DIFFERENT pairs.
+        new Map([
+          [{id: 1}, 'a'],
+          [{id: 1}, 'b'],
+        ]),
+      ],
+      invalid: [
+        new Map([
+          [{id: 1}, 'a'],
+          [{id: 1}, 'a'],
+        ]),
+        {a: 'b'},
+        5,
+      ],
+    }),
+  },
+
+  structural_map_contains: {
+    title: 'formattedMap — contains on a Map, a tuple over its entry',
+    validate: () => createValidateFn<InferType<typeof AdminSomewhere>>(),
+    validateReflect: () => {
+      const v = new Map([['admin', 1]]) as unknown as InferType<typeof AdminSomewhere>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof AdminSomewhere>>(),
+    deserializeValidateReflect: () => {
+      const v = new Map([['admin', 1]]) as unknown as InferType<typeof AdminSomewhere>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof AdminSomewhere>>(),
+    getSamples: () => ({
+      valid: [
+        new Map([['admin', 1]]),
+        new Map([
+          ['user', 2],
+          ['admin', 3],
+        ]),
+      ],
+      invalid: [new Map(), new Map([['user', 1]]), {admin: 1}, 5],
     }),
   },
 

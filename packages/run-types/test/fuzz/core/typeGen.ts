@@ -44,7 +44,7 @@ export type TypeShape =
   | {kind: 'never'}
   | {kind: 'void'}
   | {kind: 'symbol'}
-  | {kind: 'array'; elem: TypeShape; structural?: ArrayStructural}
+  | {kind: 'array'; elem: TypeShape; structural?: CollectionStructural}
   // `labels` names every slot (parallel to elems, all-or-nothing — the TS
   // grammar) and renders `[k0: A, k1: B]`; the schema side renders the
   // tsLabels dialect keyword. Generated only under `GenOptions.tupleLabels`.
@@ -55,8 +55,8 @@ export type TypeShape =
   | {kind: 'intersection'; members: TypeShape[]}
   // A Set takes the ARRAY structural bag (it is an array on the wire), a Map
   // the two count keys of it; both generated only under `structuralFormats`.
-  | {kind: 'map'; key: TypeShape; value: TypeShape; structural?: MapStructural}
-  | {kind: 'set'; elem: TypeShape; structural?: ArrayStructural}
+  | {kind: 'map'; key: TypeShape; value: TypeShape; structural?: CollectionStructural}
+  | {kind: 'set'; elem: TypeShape; structural?: CollectionStructural}
   | {kind: 'promise'; value: TypeShape}
   | {kind: 'function'; params: TypeShape[]; ret: TypeShape}
   // Non-serialisable native binary kinds (DataOnly strips them to `never`).
@@ -137,25 +137,25 @@ export const SCRATCH_FORMAT_LEAVES: readonly FormatLeafName[] = [
   'min0max100',
 ];
 
-/** Structural constraint params the generator can attach to an array /
- *  record shape. Rendered through the SHIPPED `TF.FormattedArray` /
- *  `TF.FormattedObject` wrappers; generated ONLY under
- *  `GenOptions.structuralFormats` so the value / binary / roundtrip lanes
- *  never see them (their value generators don't enforce the constraints —
- *  id convergence is the only oracle here). **/
-export interface ArrayStructural {
+/** Structural constraint params the generator can attach to an array / Set /
+ *  Map / record shape. Rendered through the SHIPPED `TF.FormattedArray` /
+ *  `TF.FormattedSet` / `TF.FormattedMap` / `TF.FormattedObject` wrappers;
+ *  generated ONLY under `GenOptions.structuralFormats` so the value / binary /
+ *  roundtrip lanes never see them (their value generators don't enforce the
+ *  constraints — id convergence is the only oracle here).
+ *
+ *  One bag for the three collection families, matching the shipped
+ *  `FormattedCollectionParams`. **/
+export interface CollectionStructural {
   uniqueItems?: true;
-  maxItems?: number;
-  /** `contains` with the PINNED plain-number child (`{type: 'number'}` ↔
-   *  `rt$child: number`); min 1 spells NO minContains on the schema side
-   *  (the Contains default). Rendered as the raw __rtContains sentinel. **/
-  contains?: {min: number; max?: number};
-}
-/** The Map bag: the count keys of the array bag, rendered through the
- *  shipped `TF.FormattedMap` wrapper. **/
-export interface MapStructural {
   minItems?: number;
   maxItems?: number;
+  /** `contains` with a PINNED child: the plain number for an array or Set
+   *  (`{type: 'number'}` ↔ `rt$child: number`), the tuple `[unknown, number]`
+   *  for a Map, whose entry is its `[key, value]` pair. min 1 spells NO
+   *  minContains on the schema side (the Contains default). Rendered as the raw
+   *  __rtContains sentinel. **/
+  contains?: {min: number; max?: number};
 }
 export interface ObjectStructural {
   minProperties?: number;
@@ -1226,7 +1226,7 @@ function genLiteral(): TypeShape {
  *  never draws values. **/
 function withArrayStructural(ctx: Ctx, shape: TypeShape & {kind: 'array'}): TypeShape {
   if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
-  const structural: ArrayStructural = {};
+  const structural: CollectionStructural = {};
   if (chance(0.6)) structural.uniqueItems = true;
   if (chance(0.6)) structural.maxItems = 1 + int(4);
   // Child-schema slot: the id fold is satisfiability-blind, so contains may
@@ -1237,11 +1237,12 @@ function withArrayStructural(ctx: Ctx, shape: TypeShape & {kind: 'array'}): Type
   }
   return {...shape, structural};
 }
-/** A Set draws the same bag an array does (the shipped `FormattedSet` takes
- *  `FormattedArrayParams` verbatim), a Map its two count keys. **/
+/** A Set and a Map draw the same bag an array does: the shipped
+ *  `FormattedSet` / `FormattedMap` both take `FormattedCollectionParams`
+ *  verbatim. **/
 function withSetStructural(ctx: Ctx, shape: TypeShape & {kind: 'set'}): TypeShape {
   if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
-  const structural: ArrayStructural = {};
+  const structural: CollectionStructural = {};
   if (chance(0.5)) structural.uniqueItems = true;
   if (chance(0.6)) structural.maxItems = 1 + int(4);
   if (chance(0.4)) structural.contains = {min: 1 + int(2), ...(chance(0.4) ? {max: 4 + int(3)} : {})};
@@ -1252,10 +1253,12 @@ function withSetStructural(ctx: Ctx, shape: TypeShape & {kind: 'set'}): TypeShap
 }
 function withMapStructural(ctx: Ctx, shape: TypeShape & {kind: 'map'}): TypeShape {
   if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
-  const structural: MapStructural = {};
+  const structural: CollectionStructural = {};
+  if (chance(0.4)) structural.uniqueItems = true;
   if (chance(0.5)) structural.minItems = int(3);
   if (chance(0.7)) structural.maxItems = 3 + int(4);
-  if (structural.minItems === undefined && structural.maxItems === undefined) structural.maxItems = 3;
+  if (chance(0.4)) structural.contains = {min: 1 + int(2), ...(chance(0.4) ? {max: 4 + int(3)} : {})};
+  if (Object.keys(structural).length === 0) structural.maxItems = 3;
   return {...shape, structural};
 }
 function withRecordStructural(ctx: Ctx, shape: TypeShape & {kind: 'record'}): TypeShape {
@@ -1391,23 +1394,19 @@ function renderKey(name: string): string {
 // bag below is the keyword vocabulary under test, not a restated encoding;
 // the wrappers own the sentinel lowering, so it can never drift from the
 // door's. Key order is fixed so a seed replays byte-identically.
-function arrayStructuralParams(structural: ArrayStructural): string {
+function collectionStructuralParams(structural: CollectionStructural, containsChild = 'number'): string {
   const parts: string[] = [];
   if (structural.uniqueItems) parts.push('uniqueItems: true');
+  if (structural.minItems !== undefined) parts.push(`minItems: ${structural.minItems}`);
   if (structural.maxItems !== undefined) parts.push(`maxItems: ${structural.maxItems}`);
   if (structural.contains) {
-    // The pinned plain-number child; min 1 spells NO minContains (the
-    // Contains default on both sides).
-    parts.push('contains: number');
+    // The pinned child (a plain number, or the `[unknown, number]` pair a Map
+    // entry is); min 1 spells NO minContains (the Contains default on both
+    // sides).
+    parts.push(`contains: ${containsChild}`);
     if (structural.contains.min > 1) parts.push(`minContains: ${structural.contains.min}`);
     if (structural.contains.max !== undefined) parts.push(`maxContains: ${structural.contains.max}`);
   }
-  return `{${parts.join('; ')}}`;
-}
-function mapStructuralParams(structural: MapStructural): string {
-  const parts: string[] = [];
-  if (structural.minItems !== undefined) parts.push(`minItems: ${structural.minItems}`);
-  if (structural.maxItems !== undefined) parts.push(`maxItems: ${structural.maxItems}`);
   return `{${parts.join('; ')}}`;
 }
 function recordStructuralParams(structural: ObjectStructural): string {
@@ -1446,7 +1445,7 @@ export function renderType(shape: TypeShape): string {
     case 'array': {
       const text = `Array<${renderType(shape.elem)}>`;
       if (!shape.structural) return text;
-      return `TF.FormattedArray<${text}, ${arrayStructuralParams(shape.structural)}>`;
+      return `TF.FormattedArray<${text}, ${collectionStructuralParams(shape.structural)}>`;
     }
     case 'tuple': {
       if (!shape.labels) return `[${shape.elems.map(renderType).join(', ')}]`;
@@ -1461,12 +1460,12 @@ export function renderType(shape: TypeShape): string {
     case 'map': {
       const text = `Map<${renderType(shape.key)}, ${renderType(shape.value)}>`;
       if (!shape.structural) return text;
-      return `TF.FormattedMap<${text}, ${mapStructuralParams(shape.structural)}>`;
+      return `TF.FormattedMap<${text}, ${collectionStructuralParams(shape.structural, '[unknown, number]')}>`;
     }
     case 'set': {
       const text = `Set<${renderType(shape.elem)}>`;
       if (!shape.structural) return text;
-      return `TF.FormattedSet<${text}, ${arrayStructuralParams(shape.structural)}>`;
+      return `TF.FormattedSet<${text}, ${collectionStructuralParams(shape.structural)}>`;
     }
     case 'promise':
       return `Promise<${renderType(shape.value)}>`;
