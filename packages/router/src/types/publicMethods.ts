@@ -42,7 +42,7 @@ export type PrivateDef = PrivateMiddleFnDef | RawMiddleFnDef;
 // ####### Remote Methods Metadata #######
 
 /** Data structure containing all public routes & middleFns.
- * is a Ts Mapped type the remove private middleFns and rawMiddleFns.
+ * A mapped type that drops private middleFns and rawMiddleFns.
  * Each public method carries its EFFECTIVE options (route literal, then router literal, then the
  * default), the values `initRoutes` returns at runtime and a client build reads off this type.
  */
@@ -71,15 +71,15 @@ export type RemoteApi = {
  *  route helpers hand to their markers (HandlerParams / HandlerReturn / HeaderHandlerHeaders /
  *  HandlerIsAsync), so a client build with `bundleApi` reads them off the API type and compiles the
  *  very same functions under the very same ids. Type-only: never set at runtime. */
-export interface MethodTypes<Params = unknown, Return = unknown, Headers = unknown, Async extends boolean = boolean> {
+export interface MethodTypes {
   /** the params tuple the server validates (a headers middleFn's start after its HeadersSubset) */
-  params: Params;
+  params: unknown;
   /** the awaited return type, declared errors included */
-  return: Return;
+  return: unknown;
   /** a headers middleFn's HeadersSubset parameter, `never` for every other method */
-  headers: Headers;
+  headers: unknown;
   /** whether the server handler answers with a promise */
-  isAsync: Async;
+  isAsync: boolean;
 }
 
 /** The MethodTypes of a route or plain middleFn handler. An interface over `H` on purpose: its
@@ -93,7 +93,7 @@ export interface HandlerMethodTypes<H extends Handler> {
 }
 
 /** The MethodTypes of a headers middleFn handler: params after its HeadersSubset, which rides `headers`. */
-export interface HeadersHandlerMethodTypes<H extends Handler> {
+export interface HeadersHandlerMethodTypes<H extends HeaderHandler> {
   params: HeaderHandlerParams<H>;
   return: HandlerReturn<H>;
   headers: HeaderHandlerHeaders<H>;
