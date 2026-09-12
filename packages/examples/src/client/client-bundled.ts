@@ -7,9 +7,7 @@ const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 // This route is bundled: the call names it, so its functions ship with the app.
 const [user, error] = await routes.users.getById('u1').call();
 
-// A helper keeps the route's name when it stays generic, so the build still sees which route is
-// called inside it. A helper typed with the wide `RouteSubRequest<any>` erases the name, and the
-// build reports it (MET003 under `bundled`, MET004 under `mixed`, where the call is fetched instead).
+// A helper keeps the route's name when it stays generic, so the build still sees which route it calls.
 async function callWithRetry<S extends RouteSubRequest<any>>(
   sub: S,
   tries = 2
