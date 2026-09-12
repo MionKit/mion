@@ -247,3 +247,29 @@ func TestEstimate_CycleTerminates(t *testing.T) {
 		t.Errorf("cyclic type: estimate = %d, want in [1, MaxBytes]", got)
 	}
 }
+
+// A bounded Map / Set (formattedMap / formattedSet on the array keywords)
+// tightens the entry count the way a bounded array does: `maxItems` replaces
+// cfg.Items, an unbounded collection still assumes cfg.Items entries.
+func TestEstimate_MapSetReadMaxItems(t *testing.T) {
+	cfg := genConfig() // Items 100
+	num := &reflection.RunType{Kind: reflection.KindNumber}
+	param := func(id string, sub reflection.ReflectionSubKind, child *reflection.RunType) *reflection.RunType {
+		return &reflection.RunType{ID: id, Kind: reflection.KindParameter, SubKind: sub, Child: child}
+	}
+	set := &reflection.RunType{ID: "set", Kind: reflection.KindClass, SubKind: reflection.SubKindSet,
+		Arguments:        []*reflection.RunType{reflection.NewRef("p_si")},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedSet", Params: map[string]any{"maxItems": 2.0}}}
+	refSet := map[string]*reflection.RunType{"p_si": param("p_si", reflection.SubKindSetItem, num), "set": set}
+	if got := EstimateBinarySize(set, refSet, cfg); got != 17 {
+		t.Errorf("Set<number> maxItems 2: estimate = %d, want 17 (1 + 2*8)", got)
+	}
+	mapRT := &reflection.RunType{ID: "map", Kind: reflection.KindClass, SubKind: reflection.SubKindMap,
+		Arguments:        []*reflection.RunType{reflection.NewRef("p_mk"), reflection.NewRef("p_mv")},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedMap", Params: map[string]any{"maxItems": 2.0}}}
+	refMap := map[string]*reflection.RunType{
+		"p_mk": param("p_mk", reflection.SubKindMapKey, num), "p_mv": param("p_mv", reflection.SubKindMapValue, num), "map": mapRT}
+	if got := EstimateBinarySize(mapRT, refMap, cfg); got != 33 {
+		t.Errorf("Map<number,number> maxItems 2: estimate = %d, want 33 (1 + 2*16)", got)
+	}
+}

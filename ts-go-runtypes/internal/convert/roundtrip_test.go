@@ -140,6 +140,38 @@ func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
 	}
 }
 
+func TestChain_BoundedSetAndMap(t *testing.T) {
+	// The Map / Set bounds ride the formattedMap / formattedSet brands on the
+	// ARRAY keywords: `TF.FormattedSet<Set<string>, {maxItems: 3; uniqueItems:
+	// true}>` spells as `RT.set(TF.string(), {maxItems: 3, uniqueItems: true})`
+	// on the builders road and comes back on the type road, id-exact at every
+	// leg like FormattedArray; a `contains` Set rides its child slot both ways.
+	source := "import * as TF from '@mionjs/run-types/formats';\n" +
+		"export type Tags = TF.FormattedSet<Set<string>, {maxItems: 3; uniqueItems: true}>;\n" +
+		"export type Mixed = TF.FormattedSet<Set<unknown>, {contains: number; minContains: 2}>;\n" +
+		"export type Lookup = TF.FormattedMap<Map<string, number>, {minItems: 1; maxItems: 2}>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{
+		"RT.set(TF.string(), {maxItems: 3, uniqueItems: true})",
+		"RT.set(RT.unknown(), {contains: TF.number(), minContains: 2})",
+		"RT.map(TF.string(), TF.number(), {maxItems: 2, minItems: 1})",
+	} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	for _, expected := range []string{
+		"TF.FormattedSet<Set<string>, {maxItems: 3, uniqueItems: true}>",
+		"TF.FormattedSet<Set<unknown>, {contains: number, minContains: 2}>",
+		"TF.FormattedMap<Map<string, number>, {maxItems: 2, minItems: 1}>",
+	} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+}
+
 func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
 	// `uniqueItems: false` sits OUTSIDE the public params bag
 	// (FormattedArrayParams declares `uniqueItems?: true`), so the generic

@@ -113,7 +113,7 @@ func setOf(keys ...string) map[string]bool {
 }
 
 // LeafFormat resolves a node's annotation to a printable leaf family; false
-// when the annotation is structural (formattedArray/formattedObject, handled
+// when the annotation is structural (formattedArray/formattedObject/formattedMap/formattedSet, handled
 // at the kind branches) or unknown. uuid resolves through its version param;
 // the preset alias already carries the version, so its printed params drop
 // the key. A generic family whose params include a key outside its public
@@ -159,10 +159,14 @@ func HasStructuralPayload(node *reflection.RunType) bool {
 	return len(node.Contains) > 0 || len(node.PatternProps) > 0 || len(node.PropNames) > 0
 }
 
-// IsStructuralAnnotation tells the array/object structural brands from the
-// leaf families — they are handled at their kind branches, not as leaves.
+// IsStructuralAnnotation tells the array/object/map/set structural brands from
+// the leaf families — they are handled at their kind branches, not as leaves.
 func IsStructuralAnnotation(annotation *reflection.FormatAnnotation) bool {
-	return annotation.Name == "formattedArray" || annotation.Name == "formattedObject"
+	switch annotation.Name {
+	case "formattedArray", "formattedObject", "formattedMap", "formattedSet":
+		return true
+	}
+	return false
 }
 
 // PrintFormatParams renders a FormatAnnotation params map as TS source with

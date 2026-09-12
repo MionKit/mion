@@ -102,3 +102,29 @@ func TestRender_SymbolKeyedMembersDrop(t *testing.T) {
 		t.Errorf("symbol-key document mismatch:\n--- got ---\n%s\n--- want ---\n%s", doc.Source, expected)
 	}
 }
+
+// TestRender_BoundedCollectionsCarryTheArrayKeywords — a formattedSet /
+// formattedMap brand lands on the OUTER array under the standard names; a
+// Set's own `uniqueItems: true` is printed once.
+func TestRender_BoundedCollectionsCarryTheArrayKeywords(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	setItem := &reflection.RunType{ID: "si", Kind: reflection.KindParameter, SubKind: reflection.SubKindSetItem, Child: str}
+	set := &reflection.RunType{ID: "set", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, TypeName: "Set",
+		Arguments:        []*reflection.RunType{setItem},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedSet", Params: map[string]any{"maxItems": 3.0, "uniqueItems": true}}}
+	doc := RenderDocument(set, derefOver(map[string]*reflection.RunType{"set": set, "si": setItem}))
+	if !strings.Contains(doc.Source, "{type: 'array', items: {type: 'string'}, uniqueItems: true, jsType: 'Set', maxItems: 3}") {
+		t.Errorf("bounded Set: expected the bound after jsType, once, got:\n%s", doc.Source)
+	}
+
+	mapKey := &reflection.RunType{ID: "mk", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapKey, Child: str}
+	mapValue := &reflection.RunType{ID: "mv", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapValue, Child: num}
+	mapNode := &reflection.RunType{ID: "map", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, TypeName: "Map",
+		Arguments:        []*reflection.RunType{mapKey, mapValue},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedMap", Params: map[string]any{"minItems": 1.0, "maxItems": 2.0}}}
+	doc = RenderDocument(mapNode, derefOver(map[string]*reflection.RunType{"map": mapNode, "mk": mapKey, "mv": mapValue}))
+	if !strings.Contains(doc.Source, "jsType: 'Map', maxItems: 2, minItems: 1}") {
+		t.Errorf("bounded Map: expected both bounds after jsType, got:\n%s", doc.Source)
+	}
+}
