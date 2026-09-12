@@ -95,15 +95,23 @@ isLowercaseKeys({'theme-2': 'dark'}); // false, the key is not alphabetic
 // end-keys
 
 // start-collections
-// A Set takes the array options (it travels as an array), a Map takes the two
-// count options. Both spellings are one generated function, as everywhere else.
+// Sets and Maps take the same options an array does, because all three travel
+// as an array. A Map's entry is its [key, value] pair, so `contains` takes a
+// pair and `uniqueItems` compares pairs.
 type Labels = TF.FormattedSet<Set<string>, {minItems: 1; maxItems: 5}>;
 type Points = TF.FormattedSet<Set<{x: number; y: number}>, {uniqueItems: true}>;
 type Scores = TF.FormattedMap<Map<string, number>, {maxItems: 100}>;
+type WithAdmin = TF.FormattedMap<
+  Map<string, number>,
+  {contains: ['admin', unknown]}
+>;
+type Seats = TF.FormattedMap<Map<{row: number}, string>, {uniqueItems: true}>;
 
 const isLabels = createValidateFn<Labels>();
 const isPoints = createValidateFn<Points>();
 const isScores = createValidateFn<Scores>();
+const isWithAdmin = createValidateFn<WithAdmin>();
+const isSeats = createValidateFn<Seats>();
 const isScoresBuilt = createValidateFn(
   RT.map(TF.string(), TF.number(), {maxItems: 100})
 );
@@ -116,6 +124,14 @@ isPoints(
     {x: 1, y: 2},
   ])
 ); // false, two equal points
+isWithAdmin(new Map([['admin', 1]])); // true
+isWithAdmin(new Map([['guest', 1]])); // false, no admin entry
+isSeats(
+  new Map([
+    [{row: 1}, 'ada'],
+    [{row: 1}, 'ada'],
+  ])
+); // false, the same pair twice
 isScoresBuilt(new Map([['ada', 10]])); // true
 
 getRunTypeId<Scores>() ===
