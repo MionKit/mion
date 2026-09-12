@@ -40,7 +40,7 @@ Picking the target:
 
 - Nothing named: current branch against `origin/main`.
 - A branch named: check it out or diff it, base still `origin/main`.
-- A PR number named: read it with `mcp__github__pull_request_read` for the description, the base branch and the open review threads, fetch the head branch, then diff locally against that PR's own base.
+- A PR number named: read it with `mcp__github__pull_request_read` for the description, the base branch, **the labels** and the open review threads, fetch the head branch, then diff locally against that PR's own base.
 
 Then **read the whole diff yourself**: `git diff <merge-base>..HEAD`. On a large change read it area by area. You cannot build a real list, or verify an agent's finding, about a change you have not seen.
 
@@ -50,7 +50,7 @@ Both are written before the code and often never updated. Treat them as claims t
 
 **Find the spec.** A `docs/todos/x.md -> docs/done/x.md` rename in the diff is this PR's spec. No rename means either the spec is still in `docs/todos/` or there is no spec. Read the whole file, including its metadata header, `Done when` and `Out of scope`.
 
-**Read the PR description**, when there is one.
+**Read the PR description and the labels**, when there is a PR. Labels gate CI lanes here, so note which ones are on it: a rule in the root CLAUDE.md says which the diff needs, and the G group checks the two against each other. Reviewing a branch with no PR yet turns that into an item for when it opens.
 
 Write the **intent**: one short paragraph saying what this change is meant to do. Every pass agent gets it, because a reviewer who does not know the goal reports noise.
 
@@ -180,6 +180,7 @@ Then ask what to do. The root CLAUDE.md sets where a finding goes: related ones 
 
 ## Gotchas
 
+- **Reviewing in the session that wrote the code? Compact or start fresh first.** Everything this skill needs is on disk: the diff, the spec, the CLAUDE.md files. Implementation context adds nothing and costs something, because the author's memory of why a line exists is exactly what talks a real finding out of the report in step 6. The passes run in clean subagents either way, so the bias lands on you, not them. A fresh session is better than a compact; a compact is better than neither.
 - **`origin/main..HEAD` is not the change.** Use the merge-base range from the script, or upstream commits show up as the author's work.
 - **A spec that reads perfectly can still be stalled.** It was written before the code. Check it against the diff, not against itself.
 - **The list is the deliverable of the first half.** If it is vague ("check the docs are good"), the pass will be vague too. Each item should be checkable against a line of the diff.
