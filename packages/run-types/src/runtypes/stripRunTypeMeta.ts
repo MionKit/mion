@@ -161,6 +161,22 @@ type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T>
     : Base
   : Base;
 
+/** A branded Map / Set (`FormattedMap` / `FormattedSet`: the structural brand
+ *  and, on a Set, a contains slot beside the collection) → the bare collection,
+ *  rebuilt from its inferred key / value types so every sentinel member drops
+ *  at once. The key and value types stay as written, exactly like the
+ *  unbranded arm keeps `Map<string, Email>` verbatim. **/
+type StripMetaUnbrandCollection<T> =
+  T extends ReadonlyMap<infer K, infer V>
+    ? T extends Map<any, any>
+      ? Map<K, V>
+      : ReadonlyMap<K, V>
+    : T extends ReadonlySet<infer U>
+      ? T extends Set<any>
+        ? Set<U>
+        : ReadonlySet<U>
+      : T;
+
 /** A branded TUPLE → the bare tuple, elements stripped; `T` verbatim when the
  *  subtraction did not fully clear. Same mechanism as StripMetaUnbrandLit, with
  *  the STRUCTURAL slots modelled too: an array brand is
@@ -312,17 +328,19 @@ type StripMetaObject<T extends object, Depth extends number> =
                   : unknown
                 : StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
           }
-    : Exclude<keyof T, StripMetaSentinelKeys | symbol> extends never
-      ? unknown // every key was metadata — the base was the broad kind
-      : {
-          [K in keyof T as K extends symbol ? never : K]: string extends K
-            ? StripMetaNoNamedKeys<T> extends true
-              ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
-              : unknown
-            : number extends K
+    : T extends ReadonlyMap<any, any> | ReadonlySet<any>
+      ? StripMetaUnbrandCollection<T> // a FormattedMap / FormattedSet → the bare collection
+      : Exclude<keyof T, StripMetaSentinelKeys | symbol> extends never
+        ? unknown // every key was metadata — the base was the broad kind
+        : {
+            [K in keyof T as K extends symbol ? never : K]: string extends K
               ? StripMetaNoNamedKeys<T> extends true
                 ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
                 : unknown
-              : StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
-        };
+              : number extends K
+                ? StripMetaNoNamedKeys<T> extends true
+                  ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
+                  : unknown
+                : StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
+          };
 // #endregion stripmeta-extract

@@ -308,17 +308,16 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       if (!child) throw new Error('Cannot mock array: child runtype missing.');
       // Data-node `rt$length` (fixed or [min,max]) overrides the global length;
       // `rt$items` is the element node threaded into each child mock.
-      let length = dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength);
       // formattedArray annotation: clamp the draw into the declared bounds and
       // fill unique-aware, so the mockSwitch rejection loop above converges
       // instead of re-rolling whole arrays.
       const annotation = runType.formatAnnotation;
       const arrayParams =
         annotation?.name === 'formattedArray' ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
-      if (arrayParams) {
-        if (typeof arrayParams.maxItems === 'number' && length > arrayParams.maxItems) length = arrayParams.maxItems;
-        if (typeof arrayParams.minItems === 'number' && length < arrayParams.minItems) length = arrayParams.minItems;
-      }
+      const length = clampToItemBounds(
+        arrayParams,
+        dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)
+      );
       const childOpts = withDataNode(options, asDataNode(dataNode?.rt$items));
       // Contains entries: splice exactly `min` CHILD MOCKS (they validate
       // the child by the mock soundness invariant) among fillers the loose
@@ -800,8 +799,27 @@ function mergeChildOptions(options: RunTypeMockOptions, childMock: MockOptions):
   return {...options, mock: {...childMock, random: childMock.random ?? parentMock.random}};
 }
 
+/** A structural annotation's `minItems` / `maxItems` (the array keywords the
+ *  formattedArray / formattedSet / formattedMap families share) clamp a
+ *  collection draw into its bounds, so the mockSwitch rejection loop rarely has
+ *  to retry. **/
+function clampToItemBounds(params: Record<string, unknown> | undefined, length: number): number {
+  if (!params) return length;
+  if (typeof params.maxItems === 'number' && length > params.maxItems) length = params.maxItems;
+  if (typeof params.minItems === 'number' && length < params.minItems) length = params.minItems;
+  return length;
+}
+
+/** The params of a structural annotation whose name is `name`, else undefined. **/
+function structuralParamsOf(runType: RunType, name: string): Record<string, unknown> | undefined {
+  const annotation = runType.formatAnnotation;
+  return annotation?.name === name ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
+}
+
 /** Map mock builder. Key/value types live at `runType.arguments[i].child`
- *  (the wire stores them as KindParameter wrappers). **/
+ *  (the wire stores them as KindParameter wrappers). A formattedMap annotation
+ *  clamps the entry draw into its bounds; keys that collide shrink the Map,
+ *  which the rejection loop's retries cover. **/
 function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): Map<unknown, unknown> {
   const mOps = options.mock as MockOptions;
   const random = mOps.random ?? nativeMockRandom;
@@ -810,7 +828,10 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   const valueType = args[1]?.child as RunType | undefined;
   const result = new Map<unknown, unknown>();
   if (!keyType || !valueType) return result;
-  const length = mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength);
+  const length = clampToItemBounds(
+    structuralParamsOf(runType, 'formattedMap'),
+    mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)
+  );
   for (let i = 0; i < length; i++) {
     const key = mockRunType(keyType, options, stack);
     const value = mockRunType(valueType, options, stack);
@@ -819,17 +840,52 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   return result;
 }
 
-/** Set mock builder. Element type lives at `runType.arguments[0].child`. **/
+/** Set mock builder. Element type lives at `runType.arguments[0].child`. A
+ *  formattedSet annotation (the array keywords) shapes the draw the way the
+ *  array arm does: the count is clamped into the bounds, `contains` entries
+ *  are satisfied by construction (exactly `min` child mocks per entry among
+ *  fillers the child definitively rejects) and `uniqueItems` fills
+ *  duplicate-aware by JSON value, so the rejection loop converges. **/
 function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): Set<unknown> {
   const mOps = options.mock as MockOptions;
   const random = mOps.random ?? nativeMockRandom;
   const args = (runType.arguments ?? []) as RunType[];
   const elementType = args[0]?.child as RunType | undefined;
-  const result = new Set<unknown>();
-  if (!elementType) return result;
-  const length = mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength);
-  for (let i = 0; i < length; i++) result.add(mockRunType(elementType, options, stack));
-  return result;
+  if (!elementType) return new Set<unknown>();
+  const setParams = structuralParamsOf(runType, 'formattedSet');
+  const length = clampToItemBounds(setParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength));
+  const containsChecks = (runType.contains ?? []) as {child: RunType; min: number; max: number}[];
+  const members: unknown[] = [];
+  for (const entry of containsChecks) {
+    if (entry.max >= 0 && entry.min > entry.max) {
+      throw new Error('Cannot mock contains: minContains exceeds maxContains — the schema is provably empty.');
+    }
+    for (let n = 0; n < entry.min; n++) {
+      const item = mockRunType(entry.child, options, stack);
+      if (!childSchemaMatches(item, elementType)) {
+        throw new Error(
+          'Cannot mock contains: the contains child and the Set member type are contradictory. ' +
+            'Provide a MockData pool for this type (enrich).'
+        );
+      }
+      members.push(item);
+    }
+  }
+  const unique = setParams?.uniqueItems === true;
+  const seen = new Set<string>(unique ? members.map(canonicalJson) : []);
+  let attempts = 0;
+  while (members.length < length && attempts < Math.max(length, 1) * 32) {
+    attempts++;
+    const filler = mockRunType(elementType, options, stack);
+    if (containsChecks.some((entry) => childSchemaMatches(filler, entry.child))) continue;
+    if (unique) {
+      const key = canonicalJson(filler);
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    members.push(filler);
+  }
+  return new Set(members);
 }
 
 /** Render a template-literal runtype to a string satisfying its regex.

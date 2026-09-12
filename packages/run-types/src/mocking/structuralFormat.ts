@@ -1,6 +1,6 @@
 // Runtime twins of the structural format checks the Go emitters compile
-// (formattedArray / formattedObject — internal/cachegen/typefunctions/formats/
-// structural). The mock walker needs the same answers at generation time:
+// (formattedArray / formattedObject / formattedSet / formattedMap —
+// internal/cachegen/typefunctions/formats/structural). The mock walker needs the same answers at generation time:
 // rejection sampling over annotated bases and honest child-schema tests.
 // The generated VALIDATORS never import this — their checks are compiled.
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
@@ -30,7 +30,26 @@ export function hasDuplicateItems(items: readonly unknown[]): boolean {
 }
 
 export function isStructuralFormat(annotation: FormatAnnotation | undefined): boolean {
-  return annotation !== undefined && (annotation.name === 'formattedArray' || annotation.name === 'formattedObject');
+  if (annotation === undefined) return false;
+  switch (annotation.name) {
+    case 'formattedArray':
+    case 'formattedObject':
+    case 'formattedSet':
+    case 'formattedMap':
+      return true;
+    default:
+      return false;
+  }
+}
+
+// The array keywords over a list of items: the count bounds and deep
+// uniqueness. Shared by the array arm and the Set arm (a Set's members),
+// the Map arm reads the count keys alone.
+function itemKeywordsAccept(items: readonly unknown[], params: Record<string, unknown>): boolean {
+  if (typeof params.minItems === 'number' && items.length < params.minItems) return false;
+  if (typeof params.maxItems === 'number' && items.length > params.maxItems) return false;
+  if (params.uniqueItems === true && hasDuplicateItems(items)) return false;
+  return true;
 }
 
 /** Does `value` satisfy the structural format annotation? True when the
@@ -41,10 +60,15 @@ export function structuralFormatAccepts(value: unknown, annotation: FormatAnnota
   if (!annotation) return true;
   const params = (annotation.params ?? {}) as Record<string, unknown>;
   if (annotation.name === 'formattedArray') {
-    if (!Array.isArray(value)) return false;
-    if (typeof params.minItems === 'number' && value.length < params.minItems) return false;
-    if (typeof params.maxItems === 'number' && value.length > params.maxItems) return false;
-    if (params.uniqueItems === true && hasDuplicateItems(value)) return false;
+    return Array.isArray(value) && itemKeywordsAccept(value, params);
+  }
+  if (annotation.name === 'formattedSet') {
+    return value instanceof Set && itemKeywordsAccept([...value], params);
+  }
+  if (annotation.name === 'formattedMap') {
+    if (!(value instanceof Map)) return false;
+    if (typeof params.minItems === 'number' && value.size < params.minItems) return false;
+    if (typeof params.maxItems === 'number' && value.size > params.maxItems) return false;
     return true;
   }
   if (annotation.name === 'formattedObject') {

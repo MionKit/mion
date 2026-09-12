@@ -146,6 +146,9 @@ const CountedRecord = RT.record(RT.unknown(), {minProperties: 1, maxProperties: 
 const ContainsNumbers = RT.array(RT.unknown(), {contains: TF.number(), minContains: 2});
 const PatternKeyed = RT.record(RT.unknown(), {patternProperties: {'^a': TF.number()}});
 const ShortKeys = RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 3})});
+const BoundedTags = RT.set(TF.string(), {maxItems: 3, uniqueItems: true});
+const NumberSomewhere = RT.set(RT.unknown(), {contains: TF.number()});
+const SmallLookup = RT.map(TF.string(), TF.number(), {maxItems: 2});
 
 export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
   flat_mixed: {
@@ -519,6 +522,77 @@ export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
     getSamples: () => ({
       valid: [[], [1, 2, 3]],
       invalid: [[1, 1], [1, 2, 3, 4], ['x'], 5],
+    }),
+  },
+
+  structural_set_format: {
+    title: 'formattedSet — maxItems + uniqueItems on a Set, the array keywords',
+    validate: () => createValidateFn<InferType<typeof BoundedTags>>(),
+    validateReflect: () => {
+      const v = new Set(['a']) as unknown as InferType<typeof BoundedTags>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof BoundedTags>>(),
+    deserializeValidateReflect: () => {
+      const v = new Set(['a']) as unknown as InferType<typeof BoundedTags>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof BoundedTags>>(),
+    getSamples: () => ({
+      valid: [new Set(), new Set(['a', 'b', 'c'])],
+      invalid: [new Set(['a', 'b', 'c', 'd']), ['a'], 5],
+    }),
+  },
+
+  structural_set_contains: {
+    title: 'formattedSet — contains on a Set',
+    validate: () => createValidateFn<InferType<typeof NumberSomewhere>>(),
+    validateReflect: () => {
+      const v = new Set([1]) as unknown as InferType<typeof NumberSomewhere>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof NumberSomewhere>>(),
+    deserializeValidateReflect: () => {
+      const v = new Set([1]) as unknown as InferType<typeof NumberSomewhere>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof NumberSomewhere>>(),
+    getSamples: () => ({
+      valid: [new Set([1]), new Set(['a', 2])],
+      invalid: [new Set(), new Set(['a']), [1]],
+    }),
+  },
+
+  structural_map_format: {
+    title: 'formattedMap — maxItems on a Map',
+    validate: () => createValidateFn<InferType<typeof SmallLookup>>(),
+    validateReflect: () => {
+      const v = new Map([['a', 1]]) as unknown as InferType<typeof SmallLookup>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<InferType<typeof SmallLookup>>(),
+    deserializeValidateReflect: () => {
+      const v = new Map([['a', 1]]) as unknown as InferType<typeof SmallLookup>;
+      return deserializeValidate(v);
+    },
+    getValidationErrors: () => createGetValidationErrorsFn<InferType<typeof SmallLookup>>(),
+    getSamples: () => ({
+      valid: [
+        new Map(),
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+      ],
+      invalid: [
+        new Map([
+          ['a', 1],
+          ['b', 2],
+          ['c', 3],
+        ]),
+        {a: 1},
+        5,
+      ],
     }),
   },
 

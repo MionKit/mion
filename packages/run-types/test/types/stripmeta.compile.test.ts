@@ -95,6 +95,21 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     );
   });
 
+  it('branded Map / Set (FormattedMap / FormattedSet) recover the bare collection', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      type SetBrand<P> = {readonly [__rtFormatName]?: 'formattedSet'; readonly [__rtFormatParams]?: P};
+      type MapBrand<P> = {readonly [__rtFormatName]?: 'formattedMap'; readonly [__rtFormatParams]?: P};
+      type _01 = Expect<Equal<StripRunTypeMeta<Set<string> & SetBrand<{maxItems: 3}>>, Set<string>>>;
+      type _02 = Expect<Equal<StripRunTypeMeta<Map<string, number> & MapBrand<{minItems: 1; maxItems: 2}>>, Map<string, number>>>;
+      type _03 = Expect<Equal<StripRunTypeMeta<ReadonlySet<Email> & SetBrand<{uniqueItems: true}>>, ReadonlySet<Email>>>;
+      type _04 = Expect<Equal<StripRunTypeMeta<Set<unknown> & {readonly [__rtContains]?: {readonly rt$child: number; readonly rt$min: 1}}>, Set<unknown>>>;
+      `,
+      1546
+    );
+  });
+
   it('branded TUPLES subtract their brand and keep their slot structure', () => {
     check(
       BRAND_PREAMBLE +
