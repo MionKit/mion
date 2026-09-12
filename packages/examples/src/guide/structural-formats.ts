@@ -93,3 +93,31 @@ isColumns({col_width: 'wide'}); // false, a col_ key must hold a number
 isLowercaseKeys({theme: 'dark'}); // true
 isLowercaseKeys({'theme-2': 'dark'}); // false, the key is not alphabetic
 // end-keys
+
+// start-collections
+// A Set takes the array options (it travels as an array), a Map takes the two
+// count options. Both spellings are one generated function, as everywhere else.
+type Labels = TF.FormattedSet<Set<string>, {minItems: 1; maxItems: 5}>;
+type Points = TF.FormattedSet<Set<{x: number; y: number}>, {uniqueItems: true}>;
+type Scores = TF.FormattedMap<Map<string, number>, {maxItems: 100}>;
+
+const isLabels = createValidateFn<Labels>();
+const isPoints = createValidateFn<Points>();
+const isScores = createValidateFn<Scores>();
+const isScoresBuilt = createValidateFn(
+  RT.map(TF.string(), TF.number(), {maxItems: 100})
+);
+
+isLabels(new Set(['ada'])); // true
+isLabels(new Set()); // false, at least one label
+isPoints(
+  new Set([
+    {x: 1, y: 2},
+    {x: 1, y: 2},
+  ])
+); // false, two equal points
+isScoresBuilt(new Map([['ada', 10]])); // true
+
+getRunTypeId<Scores>() ===
+  getRunTypeId(RT.map(TF.string(), TF.number(), {maxItems: 100})); // true
+// end-collections
