@@ -4,7 +4,9 @@
 // BOUNDED type (typeGen with `boundedSizes`), compiles it, reads the bound off
 // the reflection root, then draws values from the product `createMockDataFn`
 // and measures them two ways:
-//   - JS-MAX-STRINGIFY: `JSON.stringify(value)` in UTF-8 bytes (the raw value)
+//   - JS-MAX-STRINGIFY: `JSON.stringify(value)` in UTF-8 bytes, binary views
+//                       dropped (an independent measure that never reads the
+//                       compiled encoder; see `stringifyWire`)
 //   - JS-MAX-ENCODER:   the compiled JSON encoder's output in UTF-8 bytes (what
 //                       the router / client really put on the wire)
 // Both must be <= jsonMaxBytes. Two generator presets run: the serialisable
@@ -146,18 +148,36 @@ function boundOf(compiled: CompiledType): number | undefined {
   return getRunType(undefined, reflectionId as never).jsonMaxBytes;
 }
 
+/** The bound covers the WIRE, so this oracle must measure a wire-shaped value.
+ *  DataOnly strips every binary view, and a typed array would otherwise
+ *  stringify to one `"<index>":<number>` pair per element, which no bound the
+ *  type declares could cover. Dropping them here costs nothing: a replacer
+ *  returning undefined leaves an object key absent and an array slot `null`,
+ *  the walk's own rule for a non-serialisable member. */
+export function stringifyWire(value: unknown): string {
+  return (
+    JSON.stringify(value, (_key, member: unknown) =>
+      ArrayBuffer.isView(member) || member instanceof ArrayBuffer || isSharedArrayBuffer(member) ? undefined : member
+    ) ?? ''
+  );
+}
+
+function isSharedArrayBuffer(member: unknown): boolean {
+  return typeof SharedArrayBuffer !== 'undefined' && member instanceof SharedArrayBuffer;
+}
+
 function measure(compiled: CompiledType, bound: number, value: unknown, seed: number): JsonSizeViolation[] {
   const out: JsonSizeViolation[] = [];
   // a root that stringifies to nothing (undefined, a function) puts no bytes on the wire
-  const raw = JSON.stringify(value) ?? '';
-  const rawBytes = utf8Bytes(raw);
-  if (rawBytes > bound) {
+  const wire = stringifyWire(value);
+  const wireBytes = utf8Bytes(wire);
+  if (wireBytes > bound) {
     out.push({
       oracle: 'JS-MAX-STRINGIFY',
       type: compiled.title,
       seed,
-      message: `JSON.stringify is ${rawBytes} bytes, over the type's jsonMaxBytes ${bound}`,
-      value: raw.slice(0, 300),
+      message: `JSON.stringify is ${wireBytes} bytes, over the type's jsonMaxBytes ${bound}`,
+      value: wire.slice(0, 300),
     });
   }
   const encoded = compiled.wired.jsonEncode?.(value);
