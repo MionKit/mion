@@ -85,6 +85,12 @@ const SUBSYSTEMS = [
     prefixes: ['MRT'],
   },
   {
+    key: 'bundled-api',
+    label: 'Bundled API',
+    description: 'From a client build that ships the routes it calls, rather than asking the server for them.',
+    prefixes: ['MET'],
+  },
+  {
     key: 'enrichment',
     label: 'Enrichment files',
     description: 'From mion check and the lint rules over generated FriendlyText and MockData files.',
@@ -190,8 +196,14 @@ execFileSync('pnpm', ['exec', 'prettier', '--write', generatedTsPath], {cwd: rep
 // ── Artifact 2: the website diagnostics-page JSON ───────────────────────────
 
 const codes = goRecords.map((record) => {
-  const subsystem = prefixToSubsystem.get(codePrefix(record.code)) ?? 'other';
-  if (subsystem === 'other') console.warn(`gen-diag-catalog: no subsystem for ${record.code}`);
+  // Fatal, not a warning: the page renders one section per declared subsystem, so an unmapped
+  // prefix would ship a code that is in the data and on no page.
+  const subsystem = prefixToSubsystem.get(codePrefix(record.code));
+  if (!subsystem) {
+    throw new Error(
+      `gen-diag-catalog: no subsystem for ${record.code}; add its prefix to SUBSYSTEMS in ${'scripts/core/gen-diagnostics-catalog.mjs'}`
+    );
+  }
   return {
     code: record.code,
     subsystem,
