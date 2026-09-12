@@ -50,6 +50,16 @@
 //     more expensive than the current `P & Record<Exclude<…>, never>` — the
 //     guard costs more to test than the Record it avoids building.
 //
+//   Single-signature collection builders. Folding the params-bag overload of
+//     `array` / `record` / `object` / `map` / `set` into ONE signature with an
+//     optional bag (`const P extends Bag = {}`, the transform pads a skipped
+//     bag with `undefined`) type-checks and both marker shapes resolve, but it
+//     costs on every row: +7 first call per builder even with a result type
+//     gated on the empty bag (`{} extends P ? T : …From<T, P>`), +4 per call
+//     carrying a bag, about +95 on each utility wrapper (partial 905 to 998)
+//     and +111 on the nested-array base (373 to 484). Without the gate the
+//     first call is 4 to 5 times the budget. The overloads stay.
+//
 //   Two-overload scalar leaves. Folding the brand overload into an optional
 //     second parameter saves 21 at the first call site but costs 2 MORE per
 //     call after it. A net loss for any file with more than a handful of
