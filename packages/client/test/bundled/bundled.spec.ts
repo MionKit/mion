@@ -242,6 +242,6 @@ describe('parity: what the bundle registers equals what the server answers', () 
       expect(bundled, id).toEqual(withoutSettledLimit(serializable(answer.methods[id]), bundled));
     }
     // the params maximum the build computed rides the bundled entry as it rides the server's
-    expect(typeof routesCache.getMetadata('utils/sumTwo')?.paramsJsonMaxBytes).toBe('number');
+    expect(typeof routesCache.getMethodJitFns('utils/sumTwo')?.paramsJsonMaxBytes).toBe('number');
   });
 });
