@@ -11,8 +11,8 @@ import {
   getHeadersReflectionFromMarkers,
   getReflectionFromMarkers,
   routesCache,
+  type MethodWithOptions,
   type MethodWithOptsAndJitFns,
-  type RemoteMethodOpts,
   type RtMarkerPayload,
 } from '@mionjs/core';
 
@@ -24,15 +24,14 @@ import {
 // payload into the routes cache through the same reflection the router runs at initRoutes, so a
 // bundled method looks exactly like a fetched one to the rest of the client, hash for hash.
 
-/** One method of a bundled payload: the metadata the server would answer with plus its marker payload. */
-export interface BundledMethod {
-  id: string;
-  pointer: string[];
-  nestLevel: number;
-  type: number;
-  isAsync: boolean;
-  options: RemoteMethodOpts;
-  middleFnIds?: string[];
+/** One method of a bundled payload: the members of the server's own `MethodWithOptions` that the
+ *  build can answer from the API type, plus the marker payload. Everything else `MethodWithOptions`
+ *  carries (the jit hashes, the arity, the header names) comes from the reflection at registration,
+ *  so the build never writes it and this never names it. */
+export interface BundledMethod extends Pick<
+  MethodWithOptions,
+  'id' | 'pointer' | 'nestLevel' | 'type' | 'isAsync' | 'options' | 'middleFnIds'
+> {
   rtFns: RtMarkerPayload;
 }
 
