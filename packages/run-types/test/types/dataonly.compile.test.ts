@@ -329,6 +329,31 @@ describe('DataOnly<T> — per-branch correctness + instantiation budget', () => 
     );
   });
 
+  it('Map / Set — a FormattedSet / FormattedMap brand and contains slot survive the projection', () => {
+    check(
+      `
+      type SetBrand<P> = {readonly [__rtFormatName]?: 'formattedSet'; readonly [__rtFormatParams]?: P};
+      type MapBrand<P> = {readonly [__rtFormatName]?: 'formattedMap'; readonly [__rtFormatParams]?: P};
+      type Contains<C> = {readonly [__rtContains]?: {readonly rt$child: C; readonly rt$min: 1}};
+      type Tags = Set<string> & SetBrand<{maxItems: 3; uniqueItems: true}>;
+      type _01 = Expect<Equal<DataOnly<Tags>, Tags>>;
+      type Lookup = Map<string, number> & MapBrand<{minItems: 1}>;
+      type _02 = Expect<Equal<DataOnly<Lookup>, Lookup>>;
+      // A branded collection is kept WHOLE, like a branded array: the brand marks
+      // the exact shape the validator was compiled for, so the projection stops
+      // at it (the members are not projected).
+      type People = Set<{id: string; greet(): void}> & SetBrand<{maxItems: 2}>;
+      type _03 = Expect<Equal<DataOnly<People>, People>>;
+      // A contains slot rides beside the brand, or alone.
+      type Mixed = Set<unknown> & SetBrand<{maxItems: 4}> & Contains<number>;
+      type _04 = Expect<Equal<DataOnly<Mixed>, Mixed>>;
+      type Somewhere = Set<unknown> & Contains<number>;
+      type _05 = Expect<Equal<DataOnly<Somewhere>, Somewhere>>;
+      `,
+      395
+    );
+  });
+
   it('circular — deep nesting + back-refs + stripped members + native + Map', () => {
     check(
       `

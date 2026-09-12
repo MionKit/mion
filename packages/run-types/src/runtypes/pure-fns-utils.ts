@@ -140,7 +140,21 @@ export const pf_uniqueItems = registerPureFnFactory('rt::uniqueItems', function 
       '}'
     );
   };
-  return function _uniqueItems(arr: readonly any[]): boolean {
+  return function _uniqueItems(arr: readonly any[] | ReadonlySet<any>): boolean {
+    // A Set (FormattedSet): its primitive members are unique by construction
+    // (SameValueZero), so only object members are canonicalised and a Set of
+    // primitives allocates nothing.
+    if (!Array.isArray(arr)) {
+      let objects: Set<string> | null = null;
+      for (const item of arr as ReadonlySet<any>) {
+        if (item === null || typeof item !== 'object') continue;
+        if (objects === null) objects = new Set<string>();
+        const key = canon(item);
+        if (objects.has(key)) return false;
+        objects.add(key);
+      }
+      return true;
+    }
     const len = arr.length;
     if (len < 2) return true;
     const primitives = new Set<any>();
