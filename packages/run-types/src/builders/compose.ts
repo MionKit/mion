@@ -40,8 +40,12 @@ import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
 import type {
   FormattedArrayParamsValueFirst,
   FormattedObjectParamsValueFirst,
+  FormattedSetParamsValueFirst,
+  FormattedMapParamsValueFirst,
   FormattedArrayFrom,
   FormattedObjectFrom,
+  FormattedSetFrom,
+  FormattedMapFrom,
 } from '../formats/structural.ts';
 
 // A trailing structural-format-params bag is a PLAIN object with none of the
@@ -338,19 +342,53 @@ export function record(
 }
 
 /** A `Map` builder — `map(string(), number())` → `RunType<Map<string, number>>`.
- *  Both the key and value schemas are validated per entry. **/
+ *  Both the key and value schemas are validated per entry. A trailing params
+ *  bag bounds the entry count with the array keywords, `map(k, v, {maxItems: 10})`
+ *  → `RunType<FormattedMap<Map<K, V>, …>>`, the value-first twin of `FormattedMap`.
+ *
+ *  Two overloads, like `array`: a single signature with an optional bag was
+ *  measured and rejected (test/types/builderCost.compile.test.ts), the bare
+ *  call must keep its plain id at its plain type cost. **/
 export function map<K, V>(
   keySchema: CompTimeArgs<RunType<K>>,
   valueSchema: CompTimeArgs<RunType<V>>,
   id?: InjectRunTypeId<Map<K, V>>
-): RunType<Map<K, V>> {
-  return builderResult(id, {type: 'map', index: keySchema, child: valueSchema});
+): RunType<Map<K, V>>;
+export function map<K, V, const P extends FormattedMapParamsValueFirst>(
+  keySchema: CompTimeArgs<RunType<K>>,
+  valueSchema: CompTimeArgs<RunType<V>>,
+  params: CompTimeArgs<ExactParams<P, FormattedMapParamsValueFirst>>,
+  id?: InjectRunTypeId<FormattedMapFrom<Map<K, V>, P>>
+): RunType<FormattedMapFrom<Map<K, V>, P>>;
+export function map(
+  keySchema: RunType,
+  valueSchema: RunType,
+  arg3?: FormattedMapParamsValueFirst | InjectRunTypeId<unknown>,
+  arg4?: InjectRunTypeId<unknown>
+): RunType {
+  const base = {type: 'map', index: keySchema, child: valueSchema};
+  if (isFormatParams(arg3)) return builderResult(arg4, base);
+  return builderResult(arg3 as InjectRunTypeId<unknown> | undefined, base);
 }
 
 /** A `Set` builder — `set(string())` → `RunType<Set<string>>`. Each member is
- *  validated against the value schema. **/
-export function set<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRunTypeId<Set<V>>): RunType<Set<V>> {
-  return builderResult(id, {type: 'set', child: valueSchema});
+ *  validated against the value schema. A trailing params bag is the array bag,
+ *  `set(string(), {maxItems: 5, uniqueItems: true})` →
+ *  `RunType<FormattedSet<Set<string>, …>>`, the value-first twin of `FormattedSet`. **/
+export function set<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRunTypeId<Set<V>>): RunType<Set<V>>;
+export function set<V, const P extends FormattedSetParamsValueFirst>(
+  valueSchema: CompTimeArgs<RunType<V>>,
+  params: CompTimeArgs<ExactParams<P, FormattedSetParamsValueFirst>>,
+  id?: InjectRunTypeId<FormattedSetFrom<Set<V>, P>>
+): RunType<FormattedSetFrom<Set<V>, P>>;
+export function set(
+  valueSchema: RunType,
+  arg2?: FormattedSetParamsValueFirst | InjectRunTypeId<unknown>,
+  arg3?: InjectRunTypeId<unknown>
+): RunType {
+  const base = {type: 'set', child: valueSchema};
+  if (isFormatParams(arg2)) return builderResult(arg3, base);
+  return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
 
 /** The self-reference placeholder for `circular(…)` — marks where a recursive
