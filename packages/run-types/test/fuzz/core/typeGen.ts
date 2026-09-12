@@ -53,8 +53,10 @@ export type TypeShape =
   | {kind: 'record'; value: TypeShape; structural?: ObjectStructural}
   | {kind: 'union'; members: TypeShape[]}
   | {kind: 'intersection'; members: TypeShape[]}
-  | {kind: 'map'; key: TypeShape; value: TypeShape}
-  | {kind: 'set'; elem: TypeShape}
+  // A Set takes the ARRAY structural bag (it is an array on the wire), a Map
+  // the two count keys of it; both generated only under `structuralFormats`.
+  | {kind: 'map'; key: TypeShape; value: TypeShape; structural?: MapStructural}
+  | {kind: 'set'; elem: TypeShape; structural?: ArrayStructural}
   | {kind: 'promise'; value: TypeShape}
   | {kind: 'function'; params: TypeShape[]; ret: TypeShape}
   // Non-serialisable native binary kinds (DataOnly strips them to `never`).
@@ -148,6 +150,12 @@ export interface ArrayStructural {
    *  `rt$child: number`); min 1 spells NO minContains on the schema side
    *  (the Contains default). Rendered as the raw __rtContains sentinel. **/
   contains?: {min: number; max?: number};
+}
+/** The Map bag: the count keys of the array bag, rendered through the
+ *  shipped `TF.FormattedMap` wrapper. **/
+export interface MapStructural {
+  minItems?: number;
+  maxItems?: number;
 }
 export interface ObjectStructural {
   minProperties?: number;
@@ -476,16 +484,16 @@ export const FUZZ_FORMAT_SCRATCH_PREAMBLE = [
 ].join('\n');
 
 /** True when any shape in the generated type renders a `TF.*` spelling —
- *  format leaves or structural array/record decorations — i.e. exactly when
- *  the renderers must prepend a format preamble. **/
+ *  format leaves or structural array/record/set/map decorations — i.e.
+ *  exactly when the renderers must prepend a format preamble. **/
 export function usesFormatLeaves(gen: GeneratedType): boolean {
   let found = false;
   const walk = (shape: TypeShape): void => {
     if (found) return;
     if (
       shape.kind === 'format' ||
-      (shape.kind === 'array' && shape.structural !== undefined) ||
-      (shape.kind === 'record' && shape.structural !== undefined)
+      ((shape.kind === 'array' || shape.kind === 'record' || shape.kind === 'set' || shape.kind === 'map') &&
+        shape.structural !== undefined)
     ) {
       found = true;
       return;
@@ -1135,8 +1143,13 @@ export function genShape(ctx: Ctx, depth: number): TypeShape {
   // primitive-brand arm inside genIntersection stays gated on `wild`).
   builders.push(
     () => genIntersection(ctx, depth),
-    () => ({kind: 'map', key: pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]), value: genShape(ctx, depth + 1)}),
-    () => ({kind: 'set', elem: genShape(ctx, depth + 1)})
+    () =>
+      withMapStructural(ctx, {
+        kind: 'map',
+        key: pick<TypeShape>([{kind: 'string'}, {kind: 'number'}]),
+        value: genShape(ctx, depth + 1),
+      }),
+    () => withSetStructural(ctx, {kind: 'set', elem: genShape(ctx, depth + 1)})
   );
   // Promise + function + RegExp are DataOnly-stripped — gated on nonDataTypes.
   if (ctx.opts.nonDataTypes) {
@@ -1222,6 +1235,27 @@ function withArrayStructural(ctx: Ctx, shape: TypeShape & {kind: 'array'}): Type
   if (structural.uniqueItems === undefined && structural.maxItems === undefined && structural.contains === undefined) {
     structural.uniqueItems = true;
   }
+  return {...shape, structural};
+}
+/** A Set draws the same bag an array does (the shipped `FormattedSet` takes
+ *  `FormattedArrayParams` verbatim), a Map its two count keys. **/
+function withSetStructural(ctx: Ctx, shape: TypeShape & {kind: 'set'}): TypeShape {
+  if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
+  const structural: ArrayStructural = {};
+  if (chance(0.5)) structural.uniqueItems = true;
+  if (chance(0.6)) structural.maxItems = 1 + int(4);
+  if (chance(0.4)) structural.contains = {min: 1 + int(2), ...(chance(0.4) ? {max: 4 + int(3)} : {})};
+  if (structural.uniqueItems === undefined && structural.maxItems === undefined && structural.contains === undefined) {
+    structural.maxItems = 3;
+  }
+  return {...shape, structural};
+}
+function withMapStructural(ctx: Ctx, shape: TypeShape & {kind: 'map'}): TypeShape {
+  if (!ctx.opts.structuralFormats || !chance(0.3)) return shape;
+  const structural: MapStructural = {};
+  if (chance(0.5)) structural.minItems = int(3);
+  if (chance(0.7)) structural.maxItems = 3 + int(4);
+  if (structural.minItems === undefined && structural.maxItems === undefined) structural.maxItems = 3;
   return {...shape, structural};
 }
 function withRecordStructural(ctx: Ctx, shape: TypeShape & {kind: 'record'}): TypeShape {
@@ -1370,6 +1404,12 @@ function arrayStructuralParams(structural: ArrayStructural): string {
   }
   return `{${parts.join('; ')}}`;
 }
+function mapStructuralParams(structural: MapStructural): string {
+  const parts: string[] = [];
+  if (structural.minItems !== undefined) parts.push(`minItems: ${structural.minItems}`);
+  if (structural.maxItems !== undefined) parts.push(`maxItems: ${structural.maxItems}`);
+  return `{${parts.join('; ')}}`;
+}
 function recordStructuralParams(structural: ObjectStructural): string {
   const parts: string[] = [];
   if (structural.minProperties !== undefined) parts.push(`minProperties: ${structural.minProperties}`);
@@ -1418,10 +1458,16 @@ export function renderType(shape: TypeShape): string {
       if (!shape.structural) return text;
       return `TF.FormattedObject<${text}, ${recordStructuralParams(shape.structural)}>`;
     }
-    case 'map':
-      return `Map<${renderType(shape.key)}, ${renderType(shape.value)}>`;
-    case 'set':
-      return `Set<${renderType(shape.elem)}>`;
+    case 'map': {
+      const text = `Map<${renderType(shape.key)}, ${renderType(shape.value)}>`;
+      if (!shape.structural) return text;
+      return `TF.FormattedMap<${text}, ${mapStructuralParams(shape.structural)}>`;
+    }
+    case 'set': {
+      const text = `Set<${renderType(shape.elem)}>`;
+      if (!shape.structural) return text;
+      return `TF.FormattedSet<${text}, ${arrayStructuralParams(shape.structural)}>`;
+    }
     case 'promise':
       return `Promise<${renderType(shape.value)}>`;
     case 'function':
