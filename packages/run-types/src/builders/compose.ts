@@ -39,6 +39,7 @@ import type {ExactParams} from '../runtypes/builderTypes.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
 import type {
   FormattedCollectionParamsValueFirst,
+  FormattedMapParamsValueFirst,
   FormattedObjectParamsValueFirst,
   FormattedArrayFrom,
   FormattedObjectFrom,
@@ -356,16 +357,16 @@ export function map<K, V>(
   valueSchema: CompTimeArgs<RunType<V>>,
   id?: InjectRunTypeId<Map<K, V>>
 ): RunType<Map<K, V>>;
-export function map<K, V, const P extends FormattedCollectionParamsValueFirst>(
+export function map<K, V, const P extends FormattedMapParamsValueFirst>(
   keySchema: CompTimeArgs<RunType<K>>,
   valueSchema: CompTimeArgs<RunType<V>>,
-  params: CompTimeArgs<ExactParams<P, FormattedCollectionParamsValueFirst>>,
+  params: CompTimeArgs<ExactParams<P, FormattedMapParamsValueFirst>>,
   id?: InjectRunTypeId<FormattedMapFrom<Map<K, V>, P>>
 ): RunType<FormattedMapFrom<Map<K, V>, P>>;
 export function map(
   keySchema: RunType,
   valueSchema: RunType,
-  arg3?: FormattedCollectionParamsValueFirst | InjectRunTypeId<unknown>,
+  arg3?: FormattedMapParamsValueFirst | InjectRunTypeId<unknown>,
   arg4?: InjectRunTypeId<unknown>
 ): RunType {
   const base = {type: 'map', index: keySchema, child: valueSchema};

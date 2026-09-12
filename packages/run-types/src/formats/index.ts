@@ -59,8 +59,10 @@ export type {
   FormattedSet,
   FormattedMap,
   FormattedCollectionParams,
+  FormattedMapParams,
   FormattedObjectParams,
   FormattedCollectionParamsValueFirst,
+  FormattedMapParamsValueFirst,
   FormattedObjectParamsValueFirst,
   StructuralBrand,
   // Deprecated: the pre-rename spellings of the collection bag, kept for one release.

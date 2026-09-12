@@ -132,16 +132,29 @@ export type FormattedSet<Base extends ReadonlySet<unknown>, P extends FormattedC
     : StructuralBrand<typeof FORMATTED_SET_NAME, CollectionLiteralPart<P>>) &
   ContainsSlot<P>;
 
+// A Map's ENTRY, hence the shape of its `contains` child. Constraining the slot
+// is not a nicety: a non-pair child matches no entry at all, so
+// `{contains: number}` on a Map would compile into a validator that ALWAYS
+// rejects, and nothing downstream can tell that from a deliberate constraint.
+// The error belongs at the call site. Exactly two slots, so a wrong-arity or
+// optional/rest tuple is rejected too (an entry is always `[key, value]`).
+type MapEntry = readonly [unknown, unknown];
+
+/** The collection bag as a MAP takes it: every keyword of
+ *  `FormattedCollectionParams`, with the one type-carrying slot narrowed to the
+ *  `[key, value]` pair a Map entry is. **/
+export type FormattedMapParams = FormattedCollectionParams<MapEntry>;
+
 /** A Map base carrying every collection keyword in `P`. A Map's ENTRY is its
  *  `[key, value]` pair (its default iterator yields one, and that is its wire
  *  form), so the whole bag reads over the pairs: `minItems` / `maxItems` count
  *  them (off `.size`), `uniqueItems` is deep JSON equality over the PAIRS (a
  *  `Map<{id: number}, string>` may hold two structurally equal keys, which is
- *  a duplicate pair when the values match too), and `contains` is a TUPLE type
- *  at least one pair must match, `unknown` in a slot skipping that slot.
+ *  a duplicate pair when the values match too), and `contains` is a two-slot
+ *  TUPLE at least one pair must match, `unknown` in a slot skipping that slot.
  *  The literal bounds ride the `formattedMap` brand, `contains` rides the same
  *  child sentinel `FormattedArray` and `FormattedSet` use. **/
-export type FormattedMap<Base extends ReadonlyMap<unknown, unknown>, P extends FormattedCollectionParams> = Base &
+export type FormattedMap<Base extends ReadonlyMap<unknown, unknown>, P extends FormattedMapParams> = Base &
   ([keyof CollectionLiteralPart<P>] extends [never]
     ? unknown
     : StructuralBrand<typeof FORMATTED_MAP_NAME, CollectionLiteralPart<P>>) &
@@ -222,6 +235,12 @@ export type FormattedCollectionParamsValueFirst = FormattedCollectionParams<RunT
 /** @deprecated Renamed to `FormattedCollectionParamsValueFirst`. This alias is kept for one release. */
 export type FormattedArrayParamsValueFirst = FormattedCollectionParamsValueFirst;
 
+/** The `map` builder's params: the same bag, with its `contains` slot narrowed
+ *  to a `RunType` of the `[key, value]` pair a Map entry is (the value-first
+ *  twin of `FormattedMapParams`). `RT.tuple({required: [k, v]})` satisfies it;
+ *  a single-value schema does not, which is the point. **/
+export type FormattedMapParamsValueFirst = FormattedCollectionParams<RunType<readonly [unknown, unknown]>>;
+
 // Map a value-first collection params bag to its type-first form (unwrap the
 // `contains` RunType to its carried entry type).
 type CollectionParamsType<P> = Flatten<
@@ -248,7 +267,7 @@ export type FormattedSetFrom<T extends ReadonlySet<unknown>, P> = FormattedSet<
  *  TUPLE of its key and value schemas, and unwraps to the tuple type. **/
 export type FormattedMapFrom<T extends ReadonlyMap<unknown, unknown>, P> = FormattedMap<
   T,
-  Extract<CollectionParamsType<P>, FormattedCollectionParams>
+  Extract<CollectionParamsType<P>, FormattedMapParams>
 >;
 
 /** The `object` / `record` builders' params — `FormattedObjectParams` with
