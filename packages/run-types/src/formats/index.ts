@@ -48,23 +48,24 @@ export type * from './refineFormat.ts';
 // emit can only print a symbol-keyed member it can name.
 export type {FormatBrand, NominalBrand} from '../runtypes/typeFormat.ts';
 // The structural wrapper TYPES (`FormattedArray` / `FormattedObject` /
-// `FormattedSet` / `FormattedMap` + their params bags) — the type-first
+// `FormattedSet` / `FormattedMap` + their two params bags) — the type-first
 // spelling of the collection keywords, beside the other format types. The
 // value-first spelling is the trailing params bag on `RT.array` / `RT.object` /
-// `RT.record` / `RT.set` / `RT.map`.
+// `RT.record` / `RT.set` / `RT.map`. The three COLLECTION wrappers share one
+// bag, `FormattedCollectionParams`.
 export type {
   FormattedArray,
   FormattedObject,
   FormattedSet,
   FormattedMap,
-  FormattedArrayParams,
+  FormattedCollectionParams,
   FormattedObjectParams,
-  FormattedMapParams,
-  FormattedArrayParamsValueFirst,
+  FormattedCollectionParamsValueFirst,
   FormattedObjectParamsValueFirst,
-  FormattedSetParamsValueFirst,
-  FormattedMapParamsValueFirst,
   StructuralBrand,
+  // Deprecated: the pre-rename spellings of the collection bag, kept for one release.
+  FormattedArrayParams,
+  FormattedArrayParamsValueFirst,
 } from './structural.ts';
 
 // Re-export the value-first BUILDER surface — the scalar leaves (`TF.string()` /

@@ -562,7 +562,7 @@ func (r *docRenderer) objectText(node *reflection.RunType) string {
 }
 
 // collectionBag renders the structural parts a bounded Map / Set
-// (formattedMap / formattedSet, the array keywords) carries on its OUTER
+// (formattedMap / formattedSet, the collection keywords) carries on its OUTER
 // array, after the jsType key, exactly as the KindArray branch renders them.
 // A Set's spelling already prints `uniqueItems: true`, so that key is dropped
 // for it rather than printed twice.

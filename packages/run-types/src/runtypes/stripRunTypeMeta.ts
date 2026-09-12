@@ -162,7 +162,7 @@ type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T>
   : Base;
 
 /** A branded Map / Set (`FormattedMap` / `FormattedSet`: the structural brand
- *  and, on a Set, a contains slot beside the collection) → the bare collection,
+ *  and a contains slot beside the collection) → the bare collection,
  *  rebuilt from its inferred key / value types so every sentinel member drops
  *  at once. The key and value types stay as written, exactly like the
  *  unbranded arm keeps `Map<string, Email>` verbatim. **/

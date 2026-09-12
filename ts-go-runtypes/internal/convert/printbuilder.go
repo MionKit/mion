@@ -434,7 +434,7 @@ func (ctx *printContext) recordKeyText(indexes []indexSignature) (string, *Diagn
 }
 
 // collectionBuilder spells a Map / Set builder call, with the
-// formattedMap / formattedSet params bag (the array keywords) as the trailing
+// formattedMap / formattedSet params bag (the collection keywords) as the trailing
 // argument when the node carries one (`RT.set(v, {maxItems: 10})`, `contains`
 // included), mirroring the array arm; a payload outside the public bag
 // escapes whole.
