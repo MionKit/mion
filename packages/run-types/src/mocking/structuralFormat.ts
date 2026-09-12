@@ -42,9 +42,9 @@ export function isStructuralFormat(annotation: FormatAnnotation | undefined): bo
   }
 }
 
-// The array keywords over a list of items: the count bounds and deep
-// uniqueness. Shared by the array arm and the Set arm (a Set's members),
-// the Map arm reads the count keys alone.
+// The collection keywords over a list of ENTRIES: the count bounds and deep
+// uniqueness. Shared by all three arms — an array's items, a Set's members and
+// a Map's `[key, value]` pairs are the same list to these keywords.
 function itemKeywordsAccept(items: readonly unknown[], params: Record<string, unknown>): boolean {
   if (typeof params.minItems === 'number' && items.length < params.minItems) return false;
   if (typeof params.maxItems === 'number' && items.length > params.maxItems) return false;
@@ -66,10 +66,9 @@ export function structuralFormatAccepts(value: unknown, annotation: FormatAnnota
     return value instanceof Set && itemKeywordsAccept([...value], params);
   }
   if (annotation.name === 'formattedMap') {
-    if (!(value instanceof Map)) return false;
-    if (typeof params.minItems === 'number' && value.size < params.minItems) return false;
-    if (typeof params.maxItems === 'number' && value.size > params.maxItems) return false;
-    return true;
+    // A spread of a Map yields its `[key, value]` pairs, which is exactly the
+    // entry list the keywords read: `uniqueItems` then compares pairs by value.
+    return value instanceof Map && itemKeywordsAccept([...value], params);
   }
   if (annotation.name === 'formattedObject') {
     if (typeof value !== 'object' || value === null) return false;
