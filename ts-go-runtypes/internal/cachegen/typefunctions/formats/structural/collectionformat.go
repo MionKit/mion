@@ -1,13 +1,13 @@
 // formattedSet / formattedMap — the builtin collection classes on the
 // COLLECTION keywords. A Set is an array on the wire and a Map is an array of
 // `[key, value]` pairs, so both count with `minItems` / `maxItems` (read off
-// `.size`) and both take `uniqueItems`, through the same `rt::uniqueItems` pure
-// fn the array family calls: it iterates with `for…of`, so a Set needs no
-// adapter, and a Map's own arm there compares the `[key, value]` PAIRS (two
-// object keys equal by content are two entries, hence a duplicate pair when
-// their values match too). `contains` is NOT an emitter concern: it rides the
-// node's Contains checks and is spliced by the validate / errors walkers for
-// every base kind.
+// `.size`) and both take `uniqueItems`, each through its OWN pure fn
+// (`rt::uniqueSetMembers` / `rt::uniqueMapEntries`, both depending on
+// `rt::canonicalJson`): a Set compares its members, while a Map compares the
+// `[key, value]` PAIRS that are its entries, since two object keys equal by
+// content are two entries and so a duplicate pair when their values match too.
+// `contains` is NOT an emitter concern: it rides the node's Contains checks and
+// is spliced by the validate / errors walkers for every base kind.
 //
 // Both bases are KindClass nodes (SubKindSet / SubKindMap), so the two
 // emitters register under KindClass with their own names; the registry keys
@@ -35,11 +35,17 @@ type collectionEmitter struct {
 	expected string
 	// publicName is the type-first wrapper a build diagnostic names.
 	publicName string
+	// uniquePureFn is the family's own `uniqueItems` predicate: a Set compares
+	// its members, a Map the `[key, value]` pairs that are its entries, so each
+	// names its own rather than sharing one with a runtime kind test.
+	uniquePureFn string
 }
 
 func init() {
-	formats.Register(collectionEmitter{name: formattedSetName, expected: "set", publicName: "FormattedSet"})
-	formats.Register(collectionEmitter{name: formattedMapName, expected: "map", publicName: "FormattedMap"})
+	formats.Register(collectionEmitter{
+		name: formattedSetName, expected: "set", publicName: "FormattedSet", uniquePureFn: uniqueSetMembersPureFnName})
+	formats.Register(collectionEmitter{
+		name: formattedMapName, expected: "map", publicName: "FormattedMap", uniquePureFn: uniqueMapEntriesPureFnName})
 }
 
 func (emitter collectionEmitter) Name() string {
@@ -56,7 +62,7 @@ func (emitter collectionEmitter) EmitValidateCheck(annotation *reflection.Format
 	}
 	conditions := lengthConditions(annotation.Params, vλl+".size")
 	if unique, _ := formats.ReadBoolParam(annotation.Params, "uniqueItems"); unique {
-		conditions = append(conditions, uniqueItemsCheck(ctx, vλl))
+		conditions = append(conditions, uniqueItemsCheck(ctx, vλl, emitter.uniquePureFn))
 	}
 	return strings.Join(conditions, " && ")
 }
@@ -68,7 +74,7 @@ func (emitter collectionEmitter) EmitValidationErrorsCheck(annotation *reflectio
 	statements := lengthErrorStatements(annotation.Params, vλl+".size", pathExpr, errorsArr, emitter.expected, emitter.name)
 	if unique, _ := formats.ReadBoolParam(annotation.Params, "uniqueItems"); unique {
 		statements = append(statements,
-			"if (!("+uniqueItemsCheck(ctx, vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, emitter.expected, emitter.name, "uniqueItems", "true"))
+			"if (!("+uniqueItemsCheck(ctx, vλl, emitter.uniquePureFn)+")) "+formats.FormatErrCall(pathExpr, errorsArr, emitter.expected, emitter.name, "uniqueItems", "true"))
 	}
 	return strings.Join(statements, ";")
 }

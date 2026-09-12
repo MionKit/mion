@@ -65,27 +65,35 @@ func TestCollectionFormats_SizeBoundsReadSize(t *testing.T) {
 	}
 }
 
-// TestCollectionFormats_UniqueItemsGoesThroughThePureFn — BOTH families call
-// the same `rt::uniqueItems` alias the array family does and never inline the
-// canonical form. The pure fn iterates with for…of, so a Set needs no adapter
-// and a Map's own arm there compares its `[key, value]` pairs.
-func TestCollectionFormats_UniqueItemsGoesThroughThePureFn(t *testing.T) {
+// TestCollectionFormats_UniqueItemsGoesThroughItsOwnPureFn — each family calls
+// its OWN predicate, never one shared with a runtime kind test: a Set compares
+// its members, a Map the `[key, value]` pairs that are its entries. Both reach
+// the canonical form as a dependency, so neither inlines it.
+func TestCollectionFormats_UniqueItemsGoesThroughItsOwnPureFn(t *testing.T) {
 	for _, family := range []struct {
 		name       string
 		annotation func(map[string]any) *reflection.FormatAnnotation
-	}{{formattedSetName, setAnnotation}, {formattedMapName, mapAnnotation}} {
+		pureFn     string
+	}{
+		{formattedSetName, setAnnotation, uniqueSetMembersPureFnName},
+		{formattedMapName, mapAnnotation, uniqueMapEntriesPureFnName},
+	} {
 		ctx := newStubCtx()
 		emitter := lookupCollection(t, family.name)
 		got := emitter.EmitValidateCheck(family.annotation(map[string]any{"uniqueItems": true, "maxItems": 3.0}), "v", ctx)
 
-		if got != "v.size <= 3 && uniqueItems(v)" {
-			t.Fatalf("%s: check = %q, want the size bound and the pure-fn alias", family.name, got)
+		if got != "v.size <= 3 && "+family.pureFn+"(v)" {
+			t.Fatalf("%s: check = %q, want the size bound and the %s alias", family.name, got, family.pureFn)
 		}
-		if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rt::uniqueItems" {
-			t.Fatalf("%s: pure fns = %v, want exactly [rt::uniqueItems]", family.name, ctx.pureFns)
+		if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rt::"+family.pureFn {
+			t.Fatalf("%s: pure fns = %v, want exactly [rt::%s]", family.name, ctx.pureFns, family.pureFn)
 		}
 		if strings.Contains(got, "const canon") {
 			t.Errorf("%s: emitted body must not inline the canonical form; got %q", family.name, got)
+		}
+		// The array walk must never be the one a collection reaches for.
+		if strings.Contains(got, uniqueArrayItemsPureFnName) {
+			t.Errorf("%s: a collection must not call the array walk; got %q", family.name, got)
 		}
 	}
 }
@@ -98,7 +106,7 @@ func TestCollectionFormats_ErrorsLane(t *testing.T) {
 		setAnnotation(map[string]any{"minItems": 1.0, "maxItems": 2.0, "uniqueItems": true}), "v", "pth", "er", ctx)
 	want := "if (v.size < 1) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['minItems'],val:1}});" +
 		"if (v.size > 2) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['maxItems'],val:2}});" +
-		"if (!(uniqueItems(v))) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['uniqueItems'],val:true}})"
+		"if (!(uniqueSetMembers(v))) er.push({expected:'set',path:[...pth],format:{name:'formattedSet',formatPath:['uniqueItems'],val:true}})"
 	if got != want {
 		t.Errorf("set errors = %q\nwant %q", got, want)
 	}
@@ -106,7 +114,7 @@ func TestCollectionFormats_ErrorsLane(t *testing.T) {
 	got = lookupCollection(t, formattedMapName).EmitValidationErrorsCheck(
 		mapAnnotation(map[string]any{"maxItems": 2.0, "uniqueItems": true}), "v", "pth", "er", newStubCtx())
 	want = "if (v.size > 2) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['maxItems'],val:2}});" +
-		"if (!(uniqueItems(v))) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['uniqueItems'],val:true}})"
+		"if (!(uniqueMapEntries(v))) er.push({expected:'map',path:[...pth],format:{name:'formattedMap',formatPath:['uniqueItems'],val:true}})"
 	if got != want {
 		t.Errorf("map errors = %q\nwant %q", got, want)
 	}

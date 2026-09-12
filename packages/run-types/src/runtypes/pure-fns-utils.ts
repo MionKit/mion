@@ -5,6 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {registerPureFnFactory} from './pureFn.ts';
+// TYPE-ONLY, so this file stays runtime dependency-free. It has to be the real
+// `RTUtils`: the build records a pure fn's DEPENDENCIES by recognising
+// `utl.getPureFn('<ns>::<name>')` through the `CompTimeArgs<string>` brand on
+// that method's first parameter, so a hand-rolled local shape with a plain
+// `string` parameter is silently not tracked and the dep never reaches the
+// emitted module.
+import type {RTUtils} from './rtUtils.ts';
 
 // Slim local type aliases for the RT utils surface, kept here so this
 // file stays dependency-free. Fully erased at runtime.
@@ -113,64 +120,59 @@ export const pf_hasUnknownKeysFromArray = registerPureFnFactory('rt::hasUnknownK
   };
 });
 
-export const pf_uniqueItems = registerPureFnFactory('rt::uniqueItems', function () {
-  // The 2020-12 `uniqueItems` predicate: JSON equality — numbers by
-  // mathematical value (so 0 and -0 collide), objects by unordered key set,
-  // arrays by order. `canon` is built once here at registration rather than
-  // once per validator call, which is why this lives in a pure fn instead of
-  // inline in the emitted body.
+// ───────────────── uniqueItems: one predicate per collection ─────────────────
+// The 2020-12 `uniqueItems` keyword is ONE rule (no two entries equal by JSON
+// value) over THREE different walks, because the three collections disagree on
+// what an entry is and on what is already unique by construction. Splitting it
+// into a function per family rather than branching inside one keeps each
+// emitted module to the walk its own base needs: an array-only program never
+// ships the Set or Map arm, and none of the three pays a runtime kind test.
+//
+// All three share the canonical form through `rt::canonicalJson`, resolved once
+// per module at factory time, so the recursive closure is still built once and
+// the three can never disagree on what "equal by value" means.
+
+export const pf_canonicalJson = registerPureFnFactory('rt::canonicalJson', function () {
+  // JSON equality as a string key: numbers by mathematical value (so 0 and -0
+  // collide, 1 and 1.0 collide), objects by unordered key set, arrays by order.
+  // The runtime twin the mock walker uses is `canonicalJson` in
+  // mocking/structuralFormat.ts — the two MUST agree or mocks drift from
+  // validators.
   //
-  // Only objects and arrays pay for canonicalisation; primitives key a Set
-  // directly, so an array of numbers or strings never builds a string. Set
-  // membership is SameValueZero, which is exactly the partition the canonical
-  // form produced (0 with -0, NaN with itself). The two sets are kept SEPARATE
-  // so a raw string can never collide with the canonical form of an object —
-  // the string '{}' and the value {} are different items.
-  const canon = (x: any): string => {
-    if (x === null || typeof x !== 'object') {
-      return typeof x === 'string' ? JSON.stringify(x) : typeof x + ':' + String(x);
+  // A primitive's key carries its `typeof` prefix (a string is JSON-quoted
+  // instead), so a raw string can never collide with the canonical form of an
+  // object: the string '{}' and the value {} are different entries.
+  // The recursion rides a factory-LOCAL const, not the returned function's own
+  // name: a factory body is inlined without its lexical environment, so a
+  // returned function that names itself reads as an outer capture (PFE9011).
+  const canonical = (value: any): string => {
+    if (value === null || typeof value !== 'object') {
+      return typeof value === 'string' ? JSON.stringify(value) : typeof value + ':' + String(value);
     }
-    if (Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';
+    if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
     return (
       '{' +
-      Object.keys(x)
+      Object.keys(value)
         .sort()
-        .map((k) => JSON.stringify(k) + ':' + canon(x[k]))
+        .map((key) => JSON.stringify(key) + ':' + canonical(value[key]))
         .join(',') +
       '}'
     );
   };
-  return function _uniqueItems(arr: readonly any[] | ReadonlySet<any> | ReadonlyMap<any, any>): boolean {
-    // A Map (FormattedMap): its ENTRY is the `[key, value]` pair, so the
-    // keyword compares PAIRS. A primitive key is unique by construction
-    // (SameValueZero), which makes its pair unique too — skipped, so a Map
-    // with primitive keys allocates nothing however large its values. An
-    // object key may repeat by content, so its whole pair is canonicalised.
-    if (arr instanceof Map) {
-      let objects: Set<string> | null = null;
-      for (const [key, value] of arr) {
-        if (key === null || typeof key !== 'object') continue;
-        if (objects === null) objects = new Set<string>();
-        const pairKey = canon([key, value]);
-        if (objects.has(pairKey)) return false;
-        objects.add(pairKey);
-      }
-      return true;
-    }
-    // A Set (FormattedSet): its primitive members are unique by construction
-    // (SameValueZero), so only object members are canonicalised and a Set of
-    // primitives allocates nothing.
-    if (!Array.isArray(arr)) {
-      let objects: Set<string> | null = null;
-      for (const item of arr as ReadonlySet<any>) {
-        if (item === null || typeof item !== 'object') continue;
-        if (objects === null) objects = new Set<string>();
-        const key = canon(item);
-        if (objects.has(key)) return false;
-        objects.add(key);
-      }
-      return true;
-    }
+  return function _canonicalJson(value: any): string {
+    return canonical(value);
+  };
+});
+
+export const pf_uniqueArrayItems = registerPureFnFactory('rt::uniqueArrayItems', function (utl: RTUtils) {
+  const canonicalJson = utl.getPureFn('rt::canonicalJson') as (value: unknown) => string;
+  // An array (FormattedArray, plain or tuple) compares its ITEMS, and nothing
+  // in it is unique by construction. Primitives key a Set directly — Set
+  // membership is SameValueZero, exactly the partition the canonical form
+  // produces (0 with -0, NaN with itself) — so an array of numbers or strings
+  // builds no strings at all. The two sets stay SEPARATE so a raw string
+  // cannot collide with an object's canonical form.
+  return function _uniqueArrayItems(arr: readonly any[]): boolean {
     const len = arr.length;
     if (len < 2) return true;
     const primitives = new Set<any>();
@@ -183,9 +185,51 @@ export const pf_uniqueItems = registerPureFnFactory('rt::uniqueItems', function 
         continue;
       }
       if (objects === null) objects = new Set<string>();
-      const key = canon(item);
+      const key = canonicalJson(item);
       if (objects.has(key)) return false;
       objects.add(key);
+    }
+    return true;
+  };
+});
+
+export const pf_uniqueSetMembers = registerPureFnFactory('rt::uniqueSetMembers', function (utl: RTUtils) {
+  const canonicalJson = utl.getPureFn('rt::canonicalJson') as (value: unknown) => string;
+  // A Set (FormattedSet) compares its MEMBERS, and its primitive members are
+  // already unique by construction (SameValueZero), so only object members are
+  // canonicalised and a Set of primitives allocates nothing. That is the whole
+  // difference from the array walk, and the reason a `Set<{id: number}>` needs
+  // the keyword at all: it may hold two structurally equal objects.
+  return function _uniqueSetMembers(set: ReadonlySet<any>): boolean {
+    let objects: Set<string> | null = null;
+    for (const member of set) {
+      if (member === null || typeof member !== 'object') continue;
+      if (objects === null) objects = new Set<string>();
+      const key = canonicalJson(member);
+      if (objects.has(key)) return false;
+      objects.add(key);
+    }
+    return true;
+  };
+});
+
+export const pf_uniqueMapEntries = registerPureFnFactory('rt::uniqueMapEntries', function (utl: RTUtils) {
+  const canonicalJson = utl.getPureFn('rt::canonicalJson') as (value: unknown) => string;
+  // A Map (FormattedMap) compares its ENTRIES, the `[key, value]` PAIRS that
+  // are its wire form. A primitive map key is unique by construction, which
+  // makes its whole pair unique too, so it is skipped — a
+  // `Map<string, BigObject>` canonicalises nothing however large its values.
+  // An object key may repeat by content, so its pair is canonicalised whole:
+  // two content-equal keys with DIFFERENT values are two different entries and
+  // pass.
+  return function _uniqueMapEntries(map: ReadonlyMap<any, any>): boolean {
+    let objects: Set<string> | null = null;
+    for (const [key, value] of map) {
+      if (key === null || typeof key !== 'object') continue;
+      if (objects === null) objects = new Set<string>();
+      const pairKey = canonicalJson([key, value]);
+      if (objects.has(pairKey)) return false;
+      objects.add(pairKey);
     }
     return true;
   };
