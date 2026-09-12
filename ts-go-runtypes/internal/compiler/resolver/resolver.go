@@ -357,6 +357,9 @@ type Session struct {
 	// apiFileCache memoises per-file dispatch-site extraction (the bundleApi
 	// lane) for the current Program, dropped alongside it.
 	apiFileCache *apimeta.FileCache
+	// apiInitFileCache memoises which files call `initClient`, the modules the
+	// lane import is appended to.
+	apiInitFileCache *apimeta.InitFileCache
 	// hasBatchesMemo caches whether the batch source holds at least one
 	// batch call, the transform's switch for appending the batch import. nil
 	// until computed; reset with the Program (own-program case) and whenever
@@ -548,6 +551,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		pureFnFileCache:     purefunctions.NewFileCache(),
 		batchFileCache:      requestbatch.NewFileCache(),
 		apiFileCache:        apimeta.NewFileCache(),
+		apiInitFileCache:    apimeta.NewInitFileCache(),
 		routerInitFileCache: routerinit.NewFileCache(),
 		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		rtStore:             newRTStore(opts, prog.IsIncremental()),
@@ -569,6 +573,7 @@ func NewServer(opts Options) *Session {
 		pureFnFileCache:     purefunctions.NewFileCache(),
 		batchFileCache:      requestbatch.NewFileCache(),
 		apiFileCache:        apimeta.NewFileCache(),
+		apiInitFileCache:    apimeta.NewInitFileCache(),
 		routerInitFileCache: routerinit.NewFileCache(),
 		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		// Server mode has no Program yet (installed later via setSources, always

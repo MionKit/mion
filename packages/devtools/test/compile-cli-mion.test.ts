@@ -209,7 +209,8 @@ const API_CLIENT_DTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
       : ClientRoutes<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown, mode?: InjectApiMetadata<RA>): {routes: ClientRoutes<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>};
+  export function setBundleApiMode(mode: 'bundled' | 'mixed'): void;
 }
 `;
 // The client's own view of the API leaves out the boolean the server declares: with --api-tsconfig
@@ -282,11 +283,14 @@ describe('mion compile + api-check — a bundled client against its server', () 
       expect(clientManifest.mode).toBe('bundled');
       expect(Object.keys(clientManifest.methods)).toEqual(['users/getById']);
       expect(clientManifest.methods['users/getById'].paramsId).toBe(serverManifest.methods['users/getById'].paramsId);
-      // the emitted client carries the lane at initClient and the site module at the call, relativized
+      // the emitted client imports the lane module and the site module at the call, both relativized
       const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
-      expect(clientJs).toContain("'bundled'");
+      expect(clientJs).toMatch(/import '(\.\.\/)+\.mion\/api\/lane\.js';/);
       expect(clientJs).toMatch(/import \{ ?__rt_s\$2F[A-Za-z0-9_$]+ ?\} from '\.\.\/\.mion\/api\/[^']+\.js';/);
       expect(clientJs).not.toContain('rtapi:');
+      // the mode is in the module the build wrote, not spliced into the call
+      expect(clientJs).not.toContain("'bundled'");
+      expect(fs.readFileSync(path.join(clientGen, 'api', 'lane.js'), 'utf8')).toContain("setBundleApiMode('bundled')");
       // the validators came from the server program: they check the boolean the client never declared
       const typeModules = readTree(path.join(clientGen, 'api', 'types'));
       expect(typeModules.some((source) => source.includes('boolean'))).toBe(true);

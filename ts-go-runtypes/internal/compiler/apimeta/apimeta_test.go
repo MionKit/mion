@@ -19,7 +19,8 @@ import (
 // reads: the subrequest interfaces carrying the route id and the API in their
 // type parameters, the dispatch methods with their trailing marker slot, the
 // routes / middleFns proxies threading the key path, the batch builder and
-// `initClient` with its mode-only anchor. The marker comes from the REAL
+// `initClient`, which carries no marker: the lane rides a generated module.
+// The marker comes from the REAL
 // `@mionjs/run-types` package, so the brand checks run against the shipped
 // declaration.
 const clientDts = `declare module '@mionjs/client' {
@@ -50,7 +51,7 @@ const clientDts = `declare module '@mionjs/client' {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>): Promise<unknown>;
   }
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R]): BatchBuilder<R>;
-  export function initClient<RA>(o?: unknown, mode?: InjectApiMetadata<RA>): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
 }
 `
 
@@ -136,27 +137,6 @@ func extractBody(t *testing.T, body string, mode constants.BundleApiMode) ([]Sit
 	return setupOverlay(t, map[string]string{"a.ts": fixture(body)}).extract(mode)
 }
 
-// dispatchSites drops the initClient anchor every fixture carries.
-func dispatchSites(sites []Site) []Site {
-	var out []Site
-	for _, site := range sites {
-		if !site.Anchor {
-			out = append(out, site)
-		}
-	}
-	return out
-}
-
-func anchorSites(sites []Site) []Site {
-	var out []Site
-	for _, site := range sites {
-		if site.Anchor {
-			out = append(out, site)
-		}
-	}
-	return out
-}
-
 func idsOf(site Site) string { return strings.Join(site.Ids, ",") }
 
 func TestExtract_EveryDispatchKindNamesItsRouteAndTheApi(t *testing.T) {
@@ -170,7 +150,7 @@ export const e = routes.sum(1, 2).call({signal: undefined});
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	got := dispatchSites(sites)
+	got := sites
 	want := []struct{ callee, ids string }{
 		{"call", "users/getById"},
 		{"typeErrors", "users/getById"},
@@ -201,12 +181,10 @@ export const e = routes.sum(1, 2).call({signal: undefined});
 	if got[1].InjectPad != 0 || got[2].InjectPad != 0 {
 		t.Errorf("typeErrors / prefill must pad nothing: %d %d", got[1].InjectPad, got[2].InjectPad)
 	}
-	anchors := anchorSites(sites)
-	if len(anchors) != 1 || anchors[0].CalleeName != "initClient" || anchors[0].Ids != nil {
-		t.Fatalf("expected one initClient anchor, got %+v", anchors)
-	}
-	if anchors[0].InjectPad != 0 {
-		t.Errorf("the anchor sits right after the options argument, pad %d", anchors[0].InjectPad)
+	for _, site := range sites {
+		if site.CalleeName == "initClient" {
+			t.Fatalf("initClient carries no marker any more, so it is not a site: %+v", site)
+		}
 	}
 }
 
@@ -223,7 +201,7 @@ export const b = run(routes.users.remove(2));
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	got := dispatchSites(sites)
+	got := sites
 	// The stored subrequest keeps its id. The call inside the structural
 	// helper resolves against the helper's own constraint, which carries no
 	// marker, so it is not a site (and not a widened one either): nothing is
@@ -240,7 +218,7 @@ export const b = batch([routes.users.getById(1), routes.sum(1, 2), routes.users.
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	got := dispatchSites(sites)
+	got := sites
 	if len(got) != 1 || idsOf(got[0]) != "sum,users/getById" {
 		t.Fatalf("expected one batch site over sum + users/getById, got %+v", got)
 	}
@@ -258,8 +236,8 @@ function wide(sub: RouteSubRequest<any>) { return sub.call(); }
 export const b = wide(routes.sum(1, 2));
 `
 	sites, diags := extractBody(t, body, constants.BundleApiBundled)
-	if len(dispatchSites(sites)) != 0 {
-		t.Fatalf("a widened id must yield no site, got %+v", dispatchSites(sites))
+	if len(sites) != 0 {
+		t.Fatalf("a widened id must yield no site, got %+v", sites)
 	}
 	if len(diags) != 1 || diags[0].Code != diagnostics.CodeApiMetaRouteWidened {
 		t.Fatalf("bundled: expected one MET003, got %+v", diags)
@@ -274,8 +252,8 @@ func TestExtract_WrittenSlotIsAPassThrough(t *testing.T) {
 	sites, diags := extractBody(t, `
 export const a = routes.sum(1, 2).call(undefined, 'already' as any);
 `, constants.BundleApiBundled)
-	if len(diags) != 0 || len(dispatchSites(sites)) != 0 {
-		t.Fatalf("a written marker slot must not be spliced again: sites %+v diags %+v", dispatchSites(sites), diags)
+	if len(diags) != 0 || len(sites) != 0 {
+		t.Fatalf("a written marker slot must not be spliced again: sites %+v diags %+v", sites, diags)
 	}
 }
 
@@ -285,37 +263,27 @@ const other = {call(): number { return 1; }, prefill(): void {}};
 export const a = other.call();
 export const b = other.prefill();
 `, constants.BundleApiBundled)
-	if len(diags) != 0 || len(dispatchSites(sites)) != 0 {
-		t.Fatalf("same-named methods without the brand must not match: %+v %+v", dispatchSites(sites), diags)
+	if len(diags) != 0 || len(sites) != 0 {
+		t.Fatalf("same-named methods without the brand must not match: %+v %+v", sites, diags)
 	}
 }
 
-func TestReplacements_AnchorGetsTheModeAndSitesTheirBinding(t *testing.T) {
+func TestReplacements_EverySiteGetsItsModuleBinding(t *testing.T) {
 	sites, _ := extractBody(t, `
 export const a = routes.users.getById(1).call();
 `, constants.BundleApiMixed)
-	reps := Replacements(sites, constants.BundleApiMixed)
-	if len(reps) != 2 {
-		t.Fatalf("expected the anchor + one site, got %+v", reps)
+	reps := Replacements(sites)
+	if len(reps) != 1 {
+		t.Fatalf("expected one site replacement and nothing else, got %+v", reps)
 	}
-	var anchor, site int
-	for i, rep := range reps {
-		if rep.ImportFrom == "" {
-			anchor = i
-		} else {
-			site = i
-		}
-	}
-	if reps[anchor].Text != ", 'mixed'" {
-		t.Errorf("anchor text %q, want the mode literal", reps[anchor].Text)
-	}
-	if reps[site].ImportFrom != "rtapi:/s/users/getById.js" || reps[site].Text != "undefined, __rt_s$2Fusers$2FgetById" || reps[site].ImportBinding != "__rt_s$2Fusers$2FgetById" {
-		t.Errorf("site replacement %+v", reps[site])
+	site := reps[0]
+	if site.ImportFrom != "rtapi:/s/users/getById.js" || site.Text != "undefined, __rt_s$2Fusers$2FgetById" || site.ImportBinding != "__rt_s$2Fusers$2FgetById" {
+		t.Errorf("site replacement %+v", site)
 	}
 	// a written setup argument gets the separator, a trailing comma none
 	withSetup, _ := extractBody(t, "export const a = routes.users.getById(1).call({signal: undefined});\nexport const b = routes.sum(1, 2).call(\n  {},\n);\n", constants.BundleApiBundled)
 	texts := map[string]bool{}
-	for _, rep := range Replacements(withSetup, constants.BundleApiBundled) {
+	for _, rep := range Replacements(withSetup) {
 		texts[rep.Text] = true
 	}
 	if !texts[", __rt_s$2Fusers$2FgetById"] || !texts["__rt_s$2Fsum"] {
@@ -330,7 +298,7 @@ func walkFixture(t *testing.T) *Tree {
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	site := dispatchSites(sites)[0]
+	site := sites[0]
 	tree, problem := WalkApi(site.Checker, site.ApiType)
 	if problem != "" {
 		t.Fatalf("WalkApi: %s", problem)
@@ -414,7 +382,7 @@ const {routes} = initClient<Api>({});
 export const a = routes.r(1).call();
 `})
 	sites, _ := overlay.extract(constants.BundleApiBundled)
-	site := dispatchSites(sites)[0]
+	site := sites[0]
 	tree, problem := WalkApi(site.Checker, site.ApiType)
 	if problem != "" {
 		t.Fatalf("WalkApi: %s", problem)
@@ -439,7 +407,7 @@ func TestWalkApi_RefusesALooseApi(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			overlay := setupOverlay(t, map[string]string{"a.ts": "import {initClient} from '@mionjs/client';\n" + api + "\ndeclare const routes: {r: () => {call(setup?: unknown, m?: import('@mionjs/run-types').InjectApiMetadata<Api, 'r'>): unknown}};\nexport const a = routes.r().call();\n"})
 			sites, _ := overlay.extract(constants.BundleApiBundled)
-			got := dispatchSites(sites)
+			got := sites
 			if len(got) != 1 {
 				t.Fatalf("expected the call site, got %+v", got)
 			}
@@ -492,7 +460,7 @@ export const a = routes.sum(1, 2).call();
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	if got := dispatchSites(sites); len(got) != 1 || idsOf(got[0]) != "sum" {
+	if got := sites; len(got) != 1 || idsOf(got[0]) != "sum" {
 		t.Fatalf("only the dispatch call is a site: %+v", got)
 	}
 }

@@ -20,7 +20,6 @@ import {
   BatchResult,
 } from './types.ts';
 import type {RemoteApi} from '@mionjs/router';
-import type {InjectApiMetadata} from '@mionjs/run-types';
 import {RpcError} from '@mionjs/core';
 import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
@@ -28,23 +27,18 @@ import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {takeMetadataCacheError} from './lib/clientMethodsMetadata.ts';
-import {registerBundledApi, takeBundledApiError} from './lib/bundledApi.ts';
+import {getBundleApiMode, registerBundledApi, takeBundledApiError} from './lib/bundledApi.ts';
 
 /**
  * Creates the client: the typed `routes` / `middleFns` proxies plus the client itself.
- * `bundleApiMode` is filled by the build when its `bundleApi` option is on (`'bundled'` or
- * `'mixed'`): the metadata and compiled functions of every route the program calls are then
- * injected at the call sites, so the client never asks the server for them.
+ * Under the build's `bundleApi` option the metadata and compiled functions of every route the
+ * program calls are injected at the call sites, so the client never asks the server for them; the
+ * lane itself arrives through the module the build writes, not through this call.
  */
 export function initClient<RM extends RemoteApi>(
-  options: InitClientOptions,
-  bundleApiMode?: InjectApiMetadata<RM>
+  options: InitClientOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
-  const clientOptions = {
-    ...DEFAULT_PREFILL_OPTIONS,
-    ...options,
-    bundleApi: toBundleApiMode(bundleApiMode),
-  };
+  const clientOptions = {...DEFAULT_PREFILL_OPTIONS, ...options};
   const client = new MionClient(clientOptions);
   const rootProxy = new MethodProxy([], client, clientOptions);
   return {
@@ -52,16 +46,6 @@ export function initClient<RM extends RemoteApi>(
     routes: rootProxy.proxy as ClientRoutes<RM>,
     middleFns: rootProxy.proxy as ClientMiddleFns<RM>,
   };
-}
-
-function toBundleApiMode(injected: unknown): BundleApiMode | undefined {
-  if (injected === undefined) return undefined;
-  if (injected === 'bundled' || injected === 'mixed') return injected;
-  const shown = typeof injected === 'string' ? injected : typeof injected;
-  throw new RpcError({
-    type: 'bundle-api-invalid-mode',
-    publicMessage: `initClient received an unknown bundleApi mode '${shown}'; expected 'bundled' or 'mixed'.`,
-  });
 }
 
 export class MionClient {
@@ -83,7 +67,7 @@ export class MionClient {
 
   /** The lane the build put this client on; undefined means the fetched lane. */
   get bundleApiMode(): BundleApiMode | undefined {
-    return this.clientOptions.bundleApi;
+    return getBundleApiMode();
   }
 
   /** Registers the metadata and compiled functions a dispatch point received from the build. */

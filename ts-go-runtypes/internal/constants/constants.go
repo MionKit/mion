@@ -477,6 +477,13 @@ const (
 	// BOTH builds: the server's from its initRoutes call, the client's from the
 	// routes it bundled.
 	ApiManifestFile = "manifest.json"
+	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under
+	// ApiModuleDir to put
+	// the client on the lane it compiled for: it calls `setBundleApiMode` and
+	// is imported for its side effect into every file calling `initClient`,
+	// the way the batch table reaches a server. The lane is a build option, so
+	// the build is the one place it is set.
+	ApiLaneFile = "lane"
 	// ApiModulePrefix is the render-time specifier scheme for a bundled API
 	// module (`rtapi:/s/<id>.js`), the sibling of EntryModulePrefix: the
 	// transform imports it at a dispatch site, and the same relativizers that

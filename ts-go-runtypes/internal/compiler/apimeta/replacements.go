@@ -5,7 +5,6 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -26,19 +25,18 @@ func MethodBinding(id string) string {
 // the `rtapi:/` scheme, which the same relativizers that place `rtmod:/`
 // imports turn into a path under <outDir>/api, and ImportBinding naming the
 // export, since the spliced Text also carries the padding and the comma.
-func Replacements(sites []Site, mode constants.BundleApiMode) []protocol.Replacement {
+func Replacements(sites []Site) []protocol.Replacement {
 	out := make([]protocol.Replacement, 0, len(sites))
 	for _, site := range sites {
-		replacement := protocol.Replacement{File: site.FilePath, Start: site.InjectPos, End: site.InjectPos}
-		if site.Anchor {
-			replacement.Text = site.spliceText(jsquote.Single(string(mode)))
-		} else {
-			binding := site.SiteBinding()
-			replacement.Text = site.spliceText(binding)
-			replacement.ImportFrom = constants.ApiModulePrefix + site.ModuleBasename() + constants.EntryModuleSuffix
-			replacement.ImportBinding = binding
-		}
-		out = append(out, replacement)
+		binding := site.SiteBinding()
+		out = append(out, protocol.Replacement{
+			File:          site.FilePath,
+			Start:         site.InjectPos,
+			End:           site.InjectPos,
+			Text:          site.spliceText(binding),
+			ImportFrom:    constants.ApiModulePrefix + site.ModuleBasename() + constants.EntryModuleSuffix,
+			ImportBinding: binding,
+		})
 	}
 	return out
 }
