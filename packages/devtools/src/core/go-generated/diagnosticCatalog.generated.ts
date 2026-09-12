@@ -608,7 +608,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   MET003: {
     headline:
       "The route id at this call is `string` (a generic helper erased it), so nothing can be bundled for it and the call fails at runtime under `bundleApi: 'bundled'`.",
-    level: 'runtimeError',
+    level: 'error',
     severity: 'error',
     family: 'marker',
     detail:
