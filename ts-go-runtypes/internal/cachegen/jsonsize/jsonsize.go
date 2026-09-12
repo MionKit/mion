@@ -422,25 +422,83 @@ func (w *walker) objectBytes(rt *reflection.RunType, path string, depth int) Res
 // `[-1,value]`) whenever the union carries a transform or an object member;
 // the walk cannot see the emitter's layout decision, so it always budgets the
 // widest envelope the member count allows.
+//
+// A union of two or more OBJECT members costs a second envelope the arm sizes
+// know nothing about: the flat layout merges those members into one shape
+// whose every property is the union of that name across the arms
+// (union_flat_layout.go), so a property two arms declare with different types
+// rides as `[<candidateIndex>,value]`. The arm walk sizes `f1: Date` as a bare
+// date, while the wire carries `"f1":[1,"…"]`. Charging every property of every
+// mergeable member is the same worst case the envelope above takes: a bound,
+// not the emitter's real layout.
 func (w *walker) unionBytes(rt *reflection.RunType, path string, depth int) Result {
 	if len(rt.Children) == 0 {
 		return bounded(nullBytes)
 	}
+	mergeable := w.mergeableMembers(rt)
 	largest := 0
 	for i, member := range rt.Children {
 		result := w.walk(member, path+"|"+strconv.Itoa(i), depth+1)
 		if !result.Bounded {
 			return result
 		}
-		largest = max(largest, result.Bytes)
+		size := result.Bytes
+		if mergeable > 1 {
+			size += w.mergedPropCount(w.deref(member)) * subEnvelopeBytes(mergeable)
+		}
+		largest = max(largest, size)
 	}
 	return bounded(largest + unionEnvelopeBytes(len(rt.Children)))
+}
+
+// mergeableMembers counts the members the flat layout merges into one object
+// shape: object literals and intersections. Every other member keeps its own
+// `[index,value]` arm, a bounded class member (Date / Map / Set) included.
+func (w *walker) mergeableMembers(rt *reflection.RunType) int {
+	count := 0
+	for _, child := range rt.Children {
+		if member := w.deref(child); member != nil && isMergeableKind(member.Kind) {
+			count++
+		}
+	}
+	return count
+}
+
+func isMergeableKind(kind reflection.ReflectionKind) bool {
+	return kind == reflection.KindObjectLiteral || kind == reflection.KindIntersection
+}
+
+// mergedPropCount counts the direct data properties of a mergeable member, the
+// slots that gain a sub-envelope. Mirrors the filter objectBytes sizes with.
+func (w *walker) mergedPropCount(rt *reflection.RunType) int {
+	if rt == nil || !isMergeableKind(rt.Kind) {
+		return 0
+	}
+	count := 0
+	for _, child := range rt.Children {
+		member := w.deref(child)
+		if member == nil || member.IsStatic || member.Child == nil {
+			continue
+		}
+		if member.Kind == reflection.KindProperty || member.Kind == reflection.KindPropertySignature {
+			count++
+		}
+	}
+	return count
 }
 
 // unionEnvelopeBytes: `[` + the widest member index (`-1`, or the last index)
 // + `,` + `]`.
 func unionEnvelopeBytes(members int) int {
 	return 1 + max(len("-1"), len(strconv.Itoa(members-1))) + 1 + 1
+}
+
+// subEnvelopeBytes: `[` + the widest candidate index + `,` + `]`. A merged
+// property holds at most one candidate per object member, and its index is
+// always a plain 0-based one (emitMergedPropStringify), never the object
+// branch's `-1`.
+func subEnvelopeBytes(candidates int) int {
+	return 1 + len(strconv.Itoa(candidates-1)) + 1 + 1
 }
 
 // classBytes: the builtins with a fixed JSON spelling are constants; a Map is
