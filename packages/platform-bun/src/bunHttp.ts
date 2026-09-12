@@ -7,7 +7,8 @@
 
 import {
   dispatchWithContext,
-  createCallContext,
+  resolveRequest,
+  createContextFromResolved,
   getRouterFatalErrorResponse,
   resetRouter,
   decodeQueryBody,
@@ -59,22 +60,24 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
   // outside any mion envelope, and the router's own limit needs the size before parsing.
   try {
-    // the context is built BEFORE the body is read: one lookup gives the chain and the request
-    // limit, and the body is read against that limit as it arrives (a stream past it is cancelled
-    // mid-flight); the router checks the size once more before parsing
-    const context = createCallContext(path, urlQuery, req, req.headers, responseHeaders);
+    // the route is resolved BEFORE the body is read, the context only after it: one lookup gives
+    // the chain and the request limit, the body is read against that limit (bun buffers it
+    // natively), and building the context after the read keeps a big body from outliving the cheap
+    // half of the garbage collector; the router checks the size once more before parsing
+    const resolved = resolveRequest(path, urlQuery, req);
     let rawBody: any;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
-    if (context.readsBody) {
-      rawBody = await readRequestBody(req, context.maxBodySize, BodyReadStrategy.buffered);
+    if (resolved.readsBody) {
+      rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.buffered);
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
     }
-    const platformResp = await dispatchWithContext(context, req, undefined, rawBody, reqBodyType);
+    const context = createContextFromResolved(resolved, req.headers, responseHeaders, rawBody, reqBodyType);
+    const platformResp = await dispatchWithContext(context, req, undefined);
     return reply(platformResp, responseHeaders);
   } catch (e) {
     const error =
