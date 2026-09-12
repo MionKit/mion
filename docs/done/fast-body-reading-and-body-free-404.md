@@ -31,44 +31,50 @@ Separately, an unknown path buffered up to the platform limit, ran the size chec
 
 Node keeps its chunk loop and passes the running total to `Buffer.concat`. uws keeps `collectBody`; the single-read window is decoded to a string inside the native callback (the view over the window is free, the decode is the one copy) and a body-less request skips the view and the decode altogether.
 
+### The route is resolved before the body, the context built after it
+
+Reading against the route's own limit needs the route before the body, but NOT the context. `resolveRequest(path, urlQuery, rawRequest)` answers the chain, its `maxBodySize` and `readsBody`, and allocates nothing else; `createContextFromResolved(resolved, reqHeaders, respHeaders, rawBody, bodyType)` builds the context once the body is in hand, with the body already in it. `createCallContext` is now the two together, for a caller that already has the body (aws, gcloud, `dispatchRoute`, tests).
+
+The order matters at large bodies. A context built first survives the whole read, is promoted to the old heap, and the body string assigned into it afterwards is promoted with it, so bodies that should have died in the cheap half of the garbage collector are collected by the expensive one. Measured on the 4 MB payload lane on node: 47.1 to 42.5 req/s and 329 to 375 MB with the context built first, back to 46.5 req/s and 349 MB with it built after. Node, uws, bun, cloudflare and vercel all resolve first and build after.
+
 ### A not-found chain never reads the body, global middleFns still run
 
-- `MION_ROUTES.batchNotFound` (`mion@batchNotFound`) is a new internal route next to `notFound` that throws the existing `batch-unknown-id` fatal. `getBatchExecutionChain` answers `undefined` for an unknown id and `createCallContext` resolves that chain, exactly as an unknown path resolves the `notFound` one.
+- `MION_ROUTES.batchNotFound` (`mion@batchNotFound`) is a new internal route next to `notFound` that throws the existing `batch-unknown-id` fatal. `getBatchExecutionChain` answers `undefined` for an unknown id and the resolve step picks that chain, exactly as an unknown path picks the `notFound` one.
 - `MethodsExecutionChain.readsBody` is false for those two chains only, surfaced as `CallContext.readsBody`. Every adapter skips the read when it is false: node dispatches before any data listener and lets node discard what the client still sends once the response ends (the 404 goes out before the body finishes, and the same connection serves the next request); uws registers a no-op `onData` so the body is consumed and dropped, never assembled; bun, cloudflare and vercel leave `req.body` untouched. The router's `deserializeRequestBody` returns early too, so a caller that hands a body anyway (aws, gcloud, `dispatchRoute`) gets the same answer.
 - `addStartMiddleFns` / `addEndMiddleFns` middleFns and every `alwaysRun` one run for both not-found chains, the way Hapi's and Elysia's `onRequest` do. Route-level middleFns never ran on a 404 and still do not.
 - Wire shape: a path 404 is unchanged (`@thrownErrors['mion@notFound']`, `x-rpc-error: route-not-found`). A batch 404 moved from a bare fatal response under `mion@platformError` to the chain's shape under `mion@batchNotFound`, same status and header; the client reads `@thrownErrors` generically, its unknown-id test passes untouched.
 
 ### Benchmarks
 
-`aggregate --compare <before> <after>` (`container/mion-bench/aggregate.mjs`, `pnpm miondevx bench servers aggregate --compare a b`) prints the change per lane and suite between two results dirs, and `sweep <app>` runs the payload sizes for one lane. Before is commit `09ab96f` in a separate worktree, after is this branch, full duration, same machine, back to back.
+`aggregate --compare <before> <after>` (`container/mion-bench/aggregate.mjs`, `pnpm miondevx bench servers aggregate --compare a b`) prints the change per lane and suite between two results dirs, and `sweep <app>` runs the payload sizes for one lane. Before is the branch point in a separate worktree, after is this branch, full duration, same machine.
 
 **Server lanes** (`container/mion-bench`, wrk, 100 connections, 20 s measured after 5 s warm-up). Requests per second before, after, and the change; anything under the 10% tolerance the bench records between runs of identical code is noise.
 
-| Lane | Suite | Before | After | Δ req/s | Δ latency |
-| --- | --- | --- | --- | --- | --- |
-| mion | hello-world (GET) | 16033.4 | 16468.8 | +2.7% | -1.5% |
-| mion | light (100 B POST) | 11469.2 | 11261.5 | -1.8% | -1.4% |
-| mion | heavy (1 KB POST) | 9096.3 | 9712.1 | +6.8% | -5.6% |
-| mion | 1 KB | 8613.5 | 9302.2 | +8.0% | -7.9% |
-| mion | 50 KB | 3320.7 | 3331.6 | +0.3% | +1.2% |
-| mion | 500 KB | 465.5 | 487.7 | +4.8% | -5.1% |
-| mion | 4 MB | 42.9 | 43.1 | +0.4% | -6.2% |
-| mion.uws | hello-world (GET) | 28696.8 | 31901.4 | +11.2% | -10.0% |
-| mion.uws | light (100 B POST) | 20647.9 | 20906.1 | +1.3% | -1.2% |
-| mion.uws | heavy (1 KB POST) | 15101.5 | 14444.5 | -4.4% | +4.5% |
-| mion.uws | 1 KB | 15226.9 | 14759.8 | -3.1% | +3.2% |
-| mion.uws | 50 KB | 4627.3 | 4549.3 | -1.7% | +1.7% |
-| mion.uws | 500 KB | 712.1 | 703.1 | -1.3% | +1.5% |
-| mion.uws | 4 MB | 65.9 | 64.2 | -2.5% | +1.6% |
-| mion.bun | hello-world (GET) | 19016.1 | 19920.9 | +4.8% | -4.5% |
-| mion.bun | light (100 B POST) | 4018.7 | 14311.3 | +256.1% | -71.9% |
-| mion.bun | heavy (1 KB POST) | 3942.9 | 10951.9 | +177.8% | -64.0% |
-| mion.bun | 1 KB | 3582.5 | 10929.5 | +205.1% | -67.2% |
-| mion.bun | 50 KB | 1900.5 | 3130.4 | +64.7% | -39.3% |
-| mion.bun | 500 KB | 380.4 | 562.8 | +48.0% | -32.4% |
-| mion.bun | 4 MB | 45.4 | 49.9 | +10.0% | -8.7% |
+| Lane | Suite | Before | After | Δ req/s |
+| --- | --- | --- | --- | --- |
+| mion | hello-world (GET) | 15269.8 | 15418.9 | +1.0% |
+| mion | light (100 B POST) | 10977.6 | 11653.1 | +6.2% |
+| mion | heavy (1 KB POST) | 9360.7 | 9010.9 | -3.7% |
+| mion | 1 KB | 9310.2 | 9404.8 | +1.0% |
+| mion | 50 KB | 3259.7 | 3215.5 | -1.4% |
+| mion | 500 KB | 483.2 | 459.1 | -5.0% |
+| mion | 4 MB | 47.1 | 46.5 | -1.2% |
+| mion.uws | hello-world (GET) | 29298.3 | 29563.6 | +0.9% |
+| mion.uws | light (100 B POST) | 21173.8 | 21311.1 | +0.6% |
+| mion.uws | heavy (1 KB POST) | 14671.8 | 14811.5 | +1.0% |
+| mion.uws | 1 KB | 14910.6 | 14810.3 | -0.7% |
+| mion.uws | 50 KB | 4505.3 | 4542.1 | +0.8% |
+| mion.uws | 500 KB | 737.4 | 731.8 | -0.8% |
+| mion.uws | 4 MB | 64.9 | 65.4 | +0.8% |
+| mion.bun | hello-world (GET) | 20327.9 | 20203.8 | -0.6% |
+| mion.bun | light (100 B POST) | 14046.4 | 15034.2 | +7.0% |
+| mion.bun | heavy (1 KB POST) | 11427.2 | 11601.4 | +1.5% |
+| mion.bun | 1 KB | 10965.4 | 11228.3 | +2.4% |
+| mion.bun | 50 KB | 3261.4 | 3248.8 | -0.4% |
+| mion.bun | 500 KB | 570.3 | 562.3 | -1.4% |
+| mion.bun | 4 MB | 49.8 | 49.5 | -0.8% |
 
-Bun is the lane the reader was slow on: its stream reader is the slow path, and `text()` (its native buffered fast path) took every POST suite from about 4,000 to 11,000 to 14,000 req/s and cut latency by two thirds. Node and uws sit inside the tolerance; uws gained on the GET lane from skipping the empty-body decode.
+Every lane sits inside the tolerance: the per-route limits this branch added cost nothing on the wire. What the reader work bought shows against the first version of it instead, the one that read every body through a stream loop with a `TextDecoder` per request. Against that commit bun runs +256% on the 100 B POST suite (4,019 to 14,311 req/s), +178% on the 1 KB one, +205% at 1 KB payloads, +65% at 50 KB and +48% at 500 KB, with latency down about two thirds, while node and uws stay inside the tolerance.
 
 **Cloudflare handler under workerd** (`cloudflareHandler.bench.ts`, Miniflare in process, sequential dispatches per second):
 
@@ -88,6 +94,7 @@ Bun is the lane the reader was slow on: its stream reader is the slow path, and 
 
 - `packages/router/src/lib/bodyReader.spec.ts`: every strategy against the header path, the chunked path, the cancel with a pull counter (stream strategies), a multi-byte character split across chunks, byte-counted limits, empty and missing bodies.
 - `packages/router/src/notFound.spec.ts`: an unknown path and an unknown batch id never parse `'{not json'`, global start and end middleFns run for both, a route-level one does not, `readsBody` is false for exactly the two not-found chains. `batches.spec.ts` and `security.spec.ts` unknown-id blocks now read the 404 off the chain (the junk id and never-echoed checks stay).
+- `packages/router/src/resolveRequest.spec.ts`: resolving answers the chain and the limit and does NOT run the shared-data factory, building from the resolved request does, and an unknown path resolves to the not-found chain with `readsBody` false. `packages/platform-node/src/contextTiming.spec.ts` pins the same order over a socket: the head and half the body sit on the server for 150 ms and no context is built until the body ends.
 - Adapters: node answers the 404 before a 1000-byte body finishes and serves a second request on the same socket; uws answers a 404 with a 600 KB body and keeps serving; bun answers a 404 and keeps serving; cloudflare and vercel answer with the stream never consumed. The `content-length` bound of the native text path is pinned on bun and on workerd (junk after the declared bytes never reaches the body) and on the vercel dev server (a second pipelined request follows the body).
 
 ## Docs
