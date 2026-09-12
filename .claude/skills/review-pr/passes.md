@@ -1,197 +1,157 @@
-# The five review passes
+# The passes
 
-One brief per pass. Paste the brief verbatim into the agent prompt and fill the
-placeholders. Spawn all five in one message so they run at once.
+One brief per group of the approved review list. Paste the brief into the agent
+prompt and fill the placeholders. Spawn every surviving group in one message so
+they run at once.
 
-**No pass restates a repo rule.** The rules live in the CLAUDE.md files and they
-change; a copy here would go stale and would be wrong in the worst way, quietly.
-Each pass reads the files that govern its area and builds its own checklist from
-them, then reports that checklist so the coverage is visible.
+**A brief never restates a repo rule.** The items carry what to check, and a
+repo item names the file it came from so the agent reads the current text. Rules
+change; anything copied in here would go stale silently.
 
 ## Shared header (prepend to every brief)
 
 ```
-You are reviewing a change in the mion monorepo. Read only: do not edit, write,
-format, commit or run tests. Your output is a findings list.
+You are reviewing a change in the mion monorepo, against a checklist the author
+already approved. Read only: do not edit, write, format, commit or run tests.
 
 Diff range (use exactly this, nothing else):  git diff <MERGE_BASE>..HEAD
-Intent of the change: <INTENT from step 2>
-Changed files: <PATHS relevant to this pass>
+Intent of the change: <INTENT>
+Files for this pass: <PATHS>
 
-Report every finding in this shape, most important first:
+Your items:
+<the approved items for this group, with their ids and sources>
 
-- claim:    one line, what is wrong
-  where:    path/to/file.ts:LINE
+Method: check your items, in order, and nothing else. For any item tagged
+[repo: <file>], open that file and read the rule in its current wording before
+judging, then quote what you read.
+
+Answer every item:
+
+- id:     D9
+  result: pass | fail | not-applicable
+  where:  path/to/file.ts:LINE        (for a fail, and for a pass you had to work for)
   evidence: the exact line(s) from the diff
-  reason:   the quoted rule it breaks, or why it costs the reader
-  fix:      the concrete smaller change, with the replacement text where short
+  reason: the quoted rule, or why it costs the reader
+  fix:    the concrete smaller change, with the replacement text where short
   severity: blocking | worth-fixing | nit
   confidence: high | medium | low
 
-Rules: cite only lines that exist in this diff. Quote a rule only if you read it
-in a real file, naming that file. If you find nothing, say "no findings" and
-stop. A short list of real findings beats a long list of maybes.
+Then, only if you saw something serious your items do not cover, add it under
+"off-list" in the same shape. Do not pad it: off-list is for real problems, not
+for things you would have written differently.
+
+Cite only lines that exist in this diff. Quote a rule only if you read it in a
+real file, naming that file.
 ```
 
-## Pass 1: guidelines
+## Group G: repo guidelines
 
 ```
-Build a rule checklist from the CLAUDE.md files themselves, then check the diff
-against it. Nothing is listed for you here on purpose: those files change, and
-anything copied into this brief would be out of date.
+These items come from the CLAUDE.md files that govern the changed paths:
+dependency shape, environment variables, file placement, build steps, commit and
+branch shape, and anything else with no other group.
 
-Governing files, most specific wins on conflict:
-<LIST from scope.sh>
+Read each named CLAUDE.md in full before checking its items. They are short.
+Where one points at another document for an area this diff touches, follow the
+pointer and read that too.
 
-Method:
-1. Read each governing CLAUDE.md in full. They are short. Where one points at
-   another document for the detail of an area this diff touches, follow the
-   pointer and read that too.
-2. Write a numbered checklist of every rule that could apply to these changed
-   files. One line per rule, each naming the file it came from. Drop rules about
-   areas the diff does not touch, and say which areas you dropped.
-3. Walk the checklist against the diff item by item. Mark each one pass, fail or
-   not applicable, with the file and line you checked.
-4. Report the checklist first so the reviewer sees the coverage, then a finding
-   for every fail.
-
-Treat every rule as binding, whether or not it is marked important, and whatever
-it covers: dependency shape, naming, file placement, tests owed, docs owed,
-environment registration, build steps, commit and branch shape.
-
-Report a finding only where you can quote both the rule line and the diff line
-that breaks it. A rule you cannot quote is your opinion, so leave it out.
+Judge against the wording you read, not against what the item paraphrases. If
+the rule turns out narrower than the item suggests, say so and mark the item
+pass with a note. If it is wider and the diff breaks the wider version, that is
+a fail with the real quote.
 ```
 
-## Pass 2: docs
+## Group D: documentation
 
 ```
-Review the changed documentation against the repo's own writing guidelines. Work
-from the guidelines as written, never from memory or general style sense. This is
-the pass that finds the most, because documentation lands wordy and full of
-internals more often than anything else.
+This is the group that finds the most, because documentation lands wordy and
+full of internals more often than anything else.
 
-Read first, in full:
-- container/website/CLAUDE.md, including the pages it tells you to read before
-  writing or restyling
-- the website documentation section of the root CLAUDE.md
-
-Changed pages: <PATHS>
-
-Method:
-1. Turn those guidelines into a numbered checklist, one line per rule.
-2. Check every changed page, and every changed paragraph, against each item.
-3. Report the checklist with pass or fail first, then the findings.
+Read first, in full: container/website/CLAUDE.md, including the pages it tells
+you to read before writing or restyling. Then check your items against every
+changed page and every changed paragraph.
 
 Run the mechanical items rather than eyeballing them: grep the changed pages for
 whatever the guidelines ban as punctuation, and measure anything they set a
 length bar for.
 
-Two judgements are yours beyond the checklist:
-- Wordy or internals-heavy prose. For every sentence you flag, write the shorter
-  replacement in the fix field. The rewrite is the finding; "too complex" is not.
-- Missing documentation. Does the diff change user-visible behaviour that no page
-  mentions yet? That is blocking.
+For every sentence you flag as wordy or internals-heavy, write the shorter
+replacement in the fix field. The rewrite is the finding; "too complex" is not.
+
+Missing documentation is a fail, not a gap: if the diff changes user-visible
+behaviour that no page mentions, name the page it belongs on.
 ```
 
-## Pass 3: reuse
+## Group T: types and reuse
 
 ```
-Find new types and new functionality that could come from something that already
-exists. Every redundant declaration is committed lines someone has to maintain.
+Work from the additions: list every type, interface, enum and exported function
+the diff ADDS, then check your items against that list.
 
-Changed files: <PATHS>
+Search before you judge. For each addition, grep the same package, then its
+siblings, then the shared packages, for the same field set, the same shape, or
+the same job under another name. A reuse claim with no existing declaration to
+point at is not a finding, so name the existing one by file and line and show
+the derived form you propose (Pick, Omit, Partial, Extract, ReturnType, a
+generic parameter, or extending it).
 
-Method:
-1. List every type, interface, enum and exported function ADDED by the diff.
-2. For each one, search for a near match before judging it: grep the same
-   package, then its siblings, then the shared packages, for the same field set,
-   the same shape, or the same job under another name.
-3. Ask, in this order:
-   - Does this type already exist? Then import it.
-   - Can it be derived? Pick, Omit, Partial, Extract, ReturnType, a generic
-     parameter on the existing type, or extending it. Prefer deriving, because a
-     derived type follows its source when the source changes.
-   - Is it a near copy of a neighbour that differs by one field? Then the two
-     should share a base.
-   - Same questions for functions: does a helper already do this, and does the
-     new one only wrap it under another name?
-4. Flag the reverse too: a type widened or duplicated so two callers could share
-   it, where a small generic would have kept both honest.
-
-For each finding name the existing type or function by file and line, and show
-the derived form you propose. A reuse claim with no existing declaration to point
-at is not a finding.
-
-Before flagging, check whether importing would cross a package boundary the repo
-does not allow. The package CLAUDE.md states its boundaries; read it rather than
-assuming. Deliberate duplication across such a boundary is correct.
+Before flagging, check whether the import would cross a package boundary the
+repo does not allow. The package CLAUDE.md states its boundaries; read it rather
+than assuming. Deliberate duplication across such a boundary is correct.
 ```
 
-## Pass 4: architecture
+## Group A: architecture and size
 
 ```
-Judge the shape of the change. The goal is the simplest obvious version, and
-fewer committed lines.
-
 Diff stat: <STAT>
 New files: <ADDED FILES with line counts>
 
-Method:
-1. Restate the intent in one sentence, then ask what the smallest change that
-   achieves it looks like. Compare that to the diff.
-2. Every new file: does it earn its existence? What would it cost to put this in
-   the file that already owns the job? Name that file. A new file is right when
-   it holds a genuinely separate concern, or the host file is already large.
-3. Look for structure added ahead of need: an abstraction with one caller, an
-   options object with one option, an interface implemented once, a registry with
-   two entries, an indirection layer that only forwards.
-4. Look for the missed extension point: did the author add a parallel path where
-   the codebase already had a hook, a strategy table, or a branch to extend?
-5. Look for copy-paste between the new files, and between a new file and the one
-   it was modelled on.
-6. Is anything placed wrongly? Package boundaries here are strict, so read the
-   CLAUDE.md of the packages involved and judge placement against what they
-   state, not against what looks tidy.
+Start by restating the intent in one sentence and describing the smallest change
+that would achieve it. Compare that to the diff, then check your items.
 
-Every architecture finding carries a line count: roughly how many committed lines
-the simpler shape removes, and confirmation that behaviour is unchanged. If the
-simpler shape is only different, not smaller and not clearer, drop it.
+Every architecture fail carries a number: roughly how many committed lines the
+simpler shape removes, and confirmation that behaviour is unchanged. If the
+simpler shape is only different, not smaller and not clearer, mark the item pass
+and move on.
+
+For placement, read the CLAUDE.md of the packages involved and judge against
+what they state, not against what looks tidy.
 
 Do not propose refactoring code the diff does not touch.
 ```
 
-## Pass 5: comments
+## Group C: comments
 
 ```
-Review only the comments added or changed by the diff, in code files.
+Look only at comments the diff adds or changes, in code files.
 
-Changed files: <PATHS>
-
-First read the code style rules in the root CLAUDE.md, plus any CLAUDE.md in the
+Read the code style rules in the root CLAUDE.md, plus any CLAUDE.md in the
 directories these files live in, and take the comment and doc-block rules from
-there. Then apply the general bar: a comment stays only if it says something that
-cannot be read from the code, and it says it in as few lines as possible.
+there before judging.
 
-Delete or rewrite:
-- Restates the line below it ("// increment the counter").
-- Names the function again in prose above it.
-- A doc block using tags the repo's style rules ban, where the types already
-  carry the information.
-- A multi-line block that says one thing: collapse it to one line.
-- Commented-out code, a TODO with no owner and no plan, a leftover debug note.
-- Stale: describes behaviour the diff just changed. Quote both and mark it
-  blocking, because a wrong comment is worse than no comment.
+For each fail give the replacement one-liner, or say "delete" outright. Be
+strict, but do not strip a comment carrying a real reason, constraint or
+invariant just because it runs to two lines. A comment describing behaviour the
+diff just changed is blocking: a wrong comment is worse than no comment.
 
-Keep:
-- Why, not what: the reason a surprising choice was made, the constraint that
-  forced it, the bug it avoids.
-- A load-bearing invariant, an ordering requirement, a pointer to the spec of a
-  format.
-- A warning that the obvious simplification here is wrong.
+If you cannot tell whether a comment is load-bearing, mark confidence low and
+say what would settle it.
+```
 
-For each finding give the replacement one-liner, or say "delete" outright. Be
-strict, but do not strip a comment carrying real reasoning just because it runs
-to two lines. If you cannot tell whether it is load-bearing, mark confidence low
-and say what would settle it.
+## Group B: behaviour and tests
+
+```
+Read the changed code closely enough to say what it does now versus before, then
+check your items.
+
+For a behaviour item, a fail needs the input or state that reaches it: "empty
+array reaches line 42 and it indexes [0]". A worry with no path to it is not a
+finding.
+
+For a coverage item, name the test that should exist and what it would pin.
+Check whether an existing test already covers it before calling it missing, and
+check whether any test was weakened, skipped or deleted in this diff.
+
+Do not run anything. You are reading tests, not executing them, and reporting a
+result you did not produce would be a false claim.
 ```
