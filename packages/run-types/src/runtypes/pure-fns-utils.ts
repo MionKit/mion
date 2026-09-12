@@ -140,7 +140,23 @@ export const pf_uniqueItems = registerPureFnFactory('rt::uniqueItems', function 
       '}'
     );
   };
-  return function _uniqueItems(arr: readonly any[] | ReadonlySet<any>): boolean {
+  return function _uniqueItems(arr: readonly any[] | ReadonlySet<any> | ReadonlyMap<any, any>): boolean {
+    // A Map (FormattedMap): its ENTRY is the `[key, value]` pair, so the
+    // keyword compares PAIRS. A primitive key is unique by construction
+    // (SameValueZero), which makes its pair unique too — skipped, so a Map
+    // with primitive keys allocates nothing however large its values. An
+    // object key may repeat by content, so its whole pair is canonicalised.
+    if (arr instanceof Map) {
+      let objects: Set<string> | null = null;
+      for (const [key, value] of arr) {
+        if (key === null || typeof key !== 'object') continue;
+        if (objects === null) objects = new Set<string>();
+        const pairKey = canon([key, value]);
+        if (objects.has(pairKey)) return false;
+        objects.add(pairKey);
+      }
+      return true;
+    }
     // A Set (FormattedSet): its primitive members are unique by construction
     // (SameValueZero), so only object members are canonicalised and a Set of
     // primitives allocates nothing.

@@ -103,10 +103,11 @@ func TestRender_SymbolKeyedMembersDrop(t *testing.T) {
 	}
 }
 
-// TestRender_BoundedCollectionsCarryTheArrayKeywords — a formattedSet /
+// TestRender_BoundedCollectionsCarryTheCollectionKeywords — a formattedSet /
 // formattedMap brand lands on the OUTER array under the standard names; a
-// Set's own `uniqueItems: true` is printed once.
-func TestRender_BoundedCollectionsCarryTheArrayKeywords(t *testing.T) {
+// Set's own `uniqueItems: true` is printed once, while a Map's rides its params
+// (its pairs are what must not repeat) and `contains` prints its child schema.
+func TestRender_BoundedCollectionsCarryTheCollectionKeywords(t *testing.T) {
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 	setItem := &reflection.RunType{ID: "si", Kind: reflection.KindParameter, SubKind: reflection.SubKindSetItem, Child: str}
@@ -126,5 +127,21 @@ func TestRender_BoundedCollectionsCarryTheArrayKeywords(t *testing.T) {
 	doc = RenderDocument(mapNode, derefOver(map[string]*reflection.RunType{"map": mapNode, "mk": mapKey, "mv": mapValue}))
 	if !strings.Contains(doc.Source, "jsType: 'Map', maxItems: 2, minItems: 1}") {
 		t.Errorf("bounded Map: expected both bounds after jsType, got:\n%s", doc.Source)
+	}
+
+	// The whole collection bag on a Map: `uniqueItems` over its pairs plus a
+	// `contains` tuple child, both on the outer array.
+	anySlot := &reflection.RunType{ID: "m0", Kind: reflection.KindTupleMember,
+		Child: &reflection.RunType{ID: "unk", Kind: reflection.KindUnknown}}
+	numSlot := &reflection.RunType{ID: "m1", Kind: reflection.KindTupleMember, Child: num}
+	pair := &reflection.RunType{ID: "pair", Kind: reflection.KindTuple,
+		Children: []*reflection.RunType{anySlot, numSlot}}
+	richMap := &reflection.RunType{ID: "rmap", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, TypeName: "Map",
+		Arguments:        []*reflection.RunType{mapKey, mapValue},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedMap", Params: map[string]any{"uniqueItems": true}},
+		SchemaChecks:     reflection.SchemaChecks{Contains: []*reflection.ContainsCheck{{Child: pair, Min: 1, Max: -1}}}}
+	doc = RenderDocument(richMap, derefOver(map[string]*reflection.RunType{"rmap": richMap, "mk": mapKey, "mv": mapValue, "pair": pair, "m0": anySlot, "m1": numSlot, "num": num}))
+	if !strings.Contains(doc.Source, "jsType: 'Map', uniqueItems: true, contains: {type: 'array', prefixItems: [{}, {type: 'number'}]") {
+		t.Errorf("Map with the whole bag: expected uniqueItems and the contains pair, got:\n%s", doc.Source)
 	}
 }
