@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-12
 ---
 
@@ -65,3 +65,44 @@ consumer compiling a server against a separate client project, then compiling th
 - `pnpm miondevx release e2e` passes locally.
 - The `pre-publish-e2e` label on the PR shows the consumer lane green.
 - The fixture still exercises the separate-client-project compile, batches included.
+
+## Plan: road 1, plus the guards the break asked for (2026-09-12)
+
+Road 1 (keep the vitest specs out of the CLI compile program), because road 2 cannot be taken:
+`src/tests/json.spec.ts` is the only batch in the `vite build` lane too, and
+`build-output.spec.ts` asserts that lane inlines the mapper body authored in it. Moving the
+batch out would trade one broken lane for another.
+
+- `mion-consumer/tsconfig.compile.json` grows an `exclude` carrying `src/tests`. The compile
+  program keeps `src/server/`, `lint/` and `globalSetup.ts`, so the emitted tree still holds
+  `dist-cli/src/server/server.js` and nothing `compile-output.spec.ts` reads moves.
+- The round-trip lane (`vitest.config.ts`) and the build lane (`vite.build.config.ts`) both
+  compile against the fixture's root `tsconfig.json` with no client pointer, so the spec's two
+  batches keep working exactly as before. Only the CLI compile changes.
+- `compile-output.spec.ts` keeps its `ids` assertion (the client project holds one batch), and
+  the comments that described the server program as holding the specs' batches are rewritten.
+
+Tests, since nothing on the host runs the fixture and the lane is label gated:
+
+- `packages/devtools/test/compile-cli-mion.test.ts` gets a second case: the same two projects,
+  plus one batch in the server's own program, asserting `mion compile` exits non-zero and names
+  BAT008 and the offending file. That is the failure mode the gate hit, pinned host-side.
+- `packages/devtools/test/cli-surface.test.ts` gets the fixture guard, in the same spirit as
+  the verb/flag guard already there: read the fixture's own `compile` argv, resolve the include
+  and exclude globs of the tsconfig it names, and fail if any file of that program calls
+  `batch(`. A third case asserts the excluded specs DO batch, so the guard cannot pass hollow.
+
+Docs, since the promotion left both pages reading as a warning:
+
+- `01.rpc/06.devtools/02.vite.md` said the build "says so"; it now says the build fails and how
+  to fix it.
+- `01.rpc/03.client/03.batch.md` never mentioned the case at all. It gets a short note.
+
+## What shipped
+
+All of the above, unchanged from the plan. Built by a background session with no human in the
+loop, so nothing here was reviewed before it was written.
+
+`pnpm miondevx release e2e --backend container --no-matrix` was run locally and ended
+`pre-publish e2e: PASS`, the consumer lane included. `pnpm run lint` and `pnpm run test:ci`
+are green.
