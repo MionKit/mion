@@ -173,6 +173,30 @@ func TestMaxBytes_Union(t *testing.T) {
 	expectUnbounded(t, "unbounded member", MaxBytes(mixed, noRefs), "|1: string without maxLength")
 }
 
+func TestMaxBytes_UnionMergedProps(t *testing.T) {
+	lit := func(value string) *reflection.RunType {
+		return &reflection.RunType{Kind: reflection.KindLiteral, Literal: value}
+	}
+	armA := object(prop("kind", lit("a"), false), prop("f", num, false))
+	armB := object(prop("kind", lit("b"), false), prop("f", boolean, false))
+	// Two object members merge into ONE wire shape, so `f` rides as
+	// `[<candidateIndex>,value]`: every property of every arm is charged that
+	// sub-envelope on top of the arm's own size.
+	// armA = `{` + `"kind":"a"` + `,` + `"f":<24>` + `}` = 41, + 2 × `[1,` … `]`
+	sub := subEnvelopeBytes(2)
+	merged := &reflection.RunType{Kind: reflection.KindUnion, Children: []*reflection.RunType{armA, armB}}
+	expectBounded(t, "merged props", MaxBytes(merged, noRefs), 41+2*sub+unionEnvelopeBytes(2))
+	// A single object member has a single candidate per property, so the flat
+	// layout writes no sub-envelope and the arm size stands.
+	lone := &reflection.RunType{Kind: reflection.KindUnion, Children: []*reflection.RunType{armA, num}}
+	expectBounded(t, "one object member", MaxBytes(lone, noRefs), 41+unionEnvelopeBytes(2))
+	// The surcharge reaches the union wherever it sits: `Set<armA|armB>` of 1.
+	item := &reflection.RunType{ID: "u", Kind: reflection.KindParameter, SubKind: reflection.SubKindSetItem, Child: merged}
+	setRT := &reflection.RunType{Kind: reflection.KindClass, SubKind: reflection.SubKindSet, Arguments: []*reflection.RunType{reflection.NewRef("u")},
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "formattedSet", Params: map[string]any{"maxItems": 1.0}}}
+	expectBounded(t, "set of merged union", MaxBytes(setRT, map[string]*reflection.RunType{"u": item}), 2+41+2*sub+unionEnvelopeBytes(2))
+}
+
 func TestMaxBytes_MapAndSet(t *testing.T) {
 	param := func(id string, sub reflection.ReflectionSubKind, child *reflection.RunType) *reflection.RunType {
 		return &reflection.RunType{ID: id, Kind: reflection.KindParameter, SubKind: sub, Child: child}
