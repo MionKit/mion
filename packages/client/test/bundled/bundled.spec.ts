@@ -16,6 +16,7 @@ import {initClient} from '../../src/client.ts';
 import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../../src/lib/testUtils.ts';
 import {isBundledMethod, resetBundledApi} from '../../src/lib/bundledApi.ts';
+import type {InjectedApiMetadata} from '../../src/types.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 
 // this lane's own test server, started by test/lib/laneServer.ts
@@ -158,7 +159,10 @@ describe('a client built with bundleApi: bundled', () => {
     const {client, routes, middleFns} = initClient<TestServerApi>({baseURL});
     // what a `<genDir>/api/` tree written by another @mionjs/devtools version would inject: the
     // envelope is right and the method row is not, which the guard has to catch before it is read
-    expect(() => client.useBundledApi({methods: [{id: 'sayHello'}]})).not.toThrow();
+    // the cast stands in for the build: the slot's type says only the build fills it, and this
+    // is what a `<genDir>/api/` tree from another @mionjs/devtools version would hand it
+    const stale = {methods: [{id: 'sayHello'}]} as unknown as InjectedApiMetadata;
+    expect(() => client.useBundledApi(stale)).not.toThrow();
 
     const [result, error, undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
     expect(result).toBe('Hello John Doe');

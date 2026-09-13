@@ -311,9 +311,10 @@ export type InjectBatchId<Routes> = string & {
  * calling `initClient`, the way the batch transport reaches a server.
  *
  * `Api` and `Id` are phantom type parameters read by the build; the runtime value is what the
- * build injected. Same `string & {brand}` shape as `InjectRunTypeId` so the Go marker scanner
- * resolves the alias identically.
+ * build injected, which here is the generated module's export (an object holding the method rows),
+ * NOT a string like `InjectRunTypeId`. The type is the brand alone so it stays honest about that:
+ * the scanner matches a marker by its name, module and brand property, never by what it wraps.
  */
-export type InjectApiMetadata<Api, Id extends string> = string & {
+export type InjectApiMetadata<Api, Id extends string> = {
   readonly __rtInjectApiMetadataBrand?: [Api, Id];
 };

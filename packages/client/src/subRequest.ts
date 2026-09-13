@@ -8,6 +8,8 @@
 import {RpcError} from '@mionjs/core';
 import type {RunTypeError} from '@mionjs/core';
 import type {CallSetup, MiddlewareSubRequest, RequestErrors, RouteSubRequest, SubRequest} from './types.ts';
+import type {InjectedApiMetadata} from './types.ts';
+
 import type {InputFromRef} from '@mionjs/core';
 import type {MionClient} from './client.ts';
 import {TypedEvent} from './lib/typedEvent.ts';
@@ -47,7 +49,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
 
   /** Prefills MiddleFn's parameters and returns TypedEvent for event handler registration.
    *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
-  prefill(apiMetadata?: unknown): TypedEvent<S, E> {
+  prefill(apiMetadata?: InjectedApiMetadata): TypedEvent<S, E> {
     this.client.useBundledApi(apiMetadata);
     this.client.prefill(this as MiddlewareSubRequest<any>).catch((errors: RequestErrors) => {
       console.error('Prefill error:', findSubRequestError(this, errors));
@@ -89,7 +91,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
 
   /** Calls a remote route with optional setup (middleFns, signal, timeout).
    *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
-  call(setup?: CallSetup<any>, apiMetadata?: unknown): Promise<any> {
+  call(setup?: CallSetup<any>, apiMetadata?: InjectedApiMetadata): Promise<any> {
     this.client.useBundledApi(apiMetadata);
     return this.client.execute(
       this as unknown as RouteSubRequest<any>,
@@ -103,7 +105,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
 
   /** Validates parameters and returns type errors.
    *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
-  typeErrors(apiMetadata?: unknown): Promise<RunTypeError[]> {
+  typeErrors(apiMetadata?: InjectedApiMetadata): Promise<RunTypeError[]> {
     this.client.useBundledApi(apiMetadata);
     return this.client
       .typeErrors(this as SubRequest<any>)

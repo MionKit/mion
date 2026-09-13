@@ -9,6 +9,7 @@ import {RpcError} from '@mionjs/core';
 import {inputMapperKey} from '@mionjs/core';
 import type {PureFunction, InjectPureFnHash, InjectBatchId} from '@mionjs/run-types';
 import type {MiddlewareSubRequest, RouteSubRequest, BatchBuilder, SubRequest} from './types.ts';
+import type {InjectedApiMetadata} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import type {InputFromRef} from '@mionjs/core';
 
@@ -63,7 +64,7 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
     // `apiMetadata` is filled by the build under `bundleApi`, never by hand
     async call(
       setup?: {middleFns?: Record<string, MiddlewareSubRequest<any>>; signal?: AbortSignal; timeout?: number},
-      apiMetadata?: unknown
+      apiMetadata?: InjectedApiMetadata
     ) {
       client.useBundledApi(apiMetadata);
       const middleFns = setup?.middleFns ?? {};
