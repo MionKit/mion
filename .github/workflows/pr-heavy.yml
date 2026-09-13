@@ -19,6 +19,13 @@ name: pr · website + benchmarks + pre-publish e2e (label-gated)
 #                    run the consumer lanes (the multi-bundler matrix and the
 #                    mion consumers) against that install, like the release gate
 #
+# A LABEL IS NOT ENOUGH on its own. These lanes used to run on every commit for the
+# life of a labelled pull request, so a docs commit re-paid a ten minute site build
+# or a two hour benchmark run. The `lanes` job now decides by CONTENT as well: each
+# lane hashes the paths that feed it (scripts/ci/lanes.mjs) and runs only when that
+# hash has not already passed. Label AND content, so `synchronize` keeps a labelled
+# pull request honest without re-running work that is already proven.
+#
 # Deliberately NOT pull_request_target: that would hand secrets and write
 # permissions to fork code. And deliberately no deploy step — this proves the
 # build, website-deploy.yml remains the only thing that ships a site.
@@ -37,9 +44,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The content gate, shared with ci.yml and drizzle-e2e.yml. Tiny and unlabelled:
+  # it has to answer before the labelled jobs can ask.
+  lanes:
+    name: decide lanes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      lanes: ${{ steps.decide.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: decide
+        uses: ./.github/actions/ci-lanes
+        with:
+          lanes: website bench e2e
+
   website:
     name: build the docs site
-    if: contains(github.event.pull_request.labels.*.name, 'website')
+    needs: lanes
+    if: contains(github.event.pull_request.labels.*.name, 'website') && fromJSON(needs.lanes.outputs.lanes).website.run
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -74,10 +99,16 @@ jobs:
       # first (a whole-workspace build this lane does not run).
       - name: Build the docs site
         run: pnpm miondevx website container-build
+      - name: Record the docs site build as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: website
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).website.hash }}
 
   bench:
     name: validation benchmarks
-    if: contains(github.event.pull_request.labels.*.name, 'bench')
+    needs: lanes
+    if: contains(github.event.pull_request.labels.*.name, 'bench') && fromJSON(needs.lanes.outputs.lanes).bench.run
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -101,6 +132,11 @@ jobs:
       # its lane builds in seconds like the others.
       - name: Run the benchmarks
         run: pnpm miondevx bench --quick
+      - name: Record the benchmarks as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: bench
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).bench.hash }}
 
   # ── pre-publish e2e: the release gate's consumer lanes, on a PR ─────────────
   # Two jobs like drizzle-e2e.yml: ONE build that packs the tarballs, then the e2e
@@ -114,7 +150,8 @@ jobs:
   # OS-agnostic and the release gate keeps running them.
   pre-publish-build:
     name: pre-publish e2e · build + pack
-    if: contains(github.event.pull_request.labels.*.name, 'pre-publish-e2e')
+    needs: lanes
+    if: contains(github.event.pull_request.labels.*.name, 'pre-publish-e2e') && fromJSON(needs.lanes.outputs.lanes).e2e.run
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -143,7 +180,7 @@ jobs:
 
   pre-publish-e2e:
     name: pre-publish e2e · consumer lanes
-    needs: pre-publish-build
+    needs: [lanes, pre-publish-build]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     # packages:read lets the job pull the prebuilt e2e image.
@@ -178,3 +215,9 @@ jobs:
       # The ONE front door, the same script as the release gate and a local run.
       - name: Pre-publish e2e (container backend)
         run: pnpm miondevx release e2e --backend container
+      # The marker rides the job that PROVES the lane, not the one that packs for it.
+      - name: Record the pre-publish e2e as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: e2e
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).e2e.hash }}

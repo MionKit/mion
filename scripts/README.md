@@ -25,7 +25,7 @@ Each area is a subdirectory under `scripts/` plus a dispatch case in [miondevx.m
 
 | Area        | Directory                  | Purpose                                                                  |
 | ----------- | -------------------------- | ------------------------------------------------------------------------ |
-| `core`      | [core/](core/)             | Go resolver + TS marker/plugin: build, smoke, fuzz, codegen, tsgolint    |
+| `core`      | [core/](core/), [ci/](ci/) | Go resolver + TS marker/plugin: build, smoke, fuzz, codegen, tsgolint, and the CI lane table |
 | `website`   | [website/](website/)       | Docs site (Nuxt + Docus): dev server, build, preview, container         |
 | `bench`     | [website/bench-data/](website/bench-data/) | Benchmarks (audit / typecost / compiletime / serialization / smoke)       |
 | `release`   | [release/](release/)       | npm publish pipeline (preflight → publish → website → CI deploy)         |

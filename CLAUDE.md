@@ -184,7 +184,9 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
   - `pre-publish-e2e`: packs every package, publishes to a throwaway registry and runs the consumer lanes. Add it for package exports, `package.json` changes, public API renames, anything a consumer installs.
   - `drizzle-e2e`: runs drizzle's own suites against real databases. Add it for [packages/drizzle-orm/](packages/drizzle-orm/) and its dialect packages, or [container/drizzle-e2e/](container/drizzle-e2e/).
   - `skip-defaults` does the opposite, it opts OUT of the default lint / typecheck / test lanes. Only for a PR that cannot affect them.
-  Adding a label re-triggers its lane, and it keeps running on every later commit, so label at open time rather than at the end.
+  Adding a label re-triggers its lane, so label at open time rather than at the end.
+  A label is necessary but NOT sufficient: every lane is also gated on CONTENT ([scripts/ci/lanes.mjs](scripts/ci/lanes.mjs)). Each lane declares the paths that feed it, hashes exactly those paths, and runs unless a marker says that hash already passed. So a labelled lane re-runs on a commit that changes its inputs and skips one that does not, and a docs-only commit skips every lane. Ask what this tree needs with `pnpm miondevx core lanes`.
+  Adding a top-level directory means classifying it there: an unclassified path joins EVERY lane's hash, so everything re-runs until someone says what reads it.
 
 ## Git workflow
 

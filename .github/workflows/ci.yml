@@ -10,12 +10,19 @@ name: ci
 #   js-lint — check-format + lint/typecheck + the code-import and examples gates
 #             + the rest of the JS suite + platform-bun's bun:test suites + the
 #             ten time-boxed fuzz lanes, soaked sequentially
-# Both are PATH-GATED via the `changes` job (dorny/paths-filter), same mechanism
-# as `smoke`: they run only when Go (ts-go-runtypes/**) or JS (packages/** + root
-# JS config + scripts) files change, so a docs-only PR skips both. Inside go-fuzz
-# the gofmt/vet/go-test steps are additionally gated on the Go filter, so a
-# packages-only change runs the fuzz half without re-running the Go suite. (A Go
-# change still runs js-lint too: typecheck compiles the ts-go-runtypes testfixtures.)
+# Both are CONTENT-GATED via the `lanes` job, same mechanism as `smoke`. Each lane
+# declares the paths that feed it (scripts/ci/lanes.mjs), hashes exactly those paths
+# in the tree under test, and runs unless a marker says that hash already passed. So
+# a docs-only commit skips every lane, and a commit that only touches the Go tree
+# skips the JS half without touching the other's marker.
+# This replaced a DIFF gate (dorny/paths-filter against the pull request's base),
+# whose flaw was that one touched file under packages/ pinned the filter true for the
+# life of the branch: a later docs-only commit re-ran ~33 runner minutes for nothing.
+# Inside go-fuzz the two halves answer to their own lanes, so a packages-only change
+# runs the fuzz half without re-running the Go suite. The reverse does NOT hold: the
+# Go tree feeds EVERY lane, because the binary built from it is the engine they all
+# run on (the plugin tests spawn it, the container lanes mount it), so a Go change
+# still runs js-lint and the rest.
 #
 # FUZZ BUDGETS: every lane runs on every PR at its QUICK tier — roughly 2x the
 # near-decorative defaults; see the FUZZ registry in scripts/miondevx.mjs — so
@@ -42,8 +49,8 @@ name: ci
 # cache hit and the per-job resolver build is fast, not minutes.
 #
 # A FOURTH job, `smoke`, runs the website serves-a-page + benchmark
-# competitor-build checks. It is path-gated (only when container inputs change,
-# decided by the tiny `changes` job) and runs in PARALLEL with the verify jobs
+# competitor-build checks. It is content-gated (only when container inputs change,
+# decided by the tiny `lanes` job) and runs in PARALLEL with the verify jobs
 # instead of tailing them. It NEVER builds the shared image: it PULLS the
 # prebuilt one (competitor node_modules baked in) and mounts our freshly built
 # binary; if the image can't be pulled the job fails (rebuild + push it from
@@ -80,14 +87,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decides WHICH heavy jobs run, by CONTENT. Kept as its own tiny job so the gated
+  # jobs can `needs:` it without a bootstrap, and so a docs-only commit never spins
+  # up a heavy runner at all. The lane table, the hashing and the verdict all live in
+  # scripts/ci/lanes.mjs, so a maintainer can ask the same question locally with
+  # `pnpm miondevx core lanes`.
+  lanes:
+    name: decide lanes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # listing the green markers is an Actions cache read
+      actions: read
+    outputs:
+      lanes: ${{ steps.decide.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: decide
+        uses: ./.github/actions/ci-lanes
+        with:
+          lanes: go js-fuzz js smoke
+      # The whole-tree hygiene sweeps live HERE, in the one job nothing can skip,
+      # because they read docs/, .claude/ and the root prose files — exactly the
+      # paths every lane deliberately ignores. Gated on a lane they would miss the
+      # edits they exist to catch.
+      # Plain node, not `pnpm run check:tree`: this job installs nothing, so pnpm is
+      # not on PATH. The script only needs git and node, which is the point of it.
+      - name: Whole-tree sweeps (spec references, old repo URL, NUL bytes)
+        run: node scripts/ci/check-tree.mjs
+
   # ── go-fuzz: Go suite + the count-based JS fuzz lanes ─────────────────────
   # The Go suite (vet + test) is the wall floor here; the count-based JS fuzz
   # lanes (the JS heavyweight) ride along on this otherwise-Go-bound runner to
   # balance it against js-lint, at their quick budgets.
   go-fuzz:
     name: go tests + fuzz
-    needs: changes
-    if: (needs.changes.outputs.go == 'true' || needs.changes.outputs.pkg == 'true') && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
+    needs: lanes
+    if: (fromJSON(needs.lanes.outputs.lanes).go.run || fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run) && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -99,7 +135,7 @@ jobs:
       # Go-specific steps run only when the Go tree changed; a packages-only
       # change still runs the fuzz half below (which spawns the binary).
       - name: Go formatting (our code only; never third_party)
-        if: needs.changes.outputs.go == 'true'
+        if: fromJSON(needs.lanes.outputs.lanes).go.run
         working-directory: ts-go-runtypes
         run: |
           unformatted="$(gofmt -l cmd internal)"
@@ -109,7 +145,7 @@ jobs:
             exit 1
           fi
       - name: Go vet (our code only; never third_party)
-        if: needs.changes.outputs.go == 'true'
+        if: fromJSON(needs.lanes.outputs.lanes).go.run
         working-directory: ts-go-runtypes
         run: go vet ./cmd/... ./internal/...
       # Build BEFORE the Go suite: since the real-package migration the Go
@@ -126,7 +162,7 @@ jobs:
       # codes among them) live there and once rotted unnoticed when only
       # ./internal/... ran.
       - name: Go test suite (fuzz sweeps at quick budgets)
-        if: needs.changes.outputs.go == 'true'
+        if: fromJSON(needs.lanes.outputs.lanes).go.run
         working-directory: ts-go-runtypes
         env:
           MION_FUZZ_ITER: '30'
@@ -140,6 +176,7 @@ jobs:
       # fuzz-lane-contracts test out of this slice) are pinned by that same test.
       # Local replay: `pnpm miondevx core fuzz <enrich|i18n|typemod|convertcli|apiids> --quick`.
       - name: JS fuzz sweep (count-based lanes at quick budgets)
+        if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
         env:
           MION_FUZZ_ENRICH_SEQUENCES: '12'
           MION_FUZZ_I18N_SEQUENCES: '12'
@@ -152,7 +189,24 @@ jobs:
       # sweep above never sets it, so the concurrency coverage rides here at the
       # race lane's quick budget (miondevx sets MION_FUZZ_RACE=1 itself).
       - name: Concurrent CLI race fuzz (MION_FUZZ_RACE gate)
+        if: fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
         run: pnpm miondevx core fuzz race --quick
+
+      # One marker per HALF, each written only when that half actually ran and
+      # passed. A half that was skipped proved nothing, so it must not claim a
+      # marker that would skip it again next time.
+      - name: Record the Go suite as green
+        if: success() && fromJSON(needs.lanes.outputs.lanes).go.run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: go
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).go.hash }}
+      - name: Record the JS fuzz sweep as green
+        if: success() && fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].run
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: js-fuzz
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes)['js-fuzz'].hash }}
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
   # Everything except the fuzz tree runs here, plus the static checks and the
@@ -160,8 +214,8 @@ jobs:
   # go-fuzz this is a complete, disjoint partition of the JS suite.
   js-lint:
     name: js tests + lint
-    needs: changes
-    if: (needs.changes.outputs.go == 'true' || needs.changes.outputs.pkg == 'true') && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).js.run && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -251,6 +305,11 @@ jobs:
       # lane replays locally with this exact command.
       - name: Time-boxed fuzz lanes at quick budgets
         run: pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secbinary secformat secgen sechttp secjson size types value --quick
+      - name: Record js tests + lint as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: js
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).js.hash }}
 
   # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
   # Validates every commit in the PR range against commitlint.config.js. PR-only
@@ -284,55 +343,13 @@ jobs:
             git log -1 --format=%B "$sha" | pnpm exec commitlint --verbose
           done
 
-  # Decides WHICH heavy jobs run, by path: `smoke` (the website/benchmarks apps +
-  # their drivers), `go` (the Go tree), and `pkg` (JS packages + root JS config +
-  # scripts). Kept as its own tiny job so the gated jobs can `needs:` it without a
-  # bootstrap, and so a docs-only PR never spins up a heavy runner at all.
-  changes:
-    name: detect changes
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      smoke: ${{ steps.filter.outputs.smoke }}
-      go: ${{ steps.filter.outputs.go }}
-      pkg: ${{ steps.filter.outputs.pkg }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            smoke:
-              # Only the two apps the smoke actually builds — NOT the pre-publish-e2e
-              # fixture (that is exercised by release-gate, not ci).
-              - 'container/website/**'
-              - 'container/benchmarks/**'
-              - 'scripts/core/build.mjs'
-              - 'scripts/website/**'
-              - 'scripts/container/**'
-              - 'scripts/lib/**'
-            go:
-              - 'ts-go-runtypes/**'
-              - '.github/actions/bootstrap/**'
-            pkg:
-              - 'packages/**'
-              - 'scripts/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'tsconfig.json'
-              - 'vitest.config.ts'
-              - '.github/actions/bootstrap/**'
-
-  # Path-gated container smoke, parallel with the verify jobs. Self-contained: it
+  # Content-gated container smoke, parallel with the verify jobs. Self-contained: it
   # builds its own resolver + linux binaries for the container mounts, then pulls
   # the prebuilt shared image (CI never builds it).
   smoke:
     name: container smoke
-    needs: changes
-    if: needs.changes.outputs.smoke == 'true' && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
+    needs: lanes
+    if: fromJSON(needs.lanes.outputs.lanes).smoke.run && !contains(github.event.pull_request.labels.*.name, 'skip-defaults')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -367,3 +384,8 @@ jobs:
       # build is an esbuild pass like the others.
       - name: Benchmark competitor-build smoke
         run: pnpm miondevx bench smoke
+      - name: Record the container smoke as green
+        uses: ./.github/actions/save-lane-green
+        with:
+          lane: smoke
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).smoke.hash }}

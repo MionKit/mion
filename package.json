@@ -38,6 +38,7 @@
         "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
         "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
         "check-code-imports": "node scripts/check-code-imports.mjs",
+        "check:tree": "node scripts/ci/check-tree.mjs",
         "precheck-types-examples": "pnpm run check:builds",
         "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
         "prelint": "pnpm run check:builds",

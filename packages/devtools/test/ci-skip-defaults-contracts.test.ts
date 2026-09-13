@@ -4,7 +4,7 @@
 // smoke) on one PR. It only works if BOTH halves are in place: the trigger must
 // fire on label changes (or the label does nothing until the next push), and
 // every heavy job's `if:` must read it (or one job keeps running). The light
-// jobs (`changes`, `commitlint`) must NOT read it: they cost seconds and keep the
+// jobs (`lanes`, `commitlint`) must NOT read it: they cost seconds and keep the
 // PR's commit messages gated.
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -39,15 +39,15 @@ describe('the skip-defaults label', () => {
   });
 
   it('never skips the light jobs', () => {
-    for (const job of ['changes', 'commitlint']) expect(jobCondition(job) ?? '', job).not.toContain(LABEL);
+    for (const job of ['lanes', 'commitlint']) expect(jobCondition(job) ?? '', job).not.toContain(LABEL);
   });
 
-  it('is a guard on the existing path gate, not a replacement for it', () => {
+  it('is a guard on the existing content gate, not a replacement for it', () => {
     // `(a || b) && !label`: the parentheses keep the label from binding to `b` alone.
-    for (const job of ['go-fuzz', 'js-lint'])
-      expect(jobCondition(job), job).toMatch(
-        /^\(needs\.changes\.outputs\.\w+ == 'true' \|\| needs\.changes\.outputs\.\w+ == 'true'\) && !contains/
-      );
-    expect(jobCondition('smoke')).toMatch(/^needs\.changes\.outputs\.smoke == 'true' && !contains/);
+    expect(jobCondition('go-fuzz')).toMatch(
+      /^\(fromJSON\(needs\.lanes\.outputs\.lanes\)[.[].+ \|\| fromJSON\(needs\.lanes\.outputs\.lanes\)[.[].+\) && !contains/
+    );
+    expect(jobCondition('js-lint')).toMatch(/^fromJSON\(needs\.lanes\.outputs\.lanes\)\.js\.run && !contains/);
+    expect(jobCondition('smoke')).toMatch(/^fromJSON\(needs\.lanes\.outputs\.lanes\)\.smoke\.run && !contains/);
   });
 });

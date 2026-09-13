@@ -1,0 +1,58 @@
+name: Decide which CI lanes to run
+description: >
+  Hash each lane's inputs in the tree being tested, then look up whether that exact
+  content already passed. Emits ONE `lanes` output, a JSON map of
+  {lane: {run, hash, reason}}, read with fromJSON() in a job `if:`.
+
+  A lane runs unless a green marker exists under its hash, so every unknown is a
+  run: an unreadable marker list, a new unclassified path, a lane whose job failed
+  (a failed job never saves a marker). scripts/ci/lanes.mjs owns the lane table and
+  the verdict; run it locally with `pnpm miondevx core lanes`.
+
+  On a pull request the checked-out tree is the MERGE ref, so a lane's hash covers
+  the base branch too: main moving re-runs the lane, which is exactly what a "diff
+  against the last green commit" rule would have got wrong.
+
+  Needs `permissions: actions: read` on the calling job to list the markers. The
+  job that RUNS a lane must save its marker on success with ./.github/actions/save-lane-green.
+
+inputs:
+  lanes:
+    description: Space-separated lane names to decide (see scripts/ci/lanes.mjs)
+    required: true
+
+outputs:
+  lanes:
+    description: 'JSON map of {lane: {run, hash, reason}}'
+    value: ${{ steps.decide.outputs.lanes }}
+
+runs:
+  using: composite
+  steps:
+    # The gate job runs no bootstrap and no install, so it brings its own node. The
+    # runner image ships an older one and the scripts use `import.meta.main`, which
+    # needs the version the workspace targets.
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 26
+
+    # Dependency-free node, run BEFORE any bootstrap so a skipped lane costs a
+    # checkout, not an install.
+    #
+    # A marker is a claim about CONTENT, so one proven on any branch counts: the
+    # list is read with `gh cache list` rather than a ref-scoped cache restore,
+    # which would miss a lane another branch already proved at the same hash.
+    # Failing to read it writes an empty list, and an empty list runs everything.
+    - name: Decide the lanes from their input hashes
+      id: decide
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        LANES: ${{ inputs.lanes }}
+      run: |
+        # --key filters server-side so only our markers count against the limit, and
+        # the limit is generous because a marker missed off the end just re-runs a
+        # lane: wasteful, never wrong.
+        gh cache list --key mion-lane-green- --limit 200 --json key --jq '.[].key' > lane-green-keys.txt || : > lane-green-keys.txt
+        node scripts/ci/lanes.mjs --decide $LANES --green-keys lane-green-keys.txt --github
+        rm -f lane-green-keys.txt
