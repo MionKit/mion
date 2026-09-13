@@ -284,7 +284,7 @@ describe('serverless router', () => {
   // stays the same on a platform with no early refusal of its own.
   describe('a failed request still runs the alwaysRun middleFns', () => {
     const seen: string[] = [];
-    const failPort = 8098;
+    const failPort = 8099; // its own port: 8098 is taken by BOTH smallPort above and port2 below
     let failServer: Server;
 
     beforeAll(async () => {
@@ -318,7 +318,13 @@ describe('serverless router', () => {
 
     it('an unknown path is a 404 that only the alwaysRun middleFn sees, with no body parsed', async () => {
       seen.length = 0;
-      const response = await fetch(`http://127.0.0.1:${failPort}/api/nope`, {method: 'POST', body: '{not json'});
+      // `connection: close`, like the node adapter's own 404-with-a-body test: mion answers this
+      // one without consuming the body, and a pooled keep-alive socket then errors on reuse
+      const response = await fetch(`http://127.0.0.1:${failPort}/api/nope`, {
+        method: 'POST',
+        body: '{not json',
+        headers: {connection: 'close'},
+      });
       expect(response.status).toEqual(StatusCodes.NOT_FOUND);
       const errors = (await response.json())[MION_ROUTES.thrownErrors];
       expect(errors[MION_ROUTES.notFound].type).toEqual('route-not-found');
