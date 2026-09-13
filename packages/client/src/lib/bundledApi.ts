@@ -15,7 +15,7 @@ import {
   type MethodWithOptsAndJitFns,
   type RtMarkerPayload,
 } from '@mionjs/core';
-import type {BundleApiMode} from '../types.ts';
+import type {BundleApiMode, InjectedApiMetadata} from '../types.ts';
 
 // The bundled-API lane (the build's `bundleApi` option). A build with it on compiles, for every
 // route the program calls, the same validators and serializers the server holds, and injects at
@@ -70,9 +70,11 @@ export function getBundleApiMode(): BundleApiMode | undefined {
 }
 
 /** Registers a bundled payload, once per method id. Idempotent and cheap on repeat: a dispatch point
- *  passes the same module on every call. A payload the build did not write is recorded rather than
- *  thrown: `call()` never throws, so it rides the undeclared slot of the result instead. */
-export function registerBundledApi(payload: unknown): void {
+ *  passes the same module on every call. The declared type is what the build writes; the guard is
+ *  still run because a `<genDir>/api/` tree from another @mionjs/devtools version can disagree, and
+ *  a payload it did not write is recorded rather than thrown: `call()` never throws, so it rides
+ *  the undeclared slot of the result instead. */
+export function registerBundledApi(payload: InjectedApiMetadata): void {
   if (!isBundledApiPayload(payload)) {
     pendingPayloadError = new RpcError({
       type: 'bundle-api-invalid-payload',

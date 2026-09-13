@@ -9,6 +9,7 @@ import {DEFAULT_PREFILL_OPTIONS} from './constants.ts';
 import {
   BundleApiMode,
   ClientOptions,
+  InjectedApiMetadata,
   MiddlewareSubRequest,
   InitClientOptions,
   RouteSubRequest,
@@ -71,7 +72,7 @@ export class MionClient {
   }
 
   /** Registers the metadata and compiled functions a dispatch point received from the build. */
-  useBundledApi(apiMetadata: unknown): void {
+  useBundledApi(apiMetadata: InjectedApiMetadata | undefined): void {
     if (apiMetadata !== undefined) registerBundledApi(apiMetadata);
   }
 

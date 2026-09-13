@@ -103,6 +103,12 @@ export interface ClientOptions extends CoreRouterOptions {
   timeout?: number;
 }
 
+/** The build-injected slot of a dispatch method, at its widest: the marker with the API and the
+ *  route id erased. The implementation is one class behind a proxy, not generic over either, so
+ *  this is the most it can name; the typed slot each caller sees is on RouteSubRequest and
+ *  MiddlewareSubRequest, where the route is still known. */
+export type InjectedApiMetadata = InjectApiMetadata<RemoteApi, string>;
+
 /** The lane a built client runs its metadata on. */
 export type BundleApiMode = 'bundled' | 'mixed';
 
