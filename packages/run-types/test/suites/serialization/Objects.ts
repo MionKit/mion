@@ -1069,6 +1069,26 @@ export const OBJECTS = {
       deserializedValues: [{a: 'hello', b: 42}],
     }),
   },
+  object_bigint_literal_props: {
+    title: 'Bigint literal props',
+    description: '`{a: 1n; b: 2n}` encodes both props to decimal strings, the same transform plain `bigint` props take.',
+    serializeNotes:
+      'An object whose props are all required and all extra-proof takes a key-count fastpath that returns the input unchanged; a bigint literal is not extra-proof, so this shape builds the clone and applies the transform.',
+    mutateEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'clone'}),
+    directEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => createJsonEncoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'compact'}),
+    stripDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(),
+    preserveDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<{a: 1n; b: 2n}>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<{a: 1n; b: 2n}>(),
+    binaryDecoder: () => createBinaryDecoderFn<{a: 1n; b: 2n}>(),
+    schemaEncoder: () => createJsonEncoderFn(RT.object({a: RT.literal(1n), b: RT.literal(2n)})),
+    schemaDecoder: () => createJsonDecoderFn(RT.object({a: RT.literal(1n), b: RT.literal(2n)})),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({a: RT.literal(1n), b: RT.literal(2n)})),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({a: RT.literal(1n), b: RT.literal(2n)})),
+    getTestData: () => ({values: [{a: 1n, b: 2n}]}),
+  },
   optional_properties_order: {
     title: 'Optional props order',
     description:
