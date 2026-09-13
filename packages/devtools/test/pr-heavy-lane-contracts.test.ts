@@ -52,7 +52,9 @@ describe('the pre-publish-e2e lane mirrors the release gate', () => {
     const downloaded = /download-artifact@v\d+\n\s+with:\n\s+name: ([\w-]+)/.exec(lane)?.[1];
     expect(uploaded).toBe('pre-publish-e2e-tarballs');
     expect(downloaded).toBe(uploaded);
-    expect(lane).toContain('needs: pre-publish-build');
+    // `lanes` rides alongside so the e2e job can read its own lane's hash for the
+    // green marker; the pack dependency is what carries the tarballs.
+    expect(lane).toContain('needs: [lanes, pre-publish-build]');
   });
 
   it('pulls the same prebuilt e2e image the gate pulls, with the PAT', () => {
