@@ -80,8 +80,10 @@ the route's own options literal and the factory's, resolves the params wire the 
 type side takes, and fires when the route's OWN literal sets `strictTypes: true` on a compact wire. A
 router-wide `strictTypes` is left alone: it is a default for the routes that can use it.
 
-Level `LevelRuntimeError`, matching every other `MRT` code: the route accepts payloads its author
-declared it would reject.
+Level `LevelWarning`, the one `MRT` code that is not a RuntimeError: the route behaves exactly as its
+author asked, it already rejects everything `strictTypes` would have, so the option is dead
+configuration rather than a missing guarantee. It still ships as an `error` RULE so the dead option
+gets a squiggle, the same split `enrichment-field` makes.
 
 ### Tests
 

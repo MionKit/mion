@@ -12,13 +12,18 @@ package diagnostics
 // compile` and the bundler plugins never fail a build on one: a rule turned off
 // in an eslint config must mean off.
 //
-// Every one is LevelRuntimeError. The build emits either way, and each of these
+// MRT001 to MRT005 are LevelRuntimeError. The build emits either way, and each
 // describes a route that is BROKEN once it runs: mion compiles the DECLARED
 // types, so a missing annotation leaves nothing validating the input or
 // serializing the response (MRT001 / MRT002), a throw or a non-RpcError arm makes
 // the declared return type untrue (MRT003 / MRT004), and a prototype-named
 // property can never round-trip (MRT005). Calling any of them "nothing is wrong"
 // would be false, which is why they are not warnings despite being lint-only.
+//
+// MRT006 is the one LevelWarning: the route it reports behaves exactly as its
+// author asked, the option they wrote just has nothing left to do. It still ships
+// as an `error` RULE, so the dead option gets a squiggle, the same split
+// enrichment-field makes.
 const (
 	// CodeRouteMissingReturnType: a handler with no written return type
 	// annotation. The build compiles the DECLARED type, so an inferred one
@@ -44,11 +49,12 @@ const (
 	// the offending arm's type name, [1] the helper or handler type.
 	CodeRouteReturnedErrorType = "MRT004"
 	// CodeRouteStrictTypesMoot: a route asks for `strictTypes` on a params wire
-	// that cannot carry a key name. `compact` sends an object as an array of its
-	// values and rebuilds it from positions, refusing a keyed one, so no key the
-	// caller wrote survives the decode and the route compiles no unknown-key
-	// check at all — the option is a promise the route cannot keep. Only the
-	// route's OWN literal is reported: a router-wide `strictTypes` with one
+	// that cannot carry a key name. `compact` rebuilds every object from the
+	// properties the type declares, so no key the caller wrote survives the decode
+	// and the route compiles no unknown-key check at all. The route is not weaker
+	// for it — it already rejects everything `strictTypes` would have — so this is
+	// a Warning: the option is dead configuration, not a missing guarantee. Only
+	// the route's OWN literal is reported: a router-wide `strictTypes` with one
 	// compact route among many is a default, not a mistake. Args: [0] the params
 	// strategy, [1] the helper it was declared through.
 	CodeRouteStrictTypesMoot = "MRT006"
@@ -66,7 +72,7 @@ func init() {
 		{Code: CodeRouteMissingParamType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler parameter has no type annotation"},
 		{Code: CodeRouteThrowInHandler, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handlers return errors, they never throw them"},
 		{Code: CodeRouteReturnedErrorType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler answers with an error that is not an `RpcError`"},
-		{Code: CodeRouteStrictTypesMoot, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Route asks for strictTypes on a wire that carries no key names"},
+		{Code: CodeRouteStrictTypesMoot, Family: FamilyMionRoute, Level: LevelWarning, Scope: ScopeNotSource, Title: "Route asks for strictTypes on a wire that carries no key names"},
 		{Code: CodeRouteUnsafePropertyName, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Property is named after a prototype slot and can never be data"},
 	} {
 		register(definition)
