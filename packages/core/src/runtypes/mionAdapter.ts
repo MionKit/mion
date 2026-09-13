@@ -43,6 +43,7 @@ export const MION_FN_KEYS = [
   'sj',
   'cj',
   'rj',
+  'rjs',
   'cjr',
 ] as const satisfies readonly FnHashKey[];
 
@@ -205,7 +206,7 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 }
 
 const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
-const DECODE_FAMILIES = ['rj', 'cjr'] as const;
+const DECODE_FAMILIES = ['rj', 'rjs', 'cjr'] as const;
 type CompiledJsonFamilies = {strategy: JsonStrategy; encodeFamily: (typeof ENCODE_FAMILIES)[number]; decodeFamily: DecodeFamily};
 
 /** The JSON strategy a fn set was compiled for, read off its injected families: exactly one encode

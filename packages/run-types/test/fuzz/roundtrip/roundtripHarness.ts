@@ -22,6 +22,7 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
+  getRTFunction,
 } from '@mionjs/run-types';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
@@ -39,11 +40,16 @@ const FIXTURE = 'g.ts';
  *    mutate  → preserve (in-place keyed JSON, the extras-preserving pair)
  *    direct  → strip    (single-pass keyed JSON; shares the strip decoder)
  *    compact → compact  (positional-array wire)
+ *  `rebuild` reads the same clone wire with the rjs primitive, the decoder that
+ *  rebuilds every object from the declared shape instead of walking it in place.
+ *  It rides this oracle for one reason: a rebuild that DROPS a declared member
+ *  still returns a plausible object, and only comparing thousands of shapes
+ *  against the clone reference wire catches that.
  *  binary is the byte wire. **/
-export type LaneId = 'clone' | 'mutate' | 'direct' | 'compact' | 'binary';
+export type LaneId = 'clone' | 'mutate' | 'direct' | 'compact' | 'rebuild' | 'binary';
 
-export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact'];
-export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'binary'];
+export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'rebuild'];
+export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'rebuild', 'binary'];
 
 /** A wired codec: encode returns a JSON string (or undefined for an undefined
  *  root) on the JSON lanes, a Uint8Array on the binary lane. **/
@@ -85,6 +91,7 @@ export function renderFixture(gen: GeneratedType): string {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
+  type InjectTypeFnArgs,
 } from '@mionjs/run-types';
 ${decls}
 type T = ${rootExpr};
@@ -96,15 +103,19 @@ createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
 createJsonDecoderFn<T>(undefined, {strategy: 'strip'});
 createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
+// rjs has no createX factory: a framework reaches it by naming the fnKey in its own
+// marker, which is exactly what mion's route helper does for the clone strategy.
+declare function recoverRebuild<R>(id?: InjectTypeFnArgs<R, 'rjs'>): (wire: unknown) => unknown;
+recoverRebuild<T>();
 createBinaryEncoderFn<T>();
 createBinaryDecoderFn<T>();
 `;
 }
 
-/** The 10 fn sites the fixture emits (1 validate + 4 encoders + 3 decoders + 2
- *  binary). No reflection site — values come from the shape generator, not a
- *  product mock. **/
-export const EXPECTED_FN_SITES = 10;
+/** The 11 fn sites the fixture emits (1 validate + 4 encoders + 3 decoders + the
+ *  rjs marker site + 2 binary). No reflection site — values come from the shape
+ *  generator, not a product mock. **/
+export const EXPECTED_FN_SITES = 11;
 
 /** Drive the full pipeline for one generated type. Never throws — every failure
  *  mode is captured on the result. **/
@@ -170,6 +181,9 @@ export async function compileCodecs(client: ResolverClient, gen: GeneratedType):
   wireLane(codecs, wireErrors, 'mutate', byTag.jeMU, preserveDecode);
   wireLane(codecs, wireErrors, 'direct', byTag.jeDI, stripDecode);
   wireLane(codecs, wireErrors, 'compact', byTag.jeCO, compactDecode);
+  // Same clone wire, read by the rebuild decoder. The composites parse the string
+  // themselves; the raw primitive takes an already-parsed value.
+  wireLane(codecs, wireErrors, 'rebuild', byTag.jeCL, wireRebuildDecoder(byTag.rjs));
   wireBinaryLane(codecs, wireErrors, byTag.tb, byTag.fb);
 
   return {...partial, validate, codecs, wireErrors};
@@ -186,6 +200,16 @@ export function classifyByTag(fnSites: Site[], tuples: Record<string, readonly u
     if (typeof tag === 'string') out[tag] = tuple;
   }
   return out;
+}
+
+export function wireRebuildDecoder(tuple: readonly unknown[] | undefined): ((wire: unknown) => unknown) | undefined {
+  if (!tuple) return undefined;
+  try {
+    const restore = getRTFunction<'rjs'>(tuple as never);
+    return (wire: unknown) => restore(JSON.parse(wire as string));
+  } catch {
+    return undefined;
+  }
 }
 
 export function wireDecoder(tuple: readonly unknown[] | undefined): ((wire: unknown) => unknown) | undefined {

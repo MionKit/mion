@@ -50,7 +50,7 @@ function fakeCompactRoute<H extends AnyHandler>(
 // `clone` params, `direct` return.
 function fakeCloneRoute<H extends AnyHandler>(
   handler: H,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'pjs', 'rj'>,
+  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'pjs', 'rjs'>,
   returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'sj', 'rj'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>

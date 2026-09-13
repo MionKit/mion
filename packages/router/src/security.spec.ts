@@ -49,6 +49,9 @@ describe('security: request body', () => {
   const echoUser = mion.route((ctx, user: User): User => user);
   const echoTree = mion.route((ctx, tree: Tree): number => tree.children.length);
   const echoDated = mion.route((ctx, node: DatedNode): number => node.date.getTime());
+  // A dynamic-key param: the decoder sweeps the arriving keys, which is where it can
+  // still refuse one outright rather than leave it for validation.
+  const echoBag = mion.route((ctx, bag: Record<string, string>): number => Object.keys(bag).length);
 
   beforeEach(() => resetRouter());
 
@@ -85,11 +88,24 @@ describe('security: request body', () => {
   });
 
   it('a decode failure carries a fixed deserializeError, not the decoder text', async () => {
-    mion.initRoutes({echoDated});
-    const response = await dispatch('/echoDated', JSON.stringify({echoDated: [null]}));
-    const error = thrownErrors(response)['echoDated'];
+    mion.initRoutes({echoBag});
+    // A prototype-named wire key is refused by the decoder itself, so this is the path
+    // where the compiled function's own message must not reach the client.
+    const response = await dispatch('/echoBag', '{"echoBag":[{"__proto__":"x"}]}');
+    const error = thrownErrors(response)['echoBag'];
     expect(error.type).toBe('serialization-error');
     expect(error.errorData).toEqual({deserializeError: 'Parameters might be of the wrong type.'});
+    for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
+    expect(({} as any).x).toBeUndefined();
+  });
+
+  it('a wrong-shaped param is refused by validation, not by a throw out of the decoder', async () => {
+    mion.initRoutes({echoDated});
+    // The decoder converts only the wire form it was written for and leaves anything
+    // else alone, so a null where an object belongs reaches validation intact.
+    const response = await dispatch('/echoDated', JSON.stringify({echoDated: [null]}));
+    const error = thrownErrors(response)['echoDated'];
+    expect(error.type).toBe('validation-error');
     for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
   });
 
