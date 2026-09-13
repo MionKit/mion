@@ -191,11 +191,15 @@ var registry = []Operation{
 	// twins deserializePrepareForJson / deserializeRestoreFromJson / … exercise).
 	//   - pj (mutate prepare) / pjs (clone prepare): value → JSON-safe value.
 	//   - rj (preserve restore): JSON-safe value → typed value.
+	//   - rjs (strip restore): the decode mirror of pjs — rebuilds each object from the
+	//     declared shape, so undeclared keys are DELETED rather than left in place. mion's
+	//     `clone` strategy decodes with it; no createJsonDecoderFn strategy composes it.
 	//   - sj (direct): single-pass value → JSON string (the `direct` encoder body).
 	//   - ukuw: the strip decoder's unknown-keys-to-undefined wire pre-pass.
 	{Name: "prepareForJson", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "pj"},
 	{Name: "prepareForJsonSafe", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "pjs"},
 	{Name: "restoreFromJson", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "rj"},
+	{Name: "restoreFromJsonSafe", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "rjs"},
 	{Name: "stringifyJson", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "sj"},
 	{Name: "unknownKeysToUndefinedWire", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "ukuw"},
 	// compactForJson / compactFromJson: the positional-tuple JSON round-trip pair

@@ -286,6 +286,7 @@ const (
 	factExtraProof
 	factNoopPrepareJson
 	factNoopRestoreJson
+	factNoopRestoreJsonSafe
 	factNoopFormatTransform
 	factNoopCompactFromJson
 	factNoopToBinary

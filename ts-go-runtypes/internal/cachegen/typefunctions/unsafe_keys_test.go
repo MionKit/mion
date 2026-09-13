@@ -143,7 +143,7 @@ func TestUnsafeKeys_DecoderGuardShipsForANoopValueType(t *testing.T) {
 	prop := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "bag", IsSafeName: true, Child: makeRef("rec")}
 	outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{num, key, idx, rec, prop, outer}}
-	for _, fam := range []string{"restoreFromJson", "compactFromJson"} {
+	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonSafe"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, unsafeKeyThrow("k0")) {
 			t.Errorf("[%s] the key loop must ship its prototype-name refusal for a noop value type; got:\n%s", fam, out)

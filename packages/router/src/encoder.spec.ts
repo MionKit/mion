@@ -237,6 +237,101 @@ describe('encoder strategies at the router level', () => {
     });
   });
 
+  // Encoding is only half the promise. A route's strategy also decides what survives on the way
+  // IN, because the caller need not be a mion client: curl, another language or a patched client
+  // can send whatever it likes, and only the decoder stands between that and the handler.
+  describe('what arrives at the handler', () => {
+    interface SimplePet {
+      name: string;
+      born: Date;
+    }
+    interface Nested {
+      pet: SimplePet;
+    }
+    type Bag = Record<string, string>;
+
+    const seen: Record<string, unknown> = {};
+    const cloneIn = mion.route((ctx, p: SimplePet): string => {
+      seen.clone = p;
+      return p.name;
+    });
+    const nestedIn = mion.route((ctx, n: Nested): string => {
+      seen.nested = n;
+      return n.pet.name;
+    });
+    const mutateIn = mion.route(
+      (ctx, p: SimplePet): string => {
+        seen.mutate = p;
+        return p.name;
+      },
+      {encoder: {params: 'mutate'}}
+    );
+    const bagIn = mion.route((ctx, bag: Bag): number => {
+      seen.bag = bag;
+      return Object.keys(bag).length;
+    });
+
+    const wirePet = {name: 'rex', born: '2020-01-02T03:04:05.000Z'};
+
+    it('clone drops an undeclared key before the handler sees it', async () => {
+      mion.initRoutes({cloneIn});
+      const response = await dispatchJson('cloneIn', [{...wirePet, extra: 'nope'}]);
+      expect(response.hasErrors).toBe(false);
+      expect(Object.keys(seen.clone as object).sort()).toEqual(['born', 'name']);
+      // gone, not set to undefined: the key must not survive a spread
+      expect('extra' in (seen.clone as object)).toBe(false);
+    });
+
+    it('clone drops an undeclared key nested one object deeper too', async () => {
+      mion.initRoutes({nestedIn});
+      const response = await dispatchJson('nestedIn', [{pet: {...wirePet, extra: 'nope'}, other: 1}]);
+      expect(response.hasErrors).toBe(false);
+      const arrived = seen.nested as Nested;
+      expect(Object.keys(arrived).sort()).toEqual(['pet']);
+      expect(Object.keys(arrived.pet).sort()).toEqual(['born', 'name']);
+    });
+
+    it('clone still restores the declared values it keeps', async () => {
+      mion.initRoutes({cloneIn});
+      await dispatchJson('cloneIn', [{...wirePet, extra: 'nope'}]);
+      const arrived = seen.clone as SimplePet;
+      expect(arrived.name).toBe('rex');
+      expect(arrived.born).toBeInstanceOf(Date);
+      expect(arrived.born.toISOString()).toBe('2020-01-02T03:04:05.000Z');
+    });
+
+    it('mutate hands the handler what arrived, undeclared keys and all', async () => {
+      mion.initRoutes({mutateIn});
+      const response = await dispatchJson('mutateIn', [{...wirePet, extra: 'nope'}]);
+      expect(response.hasErrors).toBe(false);
+      expect(seen.mutate).toMatchObject({name: 'rex', extra: 'nope'});
+    });
+
+    it('a key an index signature declares is kept, it is not undeclared', async () => {
+      mion.initRoutes({bagIn});
+      const response = await dispatchJson('bagIn', [{a: 'x', b: 'y'}]);
+      expect(response.hasErrors).toBe(false);
+      expect(seen.bag).toEqual({a: 'x', b: 'y'});
+    });
+
+    it('a prototype-named key on the wire is refused, never written onto the object', async () => {
+      mion.initRoutes({bagIn});
+      const request = {headers: headersFromRecord({}), body: '{"bagIn":[{"__proto__":"x"}]}'};
+      const response = await dispatchRoute('/bagIn', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.hasErrors).toBe(true);
+      expect(({} as Record<string, unknown>).x).toBeUndefined();
+    });
+
+    it('the clone return drops an undeclared key too, so the rule reads the same both ways', async () => {
+      const wide = {name: 'rex', born: new Date('2020-01-02T03:04:05.000Z'), secret: 'do not send'};
+      const bothWays = mion.route((ctx): SimplePet => wide as SimplePet);
+      mion.initRoutes({bothWays});
+      const response = await dispatchJson('bothWays', []);
+      expect(response.hasErrors).toBe(false);
+      expect(Object.keys(response.body.bothWays as object).sort()).toEqual(['born', 'name']);
+    });
+  });
+
   // A middleFn declaring no `encoder` of its own inherits the route's wire like any chain member.
   // Its params and its return value must BOTH survive the round trip: a chain member whose data is
   // dropped from the body is silent data loss, which is what this pins against.

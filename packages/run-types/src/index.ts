@@ -186,7 +186,7 @@ export {typeFormats, type FormatName, type TypeFormatMeta} from './go-generated/
 
 // String JSON I/O is `createJsonEncoderFn` + `createJsonDecoderFn`. The VALUE-level
 // transforms they build on — the per-strategy prepareForJson / restoreFromJson
-// primitives (`pj`/`pjs`/`rj`/`sj`/`ukuw`/`cj`/`cjr`) — have NO factory: a
+// primitives (`pj`/`pjs`/`rj`/`rjs`/`sj`/`ukuw`/`cj`/`cjr`) — have NO factory: a
 // framework that owns its own JSON envelope names the primitive in an
 // `InjectTypeFnArgs` marker and recovers the injected slot with `getRTFunction`,
 // keyed by the SAME fnKey (`getRTFunction<'pjs'>(fns?.[0])`). Its `RTFunctionByKey`
@@ -234,7 +234,7 @@ export {
   // The value-level JSON primitives have NO factory — they are recovered via
   // `getRTFunction<'pj'>(…)` / `getRTFunction<'rj'>(…)` / … . Their fn-type
   // aliases stay public so callers can name the shapes: `pj`/`pjs`/`cj` return
-  // PrepareForJsonFn, `rj`/`cjr`/`ukuw` return RestoreFromJsonFn, `sj` returns
+  // PrepareForJsonFn, `rj`/`rjs`/`cjr`/`ukuw` return RestoreFromJsonFn, `sj` returns
   // StringifyJsonFn (value → JSON string). `RTFunctionByKey` maps each fnKey to
   // its shape, so `getRTFunction<'pjs'>()`'s return type is inferred.
   type PrepareForJsonFn,
