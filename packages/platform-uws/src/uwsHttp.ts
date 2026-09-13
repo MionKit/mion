@@ -7,6 +7,7 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
@@ -187,7 +188,11 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     }
 
     const context = createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
-    dispatchWithContext(context, rawRequest, res)
+    answerWith(dispatchWithContext(context, rawRequest, res));
+  };
+
+  const answerWith = (dispatched: Promise<MionResponse>) => {
+    dispatched
       .then((mionResponse) => {
         if (state.replied) return;
         state.replied = true;
@@ -215,8 +220,8 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   res.collectBody(resolved.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {
-      state.replied = true;
-      fatalFail(res, state, respHeaders, requestPayloadTooLarge());
+      // the route resolved, so the refusal still runs the chain's alwaysRun members
+      answerWith(dispatchPlatformError(resolved, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res));
       return;
     }
 

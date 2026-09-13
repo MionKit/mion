@@ -46,7 +46,7 @@ import {
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionClientRoutes, mionClientMiddleFns, useOnDemandMetadataCaller} from './routes/client.routes.ts';
-import {mionErrorsRoutes} from './routes/errors.routes.ts';
+import {mionErrorsRoutes, notFoundMiddleFn, batchNotFoundMiddleFn} from './routes/errors.routes.ts';
 import {capBatchBodySizes, clearBatches, getMaxBatchBodySize} from './batches.ts';
 import {headersFn, middleFn, mutation, query, rawMiddleFn, route} from './lib/handlers.ts';
 import type {
@@ -69,6 +69,10 @@ type RoutesWithId = {
 
 const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
+/** mion's two not-found chains (an unknown path, an unknown batch id). They are NOT routes and not
+ *  in the router above: there is nothing to run, so each is the global middleFns behind a first
+ *  member that throws. Rebuilt on every registration, because the global middleFns are. */
+const notFoundChains = new Map<string, MethodsExecutionChain>();
 const middleFnsById = getOrCreateGlobal(
   'mion.router.middleFnsById',
   () => new Map<string, MiddleFnMethod | HeadersMethod | RawMethod>()
@@ -108,6 +112,8 @@ export let endMiddleFns: RemoteMethod[] = [];
 // ############# PUBLIC METHODS #############
 
 export const getRouteExecutionChain = (path: string) => flatRouter.get(path);
+/** The chain that answers an unknown path or an unknown batch id, by its `MION_ROUTES` id. */
+export const getNotFoundExecutionChain = (id: string) => notFoundChains.get(id);
 export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (id: string) => routesById.get(id);
@@ -140,6 +146,7 @@ export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefin
 
 export const resetRouter = () => {
   flatRouter.clear();
+  notFoundChains.clear();
   middleFnsById.clear();
   routesById.clear();
   rawMiddleFnsById.clear();
@@ -230,6 +237,7 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   const metadataMiddleFn = middleFnsById.get(MION_ROUTES.methodsMetadata);
   if (metadataMiddleFn) useOnDemandMetadataCaller(metadataMiddleFn as RemoteMethod);
   recursiveFlatRoutes(routes, [], [], [], 0);
+  buildNotFoundChains();
   // every method this call could register is registered, and the options are frozen, so the
   // dispatcher's await rule is settled here instead of on every request
   alwaysAwait = routerOptions.alwaysAwait && hasAsyncMethods;
@@ -434,8 +442,7 @@ function recursiveCreateExecutionChain(
       methods,
       serializer: getChainFraming(methods),
       maxBodySize,
-      // a not-found chain has no route to feed: the body is never read or parsed for it
-      readsBody: routeMethod.id !== MION_ROUTES.notFound && routeMethod.id !== MION_ROUTES.batchNotFound,
+      readsBody: true,
     };
     const middleFnIds = getPublicMiddleFnIds(methods);
     // add middleware functions deps, so can be serialized with the router
@@ -452,6 +459,29 @@ function recursiveCreateExecutionChain(
   }
 
   return props;
+}
+
+/**
+ * mion's two not-found chains. Neither has a route to feed, so each one is the global start and end
+ * middleFns behind a first member that throws: the dispatcher's own rule then skips every later
+ * member that does not declare `alwaysRun`, and the body is never read or parsed.
+ * `maxBodySize` is left unset, so the request takes the platform adapter's number.
+ */
+function buildNotFoundChains(): void {
+  notFoundChains.clear();
+  const throwers = [
+    [MION_ROUTES.notFound, notFoundMiddleFn],
+    [MION_ROUTES.batchNotFound, batchNotFoundMiddleFn],
+  ] as const;
+  for (const [id, middleFnDef] of throwers) {
+    const methods = [getExecutableFromRawMiddleFn(middleFnDef, [id], 0), ...startMiddleFns, ...endMiddleFns];
+    notFoundChains.set(id, {
+      routeIndex: -1, // there is no route in this chain
+      methods,
+      serializer: getChainFraming(methods),
+      readsBody: false,
+    });
+  }
 }
 
 function getExecutableFromAnyMiddleFn(
