@@ -43,6 +43,15 @@ const (
 	// its typed slot and the declared return type stops being true. Args: [0]
 	// the offending arm's type name, [1] the helper or handler type.
 	CodeRouteReturnedErrorType = "MRT004"
+	// CodeRouteStrictTypesMoot: a route asks for `strictTypes` on a params wire
+	// that cannot carry a key name. `compact` sends an object as an array of its
+	// values and rebuilds it from positions, refusing a keyed one, so no key the
+	// caller wrote survives the decode and the route compiles no unknown-key
+	// check at all — the option is a promise the route cannot keep. Only the
+	// route's OWN literal is reported: a router-wide `strictTypes` with one
+	// compact route among many is a default, not a mistake. Args: [0] the params
+	// strategy, [1] the helper it was declared through.
+	CodeRouteStrictTypesMoot = "MRT006"
 	// CodeRouteUnsafePropertyName: a declared property named after a prototype
 	// slot (`__proto__`, `prototype`, `constructor`). Those names are never
 	// data: every decoder refuses them on the wire and the build fails for any
@@ -57,6 +66,7 @@ func init() {
 		{Code: CodeRouteMissingParamType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler parameter has no type annotation"},
 		{Code: CodeRouteThrowInHandler, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handlers return errors, they never throw them"},
 		{Code: CodeRouteReturnedErrorType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler answers with an error that is not an `RpcError`"},
+		{Code: CodeRouteStrictTypesMoot, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Route asks for strictTypes on a wire that carries no key names"},
 		{Code: CodeRouteUnsafePropertyName, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Property is named after a prototype slot and can never be data"},
 	} {
 		register(definition)

@@ -249,8 +249,6 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
   const encode = getRTFunction<'pj'>(fns[encodeFamily], identity as JsonEncodeFn);
   const decode = getRTFunction<'rj'>(fns[decodeFamily], identity as never);
-  const hasUnknownKeys = getRTFunction<'huk'>(fns.huk, alwaysFalse);
-  const unknownKeyErrors = getRTFunction<'uke'>(fns.uke, noUnknownKeyErrors);
   // formatTransform (sanitizeParams) follows the same rule: a real, non-noop entry or nothing
   if (fns.fmt !== undefined) getRTFunction<'fmt'>(fns.fmt);
   // getRTFunction initialized the injected tuples, so the full entries are now
@@ -261,8 +259,11 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
     typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],
-    hasUnknownKeys: resolveFn(hasUnknownKeys as AnyFn, 'hasUnknownKeys', label, hashes.hasUnknownKeys ?? ''),
-    unknownKeyErrors: resolveFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
+    // The strictTypes pair is absent whenever the marker did not ask for it: on the answer side,
+    // which nothing reads, and on a compact params wire, where no key name from the caller survives
+    // the decode. Left OFF the set rather than stood in for, so both readers take their own
+    // `!hasUnknownKeys` early return instead of calling a function that always answers false.
+    ...unknownKeysEntries(fns, hashes, label),
     json: {
       strategy,
       encode: resolveFn(encode as AnyFn, encodeFamily, label, hashes.encode),
@@ -270,6 +271,21 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
     },
     ...(formatTransformEntry && !formatTransformEntry.isNoop ? {formatTransform: formatTransformEntry} : {}),
   } as JitCompiledFunctions;
+}
+
+/** The strictTypes pair of a fn set, or nothing when the marker requested neither. */
+function unknownKeysEntries(
+  fns: Partial<Record<FnHashKey, unknown>>,
+  hashes: JitFunctionsHashes,
+  label: string
+): Pick<JitCompiledFunctions, 'hasUnknownKeys' | 'unknownKeyErrors'> {
+  if (fns.huk === undefined && fns.uke === undefined) return {};
+  const hasUnknownKeys = getRTFunction<'huk'>(fns.huk, alwaysFalse);
+  const unknownKeyErrors = getRTFunction<'uke'>(fns.uke, noUnknownKeyErrors);
+  return {
+    hasUnknownKeys: resolveFn(hasUnknownKeys as AnyFn, 'hasUnknownKeys', label, hashes.hasUnknownKeys ?? ''),
+    unknownKeyErrors: resolveFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
+  };
 }
 
 /** Registers the injected InjectRunTypeId handle and returns its stable type id string. */

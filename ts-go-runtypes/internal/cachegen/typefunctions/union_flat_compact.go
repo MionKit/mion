@@ -21,9 +21,19 @@ import (
 // arm — the same mixed-union path a `Date` member takes. Read by BOTH compact
 // emitters and by the cjr noop predicate (compactFromJsonNoopRecursive), so the
 // three cannot drift.
+//
+// A merged object member forces it too, for a different reason: compact promises
+// that no key name from the wire reaches the decoded value, which is what lets a
+// compact route skip the unknown-key check entirely. The positional rebuild keeps
+// that promise for a plain object, but a union member stays KEYED, so the decoder
+// has to drop the undeclared keys by name (FlatLayout.StripMergedExtras) and it
+// can only do that on a branch it can recognise. Without the envelope a bare
+// keyed object on the wire could equally be an index-signature member, whose keys
+// must all survive.
 
 // compactUnionNeedsEnvelope reports whether the compact pair must keep the
-// flat-union envelope on rt because a member positionalizes something. Mirrors
+// flat-union envelope on rt: a member positionalizes something, or a member
+// merges into the `[-1, merged]` branch the decoder strips by name. Mirrors
 // unionJsonNoop's member walk (stripped members skipped) rather than calling
 // buildFlatLayout, which emits drop diagnostics the predicate must not
 // duplicate. visited threads the caller's cycle set: a self-referential member
@@ -38,11 +48,31 @@ func compactUnionNeedsEnvelope(rt *reflection.RunType, ctx *EmitContext, visited
 		if resolved == nil || isStrippedUnionMember(resolved) {
 			continue
 		}
+		if compactUnionMemberMerges(resolved, ctx) {
+			return true
+		}
 		if compactUnionMemberTransforms(resolved, ctx, visited) {
 			return true
 		}
 	}
 	return false
+}
+
+// compactUnionMemberMerges mirrors buildFlatLayout's ObjectMembers rule: the
+// members whose properties join the merged-prop set, which is the only branch
+// whose undeclared keys the decoder can name and drop. An index-signature shape
+// keeps per-member dispatch in the atomic bucket, and declares every key anyway,
+// so it is not one of them.
+func compactUnionMemberMerges(resolved *reflection.RunType, ctx *EmitContext) bool {
+	if objectHasIndexSignatureChild(resolved, ctx) {
+		return false
+	}
+	if resolved.Kind == reflection.KindObjectLiteral {
+		return true
+	}
+	return resolved.Kind == reflection.KindClass &&
+		resolved.SubKind == reflection.SubKindNone &&
+		userClassName(resolved) == ""
 }
 
 // compactUnionEnvelope is the emitter entry: a fresh cycle set seeded with the
@@ -85,14 +115,16 @@ func compactUnionMemberTransforms(resolved *reflection.RunType, ctx *EmitContext
 	return false
 }
 
-// buildCompactFlatLayout is buildFlatLayout plus the compact envelope rule: a
-// union the keyed strategies pass through raw still wraps when a member
-// positionalizes. Both compact emitters build their layout here so encode and
-// decode read the same AtomicNeedsTuple.
+// buildCompactFlatLayout is buildFlatLayout plus the two compact rules: a union
+// the keyed strategies pass through raw still wraps when a member positionalizes
+// or merges, and the merged branch drops the keys it did not name on the way
+// back. Both compact emitters build their layout here so encode and decode read
+// the same AtomicNeedsTuple and the same StripMergedExtras.
 func buildCompactFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 	layout := buildFlatLayout(rt, ctx)
 	if !layout.AtomicNeedsTuple && compactUnionEnvelope(rt, ctx) {
 		layout.AtomicNeedsTuple = true
 	}
+	layout.StripMergedExtras = true
 	return layout
 }

@@ -372,6 +372,12 @@ func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext
 			}
 		}
 		body := strings.Join(propParts, ";")
+		if layout.StripMergedExtras {
+			if body != "" {
+				body += ";"
+			}
+			body += emitMergedObjectRebuild(v, layout.MergedProps, ctx)
+		}
 		arm := "if (" + decVar + " === -1) {" + body + "}"
 		arms = append(arms, arm)
 	}
@@ -412,6 +418,30 @@ func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext
 		"const " + decVar + " = " + v + "[0]; " + v + " = " + v + "[1];" + inner + "}" +
 		unionDecodeThrow(errVar, v)
 	return RTCode{Code: body, Type: CodeS}
+}
+
+// emitMergedObjectRebuild rebinds the merged object to a fresh one carrying only
+// the declared merged props, so an undeclared key on the wire is gone by the time
+// validate or the handler sees the value. The encode side already builds its
+// object this way (buildSafeObjectClone), so this is what makes the two
+// directions drop the same set. Only the compact layout asks for it
+// (FlatLayout.StripMergedExtras). A value that is not an object is left for
+// validate to refuse, the same rule the positional rebuild follows.
+func emitMergedObjectRebuild(v string, mergedProps []FlatMergedProp, ctx *EmitContext) string {
+	rVar := ctx.NextLocalVar("r")
+	var rebuild strings.Builder
+	rebuild.WriteString("if (" + objectGuard(v, "") + ") {const " + rVar + " = {};")
+	for _, mp := range mergedProps {
+		accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
+		target := propertyAccessor(rVar, mp.Name, mp.IsSafeName)
+		if mp.Required {
+			rebuild.WriteString(target + " = " + accessor + ";")
+		} else {
+			rebuild.WriteString("if (" + accessor + " !== undefined) {" + target + " = " + accessor + ";}")
+		}
+	}
+	rebuild.WriteString(v + " = " + rVar + ";}")
+	return rebuild.String()
 }
 
 // emitMergedPropRestore — decode-side mirror of emitMergedPropPrepare.

@@ -21,13 +21,12 @@ const PROP_ENVELOPE = /:\[\d/;
 type RecordUnion = Record<string, number> | {type: string; isTypeError: true};
 
 describe('serialization / record-union JSON encoding (regression)', () => {
-  it('Record<string, number> | {type, isTypeError} → bare object, never enveloped', () => {
+  it('Record<string, number> | {type, isTypeError} → bare object on every keyed strategy', () => {
     const clone = createJsonEncoderFn<RecordUnion>();
     const direct = createJsonEncoderFn<RecordUnion>(undefined, {strategy: 'direct'});
     const mutate = createJsonEncoderFn<RecordUnion>(undefined, {strategy: 'mutate'});
-    const compact = createJsonEncoderFn<RecordUnion>(undefined, {strategy: 'compact'});
 
-    for (const enc of [clone, direct, mutate, compact]) {
+    for (const enc of [clone, direct, mutate]) {
       // Object arm — declared-shape order (type, isTypeError).
       expect(enc({type: 'oops', isTypeError: true})).toBe('{"type":"oops","isTypeError":true}');
       // Record arm — bare object, no wrapper.
@@ -38,6 +37,27 @@ describe('serialization / record-union JSON encoding (regression)', () => {
         expect(wire).not.toMatch(PROP_ENVELOPE);
       }
     }
+  });
+
+  // Compact is the one strategy that gives the optimisation up here, and on purpose: it promises
+  // that no key name from the wire reaches the decoded value, which is what lets a mion route on
+  // that wire compile no unknown-key check at all. The object arm is the one shape it keeps keyed,
+  // so the decode has to drop that branch's undeclared keys by NAME, and on a bare wire it could
+  // not tell the merged object from the record, whose keys must all survive.
+  it('compact envelopes the same union, because its decode drops undeclared keys by name', () => {
+    const compact = createJsonEncoderFn<RecordUnion>(undefined, {strategy: 'compact'});
+    const dec = createJsonDecoderFn<RecordUnion>(undefined, {strategy: 'compact'});
+
+    expect(compact({type: 'oops', isTypeError: true})).toBe('[-1,{"type":"oops","isTypeError":true}]');
+    expect(dec(compact({type: 'oops', isTypeError: true})!)).toEqual({type: 'oops', isTypeError: true});
+    expect(dec(compact({a: 1, b: 2})!)).toEqual({a: 1, b: 2});
+
+    // the point of the envelope: an undeclared key on the object arm does not survive, while the
+    // record arm's keys, which the index signature declares, all do
+    expect(dec('[-1,{"type":"oops","isTypeError":true,"evil":"sneaky"}]')).toEqual({
+      type: 'oops',
+      isTypeError: true,
+    });
   });
 
   it('record-union round-trips through the decoder with an identity decode', () => {

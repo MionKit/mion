@@ -75,6 +75,11 @@ const targets: FuzzTarget[] = [];
     restoreFromJson: recoverRestore(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
+    // The one shape compact keeps KEYED on the wire, so it is where O26 has
+    // anything to plant: a declared object rides as a positional array with no
+    // key names at all.
+    compactEncode: createJsonEncoderFn(schema, {strategy: 'compact'}),
+    compactDecode: createJsonDecoderFn(schema, {strategy: 'compact'}),
   });
 }
 
@@ -466,6 +471,7 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
     expect(report.unknownKeys.flagged, 'no key was planted at a flagged position').toBeGreaterThan(0);
     expect(report.unknownKeys.carveOut, 'no key was planted at an index-signature carve-out').toBeGreaterThan(0);
     expect(report.unknownKeys.wire, 'no encoded wire was planted on').toBeGreaterThan(0);
+    expect(report.unknownKeys.compactWire, 'no compact wire was planted on').toBeGreaterThan(0);
   });
 
   // O19's reference half is recovered through a marker wrapper, and

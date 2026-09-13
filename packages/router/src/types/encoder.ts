@@ -49,11 +49,17 @@ export type ParamsStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveSt
 /** The return-side strategy literal a route resolves to. */
 export type ReturnStrategy<RouteOpts, RouterOpts = NoEncoderOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
 
-// The two slots of each marker side that vary with the strategy, read by MarkerSlots below.
+// The slots of each marker side that vary with the strategy, read by MarkerSlots below.
 type ParamsEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
 type ParamsDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
 type ReturnEncode<RouteOpts, RouterOpts = NoEncoderOptions> = EncodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
 type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
+/** The `strictTypes` pair, `never` on a wire no key name survives. `compact` sends an object as an
+ *  array of its values and rebuilds it from positions, refusing a keyed one, and its union members
+ *  are rebuilt from their declared props, so nothing the caller named reaches the decoded value. */
+type UnknownKeys<Strategy, Key> = Strategy extends 'compact' ? never : Key;
+type ParamsHasUnknownKeys<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'huk'>;
+type ParamsUnknownKeyErrors<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'uke'>;
 
 /** Intersected onto the factory options so a widened `encoder` (plain string, union) is a type error. */
 export type EncoderLiteralGuard<Options> = Options extends {encoder: infer E}
@@ -72,7 +78,9 @@ type LiteralEncoder<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: 
 // tuple ELEMENT keeps the marker's own alias, so the scanner still reads it at the call site.
 // The fn key vocabulary is MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so
 // order does not matter, and a strategy slot resolving to `never` is not compiled.
-// 'fmt' (the sanitizeParams lane) is requested on the PARAMS side only.
+// 'fmt' (the sanitizeParams lane) is requested on the PARAMS side only, and so is the unknown-key
+// pair: the answer side of a route is written by the handler, never by a caller, and nothing reads
+// returnJitFns.hasUnknownKeys.
 
 /** The four injection slots of a route / middleFn call, in declaration order. */
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoEncoderOptions> = [
@@ -80,21 +88,13 @@ export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoEncoderOptions
     Params,
     'val',
     'verr',
-    'huk',
-    'uke',
+    ParamsHasUnknownKeys<RouteOpts, RouterOpts>,
+    ParamsUnknownKeyErrors<RouteOpts, RouterOpts>,
     'fmt',
     ParamsEncode<RouteOpts, RouterOpts>,
     ParamsDecode<RouteOpts, RouterOpts>
   >,
-  returnFns: InjectTypeFnArgs<
-    Return,
-    'val',
-    'verr',
-    'huk',
-    'uke',
-    ReturnEncode<RouteOpts, RouterOpts>,
-    ReturnDecode<RouteOpts, RouterOpts>
-  >,
+  returnFns: InjectTypeFnArgs<Return, 'val', 'verr', ReturnEncode<RouteOpts, RouterOpts>, ReturnDecode<RouteOpts, RouterOpts>>,
   paramsId: InjectRunTypeId<Params>,
   returnId: InjectRunTypeId<Return>,
 ];

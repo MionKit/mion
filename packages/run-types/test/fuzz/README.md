@@ -165,7 +165,7 @@ Holds a small set of concrete schemas and floods each with **five** value
 streams per seed: a conforming mock, that mock mutated to a provably-invalid
 value at exactly one position, the mock decorated with undeclared keys, the
 mock with ONE undeclared key planted at a walked position, and pure type-blind
-junk. Checks the value oracles **O1–O7**, **O18–O21** and **O22–O25** (see
+junk. Checks the value oracles **O1–O7**, **O18–O21** and **O22–O26** (see
 [the catalog](#oracle-catalog)).
 
 - `fuzzOracle.ts` — the property checks + the `Violation` shape.
@@ -201,6 +201,14 @@ them against each other rather than against a hand-written answer, so a
 position nobody thought of still gets an answer that has to agree. The report
 carries `unknownKeys.{flagged, carveOut, wire}` counters and the test asserts
 each is non-zero, so a green run cannot be green because nothing was planted.
+
+**Why O26 sits beside O25.** The `compact` wire makes a promise the keyed
+strategies do not: no key name from the wire reaches the decoded value, which is
+what lets a mion route on that wire compile no unknown-key check at all. Compact
+keeps only two shapes keyed, a union member and an index-signature record, and
+both used to hand a planted key straight back. O26 is the same metamorphic check
+as O25 over the compact pair, so the promise is held against every position the
+walker reaches rather than the handful anyone thought to write down.
 
 Two documented gaps the oracles work around rather than fail on: a union with
 object members has no `cloneExactShape` at all (**CES001** — the emitter cannot

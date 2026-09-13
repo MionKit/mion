@@ -1720,6 +1720,17 @@
       "example": "export interface Settings { ok: number; constructor: string }\nexport const settings: Settings = {ok: 1, constructor: 'x'};"
     },
     {
+      "code": "MRT006",
+      "subsystem": "mion-routes",
+      "level": "runtimeError",
+      "severity": "error",
+      "headline": "mion `{1}` sets `strictTypes: true`, but its params ride the `{0}` wire, which carries no key names for the check to find.",
+      "detail": "The `compact` wire sends an object as an array of its values: the key names\nnever travel, the decoder rebuilds the object from positions, and it refuses a\nkeyed one. Nothing a caller wrote can reach the handler under a name the type\ndoes not declare, so the route compiles no unknown-key check and `strictTypes`\nhas nothing to do here.\n\nFix: drop the option, or move the route to a wire that carries key names:\n-  mion.route(handler, {encoder: 'compact', strictTypes: true});\n+  mion.route(handler, {encoder: 'compact'});\nor\n+  mion.route(handler, {encoder: 'clone', strictTypes: true});\n\nA router-wide `strictTypes` is never reported: it is a default for the routes\nthat can use it, not a claim about this one.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "MET001",
       "subsystem": "bundled-api",
       "level": "error",

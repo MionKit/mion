@@ -91,6 +91,11 @@ export interface FuzzTarget {
   restoreFromJson?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
+  /** The `compact` pair. It promises something the keyed strategies do not: no key
+   *  name from the wire reaches the decoded value, which is what lets a mion route
+   *  on that wire compile no unknown-key check at all. O26 is that promise. **/
+  compactEncode?: (value: unknown) => string | undefined;
+  compactDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
   binaryDecode?: (buffer: Uint8Array) => unknown;
 }
@@ -127,6 +132,9 @@ export interface FuzzTarget {
 //   O25 wire-strip      undeclared keys planted on the ENCODED WIRE do not
 //                       change what the `strip` decoder returns, and the
 //                       `preserve` decoder does keep them
+//   O26 wire-compact    the same over the `compact` pair. Compact keeps only
+//                       union members and index-signature records keyed, and a
+//                       key planted on one of those must not survive the decode
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
 //   O15 clone-reference   clone(v) deep-equals the reference-interpreter clone
 //   O16 clone-isolation   input unmutated + no shared mutable ref + prototype kept
@@ -153,6 +161,7 @@ export type OracleId =
   | 'O23'
   | 'O24'
   | 'O25'
+  | 'O26'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -508,7 +517,30 @@ export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, c
  *  keep one on a registered class arm — that instance is rebuilt from the
  *  type, never from the keys on the wire. **/
 export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  const {jsonEncode, jsonDecode} = target;
+  return checkWireDropsPlantedKeys(target, value, ctx, 'O25', 'the strip decoder', target.jsonEncode, target.jsonDecode);
+}
+
+/** O26 — the `compact` pair drops every key the type did not declare.
+ *
+ *  Compact sends a declared object as an array of its values, so most of its wire
+ *  has no key names at all. Two shapes keep them: a union member (the merged
+ *  branch has no single positional form) and an index-signature record. A key
+ *  planted on either must not survive the decode, because a mion route on the
+ *  compact wire compiles no unknown-key check and has nothing else standing
+ *  between a caller's key and the handler. Same metamorphic shape as O25. **/
+export function checkWireCompactBlind(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  return checkWireDropsPlantedKeys(target, value, ctx, 'O26', 'the compact decoder', target.compactEncode, target.compactDecode);
+}
+
+function checkWireDropsPlantedKeys(
+  target: FuzzTarget,
+  value: unknown,
+  ctx: CheckCtx,
+  code: OracleId,
+  label: string,
+  jsonEncode: FuzzTarget['jsonEncode'],
+  jsonDecode: FuzzTarget['jsonDecode']
+): Violation | null {
   if (!jsonEncode || !jsonDecode) return null;
   let wire: string | undefined;
   try {
@@ -536,15 +568,15 @@ export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: Che
     strippedClean = withoutBlankedKeys(jsonDecode(wire));
     strippedPlanted = withoutBlankedKeys(jsonDecode(planted));
   } catch (err) {
-    return violation('O25', target, ctx, `a decoder threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
+    return violation(code, target, ctx, `${label} threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
   }
   if (strippedClean === null || strippedClean === undefined) return null; // nothing decoded, nothing to compare
   if (!isDeepStrictEqual(strippedClean, strippedPlanted))
     return violation(
-      'O25',
+      code,
       target,
       ctx,
-      `the strip decoder did not blank ${plantedCount} undeclared wire key(s): got ${snapshot(strippedPlanted)} instead of ${snapshot(strippedClean)}`,
+      `${label} did not drop ${plantedCount} undeclared wire key(s): got ${snapshot(strippedPlanted)} instead of ${snapshot(strippedClean)}`,
       planted
     );
   return null;

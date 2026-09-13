@@ -443,7 +443,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		{"uAt", true},         // raw-round-trip union (shared restore rule)
 		{"uObjNest", false},   // rj says true — a merged member positionalizes its nested object
 		{"uArrObjStr", false}, // rj says true — the array arm positionalizes its elements
-		{"uRecObj", true},     // numeric record | flat object: nothing positionalizes, stays raw
+		{"uRecObj", false},    // numeric record | flat object: the object merges, so compact drops its undeclared keys
 		{"recA", false},       // the key loop with the prototype-name refusal always ships
 		{"objCompat", false},  // rj says true — the delegation trap
 		{"arrCO", false},      // array of objects — positional elements

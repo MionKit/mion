@@ -46,11 +46,13 @@ export type MockData<T> = Record<string, unknown> & {readonly __rtMock?: T};
 // handler, and the error hierarchy the returned-error rule walks.
 export const FIXTURE_ROUTER_DTS = `export interface CallContext { path: string }
 export type Handler = (ctx: CallContext, ...params: any[]) => any;
-export interface RouteDef<H> { handler: H }
-export interface RouteHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-export interface MiddleFnHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-export interface MionRouter { readonly route: RouteHelper; readonly middleFn: MiddleFnHelper }
-export declare function createMionRouter(opts?: unknown): MionRouter;
+// RO is the route's own options literal, O the factory's. The definition the call
+// answers with carries both, which is where the wire rules read them.
+export interface RouteDef<H, RO = unknown, O = unknown> { handler: H; options?: RO; readonly routerOptions?: O }
+export interface RouteHelper<O = unknown> { <H extends Handler, const RO = unknown>(handler: H, opts?: RO): RouteDef<H, RO, O> }
+export interface MiddleFnHelper<O = unknown> { <H extends Handler, const RO = unknown>(handler: H, opts?: RO): RouteDef<H, RO, O> }
+export interface MionRouter<O = unknown> { readonly route: RouteHelper<O>; readonly middleFn: MiddleFnHelper<O> }
+export declare function createMionRouter<const O = unknown>(opts?: O): MionRouter<O>;
 `;
 
 export const FIXTURE_CORE_DTS = `export declare class TypedError<T extends string = string> extends Error { readonly type: T }
