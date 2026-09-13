@@ -105,6 +105,30 @@ describe('the lane table', () => {
 // whole-tree sweeps DO read every tracked file, so if one ever moves back into the
 // vitest suite, a .claude/ or CLAUDE.md edit would skip the very check meant to
 // catch it. Pin them to the one job no lane can skip.
+// A gate job that FAILS takes every lane down with it, and GitHub reports a job
+// skipped for a failed dependency as neutral, so the pull request can look settled
+// while nothing ran. The job therefore installs nothing and must ask for nothing
+// that needs an install.
+describe('the gate job stands on its own', () => {
+  const action = read('.github/actions/ci-lanes/action.yml');
+
+  it('turns off the package-manager cache setup-node enables by default', () => {
+    // On by default, it finds pnpm-lock.yaml and shells out to `pnpm` to locate the
+    // store. pnpm is not on PATH here, and that failure fails the whole step.
+    expect(action).toContain('package-manager-cache: false');
+  });
+
+  it('never runs pnpm, which the job does not install', () => {
+    const steps = action.slice(action.indexOf('runs:'));
+    expect(steps, 'the gate job has no pnpm').not.toMatch(/run:.*\bpnpm\b/);
+    for (const file of Object.keys(WORKFLOWS)) {
+      const workflow = read(`.github/workflows/${file}`);
+      const gate = workflow.slice(workflow.indexOf('\n  lanes:'), workflow.indexOf('\n\n  ', workflow.indexOf('\n  lanes:')));
+      expect(gate, `${file}'s gate job has no pnpm`).not.toMatch(/run:.*\bpnpm\b/);
+    }
+  });
+});
+
 describe('the whole-tree sweeps run ungated', () => {
   const ci = read('.github/workflows/ci.yml');
   const gate = ci.slice(ci.indexOf('\n  lanes:'), ci.indexOf('\n  go-fuzz:'));
