@@ -92,6 +92,15 @@ pnpm --filter @mionjs/run-types test      # the other
 
 JS plugin tests in [packages/devtools/test/](packages/devtools/test/) spawn the Go binary — `pretest` rebuilds it. For the edit/see-tests loop, `pnpm run check:builds` then `pnpm exec vitest` (watch mode) keeps the binary fresh; `pnpm test` is the one-shot pass.
 
+To see which CI lanes the current tree needs, and why:
+
+```bash
+pnpm miondevx core lanes                        # one hash per lane, over the paths that feed it
+pnpm run check:tree                             # the whole-tree hygiene sweeps CI runs ungated
+```
+
+A lane runs unless a marker says its exact inputs already passed, so a commit that changes nothing a lane reads skips it. The lane table is [scripts/ci/lanes.mjs](scripts/ci/lanes.mjs).
+
 ---
 
 ## Containerized apps (docs website + benchmarks)
