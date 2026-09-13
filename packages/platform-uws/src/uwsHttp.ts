@@ -124,10 +124,14 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 
 // ############# PRIVATE METHODS #############
 
-// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see
-// setUwsHttpOpts). uWS contract: `req` is only valid synchronously inside this call, so everything
-// the async dispatch needs is snapshotted before the first await; `res` stays valid until the
-// response ends or onAborted fires.
+// uWS refreshes a socket's idle timeout only from inside a body-data callback, and runs that
+// callback only when a data handler is registered. A request answered before its body finished
+// arriving still has that body coming: with no reader the socket is closed mid-upload once the idle
+// timeout elapses, so register a reader that drops every chunk.
+function drainRequestBody(res: HttpResponse) {
+  res.onData(() => {});
+}
+
 function toRpcError(e: unknown): RpcError<string> {
   return e instanceof RpcError
     ? e
@@ -138,6 +142,10 @@ function toRpcError(e: unknown): RpcError<string> {
       });
 }
 
+// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see
+// setUwsHttpOpts). uWS contract: `req` is only valid synchronously inside this call, so everything
+// the async dispatch needs is snapshotted before the first await; `res` stays valid until the
+// response ends or onAborted fires.
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const state = {replied: false, aborted: false};
   // Everything read from `req` happens HERE, synchronously.
@@ -165,6 +173,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   try {
     resolved = resolveRequest(path, urlQuery, rawRequest);
   } catch (e) {
+    drainRequestBody(res);
     state.replied = true;
     fatalFail(res, state, respHeaders, toRpcError(e));
     return;
@@ -205,9 +214,9 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // maxSize, which is exactly the maxBodySize contract. The size is the route's own resolved limit
   // (the adapter's option for a route whose types could not say).
   // A not-found chain (an unknown path or batch id) has no route to feed: the body is consumed
-  // as it arrives and dropped (a no-op reader keeps the connection reusable), never assembled.
+  // as it arrives and dropped, never assembled.
   if (!resolved.readsBody) {
-    res.onData(() => {});
+    drainRequestBody(res);
     dispatchBody('', false);
     return;
   }
