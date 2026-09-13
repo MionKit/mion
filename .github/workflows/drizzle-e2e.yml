@@ -14,6 +14,11 @@ name: drizzle · translated suites against real databases
 #   2. any PR carrying the `drizzle-e2e` label, so whoever touches those packages
 #      can ask for it on demand
 #
+# Either trigger is then gated on CONTENT by the `lanes` job: the lane hashes the
+# paths that feed it (scripts/ci/lanes.mjs) and runs only when that hash has not
+# already passed. Before that, a label meant five database lanes on every commit
+# for the life of the pull request, docs commits included.
+#
 # It cannot live inside release-gate.yml: that gate is also called by the publish
 # path, and a job there cannot be depended on from here.
 on:
@@ -32,6 +37,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The content gate, shared with ci.yml and pr-heavy.yml. It answers "have these
+  # exact inputs already passed", which is a different question from `decide`'s
+  # "is this pull request about drizzle at all"; both must say yes.
+  lanes:
+    name: decide lanes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      lanes: ${{ steps.decide.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: decide
+        uses: ./.github/actions/ci-lanes
+        with:
+          lanes: drizzle
+
   # ── decide: is this run worth its cost? ─────────────────────────────────────
   # A prod PR runs it only when the drizzle packages changed since their release
   # point; a labelled PR always runs. `unreleasedChanges()` returning {known:
@@ -41,6 +64,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.check.outputs.run }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -66,8 +91,8 @@ jobs:
   # a host-only set, so this shortcut can never reach npm.
   build:
     name: build + pack
-    needs: decide
-    if: needs.decide.outputs.run == 'true'
+    needs: [lanes, decide]
+    if: needs.decide.outputs.run == 'true' && fromJSON(needs.lanes.outputs.lanes).drizzle.run
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -98,7 +123,7 @@ jobs:
 
   drizzle-e2e:
     name: ${{ matrix.dialect }}
-    needs: build
+    needs: [lanes, build]
     strategy:
       fail-fast: false
       matrix:
@@ -151,3 +176,20 @@ jobs:
           name: drizzle-e2e-${{ matrix.dialect }}
           path: logs/drizzle-e2e/
           if-no-files-found: ignore
+
+  # ONE marker for the whole matrix, so it is written only once ALL FIVE dialects
+  # have passed. Writing it per dialect would let one green lane stand in for the
+  # four that were still running, or that failed.
+  record-green:
+    name: record drizzle as green
+    needs: [lanes, drizzle-e2e]
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/save-lane-green
+        with:
+          lane: drizzle
+          hash: ${{ fromJSON(needs.lanes.outputs.lanes).drizzle.hash }}

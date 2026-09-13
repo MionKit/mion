@@ -31,6 +31,8 @@
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
 import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join, posix} from 'node:path';
@@ -145,21 +147,6 @@ describe('published packages point at this repository', () => {
     });
   }
 
-  it(
-    'no tracked file outside docs/ names the old ts-run-types repository',
-    () => {
-      // -I skips binaries; the pathspecs exclude the history records + specs under docs/ and the
-      // vendored submodule. The needle is split so this file never matches itself.
-      const oldRepo = ['MionKit', 'ts-run-types'].join('/');
-      const res = spawnSync('git', ['grep', '-I', '-l', oldRepo, '--', '.', ':!docs', ':!ts-go-runtypes/third_party'], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-      });
-      expect(res.stdout.trim().split('\n').filter(Boolean)).toEqual([]);
-    },
-    WHOLE_TREE_TIMEOUT
-  );
-
   it("the client's undeclared slot is never called the fatal slot", () => {
     // `FatalError` is a typed, declared halt; the result tuple's slot 2 holds what NOBODY declared.
     // One word for two things reads wrong, so the slot is `undeclared` in code, examples and docs.
@@ -191,43 +178,17 @@ describe('published packages point at this repository', () => {
   });
 });
 
-// A path under docs/todos/ or docs/done/ ending in a spec filename. The sweep runs over
-// TRACKED files only (git grep), so ignored build output never trips it.
-const SPEC_REFERENCE = /docs\/(todos|done)\/[a-z0-9-]+\.md/;
-// Where naming a spec is legitimate: the two spec directories themselves, the changelog
-// (history), the vendored submodule and every isolated dependency tree.
-const SPEC_REFERENCE_EXEMPT = /^(docs\/(todos|done)\/|CHANGELOG\.md$|ts-go-runtypes\/third_party\/)|(^|\/)(_deps|node_modules)\//;
-
-// The files that name a spec and are not allowed to. Pure over (path, text) so the rule
-// itself is testable without a git checkout.
-function specReferenceOffenders(entries: {file: string; text: string}[]): string[] {
-  return entries
-    .filter(({file}) => !SPEC_REFERENCE_EXEMPT.test(file))
-    .filter(({text}) => SPEC_REFERENCE.test(text))
-    .map(({file}) => file);
-}
-
+// The three WHOLE-TREE sweeps (this rule, the old-repository one and the NUL-byte
+// one) run from scripts/ci/check-tree.mjs in the always-on `lanes` job, not here:
+// they read docs/, .claude/ and the root prose files, which the lane gate
+// deliberately excludes from the js lane, so a sweep gated on js inputs would miss
+// exactly the edits it exists to catch. What stays here is the RULE itself, over the
+// same implementation the sweep uses.
 describe('no file outside docs/todos and docs/done names a todo or done spec', () => {
   // Fixture paths are assembled so this file never names a spec itself.
   const spec = (dir: 'todos' | 'done', name: string): string => ['docs', dir, `${name}.md`].join('/');
   const doneRef = spec('done', 'some-finding');
   const todoRef = spec('todos', 'next-thing');
-
-  it(
-    'the tracked tree has no such reference',
-    () => {
-      // -I skips binaries; git grep only sees tracked files. The exemptions are applied
-      // in JS (one regex for both the real sweep and the rule tests below).
-      const res = spawnSync('git', ['grep', '-I', '-l', '-E', SPEC_REFERENCE.source, '--', '.'], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-      });
-      const candidates = res.stdout.trim().split('\n').filter(Boolean);
-      const entries = candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')}));
-      expect(specReferenceOffenders(entries)).toEqual([]);
-    },
-    WHOLE_TREE_TIMEOUT
-  );
 
   it('fails on a reference in code, a workflow, a doc, a skill or a parked spec', () => {
     const text = `see ${doneRef} for why`;
@@ -889,33 +850,6 @@ describe('website-test-counts', () => {
     const numericLiterals = [...tiles.matchAll(/value: '([\d,]+)'/g)].map((match) => match[1]);
     expect(numericLiterals).toEqual([]);
   });
-});
-
-describe('tracked sources carry no raw NUL byte', () => {
-  // A literal NUL makes git classify the file as BINARY: no line diffs, no auto-merge.
-  // Two files carried one, and the rtUtils.ts one blocked a rebase.
-  const SCANNED = ['*.ts', '*.tsx', '*.js', '*.mjs', '*.cjs', '*.go', '*.json', '*.md'];
-
-  it(
-    'no tracked source file contains a literal NUL',
-    () => {
-      const listed = spawnSync('git', ['ls-files', '-z', '--', ...SCANNED], {
-        cwd: REPO_ROOT,
-        maxBuffer: 64 * 1024 * 1024,
-      });
-      expect(listed.status).toBe(0);
-      const files = listed.stdout
-        .toString('utf8')
-        .split('\u0000')
-        .filter(Boolean)
-        .filter((file) => !file.startsWith('ts-go-runtypes/third_party/') && !file.includes('/testdata/'));
-      expect(files.length).toBeGreaterThan(500);
-
-      const offenders = files.filter((file) => readFileSync(join(REPO_ROOT, file)).includes(0));
-      expect(offenders).toEqual([]);
-    },
-    WHOLE_TREE_TIMEOUT
-  );
 });
 
 // ── mion server benchmarks (container/mion-bench) ──────────────────────────────

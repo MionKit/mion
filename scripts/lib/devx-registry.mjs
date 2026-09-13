@@ -70,6 +70,18 @@ export const AREAS = {
       },
       {name: 'smoke', summary: 'end-to-end smoke of the resolver + devtools'},
       {
+        name: 'lanes',
+        args: '[lane…]',
+        summary: 'which CI lanes this tree needs: one hash per lane over the paths that feed it',
+        flags: [
+          ['--decide <lane…>', 'decide those lanes and print the verdict as JSON'],
+          ['--green-keys <file>', 'the marker keys already recorded green (CI passes the cache listing)'],
+          ['--github', 'also write the verdict to $GITHUB_OUTPUT and a table to $GITHUB_STEP_SUMMARY'],
+          ['--ref <ref>', 'hash that tree instead of HEAD'],
+        ],
+        ...noBuild,
+      },
+      {
         name: 'test-batches',
         summary: 'the batched whole vitest suite (what test:ci runs)',
         flags: [

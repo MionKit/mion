@@ -301,6 +301,9 @@ function runCore(args) {
   // the read-only CI gate (ci.yml), and the run itself refuses to start on drift.
   // --check / --list are pure file reads: the registry row keeps them build-free.
   if (sub === 'test-batches') return proxy('node', ['scripts/core/test-batches.mjs', ...rest]);
+  // Which CI lanes this tree's content needs, and why. A pure git read, so the
+  // registry row keeps it build-free; CI runs the same script from ./.github/actions/ci-lanes.
+  if (sub === 'lanes') return proxy('node', ['scripts/ci/lanes.mjs', ...rest]);
   // The drizzle proxy manifest gate: regenerates the per-dialect manifests, driven by the
   // hand-owned drizzle-dialects.json at the repo root (the required --config), from
   // drizzle-orm's d.ts via the embedded checker; --check is the read-only CI gate
