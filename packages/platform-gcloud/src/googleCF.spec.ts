@@ -304,7 +304,14 @@ describe('serverless router', () => {
       addStartMiddleFns({plainStart});
       addEndMiddleFns({accessLog});
       app.initRoutes({echo});
-      failServer = await initServer(failPort);
+      // its OWN registered function, like the json-encoder suite below: `initServer` re-registers
+      // `HelloTests`, and getTestServer hands back the SAME express app for a name, so a third
+      // listener on it races the servers the other suites are still tearing down
+      failServer = await new Promise<Server>((resolve) => {
+        functions.http('FailedRequestTests', googleCFHandler);
+        const expressServer = getTestServer('FailedRequestTests');
+        expressServer.listen(failPort, () => resolve(expressServer));
+      });
     });
 
     afterAll(async () => closeServer(failServer));
