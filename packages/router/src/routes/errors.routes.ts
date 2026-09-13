@@ -8,7 +8,7 @@
 import type {Routes} from '../types/general.ts';
 import type {CallContext} from '../types/context.ts';
 import {RpcError, FatalError, MION_ROUTES, StatusCodes} from '@mionjs/core';
-import {route} from '../lib/handlers.ts';
+import {route, rawMiddleFn} from '../lib/handlers.ts';
 
 // mion's own routes, registered by initRouter for every app. They are DECLARED here at module
 // level rather than through the router factory, because a marker call site inside the generic
@@ -30,36 +30,6 @@ export const mionErrorsRoutes = {
     return ctx.request.thrownErrors || {};
   }, DEFAULT_WIRE),
   /**
-   * Route that handles not-found scenarios when a requested route doesn't exist.
-   * This route is registered as an internal mion route.
-   * The route is called by dispatch logic when no matching route is found.
-   * Throws an RpcError that will be caught and stored in thrownErrors by the router.
-   */
-  [MION_ROUTES.notFound]: route((ctx: CallContext): RpcError<'route-not-found'> => {
-    // Router errors are undeclared by design: nobody declared this route, so the error
-    // belongs in the undeclared slot rather than a typed one.
-    // eslint-disable-next-line @mionjs/no-throw-in-handlers -- deliberate, see above
-    throw new FatalError({
-      statusCode: StatusCodes.NOT_FOUND,
-      publicMessage: `Route not found`,
-      type: 'route-not-found',
-    });
-  }, DEFAULT_WIRE),
-  /**
-   * Route that answers a batch request whose id names no registered batch. Resolved while the
-   * context is acquired, so the chain runs like any other not-found: the global middleFns see the
-   * request, the body is never read. The id is the only untrusted input and it is never echoed.
-   */
-  [MION_ROUTES.batchNotFound]: route((ctx: CallContext): RpcError<'batch-unknown-id'> => {
-    // eslint-disable-next-line @mionjs/no-throw-in-handlers -- deliberate, a router error, see notFound
-    throw new FatalError({
-      statusCode: StatusCodes.NOT_FOUND,
-      type: 'batch-unknown-id',
-      publicMessage:
-        'Batch id not registered on this server. Batches are compiled by the build; rebuild the client and the server together.',
-    });
-  }, DEFAULT_WIRE),
-  /**
    * Platform error route for strongly typing platform/adapter errors.
    * Platform errors occur before reaching the router or outside the router
    * and are platform/adapter related (e.g., HTTP server errors, connection issues).
@@ -74,3 +44,29 @@ export const mionErrorsRoutes = {
     });
   }, DEFAULT_WIRE),
 } as const satisfies Routes;
+
+/**
+ * The first member of each of mion's two not-found chains. It throws, so the dispatcher's own rule
+ * skips every later member that does not declare `alwaysRun`: a request that arrived already failed
+ * never reaches a session loader or an authorization step.
+ *
+ * Raw middleFns rather than routes: nobody declared this request, so there is no params or return
+ * contract to compile, and the error belongs in the undeclared `@thrownErrors` slot, keyed by the
+ * member's own id. The batch id is the only untrusted input and it is never echoed.
+ */
+export const notFoundMiddleFn = rawMiddleFn((): void => {
+  throw new FatalError({
+    statusCode: StatusCodes.NOT_FOUND,
+    publicMessage: `Route not found`,
+    type: 'route-not-found',
+  });
+});
+
+export const batchNotFoundMiddleFn = rawMiddleFn((): void => {
+  throw new FatalError({
+    statusCode: StatusCodes.NOT_FOUND,
+    type: 'batch-unknown-id',
+    publicMessage:
+      'Batch id not registered on this server. Batches are compiled by the build; rebuild the client and the server together.',
+  });
+});

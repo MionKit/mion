@@ -118,6 +118,7 @@ export interface MethodsExecutionChain {
    *  when the types cannot say: the request then takes the platform adapter's `maxBodySize`. */
   maxBodySize?: number;
   /** False only for mion's own not-found chains (an unknown path, an unknown batch id): the request
-   *  has no route to feed, so the adapter never reads its body and the router never parses it. */
+   *  has no route to feed, so the adapter never reads its body and the router never parses it.
+   *  Every chain built around a real route reads it. */
   readsBody: boolean;
 }

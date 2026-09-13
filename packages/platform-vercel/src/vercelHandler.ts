@@ -7,6 +7,7 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
@@ -65,7 +66,13 @@ async function handleRequest(req: Request): Promise<Response> {
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (resolved.readsBody) {
-      rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.stream);
+      try {
+        rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.stream);
+      } catch (e) {
+        // the route resolved, so a refused body still runs the chain's alwaysRun members
+        const refused = await dispatchPlatformError(resolved, toRpcError(e), req.headers, responseHeaders, req, undefined);
+        return reply(refused, responseHeaders);
+      }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;
@@ -76,15 +83,7 @@ async function handleRequest(req: Request): Promise<Response> {
     const platformResp = await dispatchWithContext(context, req, undefined);
     return reply(platformResp, responseHeaders);
   } catch (e) {
-    const error =
-      e instanceof RpcError
-        ? e
-        : new FatalError({
-            publicMessage: 'Unknown Error',
-            type: 'unknown-error',
-            originalError: e as Error,
-          });
-    return fatalFail(error, responseHeaders);
+    return fatalFail(toRpcError(e), responseHeaders);
   }
 }
 
@@ -98,6 +97,17 @@ export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
     DELETE: handleRequest,
     PATCH: handleRequest,
   };
+}
+
+/** Whatever was thrown, as the mion error the wire carries. */
+function toRpcError(e: unknown): RpcError<string> {
+  return e instanceof RpcError
+    ? e
+    : new FatalError({
+        publicMessage: 'Unknown Error',
+        type: 'unknown-error',
+        originalError: e as Error,
+      });
 }
 
 function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
