@@ -7,6 +7,7 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
@@ -69,7 +70,17 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (resolved.readsBody) {
-      rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.buffered);
+      try {
+        rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.buffered);
+      } catch (e) {
+        const refusal = toRpcError(e);
+        // a body refused mid-flight leaves unread chunks on the socket: close it with the answer so
+        // they are never parsed as the next request of a kept-alive connection
+        if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
+        // the route resolved, so the refusal still runs the chain's alwaysRun members
+        const refused = await dispatchPlatformError(resolved, refusal, req.headers, responseHeaders, req, undefined);
+        return reply(refused, responseHeaders);
+      }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;
@@ -80,18 +91,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     const platformResp = await dispatchWithContext(context, req, undefined);
     return reply(platformResp, responseHeaders);
   } catch (e) {
-    const error =
-      e instanceof RpcError
-        ? e
-        : new FatalError({
-            publicMessage: 'Unknown Error',
-            type: 'unknown-error',
-            originalError: e as Error,
-          });
-    // a body refused mid-flight leaves unread chunks on the socket: close it with the answer so
-    // they are never parsed as the next request of a kept-alive connection
-    if (error.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
-    return fatalFail(error, responseHeaders);
+    return fatalFail(toRpcError(e), responseHeaders);
   }
 }
 
@@ -168,6 +168,17 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
     Bun.gc(false);
   }
   return server;
+}
+
+/** Whatever was thrown, as the mion error the wire carries. */
+function toRpcError(e: unknown): RpcError<string> {
+  return e instanceof RpcError
+    ? e
+    : new FatalError({
+        publicMessage: 'Unknown Error',
+        type: 'unknown-error',
+        originalError: e as Error,
+      });
 }
 
 // only called whe there is an htt error or weird unhandled route errors
