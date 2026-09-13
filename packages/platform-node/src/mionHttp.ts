@@ -7,6 +7,7 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
@@ -138,14 +139,35 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const maxBodySize = resolved.maxBodySize;
 
   // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
-  // one, and on the running size before each chunk is kept. The request stream is then destroyed so
-  // the client cannot keep sending into a response that already went out.
+  // one, and on the running size before each chunk is kept.
   const declaredLength = Number(httpReq.headers['content-length']);
   if (declaredLength > maxBodySize) {
     replied = true;
-    fatalFail(httpResponse, respHeaders, requestPayloadTooLarge());
-    httpReq.destroy();
+    void dispatchRefusal();
     return;
+  }
+
+  /** A body this adapter refused. The route resolved, so the chain still runs its `alwaysRun`
+   *  members over the refusal (a rate limiter, an access log) and writes the answer. The request
+   *  stream is destroyed after the reply, so the client cannot keep sending into a response that
+   *  already went out. */
+  async function dispatchRefusal() {
+    bodyChunks.length = 0;
+    try {
+      const mionResponse = await dispatchPlatformError(
+        resolved,
+        requestPayloadTooLarge(),
+        reqHeaders,
+        respHeaders,
+        httpReq,
+        httpResponse
+      );
+      if (!httpResponse.writableEnded) reply(httpResponse, mionResponse);
+    } catch (e) {
+      fatalFail(httpResponse, respHeaders, toRpcError(e));
+    } finally {
+      httpReq.destroy();
+    }
   }
 
   async function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
@@ -193,9 +215,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     size += data.length;
     if (size > maxBodySize) {
       replied = true;
-      bodyChunks.length = 0;
-      fatalFail(httpResponse, respHeaders, requestPayloadTooLarge());
-      httpReq.destroy();
+      void dispatchRefusal();
       return;
     }
     bodyChunks.push(data);
