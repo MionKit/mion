@@ -11,7 +11,7 @@ import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
-import {onExecutableError, markResponseFailed, recordArrivalError} from './lib/dispatchError.ts';
+import {onExecutableError, markResponseFailed, recordUndeclaredError} from './lib/dispatchError.ts';
 import {createCallContext, createContextFromResolved, getRequestBodyType} from './callContext.ts';
 
 /*
@@ -74,7 +74,7 @@ export function dispatchPlatformError<Req, Resp>(
   rawResponse?: Resp
 ): Promise<MionResponse> {
   const context = createContextFromResolved(resolved, reqHeaders, respHeaders);
-  recordArrivalError(context, MION_ROUTES.platformError, platformError);
+  recordUndeclaredError(context, MION_ROUTES.platformError, platformError);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }
 

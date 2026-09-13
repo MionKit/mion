@@ -64,27 +64,16 @@ export function markResponseFailed(context: CallContext, rpcError: RpcError<stri
  */
 // `err` is whatever was thrown: an RpcError, an Error, or any other value.
 export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any) {
-  const path = executable.id;
-  const rpcError: RpcError<string> = markFatal(
-    err instanceof RpcError
-      ? err
-      : new FatalError({
-          statusCode: StatusCodes.UNEXPECTED_ERROR,
-          publicMessage: `Unknown error in handler "${path}" of route ExecutionChain.`,
-          originalError: err,
-          type: 'unknown-error',
-        })
-  );
-  recordArrivalError(context, path, rpcError);
+  recordUndeclaredError(context, executable.id, err);
 }
 
 /**
- * Records an undeclared error under `key` and ends the request: the same slot, status and header a
- * thrown one takes, keyed by the caller rather than by a chain member. What an adapter reaches for
- * when it refuses a request whose route already resolved (a body past the limit), so the chain still
- * runs its `alwaysRun` members over the refusal instead of being skipped altogether.
+ * Records an undeclared error under `key` and ends the request: it lands in `@thrownErrors` untyped,
+ * sets the status and the error header, and stops every later chain member that does not declare
+ * `alwaysRun`. The key is normally the chain member that failed; an adapter passes its own
+ * (`mion@platformError`) for a request it refused before any member could run.
  */
-export function recordArrivalError(context: CallContext, key: string, err: any) {
+export function recordUndeclaredError(context: CallContext, key: string, err: any) {
   const rpcError: RpcError<string> = markFatal(
     err instanceof RpcError
       ? err

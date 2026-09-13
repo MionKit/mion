@@ -90,9 +90,15 @@ describe('uws adapter: a request answered before its body arrived still drains i
 
   afterAll(() => server.close());
 
-  it('accepts the whole slow upload for an unknown path and for a throwing pathTransform', async () => {
-    // both uploads share the same ~15s of wall clock
-    const [notFound, transformThrew] = await Promise.all([trickleUpload('/api/nope'), trickleUpload('/api/boom')]);
+  it('accepts the whole slow upload for an unknown path, a throwing pathTransform and a refused body', async () => {
+    // all three uploads share the same ~15s of wall clock
+    const [notFound, transformThrew, tooLarge] = await Promise.all([
+      trickleUpload('/api/nope'),
+      trickleUpload('/api/boom'),
+      // over the limit long before it finishes arriving: collectBody answers null and the chain
+      // runs its alwaysRun members, while its own reader keeps draining the rest
+      trickleUpload('/api/echo'),
+    ]);
 
     expect(notFound.statusCode).toBe(StatusCodes.NOT_FOUND);
     expect(notFound.sentBytes).toBe(uploadBytes);
@@ -101,5 +107,9 @@ describe('uws adapter: a request answered before its body arrived still drains i
     expect(transformThrew.statusCode).toBe(StatusCodes.SERVER_ERROR);
     expect(transformThrew.sentBytes).toBe(uploadBytes);
     expect(transformThrew.serverHungUp).toBe(false);
+
+    expect(tooLarge.statusCode).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(tooLarge.sentBytes).toBe(uploadBytes);
+    expect(tooLarge.serverHungUp).toBe(false);
   }, 40_000);
 });
