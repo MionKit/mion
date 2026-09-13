@@ -10,7 +10,7 @@
 // by uWS, so the adapter has to refuse a CR or LF itself.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from './uwsHttp.ts';
@@ -112,5 +112,98 @@ describe('uws adapter: an unknown path never reads the body', () => {
     });
     expect(alive.status).toBe(200);
     expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
+  });
+});
+
+// A body this adapter refuses is still a request the chain sees: it runs the members that declare
+// `alwaysRun` and nothing else. A throwing pathTransform is the other half: nothing resolved, so
+// there is no chain to run and the bare answer stands.
+describe('uws adapter: a refused request', () => {
+  const refusedPort = port + 2;
+  const transformPort = port + 3;
+  let seen: string[] = [];
+
+  const withServer = async (setup: () => void, body: () => Promise<void>) => {
+    resetUwsHttpOpts();
+    resetRouter();
+    setup();
+    const server = await startUwsServer();
+    try {
+      await body();
+    } finally {
+      server.close();
+    }
+  };
+
+  it('a body past the limit answers 413 through the chain, running only the alwaysRun middleFns', async () => {
+    await withServer(
+      () => {
+        addStartMiddleFns({
+          plainStart: mion.rawMiddleFn((ctx: CallContext) => {
+            seen.push(`start:${ctx.path}`);
+          }),
+        });
+        addEndMiddleFns({
+          accessLog: mion.rawMiddleFn(
+            (ctx: CallContext) => {
+              seen.push(`log:${ctx.response.statusCode}`);
+            },
+            {alwaysRun: true}
+          ),
+        });
+        mion.initRoutes({echo});
+        setUwsHttpOpts({port: refusedPort, maxBodySize: 64});
+      },
+      async () => {
+        seen = [];
+        const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
+          method: 'POST',
+          body: JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}),
+        });
+        expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+        expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
+        const body = await response.json();
+        expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+        expect(seen).toEqual(['log:413']);
+
+        seen = [];
+        const alive = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
+          method: 'POST',
+          body: '{"echo":[{"name":"a","surname":"b"}]}',
+        });
+        expect(alive.status).toBe(200);
+        expect(seen).toEqual(['start:/api/echo', 'log:200']);
+      }
+    );
+  });
+
+  it('a throwing pathTransform answers a big body, and the server serves the next request', async () => {
+    await withServer(
+      () => {
+        createMionRouter({
+          basePath: 'api/',
+          pathTransform: (_rawRequest, path: string) => {
+            if (path.includes('boom')) throw new Error('pathTransform blew up');
+            return path;
+          },
+        }).initRoutes({echo});
+        setUwsHttpOpts({port: transformPort});
+      },
+      async () => {
+        const refused = await fetch(`http://127.0.0.1:${transformPort}/api/boom`, {
+          method: 'POST',
+          body: 'x'.repeat(600_000),
+        });
+        expect(refused.status).toBe(StatusCodes.SERVER_ERROR);
+        await refused.text();
+
+        const alive = await fetch(`http://127.0.0.1:${transformPort}/api/echo`, {
+          method: 'POST',
+          body: '{"echo":[{"name":"a","surname":"b"}]}',
+        });
+        expect(alive.status).toBe(200);
+        expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
+      }
+    );
   });
 });
