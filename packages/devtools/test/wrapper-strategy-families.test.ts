@@ -32,7 +32,7 @@ type Resolve<RO, O, D extends Direction, Default extends string> =
       : DirectionStrategy<EncoderOf<O>, D>
     : DirectionStrategy<EncoderOf<RO>, D>;
 type EncodeFamily<S> = S extends 'clone' ? 'pjs' : S extends 'mutate' ? 'pj' : S extends 'direct' ? 'sj' : S extends 'compact' ? 'cj' : never;
-type DecodeFamily<S> = S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
+type DecodeFamily<S> = S extends 'clone' ? 'rjs' : S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
 type ParamsStrategy<RO, O> = Resolve<RO, O, 'params', 'direct'>;
 type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
 
@@ -71,7 +71,7 @@ export const widenedPreset = {encoder: 'compact'};
 
 // fn ids on the wire are the family fn hashes; map them back to the family key.
 const FAMILY_BY_HASH: Record<string, string> = Object.fromEntries(
-  (['val', 'verr', 'pj', 'pjs', 'sj', 'cj', 'rj', 'cjr', 'tb', 'fb'] as const).map((key) => [getFnHash(key), key])
+  (['val', 'verr', 'pj', 'pjs', 'sj', 'cj', 'rj', 'rjs', 'cjr', 'tb', 'fb'] as const).map((key) => [getFnHash(key), key])
 );
 
 function familiesOf(site: Site): string[] {
@@ -159,9 +159,9 @@ export const overridden = mion.route(${HANDLER}, {encoder: {return: 'compact'}})
     // two calls, three sites each (paramsFns, returnFns, paramsId)
     expect(own.length).toBe(6);
     const [inheritedParams, inheritedReturn, , overriddenParams, overriddenReturn] = own;
-    expect(familiesOf(inheritedParams)).toEqual(['val', 'verr', 'pjs', 'rj']);
+    expect(familiesOf(inheritedParams)).toEqual(['val', 'verr', 'pjs', 'rjs']);
     expect(familiesOf(inheritedReturn)).toEqual(['val', 'verr', 'sj', 'rj']);
-    expect(familiesOf(overriddenParams)).toEqual(['val', 'verr', 'pjs', 'rj']);
+    expect(familiesOf(overriddenParams)).toEqual(['val', 'verr', 'pjs', 'rjs']);
     expect(familiesOf(overriddenReturn)).toEqual(['val', 'verr', 'cj', 'cjr']);
   });
 

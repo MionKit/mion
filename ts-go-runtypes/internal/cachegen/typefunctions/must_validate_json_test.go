@@ -22,7 +22,7 @@ import (
 // The JS side runs the same predicate over every emitted decoder body as the
 // GC-GUARD generated-code oracle (hand-written corpus + the secgen fuzz lane).
 
-var jsonDecodeFamilies = []string{"restoreFromJson", "compactFromJson"}
+var jsonDecodeFamilies = []string{"restoreFromJson", "compactFromJson", "restoreFromJsonSafe"}
 
 // transformCalls capture the wire variable a constructor is called on.
 var transformCalls = []*regexp.Regexp{

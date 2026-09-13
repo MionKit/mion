@@ -182,6 +182,21 @@ async function fuzzOne(
     stats.skipped++;
     return;
   }
+  // The rebuild lane reads the clone lane's own wire, so it wires whenever clone
+  // does. A silently absent lane is a lane that checks nothing, which is worse
+  // than a failing one because the suite still reports green.
+  if (!compiled.codecs.rebuild) {
+    out.push({
+      oracle: 'RT-THROW',
+      lane: 'rebuild',
+      target: compiled.title,
+      seed,
+      message:
+        'the rebuild lane did not wire although the clone lane did — the rjs marker site is missing or its entry failed to resolve',
+      value: '',
+    });
+    return;
+  }
 
   stats.checked++;
   checkRoundtrip(compiled, value, seed, out);

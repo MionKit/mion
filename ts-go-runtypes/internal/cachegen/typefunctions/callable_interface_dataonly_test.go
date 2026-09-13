@@ -35,7 +35,7 @@ func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 
 	// Every serializer treats a root callable interface as function-like →
 	// alwaysThrow (no real `_cal(` factory body).
-	for _, fam := range []string{"prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "restoreFromJsonSafe", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		if strings.Contains(out, "_cal(") {
 			t.Errorf("[%s] a root callable interface should alwaysThrow (function-like), not render an object factory; got:\n%s", fam, out)
@@ -59,7 +59,7 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	outer := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("px"), makeRef("py")}}
 	dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{mkStr()}, parts...), propX, propY, outer)}
 
-	for _, fam := range []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "restoreFromJsonSafe", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// alwaysThrow renders the object entry as `_obj','<kind>',,,,,,'<message>'`
 		// (typeName then five holes, then a quoted `Cannot …` message); a dropped

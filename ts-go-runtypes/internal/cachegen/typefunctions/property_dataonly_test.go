@@ -55,47 +55,50 @@ func objFactoryIsAlwaysThrow(rendered string) bool {
 // allSerdeFamilies — validate + validationErrors + the six serialization families.
 var allSerdeFamilies = []string{
 	"validate", "validationErrors", "prepareForJson", "prepareForJsonSafe",
-	"stringifyJson", "restoreFromJson", "toBinary", "fromBinary",
+	"stringifyJson", "restoreFromJson", "restoreFromJsonSafe", "toBinary", "fromBinary",
 }
 
 // nonSerPropDropCodes maps each family to its …015 directly-stripped-property
 // drop Warning (function-valued props use …010 instead — see the function test).
 var nonSerPropDropCodes = map[string]string{
-	"validate":           diagnostics.CodeVLNonSerializablePropDrop,
-	"validationErrors":   diagnostics.CodeVENonSerializablePropDrop,
-	"prepareForJson":     diagnostics.CodePJNonSerializablePropDrop,
-	"prepareForJsonSafe": diagnostics.CodePJSNonSerializablePropDrop,
-	"stringifyJson":      diagnostics.CodeSJNonSerializablePropDrop,
-	"restoreFromJson":    diagnostics.CodeRJNonSerializablePropDrop,
-	"toBinary":           diagnostics.CodeTBNonSerializablePropDrop,
-	"fromBinary":         diagnostics.CodeFBNonSerializablePropDrop,
+	"validate":            diagnostics.CodeVLNonSerializablePropDrop,
+	"validationErrors":    diagnostics.CodeVENonSerializablePropDrop,
+	"prepareForJson":      diagnostics.CodePJNonSerializablePropDrop,
+	"prepareForJsonSafe":  diagnostics.CodePJSNonSerializablePropDrop,
+	"stringifyJson":       diagnostics.CodeSJNonSerializablePropDrop,
+	"restoreFromJson":     diagnostics.CodeRJNonSerializablePropDrop,
+	"restoreFromJsonSafe": diagnostics.CodeRJNonSerializablePropDrop,
+	"toBinary":            diagnostics.CodeTBNonSerializablePropDrop,
+	"fromBinary":          diagnostics.CodeFBNonSerializablePropDrop,
 }
 
 // symbolRootCodes maps each family to the symbol root-position Error its
 // alwaysThrow factory carries (symbol[] reaches a symbol leaf in a propagating
 // array-element slot).
 var symbolRootCodes = map[string]string{
-	"validate":           diagnostics.CodeVLSymbolRoot,
-	"validationErrors":   diagnostics.CodeVESymbolRoot,
-	"prepareForJson":     diagnostics.CodePJSymbolRoot,
-	"prepareForJsonSafe": diagnostics.CodePJSSymbolRoot,
-	"stringifyJson":      diagnostics.CodeSJSymbolRoot,
-	"restoreFromJson":    diagnostics.CodeRJSymbolRoot,
-	"toBinary":           diagnostics.CodeTBSymbolRoot,
-	"fromBinary":         diagnostics.CodeFBSymbolRoot,
+	"validate":            diagnostics.CodeVLSymbolRoot,
+	"validationErrors":    diagnostics.CodeVESymbolRoot,
+	"prepareForJson":      diagnostics.CodePJSymbolRoot,
+	"prepareForJsonSafe":  diagnostics.CodePJSSymbolRoot,
+	"stringifyJson":       diagnostics.CodeSJSymbolRoot,
+	"restoreFromJson":     diagnostics.CodeRJSymbolRoot,
+	"restoreFromJsonSafe": diagnostics.CodeRJSymbolRoot,
+	"toBinary":            diagnostics.CodeTBSymbolRoot,
+	"fromBinary":          diagnostics.CodeFBSymbolRoot,
 }
 
 // functionPropDropCodes maps each family to its …010 function-valued-property
 // drop Warning — the code a function-valued property keeps (NOT …015).
 var functionPropDropCodes = map[string]string{
-	"validate":           diagnostics.CodeVLFunctionPropDropped,
-	"validationErrors":   diagnostics.CodeVEFunctionPropDropped,
-	"prepareForJson":     diagnostics.CodePJFunctionPropDropped,
-	"prepareForJsonSafe": diagnostics.CodePJSFunctionPropDropped,
-	"stringifyJson":      diagnostics.CodeSJFunctionPropDropped,
-	"restoreFromJson":    diagnostics.CodeRJFunctionPropDropped,
-	"toBinary":           diagnostics.CodeTBFunctionPropDropped,
-	"fromBinary":         diagnostics.CodeFBFunctionPropDropped,
+	"validate":            diagnostics.CodeVLFunctionPropDropped,
+	"validationErrors":    diagnostics.CodeVEFunctionPropDropped,
+	"prepareForJson":      diagnostics.CodePJFunctionPropDropped,
+	"prepareForJsonSafe":  diagnostics.CodePJSFunctionPropDropped,
+	"stringifyJson":       diagnostics.CodeSJFunctionPropDropped,
+	"restoreFromJson":     diagnostics.CodeRJFunctionPropDropped,
+	"restoreFromJsonSafe": diagnostics.CodeRJFunctionPropDropped,
+	"toBinary":            diagnostics.CodeTBFunctionPropDropped,
+	"fromBinary":          diagnostics.CodeFBFunctionPropDropped,
 }
 
 // A directly-stripped property value (symbol / Promise / non-serializable native)
