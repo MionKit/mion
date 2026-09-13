@@ -603,7 +603,9 @@ func jsonObjectKeyLiteral(name string, isSafeName bool) string {
 // might have undeclared keys. Object literals and classes are never
 // extra-proof (any JS object can carry extras at runtime). Arrays /
 // tuples / unions are extra-proof iff their leaves are. Primitives,
-// enums, literals, Date / bigint after transform, etc — extra-proof.
+// enums and primitive literals are extra-proof; anything carrying a
+// value transform (Date, bigint, a bigint / symbol literal) is NOT —
+// passing it through by reference would skip that transform.
 //
 // Used by the Safe emitter to decide when a value can be passed through
 // by reference (e.g. `string[]` → return v) vs always cloned
@@ -645,9 +647,14 @@ func extraProofRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 	}
 	switch rt.Kind {
 	case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
-		reflection.KindNull, reflection.KindEnum, reflection.KindTemplateLiteral,
-		reflection.KindLiteral:
+		reflection.KindNull, reflection.KindEnum, reflection.KindTemplateLiteral:
 		return true
+	case reflection.KindLiteral:
+		// A bigint / symbol literal carries the same value transform its bare
+		// kind does (emitLiteralPrepareForJsonSafe), and neither KindBigInt nor
+		// KindSymbol is extra-proof above — answering true here handed
+		// `(1n|2n)[]` straight to JSON.stringify, which throws on a bigint.
+		return literalFlavour(rt) == litPrimitive
 	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
