@@ -91,6 +91,26 @@ export const TUPLES = {
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple({required: [TF.number()], rest: TF.bigInt()})),
     getTestData: () => ({values: [[34567, 1n, 2n, 3n], [3]]}),
   },
+  tuple_bigint_literal: {
+    title: 'Bigint literal tuple',
+    description: '`[1n, 2n]` encodes both slots to decimal strings, the same transform a plain `bigint` slot takes.',
+    serializeNotes:
+      'The clone strategy shared an all-literal tuple by reference, so `JSON.stringify` threw on the raw bigints; the per-slot transform now applies on every strategy.',
+    mutateEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'clone'}),
+    directEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => createJsonEncoderFn<[1n, 2n]>(undefined, {strategy: 'compact'}),
+    stripDecoder: () => createJsonDecoderFn<[1n, 2n]>(),
+    preserveDecoder: () => createJsonDecoderFn<[1n, 2n]>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<[1n, 2n]>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<[1n, 2n]>(),
+    binaryDecoder: () => createBinaryDecoderFn<[1n, 2n]>(),
+    schemaEncoder: () => createJsonEncoderFn(RT.tuple({required: [RT.literal(1n), RT.literal(2n)]})),
+    schemaDecoder: () => createJsonDecoderFn(RT.tuple({required: [RT.literal(1n), RT.literal(2n)]})),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple({required: [RT.literal(1n), RT.literal(2n)]})),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple({required: [RT.literal(1n), RT.literal(2n)]})),
+    getTestData: () => ({values: [[1n, 2n]]}),
+  },
   tuple_with_non_serializable: {
     title: 'tuple non-serializable slot',
     description:

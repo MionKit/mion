@@ -616,6 +616,27 @@ export const ATOMIC = {
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(42)),
     getTestData: () => ({values: [42]}),
   },
+  literal_bigint: {
+    title: 'bigint literal',
+    description:
+      'A bigint-literal type takes the same decimal-string transform a plain `bigint` takes, on every encoder strategy.',
+    serializeNotes:
+      'The clone strategy used to pass a bigint literal through untouched, so `JSON.stringify` threw on it; the literal now carries the transform its non-literal sibling carries.',
+    mutateEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'clone'}),
+    directEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => createJsonEncoderFn<1n>(undefined, {strategy: 'compact'}),
+    stripDecoder: () => createJsonDecoderFn<1n>(),
+    preserveDecoder: () => createJsonDecoderFn<1n>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<1n>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<1n>(),
+    binaryDecoder: () => createBinaryDecoderFn<1n>(),
+    schemaEncoder: () => createJsonEncoderFn(RT.literal(1n)),
+    schemaDecoder: () => createJsonDecoderFn(RT.literal(1n)),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(1n)),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(1n)),
+    getTestData: () => ({values: [1n]}),
+  },
   literal_boolean: {
     title: 'boolean literal',
     description: 'A boolean-literal type round-trips identically across JSON and binary as a plain boolean.',
