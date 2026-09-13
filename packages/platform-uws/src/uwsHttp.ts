@@ -167,7 +167,6 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     resolved = resolveRequest(path, urlQuery, rawRequest);
   } catch (e) {
     state.replied = true;
-    res.onData(() => {}); // no chain to run, but the body still has to be drained to keep the connection
     fatalFail(res, state, respHeaders, toRpcError(e));
     return;
   }

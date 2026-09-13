@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
@@ -276,6 +276,58 @@ describe('serverless router', () => {
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['server']).toEqual('@mionjs');
+    });
+  });
+
+  // gcloud hands the whole body over (express already read it), so it never refused a request
+  // itself: a 404 has always been answered by the chain. Pinned here so the failed-on-arrival rule
+  // stays the same on a platform with no early refusal of its own.
+  describe('a failed request still runs the alwaysRun middleFns', () => {
+    const seen: string[] = [];
+    const failPort = 8098;
+    let failServer: Server;
+
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      const app = createMionRouter({basePath: 'api/'});
+      const echo = app.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
+      const plainStart = app.rawMiddleFn((ctx: CallContext) => {
+        seen.push(`start:${ctx.path}`);
+      });
+      const accessLog = app.rawMiddleFn(
+        (ctx: CallContext) => {
+          seen.push(`log:${ctx.response.statusCode}`);
+        },
+        {alwaysRun: true}
+      );
+      addStartMiddleFns({plainStart});
+      addEndMiddleFns({accessLog});
+      app.initRoutes({echo});
+      failServer = await initServer(failPort);
+    });
+
+    afterAll(async () => closeServer(failServer));
+
+    it('an unknown path is a 404 that only the alwaysRun middleFn sees, with no body parsed', async () => {
+      seen.length = 0;
+      const response = await fetch(`http://127.0.0.1:${failPort}/api/nope`, {method: 'POST', body: '{not json'});
+      expect(response.status).toEqual(StatusCodes.NOT_FOUND);
+      const errors = (await response.json())[MION_ROUTES.thrownErrors];
+      expect(errors[MION_ROUTES.notFound].type).toEqual('route-not-found');
+      expect(errors['mionDeserializeRequest']).toBeUndefined();
+      expect(seen).toEqual(['log:404']);
+    });
+
+    it('a known path runs the whole chain', async () => {
+      seen.length = 0;
+      const response = await fetch(`http://127.0.0.1:${failPort}/api/echo`, {
+        method: 'POST',
+        body: '{"echo":[{"name":"a","surname":"b"}]}',
+        headers: {'content-type': 'application/json'},
+      });
+      expect(response.status).toEqual(StatusCodes.OK);
+      expect(seen).toEqual(['start:/api/echo', 'log:200']);
     });
   });
 });
