@@ -35,6 +35,10 @@ runs:
     - uses: actions/setup-node@v5
       with:
         node-version: 26
+        # setup-node defaults this to true, sees pnpm-lock.yaml and runs `pnpm` to
+        # locate the store, which fails the whole step here: this job installs
+        # nothing, so pnpm is not on PATH and there is no install to cache.
+        package-manager-cache: false
 
     # Dependency-free node, run BEFORE any bootstrap so a skipped lane costs a
     # checkout, not an install.
