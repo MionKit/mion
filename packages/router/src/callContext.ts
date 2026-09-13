@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRouteExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
+import {getRouteExecutionChain, getNotFoundExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
 import type {CallContext, MionHeaders, RawRequestBody, ResolvedRequest} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
-import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH, getRoutePath} from '@mionjs/core';
+import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
 
 // ############# CONTEXT CREATION #############
@@ -20,8 +20,8 @@ import {getBatchExecutionChain} from './batches.ts';
  * builds the context with `createContextFromResolved` once the body is in hand. Keeping the context
  * out of the read is what stops a large body from being written into an already-promoted object,
  * which costs the garbage collector real throughput on node. An unknown path or an unknown batch id
- * resolves to a not-found chain that never reads the body (`readsBody` false) but still runs the
- * global middleFns.
+ * resolves to a not-found chain that never reads the body (`readsBody` false) and runs only the
+ * global middleFns that declare `alwaysRun`.
  */
 export function resolveRequest(path: string, urlQuery: string | undefined, rawRequest: unknown): ResolvedRequest {
   const opts = getRouterOptions();
@@ -106,13 +106,13 @@ function getExecutionChain(
   if (isBatchPath) {
     return (
       getBatchExecutionChain(transformedPath, rawRequest, opts, urlQuery) ??
-      notFoundChain(MION_ROUTES.batchNotFound, transformedPath, urlQuery, opts)
+      notFoundChain(MION_ROUTES.batchNotFound, transformedPath, urlQuery)
     );
   }
 
   // Normal path - get execution chain from router using transformed path
   const executionChain = getRouteExecutionChain(transformedPath);
-  if (!executionChain) return notFoundChain(MION_ROUTES.notFound, transformedPath, urlQuery, opts);
+  if (!executionChain) return notFoundChain(MION_ROUTES.notFound, transformedPath, urlQuery);
   return {
     path: transformedPath,
     urlQuery,
@@ -122,10 +122,10 @@ function getExecutionChain(
   };
 }
 
-/** One of mion's own not-found chains (an unknown path, an unknown batch id): registered by
+/** One of mion's own not-found chains (an unknown path, an unknown batch id): built by
  *  initRouter, so its absence is a bug rather than a request error. */
-function notFoundChain(routeId: string, path: string, urlQuery: string | undefined, opts: RouterOptions): ResolvedRequest {
-  const executionChain = getRouteExecutionChain(getRoutePath([routeId], opts));
+function notFoundChain(chainId: string, path: string, urlQuery: string | undefined): ResolvedRequest {
+  const executionChain = getNotFoundExecutionChain(chainId);
   if (!executionChain) {
     throw new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,

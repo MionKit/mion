@@ -75,9 +75,28 @@ export function onExecutableError(context: CallContext, executable: RemoteMethod
           type: 'unknown-error',
         })
   );
+  recordArrivalError(context, path, rpcError);
+}
+
+/**
+ * Records an undeclared error under `key` and ends the request: the same slot, status and header a
+ * thrown one takes, keyed by the caller rather than by a chain member. What an adapter reaches for
+ * when it refuses a request whose route already resolved (a body past the limit), so the chain still
+ * runs its `alwaysRun` members over the refusal instead of being skipped altogether.
+ */
+export function recordArrivalError(context: CallContext, key: string, err: any) {
+  const rpcError: RpcError<string> = markFatal(
+    err instanceof RpcError
+      ? err
+      : new FatalError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          publicMessage: `Unknown error in handler "${key}" of route ExecutionChain.`,
+          originalError: err,
+          type: 'unknown-error',
+        })
+  );
   markResponseFailed(context, rpcError, StatusCodes.UNEXPECTED_ERROR);
-  // Store unexpected errors for serialization
   const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
-  thrownErrors[path] = rpcError;
+  thrownErrors[key] = rpcError;
   (context.request as Mutable<MionRequest>).thrownErrors = thrownErrors;
 }

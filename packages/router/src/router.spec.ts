@@ -115,7 +115,7 @@ describe('Create routes should', () => {
   it('create a flat routes Map', async () => {
     mion.initRoutes(routes);
 
-    expect(geRoutesSize()).toEqual(9); // includes +4 mion Error routes (notFound, batchNotFound, thrownErrors, platformError)
+    expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
     expect(geMiddleFnsSize()).toEqual(6);
 
     expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
@@ -224,7 +224,7 @@ describe('Create routes should', () => {
   it('add prefix & suffix to routes', async () => {
     createMionRouter({basePath: 'api/v1', suffix: '.json'}).initRoutes(routes);
 
-    expect(geRoutesSize()).toEqual(9); // includes +4 mion Error routes (notFound, batchNotFound, thrownErrors, platformError)
+    expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
     expect(geMiddleFnsSize()).toEqual(6);
 
     expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();

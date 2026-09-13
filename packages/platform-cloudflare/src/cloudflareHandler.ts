@@ -7,6 +7,7 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
@@ -73,7 +74,13 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (resolved.readsBody) {
-      rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.text);
+      try {
+        rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.text);
+      } catch (e) {
+        // the route resolved, so a refused body still runs the chain's alwaysRun members
+        const refused = await dispatchPlatformError(resolved, toRpcError(e), req.headers, responseHeaders, req, platformContext);
+        return reply(refused, responseHeaders);
+      }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;
@@ -84,15 +91,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     const platformResp = await dispatchWithContext(context, req, platformContext);
     return reply(platformResp, responseHeaders);
   } catch (e) {
-    const error =
-      e instanceof RpcError
-        ? e
-        : new FatalError({
-            publicMessage: 'Unknown Error',
-            type: 'unknown-error',
-            originalError: e as Error,
-          });
-    return fatalFail(error, responseHeaders);
+    return fatalFail(toRpcError(e), responseHeaders);
   }
 }
 
@@ -102,6 +101,17 @@ export function createCloudflareHandler<Env = unknown>(options?: Partial<Cloudfl
   return {
     fetch: (req: Request, env?: Env, ctx?: CloudflareExecutionContext) => handleRequest<Env>(req, env, ctx),
   };
+}
+
+/** Whatever was thrown, as the mion error the wire carries. */
+function toRpcError(e: unknown): RpcError<string> {
+  return e instanceof RpcError
+    ? e
+    : new FatalError({
+        publicMessage: 'Unknown Error',
+        type: 'unknown-error',
+        originalError: e as Error,
+      });
 }
 
 function fatalFail(err: RpcError<string>, responseHeaders: any): Response {

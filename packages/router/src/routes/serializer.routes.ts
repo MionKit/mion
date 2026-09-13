@@ -25,9 +25,10 @@ import {onExecutableError} from '../lib/dispatchError.ts';
  * @mion:rawMiddleFn
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
-  // a not-found chain never parses: the adapter skipped the read, and a caller that handed a body
-  // anyway (aws, gcloud, a direct dispatchRoute) gets the same answer
-  if (!context.readsBody || !context.request.rawBody) return;
+  // a request that already failed never parses: a not-found chain has no route to feed and the
+  // adapter skipped the read, and a caller that handed a body anyway (aws, gcloud, a direct
+  // dispatchRoute) gets the same answer
+  if (!context.readsBody || context.response.hasErrors || !context.request.rawBody) return;
   rejectOversizedBody(context.request.rawBody, context.maxBodySize);
   let parsedBody: any;
   switch (context.request.bodyType) {
