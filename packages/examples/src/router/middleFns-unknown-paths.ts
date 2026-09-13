@@ -6,13 +6,17 @@ import {
 
 const mion = createMionRouter();
 
-// a global start middleFn runs on EVERY request, an unknown path included: the place for a
-// rate limiter or an access log that must see the requests that name no route
-const rateLimit = mion.rawMiddleFn((ctx): void => {
-  console.log('incoming', ctx.path);
-});
+// a request that arrived already failed (an unknown path, an unknown batch id, a body the server
+// refused) runs ONLY the middleFns that declare alwaysRun, so a rate limiter that must see them
+// declares it too
+const rateLimit = mion.rawMiddleFn(
+  (ctx): void => {
+    console.log('incoming', ctx.path);
+  },
+  {alwaysRun: true}
+);
 
-// a global end middleFn with alwaysRun sees every answer, the 404 of an unknown path included
+// a global end middleFn with alwaysRun sees every answer, a 404 and a 413 included
 const accessLog = mion.rawMiddleFn(
   (ctx): void => {
     console.log(ctx.path, ctx.response.statusCode);
@@ -20,8 +24,14 @@ const accessLog = mion.rawMiddleFn(
   {alwaysRun: true}
 );
 
+// without alwaysRun a global middleFn is skipped for a request that already failed: no session is
+// loaded and no token is checked for a request that is going to be refused anyway
+const loadSession = mion.rawMiddleFn((ctx): void => {
+  console.log('loading the session for', ctx.path);
+});
+
 // registered BEFORE initRoutes: they are added to every chain the router builds
-addStartMiddleFns({rateLimit});
+addStartMiddleFns({rateLimit, loadSession});
 addEndMiddleFns({accessLog});
 
 const sayHello = mion.route((ctx, name: string): string => `Hello ${name}`);
