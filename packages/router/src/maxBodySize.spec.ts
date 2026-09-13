@@ -151,7 +151,7 @@ describe('per-route request limits', () => {
     setPlatformConfig({maxBodySize: 4_000});
     const context = createCallContext('/nope', undefined, {}, headersFromRecord({}), headersFromRecord({}));
     expect(context.maxBodySize).toBe(4_000);
-    expect(context.executionChain.methods[context.executionChain.routeIndex].id).toBe(MION_ROUTES.notFound);
+    expect(context.executionChain.methods[0].id).toBe(MION_ROUTES.notFound);
   });
 
   it('a context built before the body, then dispatched with it, answers the same as dispatchRoute', async () => {
