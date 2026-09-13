@@ -119,8 +119,8 @@ describe('uws adapter: an unknown path never reads the body', () => {
 // `alwaysRun` and nothing else. A throwing pathTransform is the other half: nothing resolved, so
 // there is no chain to run and the bare answer stands.
 describe('uws adapter: a refused request', () => {
-  const refusedPort = port + 2;
-  const transformPort = port + 3;
+  const refusedPort = 8295; // 8293 is bodyDrain.spec.ts's
+  const transformPort = 8296;
   let seen: string[] = [];
 
   const withServer = async (setup: () => void, body: () => Promise<void>) => {
