@@ -95,11 +95,11 @@ describe('node http router', () => {
       const reply = await response.json();
       const headers = Object.fromEntries(response.headers.entries());
 
-      const expectedError: PublicRpcError<'serialization-error'> = {
+      const expectedError: PublicRpcError<'validation-error'> = {
         'mion@isΣrrθr': true,
-        publicMessage: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
-        type: 'serialization-error',
-        errorData: {deserializeError: expect.any(String)},
+        publicMessage: `Invalid params in 'getDate', validation failed.`,
+        type: 'validation-error',
+        errorData: {typeErrors: [{path: [0], expected: 'objectLiteral'}]},
         statusCode: StatusCodes.UNEXPECTED_ERROR,
       };
       expect(reply).toEqual({'@thrownErrors': {getDate: expectedError}});

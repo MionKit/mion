@@ -103,6 +103,11 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_cjr_",
 		Tag:       "cjr",
 	},
+	"restoreFromJsonSafe": {
+		Name:      "restoreFromJsonSafeModule",
+		VarPrefix: "g_rjs_",
+		Tag:       "rjs",
+	},
 	"hasUnknownKeys": {
 		Name:      "hasUnknownKeysModule",
 		VarPrefix: "g_huk_",

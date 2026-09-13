@@ -24,6 +24,7 @@ export const CACHE_MODULES = {
   prepareForJsonSafe: {name: 'prepareForJsonSafeModule', varPrefix: 'g_pjs_', tag: 'pjs'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
   restoreFromJson: {name: 'restoreFromJsonModule', varPrefix: 'g_rj_', tag: 'rj'},
+  restoreFromJsonSafe: {name: 'restoreFromJsonSafeModule', varPrefix: 'g_rjs_', tag: 'rjs'},
   runTypes: {name: 'runTypesModule', varPrefix: 't_', tag: 't'},
   stringifyJson: {name: 'stringifyJsonModule', varPrefix: 'g_sj_', tag: 'sj'},
   toBinary: {name: 'toBinaryModule', varPrefix: 'g_tb_', tag: 'tb'},
@@ -80,6 +81,9 @@ export const PUREFNS_TAG = '';
 export const RESTOREFROMJSON_VAR_PREFIX = 'g_rj_';
 export const RESTOREFROMJSON_MODULE_NAME = 'restoreFromJsonModule';
 export const RESTOREFROMJSON_TAG = 'rj';
+export const RESTOREFROMJSONSAFE_VAR_PREFIX = 'g_rjs_';
+export const RESTOREFROMJSONSAFE_MODULE_NAME = 'restoreFromJsonSafeModule';
+export const RESTOREFROMJSONSAFE_TAG = 'rjs';
 export const RUNTYPES_VAR_PREFIX = 't_';
 export const RUNTYPES_MODULE_NAME = 'runTypesModule';
 export const RUNTYPES_TAG = 't';

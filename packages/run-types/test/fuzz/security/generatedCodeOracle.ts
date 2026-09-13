@@ -224,7 +224,7 @@ const BUILTIN_CONSTRUCTORS = new Set<string>([
 const CLASS_IDENTITY_LOOKUP = /^cix_[A-Za-z_$][\w$]*\.cls$/;
 
 /** The family tags whose bodies rebuild values from JSON: the two primitives and the three composites. **/
-const JSON_DECODER_FAMILIES = new Set(['rj', 'cjr', 'jdST', 'jdPR', 'jdCO']);
+const JSON_DECODER_FAMILIES = new Set(['rj', 'rjs', 'cjr', 'jdST', 'jdPR', 'jdCO']);
 
 /** Every way an emitted decoder turns a wire value into something else; group 1 is the wire variable. **/
 const WIRE_TRANSFORMS = [

@@ -496,8 +496,8 @@ export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
 // The VALUE-level JSON transforms — `prepareForJson` (maps a typed value to a
 // JSON-safe value: bigint to string, Date preserved, undeclared keys stripped, …)
 // and `restoreFromJson` (maps a JSON-safe value back to the typed shape:
-// BigInt(...), Date revival, …), plus their per-strategy siblings (`pjs`/`cj`/
-// `cjr`/`sj`/`ukuw`) — have NO dedicated `createX` factory. A framework that
+// BigInt(...), Date revival, …), plus their per-strategy siblings (`pjs`/`rjs`/
+// `cj`/`cjr`/`sj`/`ukuw`) — have NO dedicated `createX` factory. A framework that
 // parses ONE JSON envelope per request and needs per-value transforms names the
 // primitive it wants in an `InjectTypeFnArgs<T, '<key>'>` marker and recovers the
 // injected handle with `getRTFunction<'<key>'>(…)` (below). Root `undefined` /
@@ -704,7 +704,7 @@ const parseNoPluginFallback: ParseRestoreFn = () => {
 
 /** Maps each `InjectTypeFnArgs` fnKey to the runtime function shape
  *  `getRTFunction` returns for it. The JSON value-level primitives
- *  (`pj`/`pjs`/`rj`/`sj`/`ukuw`/`cj`/`cjr`) are the primary users — they have no
+ *  (`pj`/`pjs`/`rj`/`rjs`/`sj`/`ukuw`/`cj`/`cjr`) are the primary users — they have no
  *  `createX` factory — but every createX-backed family is keyed too, so a wrapper
  *  resolves any of them by naming the SAME fnKey it put in the marker. Families
  *  whose fn is generic in `T` (`val` / `jsonDecoder` / `fmt` / `fb`) resolve to
@@ -738,6 +738,7 @@ export interface RTFunctionByKey {
   pj: PrepareForJsonFn; // mutate prepare
   pjs: PrepareForJsonFn; // clone prepare
   rj: RestoreFromJsonFn; // restore
+  rjs: RestoreFromJsonFn; // strip restore (rebuilds the declared shape, drops undeclared keys)
   sj: StringifyJsonFn; // direct (value -> JSON string)
   ukuw: RestoreFromJsonFn; // strip decoder's unknown-keys-to-undefined wire pre-pass
   cj: PrepareForJsonFn; // compact encode (positional wire)
@@ -754,8 +755,8 @@ export type RTFunctionKey = keyof RTFunctionByKey;
  *  that declares its OWN `InjectTypeFnArgs<T, Fn>` marker parameter (e.g. mion's
  *  `route()`) forwards the injected slot here to get the callable fn without a
  *  dedicated factory per function. This is the only way to reach the JSON
- *  value-level primitives that have no `createX` (`'pj'`/`'pjs'`/`'rj'`/`'sj'`/
- *  `'ukuw'`/`'cj'`/`'cjr'`); it also resolves any createX-backed family the same
+ *  value-level primitives that have no `createX` (`'pj'`/`'pjs'`/`'rj'`/`'rjs'`/
+ *  `'sj'`/`'ukuw'`/`'cj'`/`'cjr'`); it also resolves any createX-backed family the same
  *  way. The type parameter is the fnKey (`getRTFunction<'pjs'>(fns?.[0])`), so the
  *  return type comes straight from `RTFunctionByKey`.
  *

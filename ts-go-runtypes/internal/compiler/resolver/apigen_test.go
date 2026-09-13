@@ -545,7 +545,8 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	if got := strings.Join(getById.MiddleFnIds, ","); got != "auth,users/audit" {
 		t.Errorf("getById chain: %s", got)
 	}
-	if got := strings.Join(getById.Families, ","); got != "val,verr,huk,uke,fmt,pjs,rj,val,verr,huk,uke,pjs,rj" {
+	// clone both ways: pjs writes the declared shape, rjs rebuilds it on arrival.
+	if got := strings.Join(getById.Families, ","); got != "val,verr,huk,uke,fmt,pjs,rjs,val,verr,huk,uke,pjs,rjs" {
 		t.Errorf("getById families: %s", got)
 	}
 	if getById.Options["validateParams"] != true {

@@ -28,7 +28,7 @@ func patternPropsDump() protocol.Dump {
 func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 	dump := patternPropsDump()
 	regex := `new RegExp("^d_")`
-	for _, fam := range []string{"prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "compactForJson", "compactFromJson", "cloneExactShape", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "restoreFromJsonSafe", "compactForJson", "compactFromJson", "cloneExactShape", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// The binary decoder reads the count the encoder wrote, so it filters
 		// nothing itself: its evidence is the key read of the pattern block.
@@ -44,7 +44,7 @@ func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 		}
 	}
 	// The decode roads carry the prototype-name refusal on the pattern sweep too.
-	for _, fam := range []string{"restoreFromJson", "compactFromJson"} {
+	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonSafe"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, UnsafeKeyMessage) {
 			t.Errorf("[%s] the pattern-keyed decode sweep must refuse prototype-named keys; got:\n%s", fam, out)

@@ -819,6 +819,143 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 	return false
 }
 
+/** isNoopForRestoreJsonSafe reports whether the rjs entry for rt is the
+ *  identity. **/
+// Mirrors RestoreFromJsonSafeEmitter.Emit, which reuses restoreFromJson's arms
+// EXCEPT where it rebuilds — and a rebuild is real work at every object shape rj
+// would let round-trip raw. Unlike cjr this returns ONE verdict with no separate
+// key-guard conjunct: cjr's shape half feeds the compact envelope decision, and
+// rjs has no such second reader. Nothing may ever route this predicate into a
+// wire-shape decision; the wire is pjs's and this must not be able to move it.
+func isNoopForRestoreJsonSafe(rt *reflection.RunType, ctx *EmitContext) bool {
+	rt = ctx.ResolveRef(rt)
+	if rt == nil {
+		return false
+	}
+	if rt.ID != "" {
+		if verdict, known := ctx.walker.factsLookup(factNoopRestoreJsonSafe, rt.ID); known {
+			return verdict
+		}
+	}
+	result := restoreJsonSafeNoopRecursive(rt, ctx, make(map[string]struct{}))
+	if rt.ID != "" {
+		ctx.walker.factsStore(factNoopRestoreJsonSafe, rt.ID, result)
+	}
+	return result
+}
+
+func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+	rt = ctx.ResolveRef(rt)
+	if rt == nil {
+		return true
+	}
+	if rt.ID != "" {
+		if verdict, known := ctx.walker.factsLookup(factNoopRestoreJsonSafe, rt.ID); known {
+			return verdict
+		}
+		if _, seen := visited[rt.ID]; seen {
+			return true
+		}
+		visited[rt.ID] = struct{}{}
+	}
+	switch rt.Kind {
+
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
+		return true
+
+	case reflection.KindIntersection, reflection.KindTemplateLiteral:
+		return true
+
+	case reflection.KindLiteral:
+		return literalFlavour(rt) == litPrimitive
+
+	case reflection.KindObjectLiteral, reflection.KindClass:
+		// Every object shape rebuilds (a zero-prop object rebuilds to `{}`, which
+		// is how it strips), every class subkind either rebuilds or is
+		// unsupported, and the delegated index-signature path still ships the
+		// key-refusal loop. Same rule as isNoopForPrepareJsonSafe.
+		return false
+
+	case reflection.KindProperty, reflection.KindPropertySignature:
+		if rt.Child == nil {
+			return true
+		}
+		resolved := ctx.ResolveRef(rt.Child)
+		if resolved == nil || isStrippedUnionMember(resolved) {
+			return true
+		}
+		return restoreJsonSafeNoopRecursive(resolved, ctx, visited)
+
+	case reflection.KindArray:
+		if rt.Child == nil {
+			return true
+		}
+		// Deliberately NOT isExtraProof, the shortcut prepareForJsonSafe takes:
+		// extraProofRecursive answers true for a bigint or symbol literal, both of
+		// which this emitter transforms, and a false positive here is corruption.
+		return restoreJsonSafeNoopRecursive(rt.Child, ctx, visited)
+
+	case reflection.KindTuple:
+		for _, child := range rt.Children {
+			if !restoreJsonSafeNoopRecursive(child, ctx, visited) {
+				return false
+			}
+		}
+		return true
+
+	case reflection.KindTupleMember:
+		if rt.Optional {
+			return false
+		}
+		if rt.Child == nil {
+			return true
+		}
+		return restoreJsonSafeNoopRecursive(rt.Child, ctx, visited)
+
+	case reflection.KindIndexSignature:
+		// A symbol-keyed or child-less signature emits nothing. Everything else
+		// ships either the rebuild or rj's key-refusal loop, both real code.
+		if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
+			return true
+		}
+		if resolved := ctx.ResolveRef(rt.Child); resolved != nil && isFunctionLikeKind(resolved.Kind) {
+			return true
+		}
+		return false
+
+	case reflection.KindUnion:
+		// Mirrors the emit's atomicOnlyJsonIdentity() gate: identity only when no
+		// member carries an object shape to rebuild and none envelopes.
+		return unionJsonNoop(rt, ctx) && !anyUnionMemberEnvelopes(rt, ctx)
+	}
+	// undefined/void (force-rebind), bigint/symbol/regexp (value transforms),
+	// never/promise/function kinds (unsupported): not noop.
+	return false
+}
+
+// anyUnionMemberEnvelopes mirrors buildFlatLayout's ObjectMembers bucketing
+// without calling it — the layout builder emits drop diagnostics a predicate
+// must not duplicate (the same reason compactUnionNeedsEnvelope avoids it).
+func anyUnionMemberEnvelopes(rt *reflection.RunType, ctx *EmitContext) bool {
+	children := rt.SafeUnionChildren
+	if len(children) == 0 {
+		children = rt.Children
+	}
+	for _, child := range children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil || isStrippedUnionMember(resolved) {
+			continue
+		}
+		if unionMemberEnvelopes(resolved, ctx) {
+			return true
+		}
+	}
+	return false
+}
+
 /** isNoopForToBinary reports whether the tb entry for rt writes no bytes. **/
 // Mirrors ToBinaryEmitter.Emit: literals write nothing (the value is restored
 // from the RunType at decode — v1 has no noLiterals), dropped property slots
