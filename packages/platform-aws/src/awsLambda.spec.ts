@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda.ts';
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionjs/router';
@@ -283,6 +283,66 @@ describe('serverless router', () => {
       expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['server']).toEqual('@mionjs');
+    });
+  });
+
+  // aws hands the whole body over, so it never refused a request itself: both a 404 and a 413 have
+  // always been answered by the chain. Pinned here so the failed-on-arrival rule stays the same on
+  // a platform that has no early refusal of its own.
+  describe('a failed request still runs the alwaysRun middleFns', () => {
+    const seen: string[] = [];
+
+    beforeAll(() => {
+      resetAwsLambdaOpts();
+      resetRouter();
+      const app = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      const echo = app.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
+      const plainStart = app.rawMiddleFn((ctx: CallContext) => {
+        seen.push(`start:${ctx.path}`);
+      });
+      const accessLog = app.rawMiddleFn(
+        (ctx: CallContext) => {
+          seen.push(`log:${ctx.response.statusCode}`);
+        },
+        {alwaysRun: true}
+      );
+      addStartMiddleFns({plainStart});
+      addEndMiddleFns({accessLog});
+      setAwsLambdaOpts({maxBodySize: 50});
+      app.initRoutes({echo});
+    });
+
+    const call = (body: string, path: string) => {
+      const {event, context} = getDefaultGatewayEvent(body, path);
+      return awsLambdaHandler(event, context);
+    };
+
+    it('an unknown path is a 404 that only the alwaysRun middleFn sees', async () => {
+      seen.length = 0;
+      const response = await call('{not json', '/api/nope');
+      expect(response.statusCode).toEqual(StatusCodes.NOT_FOUND);
+      const errors = JSON.parse(response.body)[MION_ROUTES.thrownErrors];
+      expect(errors[MION_ROUTES.notFound].type).toEqual('route-not-found');
+      expect(errors['mionDeserializeRequest']).toBeUndefined();
+      expect(seen).toEqual(['log:404']);
+    });
+
+    it('a body over the limit is a 413 the alwaysRun middleFn sees, raised inside the chain', async () => {
+      seen.length = 0;
+      const body = JSON.stringify({echo: [{name: 'x'.repeat(80), surname: 'y'}]});
+      const response = await call(body, '/api/echo');
+      expect(response.statusCode).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      const errors = JSON.parse(response.body)[MION_ROUTES.thrownErrors];
+      expect(errors['mionDeserializeRequest'].type).toEqual('request-payload-too-large');
+      // the router raises it from inside the chain, so the plain global ran before it
+      expect(seen).toEqual(['start:/api/echo', 'log:413']);
+    });
+
+    it('a body inside the limit runs the whole chain', async () => {
+      seen.length = 0;
+      const response = await call('{"echo":[{"name":"a","surname":"b"}]}', '/api/echo');
+      expect(response.statusCode).toEqual(StatusCodes.OK);
+      expect(seen).toEqual(['start:/api/echo', 'log:200']);
     });
   });
 });
