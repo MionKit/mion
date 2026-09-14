@@ -70,7 +70,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     // the route's own limit, then the too-large check runs before anything is handed to the router
     const resolved = resolveRequest(rawRequest.path, urlQuery, rawRequest);
     rejectOversizedRequest(rawRequest, rawBody, resolved.maxBodySize);
-    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    const queryBody = decodeQueryBody(urlQuery, bodyOrUndefined(rawBody));
     if (queryBody) {
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
@@ -93,6 +93,16 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
 }
 
 // ############# PRIVATE METHODS #############
+
+/** The body a request actually carried. express parses a request with none into an EMPTY object,
+ *  which is truthy, so `?data=` would never be read on this platform without this: every other
+ *  adapter gets an empty string and can pass `rawBody || undefined`. */
+function bodyOrUndefined(rawBody: unknown): unknown {
+  if (!rawBody) return undefined;
+  if (typeof rawBody !== 'object') return rawBody;
+  for (const key in rawBody) return rawBody;
+  return undefined;
+}
 
 /** Refuses a body past the route's limit before the chain runs, the way node and uws decide it.
  *  The router only measures a string body, and express hands a `application/json` request over as
