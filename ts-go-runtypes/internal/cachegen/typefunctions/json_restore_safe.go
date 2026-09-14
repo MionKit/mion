@@ -496,7 +496,15 @@ func emitIndexSigRebuildLoop(arms []indexSigArm, ctx *EmitContext, v, rVar, keyV
 // it changes the wire; rjs reads exactly what pjs writes, so widening here would
 // make the decoder expect an envelope the encoder never wrote.
 func emitUnionRestoreFromJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	layout := buildFlatLayout(rt, ctx)
+	return emitUnionRestoreFromJsonSafeLayout(rt, ctx, v, buildFlatLayout(rt, ctx))
+}
+
+// emitUnionRestoreFromJsonSafeLayout is the same decode over a caller-built layout, the twin of
+// emitUnionPrepareForJsonSafeLayout on the encode side. Compact needs it: compact ENCODE already
+// goes through the safe (stripping) encoder over its widened layout, and its decode used the
+// MUTATE restore, which keeps extras. That asymmetry let a compact route accept undeclared keys on
+// every union carrying an object member.
+func emitUnionRestoreFromJsonSafeLayout(rt *reflection.RunType, ctx *EmitContext, v string, layout FlatLayout) RTCode {
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
