@@ -296,31 +296,30 @@ describe('bun: a refused body runs the alwaysRun middleFns', () => {
       },
       {alwaysRun: true}
     );
+    // `maxRequestBodySize` is the LARGEST route limit, so `roomy` lifts Bun's own ceiling clear of
+    // the test body. Without it every chain falls back to 64, Bun.serve refuses the body natively
+    // and mion is never called, which is exactly what this suite has to rule out.
+    const roomy = mion.route((ctx: CallContext, user: User): User => user, {maxBodySize: 1_000_000});
     addStartMiddleFns({plainStart});
     addEndMiddleFns({accessLog});
-    mion.initRoutes({echo});
+    mion.initRoutes({echo, roomy});
     setBunHttpOpts({port: refusedPort, maxBodySize: 64});
     server = await startBunServer();
   });
 
   afterAll(() => void server.stop());
 
-  test('a body over the limit answers 413, and when mion answers it the alwaysRun middleFn saw it', async () => {
+  test('a body over the limit answers 413 through the chain, running only the alwaysRun middleFns', async () => {
     seen.length = 0;
     const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
       method: 'POST',
       body: JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}),
     });
     expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
-    const text = await response.text();
-    // Bun.serve refuses some bodies natively, before any mion code runs: only the answers that
-    // carry the mion envelope came through the chain
-    if (response.headers.get('content-type')?.startsWith('application/json')) {
-      const errors = (JSON.parse(text) as Record<string, any>)[MION_ROUTES.thrownErrors];
-      expect(errors[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
-      expect(errors['mionDeserializeRequest']).toBeUndefined();
-      expect(seen).toEqual(['log:413']);
-    }
+    const errors = (await response.json())[MION_ROUTES.thrownErrors];
+    expect(errors[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+    expect(errors['mionDeserializeRequest']).toBeUndefined();
+    expect(seen).toEqual(['log:413']);
   });
 
   test('a body inside the limit still runs the whole chain', async () => {
