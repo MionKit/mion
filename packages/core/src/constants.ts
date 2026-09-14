@@ -37,11 +37,12 @@ export const MION_ROUTES = {
   methodsMetadataById: 'mion@methodsMetadataById',
   /** Middleware that returns methods metadata alongside any route response */
   methodsMetadata: 'mion@methodsMetadata',
-  /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
+  /** Errors raised by an adapter rather than a handler: before the router sees the request, or after
+   *  the route resolved (a body the adapter refused) */
   platformError: 'mion@platformError',
-  /** not-found route. This route is called when a requested route doesn't exist */
+  /** not-found chain, answered when a requested path names no route */
   notFound: 'mion@notFound',
-  /** not-found route for a batch request whose id names no registered batch */
+  /** not-found chain for a batch request whose id names no registered batch */
   batchNotFound: 'mion@batchNotFound',
   /**
    * !IMPORTANT!!
