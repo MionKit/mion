@@ -8,7 +8,8 @@
 // A request can arrive already failed: an unknown path, an unknown batch id, or a body the platform
 // adapter refused after the route resolved. All three answer the same way, and it is the dispatcher's
 // own rule that does it: the error is recorded BEFORE the first global middleFn, so only the members
-// that declare `alwaysRun` run. The body is never read by the adapter and never parsed by the router.
+// that declare `alwaysRun` run. The router never parses a body for any of them: a not-found one is
+// never read at all, a refused one is dropped by the adapter that refused it.
 // Route-level middleFns belong to registered routes and never ran on a 404.
 
 import {describe, it, expect, beforeEach} from 'vitest';
@@ -158,12 +159,26 @@ describe('a request that arrived failed runs only the alwaysRun middleFns', () =
       expect(seen).toEqual(['always-start:/hello', 'always-end:413']);
     });
 
-    it('never parses a body handed over anyway, and the route never runs', async () => {
+    it('a refusal carries no body, so nothing is parsed and the route never runs', async () => {
       mion.initRoutes({hello});
       const response = await dispatchRefused(getRoutePath(['hello'], getRouterOptions()));
       expect(thrown(response)['mionDeserializeRequest']).toBeUndefined();
       expect(response.body['hello']).toBeUndefined();
     });
+  });
+
+  // the same rule, reached from inside the chain: mionDeserializeRequest declares `alwaysRun`, so the
+  // dispatcher never skips it and the guard that stops a failed request being parsed is its own
+  it('a global middleFn that threw stops the body being parsed', async () => {
+    const boom = mion.rawMiddleFn((): void => {
+      throw new Error('nope');
+    });
+    addStartMiddleFns({boom});
+    mion.initRoutes({hello});
+    const response = await dispatch(getRoutePath(['hello'], getRouterOptions()), '{not json');
+    expect(response.hasErrors).toBe(true);
+    expect(thrown(response)['boom']?.type).toBe('unknown-error');
+    expect(thrown(response)['mionDeserializeRequest']).toBeUndefined();
   });
 
   it('the two not-found chains carry no route and are not reachable as paths', () => {

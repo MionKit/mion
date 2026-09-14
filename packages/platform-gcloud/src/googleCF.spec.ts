@@ -303,6 +303,7 @@ describe('serverless router', () => {
       );
       addStartMiddleFns({plainStart});
       addEndMiddleFns({accessLog});
+      setGoogleCFOpts({maxBodySize: 50});
       app.initRoutes({echo});
       // its OWN registered function, like the json-encoder suite below: `initServer` re-registers
       // `HelloTests`, and getTestServer hands back the SAME express app for a name, so a third
@@ -330,6 +331,22 @@ describe('serverless router', () => {
       expect(errors[MION_ROUTES.notFound].type).toEqual('route-not-found');
       expect(errors['mionDeserializeRequest']).toBeUndefined();
       expect(seen).toEqual(['log:404']);
+    });
+
+    // no content-type on purpose: express hands a string body straight over, which is the shape the
+    // router measures. `connection: close` for the same reason as the 404 above.
+    it('a body over the limit is a 413 the alwaysRun middleFn sees, raised inside the chain', async () => {
+      seen.length = 0;
+      const response = await fetch(`http://127.0.0.1:${failPort}/api/echo`, {
+        method: 'POST',
+        body: JSON.stringify({echo: [{name: 'x'.repeat(80), surname: 'y'}]}),
+        headers: {connection: 'close'},
+      });
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      const errors = (await response.json())[MION_ROUTES.thrownErrors];
+      expect(errors['mionDeserializeRequest'].type).toEqual('request-payload-too-large');
+      // express already read the body, so the router raises it and the plain global ran first
+      expect(seen).toEqual(['start:/api/echo', 'log:413']);
     });
 
     it('a known path runs the whole chain', async () => {
