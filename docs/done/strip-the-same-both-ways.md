@@ -98,10 +98,11 @@ an index-signature object in place is correct rather than a bug.
   same carve-out gate as O25: a key planted into an index-signature object IS declared, so a correct
   decoder keeps it.
 
-## Split off
+## What the new coverage turned up
 
-Two items of the original plan did not ship, because both need a fix in a DIFFERENT family first:
-`hasUnknownKeys`, `unknownKeyErrors` and the `strategy: 'strip'` decoder never look inside an atomic
-union member either, so they report clean for a key `cloneExactShape` drops. A serialization-suite
-union case and a fuzz target of this shape both fail on that, not on anything here. The reporter
-gap, the suite case and the fuzz walker descent are one follow-up spec of their own.
+Two items of the original plan could not ship with it: `hasUnknownKeys`, `unknownKeyErrors` and the
+`strategy: 'strip'` decoder never look inside an atomic union member either, so a serialization-suite
+union case and a fuzz target of this shape both failed on THAT rather than on anything here. Adding
+the coverage surfaced a third: the strip pre-pass no-ops at a tuple node outright. Those are a spec
+of their own, fixed in the next change on this branch, and the suite case, the fuzz target and the
+walker descent land with it.

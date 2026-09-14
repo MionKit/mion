@@ -26,11 +26,12 @@
 // SOUNDNESS CONTRACT. When `plantUnknownKey` returns a position, the planted
 // key name (`__fz_uk_<n>`) is one no member of the type could declare, so the
 // merged-allowlist reading and the per-branch reading agree it is undeclared,
-// and `validate<T>` on the result is still true. A missed position only costs
-// coverage; a wrong LABEL produces a spurious oracle failure, so the walker
-// stops rather than guesses: it never descends through a union (a sibling arm
-// could make a deeper key declared) and never enters an index-signature
-// object.
+// and `validate<T>` on the result is still true. A missed position costs
+// coverage, and O27 turns that cost into a failure rather than silence; a wrong
+// LABEL produces a spurious oracle failure, so the walker stops rather than
+// guesses: it never enters an index-signature object, and it enters a union
+// only when ONE member could have produced the value, so no sibling arm can
+// make a deeper key declared.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import type {RTValidationErrorPathSegment} from '../../../src/createRTFunctions.ts';
@@ -142,11 +143,62 @@ function unionIsCarveOut(node: RunType): boolean {
   return false;
 }
 
+/** The coarse runtime class a value belongs to, matched against a member's kind. Array and tuple
+ *  share one class on purpose: telling them apart takes a length check the walker has no business
+ *  doing, so a union of both is refused rather than guessed. **/
+function coarseClassMatches(node: RunType, value: unknown): boolean {
+  const k = node.kind as number;
+  const subKind = node.subKind as number | undefined;
+  if (Array.isArray(value)) return k === kind.array || k === kind.tuple;
+  if (value instanceof Map) return k === kind.class && subKind === sub.map;
+  if (value instanceof Set) return k === kind.class && subKind === sub.set;
+  if (isPlainRecordValue(value)) return isObjectish(node);
+  return false; // an atomic, a Date, a RegExp: no keyed position inside
+}
+
+/** The one member that could have produced this value, or null when the answer is not unambiguous.
+ *  Two members of the same coarse class stays refused, and that refusal is right rather than
+ *  cautious: the fused validator follows the branch it matched while the unknown-key families read
+ *  the MERGED allowlist, so a deeper key has two honest answers there. `any`, `unknown`, a nested
+ *  union and a ref match everything or nothing decidably, so they refuse too. **/
+function soleUnionMemberFor(node: RunType, value: unknown): RunType | null {
+  let found: RunType | null = null;
+  for (const member of (node.children ?? []) as RunType[]) {
+    const resolved = unwrap(member);
+    const memberKind = resolved.kind as number;
+    if (memberKind === kind.any || memberKind === kind.unknown || memberKind === kind.union || memberKind === kind.ref) {
+      return null;
+    }
+    if (!coarseClassMatches(resolved, value)) continue;
+    if (found) return null;
+    found = resolved;
+  }
+  return found;
+}
+
+/** True when a keyed shape (an object literal or a plain class) sits ANYWHERE in the tree. The
+ *  root's own kind is irrelevant: an array, a tuple, a union, a Map or a Set all carry one further
+ *  down, and every hole this walker has ever had was a position it refused to reach while some
+ *  family happily walked it. Paired with collectUnknownKeyPositions by O27, which turns "the walker
+ *  found nowhere to plant" from silence into a failure. **/
+export function containsKeyedShape(runType: RunType, depth = 0, seen = new Set<RunType>()): boolean {
+  const node = unwrap(runType);
+  if (depth > 16 || seen.has(node)) return false;
+  seen.add(node);
+  if (isObjectish(node)) return true;
+  if (isOpaqueValueType(node)) return false;
+  const branches: RunType[] = [];
+  if (node.child) branches.push(node.child);
+  branches.push(...((node.children ?? []) as RunType[]));
+  branches.push(...((node.arguments ?? []) as RunType[]));
+  return branches.some((branch) => containsKeyedShape(branch, depth + 1, seen));
+}
+
 /** Every position an undeclared key can be planted at, walking the runtype
  *  tree alongside a conforming value. Descent covers object members, array
- *  items, fixed tuple slots, Map keys and values, and Set items; it stops at a
- *  union (the union node itself is the position) and at an index-signature
- *  object (the carve-out). **/
+ *  items, fixed tuple slots, Map keys and values, and Set items, plus the one
+ *  member of a union that could have produced the value. A record-shaped union
+ *  is itself the position, and an index-signature object is the carve-out. **/
 export function collectUnknownKeyPositions(runType: RunType, value: unknown): UnknownKeyPosition[] {
   const out: UnknownKeyPosition[] = [];
   walk(unwrap(runType), value, [], out);
@@ -178,9 +230,26 @@ function walk(node: RunType, value: unknown, path: RTValidationErrorPathSegment[
   }
 
   if (k === kind.union) {
-    if (!isPlainRecordValue(value)) return; // the matched arm is not a keyed shape
-    out.push({path, kind: unionIsCarveOut(node) ? 'carveOut' : 'flagged'});
-    return; // never descend: a sibling arm could declare a deeper key
+    if (unionIsCarveOut(node)) {
+      if (isPlainRecordValue(value)) out.push({path, kind: 'carveOut'});
+      return; // a member declares every key, so the whole union answers clean
+    }
+    if (isPlainRecordValue(value)) {
+      out.push({path, kind: 'flagged'});
+      return; // the record IS the position; a sibling arm could declare a deeper key
+    }
+    // Not record-shaped, so the union node itself is not a position. Descend only when ONE member
+    // could have produced this value: with no sibling arm in play, both readings of the union agree
+    // a deeper key is undeclared.
+    const sole = soleUnionMemberFor(node, value);
+    if (!sole) return;
+    const nested: UnknownKeyPosition[] = [];
+    walk(sole, value, path, nested);
+    // An index signature further down re-opens what the union declares, so the member contributes
+    // nothing rather than a guessed label.
+    if (nested.some((position) => position.kind === 'carveOut')) return;
+    out.push(...nested);
+    return;
   }
 
   if (k === kind.array) {

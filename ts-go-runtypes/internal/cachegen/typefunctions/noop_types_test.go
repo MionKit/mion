@@ -74,7 +74,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	// never-valued property (the DataOnly dropped-slot rule), an atomic-value
 	// record (unknown-keys index arm), a literal-only object + tuple
 	// (toBinary's write-nothing compositions), and an object-carrying tuple
-	// (the uku/ukuw tuple-noop divergence).
+	// (every unknown-keys family recurses into its slots).
 	anyT := &reflection.RunType{ID: "anyT", Kind: reflection.KindAny}
 	unkT := &reflection.RunType{ID: "unkT", Kind: reflection.KindUnknown}
 	lit := &reflection.RunType{ID: "lit", Kind: reflection.KindLiteral}
@@ -608,9 +608,12 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		{"arrCO", same(false)}, // array of keyed objects
 		{"uAt", same(true)},    // atomic-only union — nothing to sweep
 		{"uObj", same(false)},  // merged allowlist over the object members
-		// The tuple divergence: has/errors recurse into slots; uku and
-		// ukuw no-op at tuples by design (emitTupleUnknownKeysToUndefined).
-		{"tupObj", map[string]bool{"huk": false, "uke": false, "uku": true, "ukuw": true}},
+		// An ARRAY is an atomic member of the flat layout, so this union has no merged props at
+		// all; the object inside the array is still swept (unionAtomicMemberDescent).
+		{"uArrObjStr", same(false)},
+		// Every family recurses into a tuple slot. uku and ukuw used to no-op here, which is what
+		// let `strategy: 'strip'` hand undeclared keys in a tuple slot straight to a handler.
+		{"tupObj", same(false)},
 	}
 	for _, r := range rows {
 		for familyTag, spec := range specs {
