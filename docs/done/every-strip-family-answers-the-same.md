@@ -85,6 +85,40 @@ The slot arm already skips an `undefined` slot, but a JSON wire writes an absent
 `v.list` off it. Fixed by wrapping the arm in the same guard the other three families use, and
 pinned by a Go test on that exact shape.
 
+## Cause 4: the compact pair was split the same way
+
+Compact ENCODE goes through the safe (stripping) union encoder; compact DECODE used the MUTATE one,
+which keeps extras by contract. One line each, in files that never sit side by side:
+
+```go
+// json_compact.go:170          encode, the SAFE variant
+return emitUnionPrepareForJsonSafeLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
+// json_compact_restore.go:149  decode, the MUTATE variant
+return emitUnionRestoreFromJsonFlatLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
+```
+
+So a compact route accepted whatever a caller sent, on EVERY union carrying an object member,
+enveloped or not:
+
+```
+             enc(clean)              dec(planted)
+{a} | {b}    {"a":"x"}               {"a":"x","evil":1}
+{k:1}|{k:2}  {"k":1,"a":"x"}         {"k":1,"a":"x","evil":1}
+{a} | number {"a":"x"}               {"a":"x","evil":1}
+{a} | Date   [-1,{"a":"x"}]          {"a":"x","evil":1}
+```
+
+The "a positional wire has no room for extras" argument that justifies compact's flat-object arm
+does not reach a union: the merged member stays KEYED on the wire, because a union has no single
+positional shape. Fixed by adding `emitUnionRestoreFromJsonSafeLayout`, the layout-taking twin of
+the encoder's `emitUnionPrepareForJsonSafeLayout`, and pointing the compact arm at it.
+`compactFromJsonNoopRecursive`'s union arm gained the matching conjunct.
+
+An index-signature member still keeps every key, which is the behaviour that matters:
+`Record<string, number> | {a: string}` round-trips `{one:1,two:2,anything:3}` untouched. Its noop
+verdict flips to false, so the entry is a real function rather than the identity, which costs bytes
+and no behaviour.
+
 ## Not a gap, recorded so nobody reopens it
 
 - **The strict validator names the union, not the key.** `getValidationErrors` with
@@ -136,6 +170,12 @@ Two supporting changes:
 - `packages/run-types/test/features/unknownKeyFamiliesAgree.test.ts`: the table above as a suite,
   one row per position, every family asserted on the same value, plus the two pinned non-gaps.
 - `ExtraParams.ts` gains a union case and a tuple case, so all ten strategy pairings see both.
+- `unionDecodeAgree.test.ts`: one row per union WIRE shape (two object members, discriminated,
+  object beside a primitive, object inside an array member, object under an envelope), each decoder
+  fed the wire its own encoder writes so the test assumes no layout. It also pins that every decoder
+  refuses a bare object where the envelope is expected, and an index naming no member, with the same
+  error constructor and the same message AS EACH OTHER; the text itself is not pinned, so rewording
+  it stays a one-line change. Four rows fail against the reverted compact fix.
 
 ## Done when
 
