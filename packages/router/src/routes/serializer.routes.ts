@@ -73,7 +73,10 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
  *  string body is measured in UTF-16 code units, which is never more than its byte length, so the
  *  byte-exact adapter limit always fires first. */
 function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void {
-  // a pre-parsed object body has no wire size here: the host that parsed it applied its own limit
+  // A pre-parsed object body has no wire size here, and it is never refused for being unmeasurable:
+  // `dispatchRoute`, a batch and a test all pass object bodies that never crossed a wire. The
+  // adapter that hands a parsed body over is the only layer that still has the wire size, so it
+  // owns the check (gcloud measures the declared content-length before the chain runs).
   if (typeof rawBody !== 'string' || rawBody.length <= maxBodySize) return;
   throw new FatalError({
     statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
