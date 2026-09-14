@@ -322,6 +322,33 @@ describe('encoder strategies at the router level', () => {
       expect(({} as Record<string, unknown>).x).toBeUndefined();
     });
 
+    it('clone drops an undeclared key hiding inside a union member', async () => {
+      // A union of an array and a number carries no object member of its own, so the
+      // encoder and decoder both used to hand it straight through and the object inside the array
+      // kept whatever the caller sent. Validation does not cover it: undeclared keys on an object
+      // literal are accepted unless strictTypes is on.
+      const unionIn = mion.route((ctx, p: {a: string}[] | number): string => {
+        seen.union = p;
+        return typeof p === 'number' ? 'num' : String(p.length);
+      });
+      mion.initRoutes({unionIn});
+      const response = await dispatchJson('unionIn', [[{a: 'x', extra: 'nope'}]]);
+      expect(response.hasErrors).toBe(false);
+      const arrived = seen.union as {a: string}[];
+      expect(Object.keys(arrived[0]).sort()).toEqual(['a']);
+      expect('extra' in arrived[0]).toBe(false);
+    });
+
+    it('the clone return drops an undeclared key inside a union member as well', async () => {
+      const wide = [{a: 'x', secret: 'do not send'}];
+      const unionOut = mion.route((ctx): {a: string}[] | number => wide as {a: string}[]);
+      mion.initRoutes({unionOut});
+      const response = await dispatchJson('unionOut', []);
+      expect(response.hasErrors).toBe(false);
+      const body = response.body.unionOut as {a: string}[];
+      expect(Object.keys(body[0]).sort()).toEqual(['a']);
+    });
+
     it('the clone return drops an undeclared key too, so the rule reads the same both ways', async () => {
       const wide = {name: 'rex', born: new Date('2020-01-02T03:04:05.000Z'), secret: 'do not send'};
       const bothWays = mion.route((ctx): SimplePet => wide as SimplePet);

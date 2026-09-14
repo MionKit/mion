@@ -33,6 +33,7 @@ import {
   checkUnknownKeysPlanted,
   checkUnknownKeysStripAgree,
   checkWireStripBlind,
+  checkWireStripDeletes,
   type FuzzTarget,
   type Violation,
 } from './fuzzOracle.ts';
@@ -189,13 +190,14 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   const unknownCtx = {seed, phase: 'unknownkeys' as const};
   push(out, checkUnknownKeysSelfAgree(target, valid, unknownCtx));
   push(out, checkUnknownKeysStripAgree(target, valid, unknownCtx));
-  // O25 plants blindly on the wire, so it can only run where NO position is an
-  // index-signature carve-out: a key planted into one of those IS declared, so
-  // strip keeps it and the metamorphic comparison would fail on a correct
-  // decoder.
+  // Both wire oracles plant blindly, so neither can run where a position is an index-signature
+  // carve-out: a key planted into one of those IS declared, so a correct decoder keeps it and the
+  // comparison would fail on working code. O25 holds the blanking composite to "the value does not
+  // change"; O26 holds the stripping decoder to the stronger "the key is gone".
   if (!positions.some((position) => position.kind === 'carveOut')) {
     if (target.jsonEncode && target.jsonDecode) unknownKeys.wire++;
     push(out, checkWireStripBlind(target, valid, unknownCtx));
+    push(out, checkWireStripDeletes(target, valid, unknownCtx));
   }
   const planted = plantUnknownKey(target.schema, valid, Math.random);
   if (planted) {

@@ -45,6 +45,12 @@ function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rj'>) 
   return getRTFunction<'rj'>(id);
 }
 
+// The STRIPPING restore, recovered the same way — mion's `clone` strategy decodes with it and it has
+// no createX factory either. O26's subject: it must DELETE an undeclared wire key, not blank it.
+function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rjs'>) {
+  return getRTFunction<'rjs'>(id);
+}
+
 const targets: FuzzTarget[] = [];
 
 // --- target: union of OBJECT members (discriminated) ---
@@ -73,6 +79,7 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -95,6 +102,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -119,6 +127,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -143,6 +152,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -167,6 +177,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -191,6 +202,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -215,6 +227,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -242,6 +255,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
