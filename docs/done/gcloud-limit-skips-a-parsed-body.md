@@ -80,6 +80,18 @@ do for an oversized body, so gcloud is now consistent with them rather than with
 middleFns, `alwaysRun` ones included, do not run for a request refused this way, again matching
 node and uws.
 
+## A second bug found on the same lines, fixed here too
+
+The line right after the new check handed `rawRequest.body` to `decodeQueryBody`, which bails out
+when a body is already present. express parses a request that carried NO body into an EMPTY object,
+and an empty object is truthy, so `GET /api/route?data=<base64url>` never took the query-body road
+on gcloud: it answered 422 with a validation error instead of running the call. Every other adapter
+gets an empty string there and passes `rawBody || undefined`, so only this platform was affected.
+
+Same root cause as the finding (express's parsed object is not "no body"), same function, so it is
+fixed in this change with its own commit and its own test. `bodyOrUndefined` reports an empty
+parsed object as no body, in one loop step rather than by building a key array.
+
 ## Tests
 
 `packages/platform-gcloud/src/googleCF.spec.ts`, a new suite on a 50 byte limit. All three refusal
@@ -89,6 +101,9 @@ tests fail against the unfixed adapter:
 - an over-limit body express already parsed (the finding)
 - an over-limit parsed body sent chunked, which declares no `content-length`
 - a body under the limit still answers 200 in both shapes
+
+And, next to the existing query-string tests, a `?data=` GET answering 200, which fails against the
+unfixed adapter.
 
 ## Docs
 
