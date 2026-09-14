@@ -52,6 +52,8 @@ describe('serverless router', () => {
 
   const echoQuery: Route = mion.route((ctx: Context): string => ctx.urlQuery ?? '<undefined>');
 
+  const echoLimited: Route = mion.route((ctx: Context, text: string): string => text);
+
   // fake express server passing the request and response to the google cloud function handler
   const port = 8097;
   let server: Server;
@@ -276,6 +278,87 @@ describe('serverless router', () => {
       expect(headers['connection']).toEqual('keep-alive');
       expect(headers['content-type']).toEqual('application/json; charset=utf-8');
       expect(headers['server']).toEqual('@mionjs');
+    });
+  });
+
+  describe('the request limit, whatever shape express hands the body over in', () => {
+    // express parses a `application/json` request into an object, and an object has no wire size
+    // the router can measure, so every one of these shapes has to be refused by the adapter
+    const limitPort = 8099;
+    let limitServer: Server;
+    // 113 bytes on the wire against a 50 byte limit
+    const overLimitBody = JSON.stringify({echoLimited: ['x'.repeat(100)]});
+    const underLimitBody = JSON.stringify({echoLimited: ['x']});
+
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      setGoogleCFOpts({maxBodySize: 50});
+      const limitRouter = createMionRouter({basePath: 'api/'});
+      limitRouter.initRoutes({echoLimited});
+      limitServer = await new Promise<Server>((resolve) => {
+        functions.http('HelloTestsLimit', googleCFHandler);
+        const expressServer = getTestServer('HelloTestsLimit');
+        expressServer.listen(limitPort, () => resolve(expressServer));
+      });
+    });
+
+    afterAll(async () => {
+      await closeServer(limitServer);
+      resetGoogleCFOpts();
+      resetRouter();
+    });
+
+    async function post(body: BodyInit, headers?: Record<string, string>) {
+      return fetch(`http://127.0.0.1:${limitPort}/api/echoLimited`, {
+        method: 'POST',
+        body,
+        headers,
+        duplex: 'half',
+      } as RequestInit);
+    }
+
+    it('refuses an over-limit body express left as a string', async () => {
+      const response = await post(overLimitBody);
+
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
+      const reply = await response.json();
+      expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
+    });
+
+    it('refuses an over-limit body express already parsed', async () => {
+      const response = await post(overLimitBody, {'content-type': 'application/json'});
+
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
+      const reply = await response.json();
+      expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
+    });
+
+    it('refuses an over-limit parsed body sent chunked, which declares no content-length', async () => {
+      // a stream body makes node send `transfer-encoding: chunked`, so the declared length the
+      // other two are refused on is simply not there and the exact bytes have to be measured
+      const chunked = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(overLimitBody));
+          controller.close();
+        },
+      });
+      const response = await post(chunked, {'content-type': 'application/json'});
+
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
+    });
+
+    it('answers a body under the limit normally, parsed or not', async () => {
+      const asString = await post(underLimitBody);
+      const asObject = await post(underLimitBody, {'content-type': 'application/json'});
+
+      expect(asString.status).toEqual(StatusCodes.OK);
+      expect(await asString.json()).toEqual({echoLimited: 'x'});
+      expect(asObject.status).toEqual(StatusCodes.OK);
+      expect(await asObject.json()).toEqual({echoLimited: 'x'});
     });
   });
 });
