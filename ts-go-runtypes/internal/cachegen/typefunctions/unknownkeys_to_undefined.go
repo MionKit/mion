@@ -117,22 +117,20 @@ func emitObjectUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) 
 	if combined == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return RTCode{Code: combined, Type: CodeS}
+	// The shape guard every object-node unknown-keys emit runs under. This arm went without one
+	// while the family stopped at tuples: nothing could hand it a null, because an optional slot was
+	// the only way to reach an object node that may be absent. `{list: [bigint, Self?]}` is exactly
+	// that shape, and the key scan reads `v.list` off the missing slot.
+	return RTCode{Code: guardStatement(unknownKeysObjectGuard(v), combined), Type: CodeS}
 }
 
+// emitTupleUnknownKeysToUndefined walks the slots through the arm the errors family already uses.
+// This was a deliberate no-op, on the reasoning that the safe ENCODER strips extras before they
+// reach the wire. That is not what a decoder faces: this family runs on a caller's payload, and a
+// caller who never used our encoder sends whatever it likes, so a tuple slot was the one position
+// where `strategy: 'strip'` handed undeclared keys to the handler.
 func emitTupleUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
-	// uku at a tuple node is a no-op. The per-position concat pattern
-	// blindly recurses into every child slot, which breaks on circular
-	// tuples (optional self-referential slot → unguarded `v[i].x` reads
-	// against `undefined`/`null`) and is semantically suspect even
-	// without recursion — for a tuple, "unknown key" would be an
-	// element past the declared length, which the per-position emit
-	// cannot detect. The safe encoder strips extras at encode time
-	// (prepareForJsonSafe clones the declared shape only) so the safe
-	// decode pipeline doesn't actually need this step to converge.
-	_ = rt
-	_ = ctx
-	return RTCode{Code: "", Type: CodeS}
+	return emitTupleUnknownKeysRecurse(rt, ctx)
 }
 
 // emitIndexSignatureUnknownKeysToUndefined ports

@@ -105,6 +105,60 @@ export const EXTRA_PARAMS = {
     // Safe path produces the same output; no override needed.
   },
 
+  extras_inside_atomic_union_member: {
+    title: 'Extra inside a union member',
+    description:
+      'The union has NO object member (an array is an atomic member of the flat layout), so every gate keyed on that used to hand the value through without compiling the array. The extra sits on an object one level down, where clone and direct strip it and mutate keeps it.',
+    mutateEncoder: () => createJsonEncoderFn<{declared: string}[] | number>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<{declared: string}[] | number>(undefined, {strategy: 'clone'}),
+    directEncoder: () => createJsonEncoderFn<{declared: string}[] | number>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => createJsonEncoderFn<{declared: string}[] | number>(undefined, {strategy: 'compact'}),
+    stripDecoder: () => createJsonDecoderFn<{declared: string}[] | number>(),
+    preserveDecoder: () => createJsonDecoderFn<{declared: string}[] | number>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<{declared: string}[] | number>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<{declared: string}[] | number>(),
+    binaryDecoder: () => createBinaryDecoderFn<{declared: string}[] | number>(),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
+    schemaEncoder: () => createJsonEncoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
+    schemaDecoder: () => createJsonDecoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
+    getTestData: () => ({
+      values: [[{declared: 'x', extra: 'hello'}]],
+      // Unsafe: extra preserved through round-trip.
+    }),
+    getTestDataForStringify: () => ({
+      values: [[{declared: 'x', extra: 'hello'}]],
+      deserializedValues: [[{declared: 'x'}]],
+    }),
+  },
+
+  extras_inside_tuple_slot: {
+    title: 'Extra inside a tuple slot',
+    description:
+      'A tuple slot was the one position the decoder strip pre-pass skipped outright, so an undeclared key inside it reached the handler from any caller that did not use our encoder.',
+    mutateEncoder: () => createJsonEncoderFn<[{declared: string}, number]>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<[{declared: string}, number]>(undefined, {strategy: 'clone'}),
+    directEncoder: () => createJsonEncoderFn<[{declared: string}, number]>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => createJsonEncoderFn<[{declared: string}, number]>(undefined, {strategy: 'compact'}),
+    stripDecoder: () => createJsonDecoderFn<[{declared: string}, number]>(),
+    preserveDecoder: () => createJsonDecoderFn<[{declared: string}, number]>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<[{declared: string}, number]>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<[{declared: string}, number]>(),
+    binaryDecoder: () => createBinaryDecoderFn<[{declared: string}, number]>(),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
+    schemaEncoder: () => createJsonEncoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
+    schemaDecoder: () => createJsonDecoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
+    getTestData: () => ({
+      values: [[{declared: 'x', extra: 'hello'}, 2]],
+      // Unsafe: extra preserved through round-trip.
+    }),
+    getTestDataForStringify: () => ({
+      values: [[{declared: 'x', extra: 'hello'}, 2]],
+      deserializedValues: [[{declared: 'x'}, 2]],
+    }),
+  },
+
   nested_extras_in_declared_child: {
     title: 'Nested extra',
     description:

@@ -56,6 +56,10 @@ export interface UnknownKeyCoverage {
   carveOut: number;
   /** Values whose encoded wire was planted on and decoded back (O25). **/
   wire: number;
+  /** Positions the walker offered, per target title. O27 reads it: a target whose TYPE carries a
+   *  keyed shape anywhere and never offered a position is a walker hole, and a hole makes every
+   *  other unknown-key oracle pass while checking nothing. **/
+  positionsByTarget: Map<string, number>;
 }
 
 export interface FuzzReport {
@@ -79,7 +83,7 @@ const DEFAULT_ITERATIONS = 200;
 export function runFuzz(targets: FuzzTarget[], options: FuzzOptions = {}): FuzzReport {
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const violations: Violation[] = [];
-  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0};
+  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0, positionsByTarget: new Map()};
   // One round per TARGET, `iterations` guarded steps inside it — target-major,
   // so violations still arrive grouped by target. The step label is the target
   // title, which is what makes two targets draw disjoint sequences.
@@ -104,7 +108,7 @@ export function runFuzzForDuration(
   onViolation?: (v: Violation) => void
 ): FuzzReport {
   const violations: Violation[] = [];
-  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0};
+  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0, positionsByTarget: new Map()};
   // One ROUND is a full pass over every target — the budget refuses to start a
   // round the remaining time cannot pay for, so the soak lands inside its wall
   // clock instead of overshooting by a whole round.
@@ -188,6 +192,9 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   // disagreement names the exact position that drifted.
   const positions = collectUnknownKeyPositions(target.schema, valid);
   const unknownCtx = {seed, phase: 'unknownkeys' as const};
+  // O27's tally: every oracle below is silent when the walker found nowhere to plant, so a hole
+  // reads as a clean run. unreachedKeyedTargets turns that silence into a failure at the end.
+  unknownKeys.positionsByTarget.set(target.title, (unknownKeys.positionsByTarget.get(target.title) ?? 0) + positions.length);
   push(out, checkUnknownKeysSelfAgree(target, valid, unknownCtx));
   push(out, checkUnknownKeysStripAgree(target, valid, unknownCtx));
   // Both wire oracles plant blindly, so neither can run where a position is an index-signature
