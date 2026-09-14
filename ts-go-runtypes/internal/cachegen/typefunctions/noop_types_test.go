@@ -431,7 +431,10 @@ func TestNoopType_StringifyJsonRoot(t *testing.T) {
 
 // TestNoopType_CompactFromJson pins the cjr arm — restoreFromJson's rules with
 // every object arm forced false (the positional→keyed rebuild). objCompat is
-// THE divergence pin: rj lets it round-trip raw, cjr must not.
+// THE divergence pin: rj lets it round-trip raw, cjr must not. Unions are the
+// same story one level up: compact ENCODE goes through the stripping encoder, so
+// its decode does too, and neither may claim identity for a union carrying an
+// object.
 func TestNoopType_CompactFromJson(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	cases := []struct {
@@ -443,10 +446,15 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		{"uAt", true},         // raw-round-trip union (shared restore rule)
 		{"uObjNest", false},   // rj says true — a merged member positionalizes its nested object
 		{"uArrObjStr", false}, // rj says true — the array arm positionalizes its elements
-		{"uRecObj", true},     // numeric record | flat object: nothing positionalizes, stays raw
-		{"recA", false},       // the key loop with the prototype-name refusal always ships
-		{"objCompat", false},  // rj says true — the delegation trap
-		{"arrCO", false},      // array of objects — positional elements
+		// A union with an object member is never noop for cjr: the compact arm is the SAFE restore,
+		// which rebuilds each object from its declared shape instead of riding the value through.
+		// uRecObj still KEEPS every key at runtime (the index-signature carve-out declares them
+		// all); the entry is simply a real function rather than the identity.
+		{"uRecObj", false},
+		{"uObj", false},
+		{"recA", false},      // the key loop with the prototype-name refusal always ships
+		{"objCompat", false}, // rj says true — the delegation trap
+		{"arrCO", false},     // array of objects — positional elements
 		{"dat", false},
 		{"und", false},
 		{"lit", true},
