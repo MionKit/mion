@@ -28,7 +28,7 @@ import {isDeepStrictEqual} from 'node:util';
 import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import type {RTValidationError, RTValidationErrorPathSegment} from '../../../src/createRTFunctions.ts';
-import {pathKey, UNKNOWN_KEY_PREFIX, type PlantedUnknownKey} from './unknownKeyPositions.ts';
+import {containsKeyedShape, pathKey, UNKNOWN_KEY_PREFIX, type PlantedUnknownKey} from './unknownKeyPositions.ts';
 
 /** One target type under fuzz: its schema (to drive mock + corruption) plus
  *  the family functions to exercise. Serialization fns are optional so a
@@ -93,6 +93,9 @@ export interface FuzzTarget {
    *  `restoreFromJson`, since the primitive has no createX factory. O26 holds it to the stronger
    *  contract: an undeclared wire key comes back GONE, not blanked. **/
   restoreFromJsonSafe?: (value: unknown) => unknown;
+  /** Opts the target out of O27's coverage rule. For a union with two members of the same coarse
+   *  class the walker refuses to descend on purpose, so zero positions is the right answer. **/
+  unknownKeyWalkerBlind?: boolean;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -495,6 +498,31 @@ export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, c
     );
   }
   return null;
+}
+
+/** O27, the run-level coverage rule: the walker must find somewhere to plant for every target
+ *  whose TYPE carries a keyed shape. Not a per-value Violation, so it has no OracleId; the sweep
+ *  asserts it once at the end of the run.
+ *
+ *  Every other unknown-key oracle is silent when `collectUnknownKeyPositions` returns nothing, so a
+ *  position the walker refuses to reach makes them all pass while checking nothing. That is exactly
+ *  how an object hiding inside a union's array member went unnoticed by six oracles at once.
+ *
+ *  The rule reads the TYPE, not the root and not one value: an array, a tuple, a union, a Map or a
+ *  Set is not itself keyed but can carry a keyed shape further down, so `containsKeyedShape` walks
+ *  the whole tree. It is answered across the WHOLE run rather than per value, because a single
+ *  value legitimately reaches nowhere (a union's number arm has no object in it); what cannot
+ *  happen is a target that never once offered a position.
+ *
+ *  A target whose union has two members of the same coarse class is the one legitimate zero: the
+ *  walker refuses there on purpose, because the fused validator follows the branch it matched while
+ *  the unknown-key families read the merged allowlist. Such a target sets `unknownKeyWalkerBlind`. **/
+export function unreachedKeyedTargets(targets: FuzzTarget[], positionsByTarget: Map<string, number>): string[] {
+  return targets
+    .filter((target) => !target.unknownKeyWalkerBlind)
+    .filter((target) => containsKeyedShape(target.schema))
+    .filter((target) => (positionsByTarget.get(target.title) ?? 0) === 0)
+    .map((target) => target.title);
 }
 
 /** survivingPlantedKeys — the paths of every planted key still present as an OWN key.

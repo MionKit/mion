@@ -1130,9 +1130,6 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
-	// tupleAlwaysNoop — uku / ukuw no-op at tuples by design
-	// (emitTupleUnknownKeysToUndefined); has / strip / errors recurse.
-	tupleAlwaysNoop bool
 	// mapSetAlwaysNoop — ukuw keeps the Map/Set arm noop on the wire side
 	// (the instanceof check cannot match the still-parsed array); the other
 	// four recurse into the iterable's inner types.
@@ -1142,8 +1139,8 @@ type unknownKeysNoopSpec struct {
 var (
 	hasUnknownKeysNoopSpec         = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys}
 	unknownKeyErrorsNoopSpec       = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors}
-	unknownKeysToUndefinedNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefined, tupleAlwaysNoop: true}
-	unknownKeysToUndefinedWireSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefinedWire, tupleAlwaysNoop: true, mapSetAlwaysNoop: true}
+	unknownKeysToUndefinedNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefined}
+	unknownKeysToUndefinedWireSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefinedWire, mapSetAlwaysNoop: true}
 )
 
 /** isNoopForUnknownKeys reports whether an unknown-keys family entry for rt
@@ -1232,9 +1229,6 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 		return unknownKeysNoopRecursive(resolved, ctx, spec, visited)
 
 	case reflection.KindTuple:
-		if spec.tupleAlwaysNoop {
-			return true
-		}
 		for _, child := range rt.Children {
 			if !unknownKeysNoopRecursive(child, ctx, spec, visited) {
 				return false
@@ -1243,9 +1237,6 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 		return true
 
 	case reflection.KindTupleMember:
-		if spec.tupleAlwaysNoop {
-			return true
-		}
 		if rt.Child == nil {
 			return true
 		}
@@ -1259,7 +1250,7 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 		return unknownKeysNoopIndexSignature(rt, ctx, spec, visited)
 
 	case reflection.KindUnion:
-		return unknownKeysNoopUnion(rt, ctx)
+		return unknownKeysNoopUnion(rt, ctx, spec, visited)
 	}
 	// Atoms, never, functions, promises, intersections, template literals:
 	// no keys to manage.
@@ -1331,13 +1322,14 @@ func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spe
 // or object members exposing no named properties to merge — there is
 // nothing to sweep. Member stripping mirrors dataOnlyUnionMembers via the
 // same isStrippedUnionMember helper.
-func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
+func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
 		children = rt.Children
 	}
 	anyObjectMember := false
 	anyMergedProp := false
+	atomicsNoop := true
 	for _, ref := range children {
 		resolved := ctx.ResolveRef(ref)
 		if resolved == nil || isStrippedUnionMember(resolved) {
@@ -1348,6 +1340,14 @@ func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
 			return true
 		}
 		if resolved.Kind != reflection.KindObjectLiteral && (resolved.Kind != reflection.KindClass || resolved.SubKind != reflection.SubKindNone) {
+			// An ATOMIC member in the flat layout, which is not the same as key-free: an array or
+			// a tuple carries whatever its element type declares, and unionAtomicMemberDescent
+			// walks exactly those. Miss this and the predicate claims noop while the emit walks,
+			// so the dispatch gate replaces the child call with empty code (see the contract at
+			// the top of this file).
+			if !atomicMemberExtraProof(resolved, ctx) && !unknownKeysNoopRecursive(resolved, ctx, spec, visited) {
+				atomicsNoop = false
+			}
 			continue
 		}
 		anyObjectMember = true
@@ -1361,7 +1361,7 @@ func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
 			}
 		}
 	}
-	return !anyObjectMember || !anyMergedProp
+	return (!anyObjectMember || !anyMergedProp) && atomicsNoop
 }
 
 // NoopPredicateAgreement is the corpus-test surface: it returns the emitter
