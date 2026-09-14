@@ -72,7 +72,7 @@ const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<str
 /** mion's two not-found chains (an unknown path, an unknown batch id). They are NOT routes and not
  *  in the router above: there is nothing to run, so each is the global middleFns behind a first
  *  member that throws. Rebuilt on every registration, because the global middleFns are. */
-const notFoundChains = new Map<string, MethodsExecutionChain>();
+const notFoundChains = getOrCreateGlobal('mion.router.notFoundChains', () => new Map<string, MethodsExecutionChain>());
 const middleFnsById = getOrCreateGlobal(
   'mion.router.middleFnsById',
   () => new Map<string, MiddleFnMethod | HeadersMethod | RawMethod>()
@@ -429,8 +429,8 @@ function recursiveCreateExecutionChain(
     const routeMethod = routeEntry as RouteMethod;
     const levelMethods = [...preMiddleFns, ...props.preLevelMiddleFns, routeEntry, ...props.postLevelMiddleFns, ...postMiddleFns];
     const methods = [...startMiddleFns, ...levelMethods, ...endMiddleFns];
-    // an internal route (not-found, the error routes) is reached by paths that name no real route,
-    // so it takes the platform's number rather than the tiny one its own no-params tuple derives
+    // an internal error route (thrownErrors, platformError) is never called by a client, so it takes
+    // the platform's number rather than the tiny one its own no-params tuple derives
     const maxBodySize = mionInternalRoutes.includes(routeMethod.id)
       ? routeMethod.options.maxBodySize
       : resolveChainMaxBodySize(methods, routeMethod, routerOptions);
@@ -461,12 +461,9 @@ function recursiveCreateExecutionChain(
   return props;
 }
 
-/**
- * mion's two not-found chains. Neither has a route to feed, so each one is the global start and end
- * middleFns behind a first member that throws: the dispatcher's own rule then skips every later
- * member that does not declare `alwaysRun`, and the body is never read or parsed.
- * `maxBodySize` is left unset, so the request takes the platform adapter's number.
- */
+/** Builds the two chains declared above. The thrower goes first, so the dispatcher's own rule skips
+ *  every later member that does not declare `alwaysRun`. `maxBodySize` is left unset, so the request
+ *  takes the platform adapter's number. */
 function buildNotFoundChains(): void {
   notFoundChains.clear();
   const throwers = [
