@@ -1,6 +1,5 @@
 import {RpcError, FatalError, MION_ROUTES, Mutable, StatusCodes, SerializerModes, markFatal} from '@mionjs/core';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, ResponseBody} from '../types/context.ts';
-import type {RemoteMethod} from '../types/remoteMethods.ts';
 
 /**
  * Return a Response mion response for any error that happens before or outside the router.
@@ -56,28 +55,34 @@ export function markResponseFailed(context: CallContext, rpcError: RpcError<stri
   response.hasErrors = true;
 }
 
+/** Whatever an adapter caught, as the mion error the wire carries. */
+export function toRpcError(err: unknown): RpcError<string> {
+  return err instanceof RpcError
+    ? err
+    : new FatalError({publicMessage: 'Unknown Error', type: 'unknown-error', originalError: err as Error});
+}
+
 /**
- * Handles errors during route dispatch.
- * All errors passed to this function are undeclared (thrown, or returned by a raw middleFn, which
- * cannot declare a return type): they end the request and travel in `@thrownErrors`, untyped.
- * Declared errors are returned from handlers and added directly to response.body.
+ * Records an undeclared error under `key` and ends the request: it lands in `@thrownErrors` untyped,
+ * sets the status and the error header, and stops every later chain member that does not declare
+ * `alwaysRun`. Undeclared means thrown, or returned by a raw middleFn, which cannot declare a return
+ * type; a declared error is returned from a handler and goes straight into `response.body`.
+ * The key is normally the chain member that failed (`err` being whatever it threw); an adapter
+ * passes its own (`mion@platformError`) for a request it refused before any member could run.
  */
-// `err` is whatever was thrown: an RpcError, an Error, or any other value.
-export function onExecutableError(context: CallContext, executable: RemoteMethod, err: any) {
-  const path = executable.id;
+export function recordUndeclaredError(context: CallContext, key: string, err: any) {
   const rpcError: RpcError<string> = markFatal(
     err instanceof RpcError
       ? err
       : new FatalError({
           statusCode: StatusCodes.UNEXPECTED_ERROR,
-          publicMessage: `Unknown error in handler "${path}" of route ExecutionChain.`,
+          publicMessage: `Unknown error in handler "${key}" of route ExecutionChain.`,
           originalError: err,
           type: 'unknown-error',
         })
   );
   markResponseFailed(context, rpcError, StatusCodes.UNEXPECTED_ERROR);
-  // Store unexpected errors for serialization
   const thrownErrors = context.request.thrownErrors || ({} as Record<string, RpcError<string>>);
-  thrownErrors[path] = rpcError;
+  thrownErrors[key] = rpcError;
   (context.request as Mutable<MionRequest>).thrownErrors = thrownErrors;
 }

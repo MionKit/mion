@@ -10,7 +10,7 @@
 // runs inside the guard, and the router's own body limit is the only limit this platform has.
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from './cloudflareHandler.ts';
@@ -123,5 +123,56 @@ describe('cloudflare adapter: an unknown path never reads the body', () => {
     // being unused is the proof that nothing read it
     expect(pulled).toBeLessThanOrEqual(1);
     expect(request.bodyUsed).toBe(false);
+  });
+});
+
+// A body this adapter refuses is still a request the chain sees: it runs the members that declare
+// `alwaysRun` (an access log, a rate limiter) and nothing else, so a 413 is logged like any answer.
+describe('cloudflare adapter: a refused body runs the alwaysRun middleFns', () => {
+  let handler: ReturnType<typeof createCloudflareHandler>;
+  let seen: string[] = [];
+
+  beforeAll(async () => {
+    resetCloudflareHandlerOpts();
+    setCloudflareHandlerOpts({basePath: '', maxBodySize: 64});
+    resetRouter();
+    addStartMiddleFns({
+      plainStart: mion.rawMiddleFn((ctx: CallContext) => {
+        seen.push(`start:${ctx.path}`);
+      }),
+    });
+    addEndMiddleFns({
+      accessLog: mion.rawMiddleFn(
+        (ctx: CallContext) => {
+          seen.push(`log:${ctx.response.statusCode}`);
+        },
+        {alwaysRun: true}
+      ),
+    });
+    mion.initRoutes({echo});
+    handler = createCloudflareHandler();
+  });
+
+  const send = (body: string) =>
+    handler.fetch(
+      new Request('http://localhost/api/echo', {method: 'POST', body, headers: {'content-type': 'application/json'}})
+    );
+
+  it('a body over the limit answers 413 through the chain, running only the alwaysRun middleFns', async () => {
+    seen = [];
+    const response = await send(JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}));
+    expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
+    const errors = (await response.json())[MION_ROUTES.thrownErrors];
+    expect(errors[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+    expect(errors['mionDeserializeRequest']).toBeUndefined();
+    expect(seen).toEqual(['log:413']);
+  });
+
+  it('a body inside the limit still runs the whole chain', async () => {
+    seen = [];
+    const response = await send('{"echo":[{"name":"a","surname":"b"}]}');
+    expect(response.status).toBe(200);
+    expect(seen).toEqual(['start:/api/echo', 'log:200']);
   });
 });

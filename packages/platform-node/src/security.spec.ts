@@ -11,7 +11,7 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createConnection} from 'net';
 import type {Server} from 'http';
-import {createMionRouter, resetRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from './mionHttp.ts';
@@ -240,5 +240,75 @@ describe('node adapter: an unknown path never reads the body', () => {
     expect(status).toBe(StatusCodes.NOT_FOUND);
     expect(envelope(body)[MION_ROUTES.notFound].type).toBe('route-not-found');
     expect(envelope(body)['mionDeserializeRequest']).toBeUndefined();
+  });
+});
+
+// A body this adapter refuses is still a request the chain sees: it runs the members that declare
+// `alwaysRun` (an access log, a rate limiter) and nothing else, so a 413 is logged like any answer.
+describe('node adapter: a refused body runs the alwaysRun middleFns', () => {
+  const refusedPort = 8281;
+  let server: Server;
+  let seen: string[] = [];
+
+  beforeAll(async () => {
+    resetNodeHttpOpts();
+    resetRouter();
+    addStartMiddleFns({
+      plainStart: mion.rawMiddleFn((ctx: CallContext) => {
+        seen.push(`start:${ctx.path}`);
+      }),
+    });
+    addEndMiddleFns({
+      accessLog: mion.rawMiddleFn(
+        (ctx: CallContext) => {
+          seen.push(`log:${ctx.response.statusCode}`);
+        },
+        {alwaysRun: true}
+      ),
+    });
+    mion.initRoutes({echo, small});
+    setNodeHttpOpts({port: refusedPort, maxBodySize: MAX_BODY});
+    server = await startNodeServer();
+  });
+
+  afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  it('a declared content-length past the limit answers 413 through the chain', async () => {
+    seen = [];
+    const {status, body} = await rawRequest(
+      `POST /api/echo HTTP/1.1\r\nHost: x\r\nContent-Length: 100000\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n`,
+      '{"echo":',
+      50,
+      refusedPort
+    );
+    expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(envelope(body)[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+    expect(seen).toEqual(['log:413']);
+  });
+
+  it('a chunked body that grows past the limit answers 413 through the chain', async () => {
+    seen = [];
+    const chunk = 'x'.repeat(40);
+    const chunked = `${chunk.length.toString(16)}\r\n${chunk}\r\n`;
+    const {status, body} = await rawRequest(
+      `POST /api/echo HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n`,
+      chunked + chunked + chunked + '0\r\n\r\n',
+      0,
+      refusedPort
+    );
+    expect(status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    expect(envelope(body)[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+    expect(seen).toEqual(['log:413']);
+  });
+
+  it('the server still answers the next request, and a body inside the limit runs the whole chain', async () => {
+    seen = [];
+    const alive = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
+      method: 'POST',
+      body: '{"echo":[{"name":"a","surname":"b"}]}',
+    });
+    expect(alive.status).toBe(200);
+    expect(await alive.json()).toEqual({echo: {name: 'a', surname: 'b'}});
+    expect(seen).toEqual(['start:/api/echo', 'log:200']);
   });
 });

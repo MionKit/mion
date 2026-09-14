@@ -7,9 +7,11 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
+  toRpcError,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
@@ -122,14 +124,15 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // The route is resolved BEFORE the body, the context only after it: one lookup gives the chain
   // and the request limit the route settled at registration, so the read below stops at the route's
   // own number, while the context (and the body hanging off it) stays young enough for the cheap
-  // half of the garbage collector. A throw here (an unknown batch id, a throwing pathTransform) is
-  // answered like a too-large body: before a byte is buffered, with the stream destroyed.
+  // half of the garbage collector. A throw here (a throwing pathTransform) has no chain to run, so
+  // it is answered bare, before a byte is buffered, with the stream destroyed. A body past the
+  // limit does have one, and goes through dispatchRefusal below.
   let resolved: ResolvedRequest;
   try {
     resolved = resolveRequest(path, urlQuery, httpReq);
-  } catch (e) {
+  } catch (err) {
     replied = true;
-    fatalFail(httpResponse, respHeaders, toRpcError(e));
+    fatalFail(httpResponse, respHeaders, toRpcError(err));
     httpReq.destroy();
     return;
   }
@@ -138,14 +141,35 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const maxBodySize = resolved.maxBodySize;
 
   // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
-  // one, and on the running size before each chunk is kept. The request stream is then destroyed so
-  // the client cannot keep sending into a response that already went out.
+  // one, and on the running size before each chunk is kept.
   const declaredLength = Number(httpReq.headers['content-length']);
   if (declaredLength > maxBodySize) {
     replied = true;
-    fatalFail(httpResponse, respHeaders, requestPayloadTooLarge());
-    httpReq.destroy();
+    void dispatchRefusal();
     return;
+  }
+
+  /** A body this adapter refused. The route resolved, so the chain still runs its `alwaysRun`
+   *  members over the refusal (a rate limiter, an access log) and writes the answer. The request
+   *  stream is destroyed after the reply, so the client cannot keep sending into a response that
+   *  already went out. */
+  async function dispatchRefusal() {
+    bodyChunks.length = 0;
+    try {
+      const mionResponse = await dispatchPlatformError(
+        resolved,
+        requestPayloadTooLarge(),
+        reqHeaders,
+        respHeaders,
+        httpReq,
+        httpResponse
+      );
+      if (!httpResponse.writableEnded) reply(httpResponse, mionResponse);
+    } catch (err) {
+      fatalFail(httpResponse, respHeaders, toRpcError(err));
+    } finally {
+      httpReq.destroy();
+    }
   }
 
   async function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
@@ -162,20 +186,20 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
       if (replied || httpResponse.writableEnded) return;
       replied = true;
       reply(httpResponse, mionResponse);
-    } catch (e) {
+    } catch (err) {
       if (replied) return;
       replied = true;
-      fatalFail(httpResponse, respHeaders, toRpcError(e));
+      fatalFail(httpResponse, respHeaders, toRpcError(err));
     }
   }
 
-  httpResponse.on('error', (e) => {
+  httpResponse.on('error', (err) => {
     if (replied) return;
     replied = true;
     const error = new FatalError({
       publicMessage: 'Connection Error',
       type: 'response-connection-error',
-      originalError: e,
+      originalError: err,
     });
     fatalFail(httpResponse, respHeaders, error);
   });
@@ -193,21 +217,19 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     size += data.length;
     if (size > maxBodySize) {
       replied = true;
-      bodyChunks.length = 0;
-      fatalFail(httpResponse, respHeaders, requestPayloadTooLarge());
-      httpReq.destroy();
+      void dispatchRefusal();
       return;
     }
     bodyChunks.push(data);
   });
 
-  httpReq.on('error', (e) => {
+  httpReq.on('error', (err) => {
     if (replied) return;
     replied = true;
     const error = new FatalError({
       publicMessage: 'Connection Error',
       type: 'request-connection-error',
-      originalError: e,
+      originalError: err,
     });
     fatalFail(httpResponse, respHeaders, error);
   });
@@ -219,16 +241,6 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     const buffer = bodyChunks.length === 1 ? bodyChunks[0] : Buffer.concat(bodyChunks, size);
     void dispatch(bodyChunks.length === 0 ? '' : buffer.toString(), SerializerModes.stringifyJson, true);
   });
-}
-
-function toRpcError(e: unknown): RpcError<string> {
-  return e instanceof RpcError
-    ? e
-    : new FatalError({
-        publicMessage: 'Unknown Error',
-        type: 'unknown-error',
-        originalError: e as Error,
-      });
 }
 
 // only called when there is an http error or weird unhandled route errors

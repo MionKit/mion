@@ -13,7 +13,7 @@ import {rawMiddleFn} from '../lib/handlers.ts';
 import {getRouteExecutable} from '../router.ts';
 import {RpcError, FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
-import {onExecutableError} from '../lib/dispatchError.ts';
+import {recordUndeclaredError} from '../lib/dispatchError.ts';
 
 // ############# PUBLIC METHODS #############
 
@@ -25,9 +25,10 @@ import {onExecutableError} from '../lib/dispatchError.ts';
  * @mion:rawMiddleFn
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
-  // a not-found chain never parses: the adapter skipped the read, and a caller that handed a body
-  // anyway (aws, gcloud, a direct dispatchRoute) gets the same answer
-  if (!context.readsBody || !context.request.rawBody) return;
+  // a request that already failed never parses: a not-found chain has no route to feed and the
+  // adapter skipped the read, and a caller that handed a body anyway (aws, gcloud, a direct
+  // dispatchRoute) gets the same answer
+  if (!context.readsBody || context.response.hasErrors || !context.request.rawBody) return;
   rejectOversizedBody(context.request.rawBody, context.maxBodySize);
   let parsedBody: any;
   switch (context.request.bodyType) {
@@ -157,7 +158,7 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
     originalError: e,
     errorData: {methodId: method.id},
   });
-  onExecutableError(context, method, err);
+  recordUndeclaredError(context, method.id, err);
 }
 
 /** True when a slot holds an error the route's return type does not declare (a batch mapping step
@@ -214,7 +215,7 @@ function onPrepareForJsonExecutableError(context: CallContext, method: RemoteMet
     originalError: e,
     errorData: {methodId: method.id},
   });
-  onExecutableError(context, method, err);
+  recordUndeclaredError(context, method.id, err);
 }
 
 function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any {

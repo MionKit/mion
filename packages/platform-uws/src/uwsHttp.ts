@@ -7,9 +7,11 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
+  toRpcError,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
@@ -132,16 +134,6 @@ function drainRequestBody(res: HttpResponse) {
   res.onData(() => {});
 }
 
-function toRpcError(e: unknown): RpcError<string> {
-  return e instanceof RpcError
-    ? e
-    : new FatalError({
-        publicMessage: 'Unknown Error',
-        type: 'unknown-error',
-        originalError: e as Error,
-      });
-}
-
 // exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see
 // setUwsHttpOpts). uWS contract: `req` is only valid synchronously inside this call, so everything
 // the async dispatch needs is snapshotted before the first await; `res` stays valid until the
@@ -172,10 +164,10 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   let resolved: ResolvedRequest;
   try {
     resolved = resolveRequest(path, urlQuery, rawRequest);
-  } catch (e) {
+  } catch (err) {
     drainRequestBody(res);
     state.replied = true;
-    fatalFail(res, state, respHeaders, toRpcError(e));
+    fatalFail(res, state, respHeaders, toRpcError(err));
     return;
   }
 
@@ -189,23 +181,27 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
-    } catch (e) {
+    } catch (err) {
       state.replied = true;
-      fatalFail(res, state, respHeaders, e as RpcError<string>);
+      fatalFail(res, state, respHeaders, err as RpcError<string>);
       return;
     }
 
     const context = createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
-    dispatchWithContext(context, rawRequest, res)
+    answerWith(dispatchWithContext(context, rawRequest, res));
+  };
+
+  const answerWith = (dispatched: Promise<MionResponse>) => {
+    dispatched
       .then((mionResponse) => {
         if (state.replied) return;
         state.replied = true;
         reply(res, state, mionResponse);
       })
-      .catch((e) => {
+      .catch((err) => {
         if (state.replied) return;
         state.replied = true;
-        fatalFail(res, state, respHeaders, toRpcError(e));
+        fatalFail(res, state, respHeaders, toRpcError(err));
       });
   };
 
@@ -224,8 +220,8 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   res.collectBody(resolved.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {
-      state.replied = true;
-      fatalFail(res, state, respHeaders, requestPayloadTooLarge());
+      // the route resolved, so the refusal still runs the chain's alwaysRun members
+      answerWith(dispatchPlatformError(resolved, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res));
       return;
     }
 

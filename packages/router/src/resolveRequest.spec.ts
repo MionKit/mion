@@ -58,6 +58,7 @@ describe('resolveRequest', () => {
     const resolved = resolveRequest('/nope', undefined, {});
     const chain = resolved.executionChain;
     expect(resolved.readsBody).toBe(false);
-    expect(chain.methods[chain.routeIndex].id).toEqual(MION_ROUTES.notFound);
+    expect(chain.routeIndex).toEqual(-1); // the chain has no route, it only answers
+    expect(chain.methods[0].id).toEqual(MION_ROUTES.notFound);
   });
 });

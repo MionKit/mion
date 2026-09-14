@@ -109,6 +109,10 @@ export type HeadersMiddleFnOptions = MiddleFnOptions;
 export type RawMiddleFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'alwaysRun'>>;
 
 export interface MethodsExecutionChain {
+  /** Where the route sits in `methods`. -1 on mion's own not-found chains, which answer without a
+   *  route, so anything reading `methods[routeIndex]` must exclude them (both readers do today: the
+   *  maxBodySize cap walks the flat router, which never holds one, and the body parser returns early
+   *  on `readsBody`). */
   routeIndex: number;
   methods: RemoteMethod[];
   /** Precalculated serializer code for the route's response body type */

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {createMionRouter} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
@@ -269,5 +269,66 @@ describe('bun router should', () => {
     mion.initRoutes({changeUserName, getDate, updateHeaders});
     setBunHttpOpts({port});
     server = await startBunServer();
+  });
+});
+
+// A body this adapter refuses is still a request the chain sees: it runs the members that declare
+// `alwaysRun` (an access log, a rate limiter) and nothing else. Bun.serve can also refuse the body
+// natively before mion is called, and then there is no chain to run and no mion envelope either.
+describe('bun: a refused body runs the alwaysRun middleFns', () => {
+  type User = {name: string; surname: string};
+  const seen: string[] = [];
+  const refusedPort = 8085;
+  let server: Server<any>;
+
+  beforeAll(async () => {
+    // the router is a once-per-process singleton: reset it before building this suite's own
+    resetRouter();
+    resetBunHttpOpts();
+    const mion = createMionRouter({basePath: 'api/'});
+    const echo = mion.route((ctx: CallContext, user: User): User => user);
+    const plainStart = mion.rawMiddleFn((ctx: CallContext) => {
+      seen.push(`start:${ctx.path}`);
+    });
+    const accessLog = mion.rawMiddleFn(
+      (ctx: CallContext) => {
+        seen.push(`log:${ctx.response.statusCode}`);
+      },
+      {alwaysRun: true}
+    );
+    // `maxRequestBodySize` is the LARGEST route limit, so `roomy` lifts Bun's own ceiling clear of
+    // the test body. Without it every chain falls back to 64, Bun.serve refuses the body natively
+    // and mion is never called, which is exactly what this suite has to rule out.
+    const roomy = mion.route((ctx: CallContext, user: User): User => user, {maxBodySize: 1_000_000});
+    addStartMiddleFns({plainStart});
+    addEndMiddleFns({accessLog});
+    mion.initRoutes({echo, roomy});
+    setBunHttpOpts({port: refusedPort, maxBodySize: 64});
+    server = await startBunServer();
+  });
+
+  afterAll(() => void server.stop());
+
+  test('a body over the limit answers 413 through the chain, running only the alwaysRun middleFns', async () => {
+    seen.length = 0;
+    const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
+      method: 'POST',
+      body: JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}),
+    });
+    expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+    const errors = (await response.json())[MION_ROUTES.thrownErrors];
+    expect(errors[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
+    expect(errors['mionDeserializeRequest']).toBeUndefined();
+    expect(seen).toEqual(['log:413']);
+  });
+
+  test('a body inside the limit still runs the whole chain', async () => {
+    seen.length = 0;
+    const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
+      method: 'POST',
+      body: '{"echo":[{"name":"a","surname":"b"}]}',
+    });
+    expect(response.status).toBe(200);
+    expect(seen).toEqual(['start:/api/echo', 'log:200']);
   });
 });

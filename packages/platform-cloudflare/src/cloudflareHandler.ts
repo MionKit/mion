@@ -7,9 +7,11 @@
 
 import {
   dispatchWithContext,
+  dispatchPlatformError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
+  toRpcError,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
@@ -73,7 +75,20 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
     if (resolved.readsBody) {
-      rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.text);
+      try {
+        rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.text);
+      } catch (err) {
+        // the route resolved, so a refused body still runs the chain's alwaysRun members
+        const refused = await dispatchPlatformError(
+          resolved,
+          toRpcError(err),
+          req.headers,
+          responseHeaders,
+          req,
+          platformContext
+        );
+        return reply(refused, responseHeaders);
+      }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
       if (queryBody) {
         rawBody = queryBody.rawBody;
@@ -83,16 +98,8 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     const context = createContextFromResolved(resolved, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, platformContext);
     return reply(platformResp, responseHeaders);
-  } catch (e) {
-    const error =
-      e instanceof RpcError
-        ? e
-        : new FatalError({
-            publicMessage: 'Unknown Error',
-            type: 'unknown-error',
-            originalError: e as Error,
-          });
-    return fatalFail(error, responseHeaders);
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
   }
 }
 
