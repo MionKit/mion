@@ -114,7 +114,9 @@ func TestCompactFromJsonModule_NestedObjectUnionUnwraps(t *testing.T) {
 
 // TestCompactForJsonModule_RecordNumberUnionStaysBare — nothing positionalizes
 // inside `{[key: string]: number} | {a: string}`, so compact keeps the
-// record-union optimisation: no envelope on either half.
+// record-union optimisation: no envelope on either half. Bare is about the WIRE,
+// not about the decoder doing nothing: an identity decode on a bare wire is how
+// compact used to hand a caller's undeclared keys to a handler.
 func TestCompactForJsonModule_RecordNumberUnionStaysBare(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildRecordNumberUnionFixture()}
 
@@ -122,9 +124,21 @@ func TestCompactForJsonModule_RecordNumberUnionStaysBare(t *testing.T) {
 	if strings.Contains(compact, "[-1, ") || strings.Contains(compact, "[0, ") {
 		t.Errorf("compact encode of a record/atomic-value union must stay envelope-free; got:\n%s", compact)
 	}
-	restore := renderModuleDefault(t, dump, "compactFromJson")
-	if !strings.Contains(restore, "_uni','union',,true)") {
-		t.Errorf("compact decode of a record/atomic-value union must stay identity (noop entry); got:\n%s", restore)
+	// Scoped to the UNION entry: the standalone object entry carries its own positional rebuild
+	// (`r0.a = v[0]`), which a module-wide substring would mistake for an envelope unwrap.
+	restore := unionEntry(t, renderModuleDefault(t, dump, "compactFromJson"))
+	if strings.Contains(restore, "const dec") {
+		t.Errorf("compact decode must stay envelope-free too (no index unwrap); got:\n%s", restore)
+	}
+	// Envelope-free is not the same as identity. The decode is the SAFE restore, matching the safe
+	// encode it mirrors: the OBJECT member is rebuilt from its declared shape, so an undeclared key
+	// a caller sent does not ride through, while the record arm keeps every key (its index
+	// signature declares them all) and only runs the prototype-name refusal.
+	if !strings.Contains(restore, ".a = v.a") {
+		t.Errorf("compact decode must rebuild the object member from its declared shape; got:\n%s", restore)
+	}
+	if !strings.Contains(restore, "for (const k0 in v)") {
+		t.Errorf("the record arm must keep its keys and only refuse prototype names; got:\n%s", restore)
 	}
 }
 
