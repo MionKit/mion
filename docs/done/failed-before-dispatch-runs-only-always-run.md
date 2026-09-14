@@ -60,8 +60,10 @@ notFoundChains.set(id, {routeIndex: -1, methods, serializer: getChainFraming(met
 ```
 
 Raw middleFns rather than routes: nobody declared the request, so there is no params or return
-contract to compile and the two `DEFAULT_WIRE` encoder pins are gone with them. `onExecutableError`
-keys the throw by the member's own id, so the wire shape is exactly what it was.
+contract to compile and the two `DEFAULT_WIRE` encoder pins are gone with them. The throw is keyed by
+the member's own id, so the wire shape is exactly what it was. Both are exported from
+`errors.routes.ts` for `router.ts` alone, so `index.ts` names `mionErrorsRoutes` explicitly rather
+than re-exporting the module, and neither thrower joins the published surface.
 
 `callContext.ts`'s `notFoundChain` reads that map instead of looking up a registered route path, so
 `/mion@notFound` and `/mion@batchNotFound` stop being reachable paths (they now answer 404 like any
@@ -69,15 +71,16 @@ other unknown path).
 
 ### The adapter refusal
 
-`recordArrivalError(context, key, err)` was extracted out of `onExecutableError` in
-`lib/dispatchError.ts`: the same `markFatal`, `markResponseFailed` and `thrownErrors` slot, keyed by
-a caller-given key rather than an executable id. `dispatch.ts` exports one new function beside the
-loop, never inside it:
+`recordUndeclaredError(context, key, err)` replaced `onExecutableError` in `lib/dispatchError.ts`:
+the same `markFatal`, `markResponseFailed` and `thrownErrors` slot, keyed by a caller-given key
+rather than an executable id. The five in-package callers pass `executable.id`, so the old wrapper
+was a pure forwarder and went. `dispatch.ts` exports one new function beside the loop, never inside
+it:
 
 ```ts
 export function dispatchPlatformError<Req, Resp>(resolved, platformError, reqHeaders, respHeaders, rawRequest, rawResponse?) {
   const context = createContextFromResolved(resolved, reqHeaders, respHeaders); // no body
-  recordArrivalError(context, MION_ROUTES.platformError, platformError);
+  recordUndeclaredError(context, MION_ROUTES.platformError, platformError);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }
 ```
@@ -97,7 +100,11 @@ export function dispatchPlatformError<Req, Resp>(resolved, platformError, reqHea
   - aws and gcloud were untouched: they hand the body over whole, so both already ran the chain.
 - node now destroys the request stream after the reply rather than before it; bun still sets
   `connection: close` on the 413.
-- bun, cloudflare and vercel each grew a local `toRpcError`, which they inlined twice before.
+- `toRpcError` moved to `lib/dispatchError.ts`, the module whose own header says it is for any
+  adapter layer. node and uws each carried a private copy and bun, cloudflare and vercel needed one,
+  so five identical copies became one export.
+- `notFoundChains` goes through `getOrCreateGlobal` like every other router map, so a dual module
+  load cannot leave one half with routes and no not-found chain.
 
 ### The wire shape did not change
 
@@ -120,14 +127,17 @@ request. Throwing from the head of the chain needs neither.
   thrower, and neither id is reachable as a path.
 - Per adapter (node, uws, bun, cloudflare, vercel): a body over the route's limit answers 413,
   an `alwaysRun` end middleFn sees it, a plain global does not, and the server still serves the next
-  request. Node covers both the declared `content-length` and the mid-read case; bun only asserts the
-  chain ran when the answer carries the mion envelope, since `Bun.serve` may refuse the body natively
-  before mion is called.
-- aws and gcloud pin that they already ran the chain. gcloud had no 413 or 404 coverage at all. On
-  aws the 413 is raised from INSIDE the chain (`mionDeserializeRequest`), so the plain global runs
-  first, which the test records as the real difference between an adapter refusal and a router one.
-- Updated: `batches.spec.ts`, `security.spec.ts`, `maxBodySize.spec.ts`, `resolveRequest.spec.ts`,
-  `router.spec.ts` (the flat router holds 2 fewer routes).
+  request. Node covers both the declared `content-length` and the mid-read case. Bun's suite declares
+  a second route with a large `maxBodySize`, which lifts `Bun.serve`'s own ceiling clear of the test
+  body: without it Bun refuses natively, mion is never called, and the assertions pin nothing.
+- aws and gcloud pin that they already ran the chain: both had no 413 or 404 coverage at all. On
+  both the 413 is raised from INSIDE the chain (`mionDeserializeRequest`), so the plain global runs
+  first, which the tests record as the real difference between an adapter refusal and a router one.
+- `notFound.spec.ts` also pins the guard inside `deserializeRequestBody`: that member declares
+  `alwaysRun`, so the dispatcher never skips it and a global middleFn that threw would otherwise
+  still have its body parsed.
+- Updated: the five adapter `security.spec.ts` files, `maxBodySize.spec.ts`, `resolveRequest.spec.ts`
+  and `router.spec.ts` (the flat router holds 2 fewer routes).
 
 ## Docs
 
@@ -137,7 +147,8 @@ request. Throwing from the head of the chain needs neither.
   section, both rewritten. Its link to the renamed heading moved with it.
 - `01.rpc/03.client/03.batch.md`: a third sentence stating the old rule, not named in the original
   plan.
-- `packages/examples/src/router/middleFns-unknown-paths.ts`: its rate limiter declares `alwaysRun`,
+- `packages/examples/src/router/middleFns-failed-requests.ts` (renamed, it covers three cases
+  now): its rate limiter declares `alwaysRun`,
   and it now also shows a global WITHOUT it being skipped.
 
 ## Out of scope
