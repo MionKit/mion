@@ -141,12 +141,79 @@ func TestCompactForJsonModule_ArrayOfObjectsOrStringWrapsArms(t *testing.T) {
 	}
 	clone := renderModule(t, dump, "prepareForJsonSafe")
 	if strings.Contains(clone, "[0,") {
-		t.Errorf("clone encode of an atomic-only JSON-compatible union must stay identity; got:\n%s", clone)
+		t.Errorf("clone encode of an atomic-only JSON-compatible union must stay envelope-free; got:\n%s", clone)
 	}
 
 	restore := renderModuleDefault(t, dump, "compactFromJson")
 	if !strings.Contains(restore, "= v[0]") || !strings.Contains(restore, "=== 0") {
 		t.Errorf("compact decode must unwrap and dispatch the array arm; got:\n%s", restore)
+	}
+}
+
+// unionEntry returns just the `'union'` entry of a rendered module. Assertions about the union arm
+// have to read this and not the whole module: the per-entry array and object factories carry their
+// own rebuild code whatever the union arm decided, so a module-wide substring match passes even
+// when the union short-circuits to `return v`.
+func unionEntry(t *testing.T, module string) string {
+	t.Helper()
+	for _, line := range strings.Split(module, "\n") {
+		if strings.Contains(line, "','union',") {
+			return line
+		}
+	}
+	t.Fatalf("no union entry in the rendered module:\n%s", module)
+	return ""
+}
+
+// TestAtomicOnlyUnion_StripsInsideItsMembers — `{c: string}[] | string` carries no merged object
+// branch, so the union looks like a pass-through. It is not: an ARRAY is an atomic member, and the
+// objects inside it can carry keys the type never declared. Both ends of `clone` must walk into the
+// member and rebuild those objects, and `direct` must too since it reads the same gate. Validation
+// does not cover this — undeclared keys on an object literal are accepted by design.
+func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
+	dump := protocol.Dump{RunTypes: buildArrayOfObjectsOrStringFixture()}
+
+	// The clone encode rebuilds each element rather than handing back the array it was given.
+	clone := unionEntry(t, renderModuleDefault(t, dump, "prepareForJsonSafe"))
+	if !strings.Contains(clone, ".map(") {
+		t.Errorf("clone encode must rebuild the array's elements so an undeclared key is dropped; got:\n%s", clone)
+	}
+	// The clone decode rebuilds each element from the declared shape on arrival.
+	restoreSafe := unionEntry(t, renderModuleDefault(t, dump, "restoreFromJsonSafe"))
+	if !strings.Contains(restoreSafe, "r0.c = ") {
+		t.Errorf("clone decode must rebuild the array's elements from the declared shape; got:\n%s", restoreSafe)
+	}
+	// The direct encoder shares the gate, so it walks too.
+	direct := unionEntry(t, renderModuleDefault(t, dump, "stringifyJson"))
+	if !strings.Contains(direct, `"c":`) {
+		t.Errorf("direct encode must write the declared members, not stringify the raw value; got:\n%s", direct)
+	}
+	// The mutate pair is the control: it keeps undeclared keys on purpose, both ways, so its entry
+	// stays the noop short form (a trailing `,,true` and no body at all).
+	for _, family := range []string{"prepareForJson", "restoreFromJson"} {
+		if entry := unionEntry(t, renderModuleDefault(t, dump, family)); !strings.Contains(entry, ",,true)") {
+			t.Errorf("[%s] mutate must keep passing the value through untouched; got:\n%s", family, entry)
+		}
+	}
+}
+
+// TestPureAtomicUnion_StaysCompiledAway — the optimisation the gate exists for. A union with no
+// object anywhere in any member has nothing to strip, so it must still compile away to nothing.
+func TestPureAtomicUnion_StaysCompiledAway(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("num")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("num")},
+	}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{str, num, union}}
+
+	for _, family := range []string{"prepareForJsonSafe", "restoreFromJsonSafe"} {
+		entry := unionEntry(t, renderModuleDefault(t, dump, family))
+		if strings.Contains(entry, "typeof v ===") {
+			t.Errorf("[%s] a pure atomic union must compile to nothing, not a dispatch chain; got:\n%s", family, entry)
+		}
 	}
 }
 
