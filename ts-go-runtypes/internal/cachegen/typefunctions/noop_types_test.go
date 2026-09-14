@@ -467,6 +467,49 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 	}
 }
 
+// TestNoopType_RestoreFromJsonSafe pins the rjs arm — restoreFromJson's rules with every arm that
+// REBUILDS forced false. The union rows are the ones that matter: rjs must answer false wherever an
+// undeclared key can hide, including inside an ATOMIC member, because an array member means the
+// layout carries no ObjectMembers at all and the union would otherwise short-circuit to identity.
+//
+// A wrong `true` here is not a missed optimisation, it is data corruption: this emitter sits on the
+// walker's dispatch gate, so a false positive replaces the child call with empty code and the
+// rebuild never runs at any nested position.
+func TestNoopType_RestoreFromJsonSafe(t *testing.T) {
+	ctx, types := noopPredicateTypes(t)
+	cases := []struct {
+		id   string
+		want bool
+	}{
+		{"str", true},
+		{"arrStr", true},
+		{"uAt", true},         // every member an atomic that carries no keys
+		{"uObjNest", false},   // rj says true — a merged member holds a nested object
+		{"uArrObjStr", false}, // rj says true — the object hides inside the ARRAY member
+		{"uRecObj", false},    // rj says true — the record and the object both carry keys
+		{"recA", false},       // the key loop with the prototype-name refusal always ships
+		{"objCompat", false},  // every object rebuilds, that is what strips
+		{"arrCO", false},      // array of objects — each element rebuilds
+		{"dat", false},
+		{"und", false},
+		{"lit", true},
+	}
+	for _, c := range cases {
+		t.Run(c.id, func(t *testing.T) {
+			if got := isNoopForRestoreJsonSafe(types[c.id], ctx); got != c.want {
+				t.Errorf("isNoopForRestoreJsonSafe(%s) = %v, want %v", c.id, got, c.want)
+			}
+		})
+	}
+	// The divergence pin: the preserving decoder round-trips these unions raw, and the stripping one
+	// must not. Delete this and the two predicates can drift back together unnoticed.
+	for _, id := range []string{"uObjNest", "uArrObjStr", "uRecObj"} {
+		if !isNoopForRestoreJson(types[id], ctx) {
+			t.Errorf("isNoopForRestoreJson(%s) = false, want true (the preserving decoder round-trips it raw)", id)
+		}
+	}
+}
+
 // TestNoopType_ToBinary pins the tb arm: literal-only graphs write nothing;
 // everything else writes bytes (even undefined writes its sentinel).
 func TestNoopType_ToBinary(t *testing.T) {

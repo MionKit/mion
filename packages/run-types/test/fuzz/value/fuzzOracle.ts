@@ -89,6 +89,10 @@ export interface FuzzTarget {
    *  two-sided equality O18 is for the fused validator. **/
   parse?: (value: unknown) => unknown;
   restoreFromJson?: (value: unknown) => unknown;
+  /** The STRIPPING restore (`rjs`), mion's `clone` decoder. Recovered through a marker wrapper like
+   *  `restoreFromJson`, since the primitive has no createX factory. O26 holds it to the stronger
+   *  contract: an undeclared wire key comes back GONE, not blanked. **/
+  restoreFromJsonSafe?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -153,6 +157,7 @@ export type OracleId =
   | 'O23'
   | 'O24'
   | 'O25'
+  | 'O26'
   | 'TR1'
   | 'TR2'
   | 'TR3'
@@ -489,6 +494,96 @@ export function checkUnknownKeysStripAgree(target: FuzzTarget, value: unknown, c
       value
     );
   }
+  return null;
+}
+
+/** survivingPlantedKeys — the paths of every planted key still present as an OWN key.
+ *  `Object.hasOwn` semantics rather than a value check on purpose: a key set to `undefined` is
+ *  still there, and telling those two apart is this oracle's whole job. **/
+function survivingPlantedKeys(value: unknown, path: RTValidationErrorPathSegment[] = [], depth = 0): string[] {
+  if (depth > 12 || value === null || typeof value !== 'object') return [];
+  if (value instanceof Date || value instanceof RegExp) return [];
+  const out: string[] = [];
+  if (value instanceof Map) {
+    let index = 0;
+    for (const [key, entry] of value) {
+      out.push(...survivingPlantedKeys(key, [...path, {key: index, failed: 'mapKey'}], depth + 1));
+      out.push(...survivingPlantedKeys(entry, [...path, {key: index, failed: 'mapValue'}], depth + 1));
+      index++;
+    }
+    return out;
+  }
+  if (value instanceof Set) {
+    let index = 0;
+    for (const item of value) {
+      out.push(...survivingPlantedKeys(item, [...path, {key: index, failed: 'setKey'}], depth + 1));
+      index++;
+    }
+    return out;
+  }
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) out.push(...survivingPlantedKeys(value[i], [...path, i], depth + 1));
+    return out;
+  }
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (key.startsWith(UNKNOWN_KEY_PREFIX)) out.push(pathKey([...path, key]));
+    else out.push(...survivingPlantedKeys(record[key], [...path, key], depth + 1));
+  }
+  return out;
+}
+
+/** O26 — the STRIPPING decoder deletes an undeclared wire key rather than blanking it.
+ *
+ *  O25's subject is the default `strip` composite, which sets an undeclared key to `undefined` and
+ *  leaves it in place, so that oracle normalises both sides through `withoutBlankedKeys` before
+ *  comparing. `rjs` rebuilds each object from the declared shape instead, so the key is genuinely
+ *  gone, and normalising here would hide a regression back to blanking.
+ *
+ *  It plants on the WIRE, which is what makes it reach where the type walker cannot: `plantWireKeys`
+ *  consults no type, so it writes into a union arm's payload and into an array element the walker
+ *  refuses to descend into. That is exactly where the clone pair was found leaking. It shares O25's
+ *  carve-out gate for the same reason O25 needs one: an index signature DECLARES every key, so a
+ *  planted key there is not undeclared and a correct decoder keeps it. **/
+export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
+  const {jsonEncode, restoreFromJsonSafe} = target;
+  if (!jsonEncode || !restoreFromJsonSafe) return null;
+  let wire: string | undefined;
+  try {
+    wire = jsonEncode(deepCloneForRoundTrip(value));
+  } catch {
+    return null; // O7 owns encode failures
+  }
+  if (typeof wire !== 'string') return null;
+  let planted: unknown;
+  try {
+    planted = JSON.parse(wire);
+    if (plantWireKeys(planted) === 0) return null;
+  } catch {
+    return null; // a wire we cannot re-serialize is not this oracle's subject
+  }
+  // The restore rewrites its input in place, so it gets its own copy.
+  let restored: unknown;
+  try {
+    restored = restoreFromJsonSafe(JSON.parse(JSON.stringify(planted)));
+  } catch (err) {
+    return violation(
+      'O26',
+      target,
+      ctx,
+      `the stripping decoder threw on a wire carrying undeclared keys: ${errMsg(err)}`,
+      planted
+    );
+  }
+  const survivors = survivingPlantedKeys(restored);
+  if (survivors.length > 0)
+    return violation(
+      'O26',
+      target,
+      ctx,
+      `the stripping decoder left ${survivors.length} undeclared wire key(s): [${survivors.join(', ')}]`,
+      restored
+    );
   return null;
 }
 

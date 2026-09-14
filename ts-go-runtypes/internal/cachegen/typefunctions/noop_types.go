@@ -928,12 +928,37 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 
 	case reflection.KindUnion:
 		// Mirrors the emit's atomicOnlyJsonIdentity() gate: identity only when no
-		// member carries an object shape to rebuild and none envelopes.
-		return unionJsonNoop(rt, ctx) && !anyUnionMemberEnvelopes(rt, ctx)
+		// member carries an object shape to rebuild, none envelopes, and no member
+		// can hide an undeclared key. Miss the last conjunct and this claims noop
+		// while the emit walks, which is the false positive the contract at the top
+		// of this file calls data corruption: the dispatch gate would replace the
+		// child call with empty code and the rebuild would never run.
+		return unionJsonNoop(rt, ctx) && !anyUnionMemberEnvelopes(rt, ctx) && allUnionMembersExtraProof(rt, ctx)
 	}
 	// undefined/void (force-rebind), bigint/symbol/regexp (value transforms),
 	// never/promise/function kinds (unsupported): not noop.
 	return false
+}
+
+// allUnionMembersExtraProof mirrors the emit's AtomicsExtraProof conjunct. Hand-rolled over the
+// members for the same reason as anyUnionMemberEnvelopes: buildFlatLayout emits drop diagnostics a
+// predicate must not duplicate. Strictly stronger than the emit's version, which only asks the
+// ATOMIC bucket, so predicate-true still implies emit-noop, the safe direction.
+func allUnionMembersExtraProof(rt *reflection.RunType, ctx *EmitContext) bool {
+	children := rt.SafeUnionChildren
+	if len(children) == 0 {
+		children = rt.Children
+	}
+	for _, child := range children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil || isStrippedUnionMember(resolved) {
+			continue
+		}
+		if !atomicMemberExtraProof(resolved, ctx) {
+			return false
+		}
+	}
+	return true
 }
 
 // anyUnionMemberEnvelopes mirrors buildFlatLayout's ObjectMembers bucketing
