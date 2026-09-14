@@ -31,8 +31,9 @@ export const mionErrorsRoutes = {
   }, DEFAULT_WIRE),
   /**
    * Platform error route for strongly typing platform/adapter errors.
-   * Platform errors occur before reaching the router or outside the router
-   * and are platform/adapter related (e.g., HTTP server errors, connection issues).
+   * Platform errors are raised by an adapter rather than a handler: before the router sees the
+   * request (an HTTP server error, a connection issue), or after the route resolved (a body the
+   * adapter refused, which then runs the chain's alwaysRun members).
    * This route is used for serialization/deserialization of platform errors.
    * This also prevents users to register a route with the same name.
    */

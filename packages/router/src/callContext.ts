@@ -130,7 +130,7 @@ function notFoundChain(chainId: string, path: string, urlQuery: string | undefin
     throw new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'not-found',
-      publicMessage: 'Not-found route is not registered. This should never happen.',
+      publicMessage: 'Not-found chain is not registered. This should never happen.',
     });
   }
   return {
