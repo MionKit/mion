@@ -13,7 +13,7 @@ import {rawMiddleFn} from '../lib/handlers.ts';
 import {getRouteExecutable} from '../router.ts';
 import {RpcError, FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
-import {onExecutableError} from '../lib/dispatchError.ts';
+import {recordUndeclaredError} from '../lib/dispatchError.ts';
 
 // ############# PUBLIC METHODS #############
 
@@ -161,7 +161,7 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
     originalError: e,
     errorData: {methodId: method.id},
   });
-  onExecutableError(context, method, err);
+  recordUndeclaredError(context, method.id, err);
 }
 
 /** True when a slot holds an error the route's return type does not declare (a batch mapping step
@@ -218,7 +218,7 @@ function onPrepareForJsonExecutableError(context: CallContext, method: RemoteMet
     originalError: e,
     errorData: {methodId: method.id},
   });
-  onExecutableError(context, method, err);
+  recordUndeclaredError(context, method.id, err);
 }
 
 function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any {
