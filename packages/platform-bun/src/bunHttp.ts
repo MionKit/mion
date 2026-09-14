@@ -11,6 +11,7 @@ import {
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
+  toRpcError,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
@@ -72,8 +73,8 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     if (resolved.readsBody) {
       try {
         rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.buffered);
-      } catch (e) {
-        const refusal = toRpcError(e);
+      } catch (err) {
+        const refusal = toRpcError(err);
         // a body refused mid-flight leaves unread chunks on the socket: close it with the answer so
         // they are never parsed as the next request of a kept-alive connection
         if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
@@ -90,8 +91,8 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     const context = createContextFromResolved(resolved, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, undefined);
     return reply(platformResp, responseHeaders);
-  } catch (e) {
-    return fatalFail(toRpcError(e), responseHeaders);
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
   }
 }
 
@@ -168,17 +169,6 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
     Bun.gc(false);
   }
   return server;
-}
-
-/** Whatever was thrown, as the mion error the wire carries. */
-function toRpcError(e: unknown): RpcError<string> {
-  return e instanceof RpcError
-    ? e
-    : new FatalError({
-        publicMessage: 'Unknown Error',
-        type: 'unknown-error',
-        originalError: e as Error,
-      });
 }
 
 // only called whe there is an htt error or weird unhandled route errors

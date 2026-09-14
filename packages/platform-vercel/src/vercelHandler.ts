@@ -11,6 +11,7 @@ import {
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
+  toRpcError,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
@@ -68,9 +69,9 @@ async function handleRequest(req: Request): Promise<Response> {
     if (resolved.readsBody) {
       try {
         rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.stream);
-      } catch (e) {
+      } catch (err) {
         // the route resolved, so a refused body still runs the chain's alwaysRun members
-        const refused = await dispatchPlatformError(resolved, toRpcError(e), req.headers, responseHeaders, req, undefined);
+        const refused = await dispatchPlatformError(resolved, toRpcError(err), req.headers, responseHeaders, req, undefined);
         return reply(refused, responseHeaders);
       }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
@@ -82,8 +83,8 @@ async function handleRequest(req: Request): Promise<Response> {
     const context = createContextFromResolved(resolved, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, undefined);
     return reply(platformResp, responseHeaders);
-  } catch (e) {
-    return fatalFail(toRpcError(e), responseHeaders);
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
   }
 }
 
@@ -97,17 +98,6 @@ export function createVercelHandler(options?: Partial<VercelHandlerOptions>) {
     DELETE: handleRequest,
     PATCH: handleRequest,
   };
-}
-
-/** Whatever was thrown, as the mion error the wire carries. */
-function toRpcError(e: unknown): RpcError<string> {
-  return e instanceof RpcError
-    ? e
-    : new FatalError({
-        publicMessage: 'Unknown Error',
-        type: 'unknown-error',
-        originalError: e as Error,
-      });
 }
 
 function fatalFail(err: RpcError<string>, responseHeaders: any): Response {

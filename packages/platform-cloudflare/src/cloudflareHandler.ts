@@ -11,6 +11,7 @@ import {
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
+  toRpcError,
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
@@ -76,9 +77,16 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     if (resolved.readsBody) {
       try {
         rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.text);
-      } catch (e) {
+      } catch (err) {
         // the route resolved, so a refused body still runs the chain's alwaysRun members
-        const refused = await dispatchPlatformError(resolved, toRpcError(e), req.headers, responseHeaders, req, platformContext);
+        const refused = await dispatchPlatformError(
+          resolved,
+          toRpcError(err),
+          req.headers,
+          responseHeaders,
+          req,
+          platformContext
+        );
         return reply(refused, responseHeaders);
       }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
@@ -90,8 +98,8 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     const context = createContextFromResolved(resolved, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, platformContext);
     return reply(platformResp, responseHeaders);
-  } catch (e) {
-    return fatalFail(toRpcError(e), responseHeaders);
+  } catch (err) {
+    return fatalFail(toRpcError(err), responseHeaders);
   }
 }
 
@@ -101,17 +109,6 @@ export function createCloudflareHandler<Env = unknown>(options?: Partial<Cloudfl
   return {
     fetch: (req: Request, env?: Env, ctx?: CloudflareExecutionContext) => handleRequest<Env>(req, env, ctx),
   };
-}
-
-/** Whatever was thrown, as the mion error the wire carries. */
-function toRpcError(e: unknown): RpcError<string> {
-  return e instanceof RpcError
-    ? e
-    : new FatalError({
-        publicMessage: 'Unknown Error',
-        type: 'unknown-error',
-        originalError: e as Error,
-      });
 }
 
 function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
