@@ -49,7 +49,8 @@ export type RuleName =
   | 'strong-typed-routes'
   | 'no-throw-in-handlers'
   | 'returned-error-type'
-  | 'no-unsafe-property-names';
+  | 'no-unsafe-property-names'
+  | 'unreachable-strict-types';
 
 // RuleSpec is the single source of truth for a rule: the plugin namespace it is
 // registered under, its default level, which cheap text pre-filter admits a
@@ -322,6 +323,14 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     description:
       'A property named __proto__, prototype or constructor in any interface, type literal or class. Those names are never data: every decoder refuses them on the wire and the build fails for any type a route compiles with one. This reports the declaration, so it fires for types no route reaches yet',
   },
+  {
+    name: 'unreachable-strict-types',
+    namespace: '@mionjs',
+    default: 'error',
+    gate: 'compiler',
+    description:
+      'A route setting strictTypes on a params wire that carries no key names. The compact wire sends an object as an array of its values and rebuilds it from positions, refusing a keyed one, so no name the caller wrote can reach the handler and the route compiles no unknown-key check at all. A router-wide strictTypes is left alone: it is a default for the routes that can use it',
+  },
 ];
 
 export const ALL_RULE_NAMES: readonly RuleName[] = RULE_SPECS.map((spec) => spec.name);
@@ -442,6 +451,8 @@ function mionRouteFamily(code: string): FamilyRules {
       return {primary: 'returned-error-type'};
     case 'MRT005':
       return {primary: 'no-unsafe-property-names'};
+    case 'MRT006':
+      return {primary: 'unreachable-strict-types'};
     // MRT001 (missing return type) + MRT002 (missing parameter type).
     default:
       return {primary: 'strong-typed-routes'};

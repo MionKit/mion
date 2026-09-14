@@ -24,20 +24,22 @@ const routerDts = `declare module '@mionjs/router' {
   export interface HeadersSubset<K extends string> { headers: Record<K, string> }
   export type Handler = (ctx: CallContext, ...params: any[]) => any;
   export type HeaderHandler = (ctx: CallContext, headers: HeadersSubset<any>, ...params: any[]) => any;
-  export interface RouteDef<H> { handler: H }
-  export interface RouteHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface MiddleFnHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface HeadersFnHelper { <H extends HeaderHandler>(handler: H, opts?: unknown): RouteDef<H> }
+  // RO is the route's own options literal, O the factory's; the definition the
+  // call answers with carries both, which is where the wire rules read them.
+  export interface RouteDef<H, RO = unknown, O = unknown> { handler: H; options?: RO; readonly routerOptions?: O }
+  export interface RouteHelper<O = unknown> { <H extends Handler, const RO = unknown>(handler: H, opts?: RO): RouteDef<H, RO, O> }
+  export interface MiddleFnHelper<O = unknown> { <H extends Handler, const RO = unknown>(handler: H, opts?: RO): RouteDef<H, RO, O> }
+  export interface HeadersFnHelper<O = unknown> { <H extends HeaderHandler, const RO = unknown>(handler: H, opts?: RO): RouteDef<H, RO, O> }
   export interface RawMiddleFnHelper { <H extends (...a: any[]) => any>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface MionRouter {
-    readonly route: RouteHelper;
-    readonly query: RouteHelper;
-    readonly mutation: RouteHelper;
-    readonly middleFn: MiddleFnHelper;
-    readonly headersFn: HeadersFnHelper;
+  export interface MionRouter<O = unknown> {
+    readonly route: RouteHelper<O>;
+    readonly query: RouteHelper<O>;
+    readonly mutation: RouteHelper<O>;
+    readonly middleFn: MiddleFnHelper<O>;
+    readonly headersFn: HeadersFnHelper<O>;
     readonly rawMiddleFn: RawMiddleFnHelper;
   }
-  export function createMionRouter(opts?: unknown): MionRouter;
+  export function createMionRouter<const O = unknown>(opts?: O): MionRouter<O>;
   // The package's OWN internal helper bodies (lib/handlers.ts), typed by the same
   // interfaces, which is how the framework declares its built-in routes.
   export const route: RouteHelper;
@@ -495,4 +497,74 @@ func TestUnsafePropertyNames_FiresWithoutAnyRoute(t *testing.T) {
 	if got := found[0].Args; len(got) != 1 || got[0] != "prototype" {
 		t.Fatalf("args = %v, want [prototype]", got)
 	}
+}
+
+// TestUnreachableStrictTypes_CompactRouteLiteral — `compact` carries no key names, so a
+// route asking for `strictTypes` there is asking for a check that can never run.
+// Reported for the route's OWN literal only.
+func TestUnreachableStrictTypes_CompactRouteLiteral(t *testing.T) {
+	assertCodes(t, checkBody(t,
+		"export const bad = mion.route((ctx, name: string): string => name, {encoder: 'compact', strictTypes: true});"),
+		diagnostics.CodeRouteStrictTypesMoot)
+
+	// Per direction: only the PARAMS wire decides, the answer side is written by
+	// the handler and carries no caller keys whatever it rides.
+	assertCodes(t, checkBody(t,
+		"export const bad = mion.route((ctx, name: string): string => name, {encoder: {params: 'compact', return: 'clone'}, strictTypes: true});"),
+		diagnostics.CodeRouteStrictTypesMoot)
+	assertCodes(t, checkBody(t,
+		"export const ok = mion.route((ctx, name: string): string => name, {encoder: {params: 'clone', return: 'compact'}, strictTypes: true});"))
+
+	// A keyed wire keeps the check, named or defaulted.
+	assertCodes(t, checkBody(t,
+		"export const ok = mion.route((ctx, name: string): string => name, {encoder: 'clone', strictTypes: true});"))
+	assertCodes(t, checkBody(t,
+		"export const ok = mion.route((ctx, name: string): string => name, {strictTypes: true});"))
+
+	// Compact on its own says nothing, and neither does strictTypes: false.
+	assertCodes(t, checkBody(t,
+		"export const ok = mion.route((ctx, name: string): string => name, {encoder: 'compact'});"))
+	assertCodes(t, checkBody(t,
+		"export const ok = mion.route((ctx, name: string): string => name, {encoder: 'compact', strictTypes: false});"))
+}
+
+// TestUnreachableStrictTypes_RouterWideStrictTypesIsNotReported — turning `strictTypes`
+// on for a whole router is a default for the routes that can use it, not a claim
+// about the compact one among them. The route's own literal still is.
+func TestUnreachableStrictTypes_RouterWideStrictTypesIsNotReported(t *testing.T) {
+	body := `import {createMionRouter} from '@mionjs/router';
+const strict = createMionRouter({strictTypes: true});
+export const inherited = strict.route((ctx, name: string): string => name, {encoder: 'compact'});
+`
+	assertCodes(t, check(t, map[string]string{"routes.ts": body}))
+
+	own := `import {createMionRouter} from '@mionjs/router';
+const strict = createMionRouter({strictTypes: true});
+export const own = strict.route((ctx, name: string): string => name, {encoder: 'compact', strictTypes: true});
+`
+	assertCodes(t, check(t, map[string]string{"routes.ts": own}), diagnostics.CodeRouteStrictTypesMoot)
+}
+
+// TestUnreachableStrictTypes_RouterWideCompactReachesTheRoute — the wire falls back to
+// the factory literal, so a route that names no encoder still rides compact and
+// its own `strictTypes` is still moot.
+func TestUnreachableStrictTypes_RouterWideCompactReachesTheRoute(t *testing.T) {
+	body := `import {createMionRouter} from '@mionjs/router';
+const packed = createMionRouter({encoder: 'compact'});
+export const bad = packed.route((ctx, name: string): string => name, {strictTypes: true});
+export const overridden = packed.route((ctx, name: string): string => name, {encoder: 'clone', strictTypes: true});
+`
+	assertCodes(t, check(t, map[string]string{"routes.ts": body}), diagnostics.CodeRouteStrictTypesMoot)
+}
+
+// TestUnreachableStrictTypes_EveryHelper — middleFn and headersFn ride the same wires
+// as their route, so the rule reaches them too.
+func TestUnreachableStrictTypes_EveryHelper(t *testing.T) {
+	body := `import {createMionRouter, HeadersSubset} from '@mionjs/router';
+const mion = createMionRouter();
+export const guard = mion.middleFn((ctx, token: string): string => token, {encoder: 'compact', strictTypes: true});
+export const tagged = mion.headersFn((ctx, h: HeadersSubset<'x-tag'>, name: string): string => name, {encoder: 'compact', strictTypes: true});
+`
+	assertCodes(t, check(t, map[string]string{"routes.ts": body}),
+		diagnostics.CodeRouteStrictTypesMoot, diagnostics.CodeRouteStrictTypesMoot)
 }

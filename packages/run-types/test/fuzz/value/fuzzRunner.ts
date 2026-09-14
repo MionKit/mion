@@ -33,6 +33,7 @@ import {
   checkUnknownKeysPlanted,
   checkUnknownKeysStripAgree,
   checkWireStripBlind,
+  checkWireCompactBlind,
   type FuzzTarget,
   type Violation,
 } from './fuzzOracle.ts';
@@ -55,6 +56,8 @@ export interface UnknownKeyCoverage {
   carveOut: number;
   /** Values whose encoded wire was planted on and decoded back (O25). **/
   wire: number;
+  /** The same over the compact pair (O26). **/
+  compactWire: number;
 }
 
 export interface FuzzReport {
@@ -78,7 +81,7 @@ const DEFAULT_ITERATIONS = 200;
 export function runFuzz(targets: FuzzTarget[], options: FuzzOptions = {}): FuzzReport {
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const violations: Violation[] = [];
-  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0};
+  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0, compactWire: 0};
   // One round per TARGET, `iterations` guarded steps inside it — target-major,
   // so violations still arrive grouped by target. The step label is the target
   // title, which is what makes two targets draw disjoint sequences.
@@ -103,7 +106,7 @@ export function runFuzzForDuration(
   onViolation?: (v: Violation) => void
 ): FuzzReport {
   const violations: Violation[] = [];
-  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0};
+  const unknownKeys: UnknownKeyCoverage = {flagged: 0, carveOut: 0, wire: 0, compactWire: 0};
   // One ROUND is a full pass over every target — the budget refuses to start a
   // round the remaining time cannot pay for, so the soak lands inside its wall
   // clock instead of overshooting by a whole round.
@@ -196,6 +199,8 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   if (!positions.some((position) => position.kind === 'carveOut')) {
     if (target.jsonEncode && target.jsonDecode) unknownKeys.wire++;
     push(out, checkWireStripBlind(target, valid, unknownCtx));
+    if (target.compactEncode && target.compactDecode) unknownKeys.compactWire++;
+    push(out, checkWireCompactBlind(target, valid, unknownCtx));
   }
   const planted = plantUnknownKey(target.schema, valid, Math.random);
   if (planted) {

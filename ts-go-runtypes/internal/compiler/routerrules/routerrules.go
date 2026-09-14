@@ -96,7 +96,12 @@ type handler struct {
 	// file it is linting: a position taken from another file would land on an
 	// unrelated line of this one. Findings on such a handler are reported at
 	// origin instead, which is where this file names it.
-	external  bool
+	external bool
+	// call is the helper call that declared the handler, nil on the two roads
+	// that have none (a `Handler`-typed const, a JSDoc tag). Rules about what
+	// the CALL says — its options literal, the router it was declared through —
+	// need it, and have nothing to say about a handler found the other ways.
+	call      *ast.Node
 	label     string
 	ctxParams int
 }
@@ -165,6 +170,7 @@ func CheckSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, so
 			found = append(found, scope.checkAnnotations(discovered)...)
 			found = append(found, scope.checkThrows(discovered)...)
 			found = append(found, scope.checkReturnedErrorType(discovered)...)
+			found = append(found, scope.checkUnreachableStrictTypes(discovered)...)
 		}
 	}
 	sortDiagnostics(found)

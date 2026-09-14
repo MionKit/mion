@@ -108,6 +108,7 @@ export const noReturn = mion.route((ctx, name: string) => name);
 export const untyped = mion.route((ctx, name): string => 'x');
 export const throws = mion.route((ctx, name: string): string => { throw new Error(name); });
 export const badError = mion.route((ctx, name: string): string | Error => 'x');
+export const mootStrict = mion.route((ctx, name: string): string => name, {encoder: 'compact', strictTypes: true});
 `;
 
 // The handlers live in one module and the routes that declare them in another,
@@ -135,6 +136,8 @@ export const typedConst: Handler = (ctx: unknown, name: string): string | RpcErr
 export const caught = mion.route((ctx, name: string): string => {
   try { throw new Error(name); } catch { return 'ok'; }
 });
+export const packed = mion.route((ctx, name: string): string => name, {encoder: 'compact'});
+export const strict = mion.route((ctx, name: string): string => name, {strictTypes: true});
 `;
 
 // A format pattern that uses a JS-only lookbehind and carries a mockSample
@@ -235,6 +238,7 @@ describe('configs.recommended — every rule at its family default', () => {
       'no-unsafe-property-names',
       'returned-error-type',
       'strong-typed-routes',
+      'unreachable-strict-types',
     ]);
     for (const spec of MION_SPECS) expect(rec.rules[`@mionjs/${spec.name}`]).toBe('error');
     // Every rule the mion plugin exposes must be addressable under that prefix.
@@ -472,6 +476,7 @@ describe.runIf(hasBinary())(
           ['no-throw-in-handlers', 'MRT003'],
           ['returned-error-type', 'MRT004'],
           ['no-unsafe-property-names', 'MRT005'],
+          ['unreachable-strict-types', 'MRT006'],
         ] as const) {
           const reports = mionReportsFor(ruleName, 'routes.ts');
           expect(reports.length, `${ruleName} reported nothing`).toBeGreaterThan(0);
@@ -493,6 +498,7 @@ describe.runIf(hasBinary())(
           'no-throw-in-handlers',
           'returned-error-type',
           'no-unsafe-property-names',
+          'unreachable-strict-types',
         ]) {
           expect(mionReportsFor(ruleName, 'clean-routes.ts'), `${ruleName} fired on a clean file`).toEqual([]);
         }

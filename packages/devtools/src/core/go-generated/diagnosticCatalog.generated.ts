@@ -797,6 +797,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'Writing `__proto__` on a plain object swaps its prototype instead of adding a\nkey, and a lookup of a missing `constructor` or `prototype` walks the\nprototype chain, so a wire that could carry one is a prototype-pollution\nvector. Every decoder refuses these names, and the build fails for any type a\nroute compiles with one.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property. A type that describes a real constructor and never\ncrosses the wire is the one legitimate case; silence the rule on that line and\nsay why.',
   },
+  MRT006: {
+    headline:
+      'mion `{1}` sets `strictTypes: true`, but its params ride the `{0}` wire, which carries no key names for the check to find.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'mionroute',
+    detail:
+      "The `compact` wire sends an object as an array of its values, so the key names\nnever travel, and the decoder rebuilds every object from the properties the type\ndeclares. Nothing a caller wrote can reach the handler under a name the type does\nnot declare, so the route compiles no unknown-key check and `strictTypes` has\nnothing left to do.\n\nThe route is NOT weaker for it: it already rejects everything `strictTypes` would\nhave. This is dead configuration, which is why it is a Warning.\n\nFix: drop the option, or move the route to a wire that carries key names:\n-  mion.route(handler, {encoder: 'compact', strictTypes: true});\n+  mion.route(handler, {encoder: 'compact'});\nor\n+  mion.route(handler, {encoder: 'clone', strictTypes: true});\n\nA router-wide `strictTypes` is never reported: it is a default for the routes\nthat can use it, not a claim about this one.",
+  },
   NE001: {
     headline:
       'Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.',

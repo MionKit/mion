@@ -27,6 +27,9 @@ interface Pet {
   tags?: string[];
 }
 
+// A union of object literals: the one shape compact keeps keyed on the wire.
+type Animal = {kind: 'cat'; lives: number} | {kind: 'dog'; goodBoy: boolean};
+
 const pet = (): Pet => ({name: 'rex', born: new Date('2020-01-02T03:04:05.000Z'), tags: ['good']});
 
 // the two factories this file declares routes through: no router-wide encoder, and a compact one
@@ -143,6 +146,61 @@ describe('encoder strategies at the router level', () => {
     });
   });
 
+  // The strictTypes pair follows the wire like every other slot. A `compact` route carries no key
+  // names on the wire at all, so there is nothing for an unknown-key check to find and the route
+  // compiles neither function. The answer side never compiles them on any wire: it is written by
+  // the handler, never by a caller, and nothing reads them.
+  describe('the unknown-key pair follows the wire', () => {
+    const cloneRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'clone'});
+    const mutateRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'mutate'});
+    const directRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'direct'});
+    const compactRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'compact'});
+    const compactParamsOnly = mion.route((ctx, p: Pet): Pet => p, {encoder: {params: 'compact', return: 'clone'}});
+    const compactReturnOnly = mion.route((ctx, p: Pet): Pet => p, {encoder: {params: 'clone', return: 'compact'}});
+    const compactGuard = compactMion.middleFn((ctx, p: Pet): Pet => p);
+
+    it('a keyed wire compiles the pair', () => {
+      mion.initRoutes({cloneRoute, mutateRoute, directRoute});
+      for (const id of ['cloneRoute', 'mutateRoute', 'directRoute']) {
+        const fns = getRouteExecutable(id)!.paramsJitFns;
+        expect([id, !!fns.hasUnknownKeys]).toEqual([id, true]);
+        expect([id, !!fns.unknownKeyErrors]).toEqual([id, true]);
+      }
+    });
+
+    it('a compact params wire compiles neither', () => {
+      mion.initRoutes({compactRoute, compactParamsOnly});
+      for (const id of ['compactRoute', 'compactParamsOnly']) {
+        const fns = getRouteExecutable(id)!.paramsJitFns;
+        expect([id, fns.hasUnknownKeys]).toEqual([id, undefined]);
+        expect([id, fns.unknownKeyErrors]).toEqual([id, undefined]);
+      }
+    });
+
+    it('only the params direction decides: a compact return keeps the params pair', () => {
+      mion.initRoutes({compactReturnOnly});
+      const fns = getRouteExecutable('compactReturnOnly')!.paramsJitFns;
+      expect(!!fns.hasUnknownKeys).toBe(true);
+      expect(!!fns.unknownKeyErrors).toBe(true);
+    });
+
+    it('a middleFn follows its router-wide wire too', () => {
+      compactMion.initRoutes({compactGuard});
+      const fns = getMiddleFnExecutable('compactGuard')!.paramsJitFns;
+      expect(fns.hasUnknownKeys).toBeUndefined();
+      expect(fns.unknownKeyErrors).toBeUndefined();
+    });
+
+    it('no wire compiles the pair for the answer side', () => {
+      mion.initRoutes({cloneRoute, mutateRoute, directRoute, compactRoute});
+      for (const id of ['cloneRoute', 'mutateRoute', 'directRoute', 'compactRoute']) {
+        const fns = getRouteExecutable(id)!.returnJitFns;
+        expect([id, fns.hasUnknownKeys]).toEqual([id, undefined]);
+        expect([id, fns.unknownKeyErrors]).toEqual([id, undefined]);
+      }
+    });
+  });
+
   describe('framing derived from the chain', () => {
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
     const directRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: {return: 'direct'}});
@@ -177,6 +235,30 @@ describe('encoder strategies at the router level', () => {
     const trimmedRoute = mion.route((ctx): Pick<Pet, 'name'> => wideRow as Pick<Pet, 'name'>);
     const mutateRoute = mion.route((ctx): Pick<Pet, 'name'> => ({...wideRow}) as Pick<Pet, 'name'>, {encoder: 'mutate'});
     const directRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'direct'});
+    const unionRoute = mion.route((ctx, a: Animal): Animal => a, {encoder: 'compact'});
+    // No transform anywhere, which is the shape the client's optimistic first request serves: it
+    // has no codec yet, so it sends plain keyed JSON and the value has to survive without one.
+    const plainCompact = mion.route((ctx, p: Pick<Pet, 'name'>): Pick<Pet, 'name'> => p, {encoder: 'compact'});
+
+    // A union member is the one shape compact keeps KEYED, so its key names DO travel and a caller
+    // could smuggle an undeclared one past validation, whose declared shape still matches. Both
+    // directions rebuild the member from its declared props, which is what lets a compact route
+    // skip the unknown-key check.
+    it('a union param on the compact wire drops what the type did not declare', async () => {
+      mion.initRoutes({unionRoute});
+      const exec = getRouteExecutable('unionRoute')!;
+      const encode = exec.paramsJitFns.json.encode.fn;
+      const wire = JSON.parse(JSON.stringify(encode([{kind: 'cat', lives: 9, extra: 'sent'} as Animal])));
+      expect(JSON.stringify(wire)).not.toContain('sent');
+
+      // the same shape hand-written by a caller who added a key of their own
+      const hostile = JSON.parse(JSON.stringify(wire));
+      const merged = (Array.isArray(hostile) ? hostile[0] : hostile) as unknown[];
+      (merged[1] as Record<string, unknown>).extra = 'smuggled';
+      const response = await dispatchJson('unionRoute', hostile);
+      expect(response.hasErrors).toBe(false);
+      expect(JSON.stringify(response.body.unionRoute)).not.toContain('smuggled');
+    });
 
     it('compact params arrive as positional arrays and the handler gets the objects back', async () => {
       mion.initRoutes({compactRoute});
@@ -195,12 +277,16 @@ describe('encoder strategies at the router level', () => {
       expect(decode(JSON.parse(JSON.stringify(encodedReturn)))).toEqual({...pet(), name: 'rex:hi'});
     });
 
-    it('keyed json to a compact route is rejected as invalid params, never guessed', async () => {
-      mion.initRoutes({compactRoute});
-      const response = await dispatchJson('compactRoute', [pet(), 'hi']);
-      expect(response.hasErrors).toBe(true);
-      const errors = response.body[MION_ROUTES.thrownErrors] as Record<string, {type: string}>;
-      expect(errors.compactRoute.type).toMatch(/serialization-error|validation-error/);
+    // The client's optimistic first request sends the keyed form to a route it has not fetched yet,
+    // so the decoder reads it, but it rebuilds the object from the DECLARED names rather than
+    // taking it as it came. Nothing else would stop an undeclared key: validation accepts a keyed
+    // object whose declared shape matches, and a compact route compiles no unknown-key check. The
+    // `born` Date still needs the real codec, which is what the second round trip brings.
+    it('keyed json to a compact route is rebuilt from the declared names, never taken as it came', async () => {
+      mion.initRoutes({plainCompact});
+      const response = await dispatchJson('plainCompact', [{name: 'rex', extra: 'sneaky'}]);
+      expect(response.hasErrors).toBe(false);
+      expect(response.body.plainCompact).toEqual(['rex']);
     });
 
     it('clone builds a fresh JSON-safe value and leaves the handler object untouched', async () => {

@@ -28,7 +28,7 @@ func (scope *fileScope) discoverHandlers() []handler {
 	claimed := map[*ast.Node]bool{}
 	// origin is the node in this file that declared the handler; a handler
 	// resolved to another module is reported there instead of at its own body.
-	claim := func(fn *ast.Node, origin *ast.Node, label string, ctxParams int) {
+	claim := func(fn *ast.Node, origin *ast.Node, call *ast.Node, label string, ctxParams int) {
 		if fn == nil || claimed[fn] {
 			return
 		}
@@ -37,6 +37,7 @@ func (scope *fileScope) discoverHandlers() []handler {
 			fn:        fn,
 			origin:    origin,
 			external:  ast.GetSourceFileOfNode(fn) != scope.sourceFile,
+			call:      call,
 			label:     label,
 			ctxParams: ctxParams,
 		})
@@ -53,19 +54,19 @@ func (scope *fileScope) discoverHandlers() []handler {
 				// The handler argument, not the whole call: a handler written
 				// inline is reported on itself, and one that came from another
 				// module is reported on the name this call passes.
-				claim(scope.handlerArgument(node), callee(node), label, ctxParams)
+				claim(scope.handlerArgument(node), callee(node), node, label, ctxParams)
 			}
 		case ast.KindVariableDeclaration, ast.KindPropertyDeclaration, ast.KindPropertySignature:
 			if ctxParams, label, ok := scope.annotatedHandler(node); ok {
-				claim(functionOfDeclaration(node), node, label, ctxParams)
+				claim(functionOfDeclaration(node), node, nil, label, ctxParams)
 			}
 		case ast.KindFunctionDeclaration, ast.KindVariableStatement:
 			if tag, ok := scope.jsdocHandlerTag(node); ok {
 				if node.Kind == ast.KindFunctionDeclaration {
-					claim(node, node, tag.label, tag.ctxParams)
+					claim(node, node, nil, tag.label, tag.ctxParams)
 				} else {
 					for _, declaration := range variableStatementDeclarations(node) {
-						claim(functionOfDeclaration(declaration), declaration, tag.label, tag.ctxParams)
+						claim(functionOfDeclaration(declaration), declaration, nil, tag.label, tag.ctxParams)
 					}
 				}
 			}

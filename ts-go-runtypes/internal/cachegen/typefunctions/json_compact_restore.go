@@ -166,6 +166,16 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	return RTCode{Code: "", Type: CodeNS}
 }
 
+// writeSlot records a kept property's position + key so both rebuilds read the
+// slot back into the keyed object: the positional one by position, the keyed
+// arrival by name.
+type writeSlot struct {
+	pos        int
+	name       string
+	isSafeName bool
+	optional   bool
+}
+
 // emitObjectCompactFromJson — the positional-array object decode. Restores each
 // declared property's value by position (the SAME canonical order the encoder
 // used, via the shared collectCompactDeclaredSlots), then rebuilds the keyed
@@ -186,20 +196,12 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	slots := collectCompactDeclaredSlots(rt, ctx)
 	rVar := ctx.NextLocalVar("r")
 	var restore strings.Builder
-	// The positional wire of an object is an array. Anything else is left
-	// untouched for validate to refuse: rebuilding from `v[0]`, `v[1]` of a
-	// number or a boolean would otherwise launder junk into an empty object,
-	// which a type whose props are all optional accepts.
+	// The positional wire of an object is an array. A primitive is left untouched
+	// for validate to refuse: rebuilding from `v[0]`, `v[1]` of a number or a
+	// boolean would otherwise launder junk into an empty object, which a type
+	// whose props are all optional accepts.
 	restore.WriteString("if (Array.isArray(" + v + ")) {")
 
-	// writeSlot records a kept property's position + key so the rebuild reads the
-	// restored slot back into the keyed object.
-	type writeSlot struct {
-		pos        int
-		name       string
-		isSafeName bool
-		optional   bool
-	}
 	var writes []writeSlot
 	pos := 0
 	for _, slot := range slots {
@@ -246,5 +248,35 @@ func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	}
 
 	restore.WriteString(v + " = " + rVar + ";}")
+	restore.WriteString(emitKeyedArrivalRebuild(v, writes, ctx))
 	return RTCode{Code: restore.String(), Type: CodeS}
+}
+
+// emitKeyedArrivalRebuild handles the one non-positional shape a compact object
+// legitimately meets: the mion client's `optimistic` first request, which sends
+// plain keyed JSON to a route whose compiled functions it has not fetched yet.
+// Such a value is rebuilt from its declared names and everything else is
+// dropped.
+//
+// It was TAKEN as it came before, which let a caller carry their own key names
+// into the decoded value: validate accepts a keyed object whose declared shape
+// matches, so nothing else was going to stop it, and a compact route compiles no
+// unknown-key check. No child transform runs here, exactly as before — the
+// optimistic bet has only ever paid off for a value that needs none, and the
+// second round trip (with the real codec) is what covers the rest.
+func emitKeyedArrivalRebuild(v string, writes []writeSlot, ctx *EmitContext) string {
+	rVar := ctx.NextLocalVar("r")
+	var rebuild strings.Builder
+	rebuild.WriteString(" else if (" + objectGuard(v, "") + ") {const " + rVar + " = {};")
+	for _, w := range writes {
+		accessor := propertyAccessor(v, w.name, w.isSafeName)
+		target := propertyAccessor(rVar, w.name, w.isSafeName)
+		if w.optional {
+			rebuild.WriteString("if (" + accessor + " !== undefined) {" + target + " = " + accessor + ";}")
+		} else {
+			rebuild.WriteString(target + " = " + accessor + ";")
+		}
+	}
+	rebuild.WriteString(v + " = " + rVar + ";}")
+	return rebuild.String()
 }

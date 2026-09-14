@@ -222,6 +222,24 @@ describe('mionAdapter: json strategy per compiled family set', () => {
       /val\/verr are required/
     );
   });
+
+  // The strictTypes pair is the one part of a payload that is genuinely optional: the answer side
+  // never asks for it, and neither does a compact params wire, which carries no key names for the
+  // check to find. The built set must then leave both OFF, so dispatch and the client take their
+  // `!hasUnknownKeys` early return instead of calling a function that always answers false.
+  it('leaves the strictTypes pair off the set when the marker did not ask for it', () => {
+    const withPair = buildJitFnsFromMarker(
+      [tuple('val'), tuple('verr'), tuple('huk'), tuple('uke'), tuple('pj'), tuple('rj')],
+      'x',
+      'keyed'
+    );
+    expect(withPair.hasUnknownKeys).toBeDefined();
+    expect(withPair.unknownKeyErrors).toBeDefined();
+
+    const without = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('cj'), tuple('cjr')], 'x', 'compact');
+    expect(without.hasUnknownKeys).toBeUndefined();
+    expect(without.unknownKeyErrors).toBeUndefined();
+  });
 });
 
 // mion resolves jit hashes and pure fns DIRECTLY from the @mionjs/run-types runtime cache — there

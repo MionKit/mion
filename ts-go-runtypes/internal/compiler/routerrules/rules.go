@@ -1,6 +1,8 @@
 package routerrules
 
 import (
+	"strings"
+
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
@@ -253,4 +255,120 @@ func declaredMemberName(node *ast.Node) string {
 		return name.Text()
 	}
 	return ""
+}
+
+// paramsDefaultStrategy is the wire a route gets when neither it nor its router
+// names one. Mirrors DefaultEncoder in @mionjs/core.
+const paramsDefaultStrategy = "clone"
+
+// compactStrategy is the one wire that carries no key names.
+const compactStrategy = "compact"
+
+// checkUnreachableStrictTypes is `strict-types-wire`: a route asking for `strictTypes`
+// on a params wire that carries no key names. It reads the CALL's return type,
+// which carries both levels the type side resolves from — `options` is the
+// route's own literal (RO) and `routerOptions` the factory's (O) — so an alias,
+// a namespace import and a router declared in another module all answer.
+//
+// Only the route's own `strictTypes` is reported: a router-wide one is a default
+// for the routes that can use it, and turning it on for fifty routes is not a
+// claim about the one compact route among them.
+func (scope *fileScope) checkUnreachableStrictTypes(discovered handler) []diagnostics.Diagnostic {
+	if discovered.call == nil {
+		return nil
+	}
+	definition := scope.callReturnType(discovered.call)
+	if definition == nil {
+		return nil
+	}
+	routeOptions := scope.propertyType(definition, "options")
+	if !booleanLiteralIsTrue(scope.typeChecker, scope.propertyType(routeOptions, "strictTypes")) {
+		return nil
+	}
+	strategy := scope.paramsStrategy(routeOptions, scope.propertyType(definition, "routerOptions"))
+	if strategy != compactStrategy {
+		return nil
+	}
+	return []diagnostics.Diagnostic{scope.diag(diagnostics.CodeRouteStrictTypesMoot, discovered.at(strictTypesSite(discovered.call)), strategy, discovered.label)}
+}
+
+// callReturnType is the RouteDef / MiddleFnDef / HeadersMiddleFnDef the helper
+// call answers with — the one place the route's own options literal and the
+// router's meet.
+func (scope *fileScope) callReturnType(call *ast.Node) *checker.Type {
+	signature := checker.Checker_getResolvedSignature(scope.typeChecker, call, nil, 0)
+	if signature == nil {
+		return nil
+	}
+	return checker.Checker_getReturnTypeOfSignature(scope.typeChecker, signature)
+}
+
+// paramsStrategy resolves the params wire the same three steps the type side
+// takes (ResolveStrategy in @mionjs/router): the route literal, then the router
+// literal, then the built-in default. A widened `encoder` never reaches here —
+// EncoderLiteralGuard makes it a type error at the call site.
+func (scope *fileScope) paramsStrategy(routeOptions, routerOptions *checker.Type) string {
+	for _, options := range []*checker.Type{routeOptions, routerOptions} {
+		if strategy := scope.encoderParams(options); strategy != "" {
+			return strategy
+		}
+	}
+	return paramsDefaultStrategy
+}
+
+// encoderParams reads one options type's params wire: `encoder` is a bare string
+// setting both directions, or an object naming each. Empty when the options name
+// no encoder, which is what sends the lookup to the next level.
+func (scope *fileScope) encoderParams(options *checker.Type) string {
+	if options == nil {
+		return ""
+	}
+	encoder := scope.propertyType(options, "encoder")
+	if encoder == nil {
+		return ""
+	}
+	if literal := stringLiteralValue(scope.typeChecker, encoder); literal != "" {
+		return literal
+	}
+	return stringLiteralValue(scope.typeChecker, scope.propertyType(encoder, "params"))
+}
+
+// propertyType reads one property off a type with its optionality removed: every
+// option on the chain is declared optional, so the lookup answers `T | undefined`
+// and the literal underneath is what the rule reads.
+func (scope *fileScope) propertyType(parent *checker.Type, name string) *checker.Type {
+	if parent == nil {
+		return nil
+	}
+	property := scope.typeChecker.GetTypeOfPropertyOfType(parent, name)
+	if property == nil {
+		return nil
+	}
+	return scope.typeChecker.GetNonNullableType(property)
+}
+
+// strictTypesSite is where the finding is reported: the options argument, which
+// is what the user would edit. `opts` sits at index 1 of every helper signature,
+// immediately before the injection markers.
+func strictTypesSite(call *ast.Node) *ast.Node {
+	if callExpr := call.AsCallExpression(); callExpr != nil && len(callExpr.Arguments.Nodes) > 1 {
+		return callExpr.Arguments.Nodes[1]
+	}
+	return call
+}
+
+func booleanLiteralIsTrue(typeChecker *checker.Checker, candidate *checker.Type) bool {
+	if candidate == nil || checker.Type_flags(candidate)&checker.TypeFlagsBooleanLiteral == 0 {
+		return false
+	}
+	return typeChecker.TypeToString(candidate) == "true"
+}
+
+// stringLiteralValue is the literal's text without its quotes, empty for
+// anything that is not a single string literal.
+func stringLiteralValue(typeChecker *checker.Checker, candidate *checker.Type) string {
+	if candidate == nil || checker.Type_flags(candidate)&checker.TypeFlagsStringLiteral == 0 {
+		return ""
+	}
+	return strings.Trim(typeChecker.TypeToString(candidate), `"`)
 }

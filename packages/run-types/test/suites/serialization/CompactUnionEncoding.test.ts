@@ -51,7 +51,11 @@ describe('serialization / compact union with nested objects (regression)', () =>
     expect(dec(enc('hi')!)).toBe('hi');
   });
 
-  it('record member with object values wraps, record member with atomic values stays bare', () => {
+  // Both wrap, and the atomic-value record wraps for a reason the positional rule does not cover:
+  // the object arm is the one shape compact keeps KEYED, so its undeclared keys have to be
+  // droppable by name, and on a bare wire the decoder could not tell it from the record arm, whose
+  // keys the index signature declares and which must all survive.
+  it('a record member alongside an object member wraps, whatever the record holds', () => {
     const objects = createJsonEncoderFn<RecordOfObjects>(undefined, {strategy: 'compact'});
     const objectsDec = createJsonDecoderFn<RecordOfObjects>(undefined, {strategy: 'compact'});
     expect(objects({x: {a: 1}})).toMatch(TOP_ENVELOPE);
@@ -60,8 +64,9 @@ describe('serialization / compact union with nested objects (regression)', () =>
 
     const numbers = createJsonEncoderFn<RecordOfNumbers>(undefined, {strategy: 'compact'});
     const numbersDec = createJsonDecoderFn<RecordOfNumbers>(undefined, {strategy: 'compact'});
-    expect(numbers({x: 1})).toBe('{"x":1}');
+    expect(numbers({x: 1})).toMatch(TOP_ENVELOPE);
     expect(numbersDec(numbers({x: 1})!)).toEqual({x: 1});
+    expect(numbersDec(numbers({kind: 'x'})!)).toEqual({kind: 'x'});
   });
 
   // Marker coverage rule: the value-first factory shape `createJsonEncoderFn(value,

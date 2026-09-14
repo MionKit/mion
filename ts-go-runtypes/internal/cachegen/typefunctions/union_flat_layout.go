@@ -33,6 +33,14 @@ type FlatLayout struct {
 	// MergedProps is the deduplicated property list across ObjectMembers,
 	// ordered by first appearance.
 	MergedProps []FlatMergedProp
+	// StripMergedExtras makes the decode REBUILD the merged object from
+	// MergedProps instead of walking it in place, so a key the encoder's clone
+	// already dropped cannot ride back in from an untrusted wire. Set by the
+	// compact layout only: compact promises no wire key reaches the decoded
+	// value, and a union member is the one shape it keeps keyed. The keyed
+	// strategies leave it false — they make no such promise, and their routes
+	// compile the unknown-key pair instead.
+	StripMergedExtras bool
 	// AtomicNeedsTuple is the all-or-nothing wrap flag, set to the
 	// negation of roundTripsRaw. True iff at least one member (atomic
 	// OR object/record) carries an encode/decode transform, so the whole
