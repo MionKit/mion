@@ -11,7 +11,7 @@ import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
-import {onExecutableError, markResponseFailed, recordUndeclaredError} from './lib/dispatchError.ts';
+import {markResponseFailed, recordUndeclaredError} from './lib/dispatchError.ts';
 import {createCallContext, createContextFromResolved, getRequestBodyType} from './callContext.ts';
 
 /*
@@ -134,7 +134,7 @@ async function runExecutionChain(
       if (!executable.hasReturnData) {
         // a raw middleFn has no declared return type, so a returned error is undeclared: it halts and
         // travels in @thrownErrors like a thrown one (its body slot is never serialized)
-        if (isMionError || isNativeError(result)) onExecutableError(context, executable, result);
+        if (isMionError || isNativeError(result)) recordUndeclaredError(context, executable.id, result);
         continue;
       }
       if (isMionError) {
@@ -147,7 +147,7 @@ async function runExecutionChain(
       // the body and served as a SUCCESSFUL answer. It carries no brand, so it has no typed slot to
       // land in, and it takes the thrown path instead.
       else if (isNativeError(result)) {
-        onExecutableError(context, executable, result);
+        recordUndeclaredError(context, executable.id, result);
         continue; // like a thrown one: it belongs in @thrownErrors, never in the body
       }
       if (executable.headersReturn && result instanceof HeadersSubset) {
@@ -164,7 +164,7 @@ async function runExecutionChain(
       (response.body as Mutable<AnyObject>)[executable.id] = result;
     } catch (err: any) {
       // All thrown errors are undeclared and fatal
-      onExecutableError(context, executable, err);
+      recordUndeclaredError(context, executable.id, err);
     }
   }
   return context.response;
