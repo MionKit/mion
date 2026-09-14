@@ -112,6 +112,17 @@ describe('serverless router', () => {
       expect(await response.json()).toEqual({echoQuery: 'a=1?b=2&c=3'});
     });
 
+    it('accepts a base64url GET query body, which carries no body of its own', async () => {
+      // express parses a request with no body into an EMPTY object rather than leaving it unset,
+      // so the adapter has to treat that as no body or the `?data=` road is never taken
+      const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+      const encoded = Buffer.from(JSON.stringify(requestData), 'utf8').toString('base64url');
+      const response = await fetch(`http://127.0.0.1:${port}/api/getDate?data=${encoded}`);
+
+      expect(response.status).toEqual(StatusCodes.OK);
+      expect(await response.json()).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+    });
+
     it('reports no query string as undefined', async () => {
       const response = await fetch(`http://127.0.0.1:${port}/api/echoQuery`, {
         method: 'POST',
