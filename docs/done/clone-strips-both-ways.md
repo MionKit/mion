@@ -73,11 +73,11 @@ Three things the rebuild keeps: `unsafeKeyThrow` (the DECODER rule) rather than 
 legitimately admits; and a declared-name skip built from `collectSiblingNamedKeys` directly rather
 than `siblingNamedSkipCode`, which returns "" in silence when nobody published its context item.
 
-### One gap shared with `pjs`, closed separately
+### One gap shared with `pjs`, closed right after
 
 `rjs` carries the same `atomicOnlyJsonIdentity()` early-out `pjs` has, so for a union like
 `{a: string}[] | number` neither end stripped. This change did not touch that gate on either side;
-a follow-up narrows the gate once for all three families that read it.
+the next one narrows it once for all three families that read it.
 
 ## Behaviour change worth knowing
 
