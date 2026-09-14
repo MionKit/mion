@@ -24,5 +24,5 @@ export * from './src/lib/remoteMethods.ts';
 export * from './src/types/mionRouter.ts';
 export * from './src/lib/queryBody.ts';
 export * from './src/lib/bodyReader.ts';
-export * from './src/routes/errors.routes.ts';
+export {mionErrorsRoutes} from './src/routes/errors.routes.ts';
 export * from './src/routes/mion.routes.ts';
