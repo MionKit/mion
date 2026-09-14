@@ -6,9 +6,9 @@ import {
 
 const mion = createMionRouter();
 
-// a request that arrived already failed (an unknown path, an unknown batch id, a body the server
-// refused) runs ONLY the middleFns that declare alwaysRun, so a rate limiter that must see them
-// declares it too
+// a request that failed before its route could run (an unknown path, an unknown batch id, a body
+// the adapter refused) runs ONLY the middleFns that declare alwaysRun, so a rate limiter that must
+// see them declares it too
 const rateLimit = mion.rawMiddleFn(
   (ctx): void => {
     console.log('incoming', ctx.path);
