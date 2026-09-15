@@ -878,14 +878,19 @@ func emitUnionPrepareForJsonSafeLayout(rt *reflection.RunType, ctx *EmitContext,
 				presenceGuard: presenceGuard,
 			})
 		}
-		clone := buildSafeObjectClone(props, ctx)
-		objLit := clone.Code
-		if clone.Type == CodeRB {
-			// Union clause is an expression slot (`[-1, …]` / `return …` within a
-			// clause chain), so a mixed-optionality accumulator block must hoist
-			// into a per-factory context fn to fit.
-			params := ctx.CtxFnParams(v)
-			objLit = ctx.CreateFnInContext(clone.Code, CodeRB, params, params)
+		var objLit string
+		if layout.hasIndexSignatureMember(ctx) {
+			objLit = emitMergedObjectOpenClone(layout, v, props, ctx)
+		} else {
+			clone := buildSafeObjectClone(props, ctx)
+			objLit = clone.Code
+			if clone.Type == CodeRB {
+				// Union clause is an expression slot (`[-1, …]` / `return …` within a
+				// clause chain), so a mixed-optionality accumulator block must hoist
+				// into a per-factory context fn to fit.
+				params := ctx.CtxFnParams(v)
+				objLit = ctx.CreateFnInContext(clone.Code, CodeRB, params, params)
+			}
 		}
 		guard := objectGuard(v, "")
 		// The clone always strips undeclared keys (buildSafeObjectClone); the
@@ -902,6 +907,50 @@ func emitUnionPrepareForJsonSafeLayout(rt *reflection.RunType, ctx *EmitContext,
 	errVar := flatUnionEncodeErrorVar(ctx)
 	body := prologue + strings.Join(clauses, " ") + " throw new Error(" + errVar + ")"
 	return RTCode{Code: body, Type: CodeRB}
+}
+
+// emitMergedObjectOpenClone is the object clause of a carve-out union: a member
+// carrying an index signature declares every key from the union's point of
+// view (FlatLayout.hasIndexSignatureMember), so the object member keeps every
+// key exactly as the decoders keep it. A member whose props need no transform
+// is returned as is, never touched; otherwise a copy carrying every own key is
+// built, with the prototype-name refusal the record arm already uses, and only
+// the declared props are rewritten. Every declared name is skipped by the copy
+// so the writes own their slot, a dropped one included (G6).
+func emitMergedObjectOpenClone(layout FlatLayout, v string, props []safePropEmit, ctx *EmitContext) string {
+	identity := true
+	for _, prop := range props {
+		if prop.expr != prop.accessor || prop.presenceGuard != "" {
+			identity = false
+			break
+		}
+	}
+	if identity {
+		return v
+	}
+	var declared []string
+	for _, member := range layout.ObjectMembers {
+		declared = append(declared, collectSiblingNamedKeys(member.Resolved, ctx)...)
+	}
+	keyVar := ctx.NextLocalVar("k")
+	var body strings.Builder
+	body.WriteString("const _r = {};for (const " + keyVar + " in " + v + ") {" + unsafeKeySkip(keyVar))
+	body.WriteString(declaredNameSkipCode(dedupSortStrings(declared), keyVar))
+	body.WriteString("_r[" + keyVar + "] = " + v + "[" + keyVar + "];}")
+	for _, prop := range props {
+		write := "_r[" + quoteJS(prop.name) + "] = " + prop.expr + ";"
+		if prop.optional {
+			presence := prop.accessor + " !== undefined"
+			if prop.presenceGuard != "" {
+				presence += " && (" + prop.presenceGuard + ")"
+			}
+			write = "if (" + presence + ") " + write
+		}
+		body.WriteString(write)
+	}
+	body.WriteString("return _r")
+	params := ctx.CtxFnParams(v)
+	return ctx.CreateFnInContext(body.String(), CodeRB, params, params)
 }
 
 // emitMergedPropPrepareSafe returns the safe-form EXPRESSION for one

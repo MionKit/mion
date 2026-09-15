@@ -558,17 +558,8 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 			}
 		}
 		// Collect propJson per merged prop. Skipping empty noop props.
-		// dropCond is the `=== undefined` test extended (for a prop with a
-		// stripped sibling) so a value from the stripped member — present but
-		// of a foreign type — also emits '' (the key is dropped, G3 / G4).
-		type compiledProp struct {
-			mp       FlatMergedProp
-			accessor string
-			propJson string
-			dropCond string
-		}
 		discAccessor := layout.discAccessor(v)
-		var compiledProps []compiledProp
+		var compiledProps []stringifyMergedProp
 		for _, mp := range layout.MergedProps {
 			accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
 			propJson, ok := emitMergedPropStringify(mp, accessor, discAccessor, ctx)
@@ -582,10 +573,12 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 			if mp.HasStrippedCandidate {
 				dropCond += " || !(" + mergedPropSurvivingGuard(mp, accessor, ctx) + ")"
 			}
-			compiledProps = append(compiledProps, compiledProp{mp: mp, accessor: accessor, propJson: propJson, dropCond: dropCond})
+			compiledProps = append(compiledProps, stringifyMergedProp{mp: mp, accessor: accessor, propJson: propJson, dropCond: dropCond})
 		}
 		var objExpr string
-		if len(compiledProps) == 0 {
+		if layout.hasIndexSignatureMember(ctx) {
+			objExpr = emitMergedObjectOpenStringify(v, compiledProps, ctx)
+		} else if len(compiledProps) == 0 {
 			objExpr = "'{}'"
 		} else if hasRequired {
 			// At least one required → flat concat anchored by the first
@@ -642,6 +635,50 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 	errVar := flatUnionEncodeErrorVar(ctx)
 	clauses = append(clauses, " else { throw new Error("+errVar+") }")
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeRB}
+}
+
+// stringifyMergedProp is one merged prop's compiled JSON fragment. dropCond is
+// the `=== undefined` test extended (for a prop with a stripped sibling) so a
+// value from the stripped member, present but of a foreign type, also emits no
+// fragment (the key is dropped, G3 / G4).
+type stringifyMergedProp struct {
+	mp       FlatMergedProp
+	accessor string
+	propJson string
+	dropCond string
+}
+
+// emitMergedObjectOpenStringify is the object clause of a carve-out union: a
+// member carrying an index signature declares every key from the union's point
+// of view (FlatLayout.hasIndexSignatureMember), so the object member keeps
+// every key exactly as the decoders keep it. A member whose props need no
+// transform is native JSON.stringify of the whole value; otherwise every own
+// key is written in place, and only a declared prop with a transform or a
+// stripped sibling takes its own arm. A key native JSON would omit (a function,
+// a symbol, an undefined) is omitted here too.
+func emitMergedObjectOpenStringify(v string, props []stringifyMergedProp, ctx *EmitContext) string {
+	var transformed []stringifyMergedProp
+	for _, prop := range props {
+		if prop.propJson != "JSON.stringify("+prop.accessor+")" || prop.mp.HasStrippedCandidate {
+			transformed = append(transformed, prop)
+		}
+	}
+	if len(transformed) == 0 {
+		return "JSON.stringify(" + v + ")"
+	}
+	keyVar := ctx.NextLocalVar("k")
+	arr := ctx.NextLocalVar("ls")
+	text := ctx.NextLocalVar("s")
+	var body strings.Builder
+	body.WriteString("const " + arr + " = []; for (const " + keyVar + " in " + v + ") {")
+	for _, prop := range transformed {
+		prefix := "'" + jsonPropPrefix(prop.mp.Name, prop.mp.IsSafeName) + "'"
+		body.WriteString("if (" + keyVar + " === " + quoteJS(prop.mp.Name) + ") {if (" + prop.dropCond + ") continue; " + arr + ".push(" + prefix + "+" + prop.propJson + "); continue;}")
+	}
+	body.WriteString("const " + text + " = JSON.stringify(" + v + "[" + keyVar + "]); if (" + text + " === undefined) continue; " +
+		arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + text + ");} return '{' + " + arr + ".join(',') + '}'")
+	params := ctx.CtxFnParams(v)
+	return ctx.CreateFnInContext(body.String(), CodeRB, params, params)
 }
 
 // emitMergedPropStringify returns a JS expression that evaluates to the
