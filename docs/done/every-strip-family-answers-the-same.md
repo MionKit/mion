@@ -16,12 +16,15 @@ An undeclared `evil` key, fed to each family. The bold cells are what this fixed
 
 | shape | `huk` | `uke` | `vst` | `ces` | `pjs` / `rjs` / `sj` | `cj` | `strip` decoder |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `{a: string}` | reports | reports | rejects | strips | strips | strips | strips |
-| `{a: string}[]` | reports | reports | rejects | strips | strips | strips | strips |
+| `{a: string}` | reports | reports | rejects | strips | strips | strips | blanks |
+| `{a: string}[]` | reports | reports | rejects | strips | strips | strips | blanks |
 | `[{a: string}, number]` | reports | reports | rejects | strips | strips | strips | **kept** |
 | `{t: [{a: string}, number]}` | reports | reports | rejects | strips | strips | strips | **kept** |
 | `{a: string}[] \| number` | **missed** | **missed** | rejects | strips | strips | strips | **kept** |
 | `[{a: string}, number] \| string` | **missed** | **missed** | rejects | strips | strips | strips | **kept** |
+
+In the `strip` decoder column, blanks means the key is set to `undefined`; that decoder never
+deletes. Everywhere else strips means the key is gone.
 
 Both leaks faced UNTRUSTED input: the `strip` decoder is what a server runs on a caller's payload,
 and `validate` accepts undeclared keys on an object literal by design, which is the whole reason
@@ -118,6 +121,13 @@ An index-signature member still keeps every key, which is the behaviour that mat
 `Record<string, number> | {a: string}` round-trips `{one:1,two:2,anything:3}` untouched. Its noop
 verdict flips to false, so the entry is a real function rather than the identity, which costs bytes
 and no behaviour.
+
+## Behaviour change worth knowing
+
+The router's `strictTypes` checks params only, and with this change it can fire only on a `mutate`
+or `direct` route. `clone` decodes with `rjs` and `compact` with `cjr`, and both delete an
+undeclared key on arrival, so the unknown-key check has nothing left to report there. The router
+tests pin one route per strategy that still fires and a `clone` route that no longer can.
 
 ## Not a gap, recorded so nobody reopens it
 
