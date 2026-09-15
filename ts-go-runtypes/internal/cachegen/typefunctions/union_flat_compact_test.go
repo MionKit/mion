@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -112,7 +113,7 @@ func TestCompactFromJsonModule_NestedObjectUnionUnwraps(t *testing.T) {
 	}
 }
 
-// TestCompactForJsonModule_RecordNumberUnionStaysBare — nothing positionalizes
+// TestCompactForJsonModule_RecordNumberUnionStaysBare: nothing positionalizes
 // inside `{[key: string]: number} | {a: string}`, so compact keeps the
 // record-union optimisation: no envelope on either half. Bare is about the WIRE,
 // not about the decoder doing nothing: an identity decode on a bare wire is how
@@ -126,19 +127,19 @@ func TestCompactForJsonModule_RecordNumberUnionStaysBare(t *testing.T) {
 	}
 	// Scoped to the UNION entry: the standalone object entry carries its own positional rebuild
 	// (`r0.a = v[0]`), which a module-wide substring would mistake for an envelope unwrap.
-	restore := unionEntry(t, renderModuleDefault(t, dump, "compactFromJson"))
+	restore := unionEntry(t, renderModuleDefault(t, dump, "compactFromJson"), "compactFromJson")
 	if strings.Contains(restore, "const dec") {
 		t.Errorf("compact decode must stay envelope-free too (no index unwrap); got:\n%s", restore)
 	}
-	// Envelope-free is not the same as identity. The decode is the SAFE restore, matching the safe
-	// encode it mirrors: the OBJECT member is rebuilt from its declared shape, so an undeclared key
-	// a caller sent does not ride through, while the record arm keeps every key (its index
-	// signature declares them all) and only runs the prototype-name refusal.
-	if !strings.Contains(restore, ".a = v.a") {
-		t.Errorf("compact decode must rebuild the object member from its declared shape; got:\n%s", restore)
-	}
+	// Envelope-free is not the same as identity: the record arm ships its prototype-name refusal.
+	// The index-signature member is the carve-out, though: it declares every key from the union's
+	// point of view, so the object member is NOT rebuilt from its declared shape and a key a caller
+	// sent on it rides through, exactly as the unknown-keys families answer clean for this union.
 	if !strings.Contains(restore, "for (const k0 in v)") {
 		t.Errorf("the record arm must keep its keys and only refuse prototype names; got:\n%s", restore)
+	}
+	if strings.Contains(restore, "const r0") {
+		t.Errorf("the object member of an index-signature union must not be rebuilt; got:\n%s", restore)
 	}
 }
 
@@ -164,19 +165,17 @@ func TestCompactForJsonModule_ArrayOfObjectsOrStringWrapsArms(t *testing.T) {
 	}
 }
 
-// unionEntry returns just the `'union'` entry of a rendered module. Assertions about the union arm
-// have to read this and not the whole module: the per-entry array and object factories carry their
-// own rebuild code whatever the union arm decided, so a module-wide substring match passes even
-// when the union short-circuits to `return v`.
-func unionEntry(t *testing.T, module string) string {
+// unionEntry returns just the union entry (every fixture here names it `uni`) of a rendered module.
+// Assertions about the union arm have to read this and not the whole module: the per-entry array
+// and object factories carry their own rebuild code whatever the union arm decided, so a
+// module-wide substring match passes even when the union short-circuits to `return v`.
+func unionEntry(t *testing.T, module, family string) string {
 	t.Helper()
-	for _, line := range strings.Split(module, "\n") {
-		if strings.Contains(line, "','union',") {
-			return line
-		}
+	line := extractInitLine(module, operations.PlainHash(family)+"_uni")
+	if line == "" {
+		t.Fatalf("no %s union entry in the rendered module:\n%s", family, module)
 	}
-	t.Fatalf("no union entry in the rendered module:\n%s", module)
-	return ""
+	return line
 }
 
 // TestAtomicOnlyUnion_StripsInsideItsMembers — `{c: string}[] | string` carries no merged object
@@ -188,45 +187,49 @@ func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildArrayOfObjectsOrStringFixture()}
 
 	// The clone encode rebuilds each element rather than handing back the array it was given.
-	clone := unionEntry(t, renderModuleDefault(t, dump, "prepareForJsonSafe"))
+	clone := unionEntry(t, renderModuleDefault(t, dump, "prepareForJsonSafe"), "prepareForJsonSafe")
 	if !strings.Contains(clone, ".map(") {
 		t.Errorf("clone encode must rebuild the array's elements so an undeclared key is dropped; got:\n%s", clone)
 	}
 	// The clone decode rebuilds each element from the declared shape on arrival.
-	restoreSafe := unionEntry(t, renderModuleDefault(t, dump, "restoreFromJsonSafe"))
+	restoreSafe := unionEntry(t, renderModuleDefault(t, dump, "restoreFromJsonSafe"), "restoreFromJsonSafe")
 	if !strings.Contains(restoreSafe, "r0.c = ") {
 		t.Errorf("clone decode must rebuild the array's elements from the declared shape; got:\n%s", restoreSafe)
 	}
 	// The direct encoder shares the gate, so it walks too.
-	direct := unionEntry(t, renderModuleDefault(t, dump, "stringifyJson"))
+	direct := unionEntry(t, renderModuleDefault(t, dump, "stringifyJson"), "stringifyJson")
 	if !strings.Contains(direct, `"c":`) {
 		t.Errorf("direct encode must write the declared members, not stringify the raw value; got:\n%s", direct)
 	}
 	// The mutate pair is the control: it keeps undeclared keys on purpose, both ways, so its entry
 	// stays the noop short form (a trailing `,,true` and no body at all).
 	for _, family := range []string{"prepareForJson", "restoreFromJson"} {
-		if entry := unionEntry(t, renderModuleDefault(t, dump, family)); !strings.Contains(entry, ",,true)") {
+		if entry := unionEntry(t, renderModuleDefault(t, dump, family), family); !strings.Contains(entry, ",,true)") {
 			t.Errorf("[%s] mutate must keep passing the value through untouched; got:\n%s", family, entry)
 		}
 	}
 }
 
-// TestPureAtomicUnion_StaysCompiledAway — the optimisation the gate exists for. A union with no
-// object anywhere in any member has nothing to strip, so it must still compile away to nothing.
+// TestPureAtomicUnion_StaysCompiledAway: the optimisation the gate exists for. A union with no
+// object anywhere in any member has nothing to strip, so it must still compile away to nothing,
+// `any[]` included: nothing in `any` is declared, at whatever array depth it sits.
 func TestPureAtomicUnion_StaysCompiledAway(t *testing.T) {
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
-	union := &reflection.RunType{
-		ID: "uni", Kind: reflection.KindUnion,
-		Children:          []*reflection.RunType{makeRef("str"), makeRef("num")},
-		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("num")},
+	anyT := &reflection.RunType{ID: "any", Kind: reflection.KindAny}
+	anyArr := &reflection.RunType{ID: "anyArr", Kind: reflection.KindArray, Child: makeRef("any")}
+	unions := map[string][]*reflection.RunType{
+		"string | number": {makeRef("str"), makeRef("num")},
+		"any[] | number":  {makeRef("anyArr"), makeRef("num")},
 	}
-	dump := protocol.Dump{RunTypes: []*reflection.RunType{str, num, union}}
-
-	for _, family := range []string{"prepareForJsonSafe", "restoreFromJsonSafe"} {
-		entry := unionEntry(t, renderModuleDefault(t, dump, family))
-		if strings.Contains(entry, "typeof v ===") {
-			t.Errorf("[%s] a pure atomic union must compile to nothing, not a dispatch chain; got:\n%s", family, entry)
+	for label, members := range unions {
+		union := &reflection.RunType{ID: "uni", Kind: reflection.KindUnion, Children: members, SafeUnionChildren: members}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{str, num, anyT, anyArr, union}}
+		for _, family := range []string{"prepareForJsonSafe", "restoreFromJsonSafe"} {
+			entry := unionEntry(t, renderModuleDefault(t, dump, family), family)
+			if strings.Contains(entry, "typeof v ===") || strings.Contains(entry, ".map(") {
+				t.Errorf("[%s] %s must compile to nothing, not a dispatch chain; got:\n%s", family, label, entry)
+			}
 		}
 	}
 }

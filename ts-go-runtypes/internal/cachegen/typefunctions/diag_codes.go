@@ -165,9 +165,9 @@ func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-// restoreFromJsonSafe reuses restoreFromJson arm-by-arm apart from its rebuilds,
-// so it delegates its diagnostic codes the same way compactFromJson does. The
-// reason a leaf is unserializable does not depend on whether the arm rebuilds.
+// restoreFromJsonSafe changes no leaf's serializability (a rebuild or a guard
+// around one of restoreFromJson's arms never makes a leaf unserializable), so
+// it delegates its diagnostic codes the same way compactFromJson does.
 func (RestoreFromJsonSafeEmitter) DiagCodeFor(slot DiagSlot) string {
 	return restoreFromJsonCodes[slot]
 }

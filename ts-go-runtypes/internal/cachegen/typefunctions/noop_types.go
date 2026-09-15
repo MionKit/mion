@@ -813,7 +813,7 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		// (union_flat_compact.go), AND no member can hide an undeclared key, since the safe restore
 		// rebuilds each object from its declared shape rather than riding the value through.
 		return unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited) &&
-			allUnionMembersExtraProof(rt, ctx)
+			!anyUnionMember(rt, ctx, unionMemberHidesKey)
 	}
 	// undefined/void (force-rebind), bigint/symbol/regexp (value
 	// transforms), never/promise/function kinds (unsupported), and any
@@ -935,18 +935,19 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		// while the emit walks, which is the false positive the contract at the top
 		// of this file calls data corruption: the dispatch gate would replace the
 		// child call with empty code and the rebuild would never run.
-		return unionJsonNoop(rt, ctx) && !anyUnionMemberEnvelopes(rt, ctx) && allUnionMembersExtraProof(rt, ctx)
+		return unionJsonNoop(rt, ctx) && !anyUnionMember(rt, ctx, unionMemberEnvelopes) && !anyUnionMember(rt, ctx, unionMemberHidesKey)
 	}
 	// undefined/void (force-rebind), bigint/symbol/regexp (value transforms),
 	// never/promise/function kinds (unsupported): not noop.
 	return false
 }
 
-// allUnionMembersExtraProof mirrors the emit's AtomicsExtraProof conjunct. Hand-rolled over the
-// members for the same reason as anyUnionMemberEnvelopes: buildFlatLayout emits drop diagnostics a
-// predicate must not duplicate. Strictly stronger than the emit's version, which only asks the
-// ATOMIC bucket, so predicate-true still implies emit-noop, the safe direction.
-func allUnionMembersExtraProof(rt *reflection.RunType, ctx *EmitContext) bool {
+// anyUnionMember reports whether pred holds for a surviving member. Hand-rolled
+// over the members rather than read off buildFlatLayout, which emits drop
+// diagnostics a predicate must not duplicate (the same reason
+// compactUnionNeedsEnvelope avoids it); member stripping mirrors
+// dataOnlyUnionMembers via the same isStrippedUnionMember helper.
+func anyUnionMember(rt *reflection.RunType, ctx *EmitContext, pred func(*reflection.RunType, *EmitContext) bool) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
 		children = rt.Children
@@ -956,31 +957,18 @@ func allUnionMembersExtraProof(rt *reflection.RunType, ctx *EmitContext) bool {
 		if resolved == nil || isStrippedUnionMember(resolved) {
 			continue
 		}
-		if !atomicMemberExtraProof(resolved, ctx) {
-			return false
-		}
-	}
-	return true
-}
-
-// anyUnionMemberEnvelopes mirrors buildFlatLayout's ObjectMembers bucketing
-// without calling it — the layout builder emits drop diagnostics a predicate
-// must not duplicate (the same reason compactUnionNeedsEnvelope avoids it).
-func anyUnionMemberEnvelopes(rt *reflection.RunType, ctx *EmitContext) bool {
-	children := rt.SafeUnionChildren
-	if len(children) == 0 {
-		children = rt.Children
-	}
-	for _, child := range children {
-		resolved := ctx.ResolveRef(child)
-		if resolved == nil || isStrippedUnionMember(resolved) {
-			continue
-		}
-		if unionMemberEnvelopes(resolved, ctx) {
+		if pred(resolved, ctx) {
 			return true
 		}
 	}
 	return false
+}
+
+// unionMemberHidesKey is the negation of the emit's AtomicsExtraProof conjunct,
+// asked of EVERY member rather than the atomic bucket only, so predicate-true
+// still implies emit-noop, the safe direction.
+func unionMemberHidesKey(resolved *reflection.RunType, ctx *EmitContext) bool {
+	return !atomicMemberExtraProof(resolved, ctx)
 }
 
 /** isNoopForToBinary reports whether the tb entry for rt writes no bytes. **/
@@ -1127,8 +1115,8 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 }
 
 // unknownKeysNoopSpec parameterises the shared unknown-keys predicate across
-// the five family variants — the families differ in what they DO at a node,
-// and (in exactly two spots) in WHETHER a node emits at all.
+// the five family variants: the families differ in what they DO at a node,
+// and in one spot (mapSetAlwaysNoop) in WHETHER a node emits at all.
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
@@ -1318,12 +1306,12 @@ func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spe
 }
 
 // unknownKeysNoopUnion mirrors emitUnionUnknownKeysMerged's empty-emit
-// conditions (identical across all five families — the wire flag changes
-// only the body shape): any object-like member carrying an index signature
-// kills the merged allowlist for the whole union; with no object members —
-// or object members exposing no named properties to merge — there is
-// nothing to sweep. Member stripping mirrors dataOnlyUnionMembers via the
-// same isStrippedUnionMember helper.
+// conditions (identical across all five families, the wire flag changes only
+// the body shape): any object-like member carrying an index signature kills the
+// merged allowlist for the whole union; otherwise the union is noop when no
+// object member exposes a named property to merge AND no atomic member holds a
+// keyed shape the descent walks (unionAtomicMemberDescent). Member stripping
+// mirrors dataOnlyUnionMembers via the same isStrippedUnionMember helper.
 func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
