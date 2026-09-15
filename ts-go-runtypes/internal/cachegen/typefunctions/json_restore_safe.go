@@ -364,39 +364,27 @@ func emitBareUnionRestoreSafe(ctx *EmitContext, v string, layout FlatLayout, obj
 	return RTCode{Code: prologue + strings.Join(clauses, " else "), Type: CodeS}
 }
 
-// emitMergedPropsRebuild restores each merged prop where it arrived, then builds
-// a fresh object from those props alone. mergedPropSurvivingGuard is deliberately
-// NOT used: it tests a runtime-typed value, and on the wire a Date candidate is a
-// string, so it would drop a legitimately encoded key.
+// emitMergedPropsRebuild restores each merged prop where it arrived and copies
+// it onto a fresh object, interleaved like emitObjectRebuildFromJson so a
+// declared key that arrived is never deleted (a noop restore included).
+// mergedPropSurvivingGuard is deliberately NOT used: it tests a runtime-typed
+// value, and on the wire a Date candidate is a string, so it would drop a
+// legitimately encoded key.
 func emitMergedPropsRebuild(ctx *EmitContext, v string, layout FlatLayout) (string, bool) {
 	rVar := ctx.NextLocalVar("r")
 	var restore strings.Builder
+	restore.WriteString("const " + rVar + " = {};")
 	for _, mp := range layout.MergedProps {
 		accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
 		propCode, ok := emitMergedPropRestore(mp, accessor, ctx)
 		if !ok {
 			return "", false
 		}
-		if propCode == "" {
-			continue
+		write := terminated(propCode) + propertyAccessor(rVar, mp.Name, mp.IsSafeName) + " = " + accessor + ";"
+		if !mp.Required {
+			write = "if (" + accessor + " !== undefined) {" + write + "}"
 		}
-		if mp.Required {
-			restore.WriteString(terminated(propCode))
-			continue
-		}
-		restore.WriteString("if (" + accessor + " !== undefined) {" + propCode + "}")
-	}
-
-	restore.WriteString("const " + rVar + " = {};")
-	// Every merged prop is copied, a noop restore included (emitObjectRebuildFromJson's rule).
-	for _, mp := range layout.MergedProps {
-		source := propertyAccessor(v, mp.Name, mp.IsSafeName)
-		target := propertyAccessor(rVar, mp.Name, mp.IsSafeName)
-		if mp.Required {
-			restore.WriteString(target + " = " + source + ";")
-			continue
-		}
-		restore.WriteString("if (" + source + " !== undefined) {" + target + " = " + source + ";}")
+		restore.WriteString(write)
 	}
 	restore.WriteString(v + " = " + rVar + ";")
 	return restore.String(), true
