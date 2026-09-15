@@ -16,7 +16,7 @@ import {runFuzzLoop} from '../core/runLoop.ts';
 import {genType, describeType, isRecursive, DATA_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {genValidValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {isValidTypeScript} from '../type/tsValidate.ts';
-import {compileCodecs, openClient, renderFixture, type CompiledCodecs} from './roundtripHarness.ts';
+import {compileCodecs, openClient, renderFixture, type CompiledCodecs, type LaneId} from './roundtripHarness.ts';
 import {checkRoundtrip, snapshot, type RoundtripViolation} from './roundtripOracle.ts';
 import {type CrashRecord} from '../core/crashGuard.ts';
 import type {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
@@ -177,29 +177,26 @@ async function fuzzOne(
     return;
   }
 
-  // Need at least the clone lane wired to anchor RT-AGREE / the round-trip.
-  if (!compiled.validate || !compiled.codecs.clone) {
-    stats.skipped++;
-    return;
-  }
-  // The rebuild lane reads the clone lane's own wire, so it wires whenever clone
-  // does. A silently absent lane is a lane that checks nothing, which is worse
-  // than a failing one because the suite still reports green.
-  if (!compiled.codecs.rebuild) {
+  // A type that passed the gates above wires every lane. A lane that did not is a lane checking
+  // nothing while the suite still reports green, so each one is a finding, whichever lane it is.
+  for (const [key, message] of Object.entries(compiled.wireErrors)) {
     out.push({
       oracle: 'RT-THROW',
-      lane: 'rebuild',
+      lane: key === 'validate' ? 'all' : (key as LaneId),
       target: compiled.title,
       seed,
-      message:
-        'the rebuild lane did not wire although the clone lane did — the rjs marker site is missing or its entry failed to resolve',
+      message: `the ${key} ${key === 'validate' ? 'gate' : 'lane'} did not wire: ${message}`,
       value: '',
     });
-    return;
   }
-
-  stats.checked++;
-  checkRoundtrip(compiled, value, seed, out);
+  // validate and the clone wire anchor every round-trip check, so without them there is nothing
+  // further to run.
+  if (compiled.validate && compiled.codecs.clone) {
+    stats.checked++;
+    checkRoundtrip(compiled, value, seed, out);
+  } else {
+    stats.skipped++;
+  }
   applyTsGate(generated, out, before, stats);
 }
 

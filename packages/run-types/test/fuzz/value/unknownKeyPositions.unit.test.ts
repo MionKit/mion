@@ -7,7 +7,15 @@
 import {describe, it, expect} from 'vitest';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../../../src/go-generated/runTypeKind.generated.ts';
-import {collectUnknownKeyPositions, plantUnknownKey, atPath, pathKey, UNKNOWN_KEY_PREFIX} from './unknownKeyPositions.ts';
+import {
+  collectUnknownKeyPositions,
+  containsKeyedShape,
+  plantUnknownKey,
+  atPath,
+  pathKey,
+  UNKNOWN_KEY_PREFIX,
+} from './unknownKeyPositions.ts';
+import {unreachedKeyedTargets, type FuzzTarget} from './fuzzOracle.ts';
 
 // --- tiny RunType builders (mirrors invalidValue.unit.test.ts) ---
 let counter = 0;
@@ -15,6 +23,7 @@ const node = (kind: number, extra: Record<string, unknown> = {}): RunType =>
   ({id: 'n' + counter++, kind, ...extra}) as unknown as RunType;
 const str = (): RunType => node(RunTypeKind.string);
 const num = (): RunType => node(RunTypeKind.number);
+const anyType = (): RunType => node(RunTypeKind.any);
 const prop = (name: string, child: RunType): RunType => node(RunTypeKind.property, {name, child});
 const obj = (...props: RunType[]): RunType => node(RunTypeKind.objectLiteral, {children: props});
 const indexed = (child: RunType): RunType =>
@@ -61,6 +70,19 @@ describe('fuzz / collectUnknownKeyPositions', () => {
     expect(keys(schema, 'a string')).toEqual([]);
   });
 
+  it('descends a union through the one member that could have produced the value', () => {
+    const schema = union(arr(obj(prop('a', str()))), num());
+    expect(keys(schema, [{a: 'x'}])).toEqual(['0:flagged']);
+    expect(keys(schema, 5)).toEqual([]);
+  });
+
+  it('refuses a union where two members share a coarse class, or one member matches anything', () => {
+    // two array members: the fused validator follows the branch it matched while the unknown-key
+    // families read the merged allowlist, so a deeper key has two honest answers
+    expect(keys(union(arr(obj(prop('a', str()))), arr(obj(prop('b', num())))), [{a: 'x'}])).toEqual([]);
+    expect(keys(union(arr(obj(prop('a', str()))), anyType()), [{a: 'x'}])).toEqual([]);
+  });
+
   it('finds a named class the same way it finds an object literal', () => {
     expect(keys(cls(prop('type', str())), {type: 'x'})).toEqual(['<root>:flagged']);
     expect(keys(obj(prop('err', cls(prop('type', str())))), {err: {type: 'x'}})).toEqual(['<root>:flagged', 'err:flagged']);
@@ -80,6 +102,45 @@ describe('fuzz / collectUnknownKeyPositions', () => {
     expect(keys(str(), 'a')).toEqual([]);
     expect(keys(obj(prop('n', num())), new Date())).toEqual([]);
     expect(keys(arr(num()), [1, 2])).toEqual([]);
+  });
+});
+
+describe('fuzz / containsKeyedShape', () => {
+  const keyed = obj(prop('a', str()));
+
+  it('sees a keyed shape through an array, a tuple, a union, a Map and a Set', () => {
+    expect(containsKeyedShape(arr(keyed))).toBe(true);
+    expect(containsKeyedShape(tuple(str(), keyed))).toBe(true);
+    expect(containsKeyedShape(union(num(), keyed))).toBe(true);
+    expect(containsKeyedShape(mapOf(str(), keyed))).toBe(true);
+    expect(containsKeyedShape(setOf(keyed))).toBe(true);
+  });
+
+  it('answers false when nothing in the tree declares keys', () => {
+    expect(containsKeyedShape(arr(str()))).toBe(false);
+  });
+});
+
+describe('fuzz / unreachedKeyedTargets (O27)', () => {
+  const target = (title: string, schema: RunType): FuzzTarget => ({
+    title,
+    schema,
+    mock: () => null,
+    validate: () => true,
+    getValidationErrors: () => [],
+  });
+
+  it('names a keyed target the walker never planted in, and nothing else', () => {
+    const targets = [
+      target('keyed', obj(prop('a', str()))),
+      target('reached', arr(obj(prop('b', num())))),
+      target('atomic', arr(str())),
+    ];
+    const positionsByTarget = new Map([
+      ['reached', 3],
+      ['atomic', 0],
+    ]);
+    expect(unreachedKeyedTargets(targets, positionsByTarget)).toEqual(['keyed']);
   });
 });
 

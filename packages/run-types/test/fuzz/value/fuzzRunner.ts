@@ -4,8 +4,11 @@
 //   valid    createMockDataFn<T>()        → O1, O3, O4, O5, O6, O7, O18, O19, O20
 //   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18, O19
 //   extras   mutateWithExtras(valid)    → O18, O21
-//   unknown  plantUnknownKey(valid)     → O22, O23, O24, O25
+//   unknown  plantUnknownKey(valid)     → O22, O23, O24, O25, O26
 //   junk     randomJunk() (type-blind)  → O3, O4, O18, O19
+//
+// O27 is run-level rather than per value: the report tallies the walker's positions per target and
+// the sweep asserts once, at the end, that every keyed target offered at least one.
 //
 // Every iteration runs under a seeded `Math.random` (withSeededRandom), so a
 // reported violation replays exactly from its `seed`. `runFuzz` is pure data
@@ -45,16 +48,17 @@ export interface FuzzOptions {
   iterations?: number;
 }
 
-/** Anti-vacuity counters for the unknown-key oracles (O22–O25). A lane that
+/** Anti-vacuity counters for the unknown-key oracles (O22–O26). A lane that
  *  never planted a key, never reached an index-signature carve-out or never
  *  got a wire to plant on would run green while proving nothing, so the test
- *  asserts each of these is non-zero. **/
+ *  asserts each of these is non-zero. O27 reads `positionsByTarget` once at
+ *  the end of the run. **/
 export interface UnknownKeyCoverage {
   /** Keys planted where every family owes a report. **/
   flagged: number;
   /** Keys planted into an index-signature object, where every family owes silence. **/
   carveOut: number;
-  /** Values whose encoded wire was planted on and decoded back (O25). **/
+  /** Values whose encoded wire was planted on and decoded back (O25, O26). **/
   wire: number;
   /** Positions the walker offered, per target title. O27 reads it: a target whose TYPE carries a
    *  keyed shape anywhere and never offered a position is a walker hole, and a hole makes every
@@ -197,15 +201,15 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   unknownKeys.positionsByTarget.set(target.title, (unknownKeys.positionsByTarget.get(target.title) ?? 0) + positions.length);
   push(out, checkUnknownKeysSelfAgree(target, valid, unknownCtx));
   push(out, checkUnknownKeysStripAgree(target, valid, unknownCtx));
-  // Both wire oracles plant blindly, so neither can run where a position is an index-signature
-  // carve-out: a key planted into one of those IS declared, so a correct decoder keeps it and the
-  // comparison would fail on working code. O25 holds the blanking composite to "the value does not
-  // change"; O26 holds the stripping decoder to the stronger "the key is gone".
-  if (!positions.some((position) => position.kind === 'carveOut')) {
-    if (target.jsonEncode && target.jsonDecode) unknownKeys.wire++;
-    push(out, checkWireStripBlind(target, valid, unknownCtx));
-    push(out, checkWireStripDeletes(target, valid, unknownCtx));
-  }
+  // Both wire oracles plant blindly, so they are handed the index-signature carve-outs to steer
+  // around: a key planted into one of those IS declared, so a correct decoder keeps it and the
+  // comparison would fail on working code. A carve-out at the root leaves nothing to plant on. O25
+  // holds the blanking composite to "the value does not change"; O26 holds the stripping decoder to
+  // the stronger "the key is gone".
+  const rootDeclaresEveryKey = positions.some((position) => position.kind === 'carveOut' && position.path.length === 0);
+  if (target.jsonEncode && target.jsonDecode && !rootDeclaresEveryKey) unknownKeys.wire++;
+  push(out, checkWireStripBlind(target, valid, unknownCtx, positions));
+  push(out, checkWireStripDeletes(target, valid, unknownCtx, positions));
   const planted = plantUnknownKey(target.schema, valid, Math.random);
   if (planted) {
     unknownKeys[planted.kind]++;
