@@ -49,22 +49,22 @@ reachable only through the marker (`InjectTypeFnArgs<T, 'rjs'>`), the way `pjs` 
 
 ### The emitter
 
-`ts-go-runtypes/internal/cachegen/typefunctions/json_restore_safe.go`. FIVE arms diverge from
-`rj`, not the three the plan predicted:
+`ts-go-runtypes/internal/cachegen/typefunctions/json_restore_safe.go`. More arms diverge from
+`rj` than the three the plan predicted:
 
-- **Object literal, class/`SubKindNone`** — the keyed rebuild, `emitObjectCompactFromJson`'s shape
+- **Object literal, class/`SubKindNone`**: the keyed rebuild, `emitObjectCompactFromJson`'s shape
   with `propertyAccessor` in place of the positional accessor.
-- **Index signature** — CONDITIONAL. Delegates to `rj`'s in-place walk when the declaration
+- **Index signature**: CONDITIONAL. Delegates to `rj`'s in-place walk when the declaration
   already admits every key, rebuilds otherwise. `cjr` punts these to the in-place walk, which
   would have been exactly wrong here. Four rebuild triggers: a template-literal or
   patternProperties key, a symbol-keyed signature, a function-valued signature, and a dropped
   declared sibling (G6). In doubt it rebuilds, because a needless rebuild costs an allocation and
   a wrong delegation leaks keys.
-- **Union** — gated on `atomicOnlyJsonIdentity()`, the CLONE ENCODER's gate, not `rj`'s
+- **Union**: gated on `atomicOnlyJsonIdentity()`, the CLONE ENCODER's gate, not `rj`'s
   `!AtomicNeedsTuple` early-out. That correction mattered: a union of plain objects is fully
   JSON-compatible so it never envelopes, and `rj`'s gate would have stripped nothing in the
   commonest case. Two body shapes, enveloped and bare.
-- **Tuple** — guarded with `Array.isArray`. `rj` is a noop for a tuple of plain objects and never
+- **Tuple**: guarded with `Array.isArray`. `rj` is a noop for a tuple of plain objects and never
   runs on a malformed body; `rjs` is live for those same types, so without the guard an absent
   body reached `v[0]` and threw.
 
@@ -77,7 +77,7 @@ than `siblingNamedSkipCode`, which returns "" in silence when nobody published i
 
 `rjs` carries the same `atomicOnlyJsonIdentity()` early-out `pjs` has, so for a union like
 `{a: string}[] | number` neither end stripped. This change did not touch that gate on either side;
-the next one narrows it once for all three families that read it.
+the union-gate change narrows it once for all three families that read it.
 
 ## Behaviour change worth knowing
 
@@ -90,10 +90,10 @@ serialization error. Same 422, and the payload is more precise:
 ```
 
 This is inherent to a rebuilding decoder and follows the decode doctrine: convert only the wire
-form, leave anything else for validate. Nine platform-adapter tests and two router tests were
+form, leave anything else for validate. Ten platform-adapter tests and two router tests were
 re-pinned to it. `strictTypes` moved with it: a stripping strategy deletes the key before the
-unknown-key check runs, so `mutate` is now the only strategy where that check can fire, and the
-router tests say so.
+unknown-key check runs, so `mutate` and `direct` are now the only strategies where that check can
+fire, and the router tests say so.
 
 ## A related fix that came with it
 
