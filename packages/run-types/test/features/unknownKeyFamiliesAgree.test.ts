@@ -1,9 +1,8 @@
 // Every family that answers "which keys are not declared by this type" held against the others, on
-// one value per shape. They are emitted separately, per kind, in four different Go files, and they
-// drifted apart three times: an object inside an array member of a union, a tuple slot, and a tuple
-// slot one property deep. Each time the leak faced UNTRUSTED input (the strip decoder is what a
-// server runs on a caller's payload) and nothing downstream caught it, because `validate` accepts
-// undeclared keys on an object literal by design.
+// one value per shape. They are emitted separately, per kind, in four different Go files, and a
+// family that stops reaching a position faces UNTRUSTED input (the strip decoder is what a server
+// runs on a caller's payload) with nothing downstream to catch it: `validate` accepts undeclared
+// keys on an object literal by design.
 //
 // The value fuzz owns the random half of this. This suite owns the shapes: one row per position an
 // undeclared key can hide in, every family asserted on the same value, so a family that stops
@@ -18,6 +17,10 @@ import {
   createJsonEncoderFn,
   createUnknownKeyErrorsFn,
   createValidateFn,
+  type HasUnknownKeysFn,
+  type JsonDecoderFn,
+  type JsonEncoderFn,
+  type UnknownKeyErrorsFn,
 } from '../../src/index.ts';
 
 type Inner = {a: string};
@@ -29,8 +32,24 @@ interface Row {
   wire: string;
   /** The path `unknownKeyErrors` must report for that key. **/
   reported: (string | number)[];
-  /** The value every stripping family must produce. **/
+  /** The value every deleting family must produce; the strip decoder blanks the key instead. **/
   clean: unknown;
+  fns: () => {
+    hasUnknownKeys: HasUnknownKeysFn;
+    unknownKeyErrors: UnknownKeyErrorsFn;
+    /** `ValidateFn<T>` narrows to `T` and `CloneExactShapeFn<T>` takes `T`; `T` varies per row, so
+     *  these two are spelled by what every row can supply. **/
+    validateStrict: (value: unknown) => boolean;
+    cloneExactShape: (value: never) => unknown;
+    stripDecoder: JsonDecoderFn;
+    cloneEncoder: JsonEncoderFn;
+    directEncoder: JsonEncoderFn;
+  };
+}
+
+/** Follow an object / array path through a value. **/
+function atPath(value: unknown, path: readonly (string | number)[]): unknown {
+  return path.reduce<unknown>((cursor, segment) => (cursor as Record<string | number, unknown>)[segment], value);
 }
 
 describe('every unknown-key family agrees', () => {
@@ -121,23 +140,29 @@ describe('every unknown-key family agrees', () => {
         directEncoder: createJsonEncoderFn<[Inner, number] | string>(undefined, {strategy: 'direct'}),
       }),
     },
-  } satisfies Record<string, Row & {fns: () => Record<string, any>}>;
+  } satisfies Record<string, Row>;
 
   for (const [name, row] of Object.entries(rows)) {
-    it(`reports and removes an undeclared key ${name}`, () => {
+    it(`reports, deletes or blanks an undeclared key ${name}`, () => {
       const fns = row.fns();
       const parse = () => JSON.parse(row.wire);
 
       expect(fns.hasUnknownKeys(parse()), 'hasUnknownKeys').toBe(true);
       expect(
-        fns.unknownKeyErrors(parse()).map((e: any) => e.path),
+        fns.unknownKeyErrors(parse()).map((error) => error.path),
         'unknownKeyErrors'
       ).toEqual([row.reported]);
       expect(fns.validateStrict(parse()), 'validate {checkUnknowns: true}').toBe(false);
-      expect(fns.cloneExactShape(parse()), 'cloneExactShape').toEqual(row.clean);
-      expect(fns.stripDecoder(row.wire), "decoder {strategy: 'strip'}").toEqual(row.clean);
-      expect(JSON.parse(fns.cloneEncoder(parse()) as string), "encoder {strategy: 'clone'}").toEqual(row.clean);
-      expect(JSON.parse(fns.directEncoder(parse()) as string), "encoder {strategy: 'direct'}").toEqual(row.clean);
+      expect(fns.cloneExactShape(parse() as never), 'cloneExactShape').toStrictEqual(row.clean);
+      expect(JSON.parse(fns.cloneEncoder(parse()) as string), "encoder {strategy: 'clone'}").toStrictEqual(row.clean);
+      expect(JSON.parse(fns.directEncoder(parse()) as string), "encoder {strategy: 'direct'}").toStrictEqual(row.clean);
+      // The strip decoder blanks rather than deletes, its contract: the key stays own, set to undefined.
+      const stripped = fns.stripDecoder(row.wire);
+      const host = atPath(stripped, row.reported.slice(0, -1)) as Record<string, unknown>;
+      expect(Object.hasOwn(host, 'evil'), "decoder {strategy: 'strip'} keeps the key").toBe(true);
+      expect(host.evil, "decoder {strategy: 'strip'} blanks the key").toBeUndefined();
+      // toEqual skips undefined-valued own keys, so this compares everything but the blank.
+      expect(stripped, "decoder {strategy: 'strip'}").toEqual(row.clean);
     });
   }
 

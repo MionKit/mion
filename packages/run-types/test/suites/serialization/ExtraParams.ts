@@ -108,7 +108,7 @@ export const EXTRA_PARAMS = {
   extras_inside_atomic_union_member: {
     title: 'Extra inside a union member',
     description:
-      'The union has NO object member (an array is an atomic member of the flat layout), so every gate keyed on that used to hand the value through without compiling the array. The extra sits on an object one level down, where clone and direct strip it and mutate keeps it.',
+      'Extra `extra: "hello"` sits on the object inside the array member of `{declared: string}[] | number`: the unsafe path round-trips it intact, clone, direct and compact strip it before serialise, and the strip decoder blanks it when a caller sends it.',
     mutateEncoder: () => createJsonEncoderFn<{declared: string}[] | number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{declared: string}[] | number>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<{declared: string}[] | number>(undefined, {strategy: 'direct'}),
@@ -118,10 +118,10 @@ export const EXTRA_PARAMS = {
     compactDecoder: () => createJsonDecoderFn<{declared: string}[] | number>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<{declared: string}[] | number>(),
     binaryDecoder: () => createBinaryDecoderFn<{declared: string}[] | number>(),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
     schemaEncoder: () => createJsonEncoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
     schemaDecoder: () => createJsonDecoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.array(RT.object({declared: TF.string()})), TF.number()])),
     getTestData: () => ({
       values: [[{declared: 'x', extra: 'hello'}]],
       // Unsafe: extra preserved through round-trip.
@@ -135,7 +135,7 @@ export const EXTRA_PARAMS = {
   extras_inside_tuple_slot: {
     title: 'Extra inside a tuple slot',
     description:
-      'A tuple slot was the one position the decoder strip pre-pass skipped outright, so an undeclared key inside it reached the handler from any caller that did not use our encoder.',
+      'Extra `extra: "hello"` sits on the object in the first slot of `[{declared: string}, number]`: the unsafe path round-trips it intact, clone, direct and compact strip it before serialise, and the strip decoder blanks it when a caller sends it.',
     mutateEncoder: () => createJsonEncoderFn<[{declared: string}, number]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<[{declared: string}, number]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<[{declared: string}, number]>(undefined, {strategy: 'direct'}),
@@ -145,10 +145,10 @@ export const EXTRA_PARAMS = {
     compactDecoder: () => createJsonDecoderFn<[{declared: string}, number]>(undefined, {strategy: 'compact'}),
     binaryEncoder: () => createBinaryEncoderFn<[{declared: string}, number]>(),
     binaryDecoder: () => createBinaryDecoderFn<[{declared: string}, number]>(),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
     schemaEncoder: () => createJsonEncoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
     schemaDecoder: () => createJsonDecoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple({required: [RT.object({declared: TF.string()}), TF.number()]})),
     getTestData: () => ({
       values: [[{declared: 'x', extra: 'hello'}, 2]],
       // Unsafe: extra preserved through round-trip.
