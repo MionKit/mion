@@ -375,6 +375,21 @@ describe('Dispatch routes', () => {
       });
     });
 
+    it('refuse a body with no entry for the route by validation, never by decoding the frozen sentinel', async () => {
+      const getWhen = mion.route((ctx, when: Date): Date => when);
+      mion.initRoutes({getWhen});
+
+      // `{}` on the wire, so the params fall back to the shared frozen EMPTY_PARAMS; the Date restore
+      // writes into slot 0, so handing it the sentinel would throw a raw TypeError instead
+      const request = getDefaultRequest('getWhen');
+      const response = await dispatchRoute('/getWhen', request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.getWhen;
+      expect(error).toMatchObject({
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'getWhen', validation failed.`,
+      });
+    });
+
     it('return an error if method validation fails, incorrect type', async () => {
       mion.initRoutes({changeUserName});
 
@@ -606,12 +621,14 @@ describe('StrictTypes validation', () => {
     return {name: 'LOREM', surname: user.surname};
   });
 
-  // `mutate` is the one strategy that hands the handler what arrived, undeclared keys
-  // included, so it is the only one where the unknown-key check can still fire. Every
-  // other strategy rebuilds the params from the declared shape on arrival, which drops
-  // the key before validation ever sees it.
+  // `mutate` and `direct` hand the handler what arrived, undeclared keys included, so they are
+  // the only strategies where the unknown-key check can still fire. `clone` and `compact` rebuild
+  // the params from the declared shape on arrival, which drops the key before validation sees it.
   const keepsExtras = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
     encoder: {params: 'mutate'},
+  });
+  const keepsExtrasDirect = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+    encoder: {params: 'direct'},
   });
 
   const getDefaultRequest = (path: string, params?): {headers: MionHeaders; body: string} => ({
@@ -622,15 +639,17 @@ describe('StrictTypes validation', () => {
   beforeEach(() => resetRouter());
 
   it('should reject extra properties with strictTypes enabled globally', async () => {
-    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({keepsExtras});
+    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({keepsExtras, keepsExtrasDirect});
 
-    const request = getDefaultRequest('keepsExtras', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
-    const response = await dispatchRoute('/keepsExtras', request.body, request.headers, headersFromRecord({}), request, {});
-    const error = response.body[MION_ROUTES.thrownErrors]?.keepsExtras;
-    expect(error).toMatchObject({
-      type: 'validation-error',
-      publicMessage: `Invalid params in 'keepsExtras', validation failed.`,
-    });
+    for (const id of ['keepsExtras', 'keepsExtrasDirect'] as const) {
+      const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+      const response = await dispatchRoute(`/${id}`, request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.[id];
+      expect(error).toMatchObject({
+        type: 'validation-error',
+        publicMessage: `Invalid params in '${id}', validation failed.`,
+      });
+    }
   });
 
   it('a stripping strategy drops the extra key before strictTypes can see it', async () => {
