@@ -120,10 +120,8 @@ export const JIT_FUNCTION_IDS = {
  *  value, `mutate` transforms in place, `direct` writes the JSON string, `compact` builds the
  *  positional array. */
 export const ENCODE_FAMILY_BY_STRATEGY = {clone: 'pjs', mutate: 'pj', direct: 'sj', compact: 'cj'} as const;
-/** The compiled family each JSON strategy DECODES with. A strategy that strips on the way out has
- *  to strip on the way in too, or the promise only covers the bytes mion itself wrote: `clone`
- *  rebuilds from the declared shape (`rjs`) and `compact` from positions (`cjr`). `mutate` keeps
- *  undeclared keys both ways by design, and `direct` shares the plain restore. */
+/** The compiled family each JSON strategy DECODES with. A strategy that strips on encode strips on decode too
+ *  (clone uses rjs, compact uses cjr) or it covers only bytes mion wrote; mutate and direct keep undeclared keys. */
 export const DECODE_FAMILY_BY_STRATEGY = {clone: 'rjs', mutate: 'rj', direct: 'rj', compact: 'cjr'} as const;
 /** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */
 export const STRATEGY_BY_ENCODE_FAMILY = {pjs: 'clone', pj: 'mutate', sj: 'direct', cj: 'compact'} as const;
