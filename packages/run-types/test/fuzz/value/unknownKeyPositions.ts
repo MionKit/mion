@@ -178,9 +178,8 @@ function soleUnionMemberFor(node: RunType, value: unknown): RunType | null {
 
 /** True when a keyed shape (an object literal or a plain class) sits ANYWHERE in the tree. The
  *  root's own kind is irrelevant: an array, a tuple, a union, a Map or a Set all carry one further
- *  down, and every hole this walker has ever had was a position it refused to reach while some
- *  family happily walked it. Paired with collectUnknownKeyPositions by O27, which turns "the walker
- *  found nowhere to plant" from silence into a failure. **/
+ *  down. Paired with collectUnknownKeyPositions by O27, which turns "the walker found nowhere to
+ *  plant" from silence into a failure. **/
 export function containsKeyedShape(runType: RunType, depth = 0, seen = new Set<RunType>()): boolean {
   const node = unwrap(runType);
   if (depth > 16 || seen.has(node)) return false;
