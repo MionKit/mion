@@ -5,23 +5,30 @@
 //
 // Both forms carry an object that a caller can hang an undeclared key on, and the bare form has no
 // index to dispatch on at all, so each family picks the arm from the value's own shape. That is
-// where the arms drift apart, and they have twice: the clone pair rode an object member through
-// untouched, and the compact DECODE used the mutate restore while compact ENCODE used the stripping
-// one, so a compact route accepted whatever a caller sent.
+// where the arms can drift apart.
 //
 // One row per union shape, every encode and decode function on the same value.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn, getRTFunction, type InjectTypeFnArgs} from '../../src/index.ts';
+import {
+  createHasUnknownKeysFn,
+  createJsonDecoderFn,
+  createJsonEncoderFn,
+  getRTFunction,
+  type InjectTypeFnArgs,
+} from '../../src/index.ts';
 
 // mion's `clone` strategy decodes with `rjs`, which has no createX factory: it is recovered through
-// the marker, the same wrapper shape the router's generated call site uses.
+// the marker, the same wrapper shape the router's generated call site uses. The primitive takes a
+// parsed value; parsing here makes it string-in like the factories, so one row feeds every decoder.
 function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'rjs'>) {
-  return getRTFunction<'rjs'>(id);
+  const restore = getRTFunction<'rjs'>(id);
+  return (wire: string) => restore(JSON.parse(wire));
 }
 // The mutate decode, the one family that KEEPS undeclared keys on purpose.
 function mutateDecoder<T>(id?: InjectTypeFnArgs<T, 'rj'>) {
-  return getRTFunction<'rj'>(id);
+  const restore = getRTFunction<'rj'>(id);
+  return (wire: string) => restore(JSON.parse(wire));
 }
 
 type TwoObjects = {a: string} | {b: number};
@@ -29,8 +36,9 @@ type Discriminated = {k: 1; a: string} | {k: 2; b: number};
 type ObjectOrPrimitive = {a: string} | number;
 type ObjectInsideArray = {a: string}[] | number;
 type Enveloped = {a: string} | Date;
+type IndexSignatureMember = Record<string, number> | {a: string};
 
-describe('every union decode strips the same', () => {
+describe('every union decode answers the same', () => {
   // `cloneExactShape` is deliberately absent: it refuses a union with object members outright
   // (CES001), because a clone from the declared shape needs to know which arm matched. It is the one
   // family allowed to answer "cannot", and it must keep saying so rather than quietly agreeing.
@@ -110,13 +118,27 @@ describe('every union decode strips the same', () => {
     },
   };
 
-  // Plant the undeclared key into the first plain object of an already-encoded wire. Each decoder
-  // is fed the wire ITS OWN encoder writes, so the test never assumes a layout: compact envelopes
-  // some of these shapes and rides others raw, and either way the object is in there somewhere.
+  // The first plain object of a wire tree, the one `plantIntoWire` writes into and the one a decoder
+  // answers for. Compact envelopes some of these shapes and rides others raw, and either way the
+  // object is in there somewhere, so the test never assumes a layout.
+  function firstObject(tree: unknown): Record<string, unknown> | null {
+    if (Array.isArray(tree)) {
+      for (const item of tree) {
+        const found = firstObject(item);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (tree === null || typeof tree !== 'object') return null;
+    return tree as Record<string, unknown>;
+  }
+
+  // Plant the undeclared key into an already-encoded wire. Each decoder is fed the wire ITS OWN
+  // encoder writes.
   function plantIntoWire(wire: unknown): boolean {
-    if (Array.isArray(wire)) return wire.some((item) => plantIntoWire(item));
-    if (wire === null || typeof wire !== 'object') return false;
-    (wire as Record<string, unknown>).evil = 1;
+    const host = firstObject(wire);
+    if (!host) return false;
+    host.evil = 1;
     return true;
   }
 
@@ -128,7 +150,7 @@ describe('every union decode strips the same', () => {
   ] as const;
 
   for (const [name, row] of Object.entries(rows)) {
-    it(`drops an undeclared key planted on the wire: ${name}`, () => {
+    it(`deletes or blanks an undeclared key planted on the wire: ${name}`, () => {
       const fns = row.fns();
       for (const [encKey, decKey] of PAIRS) {
         const wire = JSON.parse(fns[encKey](structuredClone(row.value)) as string);
@@ -139,9 +161,17 @@ describe('every union decode strips the same', () => {
           expect(JSON.stringify(wire), `${encKey} wrote keys but nothing was planted`).not.toContain('":');
           continue;
         }
-        // rjs takes the parsed value, the keyed decoders take the string; both rewrite in place.
-        const planted = decKey === 'cloneDecoder' ? wire : JSON.stringify(wire);
-        expect(fns[decKey](planted as never), `${encKey} -> ${decKey}`).toEqual(row.clean);
+        const out = fns[decKey](JSON.stringify(wire));
+        if (decKey !== 'stripDecoder') {
+          expect(out, `${encKey} -> ${decKey}`).toStrictEqual(row.clean);
+          continue;
+        }
+        // The strip decoder blanks rather than deletes, its contract: the key stays own, set to undefined.
+        const host = firstObject(out)!;
+        expect(Object.hasOwn(host, 'evil'), `${encKey} -> ${decKey} keeps the key`).toBe(true);
+        expect(host.evil, `${encKey} -> ${decKey} blanks the key`).toBeUndefined();
+        // toEqual skips undefined-valued own keys, so this compares everything but the blank.
+        expect(out, `${encKey} -> ${decKey}`).toEqual(row.clean);
       }
     });
 
@@ -149,7 +179,7 @@ describe('every union decode strips the same', () => {
       const fns = row.fns();
       for (const encKey of ['cloneEncoder', 'directEncoder', 'compactEncoder'] as const) {
         const clean = fns[encKey](structuredClone(row.value)) as string;
-        expect(JSON.parse(fns[encKey](structuredClone(row.wide)) as string), encKey).toEqual(JSON.parse(clean));
+        expect(JSON.parse(fns[encKey](structuredClone(row.wide)) as string), encKey).toStrictEqual(JSON.parse(clean));
       }
     });
 
@@ -157,8 +187,7 @@ describe('every union decode strips the same', () => {
       const fns = row.fns();
       for (const [encKey, decKey] of PAIRS) {
         const wire = fns[encKey](structuredClone(row.value)) as string;
-        const input = decKey === 'cloneDecoder' ? JSON.parse(wire) : wire;
-        expect(fns[decKey](input as never), `${encKey} -> ${decKey}`).toEqual(row.clean);
+        expect(fns[decKey](wire), `${encKey} -> ${decKey}`).toStrictEqual(row.clean);
       }
     });
 
@@ -168,23 +197,31 @@ describe('every union decode strips the same', () => {
       // The clone encoder already dropped it, so plant straight onto the wire to give mutate
       // something to keep.
       plantIntoWire(wire);
-      const restored = fns.mutateDecoder(wire as never);
+      const restored = fns.mutateDecoder(JSON.stringify(wire));
       const found = JSON.stringify(restored).includes('"evil"');
       expect(found, 'mutate must not strip').toBe(true);
     });
   }
 
-  // An enveloped union's wire form is `[index, value]`. A bare object is not one, and nothing
-  // assumes an index for it: every decoder refuses, and refuses the SAME way. The message itself is
-  // not pinned, only that the four agree, so rewording it stays a one-line change.
-  it('every decoder refuses a bare object where the envelope is expected', () => {
-    const attempts = {
-      cloneDecoder: () => cloneDecoder<Enveloped>()(JSON.parse('{"a":"x"}')),
-      stripDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'strip'})('{"a":"x"}'),
-      compactDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'compact'})('{"a":"x"}'),
-      preserveDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'preserve'})('{"a":"x"}'),
-      mutateDecoder: () => mutateDecoder<Enveloped>()(JSON.parse('{"a":"x"}')),
-    };
+  // An index-signature member declares every key for the WHOLE union: nothing on the value is
+  // undeclared, so no family may drop, blank or report `evil`, the encoders included. Which member
+  // a key belongs to is validation's question, not a decoder's.
+  it('keeps every key when a member carries an index signature', () => {
+    const wide = {a: 'x', evil: 1};
+    const wire = JSON.stringify(wide);
+    for (const strategy of ['clone', 'direct', 'compact'] as const) {
+      const encoded = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy})(structuredClone(wide)) as string;
+      expect(JSON.parse(encoded), `encoder {strategy: '${strategy}'}`).toStrictEqual(wide);
+    }
+    expect(cloneDecoder<IndexSignatureMember>()(wire), 'rjs').toStrictEqual(wide);
+    expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'strip'})(wire), 'strip').toStrictEqual(wide);
+    expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'compact'})(wire), 'compact').toStrictEqual(wide);
+    expect(createHasUnknownKeysFn<IndexSignatureMember>()(wide), 'hasUnknownKeys').toBe(false);
+  });
+
+  // Every attempt must throw a plain Error carrying the SAME message. The message itself is not
+  // pinned, only that they agree, so rewording it stays a one-line change.
+  function expectSameRefusal(attempts: Record<string, () => unknown>): void {
     const thrown = Object.entries(attempts).map(([name, run]) => {
       try {
         run();
@@ -196,27 +233,29 @@ describe('every union decode strips the same', () => {
     for (const entry of thrown) expect(entry.ctor, `${entry.name} must throw`).toBe('Error');
     const first = thrown[0];
     for (const entry of thrown) expect(entry.message, `${entry.name} vs ${first.name}`).toBe(first.message);
+  }
+
+  // An enveloped union's wire form is `[index, value]`. A bare object is not one, and nothing
+  // assumes an index for it: every decoder refuses, and refuses the SAME way.
+  it('every decoder refuses a bare object where the envelope is expected', () => {
+    expectSameRefusal({
+      cloneDecoder: () => cloneDecoder<Enveloped>()('{"a":"x"}'),
+      stripDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'strip'})('{"a":"x"}'),
+      compactDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'compact'})('{"a":"x"}'),
+      preserveDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'preserve'})('{"a":"x"}'),
+      mutateDecoder: () => mutateDecoder<Enveloped>()('{"a":"x"}'),
+    });
   });
 
   // An index naming no member is refused the same way, so the guard is on the VALUE of the index,
   // not merely on the wire being a two-slot array.
   it('every decoder refuses an index that names no member', () => {
-    const attempts = {
-      cloneDecoder: () => cloneDecoder<Enveloped>()(JSON.parse('[99,{"a":"x"}]')),
+    expectSameRefusal({
+      cloneDecoder: () => cloneDecoder<Enveloped>()('[99,{"a":"x"}]'),
       stripDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'strip'})('[99,{"a":"x"}]'),
       compactDecoder: () => createJsonDecoderFn<Enveloped>(undefined, {strategy: 'compact'})('[99,{"a":"x"}]'),
-      mutateDecoder: () => mutateDecoder<Enveloped>()(JSON.parse('[99,{"a":"x"}]')),
-    };
-    const messages = Object.entries(attempts).map(([name, run]) => {
-      try {
-        run();
-        return {name, ctor: 'DID NOT THROW', message: ''};
-      } catch (err) {
-        return {name, ctor: (err as object).constructor.name, message: (err as Error).message};
-      }
+      mutateDecoder: () => mutateDecoder<Enveloped>()('[99,{"a":"x"}]'),
     });
-    for (const entry of messages) expect(entry.ctor, `${entry.name} must throw`).toBe('Error');
-    for (const entry of messages) expect(entry.message, entry.name).toBe(messages[0].message);
   });
 
   // The other direction: a union carrying nothing keyed must stay compiled away, so none of the
@@ -225,7 +264,7 @@ describe('every union decode strips the same', () => {
     type Primitives = string | number;
     expect(createJsonDecoderFn<Primitives>(undefined, {strategy: 'strip'})('"hi"')).toBe('hi');
     expect(createJsonDecoderFn<Primitives>(undefined, {strategy: 'compact'})('"hi"')).toBe('hi');
-    expect(cloneDecoder<Primitives>()('hi')).toBe('hi');
+    expect(cloneDecoder<Primitives>()('"hi"')).toBe('hi');
     expect(createJsonEncoderFn<Primitives>(undefined, {strategy: 'compact'})('hi')).toBe('"hi"');
   });
 });
