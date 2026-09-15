@@ -52,6 +52,25 @@ func buildRecordNumberUnionFixture() []*reflection.RunType {
 	return []*reflection.RunType{str, num, idx, rec, propA, obj, union}
 }
 
+// buildRecordDateUnionFixture is `{[key: string]: number} | {a: Date}`: the
+// carve-out union whose object member carries a transform, so an encoder cannot
+// hand the value back as is and the Date forces the envelope on every road.
+func buildRecordDateUnionFixture() []*reflection.RunType {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Child: makeRef("num"), Index: makeRef("str")}
+	rec := &reflection.RunType{ID: "rec", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("dat")}
+	obj := &reflection.RunType{ID: "ob1", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("rec"), makeRef("ob1")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("rec"), makeRef("ob1")},
+	}
+	return []*reflection.RunType{str, num, date, idx, rec, propA, obj, union}
+}
+
 // buildArrayOfObjectsOrStringFixture is the atomic-only shape `{c: string}[] |
 // string`: no merged branch at all, but the array member positionalizes its
 // elements, so compact needs the `[idx, value]` arms where the keyed strategies
@@ -258,5 +277,50 @@ func TestCompactUnionNeedsEnvelope(t *testing.T) {
 				t.Errorf("compactUnionEnvelope = %v, want %v", got, c.want)
 			}
 		})
+	}
+}
+
+// TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys: a member with an index signature declares every
+// key from the union's point of view, so the object member of `{[key: string]: number} | {a: string}`
+// is never rebuilt from its declared shape on any road, and a key a caller sent on it rides through
+// on encode and on decode alike, exactly as the unknown-keys families answer clean for this union.
+// With no transform anywhere the object member is the value itself; with a Date on it every own key
+// is copied and only the declared prop is rewritten. Each entry is unescaped so the assertions read
+// as the emitted JS.
+func TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys(t *testing.T) {
+	entry := func(fixture []*reflection.RunType, family string) string {
+		t.Helper()
+		return strings.ReplaceAll(unionEntry(t, renderModuleDefault(t, protocol.Dump{RunTypes: fixture}, family), family), `\'`, "'")
+	}
+	bare := buildRecordNumberUnionFixture()
+	for family, want := range map[string]string{"prepareForJsonSafe": "return v;", "compactForJson": "return v;", "stringifyJson": "return JSON.stringify(v);"} {
+		got := entry(bare, family)
+		if !strings.Contains(got, want) || strings.Contains(got, "v.a") {
+			t.Errorf("[%s] the object member must be encoded as is, got:\n%s", family, got)
+		}
+	}
+	for _, family := range []string{"restoreFromJsonSafe", "compactFromJson"} {
+		got := entry(bare, family)
+		if strings.Contains(got, "const r0") || !strings.Contains(got, "for (const k0 in v)") {
+			t.Errorf("[%s] the object member must not be rebuilt while the record arm keeps its key loop, got:\n%s", family, got)
+		}
+	}
+
+	dated := buildRecordDateUnionFixture()
+	for _, family := range []string{"prepareForJsonSafe", "compactForJson"} {
+		got := entry(dated, family)
+		if !strings.Contains(got, "_r[k1] = v[k1];") || !strings.Contains(got, "_r['a'] = v.a.toISOString();") || !strings.Contains(got, "return [-1, ctxFn1(v)]") {
+			t.Errorf("[%s] the object member must copy every own key and rewrite only the Date, got:\n%s", family, got)
+		}
+	}
+	direct := entry(dated, "stringifyJson")
+	if !strings.Contains(direct, "ls1.push(JSON.stringify(k1) + ':' + s0)") || !strings.Contains(direct, `ls1.push('"a":'+'"'+v.a.toJSON()+'"')`) {
+		t.Errorf("[stringifyJson] the object member must write every own key and only the Date through its own arm, got:\n%s", direct)
+	}
+	for _, family := range []string{"restoreFromJsonSafe", "compactFromJson"} {
+		got := entry(dated, family)
+		if !strings.Contains(got, "if (dec0 === -1) {v.a = typeof v.a === 'string' ? new Date(v.a) : v.a}") || strings.Contains(got, "const r0") {
+			t.Errorf("[%s] the object member must be restored in place, got:\n%s", family, got)
+		}
 	}
 }
