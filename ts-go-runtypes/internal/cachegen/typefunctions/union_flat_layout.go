@@ -364,7 +364,8 @@ func (layout FlatLayout) atomicEncodeDispatch(v string, ctx *EmitContext) (prolo
 }
 
 // atomicOnlyJsonIdentity reports whether the union lays out as JSON-identity
-// atomic members only (no object branch, no non-JSON-compatible atomic member).
+// atomic members only: no object branch, no non-JSON-compatible atomic member,
+// and no atomic member that can hide an undeclared key (AtomicsExtraProof).
 // Such a union round-trips raw: JSON preserves the value's shape and the decoder
 // is identity (emitUnionRestoreFromJsonFlat short-circuits on !AtomicNeedsTuple),
 // so the JSON encoders collapse to a straight pass-through instead of a per-member
@@ -375,18 +376,45 @@ func (layout FlatLayout) atomicOnlyJsonIdentity() bool {
 	return len(layout.ObjectMembers) == 0 && !layout.AtomicNeedsTuple && layout.AtomicsExtraProof
 }
 
-// atomicMemberExtraProof — isExtraProof, plus the three kinds that declare no shape at all.
-// `any`, `unknown` and bare `object` answer false there because it also decides whether a value
-// may be SHARED by reference, a stricter question than "can an undeclared key hide in here".
-// Nothing in them is declared, so a strip walk has nothing to remove and the arm would compile a
-// dispatch chain that does no work. Local to this gate for exactly that reason: widening
+// atomicMemberExtraProof is isExtraProof plus the three kinds that declare no shape at all,
+// reached through any array or tuple nesting. `any`, `unknown` and bare `object` answer false
+// there because it also decides whether a value may be SHARED by reference, a stricter question
+// than "can an undeclared key hide in here". Nothing in them is declared, so a strip walk has
+// nothing to remove and the arm would compile a dispatch chain that does no work (`any[] | number`
+// emitted a `.map` that strips nothing). Local to this gate for exactly that reason: widening
 // isExtraProof itself would start sharing `any[]` by reference somewhere unrelated.
 func atomicMemberExtraProof(resolved *reflection.RunType, ctx *EmitContext) bool {
 	switch resolved.Kind {
 	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject:
 		return true
+	case reflection.KindArray, reflection.KindTupleMember:
+		if resolved.Child == nil {
+			return true
+		}
+		leaf := ctx.ResolveRef(resolved.Child)
+		return leaf != nil && atomicMemberExtraProof(leaf, ctx)
+	case reflection.KindTuple:
+		for _, child := range resolved.Children {
+			if member := ctx.ResolveRef(child); member != nil && !atomicMemberExtraProof(member, ctx) {
+				return false
+			}
+		}
+		return true
 	}
 	return isExtraProof(resolved, ctx)
+}
+
+// hasIndexSignatureMember reports whether a member carries an index signature.
+// Such a member sits in the atomic bucket (buildFlatLayout) and declares every
+// key from the union's point of view: the unknown-keys families answer clean
+// for the whole union and the safe decode keeps every key on its object branch.
+func (layout FlatLayout) hasIndexSignatureMember(ctx *EmitContext) bool {
+	for _, member := range layout.AtomicMembers {
+		if member.Resolved != nil && isObjectLikeKind(member.Resolved.Kind) && objectHasIndexSignatureChild(member.Resolved, ctx) {
+			return true
+		}
+	}
+	return false
 }
 
 // roundTripsRaw reports whether every member — atomic AND object — is
