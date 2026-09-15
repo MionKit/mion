@@ -90,11 +90,11 @@ describe('cloudflare handler (workerd runtime)', () => {
       const result = await callHandler(mf, '/api/getDate', JSON.stringify(requestData));
       const parsedResponse = JSON.parse(result.body);
 
-      const expectedError: PublicRpcError<'serialization-error'> = {
+      const expectedError: PublicRpcError<'validation-error'> = {
         'mion@isΣrrθr': true,
-        publicMessage: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
-        type: 'serialization-error',
-        errorData: {deserializeError: expect.any(String)},
+        publicMessage: `Invalid params in 'getDate', validation failed.`,
+        type: 'validation-error',
+        errorData: {typeErrors: [{path: [0], expected: 'objectLiteral'}]},
         statusCode: StatusCodes.UNEXPECTED_ERROR,
       };
       expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});

@@ -67,10 +67,12 @@ type UObjNested = {kind: 'a'} | {kind: 'b'; f: Compat};
 type UArrObj = Compat[] | string;
 type URecObj = {[key: string]: Compat} | {kind: 'x'};
 type URecAtomic = {[key: string]: number} | {kind: 'x'};
+type URecDate = {[key: string]: number} | {a: Date};
 getRunTypeId<UObjNested>();
 getRunTypeId<UArrObj>();
 getRunTypeId<URecObj>();
 getRunTypeId<URecAtomic>();
+getRunTypeId<URecDate>();
 getRunTypeId<WithNonEnum>();
 getRunTypeId<ErrSub>();
 getRunTypeId<WithLeakNative>();
@@ -169,6 +171,7 @@ func TestNoopPredicate_SoundAgainstEmitters(t *testing.T) {
 	emitters := map[string]typefunctions.Emitter{
 		"prepareForJson":             typefunctions.PrepareForJsonEmitter{},
 		"restoreFromJson":            typefunctions.RestoreFromJsonEmitter{},
+		"restoreFromJsonSafe":        typefunctions.RestoreFromJsonSafeEmitter{},
 		"prepareForJsonSafe":         typefunctions.PrepareForJsonSafeEmitter{},
 		"formatTransform":            typefunctions.FormatTransformEmitter{},
 		"validate":                   typefunctions.ValidateEmitter{},

@@ -74,7 +74,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	// never-valued property (the DataOnly dropped-slot rule), an atomic-value
 	// record (unknown-keys index arm), a literal-only object + tuple
 	// (toBinary's write-nothing compositions), and an object-carrying tuple
-	// (the uku/ukuw tuple-noop divergence).
+	// (every unknown-keys family recurses into its slots).
 	anyT := &reflection.RunType{ID: "anyT", Kind: reflection.KindAny}
 	unkT := &reflection.RunType{ID: "unkT", Kind: reflection.KindUnknown}
 	lit := &reflection.RunType{ID: "lit", Kind: reflection.KindLiteral}
@@ -431,7 +431,10 @@ func TestNoopType_StringifyJsonRoot(t *testing.T) {
 
 // TestNoopType_CompactFromJson pins the cjr arm — restoreFromJson's rules with
 // every object arm forced false (the positional→keyed rebuild). objCompat is
-// THE divergence pin: rj lets it round-trip raw, cjr must not.
+// THE divergence pin: rj lets it round-trip raw, cjr must not. Unions are the
+// same story one level up: compact ENCODE goes through the stripping encoder, so
+// its decode does too, and neither may claim identity for a union carrying an
+// object.
 func TestNoopType_CompactFromJson(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	cases := []struct {
@@ -443,10 +446,16 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		{"uAt", true},         // raw-round-trip union (shared restore rule)
 		{"uObjNest", false},   // rj says true — a merged member positionalizes its nested object
 		{"uArrObjStr", false}, // rj says true — the array arm positionalizes its elements
-		{"uRecObj", true},     // numeric record | flat object: nothing positionalizes, stays raw
-		{"recA", false},       // the key loop with the prototype-name refusal always ships
-		{"objCompat", false},  // rj says true — the delegation trap
-		{"arrCO", false},      // array of objects — positional elements
+		// A union with an object member is never noop for cjr: the compact arm is the SAFE restore,
+		// which rebuilds each object from its declared shape instead of riding the value through.
+		// uRecObj KEEPS every key at runtime (the index-signature carve-out declares them all, so
+		// its object branch restores in place); the entry is still a real function, the record
+		// arm's key loop, rather than the identity.
+		{"uRecObj", false},
+		{"uObj", false},
+		{"recA", false},      // the key loop with the prototype-name refusal always ships
+		{"objCompat", false}, // rj says true — the delegation trap
+		{"arrCO", false},     // array of objects — positional elements
 		{"dat", false},
 		{"und", false},
 		{"lit", true},
@@ -463,6 +472,49 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 	for _, id := range []string{"uObjNest", "uArrObjStr", "uRecObj"} {
 		if !isNoopForRestoreJson(types[id], ctx) {
 			t.Errorf("isNoopForRestoreJson(%s) = false, want true (the keyed strategies round-trip it raw)", id)
+		}
+	}
+}
+
+// TestNoopType_RestoreFromJsonSafe pins the rjs arm — restoreFromJson's rules with every arm that
+// REBUILDS forced false. The union rows are the ones that matter: rjs must answer false wherever an
+// undeclared key can hide, including inside an ATOMIC member, because an array member means the
+// layout carries no ObjectMembers at all and the union would otherwise short-circuit to identity.
+//
+// A wrong `true` here is not a missed optimisation, it is data corruption: this emitter sits on the
+// walker's dispatch gate, so a false positive replaces the child call with empty code and the
+// rebuild never runs at any nested position.
+func TestNoopType_RestoreFromJsonSafe(t *testing.T) {
+	ctx, types := noopPredicateTypes(t)
+	cases := []struct {
+		id   string
+		want bool
+	}{
+		{"str", true},
+		{"arrStr", true},
+		{"uAt", true},         // every member an atomic that carries no keys
+		{"uObjNest", false},   // rj says true — a merged member holds a nested object
+		{"uArrObjStr", false}, // rj says true — the object hides inside the ARRAY member
+		{"uRecObj", false},    // rj says true; the carve-out keeps every key, but the record arm's key loop ships
+		{"recA", false},       // the key loop with the prototype-name refusal always ships
+		{"objCompat", false},  // every object rebuilds, that is what strips
+		{"arrCO", false},      // array of objects — each element rebuilds
+		{"dat", false},
+		{"und", false},
+		{"lit", true},
+	}
+	for _, c := range cases {
+		t.Run(c.id, func(t *testing.T) {
+			if got := isNoopForRestoreJsonSafe(types[c.id], ctx); got != c.want {
+				t.Errorf("isNoopForRestoreJsonSafe(%s) = %v, want %v", c.id, got, c.want)
+			}
+		})
+	}
+	// The divergence pin: the preserving decoder round-trips these unions raw, and the stripping one
+	// must not. Delete this and the two predicates can drift back together unnoticed.
+	for _, id := range []string{"uObjNest", "uArrObjStr", "uRecObj"} {
+		if !isNoopForRestoreJson(types[id], ctx) {
+			t.Errorf("isNoopForRestoreJson(%s) = false, want true (the preserving decoder round-trips it raw)", id)
 		}
 	}
 }
@@ -565,9 +617,12 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		{"arrCO", same(false)}, // array of keyed objects
 		{"uAt", same(true)},    // atomic-only union — nothing to sweep
 		{"uObj", same(false)},  // merged allowlist over the object members
-		// The tuple divergence: has/errors recurse into slots; uku and
-		// ukuw no-op at tuples by design (emitTupleUnknownKeysToUndefined).
-		{"tupObj", map[string]bool{"huk": false, "uke": false, "uku": true, "ukuw": true}},
+		// An ARRAY is an atomic member of the flat layout, so this union has no merged props at
+		// all; the object inside the array is still swept (unionAtomicMemberDescent).
+		{"uArrObjStr", same(false)},
+		// Every family recurses into a tuple slot. uku and ukuw used to no-op here, which is what
+		// let `strategy: 'strip'` hand undeclared keys in a tuple slot straight to a handler.
+		{"tupObj", same(false)},
 	}
 	for _, r := range rows {
 		for familyTag, spec := range specs {

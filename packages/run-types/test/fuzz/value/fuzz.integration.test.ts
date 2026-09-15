@@ -31,7 +31,7 @@ import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {renderCrashes} from '../core/crashGuard.ts';
-import type {FuzzTarget} from './fuzzOracle.ts';
+import {unreachedKeyedTargets, type FuzzTarget} from './fuzzOracle.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 
 // restoreFromJson has no createX factory — it is reached by declaring its fnKey
@@ -43,6 +43,12 @@ import type {RunType} from '../../../src/runtypes/types.ts';
 // the two together are what parse must agree with.
 function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rj'>) {
   return getRTFunction<'rj'>(id);
+}
+
+// The STRIPPING restore, recovered the same way — mion's `clone` strategy decodes with it and it has
+// no createX factory either. O26's subject: it must DELETE an undeclared wire key, not blank it.
+function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rjs'>) {
+  return getRTFunction<'rjs'>(id);
 }
 
 const targets: FuzzTarget[] = [];
@@ -73,6 +79,7 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -95,6 +102,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -119,6 +127,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -143,6 +152,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -167,6 +177,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -191,6 +202,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -215,6 +227,58 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+    binaryEncode: createBinaryEncoderFn(schema),
+    binaryDecode: createBinaryDecoderFn(schema),
+  });
+}
+
+// --- target: an object hiding inside an ATOMIC member ---
+// An array and a tuple are atomic members of the flat union layout, so neither of these unions has
+// an object member at all, and every gate keyed on that handed the value through without compiling
+// the member. The object one level down is where the key hides. The tuple target covers the other
+// half of the same hole: the strip pre-pass used to no-op at a tuple node outright.
+{
+  const schema = RT.union([RT.array(RT.object({a: TF.string()})), TF.number()]);
+  targets.push({
+    title: 'AtomicOnlyUnion',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
+    hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
+    unknownKeyErrors: createUnknownKeyErrorsFn(schema),
+    clone: createCloneExactShapeFn(schema),
+    parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+{
+  const schema = RT.tuple({required: [RT.object({a: TF.string()}), TF.number()]});
+  targets.push({
+    title: 'ObjectInTupleSlot',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
+    hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
+    unknownKeyErrors: createUnknownKeyErrorsFn(schema),
+    clone: createCloneExactShapeFn(schema),
+    parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -242,6 +306,7 @@ const targets: FuzzTarget[] = [];
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
     restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -267,6 +332,9 @@ const targets: FuzzTarget[] = [];
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
   });
 }
 
@@ -370,6 +438,7 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -403,7 +472,8 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
 // --- target: an index signature next to named properties ---
 // The carve-out with siblings: the named half still takes the key check, the
 // indexed half must not, and every family has to draw that line in the same
-// place.
+// place. The wire oracles plant around the carve-out here, so the named half
+// is wire-checked while the indexed half is left alone.
 {
   const schema = RT.object({name: TF.string(), bag: RT.record(TF.number())});
   targets.push({
@@ -418,6 +488,9 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
   });
 }
 
@@ -466,6 +539,9 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
     expect(report.unknownKeys.flagged, 'no key was planted at a flagged position').toBeGreaterThan(0);
     expect(report.unknownKeys.carveOut, 'no key was planted at an index-signature carve-out').toBeGreaterThan(0);
     expect(report.unknownKeys.wire, 'no encoded wire was planted on').toBeGreaterThan(0);
+    // O27: a target whose TYPE carries a keyed shape anywhere must have been planted in at least
+    // once. Zero means the walker cannot reach it, and every oracle above then passed on nothing.
+    expect(unreachedKeyedTargets(targets, report.unknownKeys.positionsByTarget)).toEqual([]);
   });
 
   // O19's reference half is recovered through a marker wrapper, and

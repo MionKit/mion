@@ -22,6 +22,7 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
+  getRTFunction,
 } from '@mionjs/run-types';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
@@ -39,11 +40,16 @@ const FIXTURE = 'g.ts';
  *    mutate  → preserve (in-place keyed JSON, the extras-preserving pair)
  *    direct  → strip    (single-pass keyed JSON; shares the strip decoder)
  *    compact → compact  (positional-array wire)
+ *  `rebuild` reads the same clone wire with the rjs primitive, the decoder that
+ *  rebuilds every object from the declared shape instead of walking it in place.
+ *  It rides this oracle for one reason: a rebuild that DROPS a declared member
+ *  still returns a plausible object, and only comparing thousands of shapes
+ *  against the clone reference wire catches that.
  *  binary is the byte wire. **/
-export type LaneId = 'clone' | 'mutate' | 'direct' | 'compact' | 'binary';
+export type LaneId = 'clone' | 'mutate' | 'direct' | 'compact' | 'rebuild' | 'binary';
 
-export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact'];
-export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'binary'];
+export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'rebuild'];
+export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'direct', 'compact', 'rebuild', 'binary'];
 
 /** A wired codec: encode returns a JSON string (or undefined for an undefined
  *  root) on the JSON lanes, a Uint8Array on the binary lane. **/
@@ -65,10 +71,11 @@ export interface CompiledCodecs {
   evalError?: string;
   // --- wired factories ---
   validate?: (value: unknown) => boolean;
-  /** Lanes whose encoder AND decoder wired without throwing. A missing lane
-   *  means a factory degraded to a controlled alwaysThrow at wire time. **/
+  /** Lanes whose encoder AND decoder wired. A lane missing here has its reason in `wireErrors`. **/
   codecs: Partial<Record<LaneId, WiredCodec>>;
-  /** Per-lane (or validate) controlled wire failures. **/
+  /** Why a lane (or validate) did not wire: its fn site is missing from the fixture's emit, or its
+   *  factory threw (a non-serialisable type degrades to a controlled alwaysThrow). The runner reports
+   *  every entry the same way, whichever lane it is. **/
   wireErrors: Partial<Record<LaneId | 'validate', string>>;
 }
 
@@ -85,6 +92,7 @@ export function renderFixture(gen: GeneratedType): string {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
+  type InjectTypeFnArgs,
 } from '@mionjs/run-types';
 ${decls}
 type T = ${rootExpr};
@@ -96,15 +104,14 @@ createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
 createJsonDecoderFn<T>(undefined, {strategy: 'strip'});
 createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
+// rjs has no createX factory: a framework reaches it by naming the fnKey in its own
+// marker, which is exactly what mion's route helper does for the clone strategy.
+declare function recoverRebuild<R>(id?: InjectTypeFnArgs<R, 'rjs'>): (wire: unknown) => unknown;
+recoverRebuild<T>();
 createBinaryEncoderFn<T>();
 createBinaryDecoderFn<T>();
 `;
 }
-
-/** The 10 fn sites the fixture emits (1 validate + 4 encoders + 3 decoders + 2
- *  binary). No reflection site — values come from the shape generator, not a
- *  product mock. **/
-export const EXPECTED_FN_SITES = 10;
 
 /** Drive the full pipeline for one generated type. Never throws — every failure
  *  mode is captured on the result. **/
@@ -157,23 +164,26 @@ export async function compileCodecs(client: ResolverClient, gen: GeneratedType):
   const codecs: CompiledCodecs['codecs'] = {};
   const wireErrors: CompiledCodecs['wireErrors'] = {};
 
-  const validate = wire(wireErrors, 'validate', () =>
-    byTag.val ? (createValidateFn(undefined, undefined, byTag.val as never) as (v: unknown) => boolean) : undefined
+  const validate = wire(
+    wireErrors,
+    'validate',
+    () => createValidateFn(undefined, undefined, tupleOrThrow(byTag, 'val') as never) as (v: unknown) => boolean
   );
-
-  // strip decoder is shared by the clone and direct lanes (both emit keyed JSON).
-  const stripDecode = wireDecoder(byTag.jdST);
-  const preserveDecode = wireDecoder(byTag.jdPR);
-  const compactDecode = wireDecoder(byTag.jdCO);
-
-  wireLane(codecs, wireErrors, 'clone', byTag.jeCL, stripDecode);
-  wireLane(codecs, wireErrors, 'mutate', byTag.jeMU, preserveDecode);
-  wireLane(codecs, wireErrors, 'direct', byTag.jeDI, stripDecode);
-  wireLane(codecs, wireErrors, 'compact', byTag.jeCO, compactDecode);
-  wireBinaryLane(codecs, wireErrors, byTag.tb, byTag.fb);
+  for (const lane of ALL_LANES) wireLane(codecs, wireErrors, lane, byTag);
 
   return {...partial, validate, codecs, wireErrors};
 }
+
+/** The fn-site tags each lane wires: the strip decoder reads both keyed wires, and rebuild reads the
+ *  clone wire with the rjs primitive. **/
+const LANE_TAGS: Record<LaneId, {encode: string; decode: string}> = {
+  clone: {encode: 'jeCL', decode: 'jdST'},
+  mutate: {encode: 'jeMU', decode: 'jdPR'},
+  direct: {encode: 'jeDI', decode: 'jdST'},
+  compact: {encode: 'jeCO', decode: 'jdCO'},
+  rebuild: {encode: 'jeCL', decode: 'rjs'},
+  binary: {encode: 'tb', decode: 'fb'},
+};
 
 // Index fn-site tuples by their slot-0 family tag (jeCL/jeMU/jeDI/jeCO, jdST/
 // jdPR/jdCO, tb/fb, val). Each tag appears at most once in this fixture.
@@ -197,49 +207,43 @@ export function wireDecoder(tuple: readonly unknown[] | undefined): ((wire: unkn
   }
 }
 
-// Wire one JSON lane: a strategy encoder tuple + an already-wired decoder. The
-// lane only registers when BOTH ends materialised.
+// Wire one lane, both ends under the lane's own wire-error slot: a missing fn site and a throwing
+// factory land there alike, so the lane is either in `codecs` or explained in `wireErrors`.
 function wireLane(
   codecs: CompiledCodecs['codecs'],
   wireErrors: CompiledCodecs['wireErrors'],
   lane: LaneId,
-  encTuple: readonly unknown[] | undefined,
-  decode: ((wire: unknown) => unknown) | undefined
+  byTag: Record<string, readonly unknown[]>
 ): void {
-  if (!encTuple || !decode) return;
-  const encode = wire(
-    wireErrors,
-    lane,
-    () => createJsonEncoderFn(undefined, undefined, encTuple as never) as (v: unknown) => unknown
-  );
-  if (encode) codecs[lane] = {encode, decode};
+  const codec = wire(wireErrors, lane, () => ({
+    encode: buildEncoder(lane, tupleOrThrow(byTag, LANE_TAGS[lane].encode)),
+    decode: buildDecoder(lane, tupleOrThrow(byTag, LANE_TAGS[lane].decode)),
+  }));
+  if (codec) codecs[lane] = codec;
 }
 
-function wireBinaryLane(
-  codecs: CompiledCodecs['codecs'],
-  wireErrors: CompiledCodecs['wireErrors'],
-  encTuple: readonly unknown[] | undefined,
-  decTuple: readonly unknown[] | undefined
-): void {
-  if (!encTuple || !decTuple) return;
-  const encode = wire(
-    wireErrors,
-    'binary',
-    () => createBinaryEncoderFn(undefined, undefined, encTuple as never) as (v: unknown) => unknown
-  );
-  let decode: ((wire: unknown) => unknown) | undefined;
-  try {
-    decode = createBinaryDecoderFn(undefined, undefined, decTuple as never) as (wire: unknown) => unknown;
-  } catch (err) {
-    wireErrors.binary = wireErrors.binary ?? errMsg(err);
-    decode = undefined;
+function tupleOrThrow(byTag: Record<string, readonly unknown[]>, tag: string): readonly unknown[] {
+  const tuple = byTag[tag];
+  if (!tuple) throw new Error(`no ${tag} fn site resolved`);
+  return tuple;
+}
+
+function buildEncoder(lane: LaneId, tuple: readonly unknown[]): (value: unknown) => unknown {
+  if (lane === 'binary') return createBinaryEncoderFn(undefined, undefined, tuple as never) as (value: unknown) => unknown;
+  return createJsonEncoderFn(undefined, undefined, tuple as never) as (value: unknown) => unknown;
+}
+
+// The composites parse the string themselves; the rjs primitive takes an already-parsed value.
+function buildDecoder(lane: LaneId, tuple: readonly unknown[]): (wire: unknown) => unknown {
+  if (lane === 'binary') return createBinaryDecoderFn(undefined, undefined, tuple as never) as (wire: unknown) => unknown;
+  if (lane === 'rebuild') {
+    const restore = getRTFunction<'rjs'>(tuple);
+    return (wire: unknown) => restore(JSON.parse(wire as string));
   }
-  if (encode && decode) codecs.binary = {encode, decode};
+  return createJsonDecoderFn(undefined, undefined, tuple as never) as (wire: unknown) => unknown;
 }
 
-// Build a factory, capturing a controlled alwaysThrow as a wire error rather
-// than aborting (a non-serialisable type degrades this way; the runner gates
-// such types out, but capture defensively).
+// Build a factory, recording a throw as a wire error rather than aborting.
 export function wire<R>(wireErrors: CompiledCodecs['wireErrors'], key: LaneId | 'validate', build: () => R): R | undefined {
   try {
     return build();

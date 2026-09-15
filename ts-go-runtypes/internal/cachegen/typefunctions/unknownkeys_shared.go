@@ -692,10 +692,10 @@ func unknownKeysSupports(rt *reflection.RunType) bool {
 	return false
 }
 
-// emitTupleUnknownKeysRecurse is the shared tuple arm for the errors and
-// strip families: recurse into every slot and join the surviving child
-// statements. (toUndefined deliberately no-ops at tuples instead — see
-// emitTupleUnknownKeysToUndefined.)
+// emitTupleUnknownKeysRecurse is the shared tuple arm for every family that
+// reports or removes undeclared keys: recurse into every slot and join the
+// surviving child statements, behind one Array.isArray guard so an absent or
+// wrong-shaped value never reaches a slot read.
 func emitTupleUnknownKeysRecurse(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}

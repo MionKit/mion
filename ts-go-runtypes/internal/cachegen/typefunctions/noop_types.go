@@ -808,15 +808,167 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
 	case reflection.KindUnion:
-		// The compact union arm IS emitUnionRestoreFromJsonFlat over the
-		// compact-widened layout: the shared flat-union rule (roundTripsRaw ⇒
-		// identity) AND no member positionalizes (union_flat_compact.go).
-		return unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited)
+		// The compact union arm is the SAFE restore over the compact-widened layout: the shared
+		// flat-union rule (roundTripsRaw ⇒ identity), no member positionalizes
+		// (union_flat_compact.go), AND no member can hide an undeclared key, since the safe restore
+		// rebuilds each object from its declared shape rather than riding the value through.
+		return unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited) &&
+			!anyUnionMember(rt, ctx, unionMemberHidesKey)
 	}
 	// undefined/void (force-rebind), bigint/symbol/regexp (value
 	// transforms), never/promise/function kinds (unsupported), and any
 	// future kind: not noop.
 	return false
+}
+
+/** isNoopForRestoreJsonSafe reports whether the rjs entry for rt is the
+ *  identity. **/
+// Mirrors RestoreFromJsonSafeEmitter.Emit, which reuses restoreFromJson's arms
+// EXCEPT where it rebuilds — and a rebuild is real work at every object shape rj
+// would let round-trip raw. Unlike cjr this returns ONE verdict with no separate
+// key-guard conjunct: cjr's shape half feeds the compact envelope decision, and
+// rjs has no such second reader. Nothing may ever route this predicate into a
+// wire-shape decision; the wire is pjs's and this must not be able to move it.
+func isNoopForRestoreJsonSafe(rt *reflection.RunType, ctx *EmitContext) bool {
+	rt = ctx.ResolveRef(rt)
+	if rt == nil {
+		return false
+	}
+	if rt.ID != "" {
+		if verdict, known := ctx.walker.factsLookup(factNoopRestoreJsonSafe, rt.ID); known {
+			return verdict
+		}
+	}
+	result := restoreJsonSafeNoopRecursive(rt, ctx, make(map[string]struct{}))
+	if rt.ID != "" {
+		ctx.walker.factsStore(factNoopRestoreJsonSafe, rt.ID, result)
+	}
+	return result
+}
+
+func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+	rt = ctx.ResolveRef(rt)
+	if rt == nil {
+		return true
+	}
+	if rt.ID != "" {
+		if verdict, known := ctx.walker.factsLookup(factNoopRestoreJsonSafe, rt.ID); known {
+			return verdict
+		}
+		if _, seen := visited[rt.ID]; seen {
+			return true
+		}
+		visited[rt.ID] = struct{}{}
+	}
+	switch rt.Kind {
+
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
+		return true
+
+	case reflection.KindIntersection, reflection.KindTemplateLiteral:
+		return true
+
+	case reflection.KindLiteral:
+		return literalFlavour(rt) == litPrimitive
+
+	case reflection.KindObjectLiteral, reflection.KindClass:
+		// Every object shape rebuilds (a zero-prop object rebuilds to `{}`, which
+		// is how it strips), every class subkind either rebuilds or is
+		// unsupported, and the delegated index-signature path still ships the
+		// key-refusal loop. Same rule as isNoopForPrepareJsonSafe.
+		return false
+
+	case reflection.KindProperty, reflection.KindPropertySignature:
+		if rt.Child == nil {
+			return true
+		}
+		resolved := ctx.ResolveRef(rt.Child)
+		if resolved == nil || isStrippedUnionMember(resolved) {
+			return true
+		}
+		return restoreJsonSafeNoopRecursive(resolved, ctx, visited)
+
+	case reflection.KindArray:
+		if rt.Child == nil {
+			return true
+		}
+		// Deliberately NOT isExtraProof, the shortcut prepareForJsonSafe takes:
+		// extraProofRecursive answers true for a bigint or symbol literal, both of
+		// which this emitter transforms, and a false positive here is corruption.
+		return restoreJsonSafeNoopRecursive(rt.Child, ctx, visited)
+
+	case reflection.KindTuple:
+		for _, child := range rt.Children {
+			if !restoreJsonSafeNoopRecursive(child, ctx, visited) {
+				return false
+			}
+		}
+		return true
+
+	case reflection.KindTupleMember:
+		if rt.Optional {
+			return false
+		}
+		if rt.Child == nil {
+			return true
+		}
+		return restoreJsonSafeNoopRecursive(rt.Child, ctx, visited)
+
+	case reflection.KindIndexSignature:
+		// A symbol-keyed or child-less signature emits nothing. Everything else
+		// ships either the rebuild or rj's key-refusal loop, both real code.
+		if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
+			return true
+		}
+		if resolved := ctx.ResolveRef(rt.Child); resolved != nil && isFunctionLikeKind(resolved.Kind) {
+			return true
+		}
+		return false
+
+	case reflection.KindUnion:
+		// Mirrors the emit's atomicOnlyJsonIdentity() gate: identity only when no
+		// member carries an object shape to rebuild, none envelopes, and no member
+		// can hide an undeclared key. Miss the last conjunct and this claims noop
+		// while the emit walks, which is the false positive the contract at the top
+		// of this file calls data corruption: the dispatch gate would replace the
+		// child call with empty code and the rebuild would never run.
+		return unionJsonNoop(rt, ctx) && !anyUnionMember(rt, ctx, unionMemberEnvelopes) && !anyUnionMember(rt, ctx, unionMemberHidesKey)
+	}
+	// undefined/void (force-rebind), bigint/symbol/regexp (value transforms),
+	// never/promise/function kinds (unsupported): not noop.
+	return false
+}
+
+// anyUnionMember reports whether pred holds for a surviving member. Hand-rolled
+// over the members rather than read off buildFlatLayout, which emits drop
+// diagnostics a predicate must not duplicate (the same reason
+// compactUnionNeedsEnvelope avoids it); member stripping mirrors
+// dataOnlyUnionMembers via the same isStrippedUnionMember helper.
+func anyUnionMember(rt *reflection.RunType, ctx *EmitContext, pred func(*reflection.RunType, *EmitContext) bool) bool {
+	children := rt.SafeUnionChildren
+	if len(children) == 0 {
+		children = rt.Children
+	}
+	for _, child := range children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil || isStrippedUnionMember(resolved) {
+			continue
+		}
+		if pred(resolved, ctx) {
+			return true
+		}
+	}
+	return false
+}
+
+// unionMemberHidesKey is the negation of the emit's AtomicsExtraProof conjunct,
+// asked of EVERY member rather than the atomic bucket only, so predicate-true
+// still implies emit-noop, the safe direction.
+func unionMemberHidesKey(resolved *reflection.RunType, ctx *EmitContext) bool {
+	return !atomicMemberExtraProof(resolved, ctx)
 }
 
 /** isNoopForToBinary reports whether the tb entry for rt writes no bytes. **/
@@ -963,14 +1115,11 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 }
 
 // unknownKeysNoopSpec parameterises the shared unknown-keys predicate across
-// the five family variants — the families differ in what they DO at a node,
-// and (in exactly two spots) in WHETHER a node emits at all.
+// the five family variants: the families differ in what they DO at a node,
+// and in one spot (mapSetAlwaysNoop) in WHETHER a node emits at all.
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
-	// tupleAlwaysNoop — uku / ukuw no-op at tuples by design
-	// (emitTupleUnknownKeysToUndefined); has / strip / errors recurse.
-	tupleAlwaysNoop bool
 	// mapSetAlwaysNoop — ukuw keeps the Map/Set arm noop on the wire side
 	// (the instanceof check cannot match the still-parsed array); the other
 	// four recurse into the iterable's inner types.
@@ -980,8 +1129,8 @@ type unknownKeysNoopSpec struct {
 var (
 	hasUnknownKeysNoopSpec         = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys}
 	unknownKeyErrorsNoopSpec       = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors}
-	unknownKeysToUndefinedNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefined, tupleAlwaysNoop: true}
-	unknownKeysToUndefinedWireSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefinedWire, tupleAlwaysNoop: true, mapSetAlwaysNoop: true}
+	unknownKeysToUndefinedNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefined}
+	unknownKeysToUndefinedWireSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefinedWire, mapSetAlwaysNoop: true}
 )
 
 /** isNoopForUnknownKeys reports whether an unknown-keys family entry for rt
@@ -1070,9 +1219,6 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 		return unknownKeysNoopRecursive(resolved, ctx, spec, visited)
 
 	case reflection.KindTuple:
-		if spec.tupleAlwaysNoop {
-			return true
-		}
 		for _, child := range rt.Children {
 			if !unknownKeysNoopRecursive(child, ctx, spec, visited) {
 				return false
@@ -1081,9 +1227,6 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 		return true
 
 	case reflection.KindTupleMember:
-		if spec.tupleAlwaysNoop {
-			return true
-		}
 		if rt.Child == nil {
 			return true
 		}
@@ -1097,7 +1240,7 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 		return unknownKeysNoopIndexSignature(rt, ctx, spec, visited)
 
 	case reflection.KindUnion:
-		return unknownKeysNoopUnion(rt, ctx)
+		return unknownKeysNoopUnion(rt, ctx, spec, visited)
 	}
 	// Atoms, never, functions, promises, intersections, template literals:
 	// no keys to manage.
@@ -1163,19 +1306,20 @@ func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spe
 }
 
 // unknownKeysNoopUnion mirrors emitUnionUnknownKeysMerged's empty-emit
-// conditions (identical across all five families — the wire flag changes
-// only the body shape): any object-like member carrying an index signature
-// kills the merged allowlist for the whole union; with no object members —
-// or object members exposing no named properties to merge — there is
-// nothing to sweep. Member stripping mirrors dataOnlyUnionMembers via the
-// same isStrippedUnionMember helper.
-func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
+// conditions (identical across all five families, the wire flag changes only
+// the body shape): any object-like member carrying an index signature kills the
+// merged allowlist for the whole union; otherwise the union is noop when no
+// object member exposes a named property to merge AND no atomic member holds a
+// keyed shape the descent walks (unionAtomicMemberDescent). Member stripping
+// mirrors dataOnlyUnionMembers via the same isStrippedUnionMember helper.
+func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
 		children = rt.Children
 	}
 	anyObjectMember := false
 	anyMergedProp := false
+	atomicsNoop := true
 	for _, ref := range children {
 		resolved := ctx.ResolveRef(ref)
 		if resolved == nil || isStrippedUnionMember(resolved) {
@@ -1186,6 +1330,14 @@ func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
 			return true
 		}
 		if resolved.Kind != reflection.KindObjectLiteral && (resolved.Kind != reflection.KindClass || resolved.SubKind != reflection.SubKindNone) {
+			// An ATOMIC member in the flat layout, which is not the same as key-free: an array or
+			// a tuple carries whatever its element type declares, and unionAtomicMemberDescent
+			// walks exactly those. Miss this and the predicate claims noop while the emit walks,
+			// so the dispatch gate replaces the child call with empty code (see the contract at
+			// the top of this file).
+			if !atomicMemberExtraProof(resolved, ctx) && !unknownKeysNoopRecursive(resolved, ctx, spec, visited) {
+				atomicsNoop = false
+			}
 			continue
 		}
 		anyObjectMember = true
@@ -1199,7 +1351,7 @@ func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
 			}
 		}
 	}
-	return !anyObjectMember || !anyMergedProp
+	return (!anyObjectMember || !anyMergedProp) && atomicsNoop
 }
 
 // NoopPredicateAgreement is the corpus-test surface: it returns the emitter

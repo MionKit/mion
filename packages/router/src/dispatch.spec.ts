@@ -363,12 +363,30 @@ describe('Dispatch routes', () => {
 
       const response = await dispatchRoute('/getSameDate', request.body, request.headers, headersFromRecord({}), request, {});
       const error = response.body[MION_ROUTES.thrownErrors]?.['getSameDate'];
+      // The decoder converts only the wire form it was given and leaves anything else
+      // alone, so a missing param is refused by validation with its own path rather
+      // than by a raw throw out of the compiled function. Same status either way.
       expect(error).toMatchObject({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         'mion@isΣrrθr': true,
-        type: 'serialization-error',
-        publicMessage: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
-        errorData: {deserializeError: 'Parameters might be of the wrong type.'}, // fixed text, the decoder's message stays server-side
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'getSameDate', validation failed.`,
+        errorData: {typeErrors: [{path: [0], expected: 'objectLiteral'}]},
+      });
+    });
+
+    it('refuse a body with no entry for the route by validation, never by decoding the frozen sentinel', async () => {
+      const getWhen = mion.route((ctx, when: Date): Date => when);
+      mion.initRoutes({getWhen});
+
+      // `{}` on the wire, so the params fall back to the shared frozen EMPTY_PARAMS; the Date restore
+      // writes into slot 0, so handing it the sentinel would throw a raw TypeError instead
+      const request = getDefaultRequest('getWhen');
+      const response = await dispatchRoute('/getWhen', request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.getWhen;
+      expect(error).toMatchObject({
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'getWhen', validation failed.`,
       });
     });
 
@@ -603,6 +621,16 @@ describe('StrictTypes validation', () => {
     return {name: 'LOREM', surname: user.surname};
   });
 
+  // `mutate` and `direct` hand the handler what arrived, undeclared keys included, so they are
+  // the only strategies where the unknown-key check can still fire. `clone` and `compact` rebuild
+  // the params from the declared shape on arrival, which drops the key before validation sees it.
+  const keepsExtras = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+    encoder: {params: 'mutate'},
+  });
+  const keepsExtrasDirect = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+    encoder: {params: 'direct'},
+  });
+
   const getDefaultRequest = (path: string, params?): {headers: MionHeaders; body: string} => ({
     headers: headersFromRecord({}),
     body: JSON.stringify({[path]: params}),
@@ -611,15 +639,26 @@ describe('StrictTypes validation', () => {
   beforeEach(() => resetRouter());
 
   it('should reject extra properties with strictTypes enabled globally', async () => {
+    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({keepsExtras, keepsExtrasDirect});
+
+    for (const id of ['keepsExtras', 'keepsExtrasDirect'] as const) {
+      const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+      const response = await dispatchRoute(`/${id}`, request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.[id];
+      expect(error).toMatchObject({
+        type: 'validation-error',
+        publicMessage: `Invalid params in '${id}', validation failed.`,
+      });
+    }
+  });
+
+  it('a stripping strategy drops the extra key before strictTypes can see it', async () => {
     createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({changeUserName});
 
     const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
     const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
-    const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
-    expect(error).toMatchObject({
-      type: 'validation-error',
-      publicMessage: `Invalid params in 'changeUserName', validation failed.`,
-    });
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.changeUserName).toEqual({name: 'LOREM', surname: 'Tungsten'});
   });
 
   it('should accept extra properties without strictTypes', async () => {
@@ -634,6 +673,7 @@ describe('StrictTypes validation', () => {
   it('should support per-route strictTypes override', async () => {
     const strictRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
       strictTypes: true,
+      encoder: {params: 'mutate'},
     });
     const normalRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'NORMAL', surname: user.surname}));
     mion.initRoutes({strictRoute, normalRoute});

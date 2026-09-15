@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -49,6 +50,25 @@ func buildRecordNumberUnionFixture() []*reflection.RunType {
 		SafeUnionChildren: []*reflection.RunType{makeRef("rec"), makeRef("ob1")},
 	}
 	return []*reflection.RunType{str, num, idx, rec, propA, obj, union}
+}
+
+// buildRecordDateUnionFixture is `{[key: string]: number} | {a: Date}`: the
+// carve-out union whose object member carries a transform, so an encoder cannot
+// hand the value back as is and the Date forces the envelope on every road.
+func buildRecordDateUnionFixture() []*reflection.RunType {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Child: makeRef("num"), Index: makeRef("str")}
+	rec := &reflection.RunType{ID: "rec", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("dat")}
+	obj := &reflection.RunType{ID: "ob1", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("rec"), makeRef("ob1")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("rec"), makeRef("ob1")},
+	}
+	return []*reflection.RunType{str, num, date, idx, rec, propA, obj, union}
 }
 
 // buildArrayOfObjectsOrStringFixture is the atomic-only shape `{c: string}[] |
@@ -112,9 +132,11 @@ func TestCompactFromJsonModule_NestedObjectUnionUnwraps(t *testing.T) {
 	}
 }
 
-// TestCompactForJsonModule_RecordNumberUnionStaysBare — nothing positionalizes
+// TestCompactForJsonModule_RecordNumberUnionStaysBare: nothing positionalizes
 // inside `{[key: string]: number} | {a: string}`, so compact keeps the
-// record-union optimisation: no envelope on either half.
+// record-union optimisation: no envelope on either half. Bare is about the WIRE,
+// not about the decoder doing nothing: an identity decode on a bare wire is how
+// compact used to hand a caller's undeclared keys to a handler.
 func TestCompactForJsonModule_RecordNumberUnionStaysBare(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildRecordNumberUnionFixture()}
 
@@ -122,9 +144,21 @@ func TestCompactForJsonModule_RecordNumberUnionStaysBare(t *testing.T) {
 	if strings.Contains(compact, "[-1, ") || strings.Contains(compact, "[0, ") {
 		t.Errorf("compact encode of a record/atomic-value union must stay envelope-free; got:\n%s", compact)
 	}
-	restore := renderModuleDefault(t, dump, "compactFromJson")
-	if !strings.Contains(restore, "_uni','union',,true)") {
-		t.Errorf("compact decode of a record/atomic-value union must stay identity (noop entry); got:\n%s", restore)
+	// Scoped to the UNION entry: the standalone object entry carries its own positional rebuild
+	// (`r0.a = v[0]`), which a module-wide substring would mistake for an envelope unwrap.
+	restore := unionEntry(t, renderModuleDefault(t, dump, "compactFromJson"), "compactFromJson")
+	if strings.Contains(restore, "const dec") {
+		t.Errorf("compact decode must stay envelope-free too (no index unwrap); got:\n%s", restore)
+	}
+	// Envelope-free is not the same as identity: the record arm ships its prototype-name refusal.
+	// The index-signature member is the carve-out, though: it declares every key from the union's
+	// point of view, so the object member is NOT rebuilt from its declared shape and a key a caller
+	// sent on it rides through, exactly as the unknown-keys families answer clean for this union.
+	if !strings.Contains(restore, "for (const k0 in v)") {
+		t.Errorf("the record arm must keep its keys and only refuse prototype names; got:\n%s", restore)
+	}
+	if strings.Contains(restore, "const r0") {
+		t.Errorf("the object member of an index-signature union must not be rebuilt; got:\n%s", restore)
 	}
 }
 
@@ -141,12 +175,81 @@ func TestCompactForJsonModule_ArrayOfObjectsOrStringWrapsArms(t *testing.T) {
 	}
 	clone := renderModule(t, dump, "prepareForJsonSafe")
 	if strings.Contains(clone, "[0,") {
-		t.Errorf("clone encode of an atomic-only JSON-compatible union must stay identity; got:\n%s", clone)
+		t.Errorf("clone encode of an atomic-only JSON-compatible union must stay envelope-free; got:\n%s", clone)
 	}
 
 	restore := renderModuleDefault(t, dump, "compactFromJson")
 	if !strings.Contains(restore, "= v[0]") || !strings.Contains(restore, "=== 0") {
 		t.Errorf("compact decode must unwrap and dispatch the array arm; got:\n%s", restore)
+	}
+}
+
+// unionEntry returns just the union entry (every fixture here names it `uni`) of a rendered module.
+// Assertions about the union arm have to read this and not the whole module: the per-entry array
+// and object factories carry their own rebuild code whatever the union arm decided, so a
+// module-wide substring match passes even when the union short-circuits to `return v`.
+func unionEntry(t *testing.T, module, family string) string {
+	t.Helper()
+	line := extractInitLine(module, operations.PlainHash(family)+"_uni")
+	if line == "" {
+		t.Fatalf("no %s union entry in the rendered module:\n%s", family, module)
+	}
+	return line
+}
+
+// TestAtomicOnlyUnion_StripsInsideItsMembers — `{c: string}[] | string` carries no merged object
+// branch, so the union looks like a pass-through. It is not: an ARRAY is an atomic member, and the
+// objects inside it can carry keys the type never declared. Both ends of `clone` must walk into the
+// member and rebuild those objects, and `direct` must too since it reads the same gate. Validation
+// does not cover this — undeclared keys on an object literal are accepted by design.
+func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
+	dump := protocol.Dump{RunTypes: buildArrayOfObjectsOrStringFixture()}
+
+	// The clone encode rebuilds each element rather than handing back the array it was given.
+	clone := unionEntry(t, renderModuleDefault(t, dump, "prepareForJsonSafe"), "prepareForJsonSafe")
+	if !strings.Contains(clone, ".map(") {
+		t.Errorf("clone encode must rebuild the array's elements so an undeclared key is dropped; got:\n%s", clone)
+	}
+	// The clone decode rebuilds each element from the declared shape on arrival.
+	restoreSafe := unionEntry(t, renderModuleDefault(t, dump, "restoreFromJsonSafe"), "restoreFromJsonSafe")
+	if !strings.Contains(restoreSafe, "r0.c = ") {
+		t.Errorf("clone decode must rebuild the array's elements from the declared shape; got:\n%s", restoreSafe)
+	}
+	// The direct encoder shares the gate, so it walks too.
+	direct := unionEntry(t, renderModuleDefault(t, dump, "stringifyJson"), "stringifyJson")
+	if !strings.Contains(direct, `"c":`) {
+		t.Errorf("direct encode must write the declared members, not stringify the raw value; got:\n%s", direct)
+	}
+	// The mutate pair is the control: it keeps undeclared keys on purpose, both ways, so its entry
+	// stays the noop short form (a trailing `,,true` and no body at all).
+	for _, family := range []string{"prepareForJson", "restoreFromJson"} {
+		if entry := unionEntry(t, renderModuleDefault(t, dump, family), family); !strings.Contains(entry, ",,true)") {
+			t.Errorf("[%s] mutate must keep passing the value through untouched; got:\n%s", family, entry)
+		}
+	}
+}
+
+// TestPureAtomicUnion_StaysCompiledAway: the optimisation the gate exists for. A union with no
+// object anywhere in any member has nothing to strip, so it must still compile away to nothing,
+// `any[]` included: nothing in `any` is declared, at whatever array depth it sits.
+func TestPureAtomicUnion_StaysCompiledAway(t *testing.T) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	anyT := &reflection.RunType{ID: "any", Kind: reflection.KindAny}
+	anyArr := &reflection.RunType{ID: "anyArr", Kind: reflection.KindArray, Child: makeRef("any")}
+	unions := map[string][]*reflection.RunType{
+		"string | number": {makeRef("str"), makeRef("num")},
+		"any[] | number":  {makeRef("anyArr"), makeRef("num")},
+	}
+	for label, members := range unions {
+		union := &reflection.RunType{ID: "uni", Kind: reflection.KindUnion, Children: members, SafeUnionChildren: members}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{str, num, anyT, anyArr, union}}
+		for _, family := range []string{"prepareForJsonSafe", "restoreFromJsonSafe"} {
+			entry := unionEntry(t, renderModuleDefault(t, dump, family), family)
+			if strings.Contains(entry, "typeof v ===") || strings.Contains(entry, ".map(") {
+				t.Errorf("[%s] %s must compile to nothing, not a dispatch chain; got:\n%s", family, label, entry)
+			}
+		}
 	}
 }
 
@@ -174,5 +277,50 @@ func TestCompactUnionNeedsEnvelope(t *testing.T) {
 				t.Errorf("compactUnionEnvelope = %v, want %v", got, c.want)
 			}
 		})
+	}
+}
+
+// TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys: a member with an index signature declares every
+// key from the union's point of view, so the object member of `{[key: string]: number} | {a: string}`
+// is never rebuilt from its declared shape on any road, and a key a caller sent on it rides through
+// on encode and on decode alike, exactly as the unknown-keys families answer clean for this union.
+// With no transform anywhere the object member is the value itself; with a Date on it every own key
+// is copied and only the declared prop is rewritten. Each entry is unescaped so the assertions read
+// as the emitted JS.
+func TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys(t *testing.T) {
+	entry := func(fixture []*reflection.RunType, family string) string {
+		t.Helper()
+		return strings.ReplaceAll(unionEntry(t, renderModuleDefault(t, protocol.Dump{RunTypes: fixture}, family), family), `\'`, "'")
+	}
+	bare := buildRecordNumberUnionFixture()
+	for family, want := range map[string]string{"prepareForJsonSafe": "return v;", "compactForJson": "return v;", "stringifyJson": "return JSON.stringify(v);"} {
+		got := entry(bare, family)
+		if !strings.Contains(got, want) || strings.Contains(got, "v.a") {
+			t.Errorf("[%s] the object member must be encoded as is, got:\n%s", family, got)
+		}
+	}
+	for _, family := range []string{"restoreFromJsonSafe", "compactFromJson"} {
+		got := entry(bare, family)
+		if strings.Contains(got, "const r0") || !strings.Contains(got, "for (const k0 in v)") {
+			t.Errorf("[%s] the object member must not be rebuilt while the record arm keeps its key loop, got:\n%s", family, got)
+		}
+	}
+
+	dated := buildRecordDateUnionFixture()
+	for _, family := range []string{"prepareForJsonSafe", "compactForJson"} {
+		got := entry(dated, family)
+		if !strings.Contains(got, "_r[k1] = v[k1];") || !strings.Contains(got, "_r['a'] = v.a.toISOString();") || !strings.Contains(got, "return [-1, ctxFn1(v)]") {
+			t.Errorf("[%s] the object member must copy every own key and rewrite only the Date, got:\n%s", family, got)
+		}
+	}
+	direct := entry(dated, "stringifyJson")
+	if !strings.Contains(direct, "ls1.push(JSON.stringify(k1) + ':' + s0)") || !strings.Contains(direct, `ls1.push('"a":'+'"'+v.a.toJSON()+'"')`) {
+		t.Errorf("[stringifyJson] the object member must write every own key and only the Date through its own arm, got:\n%s", direct)
+	}
+	for _, family := range []string{"restoreFromJsonSafe", "compactFromJson"} {
+		got := entry(dated, family)
+		if !strings.Contains(got, "if (dec0 === -1) {v.a = typeof v.a === 'string' ? new Date(v.a) : v.a}") || strings.Contains(got, "const r0") {
+			t.Errorf("[%s] the object member must be restored in place, got:\n%s", family, got)
+		}
 	}
 }

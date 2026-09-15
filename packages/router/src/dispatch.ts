@@ -238,7 +238,10 @@ const EMPTY_PARAMS: any[] = [];
 Object.freeze(EMPTY_PARAMS);
 
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
-  const params: any[] = (request.body[executable.id] as any[]) || EMPTY_PARAMS;
+  const params = request.body[executable.id] as any[] | undefined;
+  // EMPTY_PARAMS is frozen and the decoders mutate what they are handed, so decoding the sentinel
+  // would throw a raw TypeError and report a serialization error where validation should refuse the missing body.
+  if (!params) return EMPTY_PARAMS;
 
   // For JSON requests, the compiled decoder of the params strategy restores the typed shape
   const {decode} = executable.paramsJitFns.json;

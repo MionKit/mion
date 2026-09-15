@@ -24,7 +24,8 @@ import (
 // and not CircularGuarded (a JSON.parse output cannot hold a cycle), so one key
 // each; the undeclared-key strategy is the operation, not an axis (see the
 // registry).
-const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 3 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+// +1: restoreFromJsonSafe (rjs), the stripping decode mirror of prepareForJsonSafe.
+const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 3 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.

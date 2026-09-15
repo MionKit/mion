@@ -111,6 +111,7 @@ export const JIT_FUNCTION_IDS = {
   sj: getFnHash('sj'),
   cj: getFnHash('cj'),
   rj: getFnHash('rj'),
+  rjs: getFnHash('rjs'),
   cjr: getFnHash('cjr'),
 } as const;
 
@@ -118,8 +119,9 @@ export const JIT_FUNCTION_IDS = {
  *  value, `mutate` transforms in place, `direct` writes the JSON string, `compact` builds the
  *  positional array. */
 export const ENCODE_FAMILY_BY_STRATEGY = {clone: 'pjs', mutate: 'pj', direct: 'sj', compact: 'cj'} as const;
-/** The compiled family each JSON strategy DECODES with: only `compact` needs its own decoder. */
-export const DECODE_FAMILY_BY_STRATEGY = {clone: 'rj', mutate: 'rj', direct: 'rj', compact: 'cjr'} as const;
+/** The compiled family each JSON strategy DECODES with. A strategy that strips on encode strips on decode too
+ *  (clone uses rjs, compact uses cjr) or it covers only bytes mion wrote; mutate and direct keep undeclared keys. */
+export const DECODE_FAMILY_BY_STRATEGY = {clone: 'rjs', mutate: 'rj', direct: 'rj', compact: 'cjr'} as const;
 /** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */
 export const STRATEGY_BY_ENCODE_FAMILY = {pjs: 'clone', pj: 'mutate', sj: 'direct', cj: 'compact'} as const;
 export type EncodeFamily = (typeof ENCODE_FAMILY_BY_STRATEGY)[keyof typeof ENCODE_FAMILY_BY_STRATEGY];

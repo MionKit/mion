@@ -574,10 +574,16 @@ func encodeFamily(strategy string) string {
 }
 
 func decodeFamily(strategy string) string {
-	if strategy == "compact" {
+	switch strategy {
+	case "compact":
 		return "cjr"
+	case "clone":
+		// The stripping decoder: clone promises undeclared keys are dropped, and
+		// that has to hold for a payload mion did not write.
+		return "rjs"
+	default:
+		return "rj"
 	}
-	return "rj"
 }
 
 // renderApiMethodModule renders `api/m/<id>.js`: the method's metadata row plus

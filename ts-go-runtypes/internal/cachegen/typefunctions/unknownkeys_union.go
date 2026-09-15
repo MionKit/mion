@@ -56,20 +56,15 @@ type UnknownKeysOpts struct {
 // emitUnionUnknownKeysMerged is the consolidated union-arm emit. Reads
 // the FlatLayout for the union and produces the per-family for-loop +
 // merged-allowlist guard. Returns empty RTCode when there's no work
-// to do (atomic-only union, all-index-sig union, …).
+// to do (a union of primitives, the index-signature carve-out).
 func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts UnknownKeysOpts) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 
-	// Index-sig carve-out — any indexed member kills the merged-allowlist
+	// Index-sig carve-out: any indexed member kills the merged-allowlist
 	// approach for the whole union (the runtime value might match the
 	// indexed branch, where every key is declared via the pattern).
-	for _, atomic := range layout.AtomicMembers {
-		if atomic.Resolved == nil {
-			continue
-		}
-		if isObjectLikeKind(atomic.Resolved.Kind) && objectHasIndexSignatureChild(atomic.Resolved, ctx) {
-			return RTCode{Code: "", Type: opts.CodeShape}
-		}
+	if layout.hasIndexSignatureMember(ctx) {
+		return RTCode{Code: "", Type: opts.CodeShape}
 	}
 
 	// Named class members ride their own `[idx, value]` arm on the wire, not
@@ -101,10 +96,15 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 		mergedProps = unionMergedPropsWithClasses(layout, ctx)
 	}
 
+	// An atomic member can still HOLD keys: an array and a tuple are atomic in the
+	// flat layout, so `{a: string}[] | number` has no merged props at all and used
+	// to return here with the object inside the array never looked at.
+	atomicDescent := unionAtomicMemberDescent(layout, ctx, opts, wireFormat)
+
 	// Atomic-only union — atomic primitives carry no keys; the family
-	// has nothing to do beyond the class arms.
+	// has nothing to do beyond the class arms and the descent above.
 	if len(mergedProps) == 0 {
-		return RTCode{Code: classArms, Type: opts.CodeShape}
+		return finishUnionUnknownKeys(ctx, opts, "", atomicDescent, classArms, wireFormat)
 	}
 
 	target := ctx.Vλl
@@ -138,6 +138,17 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 		body = "if (typeof " + ctx.Vλl + " === 'object' && " + ctx.Vλl + " !== null && !Array.isArray(" + ctx.Vλl + ")) { " + body + " }"
 	}
 
+	return finishUnionUnknownKeys(ctx, opts, body, atomicDescent, classArms, wireFormat)
+}
+
+// finishUnionUnknownKeys renders the merged-allowlist body, the atomic-member descent and the class
+// arms in the calling family's own code shape. The two bodies stay SIDE BY SIDE rather than nested:
+// the merged body walks the union's own keys (and on an enveloping wire lives under the
+// `v[0] === -1` gate), while the descent carries its own per-member guard.
+func finishUnionUnknownKeys(ctx *EmitContext, opts UnknownKeysOpts, body, atomicDescent, classArms string, wireFormat bool) RTCode {
+	v := ctx.Vλl
+	envelopeGate := "Array.isArray(" + v + ") && " + v + ".length === 2 && " + v + "[0] === -1"
+
 	switch opts.CodeShape {
 	case CodeE:
 		// hasUnknownKeys hoists the loop into a context fn: snippet emits
@@ -147,20 +158,82 @@ func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts U
 		// not per call. The wire-format variant nests: the outer gate fn
 		// calls the inner scan fn (declared first — context lines emit in
 		// allocation order, so the reference always resolves).
-		params := ctx.CtxFnParams(ctx.Vλl)
-		scanCall := ctx.CreateFnInContext(body+" return false;", CodeRB, params, params)
-		if wireFormat {
-			gate := "if (Array.isArray(" + ctx.Vλl + ") && " + ctx.Vλl + ".length === 2 && " + ctx.Vλl + "[0] === -1) return " + scanCall + "; return false;"
-			return RTCode{Code: ctx.CreateFnInContext(gate, CodeRB, params, params), Type: CodeE}
+		if body == "" && atomicDescent == "" {
+			return RTCode{Code: "", Type: CodeE}
 		}
-		return RTCode{Code: scanCall, Type: CodeE}
+		params := ctx.CtxFnParams(v)
+		if atomicDescent == "" {
+			scanCall := ctx.CreateFnInContext(body+" return false;", CodeRB, params, params)
+			if wireFormat {
+				gate := "if (" + envelopeGate + ") return " + scanCall + "; return false;"
+				return RTCode{Code: ctx.CreateFnInContext(gate, CodeRB, params, params), Type: CodeE}
+			}
+			return RTCode{Code: scanCall, Type: CodeE}
+		}
+		// With a descent in play both halves have to run before the answer is false, so the whole
+		// union becomes ONE gate fn instead of the bare scan call.
+		var lines []string
+		if body != "" {
+			scanCall := ctx.CreateFnInContext(body+" return false;", CodeRB, params, params)
+			if wireFormat {
+				lines = append(lines, "if ("+envelopeGate+") return "+scanCall+";")
+			} else {
+				lines = append(lines, "if ("+scanCall+") return true;")
+			}
+		}
+		lines = append(lines, atomicDescent, "return false;")
+		return RTCode{Code: ctx.CreateFnInContext(strings.Join(lines, " "), CodeRB, params, params), Type: CodeE}
 	default:
-		if wireFormat {
-			gated := "if (Array.isArray(" + ctx.Vλl + ") && " + ctx.Vλl + ".length === 2 && " + ctx.Vλl + "[0] === -1) { " + body + " }"
-			return RTCode{Code: joinSemicolons(classArms, gated), Type: CodeS}
+		if body != "" && wireFormat {
+			body = "if (" + envelopeGate + ") { " + body + " }"
 		}
-		return RTCode{Code: joinSemicolons(classArms, body), Type: CodeS}
+		code := joinSemicolons(classArms, body)
+		code = joinSemicolons(code, atomicDescent)
+		return RTCode{Code: code, Type: CodeS}
 	}
+}
+
+// unionAtomicMemberDescent walks the atomic members that can HOLD an undeclared key. An array and a
+// tuple are atomic members in the flat layout, so without this the merged-allowlist loop is the
+// family's only work and an object one level inside a member is never looked at.
+//
+// Skipped for a member isExtraProof already clears (a primitive, a literal, an enum, an array of
+// those): there is nothing declared in it for a key to be undeclared against, so emitting an arm
+// would compile a dispatch chain that does no work. Named class members are skipped too: they ride
+// their own arms (unionClassMemberWireStrip on the wire, the merged allowlist at runtime).
+//
+// The guard is the member's own structural guard on `v`, the same one the encoders dispatch on,
+// EXCEPT on an enveloping wire where the member arrives as `[index, value]` and the arm keys on the
+// index instead, exactly like unionClassMemberWireStrip.
+func unionAtomicMemberDescent(layout FlatLayout, ctx *EmitContext, opts UnknownKeysOpts, wireFormat bool) string {
+	v := ctx.Vλl
+	var arms []string
+	for _, member := range layout.AtomicMembers {
+		if member.Ref == nil || member.Resolved == nil || member.ClassName != "" {
+			continue
+		}
+		if atomicMemberExtraProof(member.Resolved, ctx) {
+			continue
+		}
+		guard := atomicStructuralGuard(member.Resolved, ctx, v)
+		accessor := v
+		if wireFormat {
+			guard = "Array.isArray(" + v + ") && " + v + ".length === 2 && " + v + "[0] === " + strconv.Itoa(member.OriginalIndex)
+			accessor = v + "[1]"
+		}
+		ctx.SetChildAccessor(accessor)
+		childRT := ctx.CompileChild(member.Ref, opts.CodeShape)
+		ctx.SetChildAccessor("")
+		if childRT.Type == CodeNS || childRT.Code == "" {
+			continue
+		}
+		inner := childRT.Code
+		if opts.CodeShape == CodeE {
+			inner = "if (" + inner + ") return true;"
+		}
+		arms = append(arms, "if ("+guard+") { "+inner+" }")
+	}
+	return strings.Join(arms, ";")
 }
 
 // unionMergedPropsWithClasses merges the declared props of the object members

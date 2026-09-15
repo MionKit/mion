@@ -56,6 +56,15 @@ type FlatLayout struct {
 	// flag for it.
 	DiscName       string
 	DiscIsSafeName bool
+	// AtomicsExtraProof is true iff no atomic member can hide an undeclared key
+	// anywhere in its subtree. Read by atomicOnlyJsonIdentity so a union that
+	// LOOKS like a pass-through still walks its members when one of them can
+	// carry extras: an array is an ATOMIC member, so `{a: string}[] | number`
+	// has no ObjectMembers at all, and without this the object inside the array
+	// is never compiled and its undeclared keys ride straight through.
+	// A conjunct rather than a finished verdict because buildCompactFlatLayout
+	// mutates AtomicNeedsTuple after buildFlatLayout returns.
+	AtomicsExtraProof bool
 }
 
 // discAccessor renders the JS accessor for the union discriminant on `v`
@@ -198,6 +207,14 @@ func buildFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 			continue
 		}
 		layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i})
+	}
+
+	layout.AtomicsExtraProof = true
+	for _, member := range layout.AtomicMembers {
+		if !atomicMemberExtraProof(member.Resolved, ctx) {
+			layout.AtomicsExtraProof = false
+			break
+		}
 	}
 
 	// Detect a usable shared-name literal discriminant across the object
@@ -347,7 +364,8 @@ func (layout FlatLayout) atomicEncodeDispatch(v string, ctx *EmitContext) (prolo
 }
 
 // atomicOnlyJsonIdentity reports whether the union lays out as JSON-identity
-// atomic members only (no object branch, no non-JSON-compatible atomic member).
+// atomic members only: no object branch, no non-JSON-compatible atomic member,
+// and no atomic member that can hide an undeclared key (AtomicsExtraProof).
 // Such a union round-trips raw: JSON preserves the value's shape and the decoder
 // is identity (emitUnionRestoreFromJsonFlat short-circuits on !AtomicNeedsTuple),
 // so the JSON encoders collapse to a straight pass-through instead of a per-member
@@ -355,7 +373,48 @@ func (layout FlatLayout) atomicEncodeDispatch(v string, ctx *EmitContext) (prolo
 // so this covers `'a' | 'b' | 'c'`, `true | false`, `'a' | 2 | string`, etc.
 // (Binary is unaffected: it keeps the compact per-member discriminant.)
 func (layout FlatLayout) atomicOnlyJsonIdentity() bool {
-	return len(layout.ObjectMembers) == 0 && !layout.AtomicNeedsTuple
+	return len(layout.ObjectMembers) == 0 && !layout.AtomicNeedsTuple && layout.AtomicsExtraProof
+}
+
+// atomicMemberExtraProof is isExtraProof plus the three kinds that declare no shape at all,
+// reached through any array or tuple nesting. `any`, `unknown` and bare `object` answer false
+// there because it also decides whether a value may be SHARED by reference, a stricter question
+// than "can an undeclared key hide in here". Nothing in them is declared, so a strip walk has
+// nothing to remove and the arm would compile a dispatch chain that does no work (`any[] | number`
+// emitted a `.map` that strips nothing). Local to this gate for exactly that reason: widening
+// isExtraProof itself would start sharing `any[]` by reference somewhere unrelated.
+func atomicMemberExtraProof(resolved *reflection.RunType, ctx *EmitContext) bool {
+	switch resolved.Kind {
+	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject:
+		return true
+	case reflection.KindArray, reflection.KindTupleMember:
+		if resolved.Child == nil {
+			return true
+		}
+		leaf := ctx.ResolveRef(resolved.Child)
+		return leaf != nil && atomicMemberExtraProof(leaf, ctx)
+	case reflection.KindTuple:
+		for _, child := range resolved.Children {
+			if member := ctx.ResolveRef(child); member != nil && !atomicMemberExtraProof(member, ctx) {
+				return false
+			}
+		}
+		return true
+	}
+	return isExtraProof(resolved, ctx)
+}
+
+// hasIndexSignatureMember reports whether a member carries an index signature.
+// Such a member sits in the atomic bucket (buildFlatLayout) and declares every
+// key from the union's point of view: the unknown-keys families answer clean
+// for the whole union and the safe decode keeps every key on its object branch.
+func (layout FlatLayout) hasIndexSignatureMember(ctx *EmitContext) bool {
+	for _, member := range layout.AtomicMembers {
+		if member.Resolved != nil && isObjectLikeKind(member.Resolved.Kind) && objectHasIndexSignatureChild(member.Resolved, ctx) {
+			return true
+		}
+	}
+	return false
 }
 
 // roundTripsRaw reports whether every member — atomic AND object — is

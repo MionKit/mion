@@ -333,61 +333,76 @@ func emitUnionRestoreFromJsonFlat(rt *reflection.RunType, ctx *EmitContext, v st
 }
 
 // emitUnionRestoreFromJsonFlatLayout is the decode body over a caller-built
-// layout — compact widens the envelope rule first (buildCompactFlatLayout).
+// layout, compact widens the envelope rule first (buildCompactFlatLayout).
 func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext, v string, layout FlatLayout) RTCode {
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-
-	hasObjectBranch := len(layout.ObjectMembers) > 0
 	if !layout.AtomicNeedsTuple {
-		// Whole union round-trips raw (roundTripsRaw): every member — atomic
-		// AND object/record — is JSON-compatible, so nothing was enveloped on
+		// Whole union round-trips raw (roundTripsRaw): every member, atomic
+		// AND object/record, is JSON-compatible, so nothing was enveloped on
 		// encode and there is nothing to unwrap or reconstruct: identity.
 		return RTCode{Code: "", Type: CodeS}
 	}
+	return emitEnvelopedUnionRestore(ctx, v, layout, emitMergedPropsInPlace)
+}
 
+// unionObjectArm builds the body of a union decoder's object branch: rj
+// restores each merged prop in place (emitMergedPropsInPlace), rjs rebuilds
+// the object from them (emitMergedPropsRebuild).
+type unionObjectArm func(ctx *EmitContext, v string, layout FlatLayout) (string, bool)
+
+// emitMergedPropsInPlace walks the merged props and restores each defined key
+// where it sits. Required props (every member declares them non-optionally)
+// skip the `=== undefined` guard, matching the encoder's symmetric
+// optimisation in emitUnionPrepareForJsonFlat.
+func emitMergedPropsInPlace(ctx *EmitContext, v string, layout FlatLayout) (string, bool) {
+	var propParts []string
+	for _, mp := range layout.MergedProps {
+		accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
+		propCode, ok := emitMergedPropRestore(mp, accessor, ctx)
+		if !ok {
+			return "", false
+		}
+		if propCode == "" {
+			continue
+		}
+		if mp.Required {
+			propParts = append(propParts, propCode)
+		} else {
+			propParts = append(propParts, "if ("+accessor+" !== undefined) {"+propCode+"}")
+		}
+	}
+	return strings.Join(propParts, ";"), true
+}
+
+// emitEnvelopedUnionRestore decodes the `[idx, value]` wire: the object branch
+// under idx -1, then one arm per atomic member, since every encoded value is
+// wrapped under the all-or-nothing rule. The wire is untrusted, so the shape
+// is checked before the unwrap (reflection.MustValidateJson) and `null[0]`
+// never throws a raw TypeError out of the decoder. A value that is not a
+// two-slot array is refused with the same typed `[mion]` error as an index
+// that names no member: a bare value is never this union's wire form, and
+// leaving it in place would let validate accept it through a member it never
+// encoded as.
+func emitEnvelopedUnionRestore(ctx *EmitContext, v string, layout FlatLayout, objectArm unionObjectArm) RTCode {
 	decVar := ctx.NextLocalVar("dec")
 	var arms []string
 
-	// Object branch (idx === -1) — walk merged props, restore each
-	// defined key. Required props (every member declares them
-	// non-optionally) skip the `=== undefined` guard, matching the
-	// encoder's symmetric optimisation in emitUnionPrepareForJsonFlat.
-	if hasObjectBranch {
-		var propParts []string
-		for _, mp := range layout.MergedProps {
-			accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
-			propCode, ok := emitMergedPropRestore(mp, accessor, ctx)
-			if !ok {
-				return RTCode{Code: "", Type: CodeNS}
-			}
-			if propCode == "" {
-				continue
-			}
-			if mp.Required {
-				propParts = append(propParts, propCode)
-			} else {
-				propParts = append(propParts, "if ("+accessor+" !== undefined) {"+propCode+"}")
-			}
+	if len(layout.ObjectMembers) > 0 {
+		body, ok := objectArm(ctx, v, layout)
+		if !ok {
+			return RTCode{Code: "", Type: CodeNS}
 		}
-		body := strings.Join(propParts, ";")
-		arm := "if (" + decVar + " === -1) {" + body + "}"
-		arms = append(arms, arm)
+		arms = append(arms, "if ("+decVar+" === -1) {"+body+"}")
 	}
 
-	// Atomic arms — every atomic member gets a decode clause because
-	// every encoded value is wrapped under the all-or-nothing rule.
 	for _, m := range layout.AtomicMembers {
 		restoreRT := ctx.CompileChild(m.Ref, CodeS)
 		if restoreRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
 		}
-		body := strings.TrimSpace(restoreRT.Code)
-		if body != "" && !strings.HasSuffix(body, ";") && !strings.HasSuffix(body, "}") {
-			body += ";"
-		}
-		arm := "if (" + decVar + " === " + strconv.Itoa(m.OriginalIndex) + ") {" + body + "}"
+		arm := "if (" + decVar + " === " + strconv.Itoa(m.OriginalIndex) + ") {" + terminated(strings.TrimSpace(restoreRT.Code)) + "}"
 		if len(arms) > 0 {
 			arm = " else " + arm
 		}
@@ -397,17 +412,8 @@ func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext
 	if len(arms) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-
-	inner := strings.Join(arms, "") + unionDecodeThrow(flatUnionDecodeErrorVar(ctx), decVar)
-
-	// Every encoded value is a [idx, value] envelope under the all-or-nothing
-	// wrap rule, but the wire is untrusted: the shape is checked before the
-	// unwrap (reflection.MustValidateJson), so `null[0]` never throws a raw
-	// TypeError out of the decoder. A value that is not a two-slot array is
-	// refused with the same typed `[mion]` error as an index that names no
-	// member: a bare value is never this union's wire form, and leaving it in
-	// place would let validate accept it through a member it never encoded as.
 	errVar := flatUnionDecodeErrorVar(ctx)
+	inner := strings.Join(arms, "") + unionDecodeThrow(errVar, decVar)
 	body := "if (Array.isArray(" + v + ") && " + v + ".length === 2) {" +
 		"const " + decVar + " = " + v + "[0]; " + v + " = " + v + "[1];" + inner + "}" +
 		unionDecodeThrow(errVar, v)
@@ -552,17 +558,8 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 			}
 		}
 		// Collect propJson per merged prop. Skipping empty noop props.
-		// dropCond is the `=== undefined` test extended (for a prop with a
-		// stripped sibling) so a value from the stripped member — present but
-		// of a foreign type — also emits '' (the key is dropped, G3 / G4).
-		type compiledProp struct {
-			mp       FlatMergedProp
-			accessor string
-			propJson string
-			dropCond string
-		}
 		discAccessor := layout.discAccessor(v)
-		var compiledProps []compiledProp
+		var compiledProps []stringifyMergedProp
 		for _, mp := range layout.MergedProps {
 			accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
 			propJson, ok := emitMergedPropStringify(mp, accessor, discAccessor, ctx)
@@ -576,10 +573,12 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 			if mp.HasStrippedCandidate {
 				dropCond += " || !(" + mergedPropSurvivingGuard(mp, accessor, ctx) + ")"
 			}
-			compiledProps = append(compiledProps, compiledProp{mp: mp, accessor: accessor, propJson: propJson, dropCond: dropCond})
+			compiledProps = append(compiledProps, stringifyMergedProp{mp: mp, accessor: accessor, propJson: propJson, dropCond: dropCond})
 		}
 		var objExpr string
-		if len(compiledProps) == 0 {
+		if layout.hasIndexSignatureMember(ctx) {
+			objExpr = emitMergedObjectOpenStringify(v, compiledProps, ctx)
+		} else if len(compiledProps) == 0 {
 			objExpr = "'{}'"
 		} else if hasRequired {
 			// At least one required → flat concat anchored by the first
@@ -636,6 +635,50 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 	errVar := flatUnionEncodeErrorVar(ctx)
 	clauses = append(clauses, " else { throw new Error("+errVar+") }")
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeRB}
+}
+
+// stringifyMergedProp is one merged prop's compiled JSON fragment. dropCond is
+// the `=== undefined` test extended (for a prop with a stripped sibling) so a
+// value from the stripped member, present but of a foreign type, also emits no
+// fragment (the key is dropped, G3 / G4).
+type stringifyMergedProp struct {
+	mp       FlatMergedProp
+	accessor string
+	propJson string
+	dropCond string
+}
+
+// emitMergedObjectOpenStringify is the object clause of a carve-out union: a
+// member carrying an index signature declares every key from the union's point
+// of view (FlatLayout.hasIndexSignatureMember), so the object member keeps
+// every key exactly as the decoders keep it. A member whose props need no
+// transform is native JSON.stringify of the whole value; otherwise every own
+// key is written in place, and only a declared prop with a transform or a
+// stripped sibling takes its own arm. A key native JSON would omit (a function,
+// a symbol, an undefined) is omitted here too.
+func emitMergedObjectOpenStringify(v string, props []stringifyMergedProp, ctx *EmitContext) string {
+	var transformed []stringifyMergedProp
+	for _, prop := range props {
+		if prop.propJson != "JSON.stringify("+prop.accessor+")" || prop.mp.HasStrippedCandidate {
+			transformed = append(transformed, prop)
+		}
+	}
+	if len(transformed) == 0 {
+		return "JSON.stringify(" + v + ")"
+	}
+	keyVar := ctx.NextLocalVar("k")
+	arr := ctx.NextLocalVar("ls")
+	text := ctx.NextLocalVar("s")
+	var body strings.Builder
+	body.WriteString("const " + arr + " = []; for (const " + keyVar + " in " + v + ") {")
+	for _, prop := range transformed {
+		prefix := "'" + jsonPropPrefix(prop.mp.Name, prop.mp.IsSafeName) + "'"
+		body.WriteString("if (" + keyVar + " === " + quoteJS(prop.mp.Name) + ") {if (" + prop.dropCond + ") continue; " + arr + ".push(" + prefix + "+" + prop.propJson + "); continue;}")
+	}
+	body.WriteString("const " + text + " = JSON.stringify(" + v + "[" + keyVar + "]); if (" + text + " === undefined) continue; " +
+		arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + text + ");} return '{' + " + arr + ".join(',') + '}'")
+	params := ctx.CtxFnParams(v)
+	return ctx.CreateFnInContext(body.String(), CodeRB, params, params)
 }
 
 // emitMergedPropStringify returns a JS expression that evaluates to the

@@ -11,11 +11,11 @@ import (
 // LAST row (the dispatcher renders families in registry order so the
 // CrossFamilyValRoots collection passes hit the per-dispatch entry memo).
 func TestFamilies_RegistryRoundTrip(t *testing.T) {
-	// 22 = 17 + the two fused validator families (validateStrict /
+	// 23 = 17 + the two fused validator families (validateStrict /
 	// validationErrorsStrict) behind `{checkUnknowns: true}` + the three
-	// createParseFn families, one per undeclared-key strategy.
-	if len(Families) != 22 {
-		t.Fatalf("expected 22 type-walking families, got %d", len(Families))
+	// createParseFn families, one per undeclared-key strategy + restoreFromJsonSafe.
+	if len(Families) != 23 {
+		t.Fatalf("expected 23 type-walking families, got %d", len(Families))
 	}
 	for _, spec := range Families {
 		if spec.Settings.Tag == "" {

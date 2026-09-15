@@ -165,6 +165,17 @@ func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
+// restoreFromJsonSafe changes no leaf's serializability (a rebuild or a guard
+// around one of restoreFromJson's arms never makes a leaf unserializable), so
+// it delegates its diagnostic codes the same way compactFromJson does.
+func (RestoreFromJsonSafeEmitter) DiagCodeFor(slot DiagSlot) string {
+	return restoreFromJsonCodes[slot]
+}
+
+func (RestoreFromJsonSafeEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+	return restoreFromJsonRootCodes.codeFor(leaf)
+}
+
 var stringifyJsonCodes = map[DiagSlot]string{
 	SlotNeverRoot:                  diagnostics.CodeSJNeverRoot,
 	SlotNonSerializableRoot:        diagnostics.CodeSJNonSerializableRoot,

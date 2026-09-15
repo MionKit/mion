@@ -27,8 +27,7 @@ func (UnknownKeysToUndefinedEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// IsNoopType — see isNoopForUnknownKeys (shared five-family mirror; uku
-// additionally no-ops at tuples by design).
+// IsNoopType: see isNoopForUnknownKeys, the shared five-family mirror.
 func (UnknownKeysToUndefinedEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForUnknownKeys(rt, ctx, unknownKeysToUndefinedNoopSpec)
 }
@@ -61,7 +60,8 @@ func (UnknownKeysToUndefinedEmitter) Emit(rt *reflection.RunType, ctx *EmitConte
 	case reflection.KindArray:
 		return emitArrayUnknownKeys(rt, ctx, false)
 	case reflection.KindTuple:
-		return emitTupleUnknownKeysToUndefined(rt, ctx)
+		// Runs on a caller's payload, not on our encoder's output, so a tuple slot is swept too.
+		return emitTupleUnknownKeysRecurse(rt, ctx)
 	case reflection.KindTupleMember:
 		return emitTupleMemberUnknownKeys(rt, ctx, false)
 	case reflection.KindIndexSignature:
@@ -117,22 +117,9 @@ func emitObjectUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) 
 	if combined == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return RTCode{Code: combined, Type: CodeS}
-}
-
-func emitTupleUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
-	// uku at a tuple node is a no-op. The per-position concat pattern
-	// blindly recurses into every child slot, which breaks on circular
-	// tuples (optional self-referential slot → unguarded `v[i].x` reads
-	// against `undefined`/`null`) and is semantically suspect even
-	// without recursion — for a tuple, "unknown key" would be an
-	// element past the declared length, which the per-position emit
-	// cannot detect. The safe encoder strips extras at encode time
-	// (prepareForJsonSafe clones the declared shape only) so the safe
-	// decode pipeline doesn't actually need this step to converge.
-	_ = rt
-	_ = ctx
-	return RTCode{Code: "", Type: CodeS}
+	// The shape guard every object-node unknown-keys emit runs under: an absent optional tuple slot
+	// (`{list: [string, Self?]}`) hands this node a null, and the key scan would read `v.list` off it.
+	return RTCode{Code: guardStatement(unknownKeysObjectGuard(v), combined), Type: CodeS}
 }
 
 // emitIndexSignatureUnknownKeysToUndefined ports

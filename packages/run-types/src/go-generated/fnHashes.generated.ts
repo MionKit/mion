@@ -58,6 +58,7 @@ export const FN_HASHES = {
   prsf: {axis: 'none', variants: {'': 'NoGk'}},
   prss: {axis: 'none', variants: {'': 'Rn7j'}},
   rj: {axis: 'none', variants: {'': 'd7YU'}},
+  rjs: {axis: 'none', variants: {'': 'IRLg'}},
   sj: {axis: 'none', variants: {'': 'i4VX'}},
   tb: {axis: 'none', circularGuarded: true, variants: {'': 'jDpZ', C: 'rutq'}},
   uke: {axis: 'none', variants: {'': 'r8yS'}},

@@ -39,7 +39,9 @@ type EncodeFamily<S> = S extends 'clone'
       : S extends 'compact'
         ? 'cj'
         : never;
-type DecodeFamily<S> = S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
+// `clone` decodes with the stripping restore: it promises undeclared keys are dropped, and that has
+// to hold for a payload mion did not write. `mutate` keeps them both ways, `direct` shares `rj`.
+type DecodeFamily<S> = S extends 'clone' ? 'rjs' : S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
 
 /** Options naming no `encoder`, the default for a helper called outside the factory. */
 type NoEncoderOptions = Record<never, never>;

@@ -40,6 +40,10 @@ var Families = []FamilySpec{
 	// prepareForJsonSafe: non-mutating prepareForJson sibling that strips
 	// undeclared properties and returns a new value.
 	family("prepareForJsonSafe", PrepareForJsonSafeEmitter{}),
+	// restoreFromJsonSafe: the DECODE mirror of prepareForJsonSafe — rebuilds each
+	// object from the declared shape while applying the restore transforms, so an
+	// undeclared key on the wire is gone rather than blanked. See json_restore_safe.go.
+	family("restoreFromJsonSafe", RestoreFromJsonSafeEmitter{}),
 	// compactForJson / compactFromJson: the `compact` strategy's positional-tuple
 	// round-trip pair — declared object props as a positional array (no key names)
 	// instead of a keyed object. Non-mutating clone on encode, keyed-object rebuild

@@ -522,6 +522,8 @@ const familyMeta: Record<string, FamilyMeta> = {
   // rebuilds the keyed object — both value-shaped identity like pj / rj.
   cj: valueShaped('cj', noopIdentity),
   cjr: valueShaped('cjr', noopIdentity),
+  // rjs: the strip restore, value-shaped identity like rj.
+  rjs: valueShaped('rjs', noopIdentity),
   huk: {
     fnID: 'huk',
     args: () => ({vλl: 'v', θpts: 'opts'}) as CompiledFnArgs,
