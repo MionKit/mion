@@ -522,8 +522,7 @@ const familyMeta: Record<string, FamilyMeta> = {
   // rebuilds the keyed object — both value-shaped identity like pj / rj.
   cj: valueShaped('cj', noopIdentity),
   cjr: valueShaped('cjr', noopIdentity),
-  // rjs: the stripping restore mion's `clone` strategy decodes with — value-shaped
-  // identity like rj, it just rebuilds the object instead of walking it in place.
+  // rjs: the strip restore, value-shaped identity like rj.
   rjs: valueShaped('rjs', noopIdentity),
   huk: {
     fnID: 'huk',
