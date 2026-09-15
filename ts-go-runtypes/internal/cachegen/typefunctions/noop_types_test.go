@@ -448,8 +448,9 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 		{"uArrObjStr", false}, // rj says true — the array arm positionalizes its elements
 		// A union with an object member is never noop for cjr: the compact arm is the SAFE restore,
 		// which rebuilds each object from its declared shape instead of riding the value through.
-		// uRecObj still KEEPS every key at runtime (the index-signature carve-out declares them
-		// all); the entry is simply a real function rather than the identity.
+		// uRecObj KEEPS every key at runtime (the index-signature carve-out declares them all, so
+		// its object branch restores in place); the entry is still a real function, the record
+		// arm's key loop, rather than the identity.
 		{"uRecObj", false},
 		{"uObj", false},
 		{"recA", false},      // the key loop with the prototype-name refusal always ships
@@ -494,7 +495,7 @@ func TestNoopType_RestoreFromJsonSafe(t *testing.T) {
 		{"uAt", true},         // every member an atomic that carries no keys
 		{"uObjNest", false},   // rj says true — a merged member holds a nested object
 		{"uArrObjStr", false}, // rj says true — the object hides inside the ARRAY member
-		{"uRecObj", false},    // rj says true — the record and the object both carry keys
+		{"uRecObj", false},    // rj says true; the carve-out keeps every key, but the record arm's key loop ships
 		{"recA", false},       // the key loop with the prototype-name refusal always ships
 		{"objCompat", false},  // every object rebuilds, that is what strips
 		{"arrCO", false},      // array of objects — each element rebuilds

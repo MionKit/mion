@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -478,5 +479,24 @@ func TestUnionUnknownKeys_WireFormatClassMemberArm(t *testing.T) {
 	has := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
 	if has.Code == "" {
 		t.Errorf("hasUnknownKeys must check a class member of a union")
+	}
+}
+
+// TestUnknownKeys_UnionWalksItsArrayMember: `{a: string}[] | number` has no object member, so the
+// merged allowlist is empty, and the object inside the ARRAY member is still the union's business.
+// Pinned end-to-end in packages/run-types/test/features/unknownKeyFamiliesAgree.test.ts.
+func TestUnknownKeys_UnionWalksItsArrayMember(t *testing.T) {
+	dump := protocol.Dump{RunTypes: buildAtomicMemberFixture(), Sites: []protocol.Site{ukeSite(0, "uArr")}}
+	out := renderUkeToString(t, dump)
+	line := extractInitLine(out, ukeKey("uArr"))
+	if line == "" {
+		t.Fatalf("no unknownKeyErrors entry for the union in:\n%s", out)
+	}
+	// The union's own entry calls the array member's entry, which is the descent.
+	if !strings.Contains(line, ukeKey("arr")+".fn(v") {
+		t.Errorf("the union must walk its array member, got:\n%s", line)
+	}
+	if extractInitLine(out, ukeKey("arr")) == "" {
+		t.Errorf("the array member must be compiled, got:\n%s", out)
 	}
 }

@@ -56,20 +56,15 @@ type UnknownKeysOpts struct {
 // emitUnionUnknownKeysMerged is the consolidated union-arm emit. Reads
 // the FlatLayout for the union and produces the per-family for-loop +
 // merged-allowlist guard. Returns empty RTCode when there's no work
-// to do (atomic-only union, all-index-sig union, …).
+// to do (a union of primitives, the index-signature carve-out).
 func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts UnknownKeysOpts) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 
-	// Index-sig carve-out — any indexed member kills the merged-allowlist
+	// Index-sig carve-out: any indexed member kills the merged-allowlist
 	// approach for the whole union (the runtime value might match the
 	// indexed branch, where every key is declared via the pattern).
-	for _, atomic := range layout.AtomicMembers {
-		if atomic.Resolved == nil {
-			continue
-		}
-		if isObjectLikeKind(atomic.Resolved.Kind) && objectHasIndexSignatureChild(atomic.Resolved, ctx) {
-			return RTCode{Code: "", Type: opts.CodeShape}
-		}
+	if layout.hasIndexSignatureMember(ctx) {
+		return RTCode{Code: "", Type: opts.CodeShape}
 	}
 
 	// Named class members ride their own `[idx, value]` arm on the wire, not
