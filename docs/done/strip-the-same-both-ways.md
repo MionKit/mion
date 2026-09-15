@@ -104,5 +104,5 @@ Two items of the original plan could not ship with it: `hasUnknownKeys`, `unknow
 `strategy: 'strip'` decoder never look inside an atomic union member either, so a serialization-suite
 union case and a fuzz target of this shape both failed on THAT rather than on anything here. Adding
 the coverage surfaced a third: the strip pre-pass no-ops at a tuple node outright. Those are a spec
-of their own, fixed in the next change on this branch, and the suite case, the fuzz target and the
-walker descent land with it.
+of their own, fixed by the change that made every family answer the same, and the suite case, the
+fuzz target and the walker descent land with it.
