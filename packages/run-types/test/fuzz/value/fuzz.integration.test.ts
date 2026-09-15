@@ -332,6 +332,9 @@ const targets: FuzzTarget[] = [];
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
   });
 }
 
@@ -435,6 +438,7 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -468,7 +472,8 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
 // --- target: an index signature next to named properties ---
 // The carve-out with siblings: the named half still takes the key check, the
 // indexed half must not, and every family has to draw that line in the same
-// place.
+// place. The wire oracles plant around the carve-out here, so the named half
+// is wire-checked while the indexed half is left alone.
 {
   const schema = RT.object({name: TF.string(), bag: RT.record(TF.number())});
   targets.push({
@@ -483,6 +488,9 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
   });
 }
 
