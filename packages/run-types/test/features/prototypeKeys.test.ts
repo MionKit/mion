@@ -210,10 +210,14 @@ describe('Map keys and Set members are values, never property names', () => {
   });
 
   it('round-trip through JSON with the three names as Map keys and Set members', () => {
+    const bagEncoders = {
+      clone: createJsonEncoderFn<Bags>(undefined, {strategy: 'clone'}),
+      mutate: createJsonEncoderFn<Bags>(undefined, {strategy: 'mutate'}),
+      direct: createJsonEncoderFn<Bags>(undefined, {strategy: 'direct'}),
+    };
+    const decode = createJsonDecoderFn<Bags>(undefined, {strategy: 'preserve'});
     for (const strategy of ['clone', 'mutate', 'direct'] as const) {
-      const encode = createJsonEncoderFn<Bags>(undefined, {strategy});
-      const decode = createJsonDecoderFn<Bags>(undefined, {strategy: 'preserve'});
-      const out = decode(encode(value()) as string);
+      const out = decode(bagEncoders[strategy](value()) as string);
       expect(out, strategy).toEqual(value());
       expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
       expect(createValidateFn<Bags>()(out)).toBe(true);
@@ -236,9 +240,12 @@ describe('Map keys and Set members are values, never property names', () => {
 
 describe('class deserialization sets the declared properties only, never the keys on the wire', () => {
   it('an undeclared key on the body never lands on the instance, whatever the strategy', () => {
+    const boxDecoders = {
+      strip: createJsonDecoderFn<Box>(undefined, {strategy: 'strip'}),
+      preserve: createJsonDecoderFn<Box>(undefined, {strategy: 'preserve'}),
+    };
     for (const strategy of ['strip', 'preserve'] as const) {
-      const decode = createJsonDecoderFn<Box>(undefined, {strategy});
-      const out = decode('{"value":4,"extra":9}') as Box & Record<string, unknown>;
+      const out = boxDecoders[strategy]('{"value":4,"extra":9}') as Box & Record<string, unknown>;
       expect(out, strategy).toBeInstanceOf(Box);
       expect(out.value, strategy).toBe(4);
       expect(Object.prototype.hasOwnProperty.call(out, 'extra'), strategy).toBe(false);
