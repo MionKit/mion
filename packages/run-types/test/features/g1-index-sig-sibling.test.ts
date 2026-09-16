@@ -13,13 +13,19 @@ describe('G1 — index signature does not corrupt a named sibling property', () 
     const make = (): A => ({p0: 1, 5: 7n, 9: 11n});
 
     // JSON, every encoder strategy paired with its decoder.
+    // The strategy is read at build time, so each one is spelled at its own call site; a variable
+    // resolves to no strategy and the call falls back to the default.
     const pairs = [
-      ['clone', 'strip'],
-      ['mutate', 'preserve'],
-      ['direct', 'strip'],
+      ['clone', createJsonEncoderFn<A>(undefined, {strategy: 'clone'}), createJsonDecoderFn<A>(undefined, {strategy: 'strip'})],
+      [
+        'mutate',
+        createJsonEncoderFn<A>(undefined, {strategy: 'mutate'}),
+        createJsonDecoderFn<A>(undefined, {strategy: 'preserve'}),
+      ],
+      ['direct', createJsonEncoderFn<A>(undefined, {strategy: 'direct'}), createJsonDecoderFn<A>(undefined, {strategy: 'strip'})],
     ] as const;
-    for (const [enc, dec] of pairs) {
-      const out = createJsonDecoderFn<A>(undefined, {strategy: dec})(createJsonEncoderFn<A>(undefined, {strategy: enc})(make())!);
+    for (const [enc, encode, decode] of pairs) {
+      const out = decode(encode(make())!) as A;
       expect(typeof out.p0, `[json/${enc}] p0 must stay a number`).toBe('number');
       expect(out.p0, `[json/${enc}] p0 value`).toBe(1);
       expect(out[5], `[json/${enc}] index value 5`).toBe(7n);
