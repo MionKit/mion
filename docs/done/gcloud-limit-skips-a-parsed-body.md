@@ -76,9 +76,9 @@ limit", which is exactly the false premise this finding disproved.
 
 A 413 on gcloud is now answered before the execution chain runs, so its body carries the error
 under `platformError` rather than under `mionDeserializeRequest`. That is what node and uws already
-do for an oversized body, so gcloud is now consistent with them rather than with aws. The route's
-middleFns, `alwaysRun` ones included, do not run for a request refused this way, again matching
-node and uws.
+do for an oversized body, so gcloud is now consistent with them rather than with aws. The refusal
+is handed to the chain, so the members that declare `alwaysRun` run over it and the rest are
+skipped, again matching node and uws.
 
 ## A second bug found on the same lines, fixed here too
 

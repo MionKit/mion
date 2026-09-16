@@ -373,12 +373,10 @@ describe('serverless router', () => {
     });
   });
 
-  // gcloud hands the whole body over (express already read it), so a 404 has always been answered
-  // by the chain. Pinned here so the failed-on-arrival rule stays the same on a platform with no
-  // early refusal of its own.
+  // the answers above are the wire shape; this is which of YOUR middleFns saw them.
   describe('a failed request still runs the alwaysRun middleFns', () => {
     const seen: string[] = [];
-    const failPort = 8099; // its own port: 8098 is taken by BOTH smallPort above and port2 below
+    const failPort = 8100; // its own port: 8098 is smallPort and port2, 8099 the limit suite's
     let failServer: Server;
 
     beforeAll(async () => {
@@ -427,20 +425,20 @@ describe('serverless router', () => {
       expect(seen).toEqual(['log:404']);
     });
 
-    // no content-type on purpose: express hands a string body straight over, which is the shape the
-    // router measures. `connection: close` for the same reason as the 404 above.
-    it('a body over the limit is a 413 the alwaysRun middleFn sees, raised inside the chain', async () => {
+    // this adapter measures the body itself and refuses before the chain, so the 413 lands under
+    // platformError and only the alwaysRun member runs, exactly like node and uws
+    it('a body over the limit is a 413 that only the alwaysRun middleFn sees', async () => {
       seen.length = 0;
       const response = await fetch(`http://127.0.0.1:${failPort}/api/echo`, {
         method: 'POST',
         body: JSON.stringify({echo: [{name: 'x'.repeat(80), surname: 'y'}]}),
-        headers: {connection: 'close'},
+        headers: {'content-type': 'application/json', connection: 'close'},
       });
       expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
       const errors = (await response.json())[MION_ROUTES.thrownErrors];
-      expect(errors['mionDeserializeRequest'].type).toEqual('request-payload-too-large');
-      // express already read the body, so the router raises it and the plain global ran first
-      expect(seen).toEqual(['start:/api/echo', 'log:413']);
+      expect(errors[MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
+      expect(errors['mionDeserializeRequest']).toBeUndefined();
+      expect(seen).toEqual(['log:413']);
     });
 
     it('a known path runs the whole chain', async () => {

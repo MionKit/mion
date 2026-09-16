@@ -9,6 +9,8 @@ import {RpcError, FatalError, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {
   dispatchWithContext,
+  dispatchPlatformError,
+  toRpcError,
   resolveRequest,
   createContextFromResolved,
   getRouterFatalErrorResponse,
@@ -69,7 +71,20 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     // express already read (and may have parsed) the body, so the chain is resolved first to get
     // the route's own limit, then the too-large check runs before anything is handed to the router
     const resolved = resolveRequest(rawRequest.path, urlQuery, rawRequest);
-    rejectOversizedRequest(rawRequest, rawBody, resolved.maxBodySize);
+    try {
+      rejectOversizedRequest(rawRequest, rawBody, resolved.maxBodySize);
+    } catch (refusal) {
+      // the route resolved, so the refusal still runs the chain's alwaysRun members
+      const refused = await dispatchPlatformError(
+        resolved,
+        toRpcError(refusal),
+        reqHeaders,
+        respHeaders,
+        rawRequest,
+        rawResponse
+      );
+      return reply(refused, rawResponse);
+    }
     const queryBody = decodeQueryBody(urlQuery, bodyOrUndefined(rawBody));
     if (queryBody) {
       rawBody = queryBody.rawBody;
@@ -79,15 +94,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     const routeResponse = await dispatchWithContext(context, rawRequest, rawResponse);
     reply(routeResponse, rawResponse);
   } catch (err) {
-    const error =
-      err instanceof RpcError
-        ? err
-        : new FatalError({
-            publicMessage: 'Internal Error',
-            originalError: err as Error,
-            type: 'unknown-error',
-          });
-    const routeResponse = getRouterFatalErrorResponse(error, respHeaders);
+    const routeResponse = getRouterFatalErrorResponse(toRpcError(err), respHeaders);
     reply(routeResponse, rawResponse);
   }
 }
