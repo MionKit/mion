@@ -28,13 +28,7 @@ import {isDeepStrictEqual} from 'node:util';
 import {deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 import type {RTValidationError, RTValidationErrorPathSegment} from '../../../src/createRTFunctions.ts';
-import {
-  containsKeyedShape,
-  pathKey,
-  UNKNOWN_KEY_PREFIX,
-  type PlantedUnknownKey,
-  type UnknownKeyPosition,
-} from './unknownKeyPositions.ts';
+import {containsKeyedShape, pathKey, UNKNOWN_KEY_PREFIX, wireKeyAdmitted, type PlantedUnknownKey} from './unknownKeyPositions.ts';
 
 /** One target type under fuzz: its schema (to drive mock + corruption) plus
  *  the family functions to exercise. Serialization fns are optional so a
@@ -134,11 +128,12 @@ export interface FuzzTarget {
 //                       is reported by neither; a clean value is clean
 //   O24 unknown-strip   the paths unknownKeyErrors reports are exactly the
 //                       keys cloneExactShape drops
-//   O25 wire-strip      undeclared keys planted on the ENCODED WIRE do not
-//                       change what the `strip` decoder returns, and the
-//                       `preserve` decoder does keep them
-//   O26 wire-delete     undeclared keys planted on the encoded wire are GONE
-//                       from what the stripping decoder returns
+//   O25 wire-strip      keys planted into EVERY plain object of the encoded
+//                       wire do not change what the `strip` decoder returns,
+//                       except where the type admits them (an index signature,
+//                       a union member the planted wire no longer matches)
+//   O26 wire-delete     keys planted on the encoded wire are GONE from what the
+//                       stripping decoder returns, unless the type admits them
 //   O27 walker-reach    run-level: every target whose type carries a keyed
 //                       shape offered the walker a position
 // O15–O17 are the cloning oracles (test/fuzz/cloning/cloneOracle.ts):
@@ -526,13 +521,18 @@ export function unreachedKeyedTargets(targets: FuzzTarget[], positionsByTarget: 
     .map((target) => target.title);
 }
 
-/** survivingPlantedKeys — the paths of every planted key still present as an OWN key.
- *  `Object.hasOwn` semantics rather than a value check on purpose: a key set to `undefined` is
- *  still there, and telling those two apart is this oracle's whole job. **/
-function survivingPlantedKeys(value: unknown, path: RTValidationErrorPathSegment[] = [], depth = 0): string[] {
+/** The path of every planted key still present as an OWN key, spelled the way `unknownKeyErrors`
+ *  spells a path so `wireKeyAdmitted` can walk the type along it. `Object.hasOwn`
+ *  semantics rather than a value check on purpose: a key set to `undefined` is still there, and
+ *  telling those two apart is O26's whole job. **/
+function survivingPlantedKeys(
+  value: unknown,
+  path: RTValidationErrorPathSegment[] = [],
+  depth = 0
+): RTValidationErrorPathSegment[][] {
   if (depth > 12 || value === null || typeof value !== 'object') return [];
   if (value instanceof Date || value instanceof RegExp) return [];
-  const out: string[] = [];
+  const out: RTValidationErrorPathSegment[][] = [];
   if (value instanceof Map) {
     let index = 0;
     for (const [key, entry] of value) {
@@ -556,7 +556,7 @@ function survivingPlantedKeys(value: unknown, path: RTValidationErrorPathSegment
   }
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record)) {
-    if (key.startsWith(UNKNOWN_KEY_PREFIX)) out.push(pathKey([...path, key]));
+    if (key.startsWith(UNKNOWN_KEY_PREFIX)) out.push([...path, key]);
     else out.push(...survivingPlantedKeys(record[key], [...path, key], depth + 1));
   }
   return out;
@@ -565,21 +565,19 @@ function survivingPlantedKeys(value: unknown, path: RTValidationErrorPathSegment
 /** O26 — the STRIPPING decoder deletes an undeclared wire key rather than blanking it.
  *
  *  O25's subject is the default `strip` composite, which sets an undeclared key to `undefined` and
- *  leaves it in place, so that oracle normalises both sides through `withoutBlankedKeys` before
- *  comparing. `rjs` rebuilds each object from the declared shape instead, so the key is genuinely
- *  gone, and normalising here would hide a regression back to blanking.
+ *  leaves it in place, so that oracle normalises both sides before comparing. `rjs` rebuilds each
+ *  object from the declared shape instead, so the key is genuinely gone, and normalising here would
+ *  hide a regression back to blanking.
  *
  *  It plants on the WIRE, which is what makes it reach where the type walker cannot: `plantWireKeys`
- *  consults no type, so it writes into a union arm's payload and into an array element the walker
- *  refuses to descend into. The walker's carve-outs are the one thing it is told, for the same
- *  reason O25 needs them: an index signature DECLARES every key, so a planted key there is not
- *  undeclared and a correct decoder keeps it. **/
-export function checkWireStripDeletes(
-  target: FuzzTarget,
-  value: unknown,
-  ctx: CheckCtx,
-  positions: readonly UnknownKeyPosition[]
-): Violation | null {
+ *  consults no type, so it writes into every plain object, a union arm's payload and an array
+ *  element included. The judgement comes after the decode: every planted key that survives is held
+ *  against the type by `wireKeyAdmitted`, and only a survivor at a position the type does not admit
+ *  is a violation. An index signature DECLARES every key, so a survivor there is a decoder doing
+ *  its job; and a planted string inside a record of numbers makes the wire invalid, which a union
+ *  arm may then leave alone for validate to refuse, so on such a wire a survivor inside a union is
+ *  admitted too. **/
+export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {jsonEncode, restoreFromJsonSafe} = target;
   if (!jsonEncode || !restoreFromJsonSafe) return null;
   let wire: string | undefined;
@@ -592,7 +590,7 @@ export function checkWireStripDeletes(
   let planted: unknown;
   try {
     planted = JSON.parse(wire);
-    if (plantWireKeys(planted, carveOutWirePaths(positions)) === 0) return null;
+    if (plantWireKeys(planted) === 0) return null;
   } catch {
     return null; // a wire we cannot re-serialize is not this oracle's subject
   }
@@ -609,13 +607,14 @@ export function checkWireStripDeletes(
       planted
     );
   }
-  const survivors = survivingPlantedKeys(restored);
-  if (survivors.length > 0)
+  const wireInvalid = !validates(target, restored);
+  const kept = survivingPlantedKeys(restored).filter((path) => !wireKeyAdmitted(target.schema, path, wireInvalid));
+  if (kept.length > 0)
     return violation(
       'O26',
       target,
       ctx,
-      `the stripping decoder left ${survivors.length} undeclared wire key(s): [${survivors.join(', ')}]`,
+      `the stripping decoder left ${kept.length} undeclared wire key(s): [${kept.map(pathKey).join(', ')}]`,
       restored
     );
   return null;
@@ -626,22 +625,25 @@ export function checkWireStripDeletes(
  *  The one family with no public factory: `ukuw` runs inside the
  *  `strategy: 'strip'` decoder, before the restore walks the declared shape.
  *  Reaching it means going through the decoder, so the property is
- *  metamorphic rather than direct — plant undeclared keys at every plain
- *  object on the ENCODED WIRE and the strip decoder must return the same value
- *  it returned without them. A position the pre-pass does not reach leaves the
- *  key in the output and the two answers differ.
+ *  metamorphic rather than direct: plant a key into every plain object on the
+ *  ENCODED WIRE and the strip decoder must return the same value it returned
+ *  without them. A position the pre-pass does not reach leaves the key in the
+ *  output and the two answers differ.
+ *
+ *  The plant is blind, so the judgement sits on the decoded side: a planted key
+ *  at a position the type admits (an index signature declares every key, and a
+ *  union arm leaves a value its member no longer validates alone) is one a
+ *  correct decoder keeps, so it is removed from both sides before they are
+ *  compared. A root that is itself an index-signature object admits every key
+ *  the plant wrote, so the comparison there is the same-value check and nothing
+ *  more.
  *
  *  The anti-vacuity half is a deterministic test rather than a check here:
  *  the `preserve` decoder keeps an undeclared wire key, so a plant really did
  *  reach the wire. It cannot be a per-value check because preserve CANNOT
- *  keep one on a registered class arm — that instance is rebuilt from the
+ *  keep one on a registered class arm, since that instance is rebuilt from the
  *  type, never from the keys on the wire. **/
-export function checkWireStripBlind(
-  target: FuzzTarget,
-  value: unknown,
-  ctx: CheckCtx,
-  positions: readonly UnknownKeyPosition[]
-): Violation | null {
+export function checkWireStripBlind(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   const {jsonEncode, jsonDecode} = target;
   if (!jsonEncode || !jsonDecode) return null;
   let wire: string | undefined;
@@ -655,7 +657,7 @@ export function checkWireStripBlind(
   let plantedCount: number;
   try {
     const tree = JSON.parse(wire) as unknown;
-    plantedCount = plantWireKeys(tree, carveOutWirePaths(positions));
+    plantedCount = plantWireKeys(tree);
     if (plantedCount === 0) return null;
     planted = JSON.stringify(tree);
   } catch {
@@ -667,8 +669,10 @@ export function checkWireStripBlind(
     // The pre-pass BLANKS an undeclared key (sets it to undefined) rather
     // than deleting it, so the comparison drops undefined-valued own keys on
     // both sides. A decoder that left the VALUE in place is still caught.
-    strippedClean = withoutBlankedKeys(jsonDecode(wire));
-    strippedPlanted = withoutBlankedKeys(jsonDecode(planted));
+    const decodedPlanted = jsonDecode(planted);
+    const wireInvalid = !validates(target, decodedPlanted);
+    strippedClean = withoutBlankedKeys(withoutAdmittedPlantedKeys(target, jsonDecode(wire), wireInvalid));
+    strippedPlanted = withoutBlankedKeys(withoutAdmittedPlantedKeys(target, decodedPlanted, wireInvalid));
   } catch (err) {
     return violation('O25', target, ctx, `a decoder threw on a wire carrying undeclared keys: ${errMsg(err)}`, planted);
   }
@@ -685,68 +689,81 @@ export function checkWireStripBlind(
 }
 
 /** A copy with every undefined-valued own key removed, so a key the strip
- *  pre-pass blanked reads the same as one it never wrote. Natives are kept as
- *  they are; Maps, Sets and arrays are walked. **/
-function withoutBlankedKeys(value: unknown, depth = 0): unknown {
+ *  pre-pass blanked reads the same as one it never wrote. **/
+function withoutBlankedKeys(value: unknown): unknown {
+  return withoutKeys(value, (_key, entry) => entry === undefined);
+}
+
+/** A copy with every planted key the type admits removed: a correct decoder keeps it, so it must
+ *  not count as a difference. **/
+function withoutAdmittedPlantedKeys(target: FuzzTarget, value: unknown, wireInvalid: boolean): unknown {
+  return withoutKeys(
+    value,
+    (key, _entry, path) => key.startsWith(UNKNOWN_KEY_PREFIX) && wireKeyAdmitted(target.schema, path, wireInvalid)
+  );
+}
+
+/** validate's answer, a throw counting as a refusal: the judge only gets more lenient on it. **/
+function validates(target: FuzzTarget, value: unknown): boolean {
+  try {
+    return target.validate(value);
+  } catch {
+    return false;
+  }
+}
+
+/** A copy with every own key `drop` names removed, `path` being the key's full path in
+ *  `unknownKeyErrors` spelling. Natives are kept as they are; Maps, Sets and arrays are walked. **/
+function withoutKeys(
+  value: unknown,
+  drop: (key: string, entry: unknown, path: RTValidationErrorPathSegment[]) => boolean,
+  path: RTValidationErrorPathSegment[] = [],
+  depth = 0
+): unknown {
   if (depth > 12 || value === null || typeof value !== 'object') return value;
   if (value instanceof Date || value instanceof RegExp) return value;
   if (value instanceof Map) {
     const out = new Map<unknown, unknown>();
-    for (const [key, entry] of value) out.set(withoutBlankedKeys(key, depth + 1), withoutBlankedKeys(entry, depth + 1));
+    let index = 0;
+    for (const [key, entry] of value) {
+      out.set(
+        withoutKeys(key, drop, [...path, {key: index, failed: 'mapKey'}], depth + 1),
+        withoutKeys(entry, drop, [...path, {key: index, failed: 'mapValue'}], depth + 1)
+      );
+      index++;
+    }
     return out;
   }
   if (value instanceof Set) {
     const out = new Set<unknown>();
-    for (const item of value) out.add(withoutBlankedKeys(item, depth + 1));
+    let index = 0;
+    for (const item of value) out.add(withoutKeys(item, drop, [...path, {key: index++, failed: 'setKey'}], depth + 1));
     return out;
   }
-  if (Array.isArray(value)) return value.map((item) => withoutBlankedKeys(item, depth + 1));
+  if (Array.isArray(value)) return value.map((item, i) => withoutKeys(item, drop, [...path, i], depth + 1));
   const record = value as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(record)) {
-    if (record[key] === undefined) continue;
-    out[key] = withoutBlankedKeys(record[key], depth + 1);
+    if (drop(key, record[key], [...path, key])) continue;
+    out[key] = withoutKeys(record[key], drop, [...path, key], depth + 1);
   }
   return out;
 }
 
-/** A wire position: object keys and array indexes only, since that is all JSON has. **/
-type WirePath = readonly (string | number)[];
-
-/** The walker's carve-outs in wire spelling. A Map entry rides as `[key, value]` and a Set member
- *  as an array slot, so the value-side entry segments become indexes. **/
-function carveOutWirePaths(positions: readonly UnknownKeyPosition[]): WirePath[] {
-  return positions.filter((position) => position.kind === 'carveOut').map((position) => position.path.flatMap(wireSegments));
-}
-
-function wireSegments(segment: RTValidationErrorPathSegment): (string | number)[] {
-  if (typeof segment !== 'object') return [segment];
-  if (segment.failed === 'mapKey') return [segment.key, 0];
-  if (segment.failed === 'mapValue') return [segment.key, 1];
-  return [segment.key];
-}
-
-function samePath(left: WirePath, right: WirePath): boolean {
-  return left.length === right.length && left.every((segment, i) => segment === right[i]);
-}
-
 /** Write one undeclared key into every plain object of a parsed wire tree, and return how many were
  *  written. Blind on purpose: no type is consulted, so it reaches wire positions a type walk would
- *  have to model (a union envelope's payload, a merged object). Arrays are walked, never written
- *  into; a Map, a Set and a tuple all ride as arrays. The one thing it is told is where NOT to
- *  write: `skip` holds the index-signature carve-outs, where every key is declared and a correct
- *  decoder keeps whatever is planted. Nothing under a carve-out is written either, which is what
- *  covers an enveloped record-shaped union: its payload sits one array slot below the union's path. **/
-function plantWireKeys(node: unknown, skip: readonly WirePath[], path: WirePath = [], depth = 0): number {
+ *  have to model (a union envelope's payload, a merged object, an index-signature record). Arrays
+ *  are walked, never written into; a Map, a Set and a tuple all ride as arrays. Whether a planted
+ *  key may survive the decode is the oracle's question, answered per survivor by `wireKeyAdmitted`. **/
+function plantWireKeys(node: unknown, depth = 0): number {
   if (depth > 12 || node === null || typeof node !== 'object') return 0;
-  if (skip.some((carveOut) => samePath(carveOut, path))) return 0;
   let count = 0;
   if (Array.isArray(node)) {
-    for (let i = 0; i < node.length; i++) count += plantWireKeys(node[i], skip, [...path, i], depth + 1);
+    for (const item of node) count += plantWireKeys(item, depth + 1);
     return count;
   }
   const record = node as Record<string, unknown>;
-  for (const key of Object.keys(record)) count += plantWireKeys(record[key], skip, [...path, key], depth + 1);
+  for (const key of Object.keys(record)) count += plantWireKeys(record[key], depth + 1);
   record[`${UNKNOWN_KEY_PREFIX}wire`] = 'fz';
   return count + 1;
 }

@@ -11,6 +11,7 @@ import {
   collectUnknownKeyPositions,
   containsKeyedShape,
   plantUnknownKey,
+  wireKeyAdmitted,
   atPath,
   pathKey,
   UNKNOWN_KEY_PREFIX,
@@ -76,6 +77,15 @@ describe('fuzz / collectUnknownKeyPositions', () => {
     expect(keys(schema, 5)).toEqual([]);
   });
 
+  it('keeps a carve-out found under the one member, next to the flagged slots beside it', () => {
+    // an index signature inside an array or tuple member carves out that object alone: the emitters
+    // sweep the member object by object, and only a member that IS an index-signature object makes
+    // the whole union answer clean
+    expect(keys(union(arr(indexed(num())), num()), [{x: 1}])).toEqual(['0:carveOut']);
+    const schema = union(tuple(obj(prop('a', str())), indexed(num())), num());
+    expect(keys(schema, [{a: 'x'}, {k: 1}])).toEqual(['0:flagged', '1:carveOut']);
+  });
+
   it('refuses a union where two members share a coarse class, or one member matches anything', () => {
     // two array members: the fused validator follows the branch it matched while the unknown-key
     // families read the merged allowlist, so a deeper key has two honest answers
@@ -102,6 +112,39 @@ describe('fuzz / collectUnknownKeyPositions', () => {
     expect(keys(str(), 'a')).toEqual([]);
     expect(keys(obj(prop('n', num())), new Date())).toEqual([]);
     expect(keys(arr(num()), [1, 2])).toEqual([]);
+  });
+});
+
+describe('fuzz / wireKeyAdmitted', () => {
+  const planted = UNKNOWN_KEY_PREFIX + 'wire';
+
+  it('admits a key wherever the container declares every key', () => {
+    expect(wireKeyAdmitted(union(arr(indexed(num())), num()), [0, planted])).toBe(true);
+    expect(wireKeyAdmitted(mapOf(str(), indexed(num())), [{key: 0, failed: 'mapValue'}, planted])).toBe(true);
+    expect(wireKeyAdmitted(anyType(), [planted])).toBe(true);
+    expect(wireKeyAdmitted(obj(prop('bag', anyType())), ['bag', 'deeper', planted])).toBe(true);
+    expect(wireKeyAdmitted(union(obj(prop('kind', str())), indexed(num())), [planted])).toBe(true);
+    expect(wireKeyAdmitted(obj(prop('name', str()), prop('bag', indexed(num()))), ['bag', planted])).toBe(true);
+  });
+
+  it('refuses a key on a shape that declares its keys by name', () => {
+    expect(wireKeyAdmitted(obj(prop('a', str())), [planted])).toBe(false);
+    expect(wireKeyAdmitted(arr(obj(prop('a', str()))), [0, planted])).toBe(false);
+    expect(wireKeyAdmitted(union(tuple(obj(prop('a', str())), indexed(num())), num()), [0, planted])).toBe(false);
+    expect(wireKeyAdmitted(union(tuple(obj(prop('a', str())), indexed(num())), num()), [1, planted])).toBe(true);
+    expect(wireKeyAdmitted(obj(prop('name', str()), prop('bag', indexed(num()))), [planted])).toBe(false);
+    expect(wireKeyAdmitted(mapOf(obj(prop('k', str())), num()), [{key: 0, failed: 'mapKey'}, planted])).toBe(false);
+    expect(wireKeyAdmitted(setOf(obj(prop('n', num()))), [{key: 0, failed: 'setKey'}, planted])).toBe(false);
+  });
+
+  it('admits a key inside a union once the wire no longer validates, and nowhere else', () => {
+    // a union arm runs only on a value its member validates, so an invalid wire may leave it alone
+    const tupleUnion = union(tuple(obj(prop('a', str())), indexed(num())), num());
+    expect(wireKeyAdmitted(tupleUnion, [0, planted], true)).toBe(true);
+    expect(wireKeyAdmitted(obj(prop('u', union(arr(obj(prop('a', str()))), num()))), ['u', 0, planted], true)).toBe(true);
+    expect(wireKeyAdmitted(union(obj(prop('kind', str())), num()), [planted], true)).toBe(true);
+    expect(wireKeyAdmitted(obj(prop('name', str()), prop('bag', indexed(num()))), [planted], true)).toBe(false);
+    expect(wireKeyAdmitted(arr(obj(prop('a', str()))), [0, planted], true)).toBe(false);
   });
 });
 
