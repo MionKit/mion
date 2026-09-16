@@ -83,6 +83,8 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	objNever := &reflection.RunType{ID: "objNever", Kind: reflection.KindObjectLiteral, TypeName: "WithNever", Children: []*reflection.RunType{makeRef("pa"), makeRef("pnev")}}
 	idxAtomic := &reflection.RunType{ID: "idxA", Kind: reflection.KindIndexSignature, Child: makeRef("num"), Index: makeRef("str")}
 	recAtomic := &reflection.RunType{ID: "recA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxA")}}
+	patternKey := templateKeyIndex("idxP", "d_", "num")
+	recPattern := &reflection.RunType{ID: "recP", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxP")}}
 	propLit := &reflection.RunType{ID: "plit", Kind: reflection.KindProperty, Name: "k", IsSafeName: true, Child: makeRef("lit")}
 	objLitOnly := &reflection.RunType{ID: "objLit", Kind: reflection.KindObjectLiteral, TypeName: "LitObj", Children: []*reflection.RunType{makeRef("plit")}}
 	pos0 := 0
@@ -112,7 +114,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 		circArr, circProp, circ,
 		circDArr, circDProp, circDat,
 		anyT, unkT, lit, nev, propNever, objNever,
-		idxAtomic, recAtomic, propLit, objLitOnly,
+		idxAtomic, recAtomic, patternKey[0], patternKey[1], recPattern, propLit, objLitOnly,
 		tmLit, tupLit, tmObj, tupObj,
 		clsNever, aclsNever, objNeverOnly, clsLit,
 	}
@@ -591,8 +593,8 @@ func TestNoopType_CloneExactShape(t *testing.T) {
 }
 
 // TestNoopType_UnknownKeys pins the shared five-family arm table plus the two
-// per-family divergences: uku/ukuw no-op at tuples by design, and ukuw keeps
-// the Map/Set arm noop on the wire side.
+// per-family divergences: the reporting families sweep a pattern key whatever
+// its value type, and ukuw keeps the Map/Set arm noop on the wire side.
 func TestNoopType_UnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	specs := map[string]unknownKeysNoopSpec{
@@ -613,6 +615,9 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		{"objCompat", same(false)}, // named props → the parent allowlist probe
 		{"objFn", same(false)},     // function-typed props still count as declared names
 		{"recA", same(true)},       // index sig over atomic values — every key is "known"
+		// A pattern key over atomic values: the reporting families report a key matching no pattern
+		// (real code); the to-undefined families leave it alone, so nothing to sweep, as for recA.
+		{"recP", map[string]bool{"huk": false, "uke": false, "uku": true, "ukuw": true}},
 		{"arrStr", same(true)},
 		{"arrCO", same(false)}, // array of keyed objects
 		{"uAt", same(true)},    // atomic-only union — nothing to sweep

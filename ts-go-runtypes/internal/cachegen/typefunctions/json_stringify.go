@@ -346,12 +346,16 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 	// declared keys (each named prop is emitted with its own type), instead of
 	// stringifying them again under the index value's transform (G1).
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
+	// sigs is one pending slot for ALL the live index signatures, in the first
+	// one's position: the object runs ONE key sweep (emitIndexSignaturesStringifyJson).
 	type pendingChild struct {
 		ref      *reflection.RunType
+		sigs     []*reflection.RunType
 		optional bool
 	}
 	var pending []pendingChild
 	allOptional := true
+	sigs := liveIndexSignatures(rt, ctx)
 	for _, child := range objectMembers(rt) {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
@@ -365,19 +369,28 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
-		opt := resolved.Optional
-		// Index signatures emit a for-in loop that may produce an
-		// empty fragment when the object has no own keys. Treat them
-		// as "optional-equivalent" for both the sort and the
-		// all-optional check — getJsonStringifySortedChildren
-		// + compileInterfaceIntoArray do the same.
+		// The key sweep may produce an empty fragment when the object has no
+		// own keys, so it is "optional-equivalent" for both the sort and the
+		// all-optional check (getJsonStringifySortedChildren +
+		// compileInterfaceIntoArray do the same).
+		// By id, not pointer: a patternProperties entry is a synthetic member built
+		// afresh by every objectMembers call.
 		if resolved.Kind == reflection.KindIndexSignature {
-			opt = true
+			if len(sigs) > 0 && resolved.ID == sigs[0].ID {
+				pending = append(pending, pendingChild{sigs: sigs, optional: true})
+			}
+			continue
 		}
-		pending = append(pending, pendingChild{ref: child, optional: opt})
-		if !opt {
+		pending = append(pending, pendingChild{ref: child, optional: resolved.Optional})
+		if !resolved.Optional {
 			allOptional = false
 		}
+	}
+	compile := func(p pendingChild) RTCode {
+		if len(p.sigs) > 0 {
+			return ctx.AsExpression(emitIndexSignaturesStringifyJson(p.sigs, ctx, v))
+		}
+		return ctx.CompileChild(p.ref, CodeE)
 	}
 	if len(pending) == 0 {
 		return RTCode{Code: "'{}'", Type: CodeE}
@@ -415,7 +428,7 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 			// Mirrors the per-iteration set in the at-least-one-required
 			// path below.
 			setSkipCommas(ctx, true)
-			childRT := ctx.CompileChild(p.ref, CodeE)
+			childRT := compile(p)
 			if childRT.Type == CodeNS {
 				clearSkipCommas(ctx)
 				return RTCode{Code: "", Type: CodeNS}
@@ -445,7 +458,7 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 	for i, p := range pending {
 		isLast := i == len(pending)-1
 		setSkipCommas(ctx, isLast)
-		childRT := ctx.CompileChild(p.ref, CodeE)
+		childRT := compile(p)
 		if childRT.Type == CodeNS {
 			clearSkipCommas(ctx)
 			return RTCode{Code: "", Type: CodeNS}
@@ -597,58 +610,78 @@ func jsEscapeForSingleQuote(s string) string {
 	return b.String()
 }
 
-// emitIndexSignatureStringifyJson — (ref: stringifyJson.ts:145-170).
-// for-in over the value's own keys, building `"key":value` pairs.
-// Symbol-keyed sigs are skipped per the shared isSymbolKeyedIndexSig
-// helper (the skipRT contract).
+// emitIndexSignatureStringifyJson is the bare index signature at the root; an
+// object runs emitIndexSignaturesStringifyJson over all of its signatures.
 func emitIndexSignatureStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	if rt.Child == nil {
+	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	if isSymbolKeyedIndexSig(rt, ctx) {
+	if resolved := ctx.ResolveRef(rt.Child); resolved == nil || isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	resolved := ctx.ResolveRef(rt.Child)
-	if resolved == nil {
-		return RTCode{Code: "", Type: CodeE}
-	}
-	if isFunctionLikeKind(resolved.Kind) {
-		return RTCode{Code: "", Type: CodeE}
-	}
+	return emitIndexSignaturesStringifyJson([]*reflection.RunType{rt}, ctx, v)
+}
+
+// emitIndexSignaturesStringifyJson is the ONE key sweep an object runs for all
+// its index signatures: a key is written once, by the first signature whose
+// pattern matches it (an unpatterned signature matches every key), or the way
+// native JSON writes it when no pattern does (omitted when native JSON would
+// omit it), an index signature being open and a non-matching key validation's
+// to refuse. One sweep per signature wrote a key once per signature admitting
+// it: twice for the string and number halves of a split key, and twice for
+// every key under a plain signature beside a pattern one. A signature whose
+// value writes nothing (an `undefined` value) omits the keys it matches.
+func emitIndexSignaturesStringifyJson(sigs []*reflection.RunType, ctx *EmitContext, v string) RTCode {
 	keyVar := ctx.NextLocalVar("k")
-	// Same capture-on-entry rule as emitPropertyStringifyJson — see there.
+	// Same capture-on-entry rule as emitPropertyStringifyJson, see there.
 	skipCommas := getSkipCommas(ctx)
-	ctx.SetChildAccessor(v + "[" + keyVar + "]")
-	childRT := ctx.CompileChild(rt.Child, CodeE)
-	ctx.SetChildAccessor("")
-	if childRT.Type == CodeNS {
-		return RTCode{Code: "", Type: CodeNS}
+	accessor := v + "[" + keyVar + "]"
+	arr := ""
+	var arms strings.Builder
+	open := true
+	for _, sig := range sigs {
+		ctx.SetChildAccessor(accessor)
+		childRT := ctx.CompileChild(sig.Child, CodeE)
+		ctx.SetChildAccessor("")
+		if childRT.Type == CodeNS {
+			return RTCode{Code: "", Type: CodeNS}
+		}
+		keyRegexVar := ""
+		if childRT.Code != "" || arr != "" {
+			if arr == "" {
+				arr = ctx.NextLocalVar("ls")
+			}
+			keyRegexVar = indexSignatureKeyRegexVar(sig, ctx)
+		}
+		push := ""
+		if childRT.Code != "" {
+			push = "if (" + accessor + " !== undefined) " + arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + childRT.Code + ");"
+		}
+		if keyRegexVar == "" {
+			// An unpatterned signature admits every key, so nothing after its arm can run.
+			if push == "" {
+				return RTCode{Code: "", Type: CodeE}
+			}
+			arms.WriteString(push)
+			open = false
+			break
+		}
+		arms.WriteString("if (" + keyRegexVar + ".test(" + keyVar + ")) {" + push + " continue;}")
 	}
-	if childRT.Code == "" {
-		return RTCode{Code: "", Type: CodeE}
+	if open {
+		text := ctx.NextLocalVar("s")
+		arms.WriteString("const " + text + " = JSON.stringify(" + accessor + "); if (" + text + " !== undefined) " + arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + text + ");")
 	}
-	arr := ctx.NextLocalVar("ls")
-	// Separator suffix matches the `+","` when not skipping commas
-	// after the last property. Index sig results don't know whether
-	// they're "last" — the heuristic is: when the parent has other
-	// children (named props), the index loop's output trails with
-	// `,`; when it's the only producer, trailing comma is omitted by
-	// the outer wrap. Use the parent's skipCommas flag (same as
-	// emitPropertyStringifyJson).
+	// The trailing `,` matches the parent's skipCommas flag (same rule as
+	// emitPropertyStringifyJson): the outer wrap of an all-optional object
+	// filters the fragments and joins them itself.
 	trailingSep := "+','"
 	if skipCommas {
 		trailingSep = ""
 	}
-	// A key-filtered sweep (template-literal key, patternProperties entry)
-	// prints only the keys it owns.
-	keyFilter := ""
-	if keyRegexVar := indexSignatureKeyRegexVar(rt, ctx); keyRegexVar != "" {
-		keyFilter = "if (!" + keyRegexVar + ".test(" + keyVar + ")) continue;"
-	}
 	body := "const " + arr + " = []; for (const " + keyVar + " in " + v + ") {" +
-		// Skip declared sibling keys — emitted with their own type above (G1).
-		siblingNamedSkipCode(rt, ctx, keyVar) + keyFilter +
-		"if (" + v + "[" + keyVar + "] !== undefined) " + arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + childRT.Code + ");" +
+		// Skip declared sibling keys, emitted with their own type above (G1).
+		siblingNamedSkipCode(sigs[0], ctx, keyVar) + arms.String() +
 		"} if (!" + arr + ".length) return ''; return " + arr + ".join(',')" + trailingSep
 	return RTCode{Code: body, Type: CodeRB}
 }
