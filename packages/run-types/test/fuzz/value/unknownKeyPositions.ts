@@ -31,7 +31,17 @@
 // LABEL produces a spurious oracle failure, so the walker stops rather than
 // guesses: it never enters an index-signature object, and it enters a union
 // only when ONE member could have produced the value, so no sibling arm can
-// make a deeper key declared.
+// make a deeper key declared. Under that one member every position keeps its
+// own label, carve-outs included: the emitters sweep an array or tuple member
+// object by object, and only a member that is ITSELF an index-signature object
+// makes the whole union answer clean.
+//
+// THE WIRE SPLIT. The wire oracles (O25, O26) do not use this walker to plant:
+// they write a key into EVERY plain object of the encoded wire, no exceptions,
+// and `wireKeyAdmitted` below judges each key that survives the decode against
+// the type. The generator stays blind so it reaches every wire position; the
+// judgement about what an index signature declares, and about a wire the type
+// refuses, lives on the result side.
 
 import type {RunType} from '../../../src/runtypes/types.ts';
 import type {RTValidationErrorPathSegment} from '../../../src/createRTFunctions.ts';
@@ -241,13 +251,7 @@ function walk(node: RunType, value: unknown, path: RTValidationErrorPathSegment[
     // could have produced this value: with no sibling arm in play, both readings of the union agree
     // a deeper key is undeclared.
     const sole = soleUnionMemberFor(node, value);
-    if (!sole) return;
-    const nested: UnknownKeyPosition[] = [];
-    walk(sole, value, path, nested);
-    // An index signature further down re-opens what the union declares, so the member contributes
-    // nothing rather than a guessed label.
-    if (nested.some((position) => position.kind === 'carveOut')) return;
-    out.push(...nested);
+    if (sole) walk(sole, value, path, out);
     return;
   }
 
@@ -317,6 +321,95 @@ export function plantUnknownKey(runType: RunType, value: unknown, rng: () => num
   const key = `${UNKNOWN_KEY_PREFIX}${Math.floor(rng() * 1000)}`;
   target[key] = 'fz';
   return {value: copy, key, path: [...position.path, key], kind: position.kind};
+}
+
+/** The wire oracles' judge: true when the container holding a SURVIVING planted key declares every
+ *  key, so a correct decoder keeps it. `path` is the survivor's full path the way `unknownKeyErrors`
+ *  spells it, key name last. Lenient on purpose: at a union every member that could hold the next
+ *  segment is a candidate, and `any`, `unknown`, a bare `object` or a ref admits whatever sits
+ *  below it. A false "admitted" only costs coverage; a false "not admitted" fails on correct code.
+ *
+ *  `wireInvalid` says the decoded wire no longer validates: the blind plant writes a string into
+ *  every record it finds, and a record of anything else refuses it. A union arm runs only on a
+ *  value its member validates and leaves an unmatched value for validate to refuse, so on such a
+ *  wire every survivor inside a union is admitted. **/
+export function wireKeyAdmitted(runType: RunType, path: readonly RTValidationErrorPathSegment[], wireInvalid = false): boolean {
+  let candidates: RunType[] = [runType];
+  let insideUnion = false;
+  for (const segment of path.slice(0, -1)) {
+    insideUnion ||= candidates.some(isUnionType);
+    candidates = candidates.flatMap((candidate) => containersBelow(candidate, segment));
+    if (candidates.length === 0) return false;
+  }
+  if (wireInvalid && (insideUnion || candidates.some(isUnionType))) return true;
+  return candidates.some(declaresEveryKey);
+}
+
+function isUnionType(runType: RunType): boolean {
+  return unwrap(runType).kind === kind.union;
+}
+
+function isOpenType(node: RunType): boolean {
+  const k = node.kind as number;
+  return k === kind.any || k === kind.unknown || k === kind.object || k === kind.ref;
+}
+
+/** Whether a key on a value of this type is declared whatever its name. **/
+function declaresEveryKey(runType: RunType): boolean {
+  const node = unwrap(runType);
+  if (isOpenType(node)) return true;
+  if (isObjectish(node)) return hasIndexSignature(node);
+  if (node.kind === kind.union) return ((node.children ?? []) as RunType[]).some(declaresEveryKey);
+  return false;
+}
+
+/** Every type the value one `segment` below `node` could have. **/
+function containersBelow(runType: RunType, segment: RTValidationErrorPathSegment): RunType[] {
+  const node = unwrap(runType);
+  const k = node.kind as number;
+  if (isOpenType(node)) return [node]; // nothing below an open type is more declared than the type itself
+  if (k === kind.union) return ((node.children ?? []) as RunType[]).flatMap((member) => containersBelow(member, segment));
+  if (typeof segment === 'object') {
+    if (k !== kind.class) return [];
+    const subKind = node.subKind as number | undefined;
+    const args = (node.arguments ?? []) as RunType[];
+    if (subKind === sub.map && segment.failed === 'mapKey') return childOf(args[0]);
+    if (subKind === sub.map && segment.failed === 'mapValue') return childOf(args[1]);
+    if (subKind === sub.set && segment.failed === 'setKey') return childOf(args[0]);
+    return [];
+  }
+  if (isObjectish(node)) {
+    const out: RunType[] = [];
+    for (const member of (node.children ?? []) as RunType[]) {
+      const memberKind = member.kind as number;
+      if (member.isStatic || !member.child) continue;
+      if (memberKind === kind.indexSignature) out.push(member.child);
+      else if ((memberKind === kind.property || memberKind === kind.propertySignature) && member.name === String(segment)) {
+        out.push(member.child);
+      }
+    }
+    return out;
+  }
+  if (typeof segment !== 'number') return [];
+  if (k === kind.array) return childOf(node);
+  if (k === kind.tuple) {
+    const members = (node.children ?? []) as RunType[];
+    const restAt = members.findIndex(isRestMember);
+    if (restAt !== -1 && segment >= restAt) return childOf(restMemberElement(members[restAt]));
+    return segment < members.length ? [members[segment]] : [];
+  }
+  return [];
+}
+
+function childOf(node: RunType | undefined): RunType[] {
+  return node?.child ? [node.child] : [];
+}
+
+/** The rest node itself, whose child is the element type, whichever carrier wraps it. **/
+function restMemberElement(member: RunType): RunType {
+  if (member.kind === kind.rest) return member;
+  if (member.child?.kind === kind.rest) return member.child;
+  return member;
 }
 
 /** Follow a reported path through a value. Mirrors how a consumer reads an
