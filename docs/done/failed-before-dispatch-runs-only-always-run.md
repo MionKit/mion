@@ -97,7 +97,9 @@ export function dispatchPlatformError<Req, Resp>(resolved, platformError, reqHea
     covering both the resolve and the read, now split so only the read reaches the chain).
   - Kept `fatalFail`: a throwing `pathTransform`, a connection or request error, a failure while
     replying, and the post-dispatch catch-all. No chain exists for any of them.
-  - aws and gcloud were untouched: they hand the body over whole, so both already ran the chain.
+  - aws hands the body over whole, so its 413 is raised from inside the chain and it was untouched.
+  - gcloud measures the body itself (it arrives parsed, so the router cannot), and that check threw
+    past the chain into a bare answer. It now calls `dispatchPlatformError` like the other five.
 - node now destroys the request stream after the reply rather than before it; bun still sets
   `connection: close` on the 413.
 - `toRpcError` moved to `lib/dispatchError.ts`, the module whose own header says it is for any
@@ -130,9 +132,13 @@ request. Throwing from the head of the chain needs neither.
   request. Node covers both the declared `content-length` and the mid-read case. Bun's suite declares
   a second route with a large `maxBodySize`, which lifts `Bun.serve`'s own ceiling clear of the test
   body: without it Bun refuses natively, mion is never called, and the assertions pin nothing.
-- aws and gcloud pin that they already ran the chain: both had no 413 or 404 coverage at all. On
-  both the 413 is raised from INSIDE the chain (`mionDeserializeRequest`), so the plain global runs
-  first, which the tests record as the real difference between an adapter refusal and a router one.
+- aws pins that it already ran the chain, and its 413 is raised from INSIDE the chain
+  (`mionDeserializeRequest`), so the plain global runs first: the tests record that as the real
+  difference between an adapter refusal and a router one. gcloud, which had no 404 coverage at all,
+  pins the adapter-refusal side of the same rule.
+- `maxBodySize.spec.ts` pins the invariant behind all of it: the router measures a STRING body, so a
+  body its host already parsed carries no wire size and is not refused. That is deliberate, and it
+  is why an adapter handed a parsed body owns the check.
 - `notFound.spec.ts` also pins the guard inside `deserializeRequestBody`: that member declares
   `alwaysRun`, so the dispatcher never skips it and a global middleFn that threw would otherwise
   still have its body parsed.
