@@ -83,12 +83,25 @@ describe('fuzzer regressions — index signatures & union dispatch', () => {
   test('union value under a multi-kind index signature round-trips through every JSON strategy', () => {
     type T = {[k: string]: bigint | number | string};
     const value: T = {a: 5n, b: 3, c: 'x', 0: 7n, 1: 'y'};
-    for (const strategy of ['clone', 'mutate', 'direct', 'compact'] as const) {
-      const decStrategy = strategy === 'compact' ? 'compact' : strategy === 'mutate' ? 'preserve' : 'strip';
-      const encode = createJsonEncoderFn<T>(undefined, {strategy});
-      const decode = createJsonDecoderFn<T>(undefined, {strategy: decStrategy});
+    // Every strategy is spelled at its own call site: the build reads it as a literal, so a variable
+    // resolves to no strategy and the call falls back instead of compiling the one named.
+    const pairs = [
+      ['clone', createJsonEncoderFn<T>(undefined, {strategy: 'clone'}), createJsonDecoderFn<T>(undefined, {strategy: 'strip'})],
+      [
+        'mutate',
+        createJsonEncoderFn<T>(undefined, {strategy: 'mutate'}),
+        createJsonDecoderFn<T>(undefined, {strategy: 'preserve'}),
+      ],
+      ['direct', createJsonEncoderFn<T>(undefined, {strategy: 'direct'}), createJsonDecoderFn<T>(undefined, {strategy: 'strip'})],
+      [
+        'compact',
+        createJsonEncoderFn<T>(undefined, {strategy: 'compact'}),
+        createJsonDecoderFn<T>(undefined, {strategy: 'compact'}),
+      ],
+    ] as const;
+    for (const [name, encode, decode] of pairs) {
       const out = decode(encode(structuredClone(value)) as string) as T;
-      expect(out, `strategy ${strategy}`).toEqual(value);
+      expect(out, `strategy ${name}`).toEqual(value);
     }
   });
 

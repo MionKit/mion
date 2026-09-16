@@ -89,11 +89,15 @@ describe('the strip restore keeps what the type declares', () => {
 describe('a pattern index signature is open on every road', () => {
   const wide = {d_1: 1, x: 2} as unknown as Patterned;
 
+  // The strategy is a build-time literal: passing it as a variable resolves to no strategy and the
+  // call silently falls back, so each one is spelled out at its own call site.
   it('the clone, direct and compact encoders write the non-matching key', () => {
-    for (const strategy of ['clone', 'direct', 'compact'] as const) {
-      const wire = createJsonEncoderFn<Patterned>(undefined, {strategy})(wide) as string;
-      expect(JSON.parse(wire), strategy).toStrictEqual({d_1: 1, x: 2});
-    }
+    const clone = createJsonEncoderFn<Patterned>(undefined, {strategy: 'clone'})(wide) as string;
+    const direct = createJsonEncoderFn<Patterned>(undefined, {strategy: 'direct'})(wide) as string;
+    const compact = createJsonEncoderFn<Patterned>(undefined, {strategy: 'compact'})(wide) as string;
+    expect(JSON.parse(clone), 'clone').toStrictEqual({d_1: 1, x: 2});
+    expect(JSON.parse(direct), 'direct').toStrictEqual({d_1: 1, x: 2});
+    expect(JSON.parse(compact), 'compact').toStrictEqual({d_1: 1, x: 2});
   });
 
   it('the strip, compact and clone decoders return the non-matching key', () => {
@@ -124,10 +128,16 @@ describe('a split key sweeps once', () => {
   });
 
   it('every other encoder writes each key once too', () => {
-    for (const strategy of ['clone', 'mutate', 'compact'] as const) {
-      const wire = createJsonEncoderFn<Split>(undefined, {strategy})(structuredClone(value)) as string;
-      expect(wire.match(/"a":/g), strategy).toHaveLength(1);
-      expect(JSON.parse(wire), strategy).toStrictEqual({a: 'x', 1: 'y'});
+    const clone = createJsonEncoderFn<Split>(undefined, {strategy: 'clone'})(structuredClone(value)) as string;
+    const mutate = createJsonEncoderFn<Split>(undefined, {strategy: 'mutate'})(structuredClone(value)) as string;
+    const compact = createJsonEncoderFn<Split>(undefined, {strategy: 'compact'})(structuredClone(value)) as string;
+    for (const [name, wire] of [
+      ['clone', clone],
+      ['mutate', mutate],
+      ['compact', compact],
+    ] as const) {
+      expect(wire.match(/"a":/g), name).toHaveLength(1);
+      expect(JSON.parse(wire), name).toStrictEqual({a: 'x', 1: 'y'});
     }
   });
 });
