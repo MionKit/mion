@@ -39,19 +39,34 @@ function withSecret(enumerable: boolean): Doc {
 }
 
 // Encoder strategy paired with a decoder that reads its wire.
+// The strategy is read at build time, so each one is spelled at its own call site; a variable
+// resolves to no strategy and the call falls back to the default.
 const STRATEGY_PAIRS = [
-  {encode: 'clone', decode: 'strip'},
-  {encode: 'mutate', decode: 'preserve'},
-  {encode: 'direct', decode: 'strip'},
-  {encode: 'compact', decode: 'compact'},
+  {
+    name: 'clone',
+    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'clone'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'strip'}),
+  },
+  {
+    name: 'mutate',
+    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'mutate'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'preserve'}),
+  },
+  {
+    name: 'direct',
+    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'direct'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'strip'}),
+  },
+  {
+    name: 'compact',
+    encode: createJsonEncoderFn<Doc>(undefined, {strategy: 'compact'}),
+    decode: createJsonDecoderFn<Doc>(undefined, {strategy: 'compact'}),
+  },
 ] as const;
 
 describe('@nonEnumerable guard on an optional prop — JSON strategies', () => {
-  for (const {encode: encStrategy, decode: decStrategy} of STRATEGY_PAIRS) {
+  for (const {name: encStrategy, encode, decode} of STRATEGY_PAIRS) {
     it(`[${encStrategy}] non-enumerable secret is dropped; enumerable secret is kept`, () => {
-      const encode = createJsonEncoderFn<Doc>(undefined, {strategy: encStrategy});
-      const decode = createJsonDecoderFn<Doc>(undefined, {strategy: decStrategy});
-
       const hidden = decode(encode(withSecret(false)) as string) as Record<string, unknown>;
       expect(hidden.id).toBe('d1');
       expect(hidden.secret).toBeUndefined();
