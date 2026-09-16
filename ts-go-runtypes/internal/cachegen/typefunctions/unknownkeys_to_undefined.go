@@ -138,19 +138,11 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitC
 	if isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	keyRegexVar := ""
-	if rt.Index != nil {
-		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
-			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
-				keyRegexVar = ctx.NextLocalVar("reIdx")
-				if !ctx.HasContextItem(keyRegexVar) {
-					ctx.SetContextItem(keyRegexVar, "const "+keyRegexVar+" = new RegExp("+quoteJSDouble(regex)+")")
-				}
-			}
-		}
-	}
-	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic && keyRegexVar == "" {
+	// The key pattern only selects the VALUE transform: a key it does not match
+	// is left as is (validation is what refuses it), so an atomic value has
+	// nothing to sweep whatever the key pattern.
+	keyRegexVar := indexSignatureKeyRegexVar(rt, ctx)
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
@@ -175,16 +167,14 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitC
 	if ctx.HasContextItem(siblingSet) {
 		siblingSkip = "if (" + siblingSet + ".has(" + prop + ")) continue;"
 	}
-	patternUndef := ""
-	if keyRegexVar != "" {
-		// Template-literal index keys also undefine keys that don't match the
-		// key pattern (the sibling skip above already exempted named props).
-		patternUndef = "if (!" + keyRegexVar + ".test(" + prop + ")) {" + v + "[" + prop + "] = undefined; continue;}"
-	}
-	if patternUndef == "" && childRT.Code == "" {
+	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	body := "for (const " + prop + " in " + v + ") {" + siblingSkip + patternUndef + childRT.Code + "}"
+	patternSkip := ""
+	if keyRegexVar != "" {
+		patternSkip = "if (!" + keyRegexVar + ".test(" + prop + ")) continue;"
+	}
+	body := "for (const " + prop + " in " + v + ") {" + siblingSkip + patternSkip + childRT.Code + "}"
 	return RTCode{Code: body, Type: CodeS}
 }
 

@@ -4,21 +4,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// rjsEntry renders the restoreFromJsonSafe family for a dump and returns the entry for id, with
-// the code string's escaped quotes unescaped so assertions read as the emitted JS.
+// rjsEntry renders the restoreFromJsonSafe family for a dump and returns the entry for id.
 func rjsEntry(t *testing.T, runTypes []*reflection.RunType, id string) string {
 	t.Helper()
-	out := renderModule(t, protocol.Dump{RunTypes: runTypes}, "restoreFromJsonSafe")
-	line := extractInitLine(out, operations.PlainHash("restoreFromJsonSafe")+"_"+id)
-	if line == "" {
-		t.Fatalf("no restoreFromJsonSafe entry for %s in:\n%s", id, out)
-	}
-	return strings.ReplaceAll(line, `\'`, "'")
+	return familyEntry(t, runTypes, "restoreFromJsonSafe", id)
 }
 
 // templateKeyIndex is the index signature `[k: \`<prefix>${string}\`]: <valueID>`.

@@ -364,7 +364,7 @@ func emitObjectPrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v st
 	// stripped prop (`p0: ArrayBuffer`) must still be skipped so the for-in
 	// doesn't copy it back into the clone (G6).
 	if len(indexSigs) > 0 {
-		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
+		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, true, ctx)
 	}
 
 	if len(props) == 0 {
@@ -399,14 +399,16 @@ func emitObjectPrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v st
 	return RTCode{Code: "return " + clone.Code, Type: CodeRB}
 }
 
-// buildSafeIndexSignatureObject — emits a CodeRB block that builds a
-// new object whose keys are: (a) every declared property the parent
-// resolved, with its safe-form transform; (b) every OTHER key of v that
-// matches at least one of the index signatures, with the matching index
-// sig's child transform applied. Declared keys are NOT walked by the
-// for-in loop (their assignments come AFTER and would otherwise be
-// overridden by raw index-sig values).
-func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, ctx *EmitContext) RTCode {
+// buildSafeIndexSignatureObject emits a CodeRB block that builds a new object
+// whose keys are: (a) every declared property the parent resolved, with its
+// safe-form transform; (b) every OTHER key of v, with the first matching index
+// signature's child transform applied; a key matching no pattern is copied as
+// is when copyPatternMiss is set (the encoders: an index signature is open, a
+// non-matching key is validation's to refuse) and dropped otherwise
+// (cloneExactShape: a by-reference copy would break `clone(x) !== x`).
+// Declared keys are NOT walked by the for-in loop (their assignments come AFTER
+// and would otherwise be overridden by raw index-sig values).
+func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, copyPatternMiss bool, ctx *EmitContext) RTCode {
 	var b strings.Builder
 	b.WriteString("const _r = {};")
 	// Build the per-index-sig arms inside one for-in over v.
@@ -458,7 +460,10 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 			declaredCheck.WriteString(") continue;")
 			b.WriteString(declaredCheck.String())
 		}
-		// Emit each sig's value assignment, gated by its key regex if any.
+		// Emit each sig's value assignment, gated by its key regex if any. A key
+		// matching no pattern is copied untouched after the last patterned arm
+		// when the caller asked for it.
+		open := copyPatternMiss
 		for _, arm := range arms {
 			if arm.keyRegexVar != "" {
 				b.WriteString("if (")
@@ -471,12 +476,16 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 				b.WriteString(arm.valueExpr)
 				b.WriteString("; continue; }")
 			} else {
+				open = false
 				b.WriteString("_r[")
 				b.WriteString(keyVar)
 				b.WriteString("] = ")
 				b.WriteString(arm.valueExpr)
 				b.WriteString(";")
 			}
+		}
+		if open {
+			b.WriteString("_r[" + keyVar + "] = " + v + "[" + keyVar + "];")
 		}
 		b.WriteString("}")
 	}
@@ -798,7 +807,9 @@ func emitIndexSignaturePrepareForJsonSafe(rt *reflection.RunType, ctx *EmitConte
 	}
 	body := "const _r = {};for (const " + keyVar + " in " + v + ") {" + unsafeKeySkip(keyVar)
 	if keyRegexVar != "" {
-		body += "if (!" + keyRegexVar + ".test(" + keyVar + ")) continue;"
+		// An index signature is open: a key the pattern does not match is copied as
+		// is, only its value transform is skipped (validation is what refuses it).
+		body += "if (!" + keyRegexVar + ".test(" + keyVar + ")) {_r[" + keyVar + "] = " + accessor + "; continue;}"
 	}
 	body += "_r[" + keyVar + "] = " + expr + ";}return _r"
 	return RTCode{Code: body, Type: CodeRB}

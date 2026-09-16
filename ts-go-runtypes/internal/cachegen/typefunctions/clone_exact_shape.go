@@ -274,9 +274,10 @@ func emitObjectCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v strin
 	if len(indexSigs) > 0 {
 		// The for-in copy walk (skip declared names, copy sig-matching keys
 		// with the child clone applied, then the declared-prop assignments).
-		// Shared with the safe-clone family — child compiles dispatch
-		// through this walker, so copied values are exact-shape clones.
-		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, ctx)
+		// Shared with the safe-clone family: child compiles dispatch through
+		// this walker, so copied values are exact-shape clones. A key matching
+		// no pattern is dropped, a by-reference copy would break clone(x) !== x.
+		return buildSafeIndexSignatureObject(v, props, collectSiblingNamedKeys(rt, ctx), indexSigs, false, ctx)
 	}
 
 	if len(props) == 0 {
@@ -471,7 +472,7 @@ func emitIndexSignatureCloneExactShape(rt *reflection.RunType, ctx *EmitContext,
 	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return buildSafeIndexSignatureObject(v, nil, nil, []*reflection.RunType{rt}, ctx)
+	return buildSafeIndexSignatureObject(v, nil, nil, []*reflection.RunType{rt}, false, ctx)
 }
 
 // emitUnionCloneExactShape — unions with OBJECT members stay unsupported
