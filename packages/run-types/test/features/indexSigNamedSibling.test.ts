@@ -1,13 +1,12 @@
-// G1 regression: an object that mixes a named property with an index signature
-// whose VALUE type differs must not apply the index value's transform to the
-// named property. Before the fix, `{p0: number; [k: number]: bigint}` round-
-// tripped `p0` (a number) into a bigint on the JSON wire (the index for-in loop
-// transformed every own key). Binary was already correct (F1); the JSON mutate /
-// restore / direct walks now skip declared sibling keys too.
+// An object that mixes a named property with an index signature of a different VALUE type must not
+// apply the index value's transform to the named property: `{p0: number; [k: number]: bigint}` keeps
+// p0 a number across every wire, JSON and binary. Every JSON walk (mutate, restore, direct) skips a
+// key the type declares by name, because such a key carries its own transform.
+// G1 is the shared repro id for this shape, also used by the fuzz repro list and the Go codegen tests.
 import {describe, it, expect} from 'vitest';
 import {createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
 
-describe('G1 — index signature does not corrupt a named sibling property', () => {
+describe('G1 index signature does not corrupt a named sibling property', () => {
   it('{p0: number; [k: number]: bigint} keeps p0 a number across every wire', () => {
     type A = {p0: number; [k: number]: bigint};
     const make = (): A => ({p0: 1, 5: 7n, 9: 11n});

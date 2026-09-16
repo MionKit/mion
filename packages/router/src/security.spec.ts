@@ -32,6 +32,9 @@ const ENGINE_TEXT = [
   /JSON at position/,
 ];
 
+/** The property names the type engine refuses everywhere, so the router path is pinned on all of them. */
+const UNSAFE_KEYS = ['__proto__', 'prototype', 'constructor'];
+
 function dispatch(path: string, body: string, urlQuery?: string, headers: Record<string, string> = {}) {
   const reqHeaders = headersFromRecord(headers);
   return dispatchRoute(path, body, reqHeaders, headersFromRecord({}), {headers: reqHeaders, body}, {}, undefined, urlQuery);
@@ -87,15 +90,18 @@ describe('security: request body', () => {
     expect(response.hasErrors).toBe(false);
   });
 
-  it('a decode failure carries a fixed deserializeError, not the decoder text', async () => {
+  it.each(UNSAFE_KEYS)("a decode failure on a '%s' key carries a fixed deserializeError, not the decoder text", async (key) => {
     mion.initRoutes({echoBag});
-    // A prototype-named wire key is refused by the decoder itself, so this is the path
-    // where the compiled function's own message must not reach the client.
-    const response = await dispatch('/echoBag', '{"echoBag":[{"__proto__":"x"}]}');
+    // All three names are refused by the decoder itself, so this is the path where the compiled
+    // function's own message must not reach the client.
+    const response = await dispatch('/echoBag', `{"echoBag":[{${JSON.stringify(key)}:"x"}]}`);
     const error = thrownErrors(response)['echoBag'];
     expect(error.type).toBe('serialization-error');
     expect(error.errorData).toEqual({deserializeError: 'Parameters might be of the wrong type.'});
     for (const phrase of ENGINE_TEXT) expect(JSON.stringify(response.body)).not.toMatch(phrase);
+    // The engine's own message names the refused key, and neither reaches the client.
+    expect(JSON.stringify(response.body)).not.toContain('Unsafe property name');
+    expect(JSON.stringify(response.body)).not.toContain(key);
     expect(({} as any).x).toBeUndefined();
   });
 
@@ -130,12 +136,12 @@ describe('security: request body', () => {
     expect(error.type).toBe('request-nesting-too-deep');
   });
 
-  it('a prototype-named route id in the body is just an unknown entry', async () => {
+  it('prototype-named route ids in the body are just unknown entries', async () => {
     mion.initRoutes({echoUser});
-    const response = await dispatch(
-      '/echoUser',
-      JSON.stringify({constructor: [1], __proto__: {x: 1}, echoUser: [{name: 'a', surname: 'b'}]})
-    );
+    // Raw JSON, not JSON.stringify: a `__proto__` key in an object literal is the prototype
+    // setter, so the name would never reach the wire.
+    const keys = UNSAFE_KEYS.map((key) => `${JSON.stringify(key)}:{"x":1}`).join(',');
+    const response = await dispatch('/echoUser', `{${keys},"echoUser":[{"name":"a","surname":"b"}]}`);
     expect(response.hasErrors).toBe(false);
     expect(response.body.echoUser).toEqual({name: 'a', surname: 'b'});
     expect(({} as any).x).toBeUndefined();
@@ -203,7 +209,7 @@ describe('security: error envelope', () => {
 describe('security: route registration and metadata', () => {
   beforeEach(() => resetRouter());
 
-  it.each(['__proto__', 'constructor', 'prototype'])("refuses '%s' as a route name", async (name) => {
+  it.each(UNSAFE_KEYS)("refuses '%s' as a route name", async (name) => {
     const routes = {dir: {[name]: mion.route((ctx): string => 'x')}};
     expect(() => mion.initRoutes(routes)).toThrow(`Invalid route: dir/${name}. '${name}' is not a valid route name.`);
   });
