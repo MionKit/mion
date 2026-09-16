@@ -240,6 +240,36 @@ describe('every unknown-key family agrees', () => {
     );
   });
 
+  // "Is any key undeclared" and "does this value match the type" are different questions, and on a
+  // union with a record member they get different answers for the same value. Neither is wrong: no
+  // key is undeclared because the record member declares every key, and no member matches strictly
+  // because the record refuses the string `a` while the object literal refuses the extra key.
+  it('an undeclared key and a shape mismatch are different questions', () => {
+    const parse = () => JSON.parse('{"a":"x","evil":1}') as CountsOrInner;
+
+    expect(createHasUnknownKeysFn<CountsOrInner>()(parse()), 'no key is undeclared').toBe(false);
+    expect(createUnknownKeyErrorsFn<CountsOrInner>()(parse()), 'so nothing is reported').toEqual([]);
+    expect(createValidateFn<CountsOrInner>()(parse()), 'the value matches a member loosely').toBe(true);
+    expect(createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true})(parse()), 'no member matches it strictly').toBe(
+      false
+    );
+  });
+
+  // Following the unknown-key check with a plain validate is NOT the same as the fused strict
+  // validator, on this shape. The two-step accepts, because each step passes on its own question;
+  // the fused one refuses, because it asks whether a member matches strictly and none does. The
+  // router composes the two-step form for `strictTypes`, so the two roads answer differently here.
+  it('checking unknown keys then validating is not the same as the fused strict validator', () => {
+    const parse = () => JSON.parse('{"a":"x","evil":1}') as CountsOrInner;
+    const validate = createValidateFn<CountsOrInner>();
+    const hasUnknownKeys = createHasUnknownKeysFn<CountsOrInner>();
+    const fused = createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true});
+
+    const twoStepAccepts = validate(parse()) && !hasUnknownKeys(parse());
+    expect(twoStepAccepts, 'validate then unknown-key check').toBe(true);
+    expect(fused(parse()), 'fused strict validator').toBe(false);
+  });
+
   // The other direction: a union carrying nothing keyed must stay compiled away, so the fix above
   // cannot have bought its coverage by making every union walk its members.
   it('leaves a union of primitives alone', () => {
