@@ -107,3 +107,27 @@ describe('a pattern index signature is open on every road', () => {
     expect(createValidateFn<Patterned>()(wide)).toBe(false);
   });
 });
+
+// An object runs ONE key sweep for all its index signatures. TypeScript splits `Record<string |
+// number, V>` into a string half and a number half, and the direct encoder used to sweep once per
+// half and write every key twice. A round trip cannot catch that: JSON.parse keeps the last of two
+// equal keys, so only the wire string shows it.
+describe('a split key sweeps once', () => {
+  type Split = {[key: string]: string; [key: number]: string};
+  const value = {a: 'x', 1: 'y'} as unknown as Split;
+
+  it('the direct encoder writes each key once', () => {
+    const wire = createJsonEncoderFn<Split>(undefined, {strategy: 'direct'})(value) as string;
+    expect(wire.match(/"a":/g)).toHaveLength(1);
+    expect(wire.match(/"1":/g)).toHaveLength(1);
+    expect(JSON.parse(wire)).toStrictEqual({a: 'x', 1: 'y'});
+  });
+
+  it('every other encoder writes each key once too', () => {
+    for (const strategy of ['clone', 'mutate', 'compact'] as const) {
+      const wire = createJsonEncoderFn<Split>(undefined, {strategy})(structuredClone(value)) as string;
+      expect(wire.match(/"a":/g), strategy).toHaveLength(1);
+      expect(JSON.parse(wire), strategy).toStrictEqual({a: 'x', 1: 'y'});
+    }
+  });
+});
