@@ -1116,19 +1116,25 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 
 // unknownKeysNoopSpec parameterises the shared unknown-keys predicate across
 // the five family variants: the families differ in what they DO at a node,
-// and in one spot (mapSetAlwaysNoop) in WHETHER a node emits at all.
+// and in two spots (reportsPatternKey, mapSetAlwaysNoop) in WHETHER a node
+// emits at all.
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
-	// mapSetAlwaysNoop — ukuw keeps the Map/Set arm noop on the wire side
+	// reportsPatternKey marks the reporting families, which sweep a pattern
+	// key whatever the value type (a key matching no pattern is reported); the
+	// to-undefined families leave such a key alone, so their sweep is driven by
+	// the value type exactly like a plain key's.
+	reportsPatternKey bool
+	// mapSetAlwaysNoop: ukuw keeps the Map/Set arm noop on the wire side
 	// (the instanceof check cannot match the still-parsed array); the other
 	// four recurse into the iterable's inner types.
 	mapSetAlwaysNoop bool
 }
 
 var (
-	hasUnknownKeysNoopSpec         = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys}
-	unknownKeyErrorsNoopSpec       = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors}
+	hasUnknownKeysNoopSpec         = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys, reportsPatternKey: true}
+	unknownKeyErrorsNoopSpec       = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors, reportsPatternKey: true}
 	unknownKeysToUndefinedNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefined}
 	unknownKeysToUndefinedWireSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefinedWire, mapSetAlwaysNoop: true}
 )
@@ -1281,8 +1287,9 @@ func unknownKeysNoopObject(rt *reflection.RunType, ctx *EmitContext, spec unknow
 }
 
 // unknownKeysNoopIndexSignature mirrors the shared index-signature arm: a
-// template-literal key pattern always sweeps (real code); otherwise atomic
-// values have nothing to recurse into and every key is "known".
+// template-literal key pattern always sweeps for a reporting family (real
+// code, spec.reportsPatternKey); otherwise atomic values have nothing to
+// recurse into and every key is "known".
 func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return true
@@ -1291,7 +1298,7 @@ func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spe
 	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
 		return true
 	}
-	if rt.Index != nil {
+	if spec.reportsPatternKey && rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
 		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if _, ok := buildTemplateLiteralRegex(indexResolved); ok {

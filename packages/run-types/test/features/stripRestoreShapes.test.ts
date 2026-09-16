@@ -4,7 +4,14 @@
 // way the marker coverage rule asks.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonEncoderFn, getRTFunction, registerClassSerializer, type InjectTypeFnArgs} from '../../src/index.ts';
+import {
+  createJsonDecoderFn,
+  createJsonEncoderFn,
+  createValidateFn,
+  getRTFunction,
+  registerClassSerializer,
+  type InjectTypeFnArgs,
+} from '../../src/index.ts';
 
 // `_val` only lets the reflection call shape infer T from a value; it is never read.
 function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'rjs'>) {
@@ -73,5 +80,30 @@ describe('the strip restore keeps what the type declares', () => {
     expect(recoverStripRestore(seed)).toBe(recoverStripRestore<Money>());
     const wire = JSON.parse(createJsonEncoderFn<Money>()(new Money(5, 'USD')) as string);
     expect(recoverStripRestore(seed)(wire)).toStrictEqual(new Money(5, 'USD'));
+  });
+});
+
+// A template-literal index signature is open on every road, exactly like a plain one: the pattern
+// picks the value transform for the keys it matches, a key matching no pattern rides through every
+// encoder and every decoder untouched, and validation is the only place that refuses it.
+describe('a pattern index signature is open on every road', () => {
+  const wide = {d_1: 1, x: 2} as unknown as Patterned;
+
+  it('the clone, direct and compact encoders write the non-matching key', () => {
+    for (const strategy of ['clone', 'direct', 'compact'] as const) {
+      const wire = createJsonEncoderFn<Patterned>(undefined, {strategy})(wide) as string;
+      expect(JSON.parse(wire), strategy).toStrictEqual({d_1: 1, x: 2});
+    }
+  });
+
+  it('the strip, compact and clone decoders return the non-matching key', () => {
+    expect(createJsonDecoderFn<Patterned>(undefined, {strategy: 'strip'})('{"d_1":1,"x":2}')).toStrictEqual({d_1: 1, x: 2});
+    expect(createJsonDecoderFn<Patterned>(undefined, {strategy: 'compact'})('{"d_1":1,"x":2}')).toStrictEqual({d_1: 1, x: 2});
+    expect(recoverStripRestore<Patterned>()({d_1: 1, x: 2})).toStrictEqual({d_1: 1, x: 2});
+  });
+
+  it('validation is where the non-matching key is refused', () => {
+    expect(createValidateFn<Patterned>()({d_1: 1})).toBe(true);
+    expect(createValidateFn<Patterned>()(wide)).toBe(false);
   });
 });
