@@ -215,8 +215,10 @@ describe('every unknown-key family agrees', () => {
 
   // A union with an index-signature member: no codec can tell a stray key on the object member from
   // a key the record member declares, so every key stays, on a value that only the object member
-  // matches. Strict validate is the one family that answers no, because it judges each member whole:
-  // the record refuses the string `a`, the object literal refuses the extra key.
+  // matches. The unknown-key families and the strict validator are asked different questions here
+  // and both answer correctly: no key is undeclared, since the record member declares every key,
+  // and no member matches the value strictly, since the record refuses the string `a` and the
+  // object literal refuses the extra key.
   it('keeps every key of a union whose member carries an index signature', () => {
     const wire = '{"a":"x","evil":1}';
     const parse = () => JSON.parse(wire) as CountsOrInner;
