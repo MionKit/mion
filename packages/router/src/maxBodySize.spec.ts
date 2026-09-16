@@ -19,6 +19,7 @@ import {headersFromRecord} from './lib/headers.ts';
 import {getSerializableMethod} from './lib/remoteMethods.ts';
 import {DEFAULT_ROUTE_OPTIONS} from './constants.ts';
 import {DEFAULT_MAX_BODY_SIZE, MION_ROUTES, RpcError, SerializerModes, StatusCodes} from '@mionjs/core';
+import type {SerializerCode} from '@mionjs/core';
 
 const mion = createMionRouter();
 
@@ -226,5 +227,34 @@ describe("the platform's own request ceiling", () => {
     setPlatformConfig({maxBodySize: 1_000});
     expect(getRouteExecutionChain('/big')!.maxBodySize).toBe(9_000);
     expect(resolvedMaxBodySize('/loose-missing')).toBe(1_000);
+  });
+});
+
+// The gcloud adapter once let any oversized body through by handing the router a body express had
+// already parsed. The router measures a STRING, so an object carries no wire size here and is not
+// refused; that is deliberate (dispatchRoute, a batch and these tests all pass object bodies that
+// never crossed a wire), which is exactly why an adapter handed a parsed body owns the check.
+describe('the router only measures a body it can measure', () => {
+  const echo = mion.route((ctx, text: string): string => text, {maxBodySize: 20});
+
+  beforeEach(() => resetRouter());
+
+  const dispatchBody = (rawBody: any, bodyType: SerializerCode) => {
+    const headers = headersFromRecord({});
+    const context = createCallContext('/echo', undefined, {}, headers, headersFromRecord({}), rawBody, bodyType);
+    return dispatchWithContext(context, {}, undefined);
+  };
+
+  it('refuses a string body past the limit', async () => {
+    mion.initRoutes({echo});
+    const response = await dispatchBody(JSON.stringify({echo: ['x'.repeat(100)]}), SerializerModes.stringifyJson);
+    expect(response.statusCode).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
+  });
+
+  it('lets an already parsed body of the same size through, so its adapter must measure it', async () => {
+    mion.initRoutes({echo});
+    const response = await dispatchBody({echo: ['x'.repeat(100)]}, SerializerModes.json);
+    expect(response.statusCode).toBe(StatusCodes.OK);
+    expect(response.body['echo']).toBe('x'.repeat(100));
   });
 });
