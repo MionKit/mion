@@ -472,8 +472,8 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
 // --- target: an index signature next to named properties ---
 // The carve-out with siblings: the named half still takes the key check, the
 // indexed half must not, and every family has to draw that line in the same
-// place. The wire oracles plant around the carve-out here, so the named half
-// is wire-checked while the indexed half is left alone.
+// place. The wire oracles plant into both halves here and judge the survivors:
+// the named half must come back stripped, the indexed half must keep its key.
 {
   const schema = RT.object({name: TF.string(), bag: RT.record(TF.number())});
   targets.push({
@@ -491,6 +491,63 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     restoreFromJsonSafe: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
+  });
+}
+
+// --- targets: a carve-out INSIDE an atomic member of a union ---
+// An index-signature object one level down an array or tuple member is not the
+// whole-union carve-out (only a member that IS one is): the emitters sweep the
+// member object by object, so the record slot keeps every key while the object
+// slot beside it is stripped. The walker labels both, and the wire oracles
+// plant into both and judge each survivor against the type. The blind plant
+// writes a string into the record of numbers too, which the member's own guard
+// refuses, so the slot-0 strip on the wire is pinned by the reference test
+// below rather than reached by the fuzz.
+{
+  const schema = RT.union([RT.array(RT.record(TF.number())), TF.number()]);
+  targets.push({
+    title: 'RecordInArrayUnion',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
+    hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
+    unknownKeyErrors: createUnknownKeyErrorsFn(schema),
+    clone: createCloneExactShapeFn(schema),
+    parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+    binaryEncode: createBinaryEncoderFn(schema),
+    binaryDecode: createBinaryDecoderFn(schema),
+  });
+}
+
+{
+  const schema = RT.union([RT.tuple({required: [RT.object({a: TF.string()}), RT.record(TF.number())]}), TF.number()]);
+  targets.push({
+    title: 'TupleWithRecordSlot',
+    schema,
+    mock: createMockDataFn(schema),
+    validate: createValidateFn(schema),
+    getValidationErrors: createGetValidationErrorsFn(schema),
+    validateStrict: createValidateFn(schema, {checkUnknowns: true}),
+    errorsStrict: createGetValidationErrorsFn(schema, {checkUnknowns: true}),
+    hasUnknownKeys: createHasUnknownKeysFn(schema, {runsAfterValidation: true}),
+    hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
+    unknownKeyErrors: createUnknownKeyErrorsFn(schema),
+    clone: createCloneExactShapeFn(schema),
+    parse: createParseFn(schema),
+    restoreFromJson: recoverRestore(schema),
+    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    jsonEncode: createJsonEncoderFn(schema),
+    jsonDecode: createJsonDecoderFn(schema),
+    binaryEncode: createBinaryEncoderFn(schema),
+    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -576,6 +633,24 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
     expect((stripped.meta as Record<string, unknown>).__fz_uk_wire).toBeUndefined();
     expect(stripped.id).toBe(1);
     expect((stripped.meta as Record<string, unknown>).count).toBe(2);
+  });
+
+  // The wire oracles' judge admits every survivor inside a union once the planted wire fails
+  // validation, and the blind plant always fails it on TupleWithRecordSlot (a string lands in the
+  // record of numbers). So the strip of the object slot beside the record slot is pinned here, on
+  // a wire that is valid apart from the planted keys: the object slot comes back stripped by both
+  // decoders and the record slot keeps its key.
+  it('O25/O26 reference: the object slot beside a record slot is stripped, the record slot is kept', () => {
+    const schema = RT.union([RT.tuple({required: [RT.object({a: TF.string()}), RT.record(TF.number())]}), TF.number()]);
+    const wire = '[{"a":"x","__fz_uk_wire":"fz"},{"k":1,"__fz_uk_wire":2}]';
+    const stripped = createJsonDecoderFn(schema, {strategy: 'strip'})(wire) as Record<string, unknown>[];
+    expect(stripped[0].__fz_uk_wire).toBeUndefined();
+    expect(stripped[0].a).toBe('x');
+    expect(stripped[1]).toStrictEqual({k: 1, __fz_uk_wire: 2});
+    const restored = recoverRestoreSafe(schema)(JSON.parse(wire)) as Record<string, unknown>[];
+    expect(Object.hasOwn(restored[0], '__fz_uk_wire')).toBe(false);
+    expect(restored[0].a).toBe('x');
+    expect(restored[1]).toStrictEqual({k: 1, __fz_uk_wire: 2});
   });
 
   // Autonomous soak: opt-in via `MION_FUZZ_SOAK_MS=<ms>`. Runs continuously for the

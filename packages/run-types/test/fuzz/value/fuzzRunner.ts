@@ -58,7 +58,8 @@ export interface UnknownKeyCoverage {
   flagged: number;
   /** Keys planted into an index-signature object, where every family owes silence. **/
   carveOut: number;
-  /** Values whose encoded wire was planted on and decoded back (O25, O26). **/
+  /** Values handed to the wire oracles (O25, O26), which plant into every plain object of the
+   *  encoded wire and judge each surviving key against the type. **/
   wire: number;
   /** Positions the walker offered, per target title. O27 reads it: a target whose TYPE carries a
    *  keyed shape anywhere and never offered a position is a walker hole, and a hole makes every
@@ -201,15 +202,12 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   unknownKeys.positionsByTarget.set(target.title, (unknownKeys.positionsByTarget.get(target.title) ?? 0) + positions.length);
   push(out, checkUnknownKeysSelfAgree(target, valid, unknownCtx));
   push(out, checkUnknownKeysStripAgree(target, valid, unknownCtx));
-  // Both wire oracles plant blindly, so they are handed the index-signature carve-outs to steer
-  // around: a key planted into one of those IS declared, so a correct decoder keeps it and the
-  // comparison would fail on working code. A carve-out at the root leaves nothing to plant on. O25
-  // holds the blanking composite to "the value does not change"; O26 holds the stripping decoder to
-  // the stronger "the key is gone".
-  const rootDeclaresEveryKey = positions.some((position) => position.kind === 'carveOut' && position.path.length === 0);
-  if (target.jsonEncode && target.jsonDecode && !rootDeclaresEveryKey) unknownKeys.wire++;
-  push(out, checkWireStripBlind(target, valid, unknownCtx, positions));
-  push(out, checkWireStripDeletes(target, valid, unknownCtx, positions));
+  // Both wire oracles plant blindly into every plain object of the wire and judge each survivor
+  // against the type afterwards, so they take no positions. O25 holds the blanking composite to
+  // "the value does not change"; O26 holds the stripping decoder to the stronger "the key is gone".
+  if (target.jsonEncode && target.jsonDecode) unknownKeys.wire++;
+  push(out, checkWireStripBlind(target, valid, unknownCtx));
+  push(out, checkWireStripDeletes(target, valid, unknownCtx));
   const planted = plantUnknownKey(target.schema, valid, Math.random);
   if (planted) {
     unknownKeys[planted.kind]++;
