@@ -209,10 +209,14 @@ describe('every union decode answers the same', () => {
   it('keeps every key when a member carries an index signature', () => {
     const wide = {a: 'x', evil: 1};
     const wire = JSON.stringify(wide);
-    for (const strategy of ['clone', 'direct', 'compact'] as const) {
-      const encoded = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy})(structuredClone(wide)) as string;
-      expect(JSON.parse(encoded), `encoder {strategy: '${strategy}'}`).toStrictEqual(wide);
-    }
+    // Each strategy is spelled at its own call site: the build reads it as a literal, and a variable
+    // resolves to no strategy and falls back silently.
+    const clone = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy: 'clone'})(structuredClone(wide)) as string;
+    const direct = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy: 'direct'})(structuredClone(wide)) as string;
+    const compact = createJsonEncoderFn<IndexSignatureMember>(undefined, {strategy: 'compact'})(structuredClone(wide)) as string;
+    expect(JSON.parse(clone), 'clone').toStrictEqual(wide);
+    expect(JSON.parse(direct), 'direct').toStrictEqual(wide);
+    expect(JSON.parse(compact), 'compact').toStrictEqual(wide);
     expect(cloneDecoder<IndexSignatureMember>()(wire), 'rjs').toStrictEqual(wide);
     expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'strip'})(wire), 'strip').toStrictEqual(wide);
     expect(createJsonDecoderFn<IndexSignatureMember>(undefined, {strategy: 'compact'})(wire), 'compact').toStrictEqual(wide);

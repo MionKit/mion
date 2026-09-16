@@ -168,9 +168,12 @@ describe('the rebuilding encoders and the cloner skip prototype-named keys; the 
   });
 
   it('the rebuilding encoders leave them out even when the values need no transform', () => {
+    const countsEncoders = {
+      clone: createJsonEncoderFn<Counts>(undefined, {strategy: 'clone'}),
+      compact: createJsonEncoderFn<Counts>(undefined, {strategy: 'compact'}),
+    };
     for (const strategy of ['clone', 'compact'] as const) {
-      const encode = createJsonEncoderFn<Counts>(undefined, {strategy});
-      expect(Object.keys(JSON.parse(encode(poisoned()) as string)), strategy).toEqual(['a']);
+      expect(Object.keys(JSON.parse(countsEncoders[strategy](poisoned()) as string)), strategy).toEqual(['a']);
     }
   });
 
