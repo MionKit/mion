@@ -18,7 +18,9 @@ import {
   createJsonEncoderFn,
   createUnknownKeyErrorsFn,
   createValidateFn,
+  getRTFunction,
   type HasUnknownKeysFn,
+  type InjectTypeFnArgs,
   type JsonDecoderFn,
   type JsonEncoderFn,
   type UnknownKeyErrorsFn,
@@ -26,6 +28,9 @@ import {
 
 type Inner = {a: string};
 type TwoObjects = Inner | {b: number};
+type Cat = {kind: 'cat'; meows: boolean};
+type Dog = {kind: 'dog'; barks: number};
+type Pet = Cat | Dog;
 type Counts = Record<string, number>;
 type CountsOrInner = Counts | Inner;
 
@@ -58,6 +63,12 @@ interface Row {
 /** Follow an object / array path through a value. **/
 function atPath(value: unknown, path: readonly (string | number)[]): unknown {
   return path.reduce<unknown>((cursor, segment) => (cursor as Record<string | number, unknown>)[segment], value);
+}
+
+/** The decode half of the `clone` route mion serves: the `rjs` family has no createX factory, so it
+ *  is recovered through a marker, the same shape a framework wrapper uses. **/
+function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'rjs'>) {
+  return getRTFunction<'rjs'>(id);
 }
 
 describe('every unknown-key family agrees', () => {
@@ -268,6 +279,62 @@ describe('every unknown-key family agrees', () => {
     const twoStepAccepts = validate(parse()) && !hasUnknownKeys(parse());
     expect(twoStepAccepts, 'validate then unknown-key check').toBe(true);
     expect(fused(parse()), 'fused strict validator').toBe(false);
+  });
+
+  // A DISCRIMINATED union, where the members declare different keys. Every codec pools the members'
+  // key names into one list and keeps anything on it, which is the same list `hasUnknownKeys` reads.
+  // So a cat carrying `barks` survives every road and `hasUnknownKeys` reports nothing: the codecs
+  // and the standalone check give one answer.
+  //
+  // The fused strict validator is the one that answers differently, and on purpose: it inherits
+  // validate's branch chain, so it asks whether the MATCHED member declares the key. No codec can
+  // ask that, since a codec never validates and so never learns which member matched.
+  it('keeps a key belonging to ANOTHER member of a union, the same answer hasUnknownKeys gives', () => {
+    const wire = '{"kind":"cat","meows":true,"barks":3}';
+    const parse = () => JSON.parse(wire) as Pet;
+    const all = {kind: 'cat', meows: true, barks: 3};
+
+    expect(createHasUnknownKeysFn<Pet>()(parse()), 'hasUnknownKeys').toBe(false);
+    expect(createUnknownKeyErrorsFn<Pet>()(parse()), 'unknownKeyErrors').toEqual([]);
+
+    const cloneEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'clone'})(parse()) as string;
+    const directEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'direct'})(parse()) as string;
+    const compactWire = createJsonEncoderFn<Pet>(undefined, {strategy: 'compact'})(parse()) as string;
+    expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(all);
+    expect(JSON.parse(directEncoded), "encoder {strategy: 'direct'}").toStrictEqual(all);
+    expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'compact'})(compactWire), 'compact round trip').toStrictEqual(all);
+    expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'})(wire), "decoder {strategy: 'strip'}").toStrictEqual(all);
+    expect(cloneDecoder<Pet>()(parse()), 'rjs, the clone route decoder').toStrictEqual(all);
+
+    // The only family that reads the matched branch rather than the pooled list.
+    expect(createValidateFn<Pet>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(false);
+  });
+
+  // Same union, same positions, a key NO member declares. Now the pooled list does not carry it, so
+  // every stripping road drops it and `hasUnknownKeys` reports it. This is the half that must never
+  // drift: a key belonging to nothing is undeclared on every road.
+  it('drops a key belonging to NO member of a union, on every road that strips', () => {
+    const wire = '{"kind":"cat","meows":true,"zzz":9}';
+    const parse = () => JSON.parse(wire) as Pet;
+    const clean = {kind: 'cat', meows: true};
+
+    expect(createHasUnknownKeysFn<Pet>()(parse()), 'hasUnknownKeys').toBe(true);
+    expect(createUnknownKeyErrorsFn<Pet>()(parse()), 'unknownKeyErrors').toEqual([{expected: 'never', path: ['zzz']}]);
+
+    const cloneEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'clone'})(parse()) as string;
+    const directEncoded = createJsonEncoderFn<Pet>(undefined, {strategy: 'direct'})(parse()) as string;
+    const compactWire = createJsonEncoderFn<Pet>(undefined, {strategy: 'compact'})(parse()) as string;
+    expect(JSON.parse(cloneEncoded), "encoder {strategy: 'clone'}").toStrictEqual(clean);
+    expect(JSON.parse(directEncoded), "encoder {strategy: 'direct'}").toStrictEqual(clean);
+    expect(createJsonDecoderFn<Pet>(undefined, {strategy: 'compact'})(compactWire), 'compact round trip').toStrictEqual(clean);
+    expect(cloneDecoder<Pet>()(parse()), 'rjs, the clone route decoder').toStrictEqual(clean);
+    // The strip decoder blanks rather than deletes, so the key is still own with no value.
+    const stripped = createJsonDecoderFn<Pet>(undefined, {strategy: 'strip'})(wire) as Record<string, unknown>;
+    expect(Object.hasOwn(stripped, 'zzz'), "decoder {strategy: 'strip'} keeps the key").toBe(true);
+    expect(stripped.zzz, "decoder {strategy: 'strip'} blanks the key").toBeUndefined();
+    expect(stripped, "decoder {strategy: 'strip'}").toEqual(clean);
+
+    expect(createValidateFn<Pet>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(false);
   });
 
   // The other direction: a union carrying nothing keyed must stay compiled away, so the fix above
