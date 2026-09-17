@@ -1,4 +1,5 @@
-import type * as TF from '@mionjs/run-types/formats';
+import * as TF from '@mionjs/run-types/formats';
+import * as RT from '@mionjs/run-types/builders';
 import {createValidateFn, registerFormatPattern} from '@mionjs/run-types';
 
 // Register a reusable string pattern once. `mockSamples` are optional:
@@ -29,11 +30,15 @@ type Slug = TF.String<{pattern: typeof slug}>;
 type Sku = TF.String<{pattern: typeof sku}>;
 type WordRun = TF.String<{pattern: typeof wordRun}>;
 
+// Or pass the registered value straight into a builder schema. Same pattern,
+// same build-time checks, no `typeof` needed.
+const Product = RT.object({sku: TF.string({pattern: sku})});
+
 type Post = {slug: Slug; sku: Sku; title: string};
 
 const isPost = createValidateFn<Post>();
 isPost({slug: 'my-first-post', sku: 'ABC-1234', title: 'Hi'}); // true
 isPost({slug: 'Not A Slug!', sku: 'ABC-1234', title: 'Hi'}); // false
 
-export {slug, sku, wordRun, isPost};
+export {slug, sku, wordRun, isPost, Product};
 export type {Slug, Sku, WordRun, Post};
