@@ -99,8 +99,9 @@ describe('deserialize json Request Body', () => {
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
     void deserializeRequestBody(context);
-    // JSOn body is only parsed, no restoreFromJson is applied until the handler is executed
-    expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
+    // JSON body is only parsed, no restoreFromJson is applied until the handler is executed: a Date
+    // is still the string it arrived as, which is why this compares against the WIRE form
+    expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
   });
 
   it('should return the parsed body for the ExecutionChain of "sayHello" route', async () => {
@@ -110,8 +111,9 @@ describe('deserialize json Request Body', () => {
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
     void deserializeRequestBody(context);
-    // JSOn body is only parsed, no restoreFromJson is applied until the handler is executed
-    expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
+    // JSON body is only parsed, no restoreFromJson is applied until the handler is executed: a Date
+    // is still the string it arrived as, which is why this compares against the WIRE form
+    expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
   });
 
   it('never parses the body of an unknown path (a middleFn is not a route)', async () => {
@@ -139,8 +141,9 @@ describe('deserialize json Request Body', () => {
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
     void deserializeRequestBody(context);
-    // JSOn body is only parsed, no restoreFromJson is applied until the handler is executed
-    expect(context.request.body).toEqual(JSON.parse(context.request.rawBody as string));
+    // JSON body is only parsed, no restoreFromJson is applied until the handler is executed: a Date
+    // is still the string it arrived as, which is why this compares against the WIRE form
+    expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
   });
 });
 

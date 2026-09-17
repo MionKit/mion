@@ -27,6 +27,7 @@ export const DEFAULT_ROUTE_OPTIONS = {
   alwaysAwait: true,
   /** A type-derived request limit is the JSON maximum times this factor */
   maxBodySizeFactor: 2,
+  releaseRawBody: true,
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
