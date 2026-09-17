@@ -10,14 +10,23 @@ export const OTHERS = {
       'No value-first builder exists for Promise, so all schema variants are not-supported.',
       'Binary shares the same alwaysThrow contract; test data is empty since the factory throws before any round-trip.',
     ],
+    // @mion-downgrade-error PJ002
     mutateEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error SJ002
     directEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'direct'}),
+    // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ002
     stripDecoder: () => createJsonDecoderFn<Promise<string>>(),
+    // @mion-downgrade-error RJ002
     preserveDecoder: () => createJsonDecoderFn<Promise<string>>(undefined, {strategy: 'preserve'}),
+    // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<Promise<string>>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error TB002
     binaryEncoder: () => createBinaryEncoderFn<Promise<string>>(),
+    // @mion-downgrade-error FB002
     binaryDecoder: () => createBinaryDecoderFn<Promise<string>>(),
     // Promise has no value-first builder and is non-serializable.
     schemaEncoder: 'not-supported',
@@ -33,14 +42,23 @@ export const OTHERS = {
       'A root `Int8Array` is non-serializable, so the factory renders as alwaysThrow and every encoder / decoder invocation throws for both JSON and binary.',
     serializeNotes:
       'No value-first builder exists for Int8Array, so all schema variants are not-supported and test data is empty.',
+    // @mion-downgrade-error PJ002
     mutateEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error SJ002
     directEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'direct'}),
+    // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ002
     stripDecoder: () => createJsonDecoderFn<Int8Array>(),
+    // @mion-downgrade-error RJ002
     preserveDecoder: () => createJsonDecoderFn<Int8Array>(undefined, {strategy: 'preserve'}),
+    // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<Int8Array>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error TB002
     binaryEncoder: () => createBinaryEncoderFn<Int8Array>(),
+    // @mion-downgrade-error FB002
     binaryDecoder: () => createBinaryDecoderFn<Int8Array>(),
     // Int8Array has no value-first builder and is non-serializable.
     schemaEncoder: 'not-supported',

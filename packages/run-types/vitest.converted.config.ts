@@ -30,10 +30,13 @@ export default defineConfig({
       cwd: PACKAGE_ROOT,
       tsconfig: 'tsconfig.converted.json',
       emitMode: 'both',
-      // Same opt-out as the marker project: the suites deliberately contain
-      // Error-severity types (the alwaysThrow cases), so the strict default
-      // would refuse to boot.
-      downgradeErrors: '*',
+      // The ONE code this generated tree cannot annotate. Everything else the
+      // suites stand down rides along in the comment `mion convert` copies with
+      // the source. Four cloning/Unions.ts cases write their union across
+      // several lines, and convert collapses the whole type argument onto one,
+      // which drops the comment that was inside it. Naming the code here is the
+      // only place left to say it; the hand-written tree names nothing.
+      downgradeErrors: ['CES001'],
     }),
   ],
   test: {

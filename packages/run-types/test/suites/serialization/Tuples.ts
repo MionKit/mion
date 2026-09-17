@@ -115,21 +115,34 @@ export const TUPLES = {
     title: 'tuple non-serializable slot',
     description:
       'Function-typed tuple slots are unsupported at every serialization family because tuple positions are structural, so rather than silently dropping to lossy null/undefined output the factory is rendered as alwaysThrow.',
+    // @mion-downgrade-error PJ003
     mutateEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS003
     cloneEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error SJ003
     directEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'direct'}),
+    // @mion-downgrade-error PJS003
     compactEncoder: () => createJsonEncoderFn<[number, () => any]>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ003
     stripDecoder: () => createJsonDecoderFn<[number, () => any]>(),
+    // @mion-downgrade-error RJ003
     preserveDecoder: () => createJsonDecoderFn<[number, () => any]>(undefined, {strategy: 'preserve'}),
+    // @mion-downgrade-error RJ003
     compactDecoder: () => createJsonDecoderFn<[number, () => any]>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error TB003
     binaryEncoder: () => createBinaryEncoderFn<[number, () => any]>(),
+    // @mion-downgrade-error FB003
     binaryDecoder: () => createBinaryDecoderFn<[number, () => any]>(),
     // Expressible value-first (mirrors validation TUPLE.tuple_with_non_serializable),
     // but a function-typed tuple slot resolves the same alwaysThrow factory — each
     // thunk throws like the type-first form (factoryThrows below); adapter asserts it.
+    // @mion-downgrade-error PJS003
     schemaEncoder: () => createJsonEncoderFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+    // @mion-downgrade-error RJ003
     schemaDecoder: () => createJsonDecoderFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+    // @mion-downgrade-error TB003
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+    // @mion-downgrade-error FB003
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
     factoryThrows: true,
     getTestData: () => ({values: []}),

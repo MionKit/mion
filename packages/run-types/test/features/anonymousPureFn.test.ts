@@ -29,6 +29,8 @@ describe('registerAnonymousPureFn — direct form (content-addressed)', () => {
     expect(compiled.namespace).toBe('rt');
     expect(compiled.fnName).toMatch(BODY_HASH_REGEX);
 
+    // Runtime lookups: the key comes from a helper call, so there is no build-time reference to record.
+    // @mion-expect-error CTA003
     const restored = getRTUtils().getPureFn(keyOf(compiled)) as (n: number) => number;
     expect(restored).toBeInstanceOf(Function);
     expect(restored(21)).toBe(42);
@@ -59,6 +61,7 @@ describe('registerAnonymousPureFnFactory — factory form (one-time setup)', () 
     expect(compiled.namespace).toBe('rt');
     expect(compiled.fnName).toMatch(BODY_HASH_REGEX);
 
+    // @mion-expect-error CTA003
     const restored = getRTUtils().getPureFn(keyOf(compiled)) as (n: number) => number;
     expect(restored(14)).toBe(42);
   });
@@ -70,6 +73,7 @@ describe('registerPureFn — named direct form', () => {
     expect(compiled.namespace).toBe('test');
     expect(compiled.fnName).toBe('directHalve');
 
+    // @mion-expect-error CTA003
     const restored = getRTUtils().getPureFn(pureFnKey('test', 'directHalve')) as (n: number) => number;
     expect(restored(84)).toBe(42);
   });

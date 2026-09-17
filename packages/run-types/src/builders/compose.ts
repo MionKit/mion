@@ -540,6 +540,9 @@ export function propMod<const M extends PropModifiers, const F>(
  *  (`key?:`) inside `object(...)`. The common modifier gets a terse spelling;
  *  reach for `propMod` for `readonly` or combinations. **/
 export function optional<const F>(field: CompTimeArgs<F>): PropModCarrier<{optional: true}, F> {
+  // A forward, not a call site: the scanner reflects the enclosing `object(...)`
+  // literal, so this argument is never read at build time.
+  // @mion-expect-error CTA001
   return propMod({optional: true}, field);
 }
 

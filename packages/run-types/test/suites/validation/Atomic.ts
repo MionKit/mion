@@ -562,10 +562,12 @@ export const ATOMIC = {
     ],
     validate: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VL002
       return createValidateFn<typeof sym>();
     },
     standardSchema: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VE002 VL002
       return createStandardSchema<typeof sym>();
     },
     validateDataOnly: () => {
@@ -577,20 +579,24 @@ export const ATOMIC = {
     validateSchema: 'not-supported',
     deserializeValidate: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VL002
       return deserializeValidate<typeof sym>();
     },
     validateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VL002
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VL002
       return deserializeValidate(v);
     },
     getValidationErrors: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn<typeof sym>();
     },
     getValidationErrorsDataOnly: () => {
@@ -600,16 +606,19 @@ export const ATOMIC = {
     getValidationErrorsSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors<typeof sym>();
     },
     getValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors(v);
     },
     mockType: () => {
@@ -957,31 +966,42 @@ export const ATOMIC = {
     validateNotes: [
       'Symbol at root is unsupported — identity does not survive across realms or round-trips, so a `typeof === "symbol"` check would give false confidence. The Go pipeline renders the factory as alwaysThrow (codes VL002 / VE002 / IS002), and the very first `createXxx<symbol>()` call throws.',
     ],
+    // @mion-downgrade-error VL002
     validate: () => createValidateFn<symbol>(),
+    // @mion-downgrade-error VE002 VL002
     standardSchema: () => createStandardSchema<symbol>(),
     validateDataOnly: () => createValidateFn<DataOnly<symbol>>(),
     // Bare symbol is unsupported at root — the value-first `RT.symbol()` resolves
     // the same alwaysThrow factory, so this thunk throws like the type-first form.
+    // @mion-downgrade-error VL002
     validateSchema: () => createValidateFn(RT.symbol()),
+    // @mion-downgrade-error VL002
     deserializeValidate: () => deserializeValidate<symbol>(),
     validateReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error VL002
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error VL002
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE002
     getValidationErrors: () => createGetValidationErrorsFn<symbol>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol>>(),
+    // @mion-downgrade-error VE002
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.symbol()),
+    // @mion-downgrade-error VE002
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol>(),
     getValidationErrorsReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: symbol = Symbol();
+      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<symbol>(),
@@ -1369,10 +1389,12 @@ export const ATOMIC = {
     ],
     validate: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VL002
       return createValidateFn<typeof sym>(undefined, {noLiterals: true});
     },
     standardSchema: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VE002 VL002
       return createStandardSchema<typeof sym>(undefined, {noLiterals: true});
     },
     validateDataOnly: () => {
@@ -1381,42 +1403,51 @@ export const ATOMIC = {
     },
     // Degrades to bare symbol (unsupported at root) — `RT.symbol()` resolves the
     // same alwaysThrow factory, so the schema thunk throws like the type-first form.
+    // @mion-downgrade-error VL002
     validateSchema: () => createValidateFn(RT.symbol(), {noLiterals: true}),
     deserializeValidate: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VL002
       return deserializeValidate<typeof sym>(undefined, {noLiterals: true});
     },
     validateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VL002
       return createValidateFn(v, {noLiterals: true});
     },
     deserializeValidateReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VL002
       return deserializeValidate(v, {noLiterals: true});
     },
     getValidationErrors: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn<typeof sym>(undefined, {noLiterals: true});
     },
     getValidationErrorsDataOnly: () => {
       const sym = Symbol('hello');
       return createGetValidationErrorsFn<DataOnly<typeof sym>>(undefined, {noLiterals: true});
     },
+    // @mion-downgrade-error VE002
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.symbol(), {noLiterals: true}),
     deserializeGetValidationErrors: () => {
       const sym = Symbol('hello');
+      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors<typeof sym>(undefined, {noLiterals: true});
     },
     getValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn(v, {noLiterals: true});
     },
     deserializeGetValidationErrorsReflect: () => {
       const sym = Symbol('hello');
       const v: typeof sym = sym;
+      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors(v, {noLiterals: true});
     },
     mockType: () => {

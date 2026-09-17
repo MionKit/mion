@@ -122,6 +122,9 @@ const OptionalModel = RT.object({
 // field accepts, both carrying mockSamples: an inline `{source, flags,
 // mockSamples}` literal and a `registerFormatPattern` value. The Go scanner
 // recovers {source, flags} from the literal the property declaration preserves.
+// The pattern is recovered from the declared type, not from this value, so the unreadable
+// argument changes nothing here.
+// @mion-expect-error CTA003
 const hexPattern = registerFormatPattern({source: '^[0-9a-f]+$', flags: 'i', mockSamples: ['DEADbeef']});
 const RegexModel = RT.object({
   slug: TF.string({pattern: {source: '^[a-z0-9-]+$', flags: '', mockSamples: ['ok-slug', 'a-b-c-1']}}), // inline

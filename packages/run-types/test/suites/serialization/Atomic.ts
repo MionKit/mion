@@ -221,18 +221,31 @@ export const ATOMIC = {
       'A RegExp is not data: a pattern is code the receiver would run. At a root position every serialization family renders an alwaysThrow factory (PJ002 and friends), like a function.',
     serializeNotes:
       'A RegExp-valued property is dropped from the wire with the …015 Warning, the same as a function-valued one; only a `pattern` format carries a regex, fixed at build time.',
+    // @mion-downgrade-error PJ002
     mutateEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS002
     cloneEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error SJ002
     directEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'direct'}),
+    // @mion-downgrade-error PJS002
     compactEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ002
     stripDecoder: () => createJsonDecoderFn<RegExp>(),
+    // @mion-downgrade-error RJ002
     preserveDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'preserve'}),
+    // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error TB002
     binaryEncoder: () => createBinaryEncoderFn<RegExp>(),
+    // @mion-downgrade-error FB002
     binaryDecoder: () => createBinaryDecoderFn<RegExp>(),
+    // @mion-downgrade-error PJS002
     schemaEncoder: () => createJsonEncoderFn(RT.regexp()),
+    // @mion-downgrade-error RJ002
     schemaDecoder: () => createJsonDecoderFn(RT.regexp()),
+    // @mion-downgrade-error TB002
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.regexp()),
+    // @mion-downgrade-error FB002
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.regexp()),
     factoryThrows: true,
     getTestData: () => ({values: []}),
@@ -495,20 +508,33 @@ export const ATOMIC = {
     title: 'symbol',
     description:
       'symbol at root is unsupported because identity does not survive JSON or binary round-trips, so the factory is rendered as alwaysThrow.',
+    // @mion-downgrade-error PJ005
     mutateEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS005
     cloneEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error SJ005
     directEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'direct'}),
+    // @mion-downgrade-error PJS005
     compactEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ005
     stripDecoder: () => createJsonDecoderFn<symbol>(),
+    // @mion-downgrade-error RJ005
     preserveDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'preserve'}),
+    // @mion-downgrade-error RJ005
     compactDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error TB006
     binaryEncoder: () => createBinaryEncoderFn<symbol>(),
+    // @mion-downgrade-error FB006
     binaryDecoder: () => createBinaryDecoderFn<symbol>(),
     // Bare symbol resolves the same alwaysThrow factory via the value-first path,
     // so each schema thunk throws like the type-first form (factoryThrows below).
+    // @mion-downgrade-error PJS005
     schemaEncoder: () => createJsonEncoderFn(RT.symbol()),
+    // @mion-downgrade-error RJ005
     schemaDecoder: () => createJsonDecoderFn(RT.symbol()),
+    // @mion-downgrade-error TB006
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.symbol()),
+    // @mion-downgrade-error FB006
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.symbol()),
     factoryThrows: true,
     getTestData: () => ({values: []}),
@@ -562,19 +588,32 @@ export const ATOMIC = {
   never: {
     title: 'never',
     description: 'never type cannot be JSON-encoded or decoded — invoking the factory throws.',
+    // @mion-downgrade-error PJ001
     mutateEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS001
     cloneEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error SJ001
     directEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'direct'}),
+    // @mion-downgrade-error PJS001
     compactEncoder: () => createJsonEncoderFn<never>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ001
     stripDecoder: () => createJsonDecoderFn<never>(),
+    // @mion-downgrade-error RJ001
     preserveDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'preserve'}),
+    // @mion-downgrade-error RJ001
     compactDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error TB001
     binaryEncoder: () => createBinaryEncoderFn<never>(),
+    // @mion-downgrade-error FB001
     binaryDecoder: () => createBinaryDecoderFn<never>(),
     // never resolves the same alwaysThrow factory via the value-first path.
+    // @mion-downgrade-error PJS001
     schemaEncoder: () => createJsonEncoderFn(RT.never()),
+    // @mion-downgrade-error RJ001
     schemaDecoder: () => createJsonDecoderFn(RT.never()),
+    // @mion-downgrade-error TB001
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.never()),
+    // @mion-downgrade-error FB001
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.never()),
     // The 2020-12 boolean `false` schema denotes never — same alwaysThrow factory.
     factoryThrows: true,

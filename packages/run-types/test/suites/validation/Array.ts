@@ -1047,31 +1047,42 @@ export const ARRAY = {
     validateNotes: [
       'Arrays whose element type is non-serializable (`symbol[]`, `(() => any)[]`, …) cannot be validated: the factory is rendered as alwaysThrow and the first createXxx<symbol[]>() call throws. Use a different shape to carry symbol-like data.',
     ],
+    // @mion-downgrade-error VL002
     validate: () => createValidateFn<symbol[]>(),
+    // @mion-downgrade-error VE002 VL002
     standardSchema: () => createStandardSchema<symbol[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<symbol[]>>(),
     // Non-serializable array element (symbol) propagates to the root → alwaysThrow.
     // `RT.array(RT.symbol())` resolves the same factory, so the schema thunk throws.
+    // @mion-downgrade-error VL002
     validateSchema: () => createValidateFn(RT.array(RT.symbol())),
+    // @mion-downgrade-error VL002
     deserializeValidate: () => deserializeValidate<symbol[]>(),
     validateReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error VL002
       return createValidateFn(v);
     },
     deserializeValidateReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error VL002
       return deserializeValidate(v);
     },
+    // @mion-downgrade-error VE002
     getValidationErrors: () => createGetValidationErrorsFn<symbol[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol[]>>(),
+    // @mion-downgrade-error VE002
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.symbol())),
+    // @mion-downgrade-error VE002
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol[]>(),
     getValidationErrorsReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error VE002
       return createGetValidationErrorsFn(v);
     },
     deserializeGetValidationErrorsReflect: () => {
       const v: symbol[] = [];
+      // @mion-downgrade-error VE002
       return deserializeGetValidationErrors(v);
     },
     mockType: () => createMockDataFn<symbol[]>(),

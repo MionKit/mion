@@ -615,6 +615,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error PJ003
       return createJsonEncoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'mutate'});
     },
     cloneEncoder: () => {
@@ -624,6 +625,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error PJS003
       return createJsonEncoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'clone'});
     },
     directEncoder: () => {
@@ -633,6 +635,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error SJ003
       return createJsonEncoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'direct'});
     },
     compactEncoder: () => {
@@ -642,6 +645,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error PJS003
       return createJsonEncoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'compact'});
     },
     stripDecoder: () => {
@@ -651,6 +655,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error RJ003
       return createJsonDecoderFn<Parameters<typeof fnWithCallback>>();
     },
     preserveDecoder: () => {
@@ -660,6 +665,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error RJ003
       return createJsonDecoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'preserve'});
     },
     compactDecoder: () => {
@@ -669,6 +675,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error RJ003
       return createJsonDecoderFn<Parameters<typeof fnWithCallback>>(undefined, {strategy: 'compact'});
     },
     binaryEncoder: () => {
@@ -678,6 +685,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error TB003
       return createBinaryEncoderFn<Parameters<typeof fnWithCallback>>();
     },
     binaryDecoder: () => {
@@ -687,6 +695,7 @@ export const FUNCTIONS = {
         void c;
         return new Date(0);
       }
+      // @mion-downgrade-error FB003
       return createBinaryDecoderFn<Parameters<typeof fnWithCallback>>();
     },
     // Parameters<typeof fnWithCallback> resolves to a tuple ending
@@ -713,6 +722,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error PJ002
       return createJsonEncoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'mutate'});
     },
     cloneEncoder: () => {
@@ -722,6 +732,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error PJS002
       return createJsonEncoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'clone'});
     },
     directEncoder: () => {
@@ -731,6 +742,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error SJ002
       return createJsonEncoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'direct'});
     },
     compactEncoder: () => {
@@ -740,6 +752,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error PJS002
       return createJsonEncoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'compact'});
     },
     stripDecoder: () => {
@@ -749,6 +762,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error RJ002
       return createJsonDecoderFn<ReturnType<typeof fnReturnsPromise>>();
     },
     preserveDecoder: () => {
@@ -758,6 +772,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error RJ002
       return createJsonDecoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'preserve'});
     },
     compactDecoder: () => {
@@ -767,6 +782,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error RJ002
       return createJsonDecoderFn<ReturnType<typeof fnReturnsPromise>>(undefined, {strategy: 'compact'});
     },
     binaryEncoder: () => {
@@ -776,6 +792,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error TB002
       return createBinaryEncoderFn<ReturnType<typeof fnReturnsPromise>>();
     },
     binaryDecoder: () => {
@@ -785,6 +802,7 @@ export const FUNCTIONS = {
         void c;
         return Promise.resolve(new Date(0));
       }
+      // @mion-downgrade-error FB002
       return createBinaryDecoderFn<ReturnType<typeof fnReturnsPromise>>();
     },
     // Promise return type is non-serializable; no value-first builder.
@@ -808,6 +826,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error PJ003
       return createJsonEncoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'mutate'});
     },
     cloneEncoder: () => {
@@ -817,6 +836,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error PJS003
       return createJsonEncoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'clone'});
     },
     directEncoder: () => {
@@ -826,6 +846,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error SJ003
       return createJsonEncoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'direct'});
     },
     compactEncoder: () => {
@@ -835,6 +856,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error PJS003
       return createJsonEncoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'compact'});
     },
     stripDecoder: () => {
@@ -844,6 +866,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error RJ003
       return createJsonDecoderFn<ReturnType<typeof fnReturnsFunction>>();
     },
     preserveDecoder: () => {
@@ -853,6 +876,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error RJ003
       return createJsonDecoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'preserve'});
     },
     compactDecoder: () => {
@@ -862,6 +886,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error RJ003
       return createJsonDecoderFn<ReturnType<typeof fnReturnsFunction>>(undefined, {strategy: 'compact'});
     },
     binaryEncoder: () => {
@@ -871,6 +896,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error TB003
       return createBinaryEncoderFn<ReturnType<typeof fnReturnsFunction>>();
     },
     binaryDecoder: () => {
@@ -880,6 +906,7 @@ export const FUNCTIONS = {
         void c;
         return () => new Date(0);
       }
+      // @mion-downgrade-error FB003
       return createBinaryDecoderFn<ReturnType<typeof fnReturnsFunction>>();
     },
     // Return type is another function — non-serializable; no value-first builder.

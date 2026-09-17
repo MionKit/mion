@@ -35,6 +35,7 @@ export const UTILITY_TYPES = {
       type Square = {kind: 'square'; x: number};
       type Triangle = {kind: 'triangle'; x: number; y: number};
       type Shape = Circle | Square | Triangle;
+      // @mion-downgrade-error CES001
       return createCloneExactShapeFn<Exclude<Shape, Circle>>();
     },
     getTestData: () => ({values: []}),
@@ -65,6 +66,7 @@ export const UTILITY_TYPES = {
     clone: () => {
       type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
       type ToExtract = {kind: 'square'; x: number} | {kind: 'triangle'; x: number; y: number};
+      // @mion-downgrade-error CES001
       return createCloneExactShapeFn<Extract<Shape, ToExtract>>();
     },
     getTestData: () => ({values: []}),
