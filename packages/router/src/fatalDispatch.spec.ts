@@ -24,8 +24,9 @@ import {createMionRouter, resetRouter} from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import type {CallContext, MionHeaders} from './types/context.ts';
 import type {Routes} from './types/general.ts';
-import {HeadersSubset, RpcError, FatalError, MION_ROUTES, StatusCodes, isFatalError} from '@mionjs/core';
+import {HeadersSubset, RpcError, FatalError, MION_ROUTES, StatusCodes, isFatalError, SerializerModes} from '@mionjs/core';
 import {headersFromRecord} from './lib/headers.ts';
+import {getRouterFatalErrorResponse} from './lib/dispatchError.ts';
 
 const mion = createMionRouter();
 
@@ -36,6 +37,17 @@ const unwrap = (value: unknown): RpcError<string> => (Array.isArray(value) ? val
 const unwrapValue = (value: unknown): unknown => (Array.isArray(value) ? value[1] : value);
 
 describe('fatal dispatch', () => {
+  it('serializes a fatal response ONCE, so no adapter has to do it again', () => {
+    const response = getRouterFatalErrorResponse(
+      new FatalError({statusCode: StatusCodes.UNEXPECTED_ERROR, type: 'unknown-error', publicMessage: 'nope'}),
+      headersFromRecord({})
+    );
+    // `json` would send every adapter down the branch that serializes mionResp.body itself, throwing
+    // this string away; `stringifyJson` is what makes them write the one already built here
+    expect(response.serializer).toBe(SerializerModes.stringifyJson);
+    expect(response.rawBody).toBe(JSON.stringify(response.body));
+  });
+
   const ran: string[] = [];
   let seenFatal: RpcError<string> | undefined;
 

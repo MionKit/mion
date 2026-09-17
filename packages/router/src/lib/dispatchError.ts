@@ -26,7 +26,9 @@ export function getRouterFatalErrorResponse(returnErr: RpcError<string>, respHea
     headers: respHeaders,
     body,
     rawBody: JSON.stringify(body),
-    serializer: SerializerModes.json, // global errors are always json
+    // stringifyJson, not json: the body is already serialized on the line above, and `json` sends
+    // every adapter down the branch that serializes it a SECOND time and drops this string.
+    serializer: SerializerModes.stringifyJson,
   };
   return response;
 }
