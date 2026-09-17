@@ -103,3 +103,54 @@ func TypeLiteralValue(typeChecker *checker.Checker, tsType *checker.Type, opts T
 	}
 	return nil
 }
+
+// IsTypeReadableValue reports whether tsType is a value the walk above can read
+// WHOLE, off the type alone: a literal leaf, `undefined` / `null`, a tuple of
+// readable elements, or an object whose every property is readable. A value
+// whose type answers yes needs no runtime evaluation, which is what lets a CALL
+// that produces one (registerFormatPattern → FormatPattern<{source: '…', …}>)
+// stand as a compile-time literal. A widened field (`source: string`) answers
+// no: there the value really would be lost.
+func IsTypeReadableValue(typeChecker *checker.Checker, tsType *checker.Type) bool {
+	return isTypeReadableValue(typeChecker, tsType, 0)
+}
+
+func isTypeReadableValue(typeChecker *checker.Checker, tsType *checker.Type, depth int) bool {
+	if typeChecker == nil || tsType == nil || depth > DepthCap {
+		return false
+	}
+	flags := tsType.Flags()
+	switch {
+	case flags&(checker.TypeFlagsStringLiteral|checker.TypeFlagsNumberLiteral|checker.TypeFlagsBooleanLiteral|checker.TypeFlagsBigIntLiteral) != 0:
+		return true
+	case flags&(checker.TypeFlagsUndefined|checker.TypeFlagsNull) != 0:
+		return true
+	case flags&checker.TypeFlagsUnion != 0:
+		// The only union that survives is optionality (`'x' | undefined`), which
+		// strips to its single readable member. `boolean` and literal unions strip
+		// to themselves and stop here.
+		nonNullable := typeChecker.GetNonNullableType(tsType)
+		return nonNullable != tsType && isTypeReadableValue(typeChecker, nonNullable, depth+1)
+	case flags&checker.TypeFlagsObject == 0:
+		return false
+	}
+	if checker.IsTupleType(tsType) {
+		for _, element := range typeChecker.GetTypeArguments(tsType) {
+			if !isTypeReadableValue(typeChecker, element, depth+1) {
+				return false
+			}
+		}
+		return true
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	// An empty object carries no value to read, so it is never "readable whole".
+	if len(properties) == 0 {
+		return false
+	}
+	for _, symbol := range properties {
+		if !isTypeReadableValue(typeChecker, typeChecker.GetTypeOfSymbol(symbol), depth+1) {
+			return false
+		}
+	}
+	return true
+}
