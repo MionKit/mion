@@ -906,7 +906,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		var rtOpts typefunctions.RenderOpts
 		if renderEntries {
 			rtOptsStart := time.Now()
-			rtOpts = sess.rtRenderOpts(&rtDiagnostics, sess.buildProvenanceSites())
+			rtRooted, rtReaching := sess.buildProvenanceSites()
+			rtOpts = sess.rtRenderOpts(&rtDiagnostics, rtRooted, rtReaching)
 			rtOpts.PureFnDepSink = &rtPureFnDeps
 			if metrics != nil {
 				metrics.PrepMs += elapsedMs(rtOptsStart)
@@ -973,7 +974,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// once the render completes.
 		var rtDiagnostics []diagnostics.Diagnostic
 		var rtPureFnDeps []typefunctions.PureFnDepUse
-		rtOpts := sess.rtRenderOpts(&rtDiagnostics, sess.buildProvenanceSites())
+		rtRooted, rtReaching := sess.buildProvenanceSites()
+		rtOpts := sess.rtRenderOpts(&rtDiagnostics, rtRooted, rtReaching)
 		rtOpts.PureFnDepSink = &rtPureFnDeps
 		pureFnGraph, pureFnsDiagnostics := sess.collectProgramPureFns(metrics)
 		// Marker diagnostics from the eager whole-program scan — same
@@ -1013,7 +1015,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		var genDiagnostics []diagnostics.Diagnostic
 		var genPureFnDeps []typefunctions.PureFnDepUse
-		genOpts := sess.rtRenderOpts(&genDiagnostics, sess.buildProvenanceSites())
+		genRooted, genReaching := sess.buildProvenanceSites()
+		genOpts := sess.rtRenderOpts(&genDiagnostics, genRooted, genReaching)
 		genOpts.PureFnDepSink = &genPureFnDeps
 		genPureFnGraph, genPureFnsDiagnostics := sess.collectProgramPureFns(metrics)
 		genModules, genModulesErr := sess.collectEntryModules(genDump, genOpts, genPureFnGraph, metrics)
