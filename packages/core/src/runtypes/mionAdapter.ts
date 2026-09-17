@@ -5,7 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {FAMILY_TAG_TO_FN_KEY, getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@mionjs/run-types';
+import {
+  FAMILY_TAG_TO_FN_KEY,
+  getRTFnCaches,
+  getRTFunction,
+  getRTUtils,
+  getRunType,
+  getRunTypeId,
+  RunTypeKind,
+} from '@mionjs/run-types';
 import type {FnHashKey, GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '@mionjs/run-types';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types';
 import {getJitFnHashes} from '../routerUtils.ts';
@@ -211,7 +219,7 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 }
 
 const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
-const DECODE_FAMILIES = ["restoreFromJson", "restoreFromJsonStrip", "compactFromJson"] as const;
+const DECODE_FAMILIES = ['restoreFromJson', 'restoreFromJsonStrip', 'compactFromJson'] as const;
 type CompiledJsonFamilies = {strategy: JsonStrategy; encodeFamily: (typeof ENCODE_FAMILIES)[number]; decodeFamily: DecodeFamily};
 
 /** The JSON strategy a fn set was compiled for, read off its injected families: exactly one encode
