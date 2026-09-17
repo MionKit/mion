@@ -220,12 +220,13 @@ export const AREAS = {
           {name: 'repeat', args: '<app> [suite]', summary: 'run one lane N times and check the spread against MION_BENCH_TOLERANCE', flags: [['--runs <n>', 'how many runs (default 3)']]},
           {
             name: 'gcprobe',
-            summary: 'A/B two allocation shapes on memory, interleaved, with the V8 GC trace',
+            summary: 'measure this build on memory with the V8 GC trace, saved under a label',
             flags: [
-              ['--shapes <a,b>', 'MION_ALLOC_SHAPE values to compare (default split,merged)'],
+              ['--label <name>', 'name this run saves its rounds under (default current)'],
+              ['--compare <a b>', 'print the range table for two saved labels, running nothing'],
               ['--lanes <a,b>', 'lanes to run (default mion,mion.bun)'],
               ['--size <key>', 'payload size (default huge)'],
-              ['--rounds <n>', 'interleaved rounds per shape (default 3)'],
+              ['--rounds <n>', 'rounds per label (default 3)'],
             ],
           },
           {name: 'build', summary: 'build the mion app lanes'},

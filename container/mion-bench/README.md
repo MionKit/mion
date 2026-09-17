@@ -86,7 +86,7 @@ pnpm miondevx bench servers one mion.uws    # a single app across the three suit
 pnpm miondevx bench servers suite hello-world  # a single suite across every app
 pnpm miondevx bench servers sweep           # the payload-size sweep (mion adapters only)
 pnpm miondevx bench servers repeat mion.bun # run one lane 3 times and check the spread
-pnpm miondevx bench servers gcprobe         # A/B two allocation shapes on MEMORY (see below)
+pnpm miondevx bench servers gcprobe         # measure this build on MEMORY (see below)
 pnpm miondevx bench servers build           # just build the mion server bundles
 pnpm miondevx bench servers shell           # a debug shell in the image
 # --- image publishing (maintainer) ---
@@ -157,13 +157,17 @@ hour apart, which is many times the size of an allocation change. `gcprobe` answ
 memory question instead:
 
 ```bash
-pnpm miondevx bench servers gcprobe --shapes split,merged --rounds 3 --size huge --quick
+git checkout <base> -- packages/
+pnpm miondevx bench servers gcprobe --label before --rounds 3 --size huge
+git checkout HEAD -- packages/
+pnpm miondevx bench servers gcprobe --label after --rounds 3 --size huge
+pnpm miondevx bench servers gcprobe --compare before after
 ```
 
-It runs each lane and shape in turn, alternating the order between rounds so a warm-up or a
-thermal trend cannot favour whichever arm ran first, and reports each arm as a **range**
-rather than a mean, because the rule is that a candidate only counts when the two ranges do
-not overlap.
+Each run measures the CURRENT build and saves its rounds under a label; `--compare` reads two
+saved sets and prints the table, running nothing. Restoring only `packages/` is what keeps the
+harness identical while the measured code varies. Each arm is reported as a **range**, not a
+mean, because the rule is that a change only counts when the two ranges do not overlap.
 
 What makes a short window enough is that the metrics are per-request **ratios**, so the
 drift cancels out of them instead of swamping them:
@@ -185,9 +189,6 @@ requests per second only; they are there to catch a change that helps node and h
 so they can veto a candidate but never justify one. And lanes run one at a time, never
 together: on a 4 vCPU box two lanes at once would steal cores from each other and from the
 load generator, and neither number would mean anything.
-
-`MION_ALLOC_SHAPE` selects the shape. It is read once at module load by the router, so one
-build serves every arm.
 
 ## What came from the upstream benchmarks repo
 
