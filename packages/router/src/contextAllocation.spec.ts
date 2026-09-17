@@ -50,17 +50,18 @@ describe('an unparsed request body is one shared object', () => {
   });
 });
 
-describe('shared data is built only when something reads it', () => {
+describe('shared data', () => {
   beforeEach(() => resetRouter());
 
-  it('with no contextDataFactory it materialises on first read, then stays put', () => {
+  // Deliberately eager. Building it lazily through an accessor measured 2x the peak heap and 6%
+  // less throughput at 1 KB: defineProperty pushes every context into V8's dictionary mode, and a
+  // context is touched far more often than an empty object costs to make.
+  it('is a plain own property, not an accessor', () => {
     const mion = createMionRouter();
     mion.initRoutes({echo: mion.route((ctx, text: string): string => text)} satisfies Routes);
-    const context = newContext('/echo');
-    const first = context.shared;
-    expect(first).toEqual({});
-    // the accessor replaces itself, so every read after the first is a plain property
-    expect(context.shared).toBe(first);
+    const descriptor = Object.getOwnPropertyDescriptor(newContext('/echo'), 'shared');
+    expect(descriptor?.get).toBeUndefined();
+    expect(descriptor?.value).toEqual({});
   });
 
   it('two requests never share it', () => {
@@ -69,16 +70,7 @@ describe('shared data is built only when something reads it', () => {
     expect(newContext('/echo').shared).not.toBe(newContext('/echo').shared);
   });
 
-  it('assigning to it works, without the getter having run first', () => {
-    const mion = createMionRouter();
-    mion.initRoutes({echo: mion.route((ctx, text: string): string => text)} satisfies Routes);
-    const context = newContext('/echo');
-    const mine = {user: 'me'};
-    context.shared = mine;
-    expect(context.shared).toBe(mine);
-  });
-
-  it('a configured contextDataFactory still runs exactly once per request', () => {
+  it('a configured contextDataFactory runs exactly once per request', () => {
     let calls = 0;
     const mion = createMionRouter({
       contextDataFactory: () => {
@@ -91,7 +83,6 @@ describe('shared data is built only when something reads it', () => {
     const atStart = calls;
     const context = newContext('/echo');
     expect(calls - atStart).toBe(1);
-    void context.shared;
     void context.shared;
     expect(calls - atStart).toBe(1);
   });
