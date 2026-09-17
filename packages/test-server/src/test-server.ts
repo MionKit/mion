@@ -289,8 +289,10 @@ const routes = {
 
   // Routes for testing validation and friendly errors
   createUserProfile: route((_ctx, user: UserProfile): UserProfile => user),
-  // strictTypes route: rejects objects carrying unknown/extra properties (R17 client-side gate)
-  createUserStrict: route((_ctx, user: User): User => user, {strictTypes: true}),
+  // strictTypes route: rejects objects carrying unknown/extra properties (R17 client-side gate).
+  // The params ride `mutate`, the wire that hands the route exactly what arrived: `clone` and
+  // `compact` rebuild the params from the declared type, so an extra key is gone before the check.
+  createUserStrict: route((_ctx, user: User): User => user, {strictTypes: true, encoder: {params: 'mutate'}}),
   // sanitizeParams routes: the email's declared transform runs after decode and before validation
   // on the server, and locally on the client when its own sanitizeParams option is on
   sanitizeEmail: route((_ctx, email: Transform<Email, {trim: true; lowercase: true}>): string => email, {

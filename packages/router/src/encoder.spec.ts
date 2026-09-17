@@ -143,6 +143,66 @@ describe('encoder strategies at the router level', () => {
     });
   });
 
+  // The strictTypes pair follows the wire like every other slot. `clone` and `compact` rebuild the
+  // params from the declared type as they decode, so an undeclared key is gone before the handler
+  // and there is nothing for an unknown-key check to find. `mutate` and `direct` restore in place
+  // and keep every key, so they keep the pair. The answer side never compiles them on any wire: it
+  // is written by the handler, never by a caller, and nothing reads them.
+  describe('the unknown-key pair follows the wire', () => {
+    const cloneRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'clone'});
+    const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
+    const mutateRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'mutate'});
+    const directRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'direct'});
+    const compactRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: 'compact'});
+    const mutateParamsOnly = mion.route((ctx, p: Pet): Pet => p, {encoder: {params: 'mutate', return: 'compact'}});
+    const cloneParamsOnly = mion.route((ctx, p: Pet): Pet => p, {encoder: {params: 'clone', return: 'mutate'}});
+    const compactGuard = compactMion.middleFn((ctx, p: Pet): Pet => p);
+
+    it('a wire that restores in place compiles the pair', () => {
+      mion.initRoutes({mutateRoute, directRoute});
+      for (const id of ['mutateRoute', 'directRoute']) {
+        const fns = getRouteExecutable(id)!.paramsJitFns;
+        expect([id, !!fns.hasUnknownKeys]).toEqual([id, true]);
+        expect([id, !!fns.unknownKeyErrors]).toEqual([id, true]);
+      }
+    });
+
+    it('a rebuilding wire compiles neither, the default one included', () => {
+      mion.initRoutes({cloneRoute, defaultRoute, compactRoute});
+      for (const id of ['cloneRoute', 'defaultRoute', 'compactRoute']) {
+        const fns = getRouteExecutable(id)!.paramsJitFns;
+        expect([id, fns.hasUnknownKeys]).toEqual([id, undefined]);
+        expect([id, fns.unknownKeyErrors]).toEqual([id, undefined]);
+      }
+    });
+
+    it('only the params direction decides', () => {
+      mion.initRoutes({mutateParamsOnly, cloneParamsOnly});
+      const kept = getRouteExecutable('mutateParamsOnly')!.paramsJitFns;
+      expect(!!kept.hasUnknownKeys).toBe(true);
+      expect(!!kept.unknownKeyErrors).toBe(true);
+      const dropped = getRouteExecutable('cloneParamsOnly')!.paramsJitFns;
+      expect(dropped.hasUnknownKeys).toBeUndefined();
+      expect(dropped.unknownKeyErrors).toBeUndefined();
+    });
+
+    it('a middleFn follows its router-wide wire too', () => {
+      compactMion.initRoutes({compactGuard});
+      const fns = getMiddleFnExecutable('compactGuard')!.paramsJitFns;
+      expect(fns.hasUnknownKeys).toBeUndefined();
+      expect(fns.unknownKeyErrors).toBeUndefined();
+    });
+
+    it('no wire compiles the pair for the answer side', () => {
+      mion.initRoutes({cloneRoute, mutateRoute, directRoute, compactRoute});
+      for (const id of ['cloneRoute', 'mutateRoute', 'directRoute', 'compactRoute']) {
+        const fns = getRouteExecutable(id)!.returnJitFns;
+        expect([id, fns.hasUnknownKeys]).toEqual([id, undefined]);
+        expect([id, fns.unknownKeyErrors]).toEqual([id, undefined]);
+      }
+    });
+  });
+
   describe('framing derived from the chain', () => {
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
     const directRoute = mion.route((ctx, p: Pet): Pet => p, {encoder: {return: 'direct'}});

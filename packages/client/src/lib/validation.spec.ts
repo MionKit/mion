@@ -14,7 +14,9 @@ import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 // server-compiled isType so extra-key payloads failed fast client-side; under mion
 // strictness rides the separate hasUnknownKeys/unknownKeyErrors fns. The effective strictTypes
 // flag (route ?? router) ships in the methods metadata, and the client now runs huk/uke locally
-// when it is set. `createUserStrict` in the test server is declared with {strictTypes: true}.
+// when it is set. `createUserStrict` in the test server is declared with {strictTypes: true} on the
+// `mutate` params wire: only a wire that restores in place compiles the pair, since `clone` and
+// `compact` rebuild the params from the declared type and drop the extra key first.
 
 describe('client strictTypes local pre-validation (R17)', () => {
   const baseURL = TEST_SERVER_BASE_URL;
