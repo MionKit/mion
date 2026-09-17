@@ -33,9 +33,8 @@ adapter is crossws' fastest backend, and our binary mirror is what makes it inst
     without real websockets.
 - The adapters expose per-connection peers, publish/subscribe (mapped to uWS' NATIVE pub/sub on
   that platform), upgrade hooks (the auth point), and an idleTimeout/keepalive knob.
-- Useful background from the platform-uws work (docs/done/uws-platform-adapter.md): the uWS app
-  is created by `@mionjs/bin-uws`'s loader; `packages/platform-uws/src/uwsHttp.ts` owns the app and
-  is where `app.ws()` would register.
+- Useful background from the platform-uws work: the uWS app is created by `@mionjs/bin-uws`'s
+  loader; `packages/platform-uws/src/uwsHttp.ts` owns the app and is where `app.ws()` would register.
 
 ## Deliberately NOT designed here: the websocket paradigm
 
