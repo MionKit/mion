@@ -47,7 +47,7 @@ import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
 import {mionClientRoutes, mionClientMiddleFns, useOnDemandMetadataCaller} from './routes/client.routes.ts';
 import {mionErrorsRoutes, notFoundMiddleFn, batchNotFoundMiddleFn} from './routes/errors.routes.ts';
-import {capBatchBodySizes, clearBatches, getMaxBatchBodySize} from './batches.ts';
+import {capBatchBodySizes, clearBatches, getMaxBatchBodySize, refreshBatchChainBodyLimits} from './batches.ts';
 import {headersFn, middleFn, mutation, query, rawMiddleFn, route} from './lib/handlers.ts';
 import type {
   HeadersFnHelper,
@@ -139,6 +139,10 @@ export function setPlatformConfig(config: Record<string, unknown>): void {
     readMaxBodySizeCap(config) ?? Infinity
   );
   if (isRouterInitialized) applyMaxBodySizeCap();
+  // Unconditional, and NOT inside applyMaxBodySizeCap: that returns early when the adapter
+  // published no cap, while platformMaxBodySize still changed under every chain that declared
+  // nothing of its own.
+  refreshChainBodyLimits();
 }
 
 /** Returns the platform adapter config set by setPlatformConfig(). */
@@ -210,6 +214,7 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
       initRouter(options);
       const api = registerRoutes(routes);
       if (platformConfig) applyMaxBodySizeCap();
+      refreshChainBodyLimits();
       return api;
     },
   };
@@ -441,7 +446,9 @@ function recursiveCreateExecutionChain(
       routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
       methods,
       serializer: getChainFraming(methods),
-      maxBodySize,
+      path,
+      declaredBodySize: maxBodySize,
+      maxBodySize: maxBodySize ?? platformMaxBodySize,
       readsBody: true,
     };
     const middleFnIds = getPublicMiddleFnIds(methods);
@@ -476,6 +483,10 @@ function buildNotFoundChains(): void {
       routeIndex: -1, // there is no route in this chain
       methods,
       serializer: getChainFraming(methods),
+      // a shared chain answers for many paths, so the request brings its own
+      path: undefined,
+      declaredBodySize: undefined,
+      maxBodySize: platformMaxBodySize,
       readsBody: false,
     });
   }
@@ -716,7 +727,7 @@ export const getPlatformRequestCap = (): number | undefined => readMaxBodySizeCa
  *  route allows. */
 export function getMaxRouteBodySize(): number {
   let largest = getPlatformMaxBodySize();
-  for (const chain of flatRouter.values()) largest = Math.max(largest, chain.maxBodySize ?? getPlatformMaxBodySize());
+  for (const chain of flatRouter.values()) largest = Math.max(largest, chain.maxBodySize);
   return Math.max(largest, getMaxBatchBodySize());
 }
 
@@ -734,10 +745,21 @@ function applyMaxBodySizeCap(): void {
   const cap = readMaxBodySizeCap(platformConfig);
   if (cap === undefined) return;
   for (const chain of flatRouter.values()) {
-    if (chain.maxBodySize === undefined || chain.maxBodySize <= cap) continue;
-    chain.maxBodySize = cap;
+    if (chain.declaredBodySize === undefined || chain.declaredBodySize <= cap) continue;
+    chain.declaredBodySize = cap;
     const route = chain.methods[chain.routeIndex];
     if (route.options.maxBodySize !== undefined) route.options.maxBodySize = cap;
   }
   capBatchBodySizes(cap);
+}
+
+/** Re-folds every chain's `maxBodySize` from what it declared and what the platform now allows.
+ *  The folded number is a cache over two inputs that both move after a chain is built: the cap
+ *  above lowers what a chain declared, and `setPlatformConfig` replaces the fallback the chains
+ *  that declared nothing are read against. Missing a refresh would silently refuse bodies a route
+ *  allows, or allow bodies past a ceiling the platform promised, so it runs after BOTH. */
+function refreshChainBodyLimits(): void {
+  for (const chain of flatRouter.values()) chain.maxBodySize = chain.declaredBodySize ?? platformMaxBodySize;
+  for (const chain of notFoundChains.values()) chain.maxBodySize = chain.declaredBodySize ?? platformMaxBodySize;
+  refreshBatchChainBodyLimits(platformMaxBodySize);
 }
