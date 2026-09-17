@@ -329,6 +329,17 @@ func LevelOf(code string) Level {
 	return definition.Level
 }
 
+// ScopeOf returns a code's Scope. An unregistered code reads as ScopeGraph,
+// the widest answer: a caller asking this is choosing how far to fan a finding
+// out, and narrowing one the catalog cannot vouch for would drop it silently.
+func ScopeOf(code string) Scope {
+	definition, registered := Definitions[code]
+	if !registered {
+		return ScopeGraph
+	}
+	return definition.Scope
+}
+
 // IsCompleteness reports whether a code marks INCOMPLETE (not-yet-authored)
 // enrichment (an unfilled @todo scaffold, FT020/MD020) rather than wrong or
 // stale content. The default enrichment health check excludes these from its

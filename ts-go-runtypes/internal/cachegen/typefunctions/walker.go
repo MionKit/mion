@@ -243,12 +243,17 @@ type Walker struct {
 	// RenderOpts.DiagSink so the dispatcher can collect everything in
 	// a single response.Diagnostics slice.
 	DiagSink *[]diagnostics.Diagnostic
-	// rootProvenance is the list of marker call sites that reference
-	// the root RunType being walked. EmitDiagnostic fans out one
-	// Diagnostic per site so the user gets one entry per actionable
-	// call (per user direction: dedup is one-per-call-site, not
-	// one-per-typeid).
+	// rootProvenance is the list of marker call sites that REACH the root
+	// RunType being walked, whether they named it or pulled it in as a
+	// member. EmitDiagnostic fans out one Diagnostic per site so the user
+	// gets one entry per actionable call (per user direction: dedup is
+	// one-per-call-site, not one-per-typeid).
 	rootProvenance []diagnostics.Site
+	// rootedProvenance narrows rootProvenance to the sites that NAMED this
+	// type. A ScopeRoot code only belongs to those: it says the function the
+	// call produced always fails, which is false at a site that merely
+	// contains the type somewhere inside.
+	rootedProvenance []diagnostics.Site
 	// diagSeen prevents a single walk from emitting the same diagnostic
 	// code twice — without this, a deep tree with multiple unsupported
 	// leaves of the same kind would surface duplicate diagnostics for
@@ -390,12 +395,12 @@ func (w *Walker) AbsorbUnsupported() {
 	w.UnsupportedLeaf = nil
 }
 
-// EmitDiagnostic records a compile-time diagnostic against every call
-// site that references the root RunType being walked. No-op when DiagSink
-// is unwired, the code has already fired for this walk, or no provenance
-// sites are known. `args` are positional substitution values for the
-// JS-side catalog template — most sites pass 0 or 1 args (a property name
-// or a kind label); pass an empty list for arg-less codes.
+// EmitDiagnostic records a compile-time diagnostic against every call site the
+// code belongs to (see diagnosticSites). No-op when DiagSink is unwired, the
+// code has already fired for this walk, or no provenance sites are known.
+// `args` are positional substitution values for the JS-side catalog template —
+// most sites pass 0 or 1 args (a property name or a kind label); pass an empty
+// list for arg-less codes.
 func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	if w.DiagSink == nil {
 		return
@@ -407,15 +412,44 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 		w.diagSeen = map[string]bool{}
 	}
 	w.diagSeen[code] = true
-	if len(w.rootProvenance) == 0 {
+	sites := w.diagnosticSites(code)
+	if len(sites) == 0 {
 		// No call sites known — skip rather than emit a Diagnostic
 		// without provenance (would render as filePath="" in the
 		// canonical line, useless to the user).
 		return
 	}
-	for _, site := range w.rootProvenance {
+	for _, site := range sites {
 		*w.DiagSink = append(*w.DiagSink, diagnostics.New(code, site, args...))
 	}
+}
+
+// diagnosticSites picks which call sites a code may be reported at.
+//
+// A ScopeRoot code describes the ROOT of a marker call ("type X can never be
+// encoded to JSON: the generated function will always fail"), so only a site
+// that named this type reports it. The same trigger one level in is a different,
+// child-position code, and reporting the root code at a site that merely
+// contains the type says the site's function fails when it works fine.
+//
+// Every other scope keeps the reaching sites, which is what tells a call about
+// the types it pulls in: a member dropped from `{pet: Pet}` is news at the site
+// that asked for the object, not only wherever `Pet` was named.
+func (w *Walker) diagnosticSites(code string) []diagnostics.Site {
+	if diagnostics.ScopeOf(code) == diagnostics.ScopeRoot {
+		return w.rootedProvenance
+	}
+	return w.rootProvenance
+}
+
+// throwProvenance is the site an alwaysThrow entry names in its runtime
+// message. The site that NAMED the type is the one the author can act on, so it
+// wins; a child entry nothing named falls back to whatever reaches it.
+func (w *Walker) throwProvenance() []diagnostics.Site {
+	if len(w.rootedProvenance) > 0 {
+		return w.rootedProvenance
+	}
+	return w.rootProvenance
 }
 
 // NewWalker primes a Walker for the given RunType + Emitter pair.

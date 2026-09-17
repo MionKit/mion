@@ -93,12 +93,21 @@ func TestDataOnlyUnion_ReindexesGapFree(t *testing.T) {
 func renderWithDiag(t *testing.T, dump protocol.Dump, familyKey, rootID string) (string, []diagnostics.Diagnostic) {
 	t.Helper()
 	var sink []diagnostics.Diagnostic
+	family := FamilyByKey(familyKey)
+	// Provenance is keyed per rendered entry (type id + family tag), and a root
+	// code reads the rooted map while a child-position one reads the reaching
+	// map — here one call site named rootID and demanded this family, so both
+	// hold it.
+	site := map[string][]diagnostics.Site{
+		ProvenanceKey(rootID, family.Settings.Tag): {{FilePath: "/x.ts", StartLine: 1, StartCol: 1}},
+	}
 	opts := RenderOpts{
 		EmitMode:        "both",
 		DiagSink:        &sink,
-		ProvenanceSites: map[string][]diagnostics.Site{rootID: {{FilePath: "/x.ts", StartLine: 1, StartCol: 1}}},
+		ProvenanceSites: site,
+		RootedSites:     site,
 	}
-	return joinEntries(t, FamilyByKey(familyKey).Collect(dump, opts, nil)), sink
+	return joinEntries(t, family.Collect(dump, opts, nil)), sink
 }
 
 // dropWarnFamilies maps each family that walks union members itself to its

@@ -240,7 +240,7 @@ func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string)
 	// own emit mode). Pure fns the program registers ride along in the same
 	// mode, so a validator depending on a user format still resolves.
 	var renderDiags []diagnostics.Diagnostic
-	renderOpts := sess.rtRenderOpts(&renderDiags, nil)
+	renderOpts := sess.rtRenderOpts(&renderDiags, nil, nil)
 	renderOpts.EmitMode = constants.EmitFunctions
 	renderOpts.Store = nil
 	pureFnEntries, _, _ := sess.extractProgramPureFns(nil)

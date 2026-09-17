@@ -30,6 +30,19 @@ type PureFnDepUse struct {
 	Sites []diagnostics.Site
 }
 
+// ProvenanceKey addresses one RENDERED ENTRY's provenance: the type id plus the
+// family tag of the entry being rendered.
+//
+// A runtype finding is family-specific — VL002 is about the validator built for
+// the type, CES001 about the exact-shape clone, PJ001 about the JSON encoder —
+// and a call site demands named families, not "every family of this type".
+// Keyed by id alone, every site that named the type heard every other family's
+// finding, so a `createValidateFn<T>()` reported that the JSON encoder it never
+// asked for always fails.
+func ProvenanceKey(typeID, familyTag string) string {
+	return typeID + "\x00" + familyTag
+}
+
 // RenderOpts threads the per-session disk cache into the per-entry collectors.
 // Zero value is a valid "no caching" configuration — every entry is computed
 // fresh and nothing is persisted. The collectors never panic on disk-layer
@@ -75,12 +88,20 @@ type RenderOpts struct {
 	// sites available for anchoring.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
-	// ProvenanceSites maps each cached RunType ID to the set of marker
-	// call sites that reference it. EmitDiagnostic uses this to fan out
+	// ProvenanceSites maps each rendered entry (ProvenanceKey: type id +
+	// family tag) to the marker call sites that REACH it, the type named at
+	// the call plus everything under it. EmitDiagnostic uses this to fan out
 	// one Diagnostic per call site so the user gets actionable file:line:col
-	// coordinates — without it, a RTThrow would record a diagnostic
-	// with empty Site and the warning would be useless in the editor.
+	// coordinates — without it, a RTThrow would record a diagnostic with
+	// empty Site and the warning would be useless in the editor.
 	ProvenanceSites map[string][]diagnostics.Site
+	// RootedSites is the same map narrowed to the sites where the id is the
+	// type NAMED at the call, with nothing inherited from a parent. A
+	// ScopeRoot code is a statement about the root of a marker call, so
+	// fanning it out over the reaching sites would report "the generated
+	// function will always fail" at a call whose function is fine (the same
+	// trigger one level in is a child-position code instead).
+	RootedSites map[string][]diagnostics.Site
 	// InlineMode selects the child-inlining policy (constants.InlineMode):
 	// default (and the zero value) inlines UNNAMED non-circular compounds
 	// into their parents and keeps named types external; allInternal
@@ -582,8 +603,12 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	walker.JSEngine = opts.JSEngine
 	walker.PatternSampleCount = opts.PatternSampleCount
 	walker.PatternGenFailures = opts.PatternGenFailures
+	provenanceKey := ProvenanceKey(runType.ID, settings.Tag)
 	if opts.ProvenanceSites != nil {
-		walker.rootProvenance = opts.ProvenanceSites[runType.ID]
+		walker.rootProvenance = opts.ProvenanceSites[provenanceKey]
+	}
+	if opts.RootedSites != nil {
+		walker.rootedProvenance = opts.RootedSites[provenanceKey]
 	}
 	innerFn, shapeNoop, isUnsupported := walker.Compile()
 	if isUnsupported {
@@ -615,7 +640,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 			if diagCode := leafProvider.DiagCodeForLeaf(diagLeaf); diagCode != "" {
 				kindLabel := leafKindLabel(diagLeaf)
 				walker.EmitDiagnostic(diagCode, kindLabel)
-				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, walker.rootProvenance)
+				argsText := renderAlwaysThrowEntry(runType, innerName, diagCode, kindLabel, walker.throwProvenance())
 				if diskCacheable {
 					// alwaysThrow entries emit no dep calls — no same-family
 					// or cross-family edges to persist.
@@ -844,7 +869,7 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	// Pure-fn edges rebuild verbatim from the persisted stable keys — no hash
 	// drift to check (the delivery target is content-addressed by key, not id).
 	pureFnDeps := append([]string(nil), entry.PureFnRefs...)
-	replayCachedDiagnostics(runType, entry.Diagnostics, opts)
+	replayCachedDiagnostics(runType, settings.Tag, entry.Diagnostics, opts)
 	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop}, true
 }
 
@@ -857,16 +882,18 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 // Provenance comes from the live call sites, never from the cache: the same type
 // can be demanded from different places on the next build, and a stale file:line
 // would point at nothing. An entry whose call sites are gone emits nothing here,
-// matching the fresh-walk behaviour.
-func replayCachedDiagnostics(runType *reflection.RunType, cached []diskcache.CachedDiagnostic, opts RenderOpts) {
+// matching the fresh-walk behaviour — including the per-code scope split a fresh
+// walk applies (see Walker.diagnosticSites).
+func replayCachedDiagnostics(runType *reflection.RunType, familyTag string, cached []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if len(cached) == 0 || opts.DiagSink == nil || runType == nil {
 		return
 	}
-	sites := opts.ProvenanceSites[runType.ID]
-	if len(sites) == 0 {
-		return
-	}
+	key := ProvenanceKey(runType.ID, familyTag)
 	for _, entryDiag := range cached {
+		sites := opts.ProvenanceSites[key]
+		if diagnostics.ScopeOf(entryDiag.Code) == diagnostics.ScopeRoot {
+			sites = opts.RootedSites[key]
+		}
 		for _, site := range sites {
 			*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(entryDiag.Code, site, entryDiag.Args...))
 		}
