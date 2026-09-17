@@ -209,16 +209,14 @@ func batchSourceWatchSet(source *Session) (files []string, roots []string) {
 	return uniqueSortedStrings(files), []string{source.inferSrcDir()}
 }
 
-// referencedMapperKeys returns the sorted unique inline mapper keys
-// (`rt::<hash>`) the sites' mappings name. Named mappers (`mionjs::<name>`)
-// are registered by the server itself and need no module.
+// referencedMapperKeys returns the sorted unique mapper ids the sites' mappings
+// name. Every mapping is written inline, so every id needs its module.
 func referencedMapperKeys(sites []requestbatch.Site) []string {
 	seen := map[string]bool{}
 	var keys []string
-	prefix := purefunctions.AnonymousNamespace + "::"
 	for _, site := range sites {
 		for _, mapping := range site.Mappings {
-			if !strings.HasPrefix(mapping.MapperKey, prefix) || seen[mapping.MapperKey] {
+			if mapping.MapperKey == "" || seen[mapping.MapperKey] {
 				continue
 			}
 			seen[mapping.MapperKey] = true

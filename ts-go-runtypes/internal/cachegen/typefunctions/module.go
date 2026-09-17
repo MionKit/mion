@@ -304,8 +304,8 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 		// silently lose a user's override at every named nested type the variant
 		// now reaches.
 		if !rejectCircular && (suffix == "" || propagatesVariant(emitter, options)) {
-			if cfnHash := overrideHashForTag(runType, settings.Tag); cfnHash != "" {
-				graph.Add(buildRedirectEntry(entryID, settings.Tag, runType, cfnHash, opts))
+			if cfnID := overrideHashForTag(runType, settings.Tag); cfnID != "" {
+				graph.Add(buildRedirectEntry(entryID, settings.Tag, runType, cfnID, opts))
 				return nil, true // a redirect has no same-family child deps
 			}
 		}
@@ -799,15 +799,14 @@ func entryDiagnostics(diagStart int, opts RenderOpts) []diskcache.CachedDiagnost
 }
 
 // pureFnDepKeys projects the walker's recorded PureFnDep triples down to the
-// `<ns>::<fn>` graph keys the SoftDeps / disk cache carry (FilePath is a Go-only
-// validation hint, dropped here exactly like pureFnDepsJS drops it).
+// pure-fn ids the SoftDeps / disk cache carry.
 func pureFnDepKeys(deps []protocol.PureFnDep) []string {
 	if len(deps) == 0 {
 		return nil
 	}
 	keys := make([]string, len(deps))
 	for i, dep := range deps {
-		keys[i] = dep.Namespace + "::" + dep.FunctionName
+		keys[i] = dep.ID
 	}
 	return keys
 }

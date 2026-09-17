@@ -22,7 +22,7 @@ import (
 // inline-shape rule (PFN001) before invoking this; the purity walker
 // itself does not validate the outer node's kind.
 func CheckPurity(sourceFile *ast.SourceFile, fnNode *ast.Node) []diagnostics.Diagnostic {
-	return checkPurity(sourceFile, fnNode)
+	return checkPurity(sourceFile, fnNode, nil)
 }
 
 // Type aliases to the central diag package — kept on purefns so test

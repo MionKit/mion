@@ -44,11 +44,11 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
   main: 'index.js',
 });
 
-const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@mionjs/run-types';
+const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
 export {registerAnonymousPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
-  hash?: InjectPureFnHash<F>,
+  hash?: InjectPureFnId<F>,
 ): unknown;
 `;
 

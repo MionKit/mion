@@ -1,6 +1,7 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 	"strings"
 
@@ -61,7 +62,7 @@ func emailRfcCall(ctx formats.EmitContext, params map[string]any, vλl string) s
 	if emailRfcAllowsUnicode(params) {
 		idn = "true"
 	}
-	return pureFnAlias(ctx, "isEmailAddress") + "(" + vλl + ",{idn:" + idn + "})"
+	return formats.PureFnAlias(ctx, purefnids.IsEmailAddress) + "(" + vλl + ",{idn:" + idn + "})"
 }
 
 func emailRfcCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {

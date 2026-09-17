@@ -2,10 +2,8 @@ package typefunctions
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -78,8 +76,7 @@ func overrideHashForTag(runType *reflection.RunType, tag string) string {
 //
 // Mirrors collectJsonCompositeEntry's arg assembly; the redirect is never
 // disk-cached (it is trivial to re-derive and the cfn key is content-addressed).
-func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType, cfnHash string, opts RenderOpts) *entrymodules.Entry {
-	cfnKey := purefunctions.OverrideNamespace + "::" + cfnHash
+func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType, cfnKey string, opts RenderOpts) *entrymodules.Entry {
 	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + ")"
 	codeArg := "undefined"
 	if opts.EmitMode.EmitsCode() {
@@ -109,15 +106,18 @@ func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType
 }
 
 // AssertOverrideCfn verifies the invariant every cfn redirect relies on: the
-// `cfn::<hash>` module it forwards to via `utl.usePureFn` actually rendered. A
-// miss is an emitter bug — the unguarded usePureFn would throw at runtime — so
-// it surfaces as an OVR002 Error at collect time. Mirrors AssertCompositeSoftDeps.
+// override module it forwards to via `utl.usePureFn` actually rendered. A miss
+// is an emitter bug — the unguarded usePureFn would throw at runtime — so it
+// surfaces as an OVR002 Error at collect time. Mirrors AssertCompositeSoftDeps.
 // Deterministic order via sorted keys.
-func AssertOverrideCfn(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnostic) {
-	if diagSink == nil {
+//
+// `overrideIDs` is the set of ids the override pass extracted. An override's id
+// looks like any other pure fn's, so membership in that set is what tells the
+// two apart; there is no prefix to scan for.
+func AssertOverrideCfn(graph entrymodules.Graph, overrideIDs map[string]bool, diagSink *[]diagnostics.Diagnostic) {
+	if diagSink == nil || len(overrideIDs) == 0 {
 		return
 	}
-	cfnPrefix := purefunctions.OverrideNamespace + "::"
 	keys := make([]string, 0, len(graph))
 	for key := range graph {
 		keys = append(keys, key)
@@ -129,7 +129,7 @@ func AssertOverrideCfn(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnos
 			continue
 		}
 		for _, dep := range entry.SoftDeps {
-			if !strings.HasPrefix(dep, cfnPrefix) {
+			if !overrideIDs[dep] {
 				continue
 			}
 			if target, ok := graph[dep]; ok && target != nil && target.Kind != entrymodules.KindMissing {

@@ -7,7 +7,7 @@ import (
 
 // ipEmitter implements the format named "ip" — FormatIP / FormatIPv4 /
 // FormatIPv6 / *WithPort in `@mionjs/run-types/formats`. Dispatches
-// to pf_isIPV4 / pf_isIPV6 based on the `version` param (4, 6, or
+// to isIPV4 / isIPV6 based on the `version` param (4, 6, or
 // 'any' → OR of both), passing the whole params object so the pure fn
 // can honour allowLocalHost / allowPort. Mirrors the IPRunTypeFormat
 // (ref: packages/type-formats/src/string/ip.runtype.ts).
@@ -44,8 +44,8 @@ func ipVersion(params map[string]any) string {
 
 // ipCall renders one parser call. The pure fns return the failure MODE, so
 // "valid" is the empty string and validate compares against it.
-func ipCall(ctx formats.EmitContext, fnName, vλl, literal string) string {
-	return pureFnAlias(ctx, fnName) + "(" + vλl + "," + literal + ")"
+func ipCall(ctx formats.EmitContext, fnID, vλl, literal string) string {
+	return formats.PureFnAlias(ctx, fnID) + "(" + vλl + "," + literal + ")"
 }
 
 // ipCheckExpr builds the boolean validate expression for the resolved

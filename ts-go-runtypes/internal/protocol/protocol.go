@@ -468,44 +468,42 @@ type PureFnSite struct {
 	File  string `json:"file"`
 	Start int    `json:"start"`
 	End   int    `json:"end"`
-	// Key is the registry key the entry is interned under: `rt::<hash>` for the
-	// anonymous lane, `<ns>::<name>` for the named lane.
+	// Key is the id the entry is interned under: its package, its file and the
+	// name it is bound to (`@acme/text/src/slug#slugify`), or its body hash
+	// when it is bound to no name.
 	Key string `json:"key"`
-	// CalleeName is the identifier the site invoked — `registerAnonymousPureFn`,
-	// a framework wrapper like `serverMapFrom` / `registerAcmePureFn`, or a
+	// CalleeName is the identifier the site invoked — `registerPureFn`,
+	// a framework wrapper like `inputFrom` / `registerAcmePureFn`, or a
 	// renamed import. CalleeModule is the nearest-package.json `"name"` of the
 	// file that DECLARES the callee (or its ambient `declare module` name), so a
 	// consumer can attribute a site to the framework that exposed the registrar
 	// (e.g. `@mionjs/client`, `@acme/toolkit`) even through a wrapper-only file.
 	CalleeName   string `json:"calleeName,omitempty"`
 	CalleeModule string `json:"calleeModule,omitempty"`
-	// Lane is "named" | "anonymous"; Form is "direct" (the arg IS the pure fn,
-	// wrapped) | "factory" (the arg is a factory, emitted as-is).
-	Lane string `json:"lane,omitempty"`
+	// Form is "direct" (the arg IS the pure fn, wrapped) | "factory" (the arg
+	// is a factory, emitted as-is).
 	Form string `json:"form,omitempty"`
 	// Module is the BASENAME of the generated module this entry rides in: the
-	// per-entry `pf/<ns>/<fn>` in default/allModules mode, or the single `pf`
+	// per-entry `pf/<id>` in default/allModules mode, or the single `pf`
 	// bundle in allSingle — mirrors Site.Module. Provided for consumers that
 	// want the layout linkage; the record stays usable without reading it.
 	Module string `json:"module,omitempty"`
 	// ParamNames / Code are the entry payload, emitMode-honoring (Code is empty
 	// in an emitMode that ships no body string, matching the module render).
-	// PureFnDependencies is the entry's direct pure-fn dep keys.
+	// PureFnDependencies is the entry's direct pure-fn dep ids.
 	ParamNames         []string `json:"paramNames,omitempty"`
 	Code               string   `json:"code,omitempty"`
 	PureFnDependencies []string `json:"pureFnDependencies,omitempty"`
 }
 
-// BatchMapping is one `inputFrom(source, mapper | name)` link inside a
-// request batch: the server feeds the output of route FromId through the
-// mapper keyed MapperKey into argument ParamIndex of route ToId.
+// BatchMapping is one `inputFrom(source, mapper)` link inside a request batch:
+// the server feeds the output of route FromId through the mapper keyed
+// MapperKey into argument ParamIndex of route ToId.
 type BatchMapping struct {
 	FromId     string `json:"fromId"`
 	ToId       string `json:"toId"`
 	ParamIndex int    `json:"paramIndex"`
-	// MapperKey is the pure-fn registry key of the mapper: `rt::<hash>` for an
-	// inline mapper (the same id the anonymous pure-fn lane injects at that
-	// call), or `<ServerMapperNamespace>::<name>` for a named one.
+	// MapperKey is the mapper's pure-fn id, the same one injected at that call.
 	MapperKey string `json:"mapperKey"`
 }
 
@@ -752,16 +750,10 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	return jsonMarshal(out)
 }
 
-// PureFnDep identifies a pure-function dependency of a RT-compiled
-// function. FilePath is the absolute path of the source file where
-// registerPureFnFactory("<Namespace>::<FunctionName>", ...) is invoked.
-// The walker uses FilePath at compile time to assert the dependency
-// actually exists in source (Go-side AST integrity check); it does
-// not reach the emitted JS — the wire shape stays the flat
-// "namespace::fnName" string array that the JS-side rtUtils
-// consumes today.
+// PureFnDep identifies a pure-function dependency of a RT-compiled function by
+// its id, which already says where the registration lives: its package, its
+// file and the name it is bound to. It does not reach the emitted JS — the wire
+// shape stays the flat id array that the JS-side rtUtils consumes.
 type PureFnDep struct {
-	Namespace    string
-	FunctionName string
-	FilePath     string
+	ID string
 }

@@ -17,6 +17,7 @@
 package structural
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -43,9 +44,9 @@ type collectionEmitter struct {
 
 func init() {
 	formats.Register(collectionEmitter{
-		name: formattedSetName, expected: "set", publicName: "FormattedSet", uniquePureFn: uniqueSetMembersPureFnName})
+		name: formattedSetName, expected: "set", publicName: "FormattedSet", uniquePureFn: purefnids.UniqueSetMembers})
 	formats.Register(collectionEmitter{
-		name: formattedMapName, expected: "map", publicName: "FormattedMap", uniquePureFn: uniqueMapEntriesPureFnName})
+		name: formattedMapName, expected: "map", publicName: "FormattedMap", uniquePureFn: purefnids.UniqueMapEntries})
 }
 
 func (emitter collectionEmitter) Name() string {

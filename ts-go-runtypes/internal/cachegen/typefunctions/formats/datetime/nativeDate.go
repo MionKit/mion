@@ -41,7 +41,7 @@ func (nativeDateEmitter) ValidateParams(annotation *reflection.FormatAnnotation)
 // Date check (instanceof Date && !isNaN(getTime())) is emitted by the host
 // class arm; this only adds the min/max guard. The value's comparison key
 // is the Date's epoch ms directly (no string parsing), compared against a
-// baked absolute epoch or pf_relativeNowKey for a relative bound.
+// baked absolute epoch or relativeNowKey for a relative bound.
 func (nativeDateEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""

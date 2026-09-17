@@ -14,6 +14,7 @@
 // in sync if either moves.
 
 import {registerPureFnFactory} from '../../runtypes/pureFn.ts';
+import {luhnSumId, isCreditCardId, cardNetworkRulesId, matchesCardNetworkId} from '../../runtypes/pure-fn-ids.generated.ts';
 import {getRTUtils} from '../../runtypes/rtUtils.ts';
 import type {RTUtils} from '../../runtypes/rtUtils.ts';
 // The shared preset machinery every named string format is built on.
@@ -97,11 +98,11 @@ export interface CardNetworkRule {
   lengths: readonly number[];
 }
 /** The whole table, keyed by network name. Exported so the mock generator can
- *  type its `getPureFn('rtFormats::cardNetworkRules')` lookup — the VALUE stays
+ *  type its `getPureFn(cardNetworkRules)` lookup — the VALUE stays
  *  the pure fn's, so there is exactly one copy. **/
 export type CardNetworkRules = Readonly<Record<string, CardNetworkRule>>;
 
-// pf_luhnSum — the Luhn doubling rule, in ONE place. Doubles every second digit
+// luhnSum — the Luhn doubling rule, in ONE place. Doubles every second digit
 // counting back from the last, subtracting 9 when a double goes over 9, and
 // skips anything that is not a digit so a grouped number sums like a bare one.
 //
@@ -109,7 +110,7 @@ export type CardNetworkRules = Readonly<Record<string, CardNetworkRule>>;
 // asks whether the sum is a multiple of 10, and the MOCK GENERATOR asks which
 // final digit would make it one. Two copies of a doubling loop is exactly the
 // kind of thing that drifts.
-registerPureFnFactory('rtFormats::luhnSum', function () {
+export const luhnSum = registerPureFnFactory(function () {
   return function _luhn_sum(value: string): number {
     let sum = 0;
     let double = false;
@@ -126,9 +127,9 @@ registerPureFnFactory('rtFormats::luhnSum', function () {
     }
     return sum;
   };
-});
+}, luhnSumId);
 
-// pf_isCreditCard — the base card-number check. A card number is 12 to 19
+// isCreditCard — the base card-number check. A card number is 12 to 19
 // digits whose Luhn checksum comes out to a multiple of 10, which is what
 // catches a mistyped digit; a plain length + character-class test does not.
 //
@@ -140,10 +141,10 @@ registerPureFnFactory('rtFormats::luhnSum', function () {
 // for it.
 //
 // The walk here settles SHAPE only (separator placement, digit count); the
-// checksum is pf_luhnSum's, shared with the mock generator. Two short passes
+// checksum is luhnSum's, shared with the mock generator. Two short passes
 // over at most 19 characters, and neither allocates.
-registerPureFnFactory('rtFormats::isCreditCard', function (utl: RTUtils) {
-  const luhnSum = utl.getPureFn('rtFormats::luhnSum') as (value: string) => number;
+export const isCreditCard = registerPureFnFactory(function (utl: RTUtils) {
+  const luhnSumFn = utl.getPureFn(luhnSum) as (value: string) => number;
   return function _is_credit_card(value: string, params: CreditCardParams): string {
     if (typeof value !== 'string' || value === '') return 'format';
     const separators = params.separators;
@@ -165,11 +166,11 @@ registerPureFnFactory('rtFormats::isCreditCard', function (utl: RTUtils) {
     }
     if (expectDigit) return 'format';
     if (count < 12 || count > 19) return 'format';
-    return luhnSum(value) % 10 === 0 ? '' : 'checksum';
+    return luhnSumFn(value) % 10 === 0 ? '' : 'checksum';
   };
-});
+}, isCreditCardId);
 
-// pf_cardNetworkRules — the per-network prefix and length table, its own pure fn
+// cardNetworkRules — the per-network prefix and length table, its own pure fn
 // so the VALIDATOR and the MOCK GENERATOR share one copy. The table is fiddly
 // (prefix ranges per network, the lengths each issues) and a mock that drifted
 // from the validator would silently generate cards its own format rejects.
@@ -182,7 +183,7 @@ registerPureFnFactory('rtFormats::isCreditCard', function (utl: RTUtils) {
 //
 // The top level is frozen because two callers now share the object; the
 // `readonly` types carry the rest of the intent.
-registerPureFnFactory('rtFormats::cardNetworkRules', function () {
+export const cardNetworkRules = registerPureFnFactory(function () {
   const RULES: CardNetworkRules = {
     visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},
     mastercard: {
@@ -236,9 +237,9 @@ registerPureFnFactory('rtFormats::cardNetworkRules', function () {
   return function _card_network_rules(): CardNetworkRules {
     return RULES;
   };
-});
+}, cardNetworkRulesId);
 
-// pf_matchesCardNetwork — passes when the number belongs to ANY of the declared
+// matchesCardNetwork — passes when the number belongs to ANY of the declared
 // networks. Each rule is a set of first-digit ranges plus the digit counts that
 // network issues; both bounds of a range carry the same number of digits, so a
 // plain string comparison of the equal-length head decides membership without
@@ -246,8 +247,8 @@ registerPureFnFactory('rtFormats::cardNetworkRules', function () {
 //
 // Runs AFTER isCreditCard in the emitted `&&` chain, so the value is already
 // known to be digits (plus separators) of a valid length.
-registerPureFnFactory('rtFormats::matchesCardNetwork', function (utl: RTUtils) {
-  const NETWORK_RULES = (utl.getPureFn('rtFormats::cardNetworkRules') as () => CardNetworkRules)();
+export const matchesCardNetwork = registerPureFnFactory(function (utl: RTUtils) {
+  const NETWORK_RULES = (utl.getPureFn(cardNetworkRules) as () => CardNetworkRules)();
   return function _matches_card_network(value: string, params: CreditCardParams): boolean {
     const networks = params.networks;
     if (networks === undefined || networks.length === 0) return false;
@@ -270,7 +271,7 @@ registerPureFnFactory('rtFormats::matchesCardNetwork', function (utl: RTUtils) {
     }
     return false;
   };
-});
+}, matchesCardNetworkId);
 
 // ####### Doors for code OUTSIDE a pure-fn factory (the mock generator) #######
 //
@@ -283,7 +284,7 @@ registerPureFnFactory('rtFormats::matchesCardNetwork', function (utl: RTUtils) {
 
 /** The per-network prefix and length table the validator checks against. **/
 export function getCardNetworkRules(): CardNetworkRules {
-  return (getRTUtils().getPureFn('rtFormats::cardNetworkRules') as () => CardNetworkRules)();
+  return (getRTUtils().getPureFn(cardNetworkRules) as () => CardNetworkRules)();
 }
 
 /** The digit that, appended to `body`, makes it a valid card number. Appending a
@@ -291,6 +292,6 @@ export function getCardNetworkRules(): CardNetworkRules {
  *  the validator will see, and adds nothing to the sum, so this is the exact
  *  inverse of the validator's own check. **/
 export function luhnCheckDigit(body: string): string {
-  const luhnSum = getRTUtils().getPureFn('rtFormats::luhnSum') as (value: string) => number;
-  return String((10 - (luhnSum(body + '0') % 10)) % 10);
+  const luhnSumFn = getRTUtils().getPureFn(luhnSum) as (value: string) => number;
+  return String((10 - (luhnSumFn(body + '0') % 10)) % 10);
 }

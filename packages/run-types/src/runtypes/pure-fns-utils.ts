@@ -5,6 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {registerPureFnFactory} from './pureFn.ts';
+import {
+  getUnknownKeysFromArrayId,
+  countEnumKeysId,
+  hasUnknownKeysFromArrayId,
+  canonicalJsonId,
+  uniqueArrayItemsId,
+  uniqueSetMembersId,
+  uniqueMapEntriesId,
+  newRunTypeErrId,
+} from './pure-fn-ids.generated.ts';
 // TYPE-ONLY, so this file stays runtime dependency-free. It has to be the real
 // `RTUtils`: the build records a pure fn's DEPENDENCIES by recognising
 // `utl.getPureFn('<ns>::<name>')` through the `CompTimeArgs<string>` brand on
@@ -33,11 +43,11 @@ interface RTValidationError {
 
 // Ambient declaration — the package's tsconfig sets `types: []`, so Bun's
 // globals aren't visible. Only ever read through `typeof Bun !== 'undefined'`
-// (see pf_countEnumKeys); `Bun` is the one runtime probe the pure-fn purity
+// (see countEnumKeys); `Bun` is the one runtime probe the pure-fn purity
 // checker allows (`process` / `globalThis` / `global` are forbidden).
 declare const Bun: unknown;
 
-export const pf_getUnknownKeysFromArray = registerPureFnFactory('rt::getUnknownKeysFromArray', function () {
+export const getUnknownKeysFromArray = registerPureFnFactory(function () {
   const MAX_UNKNOWN_KEYS = 10;
   return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
     const unknownKeys: StrNumber[] = [];
@@ -56,9 +66,9 @@ export const pf_getUnknownKeysFromArray = registerPureFnFactory('rt::getUnknownK
     }
     return unknownKeys;
   };
-});
+}, getUnknownKeysFromArrayId);
 
-export const pf_countEnumKeys = registerPureFnFactory('rt::countEnumKeys', function () {
+export const countEnumKeys = registerPureFnFactory(function () {
   // Counts enumerable keys. Backs the `runsAfterValidation` key-count fast
   // path — after validation an all-required object is clean iff its key count
   // equals the declared prop count.
@@ -102,9 +112,9 @@ export const pf_countEnumKeys = registerPureFnFactory('rt::countEnumKeys', funct
     for (const _key in obj) count++;
     return count;
   };
-});
+}, countEnumKeysId);
 
-export const pf_hasUnknownKeysFromArray = registerPureFnFactory('rt::hasUnknownKeysFromArray', function () {
+export const hasUnknownKeysFromArray = registerPureFnFactory(function () {
   return function _hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
     for (const prop in obj) {
       let found = false;
@@ -118,7 +128,7 @@ export const pf_hasUnknownKeysFromArray = registerPureFnFactory('rt::hasUnknownK
     }
     return false;
   };
-});
+}, hasUnknownKeysFromArrayId);
 
 // ───────────────── uniqueItems: one predicate per collection ─────────────────
 // The 2020-12 `uniqueItems` keyword is ONE rule (no two entries equal by JSON
@@ -132,7 +142,7 @@ export const pf_hasUnknownKeysFromArray = registerPureFnFactory('rt::hasUnknownK
 // per module at factory time, so the recursive closure is still built once and
 // the three can never disagree on what "equal by value" means.
 
-export const pf_canonicalJson = registerPureFnFactory('rt::canonicalJson', function () {
+export const canonicalJson = registerPureFnFactory(function () {
   // JSON equality as a string key: numbers by mathematical value (so 0 and -0
   // collide, 1 and 1.0 collide), objects by unordered key set, arrays by order.
   // The runtime twin the mock walker uses is `canonicalJson` in
@@ -162,10 +172,10 @@ export const pf_canonicalJson = registerPureFnFactory('rt::canonicalJson', funct
   return function _canonicalJson(value: any): string {
     return canonical(value);
   };
-});
+}, canonicalJsonId);
 
-export const pf_uniqueArrayItems = registerPureFnFactory('rt::uniqueArrayItems', function (utl: RTUtils) {
-  const canonicalJson = utl.getPureFn('rt::canonicalJson') as (value: unknown) => string;
+export const uniqueArrayItems = registerPureFnFactory(function (utl: RTUtils) {
+  const canonicalJsonFn = utl.getPureFn(canonicalJson) as (value: unknown) => string;
   // An array (FormattedArray, plain or tuple) compares its ITEMS, and nothing
   // in it is unique by construction. Primitives key a Set directly — Set
   // membership is SameValueZero, exactly the partition the canonical form
@@ -185,16 +195,16 @@ export const pf_uniqueArrayItems = registerPureFnFactory('rt::uniqueArrayItems',
         continue;
       }
       if (objects === null) objects = new Set<string>();
-      const key = canonicalJson(item);
+      const key = canonicalJsonFn(item);
       if (objects.has(key)) return false;
       objects.add(key);
     }
     return true;
   };
-});
+}, uniqueArrayItemsId);
 
-export const pf_uniqueSetMembers = registerPureFnFactory('rt::uniqueSetMembers', function (utl: RTUtils) {
-  const canonicalJson = utl.getPureFn('rt::canonicalJson') as (value: unknown) => string;
+export const uniqueSetMembers = registerPureFnFactory(function (utl: RTUtils) {
+  const canonicalJsonFn = utl.getPureFn(canonicalJson) as (value: unknown) => string;
   // A Set (FormattedSet) compares its MEMBERS, and its primitive members are
   // already unique by construction (SameValueZero), so only object members are
   // canonicalised and a Set of primitives allocates nothing. That is the whole
@@ -205,16 +215,16 @@ export const pf_uniqueSetMembers = registerPureFnFactory('rt::uniqueSetMembers',
     for (const member of set) {
       if (member === null || typeof member !== 'object') continue;
       if (objects === null) objects = new Set<string>();
-      const key = canonicalJson(member);
+      const key = canonicalJsonFn(member);
       if (objects.has(key)) return false;
       objects.add(key);
     }
     return true;
   };
-});
+}, uniqueSetMembersId);
 
-export const pf_uniqueMapEntries = registerPureFnFactory('rt::uniqueMapEntries', function (utl: RTUtils) {
-  const canonicalJson = utl.getPureFn('rt::canonicalJson') as (value: unknown) => string;
+export const uniqueMapEntries = registerPureFnFactory(function (utl: RTUtils) {
+  const canonicalJsonFn = utl.getPureFn(canonicalJson) as (value: unknown) => string;
   // A Map (FormattedMap) compares its ENTRIES, the `[key, value]` PAIRS that
   // are its wire form. A primitive map key is unique by construction, which
   // makes its whole pair unique too, so it is skipped — a
@@ -227,15 +237,15 @@ export const pf_uniqueMapEntries = registerPureFnFactory('rt::uniqueMapEntries',
     for (const [key, value] of map) {
       if (key === null || typeof key !== 'object') continue;
       if (objects === null) objects = new Set<string>();
-      const pairKey = canonicalJson([key, value]);
+      const pairKey = canonicalJsonFn([key, value]);
       if (objects.has(pairKey)) return false;
       objects.add(pairKey);
     }
     return true;
   };
-});
+}, uniqueMapEntriesId);
 
-export const pf_newRunTypeErr = registerPureFnFactory('rt::newRunTypeErr', function () {
+export const newRunTypeErr = registerPureFnFactory(function () {
   return function _err(
     pλth: readonly StrNumber[],
     εrr: RTValidationError[],
@@ -246,4 +256,4 @@ export const pf_newRunTypeErr = registerPureFnFactory('rt::newRunTypeErr', funct
     const runTypeErr: RTValidationError = {expected, path};
     εrr.push(runTypeErr);
   };
-});
+}, newRunTypeErrId);

@@ -43,7 +43,7 @@ func pureFnDepsJS(deps []protocol.PureFnDep) string {
 	}
 	parts := make([]string, len(deps))
 	for i, dep := range deps {
-		parts[i] = quoteJS(dep.Namespace + "::" + dep.FunctionName)
+		parts[i] = quoteJS(dep.ID)
 	}
 	return "[" + strings.Join(parts, ",") + "]"
 }

@@ -81,7 +81,7 @@ func dateLayoutOrder(layout string) ([]string, bool) {
 }
 
 // dateEpochMs parses a date literal and returns its UTC epoch ms,
-// applying range + leap-year validation (mirrors pf_isDateString).
+// applying range + leap-year validation (mirrors isDateString).
 func dateEpochMs(value, layout string) (float64, bool) {
 	order, ok := dateLayoutOrder(layout)
 	if !ok {

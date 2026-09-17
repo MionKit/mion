@@ -110,7 +110,6 @@ func Report(entries []Entry, emitMode constants.EmitMode, bundled bool) []protoc
 			Key:                entry.Key(),
 			CalleeName:         entry.CalleeName,
 			CalleeModule:       entry.CalleeModule,
-			Lane:               entry.Lane,
 			Form:               entry.Form,
 			Module:             module,
 			ParamNames:         entry.ParamNames,
@@ -121,15 +120,15 @@ func Report(entries []Entry, emitMode constants.EmitMode, bundled bool) []protoc
 	return out
 }
 
-// Replacements builds the wire-shaped byte-range rewrites that swap the
-// factory (second) argument of every successfully-extracted
-// `registerPureFnFactory(pureFnId, factory)` call for the pure fn's
-// entry-module import binding. The Go transform applies these during
-// OpTransform (adding the matching import via ImportFrom) so the user's
-// source ends up as
-// `registerPureFnFactory('rt::foo', __rt_pf$2Frt$2Ffoo)` and the runtime
-// registers the tuple at the call site — the body itself lives only in the
-// entry module.
+// Replacements builds the wire-shaped byte-range rewrites every successfully
+// extracted registration needs: the factory argument of
+// `registerPureFnFactory(factory, id?)` is swapped for the pure fn's
+// entry-module import binding, and the empty trailing `id?` slot is filled with
+// the computed id. The Go transform applies these during OpTransform (adding
+// the matching import via ImportFrom), so the user's source ends up as
+// `registerPureFnFactory(__rt_pf$2F…, '@acme/text/src/slug#slugify')` and the
+// runtime registers the tuple at the call site — the body itself lives only in
+// the entry module.
 //
 // Entries without FactoryArgStart/End populated (e.g. a synthetic
 // Entry built by a test) are skipped — only real extraction
@@ -155,16 +154,16 @@ func Replacements(entries []Entry, bundled bool) []protocol.Replacement {
 			replacement.ImportFrom = entrymodules.ImportSpecifier(constants.PureFnModuleDir)
 		}
 		out = append(out, replacement)
-		// Anonymous lane: splice the injected `"rt::<hash>"` id into the empty
-		// trailing `hash?` slot (a point insertion at the call's closing `)`).
-		// No ImportFrom — the injected value is a plain string literal, not an
-		// entry binding.
-		if entry.HashInjectText != "" {
+		// Splice the id into the empty trailing `id?` slot (a point insertion at
+		// the call's closing `)`). No ImportFrom — the injected value is a
+		// plain string literal, not an entry binding. Empty when the call
+		// already wrote its id.
+		if entry.IDInjectText != "" {
 			out = append(out, protocol.Replacement{
 				File:  entry.FilePath,
-				Start: entry.HashInjectPos,
-				End:   entry.HashInjectPos,
-				Text:  entry.HashInjectText,
+				Start: entry.IDInjectPos,
+				End:   entry.IDInjectPos,
+				Text:  entry.IDInjectText,
 			})
 		}
 	}

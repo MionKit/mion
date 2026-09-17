@@ -54,11 +54,11 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 
 // The framework surface: barrel re-export + a branded wrapper that forwards to
 // the anonymous lane (so calling the wrapper genuinely registers the fn).
-const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@mionjs/run-types';
+const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
 export {registerAnonymousPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
-  hash?: InjectPureFnHash<F>,
+  hash?: InjectPureFnId<F>,
 ): {namespace: string; fnName: string};
 `;
 

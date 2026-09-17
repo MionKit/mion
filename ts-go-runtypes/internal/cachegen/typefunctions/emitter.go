@@ -297,7 +297,7 @@ func (ctx *EmitContext) SetChildPathLiteral(literal string) {
 // non-empty PathLiteral on the current stack, with `extra` appended as a
 // trailing segment when non-empty. Empty path → empty string (caller
 // omits the argument). Used by validationErrors emitters when calling
-// pf_newRunTypeErr to embed the static path segments at error sites.
+// newRunTypeErr to embed the static path segments at error sites.
 //
 // Mirrors `getAccessPath` + `getAccessPathLiteral`
 // (rtFnCompiler.ts:677-681) — same join, same `extra` semantics.
@@ -423,34 +423,30 @@ func (ctx *EmitContext) CtxFnParams(accessor string) []string {
 	return ctx.walker.ctxFnParamsFor(accessor)
 }
 
-// AddPureFnDependency records that the emitted body reaches a pure-fn
-// at `utl.getPureFn(<namespace>, <fnName>)`. The walker forwards each
-// dependency to the resolver's integrity check at end of compilation —
-// see internal/cachegen/typefunctions/walker.go's AddPureFnDependency for the
-// recording contract. Used by validationErrors to register `pf_newRunTypeErr`
+// AddPureFnDependency records that the emitted body reaches the pure fn `id`
+// names. The walker forwards each dependency to the resolver's integrity check
+// at end of compilation — see typefunctions/walker.go's AddPureFnDependency for
+// the recording contract. Used by validationErrors to register newRunTypeErr
 // before emitting calls into it.
-func (ctx *EmitContext) AddPureFnDependency(namespace, fnName, filePath string) {
-	ctx.walker.AddPureFnDependency(namespace, fnName, filePath)
+func (ctx *EmitContext) AddPureFnDependency(id string) {
+	ctx.walker.AddPureFnDependency(id)
 }
 
-// UsePureFn is the ONE choke point for referencing a package-owned pure fn
-// from an emitted body. It does all three steps at once: (1) records the
-// dependency (so it rides the entry's SoftDeps / PFE9012 check), (2) hoists
-// the deduped `const <alias> = utl.getPureFn('<ns>::<fnName>')` prologue line,
-// and (3) returns the alias the body calls. Every emitter reference to a pure
-// fn must go through here — a raw `utl.getPureFn` string anywhere else is a
-// review smell (a missed AddPureFnDependency becomes a missing import once
-// delivery is build-owned, so recording can no longer be skipped). filePath is
-// the canonical source path the pure fn's body is registered under.
+// UsePureFn is the ONE choke point for referencing a package-owned pure fn from
+// an emitted body. It does all three steps at once: (1) records the dependency
+// (so it rides the entry's SoftDeps / PFE9012 check), (2) hoists the deduped
+// `const <alias> = utl.getPureFn('<id>')` prologue line, and (3) returns the
+// alias the body calls. Every emitter reference to a pure fn must go through
+// here — a raw `utl.getPureFn` string anywhere else is a review smell (a missed
+// AddPureFnDependency becomes a missing import, since delivery is build-owned).
 //
-// The alias + prologue bytes are byte-identical to what the pre-migration
-// call sites emitted (see pureFnAliasFor) — this is a refactor of the
-// recording convention, never a change to emitted body bytes.
-func (ctx *EmitContext) UsePureFn(namespace, fnName, filePath string) string {
-	ctx.AddPureFnDependency(namespace, fnName, filePath)
-	alias := pureFnAliasFor(namespace, fnName)
+// `id` comes from the generated purefnids constants, so a built-in that moves or
+// is renamed fails codegen rather than emitting a body that reaches nothing.
+func (ctx *EmitContext) UsePureFn(id string) string {
+	ctx.AddPureFnDependency(id)
+	alias := pureFnAliasFor(id)
 	if !ctx.HasContextItem(alias) {
-		ctx.SetContextItem(alias, "const "+alias+" = utl.getPureFn('"+namespace+"::"+fnName+"')")
+		ctx.SetContextItem(alias, "const "+alias+" = utl.getPureFn('"+id+"')")
 	}
 	return alias
 }

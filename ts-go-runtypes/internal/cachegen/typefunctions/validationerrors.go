@@ -2,6 +2,7 @@ package typefunctions
 
 import (
 	"fmt"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 	"strings"
 
@@ -25,13 +26,6 @@ import (
 // mirrors the corresponding `emitTypeErrors` method under
 // (ref: packages/run-types/src/nodes/**).
 type ValidationErrorsEmitter struct{}
-
-// validationErrorsPureFnFilePath is the source path the resolver reports as the
-// `pf_newRunTypeErr` pure-fn registration's expected home (the `{3}` arg in the
-// PFE9012 message). The JS side registers the factory in pure-fns-utils.ts (the
-// same file validate uses for its own pure-fn deps). It is a repo-relative hint
-// only — the whole-program PFE9012 check matches by key, not by this path.
-const validationErrorsPureFnFilePath = "packages/run-types/src/runtypes/pure-fns-utils.ts"
 
 // Args returns the three parameters the inner validationErrors function takes.
 // Mirrors `rtErrorArgs` (ref: packages/run-types/src/constants.functions.ts:47):
@@ -576,7 +570,7 @@ func (ValidationErrorsEmitter) Finalize(rawCode string) (string, bool) {
 	return code, false
 }
 
-// callRTErr builds the JS call to pf_newRunTypeErr that appends one
+// callRTErr builds the JS call to newRunTypeErr that appends one
 // RTValidationError entry to the `er` array. Mirrors
 // RTErrorsFnCompiler.callRTErr / callRTErrWithPath
 // (rtFnCompiler.ts:610-629).
@@ -599,7 +593,7 @@ func callRTErr(ctx *EmitContext, expected string, extra string) string {
 	// packages/run-types/src/runtypes/rtUtils.ts:45); the literal is fully
 	// spelled out because the body is also evaluated through
 	// `new Function('utl', code)` where module-level consts are not in scope.
-	key := ctx.UsePureFn(corePureFnNamespace, "newRunTypeErr", validationErrorsPureFnFilePath)
+	key := ctx.UsePureFn(purefnids.NewRunTypeErr)
 	pthArg := ctx.ArgName("pλth")
 	errArg := ctx.ArgName("εrr")
 	args := []string{pthArg, errArg, quoteJS(expected)}

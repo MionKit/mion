@@ -15,13 +15,13 @@ import {runCli} from './helpers/cliCrash.ts';
 const register = hasBinary() ? it : it.skip;
 
 const CLIENT_DTS = `declare module '@mionjs/client' {
-  import type {PureFunction, InjectPureFnHash, InjectBatchId} from '@mionjs/run-types';
+  import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
   export interface RouteSubRequest<PH> { id: string }
   export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
   export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
   export interface InputFromRef<F> { asArg(): ReturnType<F> }
   export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnHash<(v: any) => M>): InputFromRef<(v: any) => M>;
+  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
 }
 `;
