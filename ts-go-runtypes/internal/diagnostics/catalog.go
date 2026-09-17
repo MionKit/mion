@@ -222,6 +222,12 @@ type Diagnostic struct {
 	Args     []string  `json:"args,omitempty"`
 	Site     Site      `json:"site"`
 	Related  []Related `json:"related,omitempty"`
+	// Downgraded is set when a source-level `@mion-downgrade-error` comment
+	// claimed this finding. Level and Severity stay whatever the catalog says —
+	// they are the label form — so the consumers that decide whether to halt read
+	// this flag alongside their own `downgradeErrors` setting, and print the same
+	// `(downgraded)` note either way.
+	Downgraded bool `json:"downgraded,omitempty"`
 }
 
 // Definition is the catalog entry for a single diagnostic code. Title is
