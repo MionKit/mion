@@ -29,6 +29,7 @@ import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
+import {decodeBody} from './bodyDecode.ts';
 
 // ############# PRIVATE STATE #############
 
@@ -238,10 +239,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
 
   httpReq.on('end', () => {
     if (replied) return;
-    // Buffer.concat allocates and copies even for one chunk, and a body-less request is the common
-    // case for a GET: neither needs a buffer at all.
-    const buffer = bodyChunks.length === 1 ? bodyChunks[0] : Buffer.concat(bodyChunks, size);
-    void dispatch(bodyChunks.length === 0 ? '' : buffer.toString(), SerializerModes.stringifyJson, true);
+    void dispatch(decodeBody(bodyChunks, size), SerializerModes.stringifyJson, true);
   });
 }
 
