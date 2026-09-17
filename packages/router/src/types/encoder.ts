@@ -68,8 +68,14 @@ type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<Retur
  *  sees it and the check has nothing left to find. `mutate` and `direct` decode with `rj`, which
  *  restores in place and keeps every key, so they keep the pair. Mirrors DecodeFamily above. */
 type UnknownKeys<Strategy, Key> = Strategy extends 'clone' | 'compact' ? never : Key;
-type ParamsHasUnknownKeys<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'hasUnknownKeys'>;
-type ParamsUnknownKeyErrors<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'unknownKeyErrors'>;
+type ParamsHasUnknownKeys<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<
+  ParamsStrategy<RouteOpts, RouterOpts>,
+  'hasUnknownKeys'
+>;
+type ParamsUnknownKeyErrors<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<
+  ParamsStrategy<RouteOpts, RouterOpts>,
+  'unknownKeyErrors'
+>;
 
 /** Intersected onto the factory options so a widened `encoder` (plain string, union) is a type error. */
 export type EncoderLiteralGuard<Options> = Options extends {encoder: infer E}
