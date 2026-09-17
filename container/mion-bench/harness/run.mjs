@@ -15,7 +15,7 @@
 // Usage: node harness/run.mjs --app <name> --suite <key> [--size <key>]
 
 import {execFileSync, spawn, spawnSync} from 'node:child_process';
-import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {createConnection} from 'node:net';
 import {availableParallelism, tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
@@ -23,6 +23,7 @@ import {fileURLToPath} from 'node:url';
 import pidusage from 'pidusage';
 import {findApp} from '../shared/apps.mjs';
 import {SUITES, SWEEP_SUITE} from '../shared/suites.mjs';
+import {parseGcTrace, readPeakRss, summarizeGcTrace} from './gc-trace.mjs';
 
 const HARNESS_DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HARNESS_DIR, '..');
@@ -31,6 +32,7 @@ const HOST = '127.0.0.1';
 const RESULTS_DIR = process.env.MION_BENCH_RESULTS_DIR || join(ROOT, 'results');
 const WRK_SCRIPT = join(HARNESS_DIR, 'wrk.lua');
 const cpuCount = availableParallelism();
+const round2 = (value) => Math.round(value * 100) / 100;
 
 // Load settings. The defaults are the ones the docs pages quote; every one is a knob
 // so a dev loop can run seconds instead of minutes (--quick sets them low).
@@ -306,6 +308,9 @@ async function load({duration, nextBody, suite, connections}) {
       throughput: {mean: raw.bytes / raw.durationSec},
       non2xx: raw.non2xx,
       timeouts: raw.timeouts,
+      // What every memory metric is divided by. A per-request ratio is what makes a short
+      // window usable: it cancels the run-to-run drift that requests-per-second cannot survive.
+      requestsTotal: raw.requestsTotal,
       // Timeouts counted in with the rest, the convention the gate below already reads.
       errors: raw.connect + raw.read + raw.write + raw.timeouts,
       // The gate deletes a failed lane's record, so the cause has to survive in the
@@ -334,11 +339,24 @@ async function main() {
   const label = isSweep ? `${app.name} · ${size.label}` : `${app.name} · ${args.suite}`;
   console.log(`-------- ${label} --------`);
 
-  const server = spawn(app.runtime, [app.entry], {
+  // GC tracing is a V8 flag, so it is node-only: handing it to bun fails at startup. The bun
+  // lane still reports peak memory below, which is a kernel counter and reads the same on both.
+  const traceGc = Boolean(args.gc) && app.runtime === 'node';
+  const traceDir = traceGc ? mkdtempSync(join(tmpdir(), 'mion-gc-')) : null;
+  const traceFile = traceDir ? join(traceDir, 'trace.log') : null;
+  // The trace goes to a FILE, never a pipe. An undrained pipe blocks the server's write once
+  // its buffer fills, and a drained one has this process parsing while the window is open,
+  // stealing a core from wrk. A file is written by the kernel and read afterwards.
+  const traceFd = traceFile ? openSync(traceFile, 'w') : null;
+
+  const server = spawn(app.runtime, traceGc ? ['--trace-gc-nvp', app.entry] : [app.entry], {
     cwd: appDir,
-    stdio: ['ignore', 'inherit', 'inherit'],
+    // --trace-gc-nvp writes to STDOUT, so that is the stream redirected; stderr stays inherited
+    // so a server that dies still says why.
+    stdio: ['ignore', traceFd ?? 'inherit', 'inherit'],
     env: {...process.env, MION_BENCH_PORT: String(PORT), NODE_ENV: 'production'},
   });
+  if (traceFd !== null) closeSync(traceFd); // the child holds its own copy
   let exited = null;
   server.on('exit', (code, signal) => (exited = {code, signal}));
 
@@ -362,10 +380,18 @@ async function main() {
     // measured window, then measure.
     const connections = connectionsFor(size);
     if (WARMUP > 0) await load({duration: WARMUP, nextBody, suite, connections});
+    // Where the measured window starts in the trace, so warm-up collections are left out of it.
+    const traceOffset = traceFile ? statSync(traceFile).size : 0;
     const sampler = startSampling(server.pid);
     // Only the MEASURED window is judged by the gate; warm-up errors are discarded.
     const result = await load({duration: DURATION, nextBody, suite, connections});
     const usage = sampler.stop();
+    // Read while the server is still alive: V8 writes the trace through as it goes, so the
+    // records are already on disk, and nothing here depends on the shutdown flushing them.
+    const gc = traceFile
+      ? summarizeGcTrace(parseGcTrace(readFileSync(traceFile).subarray(traceOffset).toString('utf8')), result.requestsTotal)
+      : undefined;
+    const peakRss = readPeakRss(server.pid, (path) => readFileSync(path, 'utf8'));
 
     const outDir = isSweep ? join(RESULTS_DIR, 'payload-sizes', size.key) : join(RESULTS_DIR, args.suite);
     mkdirSync(outDir, {recursive: true});
@@ -388,6 +414,12 @@ async function main() {
       non2xx: result.non2xx,
       timeouts: result.timeouts,
       ...usage,
+      requestsTotal: result.requestsTotal,
+      // The kernel's own high-water mark, where maxMem above is whatever a 1 Hz timer caught.
+      // Read for every runtime, which is what makes the bun lane comparable at all.
+      peakRss,
+      // Present only on a --gc run, and only on node: the V8 trace has no bun equivalent.
+      gc,
       loader: 'wrk',
       connections,
       threads: result.threads,
@@ -408,7 +440,11 @@ async function main() {
         generatedAt: new Date().toISOString(),
       },
     };
-    console.log(`${app.name}: ${Math.round(result.requests.mean)} req/s, ${result.latency.mean}ms, maxMem ${usage.maxMem}MB`);
+    const gcLine = gc ? `, promoted ${gc.promotedPerReq}B/req, ${gc.majors} major GC` : '';
+    const rssLine = peakRss ? `, peakRss ${round2(peakRss / 1024 / 1024)}MB` : '';
+    console.log(
+      `${app.name}: ${Math.round(result.requests.mean)} req/s, ${result.latency.mean}ms, maxMem ${usage.maxMem}MB${rssLine}${gcLine}`
+    );
 
     // A run whose requests did not all succeed is not a measurement of the fast path.
     // Gate BEFORE the write, and drop any record an earlier run left: the file on disk
@@ -437,6 +473,7 @@ async function main() {
     writeFileSync(recordFile, `${JSON.stringify(record, null, 2)}\n`);
   } finally {
     if (!exited) server.kill('SIGTERM');
+    if (traceDir) rmSync(traceDir, {recursive: true, force: true});
   }
 }
 
