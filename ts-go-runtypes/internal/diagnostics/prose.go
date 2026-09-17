@@ -55,6 +55,31 @@ var proseByCode = map[string]prose{
 		Fix:     "// @mion-expect-error VL002",
 	},
 
+	// ────────────────── downgrade-error directives (DWN) ──────────────────
+
+	// No Examples, same reason as the EXP family above: "did this comment do
+	// anything" is only answerable against a whole program, so these are raised
+	// on the whole-program pass and covered by downgradeerror_test.go.
+
+	CodeDowngradeErrorUnused: {
+		Summary: "A `@mion-downgrade-error` comment lowered nothing: the code it names was not reported on the line below it. The comment is checked the same way `@mion-expect-error` is, so it can never outlive the problem it was added for. Delete the comment, or correct the code it names.",
+		Fix:     "// @mion-downgrade-error VL002\nexport const report = createValidateFn<symbol>();",
+	},
+
+	CodeDowngradeErrorNotDowngradeable: {
+		Summary: "A `@mion-downgrade-error` comment named a code that always stops the build. Lowering a finding means \"report it and carry on\", which only makes sense when the build produced something to carry on with. This code reports that it produced nothing, so carrying on would ship a call that throws anyway. Fix the reported call site instead.",
+	},
+
+	CodeDowngradeErrorUnknownCode: {
+		Summary: "A `@mion-downgrade-error` comment named a code the catalog does not define, which is almost always a typo. Such a comment lowers nothing while looking like it works. Copy the code out of the message you are lowering: it is the uppercase identifier, for example the `VL002` in `error VL002: Type ... can never be validated`.",
+		Fix:     "// @mion-downgrade-error VL002",
+	},
+
+	CodeDowngradeErrorAlreadyWarning: {
+		Summary: "A `@mion-downgrade-error` comment named a code that is already a warning, so it has nothing to do. The comment exists to stop a finding halting the build, and a warning never halts one. Delete it, or use `@mion-expect-error` if you meant to stop the finding being reported at all.",
+		Fix:     "// @mion-expect-error VL015",
+	},
+
 	// ──────────────────────── project config (CFG) ────────────────────────
 
 	CodeTsconfigLoadFailed: {

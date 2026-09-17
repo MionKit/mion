@@ -27,9 +27,10 @@ import {Level, type Diagnostic} from './protocol.ts';
 // not met.
 export const DOWNGRADE_ALL = '*';
 
-// DOWNGRADED_NOTE marks a finding a `downgradeErrors` setting lowered, so it
-// never reads as a warning that was always a warning. Twin of
-// diagnostics.DowngradedNote on the Go side, which `mion compile` prints.
+// DOWNGRADED_NOTE marks a finding that was stood down, by a `downgradeErrors`
+// setting or by a `@mion-downgrade-error` comment, so it never reads as a
+// warning that was always a warning. Twin of diagnostics.DowngradedNote on the
+// Go side, which `mion compile` prints.
 export const DOWNGRADED_NOTE = '(downgraded)';
 
 // DowngradeSet is a resolved `downgradeErrors` value. `all` is the wildcard;
@@ -79,8 +80,10 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
 }
 
 // isDowngraded reports whether this diagnostic should be treated as a Warning.
-// Only a RuntimeError is ever downgraded: a fatal Error has no output to accept
-// and a Warning is already one.
+// Two ways in, one outcome: this build's `downgradeErrors` setting, or the
+// `@mion-downgrade-error` comment the resolver already stamped on the finding.
+// Only a RuntimeError is ever downgraded either way: a fatal Error has no
+// output to accept and a Warning is already one.
 //
 // The level comes off the WIRE, the same field the Go twin reads. The catalog
 // lookup above is for configured code STRINGS, which have no diagnostic to read
@@ -88,5 +91,5 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
 // through the guard.
 export function isDowngraded(set: DowngradeSet, diagnostic: Diagnostic): boolean {
   if (diagnostic.level !== Level.RuntimeError) return false;
-  return set.all || set.codes.has(diagnostic.code);
+  return diagnostic.downgraded === true || set.all || set.codes.has(diagnostic.code);
 }

@@ -9,7 +9,14 @@ import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Level, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
-import {DOWNGRADED_NOTE, isDowngraded, resolveDowngradeErrors, DOWNGRADE_ALL, type DowngradeSet} from './downgradeErrors.ts';
+import {
+  DOWNGRADED_NOTE,
+  isDowngraded,
+  resolveDowngradeErrors,
+  DOWNGRADE_ALL,
+  NONE,
+  type DowngradeSet,
+} from './downgradeErrors.ts';
 import {createTypeDepsIndex, depKey} from './type-deps.ts';
 import {warnBelowTypeScriptFloor} from './typescript-floor.ts';
 
@@ -271,10 +278,12 @@ export interface PluginOptions {
   // turning mion on that cannot yet name the codes it has not met; naming codes
   // is what to reach for once they are known. `['*']` means the same.
   //
-  // For a bad call site in your OWN source, prefer a `@mion-expect-error`
-  // comment on the line above it: precise, and an unused one is reported, so it
-  // cannot outlive the problem. This option is for findings you cannot annotate
-  // — raised inside a dependency, or carrying no source line at all.
+  // For a bad call site in your OWN source, prefer a comment on the line above
+  // it: precise, and an unused one is reported, so it cannot outlive the
+  // problem. `@mion-expect-error` removes the finding; `@mion-downgrade-error`
+  // keeps it printing and stops it halting, which is what a deliberately broken
+  // type wants. This option is for findings you cannot annotate — raised inside
+  // a dependency, or carrying no source line at all.
   //
   // Pure-fn extraction errors halt regardless, `'*'` included: files-mode has no
   // fallback for a failed generation, so proceeding would break the build
@@ -1377,7 +1386,9 @@ function surfaceDiagnostics(
   let errorCount = 0;
   for (const diagnostic of diagnostics) {
     if (!filter(diagnostic)) continue;
-    const downgraded = options.downgrade !== undefined && isDowngraded(options.downgrade, diagnostic);
+    // NONE, not a skip, when no set is configured: a `@mion-downgrade-error`
+    // comment stands its finding down whatever the build was configured with.
+    const downgraded = isDowngraded(options.downgrade ?? NONE, diagnostic);
     ctx.warn?.(downgraded ? formatDowngraded(diagnostic) : formatTscDiagnostic(diagnostic));
     if (diagnostic.severity === Severity.Error && !downgraded) errorCount += 1;
   }

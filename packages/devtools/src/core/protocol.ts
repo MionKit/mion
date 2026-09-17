@@ -670,6 +670,11 @@ export interface Diagnostic {
   args?: string[];
   site: DiagnosticSite;
   related?: DiagnosticRelated[];
+  // Set when a source-level `@mion-downgrade-error` comment claimed this
+  // finding. Level and severity stay whatever the catalog says, so the
+  // consumers that decide whether to halt read this alongside their own
+  // `downgradeErrors` setting. Twin of the Go-side Diagnostic.Downgraded.
+  downgraded?: boolean;
 }
 
 export interface Dump {

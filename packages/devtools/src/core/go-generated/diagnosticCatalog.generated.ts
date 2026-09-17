@@ -219,6 +219,41 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "A `const` used as a CompTimeArgs / CompTimeFnArgs argument (a whole option\nbag, or a builder child) must carry LITERAL value types, so the value the\nbuild reads matches the type TypeScript resolves the call against. Without\n`as const`, an object literal's members widen (`{strategy: 'mutate'}`\nbecomes `{strategy: string}`), which can let the type system select one\nfunction variant while the build injects another.\n\nWhole imported consts now resolve cross-module (like a spread fragment), so\nthis rule keeps that path sound.\n\nFix: add `as const`:\n-  const preset = {strategy: 'mutate'};\n+  const preset = {strategy: 'mutate'} as const;\n   createJsonEncoderFn(undefined, preset);",
   },
+  DWN001: {
+    headline:
+      'Unused `@mion-downgrade-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'marker',
+    detail:
+      '`@mion-downgrade-error` lowers a finding you already know about to a\nwarning, and it is checked the same way `@mion-expect-error` is: if the\nfinding is gone, the comment itself is reported. That is what stops these\ncomments outliving the problem they were added for, so a type that got\nfixed does not keep a comment parked over it forever.\n\nFix: delete the comment, or correct the code it names:\n-  // @mion-downgrade-error VL002\n+  // (nothing — the finding is gone)',
+  },
+  DWN002: {
+    headline:
+      '`@mion-downgrade-error {0}` cannot lower that code: the build produces no code for it, so carrying on would ship missing output.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'marker',
+    detail:
+      'Lowering a finding says "emit it and let me carry on". That only means\nsomething when there IS output: this code reports that the build produced\nnone for the thing, so not halting would only ship a call that throws\nanyway. The same rule refuses it in the `downgradeErrors` setting.\n\nFix: fix the reported call site instead of lowering it.',
+  },
+  DWN003: {
+    headline:
+      '`@mion-downgrade-error {0}` names a diagnostic code that does not exist; check the spelling against the code in the message you are lowering.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'marker',
+    detail:
+      'A code that is not in the catalog can never match a finding, so the comment\nwould lower nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are lowering:\n-  // @mion-downgrade-error VL2\n+  // @mion-downgrade-error VL002',
+  },
+  DWN004: {
+    headline: '`@mion-downgrade-error {0}` does nothing: that code is already a warning, so it was never halting your build.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'marker',
+    detail:
+      'The comment exists to stop a finding halting the build. A warning never\nhalts one, so there is nothing for it to do here and the comment only\nsuggests a problem that is not there.\n\nFix: delete the comment. If you meant to stop the finding being reported\nat all, remove it instead:\n-  // @mion-downgrade-error VL015\n+  // @mion-expect-error VL015',
+  },
   EXP001: {
     headline:
       'Unused `@mion-expect-error {0}`: nothing was reported on the line below it, so the comment is stale and can be deleted.',

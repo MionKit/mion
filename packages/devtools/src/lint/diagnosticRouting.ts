@@ -19,6 +19,7 @@ import {Family, Severity, type Diagnostic, type DiagnosticSite} from '../core/pr
 export type RuleName =
   | 'broken-tsconfig'
   | 'invalid-expect-error'
+  | 'invalid-downgrade-error'
   | 'invalid-marker'
   | 'redundant-marker'
   | 'pure-functions'
@@ -93,6 +94,14 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     gate: 'compiler',
     description:
       'A `@mion-expect-error` comment that is wrong: it silenced nothing (so it is stale and should be deleted, the same check TypeScript runs on an unused `@ts-expect-error`), it names a code that is always reported, or it names a code that does not exist',
+  },
+  {
+    name: 'invalid-downgrade-error',
+    namespace: 'runtypes',
+    default: 'warn',
+    gate: 'compiler',
+    description:
+      'A `@mion-downgrade-error` comment that is wrong: it lowered nothing (so it is stale and should be deleted), it names a code that always stops the build, it names a code that does not exist, or it names one that is already a warning and was never halting anything',
   },
   {
     name: 'invalid-marker',
@@ -346,6 +355,7 @@ interface FamilyRules {
 const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   CFG: {primary: 'broken-tsconfig'},
   EXP: {primary: 'invalid-expect-error'},
+  DWN: {primary: 'invalid-downgrade-error'},
   MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
   CTA: {primary: 'invalid-marker'},
   PFN: {primary: 'invalid-marker'},
