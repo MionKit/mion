@@ -1766,7 +1766,7 @@ func (state scanState) checkPureFunction(file string, argumentNode *ast.Node) []
 // literal-only rules and returns a CTA0xx diagnostic when it doesn't.
 // Returns (_, false) when validation succeeded.
 func (state scanState) checkCompTimeArgs(file string, argumentNode *ast.Node) (diagnostics.Diagnostic, bool) {
-	result := comptimeargs.CheckLiteral(state.scanChecker, argumentNode, 0, state.isBuilderCallPredicate())
+	result := comptimeargs.CheckLiteral(state.scanChecker, argumentNode, 0, state.comptimeArgsPolicy())
 	if result.Ok {
 		return diagnostics.Diagnostic{}, false
 	}
@@ -1808,8 +1808,12 @@ func (sess *Session) noopValidateOptionDiag(file string, call *ast.Node, lastInd
 	return diagnostics.New(code, textpos.NodeSite(file, sourceFile, anchor)), true
 }
 
-// isBuilderCallPredicate returns the closure comptimeargs.CheckLiteral uses to
-// recognize a static builder-construction call (a builder OR an
+// comptimeArgsPolicy returns the two predicates comptimeargs.CheckLiteral asks
+// the resolver for, both judged on what the scanner can SEE — a call's return
+// type, a parameter's written annotation — never on a callee name, so a helper
+// added later is covered without a list.
+//
+// IsBuilderCall recognizes a static builder-construction call (a builder OR an
 // optional()/propMod() carrier) as a valid CompTimeArgs leaf — so a nested
 // `string({…})` or `optional(number())` inside `object({…})` passes without
 // recursing into it (each self-validates on its own scan visit).
@@ -1821,15 +1825,26 @@ func (sess *Session) noopValidateOptionDiag(file string, call *ast.Node, lastInd
 // on the return type, so a helper added later is covered without a name list —
 // and a widened bundle (`source: string`) stays rejected, because there the
 // value really would be lost.
-func (state scanState) isBuilderCallPredicate() func(*ast.Node) bool {
+//
+// IsForwardedParam recognizes a `CompTimeArgs` parameter handed straight into
+// another CompTimeArgs position. The same syntactic check the scan loop uses to
+// find these parameters in the first place answers it, so a user's own local
+// type named CompTimeArgs earns nothing.
+func (state scanState) comptimeArgsPolicy() comptimeargs.Policy {
 	markerOpts := state.sess.marker
-	return func(node *ast.Node) bool {
-		if builders.IsBuilderLeafCall(state.scanChecker, node, markerOpts) {
-			return true
-		}
-		returnType := builders.CallReturnType(state.scanChecker, node)
-		return builders.IsMarkerPackageType(returnType, markerOpts) &&
-			comptimeargs.IsTypeReadableValue(state.scanChecker, returnType)
+	return comptimeargs.Policy{
+		IsBuilderCall: func(node *ast.Node) bool {
+			if builders.IsBuilderLeafCall(state.scanChecker, node, markerOpts) {
+				return true
+			}
+			returnType := builders.CallReturnType(state.scanChecker, node)
+			return builders.IsMarkerPackageType(returnType, markerOpts) &&
+				comptimeargs.IsTypeReadableValue(state.scanChecker, returnType)
+		},
+		IsForwardedParam: func(node *ast.Node) bool {
+			symbol := comptimeargs.ResolveImportAlias(state.scanChecker, state.scanChecker.GetSymbolAtLocation(node))
+			return comptimeargs.IsCompTimeArgsParamNode(state.scanChecker, symbol, markerOpts)
+		},
 	}
 }
 

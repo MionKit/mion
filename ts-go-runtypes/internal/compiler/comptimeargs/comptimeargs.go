@@ -96,15 +96,24 @@ type Result struct {
 // CheckLiteral validates that node is a literal (or const-traceable
 // chain ending in one) per the package contract. Pass depth=0 from the
 // resolver entry point.
-// isBuilderCall, when non-nil, reports whether a CallExpression node is a
-// recognized value-first builder (RT.string(), RT.object({…}), …). Such a call
-// is a valid CompTimeArgs leaf — it self-validates its own CompTimeArgs params
-// on its own scan visit, so the walk STOPS at it rather than recursing into its
-// args. nil means "no call is a builder" (current behavior for callers that
-// don't supply the predicate), so every call stays a forbidden construct.
-type isBuilderCall = func(*ast.Node) bool
+// Policy carries the two marker-aware questions the walk cannot answer on its
+// own: only the resolver holds the marker options, so it builds both. A nil
+// field answers "no", which is the conservative verdict.
+type Policy struct {
+	// IsBuilderCall reports whether a CallExpression is a recognized
+	// value-first builder (RT.string(), RT.object({…}), …). Such a call is a
+	// valid CompTimeArgs leaf — it self-validates its own CompTimeArgs params on
+	// its own scan visit, so the walk STOPS at it rather than recursing into its
+	// args. nil means no call is a builder, so every call stays a forbidden
+	// construct.
+	IsBuilderCall func(*ast.Node) bool
+	// IsForwardedParam reports whether an identifier resolves to a PARAMETER
+	// whose own annotation is `CompTimeArgs<…>`. Such an identifier is a
+	// forward, not a value to read: see traceIdentifier.
+	IsForwardedParam func(*ast.Node) bool
+}
 
-func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, builderCall isBuilderCall) Result {
+func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, policy Policy) Result {
 	if depth > DepthCap {
 		return Result{Ok: false, Kind: FailDepthExceeded, Reason: "depth cap exceeded", FailingNode: node}
 	}
@@ -119,9 +128,9 @@ func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, build
 	case ast.KindArrowFunction, ast.KindFunctionExpression:
 		return Result{Ok: true}
 	case ast.KindObjectLiteralExpression:
-		return checkObjectLiteral(typeChecker, unwrapped, depth, builderCall)
+		return checkObjectLiteral(typeChecker, unwrapped, depth, policy)
 	case ast.KindArrayLiteralExpression:
-		return checkArrayLiteral(typeChecker, unwrapped, depth, builderCall)
+		return checkArrayLiteral(typeChecker, unwrapped, depth, policy)
 	case ast.KindPrefixUnaryExpression:
 		// Accept `-1`, `+1`, `-1n` — sign-prefixed numeric / bigint literal.
 		// Reject anything else (`!x`, `~x`, prefix on non-literal).
@@ -130,12 +139,12 @@ func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, build
 		// A recognized value-first builder call is a valid leaf — STOP, do not
 		// recurse into its args (it self-validates on its own scan visit). Any
 		// other call is a dynamic construct the build can't evaluate.
-		if builderCall != nil && builderCall(unwrapped) {
+		if policy.IsBuilderCall != nil && policy.IsBuilderCall(unwrapped) {
 			return Result{Ok: true}
 		}
 		return Result{Ok: false, Kind: FailForbiddenConstruct, Reason: "function call", FailingNode: unwrapped}
 	case ast.KindIdentifier:
-		return traceIdentifier(typeChecker, unwrapped, depth, builderCall)
+		return traceIdentifier(typeChecker, unwrapped, depth, policy)
 	}
 	return Result{Ok: false, Kind: FailForbiddenConstruct, Reason: forbiddenConstructName(unwrapped.Kind), FailingNode: unwrapped}
 }
@@ -380,7 +389,7 @@ func isLiteralLeaf(node *ast.Node) bool {
 	return false
 }
 
-func checkObjectLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, builderCall isBuilderCall) Result {
+func checkObjectLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, policy Policy) Result {
 	objectLiteral := node.AsObjectLiteralExpression()
 	if objectLiteral == nil || objectLiteral.Properties == nil {
 		return Result{Ok: true}
@@ -402,7 +411,7 @@ func checkObjectLiteral(typeChecker *checker.Checker, node *ast.Node, depth int,
 			if propertyAssignment.Initializer == nil {
 				return Result{Ok: false, Kind: FailNonLiteral, Reason: "property has no initializer", FailingNode: property}
 			}
-			result := CheckLiteral(typeChecker, propertyAssignment.Initializer, depth+1, builderCall)
+			result := CheckLiteral(typeChecker, propertyAssignment.Initializer, depth+1, policy)
 			if !result.Ok {
 				return result
 			}
@@ -412,12 +421,12 @@ func checkObjectLiteral(typeChecker *checker.Checker, node *ast.Node, depth int,
 			if shorthand == nil || shorthand.Name() == nil {
 				return Result{Ok: false, Kind: FailNonLiteral, Reason: "nil shorthand property", FailingNode: property}
 			}
-			result := traceIdentifier(typeChecker, shorthand.Name(), depth+1, builderCall)
+			result := traceIdentifier(typeChecker, shorthand.Name(), depth+1, policy)
 			if !result.Ok {
 				return result
 			}
 		case ast.KindSpreadAssignment:
-			result := checkObjectSpread(typeChecker, property, depth, builderCall)
+			result := checkObjectSpread(typeChecker, property, depth, policy)
 			if !result.Ok {
 				return result
 			}
@@ -428,7 +437,7 @@ func checkObjectLiteral(typeChecker *checker.Checker, node *ast.Node, depth int,
 	return Result{Ok: true}
 }
 
-func checkArrayLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, builderCall isBuilderCall) Result {
+func checkArrayLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, policy Policy) Result {
 	arrayLiteral := node.AsArrayLiteralExpression()
 	if arrayLiteral == nil || arrayLiteral.Elements == nil {
 		return Result{Ok: true}
@@ -438,12 +447,12 @@ func checkArrayLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, 
 			continue
 		}
 		if element.Kind == ast.KindSpreadElement {
-			if result := checkArraySpread(typeChecker, element, depth, builderCall); !result.Ok {
+			if result := checkArraySpread(typeChecker, element, depth, policy); !result.Ok {
 				return result
 			}
 			continue
 		}
-		result := CheckLiteral(typeChecker, element, depth+1, builderCall)
+		result := CheckLiteral(typeChecker, element, depth+1, policy)
 		if !result.Ok {
 			return result
 		}
@@ -462,7 +471,7 @@ func checkArrayLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, 
 // resolved KIND (rather than re-validating the operand as a bare literal) is
 // the load-bearing soundness choice — a scalar `const` IS a valid literal leaf
 // but is NOT a valid object-spread operand.
-func checkObjectSpread(typeChecker *checker.Checker, property *ast.Node, depth int, builderCall isBuilderCall) Result {
+func checkObjectSpread(typeChecker *checker.Checker, property *ast.Node, depth int, policy Policy) Result {
 	spread := property.AsSpreadAssignment()
 	if spread == nil || spread.Expression == nil {
 		return Result{Ok: false, Kind: FailNonLiteral, Reason: "nil spread operand", FailingNode: property}
@@ -471,14 +480,14 @@ func checkObjectSpread(typeChecker *checker.Checker, property *ast.Node, depth i
 	if !ok || container.Kind != ast.KindObjectLiteralExpression {
 		return Result{Ok: false, Kind: FailForbiddenConstruct, Reason: "object spread of a non-object operand", FailingNode: property}
 	}
-	return CheckLiteral(typeChecker, container, depth+1, builderCall)
+	return CheckLiteral(typeChecker, container, depth+1, policy)
 }
 
 // checkArraySpread is the array-element analogue of checkObjectSpread: the
 // operand must resolve to an ARRAY literal (inline or a `const` fragment).
 // An object fragment, a scalar `const`, or a dynamic / non-`const` operand is
 // rejected with one CTA003 reason — same soundness choice as the object form.
-func checkArraySpread(typeChecker *checker.Checker, element *ast.Node, depth int, builderCall isBuilderCall) Result {
+func checkArraySpread(typeChecker *checker.Checker, element *ast.Node, depth int, policy Policy) Result {
 	spread := element.AsSpreadElement()
 	if spread == nil || spread.Expression == nil {
 		return Result{Ok: false, Kind: FailNonLiteral, Reason: "nil spread operand", FailingNode: element}
@@ -487,7 +496,7 @@ func checkArraySpread(typeChecker *checker.Checker, element *ast.Node, depth int
 	if !ok || container.Kind != ast.KindArrayLiteralExpression {
 		return Result{Ok: false, Kind: FailForbiddenConstruct, Reason: "array spread of a non-array operand", FailingNode: element}
 	}
-	return CheckLiteral(typeChecker, container, depth+1, builderCall)
+	return CheckLiteral(typeChecker, container, depth+1, policy)
 }
 
 func checkPrefixUnary(typeChecker *checker.Checker, node *ast.Node, depth int) Result {
@@ -510,7 +519,7 @@ func checkPrefixUnary(typeChecker *checker.Checker, node *ast.Node, depth int) R
 	return Result{Ok: true}
 }
 
-func traceIdentifier(typeChecker *checker.Checker, node *ast.Node, depth int, builderCall isBuilderCall) Result {
+func traceIdentifier(typeChecker *checker.Checker, node *ast.Node, depth int, policy Policy) Result {
 	if depth > DepthCap {
 		return Result{Ok: false, Kind: FailDepthExceeded, Reason: "depth cap exceeded", FailingNode: node}
 	}
@@ -526,6 +535,18 @@ func traceIdentifier(typeChecker *checker.Checker, node *ast.Node, depth int, bu
 	// so this cross-module hop is scoped to the literal-value walk.
 	initializer, ok := resolveConstInitializerCrossModule(typeChecker, node)
 	if !ok {
+		// A `CompTimeArgs` parameter FORWARDED into another CompTimeArgs position
+		// (`optional(field)` handing its own `field` to `propMod`). The value cannot
+		// be here by construction: it arrives from the enclosing function's own call
+		// sites, and every one of those is walked and demanded at that outer
+		// CompTimeArgs position, so the literal is still required exactly once —
+		// where it is actually written, which is the site the author can fix.
+		// Refusing it here only forces every wrapper, ours and a consumer's, to
+		// carry a suppression comment. The injection markers already bless the same
+		// wrapper shape (the resolver's forwarded-handle rule).
+		if policy.IsForwardedParam != nil && policy.IsForwardedParam(node) {
+			return Result{Ok: true}
+		}
 		return Result{Ok: false, Kind: FailNonLiteral, Reason: "identifier not a `const` binding to a literal", FailingNode: node}
 	}
 	// `as const` guard, scoped to a const that binds an OBJECT LITERAL — option
@@ -541,7 +562,7 @@ func traceIdentifier(typeChecker *checker.Checker, node *ast.Node, depth int, bu
 			return Result{Ok: false, Kind: FailWidenedConst, Reason: member, FailingNode: node}
 		}
 	}
-	return CheckLiteral(typeChecker, initializer, depth+1, builderCall)
+	return CheckLiteral(typeChecker, initializer, depth+1, policy)
 }
 
 // eachConstVariableDeclaration walks the `const` VariableDeclarations of
