@@ -1331,6 +1331,40 @@ describe('website pictures: Nuxt Image resolves to a sharp that loads under the 
     expect(imageSources('<p>no pictures</p>')).toEqual([]);
   });
 
+  it('the playground fetches exactly the assets build-playground stages', async () => {
+    // The bug this pins: the staging loop shipped mion.wasm.gz while both browser
+    // consumers asked for ts-runtypes.wasm.gz (the ts-runtypes to mion rename), so the
+    // page rendered and then 404'd on its engine with nothing failing the build.
+    // @ts-expect-error — a plain .mjs script, no types
+    const {PLAYGROUND_ASSETS, PLAYGROUND_DIR} = (await import('../../../scripts/website/playground-assets.mjs')) as {
+      PLAYGROUND_ASSETS: {file: string; required: boolean; what: string}[];
+      PLAYGROUND_DIR: string;
+    };
+    const staged = PLAYGROUND_ASSETS.map((asset) => asset.file);
+    // The builder stages FROM the manifest rather than its own literals.
+    const builder = readFileSync(join(REPO_ROOT, 'container/website/scripts/build-playground.mjs'), 'utf8');
+    expect(builder).toContain('PLAYGROUND_ASSETS');
+    // Both browser consumers are bundled inside the Nuxt root and cannot import the
+    // manifest, so their URL literals are matched against it here instead.
+    const consumers = [
+      'container/website/app/playground/wasmLoader.ts',
+      'container/website/app/components/playground/PlaygroundStage.client.vue',
+    ];
+    const sources = consumers.map((rel) => readFileSync(join(REPO_ROOT, rel), 'utf8'));
+    for (const [index, source] of sources.entries()) {
+      const asked = [...source.matchAll(new RegExp(`${PLAYGROUND_DIR}/([\\w.-]+)`, 'g'))].map((match) => match[1]);
+      expect(asked.length, `${consumers[index]} fetches no playground asset`).toBeGreaterThan(0);
+      for (const file of asked) expect(staged, `${consumers[index]} fetches ${file}, which nothing stages`).toContain(file);
+    }
+    // And nothing is staged that no consumer ever asks for.
+    const all = sources.join('\n');
+    for (const file of staged) expect(all, `${file} is staged but nothing fetches it`).toContain(`${PLAYGROUND_DIR}/${file}`);
+    // The post-build gate proves the required ones actually shipped.
+    const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
+    expect(gate).toContain('PLAYGROUND_ASSETS');
+    expect(gate).toContain('/runtypes/playground');
+  });
+
   it('check-static runs the picture check on every page, the landing pages included', () => {
     const gate = readFileSync(join(REPO_ROOT, 'scripts/website/check-static.mjs'), 'utf8');
     // ONE gate walks every content page (every index.md among them, routed to its
