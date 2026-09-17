@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody, ResolvedRequest} from './types/context.ts';
+import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
 import {type RouterOptions} from './types/general.ts';
 import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
 import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
 import {markResponseFailed, recordUndeclaredError} from './lib/dispatchError.ts';
-import {createCallContext, createContextFromResolved, getRequestBodyType} from './callContext.ts';
+import {createCallContext, getRequestBodyType} from './callContext.ts';
 
 /*
  * PERFORMANCE PROFILING NOTE:
@@ -64,18 +64,13 @@ export async function dispatchWithContext<Req, Resp>(
 /** Dispatches a request the platform adapter refused after its route resolved: a body past the
  *  limit. The error is recorded exactly as a thrown one is, so the chain runs only the members that
  *  declare `alwaysRun` (a rate limiter, an access log) and answers with the same envelope. There is
- *  no body: the adapter stopped the read. */
+ *  no body: the adapter stopped the read, so the caller builds the context without one. */
 export function dispatchPlatformError<Req, Resp>(
-  resolved: ResolvedRequest,
-  path: string,
-  urlQuery: string | undefined,
+  context: CallContext,
   platformError: RpcError<string>,
-  reqHeaders: MionHeaders,
-  respHeaders: MionHeaders,
   rawRequest: Req,
   rawResponse?: Resp
 ): Promise<MionResponse> {
-  const context = createContextFromResolved(resolved, path, urlQuery, reqHeaders, respHeaders);
   recordUndeclaredError(context, MION_ROUTES.platformError, platformError);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }

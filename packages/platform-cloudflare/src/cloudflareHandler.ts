@@ -8,8 +8,8 @@
 import {
   dispatchWithContext,
   dispatchPlatformError,
-  resolveRequest,
-  createContextFromResolved,
+  resolveExecutionChain,
+  createContextFromChain,
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
@@ -70,20 +70,18 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     // past it is cancelled mid-flight), and building the context after the read keeps a big body
     // from outliving the cheap half of the garbage collector; the router checks the size once more
     // before parsing
-    const resolved = resolveRequest(path, urlQuery, req);
+    const chain = resolveExecutionChain(path, urlQuery, req);
     let rawBody: any;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
-    if (resolved.readsBody) {
+    if (chain.readsBody) {
       try {
-        rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.text);
+        rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.text);
       } catch (err) {
         // the route resolved, so a refused body still runs the chain's alwaysRun members
         const refused = await dispatchPlatformError(
-          resolved,
+          createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders),
           toRpcError(err),
-          req.headers,
-          responseHeaders,
           req,
           platformContext
         );
@@ -95,7 +93,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
         reqBodyType = queryBody.bodyType;
       }
     }
-    const context = createContextFromResolved(resolved, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, platformContext);
     return reply(platformResp, responseHeaders);
   } catch (err) {
