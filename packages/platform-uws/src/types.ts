@@ -17,10 +17,6 @@ export interface UwsHttpOptions {
   ssl?: AppOptions;
   /** Set of default response header to add to every response*/
   defaultResponseHeaders: Record<string, string>;
-  /**
-   * 256KB by default, same as lambda payload
-   * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
-   * */
   /** The request limit a route takes when its own option is unset and its types cannot say (128 KB by
    *  default). A route's `maxBodySize` option always wins over it. */
   maxBodySize: number;
