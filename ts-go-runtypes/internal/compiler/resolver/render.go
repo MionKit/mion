@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"time"
@@ -24,9 +25,10 @@ import (
 //
 // sink (when non-nil) is the destination for compile-time diagnostics
 // emitted by the walker at RTThrow / silent-skip sites; provenance
-// (when non-nil) maps RT IDs to the marker call sites that reference
-// them, so EmitDiagnostic can fan out one Diagnostic per call site.
-func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, provenance map[string][]diagnostics.Site) typefunctions.RenderOpts {
+// (when non-nil) maps RT IDs to the marker call sites that reach them, and
+// rooted narrows that to the sites that NAMED each id, so EmitDiagnostic can
+// fan a code out over the set it belongs to.
+func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, provenance map[string][]diagnostics.Site) typefunctions.RenderOpts {
 	if sess == nil {
 		return typefunctions.RenderOpts{}
 	}
@@ -39,6 +41,7 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, provenance map
 		Lookup:          sess.cache,
 		DiagSink:        sink,
 		ProvenanceSites: provenance,
+		RootedSites:     rooted,
 		EmitMode:        sess.opts.EmitMode,
 		InlineMode:      sess.opts.InlineMode,
 		// The JS engine format-pattern checks run on — the validation
@@ -73,40 +76,84 @@ func (sess *Session) fullRefTable() map[string]*reflection.RunType {
 	return sess.cache.NodesView()
 }
 
-// buildProvenanceSites converts the resolver's protocol.Site list into
-// the (RT ID → []diagnostics.Site) map the typefns walker uses to fan out
-// per-call-site diagnostics. Pos→line/col is computed against the
-// resolver's current Program; sites whose file isn't in the program
-// (defensive) are skipped.
-func (sess *Session) buildProvenanceSites() map[string][]diagnostics.Site {
+// demandedSite is one marker call site together with the family tags it asked
+// for. A site demanding several entries (a composite JSON strategy) carries them
+// all; a reflection-only site (getRunTypeId, a builder) demands no function
+// family and never reaches this type.
+type demandedSite struct {
+	site     diagnostics.Site
+	families []string
+}
+
+// buildProvenanceSites converts the resolver's protocol.Site list into the
+// (typefunctions.ProvenanceKey → []diagnostics.Site) maps the typefns walker
+// uses to fan out per-call-site diagnostics. Pos→line/col is computed against
+// the resolver's current Program.
+//
+// It returns TWO maps, both keyed by (type id + family tag): rooted holds only
+// the sites that NAMED each id, and reaching adds every site the id is
+// reachable from. A ScopeRoot code reads the first, everything else the second
+// — see Walker.diagnosticSites.
+func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagnostics.Site) {
 	if sess == nil || sess.Program == nil {
-		return nil
+		return nil, nil
 	}
 	sites := sess.Sites()
 	if len(sites) == 0 {
-		return nil
+		return nil, nil
 	}
-	out := make(map[string][]diagnostics.Site, len(sites))
+	byID := make(map[string][]demandedSite, len(sites))
 	for _, site := range sites {
 		if site.ID == "" {
 			continue
 		}
-		sourceFile, err := sess.sourceFile(site.File)
-		if err != nil || sourceFile == nil {
-			// Fall back to file-only — better than dropping the entry
-			// entirely; the user still sees which file the error belongs
-			// to even when line/col can't be resolved.
-			out[site.ID] = append(out[site.ID], diagnostics.Site{FilePath: site.File})
+		families := demandedFamilies(site)
+		if len(families) == 0 {
+			// A site that demands no function entry has none to be told about.
 			continue
 		}
-		line, col := textpos.LineCol(sourceFile, site.Pos)
-		out[site.ID] = append(out[site.ID], diagnostics.Site{
-			FilePath:  site.File,
-			StartLine: line,
-			StartCol:  col,
-		})
+		diagSite := diagnostics.Site{FilePath: site.File}
+		// Fall back to file-only when the file is not in the program
+		// (defensive) — the user still sees which file the finding belongs to
+		// even when line/col cannot be resolved.
+		if sourceFile, err := sess.sourceFile(site.File); err == nil && sourceFile != nil {
+			diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Pos)
+		}
+		byID[site.ID] = append(byID[site.ID], demandedSite{site: diagSite, families: families})
 	}
-	return sess.inheritProvenanceToDescendants(out)
+	rooted = make(map[string][]diagnostics.Site, len(byID))
+	for id, demanded := range byID {
+		addProvenance(rooted, id, demanded)
+	}
+	return rooted, sess.inheritProvenanceToDescendants(byID)
+}
+
+// demandedFamilies lists the cache-module family tags a site asks to be
+// rendered, deduped so a composite strategy naming one family twice does not
+// double-report.
+func demandedFamilies(site protocol.Site) []string {
+	if len(site.Demand) == 0 {
+		return nil
+	}
+	families := make([]string, 0, len(site.Demand))
+	for _, demand := range site.Demand {
+		if demand.FamilyTag == "" || slices.Contains(families, demand.FamilyTag) {
+			continue
+		}
+		families = append(families, demand.FamilyTag)
+	}
+	return families
+}
+
+// addProvenance files each site under the id's key for every family that site
+// demanded.
+func addProvenance(out map[string][]diagnostics.Site, id string, demanded []demandedSite) {
+	for _, entry := range demanded {
+		for _, family := range entry.families {
+			key := typefunctions.ProvenanceKey(id, family)
+			out[key] = append(out[key], entry.site)
+		}
+	}
 }
 
 // inheritedProvenanceDepthCap bounds the descent through ID-LESS inline nodes.
@@ -137,40 +184,44 @@ const inheritedProvenanceDepthCap = 32
 // site is told about the types it actually pulls in. A shared child legitimately
 // reports at each site that demands it, exactly as a shared root already does.
 //
+// A descendant inherits the site's DEMANDED families only, the same rule the
+// root follows: a site that asked for a validator hears about the members its
+// validator drops, never about the JSON encoder it did not ask for.
+//
 // Repeats collapse later: identical (code, args, site) tuples are folded by
-// diagnostics.Dedupe, so a child reached by several paths from one site — or by
-// several cache families — still yields one line.
-func (sess *Session) inheritProvenanceToDescendants(rooted map[string][]diagnostics.Site) map[string][]diagnostics.Site {
-	refTable := sess.fullRefTable()
-	if len(rooted) == 0 || len(refTable) == 0 {
-		return rooted
+// diagnostics.Dedupe, so a child reached by several paths from one site still
+// yields one line.
+func (sess *Session) inheritProvenanceToDescendants(byID map[string][]demandedSite) map[string][]diagnostics.Site {
+	out := make(map[string][]diagnostics.Site, len(byID)*2)
+	for id, demanded := range byID {
+		addProvenance(out, id, demanded)
 	}
-	out := make(map[string][]diagnostics.Site, len(rooted)*2)
-	for id, sites := range rooted {
-		out[id] = sites
+	refTable := sess.fullRefTable()
+	if len(byID) == 0 || len(refTable) == 0 {
+		return out
 	}
 	// Reused across roots: cleared per root so a node visited under one root is
 	// still attributed under the next.
 	seen := make(map[string]struct{}, 64)
-	for rootID, sites := range rooted {
+	for rootID, demanded := range byID {
 		root := refTable[rootID]
 		if root == nil {
 			continue
 		}
 		clear(seen)
 		seen[rootID] = struct{}{}
-		inheritFrom(root, sites, rootID, refTable, seen, 0, out)
+		inheritFrom(root, demanded, rootID, refTable, seen, 0, out)
 	}
 	return out
 }
 
-// inheritFrom walks one root's ref slots, appending the root's sites to every
+// inheritFrom walks one root's ref slots, filing the root's sites under every
 // interned descendant. Children arrive as KindRef sentinels carrying an id but
 // no slots of their own, so each id is re-resolved against the full table before
 // descending — the same resolve-then-descend shape the other graph walks use.
 func inheritFrom(
 	node *reflection.RunType,
-	sites []diagnostics.Site,
+	demanded []demandedSite,
 	rootID string,
 	refTable map[string]*reflection.RunType,
 	seen map[string]struct{},
@@ -191,10 +242,10 @@ func inheritFrom(
 				resolved = full
 			}
 			if id != rootID {
-				out[id] = append(out[id], sites...)
+				addProvenance(out, id, demanded)
 			}
 		}
-		inheritFrom(resolved, sites, rootID, refTable, seen, depth+1, out)
+		inheritFrom(resolved, demanded, rootID, refTable, seen, depth+1, out)
 	})
 }
 

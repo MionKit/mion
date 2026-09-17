@@ -121,7 +121,7 @@ func TestAssertCompositeSoftDeps_MissingPrimitiveFails(t *testing.T) {
 	// With provenance, the breach fans out one diagnostic per demanding call
 	// site — anchored at the user's createJsonDecoderFn so it's reproducible.
 	provenance := map[string][]diagnostics.Site{
-		"obj1": {
+		ProvenanceKey("obj1", "jdPR"): {
 			{FilePath: "a.ts", StartLine: 3, StartCol: 11},
 			{FilePath: "b.ts", StartLine: 7, StartCol: 5},
 		},
