@@ -38,6 +38,7 @@ import type {CircularPath} from './circular.ts';
 import type {ClassSerializerEntry} from './classSerializerRegistry.ts';
 import type {DataOnly} from './dataOnly.ts';
 import type {CompTimeArgs} from '../markers.ts';
+import type {PureFnId} from './pureFn.ts';
 
 /**
  * Shape of rtUtils. Must be defined as a type — `typeof rtUtils` breaks
@@ -118,8 +119,9 @@ const rtUtils = {
   hasRTFn(rtFnHash: string) {
     return !!rtFnsCache[rtFnHash];
   },
-  addPureFn(key: string, compiledFn: CompiledPureFunction): CompiledPureFunction {
-    if (!key) throw new Error('Pure function key must be a non-empty "namespace::fnName" string');
+  addPureFn(id: string, compiledFn: CompiledPureFunction): CompiledPureFunction {
+    if (!id) throw new Error('Pure function id must be a non-empty string');
+    const key = id;
     const existing = pureFnsCache[key];
     if (existing) {
       // Version conflict — body changed; replace and warn.
@@ -138,25 +140,25 @@ const rtUtils = {
     return compiledFn;
   },
   // CompTimeArgs ensures dependencies are tracked inside pure functions
-  usePureFn(key: CompTimeArgs<string>): PureFunction {
+  usePureFn(key: CompTimeArgs<PureFnId>): PureFunction {
     const compiled = pureFnsCache[key];
     if (!compiled) throw new Error(`Pure function not found for key "${key}"`);
     initPureFunction(compiled);
     return compiled.fn;
   },
   // CompTimeArgs ensures dependencies are tracked inside pure functions
-  getPureFn(key: CompTimeArgs<string>): PureFunction | undefined {
+  getPureFn(key: CompTimeArgs<PureFnId>): PureFunction | undefined {
     const compiled = pureFnsCache[key];
     if (!compiled) return;
     initPureFunction(compiled);
     return compiled.fn;
   },
   // CompTimeArgs ensures dependencies are tracked inside pure functions
-  getCompiledPureFn(key: CompTimeArgs<string>): CompiledPureFunction | undefined {
+  getCompiledPureFn(key: CompTimeArgs<PureFnId>): CompiledPureFunction | undefined {
     return pureFnsCache[key];
   },
   // CompTimeArgs ensures dependencies are tracked inside pure functions
-  hasPureFn(key: CompTimeArgs<string>): boolean {
+  hasPureFn(key: CompTimeArgs<PureFnId>): boolean {
     return !!pureFnsCache[key];
   },
   // Runtime-key lookup — the UNTRACKED companion to usePureFn/getPureFn/hasPureFn.
@@ -177,18 +179,10 @@ const rtUtils = {
     return !!pureFnsCache[key];
   },
   // Untracked record lookup keyed by a runtime string (see getPureFnByKey). The
-  // registration path reaches for this one: it is handed a key it was called
+  // registration path reaches for this one: it is handed an id it was called
   // with, so there is no reference for the build to track and nothing to read.
   getCompiledPureFnByKey(key: string): CompiledPureFunction | undefined {
     return pureFnsCache[key];
-  },
-  // CompTimeArgs ensures dependencies are tracked inside pure functions
-  findCompiledPureFn(fnName: CompTimeArgs<string>): CompiledPureFunction | undefined {
-    const suffix = '::' + fnName;
-    for (const key of Object.keys(pureFnsCache)) {
-      if (key === fnName || key.endsWith(suffix)) return pureFnsCache[key];
-    }
-    return undefined;
   },
   addRunType(id: string, runType: RunType): RunType {
     if (!id) throw new Error('Run-type id must be a non-empty string');
@@ -312,11 +306,6 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is C
 export function buildPureFnFactoryFromCode(paramNames: string[], code: string): PureFunctionFactory {
   // oxlint-disable-next-line typescript/no-implied-eval
   return new Function(...paramNames, `'use strict'; ${code}`) as PureFunctionFactory;
-}
-
-/** Composite key for the pure-fn cache: `<namespace>::<fnName>`. **/
-export function pureFnKey(namespace: string, fnName: string): string {
-  return namespace + '::' + fnName;
 }
 
 /** Builds a fresh factory closure from a serialized code body via

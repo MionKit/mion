@@ -241,8 +241,8 @@ export interface FnTypeRecord extends Pick<
 }
 
 /** Named view of a pure-fn entry tuple: the shared head plus the
- *  CompiledPureFunction fields the wire carries. `key` is the composite
- *  `<ns>::<fn>` cache key (split into namespace/fnName at register time). **/
+ *  CompiledPureFunction fields the wire carries. `key` is the pure fn's id,
+ *  which is the cache key verbatim. **/
 export interface PureFnRecord extends Pick<
   CompiledPureFunction,
   'bodyHash' | 'paramNames' | 'code' | 'pureFnDependencies' | 'createPureFn'
@@ -782,20 +782,17 @@ function registerTypeFnTuple(utils: RTUtils, tuple: FnTypeTuple): boolean {
 }
 
 // registerPureFnTuple builds the CompiledPureFunction the pureFnsCache
-// skeleton's `factory(…)` consumer used to construct, splitting the composite
-// `<ns>::<fn>` key into its namespace/fnName halves. The `code` and
+// skeleton's `factory(…)` consumer used to construct. The `code` and
 // `createPureFn` slots vary by emit mode: in `code` mode createPureFn is absent
 // (initPureFunction rebuilds it from code + paramNames); in `functions` mode
 // code is absent (the live createPureFn ships instead).
 function registerPureFnTuple(utils: RTUtils, tuple: PureFnTuple): boolean {
   const record = tupleToRecord<PureFnRecord>(PURE_FN_TUPLE_KEYS, tuple);
-  // The UNTRACKED lookup: the key comes off a tuple the emitter wrote, so there is
+  // The UNTRACKED lookup: the id comes off a tuple the emitter wrote, so there is
   // no consumer reference for the build to track.
   if (utils.hasPureFnByKey(record.key)) return false;
-  const separator = record.key.indexOf('::');
   const entry: CompiledPureFunction = {
-    namespace: separator >= 0 ? record.key.slice(0, separator) : '',
-    fnName: separator >= 0 ? record.key.slice(separator + 2) : record.key,
+    id: record.key,
     bodyHash: record.bodyHash,
     paramNames: record.paramNames,
     // undefined in `functions` mode — nobody reads a pure fn's code at runtime.

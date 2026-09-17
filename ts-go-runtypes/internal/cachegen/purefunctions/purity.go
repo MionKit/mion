@@ -36,10 +36,24 @@ func (s *scope) has(name string) bool {
 // The Go port uses a proper lexical scope stack (push/pop per function
 // boundary) rather than the reference flat-scope approximation — more correct
 // for nested functions whose params should only be visible inside them.
-func checkPurity(sourceFile *ast.SourceFile, factoryNode *ast.Node) []diagnostics.Diagnostic {
+//
+// `exempt` are spans the body no longer contains by the time it ships: the
+// imported ids a tracked lookup names, which are lowered to string literals
+// during stripping. An identifier inside one of them is not a capture.
+func checkPurity(sourceFile *ast.SourceFile, factoryNode *ast.Node, exempt []textRange) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic
-	visitForPurity(sourceFile, factoryNode, nil, &diags)
+	visitForPurity(sourceFile, factoryNode, nil, exempt, &diags)
 	return diags
+}
+
+// inExemptRange reports whether pos falls inside one of the lowered spans.
+func inExemptRange(exempt []textRange, pos int) bool {
+	for _, span := range exempt {
+		if pos >= span.Start && pos < span.End {
+			return true
+		}
+	}
+	return false
 }
 
 // visitForPurity is the main recursive walker. When it enters a
@@ -49,7 +63,7 @@ func checkPurity(sourceFile *ast.SourceFile, factoryNode *ast.Node) []diagnostic
 // emit a diagnostic at that node's position; identifier references are
 // checked against scope ∪ allowedGlobals, with forbiddenIdentifiers
 // taking precedence.
-func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, diags *[]diagnostics.Diagnostic) {
+func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, exempt []textRange, diags *[]diagnostics.Diagnostic) {
 	if node == nil {
 		return
 	}
@@ -84,7 +98,7 @@ func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, 
 		// filters out the binding-name identifiers so we don't double-count
 		// them as references-to-themselves.
 		node.ForEachChild(func(child *ast.Node) bool {
-			visitForPurity(sourceFile, child, nested, diags)
+			visitForPurity(sourceFile, child, nested, exempt, diags)
 			return false
 		})
 		return
@@ -126,7 +140,7 @@ func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, 
 		// Fall through to descend into the callee + args (nested violations).
 
 	case ast.KindIdentifier:
-		if !isReferenceIdentifier(node) {
+		if !isReferenceIdentifier(node) || inExemptRange(exempt, node.Pos()) {
 			return
 		}
 		name := node.Text()
@@ -150,7 +164,7 @@ func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, 
 	}
 
 	node.ForEachChild(func(child *ast.Node) bool {
-		visitForPurity(sourceFile, child, current, diags)
+		visitForPurity(sourceFile, child, current, exempt, diags)
 		return false
 	})
 }

@@ -1,6 +1,7 @@
 package datetime
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -9,9 +10,9 @@ import (
 
 // dateEmitter implements the format named "date" — FormatStringDate<P>.
 // The `format` param selects one of six date-parsing pure fns
-// (pf_isDateString_YMD / _DMY / _MDY / _YM / _MD / _DM); optional
+// (isDateString_YMD / _DMY / _MDY / _YM / _MD / _DM); optional
 // min/max bounds AND a comparison against a baked epoch-ms (absolute) or
-// pf_relativeNowKey (relative) value. Moved here from the string
+// relativeNowKey (relative) value. Moved here from the string
 // package so it can share bounds.go / literals.go with the time,
 // dateTime and native-Date emitters.
 type dateEmitter struct{}
@@ -23,22 +24,22 @@ func init() {
 func (dateEmitter) Name() string                    { return "date" }
 func (dateEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// dateFormatPureFn maps a `format` param value to the validating pure-fn
-// name. Returns ("", false) for an unrecognised format.
+// dateFormatPureFn maps a `format` param value to the id of the pure fn that
+// validates it. Returns ("", false) for an unrecognised format.
 func dateFormatPureFn(format string) (string, bool) {
 	switch format {
 	case "ISO", "YYYY-MM-DD":
-		return "isDateString_YMD", true
+		return purefnids.IsDateStringYMD, true
 	case "DD-MM-YYYY":
-		return "isDateString_DMY", true
+		return purefnids.IsDateStringDMY, true
 	case "MM-DD-YYYY":
-		return "isDateString_MDY", true
+		return purefnids.IsDateStringMDY, true
 	case "YYYY-MM":
-		return "isDateString_YM", true
+		return purefnids.IsDateStringYM, true
 	case "MM-DD":
-		return "isDateString_MD", true
+		return purefnids.IsDateStringMD, true
 	case "DD-MM":
-		return "isDateString_DM", true
+		return purefnids.IsDateStringDM, true
 	}
 	return "", false
 }
@@ -82,11 +83,11 @@ func (dateEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, v�
 	if !ok {
 		return ""
 	}
-	fnName, ok := dateFormatPureFn(format)
+	fnID, ok := dateFormatPureFn(format)
 	if !ok {
 		return ""
 	}
-	alias := pureFnAlias(ctx, fnName)
+	alias := pureFnAlias(ctx, fnID)
 	check := alias + "(" + vλl + ")"
 	if bounds := boundValidateChecks(ctx, annotation.Params, vλl, dateKind, format); bounds != "" {
 		check = check + " && " + bounds
@@ -102,11 +103,11 @@ func (dateEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnota
 	if !ok {
 		return ""
 	}
-	fnName, ok := dateFormatPureFn(format)
+	fnID, ok := dateFormatPureFn(format)
 	if !ok {
 		return ""
 	}
-	alias := pureFnAlias(ctx, fnName)
+	alias := pureFnAlias(ctx, fnID)
 	call := alias + "(" + vλl + ")"
 	stmt := "if (!(" + call + ")) " +
 		formats.FormatErrCall(pathExpr, errorsArr, "string", "date", "format", strconv.Quote(format))

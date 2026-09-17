@@ -11,13 +11,13 @@ import (
 // anonPureFnDTS declares BOTH pure-fn lanes so the resolver's scan + extraction
 // recognises them by brand: the named `registerPureFnFactory` (comptime id +
 // PureFunctionFactory) and the anonymous `registerAnonymousPureFn` (direct
-// PureFunction + injected InjectPureFnHash). It also carries a user
+// PureFunction + injected InjectPureFnId). It also carries a user
 // wrapper-shaped helper so tests can forward the markers through a library API.
 const anonPureFnDTS = `declare module '@mionjs/run-types' {
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
   export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
-  export type InjectPureFnHash<F> = string & {readonly __rtInjectPureFnHashBrand?: F};
+  export type InjectPureFnId<F> = string & {readonly __rtInjectPureFnIdBrand?: F};
   export type PureFnId = string & {readonly __rtPureFnIdBrand?: never};
   export interface RTUtils {
     usePureFn(key: CompTimeArgs<string>): any;
@@ -28,7 +28,7 @@ const anonPureFnDTS = `declare module '@mionjs/run-types' {
     hasPureFnByKey(key: string): boolean;
   }
   export function registerPureFnFactory(pureFnId: CompTimeArgs<PureFnId>, createPureFn: PureFunctionFactory<(utl: RTUtils) => any> | null): any;
-  export function registerAnonymousPureFn<F extends (...args: any[]) => any>(fn: PureFunction<F> | null, hash?: InjectPureFnHash<F>): any;
+  export function registerAnonymousPureFn<F extends (...args: any[]) => any>(fn: PureFunction<F> | null, hash?: InjectPureFnId<F>): any;
 }
 `
 
@@ -96,10 +96,10 @@ func TestAnonymousPureFn_LibraryWrapper_ZeroDiagnostics(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"runtypes.d.ts": anonPureFnDTS,
 		// The wrapper — a library's own ergonomic register API. It forwards the
-		// PureFunction + InjectPureFnHash markers, so injection happens at ITS
+		// PureFunction + InjectPureFnId markers, so injection happens at ITS
 		// call sites (the mion `registerMionPureFn` shape from the spec).
-		"toolkit.ts": `import {type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
-export function registerAcmePureFn<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
+		"toolkit.ts": `import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+export function registerAcmePureFn<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnId<F>) {
   if (!hash) throw new Error('mion plugin did not run');
   return {hash, fn};
 }

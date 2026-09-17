@@ -32,16 +32,16 @@ export type PureFunction = (...args: any[]) => any;
 export type PureFunctionFactory = (rtUtils: RTUtils) => PureFunction;
 
 export interface PureFunctionData {
-  /** The namespace this pure function belongs to */
-  readonly namespace: string;
+  /** Where this pure function lives: its package, its file, and the name it is
+   *  bound to (`@acme/text/src/slug#slugify`), or a hash of its body when it is
+   *  bound to no name. The build computes it and it is the cache key. */
+  readonly id: string;
   /** The names of the arguments of the function */
   readonly paramNames: string[];
   /** The factory body string. Present in `code`/`both` emit modes; undefined in
    *  `functions` mode, where the live `createPureFn` ships instead (mirrors the
    *  type-fn `code` slot — see `CompiledFnData.code`). */
   readonly code?: string;
-  /** Unique id of the function */
-  readonly fnName: string;
   /** Hash of the function body for version validation */
   readonly bodyHash: string;
   /** The list of all pure functions that are used by this function and it's children. */
@@ -229,7 +229,7 @@ export interface CompiledFnData {
   readonly code?: string;
   /** Sibling rt-fn hashes this entry calls into. */
   readonly rtDependencies?: Array<string>;
-  /** Pure function dependencies in format `"namespace::fnHash"`. */
+  /** Ids of the pure functions this entry reaches. */
   readonly pureFnDependencies?: Array<string>;
   paramNames?: string[];
   /**
@@ -286,7 +286,7 @@ export type ToBinaryRTFn = CompiledTypeFn<ToBinaryFn>;
 export type FromBinaryRTFn = CompiledTypeFn<FromBinaryFn>;
 
 export type TypesFunctionsCache = Record<string, CompiledTypeFn>;
-/** Flat pure-function cache keyed by "<namespace>::<fnName>" — see `pureFnKey`. */
+/** Flat pure-function cache keyed by pure-fn id. */
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
 
 // ########################################### Classes / helpers #########################################

@@ -1,6 +1,7 @@
 package datetime
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -10,8 +11,8 @@ import (
 // date/time/dateTime/native-Date value. Absolute bounds are baked as a
 // precomputed number on the runtime scale (epoch ms for date/dateTime/
 // Date, ms-of-day for time); relative `now±P…` bounds emit a call to
-// pf_relativeNowKey(spec, scale) so JS owns the calendar arithmetic at
-// check time. The value side uses pf_dateStrToMs / pf_timeStrToMs to
+// relativeNowKey(spec, scale) so JS owns the calendar arithmetic at
+// check time. The value side uses dateStrToMs / timeStrToMs to
 // convert the string to the same scale; the native-Date emitter passes
 // the Date's getTime() directly (see nativeDate.go) and so does NOT use
 // these string converters.
@@ -33,7 +34,7 @@ func scaleFor(kind boundKind) string {
 }
 
 // boundExpr renders the JS expression a bound compares against: a baked
-// number for an absolute literal, or pf_relativeNowKey(spec, scale) for
+// number for an absolute literal, or relativeNowKey(spec, scale) for
 // a relative spec. ok=false when the bound is absent.
 func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind boundKind, layout string) (string, bool) {
 	bound, present := stringParam(params, key)
@@ -44,7 +45,7 @@ func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind 
 		if relErr != "" {
 			return "", false // already reported by ValidateParams
 		}
-		alias := pureFnAlias(ctx, "relativeNowKey")
+		alias := pureFnAlias(ctx, purefnids.RelativeNowKey)
 		return alias + "(" + strconv.Quote(bound) + "," + scaleFor(kind) + ")", true
 	}
 	keyVal, ok := comparableLiteral(bound, kind, layout)
@@ -62,17 +63,17 @@ func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind 
 // the UTC-baked absolute bounds).
 func valueKeyExpr(ctx formats.EmitContext, vλl string, kind boundKind, layout string) string {
 	if kind == timeKind {
-		alias := pureFnAlias(ctx, "timeStrToMs")
+		alias := pureFnAlias(ctx, purefnids.TimeStrToMs)
 		return alias + "(" + vλl + "," + strconv.Quote(layout) + ")"
 	}
 	if kind == dateKind {
-		alias := pureFnAlias(ctx, "dateStrToMs")
+		alias := pureFnAlias(ctx, purefnids.DateStrToMs)
 		return alias + "(" + vλl + "," + strconv.Quote(layout) + ")"
 	}
 	// dateTime — layout here is the splitChar; nested layouts default to
 	// ISO for the comparison (the static bake uses the same default).
-	dateAlias := pureFnAlias(ctx, "dateStrToMs")
-	timeAlias := pureFnAlias(ctx, "timeStrToMs")
+	dateAlias := pureFnAlias(ctx, purefnids.DateStrToMs)
+	timeAlias := pureFnAlias(ctx, purefnids.TimeStrToMs)
 	split := strconv.Quote(layout)
 	return "((dtp) => " + dateAlias + "(" + vλl + ".substring(0,dtp),'ISO') + " +
 		timeAlias + "(" + vλl + ".substring(dtp+1),'ISO'))(" + vλl + ".indexOf(" + split + "))"

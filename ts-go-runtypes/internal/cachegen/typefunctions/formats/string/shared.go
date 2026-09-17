@@ -9,13 +9,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 )
 
-// pureFnAlias binds this package's pure-fn source path into the shared
-// formats.PureFnAlias helper — used by every string-format emitter that
-// dispatches to a pure fn (uuid / date / time / ip / domain / email / url).
-func pureFnAlias(ctx formats.EmitContext, fnName string) string {
-	return formats.PureFnAlias(ctx, fnName, typeFormatsPureFnFilePath)
-}
-
 // formatErrWithType is FormatErrCall for a string format plus an OPTIONAL
 // `errorType`: errorTypeExpr is a JS expression naming the failure mode, or ""
 // to leave the field off. The composite formats (domain / email) use it to say
@@ -100,7 +93,7 @@ func jsParamsLiteral(params map[string]any) string {
 	for _, key := range keys {
 		// The `transform` block is the formatTransform family's business alone:
 		// a pure validator fn never reads it, so shipping it would only add dead
-		// bytes to every `pf_isIPV4(v, {...})` call.
+		// bytes to every `isIPV4(v, {...})` call.
 		if key == formats.TransformParamsKey {
 			continue
 		}

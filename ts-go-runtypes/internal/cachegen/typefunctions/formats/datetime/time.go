@@ -1,6 +1,7 @@
 package datetime
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -19,25 +20,26 @@ func init() {
 func (timeEmitter) Name() string                    { return "time" }
 func (timeEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// timeFormatPureFn maps a `format` param value to its validating pure fn.
+// timeFormatPureFn maps a `format` param value to the id of the pure fn that
+// validates it.
 func timeFormatPureFn(format string) (string, bool) {
 	switch format {
 	case "ISO", "HH:mm:ss[.mmm]TZ":
-		return "isTimeString_ISO_TZ", true
+		return purefnids.IsTimeStringISOTZ, true
 	case "HH:mm:ss[.mmm]":
-		return "isTimeString_ISO", true
+		return purefnids.IsTimeStringISO, true
 	case "HH:mm:ss":
-		return "isTimeString_HHmmss", true
+		return purefnids.IsTimeStringHHmmss, true
 	case "HH:mm":
-		return "isTimeString_HHmm", true
+		return purefnids.IsTimeStringHHmm, true
 	case "mm:ss":
-		return "isTimeString_mmss", true
+		return purefnids.IsTimeStringMmss, true
 	case "HH":
-		return "isHours", true
+		return purefnids.IsHours, true
 	case "mm":
-		return "isMinutes", true
+		return purefnids.IsMinutes, true
 	case "ss":
-		return "isSeconds", true
+		return purefnids.IsSeconds, true
 	}
 	return "", false
 }
@@ -67,11 +69,11 @@ func (timeEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, v�
 	if !ok {
 		return ""
 	}
-	fnName, ok := timeFormatPureFn(format)
+	fnID, ok := timeFormatPureFn(format)
 	if !ok {
 		return ""
 	}
-	alias := pureFnAlias(ctx, fnName)
+	alias := pureFnAlias(ctx, fnID)
 	check := alias + "(" + vλl + ")"
 	if bounds := boundValidateChecks(ctx, annotation.Params, vλl, timeKind, format); bounds != "" {
 		check = check + " && " + bounds
@@ -87,11 +89,11 @@ func (timeEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnota
 	if !ok {
 		return ""
 	}
-	fnName, ok := timeFormatPureFn(format)
+	fnID, ok := timeFormatPureFn(format)
 	if !ok {
 		return ""
 	}
-	alias := pureFnAlias(ctx, fnName)
+	alias := pureFnAlias(ctx, fnID)
 	call := alias + "(" + vλl + ")"
 	stmt := "if (!(" + call + ")) " +
 		formats.FormatErrCall(pathExpr, errorsArr, "string", "time", "format", strconv.Quote(format))

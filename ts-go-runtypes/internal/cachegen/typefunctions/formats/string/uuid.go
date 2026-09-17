@@ -1,6 +1,7 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -9,21 +10,15 @@ import (
 
 // uuidEmitter implements the format named "uuid" — FormatUUIDv4 /
 // FormatUUIDv7 in `@mionjs/run-types/formats`. The validator
-// dispatches to the `pf_isUUID` pure fn that ships with the JS
+// dispatches to the `isUUID` pure fn that ships with the JS
 // package, passing the version-pinned params at the call site.
 //
 // Why a pure fn rather than inline JS: the UUID character-class
 // check runs a tight 36-character loop; inlining its body at every
 // call site would explode the cache module's bytes. The reference
 // equivalent (ref: packages/type-formats/src/string/uuid.runtype.ts)
-// makes the same call out to pf_isUUID for the same reason.
+// makes the same call out to isUUID for the same reason.
 type uuidEmitter struct{}
-
-// typeFormatsPureFnFilePath is the canonical source path the
-// resolver registers pf_isUUID under. Matches the file where the
-// JS-side `registerPureFnFactory('rtFormats::isUUID', ...)` call
-// lives — keep these in sync when either side moves.
-const typeFormatsPureFnFilePath = "packages/run-types/src/formats/string/string-formats-pure-fns.ts"
 
 func init() {
 	formats.Register(uuidEmitter{})
@@ -32,8 +27,8 @@ func init() {
 func (uuidEmitter) Name() string                    { return "uuid" }
 func (uuidEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// EmitValidateCheck returns `pf_isUUID(v, {version: '<v>'})`. The
-// `pf_isUUID` const is hoisted into the factory prologue via a
+// EmitValidateCheck returns `isUUID(v, {version: '<v>'})`. The
+// `isUUID` const is hoisted into the factory prologue via a
 // context item; the pure-fn dependency is recorded so the JS-side
 // cache wires up the registered factory.
 func (uuidEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
@@ -47,7 +42,7 @@ func (uuidEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, v�
 		// validateParams catches misconfiguration at build time.
 		return ""
 	}
-	aliasKey := pureFnAlias(ctx, "isUUID")
+	aliasKey := formats.PureFnAlias(ctx, purefnids.IsUUID)
 	return aliasKey + "(" + vλl + ",{version:" + strconv.Quote(version) + "})"
 }
 
@@ -64,7 +59,7 @@ func (uuidEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnota
 	if !ok {
 		return ""
 	}
-	aliasKey := pureFnAlias(ctx, "isUUID")
+	aliasKey := formats.PureFnAlias(ctx, purefnids.IsUUID)
 	call := aliasKey + "(" + vλl + ",{version:" + strconv.Quote(version) + "})"
 	return "if (!(" + call + ")) " +
 		formats.FormatErrCall(pathExpr, errorsArr, "string", "uuid", "version", strconv.Quote(version))

@@ -8,32 +8,33 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 )
 
-// extractDeps walks factoryFn's body for `<utlName>.<method>(<keyLit>)`
-// patterns and collects the literal keys as the entry's
-// pureFnDependencies. The recognised methods are discovered via the
-// `CompTimeArgs<string>` brand on their first parameter (see the brand
-// annotations on rtUtils' pure-fn lookup methods in
-// packages/run-types/src/runtypes/rtUtils.ts). The string-literal
-// `<keyLit>` is resolved against a factory-local symbol table first
-// (fast path for `const KEY = '…'` declared inside the factory body),
-// then via `comptimeargs.ResolveLiteralString` (covers file-level /
-// imported const bindings via the checker).
+// extractDeps walks factoryFn's body for `<utlName>.<method>(<idArg>)` patterns
+// and collects the pure-fn ids they reach. The recognised methods are
+// discovered via the `CompTimeArgs<string>` brand on their first parameter (see
+// the brand annotations on rtUtils' pure-fn lookup methods in
+// packages/run-types/src/runtypes/rtUtils.ts).
 //
-// When utlName is empty (factory has no first parameter), returns
-// (nil, nil) — the caller is free to register the entry without deps.
+// It returns three things beside the diagnostics:
 //
-// For findCompiledPureFn the literal is a bare fnName; we emit it with
-// an empty namespace prefix (`"::" + fnName`) so the runtime's
-// cross-namespace resolver treats it the same way as a suffix match.
-// This mirrors the historical behaviour of the tracking proxy.
-func extractDeps(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, factoryFn *ast.Node, utlName string) ([]string, []diagnostics.Diagnostic) {
+//   - deps: the sorted, deduped ids, which drive the dependency graph.
+//   - lowerings: the argument spans to replace with a quoted id when the body
+//     is stripped. An id reached by IMPORT has no meaning in the emitted
+//     module, which carries the body alone, so the body must carry the literal.
+//   - exempt: the same spans, handed to the purity check so a lowered argument
+//     is not reported as a captured outer binding.
+//
+// When utlName is empty (factory has no first parameter), returns nothing — the
+// caller is free to register the entry without deps.
+func extractDeps(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, factoryFn *ast.Node, utlName string) ([]string, []textRange, []textRange, []diagnostics.Diagnostic) {
 	if utlName == "" {
-		return nil, nil
+		return nil, nil, nil, nil
 	}
 	localTable := buildFactoryLocalTable(factoryFn)
 	depSet := map[string]bool{}
+	var lowerings []textRange
 	var diags []diagnostics.Diagnostic
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
@@ -41,32 +42,32 @@ func extractDeps(typeChecker *checker.Checker, markerOpts marker.Options, source
 			return false
 		}
 		if node.Kind == ast.KindCallExpression {
-			handleCall(typeChecker, markerOpts, sourceFile, node, localTable, utlName, depSet, &diags)
+			handleCall(typeChecker, markerOpts, sourceFile, node, localTable, utlName, depSet, &lowerings, &diags)
 		}
 		node.ForEachChild(visit)
 		return false
 	}
 	body := factoryFn.Body()
 	if body == nil {
-		return nil, nil
+		return nil, nil, nil, nil
 	}
 	body.ForEachChild(visit)
 	if len(depSet) == 0 {
-		return nil, diags
+		return nil, lowerings, lowerings, diags
 	}
 	deps := make([]string, 0, len(depSet))
-	for key := range depSet {
-		deps = append(deps, key)
+	for id := range depSet {
+		deps = append(deps, id)
 	}
 	sort.Strings(deps)
-	return deps, diags
+	return deps, lowerings, lowerings, diags
 }
 
-// handleCall checks one CallExpression. When the callee is a
-// property access (`<utlName>.<method>(...)`) AND the called method's
-// first parameter is branded `CompTimeArgs<string>` (the brand-based
-// allowlist for rtUtils pure-fn lookup methods), resolves the first
-// argument to a string literal and records it; otherwise it's a no-op.
+// handleCall checks one CallExpression. When the callee is a property access
+// (`<utlName>.<method>(...)`) AND the called method's first parameter is branded
+// `CompTimeArgs<string>` (the brand-based allowlist for rtUtils pure-fn lookup
+// methods), resolves the first argument to a pure-fn id and records it;
+// otherwise it's a no-op.
 func handleCall(
 	typeChecker *checker.Checker,
 	markerOpts marker.Options,
@@ -75,6 +76,7 @@ func handleCall(
 	localTable symbolTable,
 	utlName string,
 	depSet map[string]bool,
+	lowerings *[]textRange,
 	diags *[]diagnostics.Diagnostic,
 ) {
 	callExpr := call.AsCallExpression()
@@ -105,8 +107,8 @@ func handleCall(
 		return
 	}
 	arg := callExpr.Arguments.Nodes[0]
-	literal, _ := resolveDepArg(typeChecker, localTable, arg)
-	if literal == nil {
+	id, lower := resolveDepArg(typeChecker, markerOpts, localTable, arg)
+	if id == "" {
 		*diags = append(*diags, diagnostics.New(
 			diagnostics.CodePurityDepNotLiteral,
 			siteFromNode(sourceFile, arg),
@@ -115,16 +117,11 @@ func handleCall(
 		))
 		return
 	}
-	depKey := literal.Text()
-	if method == "findCompiledPureFn" {
-		// Bare fnName; no namespace available statically. Use the
-		// `"::" + fnName` form so the runtime's suffix-matching
-		// findCompiledPureFn resolves it across all registered
-		// namespaces — same semantics the tracking proxy used to
-		// record.
-		depKey = "::" + depKey
+	depSet[id] = true
+	if lower {
+		inner := unwrapExpression(arg)
+		*lowerings = append(*lowerings, textRange{Start: inner.Pos(), End: inner.End(), Text: jsquote.Single(id)})
 	}
-	depSet[depKey] = true
 }
 
 // calleeFirstParamIsCompTimeArgs reports whether the resolved
@@ -154,56 +151,166 @@ func calleeFirstParamIsCompTimeArgs(typeChecker *checker.Checker, markerOpts mar
 	return comptimeargs.IsCompTimeArgsParamNode(typeChecker, first, markerOpts)
 }
 
-// resolveDepArg traces argNode through the factory-local table first
-// (covers `const FOO = 'rt::foo'; utl.getPureFn(FOO)` inside the
-// factory) and falls back to comptimeargs.ResolveLiteralString
-// (checker-driven trace, covers file-level / imported bindings) when
-// the identifier isn't in the local table.
-func resolveDepArg(typeChecker *checker.Checker, localTable symbolTable, argNode *ast.Node) (*ast.Node, string) {
+// resolveDepArg turns one lookup argument into the pure-fn id it names, and
+// says whether that argument must be LOWERED to the quoted id when the body is
+// stripped. Four ways in, in order:
+//
+//  1. A string literal written at the call site. Nothing to lower.
+//  2. A factory-local `const` bound to a string literal. The declaration is
+//     inside the body being emitted, so nothing to lower either.
+//  3. An identifier whose declaration is a `const` in a source file of THIS
+//     program, initialised by a registrar call: the id is that declaration's
+//     own, by the same rule the extractor used on it. This is the
+//     `import {slugify} from './slug'` case, and it lowers.
+//  4. An expression whose TYPE is a string literal, which is how a `.d.ts`
+//     carries an id (`declare const x: PureFnId<'…'>`). It lowers too.
+//
+// An empty id means none of the four applied; the caller reports PFE9013.
+func resolveDepArg(typeChecker *checker.Checker, markerOpts marker.Options, localTable symbolTable, argNode *ast.Node) (string, bool) {
 	if argNode == nil {
-		return nil, "argument missing"
+		return "", false
 	}
 	// Fast path: literal at the call site.
 	if argNode.Kind == ast.KindStringLiteral || argNode.Kind == ast.KindNoSubstitutionTemplateLiteral {
-		return argNode, ""
+		return argNode.Text(), false
 	}
-	// Factory-local identifier hop: `const FOO = '...'` inside the
-	// factory body. This shadows checker-driven resolution because the
-	// inner const isn't a module-level symbol the checker tracks the
-	// same way.
+	// Factory-local identifier hop: `const FOO = '...'` inside the factory
+	// body. This shadows checker-driven resolution because the inner const
+	// isn't a module-level symbol the checker tracks the same way.
 	if argNode.Kind == ast.KindIdentifier {
 		if decl, found := localTable[argNode.Text()]; found {
-			return resolveDeclLocal(typeChecker, localTable, decl, maxTraceDepth)
+			if literal := resolveDeclLocal(typeChecker, localTable, decl, maxTraceDepth); literal != nil {
+				return literal.Text(), false
+			}
 		}
 	}
-	// Fallback: file-level / imported / wrapped identifier — let the
-	// shared comptimeargs trace walk the checker symbol graph.
-	literal, result := comptimeargs.ResolveLiteralString(typeChecker, argNode)
-	if !result.Ok {
-		return nil, result.Reason
+	inner := unwrapExpression(argNode)
+	if inner.Kind == ast.KindIdentifier {
+		if id, found := registrationIDOfBinding(typeChecker, markerOpts, inner); found {
+			return id, true
+		}
 	}
-	return literal, ""
+	// A `.d.ts`-declared id carries its value in the TYPE, which is also what a
+	// generated constants file exports. Read it off the expression.
+	if id, found := stringLiteralTypeOf(typeChecker, inner); found {
+		return id, true
+	}
+	// Last resort: the shared checker-driven trace, which covers a same-module
+	// `const` chain ending in a literal.
+	if literal, result := comptimeargs.ResolveLiteralString(typeChecker, argNode); result.Ok {
+		return literal.Text(), false
+	}
+	return "", false
 }
 
-func resolveDeclLocal(typeChecker *checker.Checker, localTable symbolTable, decl *ast.Node, depth int) (*ast.Node, string) {
-	if depth <= 0 {
-		return nil, "tracing depth exceeded"
-	}
-	switch decl.Kind {
-	case ast.KindVariableDeclaration:
-		varDecl := decl.AsVariableDeclaration()
-		if varDecl == nil || varDecl.Initializer == nil {
-			return nil, "binding has no initializer"
+// registrationIDOfBinding resolves an identifier to the `const` declaration it
+// names — through an import alias, so a binding imported from another file of
+// this program resolves to that file's declaration — and returns the id of the
+// registration that declaration initialises. False when the identifier names
+// something else, which keeps an ordinary imported string from passing as an
+// id.
+func registrationIDOfBinding(typeChecker *checker.Checker, markerOpts marker.Options, identifier *ast.Node) (string, bool) {
+	symbol := comptimeargs.ResolveImportAlias(typeChecker, typeChecker.GetSymbolAtLocation(identifier))
+	id, found := "", false
+	comptimeargs.EachConstVariableDeclaration(symbol, func(variableDecl *ast.VariableDeclaration) bool {
+		nameNode := variableDecl.Name()
+		if nameNode == nil || nameNode.Kind != ast.KindIdentifier || variableDecl.Initializer == nil {
+			return true
 		}
-		init := varDecl.Initializer
-		if init.Kind == ast.KindStringLiteral || init.Kind == ast.KindNoSubstitutionTemplateLiteral {
-			return init, ""
+		initializer := unwrapExpression(variableDecl.Initializer)
+		if initializer.Kind != ast.KindCallExpression {
+			return true
 		}
-		// Initializer is another identifier — resolve recursively
-		// through the local table, falling back to the checker trace.
-		return resolveDepArg(typeChecker, localTable, init)
+		declFile := ast.GetSourceFileOfNode(variableDecl.AsNode())
+		if declFile == nil {
+			return true
+		}
+		if matched, _, _, _ := isPureFnRegistration(typeChecker, markerOpts, initializer); !matched {
+			return true
+		}
+		id, found = IDFor(markerOpts, declFile.FileName(), nameNode.Text()), true
+		return false
+	})
+	return id, found
+}
+
+// stringLiteralTypeOf reads the string value off an expression's TYPE. A branded
+// id (`PureFnId<'…'>`) resolves to an intersection of the literal and its brand
+// object, so the constituents are scanned as well.
+func stringLiteralTypeOf(typeChecker *checker.Checker, node *ast.Node) (string, bool) {
+	if typeChecker == nil || node == nil {
+		return "", false
 	}
-	return nil, "binding is not a const literal"
+	return stringLiteralOfType(typeChecker.GetTypeAtLocation(node))
+}
+
+func stringLiteralOfType(tsType *checker.Type) (string, bool) {
+	if tsType == nil {
+		return "", false
+	}
+	if tsType.Flags()&checker.TypeFlagsStringLiteral != 0 {
+		if value, ok := tsType.AsLiteralType().Value().(string); ok {
+			return value, true
+		}
+		return "", false
+	}
+	if tsType.Flags()&checker.TypeFlagsIntersection != 0 {
+		for _, member := range tsType.AsUnionOrIntersectionType().Types() {
+			if value, ok := stringLiteralOfType(member); ok {
+				return value, true
+			}
+		}
+	}
+	return "", false
+}
+
+// unwrapExpression peels the wrappers that carry no runtime meaning —
+// parentheses, `as`, `satisfies`, a legacy type assertion and `!` — so the
+// expression underneath is what gets resolved and what gets lowered. Lowering
+// the inner node keeps the replacement span clear of the type-stripping ranges,
+// which start exactly where it ends.
+func unwrapExpression(node *ast.Node) *ast.Node {
+	for node != nil {
+		switch node.Kind {
+		case ast.KindParenthesizedExpression:
+			node = node.AsParenthesizedExpression().Expression
+		case ast.KindAsExpression:
+			node = node.AsAsExpression().Expression
+		case ast.KindSatisfiesExpression:
+			node = node.AsSatisfiesExpression().Expression
+		case ast.KindTypeAssertionExpression:
+			node = node.AsTypeAssertion().Expression
+		case ast.KindNonNullExpression:
+			node = node.AsNonNullExpression().Expression
+		default:
+			return node
+		}
+	}
+	return node
+}
+
+// resolveDeclLocal walks a factory-local `const` chain to the string literal it
+// ends at, or nil when it ends anywhere else.
+func resolveDeclLocal(typeChecker *checker.Checker, localTable symbolTable, decl *ast.Node, depth int) *ast.Node {
+	if depth <= 0 || decl.Kind != ast.KindVariableDeclaration {
+		return nil
+	}
+	varDecl := decl.AsVariableDeclaration()
+	if varDecl == nil || varDecl.Initializer == nil {
+		return nil
+	}
+	init := varDecl.Initializer
+	if init.Kind == ast.KindStringLiteral || init.Kind == ast.KindNoSubstitutionTemplateLiteral {
+		return init
+	}
+	// Initializer is another identifier — resolve recursively through the local
+	// table.
+	if init.Kind == ast.KindIdentifier {
+		if next, found := localTable[init.Text()]; found {
+			return resolveDeclLocal(typeChecker, localTable, next, depth-1)
+		}
+	}
+	return nil
 }
 
 // buildFactoryLocalTable indexes every `const x = <literal>` declared
@@ -247,13 +354,6 @@ func buildFactoryLocalTable(factoryFn *ast.Node) symbolTable {
 	body.ForEachChild(visit)
 	return table
 }
-
-// Shared types used by the factory-local dep extractor in deps.go.
-// The previous file-level symbol-table + traceIdentifier helpers
-// have been moved to internal/compiler/comptimeargs — call
-// `comptimeargs.ResolveLiteralString` for the checker-driven
-// string-literal trace and `comptimeargs.CheckLiteralFunction` for
-// the inline-function trace.
 
 // maxTraceDepth bounds the factory-local identifier-chasing recursion
 // inside deps.resolveDeclLocal so a `const a = b; const b = c; ...`

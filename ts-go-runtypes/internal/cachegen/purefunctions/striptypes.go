@@ -7,34 +7,40 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 )
 
-// textRange is an inclusive-start, exclusive-end source-file offset pair.
+// textRange is an inclusive-start, exclusive-end source-file offset pair. With
+// Text set it is a REPLACEMENT (the span is rewritten to Text); empty Text is a
+// deletion, which is what type stripping produces. A replacement is always
+// built from an unwrapped expression, so it never overlaps the deletions around
+// it — the `as Type` a dep argument may carry starts exactly where the
+// replacement ends.
 type textRange struct {
 	Start, End int
+	Text       string
 }
 
 // stripTypesFromBlock returns the JS-stripped text of blockNode (a Block).
 // Outer braces are removed — the reference getBodyText does the same
 // (block.text.slice(1, -1).trim()).
-func stripTypesFromBlock(sourceFile *ast.SourceFile, blockNode *ast.Node) string {
+func stripTypesFromBlock(sourceFile *ast.SourceFile, blockNode *ast.Node, lowerings []textRange) string {
 	fullText := sourceFile.Text()
 	startOffset := blockNode.Pos()
 	endOffset := blockNode.End()
 	raw := fullText[startOffset:endOffset]
 
-	var ranges []textRange
+	ranges := append([]textRange(nil), lowerings...)
 	collectTypeRanges(sourceFile, blockNode, &ranges)
 	stripped := spliceRanges(raw, ranges, startOffset)
 	return trimOuterBraces(stripped)
 }
 
 // stripTypesFromExpr renders an arrow expression body as "return <stripped>;".
-func stripTypesFromExpr(sourceFile *ast.SourceFile, exprNode *ast.Node) string {
+func stripTypesFromExpr(sourceFile *ast.SourceFile, exprNode *ast.Node, lowerings []textRange) string {
 	fullText := sourceFile.Text()
 	startOffset := exprNode.Pos()
 	endOffset := exprNode.End()
 	raw := fullText[startOffset:endOffset]
 
-	var ranges []textRange
+	ranges := append([]textRange(nil), lowerings...)
 	collectTypeRanges(sourceFile, exprNode, &ranges)
 	stripped := spliceRanges(raw, ranges, startOffset)
 	return "return " + strings.TrimSpace(stripped) + ";"
@@ -50,29 +56,29 @@ func collectTypeRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]tex
 	switch node.Kind {
 	case ast.KindTypeAliasDeclaration, ast.KindInterfaceDeclaration:
 		// Drop the entire declaration — it has no runtime meaning.
-		*ranges = append(*ranges, textRange{node.Pos(), node.End()})
+		*ranges = append(*ranges, textRange{Start: node.Pos(), End: node.End()})
 		return
 	case ast.KindAsExpression:
 		asExpr := node.AsAsExpression()
 		// `expr as Type` → keep expr, drop everything after.
-		*ranges = append(*ranges, textRange{asExpr.Expression.End(), node.End()})
+		*ranges = append(*ranges, textRange{Start: asExpr.Expression.End(), End: node.End()})
 		collectTypeRanges(sourceFile, asExpr.Expression, ranges)
 		return
 	case ast.KindSatisfiesExpression:
 		satExpr := node.AsSatisfiesExpression()
-		*ranges = append(*ranges, textRange{satExpr.Expression.End(), node.End()})
+		*ranges = append(*ranges, textRange{Start: satExpr.Expression.End(), End: node.End()})
 		collectTypeRanges(sourceFile, satExpr.Expression, ranges)
 		return
 	case ast.KindTypeAssertionExpression:
 		// Legacy `<Type>expr` — drop the `<Type>` prefix, keep expr.
 		typeAssert := node.AsTypeAssertion()
-		*ranges = append(*ranges, textRange{node.Pos(), typeAssert.Expression.Pos()})
+		*ranges = append(*ranges, textRange{Start: node.Pos(), End: typeAssert.Expression.Pos()})
 		collectTypeRanges(sourceFile, typeAssert.Expression, ranges)
 		return
 	case ast.KindNonNullExpression:
 		nnExpr := node.AsNonNullExpression()
 		// `expr!` — drop the trailing `!`.
-		*ranges = append(*ranges, textRange{nnExpr.Expression.End(), node.End()})
+		*ranges = append(*ranges, textRange{Start: nnExpr.Expression.End(), End: node.End()})
 		collectTypeRanges(sourceFile, nnExpr.Expression, ranges)
 		return
 	case ast.KindCallExpression:
@@ -100,16 +106,16 @@ func collectTypeRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]tex
 			// to the question-mark token.
 			colonPos := findPrecedingColon(sourceFile.Text(), paramDecl.Type.Pos())
 			if colonPos >= 0 {
-				*ranges = append(*ranges, textRange{colonPos, paramDecl.Type.End()})
+				*ranges = append(*ranges, textRange{Start: colonPos, End: paramDecl.Type.End()})
 			}
 			// Also drop a `?` between the name and the `:`, if present.
 			if questionPos := findCharInRange(sourceFile.Text(), paramDecl.Name().End(), colonPos, '?'); questionPos >= 0 {
-				*ranges = append(*ranges, textRange{questionPos, questionPos + 1})
+				*ranges = append(*ranges, textRange{Start: questionPos, End: questionPos + 1})
 			}
 		} else {
 			// `name?` without explicit type — strip the trailing `?`.
 			if questionPos := findCharAfter(sourceFile.Text(), paramDecl.Name().End(), '?'); questionPos >= 0 && questionPos < node.End() {
-				*ranges = append(*ranges, textRange{questionPos, questionPos + 1})
+				*ranges = append(*ranges, textRange{Start: questionPos, End: questionPos + 1})
 			}
 		}
 		if paramDecl.Initializer != nil {
@@ -121,7 +127,7 @@ func collectTypeRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]tex
 		if varDecl.Type != nil {
 			colonPos := findPrecedingColon(sourceFile.Text(), varDecl.Type.Pos())
 			if colonPos >= 0 {
-				*ranges = append(*ranges, textRange{colonPos, varDecl.Type.End()})
+				*ranges = append(*ranges, textRange{Start: colonPos, End: varDecl.Type.End()})
 			}
 		}
 		if varDecl.Initializer != nil {
@@ -141,7 +147,7 @@ func collectTypeRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]tex
 				// the return-Type's Pos to find the `:`.
 				colonPos := findPrecedingColon(sourceFile.Text(), fnLike.Type.Pos())
 				if colonPos >= 0 {
-					*ranges = append(*ranges, textRange{colonPos, fnLike.Type.End()})
+					*ranges = append(*ranges, textRange{Start: colonPos, End: fnLike.Type.End()})
 				}
 			}
 			if fnLike.TypeParameters != nil {
@@ -157,7 +163,7 @@ func collectTypeRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]tex
 				if closeAngle >= 0 {
 					end = closeAngle + 1
 				}
-				*ranges = append(*ranges, textRange{start, end})
+				*ranges = append(*ranges, textRange{Start: start, End: end})
 			}
 		}
 		// Fall through to descend into parameters + body (collects nested types).
@@ -184,7 +190,7 @@ func appendTypeArgumentsRange(src string, typeArguments *ast.NodeList, ranges *[
 	if closeAngle := findCharAfter(src, end, '>'); closeAngle >= 0 {
 		end = closeAngle + 1
 	}
-	*ranges = append(*ranges, textRange{start, end})
+	*ranges = append(*ranges, textRange{Start: start, End: end})
 }
 
 // collectListTypeRanges descends into every node of an optional list.
@@ -251,9 +257,11 @@ func findPrecedingAngleBracket(src string, pos int, c byte) int {
 	return -1
 }
 
-// spliceRanges removes every range from raw. `base` is the source-file offset
-// raw corresponds to (so range offsets get translated). Overlapping or
-// touching ranges are merged.
+// spliceRanges applies every range to raw: a range with no Text is removed, one
+// with Text is rewritten to it. `base` is the source-file offset raw
+// corresponds to (so range offsets get translated). Overlapping or touching
+// DELETIONS are merged; a replacement is never merged, so its text is written
+// exactly once.
 func spliceRanges(raw string, ranges []textRange, base int) string {
 	if len(ranges) == 0 {
 		return raw
@@ -268,7 +276,7 @@ func spliceRanges(raw string, ranges []textRange, base int) string {
 	merged := []textRange{ranges[0]}
 	for _, r := range ranges[1:] {
 		last := &merged[len(merged)-1]
-		if r.Start <= last.End {
+		if r.Start <= last.End && last.Text == "" && r.Text == "" {
 			if r.End > last.End {
 				last.End = r.End
 			}
@@ -294,6 +302,7 @@ func spliceRanges(raw string, ranges []textRange, base int) string {
 		if cursor < start {
 			b.WriteString(raw[cursor:start])
 		}
+		b.WriteString(r.Text)
 		cursor = end
 	}
 	if cursor < len(raw) {

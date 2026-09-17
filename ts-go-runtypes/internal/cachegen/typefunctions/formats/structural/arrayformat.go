@@ -9,6 +9,7 @@
 package structural
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -40,31 +41,10 @@ func (emitter formattedArrayEmitter) Kind() reflection.ReflectionKind {
 	return emitter.kind
 }
 
-// corePureFnNamespace / uniqueItemsPureFnPath — the uniqueItems helpers live
-// with the other core runtime helpers in pure-fns-utils.ts, NOT under
-// `rtFormats::`, because that module is side-effect imported from the package
-// entry (src/index.ts) and is therefore always registered. The `rtFormats::`
-// modules only register when `@mionjs/run-types/formats` is imported, which a
-// schema-door-only program never does.
-//
-// ONE PREDICATE PER FAMILY, not one with a kind test: the three collections
-// disagree on what an entry is (an item, a member, a `[key, value]` pair) and on
-// what is already unique by construction, so each family names its own and a
-// type imports only the walk its own base needs. All three depend on
-// `rt::canonicalJson`, so the canonical form is shared and cannot drift.
-const (
-	corePureFnNamespace   = "rt"
-	uniqueItemsPureFnPath = "packages/run-types/src/runtypes/pure-fns-utils.ts"
-
-	uniqueArrayItemsPureFnName = "uniqueArrayItems"
-	uniqueSetMembersPureFnName = "uniqueSetMembers"
-	uniqueMapEntriesPureFnName = "uniqueMapEntries"
-)
-
 // uniqueItemsCheck is the 2020-12 uniqueItems predicate: JSON equality
 // (numbers by mathematical value — so 0 and -0 collide, 1 and 1.0 collide —
 // objects by unordered key set, arrays by order). The body lives in the
-// family's pure fn (`pureFnName`, one of the three above) so its
+// family's pure fn (`pureFnID`, one of the three above) so its
 // canonicalisation closure is built ONCE per module instead of once per
 // validator call, and so the entries that are unique by construction skip
 // canonicalisation entirely.
@@ -73,9 +53,9 @@ const (
 // IIFE. That fallback stays family-agnostic on purpose: `for…of` walks an
 // array, a Set and a Map alike, and canonicalising every entry is correct for
 // all three (just slower), so the nil-ctx path needs no copy per family.
-func uniqueItemsCheck(ctx formats.EmitContext, vλl, pureFnName string) string {
+func uniqueItemsCheck(ctx formats.EmitContext, vλl, pureFnID string) string {
 	if ctx != nil {
-		alias := ctx.UsePureFn(corePureFnNamespace, pureFnName, uniqueItemsPureFnPath)
+		alias := ctx.UsePureFn(pureFnID)
 		return alias + "(" + vλl + ")"
 	}
 	return "((a) => {const seen = new Set();const canon = (x) => {" +
@@ -130,7 +110,7 @@ func boundsContradiction(params map[string]any, publicName string) []string {
 func arrayConditions(params map[string]any, vλl string, ctx formats.EmitContext) []string {
 	conditions := lengthConditions(params, vλl+".length")
 	if unique, _ := formats.ReadBoolParam(params, "uniqueItems"); unique {
-		conditions = append(conditions, uniqueItemsCheck(ctx, vλl, uniqueArrayItemsPureFnName))
+		conditions = append(conditions, uniqueItemsCheck(ctx, vλl, purefnids.UniqueArrayItems))
 	}
 	return conditions
 }
@@ -150,7 +130,7 @@ func (formattedArrayEmitter) EmitValidationErrorsCheck(annotation *reflection.Fo
 	statements := lengthErrorStatements(params, vλl+".length", pathExpr, errorsArr, "array", formattedArrayName)
 	if unique, _ := formats.ReadBoolParam(params, "uniqueItems"); unique {
 		statements = append(statements,
-			"if (!("+uniqueItemsCheck(ctx, vλl, uniqueArrayItemsPureFnName)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "uniqueItems", "true"))
+			"if (!("+uniqueItemsCheck(ctx, vλl, purefnids.UniqueArrayItems)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "uniqueItems", "true"))
 	}
 	return strings.Join(statements, ";")
 }

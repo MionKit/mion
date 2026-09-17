@@ -1,13 +1,13 @@
 // Package builtinpurefns is the single build-owned home of the package's own
-// (`rt::` / `rtFormats::`) pure-fn bodies. For a published consumer the marker
+// pure-fn bodies. For a published consumer the marker
 // package is dist + `.d.ts` — there is no `src/` for the resolver's program
 // extractor to walk — so the built-in bodies must reach the consumer through the
 // binary. The generated table (table.generated.go) carries one row per built-in
 // pure fn, extracted from packages/run-types/src by cmd/gen-builtin-purefns
 // (`pnpm miondevx core codegen builtinpurefns [--check]`). The resolver serves a
 // demanded built-in key from this table as an ordinary pure-fn virtual module,
-// so `rt::newRunTypeErr` and friends ride the module graph exactly like a user
-// pure fn instead of relying on the always-on side-effect import.
+// so `newRunTypeErr` and friends ride the module graph exactly like a user pure
+// fn instead of relying on the always-on side-effect import.
 //
 // The TS files stay the single authored, type-checked source of truth; this
 // table is only how their bodies travel. Because the generator runs the SAME
@@ -27,20 +27,18 @@ import (
 // which a table-served entry has no use for). table.generated.go is the only
 // producer of builtinEntries; edit the TS source and regenerate, never this.
 type builtinEntry struct {
-	namespace    string
-	functionName string
-	bodyHash     string
-	paramNames   []string
-	code         string
-	deps         []string
+	id         string
+	bodyHash   string
+	paramNames []string
+	code       string
+	deps       []string
 }
 
-func (e builtinEntry) key() string { return e.namespace + "::" + e.functionName }
+func (e builtinEntry) key() string { return e.id }
 
 func (e builtinEntry) toEntry() purefunctions.Entry {
 	return purefunctions.Entry{
-		Namespace:          e.namespace,
-		FunctionName:       e.functionName,
+		ID:                 e.id,
 		ParamNames:         e.paramNames,
 		Code:               e.code,
 		BodyHash:           e.bodyHash,
@@ -62,10 +60,11 @@ var byKey = func() map[string]builtinEntry {
 	return out
 }()
 
-// Has reports whether key names a package-owned built-in pure fn. The resolver
-// uses it two ways: to drop a program-extracted entry that clashes with a
-// built-in (the table is the sole producer — the precedence rule), and to decide
-// whether a demanded pure-fn key is a built-in that must resolve from the table.
+// Has reports whether id names a package-owned built-in pure fn whose BODY this
+// table carries. The resolver uses it two ways: to drop a program-extracted
+// entry that clashes with a built-in (the table is the sole producer — the
+// precedence rule), and to decide whether a demanded pure-fn id is a built-in
+// that must resolve from the table.
 func Has(key string) bool {
 	_, ok := byKey[key]
 	return ok
@@ -84,7 +83,7 @@ func Keys() []string {
 
 // Closure returns the built-in pure-fn entries for the demanded keys plus the
 // transitive closure of their built-in pure-fn dependencies (e.g. demanding
-// `rtFormats::isDateString_YMD` also pulls `rtFormats::isDateString`), and the
+// `isDateString_YMD` also pulls `isDateString`), and the
 // sorted list of demanded keys that are NOT in the table. A non-empty `missing`
 // is a build error at the call site: once delivery is build-owned there is no
 // runtime registration lane left to cover a typo'd built-in reference. Only

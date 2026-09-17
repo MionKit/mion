@@ -12,10 +12,10 @@ import (
 // ambient module so the report's calleeModule attribution resolves to
 // '@acme/toolkit', NOT '@mionjs/run-types', even for a wrapper-only call site.
 const wrapperDts = `declare module '@acme/toolkit' {
-  import type {PureFunction, PureFunctionFactory, InjectPureFnHash, CompTimeArgs, PureFnId, RTUtils} from '@mionjs/run-types';
+  import type {PureFunction, PureFunctionFactory, InjectPureFnId, CompTimeArgs, PureFnId, RTUtils} from '@mionjs/run-types';
   export function registerAcmePureFn<F extends (...args: any[]) => any>(
     fn: PureFunction<F>,
-    hash?: InjectPureFnHash<F>,
+    hash?: InjectPureFnId<F>,
   ): unknown;
   export function registerAcmeNamed(
     pureFnId: CompTimeArgs<PureFnId>,
@@ -28,7 +28,7 @@ const wrapperDts = `declare module '@acme/toolkit' {
   export function mapAcmeFrom<Source, MappedInput>(
     source: Source,
     mapper: PureFunction<(value: Source) => MappedInput>,
-    hash?: InjectPureFnHash<(value: Source) => MappedInput>,
+    hash?: InjectPureFnId<(value: Source) => MappedInput>,
   ): unknown;
 }
 `

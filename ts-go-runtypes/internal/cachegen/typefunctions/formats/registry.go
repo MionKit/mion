@@ -43,7 +43,7 @@ type EmitContext interface {
 	// `utl.getPureFn('<ns>::<fnName>')`. The resolver threads the
 	// path through to the JS-side cache so the pure fn body lives at
 	// the right import location.
-	AddPureFnDependency(namespace, fnName, filePath string)
+	AddPureFnDependency(id string)
 
 	// UsePureFn is the single choke point for referencing a pure fn from
 	// an emitted body: it records the dependency, hoists the deduped
@@ -51,7 +51,7 @@ type EmitContext interface {
 	// returns the alias the body calls. PureFnAlias is a thin wrapper over
 	// it (rtFormats namespace). Prefer this over the three-step
 	// AddPureFnDependency + HasContextItem + SetContextItem dance.
-	UsePureFn(namespace, fnName, filePath string) string
+	UsePureFn(id string) string
 
 	// HasContextItem reports whether a hoisted-declaration key has
 	// already been set in the current factory's prologue. Used to

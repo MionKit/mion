@@ -152,7 +152,7 @@ export const tripler = registerAnonymousPureFn((n: number): number => n * 3);`,
 }
 
 func TestExtractAnonymous_ThroughDirectWrapper(t *testing.T) {
-	// A library wrapper forwards the InjectPureFnHash + PureFunction (direct)
+	// A library wrapper forwards the InjectPureFnId + PureFunction (direct)
 	// markers. Its consumer call site is recognised by BRAND (not callee name)
 	// and injects the SAME rt::<hash> a direct call to the same body would.
 	direct, diags := extractFromOverlay(t, map[string]string{
@@ -166,8 +166,8 @@ export const cpf = registerAnonymousPureFn((s: string): string => s.toLowerCase(
 
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
-function serverMapFrom<F extends (...args: any[]) => any>(mapper: PureFunction<F>, hash?: InjectPureFnHash<F>) {
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+function serverMapFrom<F extends (...args: any[]) => any>(mapper: PureFunction<F>, hash?: InjectPureFnId<F>) {
   if (!hash) throw new Error('plugin did not run');
   return registerAnonymousPureFn(mapper, hash);
 }
@@ -185,7 +185,7 @@ export const cpf = serverMapFrom((s: string): string => s.toLowerCase());`,
 }
 
 func TestExtractAnonymous_ThroughFactoryWrapper(t *testing.T) {
-	// The factory-form wrapper forwards PureFunctionFactory + InjectPureFnHash.
+	// The factory-form wrapper forwards PureFunctionFactory + InjectPureFnId.
 	direct, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerAnonymousPureFnFactory} from '@mionjs/run-types';
@@ -198,8 +198,8 @@ export const cpf = registerAnonymousPureFnFactory(function () {
 	}
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFnFactory, type PureFunctionFactory, type InjectPureFnHash, type RTUtils} from '@mionjs/run-types';
-function registerAcmeFactory<F extends (utl: RTUtils) => any>(cf: PureFunctionFactory<F>, hash?: InjectPureFnHash<F>) {
+import {registerAnonymousPureFnFactory, type PureFunctionFactory, type InjectPureFnId, type RTUtils} from '@mionjs/run-types';
+function registerAcmeFactory<F extends (utl: RTUtils) => any>(cf: PureFunctionFactory<F>, hash?: InjectPureFnId<F>) {
   if (!hash) throw new Error('plugin did not run');
   return registerAnonymousPureFnFactory(cf, hash);
 }
@@ -231,12 +231,12 @@ export const cpf = registerAnonymousPureFn((customer: {id: number}): number => c
 
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
 function serverMapFrom<Source, MappedInput>(source: Source, fnName: string): unknown;
 function serverMapFrom<Source, MappedInput>(
   source: Source,
   mapper: PureFunction<(value: Source) => MappedInput>,
-  hash?: InjectPureFnHash<(value: Source) => MappedInput>
+  hash?: InjectPureFnId<(value: Source) => MappedInput>
 ): unknown;
 function serverMapFrom(source: unknown, mapperOrName: unknown, hash?: string): unknown {
   if (typeof mapperOrName === 'string') return mapperOrName;
@@ -269,11 +269,11 @@ func TestExtractAnonymous_HashSlotPaddingAcrossOptionalGap(t *testing.T) {
 	// injecting at the hash's declared slot pads the gap with `undefined`.
 	wrapped, wdiags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
 function registerWithOpts<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   opts?: {label?: string},
-  hash?: InjectPureFnHash<F>
+  hash?: InjectPureFnId<F>
 ): unknown {
   if (!hash) throw new Error('plugin did not run');
   return registerAnonymousPureFn(fn as never, hash as never);
@@ -329,8 +329,8 @@ func TestExtractAnonymous_ForwardedArgNotExtracted(t *testing.T) {
 	// stays idempotent.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerAnonymousPureFn, type PureFunction, type InjectPureFnHash} from '@mionjs/run-types';
-export function reg<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
+import {registerAnonymousPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+export function reg<F extends (...args: any[]) => any>(fn: PureFunction<F>, hash?: InjectPureFnId<F>) {
   return registerAnonymousPureFn(fn, hash);
 }`,
 	})

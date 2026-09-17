@@ -17,7 +17,7 @@ import {getOrCreateGlobal} from '../utils.ts';
 // Two lanes reach a mapper, both landing in the shared mion pure-fn registry:
 //
 // - INLINE (vite / next builds): the client writes `inputFrom(order, (o) => o.userId)`. The
-//   mapper carries the PureFunction/InjectPureFnHash markers, so RunTypes compiles it into its
+//   mapper carries the PureFunction/InjectPureFnId markers, so RunTypes compiles it into its
 //   OWN generated module (`.mion/types/pf/rt/<hash>.js`) and content-hashes the call site to
 //   `rt::<hash>`. The mion preset harvests that site from the build report and records which keys
 //   the client's batches reference, plus where each one's generated module is. The generated

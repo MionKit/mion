@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -88,11 +89,11 @@ func (UnknownKeyErrorsEmitter) Finalize(rawCode string) (string, bool) {
 	return code, false
 }
 
-// callUnknownKeyErr builds the JS call to pf_newRunTypeErr that
+// callUnknownKeyErr builds the JS call to newRunTypeErr that
 // appends a 'never' error for an unknown key. `extra` is the key
 // variable (since the key is a runtime value, not a static name).
 func callUnknownKeyErr(ctx *EmitContext, extra string) string {
-	key := ctx.UsePureFn(corePureFnNamespace, "newRunTypeErr", validationErrorsPureFnFilePath)
+	key := ctx.UsePureFn(purefnids.NewRunTypeErr)
 	pthArg := ctx.ArgName("pλth")
 	errArg := ctx.ArgName("εrr")
 	args := []string{pthArg, errArg, quoteJS("never")}
@@ -212,7 +213,7 @@ func emitIndexSignatureUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext
 // | 'mapValue'}` path segment (where `key` is the entry's iteration index)
 // before recursing into the wrapped child's unknownKeyErrors emit. The
 // child's emit (object/property/etc) emits its own per-error
-// `pf_newRunTypeErr(pth, er, 'never', [...static path..., extra])`.
+// `newRunTypeErr(pth, er, 'never', [...static path..., extra])`.
 //
 // When every wrapped child compiles to a noop (atomic Map<string,
 // number>), the loop body is empty so we elide the iteration entirely.

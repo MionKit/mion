@@ -174,7 +174,7 @@ export interface TypeFormatError<Name extends string = string, Mode extends stri
 export interface RTValidationError<Format extends TypeFormatError = TypeFormatError> {
   path: RTValidationErrorPathSegment[];
   expected: string;
-  /** Present when a TypeFormat constraint failed (emitted via pf_formatErr). */
+  /** Present when a TypeFormat constraint failed (emitted via formatErr). */
   format?: Format;
 }
 
