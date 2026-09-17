@@ -254,9 +254,30 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
         fatalFail(res, state, respHeaders, error);
         return;
       }
-      dispatchBody(Buffer.from(fullBody).toString(), true);
+      dispatchBody(releaseAfterDecode(fullBody), true);
     });
   });
+}
+
+/** Decodes an ownership-transferred body buffer and hands its bytes straight back.
+ *
+ *  uWS malloc'd this one in C++ and gave JS ownership of it (the single-read path is a window into
+ *  uWS' own receive buffer instead, which uWS detaches itself and which must never come through
+ *  here). So these bytes are ours to return, and returning them now rather than at the next
+ *  collection is worth a whole body per request in flight.
+ *
+ *  `transfer(0)` and not `transfer()`: measured on node 26, `transfer()` moves the bytes to a new
+ *  buffer that is merely unreachable and frees nothing, while `transfer(0)` releases the backing
+ *  store there and then. Wrapped because a future uWS could hand back a buffer that cannot be
+ *  transferred; that is a reason to keep the old behaviour, not to fail the request. */
+function releaseAfterDecode(fullBody: ArrayBuffer): string {
+  const text = Buffer.from(fullBody).toString();
+  try {
+    fullBody.transfer(0);
+  } catch {
+    // not transferable: the collector gets it instead, exactly as before
+  }
+  return text;
 }
 
 // only called when there is an http error or weird unhandled route errors
@@ -302,6 +323,11 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
     mionResp = getRouterFatalErrorResponse(error, mionResp.headers);
   }
 
+  // Serialized BEFORE the cork: uWS warns that a cork buffer must not be held across event loop
+  // iterations, and holding it through the processor time of serializing a large body is the same
+  // mistake in smaller form. The cork should span the writes it exists to batch, nothing else.
+  const payload = mionResp.serializer === SerializerModes.json ? JSON.stringify(mionResp.body) : (mionResp.rawBody as string);
+
   // cork batches status + headers + body into one syscall; headers are write-only in uWS and
   // must all precede end(). content-length is skipped: uWS derives and writes its own from the
   // end() payload, and a duplicate header corrupts the response.
@@ -313,16 +339,6 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
       if (name !== 'content-length' && isHeaderSafe(name) && isHeaderSafe(value)) res.writeHeader(name, value);
     });
 
-    switch (mionResp.serializer) {
-      case SerializerModes.json: {
-        // Platform adapter stringifies the prepared body object
-        res.end(JSON.stringify(mionResp.body));
-        break;
-      }
-      default: {
-        // stringifyJson (and the fatal-error swap above): content-type already set by serializer
-        res.end(mionResp.rawBody as string);
-      }
-    }
+    res.end(payload);
   });
 }
