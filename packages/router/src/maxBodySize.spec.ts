@@ -97,8 +97,9 @@ describe('per-route request limits', () => {
   it("a route whose params have no maximum takes the platform adapter's number", async () => {
     mion.initRoutes({loose});
     expect(getRouteExecutable('loose')!.paramsJsonMaxBytes).toBeUndefined();
-    // nothing settled at registration: the number is the platform's, read when the request resolves
-    expect(getRouteExecutionChain('/loose')!.maxBodySize).toBeUndefined();
+    // nothing settled at registration, so the chain folds in the platform's number instead
+    expect(getRouteExecutionChain('/loose')!.declaredBodySize).toBeUndefined();
+    expect(getRouteExecutionChain('/loose')!.maxBodySize).toBe(DEFAULT_MAX_BODY_SIZE);
     // no adapter published anything (a router driven directly): the shared default
     expect(resolvedMaxBodySize('/loose')).toBe(DEFAULT_MAX_BODY_SIZE);
     expect(DEFAULT_MAX_BODY_SIZE).toBe(128_000);
@@ -133,7 +134,8 @@ describe('per-route request limits', () => {
 
   it('a middleFn with unbounded params sends the chain to the platform number unless it declares its contribution', () => {
     mion.initRoutes({gate, bounded});
-    expect(getRouteExecutionChain('/bounded')!.maxBodySize).toBeUndefined();
+    expect(getRouteExecutionChain('/bounded')!.declaredBodySize).toBeUndefined();
+    expect(getRouteExecutionChain('/bounded')!.maxBodySize).toBe(DEFAULT_MAX_BODY_SIZE);
     expect(resolvedMaxBodySize('/bounded')).toBe(DEFAULT_MAX_BODY_SIZE);
     resetRouter();
     mion.initRoutes({declaredGate, bounded});
