@@ -79,12 +79,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
         // they are never parsed as the next request of a kept-alive connection
         if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
         // the route resolved, so the refusal still runs the chain's alwaysRun members
-        const refused = await dispatchPlatformError(
-          createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders),
-          refusal,
-          req,
-          undefined
-        );
+        const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
         return reply(refused, responseHeaders);
       }
       const queryBody = decodeQueryBody(urlQuery, rawBody);

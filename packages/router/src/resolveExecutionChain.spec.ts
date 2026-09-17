@@ -6,9 +6,10 @@
  * ######## */
 
 // A streaming adapter needs the route's request limit BEFORE it reads the body, and nothing else.
-// resolveRequest answers exactly that and allocates no context: a context created before the read
-// outlives it, is promoted to the old heap, and takes the body assigned into it along, which the
-// node lane pays for in throughput and memory on a large body.
+// resolveExecutionChain answers exactly that by handing back the chain registration already built,
+// so a request carries nothing of its own across the read: an object that outlives the read is
+// promoted to the old heap and takes the body assigned into it along, which the node lane pays for
+// in throughput and memory on a large body.
 
 import {describe, it, expect, beforeAll} from 'vitest';
 import {createMionRouter, resetRouter, getRouteExecutionChain} from './router.ts';

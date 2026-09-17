@@ -22,7 +22,7 @@ import {loadUws} from '@mionjs/bin-uws';
 import type {HttpRequest, HttpResponse, TemplatedApp, us_listen_socket} from '@mionjs/bin-uws';
 import {DEFAULT_UWS_HTTP_OPTIONS} from './constants.ts';
 import type {UwsHttpOptions} from './types.ts';
-import type {MionHeaders, MionResponse, ResolvedRequest} from '@mionjs/router';
+import type {MethodsExecutionChain, MionHeaders, MionResponse} from '@mionjs/router';
 import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError, FatalError} from '@mionjs/core';
@@ -161,7 +161,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // off it) stays short-lived, which is what keeps the garbage collector cheap on a big body. The
   // raw request object is built once, the one a pathTransform reads and the one the handlers see.
   const rawRequest = {path, urlQuery, headers: reqHeaders};
-  let chain: ResolvedRequest;
+  let chain: MethodsExecutionChain;
   try {
     chain = resolveExecutionChain(path, urlQuery, rawRequest);
   } catch (err) {
@@ -222,12 +222,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     if (fullBody === null) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       answerWith(
-        dispatchPlatformError(
-          createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders),
-          requestPayloadTooLarge(),
-          rawRequest,
-          res
-        )
+        dispatchPlatformError(chain, path, urlQuery, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
       );
       return;
     }
