@@ -23,7 +23,7 @@ import {
   getRouterOptions,
 } from './router.ts';
 import {dispatchRoute, dispatchPlatformError} from './dispatch.ts';
-import {createCallContext, resolveRequest} from './callContext.ts';
+import {createCallContext, createContextFromChain, resolveExecutionChain} from './callContext.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {requestPayloadTooLarge} from './lib/bodyReader.ts';
 import {registerBatches} from './batches.ts';
@@ -40,16 +40,9 @@ function dispatch(path: string, body: string, urlQuery?: string) {
 /** What an adapter does when it stops a body at the limit: the route resolved, so the chain runs. */
 function dispatchRefused(path: string) {
   const rawRequest = {headers: headersFromRecord({})};
-  const resolved = resolveRequest(path, undefined, rawRequest);
-  return dispatchPlatformError(
-    resolved,
-    path,
-    undefined,
-    requestPayloadTooLarge(),
-    rawRequest.headers,
-    headersFromRecord({}),
-    rawRequest
-  );
+  const chain = resolveExecutionChain(path, undefined, rawRequest);
+  const context = createContextFromChain(chain, path, undefined, rawRequest.headers, headersFromRecord({}));
+  return dispatchPlatformError(context, requestPayloadTooLarge(), rawRequest);
 }
 
 const thrown = (response: Awaited<ReturnType<typeof dispatch>>) =>

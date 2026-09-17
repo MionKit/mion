@@ -121,11 +121,3 @@ export interface ResponseBody extends Record<string, any> {
   '@thrownErrors'?: Record<string, RpcError<string>>;
 }
 // type-response-body-end
-
-/**
- * A request resolved to its execution chain and its request limit, before any context exists: what
- * a streaming adapter reads the body against, and what `createContextFromResolved` then builds the
- * context from. Derived from `CallContext` by dropping everything the body brings with it, so the
- * two can never drift: a new field on the context is resolved here unless it is named below.
- */
-export type ResolvedRequest = Omit<CallContext, 'request' | 'response' | 'shared'>;

@@ -8,8 +8,8 @@
 import {
   dispatchWithContext,
   dispatchPlatformError,
-  resolveRequest,
-  createContextFromResolved,
+  resolveExecutionChain,
+  createContextFromChain,
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
@@ -17,7 +17,7 @@ import {
   setPlatformConfig,
   requestPayloadTooLarge,
 } from '@mionjs/router';
-import type {ResolvedRequest} from '@mionjs/router';
+import type {MethodsExecutionChain} from '@mionjs/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
@@ -127,9 +127,9 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // half of the garbage collector. A throw here (a throwing pathTransform) has no chain to run, so
   // it is answered bare, before a byte is buffered, with the stream destroyed. A body past the
   // limit does have one, and goes through dispatchRefusal below.
-  let resolved: ResolvedRequest;
+  let chain: MethodsExecutionChain;
   try {
-    resolved = resolveRequest(path, urlQuery, httpReq);
+    chain = resolveExecutionChain(path, urlQuery, httpReq);
   } catch (err) {
     replied = true;
     fatalFail(httpResponse, respHeaders, toRpcError(err));
@@ -138,7 +138,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   }
   // read once per request rather than per chunk: the route's own number, or the adapter's option
   // for a route whose types could not say
-  const maxBodySize = resolved.maxBodySize;
+  const maxBodySize = chain.maxBodySize;
 
   // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
   // one, and on the running size before each chunk is kept.
@@ -149,7 +149,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     return;
   }
 
-  /** A body this adapter refused. The route resolved, so the chain still runs its `alwaysRun`
+  /** A body this adapter refused. The route chain, so the chain still runs its `alwaysRun`
    *  members over the refusal (a rate limiter, an access log) and writes the answer. The request
    *  stream is destroyed after the reply, so the client cannot keep sending into a response that
    *  already went out. */
@@ -157,12 +157,8 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     bodyChunks.length = 0;
     try {
       const mionResponse = await dispatchPlatformError(
-        resolved,
-        path,
-        urlQuery,
+        createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders),
         requestPayloadTooLarge(),
-        reqHeaders,
-        respHeaders,
         httpReq,
         httpResponse
       );
@@ -183,7 +179,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
-      const context = createContextFromResolved(resolved, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+      const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
       const mionResponse = await dispatchWithContext(context, httpReq, httpResponse);
       if (replied || httpResponse.writableEnded) return;
       replied = true;
@@ -209,7 +205,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   // A not-found chain (an unknown path or batch id) has no route to feed: dispatch right away with
   // no body and no data listener. Node discards whatever the client still sends once the response
   // ends, so a kept-alive connection stays usable and nothing is ever buffered.
-  if (!resolved.readsBody) {
+  if (!chain.readsBody) {
     void dispatch('', SerializerModes.stringifyJson, false);
     return;
   }
