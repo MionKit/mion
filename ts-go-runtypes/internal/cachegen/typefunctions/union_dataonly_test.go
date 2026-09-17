@@ -46,7 +46,7 @@ func unionEntryWorks(rendered string) bool {
 
 // jsonFamilies are the flat-union families that share buildFlatLayout; binary
 // (toBinary/fromBinary) shares it too and is covered by the same change.
-var jsonFamilies = []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson"}
+var jsonFamilies = []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson"}
 
 func TestDataOnlyUnion_DropsStrippedMember(t *testing.T) {
 	dump := unionDump(mkDate(), mkSym())
@@ -105,13 +105,13 @@ func renderWithDiag(t *testing.T, dump protocol.Dump, familyKey, rootID string) 
 // DataOnly union-member-drop code. validationErrors is absent: its union arm
 // delegates to validate, so the user sees VL014 from the validate render.
 var dropWarnFamilies = map[string]string{
-	"validate":           diagnostics.CodeVLUnionMemberDropped,
-	"prepareForJson":     diagnostics.CodePJUnionMemberDropped,
-	"prepareForJsonSafe": diagnostics.CodePJSUnionMemberDropped,
-	"stringifyJson":      diagnostics.CodeSJUnionMemberDropped,
-	"restoreFromJson":    diagnostics.CodeRJUnionMemberDropped,
-	"toBinary":           diagnostics.CodeTBUnionMemberDropped,
-	"fromBinary":         diagnostics.CodeFBUnionMemberDropped,
+	"validate":             diagnostics.CodeVLUnionMemberDropped,
+	"prepareForJsonMutate": diagnostics.CodePJUnionMemberDropped,
+	"prepareForJsonClone":  diagnostics.CodePJSUnionMemberDropped,
+	"stringifyJson":        diagnostics.CodeSJUnionMemberDropped,
+	"restoreFromJson":      diagnostics.CodeRJUnionMemberDropped,
+	"toBinary":             diagnostics.CodeTBUnionMemberDropped,
+	"fromBinary":           diagnostics.CodeFBUnionMemberDropped,
 }
 
 func findCode(sink []diagnostics.Diagnostic, code string) (diagnostics.Diagnostic, bool) {
@@ -207,7 +207,7 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, propB, obj, union}}
 
-	for _, fam := range []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// A real union factory (`<hash>_uni(…){`) — family-agnostic, since binary
 		// encode/decode bodies take `(v,Ser)` / `(ret,Des)` not just `(v)`. An

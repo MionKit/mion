@@ -6,10 +6,12 @@ type Message = {id: bigint; sentAt: Date; body: string};
 // prepareForJson and restoreFromJson have no factory of their own, so you name
 // the pair you want in a marker and recover the handles with getRTFunction.
 // 'pjs' is the clone prepare, 'rjs' the matching restore (both drop undeclared keys).
-function jsonValueCodec<T>(fns?: InjectTypeFnArgs<T, 'pjs', 'rjs'>) {
+function jsonValueCodec<T>(
+  fns?: InjectTypeFnArgs<T, 'prepareForJsonClone', 'restoreFromJsonStrip'>
+) {
   return {
-    prepare: getRTFunction<'pjs'>(fns?.[0]),
-    restore: getRTFunction<'rjs'>(fns?.[1]),
+    prepare: getRTFunction<'prepareForJsonClone'>(fns?.[0]),
+    restore: getRTFunction<'restoreFromJsonStrip'>(fns?.[1]),
   };
 }
 

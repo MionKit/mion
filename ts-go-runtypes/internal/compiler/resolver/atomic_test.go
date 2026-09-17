@@ -1581,7 +1581,7 @@ createValidateFn<{a: string}>(undefined, {noIsArrayCheck: true});
 // form is now an ordinary `createValidateFn` OVERLOAD taking a `RunType<T>` first arg
 // (`createValidateFn(array(string()))`). It must resolve to the SAME structural id as
 // the marker form (`createValidateFn<string[]>()`) — `T` is inferred from the
-// schema's `RunType<T>` and reflected off the trailing `InjectTypeFnArgs<T, 'val'>`,
+// schema's `RunType<T>` and reflected off the trailing `InjectTypeFnArgs<T, 'validate'>`,
 // no `schema.id` read, no builder ref-trace — AND its options ride the call's own
 // slot, folded into the injected fnId variant suffix. The createValidateFn call IS the
 // injection marker, so the nested `array(string())` builder is skipped (enclosed);
@@ -1594,8 +1594,8 @@ func TestResolver_SchemaForm_ConvergesAndObservesOptions(t *testing.T) {
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
   export interface RunType<T = unknown> {id: string; readonly __rtType?: {t: T}}
-  export function createValidateFn<T>(schema: RunType<T>, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
-  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
+  export function createValidateFn<T>(schema: RunType<T>, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
   export function string(id?: InjectRunTypeId<string>): RunType<string>;
   export function array<T>(item: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<T[]>): RunType<T[]>;
 }

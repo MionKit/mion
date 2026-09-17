@@ -42,8 +42,8 @@ export type RouteOptionsWithEncoder = {encoder: EncoderOption; description?: str
 // The slots as a TUPLE, the way @mionjs/router's MarkerSlots does it: an alias wrapped directly
 // AROUND a marker hides it from the scanner, a tuple ELEMENT keeps the marker's own alias.
 type Slots<H extends Handler, RO, O> = [
-  paramsFns: InjectTypeFnArgs<Parameters<H>, 'val', 'verr', EncodeFamily<ParamsStrategy<RO, O>>, DecodeFamily<ParamsStrategy<RO, O>>>,
-  returnFns: InjectTypeFnArgs<ReturnType<H>, 'val', 'verr', EncodeFamily<ReturnStrategy<RO, O>>, DecodeFamily<ReturnStrategy<RO, O>>>,
+  paramsFns: InjectTypeFnArgs<Parameters<H>, 'validate', 'validationErrors', EncodeFamily<ParamsStrategy<RO, O>>, DecodeFamily<ParamsStrategy<RO, O>>>,
+  returnFns: InjectTypeFnArgs<ReturnType<H>, 'validate', 'validationErrors', EncodeFamily<ReturnStrategy<RO, O>>, DecodeFamily<ReturnStrategy<RO, O>>>,
   paramsId: InjectRunTypeId<Parameters<H>>,
 ];
 

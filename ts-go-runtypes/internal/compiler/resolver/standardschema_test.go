@@ -8,15 +8,15 @@ import (
 )
 
 // standardSchemaDTS declares a multi-function marker factory: the trailing
-// `InjectTypeFnArgs<T, 'val', 'verr'>` names TWO families, so one call site
+// `InjectTypeFnArgs<T, 'validate', 'validationErrors'>` names TWO families, so one call site
 // must yield two fnIds (val + verr) injected as an array of entry tuples.
 const standardSchemaDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean}
-  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
-  export function createStandardSchema<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, ids?: InjectTypeFnArgs<T, 'val', 'verr'>): {'~standard': {version: 1; vendor: string; validate: (v: unknown) => unknown}};
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
+  export function createStandardSchema<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, ids?: InjectTypeFnArgs<T, 'validate', 'validationErrors'>): {'~standard': {version: 1; vendor: string; validate: (v: unknown) => unknown}};
 }
 `
 
@@ -42,11 +42,11 @@ createStandardSchema<string>();
 		t.Fatalf("site has empty id")
 	}
 
-	valOp, ok := operations.ByFnKey("val")
+	valOp, ok := operations.ByFnKey("validate")
 	if !ok {
 		t.Fatalf("no operation registered for fnKey 'val'")
 	}
-	verrOp, ok := operations.ByFnKey("verr")
+	verrOp, ok := operations.ByFnKey("validationErrors")
 	if !ok {
 		t.Fatalf("no operation registered for fnKey 'verr'")
 	}
@@ -94,7 +94,7 @@ createValidateFn<string>();
 	if len(site.FnIds) != 0 {
 		t.Errorf("single-fn site should carry no FnIds list, got %v", site.FnIds)
 	}
-	valOp, _ := operations.ByFnKey("val")
+	valOp, _ := operations.ByFnKey("validate")
 	if want := operations.FnHashFor(valOp, nil, "", false); site.FnId != want {
 		t.Errorf("scalar FnId = %q, want %q", site.FnId, want)
 	}

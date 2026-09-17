@@ -6,6 +6,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
@@ -29,11 +30,11 @@ const overrideCalleePrefix = "override"
 const maxOverrideFoldIterations = 8
 
 // overrideSite is the resolved shape of one overrideX<T>(pureFn, id) call: the
-// overridden type, the family op key the trailing InjectTypeFnArgs<T, fnKey>
+// overridden type, the family op key the trailing InjectTypeFnArgs<T, opName>
 // names, and the inline pure-fn argument node.
 type overrideSite struct {
 	typeArgument *checker.Type
-	fnKey        string
+	opName       string
 	fnArg        *ast.Node
 }
 
@@ -42,7 +43,7 @@ type overrideSite struct {
 // value that rides the `|cfn:<family>:<hash>` suffix.
 type rawOverride struct {
 	typeArg *checker.Type
-	fnKey   string
+	opName  string
 	cfnHash string
 	site    diagnostics.Site
 }
@@ -99,7 +100,7 @@ func (sess *Session) ensureOverrides() {
 			}
 			raws = append(raws, rawOverride{
 				typeArg: site.typeArgument,
-				fnKey:   site.fnKey,
+				opName:  site.opName,
 				cfnHash: cfn.FunctionName,
 				site:    textpos.NodeSite(sourceFile.FileName(), sourceFile, call),
 			})
@@ -133,7 +134,7 @@ func (sess *Session) ensureOverrides() {
 
 // foldOverrideMap iterates the base-key computation to a fixpoint and returns the
 // final override map plus the final base key of each raw (parallel to raws). The
-// first raw (source order) wins a (baseKey, fnKey) pair; conflicts are reported
+// first raw (source order) wins a (baseKey, opName) pair; conflicts are reported
 // separately by overrideDiagnostics.
 func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]string, []string) {
 	prev := map[string]map[string]string{}
@@ -149,8 +150,8 @@ func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]
 				families = map[string]string{}
 				next[baseKey] = families
 			}
-			if _, exists := families[raw.fnKey]; !exists {
-				families[raw.fnKey] = raw.cfnHash
+			if _, exists := families[raw.opName]; !exists {
+				families[raw.opName] = raw.cfnHash
 			}
 		}
 		if overrideMapsEqual(prev, next) {
@@ -162,7 +163,7 @@ func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]
 }
 
 // overrideMapsEqual reports whether two override maps carry identical
-// (baseKey → fnKey → hash) content — the fixpoint convergence test.
+// (baseKey → opName → hash) content — the fixpoint convergence test.
 func overrideMapsEqual(a, b map[string]map[string]string) bool {
 	if len(a) != len(b) {
 		return false
@@ -172,8 +173,8 @@ func overrideMapsEqual(a, b map[string]map[string]string) bool {
 		if !ok || len(famsA) != len(famsB) {
 			return false
 		}
-		for fnKey, hash := range famsA {
-			if famsB[fnKey] != hash {
+		for opName, hash := range famsA {
+			if famsB[opName] != hash {
 				return false
 			}
 		}
@@ -187,12 +188,12 @@ func overrideMapsEqual(a, b map[string]map[string]string) bool {
 // type). OVR010 warns once per distinct validate override (its cross-family reach).
 func overrideDiagnostics(raws []rawOverride, baseKeys []string) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic
-	firstIndex := map[string]int{} // "<baseKey>|<fnKey>" → index of the winning raw
+	firstIndex := map[string]int{} // "<baseKey>|<opName>" → index of the winning raw
 	for i, raw := range raws {
-		key := baseKeys[i] + "|" + raw.fnKey
+		key := baseKeys[i] + "|" + raw.opName
 		if winner, exists := firstIndex[key]; exists {
 			diags = append(diags, diagnostics.NewWithRelated(
-				diagnostics.CodeDuplicateOverride, raw.site, []string{raw.fnKey},
+				diagnostics.CodeDuplicateOverride, raw.site, []string{raw.opName},
 				diagnostics.Related{Site: raws[winner].site, Message: "First overridden here"},
 			))
 			continue
@@ -201,7 +202,7 @@ func overrideDiagnostics(raws []rawOverride, baseKeys []string) []diagnostics.Di
 		// validate is a shared cross-family dependency: JSON / binary union
 		// decoders call val_<member> to narrow. Overriding it reaches past
 		// createValidateFn<T>(), so flag the site (Warning — the build proceeds).
-		if raw.fnKey == "val" {
+		if raw.opName == "validate" {
 			diags = append(diags, diagnostics.New(diagnostics.CodeOverrideValidateCrossFamily, raw.site))
 		}
 	}
@@ -249,7 +250,7 @@ func (sess *Session) collectOverrideReplacements(files []string) []protocol.Repl
 
 // detectOverrideSite reports whether call is an `overrideX<T>(pureFn, id)` site
 // and returns its resolved shape. Recognition is shape-based: a trailing
-// InjectTypeFnArgs<T, fnKey> slot AND a PureFunction-branded argument — a combo
+// InjectTypeFnArgs<T, opName> slot AND a PureFunction-branded argument — a combo
 // no createX factory carries — gated by the cheap `override` callee-name
 // pre-filter. A single-family marker is required (overrides never multiplex).
 func (state scanState) detectOverrideSite(call *ast.Node) (overrideSite, bool) {
@@ -271,7 +272,7 @@ func (state scanState) detectOverrideSite(call *ast.Node) (overrideSite, bool) {
 	}
 	lastIndex := len(parameters) - 1
 	var typeArgument *checker.Type
-	var fnKey string
+	var opName string
 	pureFnParamIndex := -1
 	for paramIndex := 0; paramIndex <= lastIndex; paramIndex++ {
 		paramSymbol := parameters[paramIndex]
@@ -290,13 +291,18 @@ func (state scanState) detectOverrideSite(call *ast.Node) (overrideSite, bool) {
 			}
 			typeArgument = typeArg
 			if fnKeys, fnOK := marker.FnKeysForInjectTypeFnArgs(state.scanChecker, paramType, state.sess.marker); fnOK && len(fnKeys) == 1 {
-				fnKey = fnKeys[0]
+				// The override table is keyed by the operation NAME, never the marker
+				// token: the name is the hash-side identity, so renaming the public
+				// vocabulary can never move an overridden type's structural id.
+				if op, known := operations.ByFnKey(fnKeys[0]); known {
+					opName = op.Name
+				}
 			}
 		case marker.KindPureFunction:
 			pureFnParamIndex = paramIndex
 		}
 	}
-	if typeArgument == nil || fnKey == "" || pureFnParamIndex < 0 {
+	if typeArgument == nil || opName == "" || pureFnParamIndex < 0 {
 		return overrideSite{}, false
 	}
 	if marker.IsFreeTypeParameter(typeArgument) {
@@ -309,5 +315,5 @@ func (state scanState) detectOverrideSite(call *ast.Node) (overrideSite, bool) {
 	if fnArg == nil {
 		return overrideSite{}, false
 	}
-	return overrideSite{typeArgument: typeArgument, fnKey: fnKey, fnArg: fnArg}, true
+	return overrideSite{typeArgument: typeArgument, opName: opName, fnArg: fnArg}, true
 }

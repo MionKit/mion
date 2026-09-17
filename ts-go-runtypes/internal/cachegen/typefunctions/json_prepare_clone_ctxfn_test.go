@@ -11,7 +11,7 @@ import (
 // block directly as the factory body — not hoist it into a context fn and
 // return `return ctxFn0(v)`. The context-fn indirection only earns its keep
 // in an expression slot (a union clause); at a return slot it's dead weight.
-func TestPrepareForJsonSafe_RootObjectSplicesBlockNoCtxFn(t *testing.T) {
+func TestPrepareForJsonClone_RootObjectSplicesBlockNoCtxFn(t *testing.T) {
 	strRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	numRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 	boolRT := &reflection.RunType{ID: "bool", Kind: reflection.KindBoolean}
@@ -33,7 +33,7 @@ func TestPrepareForJsonSafe_RootObjectSplicesBlockNoCtxFn(t *testing.T) {
 		},
 	}
 
-	w := NewWalker(obj, "pjs_MyType", PrepareForJsonSafeEmitter{})
+	w := NewWalker(obj, "pjs_MyType", PrepareForJsonCloneEmitter{})
 	w.InnerPrefix = "pjs_"
 	w.RefTable = map[string]*reflection.RunType{
 		"str": strRT, "num": numRT, "bool": boolRT, "arr": arrRT,
@@ -62,7 +62,7 @@ func TestPrepareForJsonSafe_RootObjectSplicesBlockNoCtxFn(t *testing.T) {
 // EXACTLY ONE context fn — the block itself — never a ctxFn that just calls
 // another ctxFn (the old double-hoist: buildSafeObjectLiteral pre-hoisted, then
 // the walker wrapped the resulting `return ctxFn0(v)` again).
-func TestPrepareForJsonSafe_NestedObjectSingleCtxFn(t *testing.T) {
+func TestPrepareForJsonClone_NestedObjectSingleCtxFn(t *testing.T) {
 	strRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	numRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 
@@ -87,7 +87,7 @@ func TestPrepareForJsonSafe_NestedObjectSingleCtxFn(t *testing.T) {
 		},
 	}
 
-	w := NewWalker(outer, "pjs_Outer", PrepareForJsonSafeEmitter{})
+	w := NewWalker(outer, "pjs_Outer", PrepareForJsonCloneEmitter{})
 	w.InnerPrefix = "pjs_"
 	w.RefTable = map[string]*reflection.RunType{
 		"str": strRT, "num": numRT,

@@ -35,7 +35,7 @@ type AnyHandler = (...args: any[]) => unknown;
 export function route<H extends AnyHandler>(
   handler: H,
   opts?: {readonly path?: string},
-  paramsFns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder'>,
+  paramsFns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder'>,
   responseFns?: InjectTypeFnArgs<ReturnType<H>, 'jsonEncoder'>,
   meta?: InjectRunTypeId<Parameters<H>>,
 ) {

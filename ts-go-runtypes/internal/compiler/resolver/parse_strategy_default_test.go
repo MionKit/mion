@@ -17,7 +17,7 @@ const parseStrategyDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export interface ParseOptions {strategy?: 'preserve' | 'strip' | 'fail'}
-  export function createParseFn<T>(val?: T, options?: CompTimeFnArgs<ParseOptions>, id?: InjectTypeFnArgs<T, 'prs'>): (v: unknown) => T;
+  export function createParseFn<T>(val?: T, options?: CompTimeFnArgs<ParseOptions>, id?: InjectTypeFnArgs<T, 'parse'>): (v: unknown) => T;
 }
 `
 

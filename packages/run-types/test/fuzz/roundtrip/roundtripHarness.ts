@@ -106,7 +106,7 @@ createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
 // rjs has no createX factory: a framework reaches it by naming the fnKey in its own
 // marker, which is exactly what mion's route helper does for the clone strategy.
-declare function recoverRebuild<R>(id?: InjectTypeFnArgs<R, 'rjs'>): (wire: unknown) => unknown;
+declare function recoverRebuild<R>(id?: InjectTypeFnArgs<R, 'restoreFromJsonStrip'>): (wire: unknown) => unknown;
 recoverRebuild<T>();
 createBinaryEncoderFn<T>();
 createBinaryDecoderFn<T>();
@@ -237,7 +237,7 @@ function buildEncoder(lane: LaneId, tuple: readonly unknown[]): (value: unknown)
 function buildDecoder(lane: LaneId, tuple: readonly unknown[]): (wire: unknown) => unknown {
   if (lane === 'binary') return createBinaryDecoderFn(undefined, undefined, tuple as never) as (wire: unknown) => unknown;
   if (lane === 'rebuild') {
-    const restore = getRTFunction<'rjs'>(tuple);
+    const restore = getRTFunction<'restoreFromJsonStrip'>(tuple);
     return (wire: unknown) => restore(JSON.parse(wire as string));
   }
   return createJsonDecoderFn(undefined, undefined, tuple as never) as (wire: unknown) => unknown;

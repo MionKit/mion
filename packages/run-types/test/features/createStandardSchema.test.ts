@@ -1,7 +1,7 @@
 // End-to-end acceptance test for createStandardSchema<T>. Drives the FULL
 // vite-plugin pipeline via vitest's vite integration: the plugin transforms
 // this file, injecting the ARRAY of two entry tuples (val + verr) at the single
-// trailing InjectTypeFnArgs<T,'val','verr'> slot; at runtime the factory
+// trailing InjectTypeFnArgs<T,'validate','validationErrors'> slot; at runtime the factory
 // resolves both compiled fns and builds the two-tier `validate`.
 //
 // Per the CLAUDE.md marker-coverage rule both call shapes are exercised — the

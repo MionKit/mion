@@ -32,18 +32,18 @@ var Families = []FamilySpec{
 	// prepareForJson / restoreFromJson: the mutating JSON round-trip pair —
 	// `restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(v))))` must
 	// deep-equal v. Unions emit the flat wire shape (see union_flat.go).
-	family("prepareForJson", PrepareForJsonEmitter{}),
+	family("prepareForJsonMutate", PrepareForJsonEmitter{}),
 	family("restoreFromJson", RestoreFromJsonEmitter{}),
 	// stringifyJson: single-pass serialiser that builds the JSON string
 	// directly from the type — never mutates v, strips extras by construction.
 	family("stringifyJson", StringifyJsonEmitter{}),
-	// prepareForJsonSafe: non-mutating prepareForJson sibling that strips
+	// prepareForJsonClone: non-mutating prepareForJson sibling that strips
 	// undeclared properties and returns a new value.
-	family("prepareForJsonSafe", PrepareForJsonSafeEmitter{}),
-	// restoreFromJsonSafe: the DECODE mirror of prepareForJsonSafe — rebuilds each
+	family("prepareForJsonClone", PrepareForJsonCloneEmitter{}),
+	// restoreFromJsonStrip: the DECODE mirror of prepareForJsonClone — rebuilds each
 	// object from the declared shape while applying the restore transforms, so an
 	// undeclared key on the wire is gone rather than blanked. See json_restore_safe.go.
-	family("restoreFromJsonSafe", RestoreFromJsonSafeEmitter{}),
+	family("restoreFromJsonStrip", RestoreFromJsonStripEmitter{}),
 	// compactForJson / compactFromJson: the `compact` strategy's positional-tuple
 	// round-trip pair — declared object props as a positional array (no key names)
 	// instead of a keyed object. Non-mutating clone on encode, keyed-object rebuild
@@ -58,7 +58,7 @@ var Families = []FamilySpec{
 	// (unknownkeys_to_undefined.go) because the wire variant delegates to it.
 	family("hasUnknownKeys", HasUnknownKeysEmitter{}),
 	family("unknownKeyErrors", UnknownKeyErrorsEmitter{}),
-	family("unknownKeysToUndefinedWire", UnknownKeysToUndefinedWireEmitter{}),
+	family("stripUnknownKeysWire", StripUnknownKeysWireEmitter{}),
 	// cloneExactShape: a proper deep clone of the DECLARED shape — unknown
 	// keys dropped by construction, nothing mutable shared with the input
 	// (only immutables and opaque handles pass through). The clone-based

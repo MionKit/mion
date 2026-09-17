@@ -11,7 +11,7 @@ import (
 // unserializable leaf (function / symbol) sits at a PROPAGATING position (tuple
 // slot, array element, record value, callable object) must render an
 // alwaysThrow primitive entry with the SAME per-family diagnostic its sibling
-// strategy emits — cj mirrors prepareForJsonSafe (clone → PJS*), cjr mirrors
+// strategy emits — cj mirrors prepareForJsonClone (clone → PJS*), cjr mirrors
 // restoreFromJson (preserve → RJ*) — NOT silently skip the primitive and leave
 // the compact composite binding a never-rendered entry (the JCP001 internal
 // breach). Before the fix the compact emitters implemented neither

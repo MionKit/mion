@@ -1,7 +1,7 @@
 // `createStandardSchema<T>()` — adapts RunTypes validation to the Standard
 // Schema v1 interop contract (https://github.com/standard-schema/standard-schema).
 // A thin layer over the existing validators: it carries ONE trailing
-// `InjectTypeFnArgs<T, 'val', 'verr'>` marker, so the plugin injects an array
+// `InjectTypeFnArgs<T, 'validate', 'validationErrors'>` marker, so the plugin injects an array
 // of two entry tuples (the cheap boolean validator + getValidationErrors) for
 // the same `T`. The produced `validate` is two-tier and synchronous: run the
 // boolean validator first, and only on failure compute + map issues.
@@ -66,17 +66,17 @@ const errorsFallback: GetValidationErrorsFn<never> = () => [];
 export function createStandardSchema<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
-  ids?: InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>
+  ids?: InjectTypeFnArgs<T, 'validate', 'validationErrors', 'jsonSchema'>
 ): RTStandardSchemaV1<DataOnly<T>>;
 export function createStandardSchema<T>(
   val?: T,
   options?: CompTimeFnArgs<ValidateOptions>,
-  ids?: InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>
+  ids?: InjectTypeFnArgs<T, 'validate', 'validationErrors', 'jsonSchema'>
 ): RTStandardSchemaV1<DataOnly<T>>;
 export function createStandardSchema<T>(
   valOrSchema?: T | RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
-  ids?: InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>
+  ids?: InjectTypeFnArgs<T, 'validate', 'validationErrors', 'jsonSchema'>
 ): RTStandardSchemaV1<DataOnly<T>> {
   // A value-first schema's runtime `.id` overrides the injected type id for both
   // lookups (correct even for recursive schemas).

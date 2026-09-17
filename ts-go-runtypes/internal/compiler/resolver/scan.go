@@ -958,9 +958,10 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	var fnIds []string
 	var demand []protocol.SiteDemand
 	for _, fnKey := range injectionFnKeys {
-		fnId, fnDemand := computeSiteFn(state.scanChecker, fnKey, options, state.sess.opts.ParseDefaults.Strategy, call, lastIndex, argsCount)
+		fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, options, state.sess.opts.ParseDefaults.Strategy, call, lastIndex, argsCount, file)
 		fnIds = append(fnIds, fnId)
 		demand = append(demand, fnDemand...)
+		diags = append(diags, fnDiags...)
 	}
 	// FnId stays the scalar single-fn wire (mirrors fnIds[0]); FnIds is set only
 	// for multi-function sites so single-fn / reflection sites stay byte-stable.
@@ -1063,9 +1064,10 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 		var fnIds []string
 		var demand []protocol.SiteDemand
 		for _, fnKey := range fnKeys {
-			fnId, fnDemand := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, state.sess.opts.ParseDefaults.Strategy, call, m.paramIndex, argsCount)
+			fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, state.sess.opts.ParseDefaults.Strategy, call, m.paramIndex, argsCount, file)
 			fnIds = append(fnIds, fnId)
 			demand = append(demand, fnDemand...)
+			diags = append(diags, fnDiags...)
 		}
 		fnId := ""
 		if len(fnIds) > 0 {
@@ -1146,13 +1148,31 @@ func mockFormatTransformDemand() []protocol.SiteDemand {
 	}}
 }
 
-func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, defaultParseStrategy string, call *ast.Node, lastIndex, argsCount int) (string, []protocol.SiteDemand) {
+// unresolvedFnNameDiagnostic reports a marker naming a family that does not
+// exist (MKR015), with the closest real name when there is one. The retired
+// short tags land here, which is what makes the rename a build failure rather
+// than a silently missing function.
+func unresolvedFnNameDiagnostic(file string, call *ast.Node, fnKey string) diagnostics.Diagnostic {
+	suggestion := ""
+	if closest := operations.SuggestFnKey(fnKey); closest != "" {
+		suggestion = "; did you mean `" + closest + "`?"
+	} else {
+		suggestion = "."
+	}
+	sourceFile := ast.GetSourceFileOfNode(call)
+	return diagnostics.New(diagnostics.CodeMarkerUnresolvedFnName, textpos.NodeSite(file, sourceFile, call), fnKey, suggestion)
+}
+
+func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, defaultParseStrategy string, call *ast.Node, lastIndex, argsCount int, file string) (string, []protocol.SiteDemand, []diagnostics.Diagnostic) {
 	if fnKey == "" {
-		return "", nil
+		return "", nil, nil
 	}
 	op, known := operations.ByFnKey(fnKey)
 	if !known {
-		return "", nil
+		// An unknown family used to resolve to silence: no fnId, no demand, and a
+		// wrapper left holding an empty slot that only fails once it runs. Say so
+		// at the call site instead, and point at the family the author meant.
+		return "", nil, []diagnostics.Diagnostic{unresolvedFnNameDiagnostic(file, call, fnKey)}
 	}
 	// `{checkUnknowns: true}` selects the FUSED validator: one emitted function
 	// that checks properties AND undeclared keys in a single walk, instead of the
@@ -1167,7 +1187,6 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	if extractCheckUnknownsOption(typeChecker, call, lastIndex, argsCount) {
 		if fused, swapped := checkUnknownsOperation(op); swapped {
 			op = fused
-			fnKey = op.FnKey
 		}
 	}
 	// createParseFn's `strategy` picks which parse family serves the site, the
@@ -1184,7 +1203,6 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 		}
 		if selected, swapped := parseStrategyOperation(op, siteStrategy); swapped {
 			op = selected
-			fnKey = op.FnKey
 		}
 	}
 	var optionNames []string
@@ -1209,9 +1227,9 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	// harmless duplicate entry, exactly like a no-op `noLiterals` variant.
 	rejectCircular := op.CircularGuarded && extractRejectCircularOption(typeChecker, call, lastIndex, argsCount)
 	fnId := operations.FnHashFor(op, optionNames, strategy, rejectCircular)
-	demands := operations.DemandFor(fnKey, optionNames, strategy, rejectCircular)
+	demands := operations.DemandForOp(op, optionNames, strategy, rejectCircular)
 	if len(demands) == 0 {
-		return fnId, nil
+		return fnId, nil, nil
 	}
 	out := make([]protocol.SiteDemand, len(demands))
 	for index, demand := range demands {
@@ -1223,7 +1241,7 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 			RejectCircular: demand.RejectCircular,
 		}
 	}
-	return fnId, out
+	return fnId, out, nil
 }
 
 // optionsArgumentAt returns the AST node at the compile-time options slot —

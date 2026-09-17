@@ -215,13 +215,29 @@ registerPureFnFactory('rt::newRunTypeErr', (utl) => (message) => new Error(messa
 		Summary: "An `InjectTypeFnArgs` marker lists each function family it needs once, in order. Naming the same family twice injects a second identical handle that nothing reads, so it is almost always a copy-paste slip and the build stops. List each family at most once.",
 		Fix: `function route<H extends Handler>(
   handler: H,
-  fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>,
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>,
 ) {
   return {handler, fns};
 }`,
 		Example: `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
-function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'verr'>) {
+function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'validationErrors'>) {
+  return {handler, fns};
+}
+export const lenRoute = route((ctx: unknown, name: string) => name.length);`,
+	},
+
+	CodeMarkerUnresolvedFnName: {
+		Summary: "A marker names each function it needs by that function family's own name, and the build compiles one handle per name. A name that matches no family compiles nothing for that slot, so the wrapper is handed an empty handle and the call quietly falls back to its no-plugin behaviour. The short tags markers used to take (`val`, `verr`, `pjs`) name the entries the build emits, not the functions you ask for.",
+		Fix: `function route<H extends Handler>(
+  handler: H,
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors'>,
+) {
+  return {handler, fns};
+}`,
+		Example: `import type {InjectTypeFnArgs} from '@mionjs/run-types';
+type Handler = (ctx: unknown, ...rest: any[]) => unknown;
+function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr'>) {
   return {handler, fns};
 }
 export const lenRoute = route((ctx: unknown, name: string) => name.length);`,

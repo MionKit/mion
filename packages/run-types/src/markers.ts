@@ -43,19 +43,19 @@ export type InjectRunTypeId<T> = string & {
  * `T`. The Go backend emits only the demanded function caches and the runtime
  * resolves the precise factories without recomputing a key.
  *
- * SINGLE function (the common case) — `InjectTypeFnArgs<T, 'val'>`: the injected
+ * SINGLE function (the common case) — `InjectTypeFnArgs<T, 'validate'>`: the injected
  * value is the family's entry-module tuple, resolved by the one `createX`.
  *
  * `Fn` also names the JSON value-level primitives that have NO dedicated factory —
  * `'pj'`/`'pjs'` (mutate/clone prepare), `'rj'`/`'rjs'` (restore, and the strip
  * restore that rebuilds the declared shape), `'sj'` (direct stringify), `'ukuw'`
  * (strip wire pre-pass), `'cj'`/`'cjr'` (compact encode/decode). A wrapper recovers those from the injected tuple with the
- * generic `getRTFunction<'pjs'>(fns?.[i])` resolver (keyed by the SAME fnKey)
+ * generic `getRTFunction<'prepareForJsonClone'>(fns?.[i])` resolver (keyed by the SAME fnKey)
  * instead of a factory, so a framework that owns its own JSON envelope can pull a
  * per-strategy `prepareForJson` / `restoreFromJson` for `T` and apply it at the
  * value level (no string hop).
  *
- * MULTIPLE functions — `InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'jsonEncoder'>`:
+ * MULTIPLE functions — `InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>`:
  * the site needs several compiled fns for the same `T` (a framework wrapper such
  * as mion's `route()` asks for the validator, JSON decoder and JSON encoder in
  * one marker). The injected value is an ARRAY of entry-module tuples, ONE per
@@ -73,7 +73,7 @@ export type InjectRunTypeId<T> = string & {
  * here if the family set ever grows past the cap.
  *
  * DUPLICATE families are a build error. Naming the same family twice
- * (`InjectTypeFnArgs<T, 'verr', 'verr'>`) is almost always a copy-paste slip —
+ * (`InjectTypeFnArgs<T, 'validationErrors', 'validationErrors'>`) is almost always a copy-paste slip —
  * the second entry would inject a redundant identical tuple — so the Go scanner
  * rejects it with `MKR006` (Error) at the call site. Use each family at most
  * once per marker.
@@ -85,7 +85,7 @@ export type InjectRunTypeId<T> = string & {
  *   function route<H extends Handler>(
  *     handler: H,
  *     opts?: RouteOptions,
- *     paramsFns?: InjectTypeFnArgs<Params<H>, 'verr', 'jsonDecoder'>,
+ *     paramsFns?: InjectTypeFnArgs<Params<H>, 'validationErrors', 'jsonDecoder'>,
  *     responseFns?: InjectTypeFnArgs<Return<H>, 'jsonEncoder'>,
  *     meta?: InjectRunTypeId<Params<H>>,
  *   ) { … }

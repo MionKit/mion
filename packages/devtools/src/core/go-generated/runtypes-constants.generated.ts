@@ -20,16 +20,16 @@ export const CACHE_MODULES = {
   parse: {name: 'parseModule', varPrefix: 'g_prs_', tag: 'prs'},
   parseFail: {name: 'parseFailModule', varPrefix: 'g_prsf_', tag: 'prsf'},
   parseStrip: {name: 'parseStripModule', varPrefix: 'g_prss_', tag: 'prss'},
-  prepareForJson: {name: 'prepareForJsonModule', varPrefix: 'g_pj_', tag: 'pj'},
-  prepareForJsonSafe: {name: 'prepareForJsonSafeModule', varPrefix: 'g_pjs_', tag: 'pjs'},
+  prepareForJsonClone: {name: 'prepareForJsonCloneModule', varPrefix: 'g_pjs_', tag: 'pjs'},
+  prepareForJsonMutate: {name: 'prepareForJsonMutateModule', varPrefix: 'g_pj_', tag: 'pj'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
   restoreFromJson: {name: 'restoreFromJsonModule', varPrefix: 'g_rj_', tag: 'rj'},
-  restoreFromJsonSafe: {name: 'restoreFromJsonSafeModule', varPrefix: 'g_rjs_', tag: 'rjs'},
+  restoreFromJsonStrip: {name: 'restoreFromJsonStripModule', varPrefix: 'g_rjs_', tag: 'rjs'},
   runTypes: {name: 'runTypesModule', varPrefix: 't_', tag: 't'},
   stringifyJson: {name: 'stringifyJsonModule', varPrefix: 'g_sj_', tag: 'sj'},
+  stripUnknownKeysWire: {name: 'stripUnknownKeysWireModule', varPrefix: 'g_ukuw_', tag: 'ukuw'},
   toBinary: {name: 'toBinaryModule', varPrefix: 'g_tb_', tag: 'tb'},
   unknownKeyErrors: {name: 'unknownKeyErrorsModule', varPrefix: 'g_uke_', tag: 'uke'},
-  unknownKeysToUndefinedWire: {name: 'unknownKeysToUndefinedWireModule', varPrefix: 'g_ukuw_', tag: 'ukuw'},
   validate: {name: 'validateModule', varPrefix: 'g_val_', tag: 'val'},
   validateStrict: {name: 'validateStrictModule', varPrefix: 'g_vst_', tag: 'vst'},
   validationErrors: {name: 'validationErrorsModule', varPrefix: 'g_verr_', tag: 'verr'},
@@ -69,36 +69,36 @@ export const PARSEFAIL_TAG = 'prsf';
 export const PARSESTRIP_VAR_PREFIX = 'g_prss_';
 export const PARSESTRIP_MODULE_NAME = 'parseStripModule';
 export const PARSESTRIP_TAG = 'prss';
-export const PREPAREFORJSON_VAR_PREFIX = 'g_pj_';
-export const PREPAREFORJSON_MODULE_NAME = 'prepareForJsonModule';
-export const PREPAREFORJSON_TAG = 'pj';
-export const PREPAREFORJSONSAFE_VAR_PREFIX = 'g_pjs_';
-export const PREPAREFORJSONSAFE_MODULE_NAME = 'prepareForJsonSafeModule';
-export const PREPAREFORJSONSAFE_TAG = 'pjs';
+export const PREPAREFORJSONCLONE_VAR_PREFIX = 'g_pjs_';
+export const PREPAREFORJSONCLONE_MODULE_NAME = 'prepareForJsonCloneModule';
+export const PREPAREFORJSONCLONE_TAG = 'pjs';
+export const PREPAREFORJSONMUTATE_VAR_PREFIX = 'g_pj_';
+export const PREPAREFORJSONMUTATE_MODULE_NAME = 'prepareForJsonMutateModule';
+export const PREPAREFORJSONMUTATE_TAG = 'pj';
 export const PUREFNS_VAR_PREFIX = '';
 export const PUREFNS_MODULE_NAME = 'pureFnsModule';
 export const PUREFNS_TAG = '';
 export const RESTOREFROMJSON_VAR_PREFIX = 'g_rj_';
 export const RESTOREFROMJSON_MODULE_NAME = 'restoreFromJsonModule';
 export const RESTOREFROMJSON_TAG = 'rj';
-export const RESTOREFROMJSONSAFE_VAR_PREFIX = 'g_rjs_';
-export const RESTOREFROMJSONSAFE_MODULE_NAME = 'restoreFromJsonSafeModule';
-export const RESTOREFROMJSONSAFE_TAG = 'rjs';
+export const RESTOREFROMJSONSTRIP_VAR_PREFIX = 'g_rjs_';
+export const RESTOREFROMJSONSTRIP_MODULE_NAME = 'restoreFromJsonStripModule';
+export const RESTOREFROMJSONSTRIP_TAG = 'rjs';
 export const RUNTYPES_VAR_PREFIX = 't_';
 export const RUNTYPES_MODULE_NAME = 'runTypesModule';
 export const RUNTYPES_TAG = 't';
 export const STRINGIFYJSON_VAR_PREFIX = 'g_sj_';
 export const STRINGIFYJSON_MODULE_NAME = 'stringifyJsonModule';
 export const STRINGIFYJSON_TAG = 'sj';
+export const STRIPUNKNOWNKEYSWIRE_VAR_PREFIX = 'g_ukuw_';
+export const STRIPUNKNOWNKEYSWIRE_MODULE_NAME = 'stripUnknownKeysWireModule';
+export const STRIPUNKNOWNKEYSWIRE_TAG = 'ukuw';
 export const TOBINARY_VAR_PREFIX = 'g_tb_';
 export const TOBINARY_MODULE_NAME = 'toBinaryModule';
 export const TOBINARY_TAG = 'tb';
 export const UNKNOWNKEYERRORS_VAR_PREFIX = 'g_uke_';
 export const UNKNOWNKEYERRORS_MODULE_NAME = 'unknownKeyErrorsModule';
 export const UNKNOWNKEYERRORS_TAG = 'uke';
-export const UNKNOWNKEYSTOUNDEFINEDWIRE_VAR_PREFIX = 'g_ukuw_';
-export const UNKNOWNKEYSTOUNDEFINEDWIRE_MODULE_NAME = 'unknownKeysToUndefinedWireModule';
-export const UNKNOWNKEYSTOUNDEFINEDWIRE_TAG = 'ukuw';
 export const VALIDATE_VAR_PREFIX = 'g_val_';
 export const VALIDATE_MODULE_NAME = 'validateModule';
 export const VALIDATE_TAG = 'val';

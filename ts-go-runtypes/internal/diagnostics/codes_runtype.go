@@ -54,7 +54,7 @@ const (
 	CodePJNonSerializablePropDrop = "PJ015"
 )
 
-// prepareForJsonSafe family.
+// prepareForJsonClone family.
 const (
 	CodePJSNeverRoot               = "PJS001"
 	CodePJSNonSerializableRoot     = "PJS002"

@@ -89,21 +89,27 @@ type LiteralEncoder<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: 
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoEncoderOptions> = [
   paramsFns: InjectTypeFnArgs<
     Params,
-    'val',
-    'verr',
+    'validate',
+    'validationErrors',
     ParamsHasUnknownKeys<RouteOpts, RouterOpts>,
     ParamsUnknownKeyErrors<RouteOpts, RouterOpts>,
-    'fmt',
+    'formatTransform',
     ParamsEncode<RouteOpts, RouterOpts>,
     ParamsDecode<RouteOpts, RouterOpts>
   >,
-  returnFns: InjectTypeFnArgs<Return, 'val', 'verr', ReturnEncode<RouteOpts, RouterOpts>, ReturnDecode<RouteOpts, RouterOpts>>,
+  returnFns: InjectTypeFnArgs<
+    Return,
+    'validate',
+    'validationErrors',
+    ReturnEncode<RouteOpts, RouterOpts>,
+    ReturnDecode<RouteOpts, RouterOpts>
+  >,
   paramsId: InjectRunTypeId<Params>,
   returnId: InjectRunTypeId<Return>,
 ];
 
 /** The two extra slots a headers middleFn carries for its HeadersSubset parameter. */
 export type HeaderMarkerSlots<Headers> = [
-  headersFns: InjectTypeFnArgs<Headers, 'val', 'verr'>,
+  headersFns: InjectTypeFnArgs<Headers, 'validate', 'validationErrors'>,
   headersId: InjectRunTypeId<Headers>,
 ];

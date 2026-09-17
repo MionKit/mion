@@ -143,7 +143,7 @@ func TestParse_FailChecksThroughTheFusedValidator(t *testing.T) {
 // the declared shape — the same two-step the `strip` JSON decoder uses.
 func TestParse_StripRunsTheUnknownKeyPrePass(t *testing.T) {
 	body := parseBody(t, "parseStrip", srcFor(parseSrcNothingToRestore, "strip"))
-	stripPrefix := familyPrefix(t, "unknownKeysToUndefinedWire")
+	stripPrefix := familyPrefix(t, "stripUnknownKeysWire")
 	if !strings.Contains(body, stripPrefix) {
 		t.Fatalf("strip emitted no ukuw pre-pass:\n%s", body)
 	}

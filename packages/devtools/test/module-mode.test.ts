@@ -193,7 +193,7 @@ export const d = getRunTypeId<D>();
   });
 
   // A MULTI-FUNCTION site: the real createStandardSchema<T>() carries
-  // `InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>`, so ONE call injects
+  // `InjectTypeFnArgs<T, 'validate', 'validationErrors', 'jsonSchema'>`, so ONE call injects
   // bindings for THREE families — which under allSingle live in three
   // DIFFERENT `fns/<family>` bundles. The rewrite must therefore emit three
   // imports, one per bundle. Regression cover for the allSingle import

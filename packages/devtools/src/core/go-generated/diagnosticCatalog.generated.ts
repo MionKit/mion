@@ -680,7 +680,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'warning',
     family: 'marker',
     detail:
-      "An `InjectTypeFnArgs<T, …>` marker names each function family it needs for\n`T` once, in declaration order; the build injects one entry-module tuple\nper name and the wrapper forwards each to its factory. Naming a family\ntwice would inject a redundant identical tuple with no consumer, so it is\nalmost always a copy-paste slip and the build stops.\n\nFix: name each family at most once:\n-  id?: InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'verr'>;\n+  id?: InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'jsonEncoder'>;",
+      "An `InjectTypeFnArgs<T, …>` marker names each function family it needs for\n`T` once, in declaration order; the build injects one entry-module tuple\nper name and the wrapper forwards each to its factory. Naming a family\ntwice would inject a redundant identical tuple with no consumer, so it is\nalmost always a copy-paste slip and the build stops.\n\nFix: name each family at most once:\n-  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'validationErrors'>;\n+  id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>;",
   },
   MKR007: {
     headline:
@@ -753,6 +753,14 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'marker',
     detail:
       'Every type is given a short id hashed from its shape, and that id names the\ngenerated functions, the cache keys and the files on disk. Two types sharing\none id means nothing downstream can tell them apart, so the build stops here\ninstead of shipping one type\'s validator under the other\'s name.\n\nThe ids are exactly `hashLength` characters long by contract, so this is\nnever fixed by quietly making one of them longer. One more character is\nsixty-two times the room, and the fix is a single option:\n\nFix: raise it in your tsconfig, under the plugin entry:\n  {"compilerOptions": {"plugins": [{"name": "mion", "hashLength": {3}}]}}\n\nFix: or on the bundler plugin, for one build:\n  mionVitePlugin({hashLength: {3}})\n\nThe Related: line above points at the call site that took the id first.',
+  },
+  MKR015: {
+    headline: '`InjectTypeFnArgs` names `{0}`, which is not a function family{1}',
+    level: 'error',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      "A marker names each function it needs by the family's own name, and the\nbuild injects one compiled handle per name. An unknown name matches no\nfamily, so nothing is compiled for that slot and the wrapper receives an\nempty handle: the call falls back to its no-plugin behaviour at runtime.\n\nThe short tags that markers used to accept (`val`, `verr`, `pjs`, …) are\nthe names of the entries the build EMITS, never the names you write. Use\nthe readable name instead:\n-  id?: InjectTypeFnArgs<T, 'verr'>;\n+  id?: InjectTypeFnArgs<T, 'validationErrors'>;",
   },
   MRT001: {
     headline: 'mion `{0}` handler has no return type annotation; write the type the handler answers with.',
@@ -1047,55 +1055,55 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   PJS010: {
     headline:
-      'Property `{0}` is a function: `prepareForJsonSafe` does not handle function values, so this property is silently not encoded.',
+      'Property `{0}` is a function: `prepareForJsonClone` does not handle function values, so this property is silently not encoded.',
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      '`prepareForJsonSafe` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
+      '`prepareForJsonClone` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   PJS011: {
-    headline: "Method `{0}` is silently not encoded by `prepareForJsonSafe`: methods aren't data.",
+    headline: "Method `{0}` is silently not encoded by `prepareForJsonClone`: methods aren't data.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      "Class and object methods aren't part of the serialisable shape, so\n`prepareForJsonSafe` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
+      "Class and object methods aren't part of the serialisable shape, so\n`prepareForJsonClone` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
   },
   PJS012: {
-    headline: "Static member `{0}` is silently not encoded by `prepareForJsonSafe`: statics aren't part of instance data.",
+    headline: "Static member `{0}` is silently not encoded by `prepareForJsonClone`: statics aren't part of instance data.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      'Class static members live on the class, not on individual instances.\n`prepareForJsonSafe` operates on instance shape, so statics are excluded.',
+      'Class static members live on the class, not on individual instances.\n`prepareForJsonClone` operates on instance shape, so statics are excluded.',
   },
   PJS013: {
     headline:
-      "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonSafe`: symbol keys aren't JSON-representable.",
+      "Symbol-keyed property `{0}` is silently not encoded by `prepareForJsonClone`: symbol keys aren't JSON-representable.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `prepareForJsonSafe` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
+      "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `prepareForJsonClone` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
   },
   PJS014: {
     headline:
-      "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonSafe` drops them, so the union is encoded as its remaining members.",
+      "Union member(s) of type `{0}` can't be represented as data: `prepareForJsonClone` drops them, so the union is encoded as its remaining members.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `prepareForJsonSafe` encoded only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `prepareForJsonSafe` throws at build time instead.',
+      'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `prepareForJsonClone` encoded only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `prepareForJsonClone` throws at build time instead.',
   },
   PJS015: {
     headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonSafe` drops it, so this property is silently not encoded.',
+      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `prepareForJsonClone` drops it, so this property is silently not encoded.',
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      '`prepareForJsonSafe` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `prepareForJsonSafe` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
+      '`prepareForJsonClone` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `prepareForJsonClone` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
   },
   RJ001: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
@@ -1376,12 +1384,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   UKW010: {
     headline:
-      'Property `{0}` is a function: `unknownKeysToUndefinedWire` does not handle function values, so this property is silently not cleared.',
+      'Property `{0}` is a function: `stripUnknownKeysWire` does not handle function values, so this property is silently not cleared.',
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      '`unknownKeysToUndefinedWire` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
+      '`stripUnknownKeysWire` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   UPN001: {
     headline: 'Property `{0}` is named after a prototype slot and can never be data: the generated function will always fail.',

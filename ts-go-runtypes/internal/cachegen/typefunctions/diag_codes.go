@@ -84,7 +84,7 @@ func (PrepareForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return prepareForJsonRootCodes.codeFor(leaf)
 }
 
-var prepareForJsonSafeCodes = map[DiagSlot]string{
+var prepareForJsonCloneCodes = map[DiagSlot]string{
 	SlotNeverRoot:                  diagnostics.CodePJSNeverRoot,
 	SlotNonSerializableRoot:        diagnostics.CodePJSNonSerializableRoot,
 	SlotFunctionRoot:               diagnostics.CodePJSFunctionRoot,
@@ -96,19 +96,19 @@ var prepareForJsonSafeCodes = map[DiagSlot]string{
 	SlotNonSerializablePropDropped: diagnostics.CodePJSNonSerializablePropDrop,
 }
 
-func (PrepareForJsonSafeEmitter) DiagCodeFor(slot DiagSlot) string {
-	return prepareForJsonSafeCodes[slot]
+func (PrepareForJsonCloneEmitter) DiagCodeFor(slot DiagSlot) string {
+	return prepareForJsonCloneCodes[slot]
 }
 
-var prepareForJsonSafeRootCodes = rootCodeMap{
+var prepareForJsonCloneRootCodes = rootCodeMap{
 	never:           diagnostics.CodePJSNeverRoot,
 	nonSerializable: diagnostics.CodePJSNonSerializableRoot,
 	function:        diagnostics.CodePJSFunctionRoot,
 	symbol:          diagnostics.CodePJSSymbolRoot,
 }
 
-func (PrepareForJsonSafeEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return prepareForJsonSafeRootCodes.codeFor(leaf)
+func (PrepareForJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+	return prepareForJsonCloneRootCodes.codeFor(leaf)
 }
 
 var restoreFromJsonCodes = map[DiagSlot]string{
@@ -136,7 +136,7 @@ func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-// The `compact` strategy's encode/decode walks REUSE prepareForJsonSafe /
+// The `compact` strategy's encode/decode walks REUSE prepareForJsonClone /
 // restoreFromJson arm-by-arm (only the object arm diverges to a positional
 // array — see json_compact.go / json_compact_restore.go), so they DELEGATE
 // their diagnostic codes the same way: cj → pjs, cjr → rj. Without these the
@@ -150,11 +150,11 @@ func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 // too), so the shared PJS*/RJ* wording is exactly right — compact now matches
 // clone (PJS003) and preserve/strip (RJ003) byte-for-byte.
 func (CompactForJsonEmitter) DiagCodeFor(slot DiagSlot) string {
-	return prepareForJsonSafeCodes[slot]
+	return prepareForJsonCloneCodes[slot]
 }
 
 func (CompactForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return prepareForJsonSafeRootCodes.codeFor(leaf)
+	return prepareForJsonCloneRootCodes.codeFor(leaf)
 }
 
 func (CompactFromJsonEmitter) DiagCodeFor(slot DiagSlot) string {
@@ -165,14 +165,14 @@ func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-// restoreFromJsonSafe changes no leaf's serializability (a rebuild or a guard
+// restoreFromJsonStrip changes no leaf's serializability (a rebuild or a guard
 // around one of restoreFromJson's arms never makes a leaf unserializable), so
 // it delegates its diagnostic codes the same way compactFromJson does.
-func (RestoreFromJsonSafeEmitter) DiagCodeFor(slot DiagSlot) string {
+func (RestoreFromJsonStripEmitter) DiagCodeFor(slot DiagSlot) string {
 	return restoreFromJsonCodes[slot]
 }
 
-func (RestoreFromJsonSafeEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+func (RestoreFromJsonStripEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
@@ -346,10 +346,10 @@ func (UnknownKeysToUndefinedEmitter) DiagCodeFor(slot DiagSlot) string {
 	return unknownKeysToUndefinedCodes[slot]
 }
 
-var unknownKeysToUndefinedWireCodes = map[DiagSlot]string{
+var stripUnknownKeysWireCodes = map[DiagSlot]string{
 	SlotFunctionPropDropped: diagnostics.CodeUKWFunctionPropDropped,
 }
 
-func (UnknownKeysToUndefinedWireEmitter) DiagCodeFor(slot DiagSlot) string {
-	return unknownKeysToUndefinedWireCodes[slot]
+func (StripUnknownKeysWireEmitter) DiagCodeFor(slot DiagSlot) string {
+	return stripUnknownKeysWireCodes[slot]
 }

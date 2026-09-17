@@ -43,7 +43,7 @@ type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 
 export function route<H extends AnyHandler>(
   handler: H,
-  fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>,
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>,
 ) {
   const getErrors = createGetValidationErrorsFn(undefined, undefined, fns?.[0] as never);
   const decode = createJsonDecoderFn(undefined, undefined, fns?.[1] as never);

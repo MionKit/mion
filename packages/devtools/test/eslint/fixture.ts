@@ -32,7 +32,7 @@ export interface ValidateOptions {
 export declare function createValidateFn<T>(
   val?: T,
   options?: CompTimeFnArgs<ValidateOptions>,
-  id?: InjectTypeFnArgs<T, 'val'>
+  id?: InjectTypeFnArgs<T, 'validate'>
 ): (value: unknown) => boolean;
 export type FriendlyText<T> = Record<string, unknown> & {readonly __rtFriendly?: T};
 /** @deprecated legacy alias kept so mirrors authored before the friendly-text rename still resolve */

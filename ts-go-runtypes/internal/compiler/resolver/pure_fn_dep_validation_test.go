@@ -22,7 +22,7 @@ const runtypesDTSWithPureFn = `declare module '@mionjs/run-types' {
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
   export interface ValidateOptions {noLiterals?: boolean; noIsArrayCheck?: boolean; rejectCircularRefs?: boolean}
-  export function createGetValidationErrorsFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'verr'>): (v: unknown, p?: unknown[], e?: unknown[]) => unknown[];
+  export function createGetValidationErrorsFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validationErrors'>): (v: unknown, p?: unknown[], e?: unknown[]) => unknown[];
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
   export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
   export type PureFnId = string & {readonly __rtPureFnIdBrand?: never};

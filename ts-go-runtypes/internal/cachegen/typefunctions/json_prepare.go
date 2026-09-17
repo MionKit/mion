@@ -259,7 +259,7 @@ func emitObjectJsonChildren(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	// left as-is), never by the index value's transform. Without this the index
 	// transform corrupts a named prop whose type differs from the index value
 	// (e.g. a `number` prop under a `[k: number]: bigint` index — G1). The
-	// prepareForJsonSafe (clone) path already does this via its declared-key
+	// prepareForJsonClone (clone) path already does this via its declared-key
 	// skip; this brings the mutate (prepareForJson) and restore (restoreFromJson)
 	// walks into line. Shared by both, since they share this object walk.
 	publishSiblingNamedKeysForIndexSig(rt, ctx)

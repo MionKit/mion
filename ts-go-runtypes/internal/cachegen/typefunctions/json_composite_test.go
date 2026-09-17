@@ -36,7 +36,7 @@ func compositeBodyFor(t *testing.T, tag string) string {
 func TestJsonComposite_DirectFnBind_DecoderStrip(t *testing.T) {
 	body := compositeBodyFor(t, "jdST")
 	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
-	ukuwKey := operations.PlainHash("unknownKeysToUndefinedWire") + "_obj1"
+	ukuwKey := operations.PlainHash("stripUnknownKeysWire") + "_obj1"
 	for _, want := range []string{
 		"const rjFn = utl.getRT('" + rjKey + "').fn",
 		"const ukuwFn = utl.getRT('" + ukuwKey + "').fn",
