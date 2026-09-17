@@ -1813,10 +1813,23 @@ func (sess *Session) noopValidateOptionDiag(file string, call *ast.Node, lastInd
 // optional()/propMod() carrier) as a valid CompTimeArgs leaf — so a nested
 // `string({…})` or `optional(number())` inside `object({…})` passes without
 // recursing into it (each self-validates on its own scan visit).
+//
+// A marker helper that returns a fully literal-typed VALUE bundle
+// (`registerFormatPattern({source: '…'})` → `FormatPattern<{source: '…', …}>`)
+// is a leaf for the opposite reason: the scanner reads every field off the
+// returned TYPE, so the call never has to be evaluated. Both halves are judged
+// on the return type, so a helper added later is covered without a name list —
+// and a widened bundle (`source: string`) stays rejected, because there the
+// value really would be lost.
 func (state scanState) isBuilderCallPredicate() func(*ast.Node) bool {
 	markerOpts := state.sess.marker
 	return func(node *ast.Node) bool {
-		return builders.IsBuilderLeafCall(state.scanChecker, node, markerOpts)
+		if builders.IsBuilderLeafCall(state.scanChecker, node, markerOpts) {
+			return true
+		}
+		returnType := builders.CallReturnType(state.scanChecker, node)
+		return builders.IsMarkerPackageType(returnType, markerOpts) &&
+			comptimeargs.IsTypeReadableValue(state.scanChecker, returnType)
 	}
 }
 

@@ -76,11 +76,7 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, call *ast.Node, markerOpts 
 	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
 		return false
 	}
-	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
-	if signature == nil {
-		return false
-	}
-	returnType := checker.Checker_getReturnTypeOfSignature(typeChecker, signature)
+	returnType := CallReturnType(typeChecker, call)
 	if returnType == nil {
 		return false
 	}
@@ -106,16 +102,53 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, call *ast.Node, markerOpts 
 // virtual filesystem for the package.json walk); see
 // marker.Options.DeclaredInMarkerPackage.
 func IsRunType(tsType *checker.Type, markerOpts marker.Options) bool {
-	if tsType == nil {
-		return false
-	}
-	if symbol := checker.Type_symbol(tsType); symbol != nil && symbol.Name == RunTypeName && markerOpts.DeclaredInMarkerPackage(symbol) {
-		return true
-	}
-	if alias := checker.Type_alias(tsType); alias != nil {
-		if symbol := alias.Symbol(); symbol != nil && symbol.Name == RunTypeName && markerOpts.DeclaredInMarkerPackage(symbol) {
+	for _, symbol := range declaringSymbols(tsType) {
+		if symbol != nil && symbol.Name == RunTypeName && markerOpts.DeclaredInMarkerPackage(symbol) {
 			return true
 		}
 	}
 	return false
+}
+
+// IsMarkerPackageType reports whether tsType is DECLARED in an accepted marker
+// package, whatever its name. The name-free twin of IsRunType, for callers that
+// judge a type by its shape and only need to know the shape is ours — a user
+// module's own all-literal return type must not earn a marker type's leeway.
+func IsMarkerPackageType(tsType *checker.Type, markerOpts marker.Options) bool {
+	for _, symbol := range declaringSymbols(tsType) {
+		if symbol != nil && markerOpts.DeclaredInMarkerPackage(symbol) {
+			return true
+		}
+	}
+	return false
+}
+
+// declaringSymbols returns the type's own symbol and its alias symbol (the
+// alias covers a future declaration that aliases the interface). Either may be
+// nil; both are checked because only one of them carries the declaration on a
+// given type.
+func declaringSymbols(tsType *checker.Type) [2]*ast.Symbol {
+	var symbols [2]*ast.Symbol
+	if tsType == nil {
+		return symbols
+	}
+	symbols[0] = checker.Type_symbol(tsType)
+	if alias := checker.Type_alias(tsType); alias != nil {
+		symbols[1] = alias.Symbol()
+	}
+	return symbols
+}
+
+// CallReturnType resolves call's return type, or nil when call isn't a call
+// expression or its signature doesn't resolve. Exported so a caller needing
+// more than IsBuilderLeafCall's verdict inspects the same type it judges on.
+func CallReturnType(typeChecker *checker.Checker, call *ast.Node) *checker.Type {
+	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
+		return nil
+	}
+	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
+	if signature == nil {
+		return nil
+	}
+	return checker.Checker_getReturnTypeOfSignature(typeChecker, signature)
 }
