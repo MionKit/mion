@@ -39,7 +39,7 @@ export type InjectRunTypeId<T> = string & {
  * Trailing-slot injection marker for the `createX` factories. Like
  * `InjectRunTypeId<T>` the transformer fills the `id?` parameter at build time,
  * but `InjectTypeFnArgs` carries one or more `Fn` type arguments naming the
- * function families (`'val'`, `'verr'`, `'jsonEncoder'`, …) the site needs for
+ * function families (`'validate'`, `'validationErrors'`, `'jsonEncoder'`, …) the site needs for
  * `T`. The Go backend emits only the demanded function caches and the runtime
  * resolves the precise factories without recomputing a key.
  *
@@ -47,10 +47,13 @@ export type InjectRunTypeId<T> = string & {
  * value is the family's entry-module tuple, resolved by the one `createX`.
  *
  * `Fn` also names the JSON value-level primitives that have NO dedicated factory —
- * `'pj'`/`'pjs'` (mutate/clone prepare), `'rj'`/`'rjs'` (restore, and the strip
- * restore that rebuilds the declared shape), `'sj'` (direct stringify), `'ukuw'`
- * (strip wire pre-pass), `'cj'`/`'cjr'` (compact encode/decode). A wrapper recovers those from the injected tuple with the
- * generic `getRTFunction<'prepareForJsonClone'>(fns?.[i])` resolver (keyed by the SAME fnKey)
+ * `'prepareForJsonMutate'`/`'prepareForJsonClone'`,
+ * `'restoreFromJson'`/`'restoreFromJsonStrip'` (the strip restore rebuilds the
+ * declared shape), `'stringifyJson'` (direct stringify),
+ * `'stripUnknownKeysWire'` (strip wire pre-pass) and
+ * `'compactForJson'`/`'compactFromJson'`. A wrapper recovers those from the
+ * injected tuple with the generic
+ * `getRTFunction<'prepareForJsonClone'>(fns?.[i])` resolver (keyed by the SAME fnKey)
  * instead of a factory, so a framework that owns its own JSON envelope can pull a
  * per-strategy `prepareForJson` / `restoreFromJson` for `T` and apply it at the
  * value level (no string hop).

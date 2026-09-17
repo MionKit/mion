@@ -179,7 +179,7 @@ export const d = describeType<{a: number}>();
     const sources = {
       'four-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
-function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'hasUnknownKeys', 'suk', 'unknownKeyErrors'>) {
+function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'validationErrors', 'hasUnknownKeys', 'cloneExactShape', 'unknownKeyErrors'>) {
   return {handler, fns};
 }
 export const r = route((ctx: unknown, name: string) => name.length);
@@ -192,6 +192,108 @@ export const r = route((ctx: unknown, name: string) => name.length);
       expect(response.sites.length).toBe(1);
       // One injected handle per named family — four, in declaration order.
       expect(response.sites[0].fnIds?.length).toBe(4);
+    });
+  });
+
+  register('errors with MKR015 when an InjectTypeFnArgs marker names a family that does not exist', async () => {
+    // A marker names each function by its readable name. The short tags that
+    // markers used to take name the entries the build EMITS, so one of those
+    // resolves to nothing: no compiled entry, and a wrapper left holding an
+    // empty slot that only fails once it runs. The build says so instead, and
+    // names the family the author meant.
+    const sources = {
+      'stale-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
+type Handler = (ctx: unknown, ...rest: any[]) => unknown;
+function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<H>, 'verr'>) {
+  return {handler, fns};
+}
+export const r = route((ctx: unknown, name: string) => name.length);
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources));
+      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'MKR015');
+      expect(diagnostics).toHaveLength(1);
+      // LevelError: nothing was compiled for the slot the marker asked for.
+      expect(diagnostics[0].level).toBe(Level.Error);
+      // The unknown token, then the did-you-mean naming the family it emits for.
+      expect(diagnostics[0].args?.[0]).toBe('verr');
+      expect(diagnostics[0].args?.[1]).toContain('validationErrors');
+    });
+  });
+
+  register('reports MKR015 from a multi-slot signature too, and in both call shapes', async () => {
+    // The unknown-family check lives in the shared fn resolution, but the two
+    // analyze paths reach it separately: a single trailing marker and a
+    // multi-slot signature that fills several marker parameters at once. Pin
+    // both, in the static and the value-first call shape, so neither path can
+    // go quiet on its own.
+    const sources = {
+      'multi-slot-stale.ts': `import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+type Handler = (ctx: unknown, ...rest: any[]) => unknown;
+declare function route<H extends Handler>(
+  handler: H,
+  opts?: {basePath?: string},
+  paramsFns?: InjectTypeFnArgs<Parameters<H>, 'validate', 'pjs'>,
+  returnFns?: InjectTypeFnArgs<ReturnType<H>, 'validationErrors'>,
+  paramsId?: InjectRunTypeId<Parameters<H>>,
+): unknown;
+export const r = route((ctx: unknown, name: string) => name.length);
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources));
+      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'MKR015');
+      // Only the stale slot reports; the two readable ones beside it are fine.
+      expect(diagnostics).toHaveLength(1);
+      expect(diagnostics[0].args?.[0]).toBe('pjs');
+      expect(diagnostics[0].args?.[1]).toContain('prepareForJsonClone');
+    });
+  });
+
+  register('a stale family name reports the same in the static and value-first shapes', async () => {
+    // The marker-coverage rule: a createX site resolves T either from an
+    // explicit type argument or from the value it is handed, and the two must
+    // behave alike. A stale family name is not a property of the call shape.
+    const sources = {
+      'shapes.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
+declare function createThing<T>(val?: T, id?: InjectTypeFnArgs<T, 'huk'>): unknown;
+export const fromType = createThing<{id: number}>();
+const value = {id: 1};
+export const fromValue = createThing(value);
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources));
+      const diagnostics = markerDiagsOf(response).filter((d) => d.code === 'MKR015');
+      // One per call site, and both name the same family.
+      expect(diagnostics).toHaveLength(2);
+      for (const diagnostic of diagnostics) {
+        expect(diagnostic.args?.[0]).toBe('huk');
+        expect(diagnostic.args?.[1]).toContain('hasUnknownKeys');
+      }
+    });
+  });
+
+  register('accepts every readable family name a marker can spell', async () => {
+    // The whole public vocabulary in one marker, so a name that stops resolving
+    // shows up here rather than as a silently missing function at runtime.
+    const sources = {
+      'every-fn.ts': `import type {InjectTypeFnArgs} from '@mionjs/run-types';
+type Handler = (ctx: unknown, ...rest: any[]) => unknown;
+function route<H extends Handler>(
+  handler: H,
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validate', 'validationErrors', 'hasUnknownKeys', 'unknownKeyErrors', 'formatTransform', 'prepareForJsonClone', 'restoreFromJsonStrip'>
+) {
+  return {handler, fns};
+}
+export const r = route((ctx: unknown, name: string) => name.length);
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources));
+      expect(markerDiagsOf(response).filter((d) => d.code === 'MKR015')).toEqual([]);
+      expect(response.sites[0].fnIds?.length).toBe(7);
     });
   });
 
@@ -213,11 +315,11 @@ export const r = route((ctx: unknown, name: string) => name.length);
       // normally, so what ships is correct and only the source is untidy. It
       // used to halt the build, which the emitted output never justified.
       expect(diagnostics[0].level).toBe(Level.Warning);
-      // Args carry the FIRST REPEATED family ('verr'), NOT the first key 'huk' —
+      // Args carry the FIRST REPEATED family, NOT the first key of the list —
       // pins first-repeated-key reporting rather than first-key.
-      expect(diagnostics[0].args).toEqual(['verr']);
-      // The site is still emitted with the duplicate removed (huk, verr,
-      // jsonDecoder) — which is exactly why this is not an error.
+      expect(diagnostics[0].args).toEqual(['validationErrors']);
+      // The site is still emitted with the duplicate removed, which is exactly
+      // why this is not an error.
       expect(response.sites.length).toBe(1);
       expect(response.sites[0].fnIds?.length).toBe(3);
     });

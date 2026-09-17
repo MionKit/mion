@@ -636,8 +636,8 @@ func unknownKeysChildrenCode(rt *reflection.RunType, ctx *EmitContext) string {
 
 // unknownKeysSupports gates the renderer's top-level loop for EVERY
 // unknown-keys family emitter (has / strip / errors / toUndefined /
-// toUndefinedWire) — the families differ in what they emit per kind,
-// never in which kinds they accept. Same set as the prepareForJson /
+// stripUnknownKeysWire) — the families differ in what they emit per kind,
+// never in which kinds they accept. Same set as the prepareForJsonMutate /
 // validationErrors emitters in Phase 0 (every kind a real codegen pass
 // will need to either handle or transparently no-op). Atomic kinds emit
 // an empty body and each family's Finalize folds that to its noop shape.

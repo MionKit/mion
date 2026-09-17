@@ -82,7 +82,7 @@ export function createStandardSchema<T>(
   // lookups (correct even for recursive schemas).
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
   // The marker injects `[valTuple, verrTuple, jscTuple]` in the Fn-arg order
-  // 'val','verr','jsonSchema'.
+  // 'validate','validationErrors','jsonSchema'.
   const valInjected = entryTupleAt(ids, 0);
   const verrInjected = entryTupleAt(ids, 1);
   const jscInjected = entryTupleAt(ids, 2);

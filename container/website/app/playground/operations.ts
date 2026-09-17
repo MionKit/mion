@@ -1,6 +1,5 @@
-// The build functions the playground offers. `factory` is the mion
-// export; `fnKey` matches the marker overlay. `kind` selects how the engine
-// invokes it and how the result is shaped.
+// The build functions the playground offers. `factory` is the mion export;
+// `kind` selects how the engine invokes it and how the result is shaped.
 //
 // Several JSON entries share the same `createJsonEncoderFn` / `createJsonDecoderFn`
 // factory but differ by `options`: the comptime `{strategy: '…'}` literal the
@@ -13,7 +12,6 @@ export type OperationKind = 'predicate' | 'errors' | 'encode' | 'jsonRoundtrip' 
 export interface Operation {
   key: string;
   factory: string;
-  fnKey: string | null;
   kind: OperationKind;
   // `<optgroup>` heading + `<option>` text for the picker.
   group: string;
@@ -41,7 +39,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'validate',
     factory: 'createValidateFn',
-    fnKey: 'val',
     kind: 'predicate',
     group: 'Validation',
     menuLabel: 'validate',
@@ -55,7 +52,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'errors',
     factory: 'createGetValidationErrorsFn',
-    fnKey: 'verr',
     kind: 'errors',
     group: 'Validation',
     menuLabel: 'get validation errors',
@@ -69,7 +65,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonEncoderClone',
     factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
     menuLabel: 'json enc clone (default)',
@@ -84,7 +79,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonEncoderMutate',
     factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
     menuLabel: 'json enc mutate',
@@ -99,7 +93,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonEncoderDirect',
     factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
     menuLabel: 'json enc direct',
@@ -114,7 +107,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonEncoderCompact',
     factory: 'createJsonEncoderFn',
-    fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
     menuLabel: 'json enc compact',
@@ -129,7 +121,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonDecoderStrip',
     factory: 'createJsonDecoderFn',
-    fnKey: 'jsonDecoder',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
     menuLabel: 'json dec remove unknown keys (default)',
@@ -145,7 +136,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'jsonDecoderPreserve',
     factory: 'createJsonDecoderFn',
-    fnKey: 'jsonDecoder',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
     menuLabel: 'json dec keep unknown keys',
@@ -161,7 +151,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'binaryEncoder',
     factory: 'createBinaryEncoderFn',
-    fnKey: 'tb',
     kind: 'binaryEncode',
     group: 'Binary',
     menuLabel: 'binary enc',
@@ -175,7 +164,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'binaryDecoder',
     factory: 'createBinaryDecoderFn',
-    fnKey: 'fb',
     kind: 'binaryRoundtrip',
     group: 'Binary',
     menuLabel: 'binary dec',
@@ -189,7 +177,6 @@ export const OPERATIONS: readonly Operation[] = [
   {
     key: 'graph',
     factory: 'getRunType',
-    fnKey: null,
     kind: 'graph',
     group: 'Reflection',
     menuLabel: 'getRunType',

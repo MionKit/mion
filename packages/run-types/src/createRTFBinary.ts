@@ -248,11 +248,11 @@ export function createBinaryEncoderFn<T>(
 export type BinarySizerFn = (value: unknown) => number;
 
 /** Returns the exact on-wire byte count `createBinaryEncoderFn<T>()` would produce
- *  for `value`, WITHOUT allocating an output buffer. Runs the SAME emitted `'tb'`
+ *  for `value`, WITHOUT allocating an output buffer. Runs the SAME emitted `'toBinary'`
  *  body as the encoder against a no-op measure serializer, so the count is exact:
  *  `createBinarySizerFn(v) === createBinaryEncoderFn(v)(…).byteLength`. Use it to size a
  *  `sizeStrategy: 'initialSize'` encoder or to allocate an exact buffer for `intoBuffer`.
- *  Reuses the encoder's `'tb'` cache entry — no new family. **/
+ *  Reuses the encoder's `'toBinary'` cache entry — no new family. **/
 export function createBinarySizerFn<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'toBinary'>): BinarySizerFn;
 export function createBinarySizerFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'toBinary'>): BinarySizerFn;
 export function createBinarySizerFn<T>(valOrSchema?: T | RunType<T>, id?: InjectTypeFnArgs<T, 'toBinary'>): BinarySizerFn {

@@ -107,24 +107,41 @@ export const JIT_FUNCTION_IDS = {
   unknownKeyErrors: getFnHash('unknownKeyErrors'), // strictTypes
   formatTransform: getFnHash('formatTransform'), // sanitizeParams
   // the JSON families, one encoder per strategy and the two decoders (see ENCODE_FAMILY_BY_STRATEGY)
-  pjs: getFnHash('prepareForJsonClone'),
-  pj: getFnHash('prepareForJsonMutate'),
-  sj: getFnHash('stringifyJson'),
-  cj: getFnHash('compactForJson'),
-  rj: getFnHash('restoreFromJson'),
-  rjs: getFnHash('restoreFromJsonStrip'),
-  cjr: getFnHash('compactFromJson'),
+  prepareForJsonClone: getFnHash('prepareForJsonClone'),
+  prepareForJsonMutate: getFnHash('prepareForJsonMutate'),
+  stringifyJson: getFnHash('stringifyJson'),
+  compactForJson: getFnHash('compactForJson'),
+  restoreFromJson: getFnHash('restoreFromJson'),
+  restoreFromJsonStrip: getFnHash('restoreFromJsonStrip'),
+  compactFromJson: getFnHash('compactFromJson'),
 } as const;
 
-/** The compiled family (marker key) each JSON strategy ENCODES with: `clone` builds a new JSON-safe
- *  value, `mutate` transforms in place, `direct` writes the JSON string, `compact` builds the
- *  positional array. */
-export const ENCODE_FAMILY_BY_STRATEGY = {clone: 'pjs', mutate: 'pj', direct: 'sj', compact: 'cj'} as const;
-/** The compiled family each JSON strategy DECODES with. A strategy that strips on encode strips on decode too
- *  (clone uses rjs, compact uses cjr) or it covers only bytes mion wrote; mutate and direct keep undeclared keys. */
-export const DECODE_FAMILY_BY_STRATEGY = {clone: 'rjs', mutate: 'rj', direct: 'rj', compact: 'cjr'} as const;
+/** The compiled family each JSON strategy ENCODES with, named by its MARKER token (the name a
+ *  route's InjectTypeFnArgs asks for), not by the short tag the compiled entry carries: `clone`
+ *  builds a new JSON-safe value, `mutate` transforms in place, `direct` writes the JSON string,
+ *  `compact` builds the positional array. */
+export const ENCODE_FAMILY_BY_STRATEGY = {
+  clone: 'prepareForJsonClone',
+  mutate: 'prepareForJsonMutate',
+  direct: 'stringifyJson',
+  compact: 'compactForJson',
+} as const;
+/** The compiled family each JSON strategy DECODES with. A strategy that strips on encode strips on
+ *  decode too (clone rebuilds the declared shape, so does compact) or it covers only bytes mion
+ *  wrote; mutate and direct keep undeclared keys. */
+export const DECODE_FAMILY_BY_STRATEGY = {
+  clone: 'restoreFromJsonStrip',
+  mutate: 'restoreFromJson',
+  direct: 'restoreFromJson',
+  compact: 'compactFromJson',
+} as const;
 /** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */
-export const STRATEGY_BY_ENCODE_FAMILY = {pjs: 'clone', pj: 'mutate', sj: 'direct', cj: 'compact'} as const;
+export const STRATEGY_BY_ENCODE_FAMILY = {
+  prepareForJsonClone: 'clone',
+  prepareForJsonMutate: 'mutate',
+  stringifyJson: 'direct',
+  compactForJson: 'compact',
+} as const;
 export type EncodeFamily = (typeof ENCODE_FAMILY_BY_STRATEGY)[keyof typeof ENCODE_FAMILY_BY_STRATEGY];
 export type DecodeFamily = (typeof DECODE_FAMILY_BY_STRATEGY)[keyof typeof DECODE_FAMILY_BY_STRATEGY];
 

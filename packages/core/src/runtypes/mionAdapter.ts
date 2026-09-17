@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@mionjs/run-types';
+import {FAMILY_TAG_TO_FN_KEY, getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@mionjs/run-types';
 import type {FnHashKey, GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '@mionjs/run-types';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types';
 import {getJitFnHashes} from '../routerUtils.ts';
@@ -29,33 +29,38 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 // already consumes, so dispatch and serialization code stay untouched.
 
 /** The VOCABULARY of fn keys a route marker may name; the helpers compute which ones each call
- *  requests from its `encoder`. Order is irrelevant, the payload is projected by family tag.
- *  ⚠️ Markers must be spelled InjectTypeFnArgs<T, 'validate', 'validationErrors', …> in the helper signatures: a local
- *  alias over the marker is NOT recognized by the scanner (verified 2026-07-11). */
+ *  requests from its `encoder`. Order is irrelevant: the payload is projected by fn key.
+ *  ⚠️ Markers must be spelled InjectTypeFnArgs<T, 'validate', 'validationErrors', …> in the helper
+ *  signatures: a local alias over the marker is NOT recognized by the scanner (verified 2026-07-11). */
 export const MION_FN_KEYS = [
-  'val',
-  'verr',
-  'huk',
-  'uke',
-  'fmt',
-  'pjs',
-  'pj',
-  'sj',
-  'cj',
-  'rj',
-  'rjs',
-  'cjr',
+  'validate',
+  'validationErrors',
+  'hasUnknownKeys',
+  'unknownKeyErrors',
+  'formatTransform',
+  'prepareForJsonClone',
+  'prepareForJsonMutate',
+  'stringifyJson',
+  'compactForJson',
+  'restoreFromJson',
+  'restoreFromJsonStrip',
+  'compactFromJson',
 ] as const satisfies readonly FnHashKey[];
 
-/** Projects the injected payload onto its family tags. Each entry tuple's slot 0 is the emitting
- *  family (`pj`, `cjr`, `sj`, …, the tag `CompiledFnData.familyTag` carries), so no positional
+/** Projects the injected payload onto the fn keys a marker names. A compiled entry carries the
+ *  SHORT family tag at slot 0 (`pjs`, `cjr`, `sj`, …, the tag `CompiledFnData.familyTag` holds)
+ *  while a marker names the readable key (`prepareForJsonClone`), so the tag is translated back
+ *  through the generated map and everything downstream speaks one vocabulary. No positional
  *  contract is needed: the array is only as long as the families the strategy demanded. */
-function byFamilyTag(injected: unknown[]): Partial<Record<FnHashKey, unknown>> {
+function byFnKey(injected: unknown[]): Partial<Record<FnHashKey, unknown>> {
   const out: Record<string, unknown> = {};
   for (const tuple of injected) {
     if (!Array.isArray(tuple)) continue;
     const tag = tuple[0];
-    if (typeof tag === 'string') out[tag] = tuple;
+    if (typeof tag !== 'string') continue;
+    // An unmapped tag is a composite (jeCL, jdST, …) or build skew; key it as-is so the
+    // fail-closed checks below still see it and report the payload they actually got.
+    out[FAMILY_TAG_TO_FN_KEY[tag as keyof typeof FAMILY_TAG_TO_FN_KEY] ?? tag] = tuple;
   }
   return out as Partial<Record<FnHashKey, unknown>>;
 }
@@ -206,7 +211,7 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 }
 
 const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
-const DECODE_FAMILIES = ['rj', 'rjs', 'cjr'] as const;
+const DECODE_FAMILIES = ["restoreFromJson", "restoreFromJsonStrip", "compactFromJson"] as const;
 type CompiledJsonFamilies = {strategy: JsonStrategy; encodeFamily: (typeof ENCODE_FAMILIES)[number]; decodeFamily: DecodeFamily};
 
 /** The JSON strategy a fn set was compiled for, read off its injected families: exactly one encode
@@ -237,21 +242,21 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
       `RunTypes: no compiled type functions injected for '${label}'. ` +
         `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
-  const fns = byFamilyTag(injected);
+  const fns = byFnKey(injected);
   // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
   // skew — falling back would silently DISABLE validation/serialization for this method.
-  if (fns.val === undefined || fns.verr === undefined)
+  if (fns.validate === undefined || fns.validationErrors === undefined)
     throw new Error(
       `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
-        `val/verr are required). Rebuild with a matching @mionjs/devtools + RunTypes version.`
+        `validate/validationErrors are required). Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
   const {strategy, encodeFamily, decodeFamily} = strategyFromFamilies(fns, label);
-  const isType = getRTFunction<'validate'>(fns.val, alwaysTrue);
-  const typeErrors = getRTFunction<'validationErrors'>(fns.verr, noErrors);
+  const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
+  const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
   const encode = getRTFunction<'prepareForJsonMutate'>(fns[encodeFamily], identity as JsonEncodeFn);
   const decode = getRTFunction<'restoreFromJson'>(fns[decodeFamily], identity as never);
   // formatTransform (sanitizeParams) follows the same rule: a real, non-noop entry or nothing
-  if (fns.fmt !== undefined) getRTFunction<'formatTransform'>(fns.fmt);
+  if (fns.formatTransform !== undefined) getRTFunction<'formatTransform'>(fns.formatTransform);
   // getRTFunction initialized the injected tuples, so the full entries are now
   // resolvable from the mion cache under `<fnHashPrefix>_<typeId>`.
   const hashes: JitFunctionsHashes = getJitFnHashes(typeId, strategy);
@@ -281,9 +286,9 @@ function unknownKeysEntries(
   hashes: JitFunctionsHashes,
   label: string
 ): Pick<JitCompiledFunctions, 'hasUnknownKeys' | 'unknownKeyErrors'> {
-  if (fns.huk === undefined && fns.uke === undefined) return {};
-  const hasUnknownKeys = getRTFunction<'hasUnknownKeys'>(fns.huk, alwaysFalse);
-  const unknownKeyErrors = getRTFunction<'unknownKeyErrors'>(fns.uke, noUnknownKeyErrors);
+  if (fns.hasUnknownKeys === undefined && fns.unknownKeyErrors === undefined) return {};
+  const hasUnknownKeys = getRTFunction<'hasUnknownKeys'>(fns.hasUnknownKeys, alwaysFalse);
+  const unknownKeyErrors = getRTFunction<'unknownKeyErrors'>(fns.unknownKeyErrors, noUnknownKeyErrors);
   return {
     hasUnknownKeys: resolveFn(hasUnknownKeys as AnyFn, 'hasUnknownKeys', label, hashes.hasUnknownKeys ?? ''),
     unknownKeyErrors: resolveFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
@@ -440,7 +445,7 @@ export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] |
   return propNodes.map((prop) => prop.name).filter((name): name is string => typeof name === 'string');
 }
 
-/** Builds the isType/typeErrors pair from a 2-key ('val','verr') HeadersSubset marker payload. */
+/** Builds the isType/typeErrors pair from a 2-key ('validate','validationErrors') HeadersSubset marker payload. */
 export function buildHeaderJitFnsFromMarker(
   injected: unknown,
   typeId: string,
@@ -451,15 +456,15 @@ export function buildHeaderJitFnsFromMarker(
       `RunTypes: no compiled header type functions injected for '${label}'. ` +
         `The @mionjs/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
     );
-  const fns = byFamilyTag(injected);
+  const fns = byFnKey(injected);
   // fail closed on partial payloads (see buildJitFnsFromMarker)
-  if (fns.val === undefined || fns.verr === undefined)
+  if (fns.validate === undefined || fns.validationErrors === undefined)
     throw new Error(
       `RunTypes: incomplete compiled-fn payload for '${label}' (val/verr required). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  const isType = getRTFunction<'validate'>(fns.val, alwaysTrue);
-  const typeErrors = getRTFunction<'validationErrors'>(fns.verr, noErrors);
+  const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
+  const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
   const hashes: JitFunctionsHashes = getJitFnHashes(typeId, 'mutate');
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
