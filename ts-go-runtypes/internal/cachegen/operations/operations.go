@@ -20,6 +20,8 @@
 // dependencies or cross-family edges, because the emitter must hash THOSE too.
 package operations
 
+import "strings"
+
 // Axis classifies the compile-time option axis that refines an operation's
 // fnHash beyond its bare name. Mirrors the old constants.CompFnAxis.
 type Axis int
@@ -41,7 +43,7 @@ const (
 // Operation describes one renderable RT operation.
 type Operation struct {
 	// Name is the canonical operation name and the stable hash input — e.g.
-	// "validate", "prepareForJson", "jsonEncoder". NEVER change a Name without
+	// "validate", "prepareForJsonMutate", "jsonEncoder". NEVER change a Name without
 	// understanding that it changes every fnHash (and thus invalidates caches).
 	Name string
 	// FamilyTag is the emitted-entry family tag (the disk-cache basename and the
@@ -84,8 +86,8 @@ type Operation struct {
 // than a dedicated factory. Order is not load-bearing (keyed by Name / FnKey).
 var registry = []Operation{
 	// Public — validators (ValidateOptions axis). Both guard circular refs.
-	{Name: "validate", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "val", CircularGuarded: true},
-	{Name: "validationErrors", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "verr", CircularGuarded: true},
+	{Name: "validate", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "validate", CircularGuarded: true},
+	{Name: "validationErrors", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrors", CircularGuarded: true},
 
 	// Public — the FUSED validators (`{checkUnknowns: true}` on createValidateFn /
 	// createGetValidationErrorsFn). Each renders the same body its plain twin does
@@ -103,8 +105,8 @@ var registry = []Operation{
 	// operation when it reads `checkUnknowns` (see resolver/scan.go computeSiteFn),
 	// so no marker type changes. They keep the ValidateOptions axis (noLiterals /
 	// numberMode / … apply unchanged) and the circular guard.
-	{Name: "validateStrict", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "vst", CircularGuarded: true},
-	{Name: "validationErrorsStrict", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "vest", CircularGuarded: true},
+	{Name: "validateStrict", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true},
+	{Name: "validationErrorsStrict", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true},
 
 	// Public — createParseFn: restore a JSON.parse output into the typed shape AND
 	// check it, in ONE walk, throwing an RTParseError carrying the full report when
@@ -128,21 +130,21 @@ var registry = []Operation{
 	//     JSON decoder uses.
 	//   - parseFail: rj + vst. The fused validate{checkUnknowns} rejects a value
 	//     carrying extras in ONE pass, so strict costs a single call like the rest.
-	{Name: "parse", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "prs"},
-	{Name: "parseStrip", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "prss"},
-	{Name: "parseFail", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "prsf"},
+	{Name: "parse", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "parse"},
+	{Name: "parseStrip", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "parseStrip"},
+	{Name: "parseFail", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "parseFail"},
 
 	// Public — hasUnknownKeys (HasUnknownKeysOptions axis: `runsAfterValidation`).
 	// Stays as-is: the standalone predicate is still the right tool when the caller
 	// already holds a validated value.
-	{Name: "hasUnknownKeys", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "huk"},
+	{Name: "hasUnknownKeys", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "hasUnknownKeys"},
 
 	// Public — option-less leaf families.
-	{Name: "unknownKeyErrors", FamilyTag: "uke", Axis: AxisNone, Public: true, FnKey: "uke"},
-	{Name: "cloneExactShape", FamilyTag: "ces", Axis: AxisNone, Public: true, FnKey: "ces"},
-	{Name: "formatTransform", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "fmt"},
-	{Name: "toBinary", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "tb", CircularGuarded: true},
-	{Name: "fromBinary", FamilyTag: "fb", Axis: AxisNone, Public: true, FnKey: "fb"},
+	{Name: "unknownKeyErrors", FamilyTag: "uke", Axis: AxisNone, Public: true, FnKey: "unknownKeyErrors"},
+	{Name: "cloneExactShape", FamilyTag: "ces", Axis: AxisNone, Public: true, FnKey: "cloneExactShape"},
+	{Name: "formatTransform", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
+	{Name: "toBinary", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "toBinary", CircularGuarded: true},
+	{Name: "fromBinary", FamilyTag: "fb", Axis: AxisNone, Public: true, FnKey: "fromBinary"},
 	// jsonSchema: the per-type JSON Schema DOCUMENT (schemadoc.RenderDocument
 	// rendered at build time); the entry's fn returns the document object.
 	{Name: "jsonSchema", FamilyTag: "jsc", Axis: AxisNone, Public: true, FnKey: "jsonSchema"},
@@ -152,7 +154,7 @@ var registry = []Operation{
 	// registration reads the build-time class name WITHOUT demanding the type's
 	// reflection graph. Public: false — the entry has no user-facing behavior to
 	// override or recover.
-	{Name: "classSerializerReg", FamilyTag: "csr", Axis: AxisNone, Public: false, FnKey: "csr"},
+	{Name: "classSerializerReg", FamilyTag: "csr", Axis: AxisNone, Public: false, FnKey: "classSerializerReg"},
 
 	// Public — composite JSON encoder / decoder (JsonStrategy axis). FamilyTag is
 	// empty; each strategy renders its own entry (per-strategy tags added to
@@ -196,19 +198,19 @@ var registry = []Operation{
 	//     `clone` strategy decodes with it; no createJsonDecoderFn strategy composes it.
 	//   - sj (direct): single-pass value → JSON string (the `direct` encoder body).
 	//   - ukuw: the strip decoder's unknown-keys-to-undefined wire pre-pass.
-	{Name: "prepareForJson", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "pj"},
-	{Name: "prepareForJsonSafe", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "pjs"},
-	{Name: "restoreFromJson", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "rj"},
-	{Name: "restoreFromJsonSafe", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "rjs"},
-	{Name: "stringifyJson", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "sj"},
-	{Name: "unknownKeysToUndefinedWire", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "ukuw"},
+	{Name: "prepareForJsonMutate", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate"},
+	{Name: "prepareForJsonClone", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
+	{Name: "restoreFromJson", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJson"},
+	{Name: "restoreFromJsonStrip", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonStrip"},
+	{Name: "stringifyJson", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
+	{Name: "stripUnknownKeysWire", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "stripUnknownKeysWire"},
 	// compactForJson / compactFromJson: the positional-tuple JSON round-trip pair
 	// the `compact` strategy composes. compactForJson builds a NEW value emitting
 	// declared object props as a positional array (no key names); compactFromJson
 	// rebuilds the keyed object from positions. Recoverable via the marker like the
 	// other value-level primitives (and reached as compact composite dependencies).
-	{Name: "compactForJson", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "cj"},
-	{Name: "compactFromJson", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "cjr"},
+	{Name: "compactForJson", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson"},
+	{Name: "compactFromJson", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson"},
 }
 
 var (
@@ -265,4 +267,52 @@ func ByFnKey(fnKey string) (Operation, bool) {
 func ByFamilyTag(tag string) (Operation, bool) {
 	op, ok := byFamilyT[tag]
 	return op, ok
+}
+
+// SuggestFnKey returns the marker token a mistyped one most likely meant, or ""
+// when nothing is close. The common case by far is a RETIRED short tag: markers
+// used to name a family by the tag it emits under (`'verr'`), so every stale
+// call site hands us a tag that maps straight back to its operation. Anything
+// else falls back to a bounded edit distance over the token vocabulary.
+func SuggestFnKey(unknown string) string {
+	if unknown == "" {
+		return ""
+	}
+	if op, ok := byFamilyT[unknown]; ok && op.FnKey != "" {
+		return op.FnKey
+	}
+	best, bestDistance := "", 0
+	for fnKey := range byFnKey {
+		distance := editDistance(strings.ToLower(unknown), strings.ToLower(fnKey))
+		// Allow roughly a quarter of the token to be wrong, never more than 3 edits.
+		budget := min(len(fnKey)/4+1, 3)
+		if distance > budget {
+			continue
+		}
+		if best == "" || distance < bestDistance || (distance == bestDistance && fnKey < best) {
+			best, bestDistance = fnKey, distance
+		}
+	}
+	return best
+}
+
+// editDistance is the plain Levenshtein distance over two short ASCII tokens.
+func editDistance(a, b string) int {
+	previous := make([]int, len(b)+1)
+	current := make([]int, len(b)+1)
+	for j := range previous {
+		previous[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		current[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			current[j] = min(min(current[j-1]+1, previous[j]+1), previous[j-1]+cost)
+		}
+		previous, current = current, previous
+	}
+	return previous[len(b)]
 }

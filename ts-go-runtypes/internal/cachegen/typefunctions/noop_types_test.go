@@ -223,7 +223,7 @@ func dumpFor(types map[string]*reflection.RunType) protocol.Dump {
 func TestDispatchGate_CircularIdentityCollapses(t *testing.T) {
 	_, types := noopPredicateTypes(t)
 	dump := dumpFor(types)
-	for _, familyKey := range []string{"prepareForJson", "restoreFromJson"} {
+	for _, familyKey := range []string{"prepareForJsonMutate", "restoreFromJson"} {
 		graph := FamilyByKey(familyKey).Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
 		key := operations.PlainHash(familyKey) + "_circ"
 		entry := graph[key]
@@ -296,8 +296,8 @@ func TestDispatchGate_ElidesNoopExternalChild(t *testing.T) {
 // noopStringify for je*, noopParse for jd*).
 func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
-	ukuwKey := operations.PlainHash("unknownKeysToUndefinedWire") + "_obj1"
-	pjKey := operations.PlainHash("prepareForJson") + "_obj1"
+	ukuwKey := operations.PlainHash("stripUnknownKeysWire") + "_obj1"
+	pjKey := operations.PlainHash("prepareForJsonMutate") + "_obj1"
 	runType := &reflection.RunType{ID: "obj1", Kind: reflection.KindObjectLiteral}
 
 	render := func(tag string, rendered entrymodules.Graph) *entrymodules.Entry {
@@ -478,7 +478,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 	}
 }
 
-// TestNoopType_RestoreFromJsonSafe pins the rjs arm — restoreFromJson's rules with every arm that
+// TestNoopType_RestoreFromJsonStrip pins the rjs arm — restoreFromJson's rules with every arm that
 // REBUILDS forced false. The union rows are the ones that matter: rjs must answer false wherever an
 // undeclared key can hide, including inside an ATOMIC member, because an array member means the
 // layout carries no ObjectMembers at all and the union would otherwise short-circuit to identity.
@@ -486,7 +486,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 // A wrong `true` here is not a missed optimisation, it is data corruption: this emitter sits on the
 // walker's dispatch gate, so a false positive replaces the child call with empty code and the
 // rebuild never runs at any nested position.
-func TestNoopType_RestoreFromJsonSafe(t *testing.T) {
+func TestNoopType_RestoreFromJsonStrip(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	cases := []struct {
 		id   string
@@ -601,7 +601,7 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 		"huk":  hasUnknownKeysNoopSpec,
 		"uke":  unknownKeyErrorsNoopSpec,
 		"uku":  unknownKeysToUndefinedNoopSpec,
-		"ukuw": unknownKeysToUndefinedWireSpec,
+		"ukuw": stripUnknownKeysWireSpec,
 	}
 	type row struct {
 		id   string
@@ -699,7 +699,7 @@ func formatPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.Ru
 	register(&reflection.RunType{ID: "strLenOnly", Kind: reflection.KindString,
 		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"maxLength": float64(8)}}})
 	register(&reflection.RunType{ID: "strOverride", Kind: reflection.KindString,
-		Overrides: map[string]string{"fmt": "cfnabc"}})
+		Overrides: map[string]string{"formatTransform": "cfnabc"}})
 	register(&reflection.RunType{ID: "pTrim", Kind: reflection.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("strTrim")})
 	register(&reflection.RunType{ID: "pOvr", Kind: reflection.KindProperty, Name: "s", IsSafeName: true, Child: makeRef("strOverride")})
 	register(&reflection.RunType{ID: "objTrim", Kind: reflection.KindObjectLiteral, TypeName: "FmtUser", Children: []*reflection.RunType{makeRef("pTrim")}})
@@ -866,7 +866,7 @@ func TestJsonComposite_DirectStrategyTwoLayerCollapse(t *testing.T) {
 // body even when its primitive elided — the `[v]` JSON envelope is real work
 // (rootNeedsDataOnlyWrap), and the runtime noop would drop it.
 func TestJsonComposite_WrapRootNeverNoop(t *testing.T) {
-	pjKey := operations.PlainHash("prepareForJson") + "_und1"
+	pjKey := operations.PlainHash("prepareForJsonMutate") + "_und1"
 	runType := &reflection.RunType{ID: "und1", Kind: reflection.KindUndefined}
 	composite, ok := constants.JsonCompositeByTag("jeMU")
 	if !ok {

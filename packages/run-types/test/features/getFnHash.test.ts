@@ -35,19 +35,19 @@ function injectedHash(injected: unknown): string {
 // Per-family wrappers returning the raw injected tuple. `_val?: T` exists only so
 // the reflection call shape grab(value) can infer T from the value; it is never
 // read. Mirrors the getRTFunctionRecovery wrapper shape.
-function grabVal<T>(_val?: T, id?: InjectTypeFnArgs<T, 'val'>) {
+function grabVal<T>(_val?: T, id?: InjectTypeFnArgs<T, 'validate'>) {
   return id;
 }
-function grabValOpts<T>(_val?: T, _opts?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>) {
+function grabValOpts<T>(_val?: T, _opts?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>) {
   return id;
 }
-function grabVerr<T>(_val?: T, id?: InjectTypeFnArgs<T, 'verr'>) {
+function grabVerr<T>(_val?: T, id?: InjectTypeFnArgs<T, 'validationErrors'>) {
   return id;
 }
-function grabTb<T>(_val?: T, id?: InjectTypeFnArgs<T, 'tb'>) {
+function grabTb<T>(_val?: T, id?: InjectTypeFnArgs<T, 'toBinary'>) {
   return id;
 }
-function grabFb<T>(_val?: T, id?: InjectTypeFnArgs<T, 'fb'>) {
+function grabFb<T>(_val?: T, id?: InjectTypeFnArgs<T, 'fromBinary'>) {
   return id;
 }
 function grabJsonEnc<T>(_val?: T, id?: InjectTypeFnArgs<T, 'jsonEncoder'>) {
@@ -56,10 +56,14 @@ function grabJsonEnc<T>(_val?: T, id?: InjectTypeFnArgs<T, 'jsonEncoder'>) {
 function grabJsonDec<T>(_val?: T, id?: InjectTypeFnArgs<T, 'jsonDecoder'>) {
   return id;
 }
-function grabPjs<T>(_val?: T, id?: InjectTypeFnArgs<T, 'pjs'>) {
+function grabPjs<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>) {
   return id;
 }
-function grabHukOpts<T>(_val?: T, _opts?: CompTimeFnArgs<HasUnknownKeysCompileOptions>, id?: InjectTypeFnArgs<T, 'huk'>) {
+function grabHukOpts<T>(
+  _val?: T,
+  _opts?: CompTimeFnArgs<HasUnknownKeysCompileOptions>,
+  id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
+) {
   return id;
 }
 
@@ -68,22 +72,22 @@ type Payload = {id: bigint; when: Date; name: string; tags: string[]};
 describe('getFnHash — unit (resolves the version-independent fnHash per family + options)', () => {
   test('validate / validationErrors resolve their option variants', () => {
     // Plain form and every option subset resolve to distinct, stable hashes.
-    expect(getFnHash('val')).toBe('Eq2V');
-    expect(getFnHash('val', {noLiterals: true})).toBe('swyy');
-    expect(getFnHash('val', {noIsArrayCheck: true})).toBe('KAWX');
-    expect(getFnHash('val', {noLiterals: true, noIsArrayCheck: true})).toBe('o2vR');
+    expect(getFnHash('validate')).toBe('Eq2V');
+    expect(getFnHash('validate', {noLiterals: true})).toBe('swyy');
+    expect(getFnHash('validate', {noIsArrayCheck: true})).toBe('KAWX');
+    expect(getFnHash('validate', {noLiterals: true, noIsArrayCheck: true})).toBe('o2vR');
     // Option order is irrelevant (mirrors the Go declaration-order suffix).
-    expect(getFnHash('val', {noIsArrayCheck: true, noLiterals: true})).toBe('o2vR');
-    expect(getFnHash('verr')).toBe('swxg');
-    expect(getFnHash('verr', {noLiterals: true, noIsArrayCheck: true})).toBe('xJVW');
+    expect(getFnHash('validate', {noIsArrayCheck: true, noLiterals: true})).toBe('o2vR');
+    expect(getFnHash('validationErrors')).toBe('swxg');
+    expect(getFnHash('validationErrors', {noLiterals: true, noIsArrayCheck: true})).toBe('xJVW');
     // numberMode is an enum, not a boolean: its two non-default values ride as
     // distinct variant letters, and 'isFinite' (default) collapses to the plain.
-    expect(getFnHash('val', {numberMode: 'isFinite'})).toBe('Eq2V');
-    expect(getFnHash('val', {numberMode: 'typeof'})).toBe('WOvb');
-    expect(getFnHash('val', {numberMode: 'notNaN'})).toBe('PHIy');
-    expect(getFnHash('verr', {numberMode: 'typeof'})).toBe('aZak');
+    expect(getFnHash('validate', {numberMode: 'isFinite'})).toBe('Eq2V');
+    expect(getFnHash('validate', {numberMode: 'typeof'})).toBe('WOvb');
+    expect(getFnHash('validate', {numberMode: 'notNaN'})).toBe('PHIy');
+    expect(getFnHash('validationErrors', {numberMode: 'typeof'})).toBe('aZak');
     // numberMode composes with the boolean options (declaration-order suffix NLT).
-    expect(getFnHash('val', {noLiterals: true, numberMode: 'typeof'})).toBe('t5vX');
+    expect(getFnHash('validate', {noLiterals: true, numberMode: 'typeof'})).toBe('t5vX');
   });
 
   test('JSON encoder / decoder resolve their strategies (default when omitted)', () => {
@@ -99,18 +103,18 @@ describe('getFnHash — unit (resolves the version-independent fnHash per family
   });
 
   test('option-less families resolve to a single hash (options ignored)', () => {
-    expect(getFnHash('tb')).toBe('jDpZ');
-    expect(getFnHash('fb')).toBe('rR8x');
-    expect(getFnHash('ces')).toBe('SYRo');
+    expect(getFnHash('toBinary')).toBe('jDpZ');
+    expect(getFnHash('fromBinary')).toBe('rR8x');
+    expect(getFnHash('cloneExactShape')).toBe('SYRo');
     // A family with no option axis ignores any options bag rather than throwing.
-    expect(getFnHash('ces', {noLiterals: true})).toBe('SYRo');
+    expect(getFnHash('cloneExactShape', {noLiterals: true})).toBe('SYRo');
   });
 
   test('hasUnknownKeys resolves its runsAfterValidation variant', () => {
-    expect(getFnHash('huk')).toBe('GsPX');
-    expect(getFnHash('huk', {runsAfterValidation: true})).toBe('be7V');
+    expect(getFnHash('hasUnknownKeys')).toBe('GsPX');
+    expect(getFnHash('hasUnknownKeys', {runsAfterValidation: true})).toBe('be7V');
     // Foreign options don't select a huk variant.
-    expect(getFnHash('huk', {noLiterals: true})).toBe('GsPX');
+    expect(getFnHash('hasUnknownKeys', {noLiterals: true})).toBe('GsPX');
   });
 
   test('throws on an unknown fnKey or a nonexistent variant', () => {
@@ -123,13 +127,13 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
   // The keystone: the derived hash must be byte-identical to what the plugin
   // bakes into a real createX call site, or a consumer's rebuilt key would miss.
   test('default variant of each family equals its injected fnHash', () => {
-    expect(getFnHash('val')).toBe(injectedHash(grabVal<Payload>()));
-    expect(getFnHash('verr')).toBe(injectedHash(grabVerr<Payload>()));
-    expect(getFnHash('tb')).toBe(injectedHash(grabTb<Payload>()));
-    expect(getFnHash('fb')).toBe(injectedHash(grabFb<Payload>()));
+    expect(getFnHash('validate')).toBe(injectedHash(grabVal<Payload>()));
+    expect(getFnHash('validationErrors')).toBe(injectedHash(grabVerr<Payload>()));
+    expect(getFnHash('toBinary')).toBe(injectedHash(grabTb<Payload>()));
+    expect(getFnHash('fromBinary')).toBe(injectedHash(grabFb<Payload>()));
     expect(getFnHash('jsonEncoder')).toBe(injectedHash(grabJsonEnc<Payload>()));
     expect(getFnHash('jsonDecoder')).toBe(injectedHash(grabJsonDec<Payload>()));
-    expect(getFnHash('pjs')).toBe(injectedHash(grabPjs<Payload>()));
+    expect(getFnHash('prepareForJsonClone')).toBe(injectedHash(grabPjs<Payload>()));
   });
 
   test('validate option variant equals its injected fnHash', () => {
@@ -138,8 +142,8 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
     const injectedPlain = injectedHash(grabValOpts<Payload>());
     const injectedNoLiterals = injectedHash(grabValOpts<Payload>(undefined, {noLiterals: true}));
     expect(injectedNoLiterals).not.toBe(injectedPlain);
-    expect(getFnHash('val')).toBe(injectedPlain);
-    expect(getFnHash('val', {noLiterals: true})).toBe(injectedNoLiterals);
+    expect(getFnHash('validate')).toBe(injectedPlain);
+    expect(getFnHash('validate', {noLiterals: true})).toBe(injectedNoLiterals);
   });
 
   test('validate numberMode variant equals its injected fnHash', () => {
@@ -151,10 +155,10 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
     expect(injectedTypeof).not.toBe(injectedPlain);
     expect(injectedNotNaN).not.toBe(injectedPlain);
     expect(injectedNotNaN).not.toBe(injectedTypeof);
-    expect(getFnHash('val', {numberMode: 'typeof'})).toBe(injectedTypeof);
-    expect(getFnHash('val', {numberMode: 'notNaN'})).toBe(injectedNotNaN);
+    expect(getFnHash('validate', {numberMode: 'typeof'})).toBe(injectedTypeof);
+    expect(getFnHash('validate', {numberMode: 'notNaN'})).toBe(injectedNotNaN);
     // Explicit 'isFinite' is the default → collapses to the plain injected hash.
-    expect(getFnHash('val', {numberMode: 'isFinite'})).toBe(injectedPlain);
+    expect(getFnHash('validate', {numberMode: 'isFinite'})).toBe(injectedPlain);
   });
 
   test('hasUnknownKeys runsAfterValidation variant equals its injected fnHash', () => {
@@ -163,8 +167,8 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
     const injectedPlain = injectedHash(grabHukOpts<Payload>());
     const injectedRav = injectedHash(grabHukOpts<Payload>(undefined, {runsAfterValidation: true}));
     expect(injectedRav).not.toBe(injectedPlain);
-    expect(getFnHash('huk')).toBe(injectedPlain);
-    expect(getFnHash('huk', {runsAfterValidation: true})).toBe(injectedRav);
+    expect(getFnHash('hasUnknownKeys')).toBe(injectedPlain);
+    expect(getFnHash('hasUnknownKeys', {runsAfterValidation: true})).toBe(injectedRav);
   });
 
   test('reflection call shape agrees with the static form (both marker shapes)', () => {
@@ -175,7 +179,7 @@ describe('getFnHash — matches the plugin-injected fnHash (table ⟷ live binar
     const staticForm = injectedHash(grabVal<Payload>());
     const reflectionForm = injectedHash(grabVal(seed));
     expect(reflectionForm).toBe(staticForm);
-    expect(getFnHash('val')).toBe(staticForm);
+    expect(getFnHash('validate')).toBe(staticForm);
   });
 });
 

@@ -18,7 +18,7 @@ const factoryApiSource = `import type {InjectRunTypeId, InjectTypeFnArgs} from '
 type Handler = (...args: any[]) => any;
 type HandlerParams<H extends Handler> = Parameters<H> extends [any, ...infer P] ? P : [];
 export interface RouteHelper<O> {
-  <H extends Handler>(handler: H, fns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr'>, id?: InjectRunTypeId<HandlerParams<H>>): {handler: H; options: O};
+  <H extends Handler>(handler: H, fns?: InjectTypeFnArgs<HandlerParams<H>, 'validate', 'validationErrors'>, id?: InjectRunTypeId<HandlerParams<H>>): {handler: H; options: O};
 }
 export interface Api<O> {
   readonly options: O;

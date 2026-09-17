@@ -18,7 +18,7 @@ const tupleSlotApiSource = `import type {InjectRunTypeId, InjectTypeFnArgs} from
 type Handler = (...args: any[]) => any;
 type HandlerParams<H extends Handler> = Parameters<H> extends [any, ...infer P] ? P : [];
 type Slots<H extends Handler> = [
-  fns: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr'>,
+  fns: InjectTypeFnArgs<HandlerParams<H>, 'validate', 'validationErrors'>,
   id: InjectRunTypeId<HandlerParams<H>>,
 ];
 export interface RouteHelper<O> {

@@ -28,7 +28,7 @@ func patternPropsDump() protocol.Dump {
 func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 	dump := patternPropsDump()
 	regex := `new RegExp("^d_")`
-	for _, fam := range []string{"prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "restoreFromJsonSafe", "compactForJson", "compactFromJson", "cloneExactShape", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson", "restoreFromJsonStrip", "compactForJson", "compactFromJson", "cloneExactShape", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// The binary decoder reads the count the encoder wrote, so it filters
 		// nothing itself: its evidence is the key read of the pattern block.
@@ -44,7 +44,7 @@ func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 		}
 	}
 	// The decode roads carry the prototype-name refusal on the pattern sweep too.
-	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonSafe"} {
+	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonStrip"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, UnsafeKeyMessage) {
 			t.Errorf("[%s] the pattern-keyed decode sweep must refuse prototype-named keys; got:\n%s", fam, out)
@@ -61,7 +61,7 @@ func TestPatternProps_NoopValueMatchesIndexSignatureVerdicts(t *testing.T) {
 	outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral}
 	outer.PatternProps = []*reflection.PatternPropCheck{{Source: "^n_", Key: makeRef("str"), Value: makeRef("num")}}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{str, num, outer}}
-	if out := renderModule(t, dump, "prepareForJson"); !strings.Contains(out, "_outer','objectLiteral',,true") {
+	if out := renderModule(t, dump, "prepareForJsonMutate"); !strings.Contains(out, "_outer','objectLiteral',,true") {
 		t.Errorf("[prepareForJson] a number-valued pattern rebuilds nothing on encode; got:\n%s", out)
 	}
 	if out := renderModule(t, dump, "restoreFromJson"); strings.Contains(out, "_outer','objectLiteral',,true") || !strings.Contains(out, UnsafeKeyMessage) {

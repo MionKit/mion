@@ -41,14 +41,14 @@ import type {RunType} from '../../../src/runtypes/types.ts';
 //
 // It is the reference half of O19: parse fuses this restore with validate, so
 // the two together are what parse must agree with.
-function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rj'>) {
-  return getRTFunction<'rj'>(id);
+function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) {
+  return getRTFunction<'restoreFromJson'>(id);
 }
 
 // The STRIPPING restore, recovered the same way — mion's `clone` strategy decodes with it and it has
 // no createX factory either. O26's subject: it must DELETE an undeclared wire key, not blank it.
-function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'rjs'>) {
-  return getRTFunction<'rjs'>(id);
+function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
+  return getRTFunction<'restoreFromJsonStrip'>(id);
 }
 
 const targets: FuzzTarget[] = [];

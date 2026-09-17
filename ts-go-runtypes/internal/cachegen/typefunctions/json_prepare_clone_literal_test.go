@@ -103,7 +103,7 @@ func TestNoopForPrepareJsonSafe_LiteralFlavour(t *testing.T) {
 func compileSafeLiteral(t *testing.T, rootID string) string {
 	t.Helper()
 	_, refTable := literalSafeTypes()
-	walker := NewWalker(refTable[rootID], "pjs_"+rootID, PrepareForJsonSafeEmitter{})
+	walker := NewWalker(refTable[rootID], "pjs_"+rootID, PrepareForJsonCloneEmitter{})
 	walker.InnerPrefix = "pjs_"
 	walker.RefTable = refTable
 	decl, noop, unsupported := walker.Compile()
@@ -115,7 +115,7 @@ func compileSafeLiteral(t *testing.T, rootID string) string {
 
 // The reported bug: every shape that reaches the extra-proof pass-through must
 // emit the bigint transform instead of handing a bigint to JSON.stringify.
-func TestPrepareForJsonSafe_BigintLiteralShapes(t *testing.T) {
+func TestPrepareForJsonClone_BigintLiteralShapes(t *testing.T) {
 	cases := []struct {
 		id   string
 		want string
@@ -133,7 +133,7 @@ func TestPrepareForJsonSafe_BigintLiteralShapes(t *testing.T) {
 
 // `(1n | 2n)[]` — the exact repro. The union itself is fine; the array's
 // extra-proof shortcut was what skipped the transform.
-func TestPrepareForJsonSafe_ArrayOfBigintLiteralUnion(t *testing.T) {
+func TestPrepareForJsonClone_ArrayOfBigintLiteralUnion(t *testing.T) {
 	decl := compileSafeLiteral(t, "arrUBig")
 	if !strings.Contains(decl, ".map(") || !strings.Contains(decl, ".toString()") {
 		t.Errorf("array of a bigint-literal union must map each element through the bigint transform, got:\n%s", decl)
@@ -143,7 +143,7 @@ func TestPrepareForJsonSafe_ArrayOfBigintLiteralUnion(t *testing.T) {
 // Symbol literals are supported by all four JSON strategies as
 // 'Symbol:' + description; the clone strategy used to skip that transform in an
 // array and emit [null] where its siblings emit ["Symbol:tag"].
-func TestPrepareForJsonSafe_ArrayOfSymbolLiteral(t *testing.T) {
+func TestPrepareForJsonClone_ArrayOfSymbolLiteral(t *testing.T) {
 	decl := compileSafeLiteral(t, "arrSym")
 	if !strings.Contains(decl, ".map(") || !strings.Contains(decl, "'Symbol:' + (") {
 		t.Errorf("array of a symbol literal must map each element through the symbol transform, got:\n%s", decl)
@@ -153,7 +153,7 @@ func TestPrepareForJsonSafe_ArrayOfSymbolLiteral(t *testing.T) {
 // An object whose props are ALL required and ALL bigint literals must not take
 // the `Object.keys(v).length === N` fastpath — that returns the input by
 // reference, bigints and all.
-func TestPrepareForJsonSafe_BigintLiteralObjectSkipsKeyCountFastpath(t *testing.T) {
+func TestPrepareForJsonClone_BigintLiteralObjectSkipsKeyCountFastpath(t *testing.T) {
 	decl := compileSafeLiteral(t, "objBig")
 	if strings.Contains(decl, "Object.keys(") {
 		t.Errorf("object of bigint-literal props must not take the key-count fastpath, got:\n%s", decl)

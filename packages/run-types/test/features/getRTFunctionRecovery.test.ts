@@ -22,29 +22,29 @@ import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 // keyed by the SAME fnKey — exactly the wrapper shape a framework declares.
 // `_val` exists only so the reflection call shape `recoverX(value)` can infer
 // `T` from the value; it is never read at runtime.
-function recoverClonePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'pjs'>) {
-  return getRTFunction<'pjs'>(id);
+function recoverClonePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>) {
+  return getRTFunction<'prepareForJsonClone'>(id);
 }
-function recoverMutatePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'pj'>) {
-  return getRTFunction<'pj'>(id);
+function recoverMutatePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonMutate'>) {
+  return getRTFunction<'prepareForJsonMutate'>(id);
 }
-function recoverRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'rj'>) {
-  return getRTFunction<'rj'>(id);
+function recoverRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) {
+  return getRTFunction<'restoreFromJson'>(id);
 }
-function recoverCompactEncode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'cj'>) {
-  return getRTFunction<'cj'>(id);
+function recoverCompactEncode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactForJson'>) {
+  return getRTFunction<'compactForJson'>(id);
 }
-function recoverCompactDecode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'cjr'>) {
-  return getRTFunction<'cjr'>(id);
+function recoverCompactDecode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactFromJson'>) {
+  return getRTFunction<'compactFromJson'>(id);
 }
-function recoverDirectStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'sj'>) {
-  return getRTFunction<'sj'>(id);
+function recoverDirectStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) {
+  return getRTFunction<'stringifyJson'>(id);
 }
-function recoverStripWire<T>(_val?: T, id?: InjectTypeFnArgs<T, 'ukuw'>) {
-  return getRTFunction<'ukuw'>(id);
+function recoverStripWire<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) {
+  return getRTFunction<'stripUnknownKeysWire'>(id);
 }
-function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'rjs'>) {
-  return getRTFunction<'rjs'>(id);
+function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
+  return getRTFunction<'restoreFromJsonStrip'>(id);
 }
 
 type Payload = {id: bigint; when: Date; name: string};

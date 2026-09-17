@@ -101,19 +101,19 @@ export const HandlerType = {
  * covers every type.
  */
 export const JIT_FUNCTION_IDS = {
-  isType: getFnHash('val'),
-  typeErrors: getFnHash('verr'),
-  hasUnknownKeys: getFnHash('huk'), // strictTypes
-  unknownKeyErrors: getFnHash('uke'), // strictTypes
-  formatTransform: getFnHash('fmt'), // sanitizeParams
+  isType: getFnHash('validate'),
+  typeErrors: getFnHash('validationErrors'),
+  hasUnknownKeys: getFnHash('hasUnknownKeys'), // strictTypes
+  unknownKeyErrors: getFnHash('unknownKeyErrors'), // strictTypes
+  formatTransform: getFnHash('formatTransform'), // sanitizeParams
   // the JSON families, one encoder per strategy and the two decoders (see ENCODE_FAMILY_BY_STRATEGY)
-  pjs: getFnHash('pjs'),
-  pj: getFnHash('pj'),
-  sj: getFnHash('sj'),
-  cj: getFnHash('cj'),
-  rj: getFnHash('rj'),
-  rjs: getFnHash('rjs'),
-  cjr: getFnHash('cjr'),
+  pjs: getFnHash('prepareForJsonClone'),
+  pj: getFnHash('prepareForJsonMutate'),
+  sj: getFnHash('stringifyJson'),
+  cj: getFnHash('compactForJson'),
+  rj: getFnHash('restoreFromJson'),
+  rjs: getFnHash('restoreFromJsonStrip'),
+  cjr: getFnHash('compactFromJson'),
 } as const;
 
 /** The compiled family (marker key) each JSON strategy ENCODES with: `clone` builds a new JSON-safe

@@ -39,7 +39,7 @@ package diskcache
 // runtime keys it no longer registers — they must become misses.
 //
 // v4 redefines the `clone` JSON-encoder strategy: its composite body now wraps
-// prepareForJsonSafe (shape-derived strip) instead of prepareForJsonSafePreserve
+// prepareForJsonClone (shape-derived strip) instead of prepareForJsonClonePreserve
 // (preserve extras), while its fnHash is unchanged (the strategy token "clone" is
 // the same). A v3 `jeCL` entry bakes the old preserve body, so a hit would emit
 // the wrong (extras-preserving) encoder — it must become a miss.

@@ -1,7 +1,7 @@
 package resolver_test
 
 // Pins the registerClassSerializer decoupling: the site carries
-// InjectTypeFnArgs<T, 'csr'>, so it demands ONE classSerializerReg name-card
+// InjectTypeFnArgs<T, 'classSerializerReg'>, so it demands ONE classSerializerReg name-card
 // entry (its typeName slot is the build-time class name) instead of forcing
 // the class's whole reflection graph into the runtype bundle.
 

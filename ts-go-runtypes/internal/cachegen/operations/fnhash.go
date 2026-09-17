@@ -52,7 +52,7 @@ const circularCanonicalSuffix = "~C"
 // Canonical returns the deterministic, property-order-independent hash input for
 // an operation + its call-site compile-time args.
 //
-//   - AxisNone:          the bare Name ("prepareForJson").
+//   - AxisNone:          the bare Name ("prepareForJsonMutate").
 //   - AxisValidateOptions: Name + "|" + the canonical ValidateOptions variant suffix
 //     ("validate|", "validate|NL", "validate|NLA"). constants.ValidateVariantSuffix
 //     emits letters in ValidateOptions DECLARATION order regardless of optionNames

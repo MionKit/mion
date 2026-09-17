@@ -11,9 +11,11 @@ import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 // dropped) and 'rjs' is the matching restore, which drops them too. A framework
 // that owns its own JSON envelope uses this pair to transform values without a
 // string round-trip.
-function jsonValueCodec<T>(fns?: InjectTypeFnArgs<T, 'pjs', 'rjs'>) {
-  const prepare = getRTFunction<'pjs'>(fns?.[0]);
-  const restore = getRTFunction<'rjs'>(fns?.[1]);
+function jsonValueCodec<T>(
+  fns?: InjectTypeFnArgs<T, 'prepareForJsonClone', 'restoreFromJsonStrip'>
+) {
+  const prepare = getRTFunction<'prepareForJsonClone'>(fns?.[0]);
+  const restore = getRTFunction<'restoreFromJsonStrip'>(fns?.[1]);
   return {prepare, restore};
 }
 

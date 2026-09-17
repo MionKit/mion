@@ -10,7 +10,7 @@
 // class round-trips structurally to a plain object (no throw).
 //
 // The registry is keyed by the class's TYPE ID (the plugin fills the trailing
-// InjectTypeFnArgs<T, 'csr'> slot with the name-card entry tuple, whose key
+// InjectTypeFnArgs<T, 'classSerializerReg'> slot with the name-card entry tuple, whose key
 // carries the id resolved from the `new () => T` constructor param), so it
 // matches the emitted `utl.getClassSerializer(<rt.ID>)` lookup and is
 // minification-safe.

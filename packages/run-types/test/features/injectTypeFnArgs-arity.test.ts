@@ -15,24 +15,32 @@ import type {InjectTypeFnArgs} from '@mionjs/run-types';
 // SIX distinct families — comfortably past the retired three-key cap. If
 // markers.ts is narrowed below six type parameters, this alias reports
 // "Expected N type arguments, but got 7" and the typecheck fails.
-type SixFamilyMarker = InjectTypeFnArgs<{id: number}, 'verr', 'jsonDecoder', 'jsonEncoder', 'huk', 'suk', 'uke'>;
+type SixFamilyMarker = InjectTypeFnArgs<
+  {id: number},
+  'validationErrors',
+  'jsonDecoder',
+  'jsonEncoder',
+  'hasUnknownKeys',
+  'suk',
+  'unknownKeyErrors'
+>;
 
 // A twelve-family alias pins the current F12 cap boundary (all distinct). It is
 // well beyond any realistic marker but proves the full declared arity resolves.
 type TwelveFamilyMarker = InjectTypeFnArgs<
   {id: number},
-  'val',
-  'verr',
+  'validate',
+  'validationErrors',
   'jsonDecoder',
   'jsonEncoder',
-  'huk',
+  'hasUnknownKeys',
   'suk',
-  'uke',
+  'unknownKeyErrors',
   'uku',
-  'fmt',
-  'tb',
-  'fb',
-  'pj'
+  'formatTransform',
+  'toBinary',
+  'fromBinary',
+  'prepareForJsonMutate'
 >;
 
 // Instantiate the aliases so the arity is actually checked (a bare unused type

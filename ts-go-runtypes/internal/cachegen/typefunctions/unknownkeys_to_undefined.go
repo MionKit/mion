@@ -9,7 +9,7 @@ import (
 // UnknownKeysToUndefinedEmitter — INTERNAL-ONLY since the public
 // unknownKeysToUndefined factory/family was removed in favor of
 // cloneExactShape: this emitter now exists solely as the delegate backing
-// UnknownKeysToUndefinedWireEmitter (the JSON `strip` decode strategy's
+// StripUnknownKeysWireEmitter (the JSON `strip` decode strategy's
 // pre-pass), which wraps every method below. It mutates the input value by
 // setting every unknown property to undefined (instead of removing it) —
 // the right call on a freshly-parsed, exclusively-owned wire value.

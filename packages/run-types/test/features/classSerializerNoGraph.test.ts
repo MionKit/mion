@@ -1,6 +1,6 @@
 // registerClassSerializer must NOT force the class's reflection graph.
 //
-// The registration site carries `InjectTypeFnArgs<T, 'csr'>`: the plugin
+// The registration site carries `InjectTypeFnArgs<T, 'classSerializerReg'>`: the plugin
 // injects a tiny classSerializerReg NAME CARD (family tag 'csr', its typeName
 // slot holding the build-time class name) instead of the runtype entry tuple.
 // This file deliberately contains NO reflection site for the class — only the

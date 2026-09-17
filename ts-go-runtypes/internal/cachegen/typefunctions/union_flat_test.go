@@ -82,9 +82,9 @@ func TestPrepareForJsonModule_ObjectUnionMergesProps(t *testing.T) {
 	// EmitMode 'both' so the body assertions below match the
 	// un-escaped form inside the `function g_pj_uni(utl){…}` closure.
 	// See module_test.go's renderToString comment for the rationale.
-	out := renderModule(t, dump, "prepareForJson")
+	out := renderModule(t, dump, "prepareForJsonMutate")
 
-	pjUniFactory := "g_" + operations.PlainHash("prepareForJson") + "_uni"
+	pjUniFactory := "g_" + operations.PlainHash("prepareForJsonMutate") + "_uni"
 	if !strings.Contains(out, pjUniFactory) {
 		t.Fatalf("expected the prepareForJson union factory %s in rendered module:\n%s", pjUniFactory, out)
 	}
@@ -245,7 +245,7 @@ func TestPrepareForJsonModule_MixedUnionWrapsEveryMember(t *testing.T) {
 		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("ob1")},
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{str, bigint, propA, obj, union}}
-	out := renderModuleDefault(t, dump, "prepareForJson")
+	out := renderModuleDefault(t, dump, "prepareForJsonMutate")
 
 	// Object branch exists so string member MUST wrap too — every
 	// encoded value must be unambiguously [idx, value] on the wire.
@@ -280,7 +280,7 @@ func TestPrepareForJsonModule_ConflictingPropSynthesizesSubUnion(t *testing.T) {
 		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{bigint, date, propABig, propADat, obj1, obj2, union}}
-	out := renderModuleDefault(t, dump, "prepareForJson")
+	out := renderModuleDefault(t, dump, "prepareForJsonMutate")
 
 	if !strings.Contains(out, "v.a = [0, v.a]") {
 		t.Errorf("expected inline sub-union wrap `[0, v.a]` for conflicting prop; got:\n%s", out)

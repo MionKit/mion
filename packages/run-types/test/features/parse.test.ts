@@ -313,8 +313,8 @@ describe('createParseFn — already-restored input', () => {
 // The RAW compiled body, recovered the way a framework wrapper recovers it. It
 // returns the typed value or THROWS — no status, no wrapper object on the happy
 // path.
-function recoverParse<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prs'>) {
-  return getRTFunction<'prs'>(id);
+function recoverParse<T>(_val?: T, id?: InjectTypeFnArgs<T, 'parse'>) {
+  return getRTFunction<'parse'>(id);
 }
 
 describe('the raw parse body — throwing contract', () => {

@@ -497,8 +497,8 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
 	paramsStrategy, returnStrategy := encoderStrategies(method.Options)
-	paramsKeys := []string{"val", "verr", "huk", "uke", "fmt", encodeFamily(paramsStrategy), decodeFamily(paramsStrategy)}
-	returnKeys := []string{"val", "verr", "huk", "uke", encodeFamily(returnStrategy), decodeFamily(returnStrategy)}
+	paramsKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", "formatTransform", encodeFamily(paramsStrategy), decodeFamily(paramsStrategy)}
+	returnKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", encodeFamily(returnStrategy), decodeFamily(returnStrategy)}
 	entry.paramsFns = apiFnSite(entry.paramsId, paramsKeys)
 	entry.returnFns = apiFnSite(entry.returnId, returnKeys)
 	entry.paramsRef = protocol.Site{ID: entry.paramsId}
@@ -506,7 +506,7 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry.families = append(append([]string(nil), paramsKeys...), returnKeys...)
 	if method.Headers != nil {
 		entry.headersId = sess.cache.AssignIDUnder(owner, method.Headers)
-		entry.headersFns = apiFnSite(entry.headersId, []string{"val", "verr"})
+		entry.headersFns = apiFnSite(entry.headersId, []string{"validate", "validationErrors"})
 		entry.headersRef = protocol.Site{ID: entry.headersId}
 	}
 	return entry
@@ -563,26 +563,26 @@ func encoderStrategies(options map[string]any) (params, ret string) {
 func encodeFamily(strategy string) string {
 	switch strategy {
 	case "mutate":
-		return "pj"
+		return "prepareForJsonMutate"
 	case "direct":
-		return "sj"
+		return "stringifyJson"
 	case "compact":
-		return "cj"
+		return "compactForJson"
 	default:
-		return "pjs"
+		return "prepareForJsonClone"
 	}
 }
 
 func decodeFamily(strategy string) string {
 	switch strategy {
 	case "compact":
-		return "cjr"
+		return "compactFromJson"
 	case "clone":
 		// The stripping decoder: clone promises undeclared keys are dropped, and
 		// that has to hold for a payload mion did not write.
-		return "rjs"
+		return "restoreFromJsonStrip"
 	default:
-		return "rj"
+		return "restoreFromJson"
 	}
 }
 

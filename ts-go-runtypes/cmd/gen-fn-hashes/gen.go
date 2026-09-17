@@ -237,6 +237,19 @@ func Generate() string {
 	out.WriteString("} as const satisfies Record<string, FnHashEntry>;\n")
 	out.WriteString("\n")
 
+	out.WriteString("/** Emitted family tag → the fn key that names it in a marker. The two are\n")
+	out.WriteString(" *  SEPARATE vocabularies: a compiled entry carries the short tag ('pjs') at\n")
+	out.WriteString(" *  slot 0 of its tuple, while a marker names the readable key\n")
+	out.WriteString(" *  ('prepareForJsonClone'). A framework that projects an injected payload by\n")
+	out.WriteString(" *  the tag it finds needs this to speak one vocabulary again. Composite JSON\n")
+	out.WriteString(" *  families emit per-strategy tags and are not listed. */\n")
+	out.WriteString("export const FAMILY_TAG_TO_FN_KEY = {\n")
+	for _, op := range sortedByFamilyTag() {
+		out.WriteString(fmt.Sprintf("  %s: %s,\n", tsKey(op.FamilyTag), jsStr(op.FnKey)))
+	}
+	out.WriteString("} as const satisfies Readonly<Record<string, string>>;\n")
+	out.WriteString("\n")
+
 	out.WriteString("/** ValidateOptions name → single-letter token, in Go declaration order\n")
 	out.WriteString(" *  (constants.ValidateOptions). The validate variant suffix is 'N' followed by\n")
 	out.WriteString(" *  the letters of the present options concatenated in THIS order. */\n")
@@ -257,4 +270,18 @@ func Generate() string {
 	out.WriteString("] as const satisfies ReadonlyArray<readonly [string, string]>;\n")
 
 	return out.String()
+}
+
+// sortedByFamilyTag returns every operation that emits under its own family tag,
+// ordered by tag so the generated map is stable across runs. Composite JSON
+// operations have no tag of their own and are skipped.
+func sortedByFamilyTag() []operations.Operation {
+	var out []operations.Operation
+	for _, op := range operations.All() {
+		if op.FamilyTag != "" && op.FnKey != "" {
+			out = append(out, op)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].FamilyTag < out[j].FamilyTag })
+	return out
 }

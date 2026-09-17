@@ -95,8 +95,8 @@ export interface ValidateOptions {
    *
    *  COMPILE-TIME, like every option here, but unlike the others it selects a
    *  different compiled family rather than a variant of this one — so
-   *  `getFnHash('val', {checkUnknowns: true})` is NOT its cache key. Resolve
-   *  `getFnHash('vst')` (or `'vest'` for the errors form) instead. **/
+   *  `getFnHash('validate', {checkUnknowns: true})` is NOT its cache key. Resolve
+   *  `getFnHash('validateStrict')` (or `'vest'` for the errors form) instead. **/
   checkUnknowns?: boolean;
   /** Selects how the emitted validator checks a `number`, to align with other
    *  libraries when migrating. `'isFinite'` (default) uses `Number.isFinite`,
@@ -306,7 +306,7 @@ export type JsonEncoderFn = (value: unknown) => string | undefined;
 export type JsonDecoderFn<T = unknown> = (serialized: string) => T;
 
 /** The compiled parse body: takes the output of `JSON.parse`, returns the typed
- *  value, and THROWS on a mismatch. Recovered through `getRTFunction<'prs'>()` by
+ *  value, and THROWS on a mismatch. Recovered through `getRTFunction<'parse'>()` by
  *  a framework that threads its own marker; most callers want `createParseFn<T>()`
  *  instead, which turns the throw into an `RTParseError`.
  *
@@ -336,7 +336,7 @@ export type ParseFn<T = unknown> = (value: unknown) => DataOnly<T>;
  *
  *  COMPILE-TIME, like every option in this file: the plugin bakes the choice into
  *  the injected tuple and the runtime never reads it. Each value selects a
- *  different compiled family, so `getFnHash('prs')` is the loose one — `'prss'`
+ *  different compiled family, so `getFnHash('parse')` is the loose one — `'prss'`
  *  for strip, `'prsf'` for fail. **/
 export type ParseStrategy = 'preserve' | 'strip' | 'fail';
 export type ParseOptions = {strategy?: ParseStrategy};
@@ -446,9 +446,9 @@ export const createValidateFn = createTypeFnArgsFunction<ValidateFn>(
 ) as unknown as (<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
-  id?: InjectTypeFnArgs<T, 'val'>
+  id?: InjectTypeFnArgs<T, 'validate'>
 ) => ValidateFn<T>) &
-  (<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>) => ValidateFn<T>);
+  (<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'validate'>) => ValidateFn<T>);
 
 export const createGetValidationErrorsFn = createTypeFnArgsFunction<GetValidationErrorsFn>(
   'createGetValidationErrorsFn',
@@ -456,12 +456,12 @@ export const createGetValidationErrorsFn = createTypeFnArgsFunction<GetValidatio
 ) as unknown as (<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
-  id?: InjectTypeFnArgs<T, 'verr'>
+  id?: InjectTypeFnArgs<T, 'validationErrors'>
 ) => GetValidationErrorsFn<FormatErrorsOf<T>>) &
   (<T>(
     val?: T,
     options?: CompTimeFnArgs<ValidateOptions>,
-    id?: InjectTypeFnArgs<T, 'verr'>
+    id?: InjectTypeFnArgs<T, 'validationErrors'>
   ) => GetValidationErrorsFn<FormatErrorsOf<T>>);
 
 // `ValidateOptions` stays exclusive to `createValidateFn` /
@@ -477,21 +477,25 @@ export const createHasUnknownKeysFn = createTypeFnArgsFunction<HasUnknownKeysFn>
 ) as unknown as (<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<HasUnknownKeysCompileOptions>,
-  id?: InjectTypeFnArgs<T, 'huk'>
+  id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
 ) => HasUnknownKeysFn) &
-  (<T>(val?: T, options?: CompTimeFnArgs<HasUnknownKeysCompileOptions>, id?: InjectTypeFnArgs<T, 'huk'>) => HasUnknownKeysFn);
+  (<T>(
+    val?: T,
+    options?: CompTimeFnArgs<HasUnknownKeysCompileOptions>,
+    id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
+  ) => HasUnknownKeysFn);
 
 export const createCloneExactShapeFn = createRTFunction<CloneExactShapeFn>(
   'createCloneExactShapeFn',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'ces'>) => CloneExactShapeFn<T>) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'ces'>) => CloneExactShapeFn<T>);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn<T>) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn<T>);
 
 export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
   'createUnknownKeyErrorsFn',
   unknownKeyErrorsIdentity
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'uke'>) => UnknownKeyErrorsFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'uke'>) => UnknownKeyErrorsFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn);
 
 // The VALUE-level JSON transforms — `prepareForJson` (maps a typed value to a
 // JSON-safe value: bigint to string, Date preserved, undeclared keys stripped, …)
@@ -511,8 +515,8 @@ export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
 export const createFormatTransformFn = createRTFunction<FormatTransformFn<unknown>>(
   'createFormatTransformFn',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'fmt'>) => FormatTransformFn<T>) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'fmt'>) => FormatTransformFn<T>);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'formatTransform'>) => FormatTransformFn<T>) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'formatTransform'>) => FormatTransformFn<T>);
 
 // =============================================================================
 // JSON encode / decode — the only two public JSON entry functions.
@@ -628,17 +632,17 @@ export function createJsonDecoderFn<T>(
 export function createParseFn<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<ParseOptions>,
-  ids?: InjectTypeFnArgs<T, 'prs', 'verr'>
+  ids?: InjectTypeFnArgs<T, 'parse', 'validationErrors'>
 ): ParseFn<T>;
 export function createParseFn<T>(
   val?: T,
   options?: CompTimeFnArgs<ParseOptions>,
-  ids?: InjectTypeFnArgs<T, 'prs', 'verr'>
+  ids?: InjectTypeFnArgs<T, 'parse', 'validationErrors'>
 ): ParseFn<T>;
 export function createParseFn<T>(
   valOrSchema?: T | RunType<T>,
   _options?: CompTimeFnArgs<ParseOptions>,
-  ids?: InjectTypeFnArgs<T, 'prs', 'verr'>
+  ids?: InjectTypeFnArgs<T, 'parse', 'validationErrors'>
 ): ParseFn<T> {
   // A value-first schema's runtime `.id` overrides the injected type id (correct
   // even for recursive schemas), same as createStandardSchema.
@@ -757,7 +761,7 @@ export type RTFunctionKey = keyof RTFunctionByKey;
  *  dedicated factory per function. This is the only way to reach the JSON
  *  value-level primitives that have no `createX` (`'pj'`/`'pjs'`/`'rj'`/`'rjs'`/
  *  `'sj'`/`'ukuw'`/`'cj'`/`'cjr'`); it also resolves any createX-backed family the same
- *  way. The type parameter is the fnKey (`getRTFunction<'pjs'>(fns?.[0])`), so the
+ *  way. The type parameter is the fnKey (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`), so the
  *  return type comes straight from `RTFunctionByKey`.
  *
  *  Registers the tuple's dependency closure, then returns `entry.fn` by the

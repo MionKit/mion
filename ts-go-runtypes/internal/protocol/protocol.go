@@ -235,11 +235,11 @@ type Response struct {
 	// the type rather than `v`. Set per emitter so the Vite plugin
 	// invalidates the stringifyJson cache module independently.
 	AddedStringifyJson bool `json:"addedStringifyJson,omitempty"`
-	// AddedPrepareForJsonSafe mirrors AddedPrepareForJson for the safe-encode
+	// AddedPrepareForJsonClone mirrors AddedPrepareForJson for the safe-encode
 	// family — non-mutating sibling that strips undeclared properties and
 	// returns a new value. Pairs with the existing RestoreFromJson decoder
 	// (wire format identical to prepareForJson + JSON.stringify).
-	AddedPrepareForJsonSafe bool `json:"addedPrepareForJsonSafe,omitempty"`
+	AddedPrepareForJsonClone bool `json:"addedPrepareForJsonClone,omitempty"`
 	// AddedHasUnknownKeys / AddedUnknownKeyErrors / AddedCloneExactShape
 	// mirror AddedValidate for the unknown-keys family. Set per emitter so
 	// the Vite plugin invalidates each cache module independently on
@@ -248,9 +248,9 @@ type Response struct {
 	AddedHasUnknownKeys   bool `json:"addedHasUnknownKeys,omitempty"`
 	AddedUnknownKeyErrors bool `json:"addedUnknownKeyErrors,omitempty"`
 	AddedCloneExactShape  bool `json:"addedCloneExactShape,omitempty"`
-	// AddedUnknownKeysToUndefinedWire — the decoder-internal ukuWire family
+	// AddedStripUnknownKeysWire — the decoder-internal ukuWire family
 	// (the `strip` decode strategy's pre-pass).
-	AddedUnknownKeysToUndefinedWire bool `json:"addedUnknownKeysToUndefinedWire,omitempty"`
+	AddedStripUnknownKeysWire bool `json:"addedStripUnknownKeysWire,omitempty"`
 	// AddedToBinary / AddedFromBinary mirror AddedPrepareForJson for the
 	// binary serializer pair. True when at least one newly-interned
 	// RunType has a supported emit arm in the corresponding emitter.
@@ -658,11 +658,11 @@ var responseAddedFlags = []struct {
 	{"addedPrepareForJson", func(response *Response) bool { return response.AddedPrepareForJson }},
 	{"addedRestoreFromJson", func(response *Response) bool { return response.AddedRestoreFromJson }},
 	{"addedStringifyJson", func(response *Response) bool { return response.AddedStringifyJson }},
-	{"addedPrepareForJsonSafe", func(response *Response) bool { return response.AddedPrepareForJsonSafe }},
+	{"addedPrepareForJsonClone", func(response *Response) bool { return response.AddedPrepareForJsonClone }},
 	{"addedHasUnknownKeys", func(response *Response) bool { return response.AddedHasUnknownKeys }},
 	{"addedUnknownKeyErrors", func(response *Response) bool { return response.AddedUnknownKeyErrors }},
 	{"addedCloneExactShape", func(response *Response) bool { return response.AddedCloneExactShape }},
-	{"addedUnknownKeysToUndefinedWire", func(response *Response) bool { return response.AddedUnknownKeysToUndefinedWire }},
+	{"addedStripUnknownKeysWire", func(response *Response) bool { return response.AddedStripUnknownKeysWire }},
 	{"addedToBinary", func(response *Response) bool { return response.AddedToBinary }},
 	{"addedFromBinary", func(response *Response) bool { return response.AddedFromBinary }},
 	{"addedFormatTransform", func(response *Response) bool { return response.AddedFormatTransform }},

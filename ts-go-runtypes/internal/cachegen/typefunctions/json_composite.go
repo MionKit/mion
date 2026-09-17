@@ -166,7 +166,7 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 	// node id already folded the override hash, so this key is unique to the
 	// overridden type. Only the PLAIN variant is overridden — the armed variant
 	// falls through to structural emit so its guard still runs.
-	if cfnHash := runType.Overrides[op.FnKey]; cfnHash != "" && !rejectCircular {
+	if cfnHash := runType.Overrides[op.Name]; cfnHash != "" && !rejectCircular {
 		return buildRedirectEntry(entryKey, tag, runType, cfnHash, opts)
 	}
 	isLive := func(primOp string) bool { return primitiveIsLive(rendered, primOp, runType.ID) }
@@ -359,12 +359,12 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 				body = "return JSON.stringify(" + arrayWrap("v") + ");"
 			}
 		case "clone":
-			// Shape-derived clone (prepareForJsonSafe builds a NEW value from the
+			// Shape-derived clone (prepareForJsonClone builds a NEW value from the
 			// declared shape) — undeclared keys are dropped by construction, so the
 			// clone is stripped without a separate strip pass.
-			body = "return JSON.stringify(" + arrayWrap(wrap("pjsFn", "prepareForJsonSafe", "v")) + ");"
+			body = "return JSON.stringify(" + arrayWrap(wrap("pjsFn", "prepareForJsonClone", "v")) + ");"
 		case "mutate":
-			body = "return JSON.stringify(" + arrayWrap(wrap("pjFn", "prepareForJson", "v")) + ");"
+			body = "return JSON.stringify(" + arrayWrap(wrap("pjFn", "prepareForJsonMutate", "v")) + ");"
 		case "compact":
 			// Positional-array clone (compactForJson builds a NEW value emitting
 			// declared object props by position, no key names) — strips undeclared
@@ -386,7 +386,7 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 		case "preserve":
 			body = "return " + wrap("rjFn", "restoreFromJson", "JSON.parse(s)") + ";"
 		case "strip":
-			body = "return " + wrap("rjFn", "restoreFromJson", wrap("ukuwFn", "unknownKeysToUndefinedWire", "JSON.parse(s)")) + ";"
+			body = "return " + wrap("rjFn", "restoreFromJson", wrap("ukuwFn", "stripUnknownKeysWire", "JSON.parse(s)")) + ";"
 		case "compact":
 			// Inverse of compactForJson: rebuild the keyed object from the
 			// positional array JSON.parse produced.

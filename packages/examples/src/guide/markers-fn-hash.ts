@@ -7,11 +7,11 @@ import {getFnHash, getRunTypeId} from '@mionjs/run-types';
 // ids getFnHash returns are stable across releases.
 
 // The function id for the default validator.
-const validateId = getFnHash('val');
+const validateId = getFnHash('validate');
 
 // Options that change the generated function change its id too, and getFnHash
 // follows them: a validator that skips literal checks is a different function.
-const looseValidateId = getFnHash('val', {noLiterals: true});
+const looseValidateId = getFnHash('validate', {noLiterals: true});
 
 // The JSON encoder has several strategies, and each one is its own function.
 const encodeMutateId = getFnHash('jsonEncoder', {strategy: 'mutate'});

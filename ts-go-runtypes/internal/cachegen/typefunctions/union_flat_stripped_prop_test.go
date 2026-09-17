@@ -47,7 +47,7 @@ func buildStrippedMergedPropUnionFixture(strippedKind reflection.ReflectionKind)
 // when the value does not match (it belongs to the stripped member). (G4)
 func TestPrepareForJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
-	out := renderModule(t, dump, "prepareForJson")
+	out := renderModule(t, dump, "prepareForJsonMutate")
 
 	if !strings.Contains(out, "else { delete v.f2 }") {
 		t.Errorf("expected guarded `else { delete v.f2 }` drop for a value from the stripped member; got:\n%s", out)
@@ -63,12 +63,12 @@ func TestPrepareForJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) 
 	}
 }
 
-// TestPrepareForJsonSafeModule_StrippedMergedPropGuardsPresence — the clone
+// TestPrepareForJsonCloneModule_StrippedMergedPropGuardsPresence — the clone
 // (default) encoder MUST fold a value check into the `f2 !== undefined`
 // presence test so the surviving codec runs only for a matching value. (G4)
-func TestPrepareForJsonSafeModule_StrippedMergedPropGuardsPresence(t *testing.T) {
+func TestPrepareForJsonCloneModule_StrippedMergedPropGuardsPresence(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
-	out := renderModule(t, dump, "prepareForJsonSafe")
+	out := renderModule(t, dump, "prepareForJsonClone")
 
 	if !strings.Contains(out, "v.f2 !== undefined && (") {
 		t.Errorf("expected `v.f2 !== undefined && (` presence guard for the stripped sibling; got:\n%s", out)
@@ -122,7 +122,7 @@ func TestMergedProp_CleanSiblingHasNoDrop(t *testing.T) {
 		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, number, litT1, litT2, kindT1, kindT2, f2Date, f2Num, obj1, obj2, union}}
-	out := renderModule(t, dump, "prepareForJson")
+	out := renderModule(t, dump, "prepareForJsonMutate")
 
 	if strings.Contains(out, "delete v.f2") {
 		t.Errorf("a clean (no stripped sibling) union must NOT emit a `delete v.f2` drop; got:\n%s", out)

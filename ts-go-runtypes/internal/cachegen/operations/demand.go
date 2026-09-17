@@ -38,6 +38,14 @@ func DemandFor(fnKey string, optionNames []string, strategy string, rejectCircul
 	if !ok {
 		return nil
 	}
+	return DemandForOp(op, optionNames, strategy, rejectCircular)
+}
+
+// DemandForOp is DemandFor for a caller that already holds the Operation. The
+// scanner swaps the operation mid-resolution (checkUnknowns picks the fused
+// validator, a parse strategy picks its family), so it would otherwise have to
+// re-derive a marker token just to look the same operation back up.
+func DemandForOp(op Operation, optionNames []string, strategy string, rejectCircular bool) []Demand {
 	// rejectCircular only forks a CircularGuarded op; normalise away otherwise so
 	// non-guarded families never carry a spurious armed flag.
 	armed := rejectCircular && op.CircularGuarded

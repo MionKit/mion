@@ -61,44 +61,44 @@ function overrideImpl(_pureFn: unknown, id?: unknown): void {
 
 export const overrideValidate = overrideImpl as unknown as <T>(
   fn: PureFunction<ValidateFn<T>>,
-  id?: InjectTypeFnArgs<T, 'val'>
+  id?: InjectTypeFnArgs<T, 'validate'>
 ) => void;
 
 export const overrideGetValidationErrors = overrideImpl as unknown as <T>(
   fn: PureFunction<GetValidationErrorsFn>,
-  id?: InjectTypeFnArgs<T, 'verr'>
+  id?: InjectTypeFnArgs<T, 'validationErrors'>
 ) => void;
 
 export const overrideHasUnknownKeys = overrideImpl as unknown as <T>(
   fn: PureFunction<HasUnknownKeysFn>,
-  id?: InjectTypeFnArgs<T, 'huk'>
+  id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>
 ) => void;
 
 export const overrideCloneExactShape = overrideImpl as unknown as <T>(
   fn: PureFunction<CloneExactShapeFn<T>>,
-  id?: InjectTypeFnArgs<T, 'ces'>
+  id?: InjectTypeFnArgs<T, 'cloneExactShape'>
 ) => void;
 
 export const overrideUnknownKeyErrors = overrideImpl as unknown as <T>(
   fn: PureFunction<UnknownKeyErrorsFn>,
-  id?: InjectTypeFnArgs<T, 'uke'>
+  id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>
 ) => void;
 
 export const overrideFormatTransform = overrideImpl as unknown as <T>(
   fn: PureFunction<FormatTransformFn<T>>,
-  id?: InjectTypeFnArgs<T, 'fmt'>
+  id?: InjectTypeFnArgs<T, 'formatTransform'>
 ) => void;
 
 // Binary overrides target the internal toBinary / fromBinary entries (the
 // serializer-threading shape the emitter uses), not the public wrapper.
 export const overrideBinaryEncoder = overrideImpl as unknown as <T>(
   fn: PureFunction<ToBinaryFn>,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ) => void;
 
 export const overrideBinaryDecoder = overrideImpl as unknown as <T>(
   fn: PureFunction<FromBinaryFn<DataOnly<T>>>,
-  id?: InjectTypeFnArgs<T, 'fb'>
+  id?: InjectTypeFnArgs<T, 'fromBinary'>
 ) => void;
 
 export const overrideJsonEncoder = overrideImpl as unknown as <T>(

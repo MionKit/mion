@@ -194,7 +194,7 @@ func TestHasUnknownKeys_VariantHonoursOverride(t *testing.T) {
 	runTypes := buildNamedVsInlineNestedFixture()
 	for _, runType := range runTypes {
 		if runType.ID == "inner" {
-			runType.Overrides = map[string]string{"huk": "cfnhash1"}
+			runType.Overrides = map[string]string{"hasUnknownKeys": "cfnhash1"}
 		}
 	}
 	dump := protocol.Dump{
