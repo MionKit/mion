@@ -54,7 +54,7 @@ const rawRequest = {};
 const headers = headersFromRecord({});
 
 /** The steps every shape performs before it can look a route up: the path transform and the batch
- *  check resolveRequest does. Factored out so the three shapes differ ONLY in what they allocate. */
+ *  check resolveExecutionChain does. Factored out so the shapes differ ONLY in what they allocate. */
 function transformPath(path: string, rawReq: unknown): string {
   const opts = getRouterOptions();
   const transformed = opts.pathTransform?.(rawReq, path) || path;

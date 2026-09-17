@@ -72,8 +72,12 @@ async function handleRequest(req: Request): Promise<Response> {
       } catch (err) {
         // the route resolved, so a refused body still runs the chain's alwaysRun members
         const refused = await dispatchPlatformError(
-          createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders),
+          chain,
+          path,
+          urlQuery,
           toRpcError(err),
+          req.headers,
+          responseHeaders,
           req,
           undefined
         );
