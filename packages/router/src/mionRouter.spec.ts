@@ -113,6 +113,76 @@ describe('createMionRouter types', () => {
     const def = mion.route(handler);
     expectTypeOf(def.handler).toEqualTypeOf(handler);
   });
+
+  // The remaining helpers type the context the same way `route` does, and every runtime test that
+  // reads `ctx.shared` would keep passing if it widened to `any`. These are the only assertions
+  // that would not. They bite under `tsc -p tsconfig.test.json` (the package's typecheck:test),
+  // not under vitest: the handlers below are never called.
+
+  it('types the handler context from contextDataFactory in middleFn', () => {
+    mion.middleFn((ctx, greeting: string): string => {
+      expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
+      // @ts-expect-error not a field of the shared data
+      void ctx.shared.nope;
+      return greeting;
+    });
+  });
+
+  it('types the handler context from contextDataFactory in headersFn', () => {
+    mion.headersFn((ctx, {headers}: HeadersSubset<'Authorization'>): string => {
+      expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
+      // @ts-expect-error not a field of the shared data
+      void ctx.shared.nope;
+      return headers.Authorization;
+    });
+  });
+
+  it('types the handler context from contextDataFactory in rawMiddleFn', () => {
+    mion.rawMiddleFn((ctx, req: unknown, resp: unknown): void => {
+      expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
+      // @ts-expect-error not a field of the shared data
+      void ctx.shared.nope;
+    });
+  });
+
+  it('pinning isMutation leaves the context alone', () => {
+    mion.query((ctx, id: number): string => {
+      expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
+      // @ts-expect-error not a field of the shared data
+      void ctx.shared.nope;
+      return `${id}`;
+    });
+    mion.mutation((ctx, name: string): string => {
+      expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
+      // @ts-expect-error not a field of the shared data
+      void ctx.shared.nope;
+      return name;
+    });
+  });
+
+  it('types the handler context through destructured helpers', () => {
+    destructuredRoute((ctx): number => {
+      expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
+      // @ts-expect-error not a field of the shared data
+      void ctx.shared.nope;
+      return ctx.shared.visits;
+    });
+    destructuredMiddleFn((ctx, greeting: string): string => {
+      expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
+      // @ts-expect-error not a field of the shared data
+      void ctx.shared.nope;
+      return greeting;
+    });
+  });
+
+  // `routes` is the object this file registers with `mion.initRoutes` below, so this reads the
+  // context off a definition that went through registration.
+  it('keeps the typed context on a registered definition', () => {
+    expectTypeOf<Parameters<(typeof routes)['visits']['handler']>[0]['shared']>().toEqualTypeOf<SharedData>();
+    expectTypeOf<Parameters<(typeof routes)['greet']['handler']>[0]['shared']>().toEqualTypeOf<SharedData>();
+    expectTypeOf<Parameters<(typeof routes)['auth']['handler']>[0]['shared']>().toEqualTypeOf<SharedData>();
+    expectTypeOf<Parameters<(typeof routes)['nothing']['handler']>[0]['shared']>().toEqualTypeOf<SharedData>();
+  });
 });
 
 describe('PublicApi resolved options', () => {
