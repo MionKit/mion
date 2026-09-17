@@ -59,6 +59,7 @@ describe('mock soundness — validate(mock()) holds or fails loudly', () => {
     type FormatA = StringFormat<{maxLength: 10; mockSamples: ['aaa', 'aa']}>;
     type FormatB = StringFormat<{maxLength: 10; mockSamples: ['zzz', 'zz']}>;
     const idA = getRunTypeId<FormatA>();
+    // @mion-downgrade-error FMT006
     const idB = getRunTypeId<FormatB>();
     // Samples are generation metadata, not validation behaviour: the two
     // formats describe the SAME validator, so they dedup onto one entry.

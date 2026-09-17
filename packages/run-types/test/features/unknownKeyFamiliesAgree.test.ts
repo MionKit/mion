@@ -170,6 +170,7 @@ describe('every unknown-key family agrees', () => {
         hasUnknownKeys: createHasUnknownKeysFn<TwoObjects>(),
         unknownKeyErrors: createUnknownKeyErrorsFn<TwoObjects>(),
         validateStrict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}),
+        // @mion-downgrade-error CES001
         makeCloneExactShape: () => createCloneExactShapeFn<TwoObjects>(),
         stripDecoder: createJsonDecoderFn<TwoObjects>(undefined, {strategy: 'strip'}),
         cloneEncoder: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'clone'}),
@@ -241,6 +242,7 @@ describe('every unknown-key family agrees', () => {
     expect(createValidateFn<CountsOrInner>(undefined, {checkUnknowns: true})(parse()), 'validate {checkUnknowns: true}').toBe(
       false
     );
+    // @mion-downgrade-error CES001
     expect(() => createCloneExactShapeFn<CountsOrInner>(), 'cloneExactShape refuses an object-bearing union').toThrow(/CES001/);
     const cloneEncoded = createJsonEncoderFn<CountsOrInner>(undefined, {strategy: 'clone'})(parse()) as string;
     const directEncoded = createJsonEncoderFn<CountsOrInner>(undefined, {strategy: 'direct'})(parse()) as string;

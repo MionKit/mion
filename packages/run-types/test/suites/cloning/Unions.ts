@@ -63,6 +63,7 @@ export const UNIONS = {
       'Untagged union of object shapes is unsupported for cloning — the factory throws at creation (CES001) instead of guessing which shape to rebuild.',
     cloneNotes:
       'The serializers resolve these arms structurally on the flat wire by required keys; clone v1 has no runtime arm discrimination, so it cannot know which declared shape to rebuild — narrow to one arm before cloning (one factory per arm).',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -79,6 +80,7 @@ export const UNIONS = {
         | {type: 'b'; otherProp: number}
         | {type: 'c'; otherProp: string; time: Date}
         | {type: boolean; otherProp: string}
+        // @mion-downgrade-error CES001
       >(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -92,6 +94,7 @@ export const UNIONS = {
     clone: () =>
       createCloneExactShapeFn<
         string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}
+        // @mion-downgrade-error CES001
       >(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -109,6 +112,7 @@ export const UNIONS = {
         | {b: number}
         | {a: string; [key: string]: string}
         | {[key: string]: bigint; b: bigint}
+        // @mion-downgrade-error CES001
       >(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -119,6 +123,7 @@ export const UNIONS = {
       'Self-referential union carrying an object-literal arm throws at factory creation (CES001) before any recursion is emitted.',
     cloneNotes:
       'The {a?: UnionC; b?: string} arm triggers the object-bearing-union rule regardless of the recursion — the serializers walk the self-reference on the flat wire, but clone v1 has no runtime arm discrimination; narrow to one arm before cloning (acyclic tree recursion itself is fine, see CIRCULAR_REFS).',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<UnionC>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -132,6 +137,7 @@ export const UNIONS = {
     clone: () =>
       createCloneExactShapeFn<
         {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
+        // @mion-downgrade-error CES001
       >(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -163,6 +169,7 @@ export const UNIONS = {
       'The extra-prop JSON.stringify contract is serialization-only — for cloning the {a} | {b} union of object shapes throws at factory creation (CES001) before any value flows.',
     cloneNotes:
       'The serializers resolve {a} vs {b} on the flat wire; clone v1 has no runtime arm discrimination, so the extra-bigint input is unreachable — the clone-side extras story (undeclared keys dropped by construction) lives in the OBJECTS cases; narrow to one arm before cloning.',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<{a: string} | {b: number}>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -173,6 +180,7 @@ export const UNIONS = {
       'Same contract as the extra-bigint case on the serialization side — for cloning the object-bearing union throws at factory creation (CES001).',
     cloneNotes:
       'A single-shape clone would drop the symbol extra by construction (undeclared keys never copy); as a union of shapes the factory throws instead — no runtime arm discrimination while the serializers dispatch on the flat wire — so narrow to one arm before cloning.',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<{a: string} | {b: number}>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -184,6 +192,7 @@ export const UNIONS = {
     cloneNotes:
       'The serializers dispatch on `kind` over the flat wire so the shared `at: Date` transforms exactly once; clone v1 rejects the object-bearing union at creation — narrow on `kind` and clone the narrowed arm.',
     clone: () =>
+      // @mion-downgrade-error CES001
       createCloneExactShapeFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -195,6 +204,7 @@ export const UNIONS = {
     cloneNotes:
       'The serializers dispatch `when` on the `kind` literal over the flat wire; clone v1 would have to guess (a Date must rebuild fresh, a string passes by value) and refuses to — narrow on `kind` before cloning.',
     clone: () =>
+      // @mion-downgrade-error CES001
       createCloneExactShapeFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -205,6 +215,7 @@ export const UNIONS = {
       'Shared `id: bigint | number` under a `form` discriminator throws at factory creation (CES001) like every object-bearing union in clone v1.',
     cloneNotes:
       'The serializers resolve `id` per arm over the flat wire; both id kinds are immutable pass-through values for cloning, but the arm shapes still differ and clone v1 has no runtime arm discrimination — narrow on `form` before cloning.',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -215,6 +226,7 @@ export const UNIONS = {
       'Structural shared-prop union with no discriminator throws at factory creation (CES001) — required-key dispatch exists only on the serialization side.',
     cloneNotes:
       'The serializers pick the member by required-key shape on the flat wire; clone v1 has no structural arm discrimination either — narrow by checking the divergent props yourself before cloning.',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<{a: string; b: number} | {a: boolean; c: Date}>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,
@@ -255,6 +267,7 @@ export const UNIONS = {
     description: 'Unions with object members throw at factory creation — CES001, the house alwaysThrow convention.',
     cloneNotes:
       'Narrow to one arm before cloning (one factory per arm), or restructure into a single object with optional props.',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<Disjoint>(),
     getTestData: () => ({values: []}),
     factoryThrows: true,

@@ -72,14 +72,20 @@ describe('DataOnly union-member drop', () => {
 
 describe('DataOnly collapse-to-never / empty still throws', () => {
   test('all members of a union stripped (DataOnly = never)', () => {
+    // @mion-downgrade-error VL002
     expect(() => createValidateFn<symbol | (() => void)>()).toThrow();
+    // @mion-downgrade-error PJS005
     expect(() => createJsonEncoderFn<symbol | (() => void)>()).toThrow();
   });
 
   test('array / tuple / Map / Set whose element collapses to never', () => {
+    // @mion-downgrade-error PJS005
     expect(() => createJsonEncoderFn<symbol[]>()).toThrow();
+    // @mion-downgrade-error PJS005
     expect(() => createJsonEncoderFn<[string, symbol]>()).toThrow();
+    // @mion-downgrade-error PJS005
     expect(() => createJsonEncoderFn<Map<string, symbol>>()).toThrow();
+    // @mion-downgrade-error PJS005
     expect(() => createJsonEncoderFn<Set<symbol>>()).toThrow();
   });
 
