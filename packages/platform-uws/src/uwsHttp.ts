@@ -273,12 +273,17 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
 function releaseAfterDecode(fullBody: ArrayBuffer): string {
   const text = Buffer.from(fullBody).toString();
   try {
-    fullBody.transfer(0);
+    (fullBody as ReleasableBuffer).transfer?.(0);
   } catch {
     // not transferable: the collector gets it instead, exactly as before
   }
   return text;
 }
+
+/** `transfer` is ES2024 and this package compiles against an ES2023 lib, so the method is declared
+ *  here rather than taken from the ambient ArrayBuffer. Optional for the same reason the call above
+ *  is guarded: a runtime without it must keep working. */
+type ReleasableBuffer = ArrayBuffer & {transfer?: (newByteLength?: number) => ArrayBuffer};
 
 // only called when there is an http error or weird unhandled route errors
 function fatalFail(res: HttpResponse, state: {aborted: boolean}, respHeaders: MionHeaders, error: RpcError<string>) {
