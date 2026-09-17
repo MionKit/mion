@@ -308,6 +308,7 @@ function assertionsComposers(): void {
   void _back;
 
   // @ts-expect-error — `array` takes a RunType schema, not the bare builder fn.
+  // @mion-downgrade-error CTA003
   RT.array(RT.boolean);
 
   // @ts-expect-error — `literal` only accepts string/number/bigint/boolean/null/undefined.

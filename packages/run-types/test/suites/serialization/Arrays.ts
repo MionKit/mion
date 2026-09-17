@@ -169,20 +169,33 @@ export const ARRAYS = {
     title: 'Non-serializable array elements',
     description:
       '`symbol[]` should throw at RT-compile time per the reference semantics because a non-serializable element propagates to the root.',
+    // @mion-downgrade-error PJ005
     mutateEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'mutate'}),
+    // @mion-downgrade-error PJS005
     cloneEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'clone'}),
+    // @mion-downgrade-error SJ005
     directEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'direct'}),
+    // @mion-downgrade-error PJS005
     compactEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error RJ005
     stripDecoder: () => createJsonDecoderFn<symbol[]>(),
+    // @mion-downgrade-error RJ005
     preserveDecoder: () => createJsonDecoderFn<symbol[]>(undefined, {strategy: 'preserve'}),
+    // @mion-downgrade-error RJ005
     compactDecoder: () => createJsonDecoderFn<symbol[]>(undefined, {strategy: 'compact'}),
+    // @mion-downgrade-error TB006
     binaryEncoder: () => createBinaryEncoderFn<symbol[]>(),
+    // @mion-downgrade-error FB006
     binaryDecoder: () => createBinaryDecoderFn<symbol[]>(),
     // Non-serializable array element (symbol) propagates to the root → alwaysThrow.
     // `RT.array(RT.symbol())` resolves the same factory, so each schema thunk throws.
+    // @mion-downgrade-error PJS005
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.symbol())),
+    // @mion-downgrade-error RJ005
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.symbol())),
+    // @mion-downgrade-error TB006
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.symbol())),
+    // @mion-downgrade-error FB006
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.symbol())),
     factoryThrows: true,
     getTestData: () => ({values: []}),

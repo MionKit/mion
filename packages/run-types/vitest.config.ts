@@ -47,15 +47,14 @@ export default defineConfig({
       // are smaller; runtimes without `new Function` opt into 'functions' or
       // 'both' on the plugin themselves.
       emitMode: 'both',
-      // This test program DELIBERATELY contains Error-severity types (the
-      // alwaysThrow suites pin the runtime throw for root-position symbols,
-      // functions, …), so the strict default would refuse to boot the project.
-      // 45 such call sites across 15 suite files, spanning the cloning,
-      // serialization and validation families: too many codes to name, which is
-      // what the wildcard is for. A consumer with a handful of findings should
-      // name the codes instead, or annotate the call site with
-      // `@mion-expect-error`.
-      downgradeErrors: '*',
+      // NO downgradeErrors here on purpose. This program DELIBERATELY contains
+      // Error-severity types (the alwaysThrow suites pin the runtime throw for
+      // root-position symbols, functions, …), and every one of those ~200 call
+      // sites says so in its own source: `@mion-downgrade-error` where the
+      // finding is true and worth reading, `@mion-expect-error` where it is
+      // noise. A wildcard here made a real finding indistinguishable from an
+      // expected one, which is how nine call sites silently compiled the
+      // default encoder strategy instead of the one they named.
       // The on-disk RT artifact cache follows TypeScript's incremental switch,
       // and `tsconfig.test.json` sets `incremental: false`, so these test runs
       // are cache-off with no knob — they never pollute node_modules/.cache

@@ -28,10 +28,6 @@ export default defineConfig({
       // last-writer-wins. Keeping it here also lets the shared teardown below
       // (which cleans `<project root>/.mion`) remove it after the run.
       genDir: resolve(HERE, '.mion'),
-      // The program pulls in the marker package's src, whose own generic
-      // helper call sites carry CTA-diagnostic markers (same reason the main
-      // marker project opts out of the strict default).
-      downgradeErrors: '*',
     }),
   ],
   test: {

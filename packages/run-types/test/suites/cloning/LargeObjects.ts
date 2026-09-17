@@ -206,6 +206,7 @@ export const LARGE_OBJECTS = {
     title: 'Object Union',
     description:
       'Five-member discriminated union of large event shapes — object-bearing unions are unsupported for cloning, so the factory throws CES001 at creation.',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<LargeObjectUnion>(),
     getTestData: () => ({
       values: [
@@ -262,6 +263,7 @@ export const LARGE_OBJECTS = {
     title: 'Mixed Union',
     description:
       'A string | number | ProductEvent | UserEvent union mixes atomic members with two large object arms — still object-bearing, so the factory throws CES001 at creation.',
+    // @mion-downgrade-error CES001
     clone: () => createCloneExactShapeFn<MixedLargeUnion>(),
     getTestData: () => ({
       values: [

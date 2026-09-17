@@ -13,6 +13,8 @@ import {registerPureFnFactory} from '../../src/runtypes/pureFn.ts';
 const TEST_NAMESPACE = 'test';
 
 function getCompiledPureFn(namespace: string, fnName: string): CompiledPureFunction | undefined {
+  // Runtime lookups: the key comes from a helper call, so there is no build-time reference to record.
+  // @mion-expect-error CTA003
   return getRTUtils().getCompiledPureFn(pureFnKey(namespace, fnName));
 }
 
@@ -32,6 +34,7 @@ it('register and get pure function with extracted data', () => {
       return true;
     };
   });
+  // @mion-expect-error CTA003
   const restoredFn = getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'stringPureFn')) as (s: string, p: StringParams) => boolean;
   expect(restoredFn).toBeDefined();
   expect(restoredFn).toBeInstanceOf(Function);
@@ -44,6 +47,7 @@ it('throws when no cache entry is found (USER key, null factory)', () => {
   // missing-plugin signal — the Go binary only emits entries for files it walks,
   // so a key it never saw must throw. (The hollowed BUILT-IN lane is exempt; see
   // the 'hollowed built-in lane' block below.)
+  // @mion-downgrade-error CTA003 PFN001
   expect(() => registerPureFnFactory(`${TEST_NAMESPACE}_unscanned_${Math.random()}::noSuchFn`, null)).toThrow(
     /no cache entry for/
   );
@@ -90,7 +94,9 @@ it('auto-detects dependencies via proxy when factory calls getPureFn', () => {
   expect(compiledIsB).toBeDefined();
   // Materialise `fn` lazily — the cache module sets fn=undefined until
   // a getPureFn / usePureFn caller forces createPureFn to run.
+  // @mion-expect-error CTA003
   expect(getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'pureFunctionA'))).toBeInstanceOf(Function);
+  // @mion-expect-error CTA003
   expect(getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'pureFunctionB'))).toBeInstanceOf(Function);
   // Static dep extraction emits full `"<namespace>::<fnName>"` keys.
   expect(compiledIsB?.pureFnDependencies?.includes('test::pureFunctionA')).toBeTruthy();
@@ -110,6 +116,7 @@ describe('arrow function factory functions', () => {
         return true;
       };
     });
+    // @mion-expect-error CTA003
     const restoredFn = getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'arrowWithParens')) as (
       s: string,
       p: StringParams
@@ -131,6 +138,7 @@ describe('arrow function factory functions', () => {
           return n * (p.multiplier ?? 1);
         }
     );
+    // @mion-expect-error CTA003
     const restoredFn = getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'arrowExpression')) as (
       n: number,
       p: NumParams
@@ -179,12 +187,14 @@ describe('hollowed built-in lane', () => {
     const key = 'rt::hollowLaneUnusedFn';
     expect(getRTUtils().getCompiledPureFn(key)).toBeUndefined();
     // Hollowed dist ships `registerPureFnFactory('rt::…', null)`.
+    // @mion-downgrade-error PFN001
     expect(() => registerPureFnFactory(key, null)).not.toThrow();
     // Crucially NOT cached — a cached placeholder would mask the real registration.
     expect(getRTUtils().getCompiledPureFn(key)).toBeUndefined();
   });
 
   it('rtFormats:: built-in key is inert too', () => {
+    // @mion-downgrade-error PFN001
     expect(() => registerPureFnFactory('rtFormats::hollowLaneUnusedFmt', null)).not.toThrow();
     expect(getRTUtils().getCompiledPureFn('rtFormats::hollowLaneUnusedFmt')).toBeUndefined();
   });
@@ -192,6 +202,7 @@ describe('hollowed built-in lane', () => {
   it('real body wins whichever order it arrives in (deps-thunk after hollowed call)', () => {
     const key = 'rt::hollowLaneRealBody';
     // Hollowed side-effect import runs first (inert).
+    // @mion-downgrade-error PFN001
     registerPureFnFactory(key, null);
     expect(getRTUtils().getCompiledPureFn(key)).toBeUndefined();
     // The demand-driven cache then registers the real body (modelled here via the

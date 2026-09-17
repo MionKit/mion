@@ -497,10 +497,12 @@ const targets: CloneFuzzTarget[] = [];
 const throwTargets: Array<{title: string; createClone: () => unknown}> = [
   {
     title: 'DisjointObjectUnion',
+    // @mion-downgrade-error CES001
     createClone: () => createCloneExactShapeFn<{a: string} | {b: number}>(),
   },
   {
     title: 'DiscriminatedUnion',
+    // @mion-downgrade-error CES001
     createClone: () => createCloneExactShapeFn<{kind: 'a'; va: string} | {kind: 'b'; vb: number}>(),
   },
 ];
