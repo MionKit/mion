@@ -60,14 +60,20 @@ One `it` per case:
 
 The change IS the tests.
 
+`expectTypeOf` and `@ts-expect-error` are compile-time only, and this repo configures no vitest
+typecheck, so vitest alone would run these tests green whatever the types said. What enforces them
+is tsc over a config that includes the spec files:
+
 ```bash
+pnpm --filter @mionjs/router run typecheck:test   # tsc -p tsconfig.test.json --noEmit
 pnpm exec vitest run mionRouter
 pnpm test
 ```
 
-Type assertions run under vitest's typecheck, so a wrong assertion fails the run instead of passing
-quietly. Prove each new assertion bites: flip it once to the wrong type, watch it fail, flip it back.
-An `expectTypeOf` that was never seen failing has not been shown to test anything.
+`pnpm run typecheck`, inside `pnpm run lint`, runs the same check across the workspace.
+
+Prove each new assertion bites: flip it once to the wrong type, watch `typecheck:test` fail, flip it
+back. An `expectTypeOf` that was never seen failing has not been shown to test anything.
 
 The Marker test coverage rule does not apply here: this adds no `getRunTypeId` call site and no new
 marker shape, only assertions around helper calls that already exist.
@@ -90,3 +96,14 @@ CHECK, not a missing propagation, and it is its own change.
 `ctx.shared` is pinned to the factory's type for all five helpers and for the destructured ones, one
 assertion proves the type survives `initRoutes`, every new assertion has been seen to fail when
 wrong, and `pnpm test` plus `pnpm run lint` pass.
+
+## What shipped
+
+Six new `it` blocks in `packages/router/src/mionRouter.spec.ts`, covering `middleFn`, `headersFn`,
+`rawMiddleFn`, the `query` / `mutation` pair, the destructured helpers, and a readback of four
+definitions off the `routes` object the file registers. Twelve assertions in total.
+
+No source change was needed: all five helpers already typed the context correctly. That was checked,
+not assumed. Every assertion was flipped to a wrong type and seen to fail under `typecheck:test`
+before being flipped back, the `@ts-expect-error` directives included (a directive over an `any`
+context would have reported itself unused, and none did).
