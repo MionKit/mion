@@ -164,9 +164,6 @@ func emitIndexSignatureUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// A member declared with a name that can never be a property is dropped
-	// from every family (strippedPropertyDrop reports it for the codecs; the
-	// unknown-key walkers skip it silently, the way they skip a method).
 	if reflection.IsUnsafePropertyName(rt.Name) {
 		return RTCode{Code: "", Type: CodeS}
 	}

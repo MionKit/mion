@@ -178,7 +178,7 @@ var messagesByCode = map[string]message{
 	},
 	"MRT005": {
 		Headline: "Property `{0}` can never be data and is dropped from every compiled function; rename it.",
-		Detail:   "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, and TypeScript cannot build one either: `{__proto__: 'x'}`\nsimply has no such key. So the member is dropped and the value never round\ntrips.\n\n`prototype` and `constructor` are ordinary property names and are left alone.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property to keep the data.",
+		Detail:   "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so the member is dropped and the value never round trips.\n\nTypeScript ACCEPTS the declaration, which is why this is worth saying: the type\npromises a value, and at runtime there is no such key at all.\n\n`prototype` and `constructor` are ordinary property names and are left alone.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property to keep the data.",
 	},
 	"BAT007": {
 		Headline: "Batch mapper `{0}` has no generated pure function in the batch source program; the server build cannot register it.",
@@ -302,7 +302,7 @@ var messagesByCode = map[string]message{
 	},
 	"UPN001": {
 		Headline: "Property `{0}` can never be data and is dropped: the rest of the type still works.",
-		Detail:   "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. TypeScript cannot build one either: `{__proto__: 'x'}` simply has no such\nkey. The member is dropped from every generated function, the way a member\nwhose value cannot cross the wire is dropped.\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",
+		Detail:   "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. The member is dropped from every generated function, the way a member whose\nvalue cannot cross the wire is dropped.\n\nTypeScript ACCEPTS the declaration, which is why this is worth saying: the type\npromises a string, and at runtime there is no such key at all.\n  const v: Settings = {ok: 1, __proto__: 'x'};  // compiles\n  Object.keys(v);                               // ['ok']\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",
 	},
 	"PJ001": {
 		Headline: "Type `{0}` can never be encoded to JSON: the generated function will always fail.",

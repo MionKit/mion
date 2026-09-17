@@ -803,7 +803,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'warning',
     family: 'mionroute',
     detail:
-      "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, and TypeScript cannot build one either: `{__proto__: 'x'}`\nsimply has no such key. So the member is dropped and the value never round\ntrips.\n\n`prototype` and `constructor` are ordinary property names and are left alone.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property to keep the data.",
+      "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so the member is dropped and the value never round trips.\n\nTypeScript ACCEPTS the declaration, which is why this is worth saying: the type\npromises a value, and at runtime there is no such key at all.\n\n`prototype` and `constructor` are ordinary property names and are left alone.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property to keep the data.",
   },
   NE001: {
     headline:
@@ -1397,7 +1397,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'warning',
     family: 'runtype',
     detail:
-      "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. TypeScript cannot build one either: `{__proto__: 'x'}` simply has no such\nkey. The member is dropped from every generated function, the way a member\nwhose value cannot cross the wire is dropped.\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",
+      "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. The member is dropped from every generated function, the way a member whose\nvalue cannot cross the wire is dropped.\n\nTypeScript ACCEPTS the declaration, which is why this is worth saying: the type\npromises a string, and at runtime there is no such key at all.\n  const v: Settings = {ok: 1, __proto__: 'x'};  // compiles\n  Object.keys(v);                               // ['ok']\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",
   },
   VE001: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
