@@ -60,7 +60,8 @@ describe('shared data', () => {
     const mion = createMionRouter();
     mion.initRoutes({echo: mion.route((ctx, text: string): string => text)} satisfies Routes);
     const descriptor = Object.getOwnPropertyDescriptor(newContext('/echo'), 'shared');
-    expect(descriptor?.get).toBeUndefined();
+    // an accessor is what made every context a dictionary-mode object: a data property is the fix
+    expect(typeof descriptor?.get).toBe('undefined');
     expect(descriptor?.value).toEqual({});
   });
 
