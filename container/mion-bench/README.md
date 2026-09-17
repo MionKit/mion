@@ -86,6 +86,7 @@ pnpm miondevx bench servers one mion.uws    # a single app across the three suit
 pnpm miondevx bench servers suite hello-world  # a single suite across every app
 pnpm miondevx bench servers sweep           # the payload-size sweep (mion adapters only)
 pnpm miondevx bench servers repeat mion.bun # run one lane 3 times and check the spread
+pnpm miondevx bench servers gcprobe         # A/B two allocation shapes on MEMORY (see below)
 pnpm miondevx bench servers build           # just build the mion server bundles
 pnpm miondevx bench servers shell           # a debug shell in the image
 # --- image publishing (maintainer) ---
@@ -148,6 +149,46 @@ benchmark machine should do considerably better, so re-run `repeat` there and ti
 the number if it does. Short (`--quick`) windows land wider than this on purpose, which
 is why they are never published.
 
+## Comparing memory: `gcprobe`
+
+The lanes above answer "how fast", and their drift makes them useless for "how much
+memory": the same unchanged code has measured 46.5 and then 63.4 req/s on the 4 MB lane an
+hour apart, which is many times the size of an allocation change. `gcprobe` answers the
+memory question instead:
+
+```bash
+pnpm miondevx bench servers gcprobe --shapes split,merged --rounds 3 --size huge --quick
+```
+
+It runs each lane and shape in turn, alternating the order between rounds so a warm-up or a
+thermal trend cannot favour whichever arm ran first, and reports each arm as a **range**
+rather than a mean, because the rule is that a candidate only counts when the two ranges do
+not overlap.
+
+What makes a short window enough is that the metrics are per-request **ratios**, so the
+drift cancels out of them instead of swamping them:
+
+| Metric | Where from |
+| --- | --- |
+| bytes promoted per request | node's `--trace-gc-nvp`, summed over scavenges, divided by wrk's own request count |
+| major GCs per 1000 requests | the same trace |
+| GC pause ms per request | the same trace |
+| peak RSS | `VmHWM` in `/proc/<pid>/status`, the kernel's own high-water mark |
+| requests per second | the usual measurement, a guard only, never the decision |
+
+The trace is written to a FILE, not a pipe, and parsed only after the load window closes.
+An undrained pipe would block the server once its buffer filled, and a drained one would
+have the harness parsing while the window was open, stealing a core from wrk.
+
+Two limits worth knowing. The trace is a V8 flag, so the bun lanes get peak RSS and
+requests per second only; they are there to catch a change that helps node and hurts bun,
+so they can veto a candidate but never justify one. And lanes run one at a time, never
+together: on a 4 vCPU box two lanes at once would steal cores from each other and from the
+load generator, and neither number would mean anything.
+
+`MION_ALLOC_SHAPE` selects the shape. It is read once at module load by the router, so one
+build serves every arm.
+
 ## What came from the upstream benchmarks repo
 
 These benchmarks began in `MionKit/Benchmarks`, on its `mion-runtypes-` branch. This is
@@ -174,7 +215,7 @@ user models, and per-second memory and CPU sampling.
 | `MION-OPTIONS.md`, `lib/packages-mion-options.js` | Upstream marks the doc Deprecated: the options it measured no longer exist. |
 | `URL-PARAMETERS.md` | A one-off experiment run once, whose code upstream deleted so it would not disturb the regular benchmarks. |
 | `lib/chart-screenshot.js` and the billboard.js charts | Replaced by the `ServerBenchBars` component. A contract test already fails if billboard.js comes back. |
-| `scripts/analyze-heap.js`, `compare-heaps*.js`, `test-mion-bun-memory.js` and their plan docs | Aids for one bun memory-leak investigation. The harness already samples RSS every second and publishes `maxMem` and `memSeries`. |
+| `scripts/analyze-heap.js`, `compare-heaps*.js`, `test-mion-bun-memory.js` and their plan docs | Aids for one bun memory-leak investigation. The harness samples RSS every second for `maxMem` / `memSeries`, and `gcprobe` above answers the per-request allocation question these were reached for. |
 | `scripts/mionlink.js`, `mionupdate.js`, `copy-mion-tarballs.sh` | Upstream's way of getting mion into the tree. Here the workspace is bind-mounted, so the numbers always describe the current source. |
 | `scripts/rename-mionkit-to-mionjs.js` | A one-off rename that already happened. |
 | `.github/workflows/benchmarks.yml` | This repo runs the benchmarks from `website-deploy`. |
