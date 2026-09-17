@@ -798,12 +798,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       "The dispatcher routes a returned error by its mion brand. An `RpcError`, or\nany subclass of it, lands in its own typed slot and the client receives it\ntyped. Any other error, a plain `Error`, a custom class extending it, or a\nbare `TypedError`, carries no usable brand: the request is failed and the\nerror is dropped in the undeclared `@thrownErrors` slot instead, so the\ndeclared return type stops being true.\n\nFix: answer with an `RpcError` or a `FatalError`:\n-  mion.route((ctx, id: string): Pet | NotFoundError => new NotFoundError(id));\n+  mion.route((ctx, id: string): Pet | RpcError<'pet-not-found'> =>\n+    new RpcError({statusCode: 404, name: 'pet-not-found', publicMessage: 'no pet'}));",
   },
   MRT005: {
-    headline: 'Property `{0}` is named after a prototype slot and can never be data; rename it.',
-    level: 'runtimeError',
-    severity: 'error',
+    headline: 'Property `{0}` can never be data and is dropped from every compiled function; rename it.',
+    level: 'warning',
+    severity: 'warning',
     family: 'mionroute',
     detail:
-      'Writing `__proto__` on a plain object swaps its prototype instead of adding a\nkey, and a lookup of a missing `constructor` or `prototype` walks the\nprototype chain, so a wire that could carry one is a prototype-pollution\nvector. Every decoder refuses these names, and the build fails for any type a\nroute compiles with one.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property. A type that describes a real constructor and never\ncrosses the wire is the one legitimate case; silence the rule on that line and\nsay why.',
+      "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, and TypeScript cannot build one either: `{__proto__: 'x'}`\nsimply has no such key. So the member is dropped and the value never round\ntrips.\n\n`prototype` and `constructor` are ordinary property names and are left alone.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property to keep the data.",
   },
   NE001: {
     headline:
@@ -1392,12 +1392,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       '`stripUnknownKeysWire` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   UPN001: {
-    headline: 'Property `{0}` is named after a prototype slot and can never be data: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
+    headline: 'Property `{0}` can never be data and is dropped: the rest of the type still works.',
+    level: 'warning',
+    severity: 'warning',
     family: 'runtype',
     detail:
-      '`__proto__`, `prototype` and `constructor` are never data. Writing `__proto__`\non a plain object swaps its prototype instead of adding a key, and a lookup of\na missing `constructor` or `prototype` walks the prototype chain, so every\ndecoder refuses those keys on the wire and validate refuses them under an index\nsignature. A property declared with one of those names could never round-trip,\nso the build fails here instead of generating a function that always throws.\n\nFix: rename the property:\n  interface Settings {\n-   constructor: string;\n+   builder: string;\n  }',
+      "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. TypeScript cannot build one either: `{__proto__: 'x'}` simply has no such\nkey. The member is dropped from every generated function, the way a member\nwhose value cannot cross the wire is dropped.\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",
   },
   VE001: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',

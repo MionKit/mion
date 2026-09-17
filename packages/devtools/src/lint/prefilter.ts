@@ -88,11 +88,9 @@ export function referencesRouter(text: string): boolean {
 // types no route reaches yet. Without its own probe those files would be skipped
 // before the resolver was ever asked.
 //
-// `__proto__` and `prototype` are matched anywhere: both are rare enough that a
-// stray mention costs one round trip and nothing else. `constructor` is not, so
-// it is matched only in the shape a PROPERTY takes (`constructor:` or
-// `constructor?:`), which leaves every class constructor alone.
-const unsafePropertyNamePattern = /__proto__|prototype|(?:^|[^.\w$])constructor\s*\??\s*:/;
+// `__proto__` is matched anywhere: it is rare enough that a stray mention costs
+// one round trip and nothing else, and it is the only name the rule reports.
+const unsafePropertyNamePattern = /__proto__/;
 
 // declaresUnsafePropertyName gates the unsafe-property-name rule.
 export function declaresUnsafePropertyName(text: string): boolean {

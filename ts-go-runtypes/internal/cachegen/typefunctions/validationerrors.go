@@ -890,13 +890,13 @@ func emitPropertyValidationErrors(rt *reflection.RunType, ctx *EmitContext, v st
 			expected = "any"
 		}
 		return RTCode{
-			Code: "if (!(" + quoteJS(rt.Name) + " in " + v + ")) " + callRTErr(ctx, expected, quoteJS(rt.Name)) + ";",
+			Code: "if (!(" + namedPropertyInTest(rt.Name, v) + ")) " + callRTErr(ctx, expected, quoteJS(rt.Name)) + ";",
 			Type: CodeS,
 		}
 	}
 	if rt.Optional {
 		return RTCode{
-			Code: "if (" + accessor + " !== undefined) {" + childRT.Code + "}",
+			Code: "if (" + propertyPresenceTest(rt, v, accessor) + ") {" + childRT.Code + "}",
 			Type: CodeS,
 		}
 	}

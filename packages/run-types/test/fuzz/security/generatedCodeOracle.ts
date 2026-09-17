@@ -83,7 +83,9 @@ export interface GeneratedCodeViolation {
  *  out of its quotes. **/
 export const INJECT_MARKER = 'rt_injected_marker';
 
-const UNSAFE_KEYS = ['__proto__', 'prototype', 'constructor'];
+// Only `__proto__` swaps a prototype when written under a wire key;
+// `prototype` and `constructor` land as plain own keys and are carried.
+const UNSAFE_KEYS = ['__proto__'];
 
 export function checkGeneratedCode(body: EmittedBody, markers: readonly string[] = [INJECT_MARKER]): GeneratedCodeViolation[] {
   const out: GeneratedCodeViolation[] = [];

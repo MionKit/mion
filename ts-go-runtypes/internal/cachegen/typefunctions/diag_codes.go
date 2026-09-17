@@ -69,6 +69,7 @@ var prepareForJsonCodes = map[DiagSlot]string{
 	SlotSymbolKeyedDropped:         diagnostics.CodePJSymbolKeyedDropped,
 	SlotUnionMemberDropped:         diagnostics.CodePJUnionMemberDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodePJNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
 func (PrepareForJsonEmitter) DiagCodeFor(slot DiagSlot) string { return prepareForJsonCodes[slot] }
@@ -94,6 +95,7 @@ var prepareForJsonCloneCodes = map[DiagSlot]string{
 	SlotSymbolKeyedDropped:         diagnostics.CodePJSSymbolKeyedDropped,
 	SlotUnionMemberDropped:         diagnostics.CodePJSUnionMemberDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodePJSNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
 func (PrepareForJsonCloneEmitter) DiagCodeFor(slot DiagSlot) string {
@@ -121,6 +123,7 @@ var restoreFromJsonCodes = map[DiagSlot]string{
 	SlotSymbolKeyedDropped:         diagnostics.CodeRJSymbolKeyedDropped,
 	SlotUnionMemberDropped:         diagnostics.CodeRJUnionMemberDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeRJNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
 func (RestoreFromJsonEmitter) DiagCodeFor(slot DiagSlot) string { return restoreFromJsonCodes[slot] }
@@ -186,6 +189,7 @@ var stringifyJsonCodes = map[DiagSlot]string{
 	SlotSymbolKeyedDropped:         diagnostics.CodeSJSymbolKeyedDropped,
 	SlotUnionMemberDropped:         diagnostics.CodeSJUnionMemberDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeSJNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
 func (StringifyJsonEmitter) DiagCodeFor(slot DiagSlot) string { return stringifyJsonCodes[slot] }
@@ -211,6 +215,7 @@ var toBinaryCodes = map[DiagSlot]string{
 	SlotSymbolKeyedDropped:         diagnostics.CodeTBSymbolKeyedDropped,
 	SlotUnionMemberDropped:         diagnostics.CodeTBUnionMemberDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeTBNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
 func (ToBinaryEmitter) DiagCodeFor(slot DiagSlot) string { return toBinaryCodes[slot] }
@@ -236,6 +241,7 @@ var fromBinaryCodes = map[DiagSlot]string{
 	SlotSymbolKeyedDropped:         diagnostics.CodeFBSymbolKeyedDropped,
 	SlotUnionMemberDropped:         diagnostics.CodeFBUnionMemberDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeFBNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
 func (FromBinaryEmitter) DiagCodeFor(slot DiagSlot) string { return fromBinaryCodes[slot] }
@@ -259,6 +265,7 @@ var validateCodes = map[DiagSlot]string{
 	SlotSymbolKeyedDropped:         diagnostics.CodeVLSymbolKeyedDropped,
 	SlotUnionMemberDropped:         diagnostics.CodeVLUnionMemberDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeVLNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 	SlotRootAnyUnknown:             diagnostics.CodeVLRootAnyUnknown,
 }
 
@@ -282,6 +289,7 @@ var validationErrorsCodes = map[DiagSlot]string{
 	SlotStaticDropped:              diagnostics.CodeVEStaticDropped,
 	SlotSymbolKeyedDropped:         diagnostics.CodeVESymbolKeyedDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeVENonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 	SlotRootAnyUnknown:             diagnostics.CodeVERootAnyUnknown,
 }
 
@@ -309,6 +317,7 @@ var cloneExactShapeCodes = map[DiagSlot]string{
 	SlotMethodDropped:              diagnostics.CodeCESMethodDropped,
 	SlotStaticDropped:              diagnostics.CodeCESStaticDropped,
 	SlotNonSerializablePropDropped: diagnostics.CodeCESNonSerializablePropDrop,
+	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
 }
 
 func (CloneExactShapeEmitter) DiagCodeFor(slot DiagSlot) string { return cloneExactShapeCodes[slot] }

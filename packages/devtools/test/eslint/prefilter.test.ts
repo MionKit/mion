@@ -136,14 +136,16 @@ describe('referencesRouter', () => {
 });
 
 describe('declaresUnsafePropertyName', () => {
-  it('matches a property named after a prototype slot, in any declaration form', () => {
-    expect(declaresUnsafePropertyName('interface S { constructor: string }')).toBe(true);
-    expect(declaresUnsafePropertyName('type S = {constructor?: string};')).toBe(true);
+  it('matches a property named `__proto__`, in any declaration form', () => {
+    expect(declaresUnsafePropertyName('interface S { __proto__: string }')).toBe(true);
+    expect(declaresUnsafePropertyName('type S = {__proto__?: string};')).toBe(true);
     expect(declaresUnsafePropertyName('type Poison = {__proto__: {admin: boolean}};')).toBe(true);
-    expect(declaresUnsafePropertyName('type P = {IndexBuilder: {prototype: object}};')).toBe(true);
+    expect(declaresUnsafePropertyName('class Box { __proto__ = 1 }')).toBe(true);
   });
 
-  it('leaves a class constructor and a prototype read alone', () => {
+  it('leaves `prototype` and `constructor` alone, they are ordinary property names', () => {
+    expect(declaresUnsafePropertyName('interface S { constructor: string }')).toBe(false);
+    expect(declaresUnsafePropertyName('type P = {IndexBuilder: {prototype: object}};')).toBe(false);
     expect(declaresUnsafePropertyName('class Box { constructor(size: number) {} }')).toBe(false);
     expect(declaresUnsafePropertyName('const c = value.constructor;')).toBe(false);
   });

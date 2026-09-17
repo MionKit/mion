@@ -204,16 +204,16 @@ func (scope *fileScope) derivesFrom(arm *checker.Type, match func(*ast.Symbol) b
 	return walk(checker.Type_symbol(arm), 0)
 }
 
-// checkUnsafePropertyNames is `no-unsafe-property-names`: a property named after
-// a prototype slot can never be data. Writing `__proto__` on a plain object
-// swaps its prototype instead of adding a key, and a missing `constructor` or
-// `prototype` is found on the prototype chain, so a wire that could carry one is
-// a prototype-pollution vector.
+// checkUnsafePropertyNames is `no-unsafe-property-names`: a property named
+// `__proto__` can never be data. Writing that key on a plain object swaps its
+// prototype instead of adding a key, and a TypeScript object literal cannot
+// produce an own one either, so the member is dropped from every compiled
+// function. `prototype` and `constructor` are ordinary names and are left alone.
 //
-// UPN001 already fails the build for such a type, but only while RENDERING a
-// type function, so only for a type a marker actually reaches. This reports the
-// DECLARATION, in any interface, type literal or class of the file, so the
-// problem shows up as it is written and for types no route reaches yet.
+// UPN001 already reports the drop, but only while RENDERING a type function, so
+// only for a type a marker actually reaches. This reports the DECLARATION, in
+// any interface, type literal or class of the file, so the problem shows up as
+// it is written and for types no route reaches yet.
 func (scope *fileScope) checkUnsafePropertyNames() []diagnostics.Diagnostic {
 	var found []diagnostics.Diagnostic
 	var visit ast.Visitor
@@ -224,12 +224,6 @@ func (scope *fileScope) checkUnsafePropertyNames() []diagnostics.Diagnostic {
 		switch node.Kind {
 		case ast.KindPropertySignature, ast.KindMethodSignature,
 			ast.KindPropertyDeclaration, ast.KindMethodDeclaration:
-			// A class constructor is a real constructor, not a property named
-			// after one, so it is left alone.
-			if node.Kind == ast.KindMethodDeclaration && node.Name() != nil && node.Name().Kind == ast.KindIdentifier &&
-				node.Name().Text() == "constructor" && node.Parent != nil && ast.IsClassLike(node.Parent) {
-				break
-			}
 			if name := declaredMemberName(node); reflection.IsUnsafePropertyName(name) {
 				found = append(found, scope.diag(diagnostics.CodeRouteUnsafePropertyName, node, name))
 			}

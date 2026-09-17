@@ -205,6 +205,12 @@ func emitPropertyHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
+	// A member declared with a name that can never be a property is dropped
+	// from every family (strippedPropertyDrop reports it for the codecs; the
+	// unknown-key walkers skip it silently, the way they skip a method).
+	if reflection.IsUnsafePropertyName(rt.Name) {
+		return RTCode{Code: "", Type: CodeE}
+	}
 	if isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -223,7 +229,7 @@ func emitPropertyHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode
 		return RTCode{Code: "", Type: CodeE}
 	}
 	if rt.Optional {
-		return RTCode{Code: "(" + accessor + " !== undefined && (" + childRT.Code + "))", Type: CodeE}
+		return RTCode{Code: "(" + propertyPresenceTest(rt, v, accessor) + " && (" + childRT.Code + "))", Type: CodeE}
 	}
 	return RTCode{Code: childRT.Code, Type: CodeE}
 }
@@ -333,7 +339,7 @@ func emitTupleMemberHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTC
 		return RTCode{Code: "", Type: CodeE}
 	}
 	if rt.Optional {
-		return RTCode{Code: "(" + accessor + " !== undefined && (" + childRT.Code + "))", Type: CodeE}
+		return RTCode{Code: "(" + propertyPresenceTest(rt, v, accessor) + " && (" + childRT.Code + "))", Type: CodeE}
 	}
 	return RTCode{Code: childRT.Code, Type: CodeE}
 }

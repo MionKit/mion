@@ -482,6 +482,13 @@ const (
 	// symbol KEY) and the *Root error slots (a propagating position). Emitted by
 	// strippedPropertyDrop, shared by validate and the six serialization families.
 	SlotNonSerializablePropDropped DiagSlot = "non-serializable-prop-dropped"
+	// SlotUnsafeNamePropDropped — a property DECLARED with a name that is never
+	// a property (reflection.UnsafePropertyNames, i.e. `__proto__`) was dropped,
+	// so `{a: number, __proto__: string}` behaves as `{a: number}`. Its own
+	// sibling of SlotNonSerializablePropDropped: the VALUE is fine, the NAME
+	// cannot carry data, and a TypeScript object literal cannot produce an own
+	// one either. Every family maps it to the one family-agnostic UPN001.
+	SlotUnsafeNamePropDropped DiagSlot = "unsafe-name-prop-dropped"
 	// SlotUnionMemberDropped — a union member DataOnly strips to `never`
 	// (symbol / function / Promise / non-serializable built-in) was dropped
 	// so the union projects to its data members (DataOnly<Date | symbol> =

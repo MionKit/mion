@@ -29,10 +29,13 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
   it('GC-REBUILD fires on an unguarded key-writing loop and on Object.assign', () => {
     expect(oracles('function f(v){const _r = {};for (const k0 in v) {_r[k0] = v[k0];}return _r}')).toEqual(['GC-REBUILD']);
     expect(
-      oracles(
-        "function f(v){const _r = {};for (const k0 in v) {if (k0 === '__proto__' || k0 === 'prototype' || k0 === 'constructor') continue;_r[k0] = v[k0];}return _r}"
-      )
+      oracles("function f(v){const _r = {};for (const k0 in v) {if (k0 === '__proto__') continue;_r[k0] = v[k0];}return _r}")
     ).toEqual([]);
+    // `prototype` and `constructor` are plain own keys, so a loop that guards
+    // those and not `__proto__` leaves the one real hazard unguarded.
+    expect(
+      oracles("function f(v){const _r = {};for (const k0 in v) {if (k0 === 'constructor') continue;_r[k0] = v[k0];}return _r}")
+    ).toEqual(['GC-REBUILD']);
     expect(oracles('function f(v){return Object.assign({}, v)}')).toEqual(['GC-REBUILD']);
     // A read-only loop rebuilds nothing, and a write back onto the walked
     // object only ever hits an own key.
@@ -116,7 +119,8 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
 
   it('GC-IDENTITY fires on constructor.name, and not on the name inside a literal', () => {
     expect(oracles("function f(v){return v.constructor.name === 'Foo'}")).toEqual(['GC-IDENTITY']);
-    // the prototype-name guard spells 'constructor' inside a string literal
+    // a declared-name skip spells 'constructor' inside a string literal, and the
+    // loop still carries the `__proto__` guard so GC-REBUILD stays quiet too
     expect(
       oracles(
         "function f(v){const _r = {};for (const k0 in v) {if (k0 === '__proto__' || k0 === 'prototype' || k0 === 'constructor') continue;_r[k0] = v[k0];}return _r}"

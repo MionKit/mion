@@ -1,13 +1,19 @@
 package reflection
 
-// UnsafePropertyNames are the property names that are never data. Writing
-// `__proto__` on a plain object swaps its prototype instead of adding a key,
-// and a lookup of a missing `constructor` or `prototype` walks the prototype
-// chain, so a wire that could carry them is a prototype-pollution vector.
-// Every decoder refuses them as wire keys, validate refuses them under an
-// index signature, every encoder and clone that rebuilds an object from its
-// keys skips them, and a type that declares one fails the build.
-var UnsafePropertyNames = []string{"__proto__", "prototype", "constructor"}
+// UnsafePropertyNames are the names that are never a property. `__proto__` is
+// the only one: `target[key] = value` under that key swaps the target's
+// prototype instead of storing a value, and reading it answers the prototype
+// rather than data. `prototype` and `constructor` were once refused alongside
+// it and are ordinary names: both land as plain own keys, `({}).prototype` is
+// undefined, and `({}).constructor` only needs the own-key presence test the
+// emitters already apply to an inherited member.
+//
+// The name is refused in both positions, differently. As a WIRE KEY admitted by
+// an index signature every decoder refuses it, validate refuses it, and every
+// encoder or clone that rebuilds an object from its keys leaves it out. As a
+// DECLARED member it is dropped like any other member that cannot cross the
+// wire, and a TypeScript object literal cannot even produce an own one.
+var UnsafePropertyNames = []string{"__proto__"}
 
 // IsUnsafePropertyName reports whether name is one of UnsafePropertyNames.
 func IsUnsafePropertyName(name string) bool {

@@ -42,8 +42,10 @@ export function toBase64Url(str: string): string {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** The property names that are never data: writing one onto a plain object reaches its prototype
- *  instead of storing a value. The JS twin of the resolver's `reflection.UnsafePropertyNames`. */
+/** The names a ROUTE may not have. A route id is an object key on both ends of the wire and a
+ *  method name on the client's proxy, so all three collide with something every object already
+ *  answers. Wider than the resolver's `reflection.UnsafePropertyNames`, which governs DATA keys,
+ *  where only `__proto__` is a hazard. */
 export const UNSAFE_PROPERTY_NAMES = ['__proto__', 'prototype', 'constructor'] as const;
 
 export function isUnsafePropertyName(name: string): boolean {

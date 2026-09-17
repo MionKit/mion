@@ -236,12 +236,12 @@ const (
 	CodeCESNonSerializablePropDrop = "CES015"
 )
 
-// Unsafe property name (UPN): Error severity, every family. A type that
-// declares a property named `__proto__`, `prototype` or `constructor` can never
-// round-trip: those keys are refused on the wire (writing `__proto__` on a plain
-// object swaps its prototype, a missing `constructor` reads through the
-// prototype chain), so the entry renders as an alwaysThrow factory. Args:
-// [propertyName].
+// Unsafe property name (UPN): Warning severity, every family. A type that
+// declares a property named `__proto__` has that MEMBER dropped, the way a
+// member whose value cannot cross the wire is dropped: writing that key on a
+// plain object swaps its prototype instead of storing a value, and a TypeScript
+// object literal cannot produce an own one either. The rest of the type
+// serializes and validates as usual. Args: [propertyName].
 const (
 	CodeUnsafePropertyName = "UPN001"
 )
@@ -274,7 +274,6 @@ func init() {
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build
 	// fails loudly here instead.
 	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "JSON composite references an unrendered primitive entry"})
-	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "property named after a prototype slot"})
 
 	// Child-position warnings: the factory still emits, just drops the member.
 	// The *UnionMemberDropped codes (…014) are the DataOnly union-member drop:
@@ -301,6 +300,11 @@ func init() {
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})
 	}
+
+	// UPN001 is the same child-position drop keyed on the NAME rather than the
+	// value, and one code serves every family because the reason does not differ
+	// between them: a member named `__proto__` cannot carry data on any road.
+	register(Definition{Code: CodeUnsafePropertyName, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType member named `__proto__` dropped"})
 
 	// Root any/unknown: noop validators that accept every value. LevelWarning, not
 	// LevelRuntimeError, and the line between the two matters: here the type really

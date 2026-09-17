@@ -168,7 +168,7 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 				// with a value check so such a value leaves the bit UNSET and
 				// writes no bytes (decode skips it), instead of setting the bit
 				// while the codec writes nothing / crashes (G3 / G4).
-				presence := accessor + " !== undefined"
+				presence := namedPropertyPresenceTest(mp.Name, v, accessor)
 				if mp.HasStrippedCandidate {
 					presence += " && (" + mergedPropSurvivingGuard(mp, accessor, ctx) + ")"
 				}
