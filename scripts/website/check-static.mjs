@@ -21,6 +21,13 @@
 //     server dataset (checked like a chart's, rows present) and/or the validation one
 //     (checked like a ::bench-table's, cells renderable), and its shell must be in the HTML.
 //
+// The /runtypes/playground page is checked the same way. It is a Nuxt route rather
+// than a content page, and its engine is fetched at runtime from /playground-app/, so
+// the prerendered HTML carries only the client-only shell. An asset that is missing or
+// staged under a name the loader does not ask for ships a page that renders, then 404s
+// on its own engine and can never run anything (exactly what the ts-runtypes to mion
+// rename did to it). The names live in scripts/website/playground-assets.mjs.
+//
 // Every page also proves its PICTURES shipped: every same-origin <img> must answer from
 // the artifact. Nuxt Image routes markdown pictures and <nuxt-img> through its
 // transformer (/_ipx/...), and the prerender only materialises those files when the
@@ -35,9 +42,10 @@
 import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {join, relative} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
-import {die, note, reportCliError} from '../lib/proc.mjs';
+import {die, note, reportCliError, warn} from '../lib/proc.mjs';
 import {createStaticServer, hasBuild, publicRoot} from './serve.mjs';
 import {columnProblems} from './bench-data/columns.mjs';
+import {PLAYGROUND_ASSETS, playgroundAssetUrl} from './playground-assets.mjs';
 
 const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 
@@ -145,6 +153,17 @@ async function get(base, path) {
     return {ok: res.ok, status: res.status, body: res.ok ? await res.text() : ''};
   } catch (err) {
     return {ok: false, status: 0, body: '', error: err.message};
+  }
+}
+
+// HEAD, not GET: the biggest playground asset is ~8 MiB of gzipped wasm and only its
+// status matters here.
+async function head(base, path) {
+  try {
+    const res = await fetch(`${base}${path}`, {method: 'HEAD'});
+    return {ok: res.ok, status: res.status};
+  } catch (err) {
+    return {ok: false, status: 0, error: err.message};
   }
 }
 
@@ -324,6 +343,39 @@ async function checkChartDatasets(base, datasets) {
   return failures;
 }
 
+// ── the playground: a Nuxt route whose engine is fetched at runtime ──────────
+
+const PLAYGROUND_ROUTE = '/runtypes/playground';
+
+/** The playground page shipped, and every asset its loader fetches answers from the
+ *  artifact. `rt-playground-embed` is the wrapper's root class: the heavy stage is
+ *  client-only, so that shell is all the prerendered HTML can carry. */
+async function checkPlayground(base) {
+  const page = await get(base, PLAYGROUND_ROUTE);
+  if (!page.ok)
+    return fail(`${PLAYGROUND_ROUTE}: HTTP ${page.status}${page.error ? ` (${page.error})` : ''} - the playground page is missing from the build`);
+  if (!page.body.includes('rt-playground-embed'))
+    return fail(`${PLAYGROUND_ROUTE}: no rt-playground-embed markup in the prerendered HTML - the playground component never made it into the page`);
+
+  let failures = 0;
+  for (const asset of PLAYGROUND_ASSETS) {
+    const url = playgroundAssetUrl(asset.file);
+    const res = await head(base, url);
+    if (res.ok) continue;
+    const detail = `${url} (HTTP ${res.status}${res.error ? `, ${res.error}` : ''}) - ${asset.what}`;
+    if (!asset.required) {
+      warn(`${PLAYGROUND_ROUTE}: optional asset missing: ${detail}`);
+      continue;
+    }
+    failures += fail(
+      `${PLAYGROUND_ROUTE}: ${detail}. The page renders and then cannot load its engine. build-playground.mjs stages these (needs the Go toolchain + bootstrapped submodule).`
+    );
+  }
+  const required = PLAYGROUND_ASSETS.filter((asset) => asset.required).length;
+  if (failures === 0) pass(`${PLAYGROUND_ROUTE}: prerendered with all ${required} required playground assets`);
+  return failures;
+}
+
 /** Every page prerendered with its pictures and its benchmark components; every
  *  dataset those components read actually shipped with rows in it. */
 async function checkSite(base, contentRoot) {
@@ -419,7 +471,11 @@ async function checkSite(base, contentRoot) {
   }
 
   failures += await checkChartDatasets(base, datasets);
-  return {failures, summary: `every page prerendered (${pages.length} pages, ${tables} bench-tables, ${charts} charts, ${datasets.size} chart datasets)`};
+  failures += await checkPlayground(base);
+  return {
+    failures,
+    summary: `every page prerendered (${pages.length} pages, ${tables} bench-tables, ${charts} charts, ${datasets.size} chart datasets) and the playground has its engine`,
+  };
 }
 
 export async function main(args) {

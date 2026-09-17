@@ -7,7 +7,7 @@
 //
 // The playground fetches its host-built assets from /playground-app/ (the resolver
 // WASM + the mion source overlay), staged by
-// container/website/scripts/build-playground.sh. If they are missing, the stage
+// container/website/scripts/build-playground.mjs. If they are missing, the stage
 // component surfaces its own error state.
 withDefaults(
   defineProps<{
