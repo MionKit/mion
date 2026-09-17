@@ -24,6 +24,7 @@ import {resolveRequest, createContextFromResolved, createCallContext} from './ca
 import {headersFromRecord} from './lib/headers.ts';
 import {Routes} from './types/general.ts';
 import type {CallContext, MionHeaders, RawRequestBody, ResolvedRequest} from './types/context.ts';
+import type {MethodsExecutionChain} from './types/remoteMethods.ts';
 import {StatusCodes, SerializerModes, MION_BATCH_PATH} from '@mionjs/core';
 
 const mion = createMionRouter({});
@@ -105,12 +106,44 @@ function fillContext(ctx: CallContext, reqHeaders: MionHeaders, respHeaders: Mio
   return ctx;
 }
 
+/** The `zero` shape's build step: everything constant rides on the chain, the request brings the
+ *  rest. Written out here rather than called through callContext so every arm is directly readable. */
+function buildContextFromChain(
+  chain: MethodsExecutionChain,
+  path: string,
+  urlQuery: string | undefined,
+  reqHeaders: MionHeaders,
+  respHeaders: MionHeaders,
+  rawBody: RawRequestBody
+): CallContext {
+  return {
+    path: chain.path ?? path,
+    request: {headers: reqHeaders, rawBody, bodyType: SerializerModes.stringifyJson, body: {}, thrownErrors: undefined},
+    response: {
+      statusCode: StatusCodes.OK,
+      hasErrors: false,
+      fatalError: undefined,
+      headers: respHeaders,
+      body: {},
+      rawBody: '',
+      serializer: SerializerModes.json,
+    },
+    executionChain: chain,
+    maxBodySize: chain.maxBodySize,
+    readsBody: chain.readsBody,
+    shared: getRouterOptions().contextDataFactory?.() ?? {},
+    urlQuery,
+    batchId: chain.batchId,
+    batchRouteIds: chain.batchRouteIds,
+  } as unknown as CallContext;
+}
+
 describe('resolve before the body, build the context after', () => {
   bench('split (ships): small resolved object, then the context', () => {
     const resolved: ResolvedRequest = resolveRequest(PATH, undefined, rawRequest);
     const limit = resolved.maxBodySize; // what the read is checked against
     if (limit < 0) throw new Error('unreachable');
-    createContextFromResolved(resolved, headers, headers, BODY, SerializerModes.stringifyJson);
+    createContextFromResolved(resolved, PATH, undefined, headers, headers, BODY, SerializerModes.stringifyJson);
   });
 
   bench('merged: one object, its context slots filled after the read', () => {
@@ -126,7 +159,14 @@ describe('resolve before the body, build the context after', () => {
     createCallContext(PATH, undefined, rawRequest, headers, headers, BODY, SerializerModes.stringifyJson);
   });
 
-  // unrelated to all three: moves only when the machine moves
+  bench('zero: the registered chain, nothing allocated before the read', () => {
+    const chain = getRouteExecutionChain(transformPath(PATH, rawRequest))!;
+    const limit = chain.maxBodySize; // what the read is checked against
+    if (limit < 0) throw new Error('unreachable');
+    buildContextFromChain(chain, PATH, undefined, headers, headers, BODY);
+  });
+
+  // unrelated to all four: moves only when the machine moves
   bench('control', () => {
     let total = 0;
     for (let i = 0; i < 200; i++) total += Math.sqrt(i);

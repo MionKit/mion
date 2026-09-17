@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRouteExecutionChain, getNotFoundExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
+import {getRouteExecutionChain, getNotFoundExecutionChain, getRouterOptions} from './router.ts';
 import type {CallContext, MionHeaders, MionRequest, MionResponse, RawRequestBody, ResolvedRequest} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
@@ -24,6 +24,7 @@ import {getBatchExecutionChain} from './batches.ts';
  * so one build serves both and they interleave in one window. Removed with the investigation.
  */
 const MERGED_SHAPE = process.env.MION_ALLOC_SHAPE === 'merged';
+const ZERO_SHAPE = process.env.MION_ALLOC_SHAPE === 'zero';
 
 // ############# CONTEXT CREATION #############
 
@@ -46,6 +47,8 @@ export function resolveRequest(path: string, urlQuery: string | undefined, rawRe
 /** Builds the CallContext of an already-resolved request, with the body when there is one. */
 export function createContextFromResolved(
   resolved: ResolvedRequest,
+  path: string,
+  urlQuery: string | undefined,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   reqRawBody?: RawRequestBody,
@@ -79,6 +82,24 @@ export function createContextFromResolved(
     return merged as CallContext;
   }
 
+  // SCAFFOLDING: under the zero shape `resolved` IS the registered chain, so what is constant per
+  // chain is read off it and the rest comes from the request. Removed with MERGED_SHAPE.
+  if (ZERO_SHAPE) {
+    const chain = resolved as unknown as MethodsExecutionChain;
+    return {
+      path: chain.path ?? path,
+      request,
+      response,
+      executionChain: chain,
+      maxBodySize: chain.maxBodySize,
+      readsBody: chain.readsBody,
+      shared,
+      urlQuery,
+      batchId: chain.batchId,
+      batchRouteIds: chain.batchRouteIds,
+    } as CallContext;
+  }
+
   return {
     path: resolved.path,
     request,
@@ -105,7 +126,7 @@ export function createCallContext(
   reqBodyType?: SerializerCode
 ): CallContext {
   const resolved = resolveRequest(path, urlQuery, rawRequest);
-  return createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+  return createContextFromResolved(resolved, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
 }
 
 // ############# HELPER FUNCTIONS #############
@@ -132,10 +153,9 @@ function getExecutionChain(
   // (/mion-batch, /api/v1/mion-batch). The chain is resolved by the id in the query string.
   const isBatchPath = hasPrefix ? originalPath.endsWith(MION_BATCH_PATH) : originalPath === MION_BATCH_PATH;
   if (isBatchPath) {
-    return (
-      getBatchExecutionChain(transformedPath, rawRequest, opts, urlQuery) ??
-      notFoundChain(MION_ROUTES.batchNotFound, transformedPath, urlQuery)
-    );
+    const batchChain = getBatchExecutionChain(rawRequest, opts, urlQuery);
+    if (!batchChain) return notFoundChain(MION_ROUTES.batchNotFound, transformedPath, urlQuery);
+    return resolvedRequest(batchChain, transformedPath, urlQuery);
   }
 
   // Normal path - get execution chain from router using transformed path
@@ -148,17 +168,20 @@ function getExecutionChain(
  *  merged shape it is born with the context's own slots, so filling them after the read costs no
  *  second object; under the split shape it is the small object that ships. */
 function resolvedRequest(executionChain: MethodsExecutionChain, path: string, urlQuery: string | undefined): ResolvedRequest {
-  const maxBodySize = executionChain.maxBodySize ?? getPlatformMaxBodySize();
-  const readsBody = executionChain.readsBody;
-  if (!MERGED_SHAPE) return {path, urlQuery, executionChain, maxBodySize, readsBody};
+  // SCAFFOLDING: the zero shape hands back the REGISTERED chain, so a request allocates nothing at
+  // all before its body. Everything the adapter needs to carry across the read (the limit, whether
+  // there is a body to read) already rides on it. Removed with MERGED_SHAPE.
+  if (ZERO_SHAPE) return executionChain as unknown as ResolvedRequest;
+  const {maxBodySize, readsBody, batchId, batchRouteIds} = executionChain;
+  if (!MERGED_SHAPE) return {path, urlQuery, executionChain, maxBodySize, readsBody, batchId, batchRouteIds};
   return {
     path,
     urlQuery,
     executionChain,
     maxBodySize,
     readsBody,
-    batchId: undefined,
-    batchRouteIds: undefined,
+    batchId,
+    batchRouteIds,
     request: undefined,
     response: undefined,
     shared: undefined,

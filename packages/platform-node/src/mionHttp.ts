@@ -158,6 +158,8 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     try {
       const mionResponse = await dispatchPlatformError(
         resolved,
+        path,
+        urlQuery,
         requestPayloadTooLarge(),
         reqHeaders,
         respHeaders,
@@ -181,7 +183,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
         reqRawBody = queryBody.rawBody;
         reqBodyType = queryBody.bodyType;
       }
-      const context = createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+      const context = createContextFromResolved(resolved, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
       const mionResponse = await dispatchWithContext(context, httpReq, httpResponse);
       if (replied || httpResponse.writableEnded) return;
       replied = true;
