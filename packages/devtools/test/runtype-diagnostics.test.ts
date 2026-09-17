@@ -455,14 +455,16 @@ export const _e = createJsonEncoderFn<S>(undefined, {strategy: 'mutate'});
   // The default emit mode (no inline createRTFn) keeps the cache.
   // Regression: never the SAME diagnostic twice. Each family gets its own
   // Walker — so its own per-code latch, blind to its siblings — and each walk
-  // emits against EVERY provenance site of the root type, so one shared type
+  // emits against every provenance site of the root type, so one shared type
   // used to report each finding twice per site. mion saw 114 such lines per
   // lint run, roughly half of them exact duplicates.
   //
-  // diagnostics.Dedupe (applied once in Session.Dispatch) is keyed on the FULL
-  // identity, so it collapses repeats and never siblings: below, the encoder
-  // and the decoder each report their own code, and each reports at both call
-  // sites that pull `Pet` in. Four lines, no pair alike.
+  // Two rules produce the exact lines below. diagnostics.Dedupe (applied once
+  // in Session.Dispatch) is keyed on the FULL identity, so it collapses repeats
+  // and never siblings. And provenance is keyed per rendered ENTRY, so a
+  // family's finding reaches only the sites that demanded that family: `Pet` is
+  // shared, but PJ011 is about the encoder and RJ011 about the decoder, so each
+  // lands on its own call and neither is told about the other's dropped member.
   register('reports each diagnostic once per code and site, never twice', async () => {
     const sources = {
       'cls.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
@@ -475,9 +477,9 @@ export const dec = createJsonDecoderFn<Pet>();
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const dropped = runtypeDiagsOf(response).filter((d) => d.code === 'PJ011' || d.code === 'RJ011');
       const identities = dropped.map((d) => `${d.code}@${d.site.startLine}`).sort();
-      // Each family at each site, exactly once: no repeat, and nothing merged
-      // across families or across sites.
-      expect(identities, `got:\n${JSON.stringify(dropped, null, 2)}`).toEqual(['PJ011@3', 'PJ011@4', 'RJ011@3', 'RJ011@4']);
+      // Each family at its own site, exactly once: no repeat, nothing merged
+      // across families, and neither family's finding on the other's call.
+      expect(identities, `got:\n${JSON.stringify(dropped, null, 2)}`).toEqual(['PJ011@3', 'RJ011@4']);
       for (const diagnostic of dropped) {
         expect(diagnostic.severity).toBe(Severity.Warning);
         expect(diagnostic.args).toEqual(['speak']);
