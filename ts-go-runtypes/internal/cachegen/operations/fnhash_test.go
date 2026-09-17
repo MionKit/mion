@@ -241,3 +241,42 @@ func TestSuggestFnKey(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryOperationIsDocumented pins the docs catalog's input. The page is
+// generated from this registry, so an operation added without a description
+// would render as a blank row on the public site rather than fail anything.
+func TestEveryOperationIsDocumented(t *testing.T) {
+	for _, op := range All() {
+		if op.Doc == "" {
+			t.Errorf("operation %q has no Doc: every function the catalog page lists needs its one-line description", op.Name)
+			continue
+		}
+		// A description is a sentence for a reader, not a restatement of the name.
+		if len(op.Doc) < 20 {
+			t.Errorf("operation %q has a Doc too short to say anything: %q", op.Name, op.Doc)
+		}
+		if op.Doc[len(op.Doc)-1] != '.' {
+			t.Errorf("operation %q Doc should read as a sentence and end with a period: %q", op.Name, op.Doc)
+		}
+	}
+}
+
+// TestFactoryIsSetForFactoryBackedOperations pins the other half of the catalog
+// row: the JSON value-level primitives are exactly the operations with no
+// createX, and every other public operation names the factory that compiles it.
+func TestFactoryIsSetForFactoryBackedOperations(t *testing.T) {
+	factoryless := map[string]bool{
+		"prepareForJsonMutate": true, "prepareForJsonClone": true,
+		"restoreFromJson": true, "restoreFromJsonStrip": true,
+		"stringifyJson": true, "stripUnknownKeysWire": true,
+		"compactForJson": true, "compactFromJson": true,
+	}
+	for _, op := range All() {
+		switch {
+		case factoryless[op.Name] && op.Factory != "":
+			t.Errorf("operation %q has no createX factory but names %q", op.Name, op.Factory)
+		case !factoryless[op.Name] && op.Factory == "":
+			t.Errorf("operation %q should name the createX factory that compiles it", op.Name)
+		}
+	}
+}
