@@ -218,6 +218,16 @@ export const AREAS = {
           {name: 'suite', args: '<key>', summary: 'one suite'},
           {name: 'sweep', args: '[app]', summary: 'the payload sizes for every app, or for one'},
           {name: 'repeat', args: '<app> [suite]', summary: 'run one lane N times and check the spread against MION_BENCH_TOLERANCE', flags: [['--runs <n>', 'how many runs (default 3)']]},
+          {
+            name: 'gcprobe',
+            summary: 'A/B two allocation shapes on memory, interleaved, with the V8 GC trace',
+            flags: [
+              ['--shapes <a,b>', 'MION_ALLOC_SHAPE values to compare (default split,merged)'],
+              ['--lanes <a,b>', 'lanes to run (default mion,mion.bun)'],
+              ['--size <key>', 'payload size (default huge)'],
+              ['--rounds <n>', 'interleaved rounds per shape (default 3)'],
+            ],
+          },
           {name: 'build', summary: 'build the mion app lanes'},
           {name: 'prep', summary: 'build the engine + the Linux ELF the image mounts'},
           {name: 'website', summary: 'the website subset'},

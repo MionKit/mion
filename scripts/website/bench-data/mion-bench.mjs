@@ -10,10 +10,10 @@
 // describe the CURRENT tree, and the image is invalidated only by a manifest change.
 //
 // Commands: prep | build-image | servers | one <app> | suite <key> | sweep |
-// repeat <app> [suite] | aggregate | build | shell | login | push | pull | clean.
+// repeat <app> [suite] | gcprobe | aggregate | build | shell | login | push | pull | clean.
 // A `--quick` flag anywhere shortens every load window (a dev loop, not a number to publish).
 
-import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {cpus} from 'node:os';
 import {join} from 'node:path';
 import {main as coreBuild} from '../../core/build.mjs';
@@ -136,6 +136,7 @@ function mountArgs(cfg, app) {
 
   args.push('-v', `${join(BENCH_DIR, 'shared')}:/mion-bench/shared:ro${mo}`);
   args.push('-v', `${join(BENCH_DIR, 'harness/run.mjs')}:/mion-bench/harness/run.mjs:ro${mo}`);
+  args.push('-v', `${join(BENCH_DIR, 'harness/gc-trace.mjs')}:/mion-bench/harness/gc-trace.mjs:ro${mo}`);
   // The load generator's request script. The image bakes only dependencies, so a script
   // that is not mounted is simply not there when wrk goes looking for it.
   args.push('-v', `${join(BENCH_DIR, 'harness/wrk.lua')}:/mion-bench/harness/wrk.lua:ro${mo}`);
@@ -340,6 +341,110 @@ function cmdWebsite(cfg) {
   if (failed.length > 0) die(`mion-bench: ${failed.length} lane(s) failed: ${failed.join(', ')} - the pages for them would render an empty column`);
 }
 
+// ── gcprobe ─────────────────────────────────────────────────────────────────────────
+// A/B a router change on MEMORY, which the published lanes cannot answer: their run-to-run
+// drift is many times the effect being looked for (the same unchanged code has measured 46.5
+// and 63.4 req/s on the 4 MB lane an hour apart). What makes a SHORT window usable here is
+// that every metric below is a per-request RATIO, so that drift cancels out of it instead of
+// swamping it. Shapes are picked by MION_ALLOC_SHAPE, which the router reads once at module
+// load, so ONE build serves every arm and the arms interleave inside one window.
+//
+// Records land in results/gcprobe/ as well as the lane's usual file, so a probe run is
+// readable afterwards without re-running it.
+
+const GCPROBE_LANES = ['mion', 'mion.bun'];
+
+/** The metrics a candidate is judged on. Bun has no V8 trace, so its `gc` block is absent and
+ *  it is judged on peak memory and throughput alone, as a veto rather than as a source of wins. */
+function gcProbeMetrics(record) {
+  return {
+    promotedPerReq: record.gc?.promotedPerReq ?? null,
+    majorsPerKReq: record.gc?.majorsPerKReq ?? null,
+    gcPauseMsPerReq: record.gc?.gcPauseMsPerReq ?? null,
+    peakRssMb: record.peakRss ? Math.round((record.peakRss / 1024 / 1024) * 100) / 100 : null,
+    reqPerSec: Math.round(record.requests.mean),
+  };
+}
+
+function gcProbeRun(cfg, app, size, shape, round) {
+  const args = ['node', 'harness/run.mjs', '--app', app.name, '--size', size, '--gc', '1'];
+  if (runInContainer(cfg, app, args, {MION_ALLOC_SHAPE: shape}) !== 0) return null;
+  const laneFile = join(RESULTS_DIR, 'payload-sizes', size, `${app.name}.json`);
+  if (!existsSync(laneFile)) return null;
+  const record = JSON.parse(readFileSync(laneFile, 'utf8'));
+  const keepDir = join(RESULTS_DIR, 'gcprobe');
+  mkdirSync(keepDir, {recursive: true});
+  writeFileSync(join(keepDir, `${app.name}-${shape}-r${round}.json`), `${JSON.stringify(record, null, 2)}\n`);
+  return record;
+}
+
+const METRIC_ROWS = [
+  ['promotedPerReq', 'bytes promoted per request', 'lower'],
+  ['majorsPerKReq', 'major GCs per 1000 requests', 'lower'],
+  ['gcPauseMsPerReq', 'GC pause ms per request', 'lower'],
+  ['peakRssMb', 'peak RSS MB', 'lower'],
+  ['reqPerSec', 'requests per second', 'higher'],
+];
+
+/** Prints each arm as its RANGE, not its mean. The rule this probe exists to serve is that a
+ *  candidate counts only when the groups do not overlap; a difference of means proves nothing. */
+function printGcProbe(samples, shapes, size) {
+  const lanes = [...new Set(samples.map((sample) => sample.lane))];
+  for (const lane of lanes) {
+    console.log(`\n── ${size} · ${lane} ─────────────────────────────`);
+    const groups = shapes.map((shape) => ({
+      shape,
+      values: samples.filter((sample) => sample.lane === lane && sample.shape === shape),
+    }));
+    for (const [key, label, better] of METRIC_ROWS) {
+      const ranges = groups.map(({shape, values}) => {
+        const numbers = values.map((value) => value[key]).filter((value) => value !== null);
+        return {shape, numbers, low: Math.min(...numbers), high: Math.max(...numbers)};
+      });
+      if (ranges.some((range) => range.numbers.length === 0)) continue;
+      const cells = ranges.map((range) => `${range.shape} ${range.low}..${range.high}`).join('   ');
+      console.log(`  ${label.padEnd(28)} ${cells}   [${gcProbeVerdict(ranges, better)}]`);
+    }
+  }
+}
+
+/** Overlapping ranges mean the run cannot tell the arms apart, which is an answer in itself. */
+function gcProbeVerdict(ranges, better) {
+  const [first, ...rest] = ranges;
+  for (const range of rest) {
+    if (range.low <= first.high && first.low <= range.high) return 'overlap, no call';
+  }
+  const best = ranges.reduce((winner, range) =>
+    (better === 'lower' ? range.high < winner.high : range.low > winner.low) ? range : winner
+  );
+  return `${best.shape} wins`;
+}
+
+function cmdGcProbe(cfg, {lanes, shapes, rounds, size}) {
+  if (shapes.length < 2) die('mion-bench: gcprobe needs at least two --shapes to compare, e.g. --shapes split,merged');
+  if (!SWEEP_SIZES.includes(size)) die(`mion-bench: unknown size '${size}'. Try one of: ${SWEEP_SIZES.join(', ')}`);
+  const apps = lanes.map((name) => findApp(name) ?? die(`mion-bench: unknown lane '${name}'. Try one of: ${APP_NAMES.join(', ')}`));
+  ensurePrereqs(cfg);
+  buildMionApp(cfg);
+
+  const samples = [];
+  for (let round = 1; round <= rounds; round++) {
+    // Alternate the order every other round, so a warm-up or a thermal trend cannot favour
+    // whichever arm happens to run first.
+    const order = round % 2 === 1 ? shapes : [...shapes].reverse();
+    for (const app of apps) {
+      for (const shape of order) {
+        note(`gcprobe round ${round}/${rounds}: ${app.name} · ${shape}`);
+        const record = gcProbeRun(cfg, app, size, shape, round);
+        if (!record) die(`mion-bench: gcprobe lane '${app.name}' shape '${shape}' failed in round ${round} - see the output above`);
+        samples.push({lane: app.name, shape, round, ...gcProbeMetrics(record)});
+      }
+    }
+  }
+  printGcProbe(samples, shapes, size);
+  console.log(`\nrecords kept in ${join(RESULTS_DIR, 'gcprobe')}`);
+}
+
 function cmdClean() {
   rmSync(RESULTS_DIR, {recursive: true, force: true});
   rmSync(join(APPS_DIR, 'mion/dist'), {recursive: true, force: true});
@@ -357,7 +462,7 @@ function applyQuick() {
   console.error('==> MION_BENCH_QUICK on: short load windows. The numbers are noisy and must NOT be published.');
 }
 
-function dispatch(cfg, args, runs) {
+function dispatch(cfg, args, runs, opts) {
   const [cmd, ...rest] = args;
   switch (cmd) {
     case 'prep': return ensurePrereqs(cfg);
@@ -368,6 +473,7 @@ function dispatch(cfg, args, runs) {
     case 'suite': return (requireEngine(cfg), cmdSuite(cfg, rest[0]));
     case 'sweep': return (requireEngine(cfg), cmdSweep(cfg, rest[0]));
     case 'repeat': return (requireEngine(cfg), cmdRepeat(cfg, rest[0], rest[1], runs));
+    case 'gcprobe': return (requireEngine(cfg), cmdGcProbe(cfg, opts.gcprobe));
     case 'build': return (requireEngine(cfg), ensurePrereqs(cfg), buildMionApp(cfg));
     case 'website': return (requireEngine(cfg), cmdWebsite(cfg));
     case 'gen-docs': return genDocs();
@@ -377,22 +483,28 @@ function dispatch(cfg, args, runs) {
     case 'push': return image.cmdPush({target: 'mion-bench'});
     case 'pull': return image.cmdPull({target: 'mion-bench'});
     case 'clean': return cmdClean();
-    default: die(`mion-bench: unknown command '${cmd}'. Try: prep | build-image | servers | one <app> | suite <key> | sweep | repeat <app> [suite] | website | gen-docs | build | aggregate | shell | login | push | pull | clean`);
+    default: die(`mion-bench: unknown command '${cmd}'. Try: prep | build-image | servers | one <app> | suite <key> | sweep | repeat <app> [suite] | gcprobe | website | gen-docs | build | aggregate | shell | login | push | pull | clean`);
   }
 }
 
 export function main(rawArgs) {
   const args = [];
   let runs = 3;
+  const gcprobe = {lanes: GCPROBE_LANES, shapes: ['split', 'merged'], rounds: 3, size: 'huge'};
+  const listArg = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
   for (let i = 0; i < rawArgs.length; i++) {
     const arg = rawArgs[i];
     if (arg === '--quick') process.env.MION_BENCH_QUICK = '1';
     else if (arg === '--runs') runs = Number(rawArgs[++i]);
     else if (arg.startsWith('--runs=')) runs = Number(arg.slice('--runs='.length));
+    else if (arg === '--rounds') gcprobe.rounds = Number(rawArgs[++i]);
+    else if (arg === '--size') gcprobe.size = rawArgs[++i];
+    else if (arg === '--shapes') gcprobe.shapes = listArg(rawArgs[++i]);
+    else if (arg === '--lanes') gcprobe.lanes = listArg(rawArgs[++i]);
     else args.push(arg);
   }
   applyQuick();
-  dispatch(config(), args, runs);
+  dispatch(config(), args, runs, {gcprobe});
 }
 
 if (import.meta.main) {
