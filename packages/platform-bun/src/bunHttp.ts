@@ -8,8 +8,8 @@
 import {
   dispatchWithContext,
   dispatchPlatformError,
-  resolveRequest,
-  createContextFromResolved,
+  resolveExecutionChain,
+  createContextFromChain,
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
@@ -66,13 +66,13 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
     // the chain and the request limit, the body is read against that limit (bun buffers it
     // natively), and building the context after the read keeps a big body from outliving the cheap
     // half of the garbage collector; the router checks the size once more before parsing
-    const resolved = resolveRequest(path, urlQuery, req);
+    const chain = resolveExecutionChain(path, urlQuery, req);
     let rawBody: any;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
     // a not-found chain (an unknown path or batch id) has no route to feed: its body is never read
-    if (resolved.readsBody) {
+    if (chain.readsBody) {
       try {
-        rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.buffered);
+        rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
       } catch (err) {
         const refusal = toRpcError(err);
         // a body refused mid-flight leaves unread chunks on the socket: close it with the answer so
@@ -80,12 +80,8 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
         if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
         // the route resolved, so the refusal still runs the chain's alwaysRun members
         const refused = await dispatchPlatformError(
-          resolved,
-          path,
-          urlQuery,
+          createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders),
           refusal,
-          req.headers,
-          responseHeaders,
           req,
           undefined
         );
@@ -97,7 +93,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
         reqBodyType = queryBody.bodyType;
       }
     }
-    const context = createContextFromResolved(resolved, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, undefined);
     return reply(platformResp, responseHeaders);
   } catch (err) {

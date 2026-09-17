@@ -11,8 +11,8 @@ import {
   dispatchWithContext,
   dispatchPlatformError,
   toRpcError,
-  resolveRequest,
-  createContextFromResolved,
+  resolveExecutionChain,
+  createContextFromChain,
   getRouterFatalErrorResponse,
   requestPayloadTooLarge,
   resetRouter,
@@ -70,18 +70,14 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
   try {
     // express already read (and may have parsed) the body, so the chain is resolved first to get
     // the route's own limit, then the too-large check runs before anything is handed to the router
-    const resolved = resolveRequest(rawRequest.path, urlQuery, rawRequest);
+    const chain = resolveExecutionChain(rawRequest.path, urlQuery, rawRequest);
     try {
-      rejectOversizedRequest(rawRequest, rawBody, resolved.maxBodySize);
+      rejectOversizedRequest(rawRequest, rawBody, chain.maxBodySize);
     } catch (refusal) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       const refused = await dispatchPlatformError(
-        resolved,
-        rawRequest.path,
-        urlQuery,
+        createContextFromChain(chain, rawRequest.path, urlQuery, reqHeaders, respHeaders),
         toRpcError(refusal),
-        reqHeaders,
-        respHeaders,
         rawRequest,
         rawResponse
       );
@@ -92,7 +88,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const context = createContextFromResolved(resolved, rawRequest.path, urlQuery, reqHeaders, respHeaders, rawBody, reqBodyType);
+    const context = createContextFromChain(chain, rawRequest.path, urlQuery, reqHeaders, respHeaders, rawBody, reqBodyType);
     const routeResponse = await dispatchWithContext(context, rawRequest, rawResponse);
     reply(routeResponse, rawResponse);
   } catch (err) {

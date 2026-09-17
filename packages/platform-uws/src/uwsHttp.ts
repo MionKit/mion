@@ -8,8 +8,8 @@
 import {
   dispatchWithContext,
   dispatchPlatformError,
-  resolveRequest,
-  createContextFromResolved,
+  resolveExecutionChain,
+  createContextFromChain,
   getRouterFatalErrorResponse,
   toRpcError,
   resetRouter,
@@ -161,9 +161,9 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   // off it) stays short-lived, which is what keeps the garbage collector cheap on a big body. The
   // raw request object is built once, the one a pathTransform reads and the one the handlers see.
   const rawRequest = {path, urlQuery, headers: reqHeaders};
-  let resolved: ResolvedRequest;
+  let chain: ResolvedRequest;
   try {
-    resolved = resolveRequest(path, urlQuery, rawRequest);
+    chain = resolveExecutionChain(path, urlQuery, rawRequest);
   } catch (err) {
     drainRequestBody(res);
     state.replied = true;
@@ -187,7 +187,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    const context = createContextFromResolved(resolved, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+    const context = createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
     answerWith(dispatchWithContext(context, rawRequest, res));
   };
 
@@ -207,22 +207,27 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
 
   // collectBody assembles the whole request body natively (it rides uWS' onDataV2, which knows the
   // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
-  // maxSize, which is exactly the maxBodySize contract. The size is the route's own resolved limit
+  // maxSize, which is exactly the maxBodySize contract. The size is the route's own chain limit
   // (the adapter's option for a route whose types could not say).
   // A not-found chain (an unknown path or batch id) has no route to feed: the body is consumed
   // as it arrives and dropped, never assembled.
-  if (!resolved.readsBody) {
+  if (!chain.readsBody) {
     drainRequestBody(res);
     dispatchBody('', false);
     return;
   }
 
-  res.collectBody(resolved.maxBodySize, (fullBody) => {
+  res.collectBody(chain.maxBodySize, (fullBody) => {
     if (state.replied) return;
     if (fullBody === null) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       answerWith(
-        dispatchPlatformError(resolved, path, urlQuery, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
+        dispatchPlatformError(
+          createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders),
+          requestPayloadTooLarge(),
+          rawRequest,
+          res
+        )
       );
       return;
     }

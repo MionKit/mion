@@ -7,7 +7,7 @@
 
 // What a streaming adapter pays per request to know the route's request limit BEFORE the body, and
 // to have a CallContext after it. Three shapes, same work done:
-//   split    - resolveRequest() returns a small object, createContextFromResolved() builds the
+//   split    - resolveExecutionChain() returns a small object, createContextFromChain() builds the
 //              context after the read (what ships)
 //   merged   - ONE object: the resolved shape IS the context, its request / response / shared
 //              slots filled in after the read
@@ -17,13 +17,18 @@
 // Run with:  pnpm exec vitest bench --project router resolveStrategy
 //
 // `control` is deliberately unrelated. A change that moves it moved the machine, not the code.
+//
+// EVERY arm goes through the same local helpers (transformPath, buildContextFromChain) and differs
+// ONLY in what it allocates. Letting one arm call the real exported API while another inlined the
+// same work measured a 12% difference that was the module boundary, not the shape, and it reversed
+// sign depending on which arm got the real call.
 
 import {bench, describe} from 'vitest';
 import {createMionRouter, resetRouter, getRouteExecutionChain, getPlatformMaxBodySize, getRouterOptions} from './router.ts';
-import {resolveRequest, createContextFromResolved, createCallContext} from './callContext.ts';
+import {createCallContext} from './callContext.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {Routes} from './types/general.ts';
-import type {CallContext, MionHeaders, RawRequestBody, ResolvedRequest} from './types/context.ts';
+import type {CallContext, MionHeaders, RawRequestBody} from './types/context.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
 import {StatusCodes, SerializerModes, MION_BATCH_PATH} from '@mionjs/core';
 
@@ -139,11 +144,20 @@ function buildContextFromChain(
 }
 
 describe('resolve before the body, build the context after', () => {
-  bench('split (ships): small resolved object, then the context', () => {
-    const resolved: ResolvedRequest = resolveRequest(PATH, undefined, rawRequest);
+  bench('split (was): a small resolved object before the read, the context after', () => {
+    const chain = getRouteExecutionChain(transformPath(PATH, rawRequest))!;
+    const resolved = {
+      path: chain.path,
+      urlQuery: undefined,
+      executionChain: chain,
+      maxBodySize: chain.maxBodySize,
+      readsBody: chain.readsBody,
+      batchId: undefined,
+      batchRouteIds: undefined,
+    };
     const limit = resolved.maxBodySize; // what the read is checked against
     if (limit < 0) throw new Error('unreachable');
-    createContextFromResolved(resolved, PATH, undefined, headers, headers, BODY, SerializerModes.stringifyJson);
+    buildContextFromChain(resolved.executionChain, PATH, undefined, headers, headers, BODY);
   });
 
   bench('merged: one object, its context slots filled after the read', () => {
@@ -159,7 +173,7 @@ describe('resolve before the body, build the context after', () => {
     createCallContext(PATH, undefined, rawRequest, headers, headers, BODY, SerializerModes.stringifyJson);
   });
 
-  bench('zero: the registered chain, nothing allocated before the read', () => {
+  bench('zero (ships): the registered chain, nothing allocated before the read', () => {
     const chain = getRouteExecutionChain(transformPath(PATH, rawRequest))!;
     const limit = chain.maxBodySize; // what the read is checked against
     if (limit < 0) throw new Error('unreachable');
