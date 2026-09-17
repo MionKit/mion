@@ -138,7 +138,7 @@ func (e ParseEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType)
 	// strip: blank the undeclared keys BEFORE restore, so the restore walk sees
 	// only declared shape. Same order the `strip` JSON decoder uses.
 	if e.Extras == ExtrasStrip {
-		stripHash := operations.PlainHash("unknownKeysToUndefinedWire") + "_" + resolved.ID
+		stripHash := operations.PlainHash("stripUnknownKeysWire") + "_" + resolved.ID
 		ctx.registerRTLookup(stripHash)
 		code += v + "=" + stripHash + "?.fn(" + v + ")??" + v + ";"
 	}

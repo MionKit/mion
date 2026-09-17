@@ -112,7 +112,7 @@ func assertLeafUnionInlined(
 func TestUnionInlineLeaf_StringUndefined_PrepareForJson(t *testing.T) {
 	assertLeafUnionInlined(t,
 		buildLeafAtomicUnionFixture,
-		"prepareForJson", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJson"],
+		"prepareForJsonMutate", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJsonMutate"],
 		[]string{"typeof v === 'string'", "typeof v === 'undefined'"},
 		[]string{"str", "und"},
 	)
@@ -135,7 +135,7 @@ func TestUnionInlineLeaf_StringUndefined_ToBinary(t *testing.T) {
 func TestUnionInlineLeaf_BigIntDate_PrepareForJson(t *testing.T) {
 	assertLeafUnionInlined(t,
 		buildBigIntDateLeafUnionFixture,
-		"prepareForJson", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJson"],
+		"prepareForJsonMutate", PrepareForJsonEmitter{}, constants.CacheModules["prepareForJsonMutate"],
 		[]string{"typeof v === 'bigint'", "(v instanceof Date && !isNaN(v.getTime()))"},
 		[]string{"big", "dat"},
 	)
@@ -163,7 +163,7 @@ func TestUnionInlineLeaf_ObjectMembersStayCrossFamily(t *testing.T) {
 		familyKey string
 		emitter   Emitter
 	}{
-		{"prepareForJson", PrepareForJsonEmitter{}},
+		{"prepareForJsonMutate", PrepareForJsonEmitter{}},
 		{"toBinary", ToBinaryEmitter{}},
 	} {
 		runTypes, rootID := buildConflictPropUnionFixture()

@@ -14,8 +14,8 @@ import {
 } from '../../src/index.ts';
 
 // `_val` only lets the reflection call shape infer T from a value; it is never read.
-function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'rjs'>) {
-  return getRTFunction<'rjs'>(id);
+function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
+  return getRTFunction<'restoreFromJsonStrip'>(id);
 }
 
 class Money {

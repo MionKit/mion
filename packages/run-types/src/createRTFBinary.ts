@@ -146,39 +146,39 @@ function binarySizingKey(runTypeId: string | undefined, injected: unknown): stri
 export function createBinaryEncoderFn<T>(
   runType: RunType<T>,
   options: InitialSizeOptions,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ): BinaryEncoderSizeFn;
 export function createBinaryEncoderFn<T>(
   val: T | undefined,
   options: InitialSizeOptions,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ): BinaryEncoderSizeFn;
 // 'intoBuffer' → (value, into) => Uint8Array
 export function createBinaryEncoderFn<T>(
   runType: RunType<T>,
   options: IntoBufferOptions,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ): BinaryEncoderIntoFn;
 export function createBinaryEncoderFn<T>(
   val: T | undefined,
   options: IntoBufferOptions,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ): BinaryEncoderIntoFn;
 // 'dynamic' (default) / 'precalculate' → (value) => Uint8Array
 export function createBinaryEncoderFn<T>(
   runType: RunType<T>,
   options?: BinaryEncoderOptions,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ): BinaryEncoderFn;
 export function createBinaryEncoderFn<T>(
   val?: T,
   options?: BinaryEncoderOptions,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ): BinaryEncoderFn;
 export function createBinaryEncoderFn<T>(
   valOrSchema?: T | RunType<T>,
   options?: BinaryEncoderOptions,
-  id?: InjectTypeFnArgs<T, 'tb'>
+  id?: InjectTypeFnArgs<T, 'toBinary'>
 ): BinaryEncoderFn | BinaryEncoderSizeFn | BinaryEncoderIntoFn {
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
   const cacheKey = options?.cacheKey ?? binarySizingKey(runTypeId, id);
@@ -253,9 +253,9 @@ export type BinarySizerFn = (value: unknown) => number;
  *  `createBinarySizerFn(v) === createBinaryEncoderFn(v)(…).byteLength`. Use it to size a
  *  `sizeStrategy: 'initialSize'` encoder or to allocate an exact buffer for `intoBuffer`.
  *  Reuses the encoder's `'tb'` cache entry — no new family. **/
-export function createBinarySizerFn<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'tb'>): BinarySizerFn;
-export function createBinarySizerFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'tb'>): BinarySizerFn;
-export function createBinarySizerFn<T>(valOrSchema?: T | RunType<T>, id?: InjectTypeFnArgs<T, 'tb'>): BinarySizerFn {
+export function createBinarySizerFn<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'toBinary'>): BinarySizerFn;
+export function createBinarySizerFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'toBinary'>): BinarySizerFn;
+export function createBinarySizerFn<T>(valOrSchema?: T | RunType<T>, id?: InjectTypeFnArgs<T, 'toBinary'>): BinarySizerFn {
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
   const cacheKey = binarySizingKey(runTypeId, id);
   const encodeFn = resolveEntryTupleFn<ToBinaryFn>('createBinarySizerFn', noopToBinaryFn, runTypeId, id);
@@ -271,17 +271,17 @@ export function createBinarySizerFn<T>(valOrSchema?: T | RunType<T>, id?: Inject
 export function createBinaryDecoderFn<T>(
   runType: RunType<T>,
   options?: BinaryDecoderOptions,
-  id?: InjectTypeFnArgs<T, 'fb'>
+  id?: InjectTypeFnArgs<T, 'fromBinary'>
 ): BinaryDecoderFn<DataOnly<T>>;
 export function createBinaryDecoderFn<T>(
   val?: T,
   options?: BinaryDecoderOptions,
-  id?: InjectTypeFnArgs<T, 'fb'>
+  id?: InjectTypeFnArgs<T, 'fromBinary'>
 ): BinaryDecoderFn<DataOnly<T>>;
 export function createBinaryDecoderFn<T>(
   valOrSchema?: T | RunType<T>,
   options?: BinaryDecoderOptions,
-  id?: InjectTypeFnArgs<T, 'fb'>
+  id?: InjectTypeFnArgs<T, 'fromBinary'>
 ): BinaryDecoderFn<DataOnly<T>> {
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
   const cacheKey = options?.cacheKey ?? binarySizingKey(runTypeId, id);

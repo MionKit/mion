@@ -32,18 +32,18 @@ func ukeSite(pos int, id string) protocol.Site {
 	return protocol.Site{File: "call.ts", Pos: pos, ID: id, Demand: []protocol.SiteDemand{{FamilyTag: "uke"}}}
 }
 
-// ukuwKey returns the plain unknownKeysToUndefinedWire cache key for a type id.
-func ukuwKey(id string) string { return operations.PlainHash("unknownKeysToUndefinedWire") + "_" + id }
+// ukuwKey returns the plain stripUnknownKeysWire cache key for a type id.
+func ukuwKey(id string) string { return operations.PlainHash("stripUnknownKeysWire") + "_" + id }
 
 // ukuwSite builds one call site demanding the decoder-internal ukuw family.
 func ukuwSite(pos int, id string) protocol.Site {
 	return protocol.Site{File: "call.ts", Pos: pos, ID: id, Demand: []protocol.SiteDemand{{FamilyTag: "ukuw"}}}
 }
 
-// renderUkuwToString collects the unknownKeysToUndefinedWire family for a dump.
+// renderUkuwToString collects the stripUnknownKeysWire family for a dump.
 func renderUkuwToString(t *testing.T, dump protocol.Dump) string {
 	t.Helper()
-	return joinEntries(t, FamilyByKey("unknownKeysToUndefinedWire").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
+	return joinEntries(t, FamilyByKey("stripUnknownKeysWire").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
 }
 
 // buildAtomicMemberFixture is the NAMED object `Inner = {a: string}` reached through an array,
@@ -164,7 +164,7 @@ func TestUnknownKeysWire_WalksTupleSlots(t *testing.T) {
 	out := renderUkuwToString(t, dump)
 	line := extractInitLine(out, ukuwKey("tup"))
 	if line == "" {
-		t.Fatalf("no unknownKeysToUndefinedWire entry for the tuple in:\n%s", out)
+		t.Fatalf("no stripUnknownKeysWire entry for the tuple in:\n%s", out)
 	}
 	if !strings.Contains(line, "Array.isArray(v)") {
 		t.Errorf("the tuple walk must be guarded by Array.isArray, got:\n%s", line)
@@ -197,7 +197,7 @@ func TestUnknownKeysWire_CircularTupleSlotIsGuarded(t *testing.T) {
 	out := renderUkuwToString(t, dump)
 	line := extractInitLine(out, ukuwKey("selfObj"))
 	if line == "" {
-		t.Fatalf("no unknownKeysToUndefinedWire entry for the circular object in:\n%s", out)
+		t.Fatalf("no stripUnknownKeysWire entry for the circular object in:\n%s", out)
 	}
 	if !strings.Contains(line, "!== null && !Array.isArray(") {
 		t.Errorf("the object node must not read its keys off a missing slot, got:\n%s", line)

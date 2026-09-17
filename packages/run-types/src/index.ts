@@ -88,7 +88,7 @@ export {
 // getFnHash derives the version-independent fnHash for a function family (+ its
 // compile-time options) — the fnHash half of the `<fnHash>_<typeId>` runtime
 // cache key. A framework holding a type's injected typeId can rebuild the key
-// itself (`getFnHash('val') + '_' + typeId`) instead of hand-pinning a
+// itself (`getFnHash('validate') + '_' + typeId`) instead of hand-pinning a
 // family→prefix map. The hashes ride a Go-generated table (single source of
 // truth = operations.FnHashFor); stable across releases, so consumers derive
 // once and never re-pin on a version bump.
@@ -189,7 +189,7 @@ export {typeFormats, type FormatName, type TypeFormatMeta} from './go-generated/
 // primitives (`pj`/`pjs`/`rj`/`rjs`/`sj`/`ukuw`/`cj`/`cjr`) — have NO factory: a
 // framework that owns its own JSON envelope names the primitive in an
 // `InjectTypeFnArgs` marker and recovers the injected slot with `getRTFunction`,
-// keyed by the SAME fnKey (`getRTFunction<'pjs'>(fns?.[0])`). Its `RTFunctionByKey`
+// keyed by the SAME fnKey (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`). Its `RTFunctionByKey`
 // map + the fn-type aliases are exported so the return type is inferred from the
 // key.
 export {
@@ -232,11 +232,11 @@ export {
   type ParseStrategy,
   type ParseRestoreFn,
   // The value-level JSON primitives have NO factory — they are recovered via
-  // `getRTFunction<'pj'>(…)` / `getRTFunction<'rj'>(…)` / … . Their fn-type
+  // `getRTFunction<'prepareForJsonMutate'>(…)` / `getRTFunction<'restoreFromJson'>(…)` / … . Their fn-type
   // aliases stay public so callers can name the shapes: `pj`/`pjs`/`cj` return
   // PrepareForJsonFn, `rj`/`rjs`/`cjr`/`ukuw` return RestoreFromJsonFn, `sj` returns
   // StringifyJsonFn (value → JSON string). `RTFunctionByKey` maps each fnKey to
-  // its shape, so `getRTFunction<'pjs'>()`'s return type is inferred.
+  // its shape, so `getRTFunction<'prepareForJsonClone'>()`'s return type is inferred.
   type PrepareForJsonFn,
   type RestoreFromJsonFn,
   type StringifyJsonFn,

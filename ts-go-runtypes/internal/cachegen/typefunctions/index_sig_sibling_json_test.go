@@ -13,7 +13,7 @@ import (
 // index value's transform to the named property. The JSON families walk every
 // own key with a for-in loop, so the loop has to skip declared sibling keys (the
 // named prop owns its own transform / decode). Binary already does this (F1);
-// the clone (prepareForJsonSafe) path always did via its declared-key skip. This
+// the clone (prepareForJsonClone) path always did via its declared-key skip. This
 // pins the mutate (prepareForJson), restore (restoreFromJson), and direct
 // (stringifyJson) walks, which previously corrupted the named prop on the wire
 // round-trip (a `number` becoming a `bigint`).
@@ -32,7 +32,7 @@ func TestG1_JsonIndexSigSkipsSiblingNamedProp(t *testing.T) {
 	dump := mixedIndexSigObject()
 	// prepareForJson / restoreFromJson / stringifyJson all walk own keys with a
 	// for-in; each must guard the index loop with the sibling-named Set skip.
-	for _, fam := range []string{"prepareForJson", "restoreFromJson", "stringifyJson"} {
+	for _, fam := range []string{"prepareForJsonMutate", "restoreFromJson", "stringifyJson"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, "siblingNamed_idx.has(") {
 			t.Errorf("[%s] index-sig for-in loop must skip declared sibling keys (siblingNamed_idx.has) so the named prop is not transformed by the index value; got:\n%s", fam, out)
@@ -62,13 +62,13 @@ func droppedPropIndexSigObject() protocol.Dump {
 }
 
 // TestG6_CloneIndexSigSkipsDroppedSiblingProp — the clone encoder
-// (prepareForJsonSafe) index for-in must skip the DROPPED `p0` key, not only the
+// (prepareForJsonClone) index for-in must skip the DROPPED `p0` key, not only the
 // kept `p1`. Before the fix the skip set was the kept-props list, so `p0` fell
 // through to the index arm and was copied back into the clone while every other
 // family dropped it.
 func TestG6_CloneIndexSigSkipsDroppedSiblingProp(t *testing.T) {
 	dump := droppedPropIndexSigObject()
-	out := renderModule(t, dump, "prepareForJsonSafe")
+	out := renderModule(t, dump, "prepareForJsonClone")
 
 	if !strings.Contains(out, "=== 'p0'") {
 		t.Errorf("clone index-sig for-in must skip the DROPPED sibling key 'p0'; got:\n%s", out)

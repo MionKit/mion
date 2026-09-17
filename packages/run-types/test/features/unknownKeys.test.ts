@@ -148,8 +148,8 @@ describe('hasUnknownKeys — runsAfterValidation reaches named nested types', ()
     // Before the fast path propagated, that key carried the PLAIN hash and the
     // child ran the scan; it must now carry the variant's own hash.
     const parent = createHasUnknownKeysFn<Person>(undefined, {runsAfterValidation: true}).toString();
-    expect(parent).toContain(`${getFnHash('huk', {runsAfterValidation: true})}_`);
-    expect(parent).not.toContain(`${getFnHash('huk')}_`);
+    expect(parent).toContain(`${getFnHash('hasUnknownKeys', {runsAfterValidation: true})}_`);
+    expect(parent).not.toContain(`${getFnHash('hasUnknownKeys')}_`);
   });
 
   it('the plain predicate keeps the scan for the same named type', () => {

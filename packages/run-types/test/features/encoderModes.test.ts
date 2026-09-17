@@ -24,8 +24,8 @@ type Sample = {a: string; n: bigint};
 
 // `rjs` is what mion's `clone` route decodes with. It has no createX factory, so it is recovered
 // through a marker, the shape a framework wrapper uses.
-function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'rjs'>) {
-  return getRTFunction<'rjs'>(id);
+function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
+  return getRTFunction<'restoreFromJsonStrip'>(id);
 }
 
 describe('encoder modes — clone strategy', () => {

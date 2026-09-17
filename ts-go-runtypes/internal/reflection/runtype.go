@@ -140,7 +140,7 @@ type RunType struct {
 	// gated by a runtime own-enumerability check
 	// (`Object.prototype.propertyIsEnumerable.call(v, 'k')`, i.e.
 	// `JSON.stringify` semantics) in the serializer families that build output
-	// by name (prepareForJsonSafe / stringifyJson / the JSON composites / tb).
+	// by name (prepareForJsonClone / stringifyJson / the JSON composites / tb).
 	// Set for two id-relevant cases (typeid.IsNonEnumerable, shared by the
 	// projection and the structural id so they can't drift): (1) a property
 	// inherited from a default-lib GLOBAL interface/class (Error's
@@ -273,17 +273,18 @@ type RunType struct {
 	SchemaChecks
 
 	// Overrides — populated when a user registers a custom function for this
-	// type via `overrideX<T>(pureFn)`. Maps a public family op key ("val",
-	// "verr", "jsonEncoder", …) to the cfn body hash of the override pure fn
+	// type via `overrideX<T>(pureFn)`. Maps the operation name ("validate",
+	// "validationErrors", "jsonEncoder", …) to the cfn body hash of the override
 	// (`cfn::<hash>`). The structural id folds each (family, hash) pair in via
 	// OverrideStructuralKey so an overridden type gets a distinct id from its
 	// un-overridden twin AND the override propagates to every containing type
 	// (a parent's id composes its children's folded ids). The type-fn emitter
 	// reads this to substitute a cfn redirect for the structural body of the
 	// matching family — every other family re-emits its structural body under
-	// the new id. Keyed by family op key (operations.Operation.FnKey), NOT the
-	// emitted family tag, so a JSON override (one op, several strategy tags)
-	// matches with a single entry.
+	// the new id. Keyed by the operation NAME (operations.Operation.Name), NOT
+	// the emitted family tag, so a JSON override (one op, several strategy tags)
+	// matches with a single entry, and NOT the marker token, so renaming the
+	// public vocabulary can never move an overridden type's id.
 	Overrides map[string]string `json:"overrides,omitempty"`
 
 	// TypeEnum. `EnumVal` uses the `Val` suffix so the JS mirror lands as

@@ -16,9 +16,9 @@ const overrideDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
   export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
-  export function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
+  export function createValidateFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'validate'>): (v: unknown) => boolean;
   export function createJsonEncoderFn<T>(val?: T, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (v: unknown) => string | undefined;
-  export function overrideValidate<T>(fn: PureFunction<(v: unknown) => boolean>, id?: InjectTypeFnArgs<T, 'val'>): void;
+  export function overrideValidate<T>(fn: PureFunction<(v: unknown) => boolean>, id?: InjectTypeFnArgs<T, 'validate'>): void;
   export function overrideJsonEncoder<T>(fn: PureFunction<(v: unknown) => string>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): void;
 }
 `
@@ -66,8 +66,10 @@ getRunTypeId<{a: number; b: string}>();
 	if plainString == overriddenString {
 		t.Fatalf("override did not shift string's id: both %q", overriddenString)
 	}
-	if stringNode.Overrides["val"] == "" {
-		t.Fatalf("overridden string node missing Overrides[val]: %+v", stringNode.Overrides)
+	// Keyed by the operation NAME, never the marker token, so the public vocabulary
+	// can move without shifting an overridden type's id.
+	if stringNode.Overrides["validate"] == "" {
+		t.Fatalf("overridden string node missing Overrides[validate]: %+v", stringNode.Overrides)
 	}
 
 	plainStruct, _ := idByKind(t, without, reflection.KindObjectLiteral)
@@ -134,9 +136,9 @@ export const enc = createJsonEncoderFn<{id: number}>();
 		t.Fatalf("cfn module missing the override body:\n%s", all)
 	}
 	// The composite redirect references no primitives, so the structural
-	// prepareForJsonSafe (clone's primitive) is pruned for the overridden type.
-	if hasFamilyEntry(resp, "prepareForJsonSafe") {
-		t.Fatalf("overridden json encoder must prune its primitives, but pjs entries were emitted:\n%s", familyEntrySources(resp, "prepareForJsonSafe"))
+	// prepareForJsonClone (clone's primitive) is pruned for the overridden type.
+	if hasFamilyEntry(resp, "prepareForJsonClone") {
+		t.Fatalf("overridden json encoder must prune its primitives, but pjs entries were emitted:\n%s", familyEntrySources(resp, "prepareForJsonClone"))
 	}
 }
 

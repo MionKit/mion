@@ -163,7 +163,7 @@ export const _ = createJsonEncoderFn<User>(undefined, {strategy: 'mutate'});
 	if rootSiteID == "" {
 		t.Fatalf("expected at least one site for the User marker call")
 	}
-	if keys := familyEntryKeys(resp, "prepareForJson"); len(keys) != 0 {
+	if keys := familyEntryKeys(resp, "prepareForJsonMutate"); len(keys) != 0 {
 		t.Errorf("the absorbed-to-identity pj entry must be elided + pruned, got %v", keys)
 	}
 	// The composite (the injected binding) survives as the noop SHORT FORM —
@@ -262,7 +262,7 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	src := familyEntrySources(resp, "prepareForJson")
+	src := familyEntrySources(resp, "prepareForJsonMutate")
 	// never under prepareForJson → PJ001; leaf kind label "Never".
 	wantMessage := "[" + diagnostics.CodePJNeverRoot + "] Type `Never` can never be encoded to JSON — the generated function will always fail."
 	if !strings.Contains(src, wantMessage) {

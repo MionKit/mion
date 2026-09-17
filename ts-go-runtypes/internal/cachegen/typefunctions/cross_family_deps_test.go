@@ -131,7 +131,7 @@ func assertUnionCrossFamily(t *testing.T, emitter Emitter, settings constants.Ca
 // the `val_<candidate>` lookups as cross-family edges, separate from the
 // (empty here) same-family RTDependencies.
 func TestCrossFamilyDeps_UnionPrepareForJson(t *testing.T) {
-	assertUnionCrossFamily(t, PrepareForJsonEmitter{}, constants.CacheModules["prepareForJson"])
+	assertUnionCrossFamily(t, PrepareForJsonEmitter{}, constants.CacheModules["prepareForJsonMutate"])
 }
 
 // TestCrossFamilyDeps_UnionToBinary — same as the prepareForJson sibling but
@@ -185,7 +185,7 @@ func TestCrossFamilyDeps_CaptureIsByteIdentical(t *testing.T) {
 	runTypes, _ := buildConflictPropUnionFixture()
 	dump := protocol.Dump{RunTypes: runTypes}
 
-	out := joinEntries(t, FamilyByKey("prepareForJson").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
+	out := joinEntries(t, FamilyByKey("prepareForJsonMutate").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
 
 	// The exact validator body the union root emits — unchanged by the
 	// cross-family capture. Sub-union dispatch over the conflicting `a` slot
@@ -194,8 +194,8 @@ func TestCrossFamilyDeps_CaptureIsByteIdentical(t *testing.T) {
 	// `n` field is a bigint) transforms the surviving value. Keys are the opaque
 	// per-family fnHashes (prepareForJson for the root + same-family child,
 	// validate for the discriminator lookups).
-	pjUni := operations.PlainHash("prepareForJson") + "_uni"
-	pjBig := operations.PlainHash("prepareForJson") + "_big"
+	pjUni := operations.PlainHash("prepareForJsonMutate") + "_uni"
+	pjBig := operations.PlainHash("prepareForJsonMutate") + "_big"
 	itBig := valKey("big")
 	itDat := valKey("dat")
 	wantBody := "function " + pjUni + "(v){if (typeof v === 'object' && v !== null) " +
@@ -217,7 +217,7 @@ func TestCrossFamilyDeps_CaptureIsByteIdentical(t *testing.T) {
 	}
 
 	// Determinism: a second render produces byte-identical output.
-	again := joinEntries(t, FamilyByKey("prepareForJson").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
+	again := joinEntries(t, FamilyByKey("prepareForJsonMutate").Collect(dump, RenderOpts{EmitMode: "both"}, nil))
 	if again != out {
 		t.Error("module render is non-deterministic after cross-family capture")
 	}

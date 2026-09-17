@@ -28,8 +28,25 @@ type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 // The built-in defaults: params `direct` (sj) and return `mutate` (pj).
 function fakeRoute<H extends AnyHandler>(
   handler: H,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'sj', 'rj'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'pj', 'rj'>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'formatTransform',
+    'stringifyJson',
+    'restoreFromJson'
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'prepareForJsonMutate',
+    'restoreFromJson'
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -39,8 +56,25 @@ function fakeRoute<H extends AnyHandler>(
 // `compact` on both directions: only the compact pair is compiled.
 function fakeCompactRoute<H extends AnyHandler>(
   handler: H,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'cj', 'cjr'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'cj', 'cjr'>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'formatTransform',
+    'compactForJson',
+    'compactFromJson'
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'compactForJson',
+    'compactFromJson'
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -50,8 +84,25 @@ function fakeCompactRoute<H extends AnyHandler>(
 // `clone` params, `direct` return.
 function fakeCloneRoute<H extends AnyHandler>(
   handler: H,
-  paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'huk', 'uke', 'fmt', 'pjs', 'rjs'>,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'huk', 'uke', 'sj', 'rj'>,
+  paramsFns?: InjectTypeFnArgs<
+    HandlerParams<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'formatTransform',
+    'prepareForJsonClone',
+    'restoreFromJsonStrip'
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'stringifyJson',
+    'restoreFromJson'
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {

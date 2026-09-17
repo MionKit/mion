@@ -146,7 +146,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		// merged object stays KEYED on the wire even under compact (a union has no single positional
 		// shape), so it has room for an undeclared key and the positional argument for skipping the
 		// rebuild does not apply.
-		return emitUnionRestoreFromJsonSafeLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
+		return emitUnionRestoreFromJsonStripLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}

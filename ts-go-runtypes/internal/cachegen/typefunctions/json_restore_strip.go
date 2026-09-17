@@ -6,7 +6,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// RestoreFromJsonSafeEmitter is the decode mirror of PrepareForJsonSafeEmitter,
+// RestoreFromJsonStripEmitter is the decode mirror of PrepareForJsonCloneEmitter,
 // and structurally a sibling of RestoreFromJsonEmitter. It reads the SAME keyed
 // wire `rj` reads (the one `pjs` writes) but REBUILDS each object from the
 // declared shape instead of transforming it where it sits, so a key the type
@@ -24,32 +24,32 @@ import (
 //   - tuple: rj's arm behind an Array.isArray guard, rj never runs on a tuple
 //     of plain objects and this emitter does.
 //   - union: rebuilt from the flat layout's merged props, under `pjs`'s envelope
-//     gate rather than `rj`'s (see emitUnionRestoreFromJsonSafe).
+//     gate rather than `rj`'s (see emitUnionRestoreFromJsonStrip).
 //
 // Like compactFromJson the object arms REBIND the value accessor to the rebuilt
 // object (`v = _r`), which is why EmitDependencyCall captures the child's return.
-type RestoreFromJsonSafeEmitter struct{}
+type RestoreFromJsonStripEmitter struct{}
 
-func (RestoreFromJsonSafeEmitter) Args() []ArgSpec {
+func (RestoreFromJsonStripEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
 // Supports mirrors the restoreFromJson supported surface.
-func (RestoreFromJsonSafeEmitter) Supports(rt *reflection.RunType) bool {
+func (RestoreFromJsonStripEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
 
-func (RestoreFromJsonSafeEmitter) IsRTInlined(ctx *InlineContext) bool {
+func (RestoreFromJsonStripEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
 // EmitDependencyCall captures the child's return into the accessor so a rebuilt
 // object propagates, same as restoreFromJson and compactFromJson.
-func (RestoreFromJsonSafeEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
+func (RestoreFromJsonStripEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
 
-func (RestoreFromJsonSafeEmitter) Finalize(raw string) (string, bool) {
+func (RestoreFromJsonStripEmitter) Finalize(raw string) (string, bool) {
 	code := normaliseWhitespace(raw)
 	if code == "" || code == "return v" {
 		return "return v", true
@@ -57,21 +57,21 @@ func (RestoreFromJsonSafeEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-func (RestoreFromJsonSafeEmitter) ReturnName() string { return "v" }
+func (RestoreFromJsonStripEmitter) ReturnName() string { return "v" }
 
 // IsNoopType is restoreFromJson's arms with every rebuilding arm forced false.
 // Delegating rj's predicate wholesale would be UNSOUND: the gate would skip the
 // rebuild and undeclared keys would survive the decode.
-func (RestoreFromJsonSafeEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
+func (RestoreFromJsonStripEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForRestoreJsonSafe(rt, ctx)
 }
 
 // NoopChildComposesAround: an identity child slot passes through unchanged; empty code composes correctly.
-func (RestoreFromJsonSafeEmitter) NoopChildComposesAround() {}
+func (RestoreFromJsonStripEmitter) NoopChildComposesAround() {}
 
 // Emit is RestoreFromJsonEmitter.Emit with the diverging arms in front; every
 // other kind is delegated so the two cannot drift.
-func (RestoreFromJsonSafeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, codeType CodeType) RTCode {
+func (RestoreFromJsonStripEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, codeType CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -79,11 +79,11 @@ func (RestoreFromJsonSafeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext,
 	switch rt.Kind {
 
 	case reflection.KindObjectLiteral:
-		return emitObjectRestoreFromJsonSafe(rt, ctx, v)
+		return emitObjectRestoreFromJsonStrip(rt, ctx, v)
 
 	case reflection.KindClass:
 		if rt.SubKind == reflection.SubKindNone {
-			return wrapRestoreWithClassSerializer(rt, ctx, v, emitObjectRestoreFromJsonSafe(rt, ctx, v))
+			return wrapRestoreWithClassSerializer(rt, ctx, v, emitObjectRestoreFromJsonStrip(rt, ctx, v))
 		}
 
 	case reflection.KindTuple:
@@ -99,7 +99,7 @@ func (RestoreFromJsonSafeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext,
 		return RTCode{Code: "if (Array.isArray(" + v + ")) {" + inner.Code + "}", Type: CodeS}
 
 	case reflection.KindUnion:
-		return emitUnionRestoreFromJsonSafe(rt, ctx, v)
+		return emitUnionRestoreFromJsonStrip(rt, ctx, v)
 	}
 	return RestoreFromJsonEmitter{}.Emit(rt, ctx, codeType)
 }
@@ -113,12 +113,12 @@ func terminated(code string) string {
 	return code + ";"
 }
 
-// emitObjectRestoreFromJsonSafe is the keyed declared-shape rebuild. An object
+// emitObjectRestoreFromJsonStrip is the keyed declared-shape rebuild. An object
 // whose declaration already admits every key that can arrive delegates to the
 // in-place walk, which then removes nothing a rebuild would remove. Decided
 // BEFORE the slots are collected so the drop diagnostics are emitted exactly
 // once (same ordering rule as emitObjectCompactForJson).
-func emitObjectRestoreFromJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+func emitObjectRestoreFromJsonStrip(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
@@ -286,31 +286,31 @@ func emitIndexSigRebuildLoop(signatures []*reflection.RunType, ctx *EmitContext,
 	return body.String(), true
 }
 
-// emitUnionRestoreFromJsonSafe is the union decode, gated the way the CLONE
+// emitUnionRestoreFromJsonStrip is the union decode, gated the way the CLONE
 // ENCODER gates it rather than the way the plain restore does.
 //
 // restoreFromJson returns identity whenever the layout carries no envelope,
 // which is right for a walk that changes nothing but wrong here: a union of
 // plain objects is fully JSON-compatible, so it never envelopes, and identity
-// would strip nothing in the commonest case. prepareForJsonSafe gates on
+// would strip nothing in the commonest case. prepareForJsonClone gates on
 // atomicOnlyJsonIdentity() instead and emits a bare stripped rebuild; this
 // mirrors that, so the pair agree on both the wire and the key set.
 //
 // The layout itself is buildFlatLayout UNWIDENED. Compact has to widen because
 // it changes the wire; rjs reads exactly what pjs writes, so widening here would
 // make the decoder expect an envelope the encoder never wrote.
-func emitUnionRestoreFromJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	return emitUnionRestoreFromJsonSafeLayout(rt, ctx, v, buildFlatLayout(rt, ctx))
+func emitUnionRestoreFromJsonStrip(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	return emitUnionRestoreFromJsonStripLayout(rt, ctx, v, buildFlatLayout(rt, ctx))
 }
 
-// emitUnionRestoreFromJsonSafeLayout is the twin of emitUnionPrepareForJsonSafeLayout:
+// emitUnionRestoreFromJsonStripLayout is the twin of emitUnionPrepareForJsonCloneLayout:
 // compact hands it the widened layout its safe encode already writes with.
 //
 // A member carrying an index signature declares every key from the union's
 // point of view, the carve-out the unknown-keys families answer clean with
 // (unknownkeys_union.go), so the object branch then restores in place the way
 // rj does instead of rebuilding: every key on the object member is kept.
-func emitUnionRestoreFromJsonSafeLayout(rt *reflection.RunType, ctx *EmitContext, v string, layout FlatLayout) RTCode {
+func emitUnionRestoreFromJsonStripLayout(rt *reflection.RunType, ctx *EmitContext, v string, layout FlatLayout) RTCode {
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}

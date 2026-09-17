@@ -9,12 +9,12 @@ import (
 
 // CompactForJsonEmitter — the encode walk of the `compact` JSON strategy.
 //
-// Structurally a sibling of PrepareForJsonSafeEmitter (non-mutating, strips
+// Structurally a sibling of PrepareForJsonCloneEmitter (non-mutating, strips
 // undeclared keys by construction), differing in ONE arm: an object literal /
 // plain class instance is emitted as a POSITIONAL ARRAY of its declared
 // properties (no key names on the wire) instead of a keyed object literal. Every
 // other arm (atomics, bigint/Date/Temporal/RegExp, arrays, TS tuples, Map/Set,
-// unions, pure index signatures) is reused verbatim from the prepareForJsonSafe
+// unions, pure index signatures) is reused verbatim from the prepareForJsonClone
 // helpers — recursion routes back through THIS emitter via ctx.CompileChild
 // (the walker dispatches children against the active family's emitter), so a
 // nested object inside an array / tuple / union member also becomes a positional
@@ -26,7 +26,7 @@ import (
 //	[v.a, (v.b === undefined ? null : v.b), v.c]
 //
 // Optionals ride a `null` placeholder (same convention TS tuple optionals
-// already use — see emitTuplePrepareForJsonSafe); the decoder maps `null` back
+// already use — see emitTuplePrepareForJsonClone); the decoder maps `null` back
 // to absent.
 //
 // Any object carrying an index signature (a record, OR a fixed object that also
@@ -52,7 +52,7 @@ func (CompactForJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// EmitDependencyCall — same value-expression dep call as prepareForJsonSafe (the
+// EmitDependencyCall — same value-expression dep call as prepareForJsonClone (the
 // compact encode never mutates the input). The walker namespaces childID into
 // the `cj` family, so a nested object's dep call resolves the child's compact
 // entry, not its clone entry.
@@ -61,11 +61,11 @@ func (CompactForJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID 
 }
 
 // Finalize — identity bodies collapse to `return v` + isNoop=true, exactly like
-// prepareForJsonSafe. For a primitive root (nothing to positionalize) the walk
+// prepareForJsonClone. For a primitive root (nothing to positionalize) the walk
 // produces no code, so the compact composite elides to `JSON.stringify(v)`.
 //
 // Note: compact deliberately does NOT implement NoopTypePredicate (IsNoopType).
-// prepareForJsonSafe is noop for an extra-proof `{a: string}`, but compact turns
+// prepareForJsonClone is noop for an extra-proof `{a: string}`, but compact turns
 // that into `[v.a]` — NOT identity — so reusing its predicate would be unsound.
 // Leaving it unimplemented makes every object live (a false negative only costs
 // bytes, never correctness), and the Finalize empty-body path still marks a
@@ -80,7 +80,7 @@ func (CompactForJsonEmitter) Finalize(raw string) (string, bool) {
 
 func (CompactForJsonEmitter) ReturnName() string { return "v" }
 
-// IsNoopType delegates to prepareForJsonSafe's predicate: cj reuses pjs's
+// IsNoopType delegates to prepareForJsonClone's predicate: cj reuses pjs's
 // emit for every arm except objects, and BOTH treat objects as never-noop
 // (pjs always clones, cj always builds the positional array) — so the
 // delegation is exact.
@@ -92,9 +92,9 @@ func (CompactForJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext
 // child slot is shared by reference), so empty code composes correctly.
 func (CompactForJsonEmitter) NoopChildComposesAround() {}
 
-// Emit mirrors PrepareForJsonSafeEmitter.Emit; only the object-literal and
+// Emit mirrors PrepareForJsonCloneEmitter.Emit; only the object-literal and
 // plain-class (SubKindNone) arms diverge to the positional form. Everything else
-// delegates to the shared prepareForJsonSafe helpers.
+// delegates to the shared prepareForJsonClone helpers.
 func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -149,10 +149,10 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return emitObjectCompactForJson(rt, ctx, v)
 
 	case reflection.KindIndexSignature:
-		return emitIndexSignaturePrepareForJsonSafe(rt, ctx, v)
+		return emitIndexSignaturePrepareForJsonClone(rt, ctx, v)
 
 	case reflection.KindTuple:
-		return emitTuplePrepareForJsonSafe(rt, ctx, v)
+		return emitTuplePrepareForJsonClone(rt, ctx, v)
 
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
@@ -167,7 +167,7 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		// through raw keeps the envelope when a member positionalizes, or the
 		// identity decoder would hand those nested arrays back as-is
 		// (union_flat_compact.go).
-		return emitUnionPrepareForJsonSafeLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
+		return emitUnionPrepareForJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}
@@ -176,10 +176,10 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindLiteral:
-		return emitLiteralPrepareForJsonSafe(rt, v)
+		return emitLiteralPrepareForJsonClone(rt, v)
 
 	case reflection.KindArray:
-		return emitArrayPrepareForJsonSafe(rt, ctx, v)
+		return emitArrayPrepareForJsonClone(rt, ctx, v)
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
 		return RTCode{Code: "", Type: CodeS}
@@ -279,7 +279,7 @@ func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string
 	// Index signature present → keyed object (reuse clone's keyed emit). Checked
 	// BEFORE slot collection so drop diagnostics aren't emitted twice.
 	if objectHasIndexSignature(rt, ctx) {
-		return emitObjectPrepareForJsonSafe(rt, ctx, v)
+		return emitObjectPrepareForJsonClone(rt, ctx, v)
 	}
 
 	// Positional expressions for each declared property.
@@ -316,7 +316,7 @@ func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string
 }
 
 // emitNativeIterableCompactForJson is the compact-strategy Map/Set encode. It
-// mirrors emitNativeIterablePrepareForJsonSafe EXCEPT the JSON-compatible fast
+// mirrors emitNativeIterablePrepareForJsonClone EXCEPT the JSON-compatible fast
 // path: clone may shortcut to `Array.from(v)` when every inner type is
 // JSON-compatible (keyed object elements survive unchanged, which the clone
 // decoder expects), but compact POSITIONALIZES nested object elements, so it

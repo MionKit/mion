@@ -4,7 +4,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// UnknownKeysToUndefinedWireEmitter — decoder-internal sibling of
+// StripUnknownKeysWireEmitter — decoder-internal sibling of
 // UnknownKeysToUndefinedEmitter. Identical for every kind EXCEPT
 // KindUnion, where it emits the wire-format-aware merged-allowlist
 // strip: detect `Array.isArray(v) && v[0] === -1` at runtime, reach
@@ -20,29 +20,29 @@ import (
 // keys inside the merged-object branch of unsafe-encoded wire payloads,
 // closing the decoder-safety hole at union nodes that the legacy
 // uku-no-op-on-union created.
-type UnknownKeysToUndefinedWireEmitter struct{}
+type StripUnknownKeysWireEmitter struct{}
 
-func (UnknownKeysToUndefinedWireEmitter) Args() []ArgSpec {
+func (StripUnknownKeysWireEmitter) Args() []ArgSpec {
 	return UnknownKeysToUndefinedEmitter{}.Args()
 }
 
-func (UnknownKeysToUndefinedWireEmitter) Supports(rt *reflection.RunType) bool {
+func (StripUnknownKeysWireEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
 
-func (UnknownKeysToUndefinedWireEmitter) IsRTInlined(ctx *InlineContext) bool {
+func (StripUnknownKeysWireEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return UnknownKeysToUndefinedEmitter{}.IsRTInlined(ctx)
 }
 
-func (UnknownKeysToUndefinedWireEmitter) ReturnName() string {
+func (StripUnknownKeysWireEmitter) ReturnName() string {
 	return UnknownKeysToUndefinedEmitter{}.ReturnName()
 }
 
-func (UnknownKeysToUndefinedWireEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
+func (StripUnknownKeysWireEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return UnknownKeysToUndefinedEmitter{}.EmitDependencyCall(rt, childID, ctx)
 }
 
-func (UnknownKeysToUndefinedWireEmitter) Finalize(raw string) (string, bool) {
+func (StripUnknownKeysWireEmitter) Finalize(raw string) (string, bool) {
 	return UnknownKeysToUndefinedEmitter{}.Finalize(raw)
 }
 
@@ -62,7 +62,7 @@ func (UnknownKeysToUndefinedWireEmitter) Finalize(raw string) (string, bool) {
 // member is swept like any other: `strip` drops undeclared keys at every
 // level, whoever produced the wire (an own `__proto__` key on a Set
 // member used to ride through here untouched).
-func (UnknownKeysToUndefinedWireEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, ct CodeType) RTCode {
+func (StripUnknownKeysWireEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, ct CodeType) RTCode {
 	if rt != nil && rt.Kind == reflection.KindUnion {
 		return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
 			Snippet: func(_ *EmitContext, accessor, keyVar string) string {

@@ -41,7 +41,7 @@
 // The registry is keyed TWICE, both keys build-time strings:
 //
 //   1. The registration site's structural TYPE ID — recovered from the
-//      trailing injected `id?: InjectTypeFnArgs<T, 'csr'>` slot.
+//      trailing injected `id?: InjectTypeFnArgs<T, 'classSerializerReg'>` slot.
 //      Exact-instantiation matches (the same `T` at the registration and the
 //      use site) hit this first.
 //   2. The CLASS NAME, carried by the injected `csr` name-card entry
@@ -159,7 +159,10 @@ interface ClassSerializerIdentity {
 // in fn keys, so the underscore split is unambiguous. Without a plugin there
 // is no injected id, so registration can't be keyed — throw, since the
 // emitted codecs (which the plugin produces) could never match it anyway.
-function classSerializerIdentity(id: InjectTypeFnArgs<unknown, 'csr'> | undefined, cls: AnyClass): ClassSerializerIdentity {
+function classSerializerIdentity(
+  id: InjectTypeFnArgs<unknown, 'classSerializerReg'> | undefined,
+  cls: AnyClass
+): ClassSerializerIdentity {
   if (isEntryTuple(id)) {
     initFromTuple(id as unknown as EntryTuple);
     const key = entryTupleKey(id as unknown as EntryTuple);
@@ -220,13 +223,13 @@ function indexByName(name: string, entry: ClassSerializerEntry): void {
 export function registerClassSerializer<T>(
   cls: SerializableClass<T>,
   handler?: ClassSerializerHandler<T>,
-  id?: InjectTypeFnArgs<T, 'csr'>
+  id?: InjectTypeFnArgs<T, 'classSerializerReg'>
 ): void;
 // Non-empty constructor: `deserialize` is REQUIRED (auto `new cls()` is unavailable).
 export function registerClassSerializer<T>(
   cls: AnyClass<T>,
   handler: ClassSerializerHandler<T> & {deserialize: (data: DataOnly<T>) => T},
-  id?: InjectTypeFnArgs<T, 'csr'>
+  id?: InjectTypeFnArgs<T, 'classSerializerReg'>
 ): void;
 /** Register a custom (de)serializer for a user-defined class. Pass the class
  *  itself — the ENCOURAGED form needs no type argument at all:
@@ -244,7 +247,7 @@ export function registerClassSerializer<T>(
 export function registerClassSerializer<T>(
   cls: AnyClass<T>,
   handler?: ClassSerializerHandler<T>,
-  id?: InjectTypeFnArgs<T, 'csr'>
+  id?: InjectTypeFnArgs<T, 'classSerializerReg'>
 ): void {
   if (typeof cls !== 'function') throw new Error('registerClassSerializer: cls must be a class constructor');
   const identity = classSerializerIdentity(id, cls);

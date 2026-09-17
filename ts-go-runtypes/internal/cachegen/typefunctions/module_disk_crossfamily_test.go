@@ -53,7 +53,7 @@ func TestRenderFnModule_DiskCache_CrossFamilyRoundTrip(t *testing.T) {
 
 	runTypes, rootID := buildConflictPropUnionFixture()
 	refTable := buildRefTable(runTypes)
-	settings := constants.CacheModules["prepareForJson"]
+	settings := constants.CacheModules["prepareForJsonMutate"]
 	prefix := innerPrefix(settings)
 	opts := RenderOpts{Store: store, Lookup: lookup, RefTable: refTable}
 
@@ -144,8 +144,8 @@ func TestCrossFamilyDeps_DiskCacheHit_PreservesModuleDeps(t *testing.T) {
 	}
 	opts := RenderOpts{Store: store, Lookup: lookup, RefTable: refTable}
 
-	rootKey := operations.PlainHash("prepareForJson") + "_" + rootID
-	cold := FamilyByKey("prepareForJson").Collect(dump, opts, nil)
+	rootKey := operations.PlainHash("prepareForJsonMutate") + "_" + rootID
+	cold := FamilyByKey("prepareForJsonMutate").Collect(dump, opts, nil)
 	coldEntry := cold[rootKey]
 	if coldEntry == nil {
 		t.Fatalf("cold collect missing the union root entry %q", rootKey)
@@ -159,7 +159,7 @@ func TestCrossFamilyDeps_DiskCacheHit_PreservesModuleDeps(t *testing.T) {
 	// Second pass: the per-family entries are now disk-cached, so the walker
 	// is skipped — but the persisted CrossFamilyRefs must reproduce identical
 	// module Deps.
-	warm := FamilyByKey("prepareForJson").Collect(dump, opts, nil)
+	warm := FamilyByKey("prepareForJsonMutate").Collect(dump, opts, nil)
 	warmEntry := warm[rootKey]
 	if warmEntry == nil {
 		t.Fatalf("warm collect missing the union root entry %q", rootKey)
@@ -213,7 +213,7 @@ func TestRenderFnModule_DiskCache_CrossFamilyHashDriftMiss(t *testing.T) {
 	lookup.set("pab", "pa:prop")
 	lookup.set("pad", "pd:prop")
 
-	settings := constants.CacheModules["prepareForJson"]
+	settings := constants.CacheModules["prepareForJsonMutate"]
 	rendered := renderEntryWithDeps(refTable[rootID], settings, PrepareForJsonEmitter{}, innerPrefix(settings), refTable, RenderOpts{Store: store, Lookup: lookup, RefTable: refTable}, "", nil, false)
 	if rendered.argsText == "" {
 		t.Fatal("post-miss render produced empty args")

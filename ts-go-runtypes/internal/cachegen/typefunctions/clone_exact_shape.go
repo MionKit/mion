@@ -80,7 +80,7 @@ func (CloneExactShapeEmitter) ReturnName() string {
 
 // EmitDependencyCall — expression shape (`<hash>.fn(v)`), never a mutation
 // statement: the child factory RETURNS the cloned value and the parent
-// composes it into an expression slot, mirroring PrepareForJsonSafeEmitter.
+// composes it into an expression slot, mirroring PrepareForJsonCloneEmitter.
 func (CloneExactShapeEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
@@ -98,7 +98,7 @@ func (CloneExactShapeEmitter) Finalize(raw string) (string, bool) {
 // Emit dispatches the per-kind switch. Arms return CodeE (expression
 // evaluating to the clone), CodeRB (self-returning block), or empty CodeS
 // (immutable/opaque passthrough). Composition rule identical to
-// prepareForJsonSafe: an empty child emit means the child's clone IS its
+// prepareForJsonClone: an empty child emit means the child's clone IS its
 // input accessor.
 func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
@@ -163,7 +163,7 @@ func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 }
 
 // emitObjectCloneExactShape builds the declared-shape clone of an object
-// literal / plain class instance. Mirrors emitObjectPrepareForJsonSafe's
+// literal / plain class instance. Mirrors emitObjectPrepareForJsonClone's
 // property collection (static/method drops, DataOnly-stripped drops,
 // enumerability guards) WITHOUT the Approach-3 fastpath — the clone is
 // always built (measured cheaper than gating for small objects; see the

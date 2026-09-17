@@ -28,7 +28,7 @@ export const dec = createJsonDecoderFn<PlainDTO>();
 	if hasFamilyEntry(resp, "restoreFromJson") {
 		t.Errorf("noop rj entry must be pruned once the composite elides it, got %v", familyEntryKeys(resp, "restoreFromJson"))
 	}
-	if !hasFamilyEntry(resp, "unknownKeysToUndefinedWire") {
+	if !hasFamilyEntry(resp, "stripUnknownKeysWire") {
 		t.Error("ukuw does real work for an object DTO — its module must survive the prune")
 	}
 	if !hasFamilyEntry(resp, "jsonDecoder") {
@@ -72,8 +72,8 @@ type PlainDTO = {a: string; b?: number};
 export const enc = createJsonEncoderFn<PlainDTO>(undefined, {strategy: 'mutate'});
 export const dec = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'preserve'});
 `)
-	if hasFamilyEntry(resp, "prepareForJson") {
-		t.Errorf("noop pj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "prepareForJson"))
+	if hasFamilyEntry(resp, "prepareForJsonMutate") {
+		t.Errorf("noop pj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "prepareForJsonMutate"))
 	}
 	if hasFamilyEntry(resp, "restoreFromJson") {
 		t.Errorf("noop rj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "restoreFromJson"))

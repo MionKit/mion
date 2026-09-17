@@ -24,7 +24,7 @@ import (
 // and not CircularGuarded (a JSON.parse output cannot hold a cycle), so one key
 // each; the undeclared-key strategy is the operation, not an axis (see the
 // registry).
-// +1: restoreFromJsonSafe (rjs), the stripping decode mirror of prepareForJsonSafe.
+// +1: restoreFromJsonStrip (rjs), the stripping decode mirror of prepareForJsonClone.
 const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 3 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
@@ -133,11 +133,13 @@ func TestFnHash_StableAcrossVersions(t *testing.T) {
 
 func TestByFnKey(t *testing.T) {
 	cases := map[string]string{
-		"val":         "validate",
-		"verr":        "validationErrors",
-		"jsonEncoder": "jsonEncoder",
-		"jsonDecoder": "jsonDecoder",
-		"tb":          "toBinary",
+		"validate":             "validate",
+		"validationErrors":     "validationErrors",
+		"jsonEncoder":          "jsonEncoder",
+		"jsonDecoder":          "jsonDecoder",
+		"toBinary":             "toBinary",
+		"prepareForJsonClone":  "prepareForJsonClone",
+		"stripUnknownKeysWire": "stripUnknownKeysWire",
 	}
 	for fnKey, wantName := range cases {
 		op, ok := ByFnKey(fnKey)
@@ -149,17 +151,48 @@ func TestByFnKey(t *testing.T) {
 			t.Errorf("ByFnKey(%q).Name = %q, want %q", fnKey, op.Name, wantName)
 		}
 	}
-	// A marker names an operation by its FnKey (the tag "pj"), never by its
-	// canonical Name — so the Name must not resolve as an FnKey.
-	if _, ok := ByFnKey("prepareForJson"); ok {
-		t.Error("operation name prepareForJson must not be reachable by FnKey (its FnKey is \"pj\")")
+	// The short family tags were RETIRED as marker tokens: a marker names the
+	// readable FnKey, never the tag it emits under. Keeping them unreachable is
+	// what makes a stale `'verr'` a build error (MKR014) instead of silence.
+	for _, retired := range []string{"val", "verr", "pj", "pjs", "rjs", "prs", "huk", "ukuw"} {
+		if _, ok := ByFnKey(retired); ok {
+			t.Errorf("retired family tag %q must not resolve as an FnKey", retired)
+		}
+	}
+}
+
+// TestFnKeysAreReadable pins the two-vocabulary split: the marker token (FnKey)
+// is readable and the emitted family tag stays short. Letting the two namespaces
+// merge again is the failure mode this guards - a tag reused as a token would
+// make the mion adapter's tag-to-key projection silently correct for one family
+// and wrong for the rest.
+func TestFnKeysAreReadable(t *testing.T) {
+	tags := map[string]bool{}
+	for _, op := range All() {
+		if op.FamilyTag != "" {
+			tags[op.FamilyTag] = true
+		}
+	}
+	seen := map[string]string{}
+	for _, op := range All() {
+		if op.FnKey == "" {
+			t.Errorf("operation %q has no FnKey: every operation must be nameable in a marker", op.Name)
+			continue
+		}
+		if previous, taken := seen[op.FnKey]; taken {
+			t.Errorf("FnKey %q is claimed by both %q and %q", op.FnKey, previous, op.Name)
+		}
+		seen[op.FnKey] = op.Name
+		if tags[op.FnKey] {
+			t.Errorf("FnKey %q collides with an emitted family tag: marker tokens and family tags are separate vocabularies", op.FnKey)
+		}
 	}
 }
 
 func TestByFamilyTag(t *testing.T) {
 	op, ok := ByFamilyTag("pj")
-	if !ok || op.Name != "prepareForJson" {
-		t.Fatalf("ByFamilyTag(\"pj\") = %+v, %v; want prepareForJson", op, ok)
+	if !ok || op.Name != "prepareForJsonMutate" {
+		t.Fatalf("ByFamilyTag(\"pj\") = %+v, %v; want prepareForJsonMutate", op, ok)
 	}
 	// Composite operations have no family tag and must not be indexed.
 	if _, ok := ByFamilyTag(""); ok {

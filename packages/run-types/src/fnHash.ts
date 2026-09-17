@@ -10,7 +10,7 @@
 // mion releases. So a framework (e.g. mion) that holds a type's injected
 // typeId can rebuild the full key itself:
 //
-//   const key = getFnHash('val') + '_' + typeId;   // the validate entry for T
+//   const key = getFnHash('validate') + '_' + typeId;   // the validate entry for T
 //
 // instead of hand-pinning a `family → prefix` map that used to churn on every
 // version bump. The values come from the Go-generated fnHashes table (the single

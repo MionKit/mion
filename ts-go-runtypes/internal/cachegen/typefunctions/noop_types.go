@@ -44,7 +44,7 @@ import (
 //
 // Each predicate mirrors ITS OWN emitter arm-by-arm; where an emitter arm
 // delegates to another family's helpers, the predicate arm delegates to that
-// family's predicate the same way (compactForJson reuses prepareForJsonSafe's
+// family's predicate the same way (compactForJson reuses prepareForJsonClone's
 // wholesale — their diverging object arms agree on never-noop; compactFromJson
 // delegates restoreFromJson's shared arms but answers false at its own object
 // arms, where restoreFromJson's raw round-trip does NOT hold for the
@@ -470,11 +470,11 @@ func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 }
 
 /** isNoopForPrepareJsonSafe reports whether the pjs (clone-encode) entry for rt is the identity. **/
-// Mirrors PrepareForJsonSafeEmitter.Emit's noop arms: atomic JSON kinds
+// Mirrors PrepareForJsonCloneEmitter.Emit's noop arms: atomic JSON kinds
 // (incl. undefined — the clone feeds native JSON.stringify), primitive
 // literals, the defensive intersection / template-literal arms, and the
 // extra-proof pass-through gates on arrays and tuples
-// (emitArrayPrepareForJsonSafe / emitTuplePrepareForJsonSafe — an
+// (emitArrayPrepareForJsonClone / emitTuplePrepareForJsonClone — an
 // extra-proof subtree is shared by reference, `return v`). Objects and
 // classes ALWAYS clone (the clone is what strips undeclared keys), so they
 // are never noop here even when JSON-compatible; unions keep their
@@ -823,7 +823,7 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 
 /** isNoopForRestoreJsonSafe reports whether the rjs entry for rt is the
  *  identity. **/
-// Mirrors RestoreFromJsonSafeEmitter.Emit, which reuses restoreFromJson's arms
+// Mirrors RestoreFromJsonStripEmitter.Emit, which reuses restoreFromJson's arms
 // EXCEPT where it rebuilds — and a rebuild is real work at every object shape rj
 // would let round-trip raw. Unlike cjr this returns ONE verdict with no separate
 // key-guard conjunct: cjr's shape half feeds the compact envelope decision, and
@@ -895,7 +895,7 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		if rt.Child == nil {
 			return true
 		}
-		// Deliberately NOT isExtraProof, the shortcut prepareForJsonSafe takes:
+		// Deliberately NOT isExtraProof, the shortcut prepareForJsonClone takes:
 		// extraProofRecursive answers true for a bigint or symbol literal, both of
 		// which this emitter transforms, and a false positive here is corruption.
 		return restoreJsonSafeNoopRecursive(rt.Child, ctx, visited)
@@ -1136,7 +1136,7 @@ var (
 	hasUnknownKeysNoopSpec         = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys, reportsPatternKey: true}
 	unknownKeyErrorsNoopSpec       = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors, reportsPatternKey: true}
 	unknownKeysToUndefinedNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefined}
-	unknownKeysToUndefinedWireSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefinedWire, mapSetAlwaysNoop: true}
+	stripUnknownKeysWireSpec       = unknownKeysNoopSpec{fact: factNoopStripUnknownKeysWire, mapSetAlwaysNoop: true}
 )
 
 /** isNoopForUnknownKeys reports whether an unknown-keys family entry for rt

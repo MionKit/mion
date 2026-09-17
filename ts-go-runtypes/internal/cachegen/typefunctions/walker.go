@@ -294,7 +294,7 @@ const (
 	factNoopCloneExactShape
 	factNoopUnknownKeyErrors
 	factNoopUnknownKeysToUndefined
-	factNoopUnknownKeysToUndefinedWire
+	factNoopStripUnknownKeysWire
 	factRestoreKeyGuard
 	factCount
 )

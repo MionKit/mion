@@ -64,7 +64,7 @@ import type {InjectTypeFnArgs, ValidateFn} from '@mionjs/run-types';
 
 type AnyHandler = (ctx: unknown, ...rest: any[]) => unknown;
 
-export function route<H extends AnyHandler>(handler: H, id?: InjectTypeFnArgs<Parameters<H>, 'val'>) {
+export function route<H extends AnyHandler>(handler: H, id?: InjectTypeFnArgs<Parameters<H>, 'validate'>) {
   const validate: ValidateFn = createValidateFn(undefined, undefined, id as never);
   return {handler, validate};
 }

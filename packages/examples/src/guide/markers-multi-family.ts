@@ -13,7 +13,12 @@ type Handler = (...args: any[]) => unknown;
 
 function route<H extends Handler>(
   handler: H,
-  fns?: InjectTypeFnArgs<Parameters<H>, 'verr', 'jsonDecoder', 'jsonEncoder'>
+  fns?: InjectTypeFnArgs<
+    Parameters<H>,
+    'validationErrors',
+    'jsonDecoder',
+    'jsonEncoder'
+  >
 ) {
   const getErrors = createGetValidationErrorsFn(
     undefined,

@@ -43,10 +43,10 @@ func TestUnsafeKeys_GuardTextIsOneSourceOfTruth(t *testing.T) {
 
 func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 	cases := map[string]string{
-		"restoreFromJson":    unsafeKeyThrow("k0"),
-		"prepareForJsonSafe": unsafeKeySkip("k0"),
-		"validate":           "if (" + unsafeKeyCheck("k0") + ") return false;",
-		"validationErrors":   "if (" + unsafeKeyCheck("k0") + ") {",
+		"restoreFromJson":     unsafeKeyThrow("k0"),
+		"prepareForJsonClone": unsafeKeySkip("k0"),
+		"validate":            "if (" + unsafeKeyCheck("k0") + ") return false;",
+		"validationErrors":    "if (" + unsafeKeyCheck("k0") + ") {",
 	}
 	for fam, want := range cases {
 		out := renderModule(t, recordDump(), fam)
@@ -55,7 +55,7 @@ func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 		}
 	}
 	// The in-place encoders stay guard-free on purpose (see the file comment).
-	for _, fam := range []string{"prepareForJson", "stringifyJson", "toBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "stringifyJson", "toBinary"} {
 		out := renderModule(t, recordDump(), fam)
 		if strings.Contains(out, "k0.length === 9") {
 			t.Errorf("[%s] an in-place encoder must not pay the prototype-name compare per key; got:\n%s", fam, out)
@@ -143,7 +143,7 @@ func TestUnsafeKeys_DecoderGuardShipsForANoopValueType(t *testing.T) {
 	prop := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "bag", IsSafeName: true, Child: makeRef("rec")}
 	outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{num, key, idx, rec, prop, outer}}
-	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonSafe"} {
+	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonStrip"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, unsafeKeyThrow("k0")) {
 			t.Errorf("[%s] the key loop must ship its prototype-name refusal for a noop value type; got:\n%s", fam, out)
@@ -154,7 +154,7 @@ func TestUnsafeKeys_DecoderGuardShipsForANoopValueType(t *testing.T) {
 			}
 		}
 	}
-	if out := renderModule(t, dump, "prepareForJson"); !strings.Contains(out, "_rec','objectLiteral',,true") {
+	if out := renderModule(t, dump, "prepareForJsonMutate"); !strings.Contains(out, "_rec','objectLiteral',,true") {
 		t.Errorf("[prepareForJson] a Record of numbers rebuilds nothing on encode and stays noop; got:\n%s", out)
 	}
 }

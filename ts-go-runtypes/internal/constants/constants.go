@@ -73,8 +73,8 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_prss_",
 		Tag:       "prss",
 	},
-	"prepareForJson": {
-		Name:      "prepareForJsonModule",
+	"prepareForJsonMutate": {
+		Name:      "prepareForJsonMutateModule",
 		VarPrefix: "g_pj_",
 		Tag:       "pj",
 	},
@@ -88,8 +88,8 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_sj_",
 		Tag:       "sj",
 	},
-	"prepareForJsonSafe": {
-		Name:      "prepareForJsonSafeModule",
+	"prepareForJsonClone": {
+		Name:      "prepareForJsonCloneModule",
 		VarPrefix: "g_pjs_",
 		Tag:       "pjs",
 	},
@@ -103,8 +103,8 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_cjr_",
 		Tag:       "cjr",
 	},
-	"restoreFromJsonSafe": {
-		Name:      "restoreFromJsonSafeModule",
+	"restoreFromJsonStrip": {
+		Name:      "restoreFromJsonStripModule",
 		VarPrefix: "g_rjs_",
 		Tag:       "rjs",
 	},
@@ -123,8 +123,8 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_uke_",
 		Tag:       "uke",
 	},
-	"unknownKeysToUndefinedWire": {
-		Name:      "unknownKeysToUndefinedWireModule",
+	"stripUnknownKeysWire": {
+		Name:      "stripUnknownKeysWireModule",
 		VarPrefix: "g_ukuw_",
 		Tag:       "ukuw",
 	},
@@ -413,7 +413,7 @@ func HasUnknownKeysVariantSuffix(names []string) string {
 // mirrored to TS — gen-ts-constants emits only CacheModules).
 var JsonStrategyFamilies = map[string][]string{
 	"jsonEncoder|direct": {"sj"},
-	// `clone` is shape-derived (prepareForJsonSafe builds a new value from the
+	// `clone` is shape-derived (prepareForJsonClone builds a new value from the
 	// declared shape), so it strips undeclared keys by construction — no separate
 	// strip pass / strip variant is needed. (Was {"pjsp"} when `clone` preserved
 	// extras; the preserve variant and the `stripClone`/`stripMutate` strategies

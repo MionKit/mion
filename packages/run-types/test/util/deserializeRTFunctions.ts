@@ -125,47 +125,51 @@ const stringifyJsonIdentity: StringifyJsonFn = (v) => JSON.stringify(v);
 export const deserializeValidate = deserializeRTFunctionWithOptions<ValidateFn>(
   'deserializeValidate',
   (_value): _value is unknown => true
-) as unknown as (<T>(runType: RunType<T>, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'val'>) => ValidateFn) &
-  (<T>(val?: T, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'val'>) => ValidateFn);
+) as unknown as (<T>(runType: RunType<T>, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'validate'>) => ValidateFn) &
+  (<T>(val?: T, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'validate'>) => ValidateFn);
 
 export const deserializeGetValidationErrors = deserializeRTFunctionWithOptions<GetValidationErrorsFn>(
   'deserializeGetValidationErrors',
   getValidationErrorsIdentity
-) as unknown as (<T>(runType: RunType<T>, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'verr'>) => GetValidationErrorsFn) &
-  (<T>(val?: T, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'verr'>) => GetValidationErrorsFn);
+) as unknown as (<T>(
+  runType: RunType<T>,
+  options?: ValidateOptions,
+  id?: InjectTypeFnArgs<T, 'validationErrors'>
+) => GetValidationErrorsFn) &
+  (<T>(val?: T, options?: ValidateOptions, id?: InjectTypeFnArgs<T, 'validationErrors'>) => GetValidationErrorsFn);
 
 export const deserializeHasUnknownKeys = deserializeRTFunction<HasUnknownKeysFn>(
   'deserializeHasUnknownKeys',
   () => false
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'huk'>) => HasUnknownKeysFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'huk'>) => HasUnknownKeysFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>) => HasUnknownKeysFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'hasUnknownKeys'>) => HasUnknownKeysFn);
 
 export const deserializeCloneExactShape = deserializeRTFunction<CloneExactShapeFn>(
   'deserializeCloneExactShape',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'ces'>) => CloneExactShapeFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'ces'>) => CloneExactShapeFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'cloneExactShape'>) => CloneExactShapeFn);
 
 export const deserializeUnknownKeyErrors = deserializeRTFunction<UnknownKeyErrorsFn>(
   'deserializeUnknownKeyErrors',
   unknownKeyErrorsIdentity
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'uke'>) => UnknownKeyErrorsFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'uke'>) => UnknownKeyErrorsFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn);
 
 export const deserializePrepareForJson = deserializeRTFunction<PrepareForJsonFn>(
   'deserializePrepareForJson',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'pj'>) => PrepareForJsonFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'pj'>) => PrepareForJsonFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'prepareForJsonMutate'>) => PrepareForJsonFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonMutate'>) => PrepareForJsonFn);
 
 export const deserializeRestoreFromJson = deserializeRTFunction<RestoreFromJsonFn>(
   'deserializeRestoreFromJson',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'rj'>) => RestoreFromJsonFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'rj'>) => RestoreFromJsonFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) => RestoreFromJsonFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) => RestoreFromJsonFn);
 
 export const deserializeStringifyJson = deserializeRTFunction<StringifyJsonFn>(
   'deserializeStringifyJson',
   stringifyJsonIdentity
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'sj'>) => StringifyJsonFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'sj'>) => StringifyJsonFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'stringifyJson'>) => StringifyJsonFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) => StringifyJsonFn);

@@ -15,13 +15,13 @@ import (
 const multiFnDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never, F5 extends string = never, F6 extends string = never, F7 extends string = never, F8 extends string = never, F9 extends string = never, F10 extends string = never, F11 extends string = never, F12 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12]};
   // Four DISTINCT leaf families — proves the >3-key cap and exact ordered fnIds.
-  export function createFour<T>(val?: T, id?: InjectTypeFnArgs<T, 'verr', 'huk', 'ces', 'uke'>): unknown;
+  export function createFour<T>(val?: T, id?: InjectTypeFnArgs<T, 'validationErrors', 'hasUnknownKeys', 'cloneExactShape', 'unknownKeyErrors'>): unknown;
   // mion's interim route() shape: validator + JSON decoder + JSON encoder.
-  export function createMion<T>(val?: T, id?: InjectTypeFnArgs<T, 'verr', 'jsonDecoder', 'jsonEncoder'>): unknown;
+  export function createMion<T>(val?: T, id?: InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>): unknown;
   // A repeated family — must be rejected with MKR006 and deduped. The duplicate
   // 'verr' is deliberately NOT the first key, so the reported family pins the
   // FIRST-REPEATED-KEY rule (a naive "report the first key" impl would say 'huk').
-  export function createDup<T>(val?: T, id?: InjectTypeFnArgs<T, 'huk', 'verr', 'ces', 'verr'>): unknown;
+  export function createDup<T>(val?: T, id?: InjectTypeFnArgs<T, 'hasUnknownKeys', 'validationErrors', 'cloneExactShape', 'validationErrors'>): unknown;
 }
 `
 
@@ -56,10 +56,10 @@ createFour<string>();
 	site := resp.Sites[0]
 
 	want := []string{
-		leafFnHash(t, "verr"),
-		leafFnHash(t, "huk"),
-		leafFnHash(t, "ces"),
-		leafFnHash(t, "uke"),
+		leafFnHash(t, "validationErrors"),
+		leafFnHash(t, "hasUnknownKeys"),
+		leafFnHash(t, "cloneExactShape"),
+		leafFnHash(t, "unknownKeyErrors"),
 	}
 	if len(site.FnIds) != len(want) {
 		t.Fatalf("expected %d fnIds, got %d (%+v)", len(want), len(site.FnIds), site.FnIds)
@@ -74,7 +74,7 @@ createFour<string>();
 		t.Errorf("scalar FnId = %q, want %q (mirror of FnIds[0])", site.FnId, want[0])
 	}
 	// Demand must request every named family so all four entry modules render.
-	for _, fnKey := range []string{"verr", "huk", "ces", "uke"} {
+	for _, fnKey := range []string{"validationErrors", "hasUnknownKeys", "cloneExactShape", "unknownKeyErrors"} {
 		op, _ := operations.ByFnKey(fnKey)
 		found := false
 		for _, demand := range site.Demand {
@@ -158,14 +158,14 @@ createMion<{name: string}>();
 		}
 		seen[fnId] = true
 	}
-	// verr rides FnIds[0]; the two JSON families follow in declaration order.
-	if want := leafFnHash(t, "verr"); site.FnIds[0] != want {
-		t.Errorf("FnIds[0] = %q, want verr hash %q", site.FnIds[0], want)
+	// validationErrors rides FnIds[0]; the two JSON families follow in declaration order.
+	if want := leafFnHash(t, "validationErrors"); site.FnIds[0] != want {
+		t.Errorf("FnIds[0] = %q, want validationErrors hash %q", site.FnIds[0], want)
 	}
 }
 
 // TestResolver_MultiFn_DuplicateKey pins the duplicate-family rule: a marker
-// that names the same family twice (InjectTypeFnArgs<T, 'verr', 'huk', 'verr'>)
+// that names the same family twice (InjectTypeFnArgs<T, 'validationErrors', 'hasUnknownKeys', 'validationErrors'>)
 // emits MKR006 (Error) naming the repeated key, and the injected fnIds are
 // DEDUPED so the emitted output carries each family once.
 func TestResolver_MultiFn_DuplicateKey(t *testing.T) {
@@ -192,18 +192,18 @@ createDup<string>();
 	if dupDiag.Level != diagnostics.LevelWarning {
 		t.Errorf("MKR006 level = %v, want LevelWarning", dupDiag.Level)
 	}
-	// The reported family is the FIRST REPEATED key ('verr'), NOT the first key
-	// of the list ('huk') — pins first-repeated-key reporting, not first-key.
-	if len(dupDiag.Args) != 1 || dupDiag.Args[0] != "verr" {
-		t.Errorf("MKR006 args = %v, want [verr] (the first repeated family, not the first key 'huk')", dupDiag.Args)
+	// The reported family is the FIRST REPEATED key ('validationErrors'), NOT the
+	// first key of the list ('hasUnknownKeys') — pins first-repeated-key reporting.
+	if len(dupDiag.Args) != 1 || dupDiag.Args[0] != "validationErrors" {
+		t.Errorf("MKR006 args = %v, want [validationErrors] (the first repeated family, not the first key)", dupDiag.Args)
 	}
 
 	// Injection still proceeds with the duplicate removed, first-occurrence order
-	// preserved: huk, verr, ces (the trailing duplicate 'verr' dropped).
+	// preserved: hasUnknownKeys, validationErrors, cloneExactShape (trailing duplicate dropped).
 	if len(resp.Sites) != 1 {
 		t.Fatalf("expected 1 site, got %d", len(resp.Sites))
 	}
-	want := []string{leafFnHash(t, "huk"), leafFnHash(t, "verr"), leafFnHash(t, "ces")}
+	want := []string{leafFnHash(t, "hasUnknownKeys"), leafFnHash(t, "validationErrors"), leafFnHash(t, "cloneExactShape")}
 	site := resp.Sites[0]
 	if len(site.FnIds) != len(want) {
 		t.Fatalf("expected deduped fnIds %v, got %+v", want, site.FnIds)
