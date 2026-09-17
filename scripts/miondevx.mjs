@@ -160,6 +160,11 @@ const CODEGEN = {
   // each emitter under internal/cachegen/typefunctions/formats registers, so a
   // reflection consumer keys off `typeFormats` instead of re-declaring the names.
   typeformats: {run: [...GO_RUN, './cmd/gen-type-formats'], stdoutTo: 'packages/run-types/src/go-generated/typeFormats.generated.ts', outputs: ['packages/run-types/src/go-generated/typeFormats.generated.ts'], fmt: ['packages/run-types/src/go-generated/typeFormats.generated.ts']},
+  // Compiled-function catalog for the docs site: every function the build can
+  // compile for a type, with the name a marker calls it by, its factory and its
+  // one-line description, all read off the operations registry. No `fmt` — the
+  // output is website JSON, a tree the formatter deliberately never touches.
+  fncatalog: {run: [...GO_RUN, './cmd/gen-fn-catalog'], stdoutTo: 'container/website/app/components/content/go-generated/functions-catalog.json', outputs: ['container/website/app/components/content/go-generated/functions-catalog.json'], fmt: []},
   diag: {run: ['node', 'scripts/core/gen-diagnostics-catalog.mjs'], outputs: ['packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts', 'container/website/app/components/content/go-generated/diagnostics-catalog.json'], fmt: []},
   // Built-in pure-fn body table (Go, not a Go->TS mirror): extracts the
   // package's own `rt::`/`rtFormats::` registrations from packages/run-types/src
