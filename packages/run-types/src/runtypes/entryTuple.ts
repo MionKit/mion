@@ -789,10 +789,9 @@ function registerTypeFnTuple(utils: RTUtils, tuple: FnTypeTuple): boolean {
 // code is absent (the live createPureFn ships instead).
 function registerPureFnTuple(utils: RTUtils, tuple: PureFnTuple): boolean {
   const record = tupleToRecord<PureFnRecord>(PURE_FN_TUPLE_KEYS, tuple);
-  // The key comes off a tuple the emitter wrote, so it is read at runtime rather
-  // than at build time; nothing here is a consumer reference to track.
-  // @mion-expect-error CTA003
-  if (utils.hasPureFn(record.key)) return false;
+  // The UNTRACKED lookup: the key comes off a tuple the emitter wrote, so there is
+  // no consumer reference for the build to track.
+  if (utils.hasPureFnByKey(record.key)) return false;
   const separator = record.key.indexOf('::');
   const entry: CompiledPureFunction = {
     namespace: separator >= 0 ? record.key.slice(0, separator) : '',
