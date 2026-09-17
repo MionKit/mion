@@ -92,6 +92,28 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
+// The same Error program with a `@mion-downgrade-error` on the line above the
+// bad call. Unlike expect-error the finding is KEPT and printed with the
+// `(downgraded)` note; it just stops halting. That is what a deliberately broken
+// type wants: the finding is true and worth seeing.
+const DOWNGRADE_ERROR_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+// @mion-downgrade-error VL002
+export const bad = createValidateFn<symbol>();
+export const goodStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const goodReflected = getRunTypeId(sample);
+`;
+
+// A downgrade directive over a HEALTHY call: nothing was reported there, so the
+// comment is stale and DWN001 fires.
+const STALE_DOWNGRADE_SRC = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+// @mion-downgrade-error VL002
+export const good = createValidateFn<{name: string}>();
+export const goodStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const goodReflected = getRunTypeId(sample);
+`;
+
 // A function at a PROPERTY position drops with a Warning (VL010-class), never
 // an Error — the strict default must NOT halt on it.
 const WARNING_ENTRY_SRC = `import {createValidateFn} from '@mionjs/run-types';
@@ -179,6 +201,8 @@ const TSCONFIG_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'tsconfig-downgrade-progra
 const COLLISION_DIR = path.join(FIXTURE_DIR, 'type-id-collision-program');
 const EXPECT_ERROR_DIR = path.join(FIXTURE_DIR, 'expect-error-program');
 const STALE_EXPECT_DIR = path.join(FIXTURE_DIR, 'stale-expect-program');
+const DOWNGRADE_ERROR_DIR = path.join(FIXTURE_DIR, 'downgrade-error-program');
+const STALE_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'stale-downgrade-program');
 
 describe('downgradeErrors — Error-severity diagnostics fail the build in every lane', () => {
   const register = hasBinary() ? it : it.skip;
@@ -192,6 +216,8 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     writeFixture(COLLISION_DIR, COLLISION_ENTRY_SRC, TSCONFIG_HASHLENGTH1_SRC);
     writeFixture(EXPECT_ERROR_DIR, EXPECT_ERROR_SRC);
     writeFixture(STALE_EXPECT_DIR, STALE_EXPECT_SRC);
+    writeFixture(DOWNGRADE_ERROR_DIR, DOWNGRADE_ERROR_SRC);
+    writeFixture(STALE_DOWNGRADE_DIR, STALE_DOWNGRADE_SRC);
   });
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
@@ -277,6 +303,32 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
       // ctx.error() throws, so a build that returns at all did not halt.
       await callHook(plugin.buildStart, ctx);
       expect(ctx.warnings.join('\n')).toContain('warning EXP001');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('a `@mion-downgrade-error` comment keeps the finding printing and stops it halting', async () => {
+    // No downgradeErrors is configured here on purpose: a source directive
+    // stands its own finding down whatever the build was configured with.
+    const plugin = makePlugin(DOWNGRADE_ERROR_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx); // must NOT throw
+      const all = ctx.warnings.join('\n');
+      expect(all).toContain('warning VL002');
+      expect(all).toContain('(downgraded)');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('an unused `@mion-downgrade-error` is reported but does not halt (DWN001)', async () => {
+    const plugin = makePlugin(STALE_DOWNGRADE_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx);
+      expect(ctx.warnings.join('\n')).toContain('warning DWN001');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }

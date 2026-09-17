@@ -11,10 +11,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// expecterror.go finds the `@mion-expect-error` comments in the program's own
-// source and hands them to diagnostics.ApplyExpectErrors, which owns what they
-// mean. This half owns only two things a comment lexer and a line map can
-// answer: WHERE the real comments are, and WHICH line each one covers.
+// expecterror.go finds the `@mion-expect-error` / `@mion-downgrade-error`
+// comments in the program's own source and hands them to
+// diagnostics.ApplyDirectives, which owns what they mean. This half owns only
+// three things a comment lexer and a line map can answer: WHERE the real
+// comments are, WHICH line each one covers, and WHICH of the two it is.
 //
 // It runs at the Dispatch choke point, so a directive removes a finding for
 // every consumer at once: the bundler build, `mion compile`, and the editor's
@@ -23,13 +24,14 @@ import (
 // decides whether to halt.
 
 // settleDiagnostics is the last thing every op's diagnostics pass through: the
-// repeats collapse, then the `@mion-expect-error` comments take effect. Both
+// repeats collapse, then the directive comments take effect. Both
 // belong here rather than inside a handler because the lanes assemble their
 // diagnostics on different branches of dispatch.
 //
-// SILENCING runs on every op, because a directive is a fact about the source
-// whichever question was asked. REPORTING a wrong directive (the EXP codes)
-// runs only where the answer is real, which is what directiveScope works out.
+// APPLYING a directive runs on every op, because a directive is a fact about
+// the source whichever question was asked. REPORTING a wrong directive (the EXP
+// / DWN codes) runs only where the answer is real, which is what directiveScope
+// works out.
 //
 // Cost when no directive exists is one substring scan per source file, and the
 // sweep is skipped entirely when there is neither a finding to silence nor a
@@ -44,11 +46,11 @@ func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request pr
 	if len(directives) == 0 {
 		return list
 	}
-	return diagnostics.ApplyExpectErrors(list, directives, sess.absPath, scope)
+	return diagnostics.ApplyDirectives(list, directives, sess.absPath, scope)
 }
 
-// directiveScope describes what this request could report, so the EXP codes
-// never fire on a question it cannot answer.
+// directiveScope describes what this request could report, so the EXP / DWN
+// codes never fire on a question it cannot answer.
 //
 // Two ops report. OpGenerate is the BUILD pass: it covers every file but never
 // asks for the opt-in families, so it judges only directives naming codes it
@@ -104,7 +106,7 @@ func (sess *Session) programDirectives() []diagnostics.Directive {
 		if sourceFile == nil || sourceFile.IsDeclarationFile {
 			continue
 		}
-		if !strings.Contains(sourceFile.Text(), diagnostics.DirectiveMarker) {
+		if !carriesDirective(sourceFile.Text()) {
 			continue
 		}
 		directives = append(directives, fileDirectives(sourceFile.FileName(), sourceFile)...)
@@ -112,21 +114,29 @@ func (sess *Session) programDirectives() []diagnostics.Directive {
 	return directives
 }
 
+// carriesDirective is the cheap per-file prefilter: only a file that actually
+// spells one of the markers pays for a parse-guided comment lex.
+func carriesDirective(text string) bool {
+	return strings.Contains(text, diagnostics.DirectiveMarker) ||
+		strings.Contains(text, diagnostics.DowngradeDirectiveMarker)
+}
+
 // fileDirectives parses one file's directives. Comments come from srcscan, so a
-// `@mion-expect-error` written inside a string or a regex is not a directive
-// and a directive inside a template interpolation is.
+// directive written inside a string or a regex is not one, and a directive
+// inside a template interpolation is.
 func fileDirectives(filePath string, sourceFile *ast.SourceFile) []diagnostics.Directive {
 	text := sourceFile.Text()
 	spans := srcscan.Comments(text, srcscan.LiteralTokenRanges(sourceFile))
 	var directives []diagnostics.Directive
 	for _, span := range spans {
-		body, isDirective := directiveBody(text, span)
+		kind, body, isDirective := directiveBody(text, span)
 		if !isDirective {
 			continue
 		}
 		startLine, startCol := textpos.LineCol(sourceFile, span.Start)
 		endLine, endCol := textpos.LineCol(sourceFile, span.End)
 		directives = append(directives, diagnostics.Directive{
+			Kind: kind,
 			// The comment silences the line BELOW its last line, so a block
 			// comment spanning several lines still points at the code under it.
 			AppliesToLine: endLine + 1,
@@ -143,29 +153,33 @@ func fileDirectives(filePath string, sourceFile *ast.SourceFile) []diagnostics.D
 	return directives
 }
 
-// directiveBody reports whether a comment span is a directive, and returns the
-// text after the marker.
+// directiveBody reports whether a comment span is a directive, and returns
+// which kind it is plus the text after the marker.
 //
 // The comment must be the first thing on its own line. A trailing comment after
 // code is deliberately not a directive: it would otherwise be ambiguous whether
 // it covers the line it sits on or the next one, and TypeScript draws the same
 // line for `@ts-expect-error`.
-func directiveBody(text string, span srcscan.Span) (string, bool) {
+func directiveBody(text string, span srcscan.Span) (diagnostics.DirectiveKind, string, bool) {
 	if !ownLine(text, span.Start) {
-		return "", false
+		return 0, "", false
 	}
 	inner := strings.TrimSpace(strings.Trim(strings.TrimPrefix(strings.TrimPrefix(text[span.Start:span.End], "//"), "/*"), "*/"))
 	// Tolerate a leading `*` so the directive also works inside a JSDoc block.
 	inner = strings.TrimSpace(strings.TrimPrefix(inner, "*"))
-	if !strings.HasPrefix(inner, diagnostics.DirectiveMarker) {
-		return "", false
+	for _, kind := range []diagnostics.DirectiveKind{diagnostics.DirectiveExpect, diagnostics.DirectiveDowngrade} {
+		marker := kind.Marker()
+		if !strings.HasPrefix(inner, marker) {
+			continue
+		}
+		rest := inner[len(marker):]
+		// `@mion-expect-errorFOO` is a different word, not a bare directive.
+		if rest != "" && !isSeparator(rest[0]) {
+			return 0, "", false
+		}
+		return kind, rest, true
 	}
-	rest := inner[len(diagnostics.DirectiveMarker):]
-	// `@mion-expect-errorFOO` is a different word, not a bare directive.
-	if rest != "" && !isSeparator(rest[0]) {
-		return "", false
-	}
-	return rest, true
+	return 0, "", false
 }
 
 // ownLine reports whether only whitespace precedes offset on its line.

@@ -2,28 +2,62 @@ package diagnostics
 
 import "strings"
 
-// expecterror.go holds the SEMANTICS of the `@mion-expect-error` directive:
-// which codes a directive may silence, which diagnostics it silences, and the
-// EXP codes a wrong directive earns. Finding the comments and turning byte
-// offsets into line numbers is the caller's job (the resolver holds the parse
-// and the line map), so this package stays free of any compiler dependency.
+// expecterror.go holds the SEMANTICS of the two source-level directives: which
+// codes each may act on, which diagnostics it acts on, and the EXP / DWN codes a
+// wrong directive earns. Finding the comments and turning byte offsets into line
+// numbers is the caller's job (the resolver holds the parse and the line map), so
+// this package stays free of any compiler dependency.
 //
 // The contract follows TypeScript's `@ts-expect-error`: the directive sits on
-// the line above a finding and REMOVES it, and a directive that silenced nothing
-// is itself reported (EXP001). That reverse check is the reason the directive is
-// safer than a config-level ignore list: a silencer cannot quietly outlive the
-// problem it was added for. It is reported as a WARNING, unlike TypeScript's,
-// which is an error: a comment that has gone stale says nothing about the
-// emitted code, so it must not fail a build.
+// the line above a finding, and one that did nothing is itself reported. That
+// reverse check is the reason a directive is safer than a config-level list: it
+// cannot quietly outlive the problem it was added for. It is reported as a
+// WARNING, unlike TypeScript's, which is an error: a comment that has gone stale
+// says nothing about the emitted code, so it must not fail a build.
+//
+// The two differ only in what they do to the finding:
+//
+//   - `@mion-expect-error` REMOVES it. Use it when the finding is noise at that
+//     site.
+//   - `@mion-downgrade-error` KEEPS it and marks it downgraded, so it still
+//     prints and no longer halts. Use it when the finding is TRUE and worth
+//     seeing, and only the halt is unwanted — a suite pinning what a broken type
+//     does at runtime. Removing such a finding would hide a correct statement
+//     about the code.
 
-// DirectiveMarker is the word a suppression comment starts with. The comment
-// must be the first thing on its own line; a trailing comment after code is
-// deliberately not a directive, so there is never a question of whether it
-// applies to the line it sits on or the next one.
-const DirectiveMarker = "@mion-expect-error"
+// DirectiveMarker is the word a suppression comment starts with, and
+// DowngradeDirectiveMarker its downgrading sibling. Either comment must be the
+// first thing on its own line; a trailing comment after code is deliberately not
+// a directive, so there is never a question of whether it applies to the line it
+// sits on or the next one.
+const (
+	DirectiveMarker          = "@mion-expect-error"
+	DowngradeDirectiveMarker = "@mion-downgrade-error"
+)
 
-// Directive is one parsed `@mion-expect-error` comment.
+// DirectiveKind says what a directive does to the findings it claims.
+type DirectiveKind uint8
+
+const (
+	// DirectiveExpect removes the finding (`@mion-expect-error`).
+	DirectiveExpect DirectiveKind = 1
+	// DirectiveDowngrade keeps the finding and marks it downgraded
+	// (`@mion-downgrade-error`).
+	DirectiveDowngrade DirectiveKind = 2
+)
+
+// Marker is the comment word this kind is written with.
+func (kind DirectiveKind) Marker() string {
+	if kind == DirectiveDowngrade {
+		return DowngradeDirectiveMarker
+	}
+	return DirectiveMarker
+}
+
+// Directive is one parsed directive comment.
 type Directive struct {
+	// Kind is what this comment does to the findings it claims.
+	Kind DirectiveKind
 	// AppliesToLine is the 1-based line the directive silences: the line after
 	// the comment's own last line.
 	AppliesToLine int
@@ -37,12 +71,30 @@ type Directive struct {
 }
 
 // notSuppressible lists the codes no directive may silence, on top of every
-// LevelError code. A directive cannot silence the check that keeps directives
-// honest, or the two that report a malformed one.
+// LevelError code. A directive cannot silence the checks that keep directives
+// honest, or the ones that report a malformed directive.
 var notSuppressible = map[string]bool{
-	CodeExpectErrorUnused:          true,
-	CodeExpectErrorNotSuppressible: true,
-	CodeExpectErrorUnknownCode:     true,
+	CodeExpectErrorUnused:              true,
+	CodeExpectErrorNotSuppressible:     true,
+	CodeExpectErrorUnknownCode:         true,
+	CodeDowngradeErrorUnused:           true,
+	CodeDowngradeErrorNotDowngradeable: true,
+	CodeDowngradeErrorUnknownCode:      true,
+	CodeDowngradeErrorAlreadyWarning:   true,
+}
+
+// Downgradeable reports whether a directive is allowed to lower code to a
+// warning. Only a LevelRuntimeError is: output exists, so printing it and
+// carrying on is a legitimate choice.
+//
+// A LevelError never is, the same rule `downgradeErrors` applies — the build
+// produced no code for the thing, so not halting would only ship a call that
+// throws anyway. A LevelWarning is already a warning, so the directive would do
+// nothing. An unrecognised code is not downgradeable either. The caller reports
+// each of those three as its own DWN code, because the fix differs.
+func Downgradeable(code string) bool {
+	definition, registered := Definitions[code]
+	return registered && definition.Level == LevelRuntimeError
 }
 
 // Suppressible reports whether a directive is allowed to silence code.
@@ -67,12 +119,13 @@ func Suppressible(code string) bool {
 	return !notSuppressible[code]
 }
 
-// ApplyExpectErrors removes every diagnostic a directive silences and returns
-// the survivors, followed by the EXP diagnostics the directives themselves
-// earned. Order among survivors is preserved.
+// ApplyDirectives applies every directive and returns the survivors, followed by
+// the EXP / DWN diagnostics the directives themselves earned. An expect
+// directive removes the finding it claims; a downgrade directive keeps it and
+// marks it Downgraded. Order among survivors is preserved.
 //
-// A directive that named a bad code (EXP002 / EXP003) does NOT additionally
-// report EXP001: the user has one problem to fix, not two.
+// A directive that named a bad code does NOT additionally report its unused
+// code: the user has one problem to fix, not two.
 //
 // normalize puts both sides' file paths in one spelling before they are
 // compared. Diagnostic sites echo the CALLER's spelling of a file while a
@@ -81,7 +134,7 @@ func Suppressible(code string) bool {
 //
 // scope says what the calling pass could actually report, which is what keeps
 // the EXP codes from firing on a question this pass cannot answer. See PassScope.
-func ApplyExpectErrors(list []Diagnostic, directives []Directive, normalize func(string) string, scope PassScope) []Diagnostic {
+func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(string) string, scope PassScope) []Diagnostic {
 	if len(directives) == 0 {
 		return list
 	}
@@ -101,7 +154,10 @@ func ApplyExpectErrors(list []Diagnostic, directives []Directive, normalize func
 		index, claimed := byLine[directiveKey{file: normalize(diagnostic.Site.FilePath), line: diagnostic.Site.StartLine}]
 		if claimed && directives[index].covers(diagnostic.Code) {
 			used[index] = true
-			continue
+			if directives[index].Kind == DirectiveExpect {
+				continue
+			}
+			diagnostic.Downgraded = true
 		}
 		survivors = append(survivors, diagnostic)
 	}
@@ -115,22 +171,53 @@ func ApplyExpectErrors(list []Diagnostic, directives []Directive, normalize func
 		}
 		malformed := false
 		for _, code := range directive.Codes {
-			if Suppressible(code) {
-				continue
-			}
-			malformed = true
-			if _, registered := Definitions[code]; registered {
-				survivors = append(survivors, New(CodeExpectErrorNotSuppressible, directive.Site, code))
-			} else {
-				survivors = append(survivors, New(CodeExpectErrorUnknownCode, directive.Site, code))
+			if report := directive.malformedCode(code); report != "" {
+				malformed = true
+				survivors = append(survivors, New(report, directive.Site, code))
 			}
 		}
 		if malformed || used[index] || !scope.canJudge(directive) {
 			continue
 		}
-		survivors = append(survivors, New(CodeExpectErrorUnused, directive.Site, directive.named()))
+		survivors = append(survivors, New(directive.unusedCode(), directive.Site, directive.named()))
 	}
 	return survivors
+}
+
+// malformedCode reports the code this directive earns for naming `code`, or ""
+// when naming it is fine. The three downgrade cases are kept apart because the
+// fix differs: a LevelError cannot be lowered at all, an unknown code is a typo,
+// and an already-warning code means the halt the author expected never existed.
+func (directive Directive) malformedCode(code string) string {
+	_, registered := Definitions[code]
+	if directive.Kind == DirectiveDowngrade {
+		switch {
+		case Downgradeable(code):
+			return ""
+		case !registered:
+			return CodeDowngradeErrorUnknownCode
+		case LevelOf(code) == LevelWarning:
+			return CodeDowngradeErrorAlreadyWarning
+		default:
+			return CodeDowngradeErrorNotDowngradeable
+		}
+	}
+	switch {
+	case Suppressible(code):
+		return ""
+	case registered:
+		return CodeExpectErrorNotSuppressible
+	default:
+		return CodeExpectErrorUnknownCode
+	}
+}
+
+// unusedCode is the code this directive earns when it acted on nothing.
+func (directive Directive) unusedCode() string {
+	if directive.Kind == DirectiveDowngrade {
+		return CodeDowngradeErrorUnused
+	}
+	return CodeExpectErrorUnused
 }
 
 // PassScope says what the pass that produced a diagnostic list could report, so
@@ -156,7 +243,7 @@ type PassScope struct {
 	// leaves it false and silences without judging.
 	Reports bool
 	// Files the pass examined, in the caller's own spelling normalized by the
-	// same function ApplyExpectErrors was given. nil means every file.
+	// same function ApplyDirectives was given. nil means every file.
 	Files map[string]bool
 	// Families the pass could raise. A directive is judged unused only when
 	// every family it could cover is in here; the bare form covers all of them.
@@ -200,10 +287,14 @@ type directiveKey struct {
 	line int
 }
 
-// covers reports whether this directive silences code. The bare form covers
-// anything suppressible; a code list covers exactly what it names.
+// covers reports whether this directive acts on code. The bare form covers
+// anything the kind may act on; a code list covers exactly what it names.
 func (directive Directive) covers(code string) bool {
-	if !Suppressible(code) {
+	if directive.Kind == DirectiveDowngrade {
+		if !Downgradeable(code) {
+			return false
+		}
+	} else if !Suppressible(code) {
 		return false
 	}
 	if len(directive.Codes) == 0 {
@@ -217,8 +308,8 @@ func (directive Directive) covers(code string) bool {
 	return false
 }
 
-// named renders the directive's code list for the EXP001 message; the bare
-// form reads as "any".
+// named renders the directive's code list for the unused-directive message; the
+// bare form reads as "any".
 func (directive Directive) named() string {
 	if len(directive.Codes) == 0 {
 		return "any"

@@ -752,9 +752,11 @@ func runCompile(args []string) {
 	errorCount := 0
 	for _, d := range diagnostics.Dedupe(compileResult.Diagnostics) {
 		// A downgraded finding is still printed, and carries the same one-word
-		// note the bundler adds: without it a configured-down finding reads as an
+		// note the bundler adds: without it a stood-down finding reads as an
 		// ordinary warning, which is the thing downgrading is meant not to be.
-		if downgrade.Downgraded(d) {
+		// Two ways in, one outcome: a `downgradeErrors` setting, or the
+		// `@mion-downgrade-error` comment the resolver already stamped on it.
+		if d.Downgraded || downgrade.Downgraded(d) {
 			d.Severity = diagnostics.SeverityWarning
 			fmt.Fprintln(os.Stderr, diagnostics.FormatDebug(d)+" "+diagnostics.DowngradedNote)
 			continue
