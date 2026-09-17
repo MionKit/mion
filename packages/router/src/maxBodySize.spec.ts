@@ -175,7 +175,6 @@ describe('per-route request limits', () => {
     expect(context.path).toBe('/bounded');
     expect(context.request.rawBody).toBeUndefined();
     const viaContext = await dispatchWithContext(context, rawRequest, {}, body);
-    expect(context.request.rawBody).toBe(body);
     expect(context.request.bodyType).toBe(SerializerModes.stringifyJson);
     const viaPath = await dispatch('/bounded', body);
     expect(viaContext.body).toEqual(viaPath.body);

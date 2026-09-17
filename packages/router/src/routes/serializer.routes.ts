@@ -10,7 +10,7 @@ import {RouterOptions} from '../types/general.ts';
 import {MiddleFnsCollection, MayReturnError} from '../types/publicMethods.ts';
 import {AnyObject, Mutable, MION_ROUTES, StatusCodes, SerializerModes} from '@mionjs/core';
 import {rawMiddleFn} from '../lib/handlers.ts';
-import {getRouteExecutable} from '../router.ts';
+import {getRouteExecutable, getRouterOptions} from '../router.ts';
 import {RpcError, FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {recordUndeclaredError} from '../lib/dispatchError.ts';
@@ -66,6 +66,10 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
       publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
     });
   (context.request as Mutable<MionRequest>).body = parsedBody;
+  // Nothing reads the raw body after this. An empty string rather than undefined: `rawBody` is a
+  // non-optional public field, so clearing it this way frees the body without making every
+  // consumer's read a maybe.
+  if (getRouterOptions().releaseRawBody) (context.request as Mutable<MionRequest>).rawBody = '';
 }
 
 /** The router-level check of the request limit the context carries for this request (the

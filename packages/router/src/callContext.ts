@@ -10,6 +10,7 @@ import type {CallContext, MionHeaders, MionRequest, MionResponse, RawRequestBody
 import type {RouterOptions} from './types/general.ts';
 import type {MethodsExecutionChain} from './types/remoteMethods.ts';
 import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH} from '@mionjs/core';
+import type {AnyObject} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
 
 // ############# CONTEXT CREATION #############
@@ -54,7 +55,10 @@ export function createContextFromChain(
     headers: reqHeaders,
     rawBody: reqRawBody,
     bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
-    body: {},
+    // The parse replaces this wholesale, so the fresh object every request allocated here was
+    // thrown away unread. Shared, and FROZEN: a write before the parse would have been a silent
+    // cross-request leak, and is now a throw.
+    body: EMPTY_BODY,
     thrownErrors: undefined,
   } as MionRequest;
   const response: MionResponse = {
@@ -66,20 +70,45 @@ export function createContextFromChain(
     rawBody: '',
     serializer: SerializerModes.json,
   } as MionResponse;
-  const shared = getRouterOptions().contextDataFactory?.() ?? {};
+  const contextDataFactory = getRouterOptions().contextDataFactory;
 
-  return {
+  const context = {
     path: chain.path ?? path,
     request,
     response,
     executionChain: chain,
     maxBodySize: chain.maxBodySize,
     readsBody: chain.readsBody,
-    shared,
+    shared: contextDataFactory ? contextDataFactory() : undefined,
     urlQuery,
     batchId: chain.batchId,
     batchRouteIds: chain.batchRouteIds,
   } as CallContext;
+  // With no factory configured, `shared` is whatever the first reader makes it: a router whose
+  // routes never touch it allocates nothing, and one that does gets the same plain object it
+  // always had, on first read rather than on every request.
+  if (!contextDataFactory) defineLazyShared(context);
+  return context;
+}
+
+/** One frozen object stands in for every unparsed request body. */
+const EMPTY_BODY: Readonly<AnyObject> = Object.freeze({});
+
+/** `shared` materialises on first access and then behaves exactly like a normal property: the
+ *  accessor replaces itself, so nothing after the first read pays for it. */
+function defineLazyShared(context: CallContext): void {
+  Object.defineProperty(context, 'shared', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      const value = {};
+      Object.defineProperty(this, 'shared', {value, writable: true, enumerable: true, configurable: true});
+      return value;
+    },
+    set(value) {
+      Object.defineProperty(this, 'shared', {value, writable: true, enumerable: true, configurable: true});
+    },
+  });
 }
 
 /** The one-call form: resolve and build the context together, for a caller that already has the
