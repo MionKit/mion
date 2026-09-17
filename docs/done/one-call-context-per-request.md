@@ -1,182 +1,157 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-12
 ---
 
 # One CallContext object per request
 
-## Intent
+## What shipped
 
-A streaming adapter currently builds TWO objects per request: a small `ResolvedRequest` before the
-body is read (so the read can be checked against the route's own limit), then the `CallContext`
-after it. The shapes are near-identical, `ResolvedRequest` is literally
-`Omit<CallContext, 'request' | 'response' | 'shared'>`, and building one object would be the obvious
-design.
-
-The obvious design was tried and measured WORSE at large bodies, for reasons nobody has explained.
-The goal here is to reach one object per request without paying that cost, or to prove the cost is
-not real. Whoever picks this up must measure, not reason: every attempt so far that relied on
-reasoning alone was wrong.
-
-## What exists today
+One object per request, and nothing of the request's own alive while the body is read.
 
 ```ts
 // packages/router/src/callContext.ts
-export function resolveRequest(path, urlQuery, rawRequest): ResolvedRequest   // chain + maxBodySize + readsBody
-export function createContextFromResolved(resolved, reqHeaders, respHeaders, rawBody?, bodyType?): CallContext
+export function resolveExecutionChain(path, urlQuery, rawRequest): MethodsExecutionChain
+export function createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders, rawBody?, bodyType?): CallContext
 export function createCallContext(...)   // the two in one, for a caller that already has the body
 ```
 
-Adapters resolve, read the body against `resolved.maxBodySize`, then build the context with the body
-already in it. `createCallContext` and `dispatchRoute` keep the one-call form for aws, gcloud and
-tests. `ResolvedRequest` is derived from `CallContext` with `Omit`, so the two cannot drift.
+`resolveExecutionChain` returns the chain that was built at registration and allocates nothing. Every
+constant a streaming adapter needed before the body rides on that shared chain instead of on a
+per-request object: its own `path`, the folded `maxBodySize`, `readsBody`, `batchId` and
+`batchRouteIds`. `ResolvedRequest` is deleted, and `dispatchPlatformError` takes the chain rather
+than a context an adapter had to build first, so no platform calls `createContextFromChain` any more.
 
-## What was already tried, and what it measured
+Folding `maxBodySize` onto the chain turned a per-request resolve into one field read, and it meant
+the number had to be refreshed whenever either input moved. `refreshChainBodyLimits` runs from
+`setPlatformConfig` and `initRoutes`; `declaredBodySize` holds what the route option or the params
+types settled, so the platform cap can still be reapplied. That also fixed a pre-existing bug: a
+batch chain built before a later `setPlatformConfig` kept an uncapped limit
+(`refreshBatchChainBodyLimits`).
 
-> **Every number below is a guide, not a baseline.** They were taken on one machine, on one day, and
-> that machine drifted 35% against itself within an hour (see the measurement section). They tell you
-> which effects are worth chasing and roughly how big they were. They are NOT a baseline to compare a
-> change against. Capture your own baseline first, on your machine, in the same window as the
-> candidate you are testing, and compare against that. A change judged against a number copied from
-> this doc proves nothing.
+Four smaller allocations went with it:
 
-Three shapes were benchmarked in-process with the work equalised (`resolveStrategy.bench.ts`, in the
-router package). A full in-process dispatch of a validated route was 3,550 ns for scale:
+- `request.body` starts as one shared frozen object. The parse replaces it wholesale, so the fresh
+  object every request allocated was thrown away unread. Frozen because a write before the parse
+  would otherwise have been a silent cross-request leak.
+- `releaseRawBody`, a new router option defaulting to `true`. The parse is the only reader of the raw
+  text, so it is dropped there. Turn it off for a handler that needs the original.
+- `packages/platform-node` decodes the body from one Buffer when the socket delivered one, instead of
+  concatenating into a second and decoding into a third.
+- `packages/platform-uws` calls `ArrayBuffer.prototype.transfer(0)` on the body buffer once it has
+  been decoded, which returns the backing store to the allocator immediately rather than waiting for
+  the collector. Only on the path where uWS hands ownership to JS, after the existing zero-length
+  tripwire.
 
-| Shape | ns per request | vs split |
+Also fixed on the way: `dispatchError` asked for `SerializerModes.json` where the body was already a
+string, so all three adapters re-stringified it and discarded the `rawBody` that was already there.
+
+## The mechanism, which this doc used to say nobody had
+
+An object that is alive across a multi-turn body read ages into the old heap, and whatever is
+attached to it afterwards is promoted with it instead of dying young. The parsed graph of a large
+body hanging off a promoted context is the cost. That is why the obvious `merged` shape lost, and why
+the answer is not "allocate less" but "keep nothing of the request alive during the read".
+
+Two earlier explanations were tested and refuted, and both were about the body STRING, which is
+born in large-object space and is indeed not the problem. The parsed graph is, and an isolated model never
+reproduced it because an isolated model has no multi-turn read to age the holder.
+
+## The numbers
+
+Base is the tree before this work (`8e23a11`), after is the final tree. Three rounds each, four
+payload sizes, three lanes. Metrics are per-request ratios so the machine's drift cancels out of
+them. A change counts only when the two ranges do not overlap.
+
+The 4 MB uws lane, which is where the problem was:
+
+| 4 MB, uws | base | after |
 | --- | --- | --- |
-| `split`, what ships | 258 | — |
-| `merged`, one object whose `request` / `response` / `shared` are filled after the read | 234 | -24 ns |
-| `relookup`, resolve returns only the limit, a SECOND lookup builds the context after the read | 312 | +54 ns |
+| bytes promoted per request | 1.09 to 2.81 KB | 0.28 to 0.29 KB |
+| major collections per 1000 requests | 94.3 to 95.9 | 68.2 to 68.6 |
+| garbage-collection pause per request | 0.64 to 0.71 ms | 0.59 to 0.61 ms |
+| requests per second | 86.8 to 89.6 | 94.4 to 97.4 |
 
-So on raw processor time `merged` wins by 24 ns, which is 0.05% of a real request on the wire.
-`relookup` loses: a second Map lookup costs more than the small object it saves, and it would run
-`pathTransform` twice, which is user code that can read the request, so that is a behaviour risk as
-well as a cost.
+The 4 MB node lane is smaller and mixed: peak resident memory fell from 349 to 362 MB down to 336 to
+348 MB, major collections per 1000 requests rose slightly from 146 to 148 up to 150 to 154, and
+throughput was unchanged at 61.6 to 62.9 against 61.7 to 65.0. Bytes promoted per request overlapped
+widely on both arms, which is what a lane dominated by one huge parse looks like.
 
-Then the server benchmark, three rounds each, interleaved in one window, on the 4 MB payload lane:
+Every other size on every lane overlapped, meaning no regression at 1 KB, 100 KB or 500 KB. That was
+the thing worth protecting: the original design change cost throughput at small payloads, and this
+one does not.
 
-| 4 MB lane | req/s | max mem |
-| --- | --- | --- |
-| split | 66.4 / 63.0 / 56.4 | 330 / 317 / 321 MB |
-| merged | 62.5 / 51.9 / 55.4 | 432 / 356 / 417 MB |
+## Two numbers that are honest rather than tidy
 
-At 1 KB the two are indistinguishable (11,635 vs 11,591 req/s, same memory). Throughput at 4 MB
-overlaps heavily, but the MEMORY groups do not overlap at all, and that is the finding that kept the
-split.
+**Bun at 1 KB measured 7% slower and the ranges do not overlap**: 22,150 to 23,336 requests per
+second on base, 20,873 to 21,482 after. It is the only non-overlapping regression in the whole grid.
+Bun gets no garbage-collection trace, only peak resident memory and throughput, and its peak memory
+was unchanged (91.3 to 93.6 MB against 92.3 to 93.4 MB). Bun at 100 KB, 500 KB and 4 MB all measured
+equal or slightly better. So there is no mechanism to point at and the two arms were not interleaved,
+which is exactly the condition this doc warns about. It needs a quieter machine to settle, and until
+then it stands as an open question rather than a cleared one.
 
-**No mechanism is known.** Two explanations were proposed and both were tested and refuted:
+**Node's major collections at 4 MB rose about 3%** while its peak memory fell about 4%. Consistent
+with a smaller old generation being collected more often, and small either way.
 
-1. "The context is promoted to the old heap during the read, so the body string assigned into it is
-   promoted too." Refuted: a 4 MB string is too big for young space, so V8 puts it straight into
-   large-object space. It is born old no matter who references it.
-2. "Then it must be the parsed graph, the millions of small objects `JSON.parse` leaves behind,
-   hanging off a promoted context." Also refuted: an isolated model of exactly that showed no
-   difference (`before` 281/274/274 ms against `after` 277/280/311 ms, major collections 6/6/4
-   against 4/4/6).
+## Two method corrections worth keeping
 
-So the memory difference is real and repeatable in the real server and does not reproduce in any
-isolated model built so far. Finding out why is the first useful step, and it may well show the
-split is unnecessary.
+Both produced a wrong answer that was reported before it was caught.
 
-Also tried and rejected: clearing `context.request.rawBody` after the reply is written. `rawBody` is
-read only by the parse (`serializer.routes.ts:36`), so an early clear is possible, but it is a public
-field on `CallContext` and an `alwaysRun` logger reading it would start seeing `undefined`. Never
-measured.
+1. **An under-powered window invents results.** At roughly 160 requests per window, bytes promoted
+   per request swung 15x within a single arm. The probe now warns and voids anything under 600
+   requests, and records peak heap alongside.
+2. **Unequalised bench arms invent results.** One arm of the in-process benchmark called the exported
+   function while another inlined the same work, which produced a 1.12x ratio that flipped sign when
+   the two arms were swapped. Every arm now goes through the same helper. This is the second time this exact mistake was made
+   here: an earlier round of the same investigation reported a fake 1.53x the same way.
 
-## Direction
+A third, smaller: an HTTP-level test of the multi-chunk body decode passed against a deliberately
+broken decoder, because node coalesces small writes and the multi-chunk path never ran. The decode is
+now an exported function with its own unit tests, verified to fail against the broken version.
 
-Find a shape that is one object and no worse. Anything is fair game: pooling contexts, a different
-field layout, clearing references at a measured point, or simply proving the merged shape is fine and
-the earlier result was an artifact. The implementer plans the details.
+## What is pinned
 
-What is NOT negotiable is the evidence: a baseline captured first, then every candidate measured
-against it on both memory and requests per second, interleaved in one window.
+- `packages/router/src/contextAllocation.spec.ts`: the shared frozen body, `releaseRawBody` on and
+  off, and that nothing per-request is alive before the body.
+- `packages/router/src/resolveExecutionChain.spec.ts`: the chain a request resolves to is the
+  registered object, and mutating it is not per-request.
+- `packages/platform-node/src/bodyDecode.spec.ts`: one chunk, many chunks, multi-byte characters
+  split across a chunk boundary.
+- `packages/platform-uws/src/largeResponse.spec.ts`: a large response still arrives whole after the
+  buffer release.
+- `packages/devtools/test/gc-trace.test.ts`: the trace parser and its summary.
 
-## How to measure this properly
+## What was tried and not shipped
 
-This was the hard part. Read all of it before trusting a number.
+`tryEnd` / `onWritable` for response backpressure in uws. Instrumentation showed `onWritable` never
+fired on this workload, its test passed against a broken byte-offset version, and it added a full
+Buffer copy. Reverted. The open question it leaves, that nothing caps or observes uWS's own
+backpressure buffer while a slow client drains a large response, has its own spec.
 
-**Step one is your own baseline, before writing any code.** Check out the branch point unchanged and
-run the lanes below on your machine, in the window you will do the work in. That run is what every
-candidate is compared against. Do not start from the numbers in this doc: they came from a different
-machine on a different day, and the same unchanged code there measured 46.5 and then 63.4 req/s on
-the same lane an hour apart. Re-take the baseline whenever hours pass or the machine's load changes,
-and always re-take it interleaved with the candidate rather than reusing an old run.
+Building `context.shared` lazily through an accessor. It doubled the 1 KB heap (21 to 45 MB), raised
+peak resident memory from 103 to 148 MB and cost 6% throughput, because `Object.defineProperty` with
+an accessor pushes every context into V8's dictionary mode. One empty object per request is far
+cheaper.
 
-**The server benchmark drifts enormously between runs.** The same unchanged code measured 46.5 req/s
-on the 4 MB lane and 63.4 req/s about an hour later, a 35% swing. Absolute numbers from different
-sessions are worthless, and an early comparison in this investigation produced a fake "+33%" purely
-from drift. So:
+## How to measure this again
 
-- Always interleave: run A, then B, then A, then B, in ONE window. Three rounds each minimum.
-- Alternate the order between rounds, so a warm-up or thermal trend cannot favour one side.
-- Prefer MEMORY as the signal. `maxMem` was stable to a few percent while req/s swung by 20% within
-  a single arm.
-- A candidate is only better if the groups do not overlap, not if the means differ.
-
-Set up the A side and the B side as two git worktrees and run the same command in each:
-
-```bash
-git worktree add /home/user/mion-probe HEAD
-cd /home/user/mion-probe
-rm -rf ts-go-runtypes/third_party && ln -s /home/user/mion/ts-go-runtypes/third_party ts-go-runtypes/third_party
-cp -r /home/user/mion/mion-bin .          # the resolver binary, or the engine build fails
-```
-
-A worktree has no `node_modules`, so vitest cannot run there. That is fine for benchmarking: the
-bench harness verifies every lane answers correctly and rejects an invalid payload before it
-measures, which catches a broken variant. Run correctness tests in the main tree.
+`pnpm miondevx bench servers gcprobe` is the tool that came out of this work, and
+`container/mion-bench/README.md` documents it. The short version:
 
 ```bash
-node scripts/website/bench-data/mion-bench.mjs sweep mion    # the 4 payload sizes for one lane
-node scripts/website/bench-data/mion-bench.mjs one mion      # the three suites for one lane
-# results land in container/mion-bench/results (git-ignored)
-node container/mion-bench/aggregate.mjs --compare <beforeDir> <afterDir>
+git checkout <base> -- packages/
+pnpm miondevx bench servers gcprobe --label base --sizes small,medium,large,huge
+git checkout HEAD -- packages/
+pnpm miondevx bench servers gcprobe --label after --sizes small,medium,large,huge
+pnpm miondevx bench servers gcprobe --compare base after
 ```
 
-There is no flag for a single payload size; `sweep` runs all four. Copy the JSON out after each run
-if you want to keep samples, since the next run overwrites them:
+Restoring only `packages/` keeps the harness identical while the measured code varies. Note that
+`git checkout <ref> -- packages/` also stages the revert, so reset the index before committing
+anything.
 
-```bash
-cp container/mion-bench/results/payload-sizes/huge/mion.json $SCRATCH/samples/merged-huge-1.json
-```
-
-Each result file carries `requests.mean`, `requests.stddev`, `latency`, `throughput`, `errors`,
-`non2xx`, `timeouts` and a `memSeries` array. Read them together: a variant that looks fast but whose
-output bytes per request dropped is answering wrongly, and `errors` / `non2xx` must both be zero.
-Within-run `stddev` on the 4 MB lane is about 22% of the mean, which is why single samples prove
-nothing.
-
-**For anything smaller than a few percent, the server benchmark cannot see it at all.** Use the
-in-process bench instead (`packages/router/src/resolveStrategy.bench.ts` already compares the three
-shapes and is the place to add a fourth):
-
-```bash
-pnpm exec vitest bench --project router resolveStrategy
-```
-
-Two rules there, both learned the hard way:
-
-- **Include a `control` case** that does unrelated arithmetic. If it moves between runs, the machine
-  moved and the comparison is void. It read 2,472,106 and 2,462,758 ops/s across two runs here, 0.4%
-  apart, which is what a usable comparison looks like.
-- **Equalise the work.** The first version of this bench let the merged shape skip the path transform
-  and the `contextDataFactory` call that the real resolve performs, and reported a fake 1.53x. Pulling
-  those into a shared helper dropped it to 1.10x. Every variant must do the same work apart from the
-  thing under test.
-
-For garbage-collection questions, an isolated script with a `PerformanceObserver` on `gc` entries
-works, with one trap: its callbacks are asynchronous, so a fully synchronous loop never receives them
-and reports zero collections. The loop must yield (`await new Promise(setImmediate)`), which also
-models a real streamed body spanning event-loop turns.
-
-## Done when
-
-There is one `CallContext` object per request, and an interleaved three-round comparison on the 4 MB
-lane, against a baseline YOU captured on YOUR machine in the same window (never the numbers quoted in
-this doc), shows memory and requests per second no worse than the split, with the in-process bench no
-slower. Or: the investigation shows the earlier result does not hold, the reason is written down, and
-the merged shape ships on that evidence.
+Two rules that did not change: never trust a number from another machine or another day, and never
+call a difference real unless the two ranges do not overlap.
