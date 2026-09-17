@@ -157,8 +157,12 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     bodyChunks.length = 0;
     try {
       const mionResponse = await dispatchPlatformError(
-        createContextFromChain(chain, path, urlQuery, reqHeaders, respHeaders),
+        chain,
+        path,
+        urlQuery,
         requestPayloadTooLarge(),
+        reqHeaders,
+        respHeaders,
         httpReq,
         httpResponse
       );

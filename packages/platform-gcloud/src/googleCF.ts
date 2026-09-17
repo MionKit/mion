@@ -76,8 +76,12 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     } catch (refusal) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       const refused = await dispatchPlatformError(
-        createContextFromChain(chain, rawRequest.path, urlQuery, reqHeaders, respHeaders),
+        chain,
+        rawRequest.path,
+        urlQuery,
         toRpcError(refusal),
+        reqHeaders,
+        respHeaders,
         rawRequest,
         rawResponse
       );
