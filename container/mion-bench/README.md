@@ -158,14 +158,15 @@ memory question instead:
 
 ```bash
 git checkout <base> -- packages/
-pnpm miondevx bench servers gcprobe --label before --rounds 3 --size huge
+pnpm miondevx bench servers gcprobe --label before --sizes small,medium,large,huge
 git checkout HEAD -- packages/
-pnpm miondevx bench servers gcprobe --label after --rounds 3 --size huge
+pnpm miondevx bench servers gcprobe --label after --sizes small,medium,large,huge
 pnpm miondevx bench servers gcprobe --compare before after
 ```
 
-Each run measures the CURRENT build and saves its rounds under a label; `--compare` reads two
-saved sets and prints the table, running nothing. Restoring only `packages/` is what keeps the
+Each run measures the CURRENT build and saves its rounds under a label, one directory per label
+holding every lane and size; `--compare` reads two saved sets and prints a table per size per lane,
+running nothing. Restoring only `packages/` is what keeps the
 harness identical while the measured code varies. Each arm is reported as a **range**, not a
 mean, because the rule is that a change only counts when the two ranges do not overlap.
 

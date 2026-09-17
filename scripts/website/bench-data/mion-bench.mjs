@@ -357,7 +357,7 @@ function cmdWebsite(cfg) {
 //
 // Restoring only packages/ is what keeps the harness constant while the measured code varies.
 
-const GCPROBE_LANES = ['mion', 'mion.bun'];
+const GCPROBE_LANES = ['mion', 'mion.uws', 'mion.bun'];
 
 /** The metrics a candidate is judged on. Bun has no V8 trace, so its `gc` block is absent and
  *  it is judged on peak memory and throughput alone, as a veto rather than as a source of wins. */
@@ -373,8 +373,10 @@ function gcProbeMetrics(record) {
   };
 }
 
-const GCPROBE_DIR = () => join(RESULTS_DIR, 'gcprobe');
-const gcProbeFile = (lane, label, round) => join(GCPROBE_DIR(), `${lane}-${label}-r${round}.json`);
+// A directory per label, so ONE label holds the whole sweep: a lane name carries a dot
+// (`mion.uws`) and a size carries none, which makes filenames a poor key. The records are read back
+// by what they say about themselves instead.
+const gcProbeDir = (label) => join(RESULTS_DIR, 'gcprobe', label);
 
 function gcProbeRun(cfg, app, size, label, round) {
   const args = ['node', 'harness/run.mjs', '--app', app.name, '--size', size, '--gc', '1'];
@@ -382,24 +384,20 @@ function gcProbeRun(cfg, app, size, label, round) {
   const laneFile = join(RESULTS_DIR, 'payload-sizes', size, `${app.name}.json`);
   if (!existsSync(laneFile)) return null;
   const record = JSON.parse(readFileSync(laneFile, 'utf8'));
-  mkdirSync(GCPROBE_DIR(), {recursive: true});
-  writeFileSync(gcProbeFile(app.name, label, round), `${JSON.stringify(record, null, 2)}\n`);
+  mkdirSync(gcProbeDir(label), {recursive: true});
+  writeFileSync(join(gcProbeDir(label), `${app.name}-${size}-r${round}.json`), `${JSON.stringify(record, null, 2)}\n`);
   return record;
 }
 
-/** Every round saved under a label, for --compare. A label with no records is an error worth
- *  naming: it means the run that was supposed to produce them never finished. */
+/** Every round saved under a label, keyed by what each record says it is rather than by its name.
+ *  A label with no records is an error worth naming: the run meant to produce them never finished. */
 function gcProbeSamples(label) {
-  const dir = GCPROBE_DIR();
+  const dir = gcProbeDir(label);
   if (!existsSync(dir)) return [];
-  const samples = [];
-  for (const file of readdirSync(dir)) {
-    const match = /^(.+)-([^-]+)-r(\d+)\.json$/.exec(file);
-    if (!match || match[2] !== label) continue;
-    const record = JSON.parse(readFileSync(join(dir, file), 'utf8'));
-    samples.push({lane: match[1], label, round: Number(match[3]), ...gcProbeMetrics(record)});
-  }
-  return samples;
+  return readdirSync(dir)
+    .filter((file) => file.endsWith('.json'))
+    .map((file) => JSON.parse(readFileSync(join(dir, file), 'utf8')))
+    .map((record) => ({lane: record.app, size: record.size?.key ?? 'unknown', label, ...gcProbeMetrics(record)}));
 }
 
 const METRIC_ROWS = [
@@ -421,20 +419,27 @@ const MIN_SAMPLE_REQUESTS = 600;
 /** Prints each arm as its RANGE, not its mean. The rule this probe exists to serve is that a
  *  candidate counts only when the groups do not overlap; a difference of means proves nothing. */
 function printGcProbe(samples, labels, title) {
-  const lanes = [...new Set(samples.map((sample) => sample.lane))];
-  for (const lane of lanes) {
-    const requests = samples.filter((sample) => sample.lane === lane).map((sample) => sample.requestsTotal);
+  // size first, then lane: the question is how one payload behaves, and the lanes answer it
+  const sizes = SWEEP_SIZES.filter((size) => samples.some((sample) => sample.size === size));
+  const groupsOf = (size, lane) => samples.filter((sample) => sample.size === size && sample.lane === lane);
+  for (const size of sizes) {
+    for (const lane of [...new Set(samples.filter((sample) => sample.size === size).map((sample) => sample.lane))]) {
+      printOneTable(groupsOf(size, lane), labels, `${title} · ${size} · ${lane}`);
+    }
+  }
+}
+
+function printOneTable(samples, labels, title) {
+  {
+    const requests = samples.map((sample) => sample.requestsTotal);
     const smallest = Math.min(...requests);
-    console.log(`\n── ${title} · ${lane} ─────────────────────────────`);
+    console.log(`\n── ${title} ─────────────────────────────`);
     console.log(`  requests per window            ${smallest}..${Math.max(...requests)}`);
     if (smallest < MIN_SAMPLE_REQUESTS) {
       console.log(`  ⚠ UNDER-POWERED: fewer than ${MIN_SAMPLE_REQUESTS} requests per window, the GC ratios are noise.`);
       console.log(`    Drop --quick, or raise MION_BENCH_DURATION, until every window clears that.`);
     }
-    const groups = labels.map((label) => ({
-      label,
-      values: samples.filter((sample) => sample.lane === lane && sample.label === label),
-    }));
+    const groups = labels.map((label) => ({label, values: samples.filter((sample) => sample.label === label)}));
     for (const [key, label, better] of METRIC_ROWS) {
       const ranges = groups.map(({label: arm, values}) => {
         const numbers = values.map((value) => value[key]).filter((value) => value !== null);
@@ -459,25 +464,28 @@ function gcProbeVerdict(ranges, better) {
   return `${best.label} wins`;
 }
 
-function cmdGcProbe(cfg, {lanes, label, rounds, size, compare}) {
+function cmdGcProbe(cfg, {lanes, label, rounds, sizes, compare}) {
   if (compare) return cmdGcProbeCompare(compare);
-  if (!SWEEP_SIZES.includes(size)) die(`mion-bench: unknown size '${size}'. Try one of: ${SWEEP_SIZES.join(', ')}`);
-  if (label.includes('-')) die(`mion-bench: a --label cannot contain '-' (it separates the parts of a record's name). Got '${label}'.`);
+  for (const size of sizes) {
+    if (!SWEEP_SIZES.includes(size)) die(`mion-bench: unknown size '${size}'. Try one of: ${SWEEP_SIZES.join(', ')}`);
+  }
   const apps = lanes.map((name) => findApp(name) ?? die(`mion-bench: unknown lane '${name}'. Try one of: ${APP_NAMES.join(', ')}`));
   ensurePrereqs(cfg);
   buildMionApp(cfg);
 
   const samples = [];
-  for (let round = 1; round <= rounds; round++) {
-    for (const app of apps) {
-      note(`gcprobe round ${round}/${rounds}: ${app.name} · ${label}`);
-      const record = gcProbeRun(cfg, app, size, label, round);
-      if (!record) die(`mion-bench: gcprobe lane '${app.name}' failed in round ${round} - see the output above`);
-      samples.push({lane: app.name, label, round, ...gcProbeMetrics(record)});
+  for (const size of sizes) {
+    for (let round = 1; round <= rounds; round++) {
+      for (const app of apps) {
+        note(`gcprobe ${label} · ${size} · round ${round}/${rounds}: ${app.name}`);
+        const record = gcProbeRun(cfg, app, size, label, round);
+        if (!record) die(`mion-bench: gcprobe lane '${app.name}' failed on ${size} in round ${round} - see the output above`);
+        samples.push({lane: app.name, size, label, round, ...gcProbeMetrics(record)});
+      }
     }
   }
-  printGcProbe(samples, [label], size);
-  console.log(`\nsaved as '${label}' in ${GCPROBE_DIR()}`);
+  printGcProbe(samples, [label], label);
+  console.log(`\nsaved as '${label}' in ${gcProbeDir(label)}`);
   console.log(`compare it with:  pnpm miondevx bench servers gcprobe --compare <other> ${label}`);
 }
 
@@ -487,7 +495,7 @@ function cmdGcProbe(cfg, {lanes, label, rounds, size, compare}) {
 function cmdGcProbeCompare(labels) {
   const samples = labels.flatMap((label) => {
     const found = gcProbeSamples(label);
-    if (found.length === 0) die(`mion-bench: no records saved under '${label}' in ${GCPROBE_DIR()}. Run gcprobe --label ${label} first.`);
+    if (found.length === 0) die(`mion-bench: no records saved under '${label}' in ${gcProbeDir(label)}. Run gcprobe --label ${label} first.`);
     return found;
   });
   printGcProbe(samples, labels, labels.join(' vs '));
@@ -538,7 +546,7 @@ function dispatch(cfg, args, runs, opts) {
 export function main(rawArgs) {
   const args = [];
   let runs = 3;
-  const gcprobe = {lanes: GCPROBE_LANES, label: 'current', rounds: 3, size: 'huge', compare: null};
+  const gcprobe = {lanes: GCPROBE_LANES, label: 'current', rounds: 3, sizes: ['huge'], compare: null};
   const listArg = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
   for (let i = 0; i < rawArgs.length; i++) {
     const arg = rawArgs[i];
@@ -546,7 +554,7 @@ export function main(rawArgs) {
     else if (arg === '--runs') runs = Number(rawArgs[++i]);
     else if (arg.startsWith('--runs=')) runs = Number(arg.slice('--runs='.length));
     else if (arg === '--rounds') gcprobe.rounds = Number(rawArgs[++i]);
-    else if (arg === '--size') gcprobe.size = rawArgs[++i];
+    else if (arg === '--size' || arg === '--sizes') gcprobe.sizes = listArg(rawArgs[++i]);
     else if (arg === '--label') gcprobe.label = rawArgs[++i];
     else if (arg === '--compare') gcprobe.compare = [rawArgs[++i], rawArgs[++i]];
     else if (arg === '--lanes') gcprobe.lanes = listArg(rawArgs[++i]);
