@@ -102,7 +102,7 @@ export const AREAS = {
       {name: 'fuzz-lanes', summary: "print the soak lane list as JSON (the workflows' matrix source)", ...noBuild},
       {
         name: 'codegen',
-        args: '[all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar]',
+        args: '[all|constants|kind|fnhashes|fncatalog|typeformats|diag|builtinpurefns|pluginkeys|sidecar]',
         summary: 'regenerate the Go→TS mirrors, the pure-fn table and the sidecar bundle',
         flags: [['--check', 'regenerate, then fail if a committed output drifted']],
       },

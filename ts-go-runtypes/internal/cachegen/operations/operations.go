@@ -68,6 +68,14 @@ type Operation struct {
 	// Strategies is the full set of valid strategy tokens for an AxisJsonStrategy
 	// operation. Empty otherwise. Drives the collision-guard enumeration.
 	Strategies []string
+	// Doc is the one-line, user-facing description of what this function does.
+	// It is the text the docs catalog page renders, kept here so a new operation
+	// cannot ship without one (TestEveryOperationIsDocumented).
+	Doc string
+	// Factory is the public `createX` export that compiles this operation, or ""
+	// for the value-level primitives that have no factory and are recovered with
+	// getRTFunction. Rendered by the docs catalog page.
+	Factory string
 	// CircularGuarded marks an operation whose runtime factory can inline the
 	// circular-reference guard: validate, validationErrors, toBinary, jsonEncoder.
 	// When a call site arms `{rejectCircularRefs: true}` on one of these, the
@@ -86,8 +94,8 @@ type Operation struct {
 // than a dedicated factory. Order is not load-bearing (keyed by Name / FnKey).
 var registry = []Operation{
 	// Public — validators (ValidateOptions axis). Both guard circular refs.
-	{Name: "validate", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "validate", CircularGuarded: true},
-	{Name: "validationErrors", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrors", CircularGuarded: true},
+	{Name: "validate", Doc: "Answers whether a value matches the type. The cheapest check, and the one every other validator builds on.", Factory: "createValidateFn", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "validate", CircularGuarded: true},
+	{Name: "validationErrors", Doc: "Returns the list of reasons a value does not match the type, with the path to each one.", Factory: "createGetValidationErrorsFn", FamilyTag: "verr", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrors", CircularGuarded: true},
 
 	// Public — the FUSED validators (`{checkUnknowns: true}` on createValidateFn /
 	// createGetValidationErrorsFn). Each renders the same body its plain twin does
@@ -105,8 +113,8 @@ var registry = []Operation{
 	// operation when it reads `checkUnknowns` (see resolver/scan.go computeSiteFn),
 	// so no marker type changes. They keep the ValidateOptions axis (noLiterals /
 	// numberMode / … apply unchanged) and the circular guard.
-	{Name: "validateStrict", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true},
-	{Name: "validationErrorsStrict", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true},
+	{Name: "validateStrict", Doc: "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.", Factory: "createValidateFn", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true},
+	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true},
 
 	// Public — createParseFn: restore a JSON.parse output into the typed shape AND
 	// check it, in ONE walk, throwing an RTParseError carrying the full report when
@@ -130,37 +138,37 @@ var registry = []Operation{
 	//     JSON decoder uses.
 	//   - parseFail: rj + vst. The fused validate{checkUnknowns} rejects a value
 	//     carrying extras in ONE pass, so strict costs a single call like the rest.
-	{Name: "parse", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "parse"},
-	{Name: "parseStrip", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "parseStrip"},
-	{Name: "parseFail", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "parseFail"},
+	{Name: "parse", Doc: "Restores a JSON.parse output into the typed shape and checks it in one walk, throwing on a mismatch. Undeclared properties are kept.", Factory: "createParseFn", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "parse"},
+	{Name: "parseStrip", Doc: "Parse, with undeclared properties removed before the value is restored.", Factory: "createParseFn", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "parseStrip"},
+	{Name: "parseFail", Doc: "Parse, rejecting any value that carries an undeclared property.", Factory: "createParseFn", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "parseFail"},
 
 	// Public — hasUnknownKeys (HasUnknownKeysOptions axis: `runsAfterValidation`).
 	// Stays as-is: the standalone predicate is still the right tool when the caller
 	// already holds a validated value.
-	{Name: "hasUnknownKeys", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "hasUnknownKeys"},
+	{Name: "hasUnknownKeys", Doc: "Answers whether a value carries any property the type does not declare.", Factory: "createHasUnknownKeysFn", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "hasUnknownKeys"},
 
 	// Public — option-less leaf families.
-	{Name: "unknownKeyErrors", FamilyTag: "uke", Axis: AxisNone, Public: true, FnKey: "unknownKeyErrors"},
-	{Name: "cloneExactShape", FamilyTag: "ces", Axis: AxisNone, Public: true, FnKey: "cloneExactShape"},
-	{Name: "formatTransform", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
-	{Name: "toBinary", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "toBinary", CircularGuarded: true},
-	{Name: "fromBinary", FamilyTag: "fb", Axis: AxisNone, Public: true, FnKey: "fromBinary"},
+	{Name: "unknownKeyErrors", Doc: "Returns one error per undeclared property, with the path to each one.", Factory: "createUnknownKeyErrorsFn", FamilyTag: "uke", Axis: AxisNone, Public: true, FnKey: "unknownKeyErrors"},
+	{Name: "cloneExactShape", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createCloneExactShapeFn", FamilyTag: "ces", Axis: AxisNone, Public: true, FnKey: "cloneExactShape"},
+	{Name: "formatTransform", Doc: "Applies the type's format rules to a value, for example trimming a string or clamping a number.", Factory: "createFormatTransformFn", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
+	{Name: "toBinary", Doc: "Writes a value to the compact binary wire format.", Factory: "createBinaryEncoderFn", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "toBinary", CircularGuarded: true},
+	{Name: "fromBinary", Doc: "Reads a value back from the binary wire format.", Factory: "createBinaryDecoderFn", FamilyTag: "fb", Axis: AxisNone, Public: true, FnKey: "fromBinary"},
 	// jsonSchema: the per-type JSON Schema DOCUMENT (schemadoc.RenderDocument
 	// rendered at build time); the entry's fn returns the document object.
-	{Name: "jsonSchema", FamilyTag: "jsc", Axis: AxisNone, Public: true, FnKey: "jsonSchema"},
+	{Name: "jsonSchema", Doc: "Returns the JSON Schema document describing the type.", Factory: "createJsonSchemaFn", FamilyTag: "jsc", Axis: AxisNone, Public: true, FnKey: "jsonSchema"},
 	// classSerializerReg backs registerClassSerializer's trailing
 	// InjectTypeFnArgs<T, 'csr'> marker: the emitted entry is a tiny name card
 	// (its typeName carries the source class name, its fn returns it) so
 	// registration reads the build-time class name WITHOUT demanding the type's
 	// reflection graph. Public: false — the entry has no user-facing behavior to
 	// override or recover.
-	{Name: "classSerializerReg", FamilyTag: "csr", Axis: AxisNone, Public: false, FnKey: "classSerializerReg"},
+	{Name: "classSerializerReg", Doc: "Carries a class's build-time name so it can be registered without pulling in the whole type graph. Internal to registerClassSerializer.", Factory: "registerClassSerializer", FamilyTag: "csr", Axis: AxisNone, Public: false, FnKey: "classSerializerReg"},
 
 	// Public — composite JSON encoder / decoder (JsonStrategy axis). FamilyTag is
 	// empty; each strategy renders its own entry (per-strategy tags added to
 	// constants.CacheModules in the JSON-composite slice).
 	{
-		Name: "jsonEncoder", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonEncoder", CircularGuarded: true,
+		Name: "jsonEncoder", Doc: "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, write the string in one pass, or use the compact positional wire.", Factory: "createJsonEncoderFn", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonEncoder", CircularGuarded: true,
 		// `clone` is the default and is shape-derived: it builds a NEW value from
 		// the declared type shape (never `{...v}`), so undeclared keys are dropped
 		// for free — a clone is stripped by construction. That makes a separate
@@ -174,7 +182,7 @@ var registry = []Operation{
 		Strategies:      []string{"clone", "mutate", "direct", "compact"},
 	},
 	{
-		Name: "jsonDecoder", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonDecoder",
+		Name: "jsonDecoder", Doc: "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.", Factory: "createJsonDecoderFn", Axis: AxisJsonStrategy, Public: true, FnKey: "jsonDecoder",
 		// `compact` decodes the positional-array wire the compact ENCODER produces
 		// (the key-based strip/preserve decoders can't read it), rebuilding the
 		// declared object from positions.
@@ -198,19 +206,19 @@ var registry = []Operation{
 	//     `clone` strategy decodes with it; no createJsonDecoderFn strategy composes it.
 	//   - sj (direct): single-pass value → JSON string (the `direct` encoder body).
 	//   - ukuw: the strip decoder's unknown-keys-to-undefined wire pre-pass.
-	{Name: "prepareForJsonMutate", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate"},
-	{Name: "prepareForJsonClone", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
-	{Name: "restoreFromJson", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJson"},
-	{Name: "restoreFromJsonStrip", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonStrip"},
-	{Name: "stringifyJson", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
-	{Name: "stripUnknownKeysWire", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "stripUnknownKeysWire"},
+	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate"},
+	{Name: "prepareForJsonClone", Doc: "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
+	{Name: "restoreFromJson", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJson"},
+	{Name: "restoreFromJsonStrip", Doc: "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonStrip"},
+	{Name: "stringifyJson", Doc: "Writes a value straight to a JSON string in one pass, with no intermediate value.", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
+	{Name: "stripUnknownKeysWire", Doc: "Blanks undeclared properties on incoming JSON before it is restored.", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "stripUnknownKeysWire"},
 	// compactForJson / compactFromJson: the positional-tuple JSON round-trip pair
 	// the `compact` strategy composes. compactForJson builds a NEW value emitting
 	// declared object props as a positional array (no key names); compactFromJson
 	// rebuilds the keyed object from positions. Recoverable via the marker like the
 	// other value-level primitives (and reached as compact composite dependencies).
-	{Name: "compactForJson", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson"},
-	{Name: "compactFromJson", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson"},
+	{Name: "compactForJson", Doc: "Builds a value whose objects are positional arrays, so property names never reach the wire.", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson"},
+	{Name: "compactFromJson", Doc: "Rebuilds a keyed object from the positional array the compact encoder wrote.", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson"},
 }
 
 var (
