@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-17
 ---
 
@@ -190,7 +190,7 @@ containing one, gets a new id. Nothing else moves. Call it out in the PR body.
 The rename makes every stale `'verr'` a wrong name, and a wrong name is silent
 today, so the error ships with the rename rather than after it.
 
-- `ts-go-runtypes/internal/diagnostics/codes_marker.go` — add `MKR014`
+- `ts-go-runtypes/internal/diagnostics/codes_marker.go` — add `MKR015`
   (`LevelError`) plus its catalog row, beside `MKR006`.
 - `internal/diagnostics/messages.go` and `prose.go` — message and detail, with a
   did-you-mean computed over the registry so `'verr'` suggests
@@ -201,7 +201,7 @@ today, so the error ships with the rename rather than after it.
   `apigen.go:523-526`, which also `continue`s silently.
 - The MKR006 example at `prose.go:222-224` is executed by
   `TestDiagExamples_TriggerAtDepth`; it must still trigger MKR006 after the
-  rename, not MKR014.
+  rename, not MKR015.
 - Replace the fake `'suk'` / `'uku'` filler tokens in
   `packages/run-types/test/features/injectTypeFnArgs-arity.test.ts` and
   `packages/devtools/test/marker-diagnostics.test.ts` with real keys.
@@ -295,6 +295,35 @@ Three stale things found on this exact path, fixed here rather than filed:
 - `container/website/app/playground/operations.ts` — declares and populates a
   `fnKey` field for 11 operations that nothing in the app reads. Delete it.
 
+## What shipped, against the plan above
+
+The plan held. Five things landed differently and are recorded here rather than
+in the steps, so the steps still read as the reasoning behind them.
+
+- **The new code is `MKR015`, not `MKR014`.** `MKR014` was already
+  `CodeTypeIdCollision`.
+- **`apigen`'s silent `continue` got a test, not a diagnostic.** The fn keys
+  there are constants in our own Go source, not something a user writes, so a
+  user-facing diagnostic pointing at their file would be wrong.
+  `TestApiGen_EveryHardcodedFamilyResolves` asserts every key those lists can
+  produce resolves to a public operation.
+- **`byFamilyTag` became `byFnKey`.** It now translates the tag through the
+  generated `FAMILY_TAG_TO_FN_KEY`, which is exported from `@mionjs/run-types`
+  beside `getFnHash`, so mion speaks one vocabulary from the projection on.
+- **Renaming the four operation names pulled more with it than listed**: the
+  `constants.CacheModules` keys, three Go emitter types and their files
+  (`json_prepare_safe.go` and friends), and `resolver/dispatch.go`'s family keys.
+  All mechanical, all compiler-checked.
+- **The generated-code audit checks emitted NAMES, not bare substrings.**
+  Several readable names (`parse`, `validate`) are ordinary JavaScript that
+  legitimately appears in a body, so the test looks for the two shapes a family
+  name is actually emitted in: the `<family>_<hash>` identifier and a quoted
+  family string.
+
+Two fixtures were using fn keys that never existed (`'suk'`, `'uku'`, as filler
+in arity tests). `MKR015` turned them into build errors, which is the clearest
+evidence the old silence was a real gap; they are real families now.
+
 ## Tests
 
 - **Go, registry invariants:** every row has a non-empty unique `FnKey`, and no
@@ -306,7 +335,7 @@ Three stale things found on this exact path, fixed here rather than filed:
   new values get re-pinned. Anything else moving is a bug in the change.
 - **Go, collision guard:** `mustBeCollisionFree` still passes at
   `FnHashLen = 4`. It runs at package init, so any Go test proves it.
-- **Go, `MKR014`:** a call site naming a stale `'verr'` errors, and the
+- **Go, `MKR015`:** a call site naming a stale `'verr'` errors, and the
   did-you-mean names `'validationErrors'`.
 - **Go, overrides:** an overridden type's id does not change when only `FnKey`
   changes, which is step 2's whole point.
@@ -344,7 +373,7 @@ Three stale things found on this exact path, fixed here rather than filed:
 ## Done when
 
 - `InjectTypeFnArgs<T, 'parse', 'validationErrors'>` compiles and resolves; the
-  short tokens do not, and fail with `MKR014` plus a did-you-mean.
+  short tokens do not, and fail with `MKR015` plus a did-you-mean.
 - Generated code shape is unchanged and every family tag is still short, proven
   by the generated-code audit. Exactly four function hashes moved, proven by the
   hash-stability pins; the collision guard still passes at length 4.

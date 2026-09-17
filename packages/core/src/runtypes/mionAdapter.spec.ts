@@ -255,8 +255,29 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(hashes.decode).toBe(reflection.returnJitFns.json.decode.rtFnHash);
   });
 
-  // hand-made payloads: an entry tuple's slot 0 is its family tag, the rest is never read here
+  // Hand-made payloads: an entry tuple's slot 0 is its SHORT family tag, which the adapter
+  // translates back to the readable fn key a marker names. Keeping these tags short is what
+  // exercises that translation, so do not spell them out here.
   const tuple = (tag: string) => [tag, () => [], undefined, `${tag}_fake`];
+
+  // A compiled entry names itself by its SHORT family tag; a marker names the same
+  // family by its readable key. The adapter is the one place those two vocabularies
+  // meet, so pin the translation directly: a payload carrying only short tags must
+  // still resolve every function, and the readable key is what the rest of mion sees.
+  it('translates the short family tag a compiled entry carries into the readable fn key', () => {
+    const fns = buildJitFnsFromMarker(
+      [tuple('val'), tuple('verr'), tuple('huk'), tuple('uke'), tuple('pjs'), tuple('rjs')],
+      'x',
+      'clone'
+    );
+    expect(fns.isType).toBeDefined();
+    expect(fns.typeErrors).toBeDefined();
+    expect(fns.hasUnknownKeys).toBeDefined();
+    expect(fns.unknownKeyErrors).toBeDefined();
+    // The strategy is read back off the encode family, which only works once the
+    // tag has been translated to the key ENCODE_FAMILY_BY_STRATEGY speaks.
+    expect(fns.json.strategy).toBe('clone');
+  });
 
   it('fails closed on a payload with no encode family, two encode families, or a mismatched decoder', () => {
     const okValidators = [tuple('val'), tuple('verr')];
@@ -267,10 +288,10 @@ describe('mionAdapter: json strategy per compiled family set', () => {
       /exactly one JSON encode family/
     );
     expect(() => buildJitFnsFromMarker([...okValidators, tuple('cj'), tuple('rj')], 'x', 'mismatch')).toThrow(
-      /needs decoder 'cjr'/
+      /needs decoder 'compactFromJson'/
     );
     expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr')).toThrow(
-      /val\/verr are required/
+      /validate\/validationErrors are required/
     );
   });
 

@@ -31,17 +31,24 @@ type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = FallbackTo<
 >;
 // Mirrored by ENCODE_FAMILY_BY_STRATEGY / DECODE_FAMILY_BY_STRATEGY in @mionjs/core.
 type EncodeFamily<S> = S extends 'clone'
-  ? 'pjs'
+  ? 'prepareForJsonClone'
   : S extends 'mutate'
-    ? 'pj'
+    ? 'prepareForJsonMutate'
     : S extends 'direct'
-      ? 'sj'
+      ? 'stringifyJson'
       : S extends 'compact'
-        ? 'cj'
+        ? 'compactForJson'
         : never;
 // `clone` decodes with the stripping restore: it promises undeclared keys are dropped, and that has
-// to hold for a payload mion did not write. `mutate` keeps them both ways, `direct` shares `rj`.
-type DecodeFamily<S> = S extends 'clone' ? 'rjs' : S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
+// to hold for a payload mion did not write. `mutate` keeps them both ways, `direct` shares the
+// plain restore.
+type DecodeFamily<S> = S extends 'clone'
+  ? 'restoreFromJsonStrip'
+  : S extends 'compact'
+    ? 'compactFromJson'
+    : S extends string
+      ? 'restoreFromJson'
+      : never;
 
 /** Options naming no `encoder`, the default for a helper called outside the factory. */
 type NoEncoderOptions = Record<never, never>;
@@ -61,8 +68,8 @@ type ReturnDecode<RouteOpts, RouterOpts = NoEncoderOptions> = DecodeFamily<Retur
  *  sees it and the check has nothing left to find. `mutate` and `direct` decode with `rj`, which
  *  restores in place and keeps every key, so they keep the pair. Mirrors DecodeFamily above. */
 type UnknownKeys<Strategy, Key> = Strategy extends 'clone' | 'compact' ? never : Key;
-type ParamsHasUnknownKeys<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'huk'>;
-type ParamsUnknownKeyErrors<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'uke'>;
+type ParamsHasUnknownKeys<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'hasUnknownKeys'>;
+type ParamsUnknownKeyErrors<RouteOpts, RouterOpts = NoEncoderOptions> = UnknownKeys<ParamsStrategy<RouteOpts, RouterOpts>, 'unknownKeyErrors'>;
 
 /** Intersected onto the factory options so a widened `encoder` (plain string, union) is a type error. */
 export type EncoderLiteralGuard<Options> = Options extends {encoder: infer E}

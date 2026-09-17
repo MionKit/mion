@@ -177,8 +177,8 @@ export interface Site {
   paramIndex?: number;
   argsCount?: number;
   // fnId is the value injected as the 2nd tuple element for a createX call site
-  // routed through the InjectTypeFnArgs marker (a readable family/variant token
-  // today; an opaque fn hash after the hashed-id migration). When present, the
+  // routed through the InjectTypeFnArgs marker: an opaque fn hash, never the
+  // family name the marker spells. When present, the
   // patcher injects a `[id, fnId]` tuple instead of the bare `"id"` string.
   // Absent for reflection-only InjectRunTypeId sites.
   fnId?: string;

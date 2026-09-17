@@ -211,3 +211,33 @@ func TestPlainHashMatchesDefaultVariant(t *testing.T) {
 		t.Fatal("PlainHash for a composite must equal its default-strategy fnHash")
 	}
 }
+
+// TestSuggestFnKey pins the did-you-mean behind MKR015. The case that matters is
+// a RETIRED family tag: markers used to name a family by the tag it emits under,
+// so every stale call site hands the scanner a tag, and the suggestion has to
+// land on that same family rather than on whatever is alphabetically closest.
+func TestSuggestFnKey(t *testing.T) {
+	retired := map[string]string{
+		"val":  "validate",
+		"verr": "validationErrors",
+		"pjs":  "prepareForJsonClone",
+		"rjs":  "restoreFromJsonStrip",
+		"ukuw": "stripUnknownKeysWire",
+		"prs":  "parse",
+	}
+	for tag, want := range retired {
+		if got := SuggestFnKey(tag); got != want {
+			t.Errorf("SuggestFnKey(%q) = %q, want %q", tag, got, want)
+		}
+	}
+	// A near miss on a real name still resolves.
+	if got := SuggestFnKey("validationError"); got != "validationErrors" {
+		t.Errorf("SuggestFnKey(\"validationError\") = %q, want validationErrors", got)
+	}
+	// Nothing close reports nothing rather than guessing.
+	for _, nonsense := range []string{"", "zzzzzzzzzzzz", "notAFamilyAtAll"} {
+		if got := SuggestFnKey(nonsense); got != "" {
+			t.Errorf("SuggestFnKey(%q) = %q, want no suggestion", nonsense, got)
+		}
+	}
+}

@@ -307,7 +307,7 @@ export function resetJitFunctionsCache(): void {
 const noopJitFns: JitCompiledFunctions = {
     isType: fakeJitFn(JIT_FUNCTION_IDS.isType),
     typeErrors: fakeJitFn(JIT_FUNCTION_IDS.typeErrors),
-    json: {strategy: 'mutate', encode: fakeJitFn(JIT_FUNCTION_IDS.pj), decode: fakeJitFn(JIT_FUNCTION_IDS.rj)},
+    json: {strategy: 'mutate', encode: fakeJitFn(JIT_FUNCTION_IDS.prepareForJsonMutate), decode: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJson)},
 } as any;
 
 /** Creates a fake JIT function with isNoop=true for handlers with no params or void return */

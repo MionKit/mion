@@ -71,7 +71,21 @@ export const widenedPreset = {encoder: 'compact'};
 
 // fn ids on the wire are the family fn hashes; map them back to the family key.
 const FAMILY_BY_HASH: Record<string, string> = Object.fromEntries(
-  (['val', 'verr', 'pj', 'pjs', 'sj', 'cj', 'rj', 'rjs', 'cjr', 'tb', 'fb'] as const).map((key) => [getFnHash(key), key])
+  (
+    [
+      'validate',
+      'validationErrors',
+      'prepareForJsonMutate',
+      'prepareForJsonClone',
+      'stringifyJson',
+      'compactForJson',
+      'restoreFromJson',
+      'restoreFromJsonStrip',
+      'compactFromJson',
+      'toBinary',
+      'fromBinary',
+    ] as const
+  ).map((key) => [getFnHash(key), key])
 );
 
 function familiesOf(site: Site): string[] {
@@ -111,8 +125,8 @@ export const r = mion.route(${HANDLER});
     });
     expect(markerDiagsOf(response)).toEqual([]);
     const {params, ret} = routeSites(response.sites, 'plain.ts');
-    expect(familiesOf(params)).toEqual(['val', 'verr', 'sj', 'rj']);
-    expect(familiesOf(ret)).toEqual(['val', 'verr', 'pj', 'rj']);
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJson']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJson']);
   });
 
   register('a route literal selects compact on both directions, and only compact', async () => {
@@ -124,8 +138,8 @@ export const r = mion.route(${HANDLER}, {encoder: 'compact'});
     });
     expect(markerDiagsOf(response)).toEqual([]);
     const {params, ret} = routeSites(response.sites, 'compact.ts');
-    expect(familiesOf(params)).toEqual(['val', 'verr', 'cj', 'cjr']);
-    expect(familiesOf(ret)).toEqual(['val', 'verr', 'cj', 'cjr']);
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
   });
 
   // The router has no binary wire: no strategy resolves the tb/fb families, so a route never
@@ -159,10 +173,10 @@ export const overridden = mion.route(${HANDLER}, {encoder: {return: 'compact'}})
     // two calls, three sites each (paramsFns, returnFns, paramsId)
     expect(own.length).toBe(6);
     const [inheritedParams, inheritedReturn, , overriddenParams, overriddenReturn] = own;
-    expect(familiesOf(inheritedParams)).toEqual(['val', 'verr', 'pjs', 'rjs']);
-    expect(familiesOf(inheritedReturn)).toEqual(['val', 'verr', 'sj', 'rj']);
-    expect(familiesOf(overriddenParams)).toEqual(['val', 'verr', 'pjs', 'rjs']);
-    expect(familiesOf(overriddenReturn)).toEqual(['val', 'verr', 'cj', 'cjr']);
+    expect(familiesOf(inheritedParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonStrip']);
+    expect(familiesOf(inheritedReturn)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJson']);
+    expect(familiesOf(overriddenParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonStrip']);
+    expect(familiesOf(overriddenReturn)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
   });
 
   register('an `as const` preset passed by name resolves cross-module', async () => {
@@ -175,8 +189,8 @@ export const r = mion.route(${HANDLER}, compactPreset);
     });
     expect(markerDiagsOf(response)).toEqual([]);
     const {params, ret} = routeSites(response.sites, 'preset-user.ts');
-    expect(familiesOf(params)).toEqual(['val', 'verr', 'cj', 'cjr']);
-    expect(familiesOf(ret)).toEqual(['val', 'verr', 'cj', 'cjr']);
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
   });
 
   register('a widened preset is CTA004; inference falls back to the defaults and the runtime fails closed', async () => {
@@ -192,8 +206,8 @@ export const r = mion.route(${HANDLER}, widenedPreset);
     // DirectionStrategy filters that widened union out: the defaults get compiled. The runtime value
     // still says 'compact', so the router refuses the route at init (pinned in @mionjs/router).
     const {params, ret} = routeSites(response.sites, 'widened.ts');
-    expect(familiesOf(params)).toEqual(['val', 'verr', 'sj', 'rj']);
-    expect(familiesOf(ret)).toEqual(['val', 'verr', 'pj', 'rj']);
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJson']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJson']);
   });
 
   register('a call expression as the options is CTA001 (non-literal)', async () => {

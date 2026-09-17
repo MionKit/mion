@@ -170,8 +170,9 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     const decode = wireDecoder(byTag[tag]);
     if (decode) decoders[name] = decode as (text: string) => unknown;
   }
-  // The parse family tag depends on the strategy ('prs' strip, 'prsf' fail,
-  // 'prss' preserve); the fixture uses the default, but accept any.
+  // The parse family tag depends on the strategy: 'prs' keeps undeclared keys (the
+  // default), 'prss' strips them, 'prsf' rejects them. The fixture uses the default,
+  // but accept any.
   const prs = byTag.prs ?? byTag.prss ?? byTag.prsf;
   const parse = attempt('parse', () =>
     prs && byTag.verr ? (createParseFn(undefined, undefined, [prs, byTag.verr] as never) as (v: unknown) => unknown) : undefined

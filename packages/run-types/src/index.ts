@@ -93,6 +93,12 @@ export {
 // truth = operations.FnHashFor); stable across releases, so consumers derive
 // once and never re-pin on a version bump.
 export {getFnHash, type FnHashKey, type FnHashOptions} from './fnHash.ts';
+// FAMILY_TAG_TO_FN_KEY translates the SHORT family tag a compiled entry carries
+// at slot 0 of its tuple into the readable key a marker names it by. The two are
+// separate vocabularies on purpose: generated code stays small, markers stay
+// legible. A framework that projects an injected payload by the tag it finds
+// (mion's route helpers do) needs this to speak one vocabulary again.
+export {FAMILY_TAG_TO_FN_KEY} from './go-generated/fnHashes.generated.ts';
 
 // Run-type registration is per-entry now: each marker call site imports its
 // type's virtual entry module and registers it (plus transitive children) on
