@@ -225,7 +225,7 @@ export const AREAS = {
               ['--label <name>', 'name this run saves its rounds under (default current)'],
               ['--compare <a b>', 'print the range table for two saved labels, running nothing'],
               ['--lanes <a,b>', 'lanes to run (default mion,mion.bun)'],
-              ['--size <key>', 'payload size (default huge)'],
+              ['--sizes <a,b>', 'payload sizes to run (default huge)'],
               ['--rounds <n>', 'rounds per label (default 3)'],
             ],
           },
