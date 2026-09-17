@@ -1,7 +1,7 @@
 // build-playground.mjs: host-side prebuild of the static assets the docs site's
 // <RuntypesPlayground> Vue component fetches from /playground-app/:
 //
-//   public/playground-app/ts-runtypes.wasm.gz   the resolver compiled to wasm (gz)
+//   public/playground-app/mion.wasm.gz          the resolver compiled to wasm (gz)
 //   public/playground-app/wasm_exec.js          Go's wasm runtime shim
 //   public/playground-app/runtypes-sources.json the mion source overlay the
 //                                               resolver type-checks snippets against
@@ -20,6 +20,7 @@ import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readdirSync, read
 import {join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../../../scripts/lib/env.mjs';
 import {capture, die, note, reportCliError, run, warn, which} from '../../../scripts/lib/proc.mjs';
+import {PLAYGROUND_ASSETS} from '../../../scripts/website/playground-assets.mjs';
 import {readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
@@ -242,17 +243,28 @@ function anyNewerAbs(dir, anchorMs) {
 
 // ── Stage into public/playground-app/ ─────────────────────────────────────────
 
+// Where each staged asset comes from in the cache. Keyed by the manifest's own
+// file names so a rename there cannot silently keep staging the old spelling.
+const CACHED = {
+  'mion.wasm.gz': RAW_GZ,
+  'wasm_exec.js': WASM_EXEC,
+  'runtypes-sources.json': SOURCES_JSON,
+  'sidecar-hook.js': SIDECAR_HOOK,
+};
+
+// Staging only WARNS on a missing source: a host with no Go toolchain must still be
+// able to build the site. The hard gate is scripts/website/check-static.mjs, which
+// fetches every required asset out of the built artifact before it can be deployed.
 function stage() {
-  for (const [src, dst] of [
-    [RAW_GZ, join(OUT_DIR, 'mion.wasm.gz')],
-    [WASM_EXEC, join(OUT_DIR, 'wasm_exec.js')],
-    [SOURCES_JSON, join(OUT_DIR, 'runtypes-sources.json')],
-    [SIDECAR_HOOK, join(OUT_DIR, 'sidecar-hook.js')],
-  ]) {
+  for (const {file, required, what} of PLAYGROUND_ASSETS) {
+    const src = CACHED[file];
+    if (!src) die(`==> ERROR: no cache source for staged playground asset '${file}' (add it to CACHED).`);
     if (!existsSync(src)) {
-      warn(`missing ${src} - the /playground page will not load until it is built`);
+      const tail = required ? 'the /runtypes/playground page will not load until it is built' : `optional: ${what}`;
+      warn(`missing ${src} - ${tail}`);
       continue;
     }
+    const dst = join(OUT_DIR, file);
     if (!existsSync(dst) || mtime(src) > mtime(dst)) copyFileSync(src, dst);
   }
 }
