@@ -103,17 +103,14 @@ const HOLLOW_PLACEHOLDER: CompiledPureFunction = {
 function registerCore(caller: string, key: string, arg: unknown, wrap: boolean): CompiledPureFunction {
   if (isEntryTuple(arg)) {
     initFromTuple(arg as EntryTuple);
-    // Same runtime lookup as below: the key arrives as a parameter.
-    // @mion-expect-error CTA001
-    const registered = getRTUtils().getCompiledPureFn(key);
+    const registered = getRTUtils().getCompiledPureFnByKey(key);
     if (registered) return registered;
     // Fall through to the no-entry error below — a tuple that doesn't
     // register its own key is an emitter bug worth surfacing loudly.
   }
-  // `key` is this library's own runtime lookup, not a consumer reference the build
-  // could track, so there is no literal to read here.
-  // @mion-expect-error CTA001
-  const existing = getRTUtils().getCompiledPureFn(key);
+  // Untracked: `key` is whatever this function was called with, so there is no
+  // consumer reference for the build to track.
+  const existing = getRTUtils().getCompiledPureFnByKey(key);
   if (!existing) {
     if (typeof arg === 'function') {
       // No-plugin (or extraction-skipped) fallback: the function is right here —
