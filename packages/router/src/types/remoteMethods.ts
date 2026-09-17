@@ -117,10 +117,23 @@ export interface MethodsExecutionChain {
   methods: RemoteMethod[];
   /** Precalculated serializer code for the route's response body type */
   serializer: SerializerCode;
-  /** The chain's resolved request limit in bytes (route option, else the sum derived from the
-   *  members' params types), settled at registration so a request pays one field read. Undefined
-   *  when the types cannot say: the request then takes the platform adapter's `maxBodySize`. */
-  maxBodySize?: number;
+  /** The path this chain is registered at, which IS the transformed path a request resolves to:
+   *  the lookup is a Map hit on that exact string. Undefined on the two kinds that answer for many
+   *  paths, mion's not-found chains and a merged batch chain (cached per member-path list, so one
+   *  object serves every endpoint path that reaches it); those take the request's own path. */
+  path?: string;
+  /** Id of the batch this chain runs, and its route ids in call order. Constant per merged chain,
+   *  so they ride here rather than being copied per request. */
+  batchId?: string;
+  batchRouteIds?: string[];
+  /** What the route option or the members' params types settled, in bytes. Undefined when the
+   *  types could not say. Registration detail, read only by the platform cap: a request reads
+   *  `maxBodySize`. */
+  declaredBodySize?: number;
+  /** The number a request is actually read against: `declaredBodySize`, else the platform
+   *  adapter's. Folded here rather than resolved per request, and refreshed whenever either input
+   *  moves, so resolving a request reads one field and allocates nothing to carry it. */
+  maxBodySize: number;
   /** False only for mion's own not-found chains (an unknown path, an unknown batch id): the request
    *  has no route to feed, so the adapter never reads its body and the router never parses it. */
   readsBody: boolean;
