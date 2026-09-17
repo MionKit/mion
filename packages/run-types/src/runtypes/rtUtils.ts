@@ -176,6 +176,12 @@ const rtUtils = {
   hasPureFnByKey(key: string): boolean {
     return !!pureFnsCache[key];
   },
+  // Untracked record lookup keyed by a runtime string (see getPureFnByKey). The
+  // registration path reaches for this one: it is handed a key it was called
+  // with, so there is no reference for the build to track and nothing to read.
+  getCompiledPureFnByKey(key: string): CompiledPureFunction | undefined {
+    return pureFnsCache[key];
+  },
   // CompTimeArgs ensures dependencies are tracked inside pure functions
   findCompiledPureFn(fnName: CompTimeArgs<string>): CompiledPureFunction | undefined {
     const suffix = '::' + fnName;
