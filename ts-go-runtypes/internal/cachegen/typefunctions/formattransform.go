@@ -189,7 +189,7 @@ func emitPropertyFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 		return RTCode{Code: "", Type: CodeS}
 	}
 	if rt.Optional {
-		return RTCode{Code: "if (" + accessor + " !== undefined) {" + childRT.Code + "}", Type: CodeS}
+		return RTCode{Code: "if (" + propertyPresenceTest(rt, v, accessor) + ") {" + childRT.Code + "}", Type: CodeS}
 	}
 	return childRT
 }

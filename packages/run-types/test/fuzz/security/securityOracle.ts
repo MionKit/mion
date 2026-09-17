@@ -381,7 +381,10 @@ export function checkRebuilds(
   }
 }
 
-const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+// `prototype` and `constructor` on the wire are ordinary data: they land as
+// plain own keys and every road carries them. Only a `__proto__` key an encoder
+// CREATED is a finding.
+const UNSAFE_KEYS = new Set(['__proto__']);
 
 /** The dictionary ids that plant a prototype-named key or a foreign prototype. **/
 export function isPrototypeAttack(id: string): boolean {

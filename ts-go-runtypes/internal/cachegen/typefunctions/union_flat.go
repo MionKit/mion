@@ -211,7 +211,7 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 			if mp.Required {
 				propParts = append(propParts, propCode)
 			} else {
-				propParts = append(propParts, "if ("+accessor+" !== undefined) {"+propCode+"}")
+				propParts = append(propParts, "if ("+namedPropertyPresenceTest(mp.Name, v, accessor)+") {"+propCode+"}")
 			}
 		}
 		body := strings.Join(propParts, ";")
@@ -370,7 +370,7 @@ func emitMergedPropsInPlace(ctx *EmitContext, v string, layout FlatLayout) (stri
 		if mp.Required {
 			propParts = append(propParts, propCode)
 		} else {
-			propParts = append(propParts, "if ("+accessor+" !== undefined) {"+propCode+"}")
+			propParts = append(propParts, "if ("+namedPropertyPresenceTest(mp.Name, v, accessor)+") {"+propCode+"}")
 		}
 	}
 	return strings.Join(propParts, ";"), true

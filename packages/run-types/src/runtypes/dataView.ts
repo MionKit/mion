@@ -773,18 +773,15 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     this.index = end;
     return decoded;
   }
-  /** An index-signature key. A prototype-named key (`__proto__`, `prototype`,
-   *  `constructor`) is never data: it is refused here with the same message the
-   *  JSON decoders throw, so both roads behave alike. The length check first
-   *  rules out every other key without a string compare. **/
+  /** An index-signature key. `__proto__` is never data: writing it on the object
+   *  being built swaps that object's prototype instead of storing a value, so it
+   *  is refused here with the same message the JSON decoders throw and both
+   *  roads behave alike. `prototype` and `constructor` land as plain own keys
+   *  and are carried like any other key. The length check first rules out every
+   *  other key without a string compare. **/
   desSafePropName(): string {
     const key = this.desString();
-    const len = key.length;
-    if (len === 9) {
-      if (key === '__proto__' || key === 'prototype') throw new BinaryDecodeError(UNSAFE_PROPERTY_NAME_MESSAGE + key);
-    } else if (len === 11) {
-      if (key === 'constructor') throw new BinaryDecodeError(UNSAFE_PROPERTY_NAME_MESSAGE + key);
-    }
+    if (key.length === 9 && key === '__proto__') throw new BinaryDecodeError(UNSAFE_PROPERTY_NAME_MESSAGE + key);
     return key;
   }
   desFloat64(): number {

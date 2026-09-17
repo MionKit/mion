@@ -103,7 +103,7 @@ export const answer = 42;
 // rules would never run.
 const ROUTES_TS = `import {createMionRouter} from '@mionjs/router';
 const mion = createMionRouter();
-export interface Wire { ok: number; constructor: string }
+export interface Wire { ok: number; __proto__: string }
 export const noReturn = mion.route((ctx, name: string) => name);
 export const untyped = mion.route((ctx, name): string => 'x');
 export const throws = mion.route((ctx, name: string): string => { throw new Error(name); });
@@ -236,7 +236,7 @@ describe('configs.recommended — every rule at its family default', () => {
       'returned-error-type',
       'strong-typed-routes',
     ]);
-    for (const spec of MION_SPECS) expect(rec.rules[`@mionjs/${spec.name}`]).toBe('error');
+    for (const spec of MION_SPECS) expect(rec.rules[`@mionjs/${spec.name}`]).toBe(spec.default);
     // Every rule the mion plugin exposes must be addressable under that prefix.
     for (const name of Object.keys(mionPlugin.rules)) {
       expect(mionPlugin.rules[name], `@mionjs/${name} is registered but has no rule module`).toBeTruthy();

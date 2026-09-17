@@ -537,10 +537,11 @@ func emitPropertyToBinary(rt *reflection.RunType, ctx *EmitContext, v string, se
 		// The parent (emitObjectToBinary) wraps optional props with their
 		// own bitmap handling — at the property level we just emit the
 		// guarded code; the bitmap-set is appended by the parent.
+		present := propertyPresenceTest(rt, v, accessor)
 		if childRT.Code == "" {
-			return RTCode{Code: "if (" + accessor + " !== undefined) {}", Type: CodeS}
+			return RTCode{Code: "if (" + present + ") {}", Type: CodeS}
 		}
-		return RTCode{Code: "if (" + accessor + " !== undefined) {" + childRT.Code + "}", Type: CodeS}
+		return RTCode{Code: "if (" + present + ") {" + childRT.Code + "}", Type: CodeS}
 	}
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}

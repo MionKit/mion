@@ -468,20 +468,28 @@ export const ok = mion.route((ctx, id: string): string | {code: number} | null =
 
 func TestUnsafePropertyNames(t *testing.T) {
 	assertCodes(t, check(t, map[string]string{"types.ts": `
-export interface Settings { ok: number; constructor: string }
+export interface Settings { ok: number; __proto__: string }
 `}), diagnostics.CodeRouteUnsafePropertyName)
 	assertCodes(t, check(t, map[string]string{"types.ts": `
 export type Nested = {outer: {__proto__?: string}};
 `}), diagnostics.CodeRouteUnsafePropertyName)
 	assertCodes(t, check(t, map[string]string{"types.ts": `
-export class Thing { prototype = 'x'; }
+export class Thing { __proto__ = 'x'; }
 `}), diagnostics.CodeRouteUnsafePropertyName)
 	assertCodes(t, check(t, map[string]string{"types.ts": `
-export interface Settings { ok: number; ctor: string }
+export interface Settings { ok: number; parent: string }
 `}))
 }
 
-func TestUnsafePropertyNames_ClassConstructorIsFine(t *testing.T) {
+// `prototype` and `constructor` are ordinary property names, in an interface,
+// a type literal or a class alike, so the rule leaves them alone.
+func TestUnsafePropertyNames_PrototypeAndConstructorAreOrdinary(t *testing.T) {
+	assertCodes(t, check(t, map[string]string{"types.ts": `
+export interface Settings { ok: number; constructor: string; prototype: string }
+`}))
+	assertCodes(t, check(t, map[string]string{"types.ts": `
+export class Thing { prototype = 'x'; }
+`}))
 	assertCodes(t, check(t, map[string]string{"types.ts": `
 export class Thing { constructor(public ok: number) {} }
 `}))
@@ -490,9 +498,9 @@ export class Thing { constructor(public ok: number) {} }
 func TestUnsafePropertyNames_FiresWithoutAnyRoute(t *testing.T) {
 	// The point of the rule: it reports the declaration, so it works for a type
 	// no route reaches yet, which is exactly what UPN001 cannot do.
-	found := check(t, map[string]string{"types.ts": `export type Wire = {prototype: string};`})
+	found := check(t, map[string]string{"types.ts": `export type Wire = {__proto__: string};`})
 	assertCodes(t, found, diagnostics.CodeRouteUnsafePropertyName)
-	if got := found[0].Args; len(got) != 1 || got[0] != "prototype" {
-		t.Fatalf("args = %v, want [prototype]", got)
+	if got := found[0].Args; len(got) != 1 || got[0] != "__proto__" {
+		t.Fatalf("args = %v, want [__proto__]", got)
 	}
 }

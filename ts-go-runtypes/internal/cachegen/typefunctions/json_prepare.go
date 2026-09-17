@@ -389,7 +389,7 @@ func emitPropertyPrepareForJson(rt *reflection.RunType, ctx *EmitContext, v stri
 	}
 	if rt.Optional {
 		return RTCode{
-			Code: "if (" + accessor + " !== undefined) {" + childRT.Code + "}",
+			Code: "if (" + propertyPresenceTest(rt, v, accessor) + ") {" + childRT.Code + "}",
 			Type: CodeS,
 		}
 	}
@@ -662,7 +662,7 @@ func looseCheckGate(member *reflection.RunType, ctx *EmitContext, v string) stri
 	}
 	parts := make([]string, 0, len(propNames)+1)
 	for _, name := range propNames {
-		parts = append(parts, "("+quoteJS(name)+" in "+v+")")
+		parts = append(parts, "("+namedPropertyInTest(name, v)+")")
 	}
 	parts = append(parts, "Object.keys("+v+").length === 0")
 	return "(" + strings.Join(parts, " || ") + ")"

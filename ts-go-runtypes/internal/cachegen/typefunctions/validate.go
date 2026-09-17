@@ -1615,11 +1615,11 @@ func emitPropertyValidate(rt *reflection.RunType, ctx *EmitContext, v string) RT
 		if rt.Optional {
 			return RTCode{Code: "", Type: CodeE}
 		}
-		return RTCode{Code: "(" + quoteJS(rt.Name) + " in " + v + ")", Type: CodeE}
+		return RTCode{Code: "(" + namedPropertyInTest(rt.Name, v) + ")", Type: CodeE}
 	}
 	if rt.Optional {
 		return RTCode{
-			Code: "(" + accessor + " === undefined || " + childRT.Code + ")",
+			Code: "(" + propertyAbsenceTest(rt, v, accessor) + " || " + childRT.Code + ")",
 			Type: CodeE,
 		}
 	}

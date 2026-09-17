@@ -497,7 +497,13 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 		if p.optional {
 			b.WriteString("if (")
 			b.WriteString(p.accessor)
-			b.WriteString(" !== undefined) _r[")
+			b.WriteString(" !== undefined")
+			if p.presenceGuard != "" {
+				b.WriteString(" && (")
+				b.WriteString(p.presenceGuard)
+				b.WriteString(")")
+			}
+			b.WriteString(") _r[")
 			b.WriteString(quoteJS(p.name))
 			b.WriteString("] = ")
 			b.WriteString(p.expr)

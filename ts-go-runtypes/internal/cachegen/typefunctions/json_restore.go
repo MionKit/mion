@@ -237,7 +237,7 @@ func emitPropertyRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v str
 	}
 	if rt.Optional {
 		return RTCode{
-			Code: "if (" + accessor + " !== undefined) {" + childRT.Code + "}",
+			Code: "if (" + propertyPresenceTest(rt, v, accessor) + ") {" + childRT.Code + "}",
 			Type: CodeS,
 		}
 	}

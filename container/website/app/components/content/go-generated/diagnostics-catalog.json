@@ -1326,13 +1326,13 @@
     {
       "code": "UPN001",
       "subsystem": "serialization",
-      "level": "runtimeError",
-      "severity": "error",
-      "headline": "Property `{0}` is named after a prototype slot and can never be data: the generated function will always fail.",
-      "detail": "`__proto__`, `prototype` and `constructor` are never data. Writing `__proto__`\non a plain object swaps its prototype instead of adding a key, and a lookup of\na missing `constructor` or `prototype` walks the prototype chain, so every\ndecoder refuses those keys on the wire and validate refuses them under an index\nsignature. A property declared with one of those names could never round-trip,\nso the build fails here instead of generating a function that always throws.\n\nFix: rename the property:\n  interface Settings {\n-   constructor: string;\n+   builder: string;\n  }",
-      "summary": "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. Every decoder refuses those keys on the wire, so a type that declares one could never round trip, and the build stops. This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property.",
-      "fix": "interface Settings { ok: number; ctor: string }",
-      "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Settings { ok: number; constructor: string }\nexport const isSettings = createValidateFn<Settings>();"
+      "level": "warning",
+      "severity": "warning",
+      "headline": "Property `{0}` can never be data and is dropped: the rest of the type still works.",
+      "detail": "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. TypeScript cannot build one either: `{__proto__: 'x'}` simply has no such\nkey. The member is dropped from every generated function, the way a member\nwhose value cannot cross the wire is dropped.\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",
+      "summary": "A property named `__proto__` is dropped, and the rest of the type works as usual. That name is never data: writing it on a plain object swaps the object's prototype instead of adding a key, so no decoder can restore it and no encoder can write it. TypeScript agrees, an object literal cannot produce one either (`{__proto__: 'x'}` has no such key). This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property to keep the data.",
+      "fix": "interface Settings { ok: number; parent: string }",
+      "example": "import {createValidateFn} from '@mionjs/run-types';\ninterface Settings { ok: number; __proto__: string }\nexport const isSettings = createValidateFn<Settings>();"
     },
     {
       "code": "CES001",
@@ -1722,13 +1722,13 @@
     {
       "code": "MRT005",
       "subsystem": "mion-routes",
-      "level": "runtimeError",
-      "severity": "error",
-      "headline": "Property `{0}` is named after a prototype slot and can never be data; rename it.",
-      "detail": "Writing `__proto__` on a plain object swaps its prototype instead of adding a\nkey, and a lookup of a missing `constructor` or `prototype` walks the\nprototype chain, so a wire that could carry one is a prototype-pollution\nvector. Every decoder refuses these names, and the build fails for any type a\nroute compiles with one.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property. A type that describes a real constructor and never\ncrosses the wire is the one legitimate case; silence the rule on that line and\nsay why.",
-      "summary": "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property.",
-      "fix": "interface Settings { ok: number; ctor: string }",
-      "example": "export interface Settings { ok: number; constructor: string }\nexport const settings: Settings = {ok: 1, constructor: 'x'};"
+      "level": "warning",
+      "severity": "warning",
+      "headline": "Property `{0}` can never be data and is dropped from every compiled function; rename it.",
+      "detail": "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, and TypeScript cannot build one either: `{__proto__: 'x'}`\nsimply has no such key. So the member is dropped and the value never round\ntrips.\n\n`prototype` and `constructor` are ordinary property names and are left alone.\n\nThis reports the DECLARATION, so the problem shows up as you write it and for\ntypes no route reaches yet.\n\nFix: rename the property to keep the data.",
+      "summary": "A property named `__proto__` is never data: writing it on a plain object swaps the object's prototype instead of adding a key, and a TypeScript object literal cannot produce one either. The member is dropped from every compiled function, so the value never round trips. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property to keep the data.",
+      "fix": "interface Settings { ok: number; parent: string }",
+      "example": "export interface Settings { ok: number; __proto__: string }\nexport const settings: Settings = {ok: 1};"
     },
     {
       "code": "MET001",

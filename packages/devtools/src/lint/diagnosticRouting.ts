@@ -225,10 +225,10 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'unsafe-property-name',
     namespace: 'runtypes',
-    default: 'error',
+    default: 'warn',
     gate: 'compiler',
     description:
-      'A property named __proto__, prototype or constructor. Those names are never data: every decoder refuses them on the wire and validate refuses them under an index signature, so a type declaring one could never round-trip and the build fails instead of generating a function that always throws',
+      'A property named __proto__. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, and a TypeScript object literal cannot produce one either, so the member is dropped from every compiled function and the value never round-trips',
   },
   {
     name: 'other',
@@ -317,10 +317,10 @@ export const RULE_SPECS: readonly RuleSpec[] = [
   {
     name: 'no-unsafe-property-names',
     namespace: '@mionjs',
-    default: 'error',
+    default: 'warn',
     gate: 'compiler',
     description:
-      'A property named __proto__, prototype or constructor in any interface, type literal or class. Those names are never data: every decoder refuses them on the wire and the build fails for any type a route compiles with one. This reports the declaration, so it fires for types no route reaches yet',
+      'A property named __proto__ in any interface, type literal or class. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, so every compiled function drops the member. This reports the declaration, so it fires for types no route reaches yet',
   },
 ];
 

@@ -30,7 +30,7 @@ declare module '@mionjs/core' {
 // pass must still reach it.
 const routerRulesRoutes = `import {createMionRouter} from '@mionjs/router';
 const mion = createMionRouter();
-export interface Wire { ok: number; constructor: string }
+export interface Wire { ok: number; __proto__: string }
 export const noReturn = mion.route((ctx, name: string) => name);
 export const untyped = mion.route((ctx, name): string => 'x');
 export const throws = mion.route((ctx, name: string): string => { throw new Error(name); });
@@ -78,16 +78,24 @@ func TestCheckRouterRules_SinglePassFindings(t *testing.T) {
 		if diagnostic.Site.StartLine < 1 || diagnostic.Site.StartCol < 1 {
 			t.Errorf("%s: unanchored site %+v", diagnostic.Code, diagnostic.Site)
 		}
-		if diagnostic.Severity != diagnostics.SeverityError {
-			t.Errorf("%s: severity = %d, want error", diagnostic.Code, diagnostic.Severity)
+		// MRT005 is the one route code that is not an error: a declared
+		// `__proto__` drops that MEMBER and the rest of the type keeps working,
+		// so it matches the Warning the build itself reports (UPN001). Every
+		// other route rule leaves something that cannot run.
+		wantSeverity := diagnostics.SeverityError
+		if diagnostic.Code == diagnostics.CodeRouteUnsafePropertyName {
+			wantSeverity = diagnostics.SeverityWarning
+		}
+		if diagnostic.Severity != wantSeverity {
+			t.Errorf("%s: severity = %d, want %d", diagnostic.Code, diagnostic.Severity, wantSeverity)
 		}
 	}
 }
 
 // TestCheckRouterRules_OptIn pins the gate. This is not an optimisation: every
-// route code is Severity-Error, and `mion compile` plus the bundler plugins'
-// failOnError stop on one, so a build that ran these would fail on a finding a
-// team may have turned off in its lint config.
+// route code but MRT005 is Severity-Error, and `mion compile` plus the bundler
+// plugins' failOnError stop on one, so a build that ran these would fail on a
+// finding a team may have turned off in its lint config.
 func TestCheckRouterRules_OptIn(t *testing.T) {
 	res := setupInline(t, map[string]string{"router.d.ts": routerRulesDTS, "routes.ts": routerRulesRoutes})
 	response := res.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"routes.ts"}})

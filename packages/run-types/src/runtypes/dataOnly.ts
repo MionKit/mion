@@ -234,8 +234,10 @@ type DataOnlyLadder<T, Depth extends number> =
           ? object extends T
             ? T // broad `object` / `{}` — keep (the emitter accepts the broad kind)
             : {
-                // plain object — drop symbol keys + never-valued (⊇ method) props
-                [K in keyof T as K extends symbol
+                // plain object — drop symbol keys, `__proto__` (writing that key
+                // swaps a prototype instead of storing a value, so no road can
+                // carry it) and never-valued (⊇ method) props
+                [K in keyof T as K extends symbol | '__proto__'
                   ? never
                   : [DataOnly<T[K], _DataOnlyDepth[Depth]>] extends [never]
                     ? never
