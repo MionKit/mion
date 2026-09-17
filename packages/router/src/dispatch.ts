@@ -67,13 +67,15 @@ export async function dispatchWithContext<Req, Resp>(
  *  no body: the adapter stopped the read. */
 export function dispatchPlatformError<Req, Resp>(
   resolved: ResolvedRequest,
+  path: string,
+  urlQuery: string | undefined,
   platformError: RpcError<string>,
   reqHeaders: MionHeaders,
   respHeaders: MionHeaders,
   rawRequest: Req,
   rawResponse?: Resp
 ): Promise<MionResponse> {
-  const context = createContextFromResolved(resolved, reqHeaders, respHeaders);
+  const context = createContextFromResolved(resolved, path, urlQuery, reqHeaders, respHeaders);
   recordUndeclaredError(context, MION_ROUTES.platformError, platformError);
   return dispatchWithContext(context, rawRequest, rawResponse);
 }

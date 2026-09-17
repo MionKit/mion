@@ -71,7 +71,16 @@ async function handleRequest(req: Request): Promise<Response> {
         rawBody = await readRequestBody(req, resolved.maxBodySize, BodyReadStrategy.stream);
       } catch (err) {
         // the route resolved, so a refused body still runs the chain's alwaysRun members
-        const refused = await dispatchPlatformError(resolved, toRpcError(err), req.headers, responseHeaders, req, undefined);
+        const refused = await dispatchPlatformError(
+          resolved,
+          path,
+          urlQuery,
+          toRpcError(err),
+          req.headers,
+          responseHeaders,
+          req,
+          undefined
+        );
         return reply(refused, responseHeaders);
       }
       const queryBody = decodeQueryBody(urlQuery, rawBody);
@@ -80,7 +89,7 @@ async function handleRequest(req: Request): Promise<Response> {
         reqBodyType = queryBody.bodyType;
       }
     }
-    const context = createContextFromResolved(resolved, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromResolved(resolved, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, undefined);
     return reply(platformResp, responseHeaders);
   } catch (err) {

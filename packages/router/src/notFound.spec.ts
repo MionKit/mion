@@ -41,7 +41,15 @@ function dispatch(path: string, body: string, urlQuery?: string) {
 function dispatchRefused(path: string) {
   const rawRequest = {headers: headersFromRecord({})};
   const resolved = resolveRequest(path, undefined, rawRequest);
-  return dispatchPlatformError(resolved, requestPayloadTooLarge(), rawRequest.headers, headersFromRecord({}), rawRequest);
+  return dispatchPlatformError(
+    resolved,
+    path,
+    undefined,
+    requestPayloadTooLarge(),
+    rawRequest.headers,
+    headersFromRecord({}),
+    rawRequest
+  );
 }
 
 const thrown = (response: Awaited<ReturnType<typeof dispatch>>) =>

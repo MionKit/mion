@@ -77,6 +77,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       // the route resolved, so the refusal still runs the chain's alwaysRun members
       const refused = await dispatchPlatformError(
         resolved,
+        rawRequest.path,
+        urlQuery,
         toRpcError(refusal),
         reqHeaders,
         respHeaders,
@@ -90,7 +92,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
       rawBody = queryBody.rawBody;
       reqBodyType = queryBody.bodyType;
     }
-    const context = createContextFromResolved(resolved, reqHeaders, respHeaders, rawBody, reqBodyType);
+    const context = createContextFromResolved(resolved, rawRequest.path, urlQuery, reqHeaders, respHeaders, rawBody, reqBodyType);
     const routeResponse = await dispatchWithContext(context, rawRequest, rawResponse);
     reply(routeResponse, rawResponse);
   } catch (err) {

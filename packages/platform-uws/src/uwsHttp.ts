@@ -187,7 +187,7 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    const context = createContextFromResolved(resolved, reqHeaders, respHeaders, reqRawBody, reqBodyType);
+    const context = createContextFromResolved(resolved, path, urlQuery, reqHeaders, respHeaders, reqRawBody, reqBodyType);
     answerWith(dispatchWithContext(context, rawRequest, res));
   };
 
@@ -221,7 +221,9 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
     if (state.replied) return;
     if (fullBody === null) {
       // the route resolved, so the refusal still runs the chain's alwaysRun members
-      answerWith(dispatchPlatformError(resolved, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res));
+      answerWith(
+        dispatchPlatformError(resolved, path, urlQuery, requestPayloadTooLarge(), reqHeaders, respHeaders, rawRequest, res)
+      );
       return;
     }
 

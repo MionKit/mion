@@ -95,7 +95,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
         reqBodyType = queryBody.bodyType;
       }
     }
-    const context = createContextFromResolved(resolved, req.headers, responseHeaders, rawBody, reqBodyType);
+    const context = createContextFromResolved(resolved, path, urlQuery, req.headers, responseHeaders, rawBody, reqBodyType);
     const platformResp = await dispatchWithContext(context, req, platformContext);
     return reply(platformResp, responseHeaders);
   } catch (err) {
