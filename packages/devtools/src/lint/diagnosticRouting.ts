@@ -228,7 +228,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A property named __proto__. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, and a TypeScript object literal cannot produce one either, so the member is dropped from every compiled function and the value never round-trips',
+      'A property named __proto__. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, so the member is dropped from every compiled function and the value never round-trips. TypeScript accepts the declaration, so nothing else tells you the key is missing at runtime',
   },
   {
     name: 'other',
@@ -320,7 +320,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A property named __proto__ in any interface, type literal or class. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, so every compiled function drops the member. This reports the declaration, so it fires for types no route reaches yet',
+      'A property named __proto__ in any interface, type literal or class. That name is never data: writing it on a plain object swaps the prototype instead of storing a value, so every compiled function drops the member. TypeScript accepts the declaration, so nothing else tells you. This reports the declaration, so it fires for types no route reaches yet',
   },
 ];
 

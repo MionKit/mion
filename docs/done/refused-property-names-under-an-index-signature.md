@@ -39,8 +39,18 @@ a Warning and the rest of the type keeps working.
 
 **The rule now:** `prototype` and `constructor` are ordinary property names in both positions.
 `__proto__` is the only special name: refused as a data key under an index signature, and dropped as
-a declared member the way any member that cannot cross the wire is dropped. A TypeScript object
-literal cannot produce an own `__proto__` key anyway (`{__proto__: 'x'}` simply has no such key).
+a declared member the way any member that cannot cross the wire is dropped.
+
+TypeScript ACCEPTS the declaration, which is what makes the Warning worth emitting. Measured:
+
+```ts
+interface A {ok: number; __proto__: string}
+const v: A = {ok: 1, __proto__: 'x'};  // tsc --strict, exit 0
+Object.keys(v);                        // ['ok']
+v.__proto__;                           // object, where the type promised string
+```
+
+So the type promises a value the runtime never carries, and nothing else tells you.
 
 Route names are the one place all three are still refused: a route id is an object key on both ends
 of the wire AND a method name on the client's proxy.
