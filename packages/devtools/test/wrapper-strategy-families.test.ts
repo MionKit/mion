@@ -31,8 +31,8 @@ type Resolve<RO, O, D extends Direction, Default extends string> =
       ? Default
       : DirectionStrategy<EncoderOf<O>, D>
     : DirectionStrategy<EncoderOf<RO>, D>;
-type EncodeFamily<S> = S extends 'clone' ? 'pjs' : S extends 'mutate' ? 'pj' : S extends 'direct' ? 'sj' : S extends 'compact' ? 'cj' : never;
-type DecodeFamily<S> = S extends 'clone' ? 'rjs' : S extends 'compact' ? 'cjr' : S extends string ? 'rj' : never;
+type EncodeFamily<S> = S extends 'clone' ? 'prepareForJsonClone' : S extends 'mutate' ? 'prepareForJsonMutate' : S extends 'direct' ? 'stringifyJson' : S extends 'compact' ? 'compactForJson' : never;
+type DecodeFamily<S> = S extends 'clone' ? 'restoreFromJsonStrip' : S extends 'compact' ? 'compactFromJson' : S extends string ? 'restoreFromJson' : never;
 type ParamsStrategy<RO, O> = Resolve<RO, O, 'params', 'direct'>;
 type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
 

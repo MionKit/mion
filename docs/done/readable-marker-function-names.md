@@ -320,9 +320,16 @@ in the steps, so the steps still read as the reasoning behind them.
   name is actually emitted in: the `<family>_<hash>` identifier and a quoted
   family string.
 
-Two fixtures were using fn keys that never existed (`'suk'`, `'uku'`, as filler
-in arity tests). `MKR015` turned them into build errors, which is the clearest
-evidence the old silence was a real gap; they are real families now.
+The new error paid for itself twice while the change was being built, which is
+the clearest evidence the old silence was a real gap:
+
+- Two arity fixtures were naming fn keys that never existed (`'suk'`, `'uku'`,
+  used as filler). They name real families now.
+- `wrapper-strategy-families.test.ts` carries its own copy of the router's
+  `EncodeFamily` / `DecodeFamily` conditional types, and that copy had to be
+  renamed by hand: the names live outside any marker, so nothing else would have
+  flagged it. Under the old behaviour the fixture would simply have stopped
+  compiling the functions it was asserting on.
 
 ## Tests
 
