@@ -206,9 +206,10 @@ func (scope *fileScope) derivesFrom(arm *checker.Type, match func(*ast.Symbol) b
 
 // checkUnsafePropertyNames is `no-unsafe-property-names`: a property named
 // `__proto__` can never be data. Writing that key on a plain object swaps its
-// prototype instead of adding a key, and a TypeScript object literal cannot
-// produce an own one either, so the member is dropped from every compiled
-// function. `prototype` and `constructor` are ordinary names and are left alone.
+// prototype instead of adding a key, so the member is dropped from every
+// compiled function. TypeScript ACCEPTS the declaration, so this rule is the
+// only thing that says so. `prototype` and `constructor` are ordinary names and
+// are left alone.
 //
 // UPN001 already reports the drop, but only while RENDERING a type function, so
 // only for a type a marker actually reaches. This reports the DECLARATION, in

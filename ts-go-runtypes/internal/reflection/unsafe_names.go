@@ -12,7 +12,8 @@ package reflection
 // an index signature every decoder refuses it, validate refuses it, and every
 // encoder or clone that rebuilds an object from its keys leaves it out. As a
 // DECLARED member it is dropped like any other member that cannot cross the
-// wire, and a TypeScript object literal cannot even produce an own one.
+// wire. TypeScript accepts such a declaration, so the type promises a value the
+// runtime never carries: that is what the UPN001 Warning is for.
 var UnsafePropertyNames = []string{"__proto__"}
 
 // IsUnsafePropertyName reports whether name is one of UnsafePropertyNames.

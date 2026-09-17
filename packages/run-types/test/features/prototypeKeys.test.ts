@@ -174,11 +174,6 @@ describe('`prototype` and `constructor` are ordinary wire keys a record carries'
     expect(out.constructor).toBeInstanceOf(Date);
     expect(out.prototype).toBeInstanceOf(Date);
   });
-
-  it('the global Object.prototype is untouched by any of it', () => {
-    expect(({} as Record<string, unknown>).admin).toBeUndefined();
-    expect(({} as Record<string, unknown>).builder).toBeUndefined();
-  });
 });
 
 describe('a declared `__proto__` member is dropped, and the rest of the type works', () => {

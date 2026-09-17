@@ -239,8 +239,9 @@ const (
 // Unsafe property name (UPN): Warning severity, every family. A type that
 // declares a property named `__proto__` has that MEMBER dropped, the way a
 // member whose value cannot cross the wire is dropped: writing that key on a
-// plain object swaps its prototype instead of storing a value, and a TypeScript
-// object literal cannot produce an own one either. The rest of the type
+// plain object swaps its prototype instead of storing a value. TypeScript
+// ACCEPTS the declaration, so the type promises a value the runtime never
+// carries, which is what makes the Warning worth emitting. The rest of the type
 // serializes and validates as usual. Args: [propertyName].
 const (
 	CodeUnsafePropertyName = "UPN001"

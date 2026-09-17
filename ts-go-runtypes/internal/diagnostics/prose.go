@@ -266,7 +266,7 @@ export const id = getRunTypeId<{payload: Payload}>();`,
 	// ──────────────────── unsafe property name (UPN001) ────────────────────
 
 	CodeUnsafePropertyName: {
-		Summary: "A property named `__proto__` is dropped, and the rest of the type works as usual. That name is never data: writing it on a plain object swaps the object's prototype instead of adding a key, so no decoder can restore it and no encoder can write it. TypeScript agrees, an object literal cannot produce one either (`{__proto__: 'x'}` has no such key). This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property to keep the data.",
+		Summary: "A property named `__proto__` is dropped, and the rest of the type works as usual. That name is never data: writing it on a plain object swaps the object's prototype instead of adding a key, so no decoder can restore it and no encoder can write it. TypeScript accepts the declaration, which is why this is worth saying: the type promises a value, and at runtime there is no such key at all. This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property to keep the data.",
 		Fix:     `interface Settings { ok: number; parent: string }`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
 interface Settings { ok: number; __proto__: string }
@@ -279,12 +279,12 @@ export const isOuter = createValidateFn<Outer>();`,
 	// ──────────── mion route rules: unsafe property name (MRT005) ────────────
 
 	CodeRouteUnsafePropertyName: {
-		Summary: "A property named `__proto__` is never data: writing it on a plain object swaps the object's prototype instead of adding a key, and a TypeScript object literal cannot produce one either. The member is dropped from every compiled function, so the value never round trips. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property to keep the data.",
+		Summary: "A property named `__proto__` is never data: writing it on a plain object swaps the object's prototype instead of adding a key. The member is dropped from every compiled function, so the value never round trips. TypeScript accepts the declaration, which is why this is worth saying: the type promises a value, and at runtime there is no such key at all. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property to keep the data.",
 		Fix:     `interface Settings { ok: number; parent: string }`,
 		Example: `export interface Settings { ok: number; __proto__: string }
-export const settings: Settings = {ok: 1};`,
+export const settings: Settings = {ok: 1, __proto__: 'x'};`,
 		NestedExample: `export interface Outer { inner: { ok: number; __proto__: string } }
-export const outer: Outer = {inner: {ok: 1}};`,
+export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	},
 }
 
