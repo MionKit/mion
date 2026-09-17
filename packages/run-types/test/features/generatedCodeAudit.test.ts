@@ -20,6 +20,7 @@ import {
   createMockDataFn,
   createParseFn,
   createValidateFn,
+  FAMILY_TAG_TO_FN_KEY,
   getRTFnCaches,
   registerClassSerializer,
 } from '@mionjs/run-types';
@@ -167,6 +168,35 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     for (const family of ['val', 'verr', 'pjs', 'sj', 'cj', 'jdST', 'jdPR', 'jdCO', 'tb', 'fb', 'ces']) {
       expect(families, `family ${family} must be in the corpus`).toContain(family);
     }
+  });
+
+  // The MARKER vocabulary is readable ('prepareForJsonClone'); the vocabulary
+  // GENERATED CODE uses is the short family tag ('pjs'). Keeping them apart is
+  // what lets marker names be long at no cost to the emitted bundle, so a
+  // readable name reaching an emitted NAME is a real regression.
+  //
+  // Checked against the two shapes a family name is emitted in, rather than a
+  // bare substring scan: several readable names ('parse', 'validate') are also
+  // ordinary JavaScript that legitimately appears in a body.
+  it('no readable marker name reaches an emitted identifier or cache key', () => {
+    const readableNames = Object.values(FAMILY_TAG_TO_FN_KEY).filter((fnKey) => fnKey.length > 4);
+    const leaks: string[] = [];
+    for (const body of emittedBodies()) {
+      for (const fnKey of readableNames) {
+        // `<family>_<hash>` inner function names, and the `g_<family>_` outer prefix.
+        if (new RegExp(`\\b(?:g_)?${fnKey}_`).test(body.code)) leaks.push(`${body.family}: ${fnKey}_`);
+        // A family named as a string, which is how a cache key would carry it.
+        if (body.code.includes(`'${fnKey}'`)) leaks.push(`${body.family}: '${fnKey}'`);
+      }
+    }
+    expect(leaks, `marker names must never be emitted: ${leaks.join(', ')}`).toEqual([]);
+  });
+
+  // The other half of the same contract: every tag a body is emitted under stays
+  // short. A tag that grew would cost bytes in every generated module.
+  it('every emitted family tag stays short', () => {
+    const longTags = Object.keys(FAMILY_TAG_TO_FN_KEY).filter((tag) => tag.length > 4);
+    expect(longTags, `family tags ride every emitted name and must stay short: ${longTags.join(', ')}`).toEqual([]);
   });
 
   it('every emitted body passes every generated-code oracle', () => {
