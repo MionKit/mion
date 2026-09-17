@@ -73,4 +73,13 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    * @default 2
    */
   maxBodySizeFactor: number;
+  /**
+   * Drop the reference to the raw request body once it has been parsed. The parse is the only
+   * thing that reads it, and holding it keeps the whole body alive for the rest of the request:
+   * on a large body, times the requests in flight, that is the single biggest thing a server
+   * holds. Turn it off when a middleFn that declares `alwaysRun` (an access log, an audit trail)
+   * reads `ctx.request.rawBody` after the route has run; with it on, that reads an empty string.
+   * @default true
+   */
+  releaseRawBody: boolean;
 }
