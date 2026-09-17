@@ -6,10 +6,24 @@
  * ######## */
 
 import {getRouteExecutionChain, getNotFoundExecutionChain, getRouterOptions, getPlatformMaxBodySize} from './router.ts';
-import type {CallContext, MionHeaders, RawRequestBody, ResolvedRequest} from './types/context.ts';
+import type {CallContext, MionHeaders, MionRequest, MionResponse, RawRequestBody, ResolvedRequest} from './types/context.ts';
 import type {RouterOptions} from './types/general.ts';
-import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH} from '@mionjs/core';
+import type {MethodsExecutionChain} from './types/remoteMethods.ts';
+import {StatusCodes, SerializerModes, SerializerCode, FatalError, MION_ROUTES, MION_BATCH_PATH, Mutable} from '@mionjs/core';
 import {getBatchExecutionChain} from './batches.ts';
+
+// ############# ALLOCATION SHAPE (TEMPORARY) #############
+
+/**
+ * SCAFFOLDING. Which per-request allocation shape the router builds, read ONCE at module load so
+ * no request pays for the choice:
+ *   split  - what ships: a small resolved object before the body, the CallContext after it
+ *   merged - ONE object, created BEFORE the body, its request / response / shared filled after
+ * The two differ only in whether the object that ends up holding the parsed body was alive while
+ * the body streamed, which is the thing being measured. `bench servers gcprobe` sets it per arm,
+ * so one build serves both and they interleave in one window. Removed with the investigation.
+ */
+const MERGED_SHAPE = process.env.MION_ALLOC_SHAPE === 'merged';
 
 // ############# CONTEXT CREATION #############
 
@@ -37,28 +51,42 @@ export function createContextFromResolved(
   reqRawBody?: RawRequestBody,
   reqBodyType?: SerializerCode
 ): CallContext {
+  const request: MionRequest = {
+    headers: reqHeaders,
+    rawBody: reqRawBody,
+    bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
+    body: {},
+    thrownErrors: undefined,
+  } as MionRequest;
+  const response: MionResponse = {
+    statusCode: StatusCodes.OK,
+    hasErrors: false,
+    fatalError: undefined,
+    headers: respHeaders,
+    body: {},
+    rawBody: '',
+    serializer: SerializerModes.json,
+  } as MionResponse;
+  const shared = getRouterOptions().contextDataFactory?.() ?? {};
+
+  // SCAFFOLDING: the merged shape fills the slots of the object resolve already returned, rather
+  // than allocating a second one. Removed with MERGED_SHAPE.
+  if (MERGED_SHAPE) {
+    const merged = resolved as unknown as Mutable<CallContext>;
+    merged.request = request;
+    merged.response = response;
+    merged.shared = shared;
+    return merged as CallContext;
+  }
+
   return {
     path: resolved.path,
-    request: {
-      headers: reqHeaders,
-      rawBody: reqRawBody,
-      bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
-      body: {},
-      thrownErrors: undefined,
-    },
-    response: {
-      statusCode: StatusCodes.OK,
-      hasErrors: false,
-      fatalError: undefined,
-      headers: respHeaders,
-      body: {},
-      rawBody: '',
-      serializer: SerializerModes.json,
-    },
+    request,
+    response,
     executionChain: resolved.executionChain,
     maxBodySize: resolved.maxBodySize,
     readsBody: resolved.readsBody,
-    shared: getRouterOptions().contextDataFactory?.() ?? {},
+    shared,
     urlQuery: resolved.urlQuery,
     batchId: resolved.batchId,
     batchRouteIds: resolved.batchRouteIds,
@@ -113,13 +141,28 @@ function getExecutionChain(
   // Normal path - get execution chain from router using transformed path
   const executionChain = getRouteExecutionChain(transformedPath);
   if (!executionChain) return notFoundChain(MION_ROUTES.notFound, transformedPath, urlQuery);
+  return resolvedRequest(executionChain, transformedPath, urlQuery);
+}
+
+/** The object a resolve hands the adapter to carry across the body read. SCAFFOLDING: under the
+ *  merged shape it is born with the context's own slots, so filling them after the read costs no
+ *  second object; under the split shape it is the small object that ships. */
+function resolvedRequest(executionChain: MethodsExecutionChain, path: string, urlQuery: string | undefined): ResolvedRequest {
+  const maxBodySize = executionChain.maxBodySize ?? getPlatformMaxBodySize();
+  const readsBody = executionChain.readsBody;
+  if (!MERGED_SHAPE) return {path, urlQuery, executionChain, maxBodySize, readsBody};
   return {
-    path: transformedPath,
+    path,
     urlQuery,
     executionChain,
-    maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize(),
-    readsBody: executionChain.readsBody,
-  };
+    maxBodySize,
+    readsBody,
+    batchId: undefined,
+    batchRouteIds: undefined,
+    request: undefined,
+    response: undefined,
+    shared: undefined,
+  } as unknown as ResolvedRequest;
 }
 
 /** One of mion's own not-found chains (an unknown path, an unknown batch id): built by
@@ -133,11 +176,5 @@ function notFoundChain(chainId: string, path: string, urlQuery: string | undefin
       publicMessage: 'Not-found chain is not registered. This should never happen.',
     });
   }
-  return {
-    path,
-    urlQuery,
-    executionChain,
-    maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize(),
-    readsBody: executionChain.readsBody,
-  };
+  return resolvedRequest(executionChain, path, urlQuery);
 }
