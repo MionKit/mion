@@ -43,11 +43,11 @@ const (
 	// its typed slot and the declared return type stops being true. Args: [0]
 	// the offending arm's type name, [1] the helper or handler type.
 	CodeRouteReturnedErrorType = "MRT004"
-	// CodeRouteUnsafePropertyName: a declared property named after a prototype
-	// slot (`__proto__`, `prototype`, `constructor`). Those names are never
-	// data: every decoder refuses them on the wire and the build fails for any
-	// type a marker compiles with one. This reports the DECLARATION, so it fires
-	// for types no route reaches yet. Args: [0] the property name.
+	// CodeRouteUnsafePropertyName: a declared property named `__proto__`. That
+	// name is never data: writing it on a plain object swaps the prototype, so
+	// every compiled function drops the member (UPN001). This reports the
+	// DECLARATION, so it fires for types no route reaches yet. A dropped member
+	// still leaves a working type, hence Warning. Args: [0] the property name.
 	CodeRouteUnsafePropertyName = "MRT005"
 )
 
@@ -57,7 +57,7 @@ func init() {
 		{Code: CodeRouteMissingParamType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler parameter has no type annotation"},
 		{Code: CodeRouteThrowInHandler, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handlers return errors, they never throw them"},
 		{Code: CodeRouteReturnedErrorType, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "mion handler answers with an error that is not an `RpcError`"},
-		{Code: CodeRouteUnsafePropertyName, Family: FamilyMionRoute, Level: LevelRuntimeError, Scope: ScopeGraph, Title: "Property is named after a prototype slot and can never be data"},
+		{Code: CodeRouteUnsafePropertyName, Family: FamilyMionRoute, Level: LevelWarning, Scope: ScopeGraph, Title: "Property named `__proto__` can never be data and is dropped"},
 	} {
 		register(definition)
 	}

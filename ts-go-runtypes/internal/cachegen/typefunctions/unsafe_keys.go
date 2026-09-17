@@ -15,9 +15,9 @@ const UnsafeKeyMessage = "[mion] Unsafe property name: "
 
 // unsafeKeyCheck renders the JS condition that is true for a wire key no
 // decoder, validator or rebuilding encoder accepts. The key's length is
-// checked first: only a 9- or 11-character key can be one of the three names,
-// so every other key costs one integer compare and no string compare. The
-// names are grouped by length so the shape follows the name set.
+// checked first, so every key of another length costs one integer compare and
+// no string compare. The names are grouped by length so the shape follows the
+// name set whatever it holds.
 func unsafeKeyCheck(keyVar string) string {
 	byLen := map[int][]string{}
 	var lens []int
@@ -51,34 +51,4 @@ func unsafeKeyThrow(keyVar string) string {
 // there would buy nothing.
 func unsafeKeySkip(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") continue;"
-}
-
-// unsafeDeclaredMember returns the first declared member name anywhere in the
-// type graph under rt that is one of reflection.UnsafePropertyNames, or "".
-// The walk is reflection.WalkGraph: every child slot (properties, elements,
-// index signatures, Map/Set arguments, type arguments, the schema-check
-// slots), through the ref table, each node once. So a name declared on a
-// nested object literal, a class, an intersection member, an array element or
-// a Map value fails the build exactly like one on the root. Required and
-// optional members alike: an optional slot is still a wire key the decoders
-// refuse, so it can never round-trip either.
-func unsafeDeclaredMember(rt *reflection.RunType, refTable map[string]*reflection.RunType) string {
-	found := ""
-	reflection.WalkGraph(rt, refTable, func(node *reflection.RunType) reflection.WalkAction {
-		// Function-like members and statics never reach the wire (DataOnly
-		// strips them), so a name inside a parameter list, a return type or a
-		// static side (`typeof Box` carries a real `prototype`) is not data.
-		if isFunctionLikeKind(node.Kind) || node.IsStatic {
-			return reflection.WalkSkipChildren
-		}
-		switch node.Kind {
-		case reflection.KindProperty, reflection.KindPropertySignature:
-			if reflection.IsUnsafePropertyName(node.Name) {
-				found = node.Name
-				return reflection.WalkStop
-			}
-		}
-		return reflection.WalkContinue
-	})
-	return found
 }

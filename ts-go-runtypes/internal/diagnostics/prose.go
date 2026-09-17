@@ -266,25 +266,25 @@ export const id = getRunTypeId<{payload: Payload}>();`,
 	// ──────────────────── unsafe property name (UPN001) ────────────────────
 
 	CodeUnsafePropertyName: {
-		Summary: "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. Every decoder refuses those keys on the wire, so a type that declares one could never round trip, and the build stops. This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property.",
-		Fix:     `interface Settings { ok: number; ctor: string }`,
+		Summary: "A property named `__proto__` is dropped, and the rest of the type works as usual. That name is never data: writing it on a plain object swaps the object's prototype instead of adding a key, so no decoder can restore it and no encoder can write it. TypeScript agrees, an object literal cannot produce one either (`{__proto__: 'x'}` has no such key). This holds anywhere in the type, a nested object, an array element or a Map value included. Rename the property to keep the data.",
+		Fix:     `interface Settings { ok: number; parent: string }`,
 		Example: `import {createValidateFn} from '@mionjs/run-types';
-interface Settings { ok: number; constructor: string }
+interface Settings { ok: number; __proto__: string }
 export const isSettings = createValidateFn<Settings>();`,
 		NestedExample: `import {createValidateFn} from '@mionjs/run-types';
-interface Outer { inner: Map<string, { ok: number; constructor: string }> }
+interface Outer { inner: Map<string, { ok: number; __proto__: string }> }
 export const isOuter = createValidateFn<Outer>();`,
 	},
 
 	// ──────────── mion route rules: unsafe property name (MRT005) ────────────
 
 	CodeRouteUnsafePropertyName: {
-		Summary: "A property named `__proto__`, `prototype` or `constructor` can never be data: writing `__proto__` on a plain object swaps its prototype instead of adding a key, and reading a missing `constructor` or `prototype` walks the prototype chain. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property.",
-		Fix:     `interface Settings { ok: number; ctor: string }`,
-		Example: `export interface Settings { ok: number; constructor: string }
-export const settings: Settings = {ok: 1, constructor: 'x'};`,
-		NestedExample: `export interface Outer { inner: { ok: number; constructor: string } }
-export const outer: Outer = {inner: {ok: 1, constructor: 'x'}};`,
+		Summary: "A property named `__proto__` is never data: writing it on a plain object swaps the object's prototype instead of adding a key, and a TypeScript object literal cannot produce one either. The member is dropped from every compiled function, so the value never round trips. This reports the DECLARATION, in any interface, type literal or class, so the problem shows up as you write it and for types no route reaches yet. Rename the property to keep the data.",
+		Fix:     `interface Settings { ok: number; parent: string }`,
+		Example: `export interface Settings { ok: number; __proto__: string }
+export const settings: Settings = {ok: 1};`,
+		NestedExample: `export interface Outer { inner: { ok: number; __proto__: string } }
+export const outer: Outer = {inner: {ok: 1}};`,
 	},
 }
 

@@ -12,6 +12,7 @@ import type {MethodsExecutionChain} from './types/remoteMethods.ts';
 import {getRouterOptions, getAlwaysAwait} from './router.ts';
 import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerCode, MION_ROUTES} from '@mionjs/core';
 import {RpcError, FatalError, HandlerType, ValidationError, isNativeError} from '@mionjs/core';
+import {UNSAFE_PROPERTY_NAME_MESSAGE} from '@mionjs/run-types';
 import {markResponseFailed, recordUndeclaredError} from './lib/dispatchError.ts';
 import {createCallContext, createContextFromChain, getRequestBodyType} from './callContext.ts';
 
@@ -278,13 +279,17 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
     if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
     // Fixed text on the wire (the decoder's own message quotes internal detail); the original stays
     // on `originalError` for the server logs. `deserializeError` keeps the RTSerializationError shape.
+    // The one message that IS safe to pass on: mion's own constant for a refused key, naming a key
+    // the caller themselves sent. Telling them which key to drop beats a generic "wrong type".
+    const refusedKey = typeof e?.message === 'string' && e.message.startsWith(UNSAFE_PROPERTY_NAME_MESSAGE);
+    const detail = refusedKey ? (e.message as string) : 'Parameters might be of the wrong type.';
     throw new FatalError({
       statusCode: StatusCodes.UNEXPECTED_ERROR,
       type: 'serialization-error',
-      publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
+      publicMessage: `Invalid params '${executable.id}', can not deserialize. ${detail}`,
       originalError: e,
       errorData: {
-        deserializeError: 'Parameters might be of the wrong type.',
+        deserializeError: detail,
       },
     });
   }

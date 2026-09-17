@@ -21,7 +21,7 @@
     "runtypes/invalid-override": "error",
     "runtypes/override-side-effect": "warn",
     "runtypes/non-enumerable": "warn",
-    "runtypes/unsafe-property-name": "error",
+    "runtypes/unsafe-property-name": "warn",
     "runtypes/other": "error",
     "runtypes/no-enrichment-todo": "warn",
     "runtypes/no-orphan-carcass": "warn",

@@ -9,13 +9,18 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// The one rule for prototype-named keys, pinned in the emitted text: every
-// decoder refuses such a wire key at decode time, validate refuses it under an
-// index signature, and every encoder or clone that rebuilds an object from its
-// keys leaves it out. The in-place encoders carry NO guard: they never write a
-// key onto another object, the receiving decoder refuses the key, and a compare
-// per key there would be pure cost. A type that declares one of the names fails
-// the build in every family.
+// The one rule for `__proto__`, pinned in the emitted text. As a WIRE KEY under
+// an index signature every decoder refuses it at decode time, validate refuses
+// it, and every encoder or clone that rebuilds an object from its keys leaves it
+// out. The in-place encoders carry NO guard: they never write a key onto another
+// object, the receiving decoder refuses the key, and a compare per key there
+// would be pure cost. As a DECLARED member it is dropped like any other member
+// that cannot cross the wire, and the surrounding type still works.
+//
+// `prototype` and `constructor` are ordinary names in both positions. A declared
+// `constructor` reads through the prototype chain when its own key is absent
+// (`({}).constructor` is the Object function), so its presence test is the
+// own-enumerability check rather than `!== undefined`.
 
 // recordDump — `Record<string, bigint>`: a bare string index signature whose
 // value needs a transform on every road, so each family renders a live loop.
@@ -34,6 +39,13 @@ func TestUnsafeKeys_GuardTextIsOneSourceOfTruth(t *testing.T) {
 	for _, name := range reflection.UnsafePropertyNames {
 		if !strings.Contains(check, "k === '"+name+"'") {
 			t.Errorf("guard must compare against %q, got %s", name, check)
+		}
+	}
+	// The two names the guard must NOT cost a compare for: both land as plain
+	// own keys, so a record carries them like any other key.
+	for _, ordinary := range []string{"prototype", "constructor"} {
+		if strings.Contains(check, "'"+ordinary+"'") {
+			t.Errorf("%q is an ordinary data key and must not be in the guard, got %s", ordinary, check)
 		}
 	}
 	if !strings.Contains(unsafeKeyThrow("k"), quoteJS(UnsafeKeyMessage)) {
@@ -68,28 +80,111 @@ func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 	}
 }
 
-func TestUnsafeKeys_DeclaredNameFailsEveryFamily(t *testing.T) {
-	for _, name := range reflection.UnsafePropertyNames {
-		str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
-		prop := &reflection.RunType{ID: "pp", Kind: reflection.KindPropertySignature, Name: name, IsSafeName: true, Child: makeRef("str")}
-		obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pp")}}
-		dump := protocol.Dump{RunTypes: []*reflection.RunType{str, prop, obj}}
+// memberIsTouched reports whether the emitted text reads or writes a member by
+// name. The index-signature key guard also SPELLS a name (`k0 === '__proto__'`),
+// so a dropped-member check has to look for an access, not for the bare text.
+func memberIsTouched(rendered, name string) bool {
+	return strings.Contains(rendered, "."+name) || strings.Contains(rendered, "['"+name+"']") ||
+		strings.Contains(rendered, `\'`+name+`\'`+":")
+}
+
+// bigintProp builds `{ok: number, <name><?>: bigint}` (id "obj"). A bigint value
+// needs work on every road, so every family renders a live body instead of the
+// noop short form and the member is visible in the emitted text.
+func bigintProp(name string, optional bool) protocol.Dump {
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	prop := &reflection.RunType{ID: "pp", Kind: reflection.KindPropertySignature, Name: name, IsSafeName: true, Optional: optional, Child: makeRef("big")}
+	keep := &reflection.RunType{ID: "pk", Kind: reflection.KindPropertySignature, Name: "ok", IsSafeName: true, Child: makeRef("num")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pk"), makeRef("pp")}}
+	return protocol.Dump{RunTypes: []*reflection.RunType{big, num, prop, keep, obj}}
+}
+
+// A DECLARED `__proto__` drops the member and leaves the type working: no
+// alwaysThrow factory, a UPN001 Warning naming the property, and the sibling
+// property still emitted. That is the same lane a member whose VALUE cannot
+// cross the wire rides (strippedPropertyDrop), keyed on the name instead.
+func TestUnsafeKeys_DeclaredUnsafeNameDropsTheMemberEveryFamily(t *testing.T) {
+	dump := bigintProp("__proto__", false)
+	for _, fam := range allSerdeFamilies {
+		out, sink := renderWithDiag(t, dump, fam, "obj")
+		if objFactoryIsAlwaysThrow(out) {
+			t.Errorf("[%s] a declared `__proto__` drops the member, it never fails the type; got:\n%s", fam, out)
+		}
+		if memberIsTouched(out, "__proto__") {
+			t.Errorf("[%s] the dropped member must not be read or written; got:\n%s", fam, out)
+		}
+		got, found := findCode(sink, diagnostics.CodeUnsafePropertyName)
+		if !found {
+			t.Errorf("[%s] expected %s; sink=%+v", fam, diagnostics.CodeUnsafePropertyName, sink)
+			continue
+		}
+		if got.Severity != diagnostics.SeverityWarning || len(got.Args) != 1 || got.Args[0] != "__proto__" {
+			t.Errorf("[%s] %s must be a Warning naming the property, got %+v", fam, diagnostics.CodeUnsafePropertyName, got)
+		}
+	}
+}
+
+// `prototype` and `constructor` are ordinary property names: a real factory, no
+// UPN001, and the member carried in the emitted body. `({}).prototype` is
+// undefined and `({}).constructor` only needs the own-enumerability presence
+// test, so neither costs the type anything.
+func TestUnsafeKeys_PrototypeAndConstructorAreOrdinaryDeclaredNames(t *testing.T) {
+	for _, name := range []string{"prototype", "constructor"} {
+		dump := bigintProp(name, false)
 		for _, fam := range allSerdeFamilies {
 			out, sink := renderWithDiag(t, dump, fam, "obj")
-			if !objFactoryIsAlwaysThrow(out) {
-				t.Errorf("[%s/%s] a declared prototype-named property must render an alwaysThrow factory; got:\n%s", fam, name, out)
+			if objFactoryIsAlwaysThrow(out) {
+				t.Errorf("[%s/%s] an ordinary property name must render a real factory; got:\n%s", fam, name, out)
 			}
-			got, ok := findCode(sink, diagnostics.CodeUnsafePropertyName)
-			if !ok {
-				t.Errorf("[%s/%s] expected %s; sink=%+v", fam, name, diagnostics.CodeUnsafePropertyName, sink)
-				continue
+			if _, found := findCode(sink, diagnostics.CodeUnsafePropertyName); found {
+				t.Errorf("[%s/%s] %s must not fire for an ordinary property name; sink=%+v", fam, name, diagnostics.CodeUnsafePropertyName, sink)
 			}
-			if got.Severity != diagnostics.SeverityError || len(got.Args) != 1 || got.Args[0] != name {
-				t.Errorf("[%s/%s] %s must be an Error naming the property, got %+v", fam, name, diagnostics.CodeUnsafePropertyName, got)
+			if !memberIsTouched(out, name) {
+				t.Errorf("[%s/%s] the member must be carried in the emitted body; got:\n%s", fam, name, out)
 			}
-			if !strings.Contains(out, "[UPN001] Property `"+name+"`") {
-				t.Errorf("[%s/%s] the runtime throw must name the property; got:\n%s", fam, name, out)
+		}
+	}
+}
+
+// Every object inherits `constructor` from Object.prototype, so an absent own
+// key answers that function and a plain `!== undefined` test would call the
+// member present. Each family that tests presence uses the own-enumerability
+// check, alone or ANDed onto the cheap test. `prototype` is NOT inherited
+// (`({}).prototype` is undefined), so it keeps the cheap test.
+func TestUnsafeKeys_DeclaredConstructorUsesTheOwnEnumerabilityTest(t *testing.T) {
+	guard := propertyIsEnumerableGuard("v", "constructor")
+	for _, fam := range allSerdeFamilies {
+		out := renderModule(t, bigintProp("constructor", true), fam)
+		// fromBinary is the one family with nothing to guard: presence rides the
+		// wire bitmap rather than a read off the object, and the write it makes
+		// (`ret.constructor = …`) is an own key on a fresh object.
+		if fam == "fromBinary" {
+			if strings.Contains(out, guard) {
+				t.Errorf("[%s] presence rides the wire bitmap, so the own-key test is pure cost; got:\n%s", fam, out)
 			}
+			continue
+		}
+		if !strings.Contains(out, guard) {
+			t.Errorf("[%s] an optional `constructor` must test presence with %s; got:\n%s", fam, guard, out)
+		}
+		if plain := renderModule(t, bigintProp("prototype", true), fam); strings.Contains(plain, propertyIsEnumerableGuard("v", "prototype")) {
+			t.Errorf("[%s] `prototype` is not inherited and must keep the cheap presence test; got:\n%s", fam, plain)
+		}
+	}
+	// Presence without a value check: `in` walks the prototype chain too, so a
+	// REQUIRED `constructor: unknown` needs the same own-key test.
+	unknown := &reflection.RunType{ID: "unk", Kind: reflection.KindUnknown}
+	prop := &reflection.RunType{ID: "pp", Kind: reflection.KindPropertySignature, Name: "constructor", IsSafeName: true, Child: makeRef("unk")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pp")}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{unknown, prop, obj}}
+	for _, fam := range []string{"validate", "validationErrors"} {
+		out := renderModule(t, dump, fam)
+		if strings.Contains(out, "'constructor' in v") {
+			t.Errorf("[%s] `'constructor' in {}` is true through the prototype chain; got:\n%s", fam, out)
+		}
+		if !strings.Contains(out, guard) {
+			t.Errorf("[%s] a required `constructor` with no value check must test own-enumerability; got:\n%s", fam, out)
 		}
 	}
 }
@@ -98,11 +193,14 @@ func TestUnsafeKeys_DeclaredNameFailsEveryFamily(t *testing.T) {
 // or Set stores its element types in Arguments behind KindParameter wrappers,
 // and a JSON Schema patternProperties value lives in a SchemaChecks slot. Each
 // case is the root test one container deeper, which is the cheapest detector
-// a root-only rule has.
-func TestUnsafeKeys_DeclaredNameOneContainerDeeperFailsTheBuild(t *testing.T) {
+// a rule that only looked at the root would fail. The Warning rides the entry
+// the member sits on, which is not the root's, so this pins the DROP.
+func TestUnsafeKeys_DeclaredUnsafeNameOneContainerDeeperStillDrops(t *testing.T) {
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
-	bad := &reflection.RunType{ID: "bad", Kind: reflection.KindPropertySignature, Name: "constructor", IsSafeName: true, Child: makeRef("str")}
-	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("bad")}}
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	bad := &reflection.RunType{ID: "bad", Kind: reflection.KindPropertySignature, Name: "__proto__", IsSafeName: true, Child: makeRef("big")}
+	keep := &reflection.RunType{ID: "keep", Kind: reflection.KindPropertySignature, Name: "ok", IsSafeName: true, Child: makeRef("big")}
+	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("keep"), makeRef("bad")}}
 	position0, position1 := 0, 1
 	mapKey := &reflection.RunType{ID: "mk", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapKey, Name: "key", Position: &position0, Child: makeRef("str")}
 	mapValue := &reflection.RunType{ID: "mv", Kind: reflection.KindParameter, SubKind: reflection.SubKindMapValue, Name: "value", Position: &position1, Child: makeRef("inner")}
@@ -111,7 +209,7 @@ func TestUnsafeKeys_DeclaredNameOneContainerDeeperFailsTheBuild(t *testing.T) {
 	setNode := &reflection.RunType{ID: "set", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, TypeName: "Set", Arguments: []*reflection.RunType{makeRef("si")}}
 	patterned := &reflection.RunType{ID: "pat", Kind: reflection.KindObjectLiteral}
 	patterned.PatternProps = []*reflection.PatternPropCheck{{Source: "^d_", Key: makeRef("str"), Value: makeRef("inner")}}
-	shared := []*reflection.RunType{str, bad, inner, mapKey, mapValue, setItem}
+	shared := []*reflection.RunType{str, big, bad, keep, inner, mapKey, mapValue, setItem}
 
 	cases := map[string]*reflection.RunType{"Map value": mapNode, "Set item": setNode, "patternProperties value": patterned}
 	for label, root := range cases {
@@ -119,12 +217,15 @@ func TestUnsafeKeys_DeclaredNameOneContainerDeeperFailsTheBuild(t *testing.T) {
 		outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pw")}}
 		dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{}, shared...), root, wrapperProp, outer)}
 		for _, fam := range []string{"validate", "restoreFromJson", "fromBinary"} {
-			out, sink := renderWithDiag(t, dump, fam, "outer")
-			if !strings.Contains(out, "_outer','objectLiteral',,,,,,'[UPN001]") {
-				t.Errorf("[%s/%s] a prototype-named member one %s deeper must render an alwaysThrow factory for the root; got:\n%s", fam, label, label, out)
+			out := renderModule(t, dump, fam)
+			if strings.Contains(out, "[UPN001]") {
+				t.Errorf("[%s/%s] a member one %s deeper drops, it never throws the root; got:\n%s", fam, label, label, out)
 			}
-			if _, ok := findCode(sink, diagnostics.CodeUnsafePropertyName); !ok {
-				t.Errorf("[%s/%s] expected %s for the nested member; sink=%+v", fam, label, diagnostics.CodeUnsafePropertyName, sink)
+			if memberIsTouched(out, "__proto__") {
+				t.Errorf("[%s/%s] the dropped member must not be read or written; got:\n%s", fam, label, out)
+			}
+			if !memberIsTouched(out, "ok") {
+				t.Errorf("[%s/%s] the sibling member must still be emitted; got:\n%s", fam, label, out)
 			}
 		}
 	}

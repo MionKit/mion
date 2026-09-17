@@ -93,6 +93,9 @@ func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames 
 		if resolved.IsStatic {
 			continue
 		}
+		if reflection.IsUnsafePropertyName(resolved.Name) {
+			continue
+		}
 		if isFunctionLikeKind(resolved.Kind) {
 			continue
 		}
@@ -256,6 +259,9 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 		if resolved.Kind == reflection.KindIndexSignature {
 			return 0, false
 		}
+		if reflection.IsUnsafePropertyName(resolved.Name) {
+			continue
+		}
 		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
 			continue
 		}
@@ -309,6 +315,9 @@ func collectObjectHasUnknownKeysChildren(rt *reflection.RunType, ctx *EmitContex
 			hasIndex = true
 		}
 		if resolved.IsStatic {
+			continue
+		}
+		if reflection.IsUnsafePropertyName(resolved.Name) {
 			continue
 		}
 		if isFunctionLikeKind(resolved.Kind) {
@@ -618,6 +627,9 @@ func unknownKeysChildrenCode(rt *reflection.RunType, ctx *EmitContext) string {
 			continue
 		}
 		if resolved.IsStatic {
+			continue
+		}
+		if reflection.IsUnsafePropertyName(resolved.Name) {
 			continue
 		}
 		if isFunctionLikeKind(resolved.Kind) {

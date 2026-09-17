@@ -23,14 +23,71 @@ func propertyAccessor(parent, name string, safe bool) string {
 	return parent + "[" + quoteJS(name) + "]"
 }
 
-// isEnumerabilityGuarded reports whether a property member's by-name write
-// must be gated by a runtime own-enumerability check — the single source of
-// truth read by BOTH the serializer emitters and the noop predicates (per the
-// noop-soundness anti-drift rule). Set on lib-global-inherited members and
-// `@nonEnumerable`-tagged ones (see reflection.RunType.NonEnumerable /
-// typeid.IsNonEnumerable).
+// isEnumerabilityGuarded reports whether a property member's presence test and
+// by-name write must be gated by a runtime own-enumerability check — the single
+// source of truth read by BOTH the serializer emitters and the noop predicates
+// (per the noop-soundness anti-drift rule). Two cases:
+//
+//   - rt.NonEnumerable: a lib-global-inherited member (Error's
+//     name/message/stack) or a `@nonEnumerable`-tagged one (see
+//     reflection.RunType.NonEnumerable / typeid.IsNonEnumerable). Projected as
+//     optional upstream, so the wire may omit it.
+//   - isInheritedPropertyName: a member whose name every object answers through
+//     its prototype, so an absent own key does not read as undefined. Derived
+//     from the name rather than carried on the wire: the name is already part of
+//     the member id, so the id and the projection cannot drift on it, and unlike
+//     NonEnumerable it does NOT make the member optional.
 func isEnumerabilityGuarded(rt *reflection.RunType) bool {
-	return rt != nil && rt.NonEnumerable
+	return rt != nil && (rt.NonEnumerable || isInheritedPropertyName(rt.Name))
+}
+
+// isInheritedPropertyName reports whether reading this name off a plain object
+// answers something inherited when the own key is absent. `constructor` is the
+// only one: `({}).constructor` is the Object function, so a plain
+// `!== undefined` test would call an absent member present. `({}).prototype` is
+// undefined, and `__proto__` is dropped as a member outright.
+func isInheritedPropertyName(name string) bool {
+	return name == "constructor"
+}
+
+// propertyPresenceTest is the JS test for "this property is present on the
+// value being walked": the plain `!== undefined` for an ordinary member, the
+// own-enumerability check for a guarded one.
+func propertyPresenceTest(rt *reflection.RunType, parent, accessor string) string {
+	if isEnumerabilityGuarded(rt) {
+		return propertyIsEnumerableGuard(parent, rt.Name)
+	}
+	return accessor + " !== undefined"
+}
+
+// propertyAbsenceTest is the negation of propertyPresenceTest, for the optional
+// arms written as "absent OR valid".
+func propertyAbsenceTest(rt *reflection.RunType, parent, accessor string) string {
+	if isEnumerabilityGuarded(rt) {
+		return "!" + propertyIsEnumerableGuard(parent, rt.Name)
+	}
+	return accessor + " === undefined"
+}
+
+// namedPropertyPresenceTest is propertyPresenceTest for the sites that carry a
+// flattened slot (a compact slot, a merged union prop) rather than the RunType.
+// Same rule, read off the name alone.
+func namedPropertyPresenceTest(name, parent, accessor string) string {
+	if isInheritedPropertyName(name) {
+		return propertyIsEnumerableGuard(parent, name)
+	}
+	return accessor + " !== undefined"
+}
+
+// namedPropertyInTest is the JS test for "this key is declared on the value",
+// used where a member imposes presence but no value check. `in` walks the
+// prototype chain, so an inherited name needs the own-enumerability test
+// instead: `'constructor' in {}` is true.
+func namedPropertyInTest(name, parent string) string {
+	if isInheritedPropertyName(name) {
+		return propertyIsEnumerableGuard(parent, name)
+	}
+	return quoteJS(name) + " in " + parent
 }
 
 // propertyIsEnumerableGuard builds the JS own-enumerability test for a guarded

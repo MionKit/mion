@@ -164,7 +164,7 @@ func emitObjectRebuildFromJson(rt *reflection.RunType, ctx *EmitContext, v strin
 		}
 		write := terminated(childRT.Code) + propertyAccessor(rVar, slot.name, slot.isSafeName) + " = " + accessor + ";"
 		if slot.optional {
-			write = "if (" + accessor + " !== undefined) {" + write + "}"
+			write = "if (" + namedPropertyPresenceTest(slot.name, v, accessor) + ") {" + write + "}"
 		}
 		restore.WriteString(write)
 	}
@@ -382,7 +382,7 @@ func emitMergedPropsRebuild(ctx *EmitContext, v string, layout FlatLayout) (stri
 		}
 		write := terminated(propCode) + propertyAccessor(rVar, mp.Name, mp.IsSafeName) + " = " + accessor + ";"
 		if !mp.Required {
-			write = "if (" + accessor + " !== undefined) {" + write + "}"
+			write = "if (" + namedPropertyPresenceTest(mp.Name, v, accessor) + ") {" + write + "}"
 		}
 		restore.WriteString(write)
 	}

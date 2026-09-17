@@ -42,14 +42,16 @@ func isStrippedUnionMember(resolved *reflection.RunType) bool {
 	return false
 }
 
-// strippedPropertyDrop reports whether a property whose resolved VALUE is
-// directly DataOnly-stripped (symbol / function-like / Promise / never /
-// non-serializable native) must be dropped at a property position, emitting the
-// matching per-family child-position Warning. Function-valued props keep the
+// strippedPropertyDrop reports whether a property must be dropped at a property
+// position, emitting the matching per-family child-position Warning. Two
+// reasons, both of which leave the surrounding object serializing: the NAME can
+// never be a property (`__proto__`, SlotUnsafeNamePropDropped / UPN001), or the
+// resolved VALUE is directly DataOnly-stripped (symbol / function-like /
+// Promise / never / non-serializable native). Function-valued props keep the
 // existing SlotFunctionPropDropped (…010) code; the other directly-stripped
 // kinds use SlotNonSerializablePropDropped (…015). Mirrors the DataOnly object
-// rule: a property whose value projects to `never` is removed and the
-// surrounding object still serializes (`DataOnly<{a: symbol}>` = `{}`).
+// rule: a property the projection removes is gone and the surrounding object
+// still serializes (`DataOnly<{a: symbol}>` = `{}`).
 //
 // Returns false for a value that is NOT directly stripped — including one that
 // is only STRUCTURALLY unserializable (symbol[], Map<string, symbol>, a tuple
@@ -58,6 +60,12 @@ func isStrippedUnionMember(resolved *reflection.RunType) bool {
 // returns from the propagating slot, and propagate that failure — the object
 // then alwaysThrows, which is the "can't be safely dropped" contract.
 func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
+	// A name that can never be a property drops whatever its value is: the same
+	// rule, keyed on the NAME rather than the value (reflection.UnsafePropertyNames).
+	if reflection.IsUnsafePropertyName(name) {
+		ctx.EmitDiagnosticSlot(SlotUnsafeNamePropDropped, name)
+		return true
+	}
 	if !isStrippedUnionMember(resolved) {
 		return false
 	}
