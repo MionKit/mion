@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: maybe
 created: 2026-09-17
 ---
 
