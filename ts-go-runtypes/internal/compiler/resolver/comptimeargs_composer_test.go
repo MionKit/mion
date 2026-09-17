@@ -20,7 +20,7 @@ import (
 // instantiations on the tuple shapes), so detection is SYNTACTIC: the scanner
 // reads the `CompTimeArgs<…>` annotation node (detectCompTimeArgsByNode), not a
 // brand property on the resolved type. No Go production code beyond that
-// detection is involved; the literal check is the existing isBuilderCallPredicate.
+// detection is involved; the literal check is the existing comptimeArgsPolicy.
 const composerCTADTS = `declare module '@mionjs/run-types' {
   export interface RunType<T = unknown> { readonly id: string; }
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};

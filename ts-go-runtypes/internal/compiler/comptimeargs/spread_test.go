@@ -12,7 +12,7 @@ import (
 
 // checkConst builds an inferred program over the overlay, finds the
 // `const <name> = <initializer>` declaration in entry.ts, and returns
-// CheckLiteral's verdict on that initializer. builderCall is nil — these
+// CheckLiteral's verdict on that initializer. The policy is empty — these
 // fixtures use plain literals and nested object / array literals, so the
 // spread-merge logic is exercised without the resolver's builder-call
 // machinery. Crucially NO reflection runs here, so a deliberately
@@ -46,7 +46,7 @@ func checkConst(t *testing.T, files map[string]string, name string) comptimeargs
 	if initializer == nil {
 		t.Fatalf("const %q with an initializer not found in entry.ts", name)
 	}
-	return comptimeargs.CheckLiteral(typeChecker, initializer, 0, nil)
+	return comptimeargs.CheckLiteral(typeChecker, initializer, 0, comptimeargs.Policy{})
 }
 
 // findConstInitializer walks the file for the first `<name> = <init>`

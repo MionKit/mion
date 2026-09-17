@@ -13,9 +13,7 @@ import {registerPureFnFactory} from '../../src/runtypes/pureFn.ts';
 const TEST_NAMESPACE = 'test';
 
 function getCompiledPureFn(namespace: string, fnName: string): CompiledPureFunction | undefined {
-  // Runtime lookups: the key comes from a helper call, so there is no build-time reference to record.
-  // @mion-expect-error CTA003
-  return getRTUtils().getCompiledPureFn(pureFnKey(namespace, fnName));
+  return getRTUtils().getCompiledPureFnByKey(pureFnKey(namespace, fnName));
 }
 
 // 14-char base64url — what the Go binary's BodyHash emits.
@@ -34,8 +32,10 @@ it('register and get pure function with extracted data', () => {
       return true;
     };
   });
-  // @mion-expect-error CTA003
-  const restoredFn = getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'stringPureFn')) as (s: string, p: StringParams) => boolean;
+  const restoredFn = getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'stringPureFn')) as (
+    s: string,
+    p: StringParams
+  ) => boolean;
   expect(restoredFn).toBeDefined();
   expect(restoredFn).toBeInstanceOf(Function);
   expect(restoredFn('a', {isLowercase: true})).toBe(true);
@@ -94,10 +94,8 @@ it('auto-detects dependencies via proxy when factory calls getPureFn', () => {
   expect(compiledIsB).toBeDefined();
   // Materialise `fn` lazily — the cache module sets fn=undefined until
   // a getPureFn / usePureFn caller forces createPureFn to run.
-  // @mion-expect-error CTA003
-  expect(getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'pureFunctionA'))).toBeInstanceOf(Function);
-  // @mion-expect-error CTA003
-  expect(getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'pureFunctionB'))).toBeInstanceOf(Function);
+  expect(getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'pureFunctionA'))).toBeInstanceOf(Function);
+  expect(getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'pureFunctionB'))).toBeInstanceOf(Function);
   // Static dep extraction emits full `"<namespace>::<fnName>"` keys.
   expect(compiledIsB?.pureFnDependencies?.includes('test::pureFunctionA')).toBeTruthy();
   expect(compiledIsA?.pureFnDependencies ?? []).toEqual([]);
@@ -116,8 +114,7 @@ describe('arrow function factory functions', () => {
         return true;
       };
     });
-    // @mion-expect-error CTA003
-    const restoredFn = getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'arrowWithParens')) as (
+    const restoredFn = getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'arrowWithParens')) as (
       s: string,
       p: StringParams
     ) => boolean;
@@ -138,8 +135,7 @@ describe('arrow function factory functions', () => {
           return n * (p.multiplier ?? 1);
         }
     );
-    // @mion-expect-error CTA003
-    const restoredFn = getRTUtils().getPureFn(pureFnKey(TEST_NAMESPACE, 'arrowExpression')) as (
+    const restoredFn = getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'arrowExpression')) as (
       n: number,
       p: NumParams
     ) => number;
@@ -185,12 +181,12 @@ describe('arrow function factory functions', () => {
 describe('hollowed built-in lane', () => {
   it('null factory for a built-in key is inert: no throw, not cached', () => {
     const key = 'rt::hollowLaneUnusedFn';
-    expect(getRTUtils().getCompiledPureFn(key)).toBeUndefined();
+    expect(getRTUtils().getCompiledPureFnByKey(key)).toBeUndefined();
     // Hollowed dist ships `registerPureFnFactory('rt::…', null)`.
     // @mion-downgrade-error PFN001
     expect(() => registerPureFnFactory(key, null)).not.toThrow();
     // Crucially NOT cached — a cached placeholder would mask the real registration.
-    expect(getRTUtils().getCompiledPureFn(key)).toBeUndefined();
+    expect(getRTUtils().getCompiledPureFnByKey(key)).toBeUndefined();
   });
 
   it('rtFormats:: built-in key is inert too', () => {
@@ -204,7 +200,7 @@ describe('hollowed built-in lane', () => {
     // Hollowed side-effect import runs first (inert).
     // @mion-downgrade-error PFN001
     registerPureFnFactory(key, null);
-    expect(getRTUtils().getCompiledPureFn(key)).toBeUndefined();
+    expect(getRTUtils().getCompiledPureFnByKey(key)).toBeUndefined();
     // The demand-driven cache then registers the real body (modelled here via the
     // no-plugin function path; production registers a tuple through the deps thunk).
     registerPureFnFactory(key, function () {
@@ -212,7 +208,7 @@ describe('hollowed built-in lane', () => {
         return 42;
       };
     });
-    const fn = getRTUtils().getPureFn(key) as () => number;
+    const fn = getRTUtils().getPureFnByKey(key) as () => number;
     expect(fn).toBeDefined();
     expect(fn()).toBe(42);
   });
