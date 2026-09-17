@@ -51,8 +51,6 @@ describe('precompiled-library dedupe is harmless (E1)', () => {
 
   it('addPureFn keeps the existing entry with NO warning when the body hash matches', () => {
     const utils = getRTUtils();
-    // A runtime lookup: the key comes from a helper call, so there is no build-time reference to record.
-    // @mion-expect-error CTA003
     const key = pureFnKey('e1', 'sharedPureFn');
     const compiled = {code: '(utl) => (v) => v === 1', bodyHash: 'e1bodyhash', paramNames: ['v']} as never;
 
@@ -63,7 +61,7 @@ describe('precompiled-library dedupe is harmless (E1)', () => {
       const second = utils.addPureFn(key, {code: '(utl) => (v) => v === 1', bodyHash: 'e1bodyhash', paramNames: ['v']} as never);
       expect(warn).not.toHaveBeenCalled();
       // The existing entry is kept (identity preserved), not a fresh registration.
-      expect(second).toBe(utils.getCompiledPureFn(key));
+      expect(second).toBe(utils.getCompiledPureFnByKey(key));
     } finally {
       warn.mockRestore();
     }
