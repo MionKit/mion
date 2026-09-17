@@ -19,19 +19,11 @@ import {
 } from '@mionjs/core';
 import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
-import {
-  getRouteExecutionChain,
-  getPlatformMaxBodySize,
-  getPlatformRequestCap,
-  getRouterOptions,
-  startMiddleFns,
-  endMiddleFns,
-} from './router.ts';
+import {getRouteExecutionChain, getPlatformRequestCap, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
-import {ResolvedRequest} from './types/context.ts';
 import type {CallContext} from './types/context.ts';
 
 // ############# BATCH REGISTRY #############
@@ -139,7 +131,7 @@ export function resolveBatchMaxBodySize(entry: BatchEntry, memberChains: Methods
 
 function sumChainMaxBodySize(chains: MethodsExecutionChain[]): number {
   let total = 2;
-  for (const chain of chains) total += chain.maxBodySize ?? getPlatformMaxBodySize();
+  for (const chain of chains) total += chain.maxBodySize;
   return Math.min(total, getPlatformRequestCap() ?? Infinity);
 }
 
@@ -148,6 +140,19 @@ function sumChainMaxBodySize(chains: MethodsExecutionChain[]): number {
 export function capBatchBodySizes(maxRequestSize: number): void {
   for (const entry of batchesById.values()) {
     if (entry.maxBodySize !== undefined && entry.maxBodySize > maxRequestSize) entry.maxBodySize = maxRequestSize;
+  }
+}
+
+/** Re-folds the limit of every batch chain ALREADY built from its entry's current number. Without
+ *  it a chain built before a later setPlatformConfig kept serving the number it was built with,
+ *  which is a limit the platform had since promised to refuse. */
+export function refreshBatchChainBodyLimits(platformMaxBodySize: number): void {
+  for (const entry of batchesById.values()) {
+    const limit = entry.maxBodySize ?? platformMaxBodySize;
+    for (const chain of entry.chains.values()) {
+      chain.declaredBodySize = entry.maxBodySize;
+      chain.maxBodySize = limit;
+    }
   }
 }
 
@@ -191,11 +196,10 @@ export function readBatchId(urlQuery: string | undefined): string | undefined {
  *  lookup: it answers undefined and the caller resolves the batch not-found chain. The id is the
  *  only untrusted input and it is never echoed back. */
 export function getBatchExecutionChain(
-  path: string,
   rawRequest: unknown,
   opts: RouterOptions,
   urlQuery?: string
-): ResolvedRequest | undefined {
+): MethodsExecutionChain | undefined {
   const batchId = readBatchId(urlQuery);
   const entry = batchId ? getBatch(batchId) : undefined;
   if (!entry) return undefined;
@@ -213,15 +217,7 @@ export function getBatchExecutionChain(
     executionChain = buildMergedExecutionChain(entry, transformedPaths);
     entry.chains.set(chainKey, executionChain);
   }
-  return {
-    path,
-    urlQuery,
-    executionChain,
-    maxBodySize: executionChain.maxBodySize ?? getPlatformMaxBodySize(),
-    readsBody: executionChain.readsBody,
-    batchId: entry.id,
-    batchRouteIds: entry.routes as string[],
-  };
+  return executionChain;
 }
 
 /**
@@ -270,12 +266,19 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
   if (entry.mappings.length > 0) insertMappingMethods(entry, middleMethods);
 
   const methods = [...startMiddleFns, ...middleMethods, ...endMiddleFns];
+  // The entry's own number IS the declared one for a batch: it is the sum its members resolved to.
+  const declaredBodySize = resolveBatchMaxBodySize(entry, memberChains);
   return {
     // Use the first route's routeIndex since that's where the first route handler is
     routeIndex: firstRouteIndex,
     methods,
     serializer: getChainFraming(methods),
-    maxBodySize: resolveBatchMaxBodySize(entry, memberChains),
+    // cached per member-path list, so one chain answers every endpoint path that reaches it
+    path: undefined,
+    batchId: entry.id,
+    batchRouteIds: entry.routes as string[],
+    declaredBodySize,
+    maxBodySize: declaredBodySize,
     readsBody: true,
   };
 }
