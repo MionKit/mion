@@ -1,7 +1,7 @@
 ---
-type: chore
+type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-16
 ---
 
@@ -107,3 +107,80 @@ turned out to be a real problem is fixed rather than stood down; and a non-liter
 argument in a test halts the run instead of printing a warning. If the new directive ships, a
 directive that names a missing finding, an already-warning finding, an unknown code or a
 `LevelError` code reports itself.
+
+## What shipped (2026-09-17)
+
+Three commits, in this order, because the second measurement changed the shape of the third.
+
+### 1. The count above was wrong, and the reason was a bug
+
+The 32 codes were right; "45 such call sites across 15 suite files" was not. A run with the
+wildcard removed reported **7464 findings across 1517 lines in 85 files**. Almost all of it was
+mis-attribution, found by probing one finding at a time:
+
+- **Depth.** The 28 root-position codes are registered `ScopeRoot`, whose own comment says the
+  same trigger inside a property is a different, child-position code. But provenance is inherited
+  down the type graph (so a member-level warning reaches the site that pulled the member in), and
+  the root codes rode that inheritance onto every site that merely CONTAINED the type. One
+  deliberate `createJsonEncoderFn<never>()` therefore made 846 unrelated call sites report that
+  the JSON encoder they never asked for always fails.
+- **Family.** Provenance was keyed by type id with no family, so a finding raised while rendering
+  one family's entry reached every site that named the type. Only 19 of 333 `CES001` reports were
+  actually clone sites; the rest were JSON, validate, binary and mock sites hearing a clone
+  finding. A `createJsonEncoderFn` site reported `VL002`, and a validate site reported all six
+  serializer root codes.
+- The alwaysThrow runtime message took `provenance[0]`, so it could name a random unrelated file.
+
+Provenance is now keyed per rendered entry (type id + family tag) and kept in two maps: a
+`ScopeRoot` code reports at the sites that NAMED the type, every other scope keeps the inherited
+sites. Covered by `provenance_scope_test.go`, including the "one level deeper" and "one family
+over" twins and a paired `getRunTypeId` shape test. That took the tree from 7464 findings to
+**205 across 200 lines**, which is the order the original estimate was reaching for.
+
+### 2. The `@mion-downgrade-error` directive
+
+Built as the todo described: same line-above placement and optional code list as
+`@mion-expect-error`, but it KEEPS the finding and marks it `Downgraded` on the wire. Level and
+severity stay whatever the catalog says, so the two consumers that decide whether to halt (the
+bundler plugin and `mion compile`) read that flag alongside their own `downgradeErrors` setting
+and print the same `(downgraded)` note. Four self-checks, all `LevelWarning`: `DWN001` lowered
+nothing, `DWN002` names a code the level table never lowers, `DWN003` a typo, `DWN004` a code
+already a warning. New lint rule `runtypes/invalid-downgrade-error`.
+
+One thing the todo did not anticipate: lint rule severity comes from config, not per finding, so
+a downgraded finding keeps its rule and stays visible in the editor. That is the intended
+outcome, so nothing was changed there.
+
+### 3. The three configs
+
+- `packages/run-types/vitest.config.ts` and `test/mock-format-isolation/vitest.config.ts` name
+  **nothing at all** now. All 200 findings say so in their own source: 185
+  `@mion-downgrade-error` where the finding is true and worth reading (the alwaysThrow suites,
+  the no-plugin pure-fn lanes, the shared-format-entry case), 15 `@mion-expect-error` where it is
+  noise (a runtime lookup whose key comes from a helper call; the library's own three forwards in
+  `pureFn.ts`, `entryTuple.ts` and `compose.ts`).
+- `vitest.converted.config.ts` keeps `['CES001']`, the one generated finding. `mion convert`
+  copies the comments along with the source, so the directives carry over, but four
+  `cloning/Unions.ts` cases write their union across several lines and convert collapses the whole
+  type argument onto one, dropping the comment that was inside it.
+
+**The library's own CTA findings were annotated, not narrowed in the resolver.** All four are
+library-internal runtime lookups or forwards, so there is no build-time dependency to track and
+the finding is noise at those sites. Keeping `CTA001` sharp everywhere is what makes the
+headline check work.
+
+### Verified
+
+`error CTA001` on a non-literal `CompTimeArgs` argument halts the run again (probed with a `let`
+binding in a suite file). No `EXP`/`DWN` self-check noise anywhere, so every directive is doing
+its job. The converted lane passes 7586 tests.
+
+### Left for a parallel session
+
+`CTA003` fires on the documented `registerFormatPattern` value spelling, which works: the scanner
+recovers the pattern from the declared type, not the value, and the suite's 38 tests pass while
+the build says the argument cannot be read. It is `LevelRuntimeError`, so a consumer using the
+documented form gets a halted build for correct code. It predates this branch (the wildcard hid
+it) and sits in the CompTimeArgs const-tracer, a different subsystem from the attribution fix, so
+it went to a background session with its own branch and PR, to merge before this one. The site
+carries `@mion-expect-error CTA003` until then, and that fix deletes the comment.
