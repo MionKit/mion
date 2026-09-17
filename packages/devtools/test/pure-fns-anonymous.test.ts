@@ -1,5 +1,5 @@
 // End-to-end acceptance test for the ANONYMOUS pure-fn lane
-// (registerAnonymousPureFn + InjectPureFnHash). Drives the Go binary over inline
+// (registerAnonymousPureFn + InjectPureFnId). Drives the Go binary over inline
 // sources, then verifies:
 //
 //   1. the factory argument is rewritten to its entry-module binding AND the
@@ -156,12 +156,12 @@ export const cpf = registerAnonymousPureFn(function _slug(s: string): string { r
       expect(directKey).toMatch(/^rt::[A-Za-z0-9_-]{14}$/);
     });
 
-    // A library wrapper forwarding the PureFunction + InjectPureFnHash markers —
+    // A library wrapper forwarding the PureFunction + InjectPureFnId markers —
     // the mion `registerMionPureFn` shape. Its consumer call is recognised by
     // BRAND (not callee name), injects at ITS site, and must match the direct id.
     const wrapperSources = {
-      'toolkit.ts': `import {type PureFunction, type InjectPureFnHash, type RTUtils} from '@mionjs/run-types';
-export function registerAcmePureFn<F extends (utl: RTUtils) => any>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>) {
+      'toolkit.ts': `import {type PureFunction, type InjectPureFnId, type RTUtils} from '@mionjs/run-types';
+export function registerAcmePureFn<F extends (utl: RTUtils) => any>(fn: PureFunction<F>, hash?: InjectPureFnId<F>) {
   if (!hash) throw new Error('mion plugin did not run');
   return {hash, fn};
 }

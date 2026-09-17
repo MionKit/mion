@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"sort"
 	"strconv"
 	"strings"
@@ -8,13 +9,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
-
-// unknownKeysPureFnFilePath is the source path the resolver reports as the
-// pf_getUnknownKeysFromArray / pf_hasUnknownKeysFromArray registrations'
-// expected home (the `{3}` arg in the PFE9012 message). Same file as the
-// validationErrors pure-fns (pure-fns-utils.ts). Repo-relative hint only — the
-// whole-program PFE9012 check matches by key, not by this path.
-const unknownKeysPureFnFilePath = "packages/run-types/src/runtypes/pure-fns-utils.ts"
 
 // objectKeysContext captures the data needed to emit the
 // callCheckUnknownProperties call for an object/interface — the
@@ -208,10 +202,10 @@ func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, 
 		}
 	}
 	if returnKeys {
-		fnVar := ctx.UsePureFn(corePureFnNamespace, "getUnknownKeysFromArray", unknownKeysPureFnFilePath)
+		fnVar := ctx.UsePureFn(purefnids.GetUnknownKeysFromArray)
 		return fnVar + "(" + v + ", " + conditional + ")"
 	}
-	fnVar := ctx.UsePureFn(corePureFnNamespace, "hasUnknownKeysFromArray", unknownKeysPureFnFilePath)
+	fnVar := ctx.UsePureFn(purefnids.HasUnknownKeysFromArray)
 	call := fnVar + "(" + v + ", " + conditional + ")"
 	if !keepObjectCheck {
 		// runsAfterValidation: validation already proved this position is a
@@ -280,7 +274,7 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 // for-in counter on V8 and an Object.keys counter on JavaScriptCore (Bun),
 // once at materialisation, because the two engines invert on which is faster.
 // Both forms are pinned to answer identically for every input (see
-// pf_countEnumKeys in packages/run-types/src/runtypes/pure-fns-utils.ts), so
+// countEnumKeys in packages/run-types/src/runtypes/pure-fns-utils.ts), so
 // the emitted expression is unchanged and keeps the enumeration semantics
 // hUKFA had.
 // `match` picks the direction. hasUnknownKeys wants the NEGATIVE
@@ -289,7 +283,7 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 // (`cntEK(v) === N`, "exactly the declared keys"), so emitting it directly
 // keeps the body readable and saves a negation at runtime.
 func emitCountKeys(ctx *EmitContext, v string, n int, match bool) string {
-	fnVar := ctx.UsePureFn(corePureFnNamespace, "countEnumKeys", unknownKeysPureFnFilePath)
+	fnVar := ctx.UsePureFn(purefnids.CountEnumKeys)
 	comparison := " !== "
 	if match {
 		comparison = " === "

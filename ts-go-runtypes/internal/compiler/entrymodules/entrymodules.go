@@ -234,9 +234,12 @@ func (graph Graph) AddMissingStubs(demanded []string) {
 
 // ModuleName returns the virtual-module basename for an entry key. Runtype and
 // type-fn keys are short alphanumeric hashes (plus one underscore for fn keys)
-// and pass through unchanged; pure-fn keys (`<ns>::<fn>`) are path-encoded as
-// `pf/<ns>/<fn>` with non-safe bytes escaped, so the basename is a valid (and
-// readable) module specifier segment.
+// and pass through unchanged; a pure fn's key is its id, whose location half is
+// already a path, so it is path-encoded as
+// `pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr` with non-safe
+// bytes escaped per segment. The basename stays a valid (and readable) module
+// specifier, and the encoding is injective because `#` and `/` are the only
+// separators an id can hold and neither survives escaping inside a segment.
 func ModuleName(key string, kind Kind) string {
 	if kind == KindRunTypeBundle {
 		return constants.RunTypesBundleBasename
@@ -244,23 +247,28 @@ func ModuleName(key string, kind Kind) string {
 	if kind != KindPureFn {
 		return key
 	}
-	namespace, fnName := key, ""
-	if idx := strings.Index(key, "::"); idx >= 0 {
-		namespace, fnName = key[:idx], key[idx+2:]
+	location, name := key, ""
+	if idx := strings.LastIndex(key, "#"); idx >= 0 {
+		location, name = key[:idx], key[idx+1:]
 	}
-	return constants.PureFnModuleDir + "/" + escapeModuleSegment(namespace) + "/" + escapeModuleSegment(fnName)
+	parts := strings.Split(location, "/")
+	for i, part := range parts {
+		parts[i] = escapeModuleSegment(part)
+	}
+	return constants.PureFnModuleDir + "/" + strings.Join(parts, "/") + "/" + escapeModuleSegment(name)
 }
 
-// escapeModuleSegment keeps [A-Za-z0-9_.-] bytes and hex-escapes everything
-// else as `$XX`, so arbitrary namespace / fn names produce collision-free,
-// URL-safe path segments ('$' itself is escaped).
+// escapeModuleSegment keeps [@A-Za-z0-9_.-] bytes and hex-escapes everything
+// else as `$XX`, so arbitrary path and fn names produce collision-free,
+// URL-safe path segments ('$' itself is escaped). `@` is safe because a
+// scoped package name is the first segment of every id.
 func escapeModuleSegment(segment string) string {
 	var builder strings.Builder
 	for i := 0; i < len(segment); i++ {
 		ch := segment[i]
 		switch {
 		case ch >= 'a' && ch <= 'z', ch >= 'A' && ch <= 'Z', ch >= '0' && ch <= '9',
-			ch == '_', ch == '.', ch == '-':
+			ch == '_', ch == '.', ch == '-', ch == '@':
 			builder.WriteByte(ch)
 		default:
 			fmt.Fprintf(&builder, "$%02X", ch)

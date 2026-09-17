@@ -1,6 +1,7 @@
 package typefunctions
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"sort"
 	"strings"
 
@@ -166,8 +167,8 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 	// node id already folded the override hash, so this key is unique to the
 	// overridden type. Only the PLAIN variant is overridden — the armed variant
 	// falls through to structural emit so its guard still runs.
-	if cfnHash := runType.Overrides[op.Name]; cfnHash != "" && !rejectCircular {
-		return buildRedirectEntry(entryKey, tag, runType, cfnHash, opts)
+	if cfnID := runType.Overrides[op.Name]; cfnID != "" && !rejectCircular {
+		return buildRedirectEntry(entryKey, tag, runType, cfnID, opts)
 	}
 	isLive := func(primOp string) bool { return primitiveIsLive(rendered, primOp, runType.ID) }
 
@@ -217,8 +218,8 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 	softDeps := deps
 	if guarded {
 		skeletonJS = circularSkeleton.JSLiteral()
-		pureFnDepsArg = "[" + quoteJS(circularGuardPureFnKey) + "]"
-		softDeps = append(append([]string(nil), deps...), circularGuardPureFnKey)
+		pureFnDepsArg = "[" + quoteJS(purefnids.FindCycle) + "]"
+		softDeps = append(append([]string(nil), deps...), purefnids.FindCycle)
 	}
 
 	contextLines, innerFn := jsonCompositeBody(composite, runType.ID, entryKey, isLive, wrapRoot, skeletonJS)
@@ -237,7 +238,7 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 		codeArg,
 		"false",       // isNoop — this path always has a real body (a live primitive, the wrapRoot envelope, or the guard)
 		"[]",          // rtDependencies — primitive refs are resolved by fnHash, not same-family deps
-		pureFnDepsArg, // pureFnDependencies — rt::findCycle for the armed guard, else empty
+		pureFnDepsArg, // pureFnDependencies — findCycle for the armed guard, else empty
 		createRTFnArg,
 	})
 	argsText := joinArgs(args)
@@ -247,14 +248,9 @@ func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composit
 	return &entrymodules.Entry{Key: entryKey, Kind: entrymodules.KindTypeFn, FamilyTag: tag, ArgsText: argsText, SoftDeps: softDeps}
 }
 
-// circularGuardPureFnKey is the built-in pure-fn key the armed circular guard
-// references (delivered on demand via the entry's SoftDeps). circularGuardFnAlias
-// is the local binding name (mirrors pureFnAliases["findCycle"], so the
-// composite's guard bytes match the walker-path guard's).
-const (
-	circularGuardPureFnKey = corePureFnNamespace + "::findCycle"
-	circularGuardFnAlias   = "fc"
-)
+// circularGuardFnAlias is the local the armed guard binds findCycle to inside
+// an emitted body.
+const circularGuardFnAlias = "fc"
 
 // jsonCompositeDeps names the primitive entries a composite body resolves at
 // materialise time — one `<plainFhash>_<id>` per LIVE family in the
@@ -376,7 +372,7 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 		// skeleton are hoisted once into the factory closure.
 		if circularSkeletonJS != "" {
 			ctx = append(ctx,
-				"const "+circularGuardFnAlias+" = utl.getPureFn('"+circularGuardPureFnKey+"')",
+				"const "+circularGuardFnAlias+" = utl.getPureFn('"+purefnids.FindCycle+"')",
 				"const "+circularGuardContextKey+" = "+circularSkeletonJS)
 			body = "const cyR=" + circularGuardFnAlias + "(v," + circularGuardContextKey + ");if(cyR)throw utl.circularError(cyR);" + body
 		}
@@ -477,7 +473,7 @@ func AssertCompositeSoftDeps(graph entrymodules.Graph, provenance map[string][]d
 			// composite-bound primitives: they bind via `utl.getPureFn`, and
 			// serveBuiltinPureFns delivers them AFTER this assertion runs (with its
 			// own PFE9012 tripwire for a genuinely missing body). Skip them here.
-			if isBuiltinPureFnDep(dep) {
+			if purefnids.Has(dep) {
 				continue
 			}
 			if target, ok := graph[dep]; ok && target != nil && target.Kind != entrymodules.KindMissing {

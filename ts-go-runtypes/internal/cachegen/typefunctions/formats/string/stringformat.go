@@ -5,6 +5,7 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 	"strings"
 
@@ -107,7 +108,7 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 	// `isRegex` routes to the pure-fn engine: whether a string COMPILES as a
 	// regular expression is not something a pattern can ask.
 	if isRegex, _ := params["isRegex"].(bool); isRegex {
-		conditions = append(conditions, pureFnAlias(ctx, "isEcmaRegex")+"("+vλl+")")
+		conditions = append(conditions, formats.PureFnAlias(ctx, purefnids.IsEcmaRegex)+"("+vλl+")")
 	}
 	// `pattern` adds a regex test (and triggers build-time mockSample
 	// validation). Backs FormatAlpha / FormatNumeric and any user
@@ -148,7 +149,7 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 //	length    → `.length` outside [N, 2N] can't count to exactly N
 func lengthConditions(params map[string]any, vλl string, ctx formats.EmitContext) []string {
 	var conditions []string
-	codePointLength := func() string { return pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")" }
+	codePointLength := func() string { return formats.PureFnAlias(ctx, purefnids.CodePointLength) + "(" + vλl + ")" }
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)
@@ -239,7 +240,7 @@ func valuesSource(vals []string) string {
 	return "^(?:" + strings.Join(escaped, "|") + ")$"
 }
 
-// lengthErrorStatements returns the `if (fail) pf_formatErr(...)`
+// lengthErrorStatements returns the `if (fail) formatErr(...)`
 // statements for whichever length bounds are set. fmtName tags the
 // emitted format error (stringFormat / domain / email / url …).
 // The failure conditions are the negation of lengthConditions, and keep the
@@ -250,10 +251,10 @@ func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 	var statements []string
 	if isRegex, _ := params["isRegex"].(bool); isRegex {
 		statements = append(statements,
-			"if (!"+pureFnAlias(ctx, "isEcmaRegex")+"("+vλl+")) "+
+			"if (!"+formats.PureFnAlias(ctx, purefnids.IsEcmaRegex)+"("+vλl+")) "+
 				formatErrWithType(pathExpr, errorsArr, fmtName, "isRegex", "true", errorTypeExpr))
 	}
-	codePointLength := pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")"
+	codePointLength := formats.PureFnAlias(ctx, purefnids.CodePointLength) + "(" + vλl + ")"
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)
 		doubled := formats.FormatNumber(2 * value)

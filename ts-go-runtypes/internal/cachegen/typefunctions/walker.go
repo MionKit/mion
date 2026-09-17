@@ -2,6 +2,7 @@ package typefunctions
 
 import (
 	"fmt"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"slices"
 	"strconv"
 	"strings"
@@ -522,7 +523,7 @@ func (w *Walker) setChildPathLiteral(literal string) {
 
 // accessPath returns the non-empty PathLiteral segments from the
 // current stack in push order. Used by typeerrors emitters to build
-// the static access-path argument when calling pf_newRunTypeErr.
+// the static access-path argument when calling newRunTypeErr.
 // Returns the literals as raw JS expressions (e.g. ["'name'", "i0",
 // "0"]) so callers can fold in extra trailing segments before joining.
 func (w *Walker) accessPath() []string {
@@ -536,9 +537,8 @@ func (w *Walker) accessPath() []string {
 	return out
 }
 
-// AddPureFnDependency records a (namespace, fnName, filePath) triple
-// that the emitted RT function will reach via `utl.getPureFn(<ns>,
-// <fn>)`. Idempotent on the full triple.
+// AddPureFnDependency records a pure-fn id the emitted RT function will reach
+// via `utl.getPureFn(<id>)`. Idempotent.
 //
 // No source-file walk happens here — recording is O(1) and the deps
 // ride the wire (protocol.PureFnDep / entry SoftDeps) for the module
@@ -548,17 +548,13 @@ func (w *Walker) accessPath() []string {
 // build-time as PFE9012 (purefunctions.ValidatePureFnDependencies),
 // so the missing pure fn no longer waits until `utl.getPureFn` throws
 // at runtime.
-func (w *Walker) AddPureFnDependency(namespace, fnName, filePath string) {
+func (w *Walker) AddPureFnDependency(id string) {
 	for _, dep := range w.PureFnDependencies {
-		if dep.Namespace == namespace && dep.FunctionName == fnName && dep.FilePath == filePath {
+		if dep.ID == id {
 			return
 		}
 	}
-	w.PureFnDependencies = append(w.PureFnDependencies, protocol.PureFnDep{
-		Namespace:    namespace,
-		FunctionName: fnName,
-		FilePath:     filePath,
-	})
+	w.PureFnDependencies = append(w.PureFnDependencies, protocol.PureFnDep{ID: id})
 }
 
 // UpdateDependencies records childHash as a rt dependency unless it's
@@ -651,10 +647,6 @@ type CircularGuardReactor interface {
 // guard prologue.
 const circularGuardContextKey = "cyP"
 
-// circularPureFnFilePath is the canonical source path rt::findCycle's body
-// is registered under (the built-in pure-fn table extracts it from here).
-const circularPureFnFilePath = "packages/run-types/src/runtypes/circular-pure-fns.ts"
-
 // emitCircularGuard hoists the rt::findCycle alias + the baked skeleton
 // const into the factory closure and prepends the family's guard statement to
 // the body. No-op when the emitter is not a CircularGuardReactor (only the
@@ -666,7 +658,7 @@ func (w *Walker) emitCircularGuard() {
 	}
 	ctx := w.getEmitContext(w.Vλl)
 	defer w.putEmitContext(ctx)
-	fcpAlias := ctx.UsePureFn(corePureFnNamespace, "findCycle", circularPureFnFilePath)
+	fcpAlias := ctx.UsePureFn(purefnids.FindCycle)
 	ctx.SetContextItem(circularGuardContextKey, "const "+circularGuardContextKey+" = "+w.CircularSkeleton.JSLiteral())
 	w.Code = reactor.EmitCircularGuard(fcpAlias, circularGuardContextKey) + w.Code
 }

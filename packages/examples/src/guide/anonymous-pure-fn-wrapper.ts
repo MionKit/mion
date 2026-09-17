@@ -1,16 +1,16 @@
 import {
   registerAnonymousPureFn,
   type PureFunction,
-  type InjectPureFnHash,
+  type InjectPureFnId,
 } from '@mionjs/run-types';
 
 // A library wraps the anonymous lane behind its own register API. The two
 // markers ride the signature (the argument carries PureFunction, the trailing
-// slot carries InjectPureFnHash), so the compiler injects the content hash at
+// slot carries InjectPureFnId), so the compiler injects the content hash at
 // every call site of the wrapper, wherever it is used, with no diagnostics.
 export function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
-  hash?: InjectPureFnHash<F>
+  hash?: InjectPureFnId<F>
 ) {
   if (!hash) throw new Error('mion plugin did not run');
   return registerAnonymousPureFn(fn, hash);

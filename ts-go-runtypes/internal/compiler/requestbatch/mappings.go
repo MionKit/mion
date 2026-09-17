@@ -8,17 +8,12 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/comptimeargs"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
 // asArgMethod is the method an `inputFrom(...)` reference exposes to pass
 // itself as a plain route argument (`inputFrom(user, 'toId').asArg()`).
 const asArgMethod = "asArg"
-
-// mapperNameParamIndex is the slot the NAME lane of a mapper factory reads its
-// mapper name from: `inputFrom(source, name)`.
-const mapperNameParamIndex = 1
 
 // mapperSourceParamIndex is the slot every mapper factory reads its source
 // route from: `inputFrom(source, …)`.
@@ -133,18 +128,18 @@ func (scope *fileScope) initialMapperRef(identifier *ast.Node, depth int) bool {
 	return false
 }
 
-// isMapperFactoryCall reports whether call targets a branded mapper factory:
-// a function whose OVERLOAD SET carries the anonymous pure-fn brand pair
-// (`PureFunction<F>` followed by `InjectPureFnHash<F>`) on at least one
-// signature. Checking the overload set, not just the resolved signature, is
-// what lets the marker-free NAME overload (`inputFrom(source, 'name')`) count
-// as the same factory as the inline one.
+// isMapperFactoryCall reports whether call targets a branded mapper factory: a
+// function whose OVERLOAD SET carries the pure-fn brand pair
+// (`PureFunction<F>` followed by `InjectPureFnId<F>`) on at least one
+// signature. The overload set rather than the resolved signature, so a wrapper
+// that declares several shapes of the same factory is recognised on any of
+// them.
 func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, call, nil, 0)
 	if signature == nil {
 		return false
 	}
-	if matched, _, _, _ := purefunctions.AnonymousBrandPair(scope.typeChecker, scope.markerOpts, signature); matched {
+	if matched, _, _, _ := purefunctions.PureFnBrandPair(scope.typeChecker, scope.markerOpts, signature); matched {
 		return true
 	}
 	symbol := scope.calleeSymbol(call.AsCallExpression().Expression)
@@ -161,7 +156,7 @@ func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 		return false
 	}
 	for _, overload := range checker.Checker_getSignaturesOfType(scope.typeChecker, calleeType, checker.SignatureKindCall) {
-		if matched, _, _, _ := purefunctions.AnonymousBrandPair(scope.typeChecker, scope.markerOpts, overload); matched {
+		if matched, _, _, _ := purefunctions.PureFnBrandPair(scope.typeChecker, scope.markerOpts, overload); matched {
 			return true
 		}
 	}
@@ -170,13 +165,11 @@ func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 
 // readMapping reads one branded mapper-factory call into a Mapping for the
 // route at targetIndex (behind targetCall). The source (slot 0) resolves
-// through the route resolver; the mapper key is the pure-fn registry key: the
-// anonymous lane's `rt::<hash>` when the RESOLVED signature is the branded
-// inline overload, else `<ServerMapperNamespace>::<name>` from the string
-// literal at slot 1. The source must sit before the target (BAT002) and the
-// argument position must be one the target route declares (BAT006); both are
-// reported at `written`, the argument as it appears in the batched call, since
-// that is where the fix goes even when the mapping was bound to a name first.
+// through the route resolver; the mapper key is the mapper's own pure-fn id,
+// the same one injected at that call. The source must sit before the target
+// (BAT002) and the argument position must be one the target route declares
+// (BAT006); both are reported at `written`, the argument as it appears in the
+// batched call, since that is where the fix goes.
 func (scope *fileScope) readMapping(mapperCall, written *ast.Node, routeIds []string, targetCall *ast.Node, targetIndex, paramIndex int) (Mapping, []diagnostics.Diagnostic) {
 	callExpr := mapperCall.AsCallExpression()
 	var args []*ast.Node
@@ -229,28 +222,20 @@ func (scope *fileScope) parameterCount(routeCall *ast.Node) (count int, bounded 
 	return fixed + tuple.FixedLength(), checker.TupleType_combinedFlags(tuple)&checker.ElementFlagsVariable == 0
 }
 
-// mapperKey derives the registry key of a mapper-factory call's mapper.
+// mapperKey derives the pure-fn id of a mapper-factory call's mapper: the id
+// the build injects at that very call, so the batch plan and the registration
+// can never disagree.
 func (scope *fileScope) mapperKey(mapperCall *ast.Node, args []*ast.Node) (string, diagnostics.Diagnostic, bool) {
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, mapperCall, nil, 0)
-	inline, _, fnParamIndex, _ := purefunctions.AnonymousBrandPair(scope.typeChecker, scope.markerOpts, signature)
-	if inline {
-		if key, ok := purefunctions.AnonymousKeyForCall(scope.typeChecker, scope.markerOpts, scope.sourceFile, mapperCall); ok {
-			return key, diagnostics.Diagnostic{}, true
-		}
-		failing := mapperCall
-		if len(args) > fnParamIndex {
-			failing = args[fnParamIndex]
-		}
-		return "", scope.diag(diagnostics.CodeBatchMapperNotReadable, failing, "mapper is not an inline arrow or function expression"), false
+	_, _, fnParamIndex, _ := purefunctions.PureFnBrandPair(scope.typeChecker, scope.markerOpts, signature)
+	if id, ok := purefunctions.PureFnIDForCall(scope.typeChecker, scope.markerOpts, scope.sourceFile, mapperCall); ok {
+		return id, diagnostics.Diagnostic{}, true
 	}
-	if len(args) <= mapperNameParamIndex {
-		return "", scope.diag(diagnostics.CodeBatchMapperNotReadable, mapperCall, "mapper name is missing (argument "+strconv.Itoa(mapperNameParamIndex+1)+")"), false
+	failing := mapperCall
+	if fnParamIndex >= 0 && len(args) > fnParamIndex {
+		failing = args[fnParamIndex]
 	}
-	literal, result := comptimeargs.ResolveLiteralString(scope.typeChecker, args[mapperNameParamIndex])
-	if !result.Ok {
-		return "", scope.diag(diagnostics.CodeBatchMapperNotReadable, args[mapperNameParamIndex], "mapper name is not a string literal or a const bound to one"), false
-	}
-	return constants.ServerMapperNamespace + "::" + literal.Text(), diagnostics.Diagnostic{}, true
+	return "", scope.diag(diagnostics.CodeBatchMapperNotReadable, failing, "mapper is not an inline arrow or function expression"), false
 }
 
 func indexOf(values []string, want string) int {

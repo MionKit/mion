@@ -5,7 +5,7 @@ import "strconv"
 // FormatErrCall emits a statement that pushes the canonical nested
 // RTValidationError — `{expected, path, format: {name, formatPath, val}}` —
 // onto the errors array. This is the shape the base validationErrors path
-// (pf_newRunTypeErr) and consumers expect; a bare `{name, formatPath, val}`
+// (newRunTypeErr) and consumers expect; a bare `{name, formatPath, val}`
 // push would not conform to RTValidationError and is invisible to consumers
 // reading `.path`/`.format`.
 //
@@ -83,14 +83,11 @@ func FormatNumber(value float64) string {
 	return strconv.FormatFloat(value, 'g', -1, 64)
 }
 
-// PureFnAlias is the `rtFormats`-namespace convenience wrapper over
-// ctx.UsePureFn: it registers a pure-fn dependency, hoists the deduped
-// `const pf_<fnName> = utl.getPureFn('rtFormats::<fnName>')` prologue line,
-// and returns the alias the emitted body uses. filePath is the canonical
-// source path the resolver registers the package's pure fns under — each
-// format subpackage binds its own via a 1-line local wrapper. Transitive
-// deps the wrapper fn calls internally are picked up by the JS-side pure-fn
-// extractor, not declared here.
-func PureFnAlias(ctx EmitContext, fnName, filePath string) string {
-	return ctx.UsePureFn("rtFormats", fnName, filePath)
+// PureFnAlias is the format emitters' wrapper over ctx.UsePureFn: it registers
+// the dependency, hoists the deduped `const <alias> = utl.getPureFn('<id>')`
+// prologue line, and returns the alias the emitted body uses. `id` is a
+// generated purefnids constant. Transitive deps the pure fn calls internally
+// are picked up by the extractor, not declared here.
+func PureFnAlias(ctx EmitContext, id string) string {
+	return ctx.UsePureFn(id)
 }

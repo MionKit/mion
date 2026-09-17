@@ -7,8 +7,8 @@ package diagnostics
 // levels below are what the emitter ACTUALLY does, which is not the same thing:
 // only PFE9005 withholds output. A purity violation compiles the offending body
 // and ships it (walker.go: "Build never fails; the entry still emits even when
-// violations exist"), a hash collision rewrites both call sites to one body, and
-// a missing dep ships a file that throws on the call. Those are broken OUTPUT,
+// violations exist"), a body-hash collision rewrites both call sites to one
+// body, and a missing dep ships a file that throws on the call. Those are broken OUTPUT,
 // not absent output, so they are LevelRuntimeError: still failing every build by
 // default, but standing one down is now a choice a consumer is allowed to make,
 // because the build was going to ship that body either way.
@@ -39,6 +39,11 @@ const (
 
 	CodeMissingPureFnDep    = "PFE9012"
 	CodePurityDepNotLiteral = "PFE9013"
+	// CodePureFnIdMismatch: the registration passes an explicit id that is not
+	// the one its location produces. No entry is built, so nothing is emitted
+	// for it and the call site keeps its own text. LevelError: there is nothing
+	// to accept, and accepting it would split one function across two keys.
+	CodePureFnIdMismatch = "PFE9014"
 )
 
 func init() {
@@ -55,6 +60,7 @@ func init() {
 
 		{Code: CodeMissingPureFnDep, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "RT depends on missing pure-fn"},
 		{Code: CodePurityDepNotLiteral, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Pure-fn dep arg not a literal"},
+		{Code: CodePureFnIdMismatch, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Explicit pure-fn id does not match its location"},
 	} {
 		register(definition)
 	}

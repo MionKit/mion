@@ -1,6 +1,7 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -132,7 +133,7 @@ func jsBool(value bool) string {
 // idnaCall is the pure-fn call: it returns the failure MODE, so "valid" is the
 // empty string and validate compares against it.
 func idnaCall(ctx formats.EmitContext, params map[string]any, vλl string) string {
-	return pureFnAlias(ctx, "isIdnHostname") + "(" + vλl + ",{idn:" + jsBool(idnaAllowsUnicode(params)) + "})"
+	return formats.PureFnAlias(ctx, purefnids.IsIdnHostname) + "(" + vλl + ",{idn:" + jsBool(idnaAllowsUnicode(params)) + "})"
 }
 
 func idnaCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {

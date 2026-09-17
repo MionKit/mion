@@ -1,15 +1,14 @@
 package typefunctions
 
-import "strings"
+import "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 
-// pureFnAliases maps a pure-fn name to the short alias used in emitted
-// factory bodies. The alias becomes the local variable name bound to
-// utl.getPureFn('<ns>::<fnName>'); shortening it cuts bytes per occurrence
-// in both the body STRING and the createRTFn closure. The getPureFn key
-// itself is always fully quoted — factory bodies must stay self-contained
-// (they are rebuilt via `new Function('utl', code)`), and per-entry tuple
-// args evaluate in their own module scope, so there is no shared-skeleton
-// const to reference (the pre-migration `k_<alias>` scheme).
+// pureFnAliases maps a pure fn's NAME (the half of its id after `#`) to the
+// short alias used in emitted factory bodies. The alias becomes the local
+// variable bound to `utl.getPureFn('<id>')`; shortening it cuts bytes per
+// occurrence in both the body STRING and the createRTFn closure. The id itself
+// is always fully quoted — factory bodies must stay self-contained (they are
+// rebuilt via `new Function('utl', code)`), and per-entry tuple args evaluate in
+// their own module scope, so there is no shared-skeleton const to reference.
 var pureFnAliases = map[string]string{
 	"newRunTypeErr":           "nRT",
 	"getUnknownKeysFromArray": "gUKFA",
@@ -18,43 +17,17 @@ var pureFnAliases = map[string]string{
 	"findCycle":               "fc",
 }
 
-// pureFnAlias returns the emitter-side alias for a registered pure-fn
-// name, or the full name when no alias is registered (no savings, no
-// break — falls back to the longer identifier without breaking the
-// emitted code).
-func pureFnAlias(fnName string) string {
-	if alias, ok := pureFnAliases[fnName]; ok {
+// pureFnAliasFor returns the emitter-side local-variable alias for the pure fn
+// an id names: the short alias when the table has one, otherwise the name
+// itself. Names are unique within the package that owns them, so two references
+// in one body can never collapse onto one alias.
+func pureFnAliasFor(id string) string {
+	_, name, ok := purefunctions.SplitID(id)
+	if !ok {
+		return id
+	}
+	if alias, aliased := pureFnAliases[name]; aliased {
 		return alias
 	}
-	return fnName
-}
-
-// pureFnAliasFor returns the emitter-side local-variable alias for a
-// pure-fn reference in `namespace`. The `rtFormats` namespace keeps the
-// `pf_<fnName>` convention its format emitters have always used; every
-// other namespace (the `rt` core built-ins) uses the short-alias table.
-// UsePureFn hoists `const <alias> = utl.getPureFn('<ns>::<fnName>')` under
-// this alias, so pureFnAliasFor MUST reproduce the exact byte the
-// pre-migration sites emitted — the choke point is a refactor, never a
-// body-byte change (mode parity).
-func pureFnAliasFor(namespace, fnName string) string {
-	if namespace == formatsPureFnNamespace {
-		return "pf_" + fnName
-	}
-	return pureFnAlias(fnName)
-}
-
-// formatsPureFnNamespace / corePureFnNamespace name the two built-in
-// pure-fn namespaces the emitters reference. Mirrors the resolver-side
-// builtinPureFnNamespaces set (purefunctions/index.go).
-const (
-	corePureFnNamespace    = "rt"
-	formatsPureFnNamespace = "rtFormats"
-)
-
-// isBuiltinPureFnDep reports whether a soft-dep key names a package-owned
-// pure fn (`rt::…` / `rtFormats::…`) rather than a fn cache entry
-// (`<fnHash>_<typeId>` — no `::`). Mirrors the resolver's isBuiltinPureFnKey.
-func isBuiltinPureFnDep(dep string) bool {
-	return strings.HasPrefix(dep, corePureFnNamespace+"::") || strings.HasPrefix(dep, formatsPureFnNamespace+"::")
+	return name
 }

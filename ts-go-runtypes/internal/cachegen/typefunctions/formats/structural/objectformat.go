@@ -202,7 +202,7 @@ func objectWalkCall(ctx formats.EmitContext, params map[string]any, vλl string)
 // countWalkCall hoists a bare key-count sweep and returns the call expression.
 // The errors lane needs the count on its own so each bound reports under its
 // own keyword; `for…in` counting allocates nothing where `Object.keys(v).length`
-// builds a throwaway array (the same trade pf_countEnumKeys documents).
+// builds a throwaway array (the same trade countEnumKeys documents).
 func countWalkCall(ctx formats.EmitContext, vλl string) string {
 	body := "let n = 0;for (const k in o) n++;return n"
 	if fnVar := hoistConst(ctx, "cntObj", "function(o){"+body+"}"); fnVar != "" {

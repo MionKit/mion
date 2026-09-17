@@ -255,32 +255,32 @@ export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
  * inline + purity rules as `PureFunction<F>` (the whole factory is checked), but
  * the compiler emits it as-is instead of wrapping — so the factory body can do
  * one-time setup (a `const RE = /…/` compiled once) and compose other pure fns
- * via `utl.usePureFn('ns::id')` (tracked as a dependency).
+ * via `utl.usePureFn(otherId)` (tracked as a dependency).
  *
- * Pair with the `…Factory` registrars (`registerPureFnFactory`,
- * `registerAnonymousPureFnFactory`); use the plain `PureFunction<F>` marker (and
- * the plain registrars) when the argument is the callback itself.
+ * Pair with `registerPureFnFactory`; use the plain `PureFunction<F>` marker
+ * (and `registerPureFn`) when the argument is the callback itself.
  */
 export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
 
 /**
- * Anonymous pure-fn injection marker — the content-addressed twin of the named
- * `registerPureFnFactory('<ns>::<name>', …)` lane. Like `InjectRunTypeId<T>` it
- * is a pure INJECTION marker (no literal double-duty): absent at author time,
- * the plugin fills the trailing `hash?` parameter with `"rt::<fnHash>"` where
- * `fnHash` is a content hash of the NORMALIZED function BODY (not of `<F>`, so
- * same-signature/different-body pure fns never collide). Because the marker
- * lives in the callee signature it propagates through wrappers — a library can
- * offer its own `registerXPureFn<F>(fn: PureFunction<F>, hash?: InjectPureFnHash<F>)`
- * and the plugin injects at ITS call sites with zero scanner diagnostics.
+ * Pure-fn id injection marker. Like `InjectRunTypeId<T>` it is a pure INJECTION
+ * marker (no literal double-duty): absent at author time, the build fills the
+ * trailing `id?` parameter with the registration's id, which is where it lives —
+ * its package, its file, and the name it is bound to
+ * (`@acme/text/src/slug#slugify`). A registration bound to no name is identified
+ * by a hash of its body instead, so two structurally identical callbacks
+ * collapse to one entry. Because the marker lives in the callee signature it
+ * propagates through wrappers — a library can offer its own
+ * `registerXPureFn<F>(fn: PureFunction<F>, id?: InjectPureFnId<F>)` and the
+ * build injects at ITS call sites with zero scanner diagnostics.
  *
  * `F` is a phantom type parameter used only to link the marker to the sibling
  * `PureFunction<F>` argument; the runtime value is the injected string. Mirrors
  * `InjectRunTypeId`'s `string & {brand}` shape so the Go marker scanner resolves
  * the alias identically.
  */
-export type InjectPureFnHash<F> = string & {
-  readonly __rtInjectPureFnHashBrand?: F;
+export type InjectPureFnId<F> = string & {
+  readonly __rtInjectPureFnIdBrand?: F;
 };
 
 /**

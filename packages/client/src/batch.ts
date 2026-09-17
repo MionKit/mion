@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionjs/core';
 import {inputMapperKey} from '@mionjs/core';
-import type {PureFunction, InjectPureFnHash, InjectBatchId} from '@mionjs/run-types';
+import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
 import type {MiddlewareSubRequest, RouteSubRequest, BatchBuilder, SubRequest} from './types.ts';
 import type {InjectedApiMetadata} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
@@ -92,7 +92,7 @@ const inputFromSymbol = Symbol('InputFromRef');
  *
  * TWO call shapes:
  * - INLINE (vite / next builds): `inputFrom(order, (o) => o.userId)`. The mion preset extracts the
- *   mapper at build time (PureFunction/InjectPureFnHash markers), content-hashes it
+ *   mapper at build time (PureFunction/InjectPureFnId markers), content-hashes it
  *   (`mapperKey = 'rt::<hash>'`) and ships the body to the server bundle through the batches manifest.
  * - BY NAME: `inputFrom(order, 'toUserId')` references a mapper the server registered itself under
  *   `mionjs::<name>`, with RunTypes' `registerPureFn` plus an `allowInputMapper()` call.
@@ -104,7 +104,7 @@ export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
 export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
   source: FromSR,
   mapper: PureFunction<(value: FromSR['resolvedValue']) => MappedInput>,
-  hash?: InjectPureFnHash<(value: FromSR['resolvedValue']) => MappedInput>
+  hash?: InjectPureFnId<(value: FromSR['resolvedValue']) => MappedInput>
 ): InputFromRef<(value: FromSR['resolvedValue']) => MappedInput>;
 export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
   source: FromSR,

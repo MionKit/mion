@@ -277,44 +277,48 @@ var messagesByCode = map[string]message{
 		Detail:   "mion reads types through TypeScript's lib definitions, so it\ncan only validate `Temporal.*` types when the Temporal namespace is loaded.\nWith the lib missing, `{0}` silently degrades to `any` and the validator\nbecomes a no-op that accepts everything, almost never what you intended.\n\nFix: add \"ESNext.Temporal\" to your tsconfig:\n  {\n    \"compilerOptions\": {\n      \"lib\": [\"ES2023\", \"ESNext.Temporal\"]\n    }\n  }",
 	},
 	"PFE9004": {
-		Headline: "Duplicate `registerPureFnFactory` for `{0}` with a different body; only one definition can win.",
-		Detail:   "Two calls register the same `namespace::functionId` key but the factory\nbodies differ. The cache can only hold one definition, so one call site\nsilently loses its version at runtime.\n\nFix: make all registrations identical, or pick one canonical site and\ndelete the others. The Related: line above points at the first\nregistration the extractor saw.",
+		Headline: "Two pure functions share the id `{0}` but have different bodies; only one can win.",
+		Detail:   "A pure function's id is where it lives: the package, the file, and the name\nit is bound to. Two registrations under one id means one file binds the same\nname twice, or two bodies that are not assigned to a name differ only in ways\nthe build cannot see.\n\nFix: give each registration its own binding, or make the bodies identical.\nThe Related: line above points at the first registration the extractor saw.",
 	},
 	"PFE9005": {
 		Headline: "Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.",
-		Detail:   "The build inlines parameter references by name when it materialises the\nfactory. Destructuring patterns (`({a, b})`, `([x, y])`) don't have a\nsingle name to substitute.\n\nFix: destructure inside the body:\n  -  registerPureFnFactory('ns::fn', (utl) => ({a, b}) => ...);\n+  registerPureFnFactory('ns::fn', (utl) => (params) => {\n+    const {a, b} = params;\n+    return ...;\n+  });",
+		Detail:   "The build inlines parameter references by name when it materialises the\nfactory. Destructuring patterns (`({a, b})`, `([x, y])`) don't have a\nsingle name to substitute.\n\nFix: destructure inside the body:\n-  const myFn = registerPureFnFactory((utl) => ({a, b}) => ...);\n+  const myFn = registerPureFnFactory((utl) => (params) => {\n+    const {a, b} = params;\n+    return ...;\n+  });",
 	},
 	"PFE9006": {
-		Headline: "`this` is not allowed inside a `registerPureFnFactory` factory body; pure functions can't depend on a calling context.",
-		Detail:   "Pure functions are materialised standalone at build time; there's no\n`this` to bind to.\n\nFix: replace `this` with an explicit parameter, or move the function\nout of the class/object method that owns the `this`:\n  registerPureFnFactory('ns::fn', (utl) => (self, input) => {\n    return self.field + input;\n  });",
+		Headline: "`this` is not allowed inside a pure-fn factory body; pure functions can't depend on a calling context.",
+		Detail:   "Pure functions are materialised standalone at build time; there's no\n`this` to bind to.\n\nFix: replace `this` with an explicit parameter, or move the function\nout of the class/object method that owns the `this`:\n  const myFn = registerPureFnFactory((utl) => (self, input) => {\n    return self.field + input;\n  });",
 	},
 	"PFE9007": {
-		Headline: "`async`/`await` is not allowed inside a `registerPureFnFactory` factory body.",
-		Detail:   "Pure functions must run synchronously so the build can call them at\ncompile time. `async` introduces a Promise that won't resolve until\nruntime.\n\nFix: make the factory synchronous; move async work to the caller:\n  registerPureFnFactory('ns::fn', (utl) => {\n-   return async (input) => { const r = await heavy(); return r; };\n+   return (resolvedValue) => transform(resolvedValue);\n  });",
+		Headline: "`async`/`await` is not allowed inside a pure-fn factory body.",
+		Detail:   "Pure functions must run synchronously so the build can call them at\ncompile time. `async` introduces a Promise that won't resolve until\nruntime.\n\nFix: make the factory synchronous; move async work to the caller:\n  const myFn = registerPureFnFactory((utl) => {\n-   return async (input) => { const r = await heavy(); return r; };\n+   return (resolvedValue) => transform(resolvedValue);\n  });",
 	},
 	"PFE9008": {
-		Headline: "`yield` / generators are not allowed inside a `registerPureFnFactory` factory body.",
-		Detail:   "Generators carry resumption state that can't be materialised\nstatically.\n\nFix: return an array or a plain iterable instead:\n  registerPureFnFactory('ns::fn', (utl) => (input) => {\n    return [...computeAll(input)];\n  });",
+		Headline: "`yield` / generators are not allowed inside a pure-fn factory body.",
+		Detail:   "Generators carry resumption state that can't be materialised\nstatically.\n\nFix: return an array or a plain iterable instead:\n  const myFn = registerPureFnFactory((utl) => (input) => {\n    return [...computeAll(input)];\n  });",
 	},
 	"PFE9009": {
-		Headline: "`import()` is not allowed inside a `registerPureFnFactory` factory body.",
+		Headline: "`import()` is not allowed inside a pure-fn factory body.",
 		Detail:   "Dynamic imports load modules at runtime, the build needs every\ndependency available statically.\n\nFix: use a top-level `import` statement, or pass the imported module\nin as a parameter.",
 	},
 	"PFE9010": {
-		Headline: "`{0}` is not allowed inside a `registerPureFnFactory` factory body.",
+		Headline: "`{0}` is not allowed inside a pure-fn factory body.",
 		Detail:   "Globals like `eval`, `Function`, `fetch`, `XMLHttpRequest`, `require`,\n`process`, `globalThis`, `window`, `document` are blocked from pure-fn\nbodies: they either execute arbitrary code or depend on a runtime\nenvironment the build can't reproduce.\n\nFix: remove the reference, or pass the needed value in as a parameter.",
 	},
 	"PFE9011": {
-		Headline: "`{0}` is captured from outer scope inside a `registerPureFnFactory` factory; pure functions can't reach outside their own body.",
-		Detail:   "The build inlines factory bodies without their lexical environment, so\nany free variable becomes `undefined` at runtime.\n\nFix: pass `{0}` in as a parameter:\n  registerPureFnFactory('ns::fn', (utl) => ({0}, value) => ...);\n\nFix: inline its value if it's a known constant:\n  registerPureFnFactory('ns::fn', (utl) => (value) => {\n    const {0} = 42;\n    ...\n  });\n\nFix: import `{0}` directly inside the factory if it's a module export.",
+		Headline: "`{0}` is captured from outer scope inside a pure-fn factory; pure functions can't reach outside their own body.",
+		Detail:   "The build inlines factory bodies without their lexical environment, so\nany free variable becomes `undefined` at runtime.\n\nFix: pass `{0}` in as a parameter:\n  const myFn = registerPureFnFactory((utl) => ({0}, value) => ...);\n\nFix: inline its value if it's a known constant:\n  const myFn = registerPureFnFactory((utl) => (value) => {\n    const {0} = 42;\n    ...\n  });\n\nFix: reach another pure function through its id, which the build inlines:\n  import {slugify} from './slug';\n  const myFn = registerPureFnFactory((utl) => (value) => utl.getPureFn(slugify)(value));",
 	},
 	"PFE9012": {
-		Headline: "Pure-fn `{0}` is referenced by a RT function but never registered; call `registerPureFnFactory('{1}::{2}', …)` first.",
-		Detail:   "A RT validator/encoder calls `utl.usePureFn('{0}')` (or similar) but\nno `registerPureFnFactory` call with that namespace+function pair was\nfound in any scanned source file.\n\nFix: register the function in the expected location ({3}, if known).\nMake sure the file is included in the scan set.",
+		Headline: "Pure fn `{0}` is referenced by a RT function but was never registered.",
+		Detail:   "A RT validator/encoder reaches that pure fn through `utl.usePureFn`, but no\nregistration for that id was found in any scanned file. An id names the\npackage, the file and the binding a pure fn was registered under, so a miss\nmeans that file is outside the scan set, or the registration moved or was\nrenamed.\n\nFix: import the id from the file that registers it, and make sure that file\nis part of the build.",
 	},
 	"PFE9013": {
-		Headline: "`{0}.{1}` dependency argument must be a string literal or a same-scope `const` string.",
-		Detail:   "`utl.usePureFn` / `utl.getPureFn` need a static key so the build can\nverify the referenced pure-fn is registered.\n\nFix:\n  -  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  return utl.usePureFn('rt::myFn')(input);",
+		Headline: "`{0}.{1}` dependency argument must be a pure-fn id.",
+		Detail:   "`utl.usePureFn` / `utl.getPureFn` need a static id so the build can verify\nthe pure fn is registered and inline the id into the emitted body. The id is\nthe value a registrar returned, imported from a file in this build, or a\nstring literal.\n\nFix:\n-  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  import {slugify} from './slug';\n+  return utl.usePureFn(slugify)(input);",
+	},
+	"PFE9014": {
+		Headline: "Explicit pure-fn id `{0}` does not match this registration's location `{1}`.",
+		Detail:   "A pure function's id is computed from where it lives: the package, the file\nand the name it is bound to. The build injects it, so source normally passes\nnone. An id written by hand, or left behind by a move or a rename, would\nregister the body under one id while every reference to it uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
 	},
 	"UPN001": {
 		Headline: "Property `{0}` can never be data and is dropped: the rest of the type still works.",

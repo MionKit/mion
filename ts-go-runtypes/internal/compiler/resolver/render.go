@@ -423,10 +423,10 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 	if len(uses) == 0 || sess.Program == nil {
 		return nil
 	}
-	entries, walkFiles, _ := sess.extractProgramPureFns(nil)
+	entries, _, _ := sess.extractProgramPureFns(nil)
 	// Override cfn registrations count too — they only add keys, never remove.
 	entries = append(entries, sess.overrideEntries...)
-	index := purefunctions.NewIndex(entries, walkFiles)
+	index := purefunctions.NewIndex(entries)
 
 	// Flatten to the bare deps for the validation core, and index each key's
 	// demanding call sites (deduped) so a miss can be anchored at them.
@@ -435,7 +435,7 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 	seenSite := map[string]bool{}
 	for _, use := range uses {
 		deps = append(deps, use.Dep)
-		key := use.Dep.Namespace + "::" + use.Dep.FunctionName
+		key := use.Dep.ID
 		for _, site := range use.Sites {
 			fingerprint := key + "\x00" + site.FilePath + "\x00" + strconv.Itoa(site.StartLine) + ":" + strconv.Itoa(site.StartCol)
 			if seenSite[fingerprint] {
@@ -449,7 +449,7 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 	// The validation core returns one file-less diagnostic per missing key.
 	// Fan each out to its demanding call sites (or keep it file-less when the
 	// key was only reached transitively, with no site to point at).
-	missing := purefunctions.ValidatePureFnDependencies(sess.checker, sess.marker, deps, index, sess.Program)
+	missing := purefunctions.ValidatePureFnDependencies(deps, index)
 	var diags []diagnostics.Diagnostic
 	for _, diag := range missing {
 		sites := sitesByKey[pureFnDepDiagKey(diag)]

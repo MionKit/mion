@@ -21,21 +21,21 @@ import (
 // elided from JSON serialisation (unexported) and from the module render
 // (the module emitter reads only Key()/ParamNames/Code/BodyHash).
 type Entry struct {
-	Namespace    string
-	FunctionName string
-	ParamNames   []string
-	Code         string
-	BodyHash     string
-	// PureFnDependencies is the sorted, deduped list of
-	// `"<namespace>::<fnName>"` keys this pure-fn factory accesses via
-	// `utl.getPureFn` / `usePureFn` / `getCompiledPureFn` /
-	// `findCompiledPureFn` calls. Statically extracted by extractDeps
-	// during the same purity walk; absent when the factory has no first
-	// parameter to identify utl through.
+	// ID is where this pure function lives: its package, its file and the name
+	// it is bound to (`@acme/text/src/slug#slugify`), or its body hash when it
+	// is bound to no name. Built by IDFor; it is the registry key everywhere.
+	ID         string
+	ParamNames []string
+	Code       string
+	BodyHash   string
+	// PureFnDependencies is the sorted, deduped list of pure-fn ids this
+	// factory accesses via `utl.getPureFn` / `usePureFn` / `getCompiledPureFn`
+	// calls. Statically extracted by extractDeps during the same purity walk;
+	// absent when the factory has no first parameter to identify utl through.
 	PureFnDependencies []string
 	// FactoryArgStart / FactoryArgEnd are the byte offsets of the user's
-	// factory argument expression in the `registerPureFnFactory(pureFnId,
-	// factory)` call. Used by the Vite plugin to replace that span with
+	// factory argument expression in the `registerPureFnFactory(factory)`
+	// call. Used by the Vite plugin to replace that span with
 	// the pure fn's entry-module import binding so the canonical fn body
 	// lives only in the emitted pureFns cache module.
 	FactoryArgStart int
@@ -44,34 +44,33 @@ type Entry struct {
 	// Stable across requests for one Program. Used by the emitter when
 	// the wire `Replacement.File` field needs to be populated.
 	FilePath string
-	// HashInjectPos / HashInjectText drive the anonymous-lane hash injection:
-	// registerAnonymousPureFn(fn, hash?) leaves the trailing `hash?` slot empty
-	// at author time, so the plugin splices `"rt::<bodyHash>"` in. HashInjectPos
-	// is the byte offset of the call's closing `)` (the point insertion), and
-	// HashInjectText is the literal to splice (with a leading `, ` unless the
-	// call already ends with a trailing comma). Empty HashInjectText marks the
-	// named lane, which injects nothing.
-	HashInjectPos  int
-	HashInjectText string
-	// CalleeName / CalleeModule / Lane / Form are report-only attribution
-	// fields, populated by extractOne and surfaced through the pure-fn build
-	// report (protocol.PureFnSite) — never used by the module render or the
-	// rewrite. CalleeName is the identifier the site invoked (a primitive
-	// registrar, a framework wrapper, or a renamed import); CalleeModule is the
+	// IDInjectPos / IDInjectText drive id injection: `registerPureFn(fn, id?)`
+	// leaves the trailing `id?` slot empty at author time, so the build splices
+	// the id in. IDInjectPos is the byte offset of the call's closing `)` (the
+	// point insertion), and IDInjectText is the literal to splice (with a
+	// leading `, ` unless the call already ends with a trailing comma). Empty
+	// IDInjectText means the call already wrote its id, so nothing is spliced.
+	IDInjectPos  int
+	IDInjectText string
+	// CalleeName / CalleeModule / Form are report-only attribution fields,
+	// populated by extractOne and surfaced through the pure-fn build report
+	// (protocol.PureFnSite) — never used by the module render or the rewrite.
+	// CalleeName is the identifier the site invoked (a primitive registrar, a
+	// framework wrapper, or a renamed import); CalleeModule is the
 	// nearest-package.json / ambient-module name of the file declaring that
-	// callee. Lane is "named" | "anonymous"; Form is "direct" | "factory".
+	// callee. Form is "direct" | "factory".
 	CalleeName   string
 	CalleeModule string
-	Lane         string
 	Form         string
 
 	sourceFile *ast.SourceFile
 	callPos    int
 }
 
-// Key returns the cache key the virtual module uses to look up this entry.
+// Key returns the cache key the virtual module uses to look up this entry: its
+// id, verbatim.
 func (p Entry) Key() string {
-	return p.Namespace + "::" + p.FunctionName
+	return p.ID
 }
 
 // SourceFileLookup is the narrow program-side surface ExtractFromProgramCached
@@ -232,28 +231,8 @@ func RawEntries(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 	return all
 }
 
-// extractFromFile walks a single source file resolved from lookup and
-// returns its pure-fn entries + extractor-side diagnostics (PFE9005 +
-// purity violations + dep diagnostics). Called by the dep-validation
-// Index's lazy expansion (index.go) when a recorded rt dep points at a
-// file the main scan didn't cover.
-//
-// Does NOT perform cross-file collision detection (PFE9004) — the
-// caller folds entries into a shared map and surfaces collisions there.
-// A nil/missing source file yields (nil, nil); the caller decides
-// whether that is an error.
-func extractFromFile(typeChecker *checker.Checker, markerOpts marker.Options, lookup SourceFileLookup, filePath string) ([]Entry, []diagnostics.Diagnostic) {
-	sourceFile := lookup.SourceFile(filePath)
-	if sourceFile == nil {
-		return nil, nil
-	}
-	return extractFromSourceFile(typeChecker, markerOpts, sourceFile)
-}
-
-// extractFromSourceFile is the per-file extraction core: build symbol
-// table, walk every CallExpression, dispatch to extractOne. Called by
-// the ExtractFromProgramCached loop body (which already holds a
-// *SourceFile in hand) and by the lookup-driven extractFromFile above.
+// extractFromSourceFile is the per-file extraction core: walk every
+// CallExpression, dispatch to extractOne.
 func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) ([]Entry, []diagnostics.Diagnostic) {
 	var entries []Entry
 	var diagnostics []diagnostics.Diagnostic
@@ -281,57 +260,6 @@ func findCalls(sourceFile *ast.SourceFile, cb func(*ast.Node)) {
 		return false
 	}
 	sourceFile.AsNode().ForEachChild(visit)
-}
-
-// pureFnFactoryCalleeName is the well-known identifier the walker uses
-// as a cheap pre-filter before resolving signatures. tsgo's signature
-// resolution is one of its heaviest operations; running it for every
-// CallExpression in every file (most of which are unrelated to
-// purefns) is wasteful when a string compare on the callee identifier
-// rules out 99% of calls immediately.
-//
-// The name is NOT the contract — the marker brands are. After the
-// pre-filter the brand check via `isPureFnFactoryCall` still runs and
-// verifies the call's signature really matches `(CompTimeArgs<string>,
-// PureFunction<F> | null)`. A user's own
-// `function registerPureFnFactory()` declared elsewhere is rejected by
-// the brand check even if it passes the name filter. Calls under a
-// DIFFERENT callee name — a renamed import (`import {… as regPF}`) or a
-// framework wrapper whose params carry the same brands (mion's
-// `registerPureFnFactory('mionjs::x', …)` convention behind its own
-// factory) — reach the brand check through the secondary pre-filter:
-// a first argument that is a string literal shaped like a
-// "<ns>::<name>" pure-fn id (`firstArgIsPureFnIdLiteral`). Only a call
-// that matches NEITHER cheap filter (renamed callee AND a traced-const
-// id) is missed by extraction.
-//
-// Compile-time validation (CTA001 / PFN001 on bad args) is a separate
-// concern handled by `resolver.scanCall`, which walks every call
-// regardless of name and emits diagnostics from the brand alone. So
-// the pre-filters here only short-circuit the EXTRACTION pass — the
-// user-facing type-checking guarantees come from the brands either
-// way.
-const pureFnFactoryCalleeName = "registerPureFnFactory"
-
-// pureFnCalleeName is the DIRECT-form named registrar (registerPureFn). Same
-// cheap pre-filter role as pureFnFactoryCalleeName — the brands are the contract.
-const pureFnCalleeName = "registerPureFn"
-
-// firstArgIsPureFnIdLiteral is the secondary extraction pre-filter: the
-// call's first argument is a string literal containing "::" — the
-// `<namespace>::<functionName>` pure-fn id shape. This lets renamed
-// imports and branded wrapper factories reach the (authoritative) brand
-// check without paying signature resolution on every unrelated call;
-// false positives are rejected there.
-func firstArgIsPureFnIdLiteral(callExpr *ast.CallExpression) bool {
-	if callExpr.Arguments == nil || len(callExpr.Arguments.Nodes) == 0 {
-		return false
-	}
-	firstArg := callExpr.Arguments.Nodes[0]
-	if firstArg.Kind != ast.KindStringLiteral && firstArg.Kind != ast.KindNoSubstitutionTemplateLiteral {
-		return false
-	}
-	return strings.Contains(firstArg.Text(), "::")
 }
 
 // ParamHasMarker reports whether the parameter's resolved type carries the
@@ -390,83 +318,38 @@ func pureFnFormMarker(typeChecker *checker.Checker, markerOpts marker.Options, p
 	return false, false
 }
 
-// isNamedPureFnCall reports whether call is a NAMED-lane registration
-// (`registerPureFn` / `registerPureFnFactory`, or a wrapper carrying the same
-// brands) that should be extracted, and whether it uses the direct form (wrap).
-// Two-layer check:
-//
-//  1. Cheap: the callee is an identifier whose text equals a well-known named
-//     registrar, OR the first argument is a "<ns>::<name>"-shaped string literal
-//     (renamed imports and branded wrappers). Avoids signature resolution on
-//     unrelated calls.
-//  2. Brand verify: the resolved signature has ≥2 parameters, slot 0 carries
-//     `CompTimeArgs<string>`, and slot 1 carries a pure-fn form marker
-//     (`PureFunction<F>` → direct, or `PureFunctionFactory<F>` → factory).
-//     Module-of-origin is implicit in the brand check, so a user's own
-//     same-named function is rejected even if it passes the name filter.
-func isNamedPureFnCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) (matched, wrap bool) {
-	callExpr := call.AsCallExpression()
-	if callExpr == nil || callExpr.Expression == nil {
-		return false, false
-	}
-	callee := callExpr.Expression
-	if callee.Kind != ast.KindIdentifier {
-		return false, false
-	}
-	if callee.Text() != pureFnFactoryCalleeName && callee.Text() != pureFnCalleeName && !firstArgIsPureFnIdLiteral(callExpr) {
-		return false, false
-	}
-	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
-	if signature == nil {
-		return false, false
-	}
-	parameters := checker.Signature_parameters(signature)
-	if len(parameters) < 2 {
-		return false, false
-	}
-	if !paramHasMarker(typeChecker, markerOpts, parameters[0], marker.KindCompTimeArgs) {
-		return false, false
-	}
-	return pureFnFormMarker(typeChecker, markerOpts, parameters[1])
-}
-
-// extractOne processes a single CallExpression, dispatching to the named lane
-// (`registerPureFn` / `registerPureFnFactory`) or the anonymous lane
-// (`registerAnonymousPureFn` / `registerAnonymousPureFnFactory`), both recognised
-// by the marker brands on their resolved signature and both carrying the
-// factory-vs-direct intent in the pure-fn parameter's marker. Returns (nil, nil)
-// when the call is neither, or when an argument can't be resolved to its literal
+// extractOne processes a single CallExpression: a pure-fn registration
+// (`registerPureFn` / `registerPureFnFactory`, or any wrapper carrying the same
+// marker brands) is extracted, anything else is skipped. The factory-vs-direct
+// intent rides the pure-fn parameter's marker. Returns (nil, nil) when the call
+// is not a registration, or when an argument can't be resolved to its literal
 // form.
 //
-// Marker-shape validation (non-literal id / factory) is emitted as
-// CTA001 / PFN001 by `resolver.scanCall` — this function does NOT
-// double-report. Only purefn-specific diagnostics are emitted here
-// (PFE9005, PFE9006-9011, PFE9013).
+// Marker-shape validation (non-inline factory) is emitted as CTA001 / PFN001 by
+// `resolver.scanCall` — this function does NOT double-report. Only purefn
+// specific diagnostics are emitted here (PFE9005, PFE9006-9011, PFE9013,
+// PFE9014).
 //
-// The returned Entry carries internal-only fields (sourceFile, callPos)
-// that the caller uses for cross-file collision reporting; these never
-// reach the wire.
+// The returned Entry carries internal-only fields (sourceFile, callPos) that
+// the caller uses for cross-file collision reporting; these never reach the
+// wire.
 func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node) (*Entry, []diagnostics.Diagnostic) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
 		return nil, nil
 	}
-	if matched, wrap := isNamedPureFnCall(typeChecker, markerOpts, call); matched {
-		entry, diags := extractNamed(typeChecker, markerOpts, sourceFile, call, callExpr, wrap)
-		attachCallee(entry, "named", typeChecker, markerOpts, call, callExpr)
-		return entry, diags
+	matched, wrap, fnParamIndex, idParamIndex := isPureFnRegistration(typeChecker, markerOpts, call)
+	if !matched {
+		return nil, nil
 	}
-	if matched, wrap, fnParamIndex, hashParamIndex := isAnonymousPureFnCall(typeChecker, markerOpts, call); matched {
-		entry, diags := extractAnonymous(typeChecker, markerOpts, sourceFile, call, callExpr, wrap, fnParamIndex, hashParamIndex)
-		attachCallee(entry, "anonymous", typeChecker, markerOpts, call, callExpr)
-		return entry, diags
-	}
-	return nil, nil
+	entry, diags := extractRegistration(typeChecker, markerOpts, sourceFile, call, callExpr, wrap, fnParamIndex, idParamIndex)
+	attachCallee(entry, typeChecker, markerOpts, call, callExpr)
+	return entry, diags
 }
 
 // attachCallee records the report-only callee attribution on a freshly
-// extracted entry (lane, plus the callee identifier the site invoked and the
-// module that declares it). A nil entry (the call resolved to no entry) is a
+// extracted entry: the callee identifier the site invoked and the module that
+// declares it. A nil entry (the call resolved to no entry) is a
 // no-op. The callee NAME is read syntactically off the call — `f(...)` or
 // `ns.f(...)` — so it names exactly what the source wrote (a primitive
 // registrar, a framework wrapper, or a renamed import). The callee MODULE comes
@@ -474,11 +357,10 @@ func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceF
 // package that declares the wrapper (e.g. `@acme/toolkit`), not to
 // `@mionjs/run-types`. Both are cheap add-ons over data extraction already
 // touched, so they only run when the report is being built.
-func attachCallee(entry *Entry, lane string, typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node, callExpr *ast.CallExpression) {
+func attachCallee(entry *Entry, typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node, callExpr *ast.CallExpression) {
 	if entry == nil {
 		return
 	}
-	entry.Lane = lane
 	entry.CalleeName = calleeIdentifierName(callExpr)
 	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
 	if signature == nil {
@@ -507,108 +389,70 @@ func calleeIdentifierName(callExpr *ast.CallExpression) string {
 	return ""
 }
 
-// extractNamed handles the developer-named lane:
-// `registerPureFn('<ns>::<name>', fn)` (direct) / `registerPureFnFactory('<ns>::<name>',
-// factory)` (factory). The id is a comptime-literal string; the pure-fn arg
-// (slot 1) is rewritten to the pure fn's entry-module tuple.
-func extractNamed(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, callExpr *ast.CallExpression, wrap bool) (*Entry, []diagnostics.Diagnostic) {
-	if callExpr.Arguments == nil || len(callExpr.Arguments.Nodes) < 2 {
-		return nil, nil
-	}
-	args := callExpr.Arguments.Nodes
-	// Post-rewrite calls carry `null` as the pure-fn argument — the
-	// Vite plugin nulls out the inline function once the original
-	// extraction has produced a cache entry. Re-scanning the
-	// rewritten source must be a quiet no-op: no entry, no
-	// replacement, no diagnostic.
-	if args[1].Kind == ast.KindNullKeyword {
-		return nil, nil
-	}
-
-	idLit, idResult := comptimeargs.ResolveLiteralString(typeChecker, args[0])
-	fnNode, fnResult := comptimeargs.CheckLiteralFunction(typeChecker, args[1])
-
-	// Marker layer (resolver.scanCall) emits CTA001 / PFN001 for these
-	// failures. Silently bail without an entry — duplicate diagnostics
-	// would be noise.
-	if !idResult.Ok || !fnResult.Ok {
-		return nil, nil
-	}
-
-	// The combined id is "<namespace>::<functionName>"; split on the FIRST
-	// "::" so a namespace can't swallow a function name that itself contains
-	// "::" (the internal cache key stays the verbatim id either way).
-	pureFnId := idLit.Text()
-	sep := strings.Index(pureFnId, "::")
-	namespace := pureFnId
-	functionName := ""
-	if sep >= 0 {
-		namespace = pureFnId[:sep]
-		functionName = pureFnId[sep+2:]
-	}
-
-	code, ok := pureFnCode(sourceFile, fnNode, wrap)
-	if !ok {
-		return nil, nil
-	}
-	return buildPureFnEntry(typeChecker, markerOpts, sourceFile, call, fnNode, args[1], namespace, functionName, code, wrap)
-}
-
-// extractAnonymous handles the content-addressed lane:
-// `registerAnonymousPureFn(fn, hash?)` (direct) / `registerAnonymousPureFnFactory(factory,
-// hash?)` (factory). The pure-fn arg (slot 0) is rewritten to the entry-module
-// tuple, and the empty trailing `hash?` slot is spliced with `"rt::<bodyHash>"` —
-// the same content hash the entry is keyed under, so a library wrapper injects an
-// identity that matches a direct call byte-for-byte.
-func extractAnonymous(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, callExpr *ast.CallExpression, wrap bool, fnParamIndex, hashParamIndex int) (*Entry, []diagnostics.Diagnostic) {
+// extractRegistration turns one registration call into an Entry:
+// `registerPureFn(fn, id?)` (direct) / `registerPureFnFactory(factory, id?)`
+// (factory), or any wrapper carrying the same brands. The pure-fn argument is
+// rewritten to the entry-module tuple, and the empty trailing `id?` slot is
+// spliced with the id, so a library wrapper injects an identity that matches a
+// direct call byte-for-byte.
+//
+// An id ALREADY written at the call site (the generated built-in constants, or
+// a re-scan of rewritten source) is verified against the computed one instead
+// of being trusted: a mismatch is PFE9014 and yields no entry, because letting
+// it through would register one body under two ids.
+func extractRegistration(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, callExpr *ast.CallExpression, wrap bool, fnParamIndex, idParamIndex int) (*Entry, []diagnostics.Diagnostic) {
 	if callExpr.Arguments == nil || len(callExpr.Arguments.Nodes) <= fnParamIndex {
 		return nil, nil
 	}
 	args := callExpr.Arguments.Nodes
 
 	fnNode, fnResult := comptimeargs.CheckLiteralFunction(typeChecker, args[fnParamIndex])
-	// Non-inline arg (a forwarded wrapper param, or a re-scanned rewritten
-	// `__rt_pf…` binding): PFN001 is the resolver's job — bail quietly, so the
-	// rewrite is idempotent and wrapper bodies forwarding `fn` don't extract.
+	// Non-inline arg (a `null` hollow registration, a forwarded wrapper param,
+	// or a re-scanned rewritten `__rt_pf…` binding): PFN001 is the resolver's
+	// job — bail quietly, so the rewrite is idempotent and wrapper bodies
+	// forwarding `fn` don't extract.
 	if !fnResult.Ok {
 		return nil, nil
 	}
 
-	code, ok := pureFnCode(sourceFile, fnNode, wrap)
-	if !ok {
-		return nil, nil
-	}
-	// Identity is the code-only content hash, so equal bodies collapse to one
-	// `rt::<hash>` entry (content-addressed dedup) and different bodies never
-	// collide — regardless of signature. The direct and factory forms hash
-	// different code (`return <fn>;` vs the factory body), so they never alias.
-	hash := CodeHash(code)
-	entry, diags := buildPureFnEntry(typeChecker, markerOpts, sourceFile, call, fnNode, args[fnParamIndex], AnonymousNamespace, hash, code, wrap)
+	entry, diags := buildPureFnEntry(typeChecker, markerOpts, sourceFile, call, fnNode, args[fnParamIndex], wrap)
 	if entry == nil {
 		return nil, diags
 	}
-	// Inject the hash only when its slot is genuinely empty. A caller that
-	// already wrote it (an explicitly forwarded handle, or re-scanned rewritten
-	// source) is a pass-through — a second splice would duplicate it. Optional
-	// non-marker gaps between the last written argument and the hash slot are
-	// padded with `undefined` so the id lands at its declared parameter index.
-	if len(args) <= hashParamIndex {
-		entry.HashInjectPos = call.End() - 1
-		entry.HashInjectText = TrailingArgText(entry.Key(), callExpr.Arguments.HasTrailingComma(), hashParamIndex-len(args))
+
+	if len(args) > idParamIndex {
+		written, result := comptimeargs.ResolveLiteralString(typeChecker, args[idParamIndex])
+		// An id that does not resolve to a literal is a forwarded wrapper
+		// parameter we cannot read; there is nothing to verify, so it rides
+		// through and the registrar sees whatever the caller passed.
+		if result.Ok && written.Text() != entry.ID {
+			diags = append(diags, diagnostics.New(
+				diagnostics.CodePureFnIdMismatch,
+				siteFromNode(sourceFile, args[idParamIndex]),
+				written.Text(),
+				entry.ID,
+			))
+			return nil, diags
+		}
+		return entry, diags
 	}
+	// Inject the id only when its slot is genuinely empty. Optional non-marker
+	// gaps between the last written argument and the id slot are padded with
+	// `undefined` so the id lands at its declared parameter index.
+	entry.IDInjectPos = call.End() - 1
+	entry.IDInjectText = TrailingArgText(entry.ID, callExpr.Arguments.HasTrailingComma(), idParamIndex-len(args))
 	return entry, diags
 }
 
 // TrailingArgText renders the spliced trailing argument(s) an injection lane
-// appends at a call's closing `)` — the quoted id (the anonymous lane's
-// `"rt::<hash>"`, the batches lane's `"b_<hash>"`), preceded by one `undefined`
-// per skipped optional slot (`undefinedPadding`) and by `, ` unless the call
-// already ends with a trailing comma (in which case the position sits right
-// after a separator and a leading comma would produce an empty `f(a,, …)`
-// argument). Exported so every lane that splices a trailing id renders the
-// byte-identical text.
-func TrailingArgText(key string, trailingComma bool, undefinedPadding int) string {
-	text := strings.Repeat("undefined, ", undefinedPadding) + jsquote.Single(key)
+// appends at a call's closing `)` — the quoted id (a pure fn's, the batches
+// lane's `"b_<hash>"`), preceded by one `undefined` per skipped optional slot
+// (`undefinedPadding`) and by `, ` unless the call already ends with a trailing
+// comma (in which case the position sits right after a separator and a leading
+// comma would produce an empty `f(a,, …)` argument). Exported so every lane
+// that splices a trailing id renders the byte-identical text.
+func TrailingArgText(id string, trailingComma bool, undefinedPadding int) string {
+	text := strings.Repeat("undefined, ", undefinedPadding) + jsquote.Single(id)
 	if trailingComma {
 		return text
 	}
@@ -625,38 +469,46 @@ func TrailingArgText(key string, trailingComma bool, undefinedPadding int) strin
 //     `function(){ return <fn> }` yields it. `stripTypesFromExpr` over the whole
 //     function node produces the `return`-wrapped form.
 //
+// `lowerings` are replacement spans applied along with the type stripping: the
+// imported ids a body reaches another pure fn through, rewritten to their
+// quoted literals, so the emitted body carries no free identifier.
+//
 // ok is false when a factory-form arg has no body.
-func pureFnCode(sourceFile *ast.SourceFile, fnNode *ast.Node, wrap bool) (string, bool) {
+func pureFnCode(sourceFile *ast.SourceFile, fnNode *ast.Node, wrap bool, lowerings []textRange) (string, bool) {
 	if wrap {
-		return stripTypesFromExpr(sourceFile, fnNode), true
+		return stripTypesFromExpr(sourceFile, fnNode, lowerings), true
 	}
 	body := fnNode.Body()
 	if body == nil {
 		return "", false
 	}
 	if body.Kind == ast.KindBlock {
-		return stripTypesFromBlock(sourceFile, body), true
+		return stripTypesFromBlock(sourceFile, body, lowerings), true
 	}
-	return stripTypesFromExpr(sourceFile, body), true
+	return stripTypesFromExpr(sourceFile, body, lowerings), true
 }
 
-// buildPureFnEntry is the shared post-recognition extraction every lane runs
-// against a resolved pure-fn node: purity validation (PFE9006-9011) and assembly
-// of the base Entry keyed `<namespace>::<functionName>`. `code` is the
-// already-stripped code (the caller strips it — the anonymous lane needs it before
-// this call to derive the key). `fnArg` is the argument node whose byte span the
-// plugin rewrites to the entry-module tuple.
+// buildPureFnEntry is the extraction every registration runs against its
+// resolved pure-fn node, in the one order the pieces allow: the factory's
+// dependencies first (they decide what the body lowers to), then the code, then
+// the id (a registration bound to no name is identified by that code), then the
+// body hash, then purity.
 //
-// The FACTORY form (wrap=false) additionally extracts the factory's parameter
-// names (+ the PFE9005 destructuring guard, since the emitter reconstructs
+// The FACTORY form (wrap=false) extracts the factory's parameter names (+ the
+// PFE9005 destructuring guard, since the emitter reconstructs
 // `function(<params>){…}` by name) and its static pure-fn dependencies (the
-// `utl.getPureFn('ns::id')` calls its body reaches). The DIRECT form (wrap=true)
-// has neither: the synthesised factory takes no `utl` and the pure fn is emitted
+// `utl.getPureFn(id)` calls its body reaches). The DIRECT form (wrap=true) has
+// neither: the synthesised factory takes no `utl` and the pure fn is emitted
 // verbatim inside `return <fn>;`, so its own params ride along untouched.
-func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, fnNode *ast.Node, fnArg *ast.Node, namespace, functionName, code string, wrap bool) (*Entry, []diagnostics.Diagnostic) {
+//
+// `fnArg` is the argument node whose byte span the plugin rewrites to the
+// entry-module tuple.
+func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, fnNode *ast.Node, fnArg *ast.Node, wrap bool) (*Entry, []diagnostics.Diagnostic) {
 	var diags []diagnostics.Diagnostic
 	var paramNames []string
 	var pureFnDependencies []string
+	var lowerings []textRange
+	var exempt []textRange
 	if !wrap {
 		fnLike := fnNode.FunctionLikeData()
 		if fnLike == nil || fnLike.Parameters == nil {
@@ -671,15 +523,15 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 				diags = append(diags, diagnostics.New(
 					diagnostics.CodeDestructuredParam,
 					siteFromNode(sourceFile, paramNode),
-					namespace+"::"+functionName,
+					siteID(markerOpts, sourceFile, call),
 				))
 				return nil, diags
 			}
 			paramNames = append(paramNames, nameNode.Text())
 		}
 		// Static dep extraction — walk the factory body for calls like
-		// `<utlName>.getPureFn('ns::fn')` and collect the literal keys as the
-		// entry's pureFnDependencies (the first param identifies `utl`).
+		// `<utlName>.getPureFn(slugify)` and collect the ids they resolve to
+		// (the first param identifies `utl`), plus the spans to lower.
 		utlName := ""
 		if len(fnLike.Parameters.Nodes) > 0 {
 			firstParamDecl := fnLike.Parameters.Nodes[0].AsParameterDeclaration()
@@ -691,9 +543,23 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 			}
 		}
 		var depDiags []diagnostics.Diagnostic
-		pureFnDependencies, depDiags = extractDeps(typeChecker, markerOpts, sourceFile, fnNode, utlName)
+		pureFnDependencies, lowerings, exempt, depDiags = extractDeps(typeChecker, markerOpts, sourceFile, fnNode, utlName)
 		diags = append(diags, depDiags...)
 	}
+
+	code, ok := pureFnCode(sourceFile, fnNode, wrap, lowerings)
+	if !ok {
+		return nil, diags
+	}
+	// A registration bound to a name is identified by that name; one bound to
+	// nothing (a callback handed straight to a wrapper) is identified by its
+	// body, so two structurally equal bodies still collapse to one entry. The
+	// body here is the LOWERED one, which is what actually ships.
+	name := bindingNameOf(call)
+	if name == "" {
+		name = CodeHash(code)
+	}
+	id := IDFor(markerOpts, sourceFile.FileName(), name)
 
 	// Purity validation — port of the reference eslint rules'
 	// `pure-functions.ts` rule. Emits PFE9006-PFE9011 diagnostics for
@@ -701,18 +567,19 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 	// closure-variable references. Build never fails; the entry still
 	// emits even when violations exist (same posture as PFE9005). Runs on the
 	// pure fn itself for BOTH forms — a captured variable is unsafe either way.
-	diags = append(diags, checkPurity(sourceFile, fnNode)...)
+	// The lowered dep arguments are exempt: they are literals by the time the
+	// body ships, so they are not captures.
+	diags = append(diags, checkPurity(sourceFile, fnNode, exempt)...)
 
 	form := "factory"
 	if wrap {
 		form = "direct"
 	}
 	entry := &Entry{
-		Namespace:          namespace,
-		FunctionName:       functionName,
+		ID:                 id,
 		ParamNames:         paramNames,
 		Code:               code,
-		BodyHash:           BodyHash(namespace, functionName, code),
+		BodyHash:           BodyHash(id, code),
 		PureFnDependencies: pureFnDependencies,
 		FactoryArgStart:    fnArg.Pos(),
 		FactoryArgEnd:      fnArg.End(),
@@ -722,6 +589,17 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 		callPos:            call.Pos(),
 	}
 	return entry, diags
+}
+
+// siteID names a registration in a diagnostic raised before its id can be
+// computed, which is why a registration bound to no name reads `#(unnamed)`
+// here rather than carrying its body hash.
+func siteID(markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node) string {
+	name := bindingNameOf(call)
+	if name == "" {
+		name = "(unnamed)"
+	}
+	return IDFor(markerOpts, sourceFile.FileName(), name)
 }
 
 // siteFromNode builds a 1-based diagnostics.Site for the node's start/end.

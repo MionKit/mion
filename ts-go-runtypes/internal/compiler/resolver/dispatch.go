@@ -179,10 +179,10 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	// instead of crashing at runtime. ProvenanceSites anchors any breach at
 	// the demanding createJsonEncoderFn/Decoder call site.
 	typefunctions.AssertCompositeSoftDeps(graph, rtOpts.ProvenanceSites, rtOpts.DiagSink)
-	// Same invariant for cfn redirects: every `utl.usePureFn('cfn::…')` must
-	// have its module in the graph or the build fails (OVR002) instead of
-	// throwing at runtime.
-	typefunctions.AssertOverrideCfn(graph, rtOpts.DiagSink)
+	// Same invariant for cfn redirects: every override body a redirect forwards
+	// to must have its module in the graph or the build fails (OVR002) instead
+	// of throwing at runtime.
+	typefunctions.AssertOverrideCfn(graph, sess.overrideIDs(), rtOpts.DiagSink)
 
 	// Dropping an entry whose same-family dep never rendered mirrors the
 	// pre-migration dangling cascade; the demanded roots that fall out (or
@@ -676,14 +676,14 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 	return out
 }
 
-// serveBuiltinPureFns delivers the package-owned pure-fn bodies (`rt::…` /
-// `rtFormats::…`) demanded by the surviving graph, straight from the generated
-// table (builtinpurefns) — the mechanism that lets a published consumer, whose
-// program has only a .d.ts, receive built-in bodies at all. Demand is (a) every
-// soft dep the table recognises (covers user-pure-fn → built-in edges) plus
-// (b) every `rt::`/`rtFormats::` soft dep on a TYPE-FN entry, whose bodies reach
-// only built-ins (never the anonymous `rt::<hash>` lane, so no false demand). The
-// table's transitive closure is pulled too (isDateString_YMD → isDateString).
+// serveBuiltinPureFns delivers the package-owned pure-fn bodies demanded by the
+// surviving graph, straight from the generated table (builtinpurefns) — the
+// mechanism that lets a published consumer, whose program has only a .d.ts,
+// receive built-in bodies at all. Demand is (a) every soft dep the table
+// recognises (covers user-pure-fn → built-in edges) plus (b) every soft dep on a
+// TYPE-FN entry that the table does not recognise, whose bodies only ever reach
+// built-ins. The table's transitive closure is pulled too (isDateString_YMD →
+// isDateString).
 //
 // A (b)-demanded key the table does NOT carry is a genuine build error: once
 // delivery is build-owned there is no runtime registration lane left to cover a
@@ -718,12 +718,12 @@ func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]d
 				addDemand(dep)
 				continue
 			}
-			// A `rt::`/`rtFormats::` edge on a type-fn entry that the table does
-			// not carry: demand it so Closure reports it as missing (a build
-			// error). Restricted to type-fn entries — only their bodies reach
-			// built-ins, so the anonymous `rt::<hash>` user lane (which shares the
-			// `rt` namespace but lives only on pure-fn entries) is never misread.
-			if entry.Kind == entrymodules.KindTypeFn && isBuiltinPureFnKey(dep) {
+			// An edge on a type-fn entry the table does not carry: demand it so
+			// Closure reports it as missing (a build error). Restricted to
+			// type-fn entries, whose bodies reach built-ins and nothing else —
+			// a pure-fn entry's edges are the user's own, which the program
+			// extractor owns.
+			if entry.Kind == entrymodules.KindTypeFn {
 				addDemand(dep)
 			}
 		}
@@ -736,26 +736,9 @@ func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]d
 	if diagSink == nil {
 		return
 	}
-	for _, key := range missing {
-		namespace, fnName := splitBuiltinPureFnKey(key)
-		*diagSink = append(*diagSink, diagnostics.New(diagnostics.CodeMissingPureFnDep, diagnostics.Site{}, key, namespace, fnName, ""))
+	for _, id := range missing {
+		*diagSink = append(*diagSink, diagnostics.New(diagnostics.CodeMissingPureFnDep, diagnostics.Site{}, id))
 	}
-}
-
-// isBuiltinPureFnKey reports whether dep is in a package-owned pure-fn namespace
-// (`rt` / `rtFormats`). It matches the anonymous `rt::<hash>` lane too, so callers
-// gate on entry kind — type-fn bodies never reference anonymous pure fns.
-func isBuiltinPureFnKey(dep string) bool {
-	namespace, _ := splitBuiltinPureFnKey(dep)
-	return namespace == "rt" || namespace == "rtFormats"
-}
-
-// splitBuiltinPureFnKey splits a `<ns>::<fn>` key at the first `::`.
-func splitBuiltinPureFnKey(key string) (namespace, fnName string) {
-	if idx := strings.Index(key, "::"); idx >= 0 {
-		return key[:idx], key[idx+2:]
-	}
-	return key, ""
 }
 
 // typeIDFromEntryKey splits a `<fnHash>_<typeId>` fn-entry key at the first

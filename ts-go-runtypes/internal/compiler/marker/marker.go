@@ -64,17 +64,17 @@ const (
 	// KindCompTimeArgs, but it ALSO tells the scanner which parameter to read
 	// when computing the injected fnHash.
 	KindCompTimeFnArgs
-	// KindInjectPureFnHash is the anonymous pure-fn injection marker
-	// (InjectPureFnHash<F>). Like KindInjectRunTypeId it rides the callee
-	// signature so it propagates through wrappers, but the injected value is a
-	// content hash of the sibling PureFunction<F> factory BODY — `"rt::<fnHash>"`.
-	// The purefunctions extractor recognises the registerAnonymousPureFn call
-	// shape by this brand and splices the hash in; the resolver's marker walk
-	// does not inject for it (no createX id/fnId), so it carries no scanCall case.
-	KindInjectPureFnHash
+	// KindInjectPureFnId is the pure-fn id injection marker (InjectPureFnId<F>).
+	// Like KindInjectRunTypeId it rides the callee signature so it propagates
+	// through wrappers, and the injected value is the id of the sibling
+	// PureFunction<F> registration: its package, its file and the name it is
+	// bound to. The purefunctions extractor recognises a registration by this
+	// brand and splices the id in; the resolver's marker walk does not inject
+	// for it (no createX id/fnId), so it carries no scanCall case.
+	KindInjectPureFnId
 	// KindPureFunctionFactory brands a function argument as a FACTORY
-	// `(utl) => fn` (the registerPureFnFactory / registerAnonymousPureFnFactory
-	// lanes). Same inline + purity rules as KindPureFunction, but it tells the
+	// `(utl) => fn` (the registerPureFnFactory lane). Same inline + purity
+	// rules as KindPureFunction, but it tells the
 	// extractor to emit the factory AS-IS. The plain KindPureFunction is the
 	// DIRECT form — the argument is the pure fn itself, wrapped into `() => fn`.
 	// The marker on the pure-fn parameter is what carries the factory-vs-direct
@@ -90,7 +90,7 @@ const (
 	// (`mock.seed` seeds the generated pattern mockSample pools).
 	KindCompTimeHints
 	// KindInjectBatchId is the request-batch id injection marker
-	// (InjectBatchId<Routes>). Like KindInjectPureFnHash it rides the callee
+	// (InjectBatchId<Routes>). Like KindInjectPureFnId it rides the callee
 	// signature so it propagates through wrappers, and the injected value is a
 	// deterministic id derived from the ORDERED route ids the sibling
 	// `[...Routes]` argument names (`"b_<hash>"`). The batches extractor
@@ -138,9 +138,9 @@ const DefaultPureFunctionName = "PureFunction"
 // brand (the FACTORY form — the argument is a `(utl) => fn` factory).
 const DefaultPureFunctionFactoryName = "PureFunctionFactory"
 
-// DefaultInjectPureFnHashName is the symbol name for the anonymous pure-fn
-// injection marker (InjectPureFnHash<F>).
-const DefaultInjectPureFnHashName = "InjectPureFnHash"
+// DefaultInjectPureFnIdName is the symbol name for the pure-fn id injection
+// marker (InjectPureFnId<F>).
+const DefaultInjectPureFnIdName = "InjectPureFnId"
 
 // DefaultInjectBatchIdName is the symbol name for the request-batch id
 // injection marker (InjectBatchId<Routes>).
@@ -183,7 +183,7 @@ const (
 	BrandPureFunction        = "__rtPureFunctionBrand"
 	BrandPureFunctionFactory = "__rtPureFunctionFactoryBrand"
 	BrandInjectTypeFnArgs    = "__rtInjectTypeFnArgsBrand"
-	BrandInjectPureFnHash    = "__rtInjectPureFnHashBrand"
+	BrandInjectPureFnId      = "__rtInjectPureFnIdBrand"
 	BrandInjectBatchId       = "__rtInjectBatchIdBrand"
 	BrandInjectApiMetadata   = "__rtInjectApiMetadataBrand"
 )
@@ -198,7 +198,7 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultPureFunctionName, Module: DefaultModule, Kind: KindPureFunction, BrandProperty: BrandPureFunction},
 		{Name: DefaultPureFunctionFactoryName, Module: DefaultModule, Kind: KindPureFunctionFactory, BrandProperty: BrandPureFunctionFactory},
 		{Name: DefaultInjectTypeFnArgsName, Module: DefaultModule, Kind: KindInjectTypeFnArgs, BrandProperty: BrandInjectTypeFnArgs},
-		{Name: DefaultInjectPureFnHashName, Module: DefaultModule, Kind: KindInjectPureFnHash, BrandProperty: BrandInjectPureFnHash},
+		{Name: DefaultInjectPureFnIdName, Module: DefaultModule, Kind: KindInjectPureFnId, BrandProperty: BrandInjectPureFnId},
 		{Name: DefaultInjectBatchIdName, Module: DefaultModule, Kind: KindInjectBatchId, BrandProperty: BrandInjectBatchId},
 		{Name: DefaultInjectApiMetadataName, Module: DefaultModule, Kind: KindInjectApiMetadata, BrandProperty: BrandInjectApiMetadata},
 		// CompTimeHints is an identity alias (no phantom brand exists on
@@ -879,38 +879,56 @@ func DeclaringModuleOfNode(node *ast.Node, fs vfspkg.FS) string {
 // reads are already cheap (in-memory) and their contents can change per
 // setSources, so caching them by directory alone would risk cross-overlay
 // staleness.
-var packageNameCache sync.Map // map[string]string
+var packageNameCache sync.Map // map[string]packageOfDir
 
-// packageNameForFile returns the `"name"` field of the nearest package.json
-// found by walking parent directories from filePath, or "" when no package.json
-// is found, the file is unreadable, or it has no name. The first package.json
-// hit going up wins — Node's package identity rule. We do NOT keep walking past
-// a package.json that lacks a `"name"` field; that file still declares a package
-// boundary, just a nameless one (so the marker check fails closed for files in
-// such a "package"). When fs is non-nil the walk reads package.json through it
-// (overlay / in-memory packages); nil reads the real on-disk filesystem.
-func packageNameForFile(filePath string, fs vfspkg.FS) string {
+// packageOfDir is one cache row: the nearest package.json's `"name"` and the
+// directory that holds it. Root is set whenever a package.json was found, even
+// a nameless one (it still declares the boundary); both empty means none.
+type packageOfDir struct {
+	Name string
+	Root string
+}
+
+// PackageOfFile returns the `"name"` field of the nearest package.json found by
+// walking parent directories from filePath, and the directory that holds it.
+// The first package.json hit going up wins — Node's package identity rule. We do
+// NOT keep walking past a package.json that lacks a `"name"` field; that file
+// still declares a package boundary, just a nameless one, so the name comes back
+// empty while the root still points at it. Both empty means no package.json at
+// all (or an unreadable one). When fs is non-nil the walk reads package.json
+// through it (overlay / in-memory packages); nil reads the real on-disk
+// filesystem.
+func PackageOfFile(filePath string, fs vfspkg.FS) (name, rootDir string) {
 	if filePath == "" {
-		return ""
+		return "", ""
 	}
 	dir := tspath.GetDirectoryPath(tspath.NormalizePath(filePath))
 	if fs == nil {
 		if cached, ok := packageNameCache.Load(dir); ok {
-			return cached.(string)
+			row := cached.(packageOfDir)
+			return row.Name, row.Root
 		}
-		name := lookupPackageNameUpward(dir, nil)
-		packageNameCache.Store(dir, name)
-		return name
+		name, rootDir = lookupPackageUpward(dir, nil)
+		packageNameCache.Store(dir, packageOfDir{Name: name, Root: rootDir})
+		return name, rootDir
 	}
-	return lookupPackageNameUpward(dir, fs)
+	return lookupPackageUpward(dir, fs)
 }
 
-// lookupPackageNameUpward climbs from dir toward the filesystem root, returning
-// the `"name"` of the first readable package.json it finds. Stops at the root
-// (when GetDirectoryPath is a fixed point). Returns "" for any of: file does not
-// exist, JSON unparseable, name missing or empty. Reads through fs when non-nil,
-// otherwise os.ReadFile.
-func lookupPackageNameUpward(dir string, fs vfspkg.FS) string {
+// packageNameForFile is the name-only half of PackageOfFile, the shape the
+// marker module-of-origin gate wants.
+func packageNameForFile(filePath string, fs vfspkg.FS) string {
+	name, _ := PackageOfFile(filePath, fs)
+	return name
+}
+
+// lookupPackageUpward climbs from dir toward the filesystem root, returning the
+// `"name"` of the first readable package.json it finds and the directory holding
+// it. Stops at the root (when GetDirectoryPath is a fixed point). The name is ""
+// for any of: JSON unparseable, name missing or empty; both values are "" when
+// no package.json exists on the chain. Reads through fs when non-nil, otherwise
+// os.ReadFile.
+func lookupPackageUpward(dir string, fs vfspkg.FS) (name, rootDir string) {
 	current := dir
 	for {
 		if content, ok := readPackageJSON(tspath.CombinePaths(current, "package.json"), fs); ok {
@@ -918,13 +936,13 @@ func lookupPackageNameUpward(dir string, fs vfspkg.FS) string {
 				Name string `json:"name"`
 			}
 			if err := json.Unmarshal([]byte(content), &pkg); err == nil {
-				return pkg.Name
+				return pkg.Name, current
 			}
-			return ""
+			return "", current
 		}
 		parent := tspath.GetDirectoryPath(current)
 		if parent == current || parent == "" {
-			return ""
+			return "", ""
 		}
 		current = parent
 	}

@@ -39,12 +39,12 @@ type overrideSite struct {
 }
 
 // rawOverride is one discovered override declaration, captured before base keys
-// are folded to a fixpoint. cfnHash is the cfn's body-hash name (CodeHash), the
-// value that rides the `|cfn:<family>:<hash>` suffix.
+// are folded to a fixpoint. cfnID is the cfn's pure-fn id, the value that rides
+// the `|cfn:<family>:<id>` suffix.
 type rawOverride struct {
 	typeArg *checker.Type
 	opName  string
-	cfnHash string
+	cfnID   string
 	site    diagnostics.Site
 }
 
@@ -94,14 +94,14 @@ func (sess *Session) ensureOverrides() {
 			if !ok {
 				return true
 			}
-			cfn, cfnOK := purefunctions.ExtractOverrideFn(sess.checker, sourceFile, site.fnArg)
+			cfn, cfnOK := purefunctions.ExtractOverrideFn(sess.checker, sess.MarkerOptions(), sourceFile, site.fnArg)
 			if !cfnOK {
 				return true
 			}
 			raws = append(raws, rawOverride{
 				typeArg: site.typeArgument,
 				opName:  site.opName,
-				cfnHash: cfn.FunctionName,
+				cfnID:   cfn.Key(),
 				site:    textpos.NodeSite(sourceFile.FileName(), sourceFile, call),
 			})
 			argSpans[sourceFile.FileName()] = append(argSpans[sourceFile.FileName()],
@@ -132,6 +132,17 @@ func (sess *Session) ensureOverrides() {
 	sess.cache.SetOverrides(overrides)
 }
 
+// overrideIDs is the set of pure-fn ids the override pass extracted. An
+// override's id is shaped like any other pure fn's, so this set is what tells a
+// redirect's target apart from an ordinary soft dep.
+func (sess *Session) overrideIDs() map[string]bool {
+	out := make(map[string]bool, len(sess.overrideEntries))
+	for _, entry := range sess.overrideEntries {
+		out[entry.Key()] = true
+	}
+	return out
+}
+
 // foldOverrideMap iterates the base-key computation to a fixpoint and returns the
 // final override map plus the final base key of each raw (parallel to raws). The
 // first raw (source order) wins a (baseKey, opName) pair; conflicts are reported
@@ -151,7 +162,7 @@ func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]
 				next[baseKey] = families
 			}
 			if _, exists := families[raw.opName]; !exists {
-				families[raw.opName] = raw.cfnHash
+				families[raw.opName] = raw.cfnID
 			}
 		}
 		if overrideMapsEqual(prev, next) {

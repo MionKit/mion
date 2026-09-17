@@ -38,6 +38,7 @@
 // frame just pushed — so it's a plain `pop()`, and membership is the only scan.
 
 import {registerPureFnFactory} from './pureFn.ts';
+import {findCycleId} from './pure-fn-ids.generated.ts';
 
 /** Path to a detected cycle — object keys and array/tuple indices, plus
  *  `mapKey[i]`/`mapValue[i]` labels for keyed collections. Mirrors CircularPath
@@ -71,7 +72,7 @@ type CircularWalkState = {
   safe: Set<unknown>[];
 };
 
-registerPureFnFactory('rt::findCycle', function () {
+export const findCycle = registerPureFnFactory(function () {
   // The recursive `nav` / `dfs` closures are created ONCE here (factory closure,
   // at materialisation) — but ALL mutable state rides the per-call `st` argument
   // (CircularWalkState above), so invocations are fully isolated: a synchronous
@@ -181,4 +182,4 @@ registerPureFnFactory('rt::findCycle', function () {
     const st: CircularWalkState = {c: skeleton.c, e: skeleton.e, stack: [], path: [], safe: []};
     return dfs(value, 0, st) ? st.path.slice() : null;
   };
-});
+}, findCycleId);

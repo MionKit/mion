@@ -6,7 +6,7 @@
 //   1. RE-EXPORTS registerAnonymousPureFn from '@mionjs/run-types' (the barrel a
 //      framework proxy package like @mionjs/run-types ships), and
 //   2. declares its own registerAcmePureFn() wrapper whose params carry the
-//      injection markers (PureFunction<F> factory + trailing InjectPureFnHash<F>).
+//      injection markers (PureFunction<F> factory + trailing InjectPureFnId<F>).
 //
 // Two consumer files exercise both transform-gate paths:
 //   - consumer.ts imports registerAnonymousPureFn RENAMED + the wrapper. The
@@ -54,17 +54,17 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 
 // The framework surface: barrel re-export + a branded wrapper over the anonymous
 // lane. Only this file names '@mionjs/run-types', and it lives in node_modules.
-const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@mionjs/run-types';
+const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
 export {registerAnonymousPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
-  hash?: InjectPureFnHash<F>,
+  hash?: InjectPureFnId<F>,
 ): unknown;
 export declare function mapAcmeFrom<Source, MappedInput>(source: Source, fnName: string): unknown;
 export declare function mapAcmeFrom<Source, MappedInput>(
   source: Source,
   mapper: PureFunction<(value: Source) => MappedInput>,
-  hash?: InjectPureFnHash<(value: Source) => MappedInput>,
+  hash?: InjectPureFnId<(value: Source) => MappedInput>,
 ): unknown;
 `;
 
