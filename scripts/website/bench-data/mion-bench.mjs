@@ -361,8 +361,10 @@ function gcProbeMetrics(record) {
     promotedPerReq: record.gc?.promotedPerReq ?? null,
     majorsPerKReq: record.gc?.majorsPerKReq ?? null,
     gcPauseMsPerReq: record.gc?.gcPauseMsPerReq ?? null,
+    peakHeapUsedMb: record.gc ? Math.round((record.gc.peakHeapUsed / 1024 / 1024) * 100) / 100 : null,
     peakRssMb: record.peakRss ? Math.round((record.peakRss / 1024 / 1024) * 100) / 100 : null,
     reqPerSec: Math.round(record.requests.mean),
+    requestsTotal: record.requestsTotal,
   };
 }
 
@@ -382,16 +384,31 @@ const METRIC_ROWS = [
   ['promotedPerReq', 'bytes promoted per request', 'lower'],
   ['majorsPerKReq', 'major GCs per 1000 requests', 'lower'],
   ['gcPauseMsPerReq', 'GC pause ms per request', 'lower'],
+  // JS heap against process RSS: when these two disagree the difference is memory V8 reserved
+  // rather than memory the change actually used, which is a different finding entirely.
+  ['peakHeapUsedMb', 'peak JS heap MB', 'lower'],
   ['peakRssMb', 'peak RSS MB', 'lower'],
   ['reqPerSec', 'requests per second', 'higher'],
 ];
+
+// Below this many requests in a window the GC ratios are dominated by whether a single collection
+// happened to land inside it: measured 15x swings WITHIN one arm at ~160 requests. Printed as a
+// warning rather than enforced, because a deliberately short smoke run is still useful.
+const MIN_SAMPLE_REQUESTS = 600;
 
 /** Prints each arm as its RANGE, not its mean. The rule this probe exists to serve is that a
  *  candidate counts only when the groups do not overlap; a difference of means proves nothing. */
 function printGcProbe(samples, shapes, size) {
   const lanes = [...new Set(samples.map((sample) => sample.lane))];
   for (const lane of lanes) {
+    const requests = samples.filter((sample) => sample.lane === lane).map((sample) => sample.requestsTotal);
+    const smallest = Math.min(...requests);
     console.log(`\n── ${size} · ${lane} ─────────────────────────────`);
+    console.log(`  requests per window            ${smallest}..${Math.max(...requests)}`);
+    if (smallest < MIN_SAMPLE_REQUESTS) {
+      console.log(`  ⚠ UNDER-POWERED: fewer than ${MIN_SAMPLE_REQUESTS} requests per window, the GC ratios are noise.`);
+      console.log(`    Drop --quick, or raise MION_BENCH_DURATION, until every window clears that.`);
+    }
     const groups = shapes.map((shape) => ({
       shape,
       values: samples.filter((sample) => sample.lane === lane && sample.shape === shape),
