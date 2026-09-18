@@ -2,7 +2,7 @@
 // getValidationErrors / jsonEncode / binaryEncode). The guard itself is a
 // COMPILE-TIME option (`{rejectCircularRefs: true}`) baked into the armed
 // factory body by the Go emitter, which walks a value against a small path
-// skeleton via the `rt::findCycle` pure fn (see circular-pure-fns.ts) and
+// skeleton via the `findCycle` pure fn (see circular-pure-fns.ts) and
 // applies the family's reaction. This module keeps only the small, always-static
 // pieces the armed bodies and their callers need: the error class the encoders
 // throw, the path formatter, and the CircularPath type.

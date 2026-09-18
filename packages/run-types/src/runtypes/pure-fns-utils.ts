@@ -138,7 +138,7 @@ export const hasUnknownKeysFromArray = registerPureFnFactory(function () {
 // emitted module to the walk its own base needs: an array-only program never
 // ships the Set or Map arm, and none of the three pays a runtime kind test.
 //
-// All three share the canonical form through `rt::canonicalJson`, resolved once
+// All three share the canonical form through `canonicalJson`, resolved once
 // per module at factory time, so the recursive closure is still built once and
 // the three can never disagree on what "equal by value" means.
 

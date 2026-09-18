@@ -7,7 +7,7 @@
 //
 // Pure-fn registration MUST evaluate before any format module that reaches a
 // pure fn at runtime — the Go-emitted cache wires
-// `utl.getPureFn('rtFormats::isUUID')` and friends, which the registry
+// `utl.getPureFn(isUUID)` and friends, which the registry
 // must already hold. Importing this for its side effect first keeps the
 // ordering robust regardless of bundler tree-shaking.
 import './string/string-formats-pure-fns.ts';
