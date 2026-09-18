@@ -1,14 +1,14 @@
-// Registration module for the circular-reference walker `rt::findCycle`.
+// Registration module for the circular-reference walker `findCycle`.
 //
 // The circular-reference guard is a COMPILE-TIME option (`{rejectCircularRefs:
 // true}`): only the armed variant of a guarded factory (validate /
 // validationErrors / toBinary / jsonEncoder) inlines the guard, and only for a
-// cycle-capable type. The armed body calls `rt::findCycle(value, skeleton)`
+// cycle-capable type. The armed body calls `findCycle(value, skeleton)`
 // where `skeleton` is a small graph BAKED into the factory closure at build time
 // (computed by internal/cachegen/typefunctions/circular_skeleton.go). So this
 // walker needs NO RunType graph at runtime — the skeleton IS the pruned,
 // cycle-capable graph — and it rides the demand-driven built-in pure-fn
-// machinery like every other `rt::` body (body-referenced, so a plain unarmed
+// machinery like every other package-owned body (body-referenced, so a plain unarmed
 // type ships neither the walker nor a bundle).
 //
 // The skeleton shape (mirror of CircularSkeleton.JSLiteral):
@@ -45,12 +45,12 @@ import {findCycleId} from './pure-fn-ids.generated.ts';
  *  in circular.ts (kept there as the public type). **/
 type CircularPath = (string | number)[];
 
-/** The baked circular skeleton passed to `rt::findCycle` (see the module
+/** The baked circular skeleton passed to `findCycle` (see the module
  *  comment). Kept loose (`any`-ish) on purpose — the pure-fn extractor casts
  *  away annotations, so the shape is documented, not enforced, at runtime. **/
 type CircularSkeleton = {c: number[]; e: {p: unknown[][]; t: number}[][]};
 
-/** Runtime shape of the `rt::findCycle` pure fn: walk `value` against its
+/** Runtime shape of the `findCycle` pure fn: walk `value` against its
  *  baked circular skeleton and return the path to the first reference cycle, or
  *  null when acyclic. Called inline from the armed guarded factory bodies. **/
 export type FindCycleFn = (value: unknown, skeleton: CircularSkeleton) => CircularPath | null;

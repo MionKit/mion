@@ -1,47 +1,22 @@
 package convert_test
 
 import (
-	"encoding/json"
-	"hash/fnv"
-	"os"
-	"path/filepath"
-	"strconv"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// The seeding policy the Go fuzz sweeps share with the JS lanes
-// (packages/run-types/test/fuzz/core/fuzzPolicy.ts).
-//
-// No sweep carries a pinned seed. Each derives its entry seed from the package
-// VERSION, so a run is reproducible within a release (a red build replays
-// exactly) while every version bump rotates the ground the sweeps explore.
-// MION_FUZZ_SEED still overrides for replay, and the seed is logged next to the
-// command that reproduces it.
-//
-// Read from version.json rather than constants.Version: that is the literal
-// string "dev" in anything but a release build, so seeding from it would be a
-// pinned constant wearing a disguise.
-
-// FNV-1a over "<version>:<lane>", matching the JS hashString so both sides
-// derive seeds the same way.
+// The seeding policy the Go fuzz sweeps share with the JS lanes lives in
+// internal/testfixtures (fuzzseed.go), so both ends derive a seed the same way.
+// entrySeed is the testing.T-shaped wrapper: it fails the test on a bad
+// MION_FUZZ_SEED and logs the command that replays the run.
 func entrySeed(t *testing.T, lane string) int64 {
 	t.Helper()
-	if raw := os.Getenv("MION_FUZZ_SEED"); raw != "" {
-		// Base 0, not 10: the JS lanes accept decimal OR 0x-prefixed hex and
-		// PRINT their replay command in hex, so a decimal-only parse here
-		// rejects the very seed a JS finding tells you to replay with.
-		parsed, parseErr := strconv.ParseInt(raw, 0, 64)
-		if parseErr != nil {
-			t.Fatalf("MION_FUZZ_SEED: %v", parseErr)
-		}
-		t.Logf("[%s-fuzz] seed %d from MION_FUZZ_SEED (replay: MION_FUZZ_SEED=%d)", lane, parsed, parsed)
-		return parsed
+	seed, origin, err := testfixtures.FuzzSeed(lane)
+	if err != nil {
+		t.Fatal(err)
 	}
-	version := packageVersion(t)
-	digest := fnv.New32a()
-	digest.Write([]byte(version + ":" + lane))
-	seed := int64(digest.Sum32())
-	t.Logf("[%s-fuzz] seed %d from version %s (replay: MION_FUZZ_SEED=%d)", lane, seed, version, seed)
+	t.Log(origin)
 	return seed
 }
 
@@ -69,22 +44,3 @@ func TestEntrySeed_AcceptsTheSpellingsTheJSLanesEmit(t *testing.T) {
 	}
 }
 
-// The lockstep version every package and the published binary share. `go test`
-// runs with the package dir as cwd, so version.json is three levels up.
-func packageVersion(t *testing.T) string {
-	t.Helper()
-	raw, readErr := os.ReadFile(filepath.Join("..", "..", "..", "version.json"))
-	if readErr != nil {
-		t.Fatalf("version.json: %v", readErr)
-	}
-	var versionFile struct {
-		Version string `json:"version"`
-	}
-	if unmarshalErr := json.Unmarshal(raw, &versionFile); unmarshalErr != nil {
-		t.Fatalf("version.json: %v", unmarshalErr)
-	}
-	if versionFile.Version == "" {
-		t.Fatal(`version.json: no "version" field to seed from`)
-	}
-	return versionFile.Version
-}

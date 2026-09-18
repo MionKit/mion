@@ -867,7 +867,7 @@ export function resolveEntryTupleFn<F extends AnyFn>(
   const entry = utils.getRT(key);
   // The circular-reference guard is now a COMPILE-TIME option: `{rejectCircularRefs:
   // true}` forks the injected fnHash, so an armed call resolves a DIFFERENT entry
-  // whose body self-guards (via rt::findCycle). The runtime factory reads
+  // whose body self-guards (via findCycle). The runtime factory reads
   // nothing here — like noLiterals, the option is already baked into `key`.
   if (entry) return entry.fn as F;
   // Key miss on a KNOWN type (only reachable via runtime id substitution — the

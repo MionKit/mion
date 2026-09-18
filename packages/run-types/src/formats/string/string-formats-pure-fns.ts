@@ -1,5 +1,5 @@
 // Registration module for every pure fn the Go-side format emitters
-// reach via `utl.getPureFn('rtFormats::<name>')`. Each * below
+// reach via `utl.getPureFn(<the id below>)`. Each * below
 // is registered at module load; importing this file from
 // `src/formats/index.ts` (the `@mionjs/run-types/formats`
 // subpath surface) is enough to guarantee the registrations happen
