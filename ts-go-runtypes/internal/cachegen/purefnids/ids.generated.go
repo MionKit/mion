@@ -15,55 +15,55 @@ package purefnids
 // a consumer's own pure fn by this prefix, which is also how it knows a
 // reference the table does not carry means a STALE table rather than a user
 // pure fn it should leave alone.
-const IDPrefix = "@mionjs/run-types/"
+const IDPrefix = "@mionjs/run-types#"
 
 const (
-	DateStrToMs             = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#dateStrToMs"
-	IsDateString            = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString"
-	IsDateStringDM          = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_DM"
-	IsDateStringDMY         = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_DMY"
-	IsDateStringMD          = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_MD"
-	IsDateStringMDY         = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_MDY"
-	IsDateStringYM          = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_YM"
-	IsDateStringYMD         = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_YMD"
-	IsHours                 = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isHours"
-	IsMinutes               = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isMinutes"
-	IsSeconds               = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isSeconds"
-	IsSecondsWithLeap       = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isSecondsWithLeap"
-	IsSecondsWithMs         = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isSecondsWithMs"
-	IsTimeStringHHmm        = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isTimeString_HHmm"
-	IsTimeStringHHmmss      = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isTimeString_HHmmss"
-	IsTimeStringISO         = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isTimeString_ISO"
-	IsTimeStringISOTZ       = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isTimeString_ISO_TZ"
-	IsTimeStringMmss        = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isTimeString_mmss"
-	IsTimeZone              = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isTimeZone"
-	RelativeNowKey          = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#relativeNowKey"
-	TimeStrToMs             = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#timeStrToMs"
-	CardNetworkRules        = "@mionjs/run-types/src/formats/string/credit-card-pure-fns#cardNetworkRules"
-	IsCreditCard            = "@mionjs/run-types/src/formats/string/credit-card-pure-fns#isCreditCard"
-	LuhnSum                 = "@mionjs/run-types/src/formats/string/credit-card-pure-fns#luhnSum"
-	MatchesCardNetwork      = "@mionjs/run-types/src/formats/string/credit-card-pure-fns#matchesCardNetwork"
-	CodePointLength         = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#codePointLength"
-	IsEcmaRegex             = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isEcmaRegex"
-	IsEmailAddress          = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isEmailAddress"
-	IsIPV4                  = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isIPV4"
-	IsIPV6                  = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isIPV6"
-	IsIdnHostname           = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isIdnHostname"
-	IsIdnaLabel             = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isIdnaLabel"
-	IsLocalHost             = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isLocalHost"
-	IsUUID                  = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isUUID"
-	PunycodeDecode          = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#punycodeDecode"
-	PunycodeEncode          = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#punycodeEncode"
-	SatisfiesBidi           = "@mionjs/run-types/src/formats/string/string-formats-pure-fns#satisfiesBidi"
-	FindCycle               = "@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle"
-	CanonicalJson           = "@mionjs/run-types/src/runtypes/pure-fns-utils#canonicalJson"
-	CountEnumKeys           = "@mionjs/run-types/src/runtypes/pure-fns-utils#countEnumKeys"
-	GetUnknownKeysFromArray = "@mionjs/run-types/src/runtypes/pure-fns-utils#getUnknownKeysFromArray"
-	HasUnknownKeysFromArray = "@mionjs/run-types/src/runtypes/pure-fns-utils#hasUnknownKeysFromArray"
-	NewRunTypeErr           = "@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"
-	UniqueArrayItems        = "@mionjs/run-types/src/runtypes/pure-fns-utils#uniqueArrayItems"
-	UniqueMapEntries        = "@mionjs/run-types/src/runtypes/pure-fns-utils#uniqueMapEntries"
-	UniqueSetMembers        = "@mionjs/run-types/src/runtypes/pure-fns-utils#uniqueSetMembers"
+	RelativeNowKey          = "@mionjs/run-types#0DI2YbUTsfcoey"
+	DateStrToMs             = "@mionjs/run-types#0lOuvJ-q2MW6gT"
+	IsTimeStringMmss        = "@mionjs/run-types#2xtQHAMu-yOBo6"
+	PunycodeEncode          = "@mionjs/run-types#5oCqd7YyfA9rEw"
+	IsSecondsWithMs         = "@mionjs/run-types#6E7qWsIwaFRGn6"
+	IsDateStringYM          = "@mionjs/run-types#7Rf0Glsc6JUCkf"
+	IsIdnaLabel             = "@mionjs/run-types#7SetHd9N2sVGrV"
+	IsDateStringYMD         = "@mionjs/run-types#7X6_Cv-vMFpqpV"
+	IsCreditCard            = "@mionjs/run-types#89SFfr-VXm6ktw"
+	IsDateStringDMY         = "@mionjs/run-types#9iHci0PH3ZkNb8"
+	IsDateStringDM          = "@mionjs/run-types#FOpZBW5-MbCTNR"
+	CountEnumKeys           = "@mionjs/run-types#G5-z72czuSL8sC"
+	PunycodeDecode          = "@mionjs/run-types#GA20s6bj41GC1A"
+	IsTimeStringHHmmss      = "@mionjs/run-types#IyjvBbz0zSlgCJ"
+	UniqueSetMembers        = "@mionjs/run-types#J_iuATWy59X8qQ"
+	IsIdnHostname           = "@mionjs/run-types#LLUDa_Sfw0wwgb"
+	IsDateString            = "@mionjs/run-types#MnJ72PqkyXHiSP"
+	IsDateStringMDY         = "@mionjs/run-types#NsC7NEJixjb5KX"
+	CanonicalJson           = "@mionjs/run-types#NsFHAjPcl6zHKH"
+	IsTimeStringISO         = "@mionjs/run-types#OCJ1B0-ZCAwagS"
+	IsIPV4                  = "@mionjs/run-types#OsHALYNiRjfkKm"
+	IsEcmaRegex             = "@mionjs/run-types#Qd_9GJQlOCVqDe"
+	TimeStrToMs             = "@mionjs/run-types#RUAE44N0eAppE7"
+	IsTimeZone              = "@mionjs/run-types#VAMGZVfCSK2ET-"
+	LuhnSum                 = "@mionjs/run-types#VJiknJ2exR2oMF"
+	MatchesCardNetwork      = "@mionjs/run-types#XOwogm1z-3AOuZ"
+	UniqueArrayItems        = "@mionjs/run-types#YNRWo5_UGDmz2r"
+	CodePointLength         = "@mionjs/run-types#Z2sc5xQPKB0oav"
+	IsMinutes               = "@mionjs/run-types#cgwpjq6rGsI8jb"
+	IsHours                 = "@mionjs/run-types#d8U9HjmMsNFd6Z"
+	GetUnknownKeysFromArray = "@mionjs/run-types#fL3v1v6aVZwJ7-"
+	IsEmailAddress          = "@mionjs/run-types#goU94DctU2SM-2"
+	IsTimeStringHHmm        = "@mionjs/run-types#hiotRbfSKFAuK4"
+	IsUUID                  = "@mionjs/run-types#jzwmCOXKrhbowQ"
+	IsSecondsWithLeap       = "@mionjs/run-types#lFYcgG5ZSI-8em"
+	FindCycle               = "@mionjs/run-types#lQvUeXx-d_WXSw"
+	IsSeconds               = "@mionjs/run-types#n_ZOWff4X3qBMQ"
+	CardNetworkRules        = "@mionjs/run-types#nsU8QeJCuCF8Kr"
+	IsDateStringMD          = "@mionjs/run-types#omV6F-j2c23srV"
+	IsTimeStringISOTZ       = "@mionjs/run-types#qMsNYN8hy_sC8i"
+	NewRunTypeErr           = "@mionjs/run-types#rXVwGkGDX08BsQ"
+	IsIPV6                  = "@mionjs/run-types#sNis5nk-Tkeeag"
+	HasUnknownKeysFromArray = "@mionjs/run-types#tfRjnFZVF8lqI_"
+	SatisfiesBidi           = "@mionjs/run-types#vLId7t0J8HNWlN"
+	IsLocalHost             = "@mionjs/run-types#xlhuhlEYNnc0zQ"
+	UniqueMapEntries        = "@mionjs/run-types#zaKCyxAHPBeWLi"
 )
 
 // ids is every constant above, as a set, for Has.
@@ -114,6 +114,64 @@ var ids = map[string]bool{
 	UniqueArrayItems:        true,
 	UniqueMapEntries:        true,
 	UniqueSetMembers:        true,
+}
+
+// names is the identifier each built-in is bound to in source. An id is a
+// hash, which names nothing a reader can search for, so a diagnostic or a
+// report that has to SAY which pure function it means looks it up here.
+var names = map[string]string{
+	CanonicalJson:           "canonicalJson",
+	CardNetworkRules:        "cardNetworkRules",
+	CodePointLength:         "codePointLength",
+	CountEnumKeys:           "countEnumKeys",
+	DateStrToMs:             "dateStrToMs",
+	FindCycle:               "findCycle",
+	GetUnknownKeysFromArray: "getUnknownKeysFromArray",
+	HasUnknownKeysFromArray: "hasUnknownKeysFromArray",
+	IsCreditCard:            "isCreditCard",
+	IsDateString:            "isDateString",
+	IsDateStringDM:          "isDateString_DM",
+	IsDateStringDMY:         "isDateString_DMY",
+	IsDateStringMD:          "isDateString_MD",
+	IsDateStringMDY:         "isDateString_MDY",
+	IsDateStringYM:          "isDateString_YM",
+	IsDateStringYMD:         "isDateString_YMD",
+	IsEcmaRegex:             "isEcmaRegex",
+	IsEmailAddress:          "isEmailAddress",
+	IsHours:                 "isHours",
+	IsIPV4:                  "isIPV4",
+	IsIPV6:                  "isIPV6",
+	IsIdnHostname:           "isIdnHostname",
+	IsIdnaLabel:             "isIdnaLabel",
+	IsLocalHost:             "isLocalHost",
+	IsMinutes:               "isMinutes",
+	IsSeconds:               "isSeconds",
+	IsSecondsWithLeap:       "isSecondsWithLeap",
+	IsSecondsWithMs:         "isSecondsWithMs",
+	IsTimeStringHHmm:        "isTimeString_HHmm",
+	IsTimeStringHHmmss:      "isTimeString_HHmmss",
+	IsTimeStringISO:         "isTimeString_ISO",
+	IsTimeStringISOTZ:       "isTimeString_ISO_TZ",
+	IsTimeStringMmss:        "isTimeString_mmss",
+	IsTimeZone:              "isTimeZone",
+	IsUUID:                  "isUUID",
+	LuhnSum:                 "luhnSum",
+	MatchesCardNetwork:      "matchesCardNetwork",
+	NewRunTypeErr:           "newRunTypeErr",
+	PunycodeDecode:          "punycodeDecode",
+	PunycodeEncode:          "punycodeEncode",
+	RelativeNowKey:          "relativeNowKey",
+	SatisfiesBidi:           "satisfiesBidi",
+	TimeStrToMs:             "timeStrToMs",
+	UniqueArrayItems:        "uniqueArrayItems",
+	UniqueMapEntries:        "uniqueMapEntries",
+	UniqueSetMembers:        "uniqueSetMembers",
+}
+
+// NameOf returns the identifier a built-in is bound to in source, or empty
+// when id names no built-in.
+func NameOf(id string) string {
+	return names[id]
 }
 
 // Has reports whether id names one of the package's own pure functions.

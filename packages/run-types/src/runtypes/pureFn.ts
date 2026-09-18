@@ -114,7 +114,6 @@ function registerCore(caller: string, arg: unknown, id: string | undefined, wrap
     // behaviour is identical because the function IS the body.
     const compiled: CompiledPureFunction = {
       id,
-      bodyHash: '',
       paramNames: [],
       code: '',
       pureFnDependencies: [],

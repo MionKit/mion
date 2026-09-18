@@ -1,10 +1,10 @@
 package structural
 
 import (
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )

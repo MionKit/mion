@@ -1,9 +1,10 @@
 package builtinpurefns
 
 import (
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"sort"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 )
 
 // TestTable_CoreBuiltinsPresent pins that the generated table carries the
@@ -16,7 +17,7 @@ func TestTable_CoreBuiltinsPresent(t *testing.T) {
 			t.Errorf("built-in table is missing %q (regenerate: pnpm miondevx core codegen builtinpurefns)", key)
 		}
 	}
-	if Has("@mionjs/run-types/src/runtypes/pure-fns-utils#definitelyNotABuiltin") {
+	if Has("@mionjs/run-types#definitelyNotABuiltin") {
 		t.Error("Has returned true for a non-existent key")
 	}
 }
@@ -48,8 +49,8 @@ func TestClosure_TransitiveDeps(t *testing.T) {
 // TestClosure_MissingReported pins the build-error path: a demanded key absent
 // from the table comes back in `missing` (upstream turns that into a diagnostic).
 func TestClosure_MissingReported(t *testing.T) {
-	entries, missing := Closure([]string{purefnids.NewRunTypeErr, "@mionjs/run-types/src/runtypes/pure-fns-utils#totallyMadeUp"})
-	if len(missing) != 1 || missing[0] != "@mionjs/run-types/src/runtypes/pure-fns-utils#totallyMadeUp" {
+	entries, missing := Closure([]string{purefnids.NewRunTypeErr, "@mionjs/run-types#totallyMadeUp"})
+	if len(missing) != 1 || missing[0] != "@mionjs/run-types#totallyMadeUp" {
 		t.Fatalf("expected […#totallyMadeUp] missing, got %v", missing)
 	}
 	if len(entries) != 1 || entries[0].Key() != purefnids.NewRunTypeErr {
@@ -69,6 +70,6 @@ func TestClosure_Dedup(t *testing.T) {
 		seen[entry.Key()]++
 	}
 	if seen[purefnids.IsDateString] != 1 {
-		t.Errorf("shared dep @mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString should appear once, got %d", seen[purefnids.IsDateString])
+		t.Errorf("shared dep "+purefnids.IsDateString+" should appear once, got %d", seen[purefnids.IsDateString])
 	}
 }

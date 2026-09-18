@@ -68,11 +68,11 @@ func TestUpdateDependencies_SkipsNoopChildren(t *testing.T) {
 
 func TestAddPureFnDependency_RecordsID(t *testing.T) {
 	w := newTestWalker()
-	w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
+	w.AddPureFnDependency("@acme/app/src/pure#asJSONString")
 	if len(w.PureFnDependencies) != 1 {
 		t.Fatalf("expected 1 dep, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
 	}
-	if got := w.PureFnDependencies[0]; got.ID != "@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString" {
+	if got := w.PureFnDependencies[0]; got.ID != "@acme/app/src/pure#asJSONString" {
 		t.Fatalf("id mismatch: got %+v", got)
 	}
 }
@@ -81,7 +81,7 @@ func TestAddPureFnDependency_NoValidationAtCallSite(t *testing.T) {
 	// The whole point of the optimization: appending is O(1) and does NOT touch
 	// the filesystem, so an id nothing registers still records cleanly.
 	w := newTestWalker()
-	w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
+	w.AddPureFnDependency("@acme/app/src/pure#asJSONString")
 	if len(w.PureFnDependencies) != 1 {
 		t.Fatalf("expected the id to be recorded without any lookup, got %v", w.PureFnDependencies)
 	}
@@ -90,7 +90,7 @@ func TestAddPureFnDependency_NoValidationAtCallSite(t *testing.T) {
 func TestAddPureFnDependency_DedupesRepeatedID(t *testing.T) {
 	w := newTestWalker()
 	for i := 0; i < 3; i++ {
-		w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
+		w.AddPureFnDependency("@acme/app/src/pure#asJSONString")
 	}
 	if len(w.PureFnDependencies) != 1 {
 		t.Fatalf("expected 1 dep after 3 identical appends, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
@@ -101,7 +101,7 @@ func TestAddPureFnDependency_DifferentIDsAreDistinctEntries(t *testing.T) {
 	// Two pure fns with the same NAME in different files are two ids, so both
 	// are recorded: the file half is what tells them apart.
 	w := newTestWalker()
-	w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
+	w.AddPureFnDependency("@acme/app/src/pure#asJSONString")
 	w.AddPureFnDependency("@acme/app/src/helpers#asJSONString")
 	if len(w.PureFnDependencies) != 2 {
 		t.Fatalf("expected 2 distinct entries, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)

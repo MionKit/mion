@@ -2,6 +2,7 @@ package purefunctions
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"testing"
 
@@ -15,10 +16,22 @@ import (
 // test asserts reads the same on any machine.
 const testPackageName = "@acme/app"
 
-// testID builds the id a registration bound to `name` in overlay file `file`
-// gets, which is what the extractor computes from the fixture's location.
-func idOf(file, name string) string {
-	return testPackageName + "/" + strings.TrimSuffix(file, ".ts") + "#" + name
+// idPrefix is what every id in an overlay fixture starts with: the package,
+// then the separator. The hash half is the body's, so a test never spells it.
+const idPrefix = testPackageName + "#"
+
+// entryNamed returns the entry the registration bound to `name` produced. An id
+// is a hash of the body that ships, so a test names a registration the way the
+// source does and asks the extraction which id it got.
+func entryNamed(t *testing.T, entries []Entry, name string) Entry {
+	t.Helper()
+	for _, entry := range entries {
+		if entry.BindingName == name {
+			return entry
+		}
+	}
+	t.Fatalf("no registration bound to %q; entries=%+v", name, entries)
+	return Entry{}
 }
 
 // realMarkerFiles returns the REAL `@mionjs/run-types` package (package.json +
@@ -90,8 +103,8 @@ export const asJSONString = registerPureFnFactory(function () {
 		t.Fatalf("expected 1 entry, got %d", len(entries))
 	}
 	got := entries[0]
-	if want := idOf("a.ts", "asJSONString"); got.ID != want {
-		t.Errorf("id = %q, want %q", got.ID, want)
+	if got.BindingName != "asJSONString" || !strings.HasPrefix(got.ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want an id under %q", got.ID, got.BindingName, idPrefix)
 	}
 	if len(got.ParamNames) != 0 {
 		t.Errorf("expected empty paramNames, got %v", got.ParamNames)
@@ -99,8 +112,8 @@ export const asJSONString = registerPureFnFactory(function () {
 	if strings.Contains(got.Code, ": string") {
 		t.Errorf("inner annotations should be stripped, got code:\n%s", got.Code)
 	}
-	if len(got.BodyHash) != bodyHashLength {
-		t.Errorf("bodyHash should be %d chars, got %q", bodyHashLength, got.BodyHash)
+	if _, hash, _ := SplitID(got.ID); len(hash) != bodyHashLength {
+		t.Errorf("the id's hash half should be %d chars, got %q", bodyHashLength, hash)
 	}
 }
 
@@ -117,7 +130,7 @@ export const arrowFn = registerPureFnFactory((jUtils) => {
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	if len(entries) != 1 || entries[0].ID != idOf("a.ts", "arrowFn") {
+	if len(entries) != 1 || entries[0].BindingName != "arrowFn" {
 		t.Fatalf("expected the arrowFn entry, got %+v", entries)
 	}
 	if entries[0].ParamNames[0] != "jUtils" {
@@ -150,7 +163,7 @@ export const wrapped = (registerPureFnFactory(function () { return function () {
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	if len(entries) != 1 || entries[0].ID != idOf("a.ts", "wrapped") {
+	if len(entries) != 1 || entries[0].BindingName != "wrapped" {
 		t.Fatalf("expected the wrapped entry, got %+v", entries)
 	}
 }
@@ -217,7 +230,7 @@ import {registerPureFnFactory} from '@mionjs/run-types';
 declare const dynamicId: string;
 export const fn = registerPureFnFactory(function () { return function () {}; }, dynamicId);`,
 	})
-	if len(entries) != 1 || entries[0].ID != idOf("a.ts", "fn") {
+	if len(entries) != 1 || entries[0].BindingName != "fn" {
 		t.Fatalf("expected the entry under its own id, got %+v", entries)
 	}
 	if len(diags) != 0 {
@@ -238,10 +251,31 @@ export const fn = registerPureFnFactory(function ({a, b}) {
 	}
 }
 
-func TestExtract_BodyHashCollision_PFE9004(t *testing.T) {
-	// One name bound twice with different bodies is one id with two meanings:
-	// the first wins and the loser is reported, because the cache can hold only
-	// one of them.
+func TestExtract_SameBodyTwiceIsOneEntry(t *testing.T) {
+	// Two registrations that ship the same body ARE one function, however many
+	// times it was written. The id is the hash of that body, so they land on one
+	// entry with nothing to report.
+	entries, diags := extractFromOverlay(t, map[string]string{
+		"a.ts": `
+import {registerPureFnFactory} from '@mionjs/run-types';
+var first = registerPureFnFactory(function () {
+  return function _fn() { return 1; };
+});
+var second = registerPureFnFactory(function () {
+  return function _fn() { return 1; };
+});`,
+	})
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d: %+v", len(entries), entries)
+	}
+	if len(diags) != 0 {
+		t.Errorf("the same function written twice must report nothing, got %+v", diags)
+	}
+}
+
+func TestExtract_DifferentBodiesGetDifferentIDs(t *testing.T) {
+	// The same binding name, two different bodies. A name is not an identity
+	// here, so both survive under their own ids.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerPureFnFactory} from '@mionjs/run-types';
@@ -252,38 +286,14 @@ var asJSONString = registerPureFnFactory(function () {
   return function v2() { return 2; };
 });`,
 	})
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 (first-wins) entry, got %d", len(entries))
+	if len(entries) != 2 {
+		t.Fatalf("expected both registrations to survive, got %d: %+v", len(entries), entries)
 	}
-	if !hasCode(diags, CodeBodyHashCollision) {
-		t.Fatalf("expected %s diagnostic, got %+v", CodeBodyHashCollision, diags)
+	if entries[0].ID == entries[1].ID {
+		t.Errorf("two different bodies collapsed to one id: %q", entries[0].ID)
 	}
-	for _, diag := range diags {
-		if diag.Code == CodeBodyHashCollision && len(diag.Related) != 1 {
-			t.Fatalf("expected 1 Related site, got %d", len(diag.Related))
-		}
-	}
-}
-
-func TestExtract_IdempotentSameBodyHash_NoDiagnostic(t *testing.T) {
-	// Same id + same body → silent dedupe (no diagnostic).
-	entries, diags := extractFromOverlay(t, map[string]string{
-		"a.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
-var sameFn = registerPureFnFactory(function () {
-  return function _fn() { return 1; };
-});
-var sameFn = registerPureFnFactory(function () {
-  return function _fn() { return 1; };
-});`,
-	})
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 deduped entry, got %d", len(entries))
-	}
-	for _, diag := range diags {
-		if diag.Code == CodeBodyHashCollision {
-			t.Errorf("idempotent re-registration must not emit a collision diagnostic, got %+v", diag)
-		}
+	if len(diags) != 0 {
+		t.Errorf("two distinct functions must report nothing, got %+v", diags)
 	}
 }
 
@@ -291,14 +301,15 @@ func TestExtract_DeterministicOrder(t *testing.T) {
 	entries, _ := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerPureFnFactory} from '@mionjs/run-types';
-export const zeta = registerPureFnFactory(function () { return function() {}; });
-export const alpha = registerPureFnFactory(function () { return function() {}; });
-export const mu = registerPureFnFactory(function () { return function() {}; });`,
+export const zeta = registerPureFnFactory(function () { return function() { return 3; }; });
+export const alpha = registerPureFnFactory(function () { return function() { return 1; }; });
+export const mu = registerPureFnFactory(function () { return function() { return 2; }; });`,
 	})
 	if len(entries) != 3 {
 		t.Fatalf("expected 3 entries, got %d", len(entries))
 	}
-	wantOrder := []string{idOf("a.ts", "alpha"), idOf("a.ts", "mu"), idOf("a.ts", "zeta")}
+	wantOrder := []string{entryNamed(t, entries, "alpha").ID, entryNamed(t, entries, "mu").ID, entryNamed(t, entries, "zeta").ID}
+	sort.Strings(wantOrder)
 	for i, e := range entries {
 		if e.Key() != wantOrder[i] {
 			t.Fatalf("entry %d: got %q, want %q", i, e.Key(), wantOrder[i])
@@ -327,11 +338,11 @@ export const doubled = regPF(() => (n: number) => n * 2);`,
 	if len(entries) != 1 {
 		t.Fatalf("renamed import must still extract: expected 1 entry, got %d", len(entries))
 	}
-	if want := idOf("a.ts", "doubled"); entries[0].ID != want {
-		t.Errorf("id = %q, want %q", entries[0].ID, want)
+	if entries[0].BindingName != "doubled" || !strings.HasPrefix(entries[0].ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want an id under %q", entries[0].ID, entries[0].BindingName, idPrefix)
 	}
-	if len(entries[0].BodyHash) != bodyHashLength {
-		t.Errorf("bodyHash should be %d chars, got %q", bodyHashLength, entries[0].BodyHash)
+	if _, hash, _ := SplitID(entries[0].ID); len(hash) != bodyHashLength {
+		t.Errorf("the id's hash half should be %d chars, got %q", bodyHashLength, hash)
 	}
 }
 
@@ -358,10 +369,10 @@ export const tripled = mionPureFn(() => (n: number) => n * 3);`,
 	if len(entries) != 1 {
 		t.Fatalf("branded wrapper call site must extract: expected 1 entry, got %d", len(entries))
 	}
-	if want := idOf("consumer.ts", "tripled"); entries[0].ID != want {
-		t.Errorf("id = %q, want %q (the call site's own location)", entries[0].ID, want)
+	if entries[0].BindingName != "tripled" || !strings.HasPrefix(entries[0].ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want the CALL SITE's own id under %q", entries[0].ID, entries[0].BindingName, idPrefix)
 	}
-	if len(entries[0].BodyHash) != bodyHashLength {
-		t.Errorf("bodyHash should be %d chars, got %q", bodyHashLength, entries[0].BodyHash)
+	if _, hash, _ := SplitID(entries[0].ID); len(hash) != bodyHashLength {
+		t.Errorf("the id's hash half should be %d chars, got %q", bodyHashLength, hash)
 	}
 }

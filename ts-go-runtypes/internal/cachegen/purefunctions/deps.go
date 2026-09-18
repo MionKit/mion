@@ -28,7 +28,7 @@ import (
 //
 // When utlName is empty (factory has no first parameter), returns nothing — the
 // caller is free to register the entry without deps.
-func extractDeps(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, factoryFn *ast.Node, utlName string) ([]string, []textRange, []textRange, []diagnostics.Diagnostic) {
+func (ctx *resolveCtx) extractDeps(sourceFile *ast.SourceFile, factoryFn *ast.Node, utlName string) ([]string, []textRange, []textRange, []diagnostics.Diagnostic) {
 	if utlName == "" {
 		return nil, nil, nil, nil
 	}
@@ -42,7 +42,7 @@ func extractDeps(typeChecker *checker.Checker, markerOpts marker.Options, source
 			return false
 		}
 		if node.Kind == ast.KindCallExpression {
-			handleCall(typeChecker, markerOpts, sourceFile, node, localTable, utlName, depSet, &lowerings, &diags)
+			ctx.handleCall(sourceFile, node, localTable, utlName, depSet, &lowerings, &diags)
 		}
 		node.ForEachChild(visit)
 		return false
@@ -68,9 +68,7 @@ func extractDeps(typeChecker *checker.Checker, markerOpts marker.Options, source
 // `CompTimeArgs<string>` (the brand-based allowlist for rtUtils pure-fn lookup
 // methods), resolves the first argument to a pure-fn id and records it;
 // otherwise it's a no-op.
-func handleCall(
-	typeChecker *checker.Checker,
-	markerOpts marker.Options,
+func (ctx *resolveCtx) handleCall(
 	sourceFile *ast.SourceFile,
 	call *ast.Node,
 	localTable symbolTable,
@@ -100,14 +98,25 @@ func handleCall(
 		return
 	}
 	method := methodName.Text()
-	if !calleeFirstParamIsCompTimeArgs(typeChecker, markerOpts, call) {
+	if !ctx.calleeFirstParamIsCompTimeArgs(call) {
 		return
 	}
 	if callExpr.Arguments == nil || len(callExpr.Arguments.Nodes) == 0 {
 		return
 	}
 	arg := callExpr.Arguments.Nodes[0]
-	id, lower := resolveDepArg(typeChecker, markerOpts, localTable, arg)
+	id, lower, cycle := ctx.resolveDepArg(localTable, arg)
+	if cycle {
+		// The site is the reference that closed the cycle, which is inside the
+		// pure fn at the other end of it, so naming the dependency is enough to
+		// point at both.
+		*diags = append(*diags, diagnostics.New(
+			diagnostics.CodePureFnDependencyCycle,
+			siteFromNode(sourceFile, arg),
+			unwrapExpression(arg).Text(),
+		))
+		return
+	}
 	if id == "" {
 		*diags = append(*diags, diagnostics.New(
 			diagnostics.CodePurityDepNotLiteral,
@@ -128,8 +137,8 @@ func handleCall(
 // signature of call has its first parameter branded
 // `CompTimeArgs<string>` (via marker.DetectAny). Brand-driven
 // discovery avoids a hard-coded rtUtils-method allowlist.
-func calleeFirstParamIsCompTimeArgs(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
-	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
+func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
+	signature := checker.Checker_getResolvedSignature(ctx.typeChecker, call, nil, 0)
 	if signature == nil {
 		return false
 	}
@@ -141,8 +150,8 @@ func calleeFirstParamIsCompTimeArgs(typeChecker *checker.Checker, markerOpts mar
 	if first == nil {
 		return false
 	}
-	paramType := checker.Checker_getTypeOfSymbol(typeChecker, first)
-	if kind, _, matched := marker.DetectAny(typeChecker, paramType, markerOpts); matched && kind == marker.KindCompTimeArgs {
+	paramType := checker.Checker_getTypeOfSymbol(ctx.typeChecker, first)
+	if kind, _, matched := marker.DetectAny(ctx.typeChecker, paramType, ctx.markerOpts); matched && kind == marker.KindCompTimeArgs {
 		return true
 	}
 	// CompTimeArgs is the zero-cost identity marker (markers.ts): TS keeps its
@@ -150,7 +159,7 @@ func calleeFirstParamIsCompTimeArgs(typeChecker *checker.Checker, markerOpts mar
 	// carries — for a pure-fn lookup that is the PureFnId brand. So a match on
 	// another marker settles nothing, and the annotation NODE is what decides
 	// (the same rule the resolver's scan path applies).
-	return comptimeargs.IsCompTimeArgsParamNode(typeChecker, first, markerOpts)
+	return comptimeargs.IsCompTimeArgsParamNode(ctx.typeChecker, first, ctx.markerOpts)
 }
 
 // resolveDepArg turns one lookup argument into the pure-fn id it names, and
@@ -168,41 +177,45 @@ func calleeFirstParamIsCompTimeArgs(typeChecker *checker.Checker, markerOpts mar
 //     carries an id (`declare const x: PureFnId<'…'>`). It lowers too.
 //
 // An empty id means none of the four applied; the caller reports PFE9013.
-func resolveDepArg(typeChecker *checker.Checker, markerOpts marker.Options, localTable symbolTable, argNode *ast.Node) (string, bool) {
+func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) (id string, lower, cycle bool) {
 	if argNode == nil {
-		return "", false
+		return "", false, false
 	}
 	// Fast path: literal at the call site.
 	if argNode.Kind == ast.KindStringLiteral || argNode.Kind == ast.KindNoSubstitutionTemplateLiteral {
-		return argNode.Text(), false
+		return argNode.Text(), false, false
 	}
 	// Factory-local identifier hop: `const FOO = '...'` inside the factory
 	// body. This shadows checker-driven resolution because the inner const
 	// isn't a module-level symbol the checker tracks the same way.
 	if argNode.Kind == ast.KindIdentifier {
 		if decl, found := localTable[argNode.Text()]; found {
-			if literal := resolveDeclLocal(typeChecker, localTable, decl, maxTraceDepth); literal != nil {
-				return literal.Text(), false
+			if literal := resolveDeclLocal(ctx.typeChecker, localTable, decl, maxTraceDepth); literal != nil {
+				return literal.Text(), false, false
 			}
 		}
 	}
 	inner := unwrapExpression(argNode)
 	if inner.Kind == ast.KindIdentifier {
-		if id, found := registrationIDOfBinding(typeChecker, markerOpts, inner); found {
-			return id, true
+		id, found, inCycle := ctx.registrationIDOfBinding(inner)
+		if inCycle {
+			return "", false, true
+		}
+		if found {
+			return id, true, false
 		}
 	}
 	// A `.d.ts`-declared id carries its value in the TYPE, which is also what a
 	// generated constants file exports. Read it off the expression.
-	if id, found := stringLiteralTypeOf(typeChecker, inner); found {
-		return id, true
+	if id, found := stringLiteralTypeOf(ctx.typeChecker, inner); found {
+		return id, true, false
 	}
 	// Last resort: the shared checker-driven trace, which covers a same-module
 	// `const` chain ending in a literal.
-	if literal, result := comptimeargs.ResolveLiteralString(typeChecker, argNode); result.Ok {
-		return literal.Text(), false
+	if literal, result := comptimeargs.ResolveLiteralString(ctx.typeChecker, argNode); result.Ok {
+		return literal.Text(), false, false
 	}
-	return "", false
+	return "", false, false
 }
 
 // registrationIDOfBinding resolves an identifier to the `const` declaration it
@@ -211,9 +224,16 @@ func resolveDepArg(typeChecker *checker.Checker, markerOpts marker.Options, loca
 // registration that declaration initialises. False when the identifier names
 // something else, which keeps an ordinary imported string from passing as an
 // id.
-func registrationIDOfBinding(typeChecker *checker.Checker, markerOpts marker.Options, identifier *ast.Node) (string, bool) {
-	symbol := comptimeargs.ResolveImportAlias(typeChecker, typeChecker.GetSymbolAtLocation(identifier))
-	id, found := "", false
+//
+// The declaring registration is EXTRACTED to answer this, because an id is the
+// hash of a body that only exists once its own dependencies are lowered in.
+// That work is memoised and is the same work the emitted module needs, so the
+// dependency is rendered once however many dependents reach it.
+//
+// cycle is true when the declaration is already being resolved further up the
+// stack. Its id would have to contain itself, so there is nothing to return.
+func (ctx *resolveCtx) registrationIDOfBinding(identifier *ast.Node) (id string, found, cycle bool) {
+	symbol := comptimeargs.ResolveImportAlias(ctx.typeChecker, ctx.typeChecker.GetSymbolAtLocation(identifier))
 	comptimeargs.EachConstVariableDeclaration(symbol, func(variableDecl *ast.VariableDeclaration) bool {
 		nameNode := variableDecl.Name()
 		if nameNode == nil || nameNode.Kind != ast.KindIdentifier || variableDecl.Initializer == nil {
@@ -227,13 +247,21 @@ func registrationIDOfBinding(typeChecker *checker.Checker, markerOpts marker.Opt
 		if declFile == nil {
 			return true
 		}
-		if matched, _, _, _ := isPureFnRegistration(typeChecker, markerOpts, initializer); !matched {
+		if matched, _, _, _ := ctx.isPureFnRegistration(initializer); !matched {
 			return true
 		}
-		id, found = IDFor(markerOpts, declFile.FileName(), nameNode.Text()), true
+		entry, _, inCycle := ctx.entryFor(declFile, initializer)
+		if inCycle {
+			cycle = true
+			return false
+		}
+		if entry == nil {
+			return true
+		}
+		id, found = entry.ID, true
 		return false
 	})
-	return id, found
+	return id, found, cycle
 }
 
 // stringLiteralTypeOf reads the string value off an expression's TYPE. A branded

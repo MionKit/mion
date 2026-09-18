@@ -228,7 +228,7 @@ func (scope *fileScope) parameterCount(routeCall *ast.Node) (count int, bounded 
 func (scope *fileScope) mapperKey(mapperCall *ast.Node, args []*ast.Node) (string, diagnostics.Diagnostic, bool) {
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, mapperCall, nil, 0)
 	_, _, fnParamIndex, _ := purefunctions.PureFnBrandPair(scope.typeChecker, scope.markerOpts, signature)
-	if id, ok := purefunctions.PureFnIDForCall(scope.typeChecker, scope.markerOpts, scope.sourceFile, mapperCall); ok {
+	if id, ok := purefunctions.PureFnIDForCall(scope.typeChecker, scope.markerOpts, scope.sourceFile, mapperCall, scope.pureFns); ok {
 		return id, diagnostics.Diagnostic{}, true
 	}
 	failing := mapperCall

@@ -122,20 +122,10 @@ const rtUtils = {
   addPureFn(id: string, compiledFn: CompiledPureFunction): CompiledPureFunction {
     if (!id) throw new Error('Pure function id must be a non-empty string');
     const key = id;
+    // An id is the hash of the body that ships, so one key is one body: a
+    // repeat is the same function arriving twice, never a different version.
     const existing = pureFnsCache[key];
-    if (existing) {
-      // Version conflict — body changed; replace and warn.
-      if (existing.bodyHash && compiledFn.bodyHash && existing.bodyHash !== compiledFn.bodyHash) {
-        console.warn(
-          `Pure function ${key} body hash mismatch. ` +
-            `Existing: ${existing.bodyHash}, New: ${compiledFn.bodyHash}. ` +
-            `Replacing with new version.`
-        );
-        pureFnsCache[key] = compiledFn;
-        return compiledFn;
-      }
-      return existing;
-    }
+    if (existing) return existing;
     pureFnsCache[key] = compiledFn;
     return compiledFn;
   },

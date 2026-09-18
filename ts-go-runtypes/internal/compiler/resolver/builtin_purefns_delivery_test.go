@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -38,12 +40,12 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 		t.Fatalf("expected no diagnostics, got %+v", resp.Diagnostics)
 	}
 
-	const specifier = "rtmod:/pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr.js"
+	specifier := "rtmod:/" + entrymodules.ModuleName(purefnids.NewRunTypeErr, entrymodules.KindPureFn) + ".js"
 	verrName, verrMod, ok := moduleImporting(resp.EntryModules, specifier)
 	if !ok {
 		t.Fatalf("no entry module imports %s\nmodules: %v", specifier, keys(resp.EntryModules))
 	}
-	binding := "__rt_pf$2F$40mionjs$2Frun$2Dtypes$2Fsrc$2Fruntypes$2Fpure$2Dfns$2Dutils$2FnewRunTypeErr"
+	binding := entrymodules.BindingName(entrymodules.ModuleName(purefnids.NewRunTypeErr, entrymodules.KindPureFn))
 	if !strings.Contains(verrMod, "import {"+binding+"}") {
 		t.Errorf("entry %q does not import the built-in binding %q:\n%s", verrName, binding, verrMod)
 	}
@@ -52,7 +54,7 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 	if !strings.Contains(verrMod, "()=>["+binding+"]") && !strings.Contains(verrMod, "()=>[") {
 		t.Errorf("entry %q has no deps thunk binding the built-in:\n%s", verrName, verrMod)
 	}
-	if _, ok := resp.EntryModules["pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr"]; !ok {
+	if _, ok := resp.EntryModules[entrymodules.ModuleName(purefnids.NewRunTypeErr, entrymodules.KindPureFn)]; !ok {
 		t.Errorf("built-in pure-fn module pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr was not served\nmodules: %v", keys(resp.EntryModules))
 	}
 }
@@ -76,11 +78,11 @@ export const v = createValidateFn<TypeFormat<string, 'uuid', {version: '4'}>>();
 	if len(resp.Diagnostics) != 0 {
 		t.Fatalf("expected no diagnostics, got %+v", resp.Diagnostics)
 	}
-	if _, ok := resp.EntryModules["pf/@mionjs/run-types/src/formats/string/string-formats-pure-fns/isUUID"]; !ok {
+	if _, ok := resp.EntryModules[entrymodules.ModuleName(purefnids.IsUUID, entrymodules.KindPureFn)]; !ok {
 		t.Errorf("format built-in pf/@mionjs/run-types/src/formats/string/string-formats-pure-fns/isUUID was not served\nmodules: %v", keys(resp.EntryModules))
 	}
-	if _, _, ok := moduleImporting(resp.EntryModules, "rtmod:/pf/@mionjs/run-types/src/formats/string/string-formats-pure-fns/isUUID.js"); !ok {
-		t.Errorf("no entry imports the @mionjs/run-types/src/formats/string/string-formats-pure-fns#isUUID module")
+	if _, _, ok := moduleImporting(resp.EntryModules, "rtmod:/"+entrymodules.ModuleName(purefnids.IsUUID, entrymodules.KindPureFn)+".js"); !ok {
+		t.Errorf("no entry imports the " + purefnids.IsUUID + " module")
 	}
 }
 

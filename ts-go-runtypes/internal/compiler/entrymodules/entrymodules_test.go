@@ -3,6 +3,8 @@ package entrymodules
 import (
 	"strings"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 )
 
 func renderOne(t *testing.T, graph Graph, key string) string {
@@ -146,7 +148,7 @@ func TestRender_MissingStub(t *testing.T) {
 }
 
 func TestRender_PureFnModuleNameEncoding(t *testing.T) {
-	const core = "@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"
+	const core = purefnids.NewRunTypeErr
 	const weirdKey = "we ird/deep#fn$x"
 	graph := Graph{}
 	graph.Add(&Entry{Key: core, Kind: KindPureFn, ArgsText: "'" + core + "','h1'"})
@@ -155,16 +157,17 @@ func TestRender_PureFnModuleNameEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	// An id's location half is already a path, so it becomes one: every segment
-	// escaped, `@` kept (a scoped package name is the first segment of every id).
-	if _, ok := out["pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr"]; !ok {
+	// An id's owner half is a package name, so it becomes a path segment: `@`
+	// kept (every scoped package name starts with one), the hash appended.
+	if _, ok := out[ModuleName(core, KindPureFn)]; !ok {
 		t.Fatalf("plain pure-fn basename missing: %v", keysOf(out))
 	}
 	weird, ok := out["pf/we$20ird/deep/fn$24x"]
 	if !ok {
 		t.Fatalf("escaped pure-fn basename missing: %v", keysOf(out))
 	}
-	wantImport := "import {__rt_pf$2F$40mionjs$2Frun$2Dtypes$2Fsrc$2Fruntypes$2Fpure$2Dfns$2Dutils$2FnewRunTypeErr} from 'rtmod:/pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr.js';"
+	coreModule := ModuleName(core, KindPureFn)
+	wantImport := "import {" + BindingName(coreModule) + "} from 'rtmod:/" + coreModule + ".js';"
 	if !strings.Contains(weird, wantImport) {
 		t.Fatalf("pure-fn dep import should use the encoded basename:\n got: %q\nwant substring: %q", weird, wantImport)
 	}

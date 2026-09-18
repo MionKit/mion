@@ -62,31 +62,20 @@ func randomSegment(rng *rand.Rand, maxLen int) string {
 	return builder.String()
 }
 
-// randomID composes an id the way IDFor does: a package name (scoped or plain,
-// sometimes absent), a path of segments, then the bound name — an identifier or
-// the body hash a nameless registration gets.
+// randomID composes an id the way IDFor does: the package that owns the pure
+// fn (scoped or plain, and sometimes absent for a file under no named package),
+// then the hash of the body that ships.
 func randomID(rng *rand.Rand) string {
-	var location string
+	var owner string
 	switch rng.Intn(3) {
 	case 0:
-		location = "@" + randomSegment(rng, 6) + "/" + randomSegment(rng, 6)
+		owner = "@" + randomSegment(rng, 6) + "/" + randomSegment(rng, 6)
 	case 1:
-		location = randomSegment(rng, 8)
+		owner = randomSegment(rng, 8)
 	default:
-		location = "" // a file under no named package keeps the path half alone
+		owner = "" // an overlay or a scratch project keeps the hash alone
 	}
-	depth := 1 + rng.Intn(3)
-	for i := 0; i < depth; i++ {
-		if location != "" {
-			location += "/"
-		}
-		location += randomSegment(rng, 8)
-	}
-	name := randomSegment(rng, 10)
-	if rng.Intn(4) == 0 {
-		name = CodeHash(randomSegment(rng, 20)) // the nameless lane
-	}
-	return location + idSeparator + name
+	return owner + idSeparator + CodeHash(randomSegment(rng, 20))
 }
 
 var jsIdentifierRE = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
@@ -177,7 +166,7 @@ func TestFuzz_LoweringRoundTrip(t *testing.T) {
 		entries, _ := extractFromOverlay(t, map[string]string{"deps.ts": deps.String(), "a.ts": source})
 		var consumer *Entry
 		for index := range entries {
-			if entries[index].ID == idOf("a.ts", "consumer") {
+			if entries[index].BindingName == "consumer" {
 				consumer = &entries[index]
 			}
 		}
@@ -188,8 +177,22 @@ func TestFuzz_LoweringRoundTrip(t *testing.T) {
 		if err := parsesAsJS(consumer.ParamNames, consumer.Code); err != nil {
 			t.Fatalf("emitted body is not valid JavaScript: %v\ncode:\n%s", err, consumer.Code)
 		}
+		// Each dependency's id is read back off its own entry: a hash cannot be
+		// predicted, and the point is that the dependent lowered the very id the
+		// declaring registration was given.
+		depIDs := make([]string, depCount)
 		for i := 0; i < depCount; i++ {
-			quoted := "'" + idOf("deps.ts", fmt.Sprintf("dep%d", i)) + "'"
+			depIDs[i] = entryNamed(t, entries, fmt.Sprintf("dep%d", i)).ID
+		}
+		for i := 0; i < depCount; i++ {
+			for j := i + 1; j < depCount; j++ {
+				if depIDs[i] == depIDs[j] {
+					t.Fatalf("dep%d and dep%d share one id %q", i, j, depIDs[i])
+				}
+			}
+		}
+		for i := 0; i < depCount; i++ {
+			quoted := "'" + depIDs[i] + "'"
 			if got := strings.Count(consumer.Code, quoted); got == 0 {
 				t.Fatalf("dep%d was never lowered into the body:\n%s", i, consumer.Code)
 			}
@@ -200,7 +203,7 @@ func TestFuzz_LoweringRoundTrip(t *testing.T) {
 		// One quoted id per lookup, and nothing else quoted into the body.
 		quotedTotal := 0
 		for i := 0; i < depCount; i++ {
-			quotedTotal += strings.Count(consumer.Code, "'"+idOf("deps.ts", fmt.Sprintf("dep%d", i))+"'")
+			quotedTotal += strings.Count(consumer.Code, "'"+depIDs[i]+"'")
 		}
 		if quotedTotal != lookups {
 			t.Fatalf("expected %d quoted ids (one per lookup), found %d:\n%s", lookups, quotedTotal, consumer.Code)

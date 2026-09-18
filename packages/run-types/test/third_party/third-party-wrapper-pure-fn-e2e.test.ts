@@ -81,7 +81,7 @@ process.stdout.write(
     JSON.stringify({
       id: doubleId,
       has: getRTUtils().hasPureFnByKey(doubleId),
-      missing: getRTUtils().hasPureFnByKey('rt-e2e-fixture/consumer#definitelyMissing'),
+      missing: getRTUtils().hasPureFnByKey('rt-e2e-fixture#definitelyMissing'),
       doubled: getRTUtils().getPureFnByKey(doubleId)(21),
     }) +
     '<<RT>>'
@@ -173,7 +173,7 @@ describe('third-party pure fn through a wrapper: full runtime e2e (node_modules 
 
     // Registered under the id of the consumer's own binding, and the id it
     // printed is the SAME one the rewrite injected.
-    expect(result.id).toBe('rt-e2e-fixture/consumer#doubleId');
+    expect(result.id).toMatch(/^rt-e2e-fixture#[A-Za-z0-9_-]{14}$/);
     expect(result.id).toBe(injected![1]);
     // The untracked runtime-key accessor finds it (and only it).
     expect(result.has).toBe(true);

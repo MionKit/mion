@@ -756,7 +756,7 @@ describe('batches', () => {
     // tuple to registerInputMapperTuple — the one lane that opts an id in.
     const MAPPER = '@acme/app/src/batches#';
     const registerMapper = (id: string, code: string): void =>
-      registerInputMapperTuple(id, [2, undefined, undefined, id, 'H', [], code, []]);
+      registerInputMapperTuple(id, [2, undefined, undefined, id, [], code, []]);
 
     beforeEach(async () => {
       mion.initRoutes(mapperRoutes);
@@ -849,7 +849,6 @@ describe('batches', () => {
       // methods-metadata payload).
       getRTUtils().addPureFn(`${MAPPER}sneaky`, {
         id: `${MAPPER}sneaky`,
-        bodyHash: '',
         paramNames: [],
         code: '',
         pureFnDependencies: [],

@@ -108,7 +108,7 @@ func TestFormatDebug_RendersCodeAndArgs(t *testing.T) {
 }
 
 func TestFormatDebug_AppendsRelatedLines(t *testing.T) {
-	d := NewWithRelated(CodeBodyHashCollision,
+	d := NewWithRelated(CodeMissingPureFnDep,
 		Site{FilePath: "/a.ts", StartLine: 1, StartCol: 1},
 		[]string{"ns::fn"},
 		Related{Site: Site{FilePath: "/b.ts", StartLine: 9, StartCol: 9}, Message: "first here"},

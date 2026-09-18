@@ -31,12 +31,10 @@ func ExtractOverrideFn(typeChecker *checker.Checker, markerOpts marker.Options, 
 	// The factory body returns the override fn verbatim (types stripped). The
 	// arrow/function expression renders as `return <fn>;`.
 	code := stripTypesFromExpr(sourceFile, fnNode, nil)
-	id := IDFor(markerOpts, sourceFile.FileName(), CodeHash(code))
 	return Entry{
-		ID:         id,
+		ID:         IDFor(markerOpts, sourceFile.FileName(), CodeHash(code)),
 		ParamNames: nil, // factory takes no `utl` parameter in v1
 		Code:       code,
-		BodyHash:   BodyHash(id, code),
 		// The Vite plugin nulls out the whole argument (including any
 		// `as`/`satisfies` wrapper) — the body now lives only in the cfn module.
 		FactoryArgStart: fnArg.Pos(),

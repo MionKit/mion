@@ -318,13 +318,13 @@ type Session struct {
 	// nothing imports, so module resolution never reaches them — resolve exactly
 	// as they do in the build lane instead of silently checking as `any`.
 	configDeclarationRoots []string
-	// pureFnHashes is the session-wide index of every pure-fn entry
-	// the resolver has observed so far, keyed by "<ns>::<fnName>" with
-	// the entry's bodyHash as the value. Used by dispatchScanFiles to
-	// emit `AddedPureFns` on the wire — the Vite plugin reads that
-	// signal in handleHotUpdate to decide whether the pureFns cache
-	// module needs invalidating after a user-file change.
-	pureFnHashes map[string]string
+	// pureFnKeys is the set of pure-fn ids the resolver has observed so
+	// far. An id is the hash of the body that ships, so an edited body
+	// arrives as a NEW id and a set is all the change signal needs to be.
+	// Used by dispatchScanFiles to emit `AddedPureFns` on the wire — the
+	// Vite plugin reads that signal in handleHotUpdate to decide whether
+	// the pureFns cache module needs invalidating after a user-file change.
+	pureFnKeys map[string]bool
 	// scannedFiles tracks every file the resolver has scanned via
 	// dispatchScanFiles, regardless of whether the scan found any
 	// markers. Used by scanAllProgramFiles to avoid double-scanning
@@ -547,7 +547,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		releaseLease:        releaseLease,
 		marker:              markerOpts,
 		opts:                opts,
-		pureFnHashes:        map[string]string{},
+		pureFnKeys:          map[string]bool{},
 		scannedFiles:        map[string]struct{}{},
 		pureFnFileCache:     purefunctions.NewFileCache(),
 		batchFileCache:      requestbatch.NewFileCache(),
@@ -569,7 +569,7 @@ func NewServer(opts Options) *Session {
 		}),
 		marker:              marker.WithDefaults(opts.Marker),
 		opts:                opts,
-		pureFnHashes:        map[string]string{},
+		pureFnKeys:          map[string]bool{},
 		scannedFiles:        map[string]struct{}{},
 		pureFnFileCache:     purefunctions.NewFileCache(),
 		batchFileCache:      requestbatch.NewFileCache(),
@@ -649,7 +649,7 @@ func (sess *Session) Reset() {
 	sess.cache.Clear()
 	sess.cache.Rebind(nil)
 	sess.sites = sess.sites[:0]
-	sess.pureFnHashes = map[string]string{}
+	sess.pureFnKeys = map[string]bool{}
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
 	sess.batchFileCache = requestbatch.NewFileCache()

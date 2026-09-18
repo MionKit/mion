@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -101,11 +103,11 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 	}
 	// It demands the built-in by body reference (the pure-fn dep tuple slot is a
 	// real JS array literal, so its single quotes are NOT escaped).
-	if !strings.Contains(armed, "'@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle'") {
+	if !strings.Contains(armed, "'"+purefnids.FindCycle+"'") {
 		t.Errorf("armed entry does not list the findCycle pure-fn dep:\n%s", armed)
 	}
-	if _, ok := modules["pf/@mionjs/run-types/src/runtypes/circular-pure-fns/findCycle"]; !ok {
-		t.Errorf("@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle module was not served\nmodules: %v", keys(modules))
+	if _, ok := modules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" module was not served\nmodules: %v", keys(modules))
 	}
 }
 
@@ -116,7 +118,7 @@ interface Node {name: string; next?: Node}
 export const isNode = createValidateFn<Node>();
 `)
 	for name, mod := range modules {
-		if strings.Contains(mod, "findCycle") {
+		if strings.Contains(mod, purefnids.FindCycle) {
 			t.Errorf("plain cyclable type served the walker in %q — demand leaked:\n%s", name, mod)
 		}
 		// No RunType data bundle (kind-4 row bundle) for a plain createX cyclable type.
@@ -143,8 +145,8 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 	if throwers < 2 {
 		t.Errorf("expected both armed encoders (tb + je) to throw via utl.circularError, found %d\nmodules: %v", throwers, keys(modules))
 	}
-	if _, ok := modules["pf/@mionjs/run-types/src/runtypes/circular-pure-fns/findCycle"]; !ok {
-		t.Errorf("@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle not served for armed encoders\nmodules: %v", keys(modules))
+	if _, ok := modules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" not served for armed encoders\nmodules: %v", keys(modules))
 	}
 }
 
@@ -168,7 +170,7 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 			t.Fatalf("armed jsonEncoder tripped JCP001 on its pure-fn soft dep: args=%v", d.Args)
 		}
 	}
-	if _, ok := resp.EntryModules["pf/@mionjs/run-types/src/runtypes/circular-pure-fns/findCycle"]; !ok {
-		t.Errorf("@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle module was not served\nmodules: %v", keys(resp.EntryModules))
+	if _, ok := resp.EntryModules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
+		t.Errorf(purefnids.FindCycle+" module was not served\nmodules: %v", keys(resp.EntryModules))
 	}
 }

@@ -21,13 +21,17 @@ import (
 // elided from JSON serialisation (unexported) and from the module render
 // (the module emitter reads only Key()/ParamNames/Code/BodyHash).
 type Entry struct {
-	// ID is where this pure function lives: its package, its file and the name
-	// it is bound to (`@acme/text/src/slug#slugify`), or its body hash when it
-	// is bound to no name. Built by IDFor; it is the registry key everywhere.
-	ID         string
-	ParamNames []string
-	Code       string
-	BodyHash   string
+	// ID identifies this pure function: the package that owns it and a hash of
+	// the body that ships (`@acme/text#9Zt1bRm4cVaPqL`). Built by IDFor; it is
+	// the registry key everywhere.
+	ID string
+	// BindingName is the identifier the registration is assigned to, or empty
+	// for one written straight into a call. It names nothing in the id — the
+	// hash does that — and exists because a hash is unreadable in a diagnostic
+	// and unusable as a generated constant's name.
+	BindingName string
+	ParamNames  []string
+	Code        string
 	// PureFnDependencies is the sorted, deduped list of pure-fn ids this
 	// factory accesses via `utl.getPureFn` / `usePureFn` / `getCompiledPureFn`
 	// calls. Statically extracted by extractDeps during the same purity walk;
@@ -89,6 +93,22 @@ type SourceFileLookup interface {
 type FileCache struct {
 	entries map[string][]Entry
 	diags   map[string][]diagnostics.Diagnostic
+	ctx     *resolveCtx
+}
+
+// resolver returns the Program-wide resolve context, built on first use. It
+// must be shared: an id is the hash of a body carrying its dependencies' ids,
+// so the memo only pays for itself when every file resolves against one. A nil
+// cache (the uncached lane) gets a throwaway context, which is still correct,
+// just not reused.
+func (cache *FileCache) resolver(typeChecker *checker.Checker, markerOpts marker.Options) *resolveCtx {
+	if cache == nil {
+		return newResolveCtx(typeChecker, markerOpts)
+	}
+	if cache.ctx == nil {
+		cache.ctx = newResolveCtx(typeChecker, markerOpts)
+	}
+	return cache.ctx
 }
 
 // NewFileCache returns an empty per-Program extraction memo.
@@ -153,6 +173,7 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 	var entries []Entry
 	var diags []diagnostics.Diagnostic
 	seen := map[string]int{} // key → index in entries (the winner)
+	ctx := cache.resolver(typeChecker, markerOpts)
 
 	for _, filePath := range files {
 		fileEntries, fileDiags, cached := cache.get(filePath)
@@ -161,25 +182,14 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 			if sourceFile == nil {
 				continue
 			}
-			fileEntries, fileDiags = extractFromSourceFile(typeChecker, markerOpts, sourceFile)
+			fileEntries, fileDiags = ctx.extractFromSourceFile(sourceFile)
 			cache.put(filePath, fileEntries, fileDiags)
 		}
 		diags = append(diags, fileDiags...)
 		for _, entry := range fileEntries {
-			if winnerIdx, dup := seen[entry.Key()]; dup {
-				winner := entries[winnerIdx]
-				if winner.BodyHash == entry.BodyHash {
-					continue // idempotent re-registration
-				}
-				diags = append(diags, diagnostics.NewWithRelated(
-					diagnostics.CodeBodyHashCollision,
-					siteFromFile(entry.sourceFile, entry.callPos),
-					[]string{entry.Key()},
-					diagnostics.Related{
-						Site:    siteFromFile(winner.sourceFile, winner.callPos),
-						Message: "First registered here with bodyHash=" + winner.BodyHash,
-					},
-				))
+			// One id is one body: the id IS the hash of the body that ships, so
+			// a repeat is the same function written twice, never a conflict.
+			if _, dup := seen[entry.Key()]; dup {
 				continue
 			}
 			seen[entry.Key()] = len(entries)
@@ -215,6 +225,7 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 // Uses the same per-Program FileCache, so it never re-walks a file
 // ExtractFromProgramCached already cached.
 func RawEntries(typeChecker *checker.Checker, markerOpts marker.Options, lookup SourceFileLookup, files []string, cache *FileCache) []Entry {
+	ctx := cache.resolver(typeChecker, markerOpts)
 	var all []Entry
 	for _, filePath := range files {
 		fileEntries, fileDiags, cached := cache.get(filePath)
@@ -223,7 +234,7 @@ func RawEntries(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 			if sourceFile == nil {
 				continue
 			}
-			fileEntries, fileDiags = extractFromSourceFile(typeChecker, markerOpts, sourceFile)
+			fileEntries, fileDiags = ctx.extractFromSourceFile(sourceFile)
 			cache.put(filePath, fileEntries, fileDiags)
 		}
 		all = append(all, fileEntries...)
@@ -232,12 +243,17 @@ func RawEntries(typeChecker *checker.Checker, markerOpts marker.Options, lookup 
 }
 
 // extractFromSourceFile is the per-file extraction core: walk every
-// CallExpression, dispatch to extractOne.
-func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) ([]Entry, []diagnostics.Diagnostic) {
+// CallExpression and ask the context for its entry. Going through the memo is
+// what keeps a helper that five files depend on from being extracted six times:
+// whichever dependent reached it first already finished it.
+func (ctx *resolveCtx) extractFromSourceFile(sourceFile *ast.SourceFile) ([]Entry, []diagnostics.Diagnostic) {
 	var entries []Entry
 	var diagnostics []diagnostics.Diagnostic
 	findCalls(sourceFile, func(call *ast.Node) {
-		entry, diags := extractOne(typeChecker, markerOpts, sourceFile, call)
+		entry, diags, cycle := ctx.entryFor(sourceFile, call)
+		if cycle {
+			return // the site that closed the cycle reported PFE9015
+		}
 		diagnostics = append(diagnostics, diags...)
 		if entry != nil {
 			entries = append(entries, *entry)
@@ -333,17 +349,17 @@ func pureFnFormMarker(typeChecker *checker.Checker, markerOpts marker.Options, p
 // The returned Entry carries internal-only fields (sourceFile, callPos) that
 // the caller uses for cross-file collision reporting; these never reach the
 // wire.
-func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node) (*Entry, []diagnostics.Diagnostic) {
+func (ctx *resolveCtx) extractOne(sourceFile *ast.SourceFile, call *ast.Node) (*Entry, []diagnostics.Diagnostic) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
 		return nil, nil
 	}
-	matched, wrap, fnParamIndex, idParamIndex := isPureFnRegistration(typeChecker, markerOpts, call)
+	matched, wrap, fnParamIndex, idParamIndex := ctx.isPureFnRegistration(call)
 	if !matched {
 		return nil, nil
 	}
-	entry, diags := extractRegistration(typeChecker, markerOpts, sourceFile, call, callExpr, wrap, fnParamIndex, idParamIndex)
-	attachCallee(entry, typeChecker, markerOpts, call, callExpr)
+	entry, diags := ctx.extractRegistration(sourceFile, call, callExpr, wrap, fnParamIndex, idParamIndex)
+	ctx.attachCallee(entry, call, callExpr)
 	return entry, diags
 }
 
@@ -357,16 +373,16 @@ func extractOne(typeChecker *checker.Checker, markerOpts marker.Options, sourceF
 // package that declares the wrapper (e.g. `@acme/toolkit`), not to
 // `@mionjs/run-types`. Both are cheap add-ons over data extraction already
 // touched, so they only run when the report is being built.
-func attachCallee(entry *Entry, typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node, callExpr *ast.CallExpression) {
+func (ctx *resolveCtx) attachCallee(entry *Entry, call *ast.Node, callExpr *ast.CallExpression) {
 	if entry == nil {
 		return
 	}
 	entry.CalleeName = calleeIdentifierName(callExpr)
-	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
+	signature := checker.Checker_getResolvedSignature(ctx.typeChecker, call, nil, 0)
 	if signature == nil {
 		return
 	}
-	entry.CalleeModule = marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), marker.WithDefaults(markerOpts).FS)
+	entry.CalleeModule = marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), marker.WithDefaults(ctx.markerOpts).FS)
 }
 
 // calleeIdentifierName returns the text of the call's callee identifier —
@@ -400,13 +416,13 @@ func calleeIdentifierName(callExpr *ast.CallExpression) string {
 // a re-scan of rewritten source) is verified against the computed one instead
 // of being trusted: a mismatch is PFE9014 and yields no entry, because letting
 // it through would register one body under two ids.
-func extractRegistration(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, callExpr *ast.CallExpression, wrap bool, fnParamIndex, idParamIndex int) (*Entry, []diagnostics.Diagnostic) {
+func (ctx *resolveCtx) extractRegistration(sourceFile *ast.SourceFile, call *ast.Node, callExpr *ast.CallExpression, wrap bool, fnParamIndex, idParamIndex int) (*Entry, []diagnostics.Diagnostic) {
 	if callExpr.Arguments == nil || len(callExpr.Arguments.Nodes) <= fnParamIndex {
 		return nil, nil
 	}
 	args := callExpr.Arguments.Nodes
 
-	fnNode, fnResult := comptimeargs.CheckLiteralFunction(typeChecker, args[fnParamIndex])
+	fnNode, fnResult := comptimeargs.CheckLiteralFunction(ctx.typeChecker, args[fnParamIndex])
 	// Non-inline arg (a `null` hollow registration, a forwarded wrapper param,
 	// or a re-scanned rewritten `__rt_pf…` binding): PFN001 is the resolver's
 	// job — bail quietly, so the rewrite is idempotent and wrapper bodies
@@ -415,13 +431,13 @@ func extractRegistration(typeChecker *checker.Checker, markerOpts marker.Options
 		return nil, nil
 	}
 
-	entry, diags := buildPureFnEntry(typeChecker, markerOpts, sourceFile, call, fnNode, args[fnParamIndex], wrap)
+	entry, diags := ctx.buildPureFnEntry(sourceFile, call, fnNode, args[fnParamIndex], wrap)
 	if entry == nil {
 		return nil, diags
 	}
 
 	if len(args) > idParamIndex {
-		written, result := comptimeargs.ResolveLiteralString(typeChecker, args[idParamIndex])
+		written, result := comptimeargs.ResolveLiteralString(ctx.typeChecker, args[idParamIndex])
 		// An id that does not resolve to a literal is a forwarded wrapper
 		// parameter we cannot read; there is nothing to verify, so it rides
 		// through and the registrar sees whatever the caller passed.
@@ -503,7 +519,7 @@ func pureFnCode(sourceFile *ast.SourceFile, fnNode *ast.Node, wrap bool, lowerin
 //
 // `fnArg` is the argument node whose byte span the plugin rewrites to the
 // entry-module tuple.
-func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, fnNode *ast.Node, fnArg *ast.Node, wrap bool) (*Entry, []diagnostics.Diagnostic) {
+func (ctx *resolveCtx) buildPureFnEntry(sourceFile *ast.SourceFile, call *ast.Node, fnNode *ast.Node, fnArg *ast.Node, wrap bool) (*Entry, []diagnostics.Diagnostic) {
 	var diags []diagnostics.Diagnostic
 	var paramNames []string
 	var pureFnDependencies []string
@@ -523,7 +539,7 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 				diags = append(diags, diagnostics.New(
 					diagnostics.CodeDestructuredParam,
 					siteFromNode(sourceFile, paramNode),
-					siteID(markerOpts, sourceFile, call),
+					ctx.siteID(sourceFile, call),
 				))
 				return nil, diags
 			}
@@ -543,7 +559,7 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 			}
 		}
 		var depDiags []diagnostics.Diagnostic
-		pureFnDependencies, lowerings, exempt, depDiags = extractDeps(typeChecker, markerOpts, sourceFile, fnNode, utlName)
+		pureFnDependencies, lowerings, exempt, depDiags = ctx.extractDeps(sourceFile, fnNode, utlName)
 		diags = append(diags, depDiags...)
 	}
 
@@ -551,15 +567,11 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 	if !ok {
 		return nil, diags
 	}
-	// A registration bound to a name is identified by that name; one bound to
-	// nothing (a callback handed straight to a wrapper) is identified by its
-	// body, so two structurally equal bodies still collapse to one entry. The
-	// body here is the LOWERED one, which is what actually ships.
-	name := bindingNameOf(call)
-	if name == "" {
-		name = CodeHash(code)
-	}
-	id := IDFor(markerOpts, sourceFile.FileName(), name)
+	// The body here is the LOWERED one, carrying its dependencies' ids in place
+	// of the bindings they were written with. That is what makes the hash an
+	// identity: two registrations share an id only when they ship the same
+	// function, dependencies included.
+	id := IDFor(ctx.markerOpts, sourceFile.FileName(), CodeHash(code))
 
 	// Purity validation — port of the reference eslint rules'
 	// `pure-functions.ts` rule. Emits PFE9006-PFE9011 diagnostics for
@@ -577,9 +589,9 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 	}
 	entry := &Entry{
 		ID:                 id,
+		BindingName:        bindingNameOf(call),
 		ParamNames:         paramNames,
 		Code:               code,
-		BodyHash:           BodyHash(id, code),
 		PureFnDependencies: pureFnDependencies,
 		FactoryArgStart:    fnArg.Pos(),
 		FactoryArgEnd:      fnArg.End(),
@@ -594,12 +606,12 @@ func buildPureFnEntry(typeChecker *checker.Checker, markerOpts marker.Options, s
 // siteID names a registration in a diagnostic raised before its id can be
 // computed, which is why a registration bound to no name reads `#(unnamed)`
 // here rather than carrying its body hash.
-func siteID(markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node) string {
+func (ctx *resolveCtx) siteID(sourceFile *ast.SourceFile, call *ast.Node) string {
 	name := bindingNameOf(call)
 	if name == "" {
 		name = "(unnamed)"
 	}
-	return IDFor(markerOpts, sourceFile.FileName(), name)
+	return IDFor(ctx.markerOpts, sourceFile.FileName(), name)
 }
 
 // siteFromNode builds a 1-based diagnostics.Site for the node's start/end.

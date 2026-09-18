@@ -51,7 +51,6 @@ func CollectEntries(entries []Entry, emitMode constants.EmitMode) entrymodules.G
 		}
 		args := trimTrailingHoles([]string{
 			jsquote.Single(entry.Key()),
-			jsquote.Single(entry.BodyHash),
 			paramNamesJS(entry.ParamNames),
 			codeArg,
 			depKeysJS(entry.PureFnDependencies),
@@ -108,6 +107,7 @@ func Report(entries []Entry, emitMode constants.EmitMode, bundled bool) []protoc
 			Start:              entry.FactoryArgStart,
 			End:                entry.FactoryArgEnd,
 			Key:                entry.Key(),
+			BindingName:        entry.BindingName,
 			CalleeName:         entry.CalleeName,
 			CalleeModule:       entry.CalleeModule,
 			Form:               entry.Form,

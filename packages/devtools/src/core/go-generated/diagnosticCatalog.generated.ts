@@ -874,14 +874,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "`validate` is a shared dependency across function families: JSON and\nbinary union decoders call the member validators to pick the matching\nbranch. An `overrideValidate<T>()` therefore reaches past\n`createValidateFn<T>()`: decoders of any union containing T now narrow\nwith YOUR function.\n\nThis is informational; the build proceeds. If the override should only\naffect direct validation, give the union members a discriminant so\ndecoders never fall back to member validation:\n  type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
   },
-  PFE9004: {
-    headline: 'Two pure functions share the id `{0}` but have different bodies; only one can win.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'purefn',
-    detail:
-      "A pure function's id is where it lives: the package, the file, and the name\nit is bound to. Two registrations under one id means one file binds the same\nname twice, or two bodies that are not assigned to a name differ only in ways\nthe build cannot see.\n\nFix: give each registration its own binding, or make the bodies identical.\nThe Related: line above points at the first registration the extractor saw.",
-  },
   PFE9005: {
     headline: 'Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.',
     level: 'error',
@@ -961,6 +953,14 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     family: 'purefn',
     detail:
       "A pure function's id is computed from where it lives: the package, the file\nand the name it is bound to. The build injects it, so source normally passes\nnone. An id written by hand, or left behind by a move or a rename, would\nregister the body under one id while every reference to it uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
+  },
+  PFE9015: {
+    headline: 'Pure function `{0}` and the one reaching it here depend on each other; neither can be given an id.',
+    level: 'error',
+    severity: 'error',
+    family: 'purefn',
+    detail:
+      "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
   },
   PFN001: {
     headline: '`PureFunction<F>` argument must be an INLINE arrow or function expression.',

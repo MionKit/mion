@@ -3,6 +3,7 @@ package resolver
 import (
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
@@ -22,13 +23,13 @@ func builtinSoftDepEntry(key string, softDeps []string) *entrymodules.Entry {
 // transitive closure rides along (isDateString_YMD -> isDateString).
 func TestServeBuiltin_ServesDemandedAndTransitive(t *testing.T) {
 	graph := entrymodules.Graph{}
-	graph.Add(builtinSoftDepEntry("verr_root", []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"}))
-	graph.Add(builtinSoftDepEntry("val_fmt", []string{"@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_YMD"}))
+	graph.Add(builtinSoftDepEntry("verr_root", []string{purefnids.NewRunTypeErr}))
+	graph.Add(builtinSoftDepEntry("val_fmt", []string{purefnids.IsDateStringYMD}))
 
 	var diags []diagnostics.Diagnostic
 	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
-	for _, key := range []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr", "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_YMD", "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString"} {
+	for _, key := range []string{purefnids.NewRunTypeErr, purefnids.IsDateStringYMD, purefnids.IsDateString} {
 		entry := graph[key]
 		if entry == nil {
 			t.Fatalf("built-in %q was not served", key)
@@ -50,12 +51,12 @@ func TestServeBuiltin_ServesDemandedAndTransitive(t *testing.T) {
 // `Closure` reporting it is covered in the builtinpurefns package.
 func TestServeBuiltin_UnknownIdIsNotDemanded(t *testing.T) {
 	graph := entrymodules.Graph{}
-	graph.Add(builtinSoftDepEntry("verr_root", []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr", "@acme/app/src/fns#slugify"}))
+	graph.Add(builtinSoftDepEntry("verr_root", []string{purefnids.NewRunTypeErr, "@acme/app/src/fns#slugify"}))
 
 	var diags []diagnostics.Diagnostic
 	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
-	if graph["@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"] == nil {
+	if graph[purefnids.NewRunTypeErr] == nil {
 		t.Error("the built-in should still be served alongside the consumer's own id")
 	}
 	if graph["@acme/app/src/fns#slugify"] != nil {

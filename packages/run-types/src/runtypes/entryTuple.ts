@@ -243,10 +243,7 @@ export interface FnTypeRecord extends Pick<
 /** Named view of a pure-fn entry tuple: the shared head plus the
  *  CompiledPureFunction fields the wire carries. `key` is the pure fn's id,
  *  which is the cache key verbatim. **/
-export interface PureFnRecord extends Pick<
-  CompiledPureFunction,
-  'bodyHash' | 'paramNames' | 'code' | 'pureFnDependencies' | 'createPureFn'
-> {
+export interface PureFnRecord extends Pick<CompiledPureFunction, 'paramNames' | 'code' | 'pureFnDependencies' | 'createPureFn'> {
   entryKind: typeof KIND_PURE_FN;
   deps: EntryDepsThunk | undefined;
   ini: undefined;
@@ -311,7 +308,7 @@ export const FN_TYPE_TUPLE_KEYS = [...FN_TYPE_REQUIRED_KEYS, ...FN_TYPE_TRIMMED_
  *  Derived from the keys array so it tracks any layout edit. **/
 const FN_TYPE_ESTIMATE_SLOT = FN_TYPE_TUPLE_KEYS.indexOf('binarySizeEstimate');
 
-const PURE_FN_REQUIRED_KEYS = [...ENTRY_HEAD_KEYS, 'key', 'bodyHash', 'paramNames', 'code', 'pureFnDependencies'] as const;
+const PURE_FN_REQUIRED_KEYS = [...ENTRY_HEAD_KEYS, 'key', 'paramNames', 'code', 'pureFnDependencies'] as const;
 // createPureFn is the sole trimmable tail: dropped in `code` mode (rebuilt at
 // runtime from code + paramNames), present in `functions`/`both`.
 const PURE_FN_TRIMMED_KEYS = ['createPureFn'] as const;
@@ -793,7 +790,6 @@ function registerPureFnTuple(utils: RTUtils, tuple: PureFnTuple): boolean {
   if (utils.hasPureFnByKey(record.key)) return false;
   const entry: CompiledPureFunction = {
     id: record.key,
-    bodyHash: record.bodyHash,
     paramNames: record.paramNames,
     // undefined in `functions` mode — nobody reads a pure fn's code at runtime.
     code: record.code,

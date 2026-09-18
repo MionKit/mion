@@ -234,12 +234,13 @@ func (graph Graph) AddMissingStubs(demanded []string) {
 
 // ModuleName returns the virtual-module basename for an entry key. Runtype and
 // type-fn keys are short alphanumeric hashes (plus one underscore for fn keys)
-// and pass through unchanged; a pure fn's key is its id, whose location half is
-// already a path, so it is path-encoded as
-// `pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr` with non-safe
-// bytes escaped per segment. The basename stays a valid (and readable) module
-// specifier, and the encoding is injective because `#` and `/` are the only
-// separators an id can hold and neither survives escaping inside a segment.
+// and pass through unchanged; a pure fn's key is its id, whose owner half is the
+// package that owns it, so it is path-encoded as
+// `pf/@mionjs/run-types/rXVwGkGDX08BsQ` with non-safe bytes escaped per segment.
+// A file under no named package has no owner half and lands directly at
+// `pf/<hash>`. The basename stays a valid module specifier, and the encoding is
+// injective because `#` and `/` are the only separators an id can hold and
+// neither survives escaping inside a segment.
 func ModuleName(key string, kind Kind) string {
 	if kind == KindRunTypeBundle {
 		return constants.RunTypesBundleBasename
@@ -251,11 +252,13 @@ func ModuleName(key string, kind Kind) string {
 	if idx := strings.LastIndex(key, "#"); idx >= 0 {
 		location, name = key[:idx], key[idx+1:]
 	}
-	parts := strings.Split(location, "/")
-	for i, part := range parts {
-		parts[i] = escapeModuleSegment(part)
+	segments := []string{constants.PureFnModuleDir}
+	if location != "" {
+		for _, part := range strings.Split(location, "/") {
+			segments = append(segments, escapeModuleSegment(part))
+		}
 	}
-	return constants.PureFnModuleDir + "/" + strings.Join(parts, "/") + "/" + escapeModuleSegment(name)
+	return strings.Join(append(segments, escapeModuleSegment(name)), "/")
 }
 
 // escapeModuleSegment keeps [@A-Za-z0-9_.-] bytes and hex-escapes everything

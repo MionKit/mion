@@ -29,7 +29,7 @@ import (
 // (PFN001) before invoking this; the purity walker itself does not validate the
 // outer node's kind.
 func CheckPurity(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, fnNode *ast.Node) []diagnostics.Diagnostic {
-	_, _, exempt, _ := extractDeps(typeChecker, markerOpts, sourceFile, fnNode, utlParamName(fnNode))
+	_, _, exempt, _ := newResolveCtx(typeChecker, markerOpts).extractDeps(sourceFile, fnNode, utlParamName(fnNode))
 	return checkPurity(sourceFile, fnNode, exempt)
 }
 
@@ -57,8 +57,8 @@ type (
 )
 
 const (
-	CodeBodyHashCollision = diagnostics.CodeBodyHashCollision
-	CodeDestructuredParam = diagnostics.CodeDestructuredParam
+	CodeDestructuredParam     = diagnostics.CodeDestructuredParam
+	CodePureFnDependencyCycle = diagnostics.CodePureFnDependencyCycle
 
 	CodePurityThis          = diagnostics.CodePurityThis
 	CodePurityAwait         = diagnostics.CodePurityAwait

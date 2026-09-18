@@ -28,7 +28,6 @@ import (
 // producer of builtinEntries; edit the TS source and regenerate, never this.
 type builtinEntry struct {
 	id         string
-	bodyHash   string
 	paramNames []string
 	code       string
 	deps       []string
@@ -41,7 +40,6 @@ func (e builtinEntry) toEntry() purefunctions.Entry {
 		ID:                 e.id,
 		ParamNames:         e.paramNames,
 		Code:               e.code,
-		BodyHash:           e.bodyHash,
 		PureFnDependencies: e.deps,
 	}
 }

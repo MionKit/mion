@@ -32,6 +32,17 @@ const wrapperDts = `declare module '@acme/toolkit' {
 
 // siteByKey finds the report record for an id (entries/report are sorted, but
 // look up by id for readable assertions).
+// siteByBinding finds a reported site by the identifier the source bound the
+// registration to. The site's key is a hash, which a test cannot spell.
+func siteByBinding(sites []PureFnSiteFixture, bindingName string) (PureFnSiteFixture, bool) {
+	for _, site := range sites {
+		if site.BindingName == bindingName {
+			return site, true
+		}
+	}
+	return PureFnSiteFixture{}, false
+}
+
 func siteByKey(sites []PureFnSiteFixture, key string) (PureFnSiteFixture, bool) {
 	for _, site := range sites {
 		if site.Key == key {
@@ -44,8 +55,8 @@ func siteByKey(sites []PureFnSiteFixture, key string) (PureFnSiteFixture, bool) 
 // PureFnSiteFixture mirrors the fields report assertions read — a thin local
 // alias so the test doesn't import protocol just for field access.
 type PureFnSiteFixture struct {
-	Key, CalleeName, CalleeModule, Form, Module, Code string
-	ParamNames                                        []string
+	Key, BindingName, CalleeName, CalleeModule, Form, Module, Code string
+	ParamNames                                                     []string
 }
 
 func reportFixtures(t *testing.T, emitMode constants.EmitMode, bundled bool) []PureFnSiteFixture {
@@ -76,7 +87,7 @@ export const mapped = mapAcmeFrom({id: 4}, (customer: {id: number}): number => c
 	out := make([]PureFnSiteFixture, 0, len(report))
 	for _, site := range report {
 		out = append(out, PureFnSiteFixture{
-			Key: site.Key, CalleeName: site.CalleeName, CalleeModule: site.CalleeModule,
+			Key: site.Key, BindingName: site.BindingName, CalleeName: site.CalleeName, CalleeModule: site.CalleeModule,
 			Form: site.Form, Module: site.Module, Code: site.Code, ParamNames: site.ParamNames,
 		})
 	}
@@ -90,7 +101,7 @@ func TestReport_FormsAndCalleeAttribution(t *testing.T) {
 	}
 
 	// Factory form, primitive registrar.
-	if s, ok := siteByKey(sites, idOf("a.ts", "mul")); !ok {
+	if s, ok := siteByBinding(sites, "mul"); !ok {
 		t.Errorf("missing the mul record")
 	} else {
 		if s.Form != "factory" {
@@ -105,7 +116,7 @@ func TestReport_FormsAndCalleeAttribution(t *testing.T) {
 	}
 
 	// Direct form, primitive registrar.
-	if s, ok := siteByKey(sites, idOf("a.ts", "neg")); !ok {
+	if s, ok := siteByBinding(sites, "neg"); !ok {
 		t.Errorf("missing the neg record")
 	} else if s.Form != "direct" || s.CalleeName != "registerPureFn" {
 		t.Errorf("neg = %q via %q, want direct via registerPureFn", s.Form, s.CalleeName)
@@ -114,7 +125,7 @@ func TestReport_FormsAndCalleeAttribution(t *testing.T) {
 	// Wrapper attribution: a framework wrapper resolves to @acme/toolkit, NOT
 	// @mionjs/run-types — the whole point of calleeModule for cross-bundle tooling.
 	for _, name := range []string{"wrapped", "triple", "mapped"} {
-		s, ok := siteByKey(sites, idOf("a.ts", name))
+		s, ok := siteByBinding(sites, name)
 		if !ok {
 			t.Errorf("missing the %s record", name)
 			continue
@@ -123,10 +134,10 @@ func TestReport_FormsAndCalleeAttribution(t *testing.T) {
 			t.Errorf("%s callee module = %q, want @acme/toolkit", name, s.CalleeModule)
 		}
 	}
-	if s, _ := siteByKey(sites, idOf("a.ts", "wrapped")); s.CalleeName != "registerAcmeFactory" || s.Form != "factory" {
+	if s, _ := siteByBinding(sites, "wrapped"); s.CalleeName != "registerAcmeFactory" || s.Form != "factory" {
 		t.Errorf("wrapped = %q/%q, want registerAcmeFactory/factory", s.CalleeName, s.Form)
 	}
-	if s, _ := siteByKey(sites, idOf("a.ts", "mapped")); s.CalleeName != "mapAcmeFrom" || s.Form != "direct" {
+	if s, _ := siteByBinding(sites, "mapped"); s.CalleeName != "mapAcmeFrom" || s.Form != "direct" {
 		t.Errorf("mapped = %q/%q, want mapAcmeFrom/direct", s.CalleeName, s.Form)
 	}
 }

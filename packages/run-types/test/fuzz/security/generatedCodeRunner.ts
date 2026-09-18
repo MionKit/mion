@@ -54,18 +54,22 @@ function openLane(options: GeneratedCodeFuzzOptions): Lane {
   };
 }
 
-/** Every emitted body in a set of entry modules. An entry tuple carries its
+/** Every GENERATED body in a set of entry modules. An entry tuple carries its
  *  family tag in slot 0 and the factory body in slot 5 (a hole for a noop or
- *  an alwaysThrow entry, which have no body to scan). **/
+ *  an alwaysThrow entry, which have no body to scan).
+ *
+ *  A pure-fn tuple is skipped: its slot 0 is a numeric kind rather than a
+ *  family tag, and its body is a library function an author wrote, not code an
+ *  emitter produced. Auditing one would report on prose in its comments. **/
 export function emittedBodies(entryModules: Record<string, string>): EmittedBody[] {
   const out: EmittedBody[] = [];
   const tuples = evalEntryModules(entryModules);
   for (const [key, tuple] of Object.entries(tuples)) {
     const slots = tuple as readonly unknown[];
+    if (typeof slots[0] !== 'string') continue;
     const code = slots[5];
     if (typeof code !== 'string' || code === '') continue;
-    const tag = typeof slots[0] === 'string' ? slots[0] : key.split('_')[0];
-    out.push({key, family: tag, code});
+    out.push({key, family: slots[0], code});
   }
   return out;
 }

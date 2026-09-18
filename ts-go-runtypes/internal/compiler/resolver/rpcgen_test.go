@@ -59,7 +59,7 @@ var (
 	mapperImportRE = regexp.MustCompile(`import \{(__rt_pf\$2F[A-Za-z0-9_$]+)\} from '(\./pf/[^']+\.js)';`)
 	specifierRE    = regexp.MustCompile(`from '([^']+)'`)
 	batchIdRE      = regexp.MustCompile(`"(b_[A-Za-z0-9_-]+)"`)
-	mapperKeyRE    = regexp.MustCompile(`'([^']+#[A-Za-z0-9_-]+)'`)
+	mapperKeyRE    = regexp.MustCompile(`'([^']*#[A-Za-z0-9_-]+)'`)
 )
 
 func readRpcModule(t *testing.T, outDir string) string {
