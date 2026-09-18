@@ -108,53 +108,39 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
   return newRemoteMethod as MethodWithOptions;
 }
 
-/** RunTypes' package-owned pure-fn namespaces. Their bodies are hollowed in the dist build and
- *  supplied from the built-in table at runtime, so every entry is already registered wherever
- *  `@mionjs/run-types` is loaded — which on the client is guaranteed, since @mionjs/core
- *  value-imports it. Kept in sync with upstream's own `isBuiltinPureFnNamespace` (pureFn.ts), which
- *  is module-private, and with the Go `builtinPureFnNamespaces` set. */
-const BUILTIN_PURE_FN_NAMESPACES = new Set(['rt', 'rtFormats']);
+/** The package whose own pure fns never ride the wire. Their bodies are hollowed in the dist build
+ *  and supplied from the compiler's built-in table, so every one is already registered wherever
+ *  `@mionjs/run-types` is loaded, which on the client is guaranteed since @mionjs/core
+ *  value-imports it. A pure fn's id starts with the package that owns it, so this is a prefix
+ *  test rather than a list anyone has to keep in sync. */
+const RUN_TYPES_ID_PREFIX = '@mionjs/run-types/';
 
-/** Serializes pure function dependencies into a namespaced cache structure.
- * @param namespacedDepHash - Pure function dependency in format "namespace::fnHash"
- * @param purFnDeps - Namespaced cache to store serialized pure functions
- * @param depth - Current recursion depth for stack overflow protection
- */
-export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsDataCache, depth = 0) {
-  if (depth >= MAX_STACK_DEPTH)
-    throw new Error(`Max depth reached serializing pure function dependencies, for: ${namespacedDepHash}`);
-  // Parse "namespace::fnHash" format
-  const parts = namespacedDepHash.split('::');
-  if (parts.length !== 2)
-    throw new Error(`Invalid pure function dependency format: ${namespacedDepHash}, expected "namespace::fnHash"`);
-  const [namespace, fnHash] = parts;
+/** Serializes a pure function and everything it reaches into the wire cache, keyed by id. */
+export function serializePureDeps(id: string, purFnDeps: PureFnsDataCache, depth = 0) {
+  if (depth >= MAX_STACK_DEPTH) throw new Error(`Max depth reached serializing pure function dependencies, for: ${id}`);
   // Built-ins never ride the wire: the client already has them, and their bodies are hollowed
   // server-side so there would be nothing to send. addSerializedJitCaches skipped them on restore
   // anyway (hasPureFnByKey short-circuit) — skipping here just stops shipping the dead weight.
-  if (BUILTIN_PURE_FN_NAMESPACES.has(namespace)) return;
-  // Ensure namespace exists in the cache
-  if (!purFnDeps[namespace]) purFnDeps[namespace] = {};
-  // Check if already serialized (prevent infinite recursion on circular dependencies)
-  if (purFnDeps[namespace][fnHash]) return;
-  const pureDep = resolveCompiledPureFn(namespace, fnHash);
-  if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
+  if (id.startsWith(RUN_TYPES_ID_PREFIX)) return;
+  // Already serialized (prevents infinite recursion on circular dependencies).
+  if (purFnDeps[id]) return;
+  const pureDep = resolveCompiledPureFn(id);
+  if (!pureDep) throw new Error(`Pure function ${id} not found`);
   // The client rebuilds a pure fn as `new Function(...paramNames, code)` — there is no other
   // lane. An entry with no code is unrecoverable there, so fail here instead of shipping a
   // payload that breaks on first use. With built-ins already filtered out above, this can only
   // fire for a user/framework fn registered at runtime with no body: server-only by nature.
   if (!pureDep.code)
     throw new Error(
-      `Pure function ${namespace}::${fnHash} has no code payload and cannot be serialized to the client. ` +
+      `Pure function ${id} has no code payload and cannot be serialized to the client. ` +
         `Runtime-registered pure fns are server-only; the client can rebuild only build-extracted ones.`
     );
-  const serializedPureDep: SerializablePureFunction = {
+  purFnDeps[id] = {
     ...pureDep,
     code: pureDep.code,
     pureFnDependencies: pureDep.pureFnDependencies ? [...pureDep.pureFnDependencies] : undefined,
   };
-  purFnDeps[namespace][fnHash] = serializedPureDep;
-  // Dependencies within the same namespace are stored as just fnHash, not namespaced
-  pureDep.pureFnDependencies?.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));
+  pureDep.pureFnDependencies?.forEach((depId) => serializePureDeps(depId, purFnDeps, depth + 1));
 }
 
 export function serializeJitFn(rtFnHash: string, deps: Record<string, CompiledFnData>, purFnDeps: PureFnsDataCache, depth = 0) {

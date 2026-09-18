@@ -1213,16 +1213,14 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // resolver to scan files that never import the markers.
       // The pure-fn registrars are checked separately because the marker
       // package's OWN sources call them via relative imports (no package-name
-      // string in the file). `registerPureFn` catches both named registrars
-      // (`registerPureFn` + `registerPureFnFactory`) and `registerAnonymousPureFn`
-      // catches both anonymous ones (`registerAnonymousPureFn` +
-      // `registerAnonymousPureFnFactory`) — a substring probe over all four. Both
-      // pure-fn lanes emit Replacements, not Sites, so a file created mid-session
-      // (before its first HMR scan lands it in siteFiles) needs this textual catch.
+      // string in the file). `registerPureFn` is a substring of
+      // `registerPureFnFactory`, so probing it covers both. A registration emits
+      // Replacements, not Sites, so a file created mid-session (before its first
+      // HMR scan lands it in siteFiles) needs this textual catch.
       const inSiteSet = siteFiles.has(siteKey(rel));
       if (!inSiteSet) {
         const importsMarkerModule = markerProbes === null || markerProbes.some((probe) => code.includes(probe));
-        const callsPureFnRegistrar = code.includes('registerPureFn') || code.includes('registerAnonymousPureFn');
+        const callsPureFnRegistrar = code.includes('registerPureFn');
         if (!importsMarkerModule && !callsPureFnRegistrar) return null;
       }
 

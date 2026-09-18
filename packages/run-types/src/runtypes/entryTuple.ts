@@ -43,6 +43,7 @@
 // materialisation stays lazy (materializeRTFn on first getRT), so cycles keep
 // working exactly as before.
 
+import type {PureFnId} from './pureFn.ts';
 import {getRTUtils} from './rtUtils.ts';
 import type {RTUtils} from './rtUtils.ts';
 import type {AnyFn, CompiledFnArgs, CompiledFnData, CompiledPureFunction, CompiledTypeFn, RunType} from './types.ts';

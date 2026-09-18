@@ -12,15 +12,11 @@ export type {PureFunctionData, CompiledPureFunction};
  *  so an entry without code cannot be restored and must never reach the wire. */
 export type SerializablePureFunction = PureFunctionData & Required<Pick<PureFunctionData, 'code'>>;
 /** Reference built by inputFrom(): names a server-side mapper by its mion registry key. The
- *  mapper function never rides the ref; the key lives in the batch table the build compiled
+ *  mapper function never rides the ref; the id lives in the batch table the build compiled
  *  into the server, so nothing about the mapper travels on the wire. */
 export interface InputFromRef<F extends (...args: any[]) => any = (...args: any[]) => any> {
-  /** Full mion registry key: `rt::<contentHash>` (inline lane) | `mionjs::<name>` (name lane) */
+  /** The mapper's pure-fn id, the one the build injected at its `inputFrom` call */
   readonly mapperKey: string;
-  /** Registry namespace half of mapperKey ('rt' | 'mionjs') */
-  readonly namespace: string;
-  /** Function-name half of mapperKey (content hash, or the registered name) */
-  readonly fnName: string;
   fromRequestId: string;
   toRequestId: string;
   /** Index of the parameter in the target route's params array this mapping replaces */
@@ -49,6 +45,6 @@ export interface BatchMapping {
   toId: string;
   /** Index of the parameter in the target route's params array to replace */
   paramIndex: number;
-  /** Full mion registry key of the mapper (`rt::<hash>` | `mionjs::<name>`) */
+  /** The mapper's pure-fn id */
   mapperKey: string;
 }

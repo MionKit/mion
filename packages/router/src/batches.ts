@@ -329,9 +329,9 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
       });
     }
 
-    // The allow-list is the gate on what a table may reference: the FULL registry key, 'rt::<hash>'
-    // (build-harvested inline mapper) or 'mionjs::<name>' (server-registered and opted in with
-    // allowInputMapper). A key outside a mion lane is REJECTED here, never evaluated.
+    // The allow-list is the gate on what a table may reference: the mapper's pure-fn id, as
+    // harvested from the client build. An id that came through no mion lane is REJECTED here,
+    // never evaluated.
     if (!hasInputMapper(mapping.mapperKey)) {
       throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,

@@ -1,21 +1,25 @@
 // hollow-builtin-purefns.mjs — strip the built-in pure-fn factory BODIES out of
 // the published dist, keeping only the registration scaffolding.
 //
-// Why: the resolver now delivers every `rt::…` / `rtFormats::…` body on demand
-// from the built-in table, so the
-// side-effect-imported registration files (pure-fns-utils.js, *-pure-fns.js) no
-// longer need to CARRY the bodies — they cost ~1.6 KB (`rt::`) + ~9.7 KB
-// (`rtFormats::`) in every bundle. This post-build step rewrites each
-// `registerPureFnFactory('<key>', <factory>)` in those dist files to
-// `registerPureFnFactory('<key>', null /** <key> hollowed */)`, so the file keeps
-// its exports, its line count (stack traces / maps line up), and its side-effect
-// registration (now an inert no-op — see registerCore's hollowed built-in lane),
-// but ships scaffolding bytes only. The `.d.ts` is untouched (the factory arg is
-// not part of the declared type). The bodies still reach a consumer, on demand,
-// through the pure-fn cache.
+// Why: the resolver delivers every package-owned body on demand from the
+// built-in table, so the side-effect-imported registration files
+// (pure-fns-utils.js, *-pure-fns.js) no longer need to CARRY the bodies — they
+// cost roughly 11 KB in every bundle. This post-build step rewrites each
+// `registerPureFnFactory(<factory>, <id>)` in those dist files to
+// `registerPureFnFactory(null /** <id> hollowed */)`, so the file keeps its
+// exports, its line count (stack traces / maps line up), and its side-effect
+// registration (now an inert no-op — see registerCore's hollow lane), but ships
+// scaffolding bytes only. The `.d.ts` is untouched (neither argument is part of
+// the declared type). The bodies still reach a consumer, on demand, through the
+// pure-fn cache.
 //
-// Only the package-owned registration FILES are rewritten, and within them only
-// `rt::`/`rtFormats::` keys — user pure fns and everything else are left alone.
+// The id argument goes with the body: an inert registration has nothing to key,
+// and dropping it leaves the generated id module with no used export, so a
+// bundler drops those strings too. A `null` factory is what marks the hollow
+// lane; a file no build processed still throws.
+//
+// Only the listed registration FILES are rewritten; every other pure fn,
+// including a consumer's own, is left alone.
 //
 // Usage: node scripts/core/hollow-builtin-purefns.mjs [<distDir>]
 //   distDir defaults to packages/run-types/dist; both it and its dist/cjs twin
@@ -28,9 +32,13 @@ import {fileURLToPath} from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// The built-in registration modules, relative to a dist root. Kept in sync with
-// the side-effect imports in dist/index.js + dist/formats/index.js and with
-// cmd/gen-builtin-purefns's builtinSourceFiles.
+// The registration modules to hollow, relative to a dist root. Kept in sync with
+// the side-effect imports in dist/index.js + dist/formats/index.js.
+//
+// cmd/gen-builtin-purefns extracts from FIVE files; this list holds four on
+// purpose. credit-card-pure-fns.js is left whole because two of its ordinary
+// (non-pure-fn) helpers read the registry at import time, which the demand lane
+// never serves — hollowing it would leave them with nothing to call.
 const BUILTIN_FILES = [
   'runtypes/pure-fns-utils.js',
   'runtypes/circular-pure-fns.js',
@@ -39,7 +47,6 @@ const BUILTIN_FILES = [
 ];
 
 const CALL = 'registerPureFnFactory';
-const BUILTIN_NS = /^(rt|rtFormats)::/;
 
 // ---- a minimal JS scanner: enough to find the matching `)` of a
 // registerPureFnFactory(...) call, skipping strings, template literals, regex
@@ -162,7 +169,49 @@ function findCallCloseParen(src, openParen) {
   return -1;
 }
 
-// hollowSource rewrites every built-in registerPureFnFactory call in one dist
+// findTopLevelComma returns the index of the `,` that separates a call's first
+// argument from its second, scanning from `from` to `close` at the call's own
+// nesting level and skipping literals so a comma inside one never counts. -1
+// when the call has a single argument.
+function findTopLevelComma(src, from, close) {
+  let i = from;
+  let depth = 0;
+  let prev = '';
+  while (i < close) {
+    const c = src[i];
+    if (c === "'" || c === '"') {
+      i = skipString(src, i);
+      prev = c;
+      continue;
+    }
+    if (c === '`') {
+      i = skipTemplate(src, i);
+      prev = '`';
+      continue;
+    }
+    if (c === '/' && src[i + 1] === '/') {
+      i = skipLineComment(src, i);
+      continue;
+    }
+    if (c === '/' && src[i + 1] === '*') {
+      i = skipBlockComment(src, i);
+      continue;
+    }
+    if (c === '/' && regexAllowedAfter(prev)) {
+      i = skipRegex(src, i);
+      prev = '/';
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') depth--;
+    else if (c === ',' && depth === 0) return i;
+    if (!/\s/.test(c)) prev = c;
+    i++;
+  }
+  return -1;
+}
+
+// hollowSource rewrites every listed registerPureFnFactory call in one dist
 // file. Returns {code, count}. Idempotent: an already-hollowed call (factory arg
 // literally `null`) is skipped.
 export function hollowSource(src, file = '<memory>') {
@@ -192,27 +241,23 @@ export function hollowSource(src, file = '<memory>') {
     const close = findCallCloseParen(src, openParen);
     if (close === -1) throw new Error(`${file}: unbalanced ${CALL}( at offset ${at}`);
 
-    // Parse the first argument: the '<ns>::<fn>' key literal.
-    let k = openParen + 1;
-    while (k < close && /\s/.test(src[k])) k++;
-    if (src[k] !== "'" && src[k] !== '"') continue; // not a string-literal key — leave it
-    const keyEnd = skipString(src, k);
-    const key = src.slice(k + 1, keyEnd - 1);
-    if (!BUILTIN_NS.test(key)) continue; // user key — never hollow
-
-    // The factory argument starts after the `,` following the key.
-    let comma = keyEnd;
-    while (comma < close && /\s/.test(src[comma])) comma++;
-    if (src[comma] !== ',') continue;
-    let factoryStart = comma + 1;
+    // The factory is the FIRST argument; the id follows it. A call with no
+    // second argument is not one of ours (the build injects the id, and these
+    // files pass it explicitly), so leave it alone.
+    let factoryStart = openParen + 1;
     while (factoryStart < close && /\s/.test(src[factoryStart])) factoryStart++;
+    const comma = findTopLevelComma(src, factoryStart, close);
+    if (comma === -1) continue;
+    const id = src.slice(comma + 1, close).trim();
+    if (!id) continue;
 
-    const factory = src.slice(factoryStart, close);
-    if (factory.trimEnd() === 'null' || factory.startsWith('null ')) continue; // already hollow
+    const factory = src.slice(factoryStart, comma);
+    if (factory.trim() === 'null' || factory.trimStart().startsWith('null ')) continue; // already hollow
 
-    const newlines = (factory.match(/\n/g) || []).length;
+    // The whole argument list is replaced, so count the newlines it spans.
+    const newlines = (src.slice(factoryStart, close).match(/\n/g) || []).length;
     // Replacement occupies the SAME number of lines so maps/traces line up.
-    const replacement = `null /** ${key} hollowed — body ships on demand${'\n'.repeat(newlines)}*/`;
+    const replacement = `null /** ${id} hollowed — body ships on demand${'\n'.repeat(newlines)}*/`;
 
     out += src.slice(cursor, factoryStart) + replacement;
     cursor = close;

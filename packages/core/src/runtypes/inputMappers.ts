@@ -14,64 +14,35 @@ import {getOrCreateGlobal} from '../utils.ts';
 // none of its own. What mion owns is the batch `inputFrom` feature: letting a CLIENT name a
 // mapper that runs on the SERVER, between two routes of a batch.
 //
-// Two lanes reach a mapper, both landing in the shared mion pure-fn registry:
-//
-// - INLINE (vite / next builds): the client writes `inputFrom(order, (o) => o.userId)`. The
-//   mapper carries the PureFunction/InjectPureFnId markers, so RunTypes compiles it into its
-//   OWN generated module (`.mion/types/pf/rt/<hash>.js`) and content-hashes the call site to
-//   `rt::<hash>`. The mion preset harvests that site from the build report and records which keys
-//   the client's batches reference, plus where each one's generated module is. The generated
-//   `.mion/rpc/batches.generated.js` then IMPORTS those modules and registers each tuple through
-//   registerInputMapperTuple below, so mion never keeps a copy of any mapper body. Dev is no
-//   exception: the server entry imports that module, so a client rewrite of it is an ordinary
-//   vite change and the reload re-registers every tuple from the modules it names.
-//
-// - BY NAME: the client writes `inputFrom(order, 'toUserId')`; the server registers the mapper
-//   itself with RunTypes' own registrar and opts the key into batch-reachability:
-//
-//       registerPureFn('mionjs::toUserId', (order: Order) => order.userId);
-//       allowInputMapper(inputMapperKey('toUserId'));
-//
-//   A literal key + an inline function literal is scanner-clean (no CTA003, no PFN001), so no
-//   mion-side registration wrapper is needed.
+// A mapper is always written inline: the client writes `inputFrom(order, (o) => o.userId)`. The
+// mapper carries the PureFunction/InjectPureFnId markers, so RunTypes compiles it into its OWN
+// generated module and gives the call site the id of that registration. The mion preset harvests
+// that site from the build report and records which ids the client's batches reference, plus
+// where each one's generated module is. The generated `.mion/rpc/batches.generated.js` then
+// IMPORTS those modules and registers each tuple through registerInputMapperTuple below, so mion
+// never keeps a copy of any mapper body. Dev is no exception: the server entry imports that
+// module, so a client rewrite of it is an ordinary vite change and the reload re-registers every
+// tuple from the modules it names.
 //
 // ############# the security boundary #############
 //
-// The mapper key no longer travels: a batch request names a batch by id, and the server reads the
-// mapper keys out of the batch table its own build compiled in (router/src/batches.ts). The
+// The mapper id no longer travels: a batch request names a batch by id, and the server reads the
+// mapper ids out of the batch table its own build compiled in (router/src/batches.ts). The
 // allow-list below is the gate on what that table may reference. It stays load-bearing because
 // the table is registered from a generated module, and because upstream's getPureFnByKey has no
 // gate of its own: it is documented as the untracked door, which makes gating mion's job.
 //
 // Without the allow-list, a table entry could name ANY entry in the shared registry. That is not
-// hypothetical: mionAdapter's addSerializedJitCaches installs arbitrary `<ns>::<fn>` entries out of
-// a server methods-metadata payload and never touches this set, so in an SSR process both lanes
-// share one registry. Built-in `rt::`/`rtFormats::` fns and anything registered by an unrelated
-// library in the same process are reachable too.
+// hypothetical: mionAdapter's addSerializedJitCaches installs arbitrary entries out of a server
+// methods-metadata payload and never touches this set, so in an SSR process both lanes share one
+// registry. RunTypes' own pure fns and anything registered by an unrelated library in the same
+// process are reachable too.
 //
-// Note the gate is on LANE OF REGISTRATION, not on namespace: `rt::` keys are exactly what the
-// legitimate inline lane produces. Only keys that came through registerInputMapperTuple or an
-// explicit allowInputMapper call resolve.
+// The gate is on LANE OF REGISTRATION, not on who owns the id: only ids that came through
+// registerInputMapperTuple resolve.
 
-/** Namespace for mapper keys registered by name on the server. */
-export const INPUT_MAPPER_NAMESPACE = 'mionjs';
-
-/** Builds the registry key for a named input mapper. This is the client↔server CONTRACT: the build
- *  writes this string into the batch table and the server resolves it against its own registry.
- *  Not a registration helper; register the fn itself with RunTypes' registerPureFn. */
-export function inputMapperKey(name: string): string {
-  return `${INPUT_MAPPER_NAMESPACE}::${name}`;
-}
-
-/** Keys a batch table may reference as input mappers. See "the security boundary" above. */
+/** Ids a batch table may reference as input mappers. See "the security boundary" above. */
 const allowedMapperKeys = getOrCreateGlobal('mion.runTypes.allowedMapperKeys', () => new Set<string>());
-
-/** Opts a server-registered pure fn into batch-reachability as an input mapper.
- *  Required for the name lane: RunTypes' registrars write to the registry but know nothing
- *  about mion's gate, so a fn registered with registerPureFn alone is deliberately unreachable. */
-export function allowInputMapper(pureFnId: string): void {
-  allowedMapperKeys.add(pureFnId);
-}
 
 // RunTypes' registrars are BUILD-TIME markers: the scanner reads the inline function literal at
 // the call site, emits it as a generated pure-fn module, and rewrites the call to pass that module's
@@ -93,30 +64,29 @@ export function allowInputMapper(pureFnId: string): void {
 // local aliases, this line is what will fail PFN001 — swapping it for `getRTUtils().addPureFn` with a
 // record projected off the tuple works too, and costs only the dep-closure walk (no mapper needs one
 // today: every generated pure-fn tuple in this repo has an empty deps slot).
-const registerPureFnUntracked = registerPureFn as unknown as (key: string, tuple: unknown) => unknown;
+const registerPureFnUntracked = registerPureFn as unknown as (tuple: unknown, id: string) => unknown;
 
-/** Registers an inputFrom mapper from RunTypes' own generated pure-fn tuple and opts the key
+/** Registers an inputFrom mapper from RunTypes' own generated pure-fn tuple and opts its id
  *  into batch-reachability. Called by the generated `.mion/rpc/batches.generated.js`, which
  *  imports the tuple straight from the client build's `.mion/types/pf/` tree — so the body has
  *  ONE source of truth and arrives with its real bodyHash, never a copy mion rehydrates. */
-export function registerInputMapperTuple(key: string, tuple: unknown): void {
-  if (!key || !Array.isArray(tuple)) {
-    console.warn(`[mion inputMappers] mapper '${key}' has no generated pure-fn tuple — skipped.`);
+export function registerInputMapperTuple(id: string, tuple: unknown): void {
+  if (!id || !Array.isArray(tuple)) {
+    console.warn(`[mion inputMappers] mapper '${id}' has no generated pure-fn tuple — skipped.`);
     return;
   }
-  registerPureFnUntracked(key, tuple);
-  allowedMapperKeys.add(key);
+  registerPureFnUntracked(tuple, id);
+  allowedMapperKeys.add(id);
 }
 
-/** Resolves a batch mapping key (`rt::<hash>` | `mionjs::<name>`). Gated on the allow-list: a
- *  table key never resolves a registry entry that no mion lane and no explicit allowInputMapper
- *  call opted in. */
-export function getInputMapper(key: string): ((...args: any[]) => any) | undefined {
-  if (!allowedMapperKeys.has(key)) return undefined;
-  return getRTUtils().getPureFnByKey(key);
+/** Resolves a batch mapping's mapper by its pure-fn id. Gated on the allow-list: a table id never
+ *  resolves a registry entry that no mion lane opted in. */
+export function getInputMapper(id: string): ((...args: any[]) => any) | undefined {
+  if (!allowedMapperKeys.has(id)) return undefined;
+  return getRTUtils().getPureFnByKey(id);
 }
 
-/** True when a batch mapping key resolves (after a lazy manifest re-read on miss). */
-export function hasInputMapper(key: string): boolean {
-  return getInputMapper(key) !== undefined;
+/** True when a batch mapping's mapper id resolves. */
+export function hasInputMapper(id: string): boolean {
+  return getInputMapper(id) !== undefined;
 }

@@ -6,7 +6,6 @@
  * ######## */
 
 import {RpcError} from '@mionjs/core';
-import {inputMapperKey} from '@mionjs/core';
 import type {PureFunction, InjectPureFnId, InjectBatchId} from '@mionjs/run-types';
 import type {MiddlewareSubRequest, RouteSubRequest, BatchBuilder, SubRequest} from './types.ts';
 import type {InjectedApiMetadata} from './types.ts';
@@ -88,52 +87,26 @@ const inputFromSymbol = Symbol('InputFromRef');
 /**
  * Feeds the output of one route SubRequest into the input of another within a batch. The mapper
  * EXECUTES ON THE SERVER, which only runs functions its own build baked in; the batch table the
- * build compiled into the server carries the mapper key, so nothing about the mapper travels.
+ * build compiled into the server carries the mapper's id, so nothing about the mapper travels.
  *
- * TWO call shapes:
- * - INLINE (vite / next builds): `inputFrom(order, (o) => o.userId)`. The mion preset extracts the
- *   mapper at build time (PureFunction/InjectPureFnId markers), content-hashes it
- *   (`mapperKey = 'rt::<hash>'`) and ships the body to the server bundle through the batches manifest.
- * - BY NAME: `inputFrom(order, 'toUserId')` references a mapper the server registered itself under
- *   `mionjs::<name>`, with RunTypes' `registerPureFn` plus an `allowInputMapper()` call.
+ * The mapper is written inline: `inputFrom(order, (o) => o.userId)`. The build extracts it
+ * (PureFunction/InjectPureFnId markers), gives the call site the id of that registration and ships
+ * the body to the server bundle through the batches manifest.
  */
 export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
   source: FromSR,
-  fnName: string
-): InputFromRef<(value: FromSR['resolvedValue']) => MappedInput>;
-export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
-  source: FromSR,
   mapper: PureFunction<(value: FromSR['resolvedValue']) => MappedInput>,
-  hash?: InjectPureFnId<(value: FromSR['resolvedValue']) => MappedInput>
-): InputFromRef<(value: FromSR['resolvedValue']) => MappedInput>;
-export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
-  source: FromSR,
-  mapperOrName: unknown,
-  hash?: string
+  id?: InjectPureFnId<(value: FromSR['resolvedValue']) => MappedInput>
 ): InputFromRef<(value: FromSR['resolvedValue']) => MappedInput> {
-  const isNameLane = typeof mapperOrName === 'string';
-  if (isNameLane && !mapperOrName)
-    throw new Error('inputFrom() requires a mapper function or the name of a server-registered mion pure fn');
-  if (!isNameLane && !hash)
+  if (typeof mapper !== 'function') throw new Error('inputFrom() requires an inline mapper function');
+  if (!id)
     throw new Error(
-      'inputFrom() with an inline mapper requires the mion build plugin (no pure-fn hash was injected at build time). ' +
-        'Without the build pass the name of a server-registered mion pure fn instead.'
+      'inputFrom() requires the mion build plugin: no pure-fn id was injected at build time, ' +
+        'so the server has no way to know which mapper to run.'
     );
-  // The 3rd param is string-typed, so a plain name there still typechecks but the plugin never
-  // overrides an explicit 3rd arg: reject it loudly instead of sending a key no server resolves.
-  if (!isNameLane && !(hash as string).includes('::'))
-    throw new Error(
-      `inputFrom() got a plain name ('${hash}') in the 3rd argument. ` +
-        `Pass the name as the 2nd argument instead: inputFrom(source, '${hash}').`
-    );
-  // full registry key: 'mionjs::<name>' (name lane) | injected 'rt::<hash>' (inline lane)
-  const mapperKey = isNameLane ? inputMapperKey(mapperOrName as string) : (hash as string);
-  const sep = mapperKey.indexOf('::');
   const ref = {
     inputFromSymbol,
-    namespace: mapperKey.slice(0, sep),
-    fnName: mapperKey.slice(sep + 2),
-    mapperKey,
+    mapperKey: id,
     fromRequestId: source.id,
     toRequestId: '',
     paramIndex: -1, // set by MionSubRequest constructor when passed as a parameter
