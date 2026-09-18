@@ -84,7 +84,20 @@ build report, and a generated `purefnids.NameOf(id)`. The built-in constants kee
 names (`isUUIDId`, `IsDateStringYMD`) because the generator reads `BindingName` instead of
 splitting the id.
 
-## Two defects the change surfaced
+## Three defects the change surfaced
+
+- **The disk cache had no drift check on its pure-fn edges.** A cached type entry stores the
+  pure-fn ids its body reaches (`RTEntry.PureFnRefs`), and the field was documented as needing no
+  check because "the keys are stable strings". Content-addressed ids end that: edit a built-in
+  body and its id moves, while the type's structural id does not, so the entry still hits and
+  hands back an `argsText` baking `utl.getPureFn('<retired id>')`. Delivery finds no such
+  built-in, `AddMissingStubs` inserts a `KindMissing` stub, and the validator degrades to the
+  family identity function. Silently, on every build, until someone wipes the cache by hand. Both
+  ends now check each id against `purefnids.Has` — the whole oracle, because every id that can
+  land there comes from `EmitContext.UsePureFn`, whose argument is always a generated constant.
+  The reader misses and re-walks; the writer refuses to persist a record it would refuse to read.
+  No format bump: the check is exactly the right granularity, and an entry that reaches no pure
+  function is untouched by the id rule and may still hit.
 
 - **An emitted local variable spelled a hash bare.** `pureFnAliasFor` fell back to the id's name
   half as a JavaScript identifier, and base64url carries `-`. `const G5-z72czuSL8sC = …` is not
