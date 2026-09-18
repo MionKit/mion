@@ -57,7 +57,7 @@ func anyArgIsInlineFunction(callExpr *ast.CallExpression) bool {
 //     name filter. Overloaded wrappers work per call site: the checker resolves
 //     the signature the call binds to, so a marker-free overload never
 //     extracts.
-func isPureFnRegistration(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) (matched, wrap bool, fnParamIndex, idParamIndex int) {
+func (ctx *resolveCtx) isPureFnRegistration(call *ast.Node) (matched, wrap bool, fnParamIndex, idParamIndex int) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || callExpr.Expression == nil {
 		return false, false, 0, 0
@@ -69,11 +69,11 @@ func isPureFnRegistration(typeChecker *checker.Checker, markerOpts marker.Option
 	if callee.Text() != pureFnCalleeName && callee.Text() != pureFnFactoryCalleeName && !anyArgIsInlineFunction(callExpr) {
 		return false, false, 0, 0
 	}
-	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
+	signature := checker.Checker_getResolvedSignature(ctx.typeChecker, call, nil, 0)
 	if signature == nil {
 		return false, false, 0, 0
 	}
-	return PureFnBrandPair(typeChecker, markerOpts, signature)
+	return PureFnBrandPair(ctx.typeChecker, ctx.markerOpts, signature)
 }
 
 // PureFnBrandPair is the brand-verify half of the lane, over an already
@@ -114,19 +114,12 @@ func PureFnBrandPair(typeChecker *checker.Checker, markerOpts marker.Options, si
 // be registered under, byte-identical to the id spliced into that same call.
 // The batches extractor uses it to record an inline `inputFrom(source, mapper)`
 // mapper by the id its body will be registered under, so the batch report and
-// the injected id can never disagree. False when the call is not a
-// registration, or its function argument is not inline.
-func PureFnIDForCall(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node) (string, bool) {
-	callExpr := call.AsCallExpression()
-	if callExpr == nil {
-		return "", false
-	}
-	matched, wrap, fnParamIndex, idParamIndex := isPureFnRegistration(typeChecker, markerOpts, call)
-	if !matched {
-		return "", false
-	}
-	entry, _ := extractRegistration(typeChecker, markerOpts, sourceFile, call, callExpr, wrap, fnParamIndex, idParamIndex)
-	if entry == nil {
+// the injected id can never disagree. It reads the SAME memo the module emit
+// reads, so the two cannot drift and the body is never rendered twice. False
+// when the call is not a registration, or its function argument is not inline.
+func PureFnIDForCall(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, call *ast.Node, cache *FileCache) (string, bool) {
+	entry, _, cycle := cache.resolver(typeChecker, markerOpts).entryFor(sourceFile, call)
+	if cycle || entry == nil {
 		return "", false
 	}
 	return entry.Key(), true

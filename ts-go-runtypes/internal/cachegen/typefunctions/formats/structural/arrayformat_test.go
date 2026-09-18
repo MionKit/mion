@@ -1,10 +1,10 @@
 package structural
 
 import (
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
@@ -22,11 +22,11 @@ func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 	emitter := formattedArrayEmitter{kind: reflection.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", ctx)
 
-	if got != "uniqueArrayItems(v)" {
+	if got != purefnids.NameOf(purefnids.UniqueArrayItems)+"(v)" {
 		t.Fatalf("check = %q, want a call to the pure-fn alias", got)
 	}
-	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "@mionjs/run-types/src/runtypes/pure-fns-utils#uniqueArrayItems" {
-		t.Fatalf("pure fns = %v, want exactly [@mionjs/run-types/src/runtypes/pure-fns-utils#uniqueArrayItems]", ctx.pureFns)
+	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != purefnids.UniqueArrayItems {
+		t.Fatalf("pure fns = %v, want exactly ["+purefnids.UniqueArrayItems+"]", ctx.pureFns)
 	}
 	for _, banned := range []string{"const canon", "JSON.stringify", "new Set("} {
 		if strings.Contains(got, banned) {
@@ -40,8 +40,8 @@ func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 // registered even for a program that never imports `@mionjs/run-types/formats`.
 func TestFormattedArray_UniqueItemsPureFnsAreDistinct(t *testing.T) {
 	for _, id := range []string{purefnids.UniqueArrayItems, purefnids.UniqueSetMembers, purefnids.UniqueMapEntries} {
-		if !strings.Contains(id, "src/runtypes/pure-fns-utils#") {
-			t.Errorf("id = %q, want the always-registered core module", id)
+		if !purefnids.Has(id) {
+			t.Errorf("id = %q, want a package-owned pure fn the entry side-effect registers", id)
 		}
 	}
 	// One pure fn per family, and no two the same: sharing one would put a

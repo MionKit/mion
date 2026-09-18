@@ -1,6 +1,7 @@
 package purefunctions
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"strings"
 	"testing"
 )
@@ -31,10 +32,13 @@ export const foo = registerPureFnFactory(function (utl) {
 	if len(reps) != 2 {
 		t.Fatalf("expected 2 replacements, got %d (%+v)", len(reps), reps)
 	}
-	if want := "__rt_pf$2F$40acme$2Fapp$2Fa$2Ffoo"; reps[0].Text != want {
+	// The module is named after the id, which is a hash, so the expectation is
+	// derived from the entry rather than spelled out.
+	moduleName := entrymodules.ModuleName(entry.Key(), entrymodules.KindPureFn)
+	if want := entrymodules.BindingName(moduleName); reps[0].Text != want {
 		t.Errorf("expected the entry-module binding %q, got %q", want, reps[0].Text)
 	}
-	if want := "rtmod:/pf/@acme/app/a/foo.js"; reps[0].ImportFrom != want {
+	if want := "rtmod:/" + moduleName + ".js"; reps[0].ImportFrom != want {
 		t.Errorf("expected the virtual specifier %q, got %q", want, reps[0].ImportFrom)
 	}
 	if reps[0].Start != entry.FactoryArgStart || reps[0].End != entry.FactoryArgEnd {
@@ -47,7 +51,7 @@ export const foo = registerPureFnFactory(function (utl) {
 	// Spot-check: applying both replacements to the source swaps the factory
 	// literal for the imported tuple binding and splices the id after it.
 	rewritten := source[:reps[0].Start] + reps[0].Text + source[reps[0].End:reps[1].Start] + reps[1].Text + source[reps[1].Start:]
-	if !strings.Contains(rewritten, "registerPureFnFactory(__rt_pf$2F$40acme$2Fapp$2Fa$2Ffoo, '@acme/app/a#foo')") {
+	if !strings.Contains(rewritten, "registerPureFnFactory("+reps[0].Text+", '"+entry.Key()+"')") {
 		t.Errorf("rewritten source missing the binding swap and id splice:\n%s", rewritten)
 	}
 }

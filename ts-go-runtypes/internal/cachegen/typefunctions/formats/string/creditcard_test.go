@@ -1,11 +1,11 @@
 package string
 
 import (
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -31,11 +31,12 @@ func (c *cardStubCtx) UsePureFn(id string) string {
 	return pureFnNameOf(id)
 }
 
-// pureFnNameOf is the name half of an id, which is the alias the real emit
-// context binds a pure fn to inside a body.
+// pureFnNameOf stands in for the alias the real emit context binds a pure fn to
+// inside a body. That alias is derived from the id, which is a hash, so the
+// readable name the generator records is what keeps these expectations legible.
 func pureFnNameOf(id string) string {
-	if at := strings.LastIndex(id, "#"); at >= 0 {
-		return id[at+1:]
+	if name := purefnids.NameOf(id); name != "" {
+		return name
 	}
 	return id
 }

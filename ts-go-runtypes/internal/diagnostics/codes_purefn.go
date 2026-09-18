@@ -19,11 +19,11 @@ package diagnostics
 // (PureFunction<F> not inline), those flow through resolver.scanCall
 // now that registerPureFnFactory is discovered by marker shape rather
 // than by callee name. See plan D6.
+//
+// PFE9004 (two registrations under one id with different bodies) was retired
+// when an id became the hash of the body that ships: one id is one body by
+// construction, so it had nothing left to fire on.
 const (
-	// CodeBodyHashCollision: two registrations share a body hash. The winner's
-	// entry is kept and BOTH call sites are rewritten to it, so the loser silently
-	// resolves the winner's body. LevelRuntimeError: output, and it is wrong.
-	CodeBodyHashCollision = "PFE9004"
 	// CodeDestructuredParam: the one code in this file that withholds output.
 	// buildPureFnEntry returns no entry, so no `pf/<ns>/<name>.js` module is
 	// written and the call site keeps its un-rewritten `registerPureFn(...)`.
@@ -44,12 +44,19 @@ const (
 	// for it and the call site keeps its own text. LevelError: there is nothing
 	// to accept, and accepting it would split one function across two keys.
 	CodePureFnIdMismatch = "PFE9014"
+	// CodePureFnDependencyCycle: two pure functions reach each other through
+	// `utl.getPureFn`. An id is the hash of the body that ships, and that body
+	// carries its dependencies' ids, so each id would have to contain the other
+	// and neither has an answer. LevelError: no id, so no entry, no emitted
+	// module and no injected id. Materialising such a pair also recurses
+	// forever at runtime, so this replaces a hang with a build error.
+	CodePureFnDependencyCycle = "PFE9015"
 )
 
 func init() {
 	for _, definition := range []Definition{
-		{Code: CodeBodyHashCollision, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Duplicate registration with mismatched bodyHash"},
 		{Code: CodeDestructuredParam, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Pure-fn factory uses destructured parameter"},
+		{Code: CodePureFnDependencyCycle, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Pure functions depend on each other in a cycle"},
 
 		{Code: CodePurityThis, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Pure-fn body references this"},
 		{Code: CodePurityAwait, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Pure-fn body contains await"},

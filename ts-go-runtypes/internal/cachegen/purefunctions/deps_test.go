@@ -10,13 +10,12 @@ import (
 func depsOf(t *testing.T, name, source string) ([]string, []Diagnostic) {
 	t.Helper()
 	entries, diags := extractFromOverlay(t, map[string]string{"a.ts": source})
-	want := idOf("a.ts", name)
 	for _, entry := range entries {
-		if entry.ID == want {
+		if entry.BindingName == name {
 			return entry.PureFnDependencies, diags
 		}
 	}
-	t.Fatalf("no entry for %q; entries=%+v diags=%+v", want, entries, diags)
+	t.Fatalf("no registration bound to %q; entries=%+v diags=%+v", name, entries, diags)
 	return nil, nil
 }
 
@@ -24,13 +23,12 @@ func depsOf(t *testing.T, name, source string) ([]string, []Diagnostic) {
 func codeOf(t *testing.T, name, source string) string {
 	t.Helper()
 	entries, diags := extractFromOverlay(t, map[string]string{"a.ts": source})
-	want := idOf("a.ts", name)
 	for _, entry := range entries {
-		if entry.ID == want {
+		if entry.BindingName == name {
 			return entry.Code
 		}
 	}
-	t.Fatalf("no entry for %q; entries=%+v diags=%+v", want, entries, diags)
+	t.Fatalf("no registration bound to %q; entries=%+v diags=%+v", name, entries, diags)
 	return ""
 }
 
@@ -58,11 +56,11 @@ export const titleOf = registerPureFnFactory(function (utl) {
 	}
 	var consumer Entry
 	for _, entry := range entries {
-		if entry.ID == idOf("a.ts", "titleOf") {
+		if entry.BindingName == "titleOf" {
 			consumer = entry
 		}
 	}
-	wantDep := idOf("dep.ts", "slugify")
+	wantDep := entryNamed(t, entries, "slugify").ID
 	if len(consumer.PureFnDependencies) != 1 || consumer.PureFnDependencies[0] != wantDep {
 		t.Fatalf("expected deps=[%s], got %v", wantDep, consumer.PureFnDependencies)
 	}
@@ -84,9 +82,11 @@ export const titleOf = registerPureFnFactory(function (utl) {
   const slug = utl.getPureFn(slugify) as (s: string) => string;
   return function _f(s: string) { return slug(s); };
 });`)
-	want := idOf("a.ts", "slugify")
-	if !strings.Contains(code, "utl.getPureFn('"+want+"')") {
+	if !strings.Contains(code, "utl.getPureFn('"+idPrefix) {
 		t.Errorf("expected the lowered id, got:\n%s", code)
+	}
+	if strings.Contains(code, "getPureFn(slugify)") {
+		t.Errorf("the imported binding must not survive into the body, got:\n%s", code)
 	}
 	if strings.Contains(code, "as (s: string)") {
 		t.Errorf("the cast must still be stripped, got:\n%s", code)
@@ -123,9 +123,20 @@ export const multi = registerPureFnFactory(function (utl) {
     return 1;
   };
 });`)
-	want := []string{idOf("a.ts", "a"), idOf("a.ts", "b"), idOf("a.ts", "c"), idOf("a.ts", "d")}
-	if strings.Join(deps, ",") != strings.Join(want, ",") {
-		t.Fatalf("expected %v, got %v", want, deps)
+	// All four tracked lookups are branded the same way, so all four record a
+	// dependency: four distinct ids, one per registration reached.
+	if len(deps) != 4 {
+		t.Fatalf("expected 4 deps, one per lookup method, got %v", deps)
+	}
+	seen := map[string]bool{}
+	for _, dep := range deps {
+		if !strings.HasPrefix(dep, idPrefix) {
+			t.Errorf("dep %q is not an id under %q", dep, idPrefix)
+		}
+		seen[dep] = true
+	}
+	if len(seen) != 4 {
+		t.Errorf("expected four distinct dep ids, got %v", deps)
 	}
 }
 
@@ -140,7 +151,7 @@ export const renamed = registerPureFnFactory(function (J) {
     return J.getPureFn(dep)(x);
   };
 });`)
-	if len(deps) != 1 || deps[0] != idOf("a.ts", "dep") {
+	if len(deps) != 1 || !strings.HasPrefix(deps[0], idPrefix) {
 		t.Fatalf("expected the dep id, got %v", deps)
 	}
 }

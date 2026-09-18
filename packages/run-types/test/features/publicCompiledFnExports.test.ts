@@ -82,7 +82,7 @@ describe('public compiled-fn exports — reachable + reconstructable from the pa
     // The pure-fn lane twin of buildFactoryFromCode: the factory takes `utl`
     // and returns the pure fn. PureFunctionData / CompiledPureFunction are the
     // param types of the already-public RTUtils.addPureFn.
-    const data: PureFunctionData = {id: '@acme/consumer/src/fns#inc', bodyHash: 'h1', paramNames: ['utl']};
+    const data: PureFunctionData = {id: '@acme/consumer#Kq3f_xN9pQ2wLd', paramNames: ['utl']};
     const compiled: CompiledPureFunction = {...data, code: 'return function (x) { return x + 1; };'};
 
     const factory = buildPureFnFactoryFromCode(compiled.paramNames, compiled.code!);

@@ -1319,7 +1319,7 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 // (factory-arg-to-binding), and a `changed` flag indicating that at
 // least one entry's bodyHash differs from the session index.
 //
-// The session index (pureFnHashes) is mutated in place so subsequent
+// The session index (pureFnKeys) is mutated in place so subsequent
 // scans see the new state. Removals are not detected here — a file
 // that drops one of its pure-fn calls still leaves the session entry
 // behind (matches the runTypes cache's structural-dedup contract;
@@ -1329,10 +1329,11 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 		return nil, nil, nil, false
 	}
 	entries, diagnostics = purefunctions.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.pureFnFileCache)
+	// A changed body IS a new key, because an id is the hash of the body that
+	// ships. So "did anything change" is just "did a key appear".
 	for _, entry := range entries {
-		key := entry.Key()
-		if existing, ok := sess.pureFnHashes[key]; !ok || existing != entry.BodyHash {
-			sess.pureFnHashes[key] = entry.BodyHash
+		if key := entry.Key(); !sess.pureFnKeys[key] {
+			sess.pureFnKeys[key] = true
 			changed = true
 		}
 	}
@@ -1340,7 +1341,7 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 	// site is rewritten (factory → binding, plus the id splice), including two
 	// same-file calls that share a body. RawEntries keeps
 	// those duplicate sites the entry dedup drops. `entries` (deduped) still drives
-	// pureFnHashes + diagnostics above.
+	// pureFnKeys + diagnostics above.
 	rawEntries := purefunctions.RawEntries(sess.checker, sess.marker, sess.Program, files, sess.pureFnFileCache)
 	// Do NOT rewrite the package's OWN built-in registration call sites. The
 	// table (builtinpurefns) is the SOLE producer of built-in pure-fn MODULES,

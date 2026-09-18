@@ -1577,17 +1577,6 @@
       "example": null
     },
     {
-      "code": "PFE9004",
-      "subsystem": "pure-functions",
-      "level": "runtimeError",
-      "severity": "error",
-      "headline": "Two pure functions share the id `{0}` but have different bodies; only one can win.",
-      "detail": "A pure function's id is where it lives: the package, the file, and the name\nit is bound to. Two registrations under one id means one file binds the same\nname twice, or two bodies that are not assigned to a name differ only in ways\nthe build cannot see.\n\nFix: give each registration its own binding, or make the bodies identical.\nThe Related: line above points at the first registration the extractor saw.",
-      "summary": null,
-      "fix": null,
-      "example": null
-    },
-    {
       "code": "PFE9005",
       "subsystem": "pure-functions",
       "level": "error",
@@ -1693,6 +1682,17 @@
       "severity": "error",
       "headline": "Explicit pure-fn id `{0}` does not match this registration's location `{1}`.",
       "detail": "A pure function's id is computed from where it lives: the package, the file\nand the name it is bound to. The build injects it, so source normally passes\nnone. An id written by hand, or left behind by a move or a rename, would\nregister the body under one id while every reference to it uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "PFE9015",
+      "subsystem": "pure-functions",
+      "level": "error",
+      "severity": "error",
+      "headline": "Pure function `{0}` and the one reaching it here depend on each other; neither can be given an id.",
+      "detail": "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
       "summary": null,
       "fix": null,
       "example": null

@@ -68,7 +68,6 @@ describe('rtUtils', () => {
       '@acme/app/src/fns#testPureFn': {
         id: '@acme/app/src/fns#testPureFn',
         paramNames: ['a', 'b'],
-        bodyHash: 'testPureFn_hash',
         code: 'return (a, b) => a + b;',
         pureFnDependencies: [],
         createPureFn: () => (a: number, b: number) => a + b,

@@ -52,8 +52,9 @@ func markerAndPureFnDiags(diags []diagnostics.Diagnostic) []diagnostics.Diagnost
 	return out
 }
 
-// idSpliceRE matches an injected id: a quoted location with a `#` name half.
-var idSpliceRE = regexp.MustCompile(`'[^']+#[^']+'`)
+// idSpliceRE matches an injected id: a quoted owner (empty for a project with
+// no package name) followed by the `#` hash half.
+var idSpliceRE = regexp.MustCompile(`'[^']*#[^']+'`)
 
 // idInsertionReplacement finds the id splice: a point insertion (Start == End)
 // whose text is a quoted id (no ImportFrom, unlike the factory-arg rewrite).
@@ -89,7 +90,7 @@ export const double = registerPureFn((n: number): number => n * 2);
 	}
 	// The splice is `, '<id>'` — a leading comma (the call had one prior arg and
 	// no trailing comma) plus the quoted id, whose name half is the binding.
-	if !strings.HasPrefix(rep.Text, ", '") || !strings.HasSuffix(rep.Text, "#double'") {
+	if !strings.HasPrefix(rep.Text, ", '#") || !strings.HasSuffix(rep.Text, "'") {
 		t.Errorf("unexpected id insertion text: %q", rep.Text)
 	}
 }
@@ -125,10 +126,11 @@ export const lower = registerAcmePureFn((s: string): string => s.toLowerCase());
 	if !ok {
 		t.Fatalf("wrapper consumer call must inject an id, replacements: %+v", resp.Replacements)
 	}
-	// The id names the CONSUMER's binding, not the wrapper's: a registration
-	// belongs where it is written.
-	if !strings.HasSuffix(rep.Text, "#lower'") {
-		t.Errorf("wrapper call injected %q, want the consumer's own binding", rep.Text)
+	// The id belongs to the CONSUMER's package, not the wrapper's: a
+	// registration belongs where it is written. This fixture has no package
+	// name, so the owner half is empty.
+	if !strings.Contains(rep.Text, "'#") {
+		t.Errorf("wrapper call injected %q, want an id owned by the consumer", rep.Text)
 	}
 }
 

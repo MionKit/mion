@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -115,10 +116,10 @@ export const isUser = createValidateFn<User>(undefined, {checkUnknowns: true});
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	if strings.Contains(body, "countEnumKeys") {
+	if strings.Contains(body, purefnids.CountEnumKeys) {
 		t.Errorf("optional-prop shape wrongly used the key-count fast path:\n%s", body)
 	}
-	if !strings.Contains(body, "hasUnknownKeysFromArray") {
+	if !strings.Contains(body, purefnids.HasUnknownKeysFromArray) {
 		t.Errorf("optional-prop shape did not fall back to the key-list scan:\n%s", body)
 	}
 }
@@ -134,7 +135,7 @@ export const isRecord = createValidateFn<Record<string, number>>(undefined, {che
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+	for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 		if strings.Contains(body, unwanted) {
 			t.Errorf("index-signature shape emitted %q — every matching key IS declared:\n%s", unwanted, body)
 		}
@@ -356,7 +357,7 @@ export const isCallable = createValidateFn<Callable>(undefined, {checkUnknowns: 
 		t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 	}
 	body := modules[name]
-	for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+	for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 		if strings.Contains(body, unwanted) {
 			t.Errorf("callable shape emitted %q — a Function's own props are the call signature's business:\n%s", unwanted, body)
 		}
@@ -441,7 +442,7 @@ export const fast = createHasUnknownKeysFn<T>(undefined, {runsAfterValidation: t
 	if !ok {
 		t.Fatalf("no guardless runsAfterValidation entry emitted\nmodules: %v", keys(modules))
 	}
-	if !strings.Contains(modules[fast], "countEnumKeys") {
+	if !strings.Contains(modules[fast], purefnids.CountEnumKeys) {
 		t.Errorf("the runsAfterValidation entry is not the key-count fast path:\n%s", modules[fast])
 	}
 }
@@ -558,7 +559,7 @@ func entryMentionsKeyCheck(t *testing.T, modules map[string]string, prefix strin
 		t.Fatalf("no entry emitted for prefix %q\nmodules: %v", prefix, keys(modules))
 	}
 	body := modules[name]
-	for _, shape := range []string{"countEnumKeys", "hasUnknownKeysFromArray", "getUnknownKeysFromArray"} {
+	for _, shape := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray, purefnids.GetUnknownKeysFromArray} {
 		if strings.Contains(body, shape) {
 			return true
 		}
@@ -594,10 +595,10 @@ export const isItems = createValidateFn<Item[]>(undefined, {checkUnknowns: true}
 			t.Fatalf("expected separate entries for the array and its element type\nmodules: %v", keys(modules))
 		}
 		// The element carries the check; the array itself only reaches it.
-		if !strings.Contains(modules[element], "countEnumKeys") {
+		if !strings.Contains(modules[element], purefnids.CountEnumKeys) {
 			t.Errorf("the element type lost its key check:\n%s", modules[element])
 		}
-		for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+		for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 			if strings.Contains(modules[root], unwanted) {
 				t.Errorf("the array node emitted %q — an array has no undeclared properties to find:\n%s", unwanted, modules[root])
 			}
@@ -612,7 +613,7 @@ export const isNames = createValidateFn<string[]>(undefined, {checkUnknowns: tru
 		if !ok {
 			t.Fatalf("no validateStrict entry emitted\nmodules: %v", keys(modules))
 		}
-		for _, unwanted := range []string{"countEnumKeys", "hasUnknownKeysFromArray"} {
+		for _, unwanted := range []string{purefnids.CountEnumKeys, purefnids.HasUnknownKeysFromArray} {
 			if strings.Contains(modules[name], unwanted) {
 				t.Errorf("an array of primitives emitted %q:\n%s", unwanted, modules[name])
 			}

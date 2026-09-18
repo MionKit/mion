@@ -12,9 +12,11 @@ import {trimHelper} from './pureFnHelpers.ts';
 
 // The vitest transform runs the plugin in-process, so every registration below
 // is rewritten to its entry-module tuple plus the injected id, exactly what a
-// built consumer sees. An id is WHERE the registration lives, so it is
-// predictable from this file's path and the name it is bound to.
-const HERE = '@mionjs/run-types/test/features/pureFn.test#';
+// built consumer sees. An id is the package that owns the pure fn plus a hash
+// of the body that ships, so a test matches its SHAPE and reads the value the
+// build produced rather than spelling one.
+const HERE = '@mionjs/run-types#';
+const ID_RE = /^@mionjs\/run-types#[A-Za-z0-9_-]{14}$/;
 
 // 14-char base64url — what the Go binary's BodyHash emits.
 const BODY_HASH_REGEX = /^[A-Za-z0-9_-]{14}$/;
@@ -97,7 +99,7 @@ const rawRegister = registerPureFn as unknown as (fn: unknown, id?: string) => s
 
 describe('a pure fn is identified by where it lives', () => {
   it('the factory form returns its id and runs', () => {
-    expect(stringPureFn).toBe(`${HERE}stringPureFn`);
+    expect(stringPureFn).toMatch(ID_RE);
     const restored = getRTUtils().getPureFn(stringPureFn) as (s: string, p: StringParams) => boolean;
     expect(restored).toBeInstanceOf(Function);
     expect(restored('a', {isLowercase: true})).toBe(true);
@@ -105,16 +107,15 @@ describe('a pure fn is identified by where it lives', () => {
   });
 
   it('the direct form returns its id and runs', () => {
-    expect(halve).toBe(`${HERE}halve`);
+    expect(halve).toMatch(ID_RE);
     const restored = getRTUtils().getPureFn(halve) as (n: number) => number;
     expect(restored(84)).toBe(42);
   });
 
-  it('carries bodyHash, paramNames and code from the extracted data', () => {
+  it('carries paramNames and code from the extracted data', () => {
     const compiled = getRTUtils().getCompiledPureFn(metadataFn);
     expect(compiled).toBeDefined();
-    expect(compiled?.id).toBe(`${HERE}metadataFn`);
-    expect(compiled?.bodyHash).toMatch(BODY_HASH_REGEX);
+    expect(compiled?.id).toMatch(ID_RE);
     expect(compiled?.paramNames).toEqual([]);
     expect(typeof compiled?.code).toBe('string');
     expect(compiled?.code?.length).toBeGreaterThan(0);
@@ -148,7 +149,7 @@ describe('one pure fn reaches another by its id', () => {
   });
 
   it('records the dependency from an id imported out of another file', () => {
-    expect(trimHelper).toBe('@mionjs/run-types/test/features/pureFnHelpers#trimHelper');
+    expect(trimHelper).toMatch(ID_RE);
     const compiled = getRTUtils().getCompiledPureFn(trimTwice);
     expect(compiled?.pureFnDependencies).toContain(trimHelper);
     const run = getRTUtils().getPureFn(trimTwice) as (s: string) => string;
@@ -185,11 +186,11 @@ describe('hollowed registrations', () => {
     // @mion-downgrade-error PFN001
     const hollow = registerPureFn(null);
     expect(hollow).toBe('');
-    expect(getRTUtils().getCompiledPureFnByKey(`${HERE}hollow`)).toBeUndefined();
+    expect(getRTUtils().getCompiledPureFnByKey(`${HERE}neverRegistered0`)).toBeUndefined();
   });
 
   it('the real body wins whichever order it arrives in', () => {
-    const id = `${HERE}hollowLaneRealBody`;
+    const id = `${HERE}hollowLaneRealBody0`;
     expect(rawRegister(null, id)).toBe(id);
     expect(getRTUtils().getCompiledPureFnByKey(id)).toBeUndefined();
     rawRegister(() => 42, id);
@@ -202,7 +203,7 @@ describe('runtime-id lookups stay untracked', () => {
   it('getPureFnByKey / hasPureFnByKey resolve an id built at runtime', () => {
     // Built at runtime the way a framework dispatching on a wire id does, NOT a
     // comptime literal, so the build tracks nothing here.
-    const wireId: string = [HERE, 'halve'].join('');
+    const wireId: string = [halve.slice(0, 1), halve.slice(1)].join('');
     expect(getRTUtils().hasPureFnByKey(wireId)).toBe(true);
     const fn = getRTUtils().getPureFnByKey(wireId) as (n: number) => number;
     expect(fn(84)).toBe(42);

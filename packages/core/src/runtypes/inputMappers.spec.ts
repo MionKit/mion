@@ -24,7 +24,6 @@ describe('inputFrom mapper resolution (allow-listed ids)', () => {
       undefined,
       undefined,
       `${MAPPER}testMapper`,
-      'H',
       [],
       'return (v) => v * 3;',
       [],
@@ -52,7 +51,6 @@ describe('table ids cannot reach registry entries outside a mion lane', () => {
     const sneaky = `${MAPPER}sneakyDirectEntry`;
     getRTUtils().addPureFn(sneaky, {
       id: sneaky,
-      bodyHash: '',
       paramNames: [],
       code: '',
       pureFnDependencies: [],
@@ -75,16 +73,16 @@ describe('table ids cannot reach registry entries outside a mion lane', () => {
 // ############# the lane registers RunTypes' own generated tuple #############
 // This is what the generated `.mion/rpc/batches.generated.js` does: it imports the pure-fn module
 // RunTypes emitted for the mapper and hands mion the tuple inside it. mion keeps no copy of the
-// body, so the entry carries upstream's real bodyHash and its whole dep closure.
+// body, so the entry carries upstream's real code and its whole dep closure.
 describe('registerInputMapperTuple', () => {
   // shape of a generated pure-fn module's export, per PURE_FN_TUPLE_KEYS:
-  // [entryKind, deps, ini, id, bodyHash, paramNames, code, pureFnDependencies, createPureFn]
-  const tupleFor = (id: string, bodyHash: string, code: string) => [2, undefined, undefined, id, bodyHash, [], code, []];
+  // [entryKind, deps, ini, id, paramNames, code, pureFnDependencies, createPureFn]
+  const tupleFor = (id: string, code: string) => [2, undefined, undefined, id, [], code, []];
 
-  it('registers the tuple, keeps its real bodyHash, and opts the id in', () => {
+  it('registers the tuple, keeps its real code, and opts the id in', () => {
     const id = `${MAPPER}fromTuple`;
-    registerInputMapperTuple(id, tupleFor(id, 'REALBODYHASH', 'return (v) => v * 2;'));
-    expect(getRTUtils().getCompiledPureFnByKey(id)?.bodyHash).toBe('REALBODYHASH');
+    registerInputMapperTuple(id, tupleFor(id, 'return (v) => v * 2;'));
+    expect(getRTUtils().getCompiledPureFnByKey(id)?.code).toBe('return (v) => v * 2;');
     expect(getInputMapper(id)?.(21)).toBe(42);
   });
 
@@ -97,16 +95,16 @@ describe('registerInputMapperTuple', () => {
 
   it('does not make the id reachable under a different location', () => {
     const id = `${MAPPER}scopedTuple`;
-    registerInputMapperTuple(id, tupleFor(id, 'H', 'return (v) => v;'));
+    registerInputMapperTuple(id, tupleFor(id, 'return (v) => v;'));
     expect(hasInputMapper('@acme/other/src/batches#scopedTuple')).toBe(false);
   });
 
   it('re-registering the same tuple on a dev reload is idempotent', () => {
     const id = `${MAPPER}reloaded`;
-    const tuple = tupleFor(id, 'SAMEHASH', 'return (v) => v + 1;');
+    const tuple = tupleFor(id, 'return (v) => v + 1;');
     registerInputMapperTuple(id, tuple);
     registerInputMapperTuple(id, tuple);
-    expect(getRTUtils().getCompiledPureFnByKey(id)?.bodyHash).toBe('SAMEHASH');
+    expect(getRTUtils().getCompiledPureFnByKey(id)?.code).toBe('return (v) => v + 1;');
     expect(getInputMapper(id)?.(1)).toBe(2);
   });
 });

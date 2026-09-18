@@ -227,7 +227,9 @@ const mapping = (fromId: string, toId: string, paramIndex: number, mapperKey: st
     paramIndex,
     mapperKey: typeof mapperKey === 'string' ? mapperKey : expect.stringMatching(mapperKey),
   }) as BatchMapping;
-const INLINE_KEY = /^[A-Za-z0-9_.-]+#[A-Za-z0-9_-]{14}$/;
+// A mapper's id is the package that owns it (empty for these fixtures, which
+// declare no package name) plus a hash of the body that ships.
+const INLINE_KEY = /^[A-Za-z0-9_.-]*#[A-Za-z0-9_-]{14}$/;
 
 describe('request-batch diagnostics and readable shapes', () => {
   const register = hasBinary() ? it : it.skip;
@@ -347,7 +349,7 @@ describe('request-batch diagnostics and readable shapes', () => {
         // The mapper IS bound to a name here (the inputFrom call initialises
         // `ref`), so its id names that binding instead of hashing its body.
         body: `const ref = inputFrom(user, (u: {id: number}) => u.id);\nexport const b = batch([user, routes.orders.list(ref)]);\n`,
-        mapperKey: 'case#ref',
+        mapperKey: INLINE_KEY,
       },
       'inline mapper .asArg() bound to a const': {
         body: `const ref = inputFrom(user, (u: {id: number}) => u.id).asArg();\nexport const b = batch([user, routes.orders.list(ref)]);\n`,
@@ -425,17 +427,18 @@ describe('request-batch diagnostics and readable shapes', () => {
       });
     });
 
-    register('the same batch with an inline mapper in two files: an id per file, no BAT003', async () => {
+    register('the same batch with an inline mapper in two files is one batch, no BAT003', async () => {
       // A mapper written in two files is two pure functions, one per file, so the
-      // two batches reference different mapper ids and get different batch ids.
-      // Different plans, different ids — which is the opposite of a collision.
+      // the mapper is ONE pure fn however many files write it, so both batches
+      // name the same mapper and land on the same batch id. That is not a
+      // collision: it is one plan, recognised as one.
       const body = `const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'one.ts': IMPORTS + body, 'two.ts': IMPORTS + body}, {}, async (run) => {
         const [one] = expectClean(run, 'one.ts');
         const [two] = expectClean(run, 'two.ts');
-        expect(one.mappings![0].mapperKey).toMatch(/^one#/);
-        expect(two.mappings![0].mapperKey).toMatch(/^two#/);
-        expect(two.batchId).not.toBe(one.batchId);
+        expect(one.mappings![0].mapperKey).toMatch(INLINE_KEY);
+        expect(two.mappings![0].mapperKey).toBe(one.mappings![0].mapperKey);
+        expect(two.batchId).toBe(one.batchId);
         await expectInjected(run, 'one.ts', [one]);
         await expectInjected(run, 'two.ts', [two]);
       });

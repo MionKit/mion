@@ -120,7 +120,7 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
 
       // the transport is under the SERVER's gen dir, relative imports only, nothing from the client tree
       const table = fs.readFileSync(path.join(server, '.mion', 'rpc', 'batches.generated.js'), 'utf8');
-      expect(table).toMatch(/import \{__rt_pf\$2F[A-Za-z0-9_$]+\} from '\.\/pf\/@acme\/client-app\/src\/a\/[^']+\.js';/);
+      expect(table).toMatch(/import \{__rt_pf\$2F[A-Za-z0-9_$]+\} from '[^']*\/pf\/@acme\/client-app\/[^']+\.js';/);
       expect(table).toMatch(/replaceBatches\(\{"b_[A-Za-z0-9_-]+":/);
       expect(table).not.toContain(client);
       expect(table).not.toContain(server);
@@ -144,7 +144,7 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
       expect(clientRun.status, clientRun.report).toBe(0);
       const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
       const batchId = /'(b_[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
-      const mapperKey = /'(@acme\/client-app\/src\/a#[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
+      const mapperKey = /'(@acme\/client-app#[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
       expect(batchId, clientJs).toBeDefined();
       expect(mapperKey, clientJs).toBeDefined();
       expect(table).toContain(`"${batchId}"`);
@@ -250,10 +250,12 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
 
       // the dependent body ships the imported id as a literal, so it closes over nothing
       const generated = generatedTypeModules(path.join(project, '.mion'));
-      const twice = generated.find((file) => file.includes('trimTwice'));
-      expect(twice, `no module for trimTwice in ${generated.join(', ')}`).toBeDefined();
+      // A module is named after its id, which is a hash, so the dependent is
+      // found by being the one whose body reaches another pure fn.
+      const twice = generated.find((file) => fs.readFileSync(file, 'utf8').includes('getPureFn('));
+      expect(twice, `no module reaching another pure fn in ${generated.join(', ')}`).toBeDefined();
       // the body rides the tuple as a quoted string, so its own quotes arrive escaped
-      expect(fs.readFileSync(twice!, 'utf8')).toContain(String.raw`getPureFn(\'@acme/pure-app/src/fns#trim\')`);
+      expect(fs.readFileSync(twice!, 'utf8')).toMatch(/getPureFn\(\\'@acme\/pure-app#[A-Za-z0-9_-]{14}\\'\)/);
 
       const stdout = execFileSync(process.execPath, [path.join(project, 'dist', 'main.js')], {
         cwd: project,
@@ -262,8 +264,11 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
       const payload = /<<RT>>(.*)<<RT>>/s.exec(stdout);
       expect(payload, `the compiled program must print its result; got:\n${stdout}`).toBeTruthy();
       const result = JSON.parse(payload![1]) as {trimId: string; twiceId: string; deps: string[]; result: string};
-      expect(result.trimId).toBe('@acme/pure-app/src/fns#trim');
-      expect(result.twiceId).toBe('@acme/pure-app/src/main#trimTwice');
+      // An id is the owning package plus a hash of the body that ships.
+      const ID_RE = /^@acme\/pure-app#[A-Za-z0-9_-]{14}$/;
+      expect(result.trimId).toMatch(ID_RE);
+      expect(result.twiceId).toMatch(ID_RE);
+      expect(result.twiceId).not.toBe(result.trimId);
       expect(result.deps).toEqual([result.trimId]);
       expect(result.result).toBe('hi');
     } finally {

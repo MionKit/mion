@@ -250,10 +250,17 @@ type fileScope struct {
 	markerOpts      marker.Options
 	sourceFile      *ast.SourceFile
 	assignedSymbols map[*ast.SourceFile]map[*ast.Symbol]bool
+	pureFns         *purefunctions.FileCache
 }
 
 func newFileScope(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) *fileScope {
-	return &fileScope{typeChecker: typeChecker, markerOpts: marker.WithDefaults(markerOpts), sourceFile: sourceFile, assignedSymbols: map[*ast.SourceFile]map[*ast.Symbol]bool{}}
+	return &fileScope{
+		typeChecker:     typeChecker,
+		markerOpts:      marker.WithDefaults(markerOpts),
+		sourceFile:      sourceFile,
+		assignedSymbols: map[*ast.SourceFile]map[*ast.Symbol]bool{},
+		pureFns:         purefunctions.NewFileCache(),
+	}
 }
 
 func (scope *fileScope) diag(code string, node *ast.Node, args ...string) diagnostics.Diagnostic {

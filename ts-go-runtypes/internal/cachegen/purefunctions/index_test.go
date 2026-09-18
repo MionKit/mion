@@ -63,8 +63,8 @@ func programForSources(t *testing.T, files map[string]string) (*program.Program,
 
 func TestNewIndex_Get(t *testing.T) {
 	entries := []Entry{
-		{ID: "@acme/app/src/a#asJSONString", BodyHash: "h1"},
-		{ID: "@acme/app/src/a#safeKey", BodyHash: "h2"},
+		{ID: "@acme/app/src/a#asJSONString"},
+		{ID: "@acme/app/src/a#safeKey"},
 	}
 	idx := NewIndex(entries)
 

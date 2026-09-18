@@ -129,9 +129,9 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
 
     // Three registrations (n*2, n*3, n*4) → three records, one per binding.
     expect(report.length, `expected 3 records, got ${JSON.stringify(report, null, 2)}`).toBe(3);
-    expect(new Set(report.map((s) => s.key))).toEqual(
-      new Set(['consumer#doubled', 'consumer#tripled', 'wrapper-only#quadrupled'])
-    );
+    // One id per registration: three distinct hashes, and the bindings name them.
+    expect(new Set(report.map((s) => s.key)).size).toBe(3);
+    expect(new Set(report.map((s) => s.bindingName))).toEqual(new Set(['doubled', 'tripled', 'quadrupled']));
 
     // Every wrapper call site (n*3 in consumer, n*4 in wrapper-only) attributes
     // to the wrapper's own name + declaring package — NOT '@mionjs/run-types'.
@@ -195,7 +195,7 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
     expect(changed.file.endsWith('wrapper-only.ts')).toBe(true);
     expect(changed.calleeName).toBe('registerAcmePureFn');
     expect(changed.calleeModule).toBe('@acme/toolkit');
-    expect(changed.key).toBe('wrapper-only#quadrupled');
+    expect(changed.bindingName).toBe('quadrupled');
     expect(changed.code).toContain('n * 5');
 
     // The on-disk JSON was rewritten with the edited body.

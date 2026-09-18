@@ -90,7 +90,7 @@ export const stableFn = registerPureFnFactory(function () {
       async ({client}) => {
         // Prime.
         await client.scanFiles(['stable-pure.ts']);
-        // Re-scan the same content — bodyHash matches, no delta.
+        // Re-scan the same content — same id, no delta.
         const second = await client.scanFiles(['stable-pure.ts']);
         expect(second.addedPureFns).toBeFalsy();
       },

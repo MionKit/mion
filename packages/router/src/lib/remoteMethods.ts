@@ -104,9 +104,9 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
 /** The package whose own pure fns never ride the wire. Their bodies are hollowed in the dist build
  *  and supplied from the compiler's built-in table, so every one is already registered wherever
  *  `@mionjs/run-types` is loaded, which on the client is guaranteed since @mionjs/core
- *  value-imports it. A pure fn's id starts with the package that owns it, so this is a prefix
- *  test rather than a list anyone has to keep in sync. */
-const RUN_TYPES_ID_PREFIX = '@mionjs/run-types/';
+ *  value-imports it. A pure fn's id starts with the package that owns it, then the separator,
+ *  so this is a prefix test rather than a list anyone has to keep in sync. */
+const RUN_TYPES_ID_PREFIX = '@mionjs/run-types#';
 
 /** Serializes a pure function and everything it reaches into the wire cache, keyed by id. */
 export function serializePureDeps(id: string, purFnDeps: PureFnsDataCache, depth = 0) {

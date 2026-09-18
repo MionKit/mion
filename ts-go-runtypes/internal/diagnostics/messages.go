@@ -276,10 +276,6 @@ var messagesByCode = map[string]message{
 		Headline: "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
 		Detail:   "mion reads types through TypeScript's lib definitions, so it\ncan only validate `Temporal.*` types when the Temporal namespace is loaded.\nWith the lib missing, `{0}` silently degrades to `any` and the validator\nbecomes a no-op that accepts everything, almost never what you intended.\n\nFix: add \"ESNext.Temporal\" to your tsconfig:\n  {\n    \"compilerOptions\": {\n      \"lib\": [\"ES2023\", \"ESNext.Temporal\"]\n    }\n  }",
 	},
-	"PFE9004": {
-		Headline: "Two pure functions share the id `{0}` but have different bodies; only one can win.",
-		Detail:   "A pure function's id is where it lives: the package, the file, and the name\nit is bound to. Two registrations under one id means one file binds the same\nname twice, or two bodies that are not assigned to a name differ only in ways\nthe build cannot see.\n\nFix: give each registration its own binding, or make the bodies identical.\nThe Related: line above points at the first registration the extractor saw.",
-	},
 	"PFE9005": {
 		Headline: "Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.",
 		Detail:   "The build inlines parameter references by name when it materialises the\nfactory. Destructuring patterns (`({a, b})`, `([x, y])`) don't have a\nsingle name to substitute.\n\nFix: destructure inside the body:\n-  const myFn = registerPureFnFactory((utl) => ({a, b}) => ...);\n+  const myFn = registerPureFnFactory((utl) => (params) => {\n+    const {a, b} = params;\n+    return ...;\n+  });",
@@ -315,6 +311,10 @@ var messagesByCode = map[string]message{
 	"PFE9013": {
 		Headline: "`{0}.{1}` dependency argument must be a pure-fn id.",
 		Detail:   "`utl.usePureFn` / `utl.getPureFn` need a static id so the build can verify\nthe pure fn is registered and inline the id into the emitted body. The id is\nthe value a registrar returned, imported from a file in this build, or a\nstring literal.\n\nFix:\n-  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  import {slugify} from './slug';\n+  return utl.usePureFn(slugify)(input);",
+	},
+	"PFE9015": {
+		Headline: "Pure function `{0}` and the one reaching it here depend on each other; neither can be given an id.",
+		Detail:   "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
 	},
 	"PFE9014": {
 		Headline: "Explicit pure-fn id `{0}` does not match this registration's location `{1}`.",

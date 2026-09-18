@@ -255,9 +255,13 @@ export interface PureFnSite {
   file: string;
   start: number;
   end: number;
-  // The pure fn's id: its package, its file and the name it is bound to
-  // (`@acme/text/src/slug#slugify`), or its body hash when bound to no name.
+  // The pure fn's id: the package that owns it and a hash of the body that
+  // ships (`@acme/text#9Zt1bRm4cVaPqL`).
   key: string;
+  // The identifier the registration was assigned to, absent for one written
+  // straight into a call. Not part of the id — a hash is — and carried because
+  // a report of hashes names nothing a reader can search for.
+  bindingName?: string;
   // The identifier the site invoked (a primitive registrar, a framework wrapper
   // like `inputFrom` / `registerAcmePureFn`, or a renamed import) and the
   // nearest-package.json / ambient-module name of the file that DECLARES it — so
@@ -467,7 +471,7 @@ export interface Response {
   // Vite plugin's handleHotUpdate. `addedRunTypes` is true when this
   // scan interned new RunTypes; `addedValidate` when at least one of
   // those is supported by the Validate emitter; `addedPureFns` when
-  // any pure-fn entry's bodyHash flipped or appeared.
+  // any pure-fn entry appeared (an edited body arrives as a new id).
   addedRunTypes?: boolean;
   addedValidate?: boolean;
   // Sibling of addedValidate — true when at least one newly-interned
