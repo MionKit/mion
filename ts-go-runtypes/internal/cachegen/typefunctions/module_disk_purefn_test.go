@@ -13,7 +13,7 @@ import (
 )
 
 // buildStringPropObjectFixture builds `{a: string}` — a validationErrors body
-// over it reaches rt::newRunTypeErr (the only pure-fn edge), with no same-family
+// over it reaches @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr (the only pure-fn edge), with no same-family
 // child deps (the string prop inlines), so PureFnRefs is the sole persisted edge.
 func buildStringPropObjectFixture() ([]*reflection.RunType, string) {
 	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
@@ -23,7 +23,7 @@ func buildStringPropObjectFixture() ([]*reflection.RunType, string) {
 }
 
 // TestRenderFnModule_DiskCache_PureFnRefsRoundTrip — the pure-fn twin of the
-// cross-family round-trip. A validationErrors entry reaches rt::newRunTypeErr;
+// cross-family round-trip. A validationErrors entry reaches @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr;
 // rendering once with a wired Store persists it as PureFnRefs, and a second
 // render must HIT the disk cache (walker never runs) yet return the SAME
 // pureFnDeps. Without the persistence a warm entry rebuilds empty SoftDeps and
@@ -44,8 +44,8 @@ func TestRenderFnModule_DiskCache_PureFnRefsRoundTrip(t *testing.T) {
 	if first.argsText == "" {
 		t.Fatal("first render produced empty args")
 	}
-	if !containsStr(first.pureFnDeps, "rt::newRunTypeErr") {
-		t.Fatalf("fresh render missing pure-fn edge rt::newRunTypeErr (got %v)", first.pureFnDeps)
+	if !containsStr(first.pureFnDeps, "@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr") {
+		t.Fatalf("fresh render missing pure-fn edge @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr (got %v)", first.pureFnDeps)
 	}
 
 	// The on-disk entry must persist the pure-fn edges as PureFnRefs, under v15.
@@ -61,8 +61,8 @@ func TestRenderFnModule_DiskCache_PureFnRefsRoundTrip(t *testing.T) {
 	if entry.Format != diskcache.FormatVersion {
 		t.Errorf("cache Format: got %d want %d", entry.Format, diskcache.FormatVersion)
 	}
-	if !equalStrSlices(entry.PureFnRefs, []string{"rt::newRunTypeErr"}) {
-		t.Fatalf("persisted PureFnRefs: got %v want [rt::newRunTypeErr]", entry.PureFnRefs)
+	if !equalStrSlices(entry.PureFnRefs, []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"}) {
+		t.Fatalf("persisted PureFnRefs: got %v want [@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr]", entry.PureFnRefs)
 	}
 
 	// Second render: must HIT the disk cache and return the SAME pureFnDeps.
@@ -76,8 +76,8 @@ func TestRenderFnModule_DiskCache_PureFnRefsRoundTrip(t *testing.T) {
 	if second.argsText != entry.ArgsText {
 		t.Fatalf("second render did not hit the disk cache (args=%q)", second.argsText)
 	}
-	if !equalStrSlices(second.pureFnDeps, []string{"rt::newRunTypeErr"}) {
-		t.Errorf("cache hit lost pure-fn edges: got %v want [rt::newRunTypeErr]", second.pureFnDeps)
+	if !equalStrSlices(second.pureFnDeps, []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"}) {
+		t.Errorf("cache hit lost pure-fn edges: got %v want [@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr]", second.pureFnDeps)
 	}
 }
 
@@ -104,7 +104,7 @@ func TestRenderFnModule_DiskCache_PureFnRefsSurfaceOnSoftDeps(t *testing.T) {
 	if coldEntry == nil {
 		t.Fatalf("cold collect missing the root entry %q", rootKey)
 	}
-	if !containsStr(coldEntry.SoftDeps, "rt::newRunTypeErr") {
+	if !containsStr(coldEntry.SoftDeps, "@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr") {
 		t.Fatalf("cold SoftDeps missing pure-fn edge (got %v)", coldEntry.SoftDeps)
 	}
 

@@ -1,21 +1,22 @@
 package builtinpurefns
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"sort"
 	"testing"
 )
 
-// TestTable_CoreBuiltinsPresent pins that the generated table carries the core
-// `rt::` built-ins the type-fn emitters reach. A regeneration that drops one
+// TestTable_CoreBuiltinsPresent pins that the generated table carries the
+// built-ins the type-fn emitters reach. A regeneration that drops one
 // (e.g. a bad program build silently extracting zero) would fail here rather
 // than surface later as a missing-import at a consumer.
 func TestTable_CoreBuiltinsPresent(t *testing.T) {
-	for _, key := range []string{"rt::newRunTypeErr", "rt::hasUnknownKeysFromArray", "rt::getUnknownKeysFromArray", "rt::countEnumKeys", "rtFormats::isUUID", "rt::findCycle"} {
+	for _, key := range []string{purefnids.NewRunTypeErr, purefnids.HasUnknownKeysFromArray, purefnids.GetUnknownKeysFromArray, purefnids.CountEnumKeys, purefnids.IsUUID, purefnids.FindCycle} {
 		if !Has(key) {
 			t.Errorf("built-in table is missing %q (regenerate: pnpm miondevx core codegen builtinpurefns)", key)
 		}
 	}
-	if Has("rt::definitelyNotABuiltin") {
+	if Has("@mionjs/run-types/src/runtypes/pure-fns-utils#definitelyNotABuiltin") {
 		t.Error("Has returned true for a non-existent key")
 	}
 }
@@ -24,7 +25,7 @@ func TestTable_CoreBuiltinsPresent(t *testing.T) {
 // closure (isDateString_YMD -> isDateString) and reports a demanded-but-absent
 // key as missing rather than silently dropping it.
 func TestClosure_TransitiveDeps(t *testing.T) {
-	entries, missing := Closure([]string{"rtFormats::isDateString_YMD"})
+	entries, missing := Closure([]string{purefnids.IsDateStringYMD})
 	if len(missing) != 0 {
 		t.Fatalf("unexpected missing: %v", missing)
 	}
@@ -32,7 +33,7 @@ func TestClosure_TransitiveDeps(t *testing.T) {
 	for _, entry := range entries {
 		got[entry.Key()] = true
 	}
-	for _, want := range []string{"rtFormats::isDateString_YMD", "rtFormats::isDateString"} {
+	for _, want := range []string{purefnids.IsDateStringYMD, purefnids.IsDateString} {
 		if !got[want] {
 			keys := make([]string, 0, len(got))
 			for key := range got {
@@ -47,19 +48,19 @@ func TestClosure_TransitiveDeps(t *testing.T) {
 // TestClosure_MissingReported pins the build-error path: a demanded key absent
 // from the table comes back in `missing` (upstream turns that into a diagnostic).
 func TestClosure_MissingReported(t *testing.T) {
-	entries, missing := Closure([]string{"rt::newRunTypeErr", "rt::totallyMadeUp"})
-	if len(missing) != 1 || missing[0] != "rt::totallyMadeUp" {
-		t.Fatalf("expected [rt::totallyMadeUp] missing, got %v", missing)
+	entries, missing := Closure([]string{purefnids.NewRunTypeErr, "@mionjs/run-types/src/runtypes/pure-fns-utils#totallyMadeUp"})
+	if len(missing) != 1 || missing[0] != "@mionjs/run-types/src/runtypes/pure-fns-utils#totallyMadeUp" {
+		t.Fatalf("expected […#totallyMadeUp] missing, got %v", missing)
 	}
-	if len(entries) != 1 || entries[0].Key() != "rt::newRunTypeErr" {
-		t.Fatalf("expected only rt::newRunTypeErr served, got %d entries", len(entries))
+	if len(entries) != 1 || entries[0].Key() != purefnids.NewRunTypeErr {
+		t.Fatalf("expected only newRunTypeErr served, got %d entries", len(entries))
 	}
 }
 
 // TestClosure_Dedup pins that overlapping demand (two fns sharing a dep) yields
 // each entry once.
 func TestClosure_Dedup(t *testing.T) {
-	entries, missing := Closure([]string{"rtFormats::isDateString_YMD", "rtFormats::isDateString_DMY"})
+	entries, missing := Closure([]string{purefnids.IsDateStringYMD, purefnids.IsDateStringDMY})
 	if len(missing) != 0 {
 		t.Fatalf("unexpected missing: %v", missing)
 	}
@@ -67,7 +68,7 @@ func TestClosure_Dedup(t *testing.T) {
 	for _, entry := range entries {
 		seen[entry.Key()]++
 	}
-	if seen["rtFormats::isDateString"] != 1 {
-		t.Errorf("shared dep rtFormats::isDateString should appear once, got %d", seen["rtFormats::isDateString"])
+	if seen[purefnids.IsDateString] != 1 {
+		t.Errorf("shared dep @mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString should appear once, got %d", seen[purefnids.IsDateString])
 	}
 }

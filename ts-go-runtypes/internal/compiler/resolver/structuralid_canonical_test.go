@@ -195,7 +195,7 @@ export const holder = createValidateFn<{n: Node1}>();
 		t.Fatalf("overridden recursive id must carry the |cfn: fold: %q", structuralByID(t, r, siteIDs[0]))
 	}
 	validateSources := familyEntrySources(resp, "validate")
-	if !strings.Contains(validateSources, "usePureFn(") || !strings.Contains(validateSources, "cfn::") {
+	if !overrideRedirectRE.MatchString(validateSources) {
 		t.Fatalf("overridden recursive type did not fold a cfn redirect:\n%s", validateSources)
 	}
 	// The holder embeds Node1's overridden id — its structural must contain

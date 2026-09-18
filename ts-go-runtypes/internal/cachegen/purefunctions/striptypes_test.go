@@ -39,9 +39,9 @@ func stripFactoryBody(t *testing.T, source string) string {
 		t.Fatalf("factory has no body")
 	}
 	if body.Kind == ast.KindBlock {
-		return stripTypesFromBlock(sourceFile, body)
+		return stripTypesFromBlock(sourceFile, body, nil)
 	}
-	return stripTypesFromExpr(sourceFile, body)
+	return stripTypesFromExpr(sourceFile, body, nil)
 }
 
 func findFirstFactory(node *ast.Node) *ast.Node {
