@@ -266,7 +266,7 @@ var messagesByCode = map[string]message{
 	},
 	"OVR002": {
 		Headline: "Override entry `{0}` references compiled function `{1}` which did not render: this would throw at runtime, so the build stops.",
-		Detail:   "An override redirect body loads its compiled function from the cache\n(`usePureFn('cfn::…')`), but that module never rendered into the entry\ngraph. Calling the override would throw at runtime, so the build surfaces\nthe miss now. This is an internal emitter tripwire and should never fire\nin normal operation.\n\nFix: re-run with a clean cache first (delete the .runtypes cache dir /\nrestart the dev server). If it persists, the emitter dropped a module it\nshould have rendered: please open an issue with the type + override that\ntriggers it.",
+		Detail:   "An override redirect body loads its compiled function from the cache\n(`usePureFn('<the override's id>')`), but that module never rendered into the entry\ngraph. Calling the override would throw at runtime, so the build surfaces\nthe miss now. This is an internal emitter tripwire and should never fire\nin normal operation.\n\nFix: re-run with a clean cache first (delete the .runtypes cache dir /\nrestart the dev server). If it persists, the emitter dropped a module it\nshould have rendered: please open an issue with the type + override that\ntriggers it.",
 	},
 	"OVR010": {
 		Headline: "Overriding `validate` for this type also changes how JSON and binary decoders narrow unions containing it.",
