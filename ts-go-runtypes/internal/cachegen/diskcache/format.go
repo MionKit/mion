@@ -124,10 +124,8 @@ package diskcache
 // through the module graph (a SoftDep + the tuple deps thunk) instead of a
 // blanket side-effect import, and those edges ride each fn entry's PureFnRefs.
 // Without persisting them a warm entry would rebuild empty SoftDeps and drop its
-// pure-fn imports — a runtime `getPureFn(...) === undefined`. Unlike ChildRefs /
-// CrossFamilyRefs the keys are stable `<ns>::<fn>` strings (not structural-id
-// derived), so no drift check is needed; v14 payloads simply lack the field and
-// must miss so the walk re-derives it. ArgsText is unchanged.
+// pure-fn imports — a runtime `getPureFn(...) === undefined`. v14 payloads simply
+// lack the field and must miss so the walk re-derives it. ArgsText is unchanged.
 // v16 persists each entry's build-time DIAGNOSTICS. The walker is what emits
 // them, and a cache hit skips the walker — so from the second build onward a
 // project's warnings silently vanished, and came back only after a cache wipe.
@@ -219,11 +217,15 @@ type RTEntry struct {
 	CrossFamilyRefs []CrossFamilyRef `json:"crossFamilyRefs,omitempty"`
 	// PureFnRefs is one entry per pure-fn dependency the body reaches
 	// (walker.PureFnDependencies, each a pure fn's id, e.g.
-	// `@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr`). Persisted so
-	// a cache hit rebuilds the entry's SoftDeps pure-fn edges — the demand-driven
-	// built-in delivery imports the pure-fn module off these. The ids are stable
-	// strings (no structural-id translation, no drift check). Empty for entries
-	// that reach no pure fn.
+	// `@mionjs/run-types#Rt9pQ2wLdKq3f_`). Persisted so a cache hit rebuilds the
+	// entry's SoftDeps pure-fn edges — the demand-driven built-in delivery
+	// imports the pure-fn module off these.
+	//
+	// Drift-checked, like ChildRefs, but against a different oracle: an id IS
+	// the hash of the pure fn's body, so `purefnids.Has` answering no means the
+	// body changed and this entry's baked `utl.getPureFn('<id>')` points at
+	// nothing. No structural-id translation — the id needs no reverse mapping to
+	// be checked. Empty for entries that reach no pure fn.
 	PureFnRefs []string `json:"pureFnRefs,omitempty"`
 	// Diagnostics is every build-time finding this entry's walk emitted, so a
 	// warm build reports the same warnings a cold one does. Re-emitted against

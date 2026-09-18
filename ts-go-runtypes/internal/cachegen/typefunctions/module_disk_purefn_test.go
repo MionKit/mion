@@ -24,7 +24,7 @@ func buildStringPropObjectFixture() ([]*reflection.RunType, string) {
 }
 
 // TestRenderFnModule_DiskCache_PureFnRefsRoundTrip — the pure-fn twin of the
-// cross-family round-trip. A validationErrors entry reaches @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr;
+// cross-family round-trip. A validationErrors entry reaches purefnids.NewRunTypeErr;
 // rendering once with a wired Store persists it as PureFnRefs, and a second
 // render must HIT the disk cache (walker never runs) yet return the SAME
 // pureFnDeps. Without the persistence a warm entry rebuilds empty SoftDeps and
@@ -121,4 +121,65 @@ func TestRenderFnModule_DiskCache_PureFnRefsSurfaceOnSoftDeps(t *testing.T) {
 
 func valErrKey(id string) string {
 	return innerPrefix(constants.CacheModules["validationErrors"]) + id
+}
+
+// TestRenderFnModule_DiskCache_PureFnRefsDriftMisses — a pure fn's id is the
+// hash of its body, so an id the binary no longer knows means that body was
+// edited since this entry was written. Nothing else catches it: the TYPE did not
+// change, so the entry's structural id and every ChildRef still agree, and the
+// hit would hand back an ArgsText baking `utl.getPureFn('<retired id>')`.
+// Delivery then finds no such built-in, AddMissingStubs inserts a KindMissing
+// stub, and the validator silently degrades — on every build, until someone
+// wipes node_modules/.cache by hand.
+func TestRenderFnModule_DiskCache_PureFnRefsDriftMisses(t *testing.T) {
+	root := t.TempDir()
+	store := diskcache.New(root, "fp1")
+	lookup := newFakeLookup()
+	lookup.set("obj1", "o:obj")
+
+	runTypes, rootID := buildStringPropObjectFixture()
+	refTable := buildRefTable(runTypes)
+	settings := constants.CacheModules["validationErrors"]
+	prefix := innerPrefix(settings)
+	opts := RenderOpts{Store: store, Lookup: lookup, RefTable: refTable}
+
+	first := renderEntryWithDeps(refTable[rootID], settings, ValidationErrorsEmitter{}, prefix, refTable, opts, "", nil, false)
+	if first.argsText == "" {
+		t.Fatal("first render produced empty args")
+	}
+
+	cachePath := filepath.Join(root, "fp1", rootID, settings.Tag+".json")
+	raw, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatalf("expected cache file at %s: %v", cachePath, err)
+	}
+	var entry diskcache.RTEntry
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		t.Fatalf("cache file is not valid JSON: %v", err)
+	}
+
+	// Stand in for newRunTypeErr's body being edited: same package, a hash this
+	// binary was never compiled against. The sentinel proves whether the reader
+	// served the file or re-walked.
+	staleID := purefnids.IDPrefix + "0000000000000f"
+	if purefnids.Has(staleID) {
+		t.Fatalf("fixture id %q is a real built-in, pick another", staleID)
+	}
+	entry.PureFnRefs = []string{staleID}
+	entry.ArgsText = "'ve_obj1','CACHE_SENTINEL',undefined,true"
+	mutated, _ := json.Marshal(entry)
+	if err := os.WriteFile(cachePath, mutated, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	second := renderEntryWithDeps(refTable[rootID], settings, ValidationErrorsEmitter{}, prefix, refTable, opts, "", nil, false)
+	if second.argsText == entry.ArgsText {
+		t.Fatal("entry with a retired pure-fn id was served from disk; it must miss")
+	}
+	if !containsStr(second.pureFnDeps, purefnids.NewRunTypeErr) {
+		t.Errorf("re-walk lost the live pure-fn edge: got %v", second.pureFnDeps)
+	}
+	if containsStr(second.pureFnDeps, staleID) {
+		t.Errorf("re-walk carried the retired id %q forward", staleID)
+	}
 }
