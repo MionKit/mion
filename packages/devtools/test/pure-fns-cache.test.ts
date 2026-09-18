@@ -154,9 +154,7 @@ export const foo = registerPureFnFactory(function () {
       expect(entryIds).toEqual(['src#foo']);
       expect(id!.text).toBe(", 'src#foo'");
       // Applying both replacements yields the fully-injected call.
-      expect(applyReplacements(sources['src.ts'], reps)).toContain(
-        "registerPureFnFactory(__rt_pf$2Fsrc$2Ffoo, 'src#foo')"
-      );
+      expect(applyReplacements(sources['src.ts'], reps)).toContain("registerPureFnFactory(__rt_pf$2Fsrc$2Ffoo, 'src#foo')");
     });
   });
 

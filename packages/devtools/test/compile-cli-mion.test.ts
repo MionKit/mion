@@ -272,7 +272,6 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
   });
 });
 
-
 // The bundled-API lane through the same CLI: a server project whose initRoutes call the build
 // walks into a server manifest, a client project built with --bundle-api against the server's
 // tsconfig (its route types come from the server program), and `mion api-check` over the two gen

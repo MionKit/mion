@@ -403,7 +403,8 @@ describe('request-batch diagnostics and readable shapes', () => {
 
     register('a plain argument next to a mapping is not a mapping', async () => {
       const source =
-        PRELUDE + `const id = 7;\nexport const b = batch([user, routes.orders.between(id, inputFrom(user, (u: {id: number}) => u.id))]);\n`;
+        PRELUDE +
+        `const id = 7;\nexport const b = batch([user, routes.orders.between(id, inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         const [site] = expectClean(run, 'case.ts');
         expect(site.mappings).toEqual([mapping('users/getById', 'orders/between', 1, INLINE_KEY)]);
@@ -588,7 +589,8 @@ describe('request-batch diagnostics and readable shapes', () => {
 
     register('source route is not an element of the batch', async () => {
       const source =
-        PRELUDE + `export const b = batch([routes.orders.getById(2), routes.orders.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
+        PRELUDE +
+        `export const b = batch([routes.orders.getById(2), routes.orders.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         const hit = expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
         expect(hit).toContain('`users/getById`');
@@ -597,7 +599,8 @@ describe('request-batch diagnostics and readable shapes', () => {
     });
 
     register('source route listed after the route it feeds', async () => {
-      const source = PRELUDE + `export const b = batch([routes.orders.list(inputFrom(user, (u: {id: number}) => u.id)), user]);\n`;
+      const source =
+        PRELUDE + `export const b = batch([routes.orders.list(inputFrom(user, (u: {id: number}) => u.id)), user]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         const hit = expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
         expect(hit).toContain('`users/getById`');
@@ -607,7 +610,8 @@ describe('request-batch diagnostics and readable shapes', () => {
 
     register('a route feeding itself', async () => {
       const source =
-        PRELUDE + `export const b = batch([user, routes.orders.list(inputFrom(routes.orders.list(1), (o: string[]) => o.length))]);\n`;
+        PRELUDE +
+        `export const b = batch([user, routes.orders.list(inputFrom(routes.orders.list(1), (o: string[]) => o.length))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(routes.orders.list(1)');
       });
