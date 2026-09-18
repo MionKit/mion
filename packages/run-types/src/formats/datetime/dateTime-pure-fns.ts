@@ -1,6 +1,6 @@
 // Registration module for the date / time pure fns the Go-side
 // date/time/dateTime/nativeDate emitters reach via
-// `utl.getPureFn('rtFormats::<name>')`. Moved out of
+// `utl.getPureFn(<the id below>)`. Moved out of
 // ../string/string-formats-pure-fns.ts so the whole date-ish surface
 // lives together; the Go path constant `dateTimePureFnFilePath` in
 // internal/cachegen/typefunctions/formats/datetime/shared.go MUST match this

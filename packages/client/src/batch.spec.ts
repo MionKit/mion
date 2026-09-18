@@ -744,12 +744,12 @@ describe('batch runtime behaviour', () => {
     expect(maybeValue).toBeNull();
     expect(maybeError).toBeUndefined();
     // the mapper step threw: nobody declared it, so it is the ONE fatal, typed, naming the two
-    // routes but never the mapper's registry key; the target never ran
+    // routes but never the mapper's id; the target never ran
     expect(org).toBeUndefined();
     expect(orgError).toBeUndefined();
     expect(fatal?.type).toBe('batch-mapper-failed');
     expect(fatal?.statusCode).toBe(422);
-    expect(fatal?.publicMessage).not.toContain('rt::');
+    expect(fatal?.publicMessage).not.toContain('#');
     expect(fatal?.publicMessage).toContain("'flow/getOrg'");
 
     const [greeting, , greetingFatal] = await routes.sayHello(someUser).call({middleFns: auth()});
