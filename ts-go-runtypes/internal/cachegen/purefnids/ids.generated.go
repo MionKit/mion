@@ -10,6 +10,8 @@
 // emitters depend on it.
 package purefnids
 
+import "sort"
+
 // IDPrefix is what every id below starts with: the package that owns these
 // pure fns. A build tells a reference to one of them apart from a reference to
 // a consumer's own pure fn by this prefix, which is also how it knows a
@@ -175,9 +177,21 @@ func NameOf(id string) string {
 }
 
 // Has reports whether id names one of the package's own pure functions.
-// Their bodies never come from a consumer's program — the compiler serves them
-// from its own table — so a build checks a reference to one against this set
-// instead of against the registrations it extracted.
+// Their bodies never come from a consumer's program — the compiler extracts
+// them from the package's own sources — so a build checks a reference to one
+// against this set instead of against the registrations it extracted.
 func Has(id string) bool {
 	return ids[id]
+}
+
+// All returns every built-in id, sorted. An id is a hash of the body that
+// ships, so a test can assert that each one still resolves from the sources and
+// catch a body edited without regenerating this file.
+func All() []string {
+	out := make([]string, 0, len(ids))
+	for id := range ids {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
 }

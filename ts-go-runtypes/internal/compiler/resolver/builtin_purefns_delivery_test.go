@@ -6,6 +6,9 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -110,4 +113,34 @@ func keys(m map[string]string) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// TestBuiltinDelivery_MarkerWithoutSourcesIsCFG004 — the failure mode the whole
+// lane hangs on. A marker package installed WITHOUT its `src` (a pruned install,
+// a `files` regression) has the bodies nowhere: the dist is hollowed and there
+// is nothing to extract. That must fail the build with the code naming the
+// package, because the alternative is a validator that throws "… is not a
+// function" at its first call.
+func TestBuiltinDelivery_MarkerWithoutSourcesIsCFG004(t *testing.T) {
+	r := setupInlineWith(t, map[string]string{"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
+export const e = createGetValidationErrorsFn<{a: string; b: number}>();
+`}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		for path := range programOpts.Overlay {
+			if strings.Contains(path, "/@mionjs/run-types/src/") {
+				delete(programOpts.Overlay, path)
+			}
+		}
+	})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scan: %s", resp.Error)
+	}
+	for _, diag := range resp.Diagnostics {
+		if diag.Code == diagnostics.CodeBuiltinPureFnSourceUnreadable {
+			return
+		}
+	}
+	t.Fatalf("expected CFG004 for a marker package with no sources, got %+v", resp.Diagnostics)
 }

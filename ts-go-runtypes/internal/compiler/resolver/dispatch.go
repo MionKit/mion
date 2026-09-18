@@ -20,6 +20,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
@@ -676,21 +677,60 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 	return out
 }
 
+// markerPackageName is the package that owns the built-in pure fns: the package
+// half of the generated id prefix, so the name has one source.
+var markerPackageName, _, _ = purefunctions.SplitID(purefnids.IDPrefix)
+
+// builtinPureFnLoader resolves the marker package root out of the program and
+// binds a loader to it. Built once per session; a nil result means the program
+// reaches no file belonging to the marker package, which for a program that
+// demands a built-in body is a broken install rather than a shape to tolerate.
+func (sess *Session) builtinPureFnLoader() *builtinpurefns.Loader {
+	if sess.builtinPureFnsDone {
+		return sess.builtinPureFns
+	}
+	sess.builtinPureFnsDone = true
+	if sess.Program == nil {
+		sess.builtinPureFnsDone = false
+		return nil
+	}
+	for _, sourceFile := range sess.Program.TS.SourceFiles() {
+		name, root := marker.PackageOfFile(sourceFile.FileName(), sess.Program.FS)
+		if name != markerPackageName || root == "" {
+			continue
+		}
+		// The session's own checker and extraction memo, so a marker source the
+		// program already holds resolves against the SAME resolver as everything
+		// else: one memo, ids that cannot disagree.
+		sess.builtinPureFns = builtinpurefns.New(root, builtinpurefns.Host{
+			Program:        sess.Program,
+			Checker:        sess.checker,
+			MarkerOpts:     sess.marker,
+			Cache:          sess.pureFnFileCache,
+			SingleThreaded: sess.opts.SingleThreaded,
+		})
+		break
+	}
+	return sess.builtinPureFns
+}
+
 // serveBuiltinPureFns delivers the package-owned pure-fn bodies demanded by the
-// surviving graph, straight from the generated table (builtinpurefns) — the
-// mechanism that lets a published consumer, whose program has only a .d.ts,
-// receive built-in bodies at all. Demand is (a) every soft dep the table
-// recognises (covers user-pure-fn → built-in edges) plus (b) every soft dep on a
-// TYPE-FN entry that the generated id constants know but the table does not,
-// which can only be a table edited by hand. The table's transitive closure is pulled too (isDateString_YMD →
-// isDateString).
+// surviving graph, extracted on demand from the marker package's own installed
+// sources (builtinpurefns) — the mechanism that lets a published consumer, whose
+// program has only a .d.ts, receive built-in bodies at all. Demand is every soft
+// dep naming one of the generated built-in ids, plus that set's transitive
+// closure (isDateString_YMD → isDateString). Every other edge belongs to the
+// program: a user pure fn, an override body, or a sibling type-fn entry, each
+// served from its own graph.
 //
-// A (b)-demanded key the table does NOT carry is a genuine build error: once
-// delivery is build-owned there is no runtime registration lane left to cover a
-// built-in the resolver emitted a reference to but the table never generated
-// (a stale table, or a new built-in in a source file the generator does not
-// list). It surfaces as PFE9012 — the same "RT depends on missing pure-fn" code,
-// now validated against the table instead of taken on faith (the exemption flip).
+// A demanded id the marker sources do not register is a genuine build error:
+// delivery is build-owned, so there is no runtime registration lane left to
+// cover a built-in the resolver emitted a reference to (a renamed binding, a
+// truncated install). It surfaces as PFE9012 — the same "RT depends on missing
+// pure-fn" code, validated against the sources instead of taken on faith.
+// Sources that cannot be reached or type checked AT ALL are CFG004 instead: no
+// per-key diagnostic would describe that, and it must never degrade to a
+// runtime "Pure function not found".
 // Runs post-Cascade so demand reflects only entries that will ship, and
 // pre-AddMissingStubs so a served built-in never degrades to a KindMissing stub.
 // emitMode is the RENDER's mode, not the session's: the bundled-API mirror
@@ -712,19 +752,8 @@ func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]d
 		}
 	}
 	for _, key := range keys {
-		entry := graph[key]
-		for _, dep := range entry.SoftDeps {
-			if builtinpurefns.Has(dep) {
-				addDemand(dep)
-				continue
-			}
-			// An id the emitters are compiled against whose BODY the table does
-			// not carry: demand it so Closure reports it as missing, because
-			// that can only be a table edited or truncated by hand (the two are
-			// generated by one run). Every other edge belongs to the program — a
-			// user pure fn, an override body, or a sibling type-fn entry — and
-			// is served from its own graph.
-			if entry.Kind == entrymodules.KindTypeFn && purefnids.Has(dep) {
+		for _, dep := range graph[key].SoftDeps {
+			if purefnids.Has(dep) {
 				addDemand(dep)
 			}
 		}
@@ -732,13 +761,24 @@ func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]d
 	if len(demand) == 0 {
 		return
 	}
-	entries, missing := builtinpurefns.Closure(demand)
-	graph.Merge(purefunctions.CollectEntries(entries, emitMode))
-	if diagSink == nil {
+	appendDiag := func(code string, args ...string) {
+		if diagSink != nil {
+			*diagSink = append(*diagSink, diagnostics.New(code, diagnostics.Site{}, args...))
+		}
+	}
+	loader := sess.builtinPureFnLoader()
+	if loader == nil {
+		appendDiag(diagnostics.CodeBuiltinPureFnSourceUnreadable, markerPackageName, "no file of this package is in the program")
 		return
 	}
+	entries, missing, err := loader.Closure(demand)
+	if err != nil {
+		appendDiag(diagnostics.CodeBuiltinPureFnSourceUnreadable, markerPackageName, err.Error())
+		return
+	}
+	graph.Merge(purefunctions.CollectEntries(entries, emitMode))
 	for _, id := range missing {
-		*diagSink = append(*diagSink, diagnostics.New(diagnostics.CodeMissingPureFnDep, diagnostics.Site{}, id))
+		appendDiag(diagnostics.CodeMissingPureFnDep, id)
 	}
 }
 
@@ -1344,17 +1384,18 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 	// pureFnKeys + diagnostics above.
 	rawEntries := purefunctions.RawEntries(sess.checker, sess.marker, sess.Program, files, sess.pureFnFileCache)
 	// Do NOT rewrite the package's OWN built-in registration call sites. The
-	// table (builtinpurefns) is the SOLE producer of built-in pure-fn MODULES,
-	// served on demand only when a fn body reaches one. An in-repo build resolves
-	// the package via `src/`, so the extractor sees the built-in registrations in
-	// pure-fns-utils.ts / *-pure-fns.ts; rewriting those factory args to
-	// `import 'rtmod:/pf/rt/…'` would DANGLE whenever the module isn't demanded
-	// (e.g. a file that imports the marker but calls no createX). Leaving them as
-	// plain `registerPureFnFactory(key, factory)` calls keeps the harmless runtime
-	// fallback registration (idempotent with the table's tuple; hollowed in dist).
+	// built-in loader (builtinpurefns) is the SOLE producer of built-in pure-fn
+	// MODULES, extracted on demand only when a fn body reaches one. An in-repo
+	// build resolves the package via `src/`, so the extractor sees the built-in
+	// registrations in pure-fns-utils.ts / *-pure-fns.ts; rewriting those factory
+	// args to `import 'rtmod:/pf/rt/…'` would DANGLE whenever the module isn't
+	// demanded (e.g. a file that imports the marker but calls no createX). Leaving
+	// them as plain `registerPureFnFactory(key, factory)` calls keeps the harmless
+	// runtime fallback registration (idempotent with the served tuple; hollowed in
+	// dist).
 	userRaw := rawEntries[:0]
 	for _, entry := range rawEntries {
-		if builtinpurefns.Has(entry.Key()) {
+		if purefnids.Has(entry.Key()) {
 			continue
 		}
 		userRaw = append(userRaw, entry)

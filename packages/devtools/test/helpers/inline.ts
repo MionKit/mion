@@ -54,6 +54,19 @@ export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
     }
   };
   walk(path.join(MARKER_PKG_DIR, 'dist'), '');
+  // The sources ride along because the tarball ships them and they are the ONLY
+  // place the built-in pure-fn bodies exist: the dist is hollowed, and the
+  // compiler extracts each demanded body from the file its id names. A package
+  // mounted without them is not the package a consumer installs.
+  const walkSrc = (dir: string, rel: string): void => {
+    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+      if (entry.isDirectory()) walkSrc(path.join(dir, entry.name), `${rel}${entry.name}/`);
+      else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts') && !entry.name.endsWith('.test.ts')) {
+        files[`node_modules/@mionjs/run-types/src/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+      }
+    }
+  };
+  walkSrc(path.join(MARKER_PKG_DIR, 'src'), '');
   return files;
 })();
 
