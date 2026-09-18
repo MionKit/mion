@@ -23,7 +23,7 @@ func moduleImporting(modules map[string]string, specifier string) (string, strin
 }
 
 // TestBuiltinDelivery_ValidationErrorsImportsNewRunTypeErr — a
-// createGetValidationErrorsFn body reaches rt::newRunTypeErr; the verr module must
+// createGetValidationErrorsFn body reaches @mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr; the verr module must
 // import + deps-thunk-bind the served built-in, and the built-in module must be
 // present in the output.
 func TestBuiltinDelivery_ValidationErrorsImportsNewRunTypeErr(t *testing.T) {
@@ -38,12 +38,12 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 		t.Fatalf("expected no diagnostics, got %+v", resp.Diagnostics)
 	}
 
-	const specifier = "rtmod:/pf/rt/newRunTypeErr.js"
+	const specifier = "rtmod:/pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr.js"
 	verrName, verrMod, ok := moduleImporting(resp.EntryModules, specifier)
 	if !ok {
 		t.Fatalf("no entry module imports %s\nmodules: %v", specifier, keys(resp.EntryModules))
 	}
-	binding := "__rt_pf$2Frt$2FnewRunTypeErr"
+	binding := "__rt_pf$2F$40mionjs$2Frun$2Dtypes$2Fsrc$2Fruntypes$2Fpure$2Dfns$2Dutils$2FnewRunTypeErr"
 	if !strings.Contains(verrMod, "import {"+binding+"}") {
 		t.Errorf("entry %q does not import the built-in binding %q:\n%s", verrName, binding, verrMod)
 	}
@@ -52,13 +52,13 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 	if !strings.Contains(verrMod, "()=>["+binding+"]") && !strings.Contains(verrMod, "()=>[") {
 		t.Errorf("entry %q has no deps thunk binding the built-in:\n%s", verrName, verrMod)
 	}
-	if _, ok := resp.EntryModules["pf/rt/newRunTypeErr"]; !ok {
-		t.Errorf("built-in pure-fn module pf/rt/newRunTypeErr was not served\nmodules: %v", keys(resp.EntryModules))
+	if _, ok := resp.EntryModules["pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr"]; !ok {
+		t.Errorf("built-in pure-fn module pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr was not served\nmodules: %v", keys(resp.EntryModules))
 	}
 }
 
 // TestBuiltinDelivery_FormatValidatorServesRtFormats — a uuid-format validator
-// reaches rtFormats::isUUID; the format built-in must be served from the table
+// reaches @mionjs/run-types/src/formats/string/string-formats-pure-fns#isUUID; the format built-in must be served from the table
 // the same way, with no diagnostics.
 func TestBuiltinDelivery_FormatValidatorServesRtFormats(t *testing.T) {
 	code := `import {createValidateFn} from '@mionjs/run-types';
@@ -76,11 +76,11 @@ export const v = createValidateFn<TypeFormat<string, 'uuid', {version: '4'}>>();
 	if len(resp.Diagnostics) != 0 {
 		t.Fatalf("expected no diagnostics, got %+v", resp.Diagnostics)
 	}
-	if _, ok := resp.EntryModules["pf/rtFormats/isUUID"]; !ok {
-		t.Errorf("format built-in pf/rtFormats/isUUID was not served\nmodules: %v", keys(resp.EntryModules))
+	if _, ok := resp.EntryModules["pf/@mionjs/run-types/src/formats/string/string-formats-pure-fns/isUUID"]; !ok {
+		t.Errorf("format built-in pf/@mionjs/run-types/src/formats/string/string-formats-pure-fns/isUUID was not served\nmodules: %v", keys(resp.EntryModules))
 	}
-	if _, _, ok := moduleImporting(resp.EntryModules, "rtmod:/pf/rtFormats/isUUID.js"); !ok {
-		t.Errorf("no entry imports the rtFormats::isUUID module")
+	if _, _, ok := moduleImporting(resp.EntryModules, "rtmod:/pf/@mionjs/run-types/src/formats/string/string-formats-pure-fns/isUUID.js"); !ok {
+		t.Errorf("no entry imports the @mionjs/run-types/src/formats/string/string-formats-pure-fns#isUUID module")
 	}
 }
 

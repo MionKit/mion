@@ -190,15 +190,17 @@ const markerImport = "import type {PureFunction, InjectPureFnId, InjectBatchId} 
 // routesBound is the standard client bootstrap of a single-file fixture.
 const routesBound = "const {routes} = initClient<Routes>();\n"
 
-// mapperName is the server-registered mapper key the name lane produces.
-func mapperName(name string) string { return constants.ServerMapperNamespace + "::" + name }
+// anyMapper stands in for a mapper's id in an expected mapping string: every
+// mapper is written inline, so its id is its location plus a body hash, which the
+// pure-fn lane test pins rather than this one.
+const anyMapper = "*"
 
-// mappingString renders a mapping as `from>to#index@key`, an inline mapper
-// key shortened to `rt::*` (its hash is pinned by the pure-fn lane test).
+// mappingString renders a mapping as `from>to#index@key`, with the mapper id
+// shortened to anyMapper.
 func mappingString(mapping Mapping) string {
-	key := mapping.MapperKey
-	if strings.HasPrefix(key, purefunctions.AnonymousNamespace+"::") {
-		key = purefunctions.AnonymousNamespace + "::*"
+	key := anyMapper
+	if mapping.MapperKey == "" {
+		key = ""
 	}
 	return mapping.FromId + ">" + mapping.ToId + "#" + strconv.Itoa(mapping.ParamIndex) + "@" + key
 }
@@ -447,7 +449,7 @@ func TestMappings_InlineAsArg_KeyMatchesPureFnLane(t *testing.T) {
 	if len(diags) != 0 || len(sites) != 1 {
 		t.Fatalf("sites=%+v diags=%s", sites, diagnosticsDebug(diags))
 	}
-	assertSite(t, sites[0], "users/getById,orders/getById", "users/getById>orders/getById#0@rt::*", "")
+	assertSite(t, sites[0], "users/getById,orders/getById", "users/getById>orders/getById#0@*", "")
 	mapping := sites[0].Mappings[0]
 	// The pure-fn lane extracts the very same inputFrom call (nested inside the
 	// batch) and must intern it under the key the batch report recorded.
@@ -462,35 +464,31 @@ func TestMappings_InlineAsArg_KeyMatchesPureFnLane(t *testing.T) {
 	if len(entries) != 1 || entries[0].Key() != mapping.MapperKey {
 		t.Errorf("pure-fn lane keys %v, want exactly [%s]", keys, mapping.MapperKey)
 	}
-	if entries[0].HashInjectText == "" {
-		t.Errorf("the nested inputFrom call must still get its own rt:: hash injected")
+	if entries[0].IDInjectText == "" {
+		t.Errorf("the nested inputFrom call must still get its own id injected")
 	}
 }
 
 // Shape 6: every way of writing one mapping.
 func TestMappings_ReferenceShapes(t *testing.T) {
 	cases := map[string]struct{ prelude, mapper, wantKey string }{
-		"bare ref":                   {"", "inputFrom(user, (u: {id: number}) => u.id)", "rt::*"},
-		"asArg at the call":          {"", "inputFrom(user, (u: {id: number}) => u.id).asArg()", "rt::*"},
-		"const-bound ref":            {"const ref = inputFrom(user, (u: {id: number}) => u.id);", "ref", "rt::*"},
-		"const-bound asArg":          {"const ref = inputFrom(user, (u: {id: number}) => u.id).asArg();", "ref", "rt::*"},
-		"const-bound then asArg":     {"const ref = inputFrom(user, 'toUserId');", "ref.asArg()", mapperName("toUserId")},
-		"let-bound ref":              {"let ref = inputFrom(user, 'toUserId');", "ref", mapperName("toUserId")},
-		"name literal":               {"", "inputFrom(user, 'toUserId')", mapperName("toUserId")},
-		"name const":                 {"const NAME = 'toUserId';", "inputFrom(user, NAME)", mapperName("toUserId")},
-		"name template literal":      {"", "inputFrom(user, `toUserId`)", mapperName("toUserId")},
-		"name literal asArg":         {"", "inputFrom(user, 'toUserId').asArg()", mapperName("toUserId")},
-		"block-body arrow":           {"", "inputFrom(user, (u: {id: number}) => { const id = u.id; return id; })", "rt::*"},
-		"function expression":        {"", "inputFrom(user, function (u: {id: number}) { return u.id; })", "rt::*"},
-		"typed parameter arrow":      {"", "inputFrom(user, (u: {id: number; name: string}): number => u.id)", "rt::*"},
-		"untyped parameter arrow":    {"", "inputFrom(user, (u) => u.id)", "rt::*"},
-		"wrapper forwarding":         {"function myInputFrom<S extends RouteSubRequest<any>, M>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>) { return inputFrom(source, mapper as never, hash as never); }", "myInputFrom(user, (u: {id: number}) => u.id)", "rt::*"},
-		"wrapped in parens":          {"", "(inputFrom(user, 'toUserId'))", mapperName("toUserId")},
-		"non-null wrapped":           {"", "inputFrom(user, 'toUserId')!", mapperName("toUserId")},
-		"as-cast asArg":              {"", "inputFrom(user, 'toUserId').asArg() as number", mapperName("toUserId")},
-		"source wrapped":             {"", "inputFrom(user!, 'toUserId')", mapperName("toUserId")},
-		"source inline call":         {"", "inputFrom(routes.users.getById(1), 'toUserId')", mapperName("toUserId")},
-		"source bound through alias": {"const alias = user;", "inputFrom(alias, 'toUserId')", mapperName("toUserId")},
+		"bare ref":                   {"", "inputFrom(user, (u: {id: number}) => u.id)", "*"},
+		"asArg at the call":          {"", "inputFrom(user, (u: {id: number}) => u.id).asArg()", "*"},
+		"const-bound ref":            {"const ref = inputFrom(user, (u: {id: number}) => u.id);", "ref", "*"},
+		"const-bound asArg":          {"const ref = inputFrom(user, (u: {id: number}) => u.id).asArg();", "ref", "*"},
+		"const-bound then asArg":     {"const ref = inputFrom(user, (u: {id: number}) => u.id);", "ref.asArg()", "*"},
+		"let-bound ref":              {"let ref = inputFrom(user, (u: {id: number}) => u.id);", "ref", "*"},
+		"block-body arrow":           {"", "inputFrom(user, (u: {id: number}) => { const id = u.id; return id; })", "*"},
+		"function expression":        {"", "inputFrom(user, function (u: {id: number}) { return u.id; })", "*"},
+		"typed parameter arrow":      {"", "inputFrom(user, (u: {id: number; name: string}): number => u.id)", "*"},
+		"untyped parameter arrow":    {"", "inputFrom(user, (u) => u.id)", "*"},
+		"wrapper forwarding":         {"function myInputFrom<S extends RouteSubRequest<any>, M>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>) { return inputFrom(source, mapper as never, hash as never); }", "myInputFrom(user, (u: {id: number}) => u.id)", "*"},
+		"wrapped in parens":          {"", "(inputFrom(user, (u: {id: number}) => u.id))", "*"},
+		"non-null wrapped":           {"", "inputFrom(user, (u: {id: number}) => u.id)!", "*"},
+		"as-cast asArg":              {"", "inputFrom(user, (u: {id: number}) => u.id).asArg() as number", "*"},
+		"source wrapped":             {"", "inputFrom(user!, (u: {id: number}) => u.id)", "*"},
+		"source inline call":         {"", "inputFrom(routes.users.getById(1), (u: {id: number}) => u.id)", "*"},
+		"source bound through alias": {"const alias = user;", "inputFrom(alias, (u: {id: number}) => u.id)", "*"},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -504,40 +502,40 @@ func TestMappings_ReferenceShapes(t *testing.T) {
 func TestMappings_Topologies(t *testing.T) {
 	cases := map[string]struct{ body, routes, mappings string }{
 		"param index 1": {
-			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.report(7, inputFrom(user, 'toStatus'), 10)]);",
-			"users/getById,orders/report", "users/getById>orders/report#1@" + mapperName("toStatus"),
+			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.report(7, inputFrom(user, (u: {id: number}) => String(u.id)), 10)]);",
+			"users/getById,orders/report", "users/getById>orders/report#1@*",
 		},
 		"param index 2": {
-			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.report(7, 'open', inputFrom(user, 'toLimit'))]);",
-			"users/getById,orders/report", "users/getById>orders/report#2@" + mapperName("toLimit"),
+			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.report(7, 'open', inputFrom(user, (u: {id: number}) => u.id + 1))]);",
+			"users/getById,orders/report", "users/getById>orders/report#2@*",
 		},
 		"two mappings into one route": {
-			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.report(inputFrom(user, 'toUserId'), 'open', inputFrom(user, 'toLimit'))]);",
-			"users/getById,orders/report", "users/getById>orders/report#0@" + mapperName("toUserId") + " users/getById>orders/report#2@" + mapperName("toLimit"),
+			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.report(inputFrom(user, (u: {id: number}) => u.id), 'open', inputFrom(user, (u: {id: number}) => u.id + 1))]);",
+			"users/getById,orders/report", "users/getById>orders/report#0@*" + " users/getById>orders/report#2@*",
 		},
 		"two sources into one route": {
-			routesBound + "const user = routes.users.getById(1);\nconst orders = routes.orders.list(1);\nexport const b = batch([user, orders, routes.orders.report(inputFrom(user, 'toUserId'), inputFrom(orders, 'toStatus'), 10)]);",
-			"users/getById,orders/list,orders/report", "users/getById>orders/report#0@" + mapperName("toUserId") + " orders/list>orders/report#1@" + mapperName("toStatus"),
+			routesBound + "const user = routes.users.getById(1);\nconst orders = routes.orders.list(1);\nexport const b = batch([user, orders, routes.orders.report(inputFrom(user, (u: {id: number}) => u.id), inputFrom(orders, (u: {id: number}) => String(u.id)), 10)]);",
+			"users/getById,orders/list,orders/report", "users/getById>orders/report#0@*" + " orders/list>orders/report#1@*",
 		},
 		"chain A to B to C": {
-			routesBound + "const user = routes.users.getById(1);\nconst orders = routes.orders.list(inputFrom(user, 'toUserId'));\nexport const b = batch([user, orders, routes.orders.getById(inputFrom(orders, 'toOrderId'))]);",
-			"users/getById,orders/list,orders/getById", "orders/list>orders/getById#0@" + mapperName("toOrderId") + " users/getById>orders/list#0@" + mapperName("toUserId"),
+			routesBound + "const user = routes.users.getById(1);\nconst orders = routes.orders.list(inputFrom(user, (u: {id: number}) => u.id));\nexport const b = batch([user, orders, routes.orders.getById(inputFrom(orders, (o: {id: number}) => o.id + 2))]);",
+			"users/getById,orders/list,orders/getById", "orders/list>orders/getById#0@*" + " users/getById>orders/list#0@*",
 		},
 		"one source two targets": {
-			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(inputFrom(user, 'toUserId')), routes.orders.getById(inputFrom(user, 'toOrderId'))]);",
-			"users/getById,orders/list,orders/getById", "users/getById>orders/getById#0@" + mapperName("toOrderId") + " users/getById>orders/list#0@" + mapperName("toUserId"),
+			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(inputFrom(user, (u: {id: number}) => u.id)), routes.orders.getById(inputFrom(user, (o: {id: number}) => o.id + 2))]);",
+			"users/getById,orders/list,orders/getById", "users/getById>orders/getById#0@*" + " users/getById>orders/list#0@*",
 		},
 		"mapping into an optional parameter": {
-			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.users.search('ann', inputFrom(user, 'toLimit'))]);",
-			"users/getById,users/search", "users/getById>users/search#1@" + mapperName("toLimit"),
+			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.users.search('ann', inputFrom(user, (u: {id: number}) => u.id + 1))]);",
+			"users/getById,users/search", "users/getById>users/search#1@*",
 		},
 		"mapping into a rest parameter": {
-			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.tail(1, 2, 3, inputFrom(user, 'toId'))]);",
-			"users/getById,orders/tail", "users/getById>orders/tail#3@" + mapperName("toId"),
+			routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.tail(1, 2, 3, inputFrom(user, (u: {id: number}) => u.id + 3))]);",
+			"users/getById,orders/tail", "users/getById>orders/tail#3@*",
 		},
 		"spread after the mapping": {
-			routesBound + "const user = routes.users.getById(1);\nconst ids = [2, 3];\nexport const b = batch([user, routes.orders.tail(inputFrom(user, 'toUserId'), ...ids)]);",
-			"users/getById,orders/tail", "users/getById>orders/tail#0@" + mapperName("toUserId"),
+			routesBound + "const user = routes.users.getById(1);\nconst ids = [2, 3];\nexport const b = batch([user, routes.orders.tail(inputFrom(user, (u: {id: number}) => u.id), ...ids)]);",
+			"users/getById,orders/tail", "users/getById>orders/tail#0@*",
 		},
 	}
 	for name, testCase := range cases {
@@ -643,9 +641,9 @@ func TestShapes_Rejections_BAT001(t *testing.T) {
 // Shape 10: BAT002, the source must be an earlier element of the same batch.
 func TestMappings_SourceOrder_BAT002(t *testing.T) {
 	cases := map[string]struct{ body, at, args string }{
-		"source outside the batch": {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.list(1), routes.orders.getById(inputFrom(user, 'toUserId'))]);", "inputFrom(user, 'toUserId')", "users/getById|orders/getById"},
-		"source after the target":  {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.getById(inputFrom(user, 'toUserId')), user]);", "inputFrom(user, 'toUserId')", "users/getById|orders/getById"},
-		"source is the target":     {routesBound + "const self: RouteSubRequest<any> = routes.orders.getById(inputFrom(self, 'toUserId'));\nexport const b = batch([routes.users.getById(1), self]);", "inputFrom(self, 'toUserId')", "orders/getById|orders/getById"},
+		"source outside the batch": {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.list(1), routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "users/getById|orders/getById"},
+		"source after the target":  {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id)), user]);", "inputFrom(user, (u: {id: number}) => u.id)", "users/getById|orders/getById"},
+		"source is the target":     {routesBound + "const self: RouteSubRequest<any> = routes.orders.getById(inputFrom(self, (u: {id: number}) => u.id));\nexport const b = batch([routes.users.getById(1), self]);", "inputFrom(self, (u: {id: number}) => u.id)", "orders/getById|orders/getById"},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -662,13 +660,11 @@ func TestMappings_MapperNotReadable_BAT004(t *testing.T) {
 		"mapper identifier":       {user + "const pickId = (u: {id: number}) => u.id;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, pickId))]);", "pickId)", "mapper is not an inline arrow or function expression"},
 		"mapper via bind":         {user + "const pickId = (u: {id: number}) => u.id;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, pickId.bind(null)))]);", "bind(null)", "mapper is not an inline arrow or function expression"},
 		"mapper method reference": {user + "const picker = {id(u: {id: number}) { return u.id; }};\nexport const b = batch([user, routes.orders.getById(inputFrom(user, picker.id))]);", "picker.id)", "mapper is not an inline arrow or function expression"},
-		"name computed":           {user + "declare const suffix: string;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, 'to' + suffix))]);", "'to' + suffix", "mapper name is not a string literal or a const bound to one"},
-		"name template with hole": {user + "declare const suffix: string;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, `to${suffix}`))]);", "`to${suffix}`", "mapper name is not a string literal or a const bound to one"},
-		"name from a parameter":   {user + "export function f(name: string) { return batch([user, routes.orders.getById(inputFrom(user, name))]); }", "inputFrom(user, name", "mapper name is not a string literal or a const bound to one"},
-		"name let reassigned":     {user + "let name = 'toUserId';\nname = 'other';\nexport const b = batch([user, routes.orders.getById(inputFrom(user, name))]);", "inputFrom(user, name", "mapper name is not a string literal or a const bound to one"},
-		"unreadable source":       {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.getById(inputFrom(u, 'toUserId'))]); }", "inputFrom(u", "source is not a route call the build can read: " + reasonNotBound},
-		"mapping after a spread":  {user + "const ids = [2, 3];\nexport const b = batch([user, routes.orders.tail(...ids, inputFrom(user, 'toId'))]);", "inputFrom(user, 'toId')", reasonMapperAfterSpread},
-		"mapping let reassigned":  {user + "let ref = inputFrom(user, 'toUserId');\nref = inputFrom(user, 'toOrderId');\nexport const b = batch([user, routes.orders.getById(ref)]);", "getById(ref", reasonMapperReassigned},
+		"mapper from a parameter": {user + "export function f(pick: (u: {id: number}) => number) { return batch([user, routes.orders.getById(inputFrom(user, pick))]); }", "pick)", "mapper is not an inline arrow or function expression"},
+		"mapper let reassigned":   {user + "let pick = (u: {id: number}) => u.id;\npick = (u: {id: number}) => u.id + 1;\nexport const b = batch([user, routes.orders.getById(inputFrom(user, pick))]);", "pick)", "mapper is not an inline arrow or function expression"},
+		"unreadable source":       {routesBound + "export function f(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.getById(inputFrom(u, (u: {id: number}) => u.id))]); }", "inputFrom(u", "source is not a route call the build can read: " + reasonNotBound},
+		"mapping after a spread":  {user + "const ids = [2, 3];\nexport const b = batch([user, routes.orders.tail(...ids, inputFrom(user, (u: {id: number}) => u.id + 3))]);", "inputFrom(user, (u: {id: number}) => u.id + 3)", reasonMapperAfterSpread},
+		"mapping let reassigned":  {user + "let ref = inputFrom(user, (u: {id: number}) => u.id);\nref = inputFrom(user, (o: {id: number}) => o.id + 2);\nexport const b = batch([user, routes.orders.getById(ref)]);", "getById(ref", reasonMapperReassigned},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -685,14 +681,14 @@ func TestShapes_DuplicateRoute_BAT005(t *testing.T) {
 		"same binding twice":   {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, user]);", "[user, user"},
 		"binding then inline":  {routesBound + "const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(1), routes.users.getById(2)]);", "getById(2)"},
 		"through a sub-proxy":  {routesBound + "const users = routes.users;\nexport const b = batch([routes.users.getById(1), users.getById(2)]);", "users.getById(2)"},
-		"different arguments":  {routesBound + "export const b = batch([routes.orders.list(1), routes.orders.list(inputFrom(routes.users.getById(1), 'toUserId'))]);", "'toUserId'))"},
+		"different arguments":  {routesBound + "export const b = batch([routes.orders.list(1), routes.orders.list(inputFrom(routes.users.getById(1), (u: {id: number}) => u.id))]);", "(u: {id: number}) => u.id))"},
 		"third element repeat": {routesBound + "export const b = batch([routes.users.getById(1), routes.orders.list(1), routes.orders.list(2)]);", "list(2)"},
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
 			diag := singleDiag(t, testCase.body, diagnostics.CodeBatchDuplicateRoute)
 			wantId := "users/getById"
-			if strings.Contains(testCase.at, "list") || strings.Contains(testCase.at, "toUserId") {
+			if strings.Contains(testCase.at, "list") || strings.Contains(testCase.at, "=> u.id") {
 				wantId = "orders/list"
 			}
 			assertDiagAt(t, diag, fixture(testCase.body), testCase.at, wantId)
@@ -710,11 +706,11 @@ func TestShapes_DuplicateRoute_BAT005(t *testing.T) {
 func TestMappings_ParamOutOfRange_BAT006(t *testing.T) {
 	const user = routesBound + "const user = routes.users.getById(1);\n"
 	cases := map[string]struct{ body, at, args string }{
-		"one past a single param":  {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, 'toUserId'))]);", "inputFrom(user, 'toUserId')", "1|1|orders/getById"},
-		"far past":                 {user + "export const b = batch([user, routes.orders.getById(1, 2, 3, inputFrom(user, 'toUserId'))]);", "inputFrom(user, 'toUserId')", "3|1|orders/getById"},
-		"past an optional param":   {user + "export const b = batch([user, routes.users.search('ann', 5, inputFrom(user, 'toLimit'))]);", "inputFrom(user, 'toLimit')", "2|2|users/search"},
-		"past three params":        {user + "export const b = batch([user, routes.orders.report(1, 'open', 10, inputFrom(user, 'toX'))]);", "inputFrom(user, 'toX')", "3|3|orders/report"},
-		"bound ref out of range":   {user + "const ref = inputFrom(user, 'toUserId');\nexport const b = batch([user, routes.orders.getById(1, ref.asArg())]);", "ref.asArg()", "1|1|orders/getById"},
+		"one past a single param":  {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "1|1|orders/getById"},
+		"far past":                 {user + "export const b = batch([user, routes.orders.getById(1, 2, 3, inputFrom(user, (u: {id: number}) => u.id))]);", "inputFrom(user, (u: {id: number}) => u.id)", "3|1|orders/getById"},
+		"past an optional param":   {user + "export const b = batch([user, routes.users.search('ann', 5, inputFrom(user, (u: {id: number}) => u.id + 1))]);", "inputFrom(user, (u: {id: number}) => u.id + 1)", "2|2|users/search"},
+		"past three params":        {user + "export const b = batch([user, routes.orders.report(1, 'open', 10, inputFrom(user, (u: {id: number}) => u.id + 5))]);", "inputFrom(user, (u: {id: number}) => u.id + 5)", "3|3|orders/report"},
+		"bound ref out of range":   {user + "const ref = inputFrom(user, (u: {id: number}) => u.id);\nexport const b = batch([user, routes.orders.getById(1, ref.asArg())]);", "ref.asArg()", "1|1|orders/getById"},
 		"inline mapper past param": {user + "export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);", "u.id)", "1|1|orders/getById"},
 	}
 	for name, testCase := range cases {
@@ -724,7 +720,7 @@ func TestMappings_ParamOutOfRange_BAT006(t *testing.T) {
 		})
 	}
 	// Two mappings on one call, one in range and one out: only the second reports.
-	diag := singleDiag(t, user+"export const b = batch([user, routes.orders.getById(inputFrom(user, 'toUserId'), inputFrom(user, 'toOther'))]);", diagnostics.CodeBatchMappingParamOutOfRange)
+	diag := singleDiag(t, user+"export const b = batch([user, routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id), inputFrom(user, (u: {id: number}) => u.id + 6))]);", diagnostics.CodeBatchMappingParamOutOfRange)
 	if got := strings.Join(diag.Args, "|"); got != "1|1|orders/getById" {
 		t.Errorf("BAT006 args = %q", got)
 	}
@@ -732,7 +728,7 @@ func TestMappings_ParamOutOfRange_BAT006(t *testing.T) {
 
 func TestCheckConflicts(t *testing.T) {
 	same := []string{"users/getById", "orders/list"}
-	mappingA := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "rt::aaa"}
+	mappingA := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a#aaa"}
 	mappingB := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "mionjs::toUserId"}
 	// Same routes, different mappings: two batches with two ids, never a conflict.
 	if BatchId(same, []Mapping{mappingA}) == BatchId(same, []Mapping{mappingB}) {
@@ -762,8 +758,8 @@ func TestCheckConflicts(t *testing.T) {
 	}
 	// Same routes, same mappings in a different order: one batch, no conflict.
 	if extra := CheckConflicts([]Site{
-		{FilePath: "/a.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{mappingA, {FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "rt::bbb"}}},
-		{FilePath: "/b.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "rt::bbb"}, mappingA}},
+		{FilePath: "/a.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{mappingA, {FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "@acme/app/src/a#bbb"}}},
+		{FilePath: "/b.ts", BatchId: "b_x", RouteIds: same, Mappings: []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 1, MapperKey: "@acme/app/src/a#bbb"}, mappingA}},
 	}); len(extra) != 0 {
 		t.Errorf("mapping order must not count as a conflict: %s", diagnosticsDebug(extra))
 	}
@@ -781,11 +777,11 @@ func TestBatchId_DeterministicAndVersionIndependent(t *testing.T) {
 	if first == BatchId([]string{"orders/list", "users/getById"}, nil) {
 		t.Errorf("order must change the id")
 	}
-	mapping := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "rt::aaa"}
+	mapping := Mapping{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a#aaa"}
 	if first == BatchId(routes, []Mapping{mapping}) {
 		t.Errorf("a mapping must change the id")
 	}
-	if BatchId(routes, []Mapping{mapping}) == BatchId(routes, []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "rt::bbb"}}) {
+	if BatchId(routes, []Mapping{mapping}) == BatchId(routes, []Mapping{{FromId: "users/getById", ToId: "orders/list", ParamIndex: 0, MapperKey: "@acme/app/src/a#bbb"}}) {
 		t.Errorf("the mapper key must change the id")
 	}
 	originalVersion := constants.Version
@@ -802,14 +798,14 @@ func TestBatchId_DeterministicAndVersionIndependent(t *testing.T) {
 func TestReportAndFiles(t *testing.T) {
 	sites := []Site{
 		{FilePath: "/b.ts", Start: 5, End: 9, BatchId: "b_2", RouteIds: []string{"x/y"}, CalleeName: "batch", CalleeModule: ClientModule},
-		{FilePath: "/a.ts", Start: 30, End: 40, BatchId: "b_1", RouteIds: []string{"a/b", "c/d"}, Mappings: []Mapping{{FromId: "a/b", ToId: "c/d", ParamIndex: 1, MapperKey: "rt::k"}}},
+		{FilePath: "/a.ts", Start: 30, End: 40, BatchId: "b_1", RouteIds: []string{"a/b", "c/d"}, Mappings: []Mapping{{FromId: "a/b", ToId: "c/d", ParamIndex: 1, MapperKey: "@acme/app/src/a#k"}}},
 		{FilePath: "/a.ts", Start: 1, End: 4, BatchId: "b_0", RouteIds: []string{"a/b"}},
 	}
 	report := Report(sites)
 	if len(report) != 3 || report[0].BatchId != "b_0" || report[1].BatchId != "b_1" || report[2].BatchId != "b_2" {
 		t.Fatalf("Report order = %+v", report)
 	}
-	if len(report[1].Mappings) != 1 || report[1].Mappings[0].MapperKey != "rt::k" || report[1].Mappings[0].ParamIndex != 1 {
+	if len(report[1].Mappings) != 1 || report[1].Mappings[0].MapperKey != "@acme/app/src/a#k" || report[1].Mappings[0].ParamIndex != 1 {
 		t.Errorf("Report mappings = %+v", report[1].Mappings)
 	}
 	if report[2].CalleeName != "batch" || report[2].CalleeModule != ClientModule {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -124,7 +125,7 @@ func TestBatch_ScanInjectsId_ReportOnlyOnWire(t *testing.T) {
 }
 
 // TestBatch_TransformCarriesIdAndMapperHash: the rewritten source carries the
-// injected batch id AND the nested inline mapper's own `rt::` hash.
+// injected batch id AND the nested inline mapper's own id.
 func TestBatch_TransformCarriesIdAndMapperHash(t *testing.T) {
 	r := setupInline(t, batchSources)
 	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
@@ -138,8 +139,8 @@ func TestBatch_TransformCarriesIdAndMapperHash(t *testing.T) {
 	if !strings.Contains(code, "'b_") {
 		t.Errorf("transformed code lacks the injected batch id:\n%s", code)
 	}
-	if !strings.Contains(code, "'rt::") {
-		t.Errorf("transformed code lacks the nested mapper's rt:: hash:\n%s", code)
+	if !regexp.MustCompile(`'[^']+#[A-Za-z0-9_-]+'`).MatchString(code) {
+		t.Errorf("transformed code lacks the nested mapper's id:\n%s", code)
 	}
 	if strings.Count(code, "'b_") != 1 {
 		t.Errorf("expected exactly one batch id in:\n%s", code)
@@ -167,8 +168,8 @@ func TestBatch_GenerateWholeProgram(t *testing.T) {
 			withMapping = &gen.BatchSites[i]
 		}
 	}
-	if withMapping == nil || withMapping.Mappings[0].FromId != "users/getById" || withMapping.Mappings[0].ToId != "orders/getById" || !strings.HasPrefix(withMapping.Mappings[0].MapperKey, "rt::") {
-		t.Errorf("expected the a.ts site to carry the users→orders rt:: mapping, got %+v", gen.BatchSites)
+	if withMapping == nil || withMapping.Mappings[0].FromId != "users/getById" || withMapping.Mappings[0].ToId != "orders/getById" || !strings.Contains(withMapping.Mappings[0].MapperKey, "#") {
+		t.Errorf("expected the a.ts site to carry the users→orders mapping, got %+v", gen.BatchSites)
 	}
 	reportPath := filepath.Join(outDir, "types", "batches-report.json")
 	raw, err := os.ReadFile(reportPath)
@@ -234,12 +235,12 @@ func TestBatch_SameRoutesDifferentMappings_TwoBatches(t *testing.T) {
 		"x.ts": `import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';
 const user = routes.users.getById(1);
-export const b = batch([user, routes.orders.getById(inputFrom(user, 'toUserId'))]);
+export const b = batch([user, routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id))]);
 `,
 		"y.ts": `import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';
 const user = routes.users.getById(1);
-export const b = batch([user, routes.orders.getById(inputFrom(user, 'toOrderId'))]);
+export const b = batch([user, routes.orders.getById(inputFrom(user, (o: {id: number}) => o.id + 1))]);
 `,
 	}
 	r := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
@@ -351,7 +352,7 @@ export const b = batch([routes.users.getById(1), routes.users.getById(2)]);
 		"mapping out of range": {`import {batch, inputFrom} from '@mionjs/client';
 import {routes} from './routes.ts';
 const user = routes.users.getById(1);
-export const b = batch([user, routes.orders.getById(1, inputFrom(user, 'toUserId'))]);
+export const b = batch([user, routes.orders.getById(1, inputFrom(user, (u: {id: number}) => u.id))]);
 `, diagnostics.CodeBatchMappingParamOutOfRange, "1|1|orders/getById"},
 	}
 	for name, testCase := range cases {

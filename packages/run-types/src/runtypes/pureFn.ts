@@ -57,7 +57,7 @@ function asFactory(fn: PureFn | PureFnFactory, wrap: boolean): PureFnFactory {
 }
 
 /**
- * Shared registration core for both registrars, and the one place the four
+ * Shared registration core for both registrars, and the one place the three
  * shapes of `arg` are told apart. `arg` is the build-rewritten entry-module
  * tuple in the normal case (calling this at module load IS the registration —
  * the tuple's dep closure loads and registers with it); a live function is the
@@ -124,34 +124,6 @@ function registerCore(caller: string, arg: unknown, id: string | undefined, wrap
     getRTUtils().addPureFn(id, compiled);
     return id as PureFnId;
   }
-  return id as PureFnId;
-}
-    }
-    return id as PureFnId;
-  }
-  if (typeof arg === 'function') {
-    // No-transform fallback (a dev-tool override, or a file the build skipped):
-    // the function is right here, so register it directly. Build-time metadata
-    // (bodyHash, stripped code, static dep extraction) is build-only; runtime
-    // behaviour is identical because the function IS the body.
-    const compiled: CompiledPureFunction = {
-      id,
-      bodyHash: '',
-      paramNames: [],
-      code: '',
-      pureFnDependencies: [],
-      createPureFn: asFactory(arg as PureFn | PureFnFactory, wrap),
-      fn: undefined,
-    };
-    getRTUtils().addPureFn(id, compiled);
-    return id as PureFnId;
-  }
-  // Hollowed registration: the body no longer ships in this file (a package
-  // build stripped it) and travels on demand through the pure-fn cache,
-  // registering via a fn entry's deps thunk instead. Deliberately NOT cached:
-  // caching an empty entry here would mask the real tuple whenever this call
-  // wins the load order. Nothing ever invokes it, because a body only reaches a
-  // pure fn the build demanded, which is served and registered before it runs.
   return id as PureFnId;
 }
 

@@ -26,7 +26,7 @@ func armedValidatePrefix(t *testing.T) string {
 
 // End-to-end coverage for the inline circular-reference guard (the compile-time
 // `rejectCircularRefs` option). The armed variant of a guarded family must (a)
-// bake the guard prologue + skeleton into its body, (b) demand rt::findCycle
+// bake the guard prologue + skeleton into its body, (b) demand @mionjs/run-types/src/runtypes/circular-pure-fns#findCycle
 // by body reference (delivered like any built-in), while (c) a PLAIN cyclable type
 // carries no guard, no walker, and no RunType bundle — the pay-for-use win.
 
@@ -101,11 +101,11 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 	}
 	// It demands the built-in by body reference (the pure-fn dep tuple slot is a
 	// real JS array literal, so its single quotes are NOT escaped).
-	if !strings.Contains(armed, "'rt::findCycle'") {
+	if !strings.Contains(armed, "'@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle'") {
 		t.Errorf("armed entry does not list the findCycle pure-fn dep:\n%s", armed)
 	}
-	if _, ok := modules["pf/rt/findCycle"]; !ok {
-		t.Errorf("rt::findCycle module was not served\nmodules: %v", keys(modules))
+	if _, ok := modules["pf/@mionjs/run-types/src/runtypes/circular-pure-fns/findCycle"]; !ok {
+		t.Errorf("@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle module was not served\nmodules: %v", keys(modules))
 	}
 }
 
@@ -143,13 +143,13 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 	if throwers < 2 {
 		t.Errorf("expected both armed encoders (tb + je) to throw via utl.circularError, found %d\nmodules: %v", throwers, keys(modules))
 	}
-	if _, ok := modules["pf/rt/findCycle"]; !ok {
-		t.Errorf("rt::findCycle not served for armed encoders\nmodules: %v", keys(modules))
+	if _, ok := modules["pf/@mionjs/run-types/src/runtypes/circular-pure-fns/findCycle"]; !ok {
+		t.Errorf("@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle not served for armed encoders\nmodules: %v", keys(modules))
 	}
 }
 
 // TestInlineGuard_ArmedCompositeNeverTripsJCP001 — regression: the armed JSON
-// composite carries `rt::findCycle` in its SoftDeps (that IS the built-in's
+// composite carries `@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle` in its SoftDeps (that IS the built-in's
 // demand signal), but AssertCompositeSoftDeps must not read that pure-fn edge
 // as a composite-bound primitive: the assertion runs BEFORE serveBuiltinPureFns
 // delivers the body, so treating it as a primitive fired a spurious
@@ -168,7 +168,7 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 			t.Fatalf("armed jsonEncoder tripped JCP001 on its pure-fn soft dep: args=%v", d.Args)
 		}
 	}
-	if _, ok := resp.EntryModules["pf/rt/findCycle"]; !ok {
-		t.Errorf("rt::findCycle module was not served\nmodules: %v", keys(resp.EntryModules))
+	if _, ok := resp.EntryModules["pf/@mionjs/run-types/src/runtypes/circular-pure-fns/findCycle"]; !ok {
+		t.Errorf("@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle module was not served\nmodules: %v", keys(resp.EntryModules))
 	}
 }

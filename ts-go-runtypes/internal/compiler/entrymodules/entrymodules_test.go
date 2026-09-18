@@ -146,25 +146,30 @@ func TestRender_MissingStub(t *testing.T) {
 }
 
 func TestRender_PureFnModuleNameEncoding(t *testing.T) {
+	const core = "@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"
+	const weirdKey = "we ird/deep#fn$x"
 	graph := Graph{}
-	graph.Add(&Entry{Key: "rt::newRunTypeErr", Kind: KindPureFn, ArgsText: "'rt::newRunTypeErr','h1'"})
-	graph.Add(&Entry{Key: "we ird::fn$x", Kind: KindPureFn, ArgsText: "'we ird::fn$x','h2'", Deps: []string{"rt::newRunTypeErr"}})
+	graph.Add(&Entry{Key: core, Kind: KindPureFn, ArgsText: "'" + core + "','h1'"})
+	graph.Add(&Entry{Key: weirdKey, Kind: KindPureFn, ArgsText: "'" + weirdKey + "','h2'", Deps: []string{core}})
 	out, err := RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if _, ok := out["pf/rt/newRunTypeErr"]; !ok {
+	// An id's location half is already a path, so it becomes one: every segment
+	// escaped, `@` kept (a scoped package name is the first segment of every id).
+	if _, ok := out["pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr"]; !ok {
 		t.Fatalf("plain pure-fn basename missing: %v", keysOf(out))
 	}
-	weird, ok := out["pf/we$20ird/fn$24x"]
+	weird, ok := out["pf/we$20ird/deep/fn$24x"]
 	if !ok {
 		t.Fatalf("escaped pure-fn basename missing: %v", keysOf(out))
 	}
-	if !strings.Contains(weird, "import {__rt_pf$2Frt$2FnewRunTypeErr} from 'rtmod:/pf/rt/newRunTypeErr.js';") {
-		t.Fatalf("pure-fn dep import should use the encoded basename: %q", weird)
+	wantImport := "import {__rt_pf$2F$40mionjs$2Frun$2Dtypes$2Fsrc$2Fruntypes$2Fpure$2Dfns$2Dutils$2FnewRunTypeErr} from 'rtmod:/pf/@mionjs/run-types/src/runtypes/pure-fns-utils/newRunTypeErr.js';"
+	if !strings.Contains(weird, wantImport) {
+		t.Fatalf("pure-fn dep import should use the encoded basename:\n got: %q\nwant substring: %q", weird, wantImport)
 	}
-	if !strings.Contains(weird, "export const __rt_pf$2Fwe$20ird$2Ffn$24x=[2,()=>[__rt_pf$2Frt$2FnewRunTypeErr],,'we ird::fn$x','h2'];") {
-		t.Fatalf("pure-fn tuple should keep the RAW cache key: %q", weird)
+	if !strings.Contains(weird, "'"+weirdKey+"','h2'];") {
+		t.Fatalf("pure-fn tuple should keep the RAW id: %q", weird)
 	}
 }
 

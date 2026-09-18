@@ -875,12 +875,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       "`validate` is a shared dependency across function families: JSON and\nbinary union decoders call the member validators to pick the matching\nbranch. An `overrideValidate<T>()` therefore reaches past\n`createValidateFn<T>()`: decoders of any union containing T now narrow\nwith YOUR function.\n\nThis is informational; the build proceeds. If the override should only\naffect direct validation, give the union members a discriminant so\ndecoders never fall back to member validation:\n  type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
   },
   PFE9004: {
-    headline: 'Duplicate `registerPureFnFactory` for `{0}` with a different body; only one definition can win.',
+    headline: 'Two pure functions share the id `{0}` but have different bodies; only one can win.',
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
-      'Two calls register the same `namespace::functionId` key but the factory\nbodies differ. The cache can only hold one definition, so one call site\nsilently loses its version at runtime.\n\nFix: make all registrations identical, or pick one canonical site and\ndelete the others. The Related: line above points at the first\nregistration the extractor saw.',
+      "A pure function's id is where it lives: the package, the file, and the name\nit is bound to. Two registrations under one id means one file binds the same\nname twice, or two bodies that are not assigned to a name differ only in ways\nthe build cannot see.\n\nFix: give each registration its own binding, or make the bodies identical.\nThe Related: line above points at the first registration the extractor saw.",
   },
   PFE9005: {
     headline: 'Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.',
@@ -888,35 +888,34 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'purefn',
     detail:
-      "The build inlines parameter references by name when it materialises the\nfactory. Destructuring patterns (`({a, b})`, `([x, y])`) don't have a\nsingle name to substitute.\n\nFix: destructure inside the body:\n  -  registerPureFnFactory('ns::fn', (utl) => ({a, b}) => ...);\n+  registerPureFnFactory('ns::fn', (utl) => (params) => {\n+    const {a, b} = params;\n+    return ...;\n+  });",
+      "The build inlines parameter references by name when it materialises the\nfactory. Destructuring patterns (`({a, b})`, `([x, y])`) don't have a\nsingle name to substitute.\n\nFix: destructure inside the body:\n-  const myFn = registerPureFnFactory((utl) => ({a, b}) => ...);\n+  const myFn = registerPureFnFactory((utl) => (params) => {\n+    const {a, b} = params;\n+    return ...;\n+  });",
   },
   PFE9006: {
-    headline:
-      "`this` is not allowed inside a `registerPureFnFactory` factory body; pure functions can't depend on a calling context.",
+    headline: "`this` is not allowed inside a pure-fn factory body; pure functions can't depend on a calling context.",
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
-      "Pure functions are materialised standalone at build time; there's no\n`this` to bind to.\n\nFix: replace `this` with an explicit parameter, or move the function\nout of the class/object method that owns the `this`:\n  registerPureFnFactory('ns::fn', (utl) => (self, input) => {\n    return self.field + input;\n  });",
+      "Pure functions are materialised standalone at build time; there's no\n`this` to bind to.\n\nFix: replace `this` with an explicit parameter, or move the function\nout of the class/object method that owns the `this`:\n  const myFn = registerPureFnFactory((utl) => (self, input) => {\n    return self.field + input;\n  });",
   },
   PFE9007: {
-    headline: '`async`/`await` is not allowed inside a `registerPureFnFactory` factory body.',
+    headline: '`async`/`await` is not allowed inside a pure-fn factory body.',
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
-      "Pure functions must run synchronously so the build can call them at\ncompile time. `async` introduces a Promise that won't resolve until\nruntime.\n\nFix: make the factory synchronous; move async work to the caller:\n  registerPureFnFactory('ns::fn', (utl) => {\n-   return async (input) => { const r = await heavy(); return r; };\n+   return (resolvedValue) => transform(resolvedValue);\n  });",
+      "Pure functions must run synchronously so the build can call them at\ncompile time. `async` introduces a Promise that won't resolve until\nruntime.\n\nFix: make the factory synchronous; move async work to the caller:\n  const myFn = registerPureFnFactory((utl) => {\n-   return async (input) => { const r = await heavy(); return r; };\n+   return (resolvedValue) => transform(resolvedValue);\n  });",
   },
   PFE9008: {
-    headline: '`yield` / generators are not allowed inside a `registerPureFnFactory` factory body.',
+    headline: '`yield` / generators are not allowed inside a pure-fn factory body.',
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
-      "Generators carry resumption state that can't be materialised\nstatically.\n\nFix: return an array or a plain iterable instead:\n  registerPureFnFactory('ns::fn', (utl) => (input) => {\n    return [...computeAll(input)];\n  });",
+      "Generators carry resumption state that can't be materialised\nstatically.\n\nFix: return an array or a plain iterable instead:\n  const myFn = registerPureFnFactory((utl) => (input) => {\n    return [...computeAll(input)];\n  });",
   },
   PFE9009: {
-    headline: '`import()` is not allowed inside a `registerPureFnFactory` factory body.',
+    headline: '`import()` is not allowed inside a pure-fn factory body.',
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
@@ -924,7 +923,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       'Dynamic imports load modules at runtime, the build needs every\ndependency available statically.\n\nFix: use a top-level `import` statement, or pass the imported module\nin as a parameter.',
   },
   PFE9010: {
-    headline: '`{0}` is not allowed inside a `registerPureFnFactory` factory body.',
+    headline: '`{0}` is not allowed inside a pure-fn factory body.',
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
@@ -932,30 +931,36 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       "Globals like `eval`, `Function`, `fetch`, `XMLHttpRequest`, `require`,\n`process`, `globalThis`, `window`, `document` are blocked from pure-fn\nbodies: they either execute arbitrary code or depend on a runtime\nenvironment the build can't reproduce.\n\nFix: remove the reference, or pass the needed value in as a parameter.",
   },
   PFE9011: {
-    headline:
-      "`{0}` is captured from outer scope inside a `registerPureFnFactory` factory; pure functions can't reach outside their own body.",
+    headline: "`{0}` is captured from outer scope inside a pure-fn factory; pure functions can't reach outside their own body.",
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
-      "The build inlines factory bodies without their lexical environment, so\nany free variable becomes `undefined` at runtime.\n\nFix: pass `{0}` in as a parameter:\n  registerPureFnFactory('ns::fn', (utl) => ({0}, value) => ...);\n\nFix: inline its value if it's a known constant:\n  registerPureFnFactory('ns::fn', (utl) => (value) => {\n    const {0} = 42;\n    ...\n  });\n\nFix: import `{0}` directly inside the factory if it's a module export.",
+      "The build inlines factory bodies without their lexical environment, so\nany free variable becomes `undefined` at runtime.\n\nFix: pass `{0}` in as a parameter:\n  const myFn = registerPureFnFactory((utl) => ({0}, value) => ...);\n\nFix: inline its value if it's a known constant:\n  const myFn = registerPureFnFactory((utl) => (value) => {\n    const {0} = 42;\n    ...\n  });\n\nFix: reach another pure function through its id, which the build inlines:\n  import {slugify} from './slug';\n  const myFn = registerPureFnFactory((utl) => (value) => utl.getPureFn(slugify)(value));",
   },
   PFE9012: {
-    headline:
-      "Pure-fn `{0}` is referenced by a RT function but never registered; call `registerPureFnFactory('{1}::{2}', …)` first.",
+    headline: 'Pure fn `{0}` is referenced by a RT function but was never registered.',
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
-      "A RT validator/encoder calls `utl.usePureFn('{0}')` (or similar) but\nno `registerPureFnFactory` call with that namespace+function pair was\nfound in any scanned source file.\n\nFix: register the function in the expected location ({3}, if known).\nMake sure the file is included in the scan set.",
+      'A RT validator/encoder reaches that pure fn through `utl.usePureFn`, but no\nregistration for that id was found in any scanned file. An id names the\npackage, the file and the binding a pure fn was registered under, so a miss\nmeans that file is outside the scan set, or the registration moved or was\nrenamed.\n\nFix: import the id from the file that registers it, and make sure that file\nis part of the build.',
   },
   PFE9013: {
-    headline: '`{0}.{1}` dependency argument must be a string literal or a same-scope `const` string.',
+    headline: '`{0}.{1}` dependency argument must be a pure-fn id.',
     level: 'runtimeError',
     severity: 'error',
     family: 'purefn',
     detail:
-      "`utl.usePureFn` / `utl.getPureFn` need a static key so the build can\nverify the referenced pure-fn is registered.\n\nFix:\n  -  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  return utl.usePureFn('rt::myFn')(input);",
+      "`utl.usePureFn` / `utl.getPureFn` need a static id so the build can verify\nthe pure fn is registered and inline the id into the emitted body. The id is\nthe value a registrar returned, imported from a file in this build, or a\nstring literal.\n\nFix:\n-  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  import {slugify} from './slug';\n+  return utl.usePureFn(slugify)(input);",
+  },
+  PFE9014: {
+    headline: "Explicit pure-fn id `{0}` does not match this registration's location `{1}`.",
+    level: 'error',
+    severity: 'error',
+    family: 'purefn',
+    detail:
+      "A pure function's id is computed from where it lives: the package, the file\nand the name it is bound to. The build injects it, so source normally passes\nnone. An id written by hand, or left behind by a move or a rename, would\nregister the body under one id while every reference to it uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
   },
   PFN001: {
     headline: '`PureFunction<F>` argument must be an INLINE arrow or function expression.',

@@ -535,6 +535,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	// Read package.json for the marker module-of-origin gate through the program's
 	// (possibly overlay/virtual) filesystem, not os.ReadFile — see marker.Options.FS.
 	markerOpts.FS = prog.FS
+	markerOpts.Cwd = prog.Cwd
 	cache := runtype.NewCache(typeChecker, runtype.Options{
 		HashLength: opts.HashLength,
 	})
@@ -602,6 +603,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	// Keep the marker's package.json FS in sync with the current program's overlay
 	// (setSources installs a fresh program + FS each call).
 	sess.marker.FS = prog.FS
+	sess.marker.Cwd = prog.Cwd
 	sess.checker = typeChecker
 	sess.releaseLease = releaseLease
 	sess.cache.Rebind(typeChecker)

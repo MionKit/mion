@@ -86,28 +86,28 @@
   {
     "name": "replace_over_multibyte",
     "file": "a.ts",
-    "code": "registerPureFnFactory('ns::f', (x) => x /* — */);\n",
+    "code": "export const f = registerPureFnFactory((x) => x /* — */);\n",
     "sites": [],
     "replacements": [
       {
         "file": "a.ts",
-        "start": 31,
-        "end": 49,
-        "text": "__rt_pf_ns_f",
-        "importFrom": "rtmod:/pf/ns/f.js"
+        "start": 39,
+        "end": 57,
+        "text": "__rt_pf$2F$40acme$2Fapp$2Fa$2Ff",
+        "importFrom": "rtmod:/pf/@acme/app/a/f.js"
       }
     ],
-    "expectedCode": "import {__rt_pf_ns_f} from 'rtmod:/pf/ns/f.js';\nregisterPureFnFactory('ns::f', __rt_pf_ns_f);\n",
+    "expectedCode": "import {__rt_pf$2F$40acme$2Fapp$2Fa$2Ff} from 'rtmod:/pf/@acme/app/a/f.js';\nexport const f = registerPureFnFactory(__rt_pf$2F$40acme$2Fapp$2Fa$2Ff);\n",
     "expectedMap": {
       "version": 3,
       "sources": [
         "a.ts"
       ],
       "sourcesContent": [
-        "registerPureFnFactory('ns::f', (x) => x /* — */);\n"
+        "export const f = registerPureFnFactory((x) => x /* — */);\n"
       ],
       "names": [],
-      "mappings": ";AAAA,qBAAqB,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,YAAgB,CAAC;"
+      "mappings": ";AAAA,MAAM,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,qBAAqB,CAAC,+BAAgB,CAAC;"
     }
   },
   {

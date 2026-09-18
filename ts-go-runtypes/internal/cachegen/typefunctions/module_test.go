@@ -443,7 +443,7 @@ func extractInitLine(out, key string) string {
 	}
 	// One rendered entry is one line, so take the line. (Cutting at the first
 	// `);` used to work only because no emitted body contained one; a pure-fn
-	// preamble — `utl.getPureFn('rtFormats::codePointLength');` — does, and it
+	// preamble — `utl.getPureFn('@mionjs/run-types/src/formats/string/string-formats-pure-fns#codePointLength');` — does, and it
 	// truncated the entry before the assertions could see it.)
 	rest := out[start:]
 	if end := strings.IndexByte(rest, '\n'); end >= 0 {
@@ -1085,10 +1085,10 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 	// module scope, so the legacy skeleton `k_<alias>` identifier shortcut
 	// is gone (aliases only shorten context-var NAMES inside bodies now).
 	deps := []protocol.PureFnDep{
-		{Namespace: "rt", FunctionName: "asJSONString", FilePath: "/abs/run-types-pure-fns.ts"},
-		{Namespace: "rt", FunctionName: "newRunTypeErr", FilePath: "/abs/run-types-pure-fns.ts"},
+		{ID: "@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString"},
+		{ID: "@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"},
 	}
-	want := "['rt::asJSONString','rt::newRunTypeErr']"
+	want := "['@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString','@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr']"
 	if got := pureFnDepsJS(deps); got != want {
 		t.Errorf("populated → %q, want %q", got, want)
 	}
@@ -1096,9 +1096,9 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 
 func TestValidateModule_PureFnDepsRendered(t *testing.T) {
 	deps := pureFnDepsJS([]protocol.PureFnDep{
-		{Namespace: "rt", FunctionName: "asJSONString", FilePath: "/some/abs/run-types-pure-fns.ts"},
+		{ID: "@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString"},
 	})
-	if deps != "['rt::asJSONString']" {
+	if deps != "['@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString']" {
 		t.Fatalf("projection mismatch: got %q", deps)
 	}
 	if strings.Contains(deps, "/some/abs/") || strings.Contains(deps, "filePath") {

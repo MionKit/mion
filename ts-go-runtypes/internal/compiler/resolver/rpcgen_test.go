@@ -56,10 +56,10 @@ func serverOnlySources() map[string]string {
 }
 
 var (
-	mapperImportRE = regexp.MustCompile(`import \{(__rt_pf\$2Frt\$2F[A-Za-z0-9_$]+)\} from '(\./pf/rt/[^']+\.js)';`)
+	mapperImportRE = regexp.MustCompile(`import \{(__rt_pf\$2F[A-Za-z0-9_$]+)\} from '(\./pf/[^']+\.js)';`)
 	specifierRE    = regexp.MustCompile(`from '([^']+)'`)
 	batchIdRE      = regexp.MustCompile(`"(b_[A-Za-z0-9_-]+)"`)
-	mapperKeyRE    = regexp.MustCompile(`'(rt::[A-Za-z0-9_-]+)'`)
+	mapperKeyRE    = regexp.MustCompile(`'([^']+#[A-Za-z0-9_-]+)'`)
 )
 
 func readRpcModule(t *testing.T, outDir string) string {
@@ -162,7 +162,7 @@ func TestRpc_GenerateWritesTableAndMappers(t *testing.T) {
 	if !strings.Contains(module, `"mapperKey":"`+mapperKey+`"`) {
 		t.Errorf("the table does not name the mapper %s:\n%s", mapperKey, module)
 	}
-	// the mapper module itself: the body, the key, under rpc/pf/rt/
+	// the mapper module itself: the body, the id, under rpc/pf/<the id path>
 	mapperPath := filepath.Join(outDir, "rpc", filepath.FromSlash(strings.TrimPrefix(specifier, "./")))
 	mapperSource, err := os.ReadFile(mapperPath)
 	if err != nil {
@@ -301,30 +301,6 @@ func TestRpc_RouterInitDetectionShapes(t *testing.T) {
 	}
 }
 
-// TestRpc_ByNameMapperNeedsNoModule: a `mionjs::<name>` mapper is registered by
-// the server itself, so the table names it and no module is written.
-func TestRpc_ByNameMapperNeedsNoModule(t *testing.T) {
-	sources := rpcSources()
-	sources["a.ts"] = `import {batch, inputFrom} from '@mionjs/client';
-import {routes} from './routes.ts';
-const user = routes.users.getById(1);
-export const b = batch([user, routes.orders.getById(inputFrom(user, 'toUserId'))]);
-`
-	outDir := t.TempDir()
-	r := setupGen(t, sources, outDir)
-	generate(t, r)
-	module := readRpcModule(t, outDir)
-	if !strings.Contains(module, `"mapperKey":"mionjs::toUserId"`) {
-		t.Errorf("table does not name the server mapper:\n%s", module)
-	}
-	if strings.Contains(module, "registerInputMapperTuple('") || mapperImportRE.MatchString(module) {
-		t.Errorf("a by-name mapper must import and register nothing:\n%s", module)
-	}
-	if _, err := os.Stat(filepath.Join(outDir, "rpc", "pf")); !os.IsNotExist(err) {
-		t.Errorf("rpc/pf must not exist for by-name mappers only (stat err = %v)", err)
-	}
-}
-
 // TestRpc_NoBatchesRemovesRpc: a later generate from a program that lost its
 // batches removes the whole rpc/ folder.
 func TestRpc_NoBatchesRemovesRpc(t *testing.T) {
@@ -361,8 +337,8 @@ func TestRpc_NoRouterInitWritesNoRpc(t *testing.T) {
 		t.Errorf("rpc/ must not exist for a program that creates no router (stat err = %v)", err)
 	}
 	// the client half still gets its ids and hashes: that is the transform's job, not the table's
-	if code := transform(t, setupGen(t, clientOnly, t.TempDir()), "a.ts"); !strings.Contains(code, "'b_") || !strings.Contains(code, "'rt::") {
-		t.Errorf("client transform lost the batch id or the mapper hash:\n%s", code)
+	if code := transform(t, setupGen(t, clientOnly, t.TempDir()), "a.ts"); !strings.Contains(code, "'b_") || !mapperKeyRE.MatchString(code) {
+		t.Errorf("client transform lost the batch id or the mapper id:\n%s", code)
 	}
 }
 
@@ -374,7 +350,7 @@ func TestRpc_StaleMapperPruned(t *testing.T) {
 	before := readTree(t, filepath.Join(outDir, "rpc"))
 	var oldMapper string
 	for path := range before {
-		if strings.HasPrefix(path, "pf/rt/") {
+		if strings.HasPrefix(path, "pf/") {
 			oldMapper = path
 		}
 	}
@@ -391,7 +367,7 @@ func TestRpc_StaleMapperPruned(t *testing.T) {
 	}
 	var mappers []string
 	for path := range after {
-		if strings.HasPrefix(path, "pf/rt/") {
+		if strings.HasPrefix(path, "pf/") {
 			mappers = append(mappers, path)
 		}
 	}
@@ -554,12 +530,12 @@ func writeClientProject(t *testing.T) string {
 	}
 	writeTestFile(t, filepath.Join(dir, "src", "client.d.ts"), batchClientDTS)
 	writeTestFile(t, filepath.Join(dir, "src", "routes.ts"), batchRoutesTS)
-	// the batch file also carries a named pure fn no batch names; decoys.ts a reflection
+	// the batch file also carries a pure fn no batch names; decoys.ts a reflection
 	// marker and another one: the server pass must copy the inline mapper and nothing else
-	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), batchSources["a.ts"]+"import {registerPureFn} from '@mionjs/run-types';\nregisterPureFn('mionjs::inBatchFile', (value: number) => value + 1);\n")
+	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), batchSources["a.ts"]+"import {registerPureFn} from '@mionjs/run-types';\nexport const inBatchFile = registerPureFn((value: number) => value + 1);\n")
 	writeTestFile(t, filepath.Join(dir, "src", "decoys.ts"), `import {getRunTypeId, registerPureFn} from '@mionjs/run-types';
 export const clientOnlyId = getRunTypeId<{clientOnlyField: string}>();
-registerPureFn('mionjs::clientOnlyHelper', (value: number) => value * 2);
+export const clientOnlyHelper = registerPureFn((value: number) => value * 2);
 `)
 	return dir
 }

@@ -22,13 +22,13 @@ func builtinSoftDepEntry(key string, softDeps []string) *entrymodules.Entry {
 // transitive closure rides along (isDateString_YMD -> isDateString).
 func TestServeBuiltin_ServesDemandedAndTransitive(t *testing.T) {
 	graph := entrymodules.Graph{}
-	graph.Add(builtinSoftDepEntry("verr_root", []string{"rt::newRunTypeErr"}))
-	graph.Add(builtinSoftDepEntry("val_fmt", []string{"rtFormats::isDateString_YMD"}))
+	graph.Add(builtinSoftDepEntry("verr_root", []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"}))
+	graph.Add(builtinSoftDepEntry("val_fmt", []string{"@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_YMD"}))
 
 	var diags []diagnostics.Diagnostic
 	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
-	for _, key := range []string{"rt::newRunTypeErr", "rtFormats::isDateString_YMD", "rtFormats::isDateString"} {
+	for _, key := range []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr", "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString_YMD", "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString"} {
 		entry := graph[key]
 		if entry == nil {
 			t.Fatalf("built-in %q was not served", key)
@@ -47,12 +47,12 @@ func TestServeBuiltin_ServesDemandedAndTransitive(t *testing.T) {
 // flip: built-ins are validated against the table, not taken on faith).
 func TestServeBuiltin_MissingIsPFE9012(t *testing.T) {
 	graph := entrymodules.Graph{}
-	graph.Add(builtinSoftDepEntry("verr_root", []string{"rt::newRunTypeErr", "rt::totallyMadeUp"}))
+	graph.Add(builtinSoftDepEntry("verr_root", []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr", "rt::totallyMadeUp"}))
 
 	var diags []diagnostics.Diagnostic
 	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
-	if graph["rt::newRunTypeErr"] == nil {
+	if graph["@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"] == nil {
 		t.Error("the present built-in should still be served alongside the missing one")
 	}
 	found := false

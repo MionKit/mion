@@ -1,6 +1,7 @@
 package structural
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strings"
 	"testing"
 
@@ -74,25 +75,26 @@ func TestCollectionFormats_UniqueItemsGoesThroughItsOwnPureFn(t *testing.T) {
 		name       string
 		annotation func(map[string]any) *reflection.FormatAnnotation
 		pureFn     string
+		alias      string
 	}{
-		{formattedSetName, setAnnotation, uniqueSetMembersPureFnName},
-		{formattedMapName, mapAnnotation, uniqueMapEntriesPureFnName},
+		{formattedSetName, setAnnotation, purefnids.UniqueSetMembers, "uniqueSetMembers"},
+		{formattedMapName, mapAnnotation, purefnids.UniqueMapEntries, "uniqueMapEntries"},
 	} {
 		ctx := newStubCtx()
 		emitter := lookupCollection(t, family.name)
 		got := emitter.EmitValidateCheck(family.annotation(map[string]any{"uniqueItems": true, "maxItems": 3.0}), "v", ctx)
 
-		if got != "v.size <= 3 && "+family.pureFn+"(v)" {
-			t.Fatalf("%s: check = %q, want the size bound and the %s alias", family.name, got, family.pureFn)
+		if got != "v.size <= 3 && "+family.alias+"(v)" {
+			t.Fatalf("%s: check = %q, want the size bound and the %s alias", family.name, got, family.alias)
 		}
-		if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rt::"+family.pureFn {
-			t.Fatalf("%s: pure fns = %v, want exactly [rt::%s]", family.name, ctx.pureFns, family.pureFn)
+		if len(ctx.pureFns) != 1 || ctx.pureFns[0] != family.pureFn {
+			t.Fatalf("%s: pure fns = %v, want exactly [%s]", family.name, ctx.pureFns, family.pureFn)
 		}
 		if strings.Contains(got, "const canon") {
 			t.Errorf("%s: emitted body must not inline the canonical form; got %q", family.name, got)
 		}
 		// The array walk must never be the one a collection reaches for.
-		if strings.Contains(got, uniqueArrayItemsPureFnName) {
+		if strings.Contains(got, "uniqueArrayItems") {
 			t.Errorf("%s: a collection must not call the array walk; got %q", family.name, got)
 		}
 	}

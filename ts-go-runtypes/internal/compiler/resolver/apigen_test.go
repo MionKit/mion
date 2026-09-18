@@ -728,7 +728,7 @@ func TestApiGen_NoApiMeansNoApiDir(t *testing.T) {
 }
 
 // TestApiGen_MirrorShipsBuiltInPureFnsAsFunctions: the built-in pure fns a
-// bundled validator depends on (rt::newRunTypeErr and friends) ride the api/
+// bundled validator depends on (@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr and friends) ride the api/
 // mirror as live factories like everything else in it, never as code strings,
 // whatever the program's own emit mode. A code string there would be rebuilt
 // with `new Function` at the first validation, on the client that bundled its

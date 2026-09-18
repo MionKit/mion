@@ -120,9 +120,9 @@ var primaryCases = []fixtureCase{
 		return []protocol.Site{s}, nil
 	}},
 	// 5. pure-fn Replacement — start<end span edit with importFrom.
-	{"pure_fn_replace", "a.ts", "registerPureFnFactory('rt::foo', () => 1);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+	{"pure_fn_replace", "a.ts", "export const foo = registerPureFnFactory(() => 1);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		start := byteIndexOf(code, "() => 1", 0)
-		return nil, []protocol.Replacement{{File: "a.ts", Start: start, End: start + len("() => 1"), Text: "__rt_pf_rt_foo", ImportFrom: "rtmod:/pf/rt/foo.js"}}
+		return nil, []protocol.Replacement{{File: "a.ts", Start: start, End: start + len("() => 1"), Text: "__rt_pf$2F$40acme$2Fapp$2Fa$2Ffoo", ImportFrom: "rtmod:/pf/@acme/app/a/foo.js"}}
 	}},
 	// 6. zero-width Replacement — start==end (appendLeft of text, no importFrom).
 	{"zero_width_replace", "a.ts", "const x = marker(1, 2);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
@@ -152,11 +152,11 @@ var primaryCases = []fixtureCase{
 		return []protocol.Site{site(byteIndexOf(code, ")", strings.Index(code, "getRunTypeId")), "Inl5555")}, nil
 	}},
 	// 11. mixed sites + replacement in one file (both edit kinds + import dedupe).
-	{"mixed", "a.ts", "registerPureFnFactory('rt::foo', () => 1);\nconst v = createValidateFn<Baz>();\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+	{"mixed", "a.ts", "export const foo = registerPureFnFactory(() => 1);\nconst v = createValidateFn<Baz>();\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		start := byteIndexOf(code, "() => 1", 0)
 		s := site(byteIndexOf(code, ")", strings.Index(code, "createValidateFn<Baz>")), "Baz6666")
 		s.FnId = "val"
-		reps := []protocol.Replacement{{File: "a.ts", Start: start, End: start + len("() => 1"), Text: "__rt_pf_rt_foo", ImportFrom: "rtmod:/pf/rt/foo.js"}}
+		reps := []protocol.Replacement{{File: "a.ts", Start: start, End: start + len("() => 1"), Text: "__rt_pf$2F$40acme$2Fapp$2Fa$2Ffoo", ImportFrom: "rtmod:/pf/@acme/app/a/foo.js"}}
 		return []protocol.Site{s}, reps
 	}},
 	// 12. padding — paramIndex 2 with argsCount 0 → one `undefined` placeholder.
@@ -190,10 +190,10 @@ var extraCases = []fixtureCase{
 		return []protocol.Site{site(p1, "Mb00001"), site(p2, "Mb00002")}, nil
 	}},
 	// Replacement whose span contains multibyte chars (em-dash inside the text).
-	{"replace_over_multibyte", "a.ts", "registerPureFnFactory('ns::f', (x) => x /* — */);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+	{"replace_over_multibyte", "a.ts", "export const f = registerPureFnFactory((x) => x /* — */);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		const inner = "(x) => x /* — */"
 		start := byteIndexOf(code, inner, 0)
-		return nil, []protocol.Replacement{{File: "a.ts", Start: start, End: start + len(inner), Text: "__rt_pf_ns_f", ImportFrom: "rtmod:/pf/ns/f.js"}}
+		return nil, []protocol.Replacement{{File: "a.ts", Start: start, End: start + len(inner), Text: "__rt_pf$2F$40acme$2Fapp$2Fa$2Ff", ImportFrom: "rtmod:/pf/@acme/app/a/f.js"}}
 	}},
 	// paramIndex 3, argsCount 1 → two `undefined` pads + leading comma.
 	{"big_padding", "a.ts", "const v = createGetValidationErrorsFn<T>(opts);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {

@@ -16,15 +16,14 @@ func TestCollectEntries_EmptyInput(t *testing.T) {
 
 func TestCollectEntries_SingleEntry(t *testing.T) {
 	graph := CollectEntries([]Entry{{
-		Namespace:    "rt",
-		FunctionName: "asJSONString",
-		ParamNames:   []string{},
-		Code:         "return function _f() {};",
-		BodyHash:     "aBcDeFgHiJkLmN",
+		ID:         "@acme/app/src/pure#asJSONString",
+		ParamNames: []string{},
+		Code:       "return function _f() {};",
+		BodyHash:   "aBcDeFgHiJkLmN",
 	}}, constants.EmitBoth)
-	entry := graph["rt::asJSONString"]
+	entry := graph["@acme/app/src/pure#asJSONString"]
 	if entry == nil {
-		t.Fatalf("expected an entry keyed by 'rt::asJSONString', got %v", graph)
+		t.Fatalf("expected an entry keyed by '@acme/app/src/pure#asJSONString', got %v", graph)
 	}
 	if entry.Kind != entrymodules.KindPureFn {
 		t.Errorf("Kind: got %v want KindPureFn", entry.Kind)
@@ -32,7 +31,7 @@ func TestCollectEntries_SingleEntry(t *testing.T) {
 	// 6-arg tail: key, bodyHash, paramNames, code, pureFnDependencies, createPureFn.
 	// createPureFn is the inline `function(utl){<code>}` literal templated from `code`.
 	// EmitBoth ships both the code string AND the live literal (the body twice).
-	want := "'rt::asJSONString','aBcDeFgHiJkLmN',[],'return function _f() {};',[],function(){return function _f() {};}"
+	want := "'@acme/app/src/pure#asJSONString','aBcDeFgHiJkLmN',[],'return function _f() {};',[],function(){return function _f() {};}"
 	if entry.ArgsText != want {
 		t.Errorf("ArgsText mismatch:\n got: %s\nwant: %s", entry.ArgsText, want)
 	}
@@ -43,34 +42,32 @@ func TestCollectEntries_SingleEntry(t *testing.T) {
 
 func TestCollectEntries_WithDependencies(t *testing.T) {
 	graph := CollectEntries([]Entry{{
-		Namespace:          "rt",
-		FunctionName:       "consumer",
+		ID:                 "@acme/app/src/pure#consumer",
 		ParamNames:         []string{"x"},
-		Code:               "return function _f(x){return utl.getPureFn('rt::dep')(x);};",
+		Code:               "return function _f(x){return utl.getPureFn('@acme/app/src/pure#dep')(x);};",
 		BodyHash:           "h1",
-		PureFnDependencies: []string{"rt::dep", "other::helper"},
+		PureFnDependencies: []string{"@acme/app/src/pure#dep", "@acme/other/src/pure#helper"},
 	}}, constants.EmitBoth)
-	entry := graph["rt::consumer"]
+	entry := graph["@acme/app/src/pure#consumer"]
 	if entry == nil {
 		t.Fatal("missing entry")
 	}
-	if !strings.Contains(entry.ArgsText, `['rt::dep','other::helper']`) {
+	if !strings.Contains(entry.ArgsText, `['@acme/app/src/pure#dep','@acme/other/src/pure#helper']`) {
 		t.Errorf("dep array not rendered correctly:\n%s", entry.ArgsText)
 	}
-	if len(entry.SoftDeps) != 2 || entry.SoftDeps[0] != "rt::dep" || entry.SoftDeps[1] != "other::helper" {
+	if len(entry.SoftDeps) != 2 || entry.SoftDeps[0] != "@acme/app/src/pure#dep" || entry.SoftDeps[1] != "@acme/other/src/pure#helper" {
 		t.Errorf("module SoftDeps should carry the pure-fn dep keys, got %v", entry.SoftDeps)
 	}
 }
 
 func TestCollectEntries_QuoteEscapes(t *testing.T) {
 	graph := CollectEntries([]Entry{{
-		Namespace:    "test",
-		FunctionName: "withQuote",
-		ParamNames:   []string{"x"},
-		Code:         "return 'has \\'inner\\'';",
-		BodyHash:     "abc1234567890_",
+		ID:         "@acme/app/src/pure#withQuote",
+		ParamNames: []string{"x"},
+		Code:       "return 'has \\'inner\\'';",
+		BodyHash:   "abc1234567890_",
 	}}, constants.EmitBoth)
-	entry := graph["test::withQuote"]
+	entry := graph["@acme/app/src/pure#withQuote"]
 	if entry == nil {
 		t.Fatal("missing entry")
 	}
@@ -84,30 +81,29 @@ func TestCollectEntries_QuoteEscapes(t *testing.T) {
 
 func TestCollectEntries_RenderedModuleShape(t *testing.T) {
 	graph := CollectEntries([]Entry{
-		{Namespace: "a", FunctionName: "x", Code: "return 1;", BodyHash: "h1", ParamNames: []string{}},
-		{Namespace: "b", FunctionName: "y", Code: "return utl.usePureFn('a::x')();", BodyHash: "h2",
-			ParamNames: []string{}, PureFnDependencies: []string{"a::x"}},
+		{ID: "@acme/app/src/pure#x", Code: "return 1;", BodyHash: "h1", ParamNames: []string{}},
+		{ID: "@acme/app/src/pure#y", Code: "return utl.usePureFn('@acme/app/src/pure#x')();", BodyHash: "h2",
+			ParamNames: []string{}, PureFnDependencies: []string{"@acme/app/src/pure#x"}},
 	}, constants.EmitBoth)
 	modules, err := entrymodules.RenderGrouped(graph, nil)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	consumer, ok := modules["pf/b/y"]
+	consumer, ok := modules["pf/@acme/app/src/pure/y"]
 	if !ok {
-		t.Fatalf("expected module basename pf/b/y, got %v", keysOf(modules))
+		t.Fatalf("expected module basename pf/@acme/app/src/pure/y, got %v", keysOf(modules))
 	}
-	if !strings.Contains(consumer, "import {__rt_pf$2Fa$2Fx} from 'rtmod:/pf/a/x.js';") {
+	if !strings.Contains(consumer, "import {__rt_pf$2F$40acme$2Fapp$2Fsrc$2Fpure$2Fx} from 'rtmod:/pf/@acme/app/src/pure/x.js';") {
 		t.Errorf("pure-fn dep import missing:\n%s", consumer)
 	}
-	if !strings.Contains(consumer, "export const __rt_pf$2Fb$2Fy=[2,()=>[__rt_pf$2Fa$2Fx],,'b::y',") {
-		t.Errorf("tuple head should be [2,()=>[__rt_<dep>],<hole>,'<key>',…]:\n%s", consumer)
+	if !strings.Contains(consumer, "export const __rt_pf$2F$40acme$2Fapp$2Fsrc$2Fpure$2Fy=[2,()=>[__rt_pf$2F$40acme$2Fapp$2Fsrc$2Fpure$2Fx],,'@acme/app/src/pure#y',") {
+		t.Errorf("tuple head should be [2,()=>[__rt_<dep>],<hole>,'<id>',…]:\n%s", consumer)
 	}
 }
 
 func TestReplacements_SwapsFactoryArgForBinding(t *testing.T) {
 	entries := []Entry{{
-		Namespace:       "rt",
-		FunctionName:    "foo",
+		ID:              "@acme/app/src/pure#foo",
 		FilePath:        "/abs/a.ts",
 		FactoryArgStart: 50,
 		FactoryArgEnd:   100,
@@ -119,10 +115,10 @@ func TestReplacements_SwapsFactoryArgForBinding(t *testing.T) {
 	if got[0].File != "/abs/a.ts" || got[0].Start != 50 || got[0].End != 100 {
 		t.Errorf("unexpected replacement bounds: %+v", got[0])
 	}
-	if got[0].Text != "__rt_pf$2Frt$2Ffoo" {
+	if got[0].Text != "__rt_pf$2F$40acme$2Fapp$2Fsrc$2Fpure$2Ffoo" {
 		t.Errorf("Text should be the entry-module binding, got %q", got[0].Text)
 	}
-	if got[0].ImportFrom != "rtmod:/pf/rt/foo.js" {
+	if got[0].ImportFrom != "rtmod:/pf/@acme/app/src/pure/foo.js" {
 		t.Errorf("ImportFrom should be the virtual specifier, got %q", got[0].ImportFrom)
 	}
 }
@@ -132,8 +128,8 @@ func TestReplacements_SkipsEntriesWithoutBounds(t *testing.T) {
 	// FactoryArgStart/End. Replacements must skip them so we don't
 	// emit zero-width or nonsensical rewrites.
 	entries := []Entry{
-		{Namespace: "a", FunctionName: "b", FilePath: "/x.ts"},                      // missing bounds
-		{Namespace: "c", FunctionName: "d", FactoryArgStart: 10, FactoryArgEnd: 20}, // missing FilePath
+		{ID: "@acme/app/src/pure#b", FilePath: "/x.ts"},                      // missing bounds
+		{ID: "@acme/app/src/pure#d", FactoryArgStart: 10, FactoryArgEnd: 20}, // missing FilePath
 	}
 	if got := Replacements(entries, false); len(got) != 0 {
 		t.Errorf("expected zero replacements for malformed entries, got %+v", got)
@@ -147,11 +143,10 @@ func TestReplacements_SkipsEntriesWithoutBounds(t *testing.T) {
 // is the createPureFn `function(){…}` prologue itself.
 func TestCollectEntries_EmitModeGating(t *testing.T) {
 	entry := Entry{
-		Namespace:    "app",
-		FunctionName: "answer",
-		ParamNames:   []string{},
-		Code:         "return 42;",
-		BodyHash:     "h0",
+		ID:         "@acme/app/src/pure#answer",
+		ParamNames: []string{},
+		Code:       "return 42;",
+		BodyHash:   "h0",
 	}
 	const codeSlot = "'return 42;'"              // the quoted body-string slot
 	const liveLiteral = "function(){return 42;}" // the createPureFn prologue
@@ -168,7 +163,7 @@ func TestCollectEntries_EmitModeGating(t *testing.T) {
 	}
 	for _, tc := range cases {
 		graph := CollectEntries([]Entry{entry}, tc.mode)
-		got := graph["app::answer"]
+		got := graph["@acme/app/src/pure#answer"]
 		if got == nil {
 			t.Fatalf("mode %q: missing entry", tc.mode)
 		}
@@ -188,14 +183,13 @@ func TestCollectEntries_EmitModeGating(t *testing.T) {
 // pureFnDependencies — the runtime rebuilds the factory from code + paramNames.
 func TestCollectEntries_EmitCodeTrimsTrailingFactory(t *testing.T) {
 	graph := CollectEntries([]Entry{{
-		Namespace:    "app",
-		FunctionName: "answer",
-		ParamNames:   []string{},
-		Code:         "return 42;",
-		BodyHash:     "h0",
+		ID:         "@acme/app/src/pure#answer",
+		ParamNames: []string{},
+		Code:       "return 42;",
+		BodyHash:   "h0",
 	}}, constants.EmitCode)
-	got := graph["app::answer"].ArgsText
-	want := "'app::answer','h0',[],'return 42;',[]"
+	got := graph["@acme/app/src/pure#answer"].ArgsText
+	want := "'@acme/app/src/pure#answer','h0',[],'return 42;',[]"
 	if got != want {
 		t.Errorf("EmitCode ArgsText mismatch:\n got: %s\nwant: %s", got, want)
 	}
@@ -207,14 +201,13 @@ func TestCollectEntries_EmitCodeTrimsTrailingFactory(t *testing.T) {
 // = ['utl'] → `function(utl){…}`).
 func TestCollectEntries_EmitFunctionsHolesOutCode(t *testing.T) {
 	graph := CollectEntries([]Entry{{
-		Namespace:    "app",
-		FunctionName: "compose",
-		ParamNames:   []string{"utl"},
-		Code:         "return utl.getPureFn('rt::dep');",
-		BodyHash:     "h1",
+		ID:         "@acme/app/src/pure#compose",
+		ParamNames: []string{"utl"},
+		Code:       "return utl.getPureFn('@acme/app/src/pure#dep');",
+		BodyHash:   "h1",
 	}}, constants.EmitFunctions)
-	got := graph["app::compose"].ArgsText
-	want := "'app::compose','h1',['utl'],,[],function(utl){return utl.getPureFn('rt::dep');}"
+	got := graph["@acme/app/src/pure#compose"].ArgsText
+	want := "'@acme/app/src/pure#compose','h1',['utl'],,[],function(utl){return utl.getPureFn('@acme/app/src/pure#dep');}"
 	if got != want {
 		t.Errorf("EmitFunctions ArgsText mismatch:\n got: %s\nwant: %s", got, want)
 	}
@@ -223,10 +216,10 @@ func TestCollectEntries_EmitFunctionsHolesOutCode(t *testing.T) {
 // TestCollectEntries_EmitModeByteStable: each mode is deterministic across
 // repeated collection — no per-run state leaks into the emitted bytes.
 func TestCollectEntries_EmitModeByteStable(t *testing.T) {
-	entries := []Entry{{Namespace: "rt", FunctionName: "newRunTypeErr", ParamNames: []string{}, Code: "return 1;", BodyHash: "h"}}
+	entries := []Entry{{ID: "@acme/app/src/pure#newRunTypeErr", ParamNames: []string{}, Code: "return 1;", BodyHash: "h"}}
 	for _, mode := range []constants.EmitMode{constants.EmitCode, constants.EmitFunctions, constants.EmitBoth} {
-		first := CollectEntries(entries, mode)["rt::newRunTypeErr"].ArgsText
-		second := CollectEntries(entries, mode)["rt::newRunTypeErr"].ArgsText
+		first := CollectEntries(entries, mode)["@acme/app/src/pure#newRunTypeErr"].ArgsText
+		second := CollectEntries(entries, mode)["@acme/app/src/pure#newRunTypeErr"].ArgsText
 		if first != second {
 			t.Errorf("mode %q not byte-stable:\n first: %s\nsecond: %s", mode, first, second)
 		}
