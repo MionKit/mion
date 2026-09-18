@@ -168,7 +168,7 @@ register('batch transport through a real vite build', () => {
     expect(tuple).toBeDefined();
     // the registered value is the generated pure-fn tuple, the mapper's id in its id slot
     expect(String(tuple[3])).toMatch(/#/);
-    expect(String(tuple[6])).toContain(MAPPER_BODY);
+    expect(String(tuple[5])).toContain(MAPPER_BODY);
   });
 
   it('builds a server without batches when the program has none, and generates no rpc/', async () => {

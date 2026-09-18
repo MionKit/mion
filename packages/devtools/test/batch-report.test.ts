@@ -130,7 +130,7 @@ describe('request-batch build report', () => {
     expect(byTo.get('orders/list')).toMatchObject({fromId: 'users/getById', paramIndex: 0});
     expect(byTo.get('orders/getById')).toMatchObject({fromId: 'users/getById', paramIndex: 0});
     for (const mapping of site.mappings!) {
-      expect(mapping.mapperKey).toMatch(/^consumer#[A-Za-z0-9_-]{14}$/);
+      expect(mapping.mapperKey).toMatch(/^[^#]*#[A-Za-z0-9_-]{14}$/);
     }
     // Different bodies, so the two mappers are two entries.
     expect(byTo.get('orders/list')!.mapperKey).not.toBe(byTo.get('orders/getById')!.mapperKey);

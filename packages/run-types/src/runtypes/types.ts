@@ -42,8 +42,6 @@ export interface PureFunctionData {
    *  `functions` mode, where the live `createPureFn` ships instead (mirrors the
    *  type-fn `code` slot — see `CompiledFnData.code`). */
   readonly code?: string;
-  /** Hash of the function body for version validation */
-  readonly bodyHash: string;
   /** The list of all pure functions that are used by this function and it's children. */
   readonly pureFnDependencies?: Array<string>;
 }

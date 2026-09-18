@@ -17,6 +17,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
+import {findCycleId} from '../../run-types/src/runtypes/pure-fn-ids.generated.ts';
 import {Family, Level, Severity, type Diagnostic} from '../src/core/protocol.ts';
 import {ResolverClient} from '../src/core/resolver-client.ts';
 import {BARE_CWD, BIN, hasBinary, withInlineSources, evalEntryModules, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
@@ -27,13 +28,16 @@ function pureFnDiagsOf(response: {diagnostics?: Diagnostic[]}): Diagnostic[] {
 
 interface PureFnEntry {
   id: string;
-  bodyHash: string;
   paramNames: string[];
   code: string;
   pureFnDependencies: string[];
   createPureFn: unknown;
   fn: unknown;
 }
+
+// An id is the package that owns the pure fn (empty for these fixtures, which
+// declare no package name) plus a hash of the body that ships.
+const ID_RE = /^[^#]*#[A-Za-z0-9_-]{14}$/;
 
 interface Replacement {
   start: number;
@@ -44,19 +48,18 @@ interface Replacement {
 
 // evalPureFnEntries evaluates every entry module, picks the pure-fn-kind
 // tuples (slot 0 === 2), and keys them by the id the tuple registers under.
-// Tuple tail (slot 3+): id, bodyHash, paramNames, code, pureFnDependencies,
-// createPureFn — mirrors the pure-fn tuple in the marker package.
+// Tuple tail (slot 3+): id, paramNames, code, pureFnDependencies, createPureFn
+// — mirrors the pure-fn tuple in the marker package.
 function evalPureFnEntries(entryModules: Record<string, string>): Record<string, PureFnEntry> {
   const registered: Record<string, PureFnEntry> = {};
   for (const tuple of Object.values(evalEntryModules(entryModules))) {
     if (!Array.isArray(tuple) || tuple[0] !== 2) continue;
     registered[tuple[3] as string] = {
       id: tuple[3] as string,
-      bodyHash: tuple[4] as string,
-      paramNames: tuple[5] as string[],
-      code: tuple[6] as string,
-      pureFnDependencies: tuple[7] as string[],
-      createPureFn: tuple[8],
+      paramNames: tuple[4] as string[],
+      code: tuple[5] as string,
+      pureFnDependencies: tuple[6] as string[],
+      createPureFn: tuple[7],
       fn: undefined,
     };
   }
@@ -110,12 +113,13 @@ export const safeKey = registerPureFnFactory(function () {
       expect(pureFnDiagsOf(response)).toEqual([]);
 
       const pureFns = evalPureFnEntries(response.entryModules!);
-      // The id is where the registration lives: the file (no package.json above
-      // these inline sources) plus the name it is bound to.
-      expect(Object.keys(pureFns).sort()).toEqual(['pure#asJSONString', 'pure#safeKey']);
+      // The id is the package that owns the pure fn (empty above these inline
+      // sources, which declare none) plus a hash of the body that ships.
+      const ids = Object.keys(pureFns).sort();
+      expect(ids.length).toBe(2);
+      for (const id of ids) expect(id).toMatch(ID_RE);
 
-      const asJSON = pureFns['pure#asJSONString'];
-      expect(asJSON.bodyHash).toMatch(/^[A-Za-z0-9_-]{14}$/);
+      const asJSON = pureFns[ids.find((id) => (pureFns[id].code ?? '').includes('JSON.stringify'))!];
       expect(asJSON.paramNames).toEqual([]);
       // Body must be JS-stripped — no `: string` annotation should remain.
       expect(asJSON.code).not.toContain(': string');
@@ -145,16 +149,18 @@ export const foo = registerPureFnFactory(function () {
       const reps = (response.replacements ?? []) as Replacement[];
       const {fn, id} = fnAndIdReplacements(reps);
       expect(fn, 'fn-arg rewrite').toBeTruthy();
-      expect(fn!.text).toBe('__rt_pf$2Fsrc$2Ffoo');
-      expect(fn!.importFrom).toBe('rtmod:/pf/src/foo.js');
+      // The module is named after the id, which is a hash.
+      expect(fn!.text).toMatch(/^__rt_pf\$2F[A-Za-z0-9_$]+$/);
+      expect(fn!.importFrom).toMatch(/^rtmod:\/pf\/[A-Za-z0-9_$-]+\.js$/);
       expect(fn!.end).toBeGreaterThan(fn!.start);
       expect(id, 'id splice').toBeTruthy();
       // The injected id is EXACTLY the id the entry registers under.
       const entryIds = Object.keys(evalPureFnEntries(response.entryModules!));
-      expect(entryIds).toEqual(['src#foo']);
-      expect(id!.text).toBe(", 'src#foo'");
+      expect(entryIds.length).toBe(1);
+      expect(entryIds[0]).toMatch(ID_RE);
+      expect(id!.text).toBe(", '" + entryIds[0] + "'");
       // Applying both replacements yields the fully-injected call.
-      expect(applyReplacements(sources['src.ts'], reps)).toContain("registerPureFnFactory(__rt_pf$2Fsrc$2Ffoo, 'src#foo')");
+      expect(applyReplacements(sources['src.ts'], reps)).toContain(`registerPureFnFactory(${fn!.text}, '${entryIds[0]}')`);
     });
   });
 
@@ -173,7 +179,7 @@ export const pair = [
       const ids = Object.keys(evalPureFnEntries(response.entryModules!));
       // Equal bodies → ONE entry, named by the body hash.
       expect(ids.length).toBe(1);
-      expect(ids[0]).toMatch(/^anon#[A-Za-z0-9_-]{14}$/);
+      expect(ids[0]).toMatch(ID_RE);
       // Both call sites are still rewritten, each with its own id splice.
       const idSplices = ((response.replacements ?? []) as Replacement[]).filter(
         (rep) => !rep.importFrom && rep.start === rep.end
@@ -200,12 +206,13 @@ export const trimTwice = registerPureFnFactory(function (utl: RTUtils) {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       expect(pureFnDiagsOf(response)).toEqual([]);
       const pureFns = evalPureFnEntries(response.entryModules!);
-      const consumer = pureFns['consumer#trimTwice'];
+      const trimId = Object.keys(pureFns).find((id) => pureFns[id].code.includes('trim()'))!;
+      const consumer = pureFns[Object.keys(pureFns).find((id) => id !== trimId)!];
       expect(consumer, `no consumer entry in ${Object.keys(pureFns).join(', ')}`).toBeDefined();
-      expect(consumer.pureFnDependencies).toEqual(['dep#trim']);
+      expect(consumer.pureFnDependencies).toEqual([trimId]);
       // The imported binding is LOWERED: the shipped body holds the literal, so
       // it closes over nothing.
-      expect(consumer.code).toContain(`getPureFn('dep#trim')`);
+      expect(consumer.code).toContain(`getPureFn('${trimId}')`);
       expect(consumer.code).not.toContain('getPureFn(trim)');
     });
   });
@@ -234,7 +241,8 @@ export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#some
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
       const mismatch = pureFnDiagsOf(response).find((d) => d.code === 'PFE9014');
       expect(mismatch, `expected PFE9014 in ${JSON.stringify(pureFnDiagsOf(response))}`).toBeDefined();
-      expect(mismatch!.args).toEqual(['wrong-id#somethingElse', 'wrong-id#halve']);
+      expect(mismatch!.args?.[0]).toBe('wrong-id#somethingElse');
+      expect(mismatch!.args?.[1]).toMatch(ID_RE);
       // No entry: registering one body under two ids is what the code prevents.
       expect(Object.keys(evalPureFnEntries(response.entryModules ?? {}))).toEqual([]);
     });
@@ -291,9 +299,10 @@ export const cpf = registerPureFnFactory(factory);
     });
   });
 
-  register('emits PFE9004 collision diagnostic for one id with two bodies', async () => {
-    // Two block scopes, one file, one binding name: the id is the same and the
-    // bodies are not, which is the whole shape PFE9004 exists for.
+  register('two same-named registrations with different bodies get two ids', async () => {
+    // Two block scopes, one file, one binding name. A name is not an identity:
+    // each is hashed by the body it ships, so both survive with nothing to
+    // report and neither resolves the other's body.
     const sources = {
       'collide.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
 {
@@ -312,19 +321,13 @@ export const cpf = registerPureFnFactory(factory);
     };
     await withInlineSources(sources, async ({client}) => {
       const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
-      const collisions = pureFnDiagsOf(response).filter((d) => d.code === 'PFE9004');
-      expect(collisions.length).toBe(1);
+      expect(pureFnDiagsOf(response)).toEqual([]);
 
-      const collision = collisions[0];
-      expect(collision.related?.length).toBe(1);
-      expect(collision.related?.[0].startLine).not.toBe(collision.site.startLine);
-      // Args carry the colliding id — the catalog template substitutes
-      // it into the headline ("Duplicate registerPureFnFactory for `X`…").
-      expect(collision.args).toEqual(['collide#collideFn']);
-
-      // Entry module still loads, with the first-occurrence winner.
       const pureFns = evalPureFnEntries(response.entryModules!);
-      expect(pureFns['collide#collideFn']).toBeDefined();
+      const ids = Object.keys(pureFns);
+      expect(ids.length).toBe(2);
+      for (const id of ids) expect(id).toMatch(ID_RE);
+      expect(pureFns[ids[0]].code).not.toBe(pureFns[ids[1]].code);
     });
   });
 
@@ -374,11 +377,11 @@ export const rounder = registerPureFnFactory(function () {
 
   register('formatTscDiagnostic renders the canonical $tsc problem-matcher line', () => {
     const line = formatTscDiagnostic({
-      code: 'PFE9004',
+      code: 'PFE9012',
       family: Family.PureFn,
       severity: Severity.Error,
       level: Level.RuntimeError,
-      args: ['@acme/text/src/slug#slugify'],
+      args: ['@acme/text#9Zt1bRm4cVaPqL'],
       site: {
         filePath: '/abs/path/x.ts',
         startLine: 12,
@@ -390,8 +393,8 @@ export const rounder = registerPureFnFactory(function () {
     // Headline text comes from the JS catalog; we don't pin the exact
     // copy here (catalog wording can evolve). Just confirm the line
     // shape: <path>(<line>,<col>): <severity> <code>: <headline-with-arg>
-    expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error PFE9004: /);
-    expect(line).toContain('@acme/text/src/slug#slugify');
+    expect(line).toMatch(/^\/abs\/path\/x\.ts\(12,5\): error PFE9012: /);
+    expect(line).toContain('@acme/text#9Zt1bRm4cVaPqL');
     // VS Code's built-in $tsc problem matcher regex:
     expect(line).toMatch(/^[^(]+\(\d+,\d+\):\s+(error|warning)\s+[A-Z]+\d+:\s+.+$/);
   });
@@ -435,18 +438,23 @@ interface Node { next?: Node; val: number; }
 export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: true});
 `,
   };
-  const FIND_CYCLE_ID = '@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle';
+  const FIND_CYCLE_ID = findCycleId;
 
-  async function pureFnEntry(client: ResolverClient, file: string, id: string): Promise<PureFnEntry> {
+  /** Returns the ONE pure-fn entry a single-registration fixture produced, or
+   *  the entry under `id` when the caller names one. Ids are body hashes, so a
+   *  fixture's own pure fn is found by being the only user-owned entry. */
+  async function pureFnEntry(client: ResolverClient, file: string, id?: string): Promise<PureFnEntry> {
     const response = await client.scanFiles([file], {includeEntryModules: true});
-    const entry = evalPureFnEntries(response.entryModules!)[id];
-    if (!entry) throw new Error(`no pure-fn entry ${id} in ${Object.keys(response.entryModules ?? {}).join(', ')}`);
+    const entries = evalPureFnEntries(response.entryModules!);
+    const key = id ?? Object.keys(entries).find((each) => !each.startsWith('@mionjs/run-types#'));
+    const entry = key ? entries[key] : undefined;
+    if (!entry) throw new Error(`no pure-fn entry ${id ?? "(the fixture's own)"} in ${Object.keys(entries).join(', ')}`);
     return entry;
   }
 
   register('code mode: user pure fn ships the code string, drops createPureFn, and reconstructs a working fn', async () => {
     await withEmitMode('code', USER_PURE_FN, async (client) => {
-      const entry = await pureFnEntry(client, 'pf.ts', 'pf#answer');
+      const entry = await pureFnEntry(client, 'pf.ts');
       expect(typeof entry.code).toBe('string');
       expect(entry.code).toContain('return 42');
       expect(entry.createPureFn).toBeUndefined(); // trailing hole trimmed
@@ -458,7 +466,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
   register('functions mode: user pure fn ships the live closure, drops the code string', async () => {
     await withEmitMode('functions', USER_PURE_FN, async (client) => {
-      const entry = await pureFnEntry(client, 'pf.ts', 'pf#answer');
+      const entry = await pureFnEntry(client, 'pf.ts');
       expect(entry.code).toBeUndefined(); // code holed out in place
       expect(typeof entry.createPureFn).toBe('function');
       const inner = (entry.createPureFn as (utl: unknown) => () => number)({});
@@ -468,7 +476,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
   register('both mode: user pure fn ships BOTH the code string and the live closure', async () => {
     await withEmitMode('both', USER_PURE_FN, async (client) => {
-      const entry = await pureFnEntry(client, 'pf.ts', 'pf#answer');
+      const entry = await pureFnEntry(client, 'pf.ts');
       expect(typeof entry.code).toBe('string');
       expect(typeof entry.createPureFn).toBe('function');
     });
@@ -492,7 +500,7 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
 
   register('formatTscDiagnostic includes Related sites on continuation lines', () => {
     const line = formatTscDiagnostic({
-      code: 'PFE9004',
+      code: 'PFE9012',
       family: Family.PureFn,
       severity: Severity.Error,
       level: Level.RuntimeError,
@@ -511,11 +519,11 @@ export const isNode = createValidateFn<Node>(undefined, {rejectCircularRefs: tru
           startCol: 1,
           endLine: 3,
           endCol: 30,
-          message: 'First registered here with bodyHash=abc1234567890_',
+          message: 'First registered here',
         },
       ],
     });
-    expect(line).toContain('/abs/b.ts(5,1): error PFE9004:');
-    expect(line).toContain('Related: /abs/a.ts(3,1): First registered here with bodyHash=abc1234567890_');
+    expect(line).toContain('/abs/b.ts(5,1): error PFE9012:');
+    expect(line).toContain('Related: /abs/a.ts(3,1): First registered here');
   });
 });

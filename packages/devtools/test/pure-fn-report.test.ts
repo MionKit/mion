@@ -92,25 +92,26 @@ describe('pure-fn build report', () => {
     expect(calls[0].phase).toBe('build');
     const sites = calls[0].sites;
     const byKey = new Map(sites.map((s) => [s.key, s]));
+    const byBinding = new Map(sites.map((s) => [s.bindingName, s]));
 
     // Each record is keyed by the id of the binding it is written on.
-    expect(byKey.has('consumer#mul'), `factory consumer#mul missing: ${[...byKey.keys()]}`).toBe(true);
-    expect(byKey.has('consumer#neg'), 'direct consumer#neg missing').toBe(true);
-    // The nameless registration is keyed by its body hash instead.
-    const nameless = sites.filter((s) => /^consumer#[A-Za-z0-9_-]{14}$/.test(s.key));
+    expect(byBinding.has('mul'), `factory mul missing: ${[...byBinding.keys()]}`).toBe(true);
+    expect(byBinding.has('neg'), 'direct neg missing').toBe(true);
+    // The registration bound to no name reports none.
+    const nameless = sites.filter((s) => !s.bindingName);
     expect(nameless.length, 'one body-hashed record').toBe(1);
 
     // Forms + callee attribution (primitive registrar → @mionjs/run-types).
-    expect(byKey.get('consumer#mul')!.form).toBe('factory');
-    expect(byKey.get('consumer#mul')!.calleeName).toBe('registerPureFnFactory');
-    expect(byKey.get('consumer#mul')!.calleeModule).toBe('@mionjs/run-types');
-    expect(byKey.get('consumer#neg')!.form).toBe('direct');
+    expect(byBinding.get('mul')!.form).toBe('factory');
+    expect(byBinding.get('mul')!.calleeName).toBe('registerPureFnFactory');
+    expect(byBinding.get('mul')!.calleeModule).toBe('@mionjs/run-types');
+    expect(byBinding.get('neg')!.form).toBe('direct');
     expect(nameless[0].form).toBe('direct');
 
     // The self-contained payload rides inline (code + paramNames) — no need to
     // read generated modules. Default emitMode ships the code body string.
-    expect(byKey.get('consumer#mul')!.paramNames).toEqual(['utl']);
-    expect(byKey.get('consumer#mul')!.code, 'factory code should be present in default emit mode').toBeTruthy();
+    expect(byBinding.get('mul')!.paramNames).toEqual(['utl']);
+    expect(byBinding.get('mul')!.code, 'factory code should be present in default emit mode').toBeTruthy();
 
     // JSON file round-trips: write → parse → keys match the injected report.
     // The report lives INSIDE types/, alongside the generated cache modules, so

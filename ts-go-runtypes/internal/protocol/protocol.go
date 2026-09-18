@@ -468,10 +468,14 @@ type PureFnSite struct {
 	File  string `json:"file"`
 	Start int    `json:"start"`
 	End   int    `json:"end"`
-	// Key is the id the entry is interned under: its package, its file and the
-	// name it is bound to (`@acme/text/src/slug#slugify`), or its body hash
-	// when it is bound to no name.
+	// Key is the id the entry is interned under: the package that owns the pure
+	// fn and a hash of the body that ships (`@acme/text#9Zt1bRm4cVaPqL`).
 	Key string `json:"key"`
+	// BindingName is the identifier the registration was assigned to, or empty
+	// for one written straight into a call. It is not part of the id — a hash
+	// is — and rides along because a report of hashes names nothing a reader
+	// can search for.
+	BindingName string `json:"bindingName,omitempty"`
 	// CalleeName is the identifier the site invoked — `registerPureFn`,
 	// a framework wrapper like `inputFrom` / `registerAcmePureFn`, or a
 	// renamed import. CalleeModule is the nearest-package.json `"name"` of the

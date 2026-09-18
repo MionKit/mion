@@ -1,6 +1,7 @@
 package purefunctions
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -30,8 +31,8 @@ export const double = registerPureFn((n: number): number => n * 2);`,
 		t.Fatalf("expected 1 entry, got %d", len(entries))
 	}
 	got := entries[0]
-	if want := idOf("a.ts", "double"); got.ID != want {
-		t.Errorf("id = %q, want %q", got.ID, want)
+	if got.BindingName != "double" || !strings.HasPrefix(got.ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want an id under %q", got.ID, got.BindingName, idPrefix)
 	}
 	// DIRECT: the fn is wrapped, so the synthesised factory has NO params and its
 	// code returns the pure fn verbatim (types stripped).
@@ -71,8 +72,8 @@ export const double = registerPureFnFactory(function (utl) {
 		t.Fatalf("expected 1 entry, got %d", len(entries))
 	}
 	got := entries[0]
-	if want := idOf("a.ts", "double"); got.ID != want {
-		t.Errorf("id = %q, want %q", got.ID, want)
+	if got.BindingName != "double" || !strings.HasPrefix(got.ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want an id under %q", got.ID, got.BindingName, idPrefix)
 	}
 	// FACTORY: the factory is emitted as-is — its param (utl) is kept and its body
 	// (the one-time `const FACTOR` setup) survives.
@@ -87,10 +88,10 @@ export const double = registerPureFnFactory(function (utl) {
 	}
 }
 
-func TestExtractRegistration_NameIsPerBinding(t *testing.T) {
-	// Two registrations of the SAME body under different names are two pure fns:
-	// the name half of the id is what tells them apart, so nothing collapses and
-	// nothing collides.
+func TestExtractRegistration_SameBodyTwoBindingsIsOneEntry(t *testing.T) {
+	// Two bindings, one body. They are the same function however it was named,
+	// so they share an id and collapse to one entry. Both call sites are still
+	// rewritten to it; RawEntries is what keeps the duplicate site's offsets.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerPureFn} from '@mionjs/run-types';
@@ -100,17 +101,33 @@ export const second = registerPureFn((n: number): number => n);`,
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
+	if len(entries) != 1 {
+		t.Fatalf("one body is one entry, got %d: %+v", len(entries), entries)
+	}
+}
+
+func TestExtractRegistration_DifferentBodiesAreDifferentIDs(t *testing.T) {
+	entries, diags := extractFromOverlay(t, map[string]string{
+		"a.ts": `
+import {registerPureFn} from '@mionjs/run-types';
+export const first = registerPureFn((n: number): number => n);
+export const second = registerPureFn((n: number): number => n + 1);`,
+	})
+	if len(diags) != 0 {
+		t.Fatalf("unexpected diagnostics: %+v", diags)
+	}
 	if len(entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d: %+v", len(entries), entries)
 	}
 	if entries[0].ID == entries[1].ID {
-		t.Errorf("two bindings must not share an id: %q", entries[0].ID)
+		t.Errorf("two bodies must not share an id: %q", entries[0].ID)
 	}
 }
 
-func TestExtractRegistration_SameNameDifferentFiles(t *testing.T) {
-	// The same name in two files is two ids: the file half separates them, which
-	// is what lets a package hold several pure fns called `slugify`.
+func TestExtractRegistration_SameBodyTwoFilesOnePackage(t *testing.T) {
+	// One package, two files, one body. The id says who owns the function and
+	// hashes the function, and neither half distinguishes these, so the package
+	// ships it once and both call sites resolve to it.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerPureFn} from '@mionjs/run-types';
@@ -122,8 +139,8 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());`,
 	if len(diags) != 0 {
 		t.Fatalf("unexpected diagnostics: %+v", diags)
 	}
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d: %+v", len(entries), entries)
+	if len(entries) != 1 {
+		t.Fatalf("one body is one entry however many files hold it, got %d: %+v", len(entries), entries)
 	}
 }
 
@@ -145,13 +162,14 @@ export const a = [use((n: number): number => n * 2), use((n: number): number => 
 	if len(entries) != 1 {
 		t.Fatalf("equal nameless bodies should collapse to 1 entry, got %d: %+v", len(entries), entries)
 	}
-	// The name half is the body hash, so the id still says where it lives.
-	if !strings.HasPrefix(entries[0].ID, idOf("a.ts", "")) {
-		t.Errorf("a nameless id should keep its location, got %q", entries[0].ID)
+	// An id says who owns the pure fn and hashes its body, whether or not the
+	// registration was bound to anything.
+	if !strings.HasPrefix(entries[0].ID, idPrefix) {
+		t.Errorf("an id should name the package that owns it, got %q", entries[0].ID)
 	}
-	_, name, ok := SplitID(entries[0].ID)
-	if !ok || len(name) != bodyHashLength {
-		t.Errorf("a nameless id's name should be a %d-char body hash, got %q", bodyHashLength, name)
+	_, hash, ok := SplitID(entries[0].ID)
+	if !ok || len(hash) != bodyHashLength {
+		t.Errorf("an id's hash half should be %d chars, got %q", bodyHashLength, hash)
 	}
 }
 
@@ -159,13 +177,18 @@ func TestExtractRegistration_ExplicitIDAccepted(t *testing.T) {
 	// The id the build would inject, written at the call site: this is what a
 	// package built by plain tsc does, and it must extract exactly as if the
 	// build had injected it.
-	entries, diags := extractFromOverlay(t, map[string]string{
-		"a.ts": `
+	source := `
 import {registerPureFn} from '@mionjs/run-types';
-export const double = registerPureFn((n: number): number => n * 2, '@acme/app/a#double');`,
+export const double = registerPureFn((n: number): number => n * 2%s);`
+	computed, _ := extractFromOverlay(t, map[string]string{"a.ts": fmt.Sprintf(source, "")})
+	if len(computed) != 1 {
+		t.Fatalf("expected the fixture to extract once, got %+v", computed)
+	}
+	entries, diags := extractFromOverlay(t, map[string]string{
+		"a.ts": fmt.Sprintf(source, ", '"+computed[0].ID+"'"),
 	})
 	if len(diags) != 0 {
-		t.Fatalf("an explicit id that matches its location must be accepted: %+v", diags)
+		t.Fatalf("an explicit id that matches the computed one must be accepted: %+v", diags)
 	}
 	if len(entries) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(entries))
@@ -189,7 +212,7 @@ export const double = registerPureFn((n: number): number => n * 2, '@acme/app/a#
 	if len(diags) != 1 || diags[0].Code != CodePureFnIdMismatch {
 		t.Fatalf("expected one PFE9014, got %+v", diags)
 	}
-	if len(diags[0].Args) != 2 || diags[0].Args[0] != "@acme/app/a#somethingElse" || diags[0].Args[1] != idOf("a.ts", "double") {
+	if len(diags[0].Args) != 2 || diags[0].Args[0] != "@acme/app/a#somethingElse" || !strings.HasPrefix(diags[0].Args[1], idPrefix) {
 		t.Errorf("expected (written, computed) args, got %v", diags[0].Args)
 	}
 }
@@ -213,8 +236,8 @@ export const lower = mapFrom((s: string): string => s.toLowerCase());`,
 	if len(entries) != 1 {
 		t.Fatalf("wrapper consumer call must extract exactly one entry, got %d: %+v", len(entries), entries)
 	}
-	if want := idOf("a.ts", "lower"); entries[0].ID != want {
-		t.Errorf("wrapper call got id %q, want %q (the call site's own location)", entries[0].ID, want)
+	if entries[0].BindingName != "lower" || !strings.HasPrefix(entries[0].ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want an id under %q", entries[0].ID, entries[0].BindingName, idPrefix)
 	}
 }
 
@@ -234,8 +257,8 @@ export const lower = registerAcmeFactory(function () {
 	if len(diags) != 0 || len(entries) != 1 {
 		t.Fatalf("factory wrapper extraction: entries=%d diags=%+v", len(entries), diags)
 	}
-	if want := idOf("a.ts", "lower"); entries[0].ID != want {
-		t.Errorf("factory wrapper got id %q, want %q", entries[0].ID, want)
+	if entries[0].BindingName != "lower" || !strings.HasPrefix(entries[0].ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want an id under %q", entries[0].ID, entries[0].BindingName, idPrefix)
 	}
 }
 
@@ -263,8 +286,8 @@ export const mapped = inputFrom(source, (customer: {id: number}): number => cust
 	if len(entries) != 1 {
 		t.Fatalf("expected one entry, got %d: %+v", len(entries), entries)
 	}
-	if want := idOf("a.ts", "mapped"); entries[0].ID != want {
-		t.Errorf("leading-param wrapper got id %q, want %q", entries[0].ID, want)
+	if entries[0].BindingName != "mapped" || !strings.HasPrefix(entries[0].ID, idPrefix) {
+		t.Errorf("id = %q (bound to %q), want an id under %q", entries[0].ID, entries[0].BindingName, idPrefix)
 	}
 	if want := ", '" + entries[0].ID + "'"; entries[0].IDInjectText != want {
 		t.Errorf("id inject text = %q, want %q (slot 2, no padding)", entries[0].IDInjectText, want)

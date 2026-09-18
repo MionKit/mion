@@ -4,58 +4,54 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// A pure function's id is where it lives:
+// A pure function's id is the package that owns it and a hash of the function
+// itself:
 //
-//	<package name>/<path from the package root, extension dropped>#<name>
-//	@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr
-//	@acme/text/src/slug#slugify
+//	<package name>#<hash of the body that ships>
+//	@mionjs/run-types#Kq3f_xN9pQ2wLd
+//	@acme/text#9Zt1bRm4cVaPqL
 //
-// `<name>` is the identifier a variable declaration binds the registration to.
-// A registration bound to no name (a callback handed straight to a wrapper) is
-// identified by its body instead, through CodeHash, so two structurally equal
-// bodies still collapse to one entry. A file under no NAMED package keeps the
-// path half alone, which is what an in-memory overlay or a scratch project gets.
+// One rule for every registration, wherever it is written. The id depends on
+// the function and nothing else: renaming the binding it is assigned to,
+// renaming the export it is published under, or moving its file inside the
+// package all leave it alone. It changes when the function changes, so a stale
+// reference is always a clean miss and never a different body.
+//
+// The body it hashes is the one that SHIPS, with each dependency already
+// replaced by that dependency's id. Hashing the body as the author wrote it
+// would be cheaper, but two files whose `utl.getPureFn(helper)` resolves
+// `helper` to different imports have identical text and different behaviour,
+// and they would collapse into one entry. Shipped bodies differ, so their ids
+// differ.
+//
+// The package half stays because delivery reads ownership off it: which pure
+// fns are served from the built-in table, and which never ride the metadata
+// wire to a client.
 //
 // The id is the registry key everywhere: the string the transform injects into
 // the registrar call, the key the emitted module registers under, and the
 // literal a dependent body carries after lowering.
 
-// idSeparator splits the location half of an id from its name half. A path can
-// hold neither `#` nor a `#`-bearing segment, so the LAST one always splits.
+// idSeparator splits the package half of an id from its hash. A package name
+// can hold no `#`, so the LAST one always splits.
 const idSeparator = "#"
 
-// sourceExtensions are dropped from the path half, longest first so `.d.ts`
-// wins over `.ts`. Dropping them is what lets one source file and the `.d.ts`
-// or `.js` emitted from it agree on one id.
-var sourceExtensions = []string{".d.ts", ".d.mts", ".d.cts", ".tsx", ".ts", ".mts", ".cts", ".jsx", ".js", ".mjs", ".cjs"}
-
-// IDFor builds the id of a registration written in filePath and bound to name.
-// Pass the CodeHash of the body as name for a registration bound to nothing.
-func IDFor(markerOpts marker.Options, filePath, name string) string {
+// IDFor builds the id of a registration written in filePath whose shipped body
+// hashes to hash. A file under no NAMED package keeps the hash alone, which is
+// what an in-memory overlay or a scratch project gets; unlike a path, that is
+// the same answer whatever directory the build ran from.
+func IDFor(markerOpts marker.Options, filePath, hash string) string {
 	opts := marker.WithDefaults(markerOpts)
-	packageName, packageRoot := marker.PackageOfFile(filePath, opts.FS)
-	if packageName == "" {
-		// No NAMED package: report the path relative to the package root when
-		// there is one (a private package.json with no name), so the id does not
-		// depend on which directory the build ran from — a server build reading a
-		// client project computes the same id the client's own build does. With
-		// no package.json at all, the project directory is the best anchor left.
-		root := packageRoot
-		if root == "" {
-			root = opts.Cwd
-		}
-		return pathFromRoot(tspath.NormalizePath(filePath), root) + idSeparator + name
-	}
-	return packageName + "/" + pathFromRoot(tspath.NormalizePath(filePath), packageRoot) + idSeparator + name
+	packageName, _ := marker.PackageOfFile(filePath, opts.FS)
+	return packageName + idSeparator + hash
 }
 
-// SplitID returns an id's location and name halves. ok is false for a string
+// SplitID returns an id's package and hash halves. ok is false for a string
 // with no separator, which is never an id this package produced.
-func SplitID(id string) (location, name string, ok bool) {
+func SplitID(id string) (packageName, hash string, ok bool) {
 	sep := strings.LastIndex(id, idSeparator)
 	if sep < 0 {
 		return "", "", false
@@ -63,51 +59,40 @@ func SplitID(id string) (location, name string, ok bool) {
 	return id[:sep], id[sep+len(idSeparator):], true
 }
 
-// pathFromRoot renders the path half: the file relative to its package root
-// with the extension dropped. A file under no package.json at all falls back to
-// its own path minus the leading slash, which stays deterministic per project.
-func pathFromRoot(path, packageRoot string) string {
-	rel := path
-	if packageRoot != "" {
-		if trimmed := strings.TrimPrefix(rel, packageRoot); trimmed != rel {
-			rel = trimmed
+// valueNodeOf climbs the wrappers that carry no runtime meaning — parentheses,
+// `as`, `satisfies`, a legacy type assertion and `!` — and returns the
+// outermost node still standing for the call's own value.
+func valueNodeOf(call *ast.Node) *ast.Node {
+	node := call
+	for node != nil && node.Parent != nil {
+		switch node.Parent.Kind {
+		case ast.KindParenthesizedExpression, ast.KindAsExpression, ast.KindSatisfiesExpression,
+			ast.KindTypeAssertionExpression, ast.KindNonNullExpression:
+			node = node.Parent
+			continue
 		}
+		return node
 	}
-	rel = strings.TrimPrefix(rel, "/")
-	for _, ext := range sourceExtensions {
-		if strings.HasSuffix(rel, ext) {
-			return rel[:len(rel)-len(ext)]
-		}
-	}
-	return rel
+	return node
 }
 
 // bindingNameOf returns the identifier a `const` / `let` / `var` declaration
-// binds the call's result to, unwrapping parentheses, `as`, `satisfies`, a
-// legacy type assertion and `!` on the way up. Empty for a call in any other
-// position — an argument to a wrapper, a bare statement, an object property —
-// which is what sends the id rule to the body hash instead.
+// binds the call's result to. It no longer reaches the id — a name is not an
+// identity here — but a hash names nothing a reader can search for, so it is
+// what diagnostics quote and what the generated built-in constants are called.
+// Empty for a call in any other position.
 func bindingNameOf(call *ast.Node) string {
-	node := call
-	for node != nil && node.Parent != nil {
-		parent := node.Parent
-		switch parent.Kind {
-		case ast.KindParenthesizedExpression, ast.KindAsExpression, ast.KindSatisfiesExpression,
-			ast.KindTypeAssertionExpression, ast.KindNonNullExpression:
-			node = parent
-			continue
-		case ast.KindVariableDeclaration:
-			decl := parent.AsVariableDeclaration()
-			if decl == nil || decl.Initializer != node {
-				return ""
-			}
-			nameNode := decl.Name()
-			if nameNode == nil || nameNode.Kind != ast.KindIdentifier {
-				return ""
-			}
-			return nameNode.Text()
-		}
+	node := valueNodeOf(call)
+	if node == nil || node.Parent == nil || node.Parent.Kind != ast.KindVariableDeclaration {
 		return ""
 	}
-	return ""
+	decl := node.Parent.AsVariableDeclaration()
+	if decl == nil || decl.Initializer != node {
+		return ""
+	}
+	nameNode := decl.Name()
+	if nameNode == nil || nameNode.Kind != ast.KindIdentifier {
+		return ""
+	}
+	return nameNode.Text()
 }

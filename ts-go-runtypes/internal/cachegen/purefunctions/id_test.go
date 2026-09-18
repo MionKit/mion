@@ -28,41 +28,77 @@ func writePackage(t *testing.T, dir, manifest, relFile string) string {
 	return file
 }
 
-// TestIDFor_NamedPackage — the id a consumer sees: the package name, the path
-// from its root with the extension dropped, and the bound name.
-func TestIDFor_NamedPackage(t *testing.T) {
+// TestIDFor_PackageAndHash — the id a consumer sees: the package that owns the
+// pure function, then a hash of the function itself.
+func TestIDFor_PackageAndHash(t *testing.T) {
 	dir := t.TempDir()
 	file := writePackage(t, dir, `{"name": "@acme/text"}`, "src/slug.ts")
 
-	id := IDFor(marker.Options{Cwd: dir}, file, "slugify")
-	if want := "@acme/text/src/slug#slugify"; id != want {
+	id := IDFor(marker.Options{Cwd: dir}, file, "Kq3f_xN9pQ2wLd")
+	if want := "@acme/text#Kq3f_xN9pQ2wLd"; id != want {
 		t.Errorf("IDFor = %q, want %q", id, want)
 	}
-	location, name, ok := SplitID(id)
-	if !ok || location != "@acme/text/src/slug" || name != "slugify" {
-		t.Errorf("SplitID(%q) = (%q, %q, %v)", id, location, name, ok)
+	owner, hash, ok := SplitID(id)
+	if !ok || owner != "@acme/text" || hash != "Kq3f_xN9pQ2wLd" {
+		t.Errorf("SplitID(%q) = (%q, %q, %v)", id, owner, hash, ok)
 	}
 }
 
-// TestIDFor_DeclarationAgreesWithSource — a `.d.ts` and the `.ts` it was emitted
-// from name ONE pure fn, which is what lets a consumer holding only declarations
-// resolve an id the package's own build computed.
+// TestIDFor_MovingTheFileLeavesTheIdAlone — an id names the function, not where
+// it sits. Moving or renaming a file inside its package is a refactor, and a
+// refactor must not hand a pure function a new identity.
+func TestIDFor_MovingTheFileLeavesTheIdAlone(t *testing.T) {
+	dir := t.TempDir()
+	before := writePackage(t, dir, `{"name": "@acme/text"}`, "src/slug.ts")
+	after := filepath.Join(dir, "src/text/slugify.ts")
+
+	opts := marker.Options{Cwd: dir}
+	if IDFor(opts, after, "Kq3f_xN9pQ2wLd") != IDFor(opts, before, "Kq3f_xN9pQ2wLd") {
+		t.Errorf("moving the file moved the id: %q then %q",
+			IDFor(opts, before, "Kq3f_xN9pQ2wLd"), IDFor(opts, after, "Kq3f_xN9pQ2wLd"))
+	}
+}
+
+// TestIDFor_DeclarationAgreesWithSource — a `.d.ts` and the `.ts` it was
+// emitted from name ONE pure fn, which is what lets a consumer holding only
+// declarations resolve an id the package's own build computed. With no path in
+// the id there is no extension left to reconcile.
 func TestIDFor_DeclarationAgreesWithSource(t *testing.T) {
 	dir := t.TempDir()
 	source := writePackage(t, dir, `{"name": "@acme/text"}`, "src/slug.ts")
 	declaration := filepath.Join(dir, "src/slug.d.ts")
 
-	if IDFor(marker.Options{Cwd: dir}, declaration, "slugify") != IDFor(marker.Options{Cwd: dir}, source, "slugify") {
+	opts := marker.Options{Cwd: dir}
+	if IDFor(opts, declaration, "Kq3f_xN9pQ2wLd") != IDFor(opts, source, "Kq3f_xN9pQ2wLd") {
 		t.Errorf("the .d.ts id %q differs from the source id %q",
-			IDFor(marker.Options{Cwd: dir}, declaration, "slugify"), IDFor(marker.Options{Cwd: dir}, source, "slugify"))
+			IDFor(opts, declaration, "Kq3f_xN9pQ2wLd"), IDFor(opts, source, "Kq3f_xN9pQ2wLd"))
 	}
 }
 
-// TestIDFor_UnnamedPackageAnchorsAtItsRoot — a private package.json with no
-// name still anchors the path, so the id does not depend on the directory the
-// build ran from (a server build reading a client project computes what the
-// client's own build does).
-func TestIDFor_UnnamedPackageAnchorsAtItsRoot(t *testing.T) {
+// TestIDFor_DifferentPackagesStayApart — ownership is what the package half is
+// for: the same body vendored into two packages is two entries, so each one's
+// delivery lane still knows which package owes it.
+func TestIDFor_DifferentPackagesStayApart(t *testing.T) {
+	base := t.TempDir()
+	first := filepath.Join(base, "one")
+	second := filepath.Join(base, "two")
+	for _, dir := range []string{first, second} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+	}
+	fileA := writePackage(t, first, `{"name": "@acme/one"}`, "src/a.ts")
+	fileB := writePackage(t, second, `{"name": "@acme/two"}`, "src/a.ts")
+
+	if IDFor(marker.Options{Cwd: base}, fileA, "sameHash") == IDFor(marker.Options{Cwd: base}, fileB, "sameHash") {
+		t.Error("two packages sharing a body must not share an id")
+	}
+}
+
+// TestIDFor_NoNamedPackageKeepsTheHashAlone — an in-memory overlay or a scratch
+// project has no package to name. The hash alone is still the same answer from
+// any directory, which a path never was.
+func TestIDFor_NoNamedPackageKeepsTheHashAlone(t *testing.T) {
 	base := t.TempDir()
 	client := filepath.Join(base, "client")
 	if err := os.MkdirAll(client, 0o755); err != nil {
@@ -70,9 +106,9 @@ func TestIDFor_UnnamedPackageAnchorsAtItsRoot(t *testing.T) {
 	}
 	file := writePackage(t, client, `{"private": true}`, "src/a.ts")
 
-	fromClient := IDFor(marker.Options{Cwd: client}, file, "toId")
-	fromServer := IDFor(marker.Options{Cwd: filepath.Join(base, "server")}, file, "toId")
-	if want := "src/a#toId"; fromClient != want {
+	fromClient := IDFor(marker.Options{Cwd: client}, file, "Kq3f_xN9pQ2wLd")
+	fromServer := IDFor(marker.Options{Cwd: filepath.Join(base, "server")}, file, "Kq3f_xN9pQ2wLd")
+	if want := "#Kq3f_xN9pQ2wLd"; fromClient != want {
 		t.Errorf("IDFor from the client = %q, want %q", fromClient, want)
 	}
 	if fromServer != fromClient {
@@ -80,48 +116,15 @@ func TestIDFor_UnnamedPackageAnchorsAtItsRoot(t *testing.T) {
 	}
 }
 
-// TestIDFor_NoPackageUsesTheProjectDir — with no package.json anywhere above it
-// (an in-memory overlay, a scratch project) the project directory is the anchor.
-func TestIDFor_NoPackageUsesTheProjectDir(t *testing.T) {
-	dir := t.TempDir()
-	file := writePackage(t, dir, "", "a.ts")
-
-	if got, want := IDFor(marker.Options{Cwd: dir}, file, "double"), "a#double"; got != want {
-		t.Errorf("IDFor = %q, want %q", got, want)
-	}
-}
-
-// TestIDFor_NamelessRegistrationTakesTheBodyHash — a registration bound to no
-// name is identified by its body, so two equal bodies in one file are one id and
-// two different ones are not.
-func TestIDFor_NamelessRegistrationTakesTheBodyHash(t *testing.T) {
-	dir := t.TempDir()
-	file := writePackage(t, dir, `{"name": "@acme/text"}`, "src/slug.ts")
-	opts := marker.Options{Cwd: dir}
-
-	same := IDFor(opts, file, CodeHash("return (s) => s.trim();"))
-	again := IDFor(opts, file, CodeHash("return (s) => s.trim();"))
-	other := IDFor(opts, file, CodeHash("return (s) => s.toUpperCase();"))
-	if same != again {
-		t.Errorf("equal bodies gave two ids: %q vs %q", same, again)
-	}
-	if same == other {
-		t.Errorf("different bodies collapsed to one id: %q", same)
-	}
-	if location, _, ok := SplitID(same); !ok || location != "@acme/text/src/slug" {
-		t.Errorf("a nameless id must still say where it lives, got %q", same)
-	}
-}
-
 // TestSplitID_RejectsAStringThatIsNotAnId — anything without the separator is
-// not an id this package produced, and a `#` in the name half never splits
+// not an id this package produced, and a `#` in the hash half never splits
 // early (the LAST separator wins).
 func TestSplitID_RejectsAStringThatIsNotAnId(t *testing.T) {
 	if _, _, ok := SplitID("plainName"); ok {
 		t.Error("a string with no separator must not parse as an id")
 	}
-	location, name, ok := SplitID("@acme/text/src/slug#outer#inner")
-	if !ok || location != "@acme/text/src/slug#outer" || name != "inner" {
-		t.Errorf("SplitID split at the wrong separator: (%q, %q, %v)", location, name, ok)
+	owner, hash, ok := SplitID("@acme/text#outer#inner")
+	if !ok || owner != "@acme/text#outer" || hash != "inner" {
+		t.Errorf("SplitID split at the wrong separator: (%q, %q, %v)", owner, hash, ok)
 	}
 }

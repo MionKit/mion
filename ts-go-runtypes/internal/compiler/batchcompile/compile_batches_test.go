@@ -135,17 +135,19 @@ func TestCompile_ServerGeneratesBatchTransportFromClientTsconfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the server compile wrote no batch module: %v", err)
 	}
-	if !strings.Contains(string(module), "replaceBatches({") || !strings.Contains(string(module), "from './pf/src/a/") {
+	if !strings.Contains(string(module), "replaceBatches({") || !strings.Contains(string(module), "from './pf/") {
 		t.Errorf("batch module lacks the table or the relative mapper import:\n%s", module)
 	}
 	if strings.Contains(string(module), clientDir) {
 		t.Errorf("batch module leaks the client path:\n%s", module)
 	}
-	// The mapper module rides the id's own path, which for a project with no
-	// package name is the file it was written in.
-	mappers, _ := filepath.Glob(filepath.Join(serverDir, ".mion", "rpc", "pf", "src", "a", "*.js"))
+	// The mapper module is named after its id, which for a project with no
+	// package name is the body hash alone.
+	mappers, _ := filepath.Glob(filepath.Join(serverDir, ".mion", "rpc", "pf", "*", "*.js"))
+	flat, _ := filepath.Glob(filepath.Join(serverDir, ".mion", "rpc", "pf", "*.js"))
+	mappers = append(mappers, flat...)
 	if len(mappers) != 1 {
-		t.Errorf("expected one mapper module under rpc/pf/src/a, got %v", mappers)
+		t.Errorf("expected one mapper module under rpc/pf, got %v", mappers)
 	}
 
 	// The emitted server module ends with the import, relativized from
@@ -172,7 +174,7 @@ func TestCompile_ClientCarriesBatchIdAndMapperID(t *testing.T) {
 	if !regexp.MustCompile(`'b_[A-Za-z0-9_-]+'`).MatchString(emitted) {
 		t.Errorf("emitted client lacks the batch id:\n%s", emitted)
 	}
-	if !regexp.MustCompile(`'src/a#[A-Za-z0-9_-]+'`).MatchString(emitted) {
+	if !regexp.MustCompile(`'#[A-Za-z0-9_-]+'`).MatchString(emitted) {
 		t.Errorf("emitted client lacks the mapper id:\n%s", emitted)
 	}
 	// a client is not a server: nothing generated under rpc/, no import appended

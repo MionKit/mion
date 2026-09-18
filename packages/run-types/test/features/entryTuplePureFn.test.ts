@@ -17,18 +17,18 @@ import {initFromTuple, type EntryTuple} from '../../src/runtypes/entryTuple.ts';
 import {getRTUtils, buildPureFnFactoryFromCode} from '../../src/runtypes/rtUtils.ts';
 
 // Pure-fn tuple layouts (kind 2), by emit mode. Slots after the fixed head
-// [entryKind, deps, ini] are: key, bodyHash, paramNames, code, pureFnDeps,
+// [entryKind, deps, ini] are: key, paramNames, code, pureFnDeps,
 // createPureFn.
 function codeModeTuple(key: string, paramNames: string[], code: string): EntryTuple {
   // createPureFn dropped as a trailing hole → the array ends at pureFnDeps.
-  return [2, undefined, undefined, key, 'h', paramNames, code, []] as unknown as EntryTuple;
+  return [2, undefined, undefined, key, paramNames, code, []] as unknown as EntryTuple;
 }
 function functionsModeTuple(key: string, paramNames: string[], createPureFn: unknown): EntryTuple {
   // code holed out in place (undefined at slot 6); createPureFn follows.
-  return [2, undefined, undefined, key, 'h', paramNames, undefined, [], createPureFn] as unknown as EntryTuple;
+  return [2, undefined, undefined, key, paramNames, undefined, [], createPureFn] as unknown as EntryTuple;
 }
 function bothModeTuple(key: string, paramNames: string[], code: string, createPureFn: unknown): EntryTuple {
-  return [2, undefined, undefined, key, 'h', paramNames, code, [], createPureFn] as unknown as EntryTuple;
+  return [2, undefined, undefined, key, paramNames, code, [], createPureFn] as unknown as EntryTuple;
 }
 
 describe('entryTuple / kind-2 pure-fn registration across emit modes', () => {

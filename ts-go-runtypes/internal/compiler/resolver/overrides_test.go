@@ -45,7 +45,7 @@ func idByKind(t *testing.T, files map[string]string, kind reflection.ReflectionK
 // overrideRedirectRE matches an override redirect body: `utl.usePureFn('<id>')`,
 // with the quotes escaped when the body rides the entry as a code STRING. The id
 // is a location, so the `#` separator is what identifies it.
-var overrideRedirectRE = regexp.MustCompile(`usePureFn\(\\?'[^']+#[^']+\\?'\)`)
+var overrideRedirectRE = regexp.MustCompile(`usePureFn\(\\?'[^']*#[^']+\\?'\)`)
 
 // overrideValidate<string> shifts string's structural id (folds the cfn body
 // hash) AND every containing type's id (propagation), so no cache key is ever

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
@@ -28,8 +29,11 @@ func (c *stubCtx) AddPureFnDependency(_ string) {}
 
 func (c *stubCtx) UsePureFn(id string) string {
 	c.pureFns = append(c.pureFns, id)
-	if at := strings.LastIndex(id, "#"); at >= 0 {
-		return id[at+1:]
+	// Stands in for the alias the real context binds. That alias comes off the
+	// id, which is a hash, so the readable name the generator records is what
+	// keeps these expectations legible.
+	if name := purefnids.NameOf(id); name != "" {
+		return name
 	}
 	return id
 }

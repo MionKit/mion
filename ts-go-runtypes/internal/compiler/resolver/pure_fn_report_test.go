@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
@@ -87,17 +86,10 @@ func TestPureFnReport_GenerateWritesJsonAndResponse(t *testing.T) {
 			t.Errorf("response key %s missing from disk report", site.Key)
 		}
 	}
-	// Both forms present, each keyed by its own binding.
-	for _, name := range []string{"#mul", "#double"} {
-		found := false
-		for key := range diskKeys {
-			if strings.HasSuffix(key, name) {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("no report record bound to %q in %v", name, diskKeys)
-		}
+	// Both forms present. An id is a hash, so what a test can check is that two
+	// distinct registrations were reported, one per form.
+	if len(diskKeys) != 2 {
+		t.Errorf("expected one record per form, got %v", diskKeys)
 	}
 
 	// The report file is DATA, not a generated module — even though it sits

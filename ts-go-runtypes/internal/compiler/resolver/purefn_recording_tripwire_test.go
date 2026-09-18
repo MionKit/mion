@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -119,7 +120,7 @@ func TestPureFnRecording_EmittedKeysAreRecorded(t *testing.T) {
 	// format validator through the choke point. If the emitters
 	// stop reaching these (a refactor drops the reference), the invariant above
 	// goes vacuous — pin the expected keys so that regression is loud.
-	for _, want := range []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr", "@mionjs/run-types/src/runtypes/pure-fns-utils#hasUnknownKeysFromArray", "@mionjs/run-types/src/runtypes/pure-fns-utils#getUnknownKeysFromArray", "@mionjs/run-types/src/formats/string/string-formats-pure-fns#isUUID"} {
+	for _, want := range []string{purefnids.NewRunTypeErr, purefnids.HasUnknownKeysFromArray, purefnids.GetUnknownKeysFromArray, purefnids.IsUUID} {
 		if !allEmitted[want] {
 			t.Errorf("corpus no longer exercises %q (emitted keys: %v) — broaden tripwireCorpus or fix the emitter", want, sortedPureFnKeys(allEmitted))
 		}

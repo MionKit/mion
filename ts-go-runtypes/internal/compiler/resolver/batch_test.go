@@ -139,7 +139,7 @@ func TestBatch_TransformCarriesIdAndMapperHash(t *testing.T) {
 	if !strings.Contains(code, "'b_") {
 		t.Errorf("transformed code lacks the injected batch id:\n%s", code)
 	}
-	if !regexp.MustCompile(`'[^']+#[A-Za-z0-9_-]+'`).MatchString(code) {
+	if !regexp.MustCompile(`'[^']*#[A-Za-z0-9_-]+'`).MatchString(code) {
 		t.Errorf("transformed code lacks the nested mapper's id:\n%s", code)
 	}
 	if strings.Count(code, "'b_") != 1 {

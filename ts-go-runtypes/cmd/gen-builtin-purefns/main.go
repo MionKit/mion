@@ -149,14 +149,15 @@ func run() error {
 	return nil
 }
 
-// nameOf is the name half of an id — the identifier the registration is bound
-// to, which is what both generated constant sets are keyed by.
+// nameOf is the identifier the registration is bound to, which is what both
+// generated constant sets are keyed by. It is NOT in the id — an id is the
+// package plus a hash of the body — so it is read off the entry, and a built-in
+// written into a call rather than bound to a const has none.
 func nameOf(entry purefunctions.Entry) (string, error) {
-	_, name, ok := purefunctions.SplitID(entry.Key())
-	if !ok || name == "" {
-		return "", fmt.Errorf("built-in %q has no name half; a built-in must be bound to a const", entry.Key())
+	if entry.BindingName == "" {
+		return "", fmt.Errorf("built-in %q is bound to no const; a built-in must be named to get a constant", entry.Key())
 	}
-	return name, nil
+	return entry.BindingName, nil
 }
 
 // goConstName renders a built-in name as an exported Go identifier:
@@ -197,7 +198,7 @@ func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
 	b.WriteString("// a consumer's own pure fn by this prefix, which is also how it knows a\n")
 	b.WriteString("// reference the table does not carry means a STALE table rather than a user\n")
 	b.WriteString("// pure fn it should leave alone.\n")
-	fmt.Fprintf(&b, "const IDPrefix = %s\n\n", strconv.Quote(markerPackageName+"/"))
+	fmt.Fprintf(&b, "const IDPrefix = %s\n\n", strconv.Quote(markerPackageName+"#"))
 	b.WriteString("const (\n")
 	byConst := map[string]string{}
 	for _, entry := range entries {
@@ -205,7 +206,7 @@ func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !strings.HasPrefix(entry.Key(), markerPackageName+"/") {
+		if owner, _, ok := purefunctions.SplitID(entry.Key()); !ok || owner != markerPackageName {
 			return nil, fmt.Errorf("built-in %q is not under %s — the id rule or the source layout moved", entry.Key(), markerPackageName)
 		}
 		constName := goConstName(name)
@@ -227,6 +228,17 @@ func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
 		fmt.Fprintf(&b, "\t%s: true,\n", constName)
 	}
 	b.WriteString("}\n\n")
+	b.WriteString("// names is the identifier each built-in is bound to in source. An id is a\n")
+	b.WriteString("// hash, which names nothing a reader can search for, so a diagnostic or a\n")
+	b.WriteString("// report that has to SAY which pure function it means looks it up here.\n")
+	b.WriteString("var names = map[string]string{\n")
+	for _, constName := range constNames {
+		fmt.Fprintf(&b, "\t%s: %s,\n", constName, strconv.Quote(byConst[constName]))
+	}
+	b.WriteString("}\n\n")
+	b.WriteString("// NameOf returns the identifier a built-in is bound to in source, or empty\n")
+	b.WriteString("// when id names no built-in.\n")
+	b.WriteString("func NameOf(id string) string {\n\treturn names[id]\n}\n\n")
 	b.WriteString("// Has reports whether id names one of the package's own pure functions.\n")
 	b.WriteString("// Their bodies never come from a consumer's program — the compiler serves them\n")
 	b.WriteString("// from its own table — so a build checks a reference to one against this set\n")
@@ -312,7 +324,6 @@ func render(entries []purefunctions.Entry) ([]byte, error) {
 	for _, entry := range entries {
 		b.WriteString("\t{\n")
 		fmt.Fprintf(&b, "\t\tid:         %s,\n", strconv.Quote(entry.Key()))
-		fmt.Fprintf(&b, "\t\tbodyHash:   %s,\n", strconv.Quote(entry.BodyHash))
 		b.WriteString("\t\tparamNames: " + stringSliceLit(entry.ParamNames) + ",\n")
 		fmt.Fprintf(&b, "\t\tcode:       %s,\n", strconv.Quote(entry.Code))
 		b.WriteString("\t\tdeps:       " + stringSliceLit(entry.PureFnDependencies) + ",\n")

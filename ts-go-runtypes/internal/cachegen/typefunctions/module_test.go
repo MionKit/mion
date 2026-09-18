@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
@@ -1085,10 +1086,10 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 	// module scope, so the legacy skeleton `k_<alias>` identifier shortcut
 	// is gone (aliases only shorten context-var NAMES inside bodies now).
 	deps := []protocol.PureFnDep{
-		{ID: "@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString"},
-		{ID: "@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"},
+		{ID: "@acme/app/src/pure#asJSONString"},
+		{ID: purefnids.NewRunTypeErr},
 	}
-	want := "['@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString','@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr']"
+	want := "['" + "@acme/app/src/pure#asJSONString" + "','" + purefnids.NewRunTypeErr + "']"
 	if got := pureFnDepsJS(deps); got != want {
 		t.Errorf("populated → %q, want %q", got, want)
 	}
@@ -1096,9 +1097,9 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 
 func TestValidateModule_PureFnDepsRendered(t *testing.T) {
 	deps := pureFnDepsJS([]protocol.PureFnDep{
-		{ID: "@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString"},
+		{ID: "@acme/app/src/pure#asJSONString"},
 	})
-	if deps != "['@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString']" {
+	if deps != "['"+"@acme/app/src/pure#asJSONString"+"']" {
 		t.Fatalf("projection mismatch: got %q", deps)
 	}
 	if strings.Contains(deps, "/some/abs/") || strings.Contains(deps, "filePath") {
