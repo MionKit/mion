@@ -18,11 +18,10 @@ import {
   RpcError,
   FatalError,
   StatusCodes,
-  allowInputMapper,
-  inputMapperKey,
+  registerInputMapperTuple,
 } from '@mionjs/core';
 import type {BatchDefinition} from '@mionjs/core';
-import {getRTUtils, registerPureFn} from '@mionjs/run-types';
+import {getRTUtils} from '@mionjs/run-types';
 import {headersFromRecord} from './lib/headers.ts';
 import {mionClientRoutes} from './routes/client.routes.ts';
 import {
@@ -752,15 +751,20 @@ describe('batches', () => {
       mappings: [{fromId: 'source', toId: 'target', mapperKey, paramIndex}],
     });
 
+    // A mapper id is the pure fn's own id: where the CLIENT wrote it. The server
+    // learns it through the generated batches module, which hands each mapper's
+    // tuple to registerInputMapperTuple — the one lane that opts an id in.
+    const MAPPER = '@acme/app/src/batches#';
+    const registerMapper = (id: string, code: string): void =>
+      registerInputMapperTuple(id, [2, undefined, undefined, id, 'H', [], code, []]);
+
     beforeEach(async () => {
       mion.initRoutes(mapperRoutes);
     });
 
     it('feeds the source output into the target param through an allow-listed mapper', async () => {
-      // the name lane: the server registers the mapper with RunTypes and opts the key in
-      registerPureFn('mionjs::batchSpecToId', (value: {id: number}) => value.id);
-      allowInputMapper(inputMapperKey('batchSpecToId'));
-      registerBatches({mapped: withMapping(inputMapperKey('batchSpecToId'))});
+      registerMapper(`${MAPPER}toId`, 'return (value) => value.id;');
+      registerBatches({mapped: withMapping(`${MAPPER}toId`)});
 
       const response = await dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=mapped');
 
@@ -790,9 +794,8 @@ describe('batches', () => {
       });
       resetRouter();
       mion.initRoutes({source: failingSource, target: countingTarget});
-      registerPureFn('mionjs::batchSpecSourceFailed', (value: {id: number}) => value.id);
-      allowInputMapper(inputMapperKey('batchSpecSourceFailed'));
-      registerBatches({sourceFailed: withMapping(inputMapperKey('batchSpecSourceFailed'))});
+      registerMapper(`${MAPPER}sourceFailed`, 'return (value) => value.id;');
+      registerBatches({sourceFailed: withMapping(`${MAPPER}sourceFailed`)});
 
       const response = await dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=sourceFailed');
 
@@ -819,12 +822,9 @@ describe('batches', () => {
       expect(targetRuns).toBe(1);
     });
 
-    it('a mapper that THROWS is the typed batch-mapper-failed fatal, without the registry key', async () => {
-      registerPureFn('mionjs::batchSpecThrowing', (value: {id: number}): number => {
-        throw new Error('boom ' + value.id);
-      });
-      allowInputMapper(inputMapperKey('batchSpecThrowing'));
-      registerBatches({throwing: withMapping(inputMapperKey('batchSpecThrowing'))});
+    it('a mapper that THROWS is the typed batch-mapper-failed fatal, without the registry id', async () => {
+      registerMapper(`${MAPPER}throwing`, "return (value) => { throw new Error('boom ' + value.id); };");
+      registerBatches({throwing: withMapping(`${MAPPER}throwing`)});
 
       const response = await dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=throwing');
 
@@ -833,7 +833,7 @@ describe('batches', () => {
       expect(thrown).toHaveLength(1);
       expect(thrown[0].type).toBe('batch-mapper-failed');
       expect(thrown[0].publicMessage).toContain("'target'");
-      expect(thrown[0].publicMessage).not.toContain('mionjs::');
+      expect(thrown[0].publicMessage).not.toContain(MAPPER);
       expect(thrown[0].publicMessage).not.toContain('boom');
       // the target never ran
       expect(response.body.target).toBeUndefined();
@@ -847,32 +847,31 @@ describe('batches', () => {
       // present in the SHARED registry, but registered outside any mion lane: exactly the case the
       // gate exists for (a built-in, another library's entry, or one restored from a
       // methods-metadata payload).
-      getRTUtils().addPureFn('rt::routerSneakyMapper', {
-        namespace: 'rt',
-        fnName: 'routerSneakyMapper',
+      getRTUtils().addPureFn(`${MAPPER}sneaky`, {
+        id: `${MAPPER}sneaky`,
         bodyHash: '',
         paramNames: [],
         code: '',
         pureFnDependencies: [],
         createPureFn: () => () => 999,
       } as never);
-      expect(getRTUtils().hasPureFnByKey('rt::routerSneakyMapper')).toBe(true);
-      registerBatches({sneaky: withMapping('rt::routerSneakyMapper')});
+      expect(getRTUtils().hasPureFnByKey(`${MAPPER}sneaky`)).toBe(true);
+      registerBatches({sneaky: withMapping(`${MAPPER}sneaky`)});
 
       // rejected while building the execution chain: the mapper is never resolved, never run
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=sneaky')).rejects.toMatchObject({
         type: 'batch-mapper-not-allowed',
-        publicMessage: "Input mapper 'rt::routerSneakyMapper' is not registered on the server.",
+        publicMessage: `Input mapper '${MAPPER}sneaky' is not registered on the server.`,
       });
       expect(getBatch('sneaky')!.chains.size).toBe(0);
     });
 
     it('rejects a mapper that is not in the registry at all', async () => {
-      registerBatches({missing: withMapping('mionjs::doesNotExist')});
+      registerBatches({missing: withMapping(`${MAPPER}doesNotExist`)});
 
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=missing')).rejects.toMatchObject({
         type: 'batch-mapper-not-allowed',
-        publicMessage: "Input mapper 'mionjs::doesNotExist' is not registered on the server.",
+        publicMessage: `Input mapper '${MAPPER}doesNotExist' is not registered on the server.`,
       });
     });
 
@@ -883,7 +882,7 @@ describe('batches', () => {
     it('rejects a paramIndex past the target route arity', async () => {
       // structurally fine, semantically impossible: target takes 1 param, so 999 would write
       // 998 empty slots into the params array
-      registerBatches({outOfRange: withMapping('mionjs::doesNotExist', 999)});
+      registerBatches({outOfRange: withMapping(`${MAPPER}doesNotExist`, 999)});
 
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=outOfRange')).rejects.toMatchObject({
         type: 'batch-mapping-invalid-param-index',
@@ -892,7 +891,7 @@ describe('batches', () => {
     });
 
     it('rejects a paramIndex equal to the target route arity', async () => {
-      registerBatches({atArity: withMapping('mionjs::doesNotExist', 1)});
+      registerBatches({atArity: withMapping(`${MAPPER}doesNotExist`, 1)});
 
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=atArity')).rejects.toMatchObject({
         type: 'batch-mapping-invalid-param-index',
@@ -905,7 +904,7 @@ describe('batches', () => {
     it('rejects a mapping whose source is not in the merged chain', async () => {
       resetRouter();
       createMionRouter({pathTransform: (req, path) => (path === '/source' ? '/target' : path)}).initRoutes(mapperRoutes);
-      registerBatches({folded: withMapping('mionjs::doesNotExist')});
+      registerBatches({folded: withMapping(`${MAPPER}doesNotExist`)});
 
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=folded')).rejects.toMatchObject({
         type: 'batch-mapping-invalid-source',
@@ -915,7 +914,7 @@ describe('batches', () => {
     it('rejects a mapping whose target is not in the merged chain', async () => {
       resetRouter();
       createMionRouter({pathTransform: (req, path) => (path === '/target' ? '/source' : path)}).initRoutes(mapperRoutes);
-      registerBatches({folded: withMapping('mionjs::doesNotExist')});
+      registerBatches({folded: withMapping(`${MAPPER}doesNotExist`)});
 
       await expect(dispatchBatch(getDefaultRequest({source: [], target: [null]}), 'id=folded')).rejects.toMatchObject({
         type: 'batch-mapping-invalid-target',

@@ -98,7 +98,12 @@ export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
   mapper: PureFunction<(value: FromSR['resolvedValue']) => MappedInput>,
   id?: InjectPureFnId<(value: FromSR['resolvedValue']) => MappedInput>
 ): InputFromRef<(value: FromSR['resolvedValue']) => MappedInput> {
-  if (typeof mapper !== 'function') throw new Error('inputFrom() requires an inline mapper function');
+  // The build rewrites this argument to the mapper's generated entry tuple, so what
+  // arrives here is an array, not the function the caller wrote. A string is the
+  // retired name lane and gets its own message; anything missing is a plain mistake.
+  if (typeof mapper === 'string')
+    throw new Error('inputFrom() takes the mapper itself, written inline, not the name of a server-registered one.');
+  if (mapper == null) throw new Error('inputFrom() requires an inline mapper function');
   if (!id)
     throw new Error(
       'inputFrom() requires the mion build plugin: no pure-fn id was injected at build time, ' +
