@@ -14,8 +14,7 @@ today: the identifier a `const` / `let` / `var` declaration binds the registrar 
 (`bindingNameOf` in `ts-go-runtypes/internal/cachegen/purefunctions/id.go`). Anything in another
 position falls back to `CodeHash(code)`, a hash of the body.
 
-That leaves two names on the floor and puts a body hash where a real name exists. Probed
-against the current binary:
+That leaves the PUBLISHED name on the floor. Probed against the current binary:
 
 ```ts
 const inner = registerPureFn((n: number): number => n * 2);
@@ -24,9 +23,6 @@ export {inner as publicName};
 
 export const direct = registerPureFn((n: number): number => n * 3);
 // id: @acme/names/src/a#direct           ← fine
-
-const nested = [registerPureFn(function namedExpr(n: number): number { return n * 5; })];
-// id: @acme/names/src/a#hdOaVrqNns1PjH   ← the function's own name is ignored
 ```
 
 The hash is the fragile one. It moves on every body edit, so a helper whose logic is tuned
@@ -34,15 +30,28 @@ gets a new identity while the name everyone imports it by never changed. A name 
 when someone renames it, which is deliberate and visible in the diff. Prefer the most public
 name available and keep the hash for the case that genuinely has none.
 
+## The function's own name is not a name
+
+A named function expression carries a label that is in scope only inside its own body:
+
+```ts
+export const double = registerPureFn(function namedExpr(n: number): number { return n * 2; });
+```
+
+`namedExpr` is invisible to every other file, and it has to be: a pure fn must be written
+inline, with no handle anything else can reach (`PFN002`), so the only identifier a consumer
+ever holds is the binding or the export. The build ignores it today and must keep ignoring it.
+Pin that rather than leave it to be rediscovered.
+
 ## Direction
 
 The implementer plans the details. These are the constraints.
 
 - **Resolve the name half down a ladder, most public first.** The exported name (the final one,
-  so `export {inner as publicName}` yields `publicName`), then the local binding, then the
-  function expression's own name, then the body hash. The current rule is the middle rung, so
-  this adds a rung above it and a rung below it. The bottom rung is not a fallback nobody
-  reaches: see the `inputFrom` section below.
+  so `export {inner as publicName}` yields `publicName`), then the local binding, then the body
+  hash. Three rungs, no more: the current rule is the middle one, so this adds the rung above
+  it and leaves the bottom one alone. The bottom rung is not a fallback nobody reaches: see the
+  `inputFrom` section below.
 - **Only the declaring file's own exports count.** An id says where a function LIVES. Following
   a re-export (`export {x as z} from './fns'` in a barrel) would make one file's id depend on
   another file's text, so adding or renaming a barrel entry would silently move it. A re-export
@@ -102,9 +111,10 @@ Worth landing before the ids reach a published release, not after.
 ## Tests
 
 - Go, in `purefunctions`: one case per rung of the ladder (exported-as name, plain export, local
-  binding, named function expression, genuinely anonymous), the collision decision, `export
-  default`, a barrel re-export leaving the id untouched, and the `.d.ts` / source agreement the
-  existing id tests already check for the path half.
+  binding, genuinely anonymous), one pinning that a named function expression takes the rung
+  below it rather than its own label, the collision decision, `export default`, a barrel
+  re-export leaving the id untouched, and the `.d.ts` / source agreement the existing id tests
+  already check for the path half.
 - The two seeded sweeps in `fuzz_ids_test.go` get a draw shape that produces colliding names, so
   whatever the collision rule is, injectivity is still proven rather than assumed.
 - JS, in `packages/devtools/test`: a rewritten call site carries the exported name, and a
@@ -112,8 +122,8 @@ Worth landing before the ids reach a published release, not after.
 
 ## Done when
 
-- The name half comes from the exported name where there is one, and a named function expression
-  is no longer hashed.
+- The name half comes from the exported name where there is one, and a function expression's own
+  label still never reaches an id.
 - A barrel re-export cannot move an id, and the collision rule is written down and tested.
 - The built-in id tables and the fixtures regenerate clean, and the codegen drift check
   (`pnpm miondevx core codegen all --check`) passes.
