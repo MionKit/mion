@@ -50,6 +50,10 @@ type Program struct {
 	// what a path is reported relative to when a file belongs to no named
 	// package, so nothing machine-specific reaches an id or a module name.
 	Cwd string
+	// Overlay is the virtual file map this program was built with, kept so a
+	// SECOND program built off this one (the marker package's own sources) sees
+	// the same in-memory files instead of only what is on disk.
+	Overlay map[string]string
 }
 
 // New builds a ts-go Program using the supplied tsconfig.
@@ -120,7 +124,7 @@ func New(opts Options) (*Program, error) {
 		return nil, errors.New("compiler.NewProgram returned nil")
 	}
 	tsProgram.BindSourceFiles()
-	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd}, nil
+	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd, Overlay: opts.Overlay}, nil
 }
 
 // NewInferred builds a Program from explicit file roots instead of a config
@@ -186,7 +190,7 @@ func NewInferred(opts Options, fileNames []string) (*Program, error) {
 		return nil, errors.New("compiler.NewProgram returned nil")
 	}
 	tsProgram.BindSourceFiles()
-	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd}, nil
+	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd, Overlay: opts.Overlay}, nil
 }
 
 // mergeConditions unions extra onto base, order-preserving and deduped, so

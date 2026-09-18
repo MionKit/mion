@@ -8,7 +8,8 @@
 //     JSON/binary codecs, mock data, …) for cached RunTypes the emitter
 //     supports.
 //   - purefunctions + builtinpurefns: extract `registerPureFnFactory(...)`
-//     bodies (and serve the built-in ones) into the pureFns cache module.
+//     bodies into the pureFns cache module, from the program for a consumer's
+//     own and from the marker package's installed sources for the built-in ones.
 //   - operations, diskcache, hashid: shared op plumbing, the incremental
 //     on-disk artifact cache, and the short structural-hash ids.
 //
@@ -35,6 +36,7 @@ import (
 	"sync"
 
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
@@ -318,6 +320,14 @@ type Session struct {
 	// nothing imports, so module resolution never reaches them — resolve exactly
 	// as they do in the build lane instead of silently checking as `any`.
 	configDeclarationRoots []string
+	// builtinPureFns serves the marker package's own pure-fn bodies, extracted on
+	// demand from its installed sources. Built ONCE per session (locating the
+	// package root walks the program, and extraction builds its own Program), and
+	// deliberately not reset on a Program swap: the installed marker package does
+	// not change under a running session, and editing its sources in-repo already
+	// needed a respawn back when the bodies were compiled into the binary.
+	builtinPureFns     *builtinpurefns.Loader
+	builtinPureFnsDone bool
 	// pureFnKeys is the set of pure-fn ids the resolver has observed so
 	// far. An id is the hash of the body that ships, so an edited body
 	// arrives as a NEW id and a set is all the change signal needs to be.
