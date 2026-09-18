@@ -1,8 +1,8 @@
-// Which counter did `rt::countEnumKeys` pick for THIS engine, and is that the
+// Which counter did `countEnumKeys` pick for THIS engine, and is that the
 // one it was supposed to pick?
 //
 // The pure fn specialises once at materialisation: `for-in` on V8, a
-// prototype-guarded `Object.keys` on JavaScriptCore (see pf_countEnumKeys in
+// prototype-guarded `Object.keys` on JavaScriptCore (see countEnumKeys in
 // packages/run-types/src/runtypes/pure-fns-utils.ts). Both are pinned to answer
 // identically for every input, so a wrong choice costs throughput and never
 // correctness — which is exactly why it can rot unnoticed. The benchmark is the
@@ -33,7 +33,7 @@ export function expectedEngineBranch(): EngineBranch {
  *  `Object.keys`. Uses the real emitted validator + the real
  *  `runsAfterValidation` predicate, so this is the shipped code path and not a
  *  reimplementation of it — a strict check on an all-required object is what
- *  routes through rt::countEnumKeys. */
+ *  routes through countEnumKeys. */
 export function detectEngineBranch(): EngineBranch {
   interface Probe {
     a: number;
@@ -70,8 +70,8 @@ export function assertEngineBranch(): EngineBranch {
   const actual = detectEngineBranch();
   if (actual !== expected) {
     throw new Error(
-      `rt::countEnumKeys selected the '${actual}' counter but this runtime (${currentRuntime()}) must select '${expected}'. ` +
-        `Either the engine probe in pf_countEnumKeys stopped matching this runtime, the per-engine branch was removed, ` +
+      `countEnumKeys selected the '${actual}' counter but this runtime (${currentRuntime()}) must select '${expected}'. ` +
+        `Either the engine probe in countEnumKeys stopped matching this runtime, the per-engine branch was removed, ` +
         `or this lane is not running the runtime it claims to.`
     );
   }

@@ -62,10 +62,13 @@ var builtinSourceFiles = []string{
 }
 
 const (
-	markerPkgRel   = "../packages/run-types"
-	outputRel      = "internal/cachegen/builtinpurefns/table.generated.go"
-	idsOutputRel   = "internal/cachegen/purefnids/ids.generated.go"
-	idsTsOutputRel = "../packages/run-types/src/runtypes/pure-fn-ids.generated.ts"
+	// markerPackageName is the package that owns the built-ins, and the first
+	// segment of every id this generator emits.
+	markerPackageName = "@mionjs/run-types"
+	markerPkgRel      = "../packages/run-types"
+	outputRel         = "internal/cachegen/builtinpurefns/table.generated.go"
+	idsOutputRel      = "internal/cachegen/purefnids/ids.generated.go"
+	idsTsOutputRel    = "../packages/run-types/src/runtypes/pure-fn-ids.generated.ts"
 )
 
 func main() {
@@ -188,12 +191,22 @@ func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
 	b.WriteString("// built-in fails this codegen instead of splitting one function across two ids.\n")
 	b.WriteString("// The package imports nothing, which is what lets both the extractor and the\n")
 	b.WriteString("// emitters depend on it.\n")
-	b.WriteString("package purefnids\n\nconst (\n")
+	b.WriteString("package purefnids\n\n")
+	b.WriteString("// IDPrefix is what every id below starts with: the package that owns these\n")
+	b.WriteString("// pure fns. A build tells a reference to one of them apart from a reference to\n")
+	b.WriteString("// a consumer's own pure fn by this prefix, which is also how it knows a\n")
+	b.WriteString("// reference the table does not carry means a STALE table rather than a user\n")
+	b.WriteString("// pure fn it should leave alone.\n")
+	fmt.Fprintf(&b, "const IDPrefix = %s\n\n", strconv.Quote(markerPackageName+"/"))
+	b.WriteString("const (\n")
 	byConst := map[string]string{}
 	for _, entry := range entries {
 		name, err := nameOf(entry)
 		if err != nil {
 			return nil, err
+		}
+		if !strings.HasPrefix(entry.Key(), markerPackageName+"/") {
+			return nil, fmt.Errorf("built-in %q is not under %s — the id rule or the source layout moved", entry.Key(), markerPackageName)
 		}
 		constName := goConstName(name)
 		if previous, dup := byConst[constName]; dup {

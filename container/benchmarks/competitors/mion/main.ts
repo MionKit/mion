@@ -7,7 +7,7 @@ import {maybeAudit} from '../../shared/harness/audit.ts';
 import {assertEngineBranch} from './engineBranch.ts';
 
 maybeAudit('mion', cases); // MION_AUDIT_ALIGNMENT=1: emit alignment records + exit, skipping the timing bench
-// Throws when the live rt::countEnumKeys counter is not the one this engine must
+// Throws when the live countEnumKeys counter is not the one this engine must
 // select — so a Bun lane that silently ran node, or a deleted branch, fails the
 // bench instead of quietly publishing numbers that mean something else. Runs after
 // the audit early-exit (which never times anything) and before the bench, so

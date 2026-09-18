@@ -120,7 +120,7 @@ package diskcache
 // by design; this is a payload-shape bump, which is what FormatVersion guards.)
 //
 // v15 adds PureFnRefs so a cache hit reconstructs the entry's pure-fn edges. The
-// built-in pure-fn bodies (`rt::…` / `rtFormats::…`) are now delivered on demand
+// built-in pure-fn bodies are now delivered on demand
 // through the module graph (a SoftDep + the tuple deps thunk) instead of a
 // blanket side-effect import, and those edges ride each fn entry's PureFnRefs.
 // Without persisting them a warm entry would rebuild empty SoftDeps and drop its
@@ -218,11 +218,12 @@ type RTEntry struct {
 	// entries with no cross-family edges.
 	CrossFamilyRefs []CrossFamilyRef `json:"crossFamilyRefs,omitempty"`
 	// PureFnRefs is one entry per pure-fn dependency the body reaches
-	// (walker.PureFnDependencies rendered as `<ns>::<fn>` keys, e.g.
-	// `rt::newRunTypeErr`). Persisted so a cache hit rebuilds the entry's
-	// SoftDeps pure-fn edges — the demand-driven built-in delivery imports the
-	// pure-fn module off these. The keys are stable strings (no structural-id
-	// translation, no drift check). Empty for entries that reach no pure fn.
+	// (walker.PureFnDependencies, each a pure fn's id, e.g.
+	// `@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr`). Persisted so
+	// a cache hit rebuilds the entry's SoftDeps pure-fn edges — the demand-driven
+	// built-in delivery imports the pure-fn module off these. The ids are stable
+	// strings (no structural-id translation, no drift check). Empty for entries
+	// that reach no pure fn.
 	PureFnRefs []string `json:"pureFnRefs,omitempty"`
 	// Diagnostics is every build-time finding this entry's walk emitted, so a
 	// warm build reports the same warnings a cold one does. Re-emitted against

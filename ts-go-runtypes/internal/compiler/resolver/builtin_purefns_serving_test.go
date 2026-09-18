@@ -42,46 +42,44 @@ func TestServeBuiltin_ServesDemandedAndTransitive(t *testing.T) {
 	}
 }
 
-// TestServeBuiltin_MissingIsPFE9012 — a type-fn entry soft-depping a
-// `rt::`-namespaced key the table does not carry is a build error (the exemption
-// flip: built-ins are validated against the table, not taken on faith).
-func TestServeBuiltin_MissingIsPFE9012(t *testing.T) {
+// TestServeBuiltin_UnknownIdIsNotDemanded — an id neither generated artifact
+// knows belongs to the PROGRAM (a consumer's own pure fn), so the table step
+// leaves it alone and the program graph serves it. Only an id the emitters are
+// compiled against whose body the table lacks is a build error, and since both
+// artifacts come out of one generator run that can only be a hand-edited table;
+// `Closure` reporting it is covered in the builtinpurefns package.
+func TestServeBuiltin_UnknownIdIsNotDemanded(t *testing.T) {
 	graph := entrymodules.Graph{}
-	graph.Add(builtinSoftDepEntry("verr_root", []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr", "rt::totallyMadeUp"}))
+	graph.Add(builtinSoftDepEntry("verr_root", []string{"@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr", "@acme/app/src/fns#slugify"}))
 
 	var diags []diagnostics.Diagnostic
 	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
 	if graph["@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr"] == nil {
-		t.Error("the present built-in should still be served alongside the missing one")
+		t.Error("the built-in should still be served alongside the consumer's own id")
 	}
-	found := false
-	for _, diag := range diags {
-		if diag.Code == diagnostics.CodeMissingPureFnDep && len(diag.Args) > 0 && diag.Args[0] == "rt::totallyMadeUp" {
-			found = true
-		}
+	if graph["@acme/app/src/fns#slugify"] != nil {
+		t.Error("a consumer's own pure fn must not be served from the built-in table")
 	}
-	if !found {
-		t.Errorf("expected %s for rt::totallyMadeUp, got %+v", diagnostics.CodeMissingPureFnDep, diags)
+	if len(diags) != 0 {
+		t.Errorf("a consumer's own pure fn must not be flagged as a missing built-in, got %+v", diags)
 	}
 }
 
-// TestServeBuiltin_AnonymousUserKeyNotFlagged — the anonymous pure-fn lane keys
-// its entries `rt::<hash>` (same namespace as the built-ins) but they live on
-// KindPureFn entries and are served by the program graph, not the table. A
-// pure-fn entry soft-depping such a key must NOT be misread as a missing
-// built-in (the isBuiltinPureFnKey gate is scoped to type-fn entries for exactly
-// this reason).
-func TestServeBuiltin_AnonymousUserKeyNotFlagged(t *testing.T) {
+// TestServeBuiltin_UserPureFnKeyNotFlagged — a consumer's own pure fns live on
+// KindPureFn entries and are served by the program graph, not the table, so an
+// edge between two of them must never be misread as a missing built-in (the
+// table gate is scoped to type-fn entries for exactly this reason).
+func TestServeBuiltin_UserPureFnKeyNotFlagged(t *testing.T) {
 	graph := entrymodules.Graph{}
-	graph.Add(&entrymodules.Entry{Key: "rt::abc123def456", Kind: entrymodules.KindPureFn, ArgsText: "'rt::abc123def456'", SoftDeps: []string{"rt::xyz789hash012"}})
+	graph.Add(&entrymodules.Entry{Key: "@acme/app/src/fns#slugify", Kind: entrymodules.KindPureFn, ArgsText: "'@acme/app/src/fns#slugify'", SoftDeps: []string{"@acme/app/src/fns#lower"}})
 
 	var diags []diagnostics.Diagnostic
 	(&Session{}).serveBuiltinPureFns(graph, &diags, constants.EmitCode)
 
 	for _, diag := range diags {
 		if diag.Code == diagnostics.CodeMissingPureFnDep {
-			t.Errorf("anonymous user key must not trip the missing-built-in check, got %+v", diag)
+			t.Errorf("a consumer's own pure fn must not trip the missing-built-in check, got %+v", diag)
 		}
 	}
 }

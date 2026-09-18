@@ -469,7 +469,7 @@ func AssertCompositeSoftDeps(graph entrymodules.Graph, provenance map[string][]d
 			continue
 		}
 		for _, dep := range entry.SoftDeps {
-			// Built-in pure-fn edges (the armed guard's `rt::findCycle`) are NOT
+			// Built-in pure-fn edges (the armed guard's `findCycle`) are NOT
 			// composite-bound primitives: they bind via `utl.getPureFn`, and
 			// serveBuiltinPureFns delivers them AFTER this assertion runs (with its
 			// own PFE9012 tripwire for a genuinely missing body). Skip them here.

@@ -207,11 +207,11 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 // idempotent dedup ExtractFromProgramCached applies — one entry per call site,
 // duplicates included. It is the source for per-file REWRITES: every
 // registration call site must be rewritten (its factory swapped for the entry
-// binding, and for the anonymous lane the injected `"rt::<hash>"` spliced), even
+// binding, and the computed id spliced into the empty trailing slot), even
 // two same-file calls that share a body. Dedup is correct for the emitted MODULE
-// (one row per key — the graph collapses duplicate keys) and for PFE9004
-// collisions, but a deduped list drops the loser's byte offsets, so the anonymous
-// lane's un-rewritten duplicate would lose its injected hash and throw at runtime.
+// (one row per id — the graph collapses duplicate ids) and for PFE9004
+// collisions, but a deduped list drops the loser's byte offsets, so the
+// un-rewritten duplicate would lose its injected id and throw at runtime.
 // Uses the same per-Program FileCache, so it never re-walks a file
 // ExtractFromProgramCached already cached.
 func RawEntries(typeChecker *checker.Checker, markerOpts marker.Options, lookup SourceFileLookup, files []string, cache *FileCache) []Entry {

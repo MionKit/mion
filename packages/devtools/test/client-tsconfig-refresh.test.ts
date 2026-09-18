@@ -21,8 +21,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
   export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
   export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
   export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
+  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
 }
 `;
@@ -95,6 +94,16 @@ register('client.tsConfig — a separate client project, refreshed while the ser
     const server = writeProject(base, 'server', {'router.d.ts': ROUTER_DTS, 'server.ts': SERVER_TS});
     const genDir = path.join(server, '.mion');
     const table = path.join(genDir, 'rpc', 'batches.generated.js');
+    // Generated mapper modules sit under rpc/pf/<the path their id names>.
+    const generatedMappers = (): string[] => {
+      const walk = (dir: string): string[] =>
+        fs.readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+          const full = path.join(dir, entry.name);
+          return entry.isDirectory() ? walk(full) : [path.relative(path.join(genDir, 'rpc', 'pf'), full)];
+        });
+      const root = path.join(genDir, 'rpc', 'pf');
+      return fs.existsSync(root) ? walk(root).sort() : [];
+    };
 
     vite = await createServer({
       root: server,
@@ -109,7 +118,7 @@ register('client.tsConfig — a separate client project, refreshed while the ser
     // vite runs buildStart (the whole-program generate) as the server initialises
     await waitFor(() => fs.existsSync(table), 'the batch table from the client project');
     expect(batchIds(table)).toHaveLength(1);
-    const mappers = fs.readdirSync(path.join(genDir, 'rpc', 'pf', 'rt'));
+    const mappers = generatedMappers();
     expect(mappers).toHaveLength(1);
 
     // the server's router-init module gets the import appended (vite's SSR transform has already
@@ -120,7 +129,7 @@ register('client.tsConfig — a separate client project, refreshed while the ser
     // a client edit (outside the server root) regenerates: the second batch lands in the table
     fs.writeFileSync(path.join(client, 'src', 'a.ts'), CLIENT_TWO);
     await waitFor(() => batchIds(table).length === 2, 'the regenerated table after the client edit');
-    expect(fs.readdirSync(path.join(genDir, 'rpc', 'pf', 'rt'))).toEqual(mappers);
+    expect(generatedMappers()).toEqual(mappers);
 
     // a NEW client file with a batch, created while the dev server runs: the client's source
     // root is watched, so the table gains the id without a restart

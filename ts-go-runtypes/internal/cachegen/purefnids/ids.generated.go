@@ -10,6 +10,13 @@
 // emitters depend on it.
 package purefnids
 
+// IDPrefix is what every id below starts with: the package that owns these
+// pure fns. A build tells a reference to one of them apart from a reference to
+// a consumer's own pure fn by this prefix, which is also how it knows a
+// reference the table does not carry means a STALE table rather than a user
+// pure fn it should leave alone.
+const IDPrefix = "@mionjs/run-types/"
+
 const (
 	DateStrToMs             = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#dateStrToMs"
 	IsDateString            = "@mionjs/run-types/src/formats/datetime/dateTime-pure-fns#isDateString"

@@ -17,7 +17,7 @@ import (
 //
 //	export function g_verr_<hash>(utl){
 //	  'use strict';
-//	  const nRT = utl.getPureFn('rt::newRunTypeErr');
+//	  const nRT = utl.getPureFn('@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr');
 //	  return function verr_<hash>(v,pth=[],er=[]){ <body>; return er }
 //	}
 //
@@ -587,12 +587,10 @@ func (ValidationErrorsEmitter) Finalize(rawCode string) (string, bool) {
 // segment, AccessPathLiteral handles the empty-array short-circuit.
 func callRTErr(ctx *EmitContext, expected string, extra string) string {
 	// UsePureFn records the dep, hoists the deduped
-	// `const nRT = utl.getPureFn('rt::newRunTypeErr')` prologue line, and
-	// returns the alias. rtUtils.getPureFn takes a single composite key
-	// `<namespace>::<fnName>` (see pureFnKey helper in
-	// packages/run-types/src/runtypes/rtUtils.ts:45); the literal is fully
-	// spelled out because the body is also evaluated through
-	// `new Function('utl', code)` where module-level consts are not in scope.
+	// `const nRT = utl.getPureFn('<id>')` prologue line, and returns the alias.
+	// rtUtils.getPureFn takes the pure fn's id; the literal is fully spelled out
+	// because the body is also evaluated through `new Function('utl', code)`
+	// where module-level consts are not in scope.
 	key := ctx.UsePureFn(purefnids.NewRunTypeErr)
 	pthArg := ctx.ArgName("pλth")
 	errArg := ctx.ArgName("εrr")

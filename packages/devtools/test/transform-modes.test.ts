@@ -183,7 +183,7 @@ export const isNode = createValidateFn(inference, {rejectCircularRefs: true});
     'pure-fn replacement: edits mode reproduces go mode byte-for-byte',
     {
       'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const _ = registerPureFnFactory('rt::foo', function () {
+export const foo = registerPureFnFactory(function () {
   return function _f(x: number) { return x + 1; };
 });
 `,
@@ -192,7 +192,7 @@ export const _ = registerPureFnFactory('rt::foo', function () {
       await withInlineSources(sources, async ({client}) => {
         const {applied} = await assertModeParity(client, 'pure.ts', sources['pure.ts']);
         // The factory arg is replaced by the entry-module binding.
-        expect(applied.code).toContain("registerPureFnFactory('rt::foo',__rt_pf");
+        expect(applied.code).toContain('registerPureFnFactory(__rt_pf');
       });
     }
   );

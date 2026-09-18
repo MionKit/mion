@@ -106,7 +106,7 @@ func domainHasNames(params map[string]any) bool {
 // before its characters can be judged, re-encoded to prove the spelling is
 // canonical, and the Bidi rule reads every label at once. So the `idna` param
 // routes the whole check to the pure-fn engine
-// (rtFormats::isIdnHostname and its deps in string-formats-pure-fns.ts), with
+// (isIdnHostname and its deps in string-formats-pure-fns.ts), with
 // the declared length bounds AND-chained in front of it exactly as the pattern
 // path does.
 //

@@ -142,12 +142,14 @@ func calleeFirstParamIsCompTimeArgs(typeChecker *checker.Checker, markerOpts mar
 		return false
 	}
 	paramType := checker.Checker_getTypeOfSymbol(typeChecker, first)
-	if kind, _, matched := marker.DetectAny(typeChecker, paramType, markerOpts); matched {
-		return kind == marker.KindCompTimeArgs
+	if kind, _, matched := marker.DetectAny(typeChecker, paramType, markerOpts); matched && kind == marker.KindCompTimeArgs {
+		return true
 	}
-	// CompTimeArgs is the zero-cost identity marker (markers.ts) — invisible to
-	// DetectAny on the resolved type, so recognise it off the parameter's
-	// `CompTimeArgs<…>` annotation node (matches the resolver's scan path).
+	// CompTimeArgs is the zero-cost identity marker (markers.ts): TS keeps its
+	// alias only sometimes, and what survives is whatever the type it wraps
+	// carries — for a pure-fn lookup that is the PureFnId brand. So a match on
+	// another marker settles nothing, and the annotation NODE is what decides
+	// (the same rule the resolver's scan path applies).
 	return comptimeargs.IsCompTimeArgsParamNode(typeChecker, first, markerOpts)
 }
 
@@ -319,8 +321,8 @@ func resolveDeclLocal(typeChecker *checker.Checker, localTable symbolTable, decl
 // mutable bindings can't be reduced to a literal at scan time.
 //
 // Why walk past function boundaries? The dep extractor walks the whole
-// factory body looking for utl.<method>(...) calls; if a `const KEY =
-// 'rt::foo'` lives in an outer block but the call lives in a nested
+// factory body looking for utl.<method>(...) calls; if a `const ID =
+// '@acme/app/src/fns#foo'` lives in an outer block but the call lives in a nested
 // arrow, both should resolve to the same value. Pure-fn semantics
 // guarantee no rebinding, so the simple top-down walk is correct.
 func buildFactoryLocalTable(factoryFn *ast.Node) symbolTable {

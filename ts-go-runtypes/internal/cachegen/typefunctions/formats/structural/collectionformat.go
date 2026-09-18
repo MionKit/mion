@@ -2,8 +2,8 @@
 // COLLECTION keywords. A Set is an array on the wire and a Map is an array of
 // `[key, value]` pairs, so both count with `minItems` / `maxItems` (read off
 // `.size`) and both take `uniqueItems`, each through its OWN pure fn
-// (`rt::uniqueSetMembers` / `rt::uniqueMapEntries`, both depending on
-// `rt::canonicalJson`): a Set compares its members, while a Map compares the
+// (`uniqueSetMembers` / `uniqueMapEntries`, both depending on
+// `canonicalJson`): a Set compares its members, while a Map compares the
 // `[key, value]` PAIRS that are its entries, since two object keys equal by
 // content are two entries and so a duplicate pair when their values match too.
 // `contains` is NOT an emitter concern: it rides the node's Contains checks and

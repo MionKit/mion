@@ -17,7 +17,7 @@
 // turn a duplicate registration into a warning or a double-count.
 
 import {describe, it, expect, vi} from 'vitest';
-import {getRTUtils, getRTFnCaches, pureFnKey} from '../../src/runtypes/rtUtils.ts';
+import {getRTUtils, getRTFnCaches} from '../../src/runtypes/rtUtils.ts';
 import type {CompiledTypeFn} from '../../src/runtypes/types.ts';
 
 describe('precompiled-library dedupe is harmless (E1)', () => {
@@ -51,7 +51,7 @@ describe('precompiled-library dedupe is harmless (E1)', () => {
 
   it('addPureFn keeps the existing entry with NO warning when the body hash matches', () => {
     const utils = getRTUtils();
-    const key = pureFnKey('e1', 'sharedPureFn');
+    const key = '@acme/e1/src/shared#sharedPureFn';
     const compiled = {code: '(utl) => (v) => v === 1', bodyHash: 'e1bodyhash', paramNames: ['v']} as never;
 
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
