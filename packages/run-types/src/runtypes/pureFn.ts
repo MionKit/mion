@@ -110,7 +110,7 @@ function registerCore(caller: string, arg: unknown, id: string | undefined, wrap
   if (typeof arg === 'function') {
     // No-transform fallback (a dev-tool override, or a file the build skipped):
     // the function is right here, so register it directly. Build-time metadata
-    // (bodyHash, stripped code, static dep extraction) is build-only; runtime
+    // (the id's hash, stripped code, static dep extraction) is build-only; runtime
     // behaviour is identical because the function IS the body.
     const compiled: CompiledPureFunction = {
       id,

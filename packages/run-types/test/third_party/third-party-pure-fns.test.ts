@@ -11,7 +11,7 @@
 // The consumer imports both — the re-export RENAMED, plus the wrapper — and
 // never names '@mionjs/run-types'. Extraction used to gate on the literal
 // callee text `registerPureFnFactory`, so BOTH call shapes silently fell back
-// to runtime registration (no bodyHash, no purity checks, no shippable code).
+// to runtime registration (no id, no purity checks, no shippable code).
 // The walker now decides by BRAND alone, so both call sites extract, get their
 // factory argument rewritten to the generated `__rt_pf…` binding, and get the
 // id of the CONSUMER's own binding injected.
