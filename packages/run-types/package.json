@@ -66,16 +66,6 @@
   "bin": {
     "mion-skills": "./bin/skills.mjs"
   },
-  "mion": {
-    "//": "Where this package's pure functions are registered. The compiler extracts their bodies from these files on demand (the dist ships hollowed, so they exist nowhere else), and cmd/gen-builtin-purefns generates the id constants from the same list. Not discoverable by following imports: circular-pure-fns.ts is side-effect imported by nothing.",
-    "pureFns": [
-      "src/runtypes/pure-fns-utils.ts",
-      "src/runtypes/circular-pure-fns.ts",
-      "src/formats/string/string-formats-pure-fns.ts",
-      "src/formats/string/credit-card-pure-fns.ts",
-      "src/formats/datetime/dateTime-pure-fns.ts"
-    ]
-  },
   "files": [
     "dist",
     "!dist/**/*.tsbuildinfo",

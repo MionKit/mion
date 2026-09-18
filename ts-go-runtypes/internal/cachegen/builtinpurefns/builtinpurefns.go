@@ -17,13 +17,13 @@
 // another file is followed through its import. This package only decides WHICH
 // files to hand that resolver and indexes what comes back.
 //
-// Which files: the package declares them, in its package.json `mion.pureFns`.
-// Following imports from its entry points would be nicer and does NOT work: a
-// registration module can be reachable from nothing at all (circular-pure-fns.ts
-// is side-effect imported by no one), and discovery would drop its built-in
-// silently. One declared list, read by this package and by
-// cmd/gen-builtin-purefns, so the id constants and the served bodies cannot come
-// from different files.
+// Which files: the ones that call a registrar, found by reading the package's
+// sources. A file that registers a pure fn contains the call by definition, so
+// nothing can be missed. The two alternatives both can: following imports from
+// the entry points drops circular-pure-fns.ts, which is side-effect imported by
+// no one, and a hand-declared list drops whatever someone forgets to add.
+// cmd/gen-builtin-purefns runs the same scan, so the id constants and the served
+// bodies cannot come from different files.
 //
 // Whose resolver: the session's, whenever the session's Program already holds
 // those files (in-repo the `source` condition puts them there). One resolver and
@@ -34,10 +34,10 @@ package builtinpurefns
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
@@ -160,7 +160,7 @@ func (loader *Loader) extract() ([]purefunctions.Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Every declared source already in the session's program means the session's
+	// Every source already in the session's program means the session's
 	// resolver can answer for all of them, which is the case that must not build a
 	// second Program: two resolvers would hash the same bodies twice.
 	if allInProgram(loader.host.Program, files) {
@@ -229,36 +229,111 @@ func allInProgram(prog *program.Program, files []string) bool {
 	return len(files) > 0
 }
 
-// SourceFiles are the paths the package declares its pure-fn registrations in,
-// resolved under its root.
+// sourceDir is where a package keeps the TypeScript the scan looks through. The
+// tarball ships it (`files` carries `src`), which is the whole reason the bodies
+// are reachable at all.
+const sourceDir = "src"
+
+// registrarNeedle is what a file that registers a pure fn contains.
+// `registerPureFnFactory` has it as a prefix, so one needle covers both
+// registrars. It finds a DIRECT registrar call: a package registering through a
+// wrapper function of its own would name the registrar only in the wrapper's
+// module, and the scan would miss it. That case belongs to whoever generalises
+// this lane to third-party packages; the marker package calls the registrars
+// directly.
+const registrarNeedle = "registerPureFn"
+
+// SourceFiles are the package's files that register a pure fn, found by reading
+// its sources and keeping the ones that call a registrar. A file that registers
+// contains the call by definition, so nothing can be missed the way a declared
+// list or a walk of the import graph can miss it (the marker package's
+// circular-pure-fns.ts is side-effect imported by nothing at all).
+//
+// Spec and test files are skipped because the tarball excludes them: including
+// them in-repo would make the file set differ between the repo and a consumer.
 func SourceFiles(packageRoot string, fileSystem vfspkg.FS) ([]string, error) {
-	manifestPath := tspath.CombinePaths(packageRoot, "package.json")
-	content, err := readManifest(manifestPath, fileSystem)
+	root := tspath.CombinePaths(packageRoot, sourceDir)
+	var files []string
+	err := eachSourceFile(root, fileSystem, func(path, content string) {
+		if strings.Contains(content, registrarNeedle) {
+			files = append(files, path)
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
-	var manifest struct {
-		Mion struct {
-			PureFns []string `json:"pureFns"`
-		} `json:"mion"`
-	}
-	if err := json.Unmarshal([]byte(content), &manifest); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", manifestPath, err)
-	}
-	if len(manifest.Mion.PureFns) == 0 {
-		return nil, fmt.Errorf("%s declares no `mion.pureFns`, so the pure-fn sources cannot be located", manifestPath)
-	}
-	files := make([]string, 0, len(manifest.Mion.PureFns))
-	for _, relative := range manifest.Mion.PureFns {
-		files = append(files, tspath.ResolvePath(packageRoot, relative))
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no file under %s registers a pure function (is the install missing its sources?)", root)
 	}
 	sort.Strings(files)
 	return files, nil
 }
 
-// readManifest reads through the program FS when there is one (an overlay-served
-// package) and falls back to disk, which is what the generator gets.
-func readManifest(path string, fileSystem vfspkg.FS) (string, error) {
+// eachSourceFile reads every candidate `.ts` file under dir, depth first.
+//
+// It descends through GetAccessibleEntries rather than the FS's WalkDir: WalkDir
+// on an overlay filesystem delegates to the real disk and never sees a virtually
+// served package, while GetAccessibleEntries merges the overlay in. Every test
+// that mounts the marker package in an overlay depends on that difference.
+func eachSourceFile(dir string, fileSystem vfspkg.FS, visit func(path, content string)) error {
+	entries, err := readDir(dir, fileSystem)
+	if err != nil {
+		return err
+	}
+	for _, name := range entries.Files {
+		if !isCandidate(name) {
+			continue
+		}
+		path := tspath.CombinePaths(dir, name)
+		content, err := readFile(path, fileSystem)
+		if err != nil {
+			return err
+		}
+		visit(path, content)
+	}
+	for _, name := range entries.Directories {
+		if err := eachSourceFile(tspath.CombinePaths(dir, name), fileSystem, visit); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// isCandidate keeps authored TypeScript only: a declaration file carries no body,
+// and a spec or test file is not in the tarball.
+func isCandidate(name string) bool {
+	if !strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".d.ts") {
+		return false
+	}
+	return !strings.HasSuffix(name, ".spec.ts") && !strings.HasSuffix(name, ".test.ts")
+}
+
+// readDir lists a directory through the program FS when there is one (so an
+// overlay-served package is visible) and falls back to disk, which is what the
+// generator gets.
+func readDir(dir string, fileSystem vfspkg.FS) (vfspkg.Entries, error) {
+	if fileSystem != nil {
+		if !fileSystem.DirectoryExists(dir) {
+			return vfspkg.Entries{}, fmt.Errorf("cannot read %s", dir)
+		}
+		return fileSystem.GetAccessibleEntries(dir), nil
+	}
+	found, err := os.ReadDir(dir)
+	if err != nil {
+		return vfspkg.Entries{}, fmt.Errorf("cannot read %s: %w", dir, err)
+	}
+	var entries vfspkg.Entries
+	for _, entry := range found {
+		if entry.IsDir() {
+			entries.Directories = append(entries.Directories, entry.Name())
+			continue
+		}
+		entries.Files = append(entries.Files, entry.Name())
+	}
+	return entries, nil
+}
+
+func readFile(path string, fileSystem vfspkg.FS) (string, error) {
 	if fileSystem != nil {
 		if content, ok := fileSystem.ReadFile(path); ok {
 			return content, nil
