@@ -5,7 +5,7 @@
 // site the build reads the ORDERED route ids the array literal names, the
 // `inputFrom(source, mapper | name)` links between them, computes the
 // deterministic batch id, and splices that id into the call's empty trailing
-// slot exactly the way the anonymous pure-fn lane splices its `rt::<hash>`.
+// slot exactly the way the pure-fn lane splices a registration's id.
 //
 // The lane is modelled on internal/cachegen/purefunctions (discovery by brand
 // behind a cheap syntactic pre-filter, a per-Program FileCache, wire-shaped

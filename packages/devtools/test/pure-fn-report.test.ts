@@ -5,7 +5,7 @@
 // callback is universal, NOT a vite-only hook) against a self-contained
 // on-disk fixture program, and asserts:
 //   - onPureFnReport fires once after buildStart with phase 'build', covering
-//     both lanes (named `<ns>::name` + anonymous `rt::<hash>`) and both forms.
+//     both forms (factory + direct) and a registration bound to no name.
 //   - the JSON report file round-trips (write → parse → keys match) under BOTH
 //     moduleMode 'default' (per-entry pf modules) and 'allSingle' (one pf
 //     bundle), with an identical report shape and the correct `module` field.
@@ -33,11 +33,11 @@ const TSCONFIG = JSON.stringify({
   include: ['*.ts'],
 });
 
-// Both lanes, both forms: named+factory, named+direct, anonymous+direct.
-const CONSUMER = `import {registerPureFnFactory, registerPureFn, registerAnonymousPureFn} from '@mionjs/run-types';
-export const nf = registerPureFnFactory('rep::mul', (utl) => function _mul(x: number, y: number) { return x * y; });
-export const nd = registerPureFn('rep::neg', function _neg(x: number) { return -x; });
-export const ad = registerAnonymousPureFn(function _double(n: number): number { return n * 2; });
+// Both forms, plus one registration bound to no name (identified by its body).
+const CONSUMER = `import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types';
+export const mul = registerPureFnFactory((utl) => function _mul(x: number, y: number) { return x * y; });
+export const neg = registerPureFn(function _neg(x: number) { return -x; });
+export const nameless = [registerPureFn(function _double(n: number): number { return n * 2; })];
 `;
 
 const ctx = {
@@ -71,7 +71,7 @@ describe('pure-fn build report', () => {
   });
   afterEach(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
-  register('onPureFnReport fires on the rollup adapter with both lanes + forms; JSON file round-trips', async () => {
+  register('onPureFnReport fires on the rollup adapter with both forms; JSON file round-trips', async () => {
     const calls: Array<{phase: string; sites: PureFnSite[]}> = [];
     const plugin = makePlugin({
       pureFnReport: 'file',
@@ -93,26 +93,24 @@ describe('pure-fn build report', () => {
     const sites = calls[0].sites;
     const byKey = new Map(sites.map((s) => [s.key, s]));
 
-    // Named lane keys present verbatim.
-    expect(byKey.has('rep::mul'), `named factory rep::mul missing: ${[...byKey.keys()]}`).toBe(true);
-    expect(byKey.has('rep::neg'), 'named direct rep::neg missing').toBe(true);
-    // Anonymous lane: exactly one rt::<hash> record.
-    const anon = sites.filter((s) => s.lane === 'anonymous');
-    expect(anon.length, 'one anonymous record').toBe(1);
-    expect(anon[0].key).toMatch(/^rt::[A-Za-z0-9_-]+$/);
+    // Each record is keyed by the id of the binding it is written on.
+    expect(byKey.has('consumer#mul'), `factory consumer#mul missing: ${[...byKey.keys()]}`).toBe(true);
+    expect(byKey.has('consumer#neg'), 'direct consumer#neg missing').toBe(true);
+    // The nameless registration is keyed by its body hash instead.
+    const nameless = sites.filter((s) => /^consumer#[A-Za-z0-9_-]{14}$/.test(s.key));
+    expect(nameless.length, 'one body-hashed record').toBe(1);
 
     // Forms + callee attribution (primitive registrar → @mionjs/run-types).
-    expect(byKey.get('rep::mul')!.form).toBe('factory');
-    expect(byKey.get('rep::mul')!.lane).toBe('named');
-    expect(byKey.get('rep::mul')!.calleeName).toBe('registerPureFnFactory');
-    expect(byKey.get('rep::mul')!.calleeModule).toBe('@mionjs/run-types');
-    expect(byKey.get('rep::neg')!.form).toBe('direct');
-    expect(anon[0].form).toBe('direct');
+    expect(byKey.get('consumer#mul')!.form).toBe('factory');
+    expect(byKey.get('consumer#mul')!.calleeName).toBe('registerPureFnFactory');
+    expect(byKey.get('consumer#mul')!.calleeModule).toBe('@mionjs/run-types');
+    expect(byKey.get('consumer#neg')!.form).toBe('direct');
+    expect(nameless[0].form).toBe('direct');
 
     // The self-contained payload rides inline (code + paramNames) — no need to
     // read generated modules. Default emitMode ships the code body string.
-    expect(byKey.get('rep::mul')!.paramNames).toEqual(['utl']);
-    expect(byKey.get('rep::mul')!.code, 'factory code should be present in default emit mode').toBeTruthy();
+    expect(byKey.get('consumer#mul')!.paramNames).toEqual(['utl']);
+    expect(byKey.get('consumer#mul')!.code, 'factory code should be present in default emit mode').toBeTruthy();
 
     // JSON file round-trips: write → parse → keys match the injected report.
     // The report lives INSIDE types/, alongside the generated cache modules, so
@@ -156,7 +154,7 @@ describe('pure-fn build report', () => {
     // Same keys either way — the report shape does not depend on moduleMode.
     expect(new Set(bundled.map((s) => s.key))).toEqual(new Set(perEntry.map((s) => s.key)));
 
-    // default: per-entry pf/<ns>/<fn>. allSingle: the single `pf` bundle.
+    // default: per-entry pf/<id>. allSingle: the single `pf` bundle.
     for (const s of perEntry) {
       expect(s.module, `${s.key} per-entry module`).toMatch(/^pf\//);
     }

@@ -287,14 +287,14 @@ func (sess *Session) extractProgramPureFns(metrics *protocol.Metrics) (entries [
 func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodules.Graph, []diagnostics.Diagnostic) {
 	entries, _, diags := sess.extractProgramPureFns(metrics)
 	// Precedence: the built-in pure-fn table is the SINGLE producer of every
-	// `rt::`/`rtFormats::` body. An IN-REPO program resolves the package via `src/`
+	// package-owned body. An IN-REPO program resolves the package via `src/`
 	// (the `source` condition), so the extractor would ALSO find the built-in
-	// registrations and serve a second, clashing producer for the same key. Drop
-	// those program entries — the table wins on key clash — so there is exactly one
-	// pure-fn module per built-in key regardless of how the package resolved. (A
+	// registrations and serve a second, clashing producer for the same id. Drop
+	// those program entries — the table wins on an id clash — so there is exactly one
+	// pure-fn module per built-in id regardless of how the package resolved. (A
 	// published consumer never hits this: its program has only a .d.ts, nothing to
-	// extract.) User keys, including the anonymous lane's `rt::<hash>`, are not in
-	// the table and pass through untouched.
+	// extract.) A consumer's own ids are not in the table and pass through
+	// untouched.
 	kept := entries[:0]
 	for _, entry := range entries {
 		if builtinpurefns.Has(entry.Key()) {
@@ -316,8 +316,8 @@ func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodu
 // otherwise, so the pipeline pays nothing when the report is off. It reuses the
 // same deduped whole-program extraction as collectProgramPureFns (memoized by
 // the per-Program FileCache, so no extra walk) and drops the built-in
-// `rt::`/`rtFormats::` entries an in-repo program surfaces — a published
-// consumer never emits those, and they are not user-registered pure fns. Cfn
+// entries an in-repo program surfaces — a published consumer never emits those,
+// and they are not user-registered pure fns. Cfn
 // override entries are NOT in this set (they carry no registrar call site).
 func (sess *Session) collectPureFnReport(metrics *protocol.Metrics) []protocol.PureFnSite {
 	if !sess.opts.PureFnReportWire {
@@ -393,7 +393,7 @@ func (sess *Session) batchReportForSites(sites []requestbatch.Site) []protocol.B
 // The index is a WHOLE-program extraction — a registration in ANY program file
 // satisfies the dep by key. This is the correctness pivot: the per-file scan
 // set (extractPureFnsForScan) covers only the requested files, so validating
-// against it would false-positive on `rt::newRunTypeErr` and friends, which
+// against it would false-positive on `newRunTypeErr` and friends, which
 // register in the mion package's own source (pulled into the program by
 // its side-effect import), never in the user's requested files. The dep's
 // FilePath hint drives only ValidatePureFnDependencies' lazy expansion, which
@@ -409,8 +409,8 @@ func (sess *Session) batchReportForSites(sites []requestbatch.Site) []protocol.B
 // parallel).
 //
 // Built-in exemption (NOT a count guard): the deps reaching here are the ones
-// emitted RT bodies reach, which are ALWAYS in a @mionjs/run-types-owned
-// namespace (rt::, rtFormats:: — see AddPureFnDependency call sites). Those are
+// emitted RT bodies reach, which are ALWAYS ids the package owns (see the
+// AddPureFnDependency call sites, each naming a purefnids constant). Those are
 // registered by the package's own side-effect imports at runtime but their
 // source is a .d.ts in a published-package consumer's program, so cross-checking
 // them false-positives. purefunctions.ValidatePureFnDependencies skips built-in

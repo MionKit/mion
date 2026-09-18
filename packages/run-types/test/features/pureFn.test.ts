@@ -6,210 +6,211 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import type {CompiledPureFunction} from '../../src/runtypes/types.ts';
-import {RTUtils, getRTUtils, pureFnKey} from '../../src/runtypes/rtUtils.ts';
-import {registerPureFnFactory} from '../../src/runtypes/pureFn.ts';
+import {getRTUtils, type RTUtils} from '../../src/runtypes/rtUtils.ts';
+import {registerPureFn, registerPureFnFactory} from '../../src/runtypes/pureFn.ts';
+import {trimHelper} from './pureFnHelpers.ts';
 
-const TEST_NAMESPACE = 'test';
-
-function getCompiledPureFn(namespace: string, fnName: string): CompiledPureFunction | undefined {
-  return getRTUtils().getCompiledPureFnByKey(pureFnKey(namespace, fnName));
-}
+// The vitest transform runs the plugin in-process, so every registration below
+// is rewritten to its entry-module tuple plus the injected id, exactly what a
+// built consumer sees. An id is WHERE the registration lives, so it is
+// predictable from this file's path and the name it is bound to.
+const HERE = '@mionjs/run-types/test/features/pureFn.test#';
 
 // 14-char base64url — what the Go binary's BodyHash emits.
 const BODY_HASH_REGEX = /^[A-Za-z0-9_-]{14}$/;
 
-it('register and get pure function with extracted data', () => {
-  type StringParams = {
-    isLowercase?: boolean;
-    isNumeric?: boolean;
+type StringParams = {isLowercase?: boolean; isNumeric?: boolean};
+type Params = {isA?: boolean; isB?: boolean};
+
+// FACTORY form: the argument is a factory, emitted as-is, so its one-time setup
+// (the regexp below) runs once.
+const stringPureFn = registerPureFnFactory(function () {
+  const isNumericRegexp = /^[0-9]+$/;
+  return function is_s(s: string, p: StringParams): boolean {
+    if (p.isLowercase && s !== s.toLowerCase()) return false;
+    if (p.isNumeric && !isNumericRegexp.test(s)) return false;
+    return true;
   };
-  registerPureFnFactory('test::stringPureFn', function () {
-    const isNumericRegexp = /^[0-9]+$/;
-    return function is_s(s: string, p: StringParams): boolean {
-      if (p.isLowercase && s !== s.toLowerCase()) return false;
-      if (p.isNumeric && !isNumericRegexp.test(s)) return false;
-      return true;
-    };
-  });
-  const restoredFn = getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'stringPureFn')) as (
-    s: string,
-    p: StringParams
-  ) => boolean;
-  expect(restoredFn).toBeDefined();
-  expect(restoredFn).toBeInstanceOf(Function);
-  expect(restoredFn('a', {isLowercase: true})).toBe(true);
-  expect(restoredFn('A', {isLowercase: true})).toBe(false);
 });
 
-it('throws when no cache entry is found (USER key, null factory)', () => {
-  // A USER-namespaced key with a null factory and no cache entry is a
-  // missing-plugin signal — the Go binary only emits entries for files it walks,
-  // so a key it never saw must throw. (The hollowed BUILT-IN lane is exempt; see
-  // the 'hollowed built-in lane' block below.)
-  // @mion-downgrade-error CTA003 PFN001
-  expect(() => registerPureFnFactory(`${TEST_NAMESPACE}_unscanned_${Math.random()}::noSuchFn`, null)).toThrow(
-    /no cache entry for/
-  );
-});
+// DIRECT form: the argument IS the pure fn; the compiler wraps it in a factory.
+const halve = registerPureFn((n: number): number => n / 2);
 
-it('populates bodyHash, paramNames, and code from extracted data', () => {
-  registerPureFnFactory('test::metadataTestFn', function () {
-    return function test_fn(val: string): string {
-      return val.toUpperCase();
-    };
-  });
-  const compiled = getCompiledPureFn(TEST_NAMESPACE, 'metadataTestFn');
-  expect(compiled).toBeDefined();
-  expect(compiled?.bodyHash).toMatch(BODY_HASH_REGEX);
-  expect(compiled?.paramNames).toEqual([]);
-  expect(typeof compiled?.code).toBe('string');
-  expect(compiled?.code?.length).toBeGreaterThan(0);
-  expect(compiled?.fnName).toBe('metadataTestFn');
-  expect(compiled?.namespace).toBe(TEST_NAMESPACE);
-});
-
-it('auto-detects dependencies via proxy when factory calls getPureFn', () => {
-  type Params = {
-    isA?: boolean;
-    isB?: boolean;
+const metadataFn = registerPureFnFactory(function () {
+  return function test_fn(val: string): string {
+    return val.toUpperCase();
   };
-  registerPureFnFactory('test::pureFunctionA', function (_jUtils: RTUtils) {
-    return function is_a(s: string, p: Params): boolean {
-      if (p.isA) return s.includes('a');
-      return true;
-    };
-  });
-  registerPureFnFactory('test::pureFunctionB', function (jUtils: RTUtils) {
-    const isA = jUtils.getPureFn('test::pureFunctionA') as (s: string, p: Params) => boolean;
-    return function is_b(s: string, p: Params): boolean {
-      const isAResult = isA(s, p);
-      if (p.isB) return isAResult && s.includes('b');
-      return isAResult;
-    };
-  });
-  const compiledIsA = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionA');
-  const compiledIsB = getCompiledPureFn(TEST_NAMESPACE, 'pureFunctionB');
-  expect(compiledIsA).toBeDefined();
-  expect(compiledIsB).toBeDefined();
-  // Materialise `fn` lazily — the cache module sets fn=undefined until
-  // a getPureFn / usePureFn caller forces createPureFn to run.
-  expect(getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'pureFunctionA'))).toBeInstanceOf(Function);
-  expect(getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'pureFunctionB'))).toBeInstanceOf(Function);
-  // Static dep extraction emits full `"<namespace>::<fnName>"` keys.
-  expect(compiledIsB?.pureFnDependencies?.includes('test::pureFunctionA')).toBeTruthy();
-  expect(compiledIsA?.pureFnDependencies ?? []).toEqual([]);
-  expect(compiledIsA?.namespace).toBe(TEST_NAMESPACE);
-  expect(compiledIsB?.namespace).toBe(TEST_NAMESPACE);
 });
 
-describe('arrow function factory functions', () => {
-  it('should register and get arrow function pure factory with parentheses', () => {
-    type StringParams = {
-      isLowercase?: boolean;
-    };
-    registerPureFnFactory('test::arrowWithParens', (_jUtils: RTUtils) => {
-      return function is_s(s: string, p: StringParams): boolean {
-        if (p.isLowercase) return s === s.toLowerCase();
-        return true;
-      };
-    });
-    const restoredFn = getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'arrowWithParens')) as (
-      s: string,
-      p: StringParams
-    ) => boolean;
-    expect(restoredFn).toBeDefined();
-    expect(restoredFn).toBeInstanceOf(Function);
-    expect(restoredFn('abc', {isLowercase: true})).toBe(true);
-    expect(restoredFn('ABC', {isLowercase: true})).toBe(false);
+const isA = registerPureFnFactory(function (_utl: RTUtils) {
+  return function is_a(s: string, p: Params): boolean {
+    if (p.isA) return s.includes('a');
+    return true;
+  };
+});
+
+// Reaches another pure fn by its id, so the dependency is recorded from the
+// binding rather than from a repeated string.
+const isB = registerPureFnFactory(function (utl: RTUtils) {
+  const checkA = utl.getPureFn(isA) as (s: string, p: Params) => boolean;
+  return function is_b(s: string, p: Params): boolean {
+    const isAResult = checkA(s, p);
+    if (p.isB) return isAResult && s.includes('b');
+    return isAResult;
+  };
+});
+
+// Same, across files: the id is imported from another module.
+const trimTwice = registerPureFnFactory(function (utl: RTUtils) {
+  const trim = utl.getPureFn(trimHelper) as (s: string) => string;
+  return function trim_twice(s: string): string {
+    return trim(trim(s));
+  };
+});
+
+const arrowWithParens = registerPureFnFactory((_utl: RTUtils) => {
+  return function is_lower(s: string, p: StringParams): boolean {
+    if (p.isLowercase) return s === s.toLowerCase();
+    return true;
+  };
+});
+
+const arrowExpression = registerPureFnFactory(
+  (_utl: RTUtils) =>
+    function multiply(n: number, p: {multiplier?: number}): number {
+      return n * (p.multiplier ?? 1);
+    }
+);
+
+// Bound to no name (handed straight to an array), so these are identified by
+// their body instead of their location.
+const namelessIds = [
+  registerPureFn((s: string): string => s.padStart(3, '0')),
+  registerPureFn((s: string): string => s.padStart(3, '0')),
+  registerPureFn((s: string): string => s.padEnd(3, '0')),
+];
+
+// The registrar with its marker brands cast away: the scanner no longer sees a
+// registration, so nothing is injected. This is what an unprocessed file ships,
+// and it is also the dev-tool override path.
+const rawRegister = registerPureFn as unknown as (fn: unknown, id?: string) => string;
+
+describe('a pure fn is identified by where it lives', () => {
+  it('the factory form returns its id and runs', () => {
+    expect(stringPureFn).toBe(`${HERE}stringPureFn`);
+    const restored = getRTUtils().getPureFn(stringPureFn) as (s: string, p: StringParams) => boolean;
+    expect(restored).toBeInstanceOf(Function);
+    expect(restored('a', {isLowercase: true})).toBe(true);
+    expect(restored('A', {isLowercase: true})).toBe(false);
   });
 
-  it('should register arrow function with expression body', () => {
-    type NumParams = {
-      multiplier?: number;
-    };
-    registerPureFnFactory(
-      'test::arrowExpression',
-      (_jUtils: RTUtils) =>
-        function multiply(n: number, p: NumParams): number {
-          return n * (p.multiplier ?? 1);
-        }
-    );
-    const restoredFn = getRTUtils().getPureFnByKey(pureFnKey(TEST_NAMESPACE, 'arrowExpression')) as (
-      n: number,
-      p: NumParams
-    ) => number;
-    expect(restoredFn).toBeDefined();
-    expect(restoredFn).toBeInstanceOf(Function);
-    expect(restoredFn(5, {multiplier: 3})).toBe(15);
-    expect(restoredFn(5, {})).toBe(5);
+  it('the direct form returns its id and runs', () => {
+    expect(halve).toBe(`${HERE}halve`);
+    const restored = getRTUtils().getPureFn(halve) as (n: number) => number;
+    expect(restored(84)).toBe(42);
   });
 
-  it('should auto-detect dependencies for arrow functions', () => {
-    type Params = {
-      isA?: boolean;
-      isB?: boolean;
-    };
-    registerPureFnFactory('test::arrowFnA', (_jUtils: RTUtils) => {
-      return function is_a(s: string, p: Params): boolean {
-        if (p.isA) return s.includes('a');
-        return true;
-      };
-    });
-    registerPureFnFactory('test::arrowFnB', (jUtils: RTUtils) => {
-      const isA = jUtils.getPureFn('test::arrowFnA') as (s: string, p: Params) => boolean;
-      return function is_b(s: string, p: Params): boolean {
-        const isAResult = isA(s, p);
-        if (p.isB) return isAResult && s.includes('b');
-        return isAResult;
-      };
-    });
-    const compiledA = getCompiledPureFn(TEST_NAMESPACE, 'arrowFnA');
-    const compiledB = getCompiledPureFn(TEST_NAMESPACE, 'arrowFnB');
+  it('carries bodyHash, paramNames and code from the extracted data', () => {
+    const compiled = getRTUtils().getCompiledPureFn(metadataFn);
+    expect(compiled).toBeDefined();
+    expect(compiled?.id).toBe(`${HERE}metadataFn`);
+    expect(compiled?.bodyHash).toMatch(BODY_HASH_REGEX);
+    expect(compiled?.paramNames).toEqual([]);
+    expect(typeof compiled?.code).toBe('string');
+    expect(compiled?.code?.length).toBeGreaterThan(0);
+  });
+
+  it('gives a nameless registration a body hash, and collapses equal bodies', () => {
+    const [first, second, other] = namelessIds;
+    expect(first).toBe(second);
+    expect(other).not.toBe(first);
+    const [, name] = first.split('#');
+    expect(name).toMatch(BODY_HASH_REGEX);
+    const restored = getRTUtils().getPureFn(first) as (s: string) => string;
+    expect(restored('7')).toBe('007');
+  });
+});
+
+describe('one pure fn reaches another by its id', () => {
+  it('records the dependency from a binding in the same file', () => {
+    const compiledA = getRTUtils().getCompiledPureFn(isA);
+    const compiledB = getRTUtils().getCompiledPureFn(isB);
     expect(compiledA).toBeDefined();
     expect(compiledB).toBeDefined();
-    expect(compiledB?.pureFnDependencies?.includes('test::arrowFnA')).toBeTruthy();
+    // Materialise lazily — the cache module leaves fn undefined until a
+    // getPureFn / usePureFn caller forces createPureFn to run.
+    expect(getRTUtils().getPureFn(isA)).toBeInstanceOf(Function);
+    const runB = getRTUtils().getPureFn(isB) as (s: string, p: Params) => boolean;
+    expect(runB('ab', {isA: true, isB: true})).toBe(true);
+    expect(runB('b', {isA: true, isB: true})).toBe(false);
+    expect(compiledB?.pureFnDependencies).toContain(isA);
     expect(compiledA?.pureFnDependencies ?? []).toEqual([]);
+  });
+
+  it('records the dependency from an id imported out of another file', () => {
+    expect(trimHelper).toBe('@mionjs/run-types/test/features/pureFnHelpers#trimHelper');
+    const compiled = getRTUtils().getCompiledPureFn(trimTwice);
+    expect(compiled?.pureFnDependencies).toContain(trimHelper);
+    const run = getRTUtils().getPureFn(trimTwice) as (s: string) => string;
+    expect(run('  hi  ')).toBe('hi');
   });
 });
 
-// The hollowed built-in lane (demand-driven built-in pure-fns, phase
-// E): the dist build strips the `rt::`/`rtFormats::` factory bodies to `null`
-// because the resolver now delivers them on demand through the pure-fn cache. A
-// `null` factory for such a key must be an inert no-op — never a throw, and never
-// a cached placeholder that could mask the real body arriving via a deps thunk.
-describe('hollowed built-in lane', () => {
-  it('null factory for a built-in key is inert: no throw, not cached', () => {
-    const key = 'rt::hollowLaneUnusedFn';
-    expect(getRTUtils().getCompiledPureFnByKey(key)).toBeUndefined();
-    // Hollowed dist ships `registerPureFnFactory('rt::…', null)`.
-    // @mion-downgrade-error PFN001
-    expect(() => registerPureFnFactory(key, null)).not.toThrow();
-    // Crucially NOT cached — a cached placeholder would mask the real registration.
-    expect(getRTUtils().getCompiledPureFnByKey(key)).toBeUndefined();
+describe('arrow function factories', () => {
+  it('registers an arrow factory with a block body', () => {
+    const restored = getRTUtils().getPureFn(arrowWithParens) as (s: string, p: StringParams) => boolean;
+    expect(restored('abc', {isLowercase: true})).toBe(true);
+    expect(restored('ABC', {isLowercase: true})).toBe(false);
   });
 
-  it('rtFormats:: built-in key is inert too', () => {
+  it('registers an arrow factory with an expression body', () => {
+    const restored = getRTUtils().getPureFn(arrowExpression) as (n: number, p: {multiplier?: number}) => number;
+    expect(restored(5, {multiplier: 3})).toBe(15);
+    expect(restored(5, {})).toBe(5);
+  });
+});
+
+describe('a registration with no injected id', () => {
+  it('throws the missing-plugin message', () => {
+    expect(() => rawRegister((n: number): number => n * 2)).toThrow(/no id injected/);
+  });
+});
+
+// A hollowed registration: the body no longer ships in this file (a package
+// build stripped it) and travels on demand through the pure-fn cache. The call
+// must be inert — never a throw, and never a cached placeholder that could mask
+// the real body arriving later.
+describe('hollowed registrations', () => {
+  it('a null registration caches nothing and does not throw', () => {
     // @mion-downgrade-error PFN001
-    expect(() => registerPureFnFactory('rtFormats::hollowLaneUnusedFmt', null)).not.toThrow();
-    expect(getRTUtils().getCompiledPureFn('rtFormats::hollowLaneUnusedFmt')).toBeUndefined();
+    const hollow = registerPureFn(null);
+    expect(hollow).toBe('');
+    expect(getRTUtils().getCompiledPureFnByKey(`${HERE}hollow`)).toBeUndefined();
   });
 
-  it('real body wins whichever order it arrives in (deps-thunk after hollowed call)', () => {
-    const key = 'rt::hollowLaneRealBody';
-    // Hollowed side-effect import runs first (inert).
-    // @mion-downgrade-error PFN001
-    registerPureFnFactory(key, null);
-    expect(getRTUtils().getCompiledPureFnByKey(key)).toBeUndefined();
-    // The demand-driven cache then registers the real body (modelled here via the
-    // no-plugin function path; production registers a tuple through the deps thunk).
-    registerPureFnFactory(key, function () {
-      return function real() {
-        return 42;
-      };
-    });
-    const fn = getRTUtils().getPureFnByKey(key) as () => number;
-    expect(fn).toBeDefined();
+  it('the real body wins whichever order it arrives in', () => {
+    const id = `${HERE}hollowLaneRealBody`;
+    expect(rawRegister(null, id)).toBe(id);
+    expect(getRTUtils().getCompiledPureFnByKey(id)).toBeUndefined();
+    rawRegister(() => 42, id);
+    const fn = getRTUtils().getPureFnByKey(id) as () => number;
     expect(fn()).toBe(42);
+  });
+});
+
+describe('runtime-id lookups stay untracked', () => {
+  it('getPureFnByKey / hasPureFnByKey resolve an id built at runtime', () => {
+    // Built at runtime the way a framework dispatching on a wire id does, NOT a
+    // comptime literal, so the build tracks nothing here.
+    const wireId: string = [HERE, 'halve'].join('');
+    expect(getRTUtils().hasPureFnByKey(wireId)).toBe(true);
+    const fn = getRTUtils().getPureFnByKey(wireId) as (n: number) => number;
+    expect(fn(84)).toBe(42);
+  });
+
+  it('returns undefined / false for an unregistered id', () => {
+    const missing = HERE + 'notRegistered0';
+    expect(getRTUtils().hasPureFnByKey(missing)).toBe(false);
+    expect(getRTUtils().getPureFnByKey(missing)).toBeUndefined();
   });
 });

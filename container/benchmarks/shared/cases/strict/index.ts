@@ -3,7 +3,7 @@
 //
 // Why this group exists as its own suite rather than a flag on the others: it is
 // the ONLY group that reaches the `runsAfterValidation` key-count fast path, and
-// therefore the only one that exercises `rt::countEnumKeys` — the pure fn that
+// therefore the only one that exercises `countEnumKeys` — the pure fn that
 // picks a different counter per JavaScript engine (`for-in` on V8, a
 // prototype-guarded `Object.keys` on JavaScriptCore). Without these cases the
 // benchmark suite never calls that code at all, so running the suite under Bun

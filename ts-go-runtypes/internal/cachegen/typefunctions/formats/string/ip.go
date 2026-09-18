@@ -1,6 +1,7 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
@@ -54,11 +55,11 @@ func ipCheckExpr(params map[string]any, vλl string, ctx formats.EmitContext) st
 	literal := jsParamsLiteral(params)
 	switch ipVersion(params) {
 	case "4":
-		return ipCall(ctx, "isIPV4", vλl, literal) + "===''"
+		return ipCall(ctx, purefnids.IsIPV4, vλl, literal) + "===''"
 	case "6":
-		return ipCall(ctx, "isIPV6", vλl, literal) + "===''"
+		return ipCall(ctx, purefnids.IsIPV6, vλl, literal) + "===''"
 	default:
-		return "(" + ipCall(ctx, "isIPV4", vλl, literal) + "==='' || " + ipCall(ctx, "isIPV6", vλl, literal) + "==='')"
+		return "(" + ipCall(ctx, purefnids.IsIPV4, vλl, literal) + "==='' || " + ipCall(ctx, purefnids.IsIPV6, vλl, literal) + "==='')"
 	}
 }
 
@@ -98,14 +99,14 @@ func (ipEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotati
 		formats.FormatErrorTypeProp(mode))
 	switch version {
 	case "4":
-		return "{const " + mode + "=" + ipCall(ctx, "isIPV4", vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
+		return "{const " + mode + "=" + ipCall(ctx, purefnids.IsIPV4, vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
 	case "6":
-		return "{const " + mode + "=" + ipCall(ctx, "isIPV6", vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
+		return "{const " + mode + "=" + ipCall(ctx, purefnids.IsIPV6, vλl, literal) + ";if (" + mode + "!=='') " + errCall + ";}"
 	default:
 		mode4 := ctx.NextLocalVar("ipMode4")
 		mode6 := ctx.NextLocalVar("ipMode6")
-		return "{const " + mode4 + "=" + ipCall(ctx, "isIPV4", vλl, literal) + ";" +
-			"const " + mode6 + "=" + mode4 + "==='' ? '' : " + ipCall(ctx, "isIPV6", vλl, literal) + ";" +
+		return "{const " + mode4 + "=" + ipCall(ctx, purefnids.IsIPV4, vλl, literal) + ";" +
+			"const " + mode6 + "=" + mode4 + "==='' ? '' : " + ipCall(ctx, purefnids.IsIPV6, vλl, literal) + ";" +
 			"const " + mode + "=" + mode4 + "==='' || " + mode6 + "==='' ? '' : " +
 			mode4 + "==='port' || " + mode6 + "==='port' ? 'port' : 'address';" +
 			"if (" + mode + "!=='') " + errCall + ";}"

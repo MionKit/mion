@@ -44,8 +44,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
   export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
   export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
   export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
+  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
 }
 `;
@@ -228,7 +227,7 @@ const mapping = (fromId: string, toId: string, paramIndex: number, mapperKey: st
     paramIndex,
     mapperKey: typeof mapperKey === 'string' ? mapperKey : expect.stringMatching(mapperKey),
   }) as BatchMapping;
-const INLINE_KEY = /^rt::[A-Za-z0-9_-]+$/;
+const INLINE_KEY = /^[A-Za-z0-9_.-]+#[A-Za-z0-9_-]{14}$/;
 
 describe('request-batch diagnostics and readable shapes', () => {
   const register = hasBinary() ? it : it.skip;
@@ -345,24 +344,14 @@ describe('request-batch diagnostics and readable shapes', () => {
         mapperKey: INLINE_KEY,
       },
       'inline mapper bound to a const': {
+        // The mapper IS bound to a name here (the inputFrom call initialises
+        // `ref`), so its id names that binding instead of hashing its body.
         body: `const ref = inputFrom(user, (u: {id: number}) => u.id);\nexport const b = batch([user, routes.orders.list(ref)]);\n`,
-        mapperKey: INLINE_KEY,
+        mapperKey: 'case#ref',
       },
       'inline mapper .asArg() bound to a const': {
         body: `const ref = inputFrom(user, (u: {id: number}) => u.id).asArg();\nexport const b = batch([user, routes.orders.list(ref)]);\n`,
         mapperKey: INLINE_KEY,
-      },
-      'name lane with a string literal': {
-        body: `export const b = batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);\n`,
-        mapperKey: 'mionjs::toUserId',
-      },
-      'name lane with .asArg()': {
-        body: `export const b = batch([user, routes.orders.list(inputFrom(user, 'toUserId').asArg())]);\n`,
-        mapperKey: 'mionjs::toUserId',
-      },
-      'name lane through a const name': {
-        body: `const name = 'toUserId';\nexport const b = batch([user, routes.orders.list(inputFrom(user, name))]);\n`,
-        mapperKey: 'mionjs::toUserId',
       },
     };
     for (const [name, {body, mapperKey}] of Object.entries(mapped)) {
@@ -373,9 +362,8 @@ describe('request-batch diagnostics and readable shapes', () => {
           expect(site.routeIds).toEqual(['users/getById', 'orders/list']);
           expect(site.mappings).toEqual([mapping('users/getById', 'orders/list', 0, mapperKey)]);
           const code = await expectInjected(run, 'case.ts', [site]);
-          // An inline mapper keeps its own rt:: hash injection at the inputFrom call.
-          if (mapperKey === INLINE_KEY) expect(code).toContain(`'${site.mappings![0].mapperKey}'`);
-          else expect(code).not.toContain(`'${mapperKey}'`);
+          // The mapper's id is injected at its own inputFrom call.
+          expect(code).toContain(`'${site.mappings![0].mapperKey}'`);
         });
       });
     }
@@ -384,12 +372,12 @@ describe('request-batch diagnostics and readable shapes', () => {
       const source =
         PRELUDE +
         `const order = routes.orders.getById(2);\n` +
-        `export const b = batch([user, order, routes.orders.between(inputFrom(user, 'lo'), inputFrom(order, (o: {id: number}) => o.id).asArg())]);\n`;
+        `export const b = batch([user, order, routes.orders.between(inputFrom(user, (u: {id: number}) => u.id - 1), inputFrom(order, (o: {id: number}) => o.id).asArg())]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         const [site] = expectClean(run, 'case.ts');
         expect(site.routeIds).toEqual(['users/getById', 'orders/getById', 'orders/between']);
         expect(site.mappings).toEqual([
-          mapping('users/getById', 'orders/between', 0, 'mionjs::lo'),
+          mapping('users/getById', 'orders/between', 0, INLINE_KEY),
           mapping('orders/getById', 'orders/between', 1, INLINE_KEY),
         ]);
         await expectInjected(run, 'case.ts', [site]);
@@ -399,14 +387,14 @@ describe('request-batch diagnostics and readable shapes', () => {
     register('a chain of three routes, each fed by the one before', async () => {
       const source =
         PRELUDE +
-        `const orders = routes.orders.list(inputFrom(user, 'toUserId'));\n` +
+        `const orders = routes.orders.list(inputFrom(user, (u: {id: number}) => u.id));\n` +
         `export const b = batch([user, orders, routes.reports.summary(inputFrom(orders, (ids: string[]) => ids).asArg())]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         const [site] = expectClean(run, 'case.ts');
         expect(site.routeIds).toEqual(['users/getById', 'orders/list', 'reports/summary']);
         // Canonical (toId, paramIndex) order: orders/list sorts before reports/summary.
         expect(site.mappings).toEqual([
-          mapping('users/getById', 'orders/list', 0, 'mionjs::toUserId'),
+          mapping('users/getById', 'orders/list', 0, INLINE_KEY),
           mapping('orders/list', 'reports/summary', 0, INLINE_KEY),
         ]);
         await expectInjected(run, 'case.ts', [site]);
@@ -415,15 +403,15 @@ describe('request-batch diagnostics and readable shapes', () => {
 
     register('a plain argument next to a mapping is not a mapping', async () => {
       const source =
-        PRELUDE + `const id = 7;\nexport const b = batch([user, routes.orders.between(id, inputFrom(user, 'hi'))]);\n`;
+        PRELUDE + `const id = 7;\nexport const b = batch([user, routes.orders.between(id, inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         const [site] = expectClean(run, 'case.ts');
-        expect(site.mappings).toEqual([mapping('users/getById', 'orders/between', 1, 'mionjs::hi')]);
+        expect(site.mappings).toEqual([mapping('users/getById', 'orders/between', 1, INLINE_KEY)]);
       });
     });
 
     register('the same batch in two files: one id, one report entry per file, no BAT003', async () => {
-      const body = `const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);\n`;
+      const body = `export const b = batch([routes.users.getById(1), routes.orders.list(1)]);\n`;
       await withBuild({'one.ts': IMPORTS + body, 'two.ts': IMPORTS + body}, {}, async (run) => {
         const [one] = expectClean(run, 'one.ts');
         const [two] = expectClean(run, 'two.ts');
@@ -436,10 +424,26 @@ describe('request-batch diagnostics and readable shapes', () => {
       });
     });
 
+    register('the same batch with an inline mapper in two files: an id per file, no BAT003', async () => {
+      // A mapper written in two files is two pure functions, one per file, so the
+      // two batches reference different mapper ids and get different batch ids.
+      // Different plans, different ids — which is the opposite of a collision.
+      const body = `const user = routes.users.getById(1);\nexport const b = batch([user, routes.orders.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
+      await withBuild({'one.ts': IMPORTS + body, 'two.ts': IMPORTS + body}, {}, async (run) => {
+        const [one] = expectClean(run, 'one.ts');
+        const [two] = expectClean(run, 'two.ts');
+        expect(one.mappings![0].mapperKey).toMatch(/^one#/);
+        expect(two.mappings![0].mapperKey).toMatch(/^two#/);
+        expect(two.batchId).not.toBe(one.batchId);
+        await expectInjected(run, 'one.ts', [one]);
+        await expectInjected(run, 'two.ts', [two]);
+      });
+    });
+
     register('same routes, different mappings: two batches with two ids', async () => {
       const source =
         PRELUDE +
-        `export const byName = batch([user, routes.orders.list(inputFrom(user, 'toUserId'))]);\n` +
+        `export const byOther = batch([user, routes.orders.list(inputFrom(user, (u: {id: number}) => u.id + 1))]);\n` +
         `export const byFn = batch([user, routes.orders.list(inputFrom(user, (u: {id: number}) => u.id).asArg())]);\n` +
         `export const plain = batch([user, routes.orders.list(1)]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
@@ -447,8 +451,10 @@ describe('request-batch diagnostics and readable shapes', () => {
         const ids = new Set(sites.map((s) => s.batchId));
         expect(ids.size, 'three distinct ids').toBe(3);
         for (const site of sites) expect(site.routeIds).toEqual(['users/getById', 'orders/list']);
-        expect(sites[0].mappings![0].mapperKey).toBe('mionjs::toUserId');
+        expect(sites[0].mappings![0].mapperKey).toMatch(INLINE_KEY);
         expect(sites[1].mappings![0].mapperKey).toMatch(INLINE_KEY);
+        // Different mapper bodies, so the two batches carry different mapper ids.
+        expect(sites[0].mappings![0].mapperKey).not.toBe(sites[1].mappings![0].mapperKey);
         expect(sites[2].mappings ?? []).toEqual([]);
         await expectInjected(run, 'case.ts', sites);
       });
@@ -582,18 +588,18 @@ describe('request-batch diagnostics and readable shapes', () => {
 
     register('source route is not an element of the batch', async () => {
       const source =
-        PRELUDE + `export const b = batch([routes.orders.getById(2), routes.orders.list(inputFrom(user, 'toUserId'))]);\n`;
+        PRELUDE + `export const b = batch([routes.orders.getById(2), routes.orders.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        const hit = expectHalted(run, 'BAT002', 'case.ts', source, "inputFrom(user, 'toUserId')");
+        const hit = expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
         expect(hit).toContain('`users/getById`');
         expect(hit).toContain('`orders/list`');
       });
     });
 
     register('source route listed after the route it feeds', async () => {
-      const source = PRELUDE + `export const b = batch([routes.orders.list(inputFrom(user, 'toUserId')), user]);\n`;
+      const source = PRELUDE + `export const b = batch([routes.orders.list(inputFrom(user, (u: {id: number}) => u.id)), user]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        const hit = expectHalted(run, 'BAT002', 'case.ts', source, "inputFrom(user, 'toUserId')");
+        const hit = expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
         expect(hit).toContain('`users/getById`');
         expect(hit).toContain('`orders/list`');
       });
@@ -601,7 +607,7 @@ describe('request-batch diagnostics and readable shapes', () => {
 
     register('a route feeding itself', async () => {
       const source =
-        PRELUDE + `export const b = batch([user, routes.orders.list(inputFrom(routes.orders.list(1), 'toUserId'))]);\n`;
+        PRELUDE + `export const b = batch([user, routes.orders.list(inputFrom(routes.orders.list(1), (o: string[]) => o.length))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
         expectHalted(run, 'BAT002', 'case.ts', source, 'inputFrom(routes.orders.list(1)');
       });
@@ -640,9 +646,9 @@ describe('request-batch diagnostics and readable shapes', () => {
     register('mapping source that is not a readable route (a parameter)', async () => {
       const source =
         IMPORTS +
-        `export function load(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.list(inputFrom(u, 'toUserId'))]); }\n`;
+        `export function load(u: RouteSubRequest<any>) { return batch([routes.users.getById(1), routes.orders.list(inputFrom(u, (v: {id: number}) => v.id))]); }\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        const hit = expectHalted(run, 'BAT004', 'case.ts', source, "u, 'toUserId'");
+        const hit = expectHalted(run, 'BAT004', 'case.ts', source, 'u, (v: {id: number}) => v.id');
         expect(hit).toContain('source is not a route call');
       });
     });
@@ -659,9 +665,9 @@ describe('request-batch diagnostics and readable shapes', () => {
     register('BAT006: a mapping at a parameter index the route does not declare', async () => {
       const source =
         IMPORTS +
-        `const user = routes.users.getById(1);\nexport const b = batch([user, routes.users.list(inputFrom(user, 'toUserId'))]);\n`;
+        `const user = routes.users.getById(1);\nexport const b = batch([user, routes.users.list(inputFrom(user, (u: {id: number}) => u.id))]);\n`;
       await withBuild({'case.ts': source}, {}, async (run) => {
-        expectHalted(run, 'BAT006', 'case.ts', source, "inputFrom(user, 'toUserId')");
+        expectHalted(run, 'BAT006', 'case.ts', source, 'inputFrom(user, (u: {id: number}) => u.id)');
       });
     });
   });

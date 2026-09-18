@@ -5,14 +5,14 @@
 // (inputFrom / registerAcmePureFn) must report the WRAPPER's name and the
 // package that DECLARES it — not '@mionjs/run-types' — so the framework's own
 // build step can filter the report to just its wrappers. This suite reuses the
-// @acme/toolkit fixture (a node_modules framework that re-exports the anonymous
-// primitive AND declares its own branded wrapper) and asserts:
+// @acme/toolkit fixture (a node_modules framework that re-exports the registrar
+// AND declares its own branded wrapper) and asserts:
 //   - build phase: every wrapper call site reports calleeName
 //     'registerAcmePureFn' + calleeModule '@acme/toolkit', INCLUDING the
 //     wrapper-only file that names neither the primitive nor '@mionjs/run-types'.
 //   - update phase (Vite handleHotUpdate): editing a pure-fn body re-fires the
 //     callback with phase 'update' carrying ONLY the changed file's site, and
-//     the on-disk JSON report is rewritten with the new content hash.
+//     the on-disk JSON report is rewritten with the new body.
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import os from 'node:os';
@@ -45,26 +45,26 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 });
 
 const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
-export {registerAnonymousPureFn} from '@mionjs/run-types';
+export {registerPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
-  hash?: InjectPureFnId<F>,
+  pureFnId?: InjectPureFnId<F>,
 ): unknown;
 `;
 
-const TOOLKIT_JS = `export {registerAnonymousPureFn} from '@mionjs/run-types';
-export function registerAcmePureFn(fn, hash) {
-  return {fn, hash};
+const TOOLKIT_JS = `export {registerPureFn} from '@mionjs/run-types';
+export function registerAcmePureFn(fn, pureFnId) {
+  return {fn, pureFnId};
 }
 `;
 
 // Consumer A: a RENAMED re-export call + a wrapper call.
-const CONSUMER_SRC = `import {registerAnonymousPureFn as regAPF, registerAcmePureFn} from '@acme/toolkit';
-export const doubled = regAPF(function _double(n: number): number { return n * 2; });
+const CONSUMER_SRC = `import {registerPureFn as regPF, registerAcmePureFn} from '@acme/toolkit';
+export const doubled = regPF(function _double(n: number): number { return n * 2; });
 export const tripled = registerAcmePureFn(function _triple(n: number): number { return n * 3; });
 `;
 
-// Consumer B: ONLY the wrapper — names neither '@mionjs/run-types' nor the primitive.
+// Consumer B: ONLY the wrapper — names neither '@mionjs/run-types' nor a registrar.
 const WRAPPER_ONLY_SRC = `import {registerAcmePureFn} from '@acme/toolkit';
 export const quadrupled = registerAcmePureFn(function _quad(n: number): number { return n * 4; });
 `;
@@ -127,8 +127,11 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
       }
     }
 
-    // Three anonymous bodies (n*2, n*3, n*4) → three content-hashed records.
+    // Three registrations (n*2, n*3, n*4) → three records, one per binding.
     expect(report.length, `expected 3 records, got ${JSON.stringify(report, null, 2)}`).toBe(3);
+    expect(new Set(report.map((s) => s.key))).toEqual(
+      new Set(['consumer#doubled', 'consumer#tripled', 'wrapper-only#quadrupled'])
+    );
 
     // Every wrapper call site (n*3 in consumer, n*4 in wrapper-only) attributes
     // to the wrapper's own name + declaring package — NOT '@mionjs/run-types'.
@@ -136,7 +139,6 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
     expect(wrapperSites.length, 'two registerAcmePureFn call sites').toBe(2);
     for (const s of wrapperSites) {
       expect(s.calleeModule).toBe('@acme/toolkit');
-      expect(s.lane).toBe('anonymous');
       expect(s.form).toBe('direct');
     }
 
@@ -148,8 +150,8 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
 
     // The renamed re-export site keeps its renamed callee name but resolves to
     // the primitive's declaring module.
-    const renamed = report.find((s) => s.calleeName === 'regAPF');
-    expect(renamed, 'renamed regAPF site present').toBeTruthy();
+    const renamed = report.find((s) => s.calleeName === 'regPF');
+    expect(renamed, 'renamed regPF site present').toBeTruthy();
     expect(renamed!.calleeModule).toBe('@mionjs/run-types');
 
     // The JSON file mirrors the callback records.
@@ -174,9 +176,9 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
 
     const buildFire = updates.find((u) => u.phase === 'build');
     expect(buildFire, 'build-phase callback fired').toBeTruthy();
-    const beforeKeys = new Set(buildFire!.sites.map((s) => s.key));
 
-    // Edit the wrapper-only body (n*4 → n*5): a new content hash.
+    // Edit the wrapper-only body (n*4 → n*5). The id is WHERE the registration
+    // lives, so it survives the edit; the body the record carries is the new one.
     const edited = WRAPPER_ONLY_SRC.replace('n * 4', 'n * 5');
     const wrapperOnlyFile = path.join(FIXTURE_DIR, 'wrapper-only.ts');
     fs.writeFileSync(wrapperOnlyFile, edited);
@@ -193,14 +195,12 @@ describe('third-party pure-fn report: wrapper attribution + update lane (node_mo
     expect(changed.file.endsWith('wrapper-only.ts')).toBe(true);
     expect(changed.calleeName).toBe('registerAcmePureFn');
     expect(changed.calleeModule).toBe('@acme/toolkit');
-    // The new key did not exist in the build-phase report (body changed).
-    expect(beforeKeys.has(changed.key), 'edited body yields a fresh content hash').toBe(false);
+    expect(changed.key).toBe('wrapper-only#quadrupled');
+    expect(changed.code).toContain('n * 5');
 
-    // The on-disk JSON was rewritten to include the new content hash.
+    // The on-disk JSON was rewritten with the edited body.
     const fromDisk = JSON.parse(fs.readFileSync(REPORT_PATH(), 'utf8')) as PureFnSite[];
-    expect(
-      fromDisk.some((s) => s.key === changed.key),
-      'JSON report rewritten with the new key'
-    ).toBe(true);
+    const onDisk = fromDisk.find((s) => s.key === changed.key);
+    expect(onDisk?.code, 'JSON report rewritten with the new body').toContain('n * 5');
   });
 });

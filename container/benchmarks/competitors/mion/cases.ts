@@ -2788,7 +2788,7 @@ export const cases: CompetitorCases = {
   // The strict path: validate THEN reject undeclared keys. `runsAfterValidation`
   // is what makes the emitter swap the key-array scan for the `cntEK(v) !== N`
   // count check, so these are the only cases in the suite that reach
-  // rt::countEnumKeys — the per-engine counter. The `&&` short-circuit is what
+  // countEnumKeys — the per-engine counter. The `&&` short-circuit is what
   // makes the option sound: hasUnknownKeys only ever sees values validate accepted.
   'STRICT.flat_required': {
     build: () => {

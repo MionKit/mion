@@ -107,6 +107,13 @@ const (
 	// carrying that route's metadata and compiled functions (the mode literal
 	// at initClient). No scanCall case, like KindInjectBatchId.
 	KindInjectApiMetadata
+	// KindPureFnId brands the VALUE a pure-fn registrar returns (PureFnId<ID>):
+	// a pure fn's id, which is where it lives. It is not an injection marker and
+	// has no scanCall case; it exists so a build can recognise an id handed to a
+	// `CompTimeArgs<PureFnId>` lookup even when the value comes from a call (a
+	// registrar's) or from a `.d.ts` with no initializer to read. The pure-fn
+	// lane resolves what it points at; the brand is what says it is an id at all.
+	KindPureFnId
 )
 
 // DefaultName is the symbol name the resolver looks for for the
@@ -141,6 +148,10 @@ const DefaultPureFunctionFactoryName = "PureFunctionFactory"
 // DefaultInjectPureFnIdName is the symbol name for the pure-fn id injection
 // marker (InjectPureFnId<F>).
 const DefaultInjectPureFnIdName = "InjectPureFnId"
+
+// DefaultPureFnIdName is the symbol name for the branded id a pure-fn registrar
+// returns (PureFnId<ID>).
+const DefaultPureFnIdName = "PureFnId"
 
 // DefaultInjectBatchIdName is the symbol name for the request-batch id
 // injection marker (InjectBatchId<Routes>).
@@ -186,6 +197,7 @@ const (
 	BrandInjectPureFnId      = "__rtInjectPureFnIdBrand"
 	BrandInjectBatchId       = "__rtInjectBatchIdBrand"
 	BrandInjectApiMetadata   = "__rtInjectApiMetadataBrand"
+	BrandPureFnId            = "__rtPureFnIdBrand"
 )
 
 // DefaultSpecs returns the canonical marker set: one spec per supported
@@ -201,6 +213,7 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultInjectPureFnIdName, Module: DefaultModule, Kind: KindInjectPureFnId, BrandProperty: BrandInjectPureFnId},
 		{Name: DefaultInjectBatchIdName, Module: DefaultModule, Kind: KindInjectBatchId, BrandProperty: BrandInjectBatchId},
 		{Name: DefaultInjectApiMetadataName, Module: DefaultModule, Kind: KindInjectApiMetadata, BrandProperty: BrandInjectApiMetadata},
+		{Name: DefaultPureFnIdName, Module: DefaultModule, Kind: KindPureFnId, BrandProperty: BrandPureFnId},
 		// CompTimeHints is an identity alias (no phantom brand exists on
 		// any resolved type), so BrandProperty stays empty — detection is
 		// purely syntactic via the written annotation (comptimeargs node check).

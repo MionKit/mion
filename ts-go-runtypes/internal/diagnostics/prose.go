@@ -234,7 +234,7 @@ export const errorsOf = createGetValidationErrorsFn<unknown>();`,
 	CodeMissingPureFnDep: {
 		Summary: "A generated validator or encoder calls a helper (a pure function) that was never registered, so the built output would fail the moment it runs. This almost always means a source file that registers the helper with `registerPureFnFactory` is not part of the compile. Import the `mion` entry that provides it, or include the file that registers it, so the build can see the definition.",
 		Fix: `import {registerPureFnFactory} from '@mionjs/run-types';
-registerPureFnFactory('rt::newRunTypeErr', (utl) => (message) => new Error(message));`,
+export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));`,
 	},
 	CodeMarkerDuplicateFnKey: {
 		Summary: "An `InjectTypeFnArgs` marker lists each function family it needs once, in order. Naming the same family twice injects a second identical handle that nothing reads, so it is almost always a copy-paste slip and the build stops. List each family at most once.",

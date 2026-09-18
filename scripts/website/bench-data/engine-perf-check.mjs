@@ -1,6 +1,6 @@
 // engine-perf-check.mjs — does the key-counter inversion still hold on THIS engine?
 //
-// The per-engine branch in `rt::countEnumKeys` rests on one empirical claim:
+// The per-engine branch in `countEnumKeys` rests on one empirical claim:
 //
 //     on V8              `for-in` beats `Object.keys`
 //     on JavaScriptCore  `Object.keys` beats `for-in`
@@ -19,7 +19,7 @@
 // The benchmark suite cannot do this, because a competitor bundle has exactly one
 // counter body baked in at build time. So the counters are re-stated here, and the
 // vitest suite (packages/run-types/test/features/countEnumKeys.test.ts) is what
-// guards their BEHAVIOUR. If pf_countEnumKeys changes shape, update both.
+// guards their BEHAVIOUR. If countEnumKeys changes shape, update both.
 //
 // Methodology (the same rules the original measurements had to follow, for the same
 // reasons):
@@ -46,7 +46,7 @@ const MARGIN = Number(process.env.MION_VALIDATION_BENCH_ENGINE_MARGIN ?? 1.15);
 const ITERS = Number(process.env.MION_VALIDATION_BENCH_ENGINE_ITERS ?? 2_000_000);
 const SAMPLES = 7;
 
-// ── the two counters, mirroring pf_countEnumKeys ──────────────────────────────
+// ── the two counters, mirroring countEnumKeys ──────────────────────────────
 const OBJECT_PROTO = Object.prototype;
 
 function makeCounter(variant) {
@@ -182,5 +182,5 @@ if (!ASSERT) {
   process.exit(0);
 }
 console.error(`engine-perf-check: FAILED — ${summary}`);
-console.error('engine-perf-check: the per-engine branch in pf_countEnumKeys may now be choosing the slower counter.');
+console.error('engine-perf-check: the per-engine branch in countEnumKeys may now be choosing the slower counter.');
 process.exit(1);

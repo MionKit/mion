@@ -376,7 +376,7 @@ describe('the strict suite is a section of the validation bench, not its own pag
     // Dropping the published column must not drop the invariant it used to show.
     const bench = read('scripts/website/bench-data/bench.mjs');
     expect(bench).toContain('function checkEngineBranch');
-    expect(bench).toContain('rt::countEnumKeys');
+    expect(bench).toContain('countEnumKeys');
   });
 });
 

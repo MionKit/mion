@@ -97,7 +97,7 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_QUICK', scope: 'dev', task: '-', desc: 'Fast/preview benchmark numbers (noisy)'},
   {name: 'MION_VALIDATION_BENCH_NO_TIMING', scope: 'dev', task: '-', desc: 'Correctness-only run (no timing)'},
   {name: 'MION_VALIDATION_BENCH_TIME_MS', scope: 'dev', task: '-', desc: 'Per-cell timing window in ms (default 100)'},
-  {name: 'MION_VALIDATION_BENCH_BUN', scope: 'dev', task: '-', desc: "Set to 0 to skip the benchmarks' bun runtime lane (default: on). The lane re-runs each competitor's already-built dist/run.mjs under bun, which is what exercises the JavaScriptCore branch of rt::countEnumKeys"},
+  {name: 'MION_VALIDATION_BENCH_BUN', scope: 'dev', task: '-', desc: "Set to 0 to skip the benchmarks' bun runtime lane (default: on). The lane re-runs each competitor's already-built dist/run.mjs under bun, which is what exercises the JavaScriptCore branch of countEnumKeys"},
   {name: 'MION_VALIDATION_BENCH_SKIP_GROUPS', scope: 'internal', task: '-', desc: 'Comma-separated case GROUPS recorded as not-supported instead of run, for runtime capability gaps (the bun lane sets DATETIME: bun ships no Temporal). Set by bench.mjs; listed in each result JSON as skippedGroups'},
   {name: 'MION_VALIDATION_BENCH_CASE', scope: 'dev', task: '-', desc: 'Restrict a run to matching case names (inspection)'},
   {name: 'MION_VALIDATION_BENCH_DUMP', scope: 'dev', task: '-', desc: 'Print typecost probe sources (debug)'},
@@ -115,7 +115,7 @@ export const REGISTRY = [
   {name: 'MION_VALIDATION_BENCH_CA_CERT', scope: 'dev', task: '-', desc: 'Extra CA certs, forwarded to the image build'},
 
   // — engine-branch tripwire (scripts/website/bench-data/engine-perf-check.mjs) —
-  {name: 'MION_VALIDATION_BENCH_ENGINE_ASSERT', scope: 'dev', task: '-', desc: "Set to 1 to make the engine-perf check FAIL on an inverted rt::countEnumKeys counter instead of only reporting it (website-deploy.yml sets 0 while the arm64 numbers are unmeasured). NOT the same knob as MION_VALIDATION_BENCH_ENGINE, which picks the container engine"},
+  {name: 'MION_VALIDATION_BENCH_ENGINE_ASSERT', scope: 'dev', task: '-', desc: "Set to 1 to make the engine-perf check FAIL on an inverted countEnumKeys counter instead of only reporting it (website-deploy.yml sets 0 while the arm64 numbers are unmeasured). NOT the same knob as MION_VALIDATION_BENCH_ENGINE, which picks the container engine"},
   {name: 'MION_VALIDATION_BENCH_ENGINE_MARGIN', scope: 'dev', task: '-', desc: 'How much faster the selected counter must be before the engine-perf check calls the pick wrong (default 1.15)'},
   {name: 'MION_VALIDATION_BENCH_ENGINE_ITERS', scope: 'dev', task: '-', desc: 'Iterations per engine-perf-check measurement (default 2000000)'},
 

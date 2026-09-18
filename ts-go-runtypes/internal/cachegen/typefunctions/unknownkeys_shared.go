@@ -267,10 +267,10 @@ func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 }
 
 // emitCountKeys emits the key-count fast-path expression `cntEK(v) === N` (or
-// `!==`) and registers the rt::countEnumKeys pure-fn dependency + closure alias.
+// `!==`) and registers the countEnumKeys pure-fn dependency + closure alias.
 //
 // Which counter `cntEK` actually is depends on the runtime, and the emitter
-// deliberately does NOT care: rt::countEnumKeys is a factory that picks a
+// deliberately does NOT care: countEnumKeys is a factory that picks a
 // for-in counter on V8 and an Object.keys counter on JavaScriptCore (Bun),
 // once at materialisation, because the two engines invert on which is faster.
 // Both forms are pinned to answer identically for every input (see

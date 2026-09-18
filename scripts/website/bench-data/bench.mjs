@@ -252,7 +252,7 @@ function buildAndRunOne(cfg, competitor, withBun = benchBun()) {
   return allRan;
 }
 
-// The engine-branch tripwire. rt::countEnumKeys picks a different counter per JS
+// The engine-branch tripwire. countEnumKeys picks a different counter per JS
 // engine, and both counters are pinned to answer identically, so a WRONG pick costs
 // throughput and never correctness - which is exactly why it can rot unnoticed. Each
 // mion result records which counter was live; this asserts the recorded value
@@ -271,13 +271,13 @@ function checkEngineBranch(withBun = benchBun()) {
     if (result.engineBranch !== branch) {
       die(
         `bench: ${file} reports engineBranch '${result.engineBranch}' but ${runtime} must select '${branch}'. ` +
-          `The rt::countEnumKeys per-engine branch is not doing its job (packages/run-types/src/runtypes/pure-fns-utils.ts).`
+          `The countEnumKeys per-engine branch is not doing its job (packages/run-types/src/runtypes/pure-fns-utils.ts).`
       );
     }
     if (result.skippedGroups?.length) {
       note(`${runtime} lane skipped group(s): ${result.skippedGroups.join(', ')} - runtime capability gap, recorded in the result`);
     }
-    note(`${runtime} lane OK - rt::countEnumKeys selected the '${branch}' counter`);
+    note(`${runtime} lane OK - countEnumKeys selected the '${branch}' counter`);
   }
 }
 

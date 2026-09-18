@@ -166,11 +166,12 @@ const CODEGEN = {
   // output is website JSON, a tree the formatter deliberately never touches.
   fncatalog: {run: [...GO_RUN, './cmd/gen-fn-catalog'], stdoutTo: 'container/website/app/components/content/go-generated/functions-catalog.json', outputs: ['container/website/app/components/content/go-generated/functions-catalog.json'], fmt: []},
   diag: {run: ['node', 'scripts/core/gen-diagnostics-catalog.mjs'], outputs: ['packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts', 'container/website/app/components/content/go-generated/diagnostics-catalog.json'], fmt: []},
-  // Built-in pure-fn body table (Go, not a Go->TS mirror): extracts the
-  // package's own `rt::`/`rtFormats::` registrations from packages/run-types/src
-  // so the resolver can deliver them to published consumers on demand. The Go
-  // generator self-formats via go/format, so no `fmt` post-step.
-  builtinpurefns: {run: [...GO_RUN, './cmd/gen-builtin-purefns'], outputs: ['ts-go-runtypes/internal/cachegen/builtinpurefns/table.generated.go'], fmt: []},
+  // Built-in pure fns: extracts the package's own registrations from
+  // packages/run-types/src into THREE outputs — the body table the resolver
+  // delivers to published consumers on demand, the Go id constants the emitters
+  // name them by, and the TS mirror of those ids. The Go halves self-format via
+  // go/format; the TS one goes through the repo formatter.
+  builtinpurefns: {run: [...GO_RUN, './cmd/gen-builtin-purefns'], outputs: ['ts-go-runtypes/internal/cachegen/builtinpurefns/table.generated.go', 'ts-go-runtypes/internal/cachegen/purefnids/ids.generated.go', 'packages/run-types/src/runtypes/pure-fn-ids.generated.ts'], fmt: ['packages/run-types/src/runtypes/pure-fn-ids.generated.ts']},
   // tsRuntypesPlugin json-key mirror: the tsconfig plugin entry's recognised keys,
   // read by the bundler-option parity test so a project option added to only one
   // side (PluginOptions vs the tsconfig struct) fails CI.

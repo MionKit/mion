@@ -5,8 +5,8 @@
 // unplugin factory through the Rollup adapter (a universal hook, not a
 // vite-only one) against a self-contained on-disk fixture, and asserts:
 //   - onBatchReport fires once after buildStart with phase 'build', carrying
-//     the route ids in call order, the inline-mapper link keyed `rt::<hash>`
-//     and the named-mapper link keyed `mionjs::<name>`, and a `b_` id.
+//     the route ids in call order, each inline-mapper link keyed by the mapper's
+//     own pure-fn id, and a `b_` id.
 //   - the JSON report file round-trips under `pureFnReport: 'file'`.
 //   - setting only the callback turns the report data on without a file.
 //   - the transform splices the same id into the call site.
@@ -41,8 +41,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
   export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
   export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
   export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
+  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
 }
 `;
@@ -57,7 +56,7 @@ const user = routes.users.getById(1);
 export const b = batch([
   user,
   routes.orders.list(inputFrom(user, (u: {id: number}) => u.id).asArg()),
-  routes.orders.getById(inputFrom(user, 'toUserId')),
+  routes.orders.getById(inputFrom(user, (u: {id: number}) => u.id + 1).asArg()),
 ]);
 `;
 
@@ -119,23 +118,22 @@ describe('request-batch build report', () => {
     expect(sites.length, 'one batch() call site').toBe(1);
     const site = sites[0];
     expect(site.routeIds).toEqual(['users/getById', 'orders/list', 'orders/getById']);
-    expect(site.batchId).toMatch(/^b_[A-Za-z0-9]+$/);
+    expect(site.batchId).toMatch(/^b_[A-Za-z0-9_-]+$/);
     expect(site.file.endsWith('consumer.ts')).toBe(true);
     expect(site.calleeName).toBe('batch');
     expect(site.calleeModule).toBe('@mionjs/client');
 
-    // Mappings in canonical (toId, paramIndex) order: the inline mapper keyed by
-    // the pure-fn lane's rt:: hash, the named one under the mionjs namespace.
+    // Mappings in canonical (toId, paramIndex) order, each keyed by its mapper's
+    // own pure-fn id — here a body hash, since an inline mapper is bound to no name.
     expect(site.mappings?.length).toBe(2);
     const byTo = new Map(site.mappings!.map((m) => [m.toId, m]));
     expect(byTo.get('orders/list')).toMatchObject({fromId: 'users/getById', paramIndex: 0});
-    expect(byTo.get('orders/list')!.mapperKey).toMatch(/^rt::[A-Za-z0-9_-]+$/);
-    expect(byTo.get('orders/getById')).toEqual({
-      fromId: 'users/getById',
-      toId: 'orders/getById',
-      paramIndex: 0,
-      mapperKey: 'mionjs::toUserId',
-    });
+    expect(byTo.get('orders/getById')).toMatchObject({fromId: 'users/getById', paramIndex: 0});
+    for (const mapping of site.mappings!) {
+      expect(mapping.mapperKey).toMatch(/^consumer#[A-Za-z0-9_-]{14}$/);
+    }
+    // Different bodies, so the two mappers are two entries.
+    expect(byTo.get('orders/list')!.mapperKey).not.toBe(byTo.get('orders/getById')!.mapperKey);
 
     // JSON file round-trips, inside types/ like the pure-fn report.
     const typesDir = path.join(FIXTURE_DIR, '.mion', 'types');
@@ -156,11 +154,10 @@ describe('request-batch build report', () => {
       expect(result, 'the batch-only consumer must be transformed').not.toBeNull();
       expect(captured.length).toBe(1);
       expect(result!.code).toContain(`'${captured[0].batchId}'`);
-      // The nested inline mapper keeps its own rt:: hash injection (the named
-      // `mionjs::` link is a lookup key, never spliced into source).
-      const inlineLink = captured[0].mappings!.find((m) => m.toId === 'orders/list')!;
-      expect(inlineLink.mapperKey).toMatch(/^rt::/);
-      expect(result!.code).toContain(`'${inlineLink.mapperKey}'`);
+      // Each nested inline mapper carries its own injected id.
+      for (const mapping of captured[0].mappings!) {
+        expect(result!.code).toContain(`'${mapping.mapperKey}'`);
+      }
     } finally {
       try {
         await callHook(plugin.buildEnd, ctx);

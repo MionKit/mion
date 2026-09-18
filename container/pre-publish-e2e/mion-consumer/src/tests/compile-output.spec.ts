@@ -19,7 +19,7 @@ import {spawn, type ChildProcess} from 'child_process';
 // The server and the client are SEPARATE projects here: the server compile generates the batch
 // table and the inline inputFrom mapper modules from the client-app program into .mion-cli/rpc/,
 // appends the table's import to the emitted router-init module, and the client compile splices
-// the batch id and mapper hash into the emitted flow. The last test boots the emitted server
+// the batch id and mapper id into the emitted flow. The last test boots the emitted server
 // under plain node and runs the emitted client flow against it.
 //
 // tsconfig.compile.json excludes src/tests/ so the server program carries no batch of its own:
@@ -87,18 +87,20 @@ describe('mion compile output', () => {
         // the table comes from the client project alone, and that project holds exactly one batch
         const ids = [...table.matchAll(/"(b_[A-Za-z0-9_-]+)"/g)].map((m) => m[1]);
         expect(ids).toHaveLength(1);
-        const mappers = readdirSync(resolve(genDir, 'rpc/pf/rt'));
+        // one generated pure-fn module, under the path its id names
+        const mappers = filesUnder(resolve(genDir, 'rpc/pf'));
         expect(mappers).toHaveLength(1);
+        expect(mappers[0]).toContain('batchFlow');
         // the mapper body authored in client-app/src/batchFlow.ts
-        expect(readFileSync(resolve(genDir, 'rpc/pf/rt', mappers[0]), 'utf-8')).toContain('customerValue.preferenceId');
+        expect(readFileSync(mappers[0], 'utf-8')).toContain('customerValue.preferenceId');
     });
 
     it('copies the inline mapper and nothing else of the client project', () => {
-        // client-app/src/decoys.ts declares a reflection marker and a named pure function of its
-        // own; the server pass over the client program must not compile either of them
+        // client-app/src/decoys.ts declares a reflection marker and a pure function of its own;
+        // the server pass over the client program must not compile either of them
         expect(anyFileContains(resolve(genDir, 'types'), 'clientOnlyField')).toBe(false);
         expect(anyFileContains(resolve(genDir, 'rpc'), 'clientOnlyHelper')).toBe(false);
-        expect(existsSync(resolve(genDir, 'rpc/pf/mionjs'))).toBe(false);
+        expect(filesUnder(resolve(genDir, 'rpc/pf')).some((file) => file.includes('decoys'))).toBe(false);
         // the decoys are live: the client's own compile generates both
         const clientGenDir = resolve(rootDir, 'client-app/.mion-cli');
         expect(anyFileContains(resolve(clientGenDir, 'types'), 'clientOnlyField')).toBe(true);
@@ -115,11 +117,11 @@ describe('mion compile output', () => {
         expect(content).toContain('createMionRouter(');
     });
 
-    it('the emitted client flow carries the batch id and mapper hash the table registers', () => {
+    it('the emitted client flow carries the batch id and mapper id the table registers', () => {
         const content = readFileSync(flowJs, 'utf-8');
         const table = readFileSync(tableJs, 'utf-8');
         const batchId = /'(b_[A-Za-z0-9_-]+)'/.exec(content)?.[1];
-        const mapperKey = /'(rt::[A-Za-z0-9_-]+)'/.exec(content)?.[1];
+        const mapperKey = /'([^']*batchFlow#[A-Za-z0-9_-]+)'/.exec(content)?.[1];
         expect(batchId, content).toBeDefined();
         expect(mapperKey, content).toBeDefined();
         expect(table).toContain(`"${batchId}"`);
