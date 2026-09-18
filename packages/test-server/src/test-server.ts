@@ -17,8 +17,7 @@ import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
-import {registerPureFn, registerClassSerializer} from '@mionjs/run-types';
-import {allowInputMapper, inputMapperKey} from '@mionjs/core';
+import {registerClassSerializer} from '@mionjs/run-types';
 
 // ============ Router ============
 // The one router of this server: the options live here, and every route / middleFn below is
@@ -27,15 +26,6 @@ type TestSharedData = {user: {name: string; surname: string} | null; httpMethod:
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null});
 const mion = createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
 const {route, headersFn, middleFn, query, mutation, rawMiddleFn} = mion;
-
-// The inputFrom NAME lane. Registration is the resolver's job: a literal key plus an inline
-// function literal keeps the scanner happy. allowInputMapper is mion's half: it opts the key into
-// batch-reachability, which nothing else does (see core/src/runtypes/inputMappers.ts).
-registerPureFn('mionjs::toPreferenceId', (customer: {preferenceId: number}) => customer.preferenceId);
-allowInputMapper(inputMapperKey('toPreferenceId'));
-// second name-lane mapper, used by the batch e2e chain fixtures (flow/getUser -> flow/getOrg)
-registerPureFn('mionjs::toOrgId', (user: {orgId: number}) => user.orgId);
-allowInputMapper(inputMapperKey('toOrgId'));
 
 // ============ Batch chain fixtures (flow/*) ============
 // A small graph the batch e2e tests chain with inputFrom: user -> org, user -> tags, order -> product

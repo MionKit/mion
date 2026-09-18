@@ -244,7 +244,7 @@ export interface Replacement {
 
 // PureFnSite mirrors Go protocol.PureFnSite — one generated pure-fn entry in the
 // structured build report. Host tooling that relocates pure-fn bodies across
-// bundles (mion's cross-bundle serverMapFrom transport) consumes it via the
+// bundles (mion's cross-bundle mapper transport) consumes it via the
 // JSON file `<genDir>/types/pure-fns-report.json` or the plugin's `onPureFnReport`
 // callback. Each record is SELF-CONTAINED (`code` + `paramNames` inline) so a
 // consumer never reads the generated module files — that keeps the shape stable
@@ -255,19 +255,19 @@ export interface PureFnSite {
   file: string;
   start: number;
   end: number;
-  // Registry key: `rt::<hash>` (anonymous lane) | `<ns>::<name>` (named lane).
+  // The pure fn's id: its package, its file and the name it is bound to
+  // (`@acme/text/src/slug#slugify`), or its body hash when bound to no name.
   key: string;
   // The identifier the site invoked (a primitive registrar, a framework wrapper
-  // like `serverMapFrom` / `registerAcmePureFn`, or a renamed import) and the
+  // like `inputFrom` / `registerAcmePureFn`, or a renamed import) and the
   // nearest-package.json / ambient-module name of the file that DECLARES it — so
   // a consumer can attribute a site to the framework that exposed the registrar
   // (`@mionjs/client`, `@acme/toolkit`), even through a wrapper-only file.
   calleeName?: string;
   calleeModule?: string;
-  // `named` | `anonymous`; `direct` (arg IS the pure fn, wrapped) | `factory`.
-  lane?: string;
+  // `direct` (arg IS the pure fn, wrapped) | `factory` (arg is a factory).
   form?: string;
-  // Basename of the generated module this entry rides in: per-entry `pf/<ns>/<fn>`
+  // Basename of the generated module this entry rides in: per-entry `pf/<id>`
   // in default/allModules mode, or the single `pf` bundle in allSingle.
   module?: string;
   // Entry payload — emitMode-honoring (`code` empty when the mode ships no body).
@@ -276,16 +276,15 @@ export interface PureFnSite {
   pureFnDependencies?: string[];
 }
 
-// BatchMapping mirrors Go protocol.BatchMapping — one `inputFrom(source, mapper |
-// name)` link inside a request batch: the server feeds the output of route
-// `fromId` through the mapper keyed `mapperKey` into argument `paramIndex` of
-// route `toId`.
+// BatchMapping mirrors Go protocol.BatchMapping — one `inputFrom(source, mapper)`
+// link inside a request batch: the server feeds the output of route `fromId`
+// through the mapper keyed `mapperKey` into argument `paramIndex` of route
+// `toId`.
 export interface BatchMapping {
   fromId: string;
   toId: string;
   paramIndex: number;
-  // `rt::<hash>` for an inline mapper (the same id the anonymous pure-fn lane
-  // injects at that call), or `mionjs::<name>` for a named one.
+  // The mapper's pure-fn id, the same one injected at that call.
   mapperKey: string;
 }
 
