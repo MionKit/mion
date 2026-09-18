@@ -82,7 +82,7 @@ describe('public compiled-fn exports — reachable + reconstructable from the pa
     // The pure-fn lane twin of buildFactoryFromCode: the factory takes `utl`
     // and returns the pure fn. PureFunctionData / CompiledPureFunction are the
     // param types of the already-public RTUtils.addPureFn.
-    const data: PureFunctionData = {namespace: 'consumer', fnName: 'inc', bodyHash: 'h1', paramNames: ['utl']};
+    const data: PureFunctionData = {id: '@acme/consumer/src/fns#inc', bodyHash: 'h1', paramNames: ['utl']};
     const compiled: CompiledPureFunction = {...data, code: 'return function (x) { return x + 1; };'};
 
     const factory = buildPureFnFactoryFromCode(compiled.paramNames, compiled.code!);
@@ -90,8 +90,8 @@ describe('public compiled-fn exports — reachable + reconstructable from the pa
     expect(fn(41)).toBe(42);
 
     // and the reconstructed CompiledPureFunction is accepted by the public write-back.
-    getRTUtils().addPureFn('consumer::inc', {...compiled, createPureFn: factory});
-    expect(getRTFnCaches().pureFnsCache['consumer::inc']).toBeDefined();
+    getRTUtils().addPureFn(data.id, {...compiled, createPureFn: factory});
+    expect(getRTFnCaches().pureFnsCache[data.id]).toBeDefined();
   });
 
   it('CompiledFnArgs and AnyFn are nameable at the type level from the barrel', () => {

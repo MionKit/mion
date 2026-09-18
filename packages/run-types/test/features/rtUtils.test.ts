@@ -63,12 +63,11 @@ describe('rtUtils', () => {
   });
 
   it('should load compiled pure functions cache from cache data', () => {
-    // Flat cache: keys are composite `"<namespace>::<fnName>"` strings.
+    // Flat cache: keys are pure-fn ids.
     const testPureCache: PureFunctionsCache = {
-      'testNamespace::testPureFn': {
-        namespace: 'testNamespace',
+      '@acme/app/src/fns#testPureFn': {
+        id: '@acme/app/src/fns#testPureFn',
         paramNames: ['a', 'b'],
-        fnName: 'testPureFn',
         bodyHash: 'testPureFn_hash',
         code: 'return (a, b) => a + b;',
         pureFnDependencies: [],
@@ -86,7 +85,7 @@ describe('rtUtils', () => {
     const updatedPureCacheSize = Object.keys(updatedCaches.pureFnsCache).length;
 
     expect(updatedPureCacheSize).toBeGreaterThan(initialPureCacheSize);
-    expect(updatedCaches.pureFnsCache).toHaveProperty('testNamespace::testPureFn');
+    expect(updatedCaches.pureFnsCache['@acme/app/src/fns#testPureFn']).toBeDefined();
   });
 
   it('should handle empty cache data gracefully', () => {

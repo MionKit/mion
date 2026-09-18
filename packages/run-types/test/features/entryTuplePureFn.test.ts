@@ -33,26 +33,26 @@ function bothModeTuple(key: string, paramNames: string[], code: string, createPu
 
 describe('entryTuple / kind-2 pure-fn registration across emit modes', () => {
   it('code mode: reconstructs the factory from code + paramNames via new Function', () => {
-    const key = 'entryTuplePureFn::codeMode';
+    const key = '@acme/app/src/entryTuplePureFn#codeMode';
     initFromTuple(codeModeTuple(key, [], 'return function(){return 42;};'));
     const utils = getRTUtils();
 
     // Registered but not materialized: createPureFn is absent (code-mode hole).
-    const before = utils.getCompiledPureFn(key)!;
+    const before = utils.getCompiledPureFnByKey(key)!;
     expect(before.createPureFn).toBeUndefined();
     expect(before.code).toBe('return function(){return 42;};');
 
-    const fn = utils.usePureFn(key) as () => number;
+    const fn = utils.getPureFnByKey(key) as () => number;
     expect(fn()).toBe(42);
 
     // The reconstructed factory is cached back onto the entry (runs once).
-    const after = utils.getCompiledPureFn(key)!;
+    const after = utils.getCompiledPureFnByKey(key)!;
     expect(typeof after.createPureFn).toBe('function');
     expect(after.fn).toBe(fn);
   });
 
   it('functions mode: runs from the live closure with no code string', () => {
-    const key = 'entryTuplePureFn::functionsMode';
+    const key = '@acme/app/src/entryTuplePureFn#functionsMode';
     const live = function () {
       return function () {
         return 42;
@@ -61,16 +61,16 @@ describe('entryTuple / kind-2 pure-fn registration across emit modes', () => {
     initFromTuple(functionsModeTuple(key, [], live));
     const utils = getRTUtils();
 
-    const entry = utils.getCompiledPureFn(key)!;
+    const entry = utils.getCompiledPureFnByKey(key)!;
     expect(entry.code).toBeUndefined(); // functions mode drops the code string
     expect(typeof entry.createPureFn).toBe('function');
 
-    const fn = utils.usePureFn(key) as () => number;
+    const fn = utils.getPureFnByKey(key) as () => number;
     expect(fn()).toBe(42);
   });
 
   it('both mode: ships code AND the live closure, uses the closure directly', () => {
-    const key = 'entryTuplePureFn::bothMode';
+    const key = '@acme/app/src/entryTuplePureFn#bothMode';
     const live = function () {
       return function () {
         return 42;
@@ -79,17 +79,17 @@ describe('entryTuple / kind-2 pure-fn registration across emit modes', () => {
     initFromTuple(bothModeTuple(key, [], 'return function(){return 42;};', live));
     const utils = getRTUtils();
 
-    const entry = utils.getCompiledPureFn(key)!;
+    const entry = utils.getCompiledPureFnByKey(key)!;
     expect(entry.code).toBe('return function(){return 42;};');
     expect(entry.createPureFn).toBe(live); // live literal preferred over reconstruction
 
-    const fn = utils.usePureFn(key) as () => number;
+    const fn = utils.getPureFnByKey(key) as () => number;
     expect(fn()).toBe(42);
   });
 
   it('code and functions modes produce byte-for-byte equivalent results for the same body', () => {
-    const codeKey = 'entryTuplePureFn::rtCode';
-    const fnsKey = 'entryTuplePureFn::rtFns';
+    const codeKey = '@acme/app/src/entryTuplePureFn#rtCode';
+    const fnsKey = '@acme/app/src/entryTuplePureFn#rtFns';
     const body = 'return function(v){return typeof v === "string";};';
     initFromTuple(codeModeTuple(codeKey, [], body));
     initFromTuple(
@@ -100,8 +100,8 @@ describe('entryTuple / kind-2 pure-fn registration across emit modes', () => {
       })
     );
     const utils = getRTUtils();
-    const viaCode = utils.usePureFn(codeKey) as (v: unknown) => boolean;
-    const viaFns = utils.usePureFn(fnsKey) as (v: unknown) => boolean;
+    const viaCode = utils.getPureFnByKey(codeKey) as (v: unknown) => boolean;
+    const viaFns = utils.getPureFnByKey(fnsKey) as (v: unknown) => boolean;
     for (const sample of ['hello', 42, {}, null, undefined]) {
       expect(viaCode(sample)).toBe(viaFns(sample));
     }
@@ -110,15 +110,15 @@ describe('entryTuple / kind-2 pure-fn registration across emit modes', () => {
   });
 
   it('code mode with paramNames ["utl"]: the composing factory closes over rtUtils', () => {
-    const depKey = 'entryTuplePureFn::dep';
-    const composeKey = 'entryTuplePureFn::compose';
+    const depKey = '@acme/app/src/entryTuplePureFn#dep';
+    const composeKey = '@acme/app/src/entryTuplePureFn#compose';
     // Dep pure fn (code mode too): returns 5.
     initFromTuple(codeModeTuple(depKey, [], 'return function(){return 5;};'));
     // Composing factory: its body references `utl`, so the reconstruction must be
     // new Function('utl', code) — the recorded paramName binds the rtUtils arg.
-    initFromTuple(codeModeTuple(composeKey, ['utl'], `return function(){return utl.usePureFn('${depKey}')() + 1;};`));
+    initFromTuple(codeModeTuple(composeKey, ['utl'], `return function(){return utl.getPureFnByKey('${depKey}')() + 1;};`));
 
-    const compose = getRTUtils().usePureFn(composeKey) as () => number;
+    const compose = getRTUtils().getPureFnByKey(composeKey) as () => number;
     expect(compose()).toBe(6);
   });
 });

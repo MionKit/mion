@@ -44,9 +44,11 @@ One rule, computed in Go only, by one function:
 - `<package name>` and the root come from the nearest `package.json` carrying a `name`.
   `lookupPackageNameUpward` (`internal/compiler/marker/marker.go:913`) already finds both and
   returns only the name: refactor it into an exported `PackageOfFile(filePath, fs) (name, rootDir)`
-  keeping the `packageNameCache`, and keep `packageNameForFile` as a thin wrapper. A file under no
-  named package (test overlays, a scratch project) gets the path relative to the session working
-  directory and no package prefix.
+  keeping the `packageNameCache`, and keep `packageNameForFile` as a thin wrapper. A file under a
+  package.json with no `name` (a private project) keeps that directory as its root and drops the
+  package prefix; with no package.json at all, the path is relative to the session working
+  directory. Anchoring at the package root rather than the working directory is what keeps a
+  server build reading a client project on the same id the client's own build computes.
 - `<name>` is the identifier a `const` / `let` / `var` declaration binds the call result to when the
   registrar call (unwrapped through parentheses, `as`, `satisfies`) is that declaration's initializer.
   Any other position (a callback passed straight to a wrapper such as `inputFrom(o => o.id)`) gets
@@ -386,6 +388,39 @@ Two cheap oracles, Go side, seeded loops in the packages they test:
 - Consumer bundles still receive built-in bodies on demand and the dist stays hollowed.
 - No JS-side rewrite exists: every source change is a Go `Replacement` applied by `OpTransform`,
   and `mion compile` produces the same output as the bundler adapters for the same source.
-- Docs, examples and the changelog match; `pnpm run lint`, `pnpm run format`, `pnpm test`,
+- Docs, examples and the breaking-change record match; `pnpm run lint`, `pnpm run format`, `pnpm test`,
   `go -C ts-go-runtypes test ./internal/... ./cmd/...`, `pnpm run check:builds` and
   `pnpm miondevx core codegen all --check` pass.
+
+## What shipped
+
+Built as planned. Seven things the plan did not spell out, each decided while building:
+
+- **An unnamed package still anchors the id.** The plan sent every file under no NAMED package to
+  a path relative to the working directory. That makes one pure function two ids when two builds
+  read one project from different directories (a mion server build reading its client project is
+  exactly that shape). A `package.json` with no `name` now anchors the path at its own directory;
+  only a file with no `package.json` above it falls back to the working directory.
+- **`PFE9004` is an in-file collision now.** With ids naming a location, two files can no longer
+  claim one id, so the duplicate-registration diagnostic fires where it still can: one file, one
+  binding name, two scopes, two bodies.
+- **Two identical batches in two files get two ids when they carry an inline mapper.** The mapper
+  belongs to the file it is written in, so the two batches genuinely reference different mappers.
+  A batch with no mapper still collapses to one id, as before.
+- **A hollowed registration drops its id with its body.** The dist hollow step replaces the whole
+  argument list with `null`, so the generated ids module has no used export left and tree-shakes
+  out of a consumer bundle. That is what keeps the ~11 KB saving whole.
+- **`inputFrom` rejects a string mapper by name.** The retired name lane gets its own message
+  ("takes the mapper itself, written inline") instead of a confusing one, since that is the one
+  migration a caller will hit.
+- **Two test files renamed, three folded in.** `third-party-anonymous-*.test.ts` became
+  `third-party-wrapper-*.test.ts` (the lane they covered is now the only lane),
+  `anonymousPureFn.test.ts` folded into `pureFn.test.ts`, and `pure-fns-anonymous.test.ts` into
+  `pure-fns-cache.test.ts`.
+- **The breaking change is recorded in the commit, not in `CHANGELOG.md`.** That file is generated
+  by git-cliff from commit messages, so the per-package list of removals rides the feature commit's
+  `BREAKING CHANGE:` footer and reaches the changelog on the next release cut.
+
+Both fuzz loops shipped in `internal/cachegen/purefunctions/fuzz_ids_test.go`, and the seeding
+policy they share with the convert sweeps moved into `internal/testfixtures/fuzzseed.go` so the two
+packages derive a seed from one place.
