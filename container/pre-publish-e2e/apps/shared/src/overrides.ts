@@ -9,9 +9,8 @@
 // feature (this shared app uses createGetValidationErrorsFn, unknown-key errors,
 // formats, …) used to trip a false-positive PFE9012 wall: the consumer's
 // registration defeated the resolver's whole-program "any registration present?"
-// guard, and every runtime-owned rt:: / rtFormats:: built-in was then flagged
-// missing, halting the build. Fixed by exempting those built-in namespaces from
-// the missing-dep check.
+// guard, and every package-owned built-in was then flagged missing, halting the
+// build. Fixed by checking a built-in against the generated id table instead.
 import {createValidateFn, overrideValidate, registerPureFnFactory, getRTUtils} from '@mionjs/run-types';
 import {type CheckResult, ok, eq} from './check';
 
@@ -29,7 +28,7 @@ export const isWidget = createValidateFn<Widget>();
 
 // A consumer-registered custom pure function — self-contained, no outer
 // captures. Its mere presence is what defeated the old PFE9012 guard.
-export const slugify = registerPureFnFactory('app::slugify', function () {
+export const slugify = registerPureFnFactory(function () {
   const NON_WORD = /[^a-z0-9]+/g;
   return function _slugify(input: string): string {
     return input.toLowerCase().replace(NON_WORD, '-').replace(/^-|-$/g, '');
@@ -38,7 +37,7 @@ export const slugify = registerPureFnFactory('app::slugify', function () {
 
 export function checkOverrides(): CheckResult[] {
   // Resolve + invoke the consumer's own pure fn through the runtime registry.
-  const runSlugify = getRTUtils().usePureFn('app::slugify') as (input: string) => string;
+  const runSlugify = getRTUtils().usePureFn(slugify) as (input: string) => string;
   return [
     // The override's extra rule (even-only) proves it replaced the generated fn.
     ok('overrides: overrideValidate accepts a value matching the custom rule', isWidget({id: 2})),

@@ -17,7 +17,7 @@ import {
 } from './pure-fn-ids.generated.ts';
 // TYPE-ONLY, so this file stays runtime dependency-free. It has to be the real
 // `RTUtils`: the build records a pure fn's DEPENDENCIES by recognising
-// `utl.getPureFn('<ns>::<name>')` through the `CompTimeArgs<string>` brand on
+// `utl.getPureFn(<the pure fn's id>)` through the `CompTimeArgs` brand on
 // that method's first parameter, so a hand-rolled local shape with a plain
 // `string` parameter is silently not tracked and the dep never reaches the
 // emitted module.

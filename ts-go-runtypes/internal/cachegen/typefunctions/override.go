@@ -69,7 +69,7 @@ func overrideHashForTag(runType *reflection.RunType, tag string) string {
 // buildRedirectEntry renders the cfn-redirect entry for an overridden
 // (family, type): a KindTypeFn entry whose factory returns the user's custom
 // pure function instead of the Go-emitted structural body. The body is a
-// one-liner — `return utl.usePureFn('cfn::<hash>')` — and the cfn module rides
+// one-liner — `return utl.usePureFn('<the override's id>')` — and that module rides
 // SoftDeps so initFromTuple registers it before the redirect materializes.
 // usePureFn (not getPureFn) throws on a missing module, so an emitter bug fails
 // loudly rather than silently degrading to the family identity.

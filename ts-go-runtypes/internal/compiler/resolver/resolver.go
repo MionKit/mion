@@ -406,8 +406,8 @@ type Session struct {
 	// SetProgram / Reset so a Program swap rebuilds the map.
 	overridesBuilt bool
 	// overrideEntries holds the cfn pure-fn entries the override pass extracted
-	// (one `cfn::<hash>` per distinct override body), merged into the pure-fn
-	// module emission so the type-fn redirects resolve their `cfn::` dep.
+	// (one per distinct override body, keyed by the body's own id), merged into
+	// the pure-fn module emission so the type-fn redirects resolve their dep.
 	overrideEntries []purefunctions.Entry
 	// overrideDiagnostics holds OVR0xx diagnostics from the override pass
 	// (OVR001 duplicate-override, OVR010 validate cross-family), surfaced on

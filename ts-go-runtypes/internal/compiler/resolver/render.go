@@ -303,7 +303,7 @@ func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodu
 		kept = append(kept, entry)
 	}
 	// Override cfn entries (whole-program) join the program pure-fn graph so the
-	// type-fn redirects resolve their `cfn::` dep modules on the OpDump /
+	// type-fn redirects resolve their override dep modules on the OpDump /
 	// OpGenerate paths too — not just OpScanFiles. Without this the plugin's
 	// generate() emits the redirect but not the cfn module it imports, and the
 	// runtime throws "Pure function not found" at the first createX call.

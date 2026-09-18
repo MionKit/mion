@@ -275,7 +275,7 @@ type RunType struct {
 	// Overrides — populated when a user registers a custom function for this
 	// type via `overrideX<T>(pureFn)`. Maps the operation name ("validate",
 	// "validationErrors", "jsonEncoder", …) to the cfn body hash of the override
-	// (`cfn::<hash>`). The structural id folds each (family, hash) pair in via
+	// (the override body's own id). The structural id folds each (family, hash) pair in via
 	// OverrideStructuralKey so an overridden type gets a distinct id from its
 	// un-overridden twin AND the override propagates to every containing type
 	// (a parent's id composes its children's folded ids). The type-fn emitter
