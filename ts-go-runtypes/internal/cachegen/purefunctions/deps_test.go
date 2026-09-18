@@ -3,6 +3,8 @@ package purefunctions
 import (
 	"strings"
 	"testing"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
 // depsOf extracts the fixture and returns the dependencies of the entry bound to
@@ -376,5 +378,58 @@ export const pong = registerPureFnFactory(function (utl) {
 	}
 	if !found {
 		t.Fatalf("expected a %s for the ping <-> pong cycle, got %+v", CodePureFnDependencyCycle, diags)
+	}
+}
+
+// bindingTable is a stand-in for the built-package index: a `.d.ts` name → id
+// map keyed by declaration file basename.
+type bindingTable map[string]string
+
+func (table bindingTable) BindingID(dtsPath, name string) (string, bool) {
+	id, ok := table[dtsPath[strings.LastIndex(dtsPath, "/")+1:]+"#"+name]
+	return id, ok
+}
+
+// A library `.d.ts` typed `PureFnId<string>` (tsc's emit when the build injected
+// the id) carries no literal, so the fourth arm misses; the fifth asks the
+// package's built files, records the id, and lowers the argument to it.
+func TestDeps_UntypedDtsBindingResolvesThroughPackageIndex(t *testing.T) {
+	files := map[string]string{
+		"node_modules/@acme/text/package.json": `{"name":"@acme/text","types":"./index.d.ts"}`,
+		"node_modules/@acme/text/index.d.ts": `import type {PureFnId} from '@mionjs/run-types';
+export declare const slugify: PureFnId<string>;`,
+		"a.ts": `
+import {registerPureFnFactory} from '@mionjs/run-types';
+import {slugify} from '@acme/text';
+export const titleOf = registerPureFnFactory(function (utl) {
+  return function _f(s: string) { return utl.getPureFn(slugify)(s); };
+});`,
+	}
+	const slugifyID = "@acme/text#slug00000000000"
+	entries, diags := extractFromOverlayWith(t, files, func(opts *marker.Options) {
+		opts.PureFnBindings = bindingTable{"index.d.ts#slugify": slugifyID}
+	})
+	for _, diag := range diags {
+		if diag.Code == CodePurityDepNotLiteral {
+			t.Fatalf("unexpected PFE9013: %+v", diag)
+		}
+	}
+	consumer := entryNamed(t, entries, "titleOf")
+	if len(consumer.PureFnDependencies) != 1 || consumer.PureFnDependencies[0] != slugifyID {
+		t.Errorf("deps = %v, want [%s]", consumer.PureFnDependencies, slugifyID)
+	}
+	if !strings.Contains(consumer.Code, "getPureFn('"+slugifyID+"')") {
+		t.Errorf("the imported binding must be lowered to the id in the body:\n%s", consumer.Code)
+	}
+
+	// Without a resolver (or a package that ships no such binding) the arm
+	// misses and the dep is reported as unreadable, as before.
+	_, diags = extractFromOverlay(t, files)
+	found := false
+	for _, diag := range diags {
+		found = found || diag.Code == CodePurityDepNotLiteral
+	}
+	if !found {
+		t.Error("an untyped .d.ts binding with no package index must still be a PFE9013")
 	}
 }

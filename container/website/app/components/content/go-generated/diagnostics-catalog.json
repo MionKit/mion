@@ -1709,6 +1709,17 @@
       "example": null
     },
     {
+      "code": "PFE9016",
+      "subsystem": "pure-functions",
+      "level": "warning",
+      "severity": "warning",
+      "headline": "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions; it is only registered when that package's module loads.",
+      "detail": "A pure fn imported from an installed package is normally served at build time\nfrom that package's compiled files, so the body is bound into this build's own\nmodule and registered before anything calls it. This package carries no compiled\npure fn (it was not built with mion, or registers none), so the id resolves only\nat runtime, and only if the package's module has already loaded.\n\nFix: build the package with mion (a bundler plugin or `mion compile`), or make\nsure the consuming code imports the package's module before the pure fn runs.",
+      "summary": "A helper (a pure function) imported from another package could not be served at build time because that package's published files carry no compiled pure functions. The build still runs, but the helper is registered only when that package's own module loads first. Build the package with mion, or import its module before the helper is used.",
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "OVR001",
       "subsystem": "overrides",
       "level": "runtimeError",

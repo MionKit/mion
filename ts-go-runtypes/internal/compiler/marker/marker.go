@@ -257,6 +257,18 @@ type Options struct {
 	// the project when a file belongs to no NAMED package (an overlay, a scratch
 	// project). Empty means the path is reported as-is, minus its leading slash.
 	Cwd string
+	// PureFnBindings resolves a name declared in a `.d.ts` to the pure-fn id the
+	// declaring package's BUILT files register it under. A tsc-emitted `.d.ts`
+	// carries no id for a registration the build injected one into, so the dep
+	// walker asks the package's compiled JS instead. nil (no program, a test)
+	// leaves such a binding unresolved.
+	PureFnBindings PureFnBindingResolver
+}
+
+// PureFnBindingResolver answers Options.PureFnBindings; the index over a built
+// package's compiled files implements it.
+type PureFnBindingResolver interface {
+	BindingID(dtsPath, name string) (id string, ok bool)
 }
 
 // WithDefaults populates Specs from DefaultSpecs() when empty. Returns

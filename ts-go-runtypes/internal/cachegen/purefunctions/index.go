@@ -15,6 +15,11 @@ import (
 // Not safe for concurrent use; build per-dump.
 type Index struct {
 	byKey map[string]Entry
+	// LibraryDep, when set, reports an id owned by an installed package. Such
+	// an edge is validated at SERVE time against that package's compiled files
+	// (the resolver's package pure-fn step), the same reason the package's own
+	// built-ins are skipped below, so it is never a miss here.
+	LibraryDep func(id string) bool
 }
 
 // NewIndex builds the lookup view from an extraction result.
@@ -36,8 +41,8 @@ func (idx *Index) Get(id string) (Entry, bool) {
 // against idx, an O(1) map lookup each.
 //
 // The package's own pure fns are skipped: they are validated against the
-// generated table at SERVE time instead (serveBuiltinPureFns delivers each
-// demanded one and raises PFE9012 for one the table lacks). That check is
+// installed package at SERVE time instead (servePackagePureFns delivers each
+// demanded one and raises PFE9012 for one the package lacks). That check is
 // graph-based, so it also covers warm disk-cache hits this sink-based pass never
 // sees, and it is the only one that can work for a consumer whose program sees
 // run-types as a .d.ts with no registrations in it.
@@ -57,6 +62,9 @@ func ValidatePureFnDependencies(deps []protocol.PureFnDep, idx *Index) []diagnos
 			continue
 		}
 		if _, found := idx.Get(dep.ID); found {
+			continue
+		}
+		if idx.LibraryDep != nil && idx.LibraryDep(dep.ID) {
 			continue
 		}
 		if seenMisses[dep.ID] {

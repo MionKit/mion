@@ -1,7 +1,7 @@
 // Command gen-builtin-purefns regenerates everything the build needs to know
 // about the package's own pure functions, by running the SAME extractor the
 // resolver uses on user pure fns over the registration sources in
-// packages/run-types/src. Three outputs from one run:
+// packages/run-types/src. Two outputs from one run:
 //
 //   - internal/cachegen/purefnids/ids.generated.go — one Go const per built-in
 //     id, so an emitter names a pure fn the way source does instead of
@@ -10,11 +10,10 @@
 //     for the TS side. run-types builds with plain tsc, which injects nothing,
 //     so its own registrations pass their id explicitly and this file is where
 //     it comes from.
-//   - internal/cachegen/builtinpurefns/table.generated.go — one row per
-//     built-in: id, bodyHash, paramNames, code, and the deps the body reaches.
-//     The resolver serves these rows as pure-fn virtual modules so a published
-//     consumer (dist + .d.ts, no src to extract) still receives the bodies on
-//     demand.
+//
+// The bodies themselves are not generated: the resolver extracts them from the
+// installed package's sources on demand (internal/cachegen/purefnindex), from
+// the file list this run writes beside the ids.
 //
 // Run from the ts-go-runtypes module root:
 //
@@ -24,14 +23,13 @@
 //
 //	pnpm miondevx core codegen builtinpurefns [--check]
 //
-// The TS files stay the authored source of truth; this table is only how their
-// bodies reach consumers. Edit the src, never table.generated.go.
+// The TS files stay the authored source of truth. Edit the src, never the
+// generated files.
 package main
 
 import (
 	"fmt"
 	"go/format"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -42,7 +40,8 @@ import (
 	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/parser"
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
+	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
@@ -69,19 +68,22 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// The scan lives HERE, not in the resolver: it runs once, in this repo, against
-	// real disk, and its answer is written into the generated file the binary
-	// compiles in, so a consumer never re-derives it.
-	scanned, err := scanForRegistrations(pkgRoot)
-	if err != nil {
-		return err
+	// The scan runs HERE, once, in this repo, and its answer is written into the
+	// generated file the binary compiles in, so a consumer never re-derives it.
+	pkgRoot = tspath.NormalizePath(pkgRoot)
+	scanned := purefnindex.ScanRegistrations(pkgRoot, osvfs.FS())
+	if len(scanned) == 0 {
+		return fmt.Errorf("no file under %s/src registers a pure function", pkgRoot)
 	}
 	// The SAME call the resolver serves bodies with, so the id constants the
 	// emitters compile against and the bodies a consumer receives can never come
 	// from different files or a different resolution.
-	entries, err := builtinpurefns.ExtractPackage(pkgRoot, scanned, builtinpurefns.PackageProgram{})
+	entries, diags, err := purefnindex.ExtractSources(pkgRoot, scanned, purefnindex.SideProgram{})
 	if err != nil {
 		return err
+	}
+	if len(diags) > 0 {
+		return fmt.Errorf("extractor rejected %s (%s %v)", diags[0].Site.FilePath, diags[0].Code, diags[0].Args)
 	}
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key() < entries[j].Key() })
@@ -304,64 +306,6 @@ func parseCheckEntries(entries []purefunctions.Entry) error {
 	}
 	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix internal/cachegen/purefunctions/striptypes.go (add the missing type position), not the source",
 		len(failures), strings.Join(failures, "\n"))
-}
-
-// sourceDir is where a package keeps the TypeScript this scans. The tarball ships
-// it (`files` carries `src`), which is what makes the bodies reachable at all.
-const sourceDir = "src"
-
-// registrarNeedle is what a file that registers a pure fn contains.
-// `registerPureFnFactory` has it as a prefix, so one needle covers both
-// registrars. It finds a DIRECT registrar call: a package registering through a
-// wrapper function of its own would name the registrar only in the wrapper's
-// module. The marker package calls the registrars directly; generalising this to
-// third-party packages is a separate problem.
-const registrarNeedle = "registerPureFn"
-
-// scanForRegistrations returns the package's files that call a registrar. A file
-// that registers contains the call by definition, so nothing can be missed the way
-// a hand-written list or a walk of the import graph can (the marker package's
-// circular-pure-fns.ts is side-effect imported by nothing at all). It is a
-// superset: what gets WRITTEN OUT is narrowed to the files that produced an entry.
-//
-// Spec and test files are skipped because the tarball excludes them: naming one
-// would name a path a consumer's install does not have.
-func scanForRegistrations(packageRoot string) ([]string, error) {
-	root := filepath.Join(packageRoot, sourceDir)
-	var files []string
-	walkErr := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() || !isCandidate(entry.Name()) {
-			return nil
-		}
-		content, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		if strings.Contains(string(content), registrarNeedle) {
-			files = append(files, path)
-		}
-		return nil
-	})
-	if walkErr != nil {
-		return nil, fmt.Errorf("scan %s: %w", root, walkErr)
-	}
-	if len(files) == 0 {
-		return nil, fmt.Errorf("no file under %s registers a pure function", root)
-	}
-	sort.Strings(files)
-	return files, nil
-}
-
-// isCandidate keeps authored TypeScript only: a declaration file carries no body,
-// and a spec or test file is not in the tarball.
-func isCandidate(name string) bool {
-	if !strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".d.ts") {
-		return false
-	}
-	return !strings.HasSuffix(name, ".spec.ts") && !strings.HasSuffix(name, ".test.ts")
 }
 
 // registeringFiles are the distinct files the extracted entries came from, sorted.
