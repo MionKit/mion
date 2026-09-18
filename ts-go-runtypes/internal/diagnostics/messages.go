@@ -313,7 +313,7 @@ var messagesByCode = map[string]message{
 		Detail:   "`utl.usePureFn` / `utl.getPureFn` need a static id so the build can verify\nthe pure fn is registered and inline the id into the emitted body. The id is\nthe value a registrar returned, imported from a file in this build, or a\nstring literal.\n\nFix:\n-  const key = buildKey();\n-  return utl.usePureFn(key)(input);\n+  import {slugify} from './slug';\n+  return utl.usePureFn(slugify)(input);",
 	},
 	"PFE9015": {
-		Headline: "Pure function `{0}` and the one reaching it here depend on each other; neither can be given an id.",
+		Headline: "Pure functions circular dependency: `{0}` (`{1}`) reaches back into `{2}`.",
 		Detail:   "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
 	},
 	"PFE9014": {

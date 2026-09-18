@@ -69,7 +69,7 @@ const registerPureFnUntracked = registerPureFn as unknown as (tuple: unknown, id
 /** Registers an inputFrom mapper from RunTypes' own generated pure-fn tuple and opts its id
  *  into batch-reachability. Called by the generated `.mion/rpc/batches.generated.js`, which
  *  imports the tuple straight from the client build's `.mion/types/pf/` tree — so the body has
- *  ONE source of truth and arrives with its real bodyHash, never a copy mion rehydrates. */
+ *  ONE source of truth and is the one the id hashes, never a copy mion rehydrates. */
 export function registerInputMapperTuple(id: string, tuple: unknown): void {
   if (!id || !Array.isArray(tuple)) {
     console.warn(`[mion inputMappers] mapper '${id}' has no generated pure-fn tuple — skipped.`);

@@ -290,3 +290,91 @@ export const noParam = registerPureFnFactory(function () {
 		}
 	}
 }
+
+// TestDeps_CycleAcrossFilesIsReported — two pure functions that reach each
+// other have no id: each one's id is the hash of a body that would have to
+// carry the other's id. Before PFE9015 nothing rejected it, and it was not
+// merely unbuildable: materialising either one at runtime called straight back
+// into the other and recursed until the stack went. A build error instead.
+//
+// This test also stands in for "the extraction terminates": a regression that
+// loses the in-progress guard hangs here rather than failing.
+func TestDeps_CycleAcrossFilesIsReported(t *testing.T) {
+	_, diags := extractFromOverlay(t, map[string]string{
+		"a.ts": `
+import {registerPureFnFactory} from '@mionjs/run-types';
+import {beta} from './b';
+export const alpha = registerPureFnFactory(function (utl) {
+  return function _a(s: string) {
+    return utl.getPureFn(beta)(s);
+  };
+});`,
+		"b.ts": `
+import {registerPureFnFactory} from '@mionjs/run-types';
+import {alpha} from './a';
+export const beta = registerPureFnFactory(function (utl) {
+  return function _b(s: string) {
+    return utl.getPureFn(alpha)(s);
+  };
+});`,
+	})
+	var cycles []Diagnostic
+	for _, d := range diags {
+		if d.Code == CodePureFnDependencyCycle {
+			cycles = append(cycles, d)
+		}
+	}
+	if len(cycles) == 0 {
+		t.Fatalf("expected a %s for the a.ts <-> b.ts cycle, got %+v", CodePureFnDependencyCycle, diags)
+	}
+	// The message names the dependency and BOTH files, so a reader can open the
+	// two ends without re-deriving them from one file:line.
+	args := cycles[0].Args
+	if len(args) != 3 {
+		t.Fatalf("expected (dependency, its file, this file), got %v", args)
+	}
+	if args[0] != "alpha" && args[0] != "beta" {
+		t.Errorf("first arg should name the dependency reached, got %q", args[0])
+	}
+	for _, index := range []int{1, 2} {
+		if !strings.HasSuffix(args[index], "a.ts") && !strings.HasSuffix(args[index], "b.ts") {
+			t.Errorf("arg %d should be one of the two files in the cycle, got %q", index, args[index])
+		}
+	}
+	if args[1] == args[2] {
+		t.Errorf("the two ends are in different files, so the args should differ: %v", args)
+	}
+}
+
+// TestDeps_CycleWithinOneFileIsReported — the same cycle written in a single
+// module. Both file args are then that one file, which is correct rather than a
+// degenerate case: the message still says where to look.
+func TestDeps_CycleWithinOneFileIsReported(t *testing.T) {
+	_, diags := extractFromOverlay(t, map[string]string{
+		"a.ts": `
+import {registerPureFnFactory} from '@mionjs/run-types';
+export const ping = registerPureFnFactory(function (utl) {
+  return function _ping(s: string) {
+    return utl.getPureFn(pong)(s);
+  };
+});
+export const pong = registerPureFnFactory(function (utl) {
+  return function _pong(s: string) {
+    return utl.getPureFn(ping)(s);
+  };
+});`,
+	})
+	found := false
+	for _, d := range diags {
+		if d.Code != CodePureFnDependencyCycle {
+			continue
+		}
+		found = true
+		if len(d.Args) != 3 || !strings.HasSuffix(d.Args[1], "a.ts") || d.Args[1] != d.Args[2] {
+			t.Errorf("a single-file cycle should name that file at both ends, got %v", d.Args)
+		}
+	}
+	if !found {
+		t.Fatalf("expected a %s for the ping <-> pong cycle, got %+v", CodePureFnDependencyCycle, diags)
+	}
+}

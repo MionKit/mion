@@ -338,16 +338,15 @@ describe('addSerializedJitCaches (client restore lane)', () => {
     addSerializedJitCaches(
       {},
       {
-        '@acme/app/src/fns#namedParam': {
-          id: '@acme/app/src/fns#namedParam',
-          bodyHash: 'specNamedParam',
+        '@acme/app#specNamedParam': {
+          id: '@acme/app#specNamedParam',
           paramNames: ['rtu'],
           code: 'return () => typeof rtu;',
           pureFnDependencies: [],
         },
       }
     );
-    const restored = getRTUtils().getPureFnByKey('@acme/app/src/fns#namedParam');
+    const restored = getRTUtils().getPureFnByKey('@acme/app#specNamedParam');
     expect(restored).toBeDefined();
     expect(restored!()).toBe('object'); // resolves `rtu` -> it was bound, not undeclared
   });

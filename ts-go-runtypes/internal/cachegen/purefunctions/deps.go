@@ -105,15 +105,17 @@ func (ctx *resolveCtx) handleCall(
 		return
 	}
 	arg := callExpr.Arguments.Nodes[0]
-	id, lower, cycle := ctx.resolveDepArg(localTable, arg)
+	id, lower, cycle, cycleFile := ctx.resolveDepArg(localTable, arg)
 	if cycle {
-		// The site is the reference that closed the cycle, which is inside the
-		// pure fn at the other end of it, so naming the dependency is enough to
-		// point at both.
+		// Both ends by name: the dependency and the file it is declared in, plus
+		// the file holding this reference back into it. The two files are the
+		// same one when the cycle is written inside a single module.
 		*diags = append(*diags, diagnostics.New(
 			diagnostics.CodePureFnDependencyCycle,
 			siteFromNode(sourceFile, arg),
 			unwrapExpression(arg).Text(),
+			cycleFile,
+			sourceFile.FileName(),
 		))
 		return
 	}
@@ -177,13 +179,13 @@ func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
 //     carries an id (`declare const x: PureFnId<'…'>`). It lowers too.
 //
 // An empty id means none of the four applied; the caller reports PFE9013.
-func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) (id string, lower, cycle bool) {
+func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) (id string, lower, cycle bool, cycleFile string) {
 	if argNode == nil {
-		return "", false, false
+		return "", false, false, ""
 	}
 	// Fast path: literal at the call site.
 	if argNode.Kind == ast.KindStringLiteral || argNode.Kind == ast.KindNoSubstitutionTemplateLiteral {
-		return argNode.Text(), false, false
+		return argNode.Text(), false, false, ""
 	}
 	// Factory-local identifier hop: `const FOO = '...'` inside the factory
 	// body. This shadows checker-driven resolution because the inner const
@@ -191,31 +193,31 @@ func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) 
 	if argNode.Kind == ast.KindIdentifier {
 		if decl, found := localTable[argNode.Text()]; found {
 			if literal := resolveDeclLocal(ctx.typeChecker, localTable, decl, maxTraceDepth); literal != nil {
-				return literal.Text(), false, false
+				return literal.Text(), false, false, ""
 			}
 		}
 	}
 	inner := unwrapExpression(argNode)
 	if inner.Kind == ast.KindIdentifier {
-		id, found, inCycle := ctx.registrationIDOfBinding(inner)
+		id, found, inCycle, inCycleFile := ctx.registrationIDOfBinding(inner)
 		if inCycle {
-			return "", false, true
+			return "", false, true, inCycleFile
 		}
 		if found {
-			return id, true, false
+			return id, true, false, ""
 		}
 	}
 	// A `.d.ts`-declared id carries its value in the TYPE, which is also what a
 	// generated constants file exports. Read it off the expression.
 	if id, found := stringLiteralTypeOf(ctx.typeChecker, inner); found {
-		return id, true, false
+		return id, true, false, ""
 	}
 	// Last resort: the shared checker-driven trace, which covers a same-module
 	// `const` chain ending in a literal.
 	if literal, result := comptimeargs.ResolveLiteralString(ctx.typeChecker, argNode); result.Ok {
-		return literal.Text(), false, false
+		return literal.Text(), false, false, ""
 	}
-	return "", false, false
+	return "", false, false, ""
 }
 
 // registrationIDOfBinding resolves an identifier to the `const` declaration it
@@ -231,8 +233,10 @@ func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) 
 // dependency is rendered once however many dependents reach it.
 //
 // cycle is true when the declaration is already being resolved further up the
-// stack. Its id would have to contain itself, so there is nothing to return.
-func (ctx *resolveCtx) registrationIDOfBinding(identifier *ast.Node) (id string, found, cycle bool) {
+// stack. Its id would have to contain itself, so there is nothing to return;
+// cycleFile is the file that declaration lives in, which is the far end of the
+// cycle and the second file the diagnostic names.
+func (ctx *resolveCtx) registrationIDOfBinding(identifier *ast.Node) (id string, found, cycle bool, cycleFile string) {
 	symbol := comptimeargs.ResolveImportAlias(ctx.typeChecker, ctx.typeChecker.GetSymbolAtLocation(identifier))
 	comptimeargs.EachConstVariableDeclaration(symbol, func(variableDecl *ast.VariableDeclaration) bool {
 		nameNode := variableDecl.Name()
@@ -252,7 +256,7 @@ func (ctx *resolveCtx) registrationIDOfBinding(identifier *ast.Node) (id string,
 		}
 		entry, _, inCycle := ctx.entryFor(declFile, initializer)
 		if inCycle {
-			cycle = true
+			cycle, cycleFile = true, declFile.FileName()
 			return false
 		}
 		if entry == nil {
@@ -261,7 +265,7 @@ func (ctx *resolveCtx) registrationIDOfBinding(identifier *ast.Node) (id string,
 		id, found = entry.ID, true
 		return false
 	})
-	return id, found, cycle
+	return id, found, cycle, cycleFile
 }
 
 // stringLiteralTypeOf reads the string value off an expression's TYPE. A branded

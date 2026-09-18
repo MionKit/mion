@@ -955,7 +955,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       "A pure function's id is computed from where it lives: the package, the file\nand the name it is bound to. The build injects it, so source normally passes\nnone. An id written by hand, or left behind by a move or a rename, would\nregister the body under one id while every reference to it uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
   },
   PFE9015: {
-    headline: 'Pure function `{0}` and the one reaching it here depend on each other; neither can be given an id.',
+    headline: 'Pure functions circular dependency: `{0}` (`{1}`) reaches back into `{2}`.',
     level: 'error',
     severity: 'error',
     family: 'purefn',
