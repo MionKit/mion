@@ -39,15 +39,16 @@ void Model;
 // checks it at the wrapper's call sites, so the value really would be lost and
 // it stays CTA001.
 func TestCompTimeArgsForward_PlainParamRejected(t *testing.T) {
-	const code = `import {registerPureFnFactory} from '@mionjs/run-types';
+	const code = `import * as TF from '@mionjs/run-types/formats';
+import * as RT from '@mionjs/run-types/builders';
 
-export function register(id: string) {
-  return registerPureFnFactory(id, () => () => 1);
+export function withMax(opts: {maxLength: number}) {
+  return RT.object({nick: TF.string(opts)});
 }
 `
 	cta := scanFormatPatternCTA(t, code)
 	if len(cta) != 1 || cta[0].Code != diagnostics.CodeCompTimeArgsNonLiteral {
-		t.Fatalf("expected 1 CTA001 for a plain string parameter, got %d: %+v", len(cta), cta)
+		t.Fatalf("expected 1 CTA001 for a plain object parameter, got %d: %+v", len(cta), cta)
 	}
 }
 
@@ -74,10 +75,11 @@ func TestCompTimeArgsForward_UserAliasEarnsNothing(t *testing.T) {
 	const helpers = `export type CompTimeArgs<T> = T;
 `
 	const code = `import type {CompTimeArgs} from './helpers.ts';
-import {registerPureFnFactory} from '@mionjs/run-types';
+import * as TF from '@mionjs/run-types/formats';
+import * as RT from '@mionjs/run-types/builders';
 
-export function register(id: CompTimeArgs<string>) {
-  return registerPureFnFactory(id, () => () => 1);
+export function withMax(opts: CompTimeArgs<{maxLength: number}>) {
+  return RT.object({nick: TF.string(opts)});
 }
 `
 	cta := scanFormatPatternCTA2(t, map[string]string{"helpers.ts": helpers, "test.ts": code})

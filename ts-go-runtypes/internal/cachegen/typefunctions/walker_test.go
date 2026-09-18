@@ -62,52 +62,49 @@ func TestUpdateDependencies_SkipsNoopChildren(t *testing.T) {
 	}
 }
 
-// AddPureFnDependency is record-only: it appends the triple and
-// dedupes. Build-time validation against the actual
-// `registerPureFnFactory` registrations is the (unwired) purefunctions
-// dep-validation API; until wired, an unregistered dep surfaces at runtime when
-// `utl.getPureFn` throws.
+// AddPureFnDependency is record-only: it appends the id and dedupes. The
+// dependency is checked against the registrations the build found later, by the
+// resolver's own pass.
 
-func TestAddPureFnDependency_RecordsTriple(t *testing.T) {
+func TestAddPureFnDependency_RecordsID(t *testing.T) {
 	w := newTestWalker()
-	w.AddPureFnDependency("rt", "asJSONString", "/abs/run-types-pure-fns.ts")
+	w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
 	if len(w.PureFnDependencies) != 1 {
 		t.Fatalf("expected 1 dep, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
 	}
-	got := w.PureFnDependencies[0]
-	if got.Namespace != "rt" || got.FunctionName != "asJSONString" || got.FilePath != "/abs/run-types-pure-fns.ts" {
-		t.Fatalf("triple mismatch: got %+v", got)
+	if got := w.PureFnDependencies[0]; got.ID != "@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString" {
+		t.Fatalf("id mismatch: got %+v", got)
 	}
 }
 
 func TestAddPureFnDependency_NoValidationAtCallSite(t *testing.T) {
-	// The whole point of the optimization: appending is O(1) and does
-	// NOT touch the filesystem. Pass a nonsense filePath — it should
-	// still record cleanly.
+	// The whole point of the optimization: appending is O(1) and does NOT touch
+	// the filesystem, so an id nothing registers still records cleanly.
 	w := newTestWalker()
-	w.AddPureFnDependency("rt", "asJSONString", "/this/path/does/not/exist.ts")
+	w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
 	if len(w.PureFnDependencies) != 1 {
-		t.Fatalf("expected the triple to be recorded regardless of filePath validity, got %v", w.PureFnDependencies)
+		t.Fatalf("expected the id to be recorded without any lookup, got %v", w.PureFnDependencies)
 	}
 }
 
-func TestAddPureFnDependency_DedupesFullTriple(t *testing.T) {
+func TestAddPureFnDependency_DedupesRepeatedID(t *testing.T) {
 	w := newTestWalker()
 	for i := 0; i < 3; i++ {
-		w.AddPureFnDependency("rt", "asJSONString", "/abs/pure-fns.ts")
+		w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
 	}
 	if len(w.PureFnDependencies) != 1 {
 		t.Fatalf("expected 1 dep after 3 identical appends, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
 	}
 }
 
-func TestAddPureFnDependency_DifferentFilePathIsDistinctEntry(t *testing.T) {
-	// Same (ns, fn) but different filePath — both entries recorded.
+func TestAddPureFnDependency_DifferentIDsAreDistinctEntries(t *testing.T) {
+	// Two pure fns with the same NAME in different files are two ids, so both
+	// are recorded: the file half is what tells them apart.
 	w := newTestWalker()
-	w.AddPureFnDependency("rt", "asJSONString", "/a.ts")
-	w.AddPureFnDependency("rt", "asJSONString", "/b.ts")
+	w.AddPureFnDependency("@mionjs/run-types/src/runtypes/pure-fns-utils#asJSONString")
+	w.AddPureFnDependency("@acme/app/src/helpers#asJSONString")
 	if len(w.PureFnDependencies) != 2 {
-		t.Fatalf("expected 2 distinct entries by filePath, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
+		t.Fatalf("expected 2 distinct entries, got %d (%v)", len(w.PureFnDependencies), w.PureFnDependencies)
 	}
 }
 

@@ -46,4 +46,5 @@ const (
 
 	CodeMissingPureFnDep    = diagnostics.CodeMissingPureFnDep
 	CodePurityDepNotLiteral = diagnostics.CodePurityDepNotLiteral
+	CodePureFnIdMismatch    = diagnostics.CodePureFnIdMismatch
 )

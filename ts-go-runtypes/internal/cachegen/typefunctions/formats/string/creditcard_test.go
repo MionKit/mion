@@ -1,6 +1,7 @@
 package string
 
 import (
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"strconv"
 	"strings"
 	"testing"
@@ -23,11 +24,20 @@ func newCardStubCtx() *cardStubCtx {
 	return &cardStubCtx{items: map[string]string{}, counters: map[string]int{}}
 }
 
-func (c *cardStubCtx) AddPureFnDependency(_, _, _ string) {}
+func (c *cardStubCtx) AddPureFnDependency(_ string) {}
 
-func (c *cardStubCtx) UsePureFn(namespace, fnName, _ string) string {
-	c.pureFns = append(c.pureFns, namespace+"::"+fnName)
-	return "pf_" + fnName
+func (c *cardStubCtx) UsePureFn(id string) string {
+	c.pureFns = append(c.pureFns, id)
+	return pureFnNameOf(id)
+}
+
+// pureFnNameOf is the name half of an id, which is the alias the real emit
+// context binds a pure fn to inside a body.
+func pureFnNameOf(id string) string {
+	if at := strings.LastIndex(id, "#"); at >= 0 {
+		return id[at+1:]
+	}
+	return id
 }
 
 func (c *cardStubCtx) HasContextItem(key string) bool {
@@ -63,11 +73,11 @@ func TestCreditCard_NoNetworksSkipsTheNetworkTable(t *testing.T) {
 	got := creditCardEmitter{}.EmitValidateCheck(cardAnnotation(map[string]any{}), "v", ctx)
 
 	// isCreditCard returns the failure MODE, so "valid" is the empty string.
-	if got != "pf_isCreditCard(v,{})===''" {
+	if got != "isCreditCard(v,{})===''" {
 		t.Fatalf("check = %q, want the base check alone", got)
 	}
-	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != "rtFormats::isCreditCard" {
-		t.Fatalf("pure fns = %v, want exactly [rtFormats::isCreditCard]", ctx.pureFns)
+	if len(ctx.pureFns) != 1 || ctx.pureFns[0] != purefnids.IsCreditCard {
+		t.Fatalf("pure fns = %v, want exactly [%s]", ctx.pureFns, purefnids.IsCreditCard)
 	}
 }
 
@@ -78,7 +88,7 @@ func TestCreditCard_NetworksAddTheNetworkCheck(t *testing.T) {
 	params := map[string]any{"networks": []any{"visa", "mastercard"}}
 	got := creditCardEmitter{}.EmitValidateCheck(cardAnnotation(params), "v", ctx)
 
-	for _, want := range []string{"pf_isCreditCard(v,", "pf_matchesCardNetwork(v,", `"visa"`, `"mastercard"`, " && "} {
+	for _, want := range []string{"isCreditCard(v,", "matchesCardNetwork(v,", `"visa"`, `"mastercard"`, " && "} {
 		if !strings.Contains(got, want) {
 			t.Errorf("check missing %q; got %q", want, got)
 		}
@@ -111,7 +121,7 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	ctx := newCardStubCtx()
 	got := creditCardEmitter{}.EmitValidationErrorsCheck(
 		cardAnnotation(map[string]any{"networks": []any{"amex"}}), "v", "pth", "er", ctx)
-	for _, want := range []string{`'creditCard'`, `["amex"]`, `errorType:"network"`, "else if (!pf_matchesCardNetwork"} {
+	for _, want := range []string{`'creditCard'`, `["amex"]`, `errorType:"network"`, "else if (!matchesCardNetwork"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("errors lane missing %q; got %q", want, got)
 		}
@@ -120,7 +130,7 @@ func TestCreditCard_ErrorsLaneReportsTheFailureMode(t *testing.T) {
 	// The mode is computed ONCE into a local and used as both `val` and `type`.
 	anyCtx := newCardStubCtx()
 	anyGot := creditCardEmitter{}.EmitValidationErrorsCheck(cardAnnotation(map[string]any{}), "v", "pth", "er", anyCtx)
-	for _, want := range []string{"const ccMode0=pf_isCreditCard(", "val:ccMode0", "errorType:ccMode0"} {
+	for _, want := range []string{"const ccMode0=isCreditCard(", "val:ccMode0", "errorType:ccMode0"} {
 		if !strings.Contains(anyGot, want) {
 			t.Errorf("errors lane missing %q; got %q", want, anyGot)
 		}

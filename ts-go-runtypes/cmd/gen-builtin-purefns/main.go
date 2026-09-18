@@ -93,6 +93,7 @@ func run() error {
 	defer release()
 	markerOpts := marker.WithDefaults(marker.Options{})
 	markerOpts.FS = prog.FS
+	markerOpts.Cwd = prog.Cwd
 
 	entries, diags := purefunctions.ExtractFromProgramCached(typeChecker, markerOpts, prog, files, purefunctions.NewFileCache())
 	if len(diags) > 0 {

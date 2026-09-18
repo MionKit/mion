@@ -194,7 +194,7 @@ func TestHasUnknownKeys_VariantHonoursOverride(t *testing.T) {
 	runTypes := buildNamedVsInlineNestedFixture()
 	for _, runType := range runTypes {
 		if runType.ID == "inner" {
-			runType.Overrides = map[string]string{"hasUnknownKeys": "cfnhash1"}
+			runType.Overrides = map[string]string{"hasUnknownKeys": "@acme/app/src/a#cfnhash1"}
 		}
 	}
 	dump := protocol.Dump{
@@ -206,7 +206,7 @@ func TestHasUnknownKeys_VariantHonoursOverride(t *testing.T) {
 	if childLine == "" {
 		t.Fatalf("no variant entry for the overridden child in:\n%s", out)
 	}
-	if !strings.Contains(childLine, "cfn::cfnhash1") {
+	if !strings.Contains(childLine, "@acme/app/src/a#cfnhash1") {
 		t.Errorf("overridden child must redirect to the user's fn, got:\n%s", childLine)
 	}
 }

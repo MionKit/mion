@@ -174,17 +174,12 @@ export function resetJitFnCaches(): void {
   }
 }
 
-/** Reads the compiled pure fn behind an id for wire serialization.
+/** Reads the compiled pure fn an id names, for wire serialization.
  *
- *  Reads the raw cache rather than `rtUtils.getCompiledPureFn` deliberately: that API takes a
- *  `CompTimeArgs<PureFnId>`, which the scanner requires to be a literal — the id here comes off a
- *  compiled entry at runtime, so every consumer build would emit CTA003. Upstream exposes
- *  untracked `getPureFnByKey`/`hasPureFnByKey` for exactly this wire-driven case but has no
- *  `getCompiledPureFnByKey` returning the full entry, which is what serialization needs.
- *  Worth an upstream request; until then this read is the only way. */
+ *  The UNTRACKED lookup, not `getCompiledPureFn`: that one takes a branded id the build must be
+ *  able to read at the call site, and the id here comes off a compiled entry at runtime. */
 export function resolveCompiledPureFn(id: string): CompiledPureFunction | undefined {
-  const cache = getRTFnCaches().pureFnsCache as Record<string, unknown>;
-  return cache[id] as CompiledPureFunction | undefined;
+  return getRTUtils().getCompiledPureFnByKey(id);
 }
 
 /** True when the injected value looks like the multi-key marker payload (array of entry tuples). */

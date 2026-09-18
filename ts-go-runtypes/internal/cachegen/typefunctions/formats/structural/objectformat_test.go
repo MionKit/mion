@@ -24,11 +24,14 @@ func newStubCtx() *stubCtx {
 	return &stubCtx{items: map[string]string{}, counters: map[string]int{}}
 }
 
-func (c *stubCtx) AddPureFnDependency(_, _, _ string) {}
+func (c *stubCtx) AddPureFnDependency(_ string) {}
 
-func (c *stubCtx) UsePureFn(namespace, fnName, _ string) string {
-	c.pureFns = append(c.pureFns, namespace+"::"+fnName)
-	return fnName
+func (c *stubCtx) UsePureFn(id string) string {
+	c.pureFns = append(c.pureFns, id)
+	if at := strings.LastIndex(id, "#"); at >= 0 {
+		return id[at+1:]
+	}
+	return id
 }
 
 func (c *stubCtx) HasContextItem(key string) bool {

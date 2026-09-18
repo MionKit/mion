@@ -36,12 +36,14 @@ var sourceExtensions = []string{".d.ts", ".d.mts", ".d.cts", ".tsx", ".ts", ".mt
 // IDFor builds the id of a registration written in filePath and bound to name.
 // Pass the CodeHash of the body as name for a registration bound to nothing.
 func IDFor(markerOpts marker.Options, filePath, name string) string {
-	packageName, packageRoot := marker.PackageOfFile(filePath, marker.WithDefaults(markerOpts).FS)
-	path := pathFromRoot(tspath.NormalizePath(filePath), packageRoot)
+	opts := marker.WithDefaults(markerOpts)
+	packageName, packageRoot := marker.PackageOfFile(filePath, opts.FS)
 	if packageName == "" {
-		return path + idSeparator + name
+		// No NAMED package: report the path relative to the project instead, so
+		// the id stays the same wherever the project is checked out.
+		return pathFromRoot(tspath.NormalizePath(filePath), opts.Cwd) + idSeparator + name
 	}
-	return packageName + "/" + path + idSeparator + name
+	return packageName + "/" + pathFromRoot(tspath.NormalizePath(filePath), packageRoot) + idSeparator + name
 }
 
 // SplitID returns an id's location and name halves. ok is false for a string

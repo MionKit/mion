@@ -135,15 +135,17 @@ func TestCompile_ServerGeneratesBatchTransportFromClientTsconfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the server compile wrote no batch module: %v", err)
 	}
-	if !strings.Contains(string(module), "replaceBatches({") || !strings.Contains(string(module), "from './pf/rt/") {
+	if !strings.Contains(string(module), "replaceBatches({") || !strings.Contains(string(module), "from './pf/src/a/") {
 		t.Errorf("batch module lacks the table or the relative mapper import:\n%s", module)
 	}
 	if strings.Contains(string(module), clientDir) {
 		t.Errorf("batch module leaks the client path:\n%s", module)
 	}
-	mappers, _ := filepath.Glob(filepath.Join(serverDir, ".mion", "rpc", "pf", "rt", "*.js"))
+	// The mapper module rides the id's own path, which for a project with no
+	// package name is the file it was written in.
+	mappers, _ := filepath.Glob(filepath.Join(serverDir, ".mion", "rpc", "pf", "src", "a", "*.js"))
 	if len(mappers) != 1 {
-		t.Errorf("expected one mapper module under rpc/pf/rt, got %v", mappers)
+		t.Errorf("expected one mapper module under rpc/pf/src/a, got %v", mappers)
 	}
 
 	// The emitted server module ends with the import, relativized from
@@ -160,18 +162,18 @@ func TestCompile_ServerGeneratesBatchTransportFromClientTsconfig(t *testing.T) {
 	}
 }
 
-// TestCompile_ClientCarriesBatchIdAndMapperHash: the client compile splices
-// the batch id and the inline mapper's hash into the emitted `.js`, even
-// though the file has no reflection marker of its own.
-func TestCompile_ClientCarriesBatchIdAndMapperHash(t *testing.T) {
+// TestCompile_ClientCarriesBatchIdAndMapperID: the client compile splices the
+// batch id and the inline mapper's own id into the emitted `.js`, even though
+// the file has no reflection marker of its own.
+func TestCompile_ClientCarriesBatchIdAndMapperID(t *testing.T) {
 	clientDir := writeProject(t, map[string]string{"client.d.ts": batchClientDTS, "routes.ts": clientRoutesTS, "a.ts": clientBatchTS})
 	compileProject(t, clientDir, nil)
 	emitted := readEmitted(t, clientDir, "a.js")
 	if !regexp.MustCompile(`'b_[A-Za-z0-9_-]+'`).MatchString(emitted) {
 		t.Errorf("emitted client lacks the batch id:\n%s", emitted)
 	}
-	if !regexp.MustCompile(`'rt::[A-Za-z0-9_-]+'`).MatchString(emitted) {
-		t.Errorf("emitted client lacks the mapper hash:\n%s", emitted)
+	if !regexp.MustCompile(`'src/a#[A-Za-z0-9_-]+'`).MatchString(emitted) {
+		t.Errorf("emitted client lacks the mapper id:\n%s", emitted)
 	}
 	// a client is not a server: nothing generated under rpc/, no import appended
 	if _, err := os.Stat(filepath.Join(clientDir, ".mion", "rpc")); !os.IsNotExist(err) {

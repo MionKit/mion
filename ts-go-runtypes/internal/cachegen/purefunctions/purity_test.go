@@ -12,7 +12,7 @@ import (
 func withFactoryBody(t *testing.T, body string) []Diagnostic {
 	t.Helper()
 	source := `import {registerPureFnFactory} from '@mionjs/run-types';
-export const _ = registerPureFnFactory('test::fn', function () {
+export const fn = registerPureFnFactory(function () {
 ` + body + `
 });`
 	_, diags := extractFromOverlay(t, map[string]string{"case.ts": source})
@@ -182,7 +182,7 @@ func TestPurity_BinaryEncodingGlobals_Allowed(t *testing.T) {
 
 func TestPurity_BunEngineProbe_Allowed(t *testing.T) {
 	// `Bun` is in allowedGlobals ("Console + runtime hints"), which is what
-	// lets a factory specialise its returned closure per engine — rt::countEnumKeys
+	// lets a factory specialise its returned closure per engine — @mionjs/run-types/src/runtypes/pure-fns-utils#countEnumKeys
 	// picks a for-in counter on V8 and an Object.keys counter on JavaScriptCore.
 	// The probe MUST be `typeof Bun !== 'undefined'`: `process`, `globalThis` and
 	// `global` are all in forbiddenIdentifiers, so no other engine test is legal.
@@ -404,7 +404,7 @@ func TestPurity_ModuleLevelConst_StillClosureViolation(t *testing.T) {
 	_, diags := extractFromOverlay(t, map[string]string{
 		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 const name = 'John';
-export const sayHello = registerPureFnFactory('myNamespace::sayHello', function () {
+export const sayHello = registerPureFnFactory(function () {
   return function _greet() {
     return 'Hello ' + name;
   };
@@ -426,7 +426,7 @@ func TestPurity_ModuleLevelFunction_StillClosureViolation(t *testing.T) {
 	_, diags := extractFromOverlay(t, map[string]string{
 		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 function helper(x: number) { return x * 2; }
-export const x = registerPureFnFactory('ns::fn', function () {
+export const fn = registerPureFnFactory(function () {
   return function _f(n: number) {
     return helper(n);
   };
@@ -448,7 +448,7 @@ func TestPurity_ImportedSymbol_StillClosureViolation(t *testing.T) {
 	_, diags := extractFromOverlay(t, map[string]string{
 		"case.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
 declare const someImportedHelper: (n: number) => number;
-export const x = registerPureFnFactory('ns::fn', function () {
+export const fn = registerPureFnFactory(function () {
   return function _f(n: number) {
     return someImportedHelper(n);
   };

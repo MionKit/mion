@@ -46,6 +46,10 @@ type Options struct {
 type Program struct {
 	TS *compiler.Program
 	FS vfs.FS
+	// Cwd is the normalized working directory the program was built for. It is
+	// what a path is reported relative to when a file belongs to no named
+	// package, so nothing machine-specific reaches an id or a module name.
+	Cwd string
 }
 
 // New builds a ts-go Program using the supplied tsconfig.
@@ -116,7 +120,7 @@ func New(opts Options) (*Program, error) {
 		return nil, errors.New("compiler.NewProgram returned nil")
 	}
 	tsProgram.BindSourceFiles()
-	return &Program{TS: tsProgram, FS: fileSystem}, nil
+	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd}, nil
 }
 
 // NewInferred builds a Program from explicit file roots instead of a config
@@ -182,7 +186,7 @@ func NewInferred(opts Options, fileNames []string) (*Program, error) {
 		return nil, errors.New("compiler.NewProgram returned nil")
 	}
 	tsProgram.BindSourceFiles()
-	return &Program{TS: tsProgram, FS: fileSystem}, nil
+	return &Program{TS: tsProgram, FS: fileSystem, Cwd: cwd}, nil
 }
 
 // mergeConditions unions extra onto base, order-preserving and deduped, so

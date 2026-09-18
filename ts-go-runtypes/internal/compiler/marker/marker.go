@@ -240,6 +240,10 @@ type Options struct {
 	// argument is lost (T resolves to `unknown`). nil falls back to os.ReadFile
 	// (real on-disk resolution, the plugin path over a user's real node_modules).
 	FS vfspkg.FS
+	// Cwd is the program's working directory, used to report a path relative to
+	// the project when a file belongs to no NAMED package (an overlay, a scratch
+	// project). Empty means the path is reported as-is, minus its leading slash.
+	Cwd string
 }
 
 // WithDefaults populates Specs from DefaultSpecs() when empty. Returns

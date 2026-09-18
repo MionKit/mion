@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
@@ -12,12 +13,12 @@ import (
 )
 
 // reportSources is the shared program for the report integration tests: both
-// pure-fn lanes and both forms, so the emitted report covers the whole matrix.
+// forms, so the emitted report covers the whole matrix.
 var reportSources = map[string]string{
-	"runtypes.d.ts": anonPureFnDTS,
-	"a.ts": `import {registerPureFnFactory, registerAnonymousPureFn} from '@mionjs/run-types';
-export const nf = registerPureFnFactory('acme::mul', (utl) => function _mul(x: number, y: number) { return x * y; });
-export const ad = registerAnonymousPureFn((n: number): number => n * 2);
+	"runtypes.d.ts": pureFnDTS,
+	"a.ts": `import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types';
+export const mul = registerPureFnFactory((utl) => function _mul(x: number, y: number) { return x * y; });
+export const double = registerPureFn((n: number): number => n * 2);
 `,
 }
 
@@ -86,9 +87,17 @@ func TestPureFnReport_GenerateWritesJsonAndResponse(t *testing.T) {
 			t.Errorf("response key %s missing from disk report", site.Key)
 		}
 	}
-	// Named + anonymous both present.
-	if !diskKeys["acme::mul"] {
-		t.Errorf("named entry acme::mul missing from report keys %v", diskKeys)
+	// Both forms present, each keyed by its own binding.
+	for _, name := range []string{"#mul", "#double"} {
+		found := false
+		for key := range diskKeys {
+			if strings.HasSuffix(key, name) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no report record bound to %q in %v", name, diskKeys)
+		}
 	}
 
 	// The report file is DATA, not a generated module — even though it sits
@@ -115,7 +124,7 @@ func TestPureFnReport_GenerateWritesJsonAndResponse(t *testing.T) {
 
 // TestPureFnReport_LayoutIndependent verifies the report shape (keys) is
 // identical across moduleMode while the per-record `module` field carries the
-// actual layout: per-entry pf/<ns>/<fn> vs the single `pf` bundle.
+// actual layout: per-entry pf/<id> vs the single `pf` bundle.
 func TestPureFnReport_LayoutIndependent(t *testing.T) {
 	perEntry := setupReport(t, "").Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	bundled := setupReport(t, "allSingle").Dispatch(protocol.Request{Op: protocol.OpGenerate})
@@ -137,7 +146,7 @@ func TestPureFnReport_LayoutIndependent(t *testing.T) {
 			t.Errorf("key %s present per-entry but missing in allSingle report", site.Key)
 		}
 		if site.Module == "" || site.Module == "pf" {
-			t.Errorf("default mode: %s module = %q, want per-entry pf/<ns>/<fn>", site.Key, site.Module)
+			t.Errorf("default mode: %s module = %q, want per-entry pf/<id>", site.Key, site.Module)
 		}
 	}
 }

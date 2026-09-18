@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -41,6 +42,11 @@ func idByKind(t *testing.T, files map[string]string, kind reflection.ReflectionK
 }
 
 // TestOverride_FoldsTypeIDAndPropagates is the core idempotency guarantee: an
+// overrideRedirectRE matches an override redirect body: `utl.usePureFn('<id>')`,
+// with the quotes escaped when the body rides the entry as a code STRING. The id
+// is a location, so the `#` separator is what identifies it.
+var overrideRedirectRE = regexp.MustCompile(`usePureFn\(\\?'[^']+#[^']+\\?'\)`)
+
 // overrideValidate<string> shifts string's structural id (folds the cfn body
 // hash) AND every containing type's id (propagation), so no cache key is ever
 // reused with a different body across the override / no-override builds.
@@ -81,7 +87,7 @@ getRunTypeId<{a: number; b: string}>();
 
 // TestOverride_EmitsRedirectAndCfnModule proves the override is functional: a
 // createValidateFn over a struct whose `string` field is overridden emits a
-// validate redirect that calls the cfn (utl.usePureFn('cfn::…')) for that field,
+// validate redirect that calls the override body (utl.usePureFn('<id>')) for that field,
 // and the cfn module carries the user's body — propagation through the emitter.
 func TestOverride_EmitsRedirectAndCfnModule(t *testing.T) {
 	files := map[string]string{
@@ -97,7 +103,7 @@ export const isObj = createValidateFn<{a: number; b: string}>();
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	validateSources := familyEntrySources(resp, "validate")
-	if !strings.Contains(validateSources, "usePureFn(") || !strings.Contains(validateSources, "cfn::") {
+	if !overrideRedirectRE.MatchString(validateSources) {
 		t.Fatalf("validate family missing cfn redirect:\n%s", validateSources)
 	}
 	all := allEntrySources(resp)
@@ -126,7 +132,7 @@ export const enc = createJsonEncoderFn<{id: number}>();
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	all := allEntrySources(resp)
-	if !strings.Contains(all, "usePureFn(") || !strings.Contains(all, "cfn::") {
+	if !overrideRedirectRE.MatchString(all) {
 		t.Fatalf("json encoder composite missing cfn redirect:\n%s", all)
 	}
 	// Override body rides the cfn pure-fn module as the `code` string (default
@@ -357,7 +363,7 @@ export const isNode = createValidateFn<Node>();
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	validateSources := familyEntrySources(resp, "validate")
-	if !strings.Contains(validateSources, "usePureFn(") || !strings.Contains(validateSources, "cfn::") {
+	if !overrideRedirectRE.MatchString(validateSources) {
 		t.Fatalf("recursive-type override is not a redirect:\n%s", validateSources)
 	}
 	for _, d := range resp.Diagnostics {
