@@ -186,10 +186,10 @@ export type FormatTransformFn = (value: any) => any;
 // jit and pure functions data, does not contain createRTFn or fn
 // this is used to serialize over the network, but requires using new Function() to restore functionality
 export type FnsDataCache = Record<string, CompiledFnData>;
-/** Namespaced cache structure for pure function data. Entries are `SerializablePureFunction`, not
- *  bare `PureFunctionData`: an entry that reaches the wire MUST carry `code`, because rebuilding it
+/** Pure function data, keyed by pure-fn id. Entries are `SerializablePureFunction`, not bare
+ *  `PureFunctionData`: an entry that reaches the wire MUST carry `code`, because rebuilding it
  *  client-side is `new Function(...paramNames, code)` and nothing else. */
-export type PureFnsDataCache = Record<string, Record<string, SerializablePureFunction>>;
+export type PureFnsDataCache = Record<string, SerializablePureFunction>;
 
 // ########################################## other #########################################
 

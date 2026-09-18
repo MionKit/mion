@@ -149,18 +149,15 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
       createRTFn: data.alwaysThrowMessage !== undefined ? utl.alwaysThrowFactory(data.alwaysThrowMessage) : undefined,
     } as never);
   }
-  for (const [namespace, fns] of Object.entries(pureFnDeps)) {
-    for (const [fnName, pureFnData] of Object.entries(fns)) {
-      const key = `${namespace}::${fnName}`;
-      if (utl.hasPureFnByKey(key)) continue;
-      // paramNames are the AUTHOR's own factory parameter names, recorded verbatim at build
-      // time. Hardcoding 'utl' here would bind the single parameter under the wrong name and
-      // any factory written as e.g. `(rtu) => ...` would ReferenceError on first call.
-      utl.addPureFn(key, {
-        ...pureFnData,
-        createPureFn: buildPureFnFactoryFromCode(pureFnData.paramNames, pureFnData.code),
-      } as never);
-    }
+  for (const [id, pureFnData] of Object.entries(pureFnDeps)) {
+    if (utl.hasPureFnByKey(id)) continue;
+    // paramNames are the AUTHOR's own factory parameter names, recorded verbatim at build
+    // time. Hardcoding 'utl' here would bind the single parameter under the wrong name and
+    // any factory written as e.g. `(rtu) => ...` would ReferenceError on first call.
+    utl.addPureFn(id, {
+      ...pureFnData,
+      createPureFn: buildPureFnFactoryFromCode(pureFnData.paramNames, pureFnData.code),
+    } as never);
   }
 }
 
@@ -177,17 +174,17 @@ export function resetJitFnCaches(): void {
   }
 }
 
-/** Reads the compiled pure fn behind `<namespace>::<name>` for wire serialization.
+/** Reads the compiled pure fn behind an id for wire serialization.
  *
  *  Reads the raw cache rather than `rtUtils.getCompiledPureFn` deliberately: that API takes a
- *  `CompTimeArgs<PureFnId>`, which the scanner requires to be a literal — the key here is built at
- *  runtime from a template expression, so every consumer build would emit CTA003. Upstream exposes
+ *  `CompTimeArgs<PureFnId>`, which the scanner requires to be a literal — the id here comes off a
+ *  compiled entry at runtime, so every consumer build would emit CTA003. Upstream exposes
  *  untracked `getPureFnByKey`/`hasPureFnByKey` for exactly this wire-driven case but has no
  *  `getCompiledPureFnByKey` returning the full entry, which is what serialization needs.
  *  Worth an upstream request; until then this read is the only way. */
-export function resolveCompiledPureFn(namespace: string, name: string): CompiledPureFunction | undefined {
+export function resolveCompiledPureFn(id: string): CompiledPureFunction | undefined {
   const cache = getRTFnCaches().pureFnsCache as Record<string, unknown>;
-  return cache[`${namespace}::${name}`] as CompiledPureFunction | undefined;
+  return cache[id] as CompiledPureFunction | undefined;
 }
 
 /** True when the injected value looks like the multi-key marker payload (array of entry tuples). */

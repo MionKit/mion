@@ -24,8 +24,6 @@ import type {MetadataKind, MetadataRecord, MetadataRecordKey, MetadataStore, Sto
 import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 import {requestPersistenceWhenSilent} from './persistentStorage.ts';
 
-const PURE_FN_SEPARATOR = '::';
-
 type MetadataRouteKey = typeof MION_ROUTES.methodsMetadata | typeof MION_ROUTES.methodsMetadataById;
 
 /** What the cache knows about one stored record, without holding its text. Enough to pick the
@@ -182,18 +180,12 @@ async function persistPayloads(options: ClientOptions, payloads: SerializableMet
       }
       add('j', hash, jitFnData);
     }
-    for (const [namespace, nsPureFns] of Object.entries<Record<string, PureFunctionData>>(payload.purFnDeps ?? {})) {
-      if (!isStorableName(namespace)) {
-        console.warn(`Refused to store pure functions under namespace '${namespace}'`);
+    for (const [id, pureFnData] of Object.entries<PureFunctionData>(payload.purFnDeps ?? {})) {
+      if (!isStorableName(id)) {
+        console.warn(`Refused to store pure function '${id}'`);
         continue;
       }
-      for (const [fnName, pureFnData] of Object.entries(nsPureFns)) {
-        if (!isStorableName(fnName)) {
-          console.warn(`Refused to store pure function '${namespace}${PURE_FN_SEPARATOR}${fnName}'`);
-          continue;
-        }
-        add('p', `${namespace}${PURE_FN_SEPARATOR}${fnName}`, pureFnData);
-      }
+      add('p', id, pureFnData);
     }
     for (const [methodId, methodData] of Object.entries<MethodWithOptions>(payload.methods ?? {})) {
       if (!isStorableName(methodId)) {
@@ -325,7 +317,7 @@ async function hydrate(state: CacheState): Promise<void> {
 
   for (const record of records) {
     // the entry is keyed by the id in ITS OWN record, never by what the payload claims
-    if (!isRecordIdSafe(record.kind, record.id)) continue;
+    if (!isStorableName(record.id)) continue;
     let parsed: any;
     try {
       parsed = JSON.parse(record.json);
@@ -340,17 +332,13 @@ async function hydrate(state: CacheState): Promise<void> {
       deps[record.id] = parsed;
       state.graph.deps[record.id] = parsed;
     } else if (record.kind === 'p') {
-      const separator = record.id.indexOf(PURE_FN_SEPARATOR);
-      const namespace = record.id.slice(0, separator);
-      const fnName = record.id.slice(separator + PURE_FN_SEPARATOR.length);
       // the factory is rebuilt from `code`, so an entry without one restores to nothing callable.
       // Refuse it here rather than let it into the cache; the server will be asked for it again.
       if (typeof parsed?.code !== 'string') {
         console.warn(`Ignoring cached pure function ${record.id}: it carries no code`);
         continue;
       }
-      if (!pureFnDeps[namespace]) pureFnDeps[namespace] = Object.create(null);
-      pureFnDeps[namespace][fnName] = parsed as SerializablePureFunction;
+      pureFnDeps[record.id] = parsed as SerializablePureFunction;
       state.graph.pureFns[record.id] = parsed;
     } else {
       methods[record.id] = parsed as MethodWithOptions;
@@ -376,13 +364,6 @@ async function hydrate(state: CacheState): Promise<void> {
   }
   addRoutesToCache(restorable);
   scheduleSweep(state, unusable);
-}
-
-function isRecordIdSafe(kind: MetadataKind, id: string): boolean {
-  if (kind !== 'p') return isStorableName(id);
-  const separator = id.indexOf(PURE_FN_SEPARATOR);
-  if (separator <= 0) return false;
-  return isStorableName(id.slice(0, separator)) && isStorableName(id.slice(separator + PURE_FN_SEPARATOR.length));
 }
 
 /** True when this page took the method's metadata off the store rather than from the server. */

@@ -69,6 +69,18 @@ function asFactory(fn: PureFn | PureFnFactory, wrap: boolean): PureFnFactory {
  * so there is no identity to register under and nothing else can be assumed.
  */
 function registerCore(caller: string, arg: unknown, id: string | undefined, wrap: boolean): PureFnId {
+  // Hollowed registration: the body no longer ships in this file (a package build
+  // stripped it) and travels on demand through the pure-fn cache, registering via
+  // a fn entry's deps thunk instead. Nothing is cached — caching an empty entry
+  // here would mask the real tuple whenever this call wins the load order — and
+  // nothing ever invokes it, because a body only reaches a pure fn the build
+  // demanded, which is served and registered before it runs.
+  //
+  // The id is not needed either, which is why the hollow step drops it: a
+  // consumer's build lowers an imported id to a literal from the `.d.ts`, so no
+  // runtime value is ever read, and the generated id module tree-shakes out of
+  // the bundle.
+  if (arg == null) return (id ?? '') as PureFnId;
   if (id === undefined) {
     throw new Error(
       `[mion] ${caller}: no id injected. The build plugin must process this file — ` +
@@ -112,12 +124,6 @@ function registerCore(caller: string, arg: unknown, id: string | undefined, wrap
     getRTUtils().addPureFn(id, compiled);
     return id as PureFnId;
   }
-  // Hollowed registration: the body no longer ships in this file (a package
-  // build stripped it) and travels on demand through the pure-fn cache,
-  // registering via a fn entry's deps thunk instead. Deliberately NOT cached:
-  // caching an empty entry here would mask the real tuple whenever this call
-  // wins the load order. Nothing ever invokes it, because a body only reaches a
-  // pure fn the build demanded, which is served and registered before it runs.
   return id as PureFnId;
 }
     }
