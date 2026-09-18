@@ -6,8 +6,8 @@
  * ######## */
 
 // The stored cache is writable by any script on the page, and its ids become object keys on restore.
-// These tests pin that a prototype-named namespace, function name or hash never reaches
-// Object.prototype, and that an entry is keyed by its own record id, not by what its payload claims.
+// These tests pin that a prototype-named id or hash never reaches Object.prototype, and that an
+// entry is keyed by its own record id, not by what its payload claims.
 
 import 'fake-indexeddb/auto';
 import {describe, beforeEach, afterEach, it, expect, vi} from 'vitest';
@@ -30,7 +30,7 @@ const options: ClientOptions = {
   storageEngine: 'indexeddb',
 };
 
-const pureFn = (fnName: string) => ({fnName, namespace: 'x', paramNames: ['utl'], code: 'return () => 1'});
+const pureFn = (id: string) => ({id, paramNames: ['utl'], code: 'return () => 1'});
 
 /** Writes straight into the store, the way another script on the page could. */
 async function seed(records: Omit<MetadataRecord, 'baseURL' | 'ts'>[]): Promise<void> {
@@ -53,10 +53,10 @@ describe('client metadata cache: prototype safety', () => {
     delete (Object.prototype as any).polluted;
   });
 
-  it('a __proto__ namespace in the store never writes onto Object.prototype', async () => {
+  it('a __proto__ id in the store never writes onto Object.prototype', async () => {
     await seed([
-      {kind: 'p', id: `__proto__::h1`, json: JSON.stringify(pureFn('polluted'))},
-      {kind: 'p', id: `ok::h2`, json: JSON.stringify({...pureFn('fine'), fnName: '__proto__'})},
+      {kind: 'p', id: `__proto__`, json: JSON.stringify(pureFn('polluted'))},
+      {kind: 'p', id: `@acme/app/src/fns#ok`, json: JSON.stringify({...pureFn('fine'), id: '__proto__'})},
     ]);
     await hydrateMetadataCache(options);
     expect(({} as any).polluted).toBeUndefined();
@@ -71,7 +71,7 @@ describe('client metadata cache: prototype safety', () => {
     warn.mockRestore();
   });
 
-  it('a server payload with a prototype-named namespace or hash is refused before it is stored', async () => {
+  it('a server payload with a prototype-named id or hash is refused before it is stored', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // JSON.parse, not an object literal: `__proto__` written in a literal sets the prototype and is
     // never an own key, so only a parsed payload reproduces what actually arrives off the wire.
@@ -79,8 +79,9 @@ describe('client metadata cache: prototype safety', () => {
       "methods": {},
       "deps": {"__proto__": {"code": ""}, "constructor": {"code": ""}},
       "purFnDeps": {
-        "__proto__": {"polluted": ${JSON.stringify(pureFn('polluted'))}},
-        "ok": {"prototype": ${JSON.stringify(pureFn('prototype'))}, "fine": ${JSON.stringify(pureFn('fine'))}}
+        "__proto__": ${JSON.stringify(pureFn('polluted'))},
+        "constructor": ${JSON.stringify(pureFn('prototype'))},
+        "@acme/app/src/fns#fine": ${JSON.stringify(pureFn('fine'))}
       }
     }`;
     receiveFromServer(JSON.parse(wire));
@@ -88,7 +89,7 @@ describe('client metadata cache: prototype safety', () => {
 
     const store = await getMetadataStore();
     const stored = await store.readAll(options.baseURL);
-    expect(stored.map((record) => `${record.kind}:${record.id}`)).toEqual(['p:ok::fine']);
+    expect(stored.map((record) => `${record.kind}:${record.id}`)).toEqual(['p:@acme/app/src/fns#fine']);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });

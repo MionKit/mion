@@ -320,12 +320,12 @@ describe('mionAdapter: json strategy per compiled family set', () => {
 describe('direct mion cache resolution', () => {
   it('unknown jit/pure lookups are plain misses (undefined), never throw', () => {
     expect(getRTUtils().getRT('isType_does_not_exist')).toBeUndefined();
-    expect(resolveCompiledPureFn('ns', 'missing')).toBeUndefined();
+    expect(resolveCompiledPureFn('@acme/app/src/fns#missing')).toBeUndefined();
   });
 
   it('resolves a pure fn registered through RunTypes', () => {
-    registerPureFnFactory('mionjs::adapterSpecFn', () => () => 42);
-    expect(resolveCompiledPureFn('mionjs', 'adapterSpecFn')).toBeTruthy();
+    const adapterSpecFn = registerPureFnFactory(() => () => 42);
+    expect(resolveCompiledPureFn(adapterSpecFn)).toBeTruthy();
   });
 });
 
@@ -338,19 +338,16 @@ describe('addSerializedJitCaches (client restore lane)', () => {
     addSerializedJitCaches(
       {},
       {
-        specns: {
-          namedParam: {
-            namespace: 'specns',
-            fnName: 'namedParam',
-            bodyHash: 'specNamedParam',
-            paramNames: ['rtu'],
-            code: 'return () => typeof rtu;',
-            pureFnDependencies: [],
-          },
+        '@acme/app/src/fns#namedParam': {
+          id: '@acme/app/src/fns#namedParam',
+          bodyHash: 'specNamedParam',
+          paramNames: ['rtu'],
+          code: 'return () => typeof rtu;',
+          pureFnDependencies: [],
         },
       }
     );
-    const restored = getRTUtils().getPureFnByKey('specns::namedParam');
+    const restored = getRTUtils().getPureFnByKey('@acme/app/src/fns#namedParam');
     expect(restored).toBeDefined();
     expect(restored!()).toBe('object'); // resolves `rtu` -> it was bound, not undeclared
   });
