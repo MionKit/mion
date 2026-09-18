@@ -92,34 +92,25 @@ describe('published tarballs never carry tsc build info', () => {
   }
 });
 
-// @mionjs/run-types' pure-fn registrations. Their compiled bodies are stripped out
-// of the dist (scripts/core/hollow-builtin-purefns.mjs) and the compiler extracts
-// them from THESE files at build time, so the tarball shipping them is what makes a
-// published consumer work at all. The list is the package's own declaration, read
-// here rather than repeated: the Go loader and cmd/gen-builtin-purefns read the
-// same field.
+// @mionjs/run-types' pure-fn bodies are stripped out of the dist
+// (scripts/core/hollow-builtin-purefns.mjs) and the compiler extracts them from
+// `src` at build time, so the tarball shipping `src` is what makes a published
+// consumer work at all. Which files hold them is not asserted here: the compiler
+// finds them by scanning for a registrar call, so there is no list to keep in sync.
 describe('@mionjs/run-types publishes the sources its pure fns come from', () => {
   const packageDir = join(REPO_ROOT, 'packages', 'run-types');
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
-  const declared: string[] = manifest.mion?.pureFns ?? [];
-
-  it('declares mion.pureFns', () => {
-    expect(declared.length).toBeGreaterThan(0);
-  });
 
   it('lists src in "files"', () => {
     expect(manifest.files).toContain('src');
   });
 
-  // Only spec/test files may be excluded; an exclusion reaching a registration
-  // module would ship a package whose pure-fn bodies cannot be found.
+  // Only spec/test files may be excluded, and the compiler's scan skips exactly
+  // those two suffixes. Any other exclusion could drop a registration module from
+  // the tarball while the in-repo build still found it.
   it('excludes nothing that would drop a registration module', () => {
     const negations = (manifest.files as string[]).filter((entry) => entry.startsWith('!src'));
     expect(negations).toEqual(['!src/**/*.spec.ts', '!src/**/*.test.ts']);
-  });
-
-  it('ships every declared source', () => {
-    for (const relative of declared) expect(existsSync(join(packageDir, relative))).toBe(true);
   });
 });
 

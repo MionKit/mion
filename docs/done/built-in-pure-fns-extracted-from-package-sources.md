@@ -53,10 +53,13 @@ against what extraction produces, and never decodes it.
   hashing the same bodies would split one function into two entries; a test pins that both lanes
   agree. Only a program that does not hold those sources, a published consumer, builds a Program of
   the loader's own.
-- **The package declares its own sources**, in `package.json` `mion.pureFns`, read by the loader and
-  by `cmd/gen-builtin-purefns`. Discovering them by following imports from the package's entry
-  points was tried and does not work: `circular-pure-fns.ts` is side-effect imported by nothing, so
-  discovery dropped `findCycle` silently. That is its own test now.
+- **The source files are found, not declared.** The loader reads the package's `src` and keeps
+  whatever calls a registrar, so a file that registers cannot be missed. Two alternatives were tried
+  and both miss one: following imports from the entry points drops `circular-pure-fns.ts`
+  (side-effect imported by nothing), and a declared list in `package.json` drops whatever someone
+  forgets to add. `cmd/gen-builtin-purefns` runs the same scan. The scan descends through
+  `GetAccessibleEntries`, not the FS's `WalkDir`, which on an overlay filesystem delegates to real
+  disk and never sees a virtually served package.
 - **Served entries drop their source-position bookkeeping** (`FactoryArgStart/End`,
   `IDInjectPos/Text`, `FilePath`). Those drive the rewrite of the call site an entry came from, and
   a served built-in's call site is inside the installed package: rewriting it would dangle an
@@ -92,7 +95,7 @@ against what extraction produces, and never decodes it.
 `packages/run-types/src/runtypes/circular-pure-fns.ts` is imported by nothing: its name appears
 only inside a comment in `circular.ts`. Its registration therefore never runs at load, which is
 harmless now that the compiler serves the body, but it means the package's side-effect import list
-is incomplete. Declaring the sources in `mion.pureFns` is what keeps it served, and
+is incomplete. Scanning for the registrar call is what keeps it served, and
 `TestClosure_FindCycleIsServed` is what keeps it from being dropped again.
 
 ## Tests
@@ -101,16 +104,15 @@ is incomplete. Declaring the sources in `mion.pureFns` is what keeps it served, 
   drift check the deleted `--check` lane gave), the core built-ins served with non-empty bodies,
   `findCycle` specifically, transitive module closure, dedup, a demanded id the sources do not
   register reported missing, extraction happening once, served entries carrying no rewrite spans but
-  keeping their `BindingName`, unreadable sources erroring, a manifest with no `mion.pureFns`
-  erroring, and both lanes agreeing on ids.
+  keeping their `BindingName`, unreadable sources erroring, a package where nothing registers
+  erroring, the scan skipping what the tarball excludes, and both lanes agreeing on ids.
 - `internal/compiler/resolver/builtin_purefns_delivery_test.go` gains
   `TestBuiltinDelivery_MarkerWithoutSourcesIsCFG004`: a marker package mounted without `src` fails
   the build with `CFG004` instead of emitting a validator that throws.
 - `internal/compiler/resolver/builtin_purefns_serving_test.go` builds a Session carrying a loader
   instead of a zero Session, and gains the unreachable-sources case.
-- `packages/devtools/test/repo-contracts.test.ts` pins that `@mionjs/run-types` declares
-  `mion.pureFns`, publishes `src`, excludes only spec/test files from it, and ships every declared
-  source.
+- `packages/devtools/test/repo-contracts.test.ts` pins that `@mionjs/run-types` publishes `src` and
+  excludes only the two suffixes the scan itself skips.
 - The existing end-to-end delivery tests now exercise the on-demand path against a `node_modules`
   layout holding only what the tarball ships, which is the proof the whole design rests on.
 

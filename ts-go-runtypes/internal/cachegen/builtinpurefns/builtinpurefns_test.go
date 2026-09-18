@@ -90,9 +90,9 @@ func TestClosure_CoreBuiltinsServed(t *testing.T) {
 }
 
 // TestClosure_FindCycleIsServed is its own case on purpose: circular-pure-fns.ts
-// is side-effect imported by NOTHING, so it is reachable only because the package
-// declares it in `mion.pureFns`. Discovering the sources by following imports
-// dropped it silently, which is the failure this pins.
+// is side-effect imported by NOTHING, so it is reachable only because the scan
+// looks for the registrar call rather than walking the import graph. Following
+// imports dropped it silently, which is the failure this pins.
 func TestClosure_FindCycleIsServed(t *testing.T) {
 	ids, missing := closure(t, newTestLoader(t), purefnids.FindCycle)
 	if len(missing) != 0 || len(ids) == 0 {
@@ -191,44 +191,88 @@ func TestClosure_UnreadableSourcesError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a package root with no sources")
 	}
-	if !strings.Contains(err.Error(), "package.json") {
-		t.Errorf("error should name what it could not read, got: %v", err)
+	if !strings.Contains(err.Error(), sourceDir) {
+		t.Errorf("error should name the directory it could not read, got: %v", err)
 	}
 }
 
-// TestSourceFiles_RequiresTheDeclaration pins that the list is the package's to
-// declare: a manifest without it is an error rather than an empty extraction that
-// would report every built-in missing.
-func TestSourceFiles_RequiresTheDeclaration(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"@acme/lib"}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := SourceFiles(root, nil); err == nil {
-		t.Fatal("expected an error for a manifest with no mion.pureFns")
-	} else if !strings.Contains(err.Error(), "mion.pureFns") {
-		t.Errorf("error should name the missing field, got: %v", err)
-	}
-}
-
-// TestSourceFiles_MatchesTheManifest pins that the declared list is what gets
-// read, resolved under the package root.
-func TestSourceFiles_MatchesTheManifest(t *testing.T) {
+// TestSourceFiles_FindsTheRegistrations pins what the scan returns for the real
+// package: every file that calls a registrar, under the package root, and nothing
+// that only mentions the name in a comment or a re-export without registering.
+func TestSourceFiles_FindsTheRegistrations(t *testing.T) {
 	root := markerPackageRoot(t)
 	files, err := SourceFiles(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(files) == 0 {
-		t.Fatal("no pure-fn sources declared")
+		t.Fatal("the scan found no registrations")
 	}
 	for _, file := range files {
 		if !strings.HasPrefix(file, root) {
 			t.Errorf("%s is not under the package root %s", file, root)
 		}
-		if _, err := os.Stat(file); err != nil {
-			t.Errorf("declared source does not exist: %v", err)
+		content, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
 		}
+		if !strings.Contains(string(content), registrarNeedle) {
+			t.Errorf("%s does not call a registrar", file)
+		}
+	}
+	// The scan must reach every file the emitters name an id from, which is what
+	// the drift test proves end to end; here just pin that the orphan module, the
+	// one no import reaches, is in the set.
+	joined := strings.Join(files, "\n")
+	if !strings.Contains(joined, "circular-pure-fns.ts") {
+		t.Errorf("the scan missed circular-pure-fns.ts, which no import reaches:\n%s", joined)
+	}
+}
+
+// TestSourceFiles_SkipsWhatTheTarballExcludes pins that a registration in a spec
+// or test file is NOT picked up. Those are excluded from the published `files`, so
+// counting them in-repo would make the extraction differ between this repo and a
+// consumer's install.
+func TestSourceFiles_SkipsWhatTheTarballExcludes(t *testing.T) {
+	root := t.TempDir()
+	srcDir := filepath.Join(root, sourceDir, "nested")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "registerPureFnFactory(function () { return function () {}; });\n"
+	for name, wanted := range map[string]bool{
+		"real.ts":      true,
+		"real.spec.ts": false,
+		"real.test.ts": false,
+		"real.d.ts":    false,
+	} {
+		if err := os.WriteFile(filepath.Join(srcDir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_ = wanted
+	}
+	files, err := SourceFiles(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || filepath.Base(files[0]) != "real.ts" {
+		t.Errorf("expected only real.ts, got %v", files)
+	}
+}
+
+// TestSourceFiles_NoRegistrationsIsAnError pins the loud failure for a package
+// whose sources are missing or hold nothing: an empty scan must not read as "this
+// package has no built-ins".
+func TestSourceFiles_NoRegistrationsIsAnError(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, sourceDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, sourceDir, "plain.ts"), []byte("export const x = 1;\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SourceFiles(root, nil); err == nil {
+		t.Fatal("expected an error when nothing registers a pure function")
 	}
 }
 
