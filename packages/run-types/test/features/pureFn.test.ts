@@ -18,8 +18,8 @@ import {trimHelper} from './pureFnHelpers.ts';
 const HERE = '@mionjs/run-types#';
 const ID_RE = /^@mionjs\/run-types#[A-Za-z0-9_-]{14}$/;
 
-// 14-char base64url — what the Go binary's BodyHash emits.
-const BODY_HASH_REGEX = /^[A-Za-z0-9_-]{14}$/;
+// The hash half of an id on its own: 14 chars of base64url.
+const ID_HASH_REGEX = /^[A-Za-z0-9_-]{14}$/;
 
 type StringParams = {isLowercase?: boolean; isNumeric?: boolean};
 type Params = {isA?: boolean; isB?: boolean};
@@ -126,7 +126,7 @@ describe('a pure fn is identified by where it lives', () => {
     expect(first).toBe(second);
     expect(other).not.toBe(first);
     const [, name] = first.split('#');
-    expect(name).toMatch(BODY_HASH_REGEX);
+    expect(name).toMatch(ID_HASH_REGEX);
     const restored = getRTUtils().getPureFn(first) as (s: string) => string;
     expect(restored('7')).toBe('007');
   });

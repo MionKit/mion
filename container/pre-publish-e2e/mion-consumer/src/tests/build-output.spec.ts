@@ -32,9 +32,9 @@ describe('production build output', () => {
         const content = readFileSync(distFile, 'utf-8');
         // compiled fn bodies ship as code strings that resolve their helpers out of the pure-fn
         // registry — the shape the resolver emits for every validator/serializer it precompiles.
-        expect(content).toMatch(/getPureFn\('@mionjs\/run-types\/[^']+#/);
+        expect(content).toMatch(/getPureFn\('@mionjs\/run-types#[^']+'\)/);
         // ...each carrying its trailing pure-fn dependency-id array
-        expect(content).toMatch(/\["@mionjs\/run-types\/[^"]+#[^"]+"(, "[^"]+")*\]/);
+        expect(content).toMatch(/\["@mionjs\/run-types#[^"]+"(, "[^"]+")*\]/);
     });
 
     it('compiles the fixture routes, not just the library', () => {

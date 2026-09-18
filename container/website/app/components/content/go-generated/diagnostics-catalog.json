@@ -1691,7 +1691,7 @@
       "subsystem": "pure-functions",
       "level": "error",
       "severity": "error",
-      "headline": "Pure function `{0}` and the one reaching it here depend on each other; neither can be given an id.",
+      "headline": "Pure functions circular dependency: `{0}` (`{1}`) reaches back into `{2}`.",
       "detail": "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
       "summary": null,
       "fix": null,
