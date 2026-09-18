@@ -10,7 +10,6 @@ import {initClient} from './client.ts';
 import {batch} from './batch.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import {HeadersSubset, RpcError, MION_ROUTES, getRoutePath, routesCache} from '@mionjs/core';
-import {INPUT_MAPPER_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // NAME-lane calls (string 2nd arg) resolve to the marker-free overload, so the vite
@@ -282,40 +281,41 @@ describe('batch', () => {
 describe('inputFrom()', () => {
   const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
 
-  it('should return a InputFromRef with correct properties (name lane)', () => {
-    // name lane: references a server-registered mion pure fn; the mapperKey is
-    // the FULL registry key 'mionjs::<name>'.
-    const ref = rawInputFrom(fakeSubRequest, 'toPreferenceId');
-    expect(ref.namespace).toBe(INPUT_MAPPER_NAMESPACE);
-    expect(ref.fnName).toBe('toPreferenceId');
-    expect(ref.mapperKey).toBe('mionjs::toPreferenceId');
+  it('should return an InputFromRef carrying the mapper id the build injected', () => {
+    // The mapper is written inline; the build gives it a pure-fn id and that id
+    // IS the mapperKey the server looks the mapper up by.
+    const ref = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
+    expect(ref.mapperKey).toMatch(/#/);
     expect(ref.fromRequestId).toBe('test');
     expect(ref.toRequestId).toBe(''); // toRequestId is set once the ref is passed to the target subRequest
   });
 
-  it('should use the full mionjs registry key as mapperKey (name lane)', () => {
-    const ref = rawInputFrom(fakeSubRequest, 'someMapper');
-    expect(ref.fnName).toBe('someMapper');
-    expect(ref.mapperKey).toBe('mionjs::someMapper');
+  it('should give two mappers in one file two ids', () => {
+    const first = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
+    const second = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId + 1);
+    expect(second.mapperKey).not.toBe(first.mapperKey);
   });
 
-  it('should build a content-hashed ref for an INLINE mapper (build-time extraction)', () => {
-    // the mion vite plugin extracts the mapper + injects the trailing 'rt::<hash>' key
-    const ref = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
-    expect(ref.namespace).toBe('rt');
-    expect(ref.mapperKey).toMatch(/^rt::/);
-    expect(ref.mapperKey).toBe(`rt::${ref.fnName}`);
-    expect(ref.fromRequestId).toBe('test');
+  // The markers cast away: the build no longer sees these calls, which is both what
+  // an unprocessed file ships and the only way to hand inputFrom a bad argument.
+  const unprocessed = rawInputFrom as unknown as (source: unknown, mapper: unknown) => never;
+
+  it('should throw when the mapper is a name rather than a function', () => {
+    expect(() => unprocessed(fakeSubRequest, 'toPreferenceId')).toThrow(/takes the mapper itself, written inline/);
   });
 
-  it('should throw when the fn name is not provided', () => {
-    expect(() => rawInputFrom(fakeSubRequest, '')).toThrow(
-      'inputFrom() requires a mapper function or the name of a server-registered mion pure fn'
+  it('should throw when the mapper is missing', () => {
+    expect(() => unprocessed(fakeSubRequest, undefined)).toThrow('inputFrom() requires an inline mapper function');
+  });
+
+  it('should throw when the build injected no id', () => {
+    expect(() => unprocessed(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId)).toThrow(
+      /requires the mion build plugin/
     );
   });
 
   it('fake() should return the ref itself', () => {
-    const ref = rawInputFrom(fakeSubRequest, 'someMapper');
+    const ref = rawInputFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
     const fakeResult = ref.asArg();
     // fake() returns the ref cast as ReturnType<F>
     expect(fakeResult).toBe(ref);
@@ -326,14 +326,14 @@ describe('inputFrom e2e in batch', () => {
   type MyApi = TestServerApi;
   const baseURL = TEST_SERVER_BASE_URL;
 
-  it('should map output of one route to input of another (name lane, server-registered mapper)', async () => {
+  it('should map output of one route to input of another', async () => {
     const {routes, middleFns} = initClient<MyApi>({baseURL});
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
     const customer = routes.getCustomerById(42);
     const [[customerData, prefs], [customerError, prefsError]] = await batch([
       customer,
-      routes.getPreferencesById(inputFrom<typeof customer, number>(customer, 'toPreferenceId').asArg()),
+      routes.getPreferencesById(inputFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
     ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
     expect(customerError).toBeUndefined();
@@ -351,7 +351,7 @@ describe('inputFrom e2e in batch', () => {
     // and executed by the server via the generated batch module the plugin writes into its root.
     // NOTE: the mapper param is inferred as `resolvedValue | undefined` (the value
     // resolves server-side), hence the `!` — same convention as the docs examples.
-    // the same routes as the name-lane test with a different mapper: the mappings are part of the
+    // the same routes as the test above with a different mapper: the mappings are part of the
     // batch id, so this is its own batch
     const customer = routes.getCustomerById(7);
     const [[customerData, prefs], [customerError, prefsError]] = await batch([
@@ -366,23 +366,10 @@ describe('inputFrom e2e in batch', () => {
     expect(prefs).toEqual({id: 107, userId: 7, theme: 'light', lang: 'en'});
   });
 
-  it('should reject an unknown mapper key (server never evaluates unregistered mappers)', async () => {
-    const {routes, middleFns} = initClient<MyApi>({baseURL});
-    const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-
-    const customer = routes.getCustomerById(42);
-    const [[customerData, prefs], [customerError, prefsError], fatal] = await batch([
-      customer,
-      routes.getPreferencesById(inputFrom<typeof customer, number>(customer, 'nonexistentMapper').asArg()),
-    ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
-
-    // the whole batch is rejected while building the chain (batch-mapper-not-allowed
-    // server-side) — nothing executes. The failure is nobody's declared response, so it
-    // surfaces once in the undeclared slot, never in the per-route typed slots.
-    expect(fatal ?? prefsError ?? customerError).toBeTruthy();
-    expect(prefs).toBeUndefined();
-    expect(customerData).toBeUndefined();
-  });
+  // A mapper the server does not know is rejected before anything runs. It cannot be
+  // written from here any more (the build gives every inline mapper an id and registers
+  // it), so that rejection is pinned against the router directly, in
+  // packages/router/src/batches.spec.ts.
 });
 
 // ############# END-TO-END: every route shape the build reads #############
@@ -447,7 +434,7 @@ describe('batch build shapes end to end', () => {
   it('const sub-proxy: const flow = routes.flow, as element AND as mapping source', async () => {
     const flow = routes.flow;
     const user = flow.getUser(7);
-    const [[userValue, org], errors, fatal] = await batch([user, flow.getOrg(inputFrom(user, 'toOrgId').asArg())]).call({
+    const [[userValue, org], errors, fatal] = await batch([user, flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call({
       middleFns: auth(),
     });
     expect(fatal).toBeUndefined();
@@ -470,7 +457,7 @@ describe('batch build shapes end to end', () => {
     // only the route identity is static; the values travel at runtime like any other call
     async function loadUserWithOrg(userId: number) {
       const user = routes.flow.getUser(userId);
-      return batch([user, routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg())]).call({middleFns: auth()});
+      return batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call({middleFns: auth()});
     }
     const [[user9, org9], errors9, fatal9] = await loadUserWithOrg(9);
     const [[user11, org11], errors11, fatal11] = await loadUserWithOrg(11);
@@ -521,25 +508,25 @@ describe('inputFrom mapping shapes end to end', () => {
     expect(org).toEqual({id: 140, name: 'Org 140'});
   });
 
-  it('name lane with a string literal', async () => {
+  it('two batches whose mappers differ only in body', async () => {
+    // Each inline mapper is its own pure fn, so the two batches carry different
+    // mapper ids and different batch ids even though the routes match.
     const user = routes.flow.getUser(15);
-    const [[, org], errors, fatal] = await batch([user, routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg())]).call({
+    const [[, org], errors, fatal] = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId + 0).asArg())]).call({
       middleFns: auth(),
     });
     expect(fatal).toBeUndefined();
     expect(errors).toEqual([undefined, undefined]);
     expect(org).toEqual({id: 150, name: 'Org 150'});
-  });
 
-  it('name lane with a const bound to the literal', async () => {
-    const MAPPER_NAME = 'toOrgId';
-    const user = routes.flow.getUser(16);
-    const [[, org], errors, fatal] = await batch([user, routes.flow.getOrg(inputFrom(user, MAPPER_NAME).asArg())]).call({
-      middleFns: auth(),
-    });
-    expect(fatal).toBeUndefined();
-    expect(errors).toEqual([undefined, undefined]);
-    expect(org).toEqual({id: 160, name: 'Org 160'});
+    const other = routes.flow.getUser(16);
+    const [[, otherOrg], otherErrors, otherFatal] = await batch([
+      other,
+      routes.flow.getOrg(inputFrom(other, (u) => u!.orgId + 0 + 0).asArg()),
+    ]).call({middleFns: auth()});
+    expect(otherFatal).toBeUndefined();
+    expect(otherErrors).toEqual([undefined, undefined]);
+    expect(otherOrg).toEqual({id: 160, name: 'Org 160'});
   });
 
   it('a mapping at param index 1, the literal at index 0 stays as sent', async () => {
@@ -569,7 +556,7 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('a three-route chain A -> B -> C, C fed by B which was fed by A', async () => {
     const user = routes.flow.getUser(18);
-    const org = routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg());
+    const org = routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg());
     const [[userValue, orgValue, label], errors, fatal] = await batch([
       user,
       org,
@@ -586,7 +573,7 @@ describe('inputFrom mapping shapes end to end', () => {
     const user = routes.flow.getUser(19);
     const [[, org, tags], errors, fatal] = await batch([
       user,
-      routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg()),
+      routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg()),
       routes.flow.getTags(inputFrom(user, (u) => u!.tagIds).asArg()),
     ]).call({middleFns: auth()});
     expect(fatal).toBeUndefined();
@@ -602,7 +589,7 @@ describe('inputFrom mapping shapes end to end', () => {
   // hash to the same id and both must work.
   it('the same batch written twice in the file: first site', async () => {
     const user = routes.flow.getUser(20);
-    const [[, org], errors, fatal] = await batch([user, routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg())]).call({
+    const [[, org], errors, fatal] = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call({
       middleFns: auth(),
     });
     expect(fatal).toBeUndefined();
@@ -612,7 +599,7 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('the same batch written twice in the file: second site', async () => {
     const user = routes.flow.getUser(21);
-    const [[, org], errors, fatal] = await batch([user, routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg())]).call({
+    const [[, org], errors, fatal] = await batch([user, routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg())]).call({
       middleFns: auth(),
     });
     expect(fatal).toBeUndefined();
@@ -622,13 +609,15 @@ describe('inputFrom mapping shapes end to end', () => {
 
   it('the same routes with different mappings are two batches, both work', async () => {
     const userA = routes.flow.getUser(22);
-    const byName = await batch([userA, routes.flow.getOrg(inputFrom(userA, 'toOrgId').asArg())]).call({middleFns: auth()});
+    const byOrgId = await batch([userA, routes.flow.getOrg(inputFrom(userA, (u) => u!.orgId).asArg())]).call({
+      middleFns: auth(),
+    });
     const userB = routes.flow.getUser(23);
-    // the inline mapper picks a DIFFERENT value than the named one, so the two ids cannot be confused
+    // the second mapper picks a DIFFERENT value, so the two ids cannot be confused
     const inline = await batch([userB, routes.flow.getOrg(inputFrom(userB, (u) => u!.id).asArg())]).call({middleFns: auth()});
-    expect(byName[2]).toBeUndefined();
+    expect(byOrgId[2]).toBeUndefined();
     expect(inline[2]).toBeUndefined();
-    expect(byName[0][1]).toEqual({id: 220, name: 'Org 220'});
+    expect(byOrgId[0][1]).toEqual({id: 220, name: 'Org 220'});
     expect(inline[0][1]).toEqual({id: 23, name: 'Org 23'});
   });
 
@@ -636,7 +625,7 @@ describe('inputFrom mapping shapes end to end', () => {
     const user = routes.flow.getUser(24);
     const [[, org], errors, fatal, middleFnResults, middleFnErrors] = await batch([
       user,
-      routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg()),
+      routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg()),
     ]).call({middleFns: {...auth(), session: middleFns.session('valid-token')}});
     expect(fatal).toBeUndefined();
     expect(errors).toEqual([undefined, undefined]);
@@ -654,7 +643,7 @@ describe('inputFrom mapping shapes end to end', () => {
     const user = r.flow.getUser(25);
     const [[, org], errors, fatal, middleFnResults] = await batch([
       user,
-      r.flow.getOrg(inputFrom(user, 'toOrgId').asArg()),
+      r.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg()),
     ]).call();
     expect(fatal).toBeUndefined();
     expect(errors).toEqual([undefined, undefined]);
@@ -723,7 +712,7 @@ describe('batch runtime behaviour', () => {
     const user = routes.flow.getUser(-1);
     const [[userValue, org], [userError, orgError], fatal] = await batch([
       user,
-      routes.flow.getOrg(inputFrom(user, 'toOrgId').asArg()),
+      routes.flow.getOrg(inputFrom(user, (u) => u!.orgId).asArg()),
     ]).call({middleFns: auth()});
 
     // the source's own declared error stays in its slot

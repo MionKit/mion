@@ -160,23 +160,23 @@ describe('the metadata cache around its store', () => {
       {
         baseURL,
         kind: 'p',
-        id: 'ns::withCode',
-        json: JSON.stringify({fnName: 'withCode', namespace: 'ns', paramNames: ['utl'], code: 'return () => 1'}),
+        id: '@acme/app/src/fns#withCode',
+        json: JSON.stringify({id: '@acme/app/src/fns#withCode', paramNames: ['utl'], code: 'return () => 1'}),
         ts: 1,
       },
       {
         baseURL,
         kind: 'p',
-        id: 'ns::noCode',
-        json: JSON.stringify({fnName: 'noCode', namespace: 'ns', paramNames: ['utl']}),
+        id: '@acme/app/src/fns#noCode',
+        json: JSON.stringify({id: '@acme/app/src/fns#noCode', paramNames: ['utl']}),
         ts: 1,
       },
     ]);
 
     await hydrateMetadataCache(options);
 
-    expect(resolveCompiledPureFn('ns', 'withCode')).toBeDefined();
-    expect(resolveCompiledPureFn('ns', 'noCode')).toBeUndefined();
+    expect(resolveCompiledPureFn('@acme/app/src/fns#withCode')).toBeDefined();
+    expect(resolveCompiledPureFn('@acme/app/src/fns#noCode')).toBeUndefined();
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });
