@@ -908,7 +908,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			}
 			if renderEntries {
 				// Override cfn entries (whole-program) ride the pure-fn collection
-				// so the type-fn redirects resolve their `cfn::` dep modules. Kept
+				// so the type-fn redirects resolve their override dep modules. Kept
 				// out of the per-file pure-fn signals (replacements / addedPureFns)
 				// — those track registerPureFnFactory rewrites, not overrides.
 				allPureFns := append(append([]purefunctions.Entry(nil), pureFnEntries...), sess.overrideEntries...)
