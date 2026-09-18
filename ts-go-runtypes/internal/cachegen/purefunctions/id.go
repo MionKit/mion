@@ -27,9 +27,9 @@ import (
 // and they would collapse into one entry. Shipped bodies differ, so their ids
 // differ.
 //
-// The package half stays because delivery reads ownership off it: which pure
-// fns are served from the built-in table, and which never ride the metadata
-// wire to a client.
+// The package half stays because delivery reads ownership off it: which
+// installed package serves a pure fn, and which never ride the metadata wire
+// to a client.
 //
 // The id is the registry key everywhere: the string the transform injects into
 // the registrar call, the key the emitted module registers under, and the

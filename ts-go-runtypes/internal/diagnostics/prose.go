@@ -236,6 +236,11 @@ export const errorsOf = createGetValidationErrorsFn<unknown>();`,
 		Fix: `import {registerPureFnFactory} from '@mionjs/run-types';
 export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));`,
 	},
+	// No Example: PFE9016 needs an installed package with no compiled pure fn,
+	// which the diag-example harness (a single program) cannot stage.
+	CodePureFnDepUnbuilt: {
+		Summary: "A helper (a pure function) imported from another package could not be served at build time because that package's published files carry no compiled pure functions. The build still runs, but the helper is registered only when that package's own module loads first. Build the package with mion, or import its module before the helper is used.",
+	},
 	CodeMarkerDuplicateFnKey: {
 		Summary: "An `InjectTypeFnArgs` marker lists each function family it needs once, in order. Naming the same family twice injects a second identical handle that nothing reads, so it is almost always a copy-paste slip and the build stops. List each family at most once.",
 		Fix: `function route<H extends Handler>(

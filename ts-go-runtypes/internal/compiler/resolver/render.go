@@ -427,6 +427,7 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 	// Override cfn registrations count too — they only add keys, never remove.
 	entries = append(entries, sess.overrideEntries...)
 	index := purefunctions.NewIndex(entries)
+	index.LibraryDep = sess.isLibraryPureFnDep
 
 	// Flatten to the bare deps for the validation core, and index each key's
 	// demanding call sites (deduped) so a miss can be anchored at them.

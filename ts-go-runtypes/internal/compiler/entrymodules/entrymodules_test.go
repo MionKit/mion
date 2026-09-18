@@ -236,3 +236,15 @@ func keysOf(m map[string]string) []string {
 	}
 	return out
 }
+
+// A missing stub for a pure-fn id is named like a pure-fn module: the id's `#`
+// would otherwise end up in an import URL as a fragment and never resolve.
+func TestModuleName_MissingStubForPureFnIdUsesPureFnLayout(t *testing.T) {
+	const id = "@acme/legacy/index#padId"
+	if got, want := ModuleName(id, KindMissing), ModuleName(id, KindPureFn); got != want || strings.Contains(got, "#") {
+		t.Errorf("ModuleName(missing pure-fn id) = %q, want %q", got, want)
+	}
+	if got := ModuleName("abc123", KindMissing); got != "abc123" {
+		t.Errorf("a hash-keyed missing stub keeps its key, got %q", got)
+	}
+}

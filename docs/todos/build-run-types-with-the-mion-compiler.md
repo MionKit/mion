@@ -42,6 +42,22 @@ Already verified, so do not re-derive:
   `src`; its one workspace dependency is `@mionjs/bin-compiler`. Factor that in
   before asserting any cycle.
 
+Already in place, so build on it rather than around it:
+
+- The compiler serves every installed package's pure fns through one lane
+  (`ts-go-runtypes/internal/cachegen/purefnindex/`): a package's built JS is read first (entry
+  tuples plus `registerPureFn(<tuple>, '<id>')` registrations, matched by shape), and its
+  sources only when the built files carry no tuple. run-types is on the source lane today only
+  because its tsc-built dist is hollowed and holds nothing to read. Once its dist carries the
+  tuples, the index reads them with no compiler change, `purefnids.SourceFiles` and `src` in the
+  package's published `files` can go, and the CFG004 lane for missing sources goes with them.
+- The tuples must land in files the package entry does NOT import. A consumer's bundler follows
+  imports, so tuples in the entry's own chunk put the ~11 KB the hollow step keeps out of every
+  consumer bundle straight back in. A sibling directory the index scans (any non-hidden dir under
+  the package root, `dist/pf/` say) that nothing imports keeps both: the compiler serves from it,
+  the bundler never sees it. Hidden dirs are skipped by the index on purpose (a consumer's `.mion`
+  holds served copies of other packages' rows), so not there.
+
 Still to establish:
 
 - Whether `scripts/core/hollow-builtin-purefns.mjs` becomes redundant under a real

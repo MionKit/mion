@@ -145,3 +145,15 @@ func TestValidatePureFnDependencies_DedupesRepeatedMisses(t *testing.T) {
 		t.Fatalf("expected 1 dedupe-collapsed diagnostic, got %d (%+v)", len(diags), diags)
 	}
 }
+
+// An id an installed package owns is validated by the serve step against that
+// package's compiled files, so the sink-based check must not call it missing;
+// an id the predicate does not claim stays a PFE9012.
+func TestValidatePureFnDependencies_LibraryDepExempt(t *testing.T) {
+	idx := NewIndex(nil)
+	idx.LibraryDep = func(id string) bool { return id == "@acme/text/src/slug#slugify" }
+	diags := ValidatePureFnDependencies([]protocol.PureFnDep{{ID: "@acme/text/src/slug#slugify"}, {ID: "@acme/app/src/a#gone"}}, idx)
+	if len(diags) != 1 || diags[0].Args[0] != "@acme/app/src/a#gone" {
+		t.Fatalf("expected one PFE9012 for the program's own miss, got %+v", diags)
+	}
+}

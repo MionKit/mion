@@ -7,9 +7,10 @@
 //   - typefunctions: precompiles the per-family functions (validate,
 //     JSON/binary codecs, mock data, …) for cached RunTypes the emitter
 //     supports.
-//   - purefunctions + builtinpurefns: extract `registerPureFnFactory(...)`
+//   - purefunctions + purefnindex: extract `registerPureFnFactory(...)`
 //     bodies into the pureFns cache module, from the program for a consumer's
-//     own and from the marker package's installed sources for the built-in ones.
+//     own and from an installed package's files (the marker package's
+//     included) for the ones a body imports.
 //   - operations, diskcache, hashid: shared op plumbing, the incremental
 //     on-disk artifact cache, and the short structural-hash ids.
 //
@@ -36,8 +37,8 @@ import (
 	"sync"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -320,14 +321,6 @@ type Session struct {
 	// nothing imports, so module resolution never reaches them — resolve exactly
 	// as they do in the build lane instead of silently checking as `any`.
 	configDeclarationRoots []string
-	// builtinPureFns serves the marker package's own pure-fn bodies, extracted on
-	// demand from its installed sources. Built ONCE per session (locating the
-	// package root walks the program, and extraction builds its own Program), and
-	// deliberately not reset on a Program swap: the installed marker package does
-	// not change under a running session, and editing its sources in-repo already
-	// needed a respawn back when the bodies were compiled into the binary.
-	builtinPureFns     *builtinpurefns.Loader
-	builtinPureFnsDone bool
 	// pureFnKeys is the set of pure-fn ids the resolver has observed so
 	// far. An id is the hash of the body that ships, so an edited body
 	// arrives as a NEW id and a set is all the change signal needs to be.
@@ -347,6 +340,12 @@ type Session struct {
 	// EVERY dump; with the cache only never-seen files pay the AST walk.
 	// Dropped on SetProgram / Reset together with the Program.
 	pureFnFileCache *purefunctions.FileCache
+	// pureFnIndex reads the pure fns installed packages ship (built files, or
+	// sources for the marker package), for the dep walker (a .d.ts binding → id)
+	// and the serve step. Lives for the session and is rebound to each Program's
+	// FS and checker: an installed package does not change under a running
+	// session, and a per-request program swap must not re-extract it.
+	pureFnIndex *purefnindex.Store
 	// batchFileCache is the request-batch twin of pureFnFileCache: per-file
 	// `batch([...])` extraction memoised for the current Program, dropped
 	// alongside it.
@@ -546,11 +545,13 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	// (possibly overlay/virtual) filesystem, not os.ReadFile — see marker.Options.FS.
 	markerOpts.FS = prog.FS
 	markerOpts.Cwd = prog.Cwd
+	pureFnIndex := purefnindex.NewStore(prog.FS)
+	markerOpts.PureFnBindings = pureFnIndex
 	cache := runtype.NewCache(typeChecker, runtype.Options{
 		HashLength: opts.HashLength,
 	})
 	cache.SetMarkerOptions(markerOpts)
-	return &Session{
+	sess := &Session{
 		Program:             prog,
 		cache:               cache,
 		checker:             typeChecker,
@@ -560,13 +561,16 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		pureFnKeys:          map[string]bool{},
 		scannedFiles:        map[string]struct{}{},
 		pureFnFileCache:     purefunctions.NewFileCache(),
+		pureFnIndex:         pureFnIndex,
 		batchFileCache:      requestbatch.NewFileCache(),
 		apiFileCache:        apimeta.NewFileCache(),
 		apiInitFileCache:    apimeta.NewInitFileCache(),
 		routerInitFileCache: routerinit.NewFileCache(),
 		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
 		rtStore:             newRTStore(opts, prog.IsIncremental()),
-	}, nil
+	}
+	sess.bindPureFnIndex()
+	return sess, nil
 }
 
 // NewServer builds a Session with no Program. Callers (the `serve --sources ops`
@@ -614,8 +618,13 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	// (setSources installs a fresh program + FS each call).
 	sess.marker.FS = prog.FS
 	sess.marker.Cwd = prog.Cwd
+	if sess.pureFnIndex == nil {
+		sess.pureFnIndex = purefnindex.NewStore(prog.FS)
+	}
+	sess.marker.PureFnBindings = sess.pureFnIndex
 	sess.checker = typeChecker
 	sess.releaseLease = releaseLease
+	sess.bindPureFnIndex()
 	sess.cache.Rebind(typeChecker)
 	sess.cache.SetMarkerOptions(sess.marker)
 	sess.sites = sess.sites[:0]
@@ -638,6 +647,20 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	return nil
 }
 
+// bindPureFnIndex hands the index the session's own program and resolver, so a
+// package whose sources the program already holds (the marker package under the
+// `source` condition) is extracted by the SAME memo as the program's own
+// registrations: one resolver, ids that cannot disagree.
+func (sess *Session) bindPureFnIndex() {
+	sess.pureFnIndex.Bind(sess.Program.FS, purefnindex.Host{
+		Program:        sess.Program,
+		Checker:        sess.checker,
+		MarkerOpts:     sess.marker,
+		Cache:          sess.pureFnFileCache,
+		SingleThreaded: sess.opts.SingleThreaded,
+	})
+}
+
 // Reset wipes ALL user-supplied resolver state: every interned Type, the
 // sites list, the Program, the checker lease, and (because the overlay
 // lives inside the Program) the in-memory source map. Equivalent to
@@ -656,6 +679,8 @@ func (sess *Session) Reset() {
 	}
 	sess.Program = nil
 	sess.checker = nil
+	sess.pureFnIndex = nil
+	sess.marker.PureFnBindings = nil
 	sess.cache.Clear()
 	sess.cache.Rebind(nil)
 	sess.sites = sess.sites[:0]

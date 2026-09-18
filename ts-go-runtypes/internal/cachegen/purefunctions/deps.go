@@ -166,7 +166,7 @@ func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
 
 // resolveDepArg turns one lookup argument into the pure-fn id it names, and
 // says whether that argument must be LOWERED to the quoted id when the body is
-// stripped. Four ways in, in order:
+// stripped. Five ways in, in order:
 //
 //  1. A string literal written at the call site. Nothing to lower.
 //  2. A factory-local `const` bound to a string literal. The declaration is
@@ -177,8 +177,12 @@ func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
 //     `import {slugify} from './slug'` case, and it lowers.
 //  4. An expression whose TYPE is a string literal, which is how a `.d.ts`
 //     carries an id (`declare const x: PureFnId<'…'>`). It lowers too.
+//  5. An identifier declared in a `.d.ts` WITHOUT a literal type
+//     (`declare const x: PureFnId<string>`, what tsc emits when the build
+//     injected the id): the package's compiled files say which id that name
+//     registers (marker.Options.PureFnBindings). It lowers too.
 //
-// An empty id means none of the four applied; the caller reports PFE9013.
+// An empty id means none of the five applied; the caller reports PFE9013.
 func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) (id string, lower, cycle bool, cycleFile string) {
 	if argNode == nil {
 		return "", false, false, ""
@@ -211,6 +215,11 @@ func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) 
 	// generated constants file exports. Read it off the expression.
 	if id, found := stringLiteralTypeOf(ctx.typeChecker, inner); found {
 		return id, true, false, ""
+	}
+	if inner.Kind == ast.KindIdentifier {
+		if id, found := ctx.declaredBindingID(inner); found {
+			return id, true, false, ""
+		}
 	}
 	// Last resort: the shared checker-driven trace, which covers a same-module
 	// `const` chain ending in a literal.
@@ -266,6 +275,28 @@ func (ctx *resolveCtx) registrationIDOfBinding(identifier *ast.Node) (id string,
 		return false
 	})
 	return id, found, cycle, cycleFile
+}
+
+// declaredBindingID resolves an identifier, through its import alias, to a
+// `const` declared in a `.d.ts` and asks the declaring package's compiled files
+// for the id that name registers. False when the declaration is not in a
+// `.d.ts`, no resolver is wired, or the package ships no such binding.
+func (ctx *resolveCtx) declaredBindingID(identifier *ast.Node) (string, bool) {
+	if ctx.markerOpts.PureFnBindings == nil {
+		return "", false
+	}
+	symbol := comptimeargs.ResolveImportAlias(ctx.typeChecker, ctx.typeChecker.GetSymbolAtLocation(identifier))
+	id, found := "", false
+	comptimeargs.EachConstVariableDeclaration(symbol, func(variableDecl *ast.VariableDeclaration) bool {
+		nameNode := variableDecl.Name()
+		declFile := ast.GetSourceFileOfNode(variableDecl.AsNode())
+		if nameNode == nil || nameNode.Kind != ast.KindIdentifier || declFile == nil || !declFile.IsDeclarationFile {
+			return true
+		}
+		id, found = ctx.markerOpts.PureFnBindings.BindingID(declFile.FileName(), nameNode.Text())
+		return !found
+	})
+	return id, found
 }
 
 // stringLiteralTypeOf reads the string value off an expression's TYPE. A branded
