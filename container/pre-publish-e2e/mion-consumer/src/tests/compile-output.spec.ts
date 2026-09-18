@@ -87,10 +87,12 @@ describe('mion compile output', () => {
         // the table comes from the client project alone, and that project holds exactly one batch
         const ids = [...table.matchAll(/"(b_[A-Za-z0-9_-]+)"/g)].map((m) => m[1]);
         expect(ids).toHaveLength(1);
-        // one generated pure-fn module, under the path its id names
+        // one generated pure-fn module, under the path its id names: the package
+        // that owns the mapper, then the hash half. No source path, because the id
+        // carries none.
         const mappers = filesUnder(resolve(genDir, 'rpc/pf'));
         expect(mappers).toHaveLength(1);
-        expect(mappers[0]).toContain('batchFlow');
+        expect(mappers[0]).toMatch(/[\\/]pf[\\/].+[\\/][A-Za-z0-9_-]{14}\.js$/);
         // the mapper body authored in client-app/src/batchFlow.ts
         expect(readFileSync(mappers[0], 'utf-8')).toContain('customerValue.preferenceId');
     });
@@ -98,13 +100,18 @@ describe('mion compile output', () => {
     it('copies the inline mapper and nothing else of the client project', () => {
         // client-app/src/decoys.ts declares a reflection marker and a pure function of its own;
         // the server pass over the client program must not compile either of them
+        // Both decoys are looked for by their BODY. An id is a hash now, so neither
+        // the binding name nor the source file reaches a generated name or path, and
+        // a check for either would pass whatever the compile copied.
         expect(anyFileContains(resolve(genDir, 'types'), 'clientOnlyField')).toBe(false);
-        expect(anyFileContains(resolve(genDir, 'rpc'), 'clientOnlyHelper')).toBe(false);
-        expect(filesUnder(resolve(genDir, 'rpc/pf')).some((file) => file.includes('decoys'))).toBe(false);
+        expect(anyFileContains(resolve(genDir, 'rpc'), 'value * 2')).toBe(false);
+        expect(filesUnder(resolve(genDir, 'rpc/pf'))).toHaveLength(1);
         // the decoys are live: the client's own compile generates both
         const clientGenDir = resolve(rootDir, 'client-app/.mion-cli');
         expect(anyFileContains(resolve(clientGenDir, 'types'), 'clientOnlyField')).toBe(true);
-        expect(anyFileContains(resolve(clientGenDir, 'types'), 'clientOnlyHelper')).toBe(true);
+        // by its BODY, not its name: an id is a hash, so the binding name the source
+        // used reaches no generated file.
+        expect(anyFileContains(resolve(clientGenDir, 'types'), 'value * 2')).toBe(true);
     });
 
     it('the emitted server imports the table by itself, relativized to the gen dir', () => {
@@ -121,7 +128,7 @@ describe('mion compile output', () => {
         const content = readFileSync(flowJs, 'utf-8');
         const table = readFileSync(tableJs, 'utf-8');
         const batchId = /'(b_[A-Za-z0-9_-]+)'/.exec(content)?.[1];
-        const mapperKey = /'([^']*batchFlow#[A-Za-z0-9_-]+)'/.exec(content)?.[1];
+        const mapperKey = /'([^']+#[A-Za-z0-9_-]+)'/.exec(content)?.[1];
         expect(batchId, content).toBeDefined();
         expect(mapperKey, content).toBeDefined();
         expect(table).toContain(`"${batchId}"`);
