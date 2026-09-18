@@ -154,6 +154,15 @@ const (
 	// the importer names never lands. Args:
 	// [0] the output path that was refused, [1] the outDir.
 	CodeEmitOutsideRootDir = "CFG003"
+	// CodeBuiltinPureFnSourceUnreadable: a demanded built-in pure-fn body could
+	// not be extracted because the marker package's own sources are not reachable
+	// or do not type check. Those sources ship in the package (`files` carries
+	// `src`) and are the only place the bodies exist, the dist being hollowed, so
+	// this is a broken or pruned install rather than anything about the user's
+	// code. LevelError: the pure-fn module is not written, and the alternative —
+	// letting the build pass — buys a runtime "Pure function not found" at the
+	// first validation. Args: [0] the package, [1] what failed.
+	CodeBuiltinPureFnSourceUnreadable = "CFG004"
 )
 
 func init() {
@@ -181,6 +190,7 @@ func init() {
 		{Code: CodeTsconfigLoadFailed, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "Project tsconfig failed to load: every lane reads this config, so the operation stops"},
 		{Code: CodeUnsupportedLibSelection, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "The project's TypeScript `lib` leaves the required globals undeclared, so reflected types cannot be trusted"},
 		{Code: CodeEmitOutsideRootDir, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "An emitted file would land outside `outDir` because its source sits outside `rootDir`; it is not written"},
+		{Code: CodeBuiltinPureFnSourceUnreadable, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The marker package's own pure-fn sources could not be read: its built-in bodies cannot be served"},
 	} {
 		register(definition)
 	}

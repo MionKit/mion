@@ -6,7 +6,7 @@ Test seam with the JS side: the Vite plugin's tests spawn the compiled `mion-bin
 
 ## Directory map
 
-- [cmd/](cmd/) — the resolver binary (`mion`), its WASM twin (`mion-wasm`), and the `gen-*` / `extract-*` codegen commands (fn-hashes, diag-catalog, ts-constants, builtin-purefns, run-type-kind, type-formats, plugin-keys, sourcerewrite-fixtures, fn-bodies).
+- [cmd/](cmd/) — the resolver binary (`mion`), its WASM twin (`mion-wasm`), and the `gen-*` / `extract-*` codegen commands (fn-hashes, diag-catalog, ts-constants, builtin-purefn ids, run-type-kind, type-formats, plugin-keys, sourcerewrite-fixtures, fn-bodies).
 - [internal/](internal/) — pipeline packages (below). Our only writable Go tree apart from `cmd/`.
 - ⚠️ [third_party/](third_party/) — `oxc-project/tsgolint` submodule (which nests `microsoft/typescript-go`). **OFF-LIMITS — never edit anything under here, including the patches at `third_party/tsgolint/patches/`.** Local changes are discarded by `git submodule update`, and `.gitmodules` declares `ignore = dirty` so accidental edits are invisible to `git status`. Bumping the pinned revision is a separate intentional commit on the submodule pointer. If a change seems genuinely required, STOP and surface the case — the patch workflow is in [SETUP.md → Patching tsgolint](../SETUP.md#patching-tsgolints-typescript-go).
 
@@ -14,6 +14,10 @@ Working subpackages under `internal/`:
 
 - [compiler/](internal/compiler/) — source transformers (program, marker, builders, comptimeargs, resolver, sourcerewrite, entrymodules, batchcompile).
 - [cachegen/](internal/cachegen/) — cache generation (runtype, typefunctions, purefunctions, operations, diskcache, builtinpurefns, hashid).
+  `builtinpurefns` serves the marker package's own pure-fn bodies. They are NOT compiled into the binary: the loader extracts them from the installed `@mionjs/run-types` (whose tarball ships `src`), once per session. That is what lets the dist ship hollowed, and why `src` must stay in that package's published `files`. Three rules hold it together:
+  - **An id is matched, never decoded.** It is the package plus a hash of the body that ships, so it says nothing about where that body lives. A demanded id the sources do not produce is `PFE9012`; sources that cannot be read or type checked are `CFG004`, never a silent fallback.
+  - **`purefunctions` produces the ids, not this package.** `resolveCtx` already resolves a registration recursively and memoises it, following a dependency through its import. `builtinpurefns` only chooses which files to hand it and indexes what comes back. It reuses the SESSION's checker and `FileCache` whenever the session's program already holds those sources (in-repo, via the `source` condition), because two resolvers hashing the same bodies would split one function into two entries.
+  - **The package declares its own sources**, in `package.json` `mion.pureFns`. Following imports from its entry points does not work: `circular-pure-fns.ts` is side-effect imported by nothing, so discovery drops `findCycle` silently. `cmd/gen-builtin-purefns` reads the same list, so the id constants and the served bodies cannot come from different files.
 - [enrichment/](internal/enrichment/) — FriendlyText / MockData codegen (astcheck, cldr, mirror, enrichgen — the shared plan/config/check leaf the CLI verb and the daemon op both call, so they can never drift).
 - [diagnostics/](internal/diagnostics/) — diagnostic catalog + severity messages shared by resolver and lint plugin.
 - [reflection/](internal/reflection/) — the canonical RunType reflection model every pipeline stage shares (kinds, subkinds, families, schema checks, temporal registry, ref-slot walking).

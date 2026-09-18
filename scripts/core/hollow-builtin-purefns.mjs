@@ -11,7 +11,8 @@
 // registration (now an inert no-op — see registerCore's hollow lane), but ships
 // scaffolding bytes only. The `.d.ts` is untouched (neither argument is part of
 // the declared type). The bodies still reach a consumer, on demand, through the
-// pure-fn cache.
+// pure-fn cache, which is why `src` must stay in this package's published
+// `files`: it is the only place they exist.
 //
 // The id argument goes with the body: an inert registration has nothing to key,
 // and dropping it leaves the generated id module with no used export, so a
@@ -35,7 +36,7 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 // The registration modules to hollow, relative to a dist root. Kept in sync with
 // the side-effect imports in dist/index.js + dist/formats/index.js.
 //
-// cmd/gen-builtin-purefns extracts from FIVE files; this list holds four on
+// The resolver extracts from FIVE files; this list holds four on
 // purpose. credit-card-pure-fns.js is left whole because two of its ordinary
 // (non-pure-fn) helpers read the registry at import time, which the demand lane
 // never serves — hollowing it would leave them with nothing to call.

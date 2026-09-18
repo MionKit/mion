@@ -36,9 +36,11 @@ var (
 )
 
 // RealMarkerPackage returns the real `@mionjs/run-types` package — its
-// package.json plus the built dist/**/*.d.ts declaration tree (both the esm
+// package.json, the built dist/**/*.d.ts declaration tree (both the esm
 // surface and dist/cjs/, since a node16-style CommonJS importer resolves the
-// `require` export condition) — keyed by node_modules-relative path under
+// `require` export condition) and its src/**/*.ts sources, which the published
+// tarball ships and the resolver extracts the built-in pure-fn bodies from —
+// keyed by node_modules-relative path under
 // MarkerPackagePrefix. Callers overlay the entries under a test cwd WITHOUT
 // adding them as program roots: module resolution pulls them in through the
 // `@mionjs/run-types` import. Read once per process; errors when the marker
@@ -85,6 +87,32 @@ func readMarkerPackage() (map[string]string, error) {
 	}
 	if len(files) < 2 {
 		return nil, fmt.Errorf("testfixtures: no .d.ts files under %s — build the marker dist with `pnpm run check:builds`", distRoot)
+	}
+	// The sources ride along because the tarball ships them (`files` carries
+	// `src`, minus the spec/test files) and they are the ONLY place the built-in
+	// pure-fn bodies exist — the dist is hollowed. A fixture without them is not
+	// the package a consumer installs.
+	srcRoot := filepath.Join(pkgRoot, "src")
+	srcErr := filepath.WalkDir(srcRoot, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || !strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".spec.ts") || strings.HasSuffix(path, ".test.ts") {
+			return nil
+		}
+		rel, relErr := filepath.Rel(srcRoot, path)
+		if relErr != nil {
+			return relErr
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		files[MarkerPackagePrefix+"src/"+filepath.ToSlash(rel)] = string(content)
+		return nil
+	})
+	if srcErr != nil {
+		return nil, fmt.Errorf("testfixtures: reading the marker sources under %s: %w", srcRoot, srcErr)
 	}
 	return files, nil
 }

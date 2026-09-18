@@ -29,7 +29,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"go/format"
 	"os"
@@ -42,31 +41,17 @@ import (
 	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/parser"
 	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
-
-// builtinSourceFiles are the package's own pure-fn registration modules,
-// relative to the marker package root. Every registration the built-in emitters
-// reach lives in one of these. Keep in sync with the side-effect imports in
-// src/index.ts + src/formats/index.ts.
-var builtinSourceFiles = []string{
-	"src/runtypes/pure-fns-utils.ts",
-	"src/runtypes/circular-pure-fns.ts",
-	"src/formats/string/string-formats-pure-fns.ts",
-	"src/formats/string/credit-card-pure-fns.ts",
-	"src/formats/datetime/dateTime-pure-fns.ts",
-}
 
 const (
 	// markerPackageName is the package that owns the built-ins, and the first
 	// segment of every id this generator emits.
 	markerPackageName = "@mionjs/run-types"
 	markerPkgRel      = "../packages/run-types"
-	outputRel         = "internal/cachegen/builtinpurefns/table.generated.go"
 	idsOutputRel      = "internal/cachegen/purefnids/ids.generated.go"
 	idsTsOutputRel    = "../packages/run-types/src/runtypes/pure-fn-ids.generated.ts"
 )
@@ -83,30 +68,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	files := make([]string, len(builtinSourceFiles))
-	for i, rel := range builtinSourceFiles {
-		files[i] = filepath.Join(pkgRoot, rel)
-	}
-
-	prog, err := program.NewInferred(program.Options{Cwd: pkgRoot}, files)
+	// The SAME call the resolver serves bodies with, so the id constants the
+	// emitters compile against and the bodies a consumer receives can never come
+	// from different files or a different resolution.
+	entries, err := builtinpurefns.ExtractPackage(pkgRoot, builtinpurefns.PackageProgram{})
 	if err != nil {
-		return fmt.Errorf("build program: %w", err)
-	}
-	typeChecker, release := prog.TS.GetTypeChecker(context.Background())
-	defer release()
-	markerOpts := marker.WithDefaults(marker.Options{})
-	markerOpts.FS = prog.FS
-	markerOpts.Cwd = prog.Cwd
-
-	entries, diags := purefunctions.ExtractFromProgramCached(typeChecker, markerOpts, prog, files, purefunctions.NewFileCache())
-	if len(diags) > 0 {
-		for _, diag := range diags {
-			fmt.Fprintf(os.Stderr, "  extractor %s: %v\n", diag.Code, diag.Args)
-		}
-		return fmt.Errorf("extractor produced %d diagnostic(s) over the built-in sources — fix the source before regenerating", len(diags))
-	}
-	if len(entries) == 0 {
-		return fmt.Errorf("no built-in pure fns extracted from %v — program/resolution likely broke", builtinSourceFiles)
+		return err
 	}
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key() < entries[j].Key() })
@@ -125,13 +92,6 @@ func run() error {
 		return err
 	}
 
-	source, err := render(entries)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(outputRel, source, 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", outputRel, err)
-	}
 	ids, err := renderGoIDs(entries)
 	if err != nil {
 		return err
@@ -145,7 +105,7 @@ func run() error {
 	if err := os.WriteFile(idsTsOutputRel, renderTsIDs(entries), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", idsTsOutputRel, err)
 	}
-	fmt.Fprintf(os.Stderr, "gen-builtin-purefns: wrote %d entries to %s, %s and %s\n", len(entries), outputRel, idsOutputRel, idsTsOutputRel)
+	fmt.Fprintf(os.Stderr, "gen-builtin-purefns: wrote %d ids to %s and %s\n", len(entries), idsOutputRel, idsTsOutputRel)
 	return nil
 }
 
@@ -193,6 +153,7 @@ func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
 	b.WriteString("// The package imports nothing, which is what lets both the extractor and the\n")
 	b.WriteString("// emitters depend on it.\n")
 	b.WriteString("package purefnids\n\n")
+	b.WriteString("import \"sort\"\n\n")
 	b.WriteString("// IDPrefix is what every id below starts with: the package that owns these\n")
 	b.WriteString("// pure fns. A build tells a reference to one of them apart from a reference to\n")
 	b.WriteString("// a consumer's own pure fn by this prefix, which is also how it knows a\n")
@@ -240,10 +201,17 @@ func renderGoIDs(entries []purefunctions.Entry) ([]byte, error) {
 	b.WriteString("// when id names no built-in.\n")
 	b.WriteString("func NameOf(id string) string {\n\treturn names[id]\n}\n\n")
 	b.WriteString("// Has reports whether id names one of the package's own pure functions.\n")
-	b.WriteString("// Their bodies never come from a consumer's program — the compiler serves them\n")
-	b.WriteString("// from its own table — so a build checks a reference to one against this set\n")
-	b.WriteString("// instead of against the registrations it extracted.\n")
-	b.WriteString("func Has(id string) bool {\n\treturn ids[id]\n}\n")
+	b.WriteString("// Their bodies never come from a consumer's program — the compiler extracts\n")
+	b.WriteString("// them from the package's own sources — so a build checks a reference to one\n")
+	b.WriteString("// against this set instead of against the registrations it extracted.\n")
+	b.WriteString("func Has(id string) bool {\n\treturn ids[id]\n}\n\n")
+	b.WriteString("// All returns every built-in id, sorted. An id is a hash of the body that\n")
+	b.WriteString("// ships, so a test can assert that each one still resolves from the sources and\n")
+	b.WriteString("// catch a body edited without regenerating this file.\n")
+	b.WriteString("func All() []string {\n")
+	b.WriteString("\tout := make([]string, 0, len(ids))\n")
+	b.WriteString("\tfor id := range ids {\n\t\tout = append(out, id)\n\t}\n")
+	b.WriteString("\tsort.Strings(out)\n\treturn out\n}\n")
 	formatted, err := format.Source([]byte(b.String()))
 	if err != nil {
 		return nil, fmt.Errorf("gofmt generated ids: %w", err)
@@ -308,45 +276,6 @@ func parseCheckEntries(entries []purefunctions.Entry) error {
 	if len(failures) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix internal/cachegen/purefunctions/striptypes.go (add the missing type position), not the source or the table",
+	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix internal/cachegen/purefunctions/striptypes.go (add the missing type position), not the source",
 		len(failures), strings.Join(failures, "\n"))
-}
-
-func render(entries []purefunctions.Entry) ([]byte, error) {
-	var b strings.Builder
-	b.WriteString("// Code generated by cmd/gen-builtin-purefns; DO NOT EDIT.\n")
-	b.WriteString("// Regenerate with `pnpm miondevx core codegen builtinpurefns` after editing the\n")
-	b.WriteString("// built-in pure-fn sources in packages/run-types/src.\n\n")
-	b.WriteString("package builtinpurefns\n\n")
-	b.WriteString("// builtinEntries is the extracted table of package-owned pure-fn bodies, one\n")
-	b.WriteString("// row per registration, sorted by id.\n")
-	b.WriteString("var builtinEntries = []builtinEntry{\n")
-	for _, entry := range entries {
-		b.WriteString("\t{\n")
-		fmt.Fprintf(&b, "\t\tid:         %s,\n", strconv.Quote(entry.Key()))
-		b.WriteString("\t\tparamNames: " + stringSliceLit(entry.ParamNames) + ",\n")
-		fmt.Fprintf(&b, "\t\tcode:       %s,\n", strconv.Quote(entry.Code))
-		b.WriteString("\t\tdeps:       " + stringSliceLit(entry.PureFnDependencies) + ",\n")
-		b.WriteString("\t},\n")
-	}
-	b.WriteString("}\n")
-	formatted, err := format.Source([]byte(b.String()))
-	if err != nil {
-		return nil, fmt.Errorf("gofmt generated table: %w", err)
-	}
-	return formatted, nil
-}
-
-// stringSliceLit renders a []string as a Go literal, `nil` when empty so the
-// generated table stays terse (a table-served entry treats nil and empty
-// identically).
-func stringSliceLit(xs []string) string {
-	if len(xs) == 0 {
-		return "nil"
-	}
-	parts := make([]string, len(xs))
-	for i, x := range xs {
-		parts[i] = strconv.Quote(x)
-	}
-	return "[]string{" + strings.Join(parts, ", ") + "}"
 }

@@ -185,6 +185,14 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'The compile lane emits every file of the program under outDir, mirroring the\ntree below rootDir, exactly like tsc. A file the program reaches from outside\nrootDir (a `paths` entry into a sibling package, a relative import above the\nsource root) has no place under outDir, and writing it where tsgo computes\nit would litter another project with .js files. tsc reports TS6059 for the\nsame program.\n\nThe file is not written, and the emitted importer would point at a path that\nnever lands, so the compile fails.\n\nFix: set `rootDir` to a directory that contains every file of the program, or\nimport the module through its package name (resolved from node_modules at run\ntime) instead of a relative path or a `paths` mapping into its sources.',
   },
+  CFG004: {
+    headline: "Cannot read `{0}`'s own pure-function sources, so its built-in bodies cannot be served ({1}).",
+    level: 'error',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      "Built-in pure functions are compiled from the marker package's TypeScript\nsources, which ship inside the package. The published JavaScript does not\ncarry the bodies, so there is nowhere else to read them from and letting the\nbuild pass would only move the failure to the first validation at runtime.\n\nFix: reinstall the package, and make sure the install is not pruning its\n`src` directory.",
+  },
   CTA001: {
     headline:
       '`CompTimeArgs<T>` argument must be a literal at the call site, or a `const` whose initializer is itself entirely literal (a same-module or imported `const` both work).',

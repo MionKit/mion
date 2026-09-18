@@ -12,8 +12,8 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
@@ -345,7 +345,7 @@ func writeIfChanged(path, content string) error {
 func (sess *Session) userPureFnEntries(entries []purefunctions.Entry) []purefunctions.Entry {
 	kept := make([]purefunctions.Entry, 0, len(entries)+len(sess.overrideEntries))
 	for _, entry := range entries {
-		if builtinpurefns.Has(entry.Key()) {
+		if purefnids.Has(entry.Key()) {
 			continue
 		}
 		kept = append(kept, entry)

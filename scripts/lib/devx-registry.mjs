@@ -103,7 +103,7 @@ export const AREAS = {
       {
         name: 'codegen',
         args: '[all|constants|kind|fnhashes|fncatalog|typeformats|diag|builtinpurefns|pluginkeys|sidecar]',
-        summary: 'regenerate the Go→TS mirrors, the pure-fn table and the sidecar bundle',
+        summary: 'regenerate the Go→TS mirrors, the pure-fn ids and the sidecar bundle',
         flags: [['--check', 'regenerate, then fail if a committed output drifted']],
       },
       {

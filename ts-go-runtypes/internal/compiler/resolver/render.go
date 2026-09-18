@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
@@ -297,7 +297,7 @@ func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodu
 	// untouched.
 	kept := entries[:0]
 	for _, entry := range entries {
-		if builtinpurefns.Has(entry.Key()) {
+		if purefnids.Has(entry.Key()) {
 			continue
 		}
 		kept = append(kept, entry)
@@ -326,7 +326,7 @@ func (sess *Session) collectPureFnReport(metrics *protocol.Metrics) []protocol.P
 	entries, _, _ := sess.extractProgramPureFns(metrics)
 	kept := make([]purefunctions.Entry, 0, len(entries))
 	for _, entry := range entries {
-		if builtinpurefns.Has(entry.Key()) {
+		if purefnids.Has(entry.Key()) {
 			continue
 		}
 		kept = append(kept, entry)
@@ -344,7 +344,7 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 	}
 	kept := make([]purefunctions.Entry, 0, len(entries))
 	for _, entry := range entries {
-		if builtinpurefns.Has(entry.Key()) {
+		if purefnids.Has(entry.Key()) {
 			continue
 		}
 		kept = append(kept, entry)
