@@ -43,4 +43,3 @@ func TestEntrySeed_AcceptsTheSpellingsTheJSLanesEmit(t *testing.T) {
 		})
 	}
 }
-
