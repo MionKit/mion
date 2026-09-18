@@ -17,13 +17,13 @@
 // another file is followed through its import. This package only decides WHICH
 // files to hand that resolver and indexes what comes back.
 //
-// Which files: the ones that call a registrar, found by reading the package's
-// sources. A file that registers a pure fn contains the call by definition, so
-// nothing can be missed. The two alternatives both can: following imports from
-// the entry points drops circular-pure-fns.ts, which is side-effect imported by
-// no one, and a hand-declared list drops whatever someone forgets to add.
-// cmd/gen-builtin-purefns runs the same scan, so the id constants and the served
-// bodies cannot come from different files.
+// Which files: a GENERATED list (purefnids.SourceFiles). cmd/gen-builtin-purefns
+// scans the package for registrar calls and writes the files that produced an
+// entry beside the id constants, from one pass, so the constants and the served
+// bodies cannot come from different files and there is no list for anyone to
+// forget. Following imports from the entry points would miss one
+// (circular-pure-fns.ts is side-effect imported by nobody); scanning per session
+// would re-derive a constant answer.
 //
 // Whose resolver: the session's, whenever the session's Program already holds
 // those files (in-repo the `source` condition puts them there). One resolver and
@@ -35,13 +35,10 @@ package builtinpurefns
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
-	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
@@ -63,11 +60,10 @@ type Host struct {
 
 // PackageProgram is what opening a package's own sources needs when there is no
 // session Program covering them: the generator passes a zero value (read from
-// disk), a session passes its overlay and FS so a virtually-served package
-// resolves the same.
+// disk), a session passes its overlay so a virtually-served package resolves the
+// same.
 type PackageProgram struct {
 	Overlay        map[string]string
-	FS             vfspkg.FS
 	SingleThreaded bool
 }
 
@@ -153,22 +149,18 @@ func (loader *Loader) load() error {
 func (loader *Loader) extract() ([]purefunctions.Entry, error) {
 	// No session Program (a test, or a caller that only wants the bodies) reads the
 	// package straight off disk.
+	files := SourceFiles(loader.packageRoot)
 	if loader.host.Program == nil {
-		return ExtractPackage(loader.packageRoot, PackageProgram{SingleThreaded: loader.host.SingleThreaded})
+		return ExtractPackage(loader.packageRoot, files, PackageProgram{SingleThreaded: loader.host.SingleThreaded})
 	}
-	files, err := SourceFiles(loader.packageRoot, loader.host.Program.FS)
-	if err != nil {
-		return nil, err
-	}
-	// Every source already in the session's program means the session's
+	// Every declared source already in the session's program means the session's
 	// resolver can answer for all of them, which is the case that must not build a
 	// second Program: two resolvers would hash the same bodies twice.
 	if allInProgram(loader.host.Program, files) {
 		return runExtractor(loader.host.Checker, loader.host.MarkerOpts, loader.host.Program, files, loader.host.Cache)
 	}
-	return ExtractPackage(loader.packageRoot, PackageProgram{
+	return ExtractPackage(loader.packageRoot, files, PackageProgram{
 		Overlay:        loader.host.Program.Overlay,
-		FS:             loader.host.Program.FS,
 		SingleThreaded: loader.host.SingleThreaded,
 	})
 }
@@ -177,10 +169,9 @@ func (loader *Loader) extract() ([]purefunctions.Entry, error) {
 // them: the published-consumer lane, and the same call cmd/gen-builtin-purefns
 // generates the id constants from, so the constants and the served bodies can
 // never come from different files.
-func ExtractPackage(packageRoot string, opts PackageProgram) ([]purefunctions.Entry, error) {
-	files, err := SourceFiles(packageRoot, opts.FS)
-	if err != nil {
-		return nil, err
+func ExtractPackage(packageRoot string, files []string, opts PackageProgram) ([]purefunctions.Entry, error) {
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no pure-fn sources named for %s", packageRoot)
 	}
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            packageRoot,
@@ -229,122 +220,22 @@ func allInProgram(prog *program.Program, files []string) bool {
 	return len(files) > 0
 }
 
-// sourceDir is where a package keeps the TypeScript the scan looks through. The
-// tarball ships it (`files` carries `src`), which is the whole reason the bodies
-// are reachable at all.
-const sourceDir = "src"
-
-// registrarNeedle is what a file that registers a pure fn contains.
-// `registerPureFnFactory` has it as a prefix, so one needle covers both
-// registrars. It finds a DIRECT registrar call: a package registering through a
-// wrapper function of its own would name the registrar only in the wrapper's
-// module, and the scan would miss it. That case belongs to whoever generalises
-// this lane to third-party packages; the marker package calls the registrars
-// directly.
-const registrarNeedle = "registerPureFn"
-
-// SourceFiles are the package's files that register a pure fn, found by reading
-// its sources and keeping the ones that call a registrar. A file that registers
-// contains the call by definition, so nothing can be missed the way a declared
-// list or a walk of the import graph can miss it (the marker package's
-// circular-pure-fns.ts is side-effect imported by nothing at all).
+// SourceFiles are the package's pure-fn registration modules, resolved under its
+// root. The paths are GENERATED (purefnids.SourceFiles), written by
+// cmd/gen-builtin-purefns from the same pass that produces the id constants.
 //
-// Spec and test files are skipped because the tarball excludes them: including
-// them in-repo would make the file set differ between the repo and a consumer.
-func SourceFiles(packageRoot string, fileSystem vfspkg.FS) ([]string, error) {
-	root := tspath.CombinePaths(packageRoot, sourceDir)
-	var files []string
-	err := eachSourceFile(root, fileSystem, func(path, content string) {
-		if strings.Contains(content, registrarNeedle) {
-			files = append(files, path)
-		}
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(files) == 0 {
-		return nil, fmt.Errorf("no file under %s registers a pure function (is the install missing its sources?)", root)
+// Finding them here instead would re-derive a constant answer on every session:
+// the marker package's layout is fixed when the binary is built, the two riding
+// one lockstep version. A path this list names that the install does not have is
+// CFG004, which is the right answer for a pruned or skewed install rather than
+// something to paper over with a fallback scan.
+func SourceFiles(packageRoot string) []string {
+	files := make([]string, len(purefnids.SourceFiles))
+	for i, relative := range purefnids.SourceFiles {
+		files[i] = tspath.ResolvePath(packageRoot, relative)
 	}
 	sort.Strings(files)
-	return files, nil
-}
-
-// eachSourceFile reads every candidate `.ts` file under dir, depth first.
-//
-// It descends through GetAccessibleEntries rather than the FS's WalkDir: WalkDir
-// on an overlay filesystem delegates to the real disk and never sees a virtually
-// served package, while GetAccessibleEntries merges the overlay in. Every test
-// that mounts the marker package in an overlay depends on that difference.
-func eachSourceFile(dir string, fileSystem vfspkg.FS, visit func(path, content string)) error {
-	entries, err := readDir(dir, fileSystem)
-	if err != nil {
-		return err
-	}
-	for _, name := range entries.Files {
-		if !isCandidate(name) {
-			continue
-		}
-		path := tspath.CombinePaths(dir, name)
-		content, err := readFile(path, fileSystem)
-		if err != nil {
-			return err
-		}
-		visit(path, content)
-	}
-	for _, name := range entries.Directories {
-		if err := eachSourceFile(tspath.CombinePaths(dir, name), fileSystem, visit); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// isCandidate keeps authored TypeScript only: a declaration file carries no body,
-// and a spec or test file is not in the tarball.
-func isCandidate(name string) bool {
-	if !strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".d.ts") {
-		return false
-	}
-	return !strings.HasSuffix(name, ".spec.ts") && !strings.HasSuffix(name, ".test.ts")
-}
-
-// readDir lists a directory through the program FS when there is one (so an
-// overlay-served package is visible) and falls back to disk, which is what the
-// generator gets.
-func readDir(dir string, fileSystem vfspkg.FS) (vfspkg.Entries, error) {
-	if fileSystem != nil {
-		if !fileSystem.DirectoryExists(dir) {
-			return vfspkg.Entries{}, fmt.Errorf("cannot read %s", dir)
-		}
-		return fileSystem.GetAccessibleEntries(dir), nil
-	}
-	found, err := os.ReadDir(dir)
-	if err != nil {
-		return vfspkg.Entries{}, fmt.Errorf("cannot read %s: %w", dir, err)
-	}
-	var entries vfspkg.Entries
-	for _, entry := range found {
-		if entry.IsDir() {
-			entries.Directories = append(entries.Directories, entry.Name())
-			continue
-		}
-		entries.Files = append(entries.Files, entry.Name())
-	}
-	return entries, nil
-}
-
-func readFile(path string, fileSystem vfspkg.FS) (string, error) {
-	if fileSystem != nil {
-		if content, ok := fileSystem.ReadFile(path); ok {
-			return content, nil
-		}
-		return "", fmt.Errorf("cannot read %s", path)
-	}
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("cannot read %s: %w", path, err)
-	}
-	return string(content), nil
+	return files
 }
 
 // served strips the source-position bookkeeping off an extracted entry, keeping

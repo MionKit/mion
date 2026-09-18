@@ -95,8 +95,8 @@ describe('published tarballs never carry tsc build info', () => {
 // @mionjs/run-types' pure-fn bodies are stripped out of the dist
 // (scripts/core/hollow-builtin-purefns.mjs) and the compiler extracts them from
 // `src` at build time, so the tarball shipping `src` is what makes a published
-// consumer work at all. Which files hold them is not asserted here: the compiler
-// finds them by scanning for a registrar call, so there is no list to keep in sync.
+// consumer work at all. WHICH files hold them is not asserted here: that list is
+// generated into the resolver by cmd/gen-builtin-purefns, not declared.
 describe('@mionjs/run-types publishes the sources its pure fns come from', () => {
   const packageDir = join(REPO_ROOT, 'packages', 'run-types');
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
@@ -105,7 +105,7 @@ describe('@mionjs/run-types publishes the sources its pure fns come from', () =>
     expect(manifest.files).toContain('src');
   });
 
-  // Only spec/test files may be excluded, and the compiler's scan skips exactly
+  // Only spec/test files may be excluded, and the generator's scan skips exactly
   // those two suffixes. Any other exclusion could drop a registration module from
   // the tarball while the in-repo build still found it.
   it('excludes nothing that would drop a registration module', () => {

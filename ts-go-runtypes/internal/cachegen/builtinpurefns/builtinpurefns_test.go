@@ -90,9 +90,9 @@ func TestClosure_CoreBuiltinsServed(t *testing.T) {
 }
 
 // TestClosure_FindCycleIsServed is its own case on purpose: circular-pure-fns.ts
-// is side-effect imported by NOTHING, so it is reachable only because the scan
-// looks for the registrar call rather than walking the import graph. Following
-// imports dropped it silently, which is the failure this pins.
+// is side-effect imported by NOTHING, so it is reachable only because the
+// generator finds it by its registrar call. Walking the import graph dropped it
+// silently, which is the failure this pins.
 func TestClosure_FindCycleIsServed(t *testing.T) {
 	ids, missing := closure(t, newTestLoader(t), purefnids.FindCycle)
 	if len(missing) != 0 || len(ids) == 0 {
@@ -191,88 +191,63 @@ func TestClosure_UnreadableSourcesError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a package root with no sources")
 	}
-	if !strings.Contains(err.Error(), sourceDir) {
-		t.Errorf("error should name the directory it could not read, got: %v", err)
+	// Naming the file is what makes a pruned install diagnosable; CFG004 carries
+	// this message through.
+	if !strings.Contains(err.Error(), "missing from the installed package") {
+		t.Errorf("error should name the file it could not read, got: %v", err)
 	}
 }
 
-// TestSourceFiles_FindsTheRegistrations pins what the scan returns for the real
-// package: every file that calls a registrar, under the package root, and nothing
-// that only mentions the name in a comment or a re-export without registering.
-func TestSourceFiles_FindsTheRegistrations(t *testing.T) {
-	root := markerPackageRoot(t)
-	files, err := SourceFiles(root, nil)
-	if err != nil {
-		t.Fatal(err)
+// TestSourceFiles_ResolveUnderTheRoot pins that the generated paths are resolved
+// against whatever root the package was found at, which is what makes a
+// node_modules install and the repo behave the same.
+func TestSourceFiles_ResolveUnderTheRoot(t *testing.T) {
+	if len(purefnids.SourceFiles) == 0 {
+		t.Fatal("purefnids.SourceFiles is empty (regenerate: pnpm miondevx core codegen builtinpurefns)")
 	}
-	if len(files) == 0 {
-		t.Fatal("the scan found no registrations")
+	files := SourceFiles("/pkg")
+	if len(files) != len(purefnids.SourceFiles) {
+		t.Fatalf("resolved %d paths for %d generated entries", len(files), len(purefnids.SourceFiles))
 	}
 	for _, file := range files {
-		if !strings.HasPrefix(file, root) {
-			t.Errorf("%s is not under the package root %s", file, root)
+		if !strings.HasPrefix(file, "/pkg/") {
+			t.Errorf("%s is not under the given root", file)
 		}
-		content, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(string(content), registrarNeedle) {
-			t.Errorf("%s does not call a registrar", file)
-		}
-	}
-	// The scan must reach every file the emitters name an id from, which is what
-	// the drift test proves end to end; here just pin that the orphan module, the
-	// one no import reaches, is in the set.
-	joined := strings.Join(files, "\n")
-	if !strings.Contains(joined, "circular-pure-fns.ts") {
-		t.Errorf("the scan missed circular-pure-fns.ts, which no import reaches:\n%s", joined)
 	}
 }
 
-// TestSourceFiles_SkipsWhatTheTarballExcludes pins that a registration in a spec
-// or test file is NOT picked up. Those are excluded from the published `files`, so
-// counting them in-repo would make the extraction differ between this repo and a
-// consumer's install.
-func TestSourceFiles_SkipsWhatTheTarballExcludes(t *testing.T) {
-	root := t.TempDir()
-	srcDir := filepath.Join(root, sourceDir, "nested")
-	if err := os.MkdirAll(srcDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	body := "registerPureFnFactory(function () { return function () {}; });\n"
-	for name, wanted := range map[string]bool{
-		"real.ts":      true,
-		"real.spec.ts": false,
-		"real.test.ts": false,
-		"real.d.ts":    false,
-	} {
-		if err := os.WriteFile(filepath.Join(srcDir, name), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
+// TestSourceFiles_ExistInTheRealPackage pins that the generated list is not stale.
+// A path the install lacks is CFG004 at build time; failing here says "regenerate"
+// instead, which is the actionable version of the same fact.
+func TestSourceFiles_ExistInTheRealPackage(t *testing.T) {
+	for _, file := range SourceFiles(markerPackageRoot(t)) {
+		if _, err := os.Stat(file); err != nil {
+			t.Errorf("generated source list names a missing file: %v", err)
 		}
-		_ = wanted
 	}
-	files, err := SourceFiles(root, nil)
+}
+
+// TestSourceFiles_HoldNothingDead pins the narrowing the generator does. Its scan
+// needle is loose and also matches a re-export or a comment, so a file that
+// registers nothing must never reach the list: the resolver would parse it on every
+// session for no reason.
+func TestSourceFiles_HoldNothingDead(t *testing.T) {
+	root := markerPackageRoot(t)
+	// Extracted raw, because the origin of an entry is what `served` strips.
+	raw, err := ExtractPackage(root, SourceFiles(root), PackageProgram{SingleThreaded: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 1 || filepath.Base(files[0]) != "real.ts" {
-		t.Errorf("expected only real.ts, got %v", files)
+	registering := map[string]bool{}
+	for _, entry := range raw {
+		if entry.FilePath != "" {
+			registering[entry.FilePath] = true
+		}
 	}
-}
-
-// TestSourceFiles_NoRegistrationsIsAnError pins the loud failure for a package
-// whose sources are missing or hold nothing: an empty scan must not read as "this
-// package has no built-ins".
-func TestSourceFiles_NoRegistrationsIsAnError(t *testing.T) {
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, sourceDir), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, sourceDir, "plain.ts"), []byte("export const x = 1;\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := SourceFiles(root, nil); err == nil {
-		t.Fatal("expected an error when nothing registers a pure function")
+	for _, file := range SourceFiles(root) {
+		if !registering[file] {
+			t.Errorf("%s is in the generated list but registers nothing (regenerate: pnpm miondevx core codegen builtinpurefns)", file)
+		}
 	}
 }
 
@@ -283,10 +258,7 @@ func TestSourceFiles_NoRegistrationsIsAnError(t *testing.T) {
 // a module nothing registers.
 func TestBothLanesAgreeOnIds(t *testing.T) {
 	root := markerPackageRoot(t)
-	files, err := SourceFiles(root, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	files := SourceFiles(root)
 
 	// Stand in for a session whose program already holds the sources.
 	prog, err := program.NewInferred(program.Options{Cwd: root, SingleThreaded: true}, files)
