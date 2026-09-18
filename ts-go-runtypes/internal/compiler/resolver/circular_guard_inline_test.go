@@ -151,10 +151,10 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 }
 
 // TestInlineGuard_ArmedCompositeNeverTripsJCP001 — regression: the armed JSON
-// composite carries `@mionjs/run-types/src/runtypes/circular-pure-fns#findCycle` in its SoftDeps (that IS the built-in's
-// demand signal), but AssertCompositeSoftDeps must not read that pure-fn edge
-// as a composite-bound primitive: the assertion runs BEFORE serveBuiltinPureFns
-// delivers the body, so treating it as a primitive fired a spurious
+// composite carries the built-in findCycle id in its SoftDeps (that IS the
+// built-in's demand signal), but AssertCompositeSoftDeps must not read that
+// pure-fn edge as a composite-bound primitive: the assertion runs BEFORE
+// servePackagePureFns delivers the body, so treating it as a primitive fired a spurious
 // Error-severity JCP001 that failed batch builds.
 func TestInlineGuard_ArmedCompositeNeverTripsJCP001(t *testing.T) {
 	r := setupInline(t, map[string]string{"a.ts": `import {createJsonEncoderFn} from '@mionjs/run-types';

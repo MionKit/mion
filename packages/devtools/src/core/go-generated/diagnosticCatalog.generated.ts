@@ -970,6 +970,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
   },
+  PFE9016: {
+    headline:
+      "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions; it is only registered when that package's module loads.",
+    level: 'warning',
+    severity: 'warning',
+    family: 'purefn',
+    detail:
+      "A pure fn imported from an installed package is normally served at build time\nfrom that package's compiled files, so the body is bound into this build's own\nmodule and registered before anything calls it. This package carries no compiled\npure fn (it was not built with mion, or registers none), so the id resolves only\nat runtime, and only if the package's module has already loaded.\n\nFix: build the package with mion (a bundler plugin or `mion compile`), or make\nsure the consuming code imports the package's module before the pure fn runs.",
+  },
   PFN001: {
     headline: '`PureFunction<F>` argument must be an INLINE arrow or function expression.',
     level: 'runtimeError',

@@ -51,6 +51,12 @@ const (
 	// module and no injected id. Materialising such a pair also recurses
 	// forever at runtime, so this replaces a hang with a build error.
 	CodePureFnDependencyCycle = "PFE9015"
+	// CodePureFnDepUnbuilt: a pure fn imported from an installed package whose
+	// published files carry no compiled pure fn, so the build cannot serve the
+	// body and only that package's own load-time registration provides it.
+	// LevelWarning: the output runs whenever the package module loads first,
+	// which is what it did before the build could look.
+	CodePureFnDepUnbuilt = "PFE9016"
 )
 
 func init() {
@@ -68,6 +74,7 @@ func init() {
 		{Code: CodeMissingPureFnDep, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "RT depends on missing pure-fn"},
 		{Code: CodePurityDepNotLiteral, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Pure-fn dep arg not a literal"},
 		{Code: CodePureFnIdMismatch, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Explicit pure-fn id does not match its location"},
+		{Code: CodePureFnDepUnbuilt, Family: FamilyPureFn, Level: LevelWarning, Scope: ScopeNotSource, Title: "Pure-fn dep lives in a package that ships no compiled pure fns"},
 	} {
 		register(definition)
 	}

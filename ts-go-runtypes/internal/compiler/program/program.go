@@ -41,6 +41,10 @@ type Options struct {
 	// nil (the default) means no config anywhere — the fixed inferred defaults
 	// apply (tsc's loose-file posture). NewInferred only.
 	Config *InferredConfig
+	// FS, when set, is the filesystem the program reads through instead of the
+	// on-disk VFS (plus Overlay): a side program built next to an existing one
+	// must see the same overlay, so it borrows that program's FS. NewInferred only.
+	FS vfs.FS
 }
 
 type Program struct {
@@ -135,10 +139,13 @@ func New(opts Options) (*Program, error) {
 func NewInferred(opts Options, fileNames []string) (*Program, error) {
 	cwd := tspath.NormalizePath(opts.Cwd)
 
-	baseFS := bundled.WrapFS(cachedvfs.From(osvfs.FS()))
-	var fileSystem vfs.FS = baseFS
-	if len(opts.Overlay) > 0 {
-		fileSystem = newOverlayFS(baseFS, opts.Overlay)
+	fileSystem := opts.FS
+	if fileSystem == nil {
+		baseFS := bundled.WrapFS(cachedvfs.From(osvfs.FS()))
+		fileSystem = baseFS
+		if len(opts.Overlay) > 0 {
+			fileSystem = newOverlayFS(baseFS, opts.Overlay)
+		}
 	}
 
 	host := compiler.NewCompilerHost(cwd, fileSystem, bundled.LibPath(), nil, nil)

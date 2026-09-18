@@ -340,7 +340,7 @@ func writeIfChanged(path, content string) error {
 }
 
 // userPureFnEntries drops the package's own built-in registrations an
-// in-repo program surfaces (the built-in table serves those) and adds the
+// in-repo program surfaces (the package index serves those) and adds the
 // override entries, exactly like collectProgramPureFns.
 func (sess *Session) userPureFnEntries(entries []purefunctions.Entry) []purefunctions.Entry {
 	kept := make([]purefunctions.Entry, 0, len(entries)+len(sess.overrideEntries))

@@ -50,6 +50,13 @@ func realMarkerFiles(t *testing.T) map[string]string {
 
 func extractFromOverlay(t *testing.T, files map[string]string) ([]Entry, []Diagnostic) {
 	t.Helper()
+	return extractFromOverlayWith(t, files, nil)
+}
+
+// extractFromOverlayWith is extractFromOverlay with a hook over the marker
+// options the extractor runs under (a test wiring a PureFnBindings resolver).
+func extractFromOverlayWith(t *testing.T, files map[string]string, mutate func(*marker.Options)) ([]Entry, []Diagnostic) {
+	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
 	// A package.json at the root gives every fixture file a stable id: the id
 	// rule names the package a file belongs to, and a test that asserts one
@@ -83,7 +90,11 @@ func extractFromOverlay(t *testing.T, files map[string]string) ([]Entry, []Diagn
 			releaseLease()
 		}
 	})
-	return ExtractFromProgramCached(typeChecker, marker.WithDefaults(marker.Options{FS: prog.FS}), prog, abs, nil)
+	markerOpts := marker.WithDefaults(marker.Options{FS: prog.FS})
+	if mutate != nil {
+		mutate(&markerOpts)
+	}
+	return ExtractFromProgramCached(typeChecker, markerOpts, prog, abs, nil)
 }
 
 func TestExtract_HappyPath_FunctionExpression(t *testing.T) {

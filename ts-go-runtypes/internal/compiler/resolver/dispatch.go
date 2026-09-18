@@ -12,7 +12,6 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/compiler"
 	"github.com/microsoft/typescript-go/shim/tspath"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/builtinpurefns"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
@@ -20,7 +19,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
@@ -192,11 +190,11 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	// KindMissing stubs so the imports the plugin injected still resolve, and
 	// the runtime degrades to the family identity fn exactly as before.
 	graph.Cascade()
-	// Deliver the demanded package-owned pure-fn bodies from the built-in table,
-	// after Cascade (demand reflects only surviving entries) and before
-	// AddMissingStubs (a served built-in must be present so it never degrades to a
-	// KindMissing stub). A demanded built-in absent from the table is a PFE9012.
-	sess.serveBuiltinPureFns(graph, rtOpts.DiagSink, rtOpts.EmitMode)
+	// Deliver the pure-fn bodies the graph demands from installed packages (the
+	// marker package's own built-ins included), after Cascade (demand reflects
+	// only surviving entries) and before AddMissingStubs (a served body must be
+	// present so it never degrades to a KindMissing stub).
+	sess.servePackagePureFns(graph, rtOpts.DiagSink, rtOpts.EmitMode)
 	demanded, demandTags := demandedEntryKeys(dump.Sites)
 	graph.AddMissingStubs(demanded)
 	// allSingle: a dropped demanded key must stay importable at the bundle
@@ -675,111 +673,6 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 		out[i].Modules = modules
 	}
 	return out
-}
-
-// markerPackageName is the package that owns the built-in pure fns: the package
-// half of the generated id prefix, so the name has one source.
-var markerPackageName, _, _ = purefunctions.SplitID(purefnids.IDPrefix)
-
-// builtinPureFnLoader resolves the marker package root out of the program and
-// binds a loader to it. Built once per session; a nil result means the program
-// reaches no file belonging to the marker package, which for a program that
-// demands a built-in body is a broken install rather than a shape to tolerate.
-func (sess *Session) builtinPureFnLoader() *builtinpurefns.Loader {
-	if sess.builtinPureFnsDone {
-		return sess.builtinPureFns
-	}
-	sess.builtinPureFnsDone = true
-	if sess.Program == nil {
-		sess.builtinPureFnsDone = false
-		return nil
-	}
-	for _, sourceFile := range sess.Program.TS.SourceFiles() {
-		name, root := marker.PackageOfFile(sourceFile.FileName(), sess.Program.FS)
-		if name != markerPackageName || root == "" {
-			continue
-		}
-		// The session's own checker and extraction memo, so a marker source the
-		// program already holds resolves against the SAME resolver as everything
-		// else: one memo, ids that cannot disagree.
-		sess.builtinPureFns = builtinpurefns.New(root, builtinpurefns.Host{
-			Program:        sess.Program,
-			Checker:        sess.checker,
-			MarkerOpts:     sess.marker,
-			Cache:          sess.pureFnFileCache,
-			SingleThreaded: sess.opts.SingleThreaded,
-		})
-		break
-	}
-	return sess.builtinPureFns
-}
-
-// serveBuiltinPureFns delivers the package-owned pure-fn bodies demanded by the
-// surviving graph, extracted on demand from the marker package's own installed
-// sources (builtinpurefns) — the mechanism that lets a published consumer, whose
-// program has only a .d.ts, receive built-in bodies at all. Demand is every soft
-// dep naming one of the generated built-in ids, plus that set's transitive
-// closure (isDateString_YMD → isDateString). Every other edge belongs to the
-// program: a user pure fn, an override body, or a sibling type-fn entry, each
-// served from its own graph.
-//
-// A demanded id the marker sources do not register is a genuine build error:
-// delivery is build-owned, so there is no runtime registration lane left to
-// cover a built-in the resolver emitted a reference to (a renamed binding, a
-// truncated install). It surfaces as PFE9012 — the same "RT depends on missing
-// pure-fn" code, validated against the sources instead of taken on faith.
-// Sources that cannot be reached or type checked AT ALL are CFG004 instead: no
-// per-key diagnostic would describe that, and it must never degrade to a
-// runtime "Pure function not found".
-// Runs post-Cascade so demand reflects only entries that will ship, and
-// pre-AddMissingStubs so a served built-in never degrades to a KindMissing stub.
-// emitMode is the RENDER's mode, not the session's: the bundled-API mirror
-// renders in `functions` whatever the program's own mode, and a built-in body
-// shipped as a code string there would be rebuilt with `new Function` at the
-// first validation, exactly where a bundled client is not allowed to.
-func (sess *Session) serveBuiltinPureFns(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnostic, emitMode constants.EmitMode) {
-	keys := make([]string, 0, len(graph))
-	for key := range graph {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	demandSet := make(map[string]bool)
-	var demand []string
-	addDemand := func(dep string) {
-		if !demandSet[dep] {
-			demandSet[dep] = true
-			demand = append(demand, dep)
-		}
-	}
-	for _, key := range keys {
-		for _, dep := range graph[key].SoftDeps {
-			if purefnids.Has(dep) {
-				addDemand(dep)
-			}
-		}
-	}
-	if len(demand) == 0 {
-		return
-	}
-	appendDiag := func(code string, args ...string) {
-		if diagSink != nil {
-			*diagSink = append(*diagSink, diagnostics.New(code, diagnostics.Site{}, args...))
-		}
-	}
-	loader := sess.builtinPureFnLoader()
-	if loader == nil {
-		appendDiag(diagnostics.CodeBuiltinPureFnSourceUnreadable, markerPackageName, "no file of this package is in the program")
-		return
-	}
-	entries, missing, err := loader.Closure(demand)
-	if err != nil {
-		appendDiag(diagnostics.CodeBuiltinPureFnSourceUnreadable, markerPackageName, err.Error())
-		return
-	}
-	graph.Merge(purefunctions.CollectEntries(entries, emitMode))
-	for _, id := range missing {
-		appendDiag(diagnostics.CodeMissingPureFnDep, id)
-	}
 }
 
 // typeIDFromEntryKey splits a `<fnHash>_<typeId>` fn-entry key at the first
@@ -1384,7 +1277,7 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 	// pureFnKeys + diagnostics above.
 	rawEntries := purefunctions.RawEntries(sess.checker, sess.marker, sess.Program, files, sess.pureFnFileCache)
 	// Do NOT rewrite the package's OWN built-in registration call sites. The
-	// built-in loader (builtinpurefns) is the SOLE producer of built-in pure-fn
+	// package index (purefnindex) is the SOLE producer of built-in pure-fn
 	// MODULES, extracted on demand only when a fn body reaches one. An in-repo
 	// build resolves the package via `src/`, so the extractor sees the built-in
 	// registrations in pure-fns-utils.ts / *-pure-fns.ts; rewriting those factory

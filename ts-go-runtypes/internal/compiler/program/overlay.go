@@ -138,3 +138,10 @@ func (overlay *overlayFS) Realpath(path string) string {
 func (overlay *overlayFS) Chtimes(path string, accessTime time.Time, modTime time.Time) error {
 	return overlay.base.Chtimes(path, accessTime, modTime)
 }
+
+// NewOverlayFS layers in-memory files over base, the same view a Program built
+// with Options.Overlay reads through. Exported for packages that read package
+// files through a Program's FS and want to test that read without a Program.
+func NewOverlayFS(base vfspkg.FS, files map[string]string) vfspkg.FS {
+	return newOverlayFS(base, files)
+}

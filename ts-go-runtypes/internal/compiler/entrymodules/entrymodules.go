@@ -245,7 +245,10 @@ func ModuleName(key string, kind Kind) string {
 	if kind == KindRunTypeBundle {
 		return constants.RunTypesBundleBasename
 	}
-	if kind != KindPureFn {
+	// A missing stub keyed by a pure-fn id (a soft dep no entry answered, e.g.
+	// a package registered only at runtime) takes the pure-fn layout too: the
+	// raw id holds a `#`, which a module URL reads as a fragment.
+	if kind != KindPureFn && !(kind == KindMissing && strings.Contains(key, "#")) {
 		return key
 	}
 	location, name := key, ""
