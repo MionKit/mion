@@ -184,6 +184,20 @@ func Has(id string) bool {
 	return ids[id]
 }
 
+// SourceFiles are this package's files that register a pure function, relative
+// to its root. Scanned for a registrar call when this file was generated and
+// narrowed to the files that produced an entry, so there is nothing to keep in
+// sync and nothing to scan at build time: the resolver resolves these against
+// whatever root it finds the installed package at, and a path the install does
+// not have is CFG004.
+var SourceFiles = []string{
+	"src/formats/datetime/dateTime-pure-fns.ts",
+	"src/formats/string/credit-card-pure-fns.ts",
+	"src/formats/string/string-formats-pure-fns.ts",
+	"src/runtypes/circular-pure-fns.ts",
+	"src/runtypes/pure-fns-utils.ts",
+}
+
 // All returns every built-in id, sorted. An id is a hash of the body that
 // ships, so a test can assert that each one still resolves from the sources and
 // catch a body edited without regenerating this file.

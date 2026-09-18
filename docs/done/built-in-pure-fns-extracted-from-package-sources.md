@@ -53,13 +53,15 @@ against what extraction produces, and never decodes it.
   hashing the same bodies would split one function into two entries; a test pins that both lanes
   agree. Only a program that does not hold those sources, a published consumer, builds a Program of
   the loader's own.
-- **The source files are found, not declared.** The loader reads the package's `src` and keeps
-  whatever calls a registrar, so a file that registers cannot be missed. Two alternatives were tried
-  and both miss one: following imports from the entry points drops `circular-pure-fns.ts`
-  (side-effect imported by nothing), and a declared list in `package.json` drops whatever someone
-  forgets to add. `cmd/gen-builtin-purefns` runs the same scan. The scan descends through
-  `GetAccessibleEntries`, not the FS's `WalkDir`, which on an overlay filesystem delegates to real
-  disk and never sees a virtually served package.
+- **The source list is generated.** `cmd/gen-builtin-purefns` scans the package for a registrar call,
+  narrows that to the files which produced an entry, and writes them as `purefnids.SourceFiles`
+  beside the id constants. The loader resolves them against the root it found and never scans: the
+  package layout is fixed when the binary is built, the two riding one lockstep version. Three
+  alternatives were tried and each loses something: following imports from the entry points drops
+  `circular-pure-fns.ts`, which is side-effect imported by nothing (its own test now); a declared
+  `mion.pureFns` manifest field drops whatever someone forgets, and is published API; and scanning
+  per session costs ~3 ms plus a directory walk through the program filesystem for an answer that
+  never changes.
 - **Served entries drop their source-position bookkeeping** (`FactoryArgStart/End`,
   `IDInjectPos/Text`, `FilePath`). Those drive the rewrite of the call site an entry came from, and
   a served built-in's call site is inside the installed package: rewriting it would dangle an
@@ -95,7 +97,7 @@ against what extraction produces, and never decodes it.
 `packages/run-types/src/runtypes/circular-pure-fns.ts` is imported by nothing: its name appears
 only inside a comment in `circular.ts`. Its registration therefore never runs at load, which is
 harmless now that the compiler serves the body, but it means the package's side-effect import list
-is incomplete. Scanning for the registrar call is what keeps it served, and
+is incomplete. The generator finding it by its registrar call is what keeps it served, and
 `TestClosure_FindCycleIsServed` is what keeps it from being dropped again.
 
 ## Tests
@@ -104,15 +106,15 @@ is incomplete. Scanning for the registrar call is what keeps it served, and
   drift check the deleted `--check` lane gave), the core built-ins served with non-empty bodies,
   `findCycle` specifically, transitive module closure, dedup, a demanded id the sources do not
   register reported missing, extraction happening once, served entries carrying no rewrite spans but
-  keeping their `BindingName`, unreadable sources erroring, a package where nothing registers
-  erroring, the scan skipping what the tarball excludes, and both lanes agreeing on ids.
+  keeping their `BindingName`, unreadable sources erroring with the file named, the generated list
+  holding nothing dead and nothing missing, and both lanes agreeing on ids.
 - `internal/compiler/resolver/builtin_purefns_delivery_test.go` gains
   `TestBuiltinDelivery_MarkerWithoutSourcesIsCFG004`: a marker package mounted without `src` fails
   the build with `CFG004` instead of emitting a validator that throws.
 - `internal/compiler/resolver/builtin_purefns_serving_test.go` builds a Session carrying a loader
   instead of a zero Session, and gains the unreachable-sources case.
 - `packages/devtools/test/repo-contracts.test.ts` pins that `@mionjs/run-types` publishes `src` and
-  excludes only the two suffixes the scan itself skips.
+  excludes only the two suffixes the generator's scan skips.
 - The existing end-to-end delivery tests now exercise the on-demand path against a `node_modules`
   layout holding only what the tarball ships, which is the proof the whole design rests on.
 
