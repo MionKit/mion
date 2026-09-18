@@ -8,14 +8,7 @@
 import {type RouterEntry, type Routes} from '../types/general.ts';
 import {type RemoteMethod} from '../types/remoteMethods.ts';
 import type {PublicApi} from '../types/publicMethods.ts';
-import type {
-  AnyObject,
-  CompiledTypeFn,
-  CompiledFnData,
-  SerializablePureFunction,
-  MethodWithOptions,
-  PureFnsDataCache,
-} from '@mionjs/core';
+import type {AnyObject, CompiledTypeFn, CompiledFnData, MethodWithOptions, PureFnsDataCache} from '@mionjs/core';
 import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef} from '../types/guards.ts';
 import {getMiddleFnExecutable, getRouteExecutable, isPrivateDefinition, getPlatformMaxBodySize} from '../router.ts';
 import {
