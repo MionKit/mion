@@ -9,6 +9,7 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -865,8 +866,21 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 		}
 		crossFamilyDeps = append(crossFamilyDeps, ref.Prefix+currentHash)
 	}
-	// Pure-fn edges rebuild verbatim from the persisted stable keys — no hash
-	// drift to check (the delivery target is content-addressed by key, not id).
+	// A pure fn's id is the hash of its body, so an id this binary no longer
+	// knows is a body that changed since the entry was written. The RT entry
+	// itself did not move (its structural id is the type's, not the pure fn's),
+	// so nothing else here would catch it: ArgsText still bakes
+	// `utl.getPureFn('<old id>')`, delivery finds no such built-in, and
+	// AddMissingStubs quietly degrades the body to a KindMissing stub. A miss
+	// instead — the walk re-renders against the current id.
+	//
+	// purefnids is the whole oracle: every dep that can land here comes from
+	// EmitContext.UsePureFn, whose argument is always a generated constant.
+	for _, id := range entry.PureFnRefs {
+		if !purefnids.Has(id) {
+			return entryRender{}, false
+		}
+	}
 	pureFnDeps := append([]string(nil), entry.PureFnRefs...)
 	replayCachedDiagnostics(runType, settings.Tag, entry.Diagnostics, opts)
 	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop}, true
@@ -983,6 +997,15 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 			Hash:         bareHash,
 		})
 	}
+	for _, id := range pureFnDeps {
+		// Same rule the reader applies, so a record it would refuse is never
+		// written. Unreachable via UsePureFn, which only takes generated
+		// constants; an emitter that hand-wrote an id lands here instead of
+		// persisting a reference to a body that does not exist.
+		if !purefnids.Has(id) {
+			return
+		}
+	}
 	entry := diskcache.RTEntry{
 		Format:          diskcache.FormatVersion,
 		StructuralID:    structural,
@@ -990,8 +1013,8 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		IsNoop:          isNoop,
 		ChildRefs:       childRefs,
 		CrossFamilyRefs: crossFamilyRefs,
-		// Pure-fn keys are stable strings — persist verbatim, no structural-id
-		// translation (contrast ChildRefs / CrossFamilyRefs).
+		// Persisted verbatim (no structural-id translation, contrast ChildRefs /
+		// CrossFamilyRefs); the drift check is purefnids.Has at both ends.
 		PureFnRefs: append([]string(nil), pureFnDeps...),
 		// So a warm build reports the same findings a cold one does.
 		Diagnostics: entryDiags,
