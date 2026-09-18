@@ -8,7 +8,11 @@
 
 import {describe, it, expect} from 'vitest';
 import {getRTUtils} from '../../../src/runtypes/rtUtils.ts';
-import {luhnCheckDigit} from '../../../src/formats/string/credit-card-pure-fns.ts';
+import {
+  isCreditCard as isCreditCardId,
+  luhnCheckDigit,
+  matchesCardNetwork as matchesCardNetworkId,
+} from '../../../src/formats/string/credit-card-pure-fns.ts';
 import {withSeededRandom} from '../core/seededRng.ts';
 
 interface CardParams {
@@ -20,8 +24,8 @@ interface CardParams {
 type CardModeFn = (value: string, params: CardParams) => string;
 type CardFn = (value: string, params: CardParams) => boolean;
 
-const isCreditCard = getRTUtils().getPureFn('rtFormats::isCreditCard') as CardModeFn;
-const matchesCardNetwork = getRTUtils().getPureFn('rtFormats::matchesCardNetwork') as CardFn;
+const isCreditCard = getRTUtils().getPureFn(isCreditCardId) as CardModeFn;
+const matchesCardNetwork = getRTUtils().getPureFn(matchesCardNetworkId) as CardFn;
 
 // A random card number of a random valid length, built from the given prefix.
 // The check digit comes from the format's own `luhnCheckDigit`, so this fuzzer

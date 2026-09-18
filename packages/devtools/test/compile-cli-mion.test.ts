@@ -2,13 +2,14 @@
 // client project and a real server project on disk: the server compile writes
 // `<genDir>/rpc/` from the client tsconfig and appends the relativized table import
 // to its emitted router-init module; the client compile splices the batch id and
-// the mapper hash into its emitted `.js`. Both projects declare the mion packages
+// the mapper id into its emitted `.js`. Both projects declare the mion packages
 // ambiently (the pattern of compile-cli.test.ts), so no built framework package
 // is needed; the markers come from the real marker package.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {execFileSync} from 'node:child_process';
 import {hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 import {runCli} from './helpers/cliCrash.ts';
 
@@ -20,8 +21,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
   export type ClientRoutes<RA> = { [K in keyof RA]: RA[K] extends (...a: infer P) => infer R ? (...p: P) => RouteSubRequest<RA[K]> : ClientRoutes<RA[K]> };
   export function initClient<RA>(o?: unknown): {client: unknown; routes: ClientRoutes<RA>};
   export interface InputFromRef<F> { asArg(): ReturnType<F> }
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, name: string): InputFromRef<(v: any) => M>;
-  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, hash?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
+  export function inputFrom<S extends RouteSubRequest<any>, M = any>(source: S, mapper: PureFunction<(v: any) => M>, pureFnId?: InjectPureFnId<(v: any) => M>): InputFromRef<(v: any) => M>;
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R], batchId?: InjectBatchId<R>): unknown;
 }
 `;
@@ -66,8 +66,33 @@ function writeProject(base: string, name: string, files: Record<string, string>)
   fs.mkdirSync(path.join(dir, 'src'), {recursive: true});
   writeMarkerPackage(dir);
   fs.writeFileSync(path.join(dir, 'tsconfig.json'), TSCONFIG);
+  // A named package, like any real project: it is what a pure fn's id is built
+  // from, so both compiles below name the client's mapper the same way.
+  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({name: `@acme/${name}-app`, private: true, type: 'module'}));
   for (const [rel, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, 'src', rel), content);
   return dir;
+}
+
+/** Every generated pure-fn module under `<genDir>/types/pf`, by path. */
+function generatedTypeModules(genDir: string): string[] {
+  const root = path.join(genDir, 'types', 'pf');
+  const walk = (dir: string): string[] =>
+    fs.readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      return entry.isDirectory() ? walk(full) : [full];
+    });
+  return fs.existsSync(root) ? walk(root).sort() : [];
+}
+
+/** Every generated pure-fn module under `<genDir>/rpc/pf`, by path. */
+function generatedMappers(genDir: string): string[] {
+  const root = path.join(genDir, 'rpc', 'pf');
+  const walk = (dir: string): string[] =>
+    fs.readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      return entry.isDirectory() ? walk(full) : [full];
+    });
+  return fs.existsSync(root) ? walk(root).sort() : [];
 }
 
 describe('mion compile — a mion client and a mion server, in two projects', () => {
@@ -95,13 +120,13 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
 
       // the transport is under the SERVER's gen dir, relative imports only, nothing from the client tree
       const table = fs.readFileSync(path.join(server, '.mion', 'rpc', 'batches.generated.js'), 'utf8');
-      expect(table).toMatch(/import \{__rt_pf\$2Frt\$2F[A-Za-z0-9_$]+\} from '\.\/pf\/rt\/[^']+\.js';/);
+      expect(table).toMatch(/import \{__rt_pf\$2F[A-Za-z0-9_$]+\} from '\.\/pf\/@acme\/client-app\/src\/a\/[^']+\.js';/);
       expect(table).toMatch(/replaceBatches\(\{"b_[A-Za-z0-9_-]+":/);
       expect(table).not.toContain(client);
       expect(table).not.toContain(server);
-      const mappers = fs.readdirSync(path.join(server, '.mion', 'rpc', 'pf', 'rt'));
+      const mappers = generatedMappers(path.join(server, '.mion'));
       expect(mappers).toHaveLength(1);
-      expect(fs.readFileSync(path.join(server, '.mion', 'rpc', 'pf', 'rt', mappers[0]), 'utf8')).toContain('u.id');
+      expect(fs.readFileSync(mappers[0], 'utf8')).toContain('u.id');
 
       // the emitted router-init module ends with the import, relativized from dist/ to .mion/rpc/
       const serverJs = fs.readFileSync(path.join(server, 'dist', 'server.js'), 'utf8');
@@ -109,7 +134,7 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
       expect(serverJs).toContain("import '../.mion/rpc/batches.generated.js';");
       expect(serverJs).toContain('createMionRouter(');
 
-      // the client compile carries the same batch id and mapper hash the table registers
+      // the client compile carries the same batch id and mapper id the table registers
       const clientRun = runCli(
         ['compile', '--cwd', client, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(client, '.mion')],
         {
@@ -119,7 +144,7 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
       expect(clientRun.status, clientRun.report).toBe(0);
       const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
       const batchId = /'(b_[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
-      const mapperKey = /'(rt::[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
+      const mapperKey = /'(@acme\/client-app\/src\/a#[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
       expect(batchId, clientJs).toBeDefined();
       expect(mapperKey, clientJs).toBeDefined();
       expect(table).toContain(`"${batchId}"`);
@@ -171,6 +196,82 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
     }
   });
 });
+
+// A pure fn reaching another one by IMPORTING its id, compiled by the CLI with no
+// bundler in the loop, then RUN under plain node. The emitted body must carry the
+// imported id as a literal (it closes over nothing), and the generated modules must
+// register under the same ids the rewritten source passes — which is what proves the
+// CLI and the bundler plugins share the one Go transform.
+const PURE_FNS_TS = `import {registerPureFn} from '@mionjs/run-types';
+export const trim = registerPureFn((s) => s.trim());
+`;
+const PURE_MAIN_TS = `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types';
+import {trim} from './fns.js';
+
+const trimTwice = registerPureFnFactory((utl) => {
+  const once = utl.getPureFn(trim);
+  return (value) => once(once(value));
+});
+
+process.stdout.write(
+  '<<RT>>' +
+    JSON.stringify({
+      trimId: trim,
+      twiceId: trimTwice,
+      deps: getRTUtils().getCompiledPureFnByKey(trimTwice).pureFnDependencies,
+      result: getRTUtils().getPureFnByKey(trimTwice)('  hi  '),
+    }) +
+    '<<RT>>'
+);
+`;
+
+describe('mion compile — a pure fn that imports another pure fn id', () => {
+  register('emits the imported id as a literal and runs under plain node', () => {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-purefn-'));
+    try {
+      const project = path.join(base, 'app');
+      fs.mkdirSync(path.join(project, 'src'), {recursive: true});
+      fs.writeFileSync(
+        path.join(project, 'package.json'),
+        JSON.stringify({name: '@acme/pure-app', private: true, type: 'module'})
+      );
+      fs.writeFileSync(path.join(project, 'tsconfig.json'), TSCONFIG);
+      // the REAL marker package, so the emitted JS runs against the shipped runtime
+      const scope = path.join(project, 'node_modules', '@mionjs');
+      fs.mkdirSync(scope, {recursive: true});
+      fs.symlinkSync(path.resolve(__dirname, '../../run-types'), path.join(scope, 'run-types'), 'dir');
+      fs.writeFileSync(path.join(project, 'src', 'fns.ts'), PURE_FNS_TS);
+      fs.writeFileSync(path.join(project, 'src', 'main.ts'), PURE_MAIN_TS);
+
+      const run = runCli(['compile', '--cwd', project, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(project, '.mion')], {
+        label: 'compile-cli-purefn',
+      });
+      expect(run.status, run.report).toBe(0);
+
+      // the dependent body ships the imported id as a literal, so it closes over nothing
+      const generated = generatedTypeModules(path.join(project, '.mion'));
+      const twice = generated.find((file) => file.includes('trimTwice'));
+      expect(twice, `no module for trimTwice in ${generated.join(', ')}`).toBeDefined();
+      // the body rides the tuple as a quoted string, so its own quotes arrive escaped
+      expect(fs.readFileSync(twice!, 'utf8')).toContain(String.raw`getPureFn(\'@acme/pure-app/src/fns#trim\')`);
+
+      const stdout = execFileSync(process.execPath, [path.join(project, 'dist', 'main.js')], {
+        cwd: project,
+        encoding: 'utf8',
+      });
+      const payload = /<<RT>>(.*)<<RT>>/s.exec(stdout);
+      expect(payload, `the compiled program must print its result; got:\n${stdout}`).toBeTruthy();
+      const result = JSON.parse(payload![1]) as {trimId: string; twiceId: string; deps: string[]; result: string};
+      expect(result.trimId).toBe('@acme/pure-app/src/fns#trim');
+      expect(result.twiceId).toBe('@acme/pure-app/src/main#trimTwice');
+      expect(result.deps).toEqual([result.trimId]);
+      expect(result.result).toBe('hi');
+    } finally {
+      fs.rmSync(base, {recursive: true, force: true});
+    }
+  });
+});
+
 
 // The bundled-API lane through the same CLI: a server project whose initRoutes call the build
 // walks into a server manifest, a client project built with --bundle-api against the server's

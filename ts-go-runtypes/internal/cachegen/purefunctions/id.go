@@ -39,9 +39,16 @@ func IDFor(markerOpts marker.Options, filePath, name string) string {
 	opts := marker.WithDefaults(markerOpts)
 	packageName, packageRoot := marker.PackageOfFile(filePath, opts.FS)
 	if packageName == "" {
-		// No NAMED package: report the path relative to the project instead, so
-		// the id stays the same wherever the project is checked out.
-		return pathFromRoot(tspath.NormalizePath(filePath), opts.Cwd) + idSeparator + name
+		// No NAMED package: report the path relative to the package root when
+		// there is one (a private package.json with no name), so the id does not
+		// depend on which directory the build ran from — a server build reading a
+		// client project computes the same id the client's own build does. With
+		// no package.json at all, the project directory is the best anchor left.
+		root := packageRoot
+		if root == "" {
+			root = opts.Cwd
+		}
+		return pathFromRoot(tspath.NormalizePath(filePath), root) + idSeparator + name
 	}
 	return packageName + "/" + pathFromRoot(tspath.NormalizePath(filePath), packageRoot) + idSeparator + name
 }

@@ -11,9 +11,9 @@ import "strconv"
 //
 // Emitted INLINE as a small object-literal push rather than through a pure fn:
 // the whole statement is a handful of bytes with no shared logic to factor out,
-// so a `utl.getPureFn('rtFormats::formatErr')` indirection would cost more than
+// so a `utl.getPureFn('formatErr')` indirection would cost more than
 // it saves. (Built-in pure fns ARE now delivered on demand — the former
-// `rt::formatErr` built-in was deleted as dead once this inline push replaced
+// `formatErr` built-in was deleted as dead once this inline push replaced
 // it — so the choice is size, not a delivery constraint.)
 //
 // paramValLiteral is the already-rendered JS value — a quoted string for

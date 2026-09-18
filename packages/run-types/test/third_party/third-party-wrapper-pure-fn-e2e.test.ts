@@ -1,19 +1,19 @@
-// Full RUNTIME e2e for the anonymous pure-fn lane through a third-party wrapper.
+// Full RUNTIME e2e for a pure fn registered through a third-party wrapper.
 //
-// The transform-only third-party tests prove the rewrite (factory → entry
-// binding + injected `'rt::<hash>'`). This one closes the loop: it drives the
+// The transform-only third-party tests prove the rewrite (fn → entry binding +
+// injected id). This one closes the loop: it drives the
 // real plugin over a real node_modules fixture, writes the generated cache
 // modules AND the rewritten consumer to disk, then EXECUTES the result in a
 // fresh Node process and asserts the compiled pure fn actually runs.
 //
 // Fixture (all on disk, resolved by Node at runtime):
 //   - node_modules/@mionjs/run-types → symlink to the built package, so the
-//     runtime `registerAnonymousPureFn` + `getRTUtils()` singleton are the real
+//     runtime `registerPureFn` + `getRTUtils()` singleton are the real
 //     ones (shared between the consumer and the generated modules).
 //   - node_modules/@acme/toolkit — a framework package that re-exports the
 //     primitive and forwards its own `registerAcmePureFn` wrapper to it.
 //   - consumer.ts — registers a pure fn THROUGH the wrapper, then looks it up by
-//     its runtime key (`getPureFnByKey`) and calls it.
+//     the id it got back (`getPureFnByKey`) and calls it.
 //
 // The consumer is annotation-free, so the plugin's rewritten output is valid
 // ESM JS; we run it as `node consumer.mjs` (a child process, isolated from
@@ -53,38 +53,36 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 });
 
 // The framework surface: barrel re-export + a branded wrapper that forwards to
-// the anonymous lane (so calling the wrapper genuinely registers the fn).
+// the registrar (so calling the wrapper genuinely registers the fn).
 const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
-export {registerAnonymousPureFn} from '@mionjs/run-types';
+export {registerPureFn} from '@mionjs/run-types';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
-  hash?: InjectPureFnId<F>,
-): {namespace: string; fnName: string};
+  pureFnId?: InjectPureFnId<F>,
+): string;
 `;
 
-const TOOLKIT_JS = `import {registerAnonymousPureFn} from '@mionjs/run-types';
-export {registerAnonymousPureFn} from '@mionjs/run-types';
-export function registerAcmePureFn(fn, hash) {
-  return registerAnonymousPureFn(fn, hash);
+const TOOLKIT_JS = `import {registerPureFn} from '@mionjs/run-types';
+export {registerPureFn} from '@mionjs/run-types';
+export function registerAcmePureFn(fn, pureFnId) {
+  return registerPureFn(fn, pureFnId);
 }
 `;
 
 // Annotation-free, so the rewritten output is valid ESM JS. Registers through
-// the wrapper, then looks the fn up by its RUNTIME key and calls it.
+// the wrapper, then looks the fn up by the id it got back and calls it.
 const CONSUMER_SRC = `import {registerAcmePureFn} from '@acme/toolkit';
 import {getRTUtils} from '@mionjs/run-types';
 
-const compiled = registerAcmePureFn(function _double(n) { return n * 2; });
+const doubleId = registerAcmePureFn(function _double(n) { return n * 2; });
 
-const key = compiled.namespace + '::' + compiled.fnName;
 process.stdout.write(
   '<<RT>>' +
     JSON.stringify({
-      namespace: compiled.namespace,
-      fnName: compiled.fnName,
-      has: getRTUtils().hasPureFnByKey(key),
-      missing: getRTUtils().hasPureFnByKey('rt::definitelyMissing'),
-      doubled: getRTUtils().getPureFnByKey(key)(21),
+      id: doubleId,
+      has: getRTUtils().hasPureFnByKey(doubleId),
+      missing: getRTUtils().hasPureFnByKey('rt-e2e-fixture/consumer#definitelyMissing'),
+      doubled: getRTUtils().getPureFnByKey(doubleId)(21),
     }) +
     '<<RT>>'
 );
@@ -109,11 +107,11 @@ function makePlugin() {
   }) as any;
 }
 
-describe('third-party anonymous pure fns: full runtime e2e (node_modules + execute)', () => {
+describe('third-party pure fn through a wrapper: full runtime e2e (node_modules + execute)', () => {
   const register = hasBinary() ? it : it.skip;
 
   beforeAll(() => {
-    FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-third-party-anon-e2e-'));
+    FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-third-party-wrapper-e2e-'));
     // Make the fixture's own .js load as ESM (the generated cache modules are
     // `export const …`), independent of Node's syntax-detection heuristics.
     fs.writeFileSync(
@@ -154,9 +152,9 @@ describe('third-party anonymous pure fns: full runtime e2e (node_modules + execu
       }
     }
 
-    // The rewrite injected the content id at the wrapper call site.
-    const injected = code.match(/registerAcmePureFn\(\s*__rt_pf[A-Za-z0-9_$]*,\s*'(rt::[A-Za-z0-9_-]{14})'\)/);
-    expect(injected, `wrapper call must carry an injected hash in:\n${code}`).toBeTruthy();
+    // The rewrite injected the id at the wrapper call site.
+    const injected = code.match(/registerAcmePureFn\(\s*__rt_pf[A-Za-z0-9_$]*,\s*'([^']+#[^']+)'\)/);
+    expect(injected, `wrapper call must carry an injected id in:\n${code}`).toBeTruthy();
 
     // Write the rewritten consumer next to consumer.ts (same dir, so its
     // relative imports of the generated modules resolve) and EXECUTE it in a
@@ -167,18 +165,16 @@ describe('third-party anonymous pure fns: full runtime e2e (node_modules + execu
     const payload = stdout.match(/<<RT>>(.*)<<RT>>/s);
     expect(payload, `consumer must print its result; got:\n${stdout}`).toBeTruthy();
     const result = JSON.parse(payload![1]) as {
-      namespace: string;
-      fnName: string;
+      id: string;
       has: boolean;
       missing: boolean;
       doubled: number;
     };
 
-    // Registered under the content-hashed rt::<hash> key, and the id it printed
-    // is the SAME one the rewrite injected.
-    expect(result.namespace).toBe('rt');
-    expect(result.fnName).toMatch(/^[A-Za-z0-9_-]{14}$/);
-    expect(`rt::${result.fnName}`).toBe(injected![1]);
+    // Registered under the id of the consumer's own binding, and the id it
+    // printed is the SAME one the rewrite injected.
+    expect(result.id).toBe('rt-e2e-fixture/consumer#doubleId');
+    expect(result.id).toBe(injected![1]);
     // The untracked runtime-key accessor finds it (and only it).
     expect(result.has).toBe(true);
     expect(result.missing).toBe(false);

@@ -1759,7 +1759,7 @@ func (state scanState) checkPureFunction(file string, argumentNode *ast.Node) []
 	if sourceFile == nil {
 		return nil
 	}
-	return purefunctions.CheckPurity(sourceFile, fnNode)
+	return purefunctions.CheckPurity(state.scanChecker, state.sess.marker, sourceFile, fnNode)
 }
 
 // checkCompTimeArgs validates the argument node passes the CompTimeArgs
@@ -1768,6 +1768,14 @@ func (state scanState) checkPureFunction(file string, argumentNode *ast.Node) []
 func (state scanState) checkCompTimeArgs(file string, argumentNode *ast.Node) (diagnostics.Diagnostic, bool) {
 	result := comptimeargs.CheckLiteral(state.scanChecker, argumentNode, 0, state.comptimeArgsPolicy())
 	if result.Ok {
+		return diagnostics.Diagnostic{}, false
+	}
+	// A pure fn's id is a branded value, not a literal the walk can read: it comes
+	// from a registrar call, or from a `.d.ts` that carries only its type. The
+	// brand is the promise that the build can resolve it, and the pure-fn lane is
+	// what resolves it (and reports PFE9013 when it cannot), so the literal rule
+	// has nothing to add here.
+	if state.isPureFnID(argumentNode) {
 		return diagnostics.Diagnostic{}, false
 	}
 	failingNode := result.FailingNode
@@ -1789,6 +1797,17 @@ func (state scanState) checkCompTimeArgs(file string, argumentNode *ast.Node) (d
 	default:
 		return diagnostics.New(diagnostics.CodeCompTimeArgsNonLiteral, site), true
 	}
+}
+
+// isPureFnID reports whether the argument's type carries the PureFnId brand —
+// the value a pure-fn registrar returns.
+func (state scanState) isPureFnID(argumentNode *ast.Node) bool {
+	argType := state.scanChecker.GetTypeAtLocation(argumentNode)
+	if argType == nil {
+		return false
+	}
+	kind, _, matched := marker.DetectAny(state.scanChecker, argType, state.sess.marker)
+	return matched && kind == marker.KindPureFnId
 }
 
 // noopValidateOptionDiag builds a Warning diagnostic anchored at the

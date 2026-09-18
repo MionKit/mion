@@ -41,10 +41,9 @@ const (
 	// parameters). Args: [0] the zero-based argument index, [1] the number of
 	// parameters the route declares, [2] the target route id.
 	CodeBatchMappingParamOutOfRange = "BAT006"
-	// CodeBatchMapperMissing: a batch names an inline `inputFrom()` mapper
-	// (`rt::<hash>`) that the batch source program produced no pure function
-	// for, so the server build has no body to register. Reported at the batch
-	// call. Args: [0] the mapper key.
+	// CodeBatchMapperMissing: a batch names an inline `inputFrom()` mapper that
+	// the batch source program produced no pure function for, so the server build
+	// has no body to register. Reported at the batch call. Args: [0] the mapper id.
 	CodeBatchMapperMissing = "BAT007"
 	// CodeBatchOwnBatchIgnored: the build names a separate client project
 	// (`clientTsconfig`), so the batch table is generated from THAT program and

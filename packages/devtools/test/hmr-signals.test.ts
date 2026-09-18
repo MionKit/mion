@@ -62,7 +62,7 @@ getRunTypeId<string>();
   register('scanning a file with registerPureFnFactory sets addedPureFns', async () => {
     const sources = {
       'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const a = registerPureFnFactory('hmrns::pureFnA', function () {
+export const pureFnA = registerPureFnFactory(function () {
   return function _a(value: any): any { return value; };
 });
 `,
@@ -80,7 +80,7 @@ export const a = registerPureFnFactory('hmrns::pureFnA', function () {
   register('re-scanning the same pureFn content does not re-set addedPureFns', async () => {
     const sources = {
       'stable-pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
-export const a = registerPureFnFactory('hmrns::stableFn', function () {
+export const stableFn = registerPureFnFactory(function () {
   return function _s(value: any): any { return value; };
 });
 `,

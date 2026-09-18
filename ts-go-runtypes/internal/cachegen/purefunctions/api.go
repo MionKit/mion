@@ -7,6 +7,8 @@ package purefunctions
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
@@ -14,15 +16,36 @@ import (
 // function-literal node and returns the diagnostics they produce
 // (PFE9006–PFE9011, all Error severity). Public wrapper around the
 // package-private checkPurity used by the resolver's PureFunction<F>
-// marker path — the existing registerPureFnFactory extractor calls
-// checkPurity directly.
+// marker path — the extractor calls checkPurity directly.
 //
-// fnNode must be a KindArrowFunction or KindFunctionExpression. Callers
-// should run comptimeargs.CheckLiteralFunction first to enforce the
-// inline-shape rule (PFN001) before invoking this; the purity walker
-// itself does not validate the outer node's kind.
-func CheckPurity(sourceFile *ast.SourceFile, fnNode *ast.Node) []diagnostics.Diagnostic {
-	return checkPurity(sourceFile, fnNode, nil)
+// It runs the dep walk first, for the one thing purity needs from it: the
+// imported ids a body reaches another pure fn through are LOWERED to string
+// literals when the body is emitted, so they are not captures. Any diagnostic
+// the dep walk produces is dropped here, because the extractor's own pass over
+// the same body reports it.
+//
+// fnNode must be a KindArrowFunction or KindFunctionExpression. Callers should
+// run comptimeargs.CheckLiteralFunction first to enforce the inline-shape rule
+// (PFN001) before invoking this; the purity walker itself does not validate the
+// outer node's kind.
+func CheckPurity(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, fnNode *ast.Node) []diagnostics.Diagnostic {
+	_, _, exempt, _ := extractDeps(typeChecker, markerOpts, sourceFile, fnNode, utlParamName(fnNode))
+	return checkPurity(sourceFile, fnNode, exempt)
+}
+
+// utlParamName is the name a factory binds rtUtils to — its first parameter —
+// which is how the dep walk recognises a tracked lookup. Empty for the direct
+// form, whose argument is the pure fn itself and reaches no utl.
+func utlParamName(fnNode *ast.Node) string {
+	fnLike := fnNode.FunctionLikeData()
+	if fnLike == nil || fnLike.Parameters == nil || len(fnLike.Parameters.Nodes) == 0 {
+		return ""
+	}
+	first := fnLike.Parameters.Nodes[0].AsParameterDeclaration()
+	if first == nil || first.Name() == nil || first.Name().Kind != ast.KindIdentifier {
+		return ""
+	}
+	return first.Name().Text()
 }
 
 // Type aliases to the central diag package — kept on purefns so test

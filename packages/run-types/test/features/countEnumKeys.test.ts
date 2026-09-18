@@ -1,4 +1,4 @@
-// Cross-engine equivalence for the `rt::countEnumKeys` pure fn.
+// Cross-engine equivalence for the `countEnumKeys` pure fn.
 //
 // The factory picks its counter ONCE at materialisation, based on the host
 // engine: a for-in counter on V8 (Node / Deno) and an `Object.keys` counter on
@@ -16,15 +16,16 @@
 // directly, side by side, in one process.
 
 import {afterEach, describe, expect, it} from 'vitest';
-import {pf_countEnumKeys} from '../../src/runtypes/pure-fns-utils.ts';
+import {countEnumKeys} from '../../src/runtypes/pure-fns-utils.ts';
+import {getRTUtils} from '../../src/runtypes/rtUtils.ts';
 import {mulberry32} from '../fuzz/core/seededRng.ts';
 
 type Counter = (obj: Record<string | number, any>) => number;
 
 /** Materialise the counter the factory picks when `Bun` is / is not a global. **/
 function materializeCounter(asBun: boolean): Counter {
-  const factory = pf_countEnumKeys.createPureFn;
-  if (typeof factory !== 'function') throw new Error('rt::countEnumKeys has no factory — test setup is wrong');
+  const factory = getRTUtils().getCompiledPureFn(countEnumKeys)?.createPureFn;
+  if (typeof factory !== 'function') throw new Error('countEnumKeys has no factory — test setup is wrong');
   const globals = globalThis as Record<string, unknown>;
   const hadBun = 'Bun' in globals;
   const previousBun = globals.Bun;
@@ -47,7 +48,7 @@ function expectAgreement(value: Record<string | number, any>, expected: number):
   expect(countJSC(value)).toBe(expected);
 }
 
-describe('rt::countEnumKeys — branch selection', () => {
+describe('countEnumKeys — branch selection', () => {
   it('picks the Object.keys counter when Bun is present', () => {
     const originalKeys = Object.keys;
     let calls = 0;
@@ -79,7 +80,7 @@ describe('rt::countEnumKeys — branch selection', () => {
   });
 });
 
-describe('rt::countEnumKeys — both counters agree', () => {
+describe('countEnumKeys — both counters agree', () => {
   it('counts a plain object literal', () => {
     expectAgreement({a: 'x', b: 1}, 2);
   });
@@ -191,7 +192,7 @@ describe('rt::countEnumKeys — both counters agree', () => {
   });
 });
 
-describe('rt::countEnumKeys — seeded equivalence sweep', () => {
+describe('countEnumKeys — seeded equivalence sweep', () => {
   // Property (compare-to-a-trusted-source): the two counters must return the
   // same number for EVERY generated object. The V8 counter is the incumbent
   // and therefore the trusted source; any disagreement is exactly the

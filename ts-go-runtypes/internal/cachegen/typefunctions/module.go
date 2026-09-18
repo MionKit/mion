@@ -62,7 +62,7 @@ type RenderOpts struct {
 	DiagSink *[]diagnostics.Diagnostic
 	// PureFnDepSink, when non-nil, accumulates every pure-fn dependency the
 	// walker records while rendering a LIVE entry body (walker.PureFnDependencies
-	// — e.g. `rt::newRunTypeErr` for a validationErrors body), each paired with
+	// — e.g. `newRunTypeErr` for a validationErrors body), each paired with
 	// the marker call sites that demanded the entry (walker.rootProvenance). The
 	// resolver aggregates these across a dispatch and cross-checks each against
 	// the program-wide pure-fn registration set; a dep whose registration is
@@ -502,7 +502,7 @@ type entryRender struct {
 	deps            []string
 	crossFamilyDeps []string
 	// pureFnDeps is the entry's pure-fn dependency KEYS (walker.PureFnDependencies
-	// projected to `<ns>::<fn>`, e.g. "rt::newRunTypeErr"). These land on the
+	// projected to `<ns>::<fn>`, e.g. "newRunTypeErr"). These land on the
 	// emitted module's SoftDeps so the built-in (or user) pure-fn module is
 	// imported and its tuple registered by the deps thunk before the body runs —
 	// the delivery half of demand-driven built-in pure fns. Persisted as

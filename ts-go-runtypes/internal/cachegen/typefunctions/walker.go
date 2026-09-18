@@ -647,7 +647,7 @@ type CircularGuardReactor interface {
 // guard prologue.
 const circularGuardContextKey = "cyP"
 
-// emitCircularGuard hoists the rt::findCycle alias + the baked skeleton
+// emitCircularGuard hoists the findCycle alias + the baked skeleton
 // const into the factory closure and prepends the family's guard statement to
 // the body. No-op when the emitter is not a CircularGuardReactor (only the
 // guarded families implement it).

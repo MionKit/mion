@@ -6,15 +6,15 @@
 //   1. RE-EXPORTS registerPureFnFactory from '@mionjs/run-types' (the barrel a
 //      framework proxy package like @mionjs/run-types ships), and
 //   2. declares its own definePureFn() wrapper whose params carry the SAME
-//      brands (CompTimeArgs<PureFnId> + PureFunction<F>).
+//      brands (PureFunctionFactory<F> + InjectPureFnId<F>).
 //
 // The consumer imports both — the re-export RENAMED, plus the wrapper — and
 // never names '@mionjs/run-types'. Extraction used to gate on the literal
 // callee text `registerPureFnFactory`, so BOTH call shapes silently fell back
 // to runtime registration (no bodyHash, no purity checks, no shippable code).
-// The walker now pre-filters on callee-name OR a "<ns>::<name>"-shaped first
-// argument and lets the brand check decide, so both call sites extract and get
-// their factory argument rewritten to the generated `__rt_pf…` binding.
+// The walker now decides by BRAND alone, so both call sites extract, get their
+// factory argument rewritten to the generated `__rt_pf…` binding, and get the
+// id of the CONSUMER's own binding injected.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import os from 'node:os';
@@ -47,17 +47,17 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 
 // The framework surface: barrel re-export + a branded wrapper. Only this file
 // names '@mionjs/run-types', and it lives in node_modules.
-const TOOLKIT_DTS = `import type {CompTimeArgs, PureFunction, PureFnId} from '@mionjs/run-types';
+const TOOLKIT_DTS = `import type {InjectPureFnId, PureFunctionFactory} from '@mionjs/run-types';
 export {registerPureFnFactory} from '@mionjs/run-types';
 export type Factory = (utl: unknown) => (...args: any[]) => any;
 export declare function definePureFn<F extends Factory>(
-  pureFnId: CompTimeArgs<PureFnId>,
-  createPureFn: PureFunction<F> | null,
+  createPureFn: PureFunctionFactory<F> | null,
+  pureFnId?: InjectPureFnId<F>,
 ): unknown;
 `;
 
 const TOOLKIT_JS = `export {registerPureFnFactory} from '@mionjs/run-types';
-export function definePureFn(pureFnId, createPureFn) {
+export function definePureFn(createPureFn, pureFnId) {
   return {pureFnId, createPureFn};
 }
 `;
@@ -66,8 +66,8 @@ export function definePureFn(pureFnId, createPureFn) {
 // spelled `registerPureFnFactory`, and the file never names '@mionjs/run-types'.
 const CONSUMER_SRC = `import {definePureFn, registerPureFnFactory as regPF} from '@acme/toolkit';
 
-export const doubled = regPF('mionjs::doubled', () => (n: number) => n * 2);
-export const tripled = definePureFn('mionjs::tripled', () => (n: number) => n * 3);
+export const doubled = regPF(() => (n: number) => n * 2);
+export const tripled = definePureFn(() => (n: number) => n * 3);
 `;
 
 const ctx = {
@@ -117,11 +117,12 @@ describe('third-party pure fns: renamed re-export + branded wrapper (node_module
       expect(transformed, 'pure-fn consumer of a node_modules framework must be transformed').toBeTruthy();
       const code = transformed!.code;
 
-      // Both factory arguments are replaced with generated __rt_pf… bindings.
-      const renamedMatch = code.match(/regPF\('mionjs::doubled',\s*(__rt_pf[A-Za-z0-9_$]*)\)/);
-      expect(renamedMatch, `renamed re-export call must carry a pf binding in:\n${code}`).toBeTruthy();
-      const wrapperMatch = code.match(/definePureFn\('mionjs::tripled',\s*(__rt_pf[A-Za-z0-9_$]*)\)/);
-      expect(wrapperMatch, `branded wrapper call must carry a pf binding in:\n${code}`).toBeTruthy();
+      // Both factory arguments are replaced with generated __rt_pf… bindings, and
+      // both calls carry the id of the consumer's own binding.
+      const renamedMatch = code.match(/regPF\((__rt_pf[A-Za-z0-9_$]*),\s*'consumer#doubled'\)/);
+      expect(renamedMatch, `renamed re-export call must carry a pf binding + id in:\n${code}`).toBeTruthy();
+      const wrapperMatch = code.match(/definePureFn\((__rt_pf[A-Za-z0-9_$]*),\s*'consumer#tripled'\)/);
+      expect(wrapperMatch, `branded wrapper call must carry a pf binding + id in:\n${code}`).toBeTruthy();
 
       // Every injected binding resolves to a real generated module on disk.
       const imports = [...code.matchAll(/import \{([^}]*)\} from '(\.\.?\/[^']+\.js)'/g)];

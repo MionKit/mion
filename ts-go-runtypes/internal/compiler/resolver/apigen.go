@@ -339,7 +339,7 @@ func writeIfChanged(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
-// userPureFnEntries drops the built-in `rt::` / `rtFormats::` registrations an
+// userPureFnEntries drops the package's own built-in registrations an
 // in-repo program surfaces (the built-in table serves those) and adds the
 // override entries, exactly like collectProgramPureFns.
 func (sess *Session) userPureFnEntries(entries []purefunctions.Entry) []purefunctions.Entry {
