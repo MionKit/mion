@@ -96,7 +96,7 @@ Then the body, sized to the `spec`:
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
 ```
 
-And every `## Done when` lists it: "the simplify-docs pass ran on every touched page and its commit is on the branch". A todo with no docs impact says "Docs: none, because …" and skips the line; a todo that touches any page or example never does.
+And every `## Done when` lists both passes: "the simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own". A todo with no docs impact says "Docs: none, because …" and skips the docs line; a todo that touches any page or example never does. The comments pass has no opt-out short of a branch that touched no source file.
 
 Close by telling the user where you filed it and, if they want, that they can pick it up any time with `implement-todo`.
 
