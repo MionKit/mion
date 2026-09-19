@@ -95,6 +95,75 @@ Read it before writing or restyling any page on any subsite.
   gotcha, a recommended form: add a short `::tip` or `::note` right where it applies, one
   or two sentences, never a paragraph.
 
+### The ideal section
+
+Every section is this, in this order. Drop what is not needed, never reorder, never
+double any part:
+
+```md
+## Title                 <- Title Case, names the job, stands alone, no code names, no question
+
+One or two sentences.    <- what it does and when you use it. Never a lead-in sentence
+                            ("Sometimes a whole file..."). Never what the example already shows.
+
+<code-import ... />      <- short, only what this section explains, one-liner comments on
+                            the lines that matter, never a comment block at the top.
+
+| ... |                  <- optional: ONE table for the variants, never one example per variant.
+
+::tip                    <- optional: one or two sentences, a default, a gotcha, a recommended form.
+::
+```
+
+Each fact appears ONCE on the page: in the paragraph, the example, the table or the tip,
+never in two of them. If a comment in the example says it, the paragraph does not.
+
+### Code examples
+
+- They live in `packages/examples/src/` and come in with `<code-import>` and markers, so
+  the root typecheck catches drift.
+- Show only what the section explains: five to fifteen lines. No setup the reader does
+  not need, no second feature.
+- Comments are one-liners on the line they explain, saying why that line matters. Never
+  what the API is (the paragraph does that), never a block at the top of the example.
+
+### Where a change goes
+
+| The change is | It goes in |
+| --- | --- |
+| A new option value, placement, flag, or variant of a feature a section already covers | That section: a row in its table, a line in its example, at most one sentence in its paragraph |
+| A new way to do a job the page already has a section for | That section, if one example still shows both; otherwise a new section beside it |
+| A new job (a new how / what / why) a reader would look for in the table of contents | Its own section, own title |
+| A new feature with three or more sections of its own, or one that fits no page's job | Its own page |
+
+The test: would a reader scanning the table of contents look for it under the existing
+title? Yes means the existing section. Two examples or two tables under one title means it
+should have been two sections.
+
+### Merge, rewrite, split, move or keep
+
+After content was added to a page, every added or changed section gets this check. Rules
+are tried in this order and the first match wins:
+
+| Do this | When |
+| --- | --- |
+| **Merge** the new section into the existing one | The existing title is still true for both. Or the two share an example, a table column set, or a sentence. Or the new section is under two sentences plus an example that is the neighbour's plus a line. Result: one paragraph, one example, one table. |
+| **Rewrite** the existing section from the template | Content was bolted on: a second paragraph, a second example, a "there is also" / "in addition" / "note that" sentence, a table that gained a column that does not fit. Or the first sentence no longer says the section's job. Rewrite in place; keep the title if it is still true. |
+| **Split** one section into two | It has two examples, two tables, or a title that needs an "and". Each half gets its own title. |
+| **Move** the section to another page | Its job belongs to another page's job and the target page is obvious. If it is not obvious, keep it and flag it. |
+| **Keep** it as its own section | None of the above: a new job, an example that shows nothing the neighbour's shows, a title a reader would look for on its own. |
+
+Bolted-on signals: "There is also", "In addition", "Note that", "Sometimes", a section
+whose first paragraph is the old feature and second paragraph the new one, a `::tip` that
+grew into a paragraph.
+
+### The simplification pass
+
+Every page written or changed goes through the
+[simplify-docs skill](../../.claude/skills/simplify-docs/SKILL.md) before the PR, run by
+the `docs-simplifier` subagent, never by the session that wrote the page. The writer still
+follows every rule above; the pass is the check, not a licence to skip them.
+
 ## Stack
 
 - Framework: Nuxt 4 with the Docus v5 theme layer
