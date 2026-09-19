@@ -194,9 +194,8 @@ async function persistPayloads(options: ClientOptions, payloads: SerializableMet
         console.warn(`Refused to store metadata for method '${methodId}'`);
         continue;
       }
-      // The server answers for a route's whole chain, so a bundled middleFn rides the answer to a
-      // fetched route. Its row is already in the build's output and would only be read back to be
-      // ignored, so it never reaches the store. Compiled functions nothing points at are swept.
+      // The server answers for a route's whole chain, so a bundled middleFn rides a fetched route's
+      // answer; its row would only be read back to be ignored. Orphaned compiled functions are swept.
       if (isBundledMethod(methodId)) continue;
       add('m', methodId, methodData);
     }
@@ -450,9 +449,8 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
   addRoutesToCache(serializableMethodsData.methods);
 }
 
-// Loading this module IS the moment the fetched lane exists, so it is where the table it fills and
-// the calls the request path makes without loading become visible. It sits here rather than in
-// fetchedLane.ts because the lane's pieces are public API and a consumer can import one directly.
+// Registered here rather than in fetchedLane.ts: the lane's pieces are public API and a consumer
+// can import one directly, so this module evaluating IS the moment the fetched lane exists.
 setFetchedMethods(routesCache);
 registerMetadataCacheHooks({
   extractAndProcessMetadata: extractAndProcessMetadata as MetadataCacheHooks['extractAndProcessMetadata'],

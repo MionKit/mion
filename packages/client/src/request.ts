@@ -77,15 +77,14 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
     let allCached = subRequestIds.every((id) => hasMethod(id));
-    // a bundled client has everything it will ever have at the call site: no store to read, no wire
-    // to guess; a method the bundle lacks is refused below, at the metadata step
+    // a bundled client has everything at the call site; a method the bundle lacks is refused below
     const bundled = getBundleApiMode() === 'bundled';
     let isOptimistic = false;
 
     try {
-      // an id this page never heard of may still be in the store from an earlier visit: one indexed
-      // read settles it, while guessing wrong costs the optimistic round trip AND its retry. Hydration
-      // runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
+      // an id this page never heard of may still be in the store: one indexed read settles it, while
+      // guessing wrong costs the optimistic round trip AND its retry. Hydration runs once per baseURL
+      // and never rejects, so a missing or blocked store just leaves this false.
       if (!allCached && !bundled) {
         const lane = await loadFetchedLane();
         await lane.hydrateMetadataCache(this.options);
@@ -99,19 +98,17 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         }
         allCached = subRequestIds.every((id) => hasMethod(id));
       }
-      // the optimistic first request sends the params on the plain wire forms every server decoder
-      // accepts; what a decoder cannot read errors and the retry below sends the real encoder
+      // the optimistic first request sends plain wire forms every server decoder accepts; what a
+      // decoder cannot read errors, and the retry below sends the real encoder
       isOptimistic = !allCached && !skipOptimistic && !bundled;
       if (isOptimistic) {
         (this.options as any).serializer = 'optimistic';
-        // The route's chain is unknown until the metadata arrives with the answer, but its scope is not:
-        // a middleFn runs for the routes of its own group and the groups below it, so the route pointer
-        // alone says which prefills belong. Leaving a required one out (an auth) would fail the request
-        // and cost the retry round trip; the server ignores any key that is not in the chain.
+        // The route's chain is unknown until the metadata arrives, but its scope is not: a middleFn runs
+        // for its own group and the groups below, so the route pointer alone says which prefills belong.
+        // Leaving a required one out costs the retry; the server ignores any key not in the chain.
         this.restoreScopedPrefilledMiddleFns();
-        // Only the ids the client still lacks (after the prefilled restore added its own): asking
-        // for one it already holds would bring back the server's copy of a BUNDLED method, store it,
-        // and let a later stale-metadata purge drop the build's own entry for good.
+        // Only the ids the client still lacks: asking for one it holds would store the server's copy
+        // of a BUNDLED method, and a later stale-metadata purge would drop the build's entry for good.
         const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
         this.addSubRequest((await loadFetchedLane()).createMetadataSubRequest(missingIds));
       } else {
@@ -171,9 +168,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       // Never retry an aborted request — the user explicitly canceled it.
       if (!this.signal?.aborted && this.shouldRetryWithProperSerialization(deserialized)) {
         if (isOptimistic) return this.retryWithProperSerialization(originalSerializer);
-        // Not optimistic, so the metadata came from somewhere. If that somewhere was the store it can
-        // predate the server's current build, and nothing else would ever correct it: drop those ids
-        // from memory and from the store, and let the retry go out optimistic and relearn them.
+        // Metadata from the store can predate the server's current build and nothing else would correct
+        // it: drop those ids from memory and from the store, and retry optimistic to relearn them.
         const cache = metadataCacheHooks();
         if (cache && !this.purgedStaleMetadata && subRequestIds.some((id) => cache.wasHydratedFromCache(id, this.options))) {
           this.purgedStaleMetadata = true;
@@ -191,8 +187,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
   }
 
-  /** Makes sure every id has its metadata. A bundled client refuses what its build did not carry,
-   *  and is the one case that never reaches the fetched lane. */
+  /** Makes sure every id has metadata; a bundled client refuses what its build lacks, never reaching the lane. */
   private async loadMethodsMetadata(methodIds: string[], bundled: boolean, signal?: AbortSignal): Promise<void> {
     if (bundled) {
       const missing = methodIds.filter((id) => !hasMethod(id));

@@ -6,9 +6,8 @@
  * ######## */
 
 // The one door into the fetched lane: the metadata request, the cache-into-store logic, the store
-// engines, eviction and the persistence prompt. Nothing on the request path imports any of those
-// directly, so a build that bundles the API can drop the lot; laneLoader.ts is what reaches this
-// module, and only when a call actually needs it.
+// engines, eviction and the persistence prompt. The request path imports none of them directly, so
+// a build that bundles the API drops the lot; only laneLoader.ts reaches this, when a call needs it.
 
 export {
   createMetadataSubRequest,

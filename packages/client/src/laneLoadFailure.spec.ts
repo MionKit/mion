@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The fetched lane arrives as its own chunk, and a chunk can fail to load: an offline page, a
-// deploy that moved the file. A call never throws, so that failure has to come back in the result's
-// undeclared slot like any other error the router never saw.
+// The fetched lane arrives as its own chunk and a chunk can fail to load; a call never throws, so
+// that failure comes back in the result's undeclared slot like any error the router never saw.
 
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import type {TestServerApi} from '@mionjs/test-server';

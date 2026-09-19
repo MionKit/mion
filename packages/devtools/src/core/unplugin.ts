@@ -412,10 +412,8 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
 // transform injects relative imports to them, so every bundler resolves them
 // natively — no virtual-module hooks. The Vite-only config + HMR hooks ride
 // the `vite` escape hatch.
-/** The subpath @mionjs/client's request path imports the fetched metadata lane through, and the
- *  empty module it is answered with under `bundleApi: 'bundled'`. Resolved to a real file rather
- *  than served from a `load` hook: a load hook on this plugin changes how esbuild and Bun read
- *  every other file too. */
+/** The subpath @mionjs/client imports the fetched metadata lane through; answered with a real file
+ *  rather than a `load` hook, which would change how esbuild and Bun read every other file too. */
 const FETCHED_LANE_ID = '#fetched-lane';
 const fetchedLaneStubPath = (): string => {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -1272,14 +1270,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       return /\.[mc]?[jt]sx?$/.test(id);
     },
 
-    // A client whose whole API came with the build never asks the server how a route works, never
-    // stores an answer and never rebuilds a compiled function. @mionjs/client reaches that code
-    // through one `#fetched-lane` import, so answering it with an empty module here is what keeps
-    // the fetch, the store, eviction and persistence out of the bundle rather than in a chunk
-    // nothing ever loads. Only under `bundled`: `mixed` fetches whatever the build could not see.
-    // Declared only under `bundled`: unplugin turns a resolveId hook into an esbuild onResolve one
-    // that sees every specifier, and Bun's loader then answers differently for files this plugin
-    // has no business in.
+    // Under `bundled` the whole API came with the build, so answering `#fetched-lane` with an empty
+    // module keeps the fetch, the store, eviction and persistence out of the bundle rather than in a
+    // chunk nothing loads; `mixed` still fetches what the build could not see. Declared only under
+    // `bundled`: unplugin turns a resolveId hook into an esbuild onResolve one that sees every
+    // specifier, and Bun's loader then answers differently for files this plugin has no business in.
     ...(options.bundleApi === 'bundled'
       ? {
           resolveId(id: string) {

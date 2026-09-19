@@ -7,11 +7,9 @@
 
 import type {MethodWithOptions, MethodWithOptsAndJitFns} from '@mionjs/core';
 
-// Where the request path looks a method up, and the ONLY table it knows. Two shelves that never
-// share a key: the bundle's own rows, and the fetched lane's (core's routesCache) once that lane
-// has loaded. Keeping them apart is what lets a `bundled` client leave the routes cache, its hash
-// lookup and its hydration merge out of the bundle entirely, and what stops a fetched or restored
-// row ever landing on an id the build compiled.
+// The only method table the request path knows: the bundle's own rows, and the fetched lane's
+// (core's routesCache) once that lane loads. Keeping them apart leaves the routes cache out of a
+// bundled build, and stops a fetched or restored row ever landing on an id the build compiled.
 
 /** What the fetched lane answers with; `routesCache` implements it as-is. */
 export interface FetchedMethods {
@@ -23,18 +21,15 @@ export interface FetchedMethods {
 const bundledMethods = new Map<string, MethodWithOptsAndJitFns>();
 let fetchedMethods: FetchedMethods | undefined;
 
-/** True when either shelf can answer for the id. */
 export function hasMethod(id: string): boolean {
   return bundledMethods.has(id) || fetchedMethods?.hasMetadata(id) === true;
 }
 
-/** The method's row, or undefined when neither shelf holds it. */
 export function getMethod(id: string): MethodWithOptions | undefined {
   return bundledMethods.get(id) ?? fetchedMethods?.getMetadata(id);
 }
 
-/** The method's row with its compiled functions; throws when neither shelf holds it, the way
- *  `routesCache.useMethodJitFns` always has. A bundled row already carries them. */
+/** Row plus compiled functions; throws when neither shelf holds it, as `routesCache.useMethodJitFns` does. */
 export function useMethodFns(id: string): MethodWithOptsAndJitFns {
   const bundled = bundledMethods.get(id);
   if (bundled) return bundled;
@@ -48,7 +43,6 @@ export function setBundledMethod(id: string, entry: MethodWithOptsAndJitFns): vo
   bundledMethods.set(id, entry);
 }
 
-/** True when the method's row came from the bundle rather than the server. */
 export function isBundledMethod(id: string): boolean {
   return bundledMethods.has(id);
 }
@@ -63,8 +57,7 @@ export function setFetchedMethods(methods: FetchedMethods): void {
   fetchedMethods = methods;
 }
 
-/** Empties the bundled shelf. Only for testing — the fetched shelf is left wired, because the
- *  lane module is only evaluated once and would never hand its table over again. */
+/** Empties the bundled shelf. Tests only: the fetched shelf stays wired, the lane module evaluates once. */
 export function resetBundledMethods(): void {
   bundledMethods.clear();
 }

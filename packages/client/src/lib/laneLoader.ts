@@ -8,15 +8,13 @@
 import {RpcError} from '@mionjs/core';
 import type {ClientOptions} from '../types.ts';
 
-// Reaches the fetched lane on demand. The import specifier is a package.json `imports` entry of
-// @mionjs/client, so it resolves against THIS package and no consumer alias can collide with it;
-// @mionjs/devtools resolves it to an empty stub under `bundleApi: 'bundled'`, which is what keeps
-// the lane out of a bundled build's output entirely.
+// Reaches the fetched lane on demand through `#fetched-lane`, a package.json `imports` entry of
+// @mionjs/client so no consumer alias can collide with it; @mionjs/devtools answers it with an
+// empty stub under `bundleApi: 'bundled'`, which is what keeps the lane out of that build.
 
 type FetchedLane = typeof import('./fetchedLane.ts');
 
-/** What the request and response paths ask of the lane WITHOUT loading it: the four calls that only
- *  have something to do once a page has fetched or stored something. */
+/** What the request and response paths ask of the lane WITHOUT loading it. */
 export interface MetadataCacheHooks {
   extractAndProcessMetadata(routeKey: string, parsedBody: any, options: ClientOptions): void;
   takeMetadataCacheError(): RpcError<string> | undefined;
@@ -28,9 +26,8 @@ let laneModule: FetchedLane | undefined;
 let loading: Promise<FetchedLane> | undefined;
 let cacheHooks: MetadataCacheHooks | undefined;
 
-/** Loads the lane, once per process. Every caller awaits this inside the request path's own try,
- *  so a failed load becomes the undeclared slot of that call rather than a rejection; the failure
- *  is forgotten here so a later call can try again. */
+/** Loads the lane once per process. Callers await it inside the request path's own try, so a failed
+ *  load becomes that call's undeclared slot; the failure is forgotten so a later call retries. */
 export function loadFetchedLane(): Promise<FetchedLane> {
   if (laneModule) return Promise.resolve(laneModule);
   loading ??= (import('#fetched-lane') as Promise<FetchedLane>)
@@ -45,14 +42,12 @@ export function loadFetchedLane(): Promise<FetchedLane> {
   return loading;
 }
 
-/** The cache half of the lane if it is present, without loading it. Undefined means no page ever
- *  fetched or stored metadata, so there is nothing of the lane's to do. */
+/** The cache half if present, never loading it; undefined means nothing was ever fetched or stored. */
 export function metadataCacheHooks(): MetadataCacheHooks | undefined {
   return cacheHooks;
 }
 
-/** Called by the cache module as it evaluates, whether it arrived through `loadFetchedLane` or
- *  through a direct import of the lane's public API. */
+/** Called by the cache module as it evaluates, whether through `loadFetchedLane` or a direct import. */
 export function registerMetadataCacheHooks(hooks: MetadataCacheHooks): void {
   cacheHooks = hooks;
 }
@@ -62,7 +57,7 @@ export function isFetchedLaneLoaded(): boolean {
   return laneModule !== undefined;
 }
 
-/** Forgets the loaded lane. Only for testing — simulates a process that never reached it. */
+/** Forgets the loaded lane. Tests only: simulates a process that never reached it. */
 export function resetFetchedLane(): void {
   laneModule = undefined;
   loading = undefined;
