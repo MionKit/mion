@@ -7,13 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
@@ -299,9 +297,13 @@ func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodu
 	// published consumer never hits this: its program has only a .d.ts, nothing to
 	// extract.) A consumer's own ids are not in the table and pass through
 	// untouched.
+	// …unless THIS program is the package that owns them: then its own build is the single
+	// producer, and dropping them would leave it with no artifact to publish.
+	ownPackage, _ := sess.ownPackage()
+	ownsBuiltins := ownPackage == purefnindex.MarkerPackageName
 	kept := entries[:0]
 	for _, entry := range entries {
-		if purefnids.Has(entry.Key()) {
+		if purefnids.Has(entry.Key()) && !ownsBuiltins {
 			continue
 		}
 		kept = append(kept, entry)
@@ -347,7 +349,7 @@ func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *pro
 	if sess.Program == nil {
 		return nil, nil
 	}
-	ownPackage, ownRoot := marker.PackageOfFile(tspath.CombinePaths(sess.Program.Cwd, "package.json"), sess.Program.FS)
+	ownPackage, ownRoot := sess.ownPackage()
 	if ownPackage == "" {
 		return nil, nil
 	}
