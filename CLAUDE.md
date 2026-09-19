@@ -173,7 +173,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
 - **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Go-side changes also need `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
-- **Docs are updated**, especially the website. Reflect the change in the site's content tree under [container/website/content/](container/website/content/) (follow the **Website docs style** section below).
+- **Docs are updated**, especially the website. Reflect the change in the site's content tree under [container/website/content/](container/website/content/) (follow the **Website Documentation** section below), then run the simplification pass: the `docs-simplifier` subagent over every touched page and example, its result committed on its own. A branch that touched a page or an example and carries no `docs(simplify):` commit is not PR ready.
 - If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped!
   Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.
 - **A superseded spec is rewritten from scratch**, never cross-referenced. Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
@@ -226,9 +226,16 @@ Load-bearing invariants to know before touching the pipeline:
 
 User-facing docs live in ONE content tree (Nuxt + Docus Markdown + MDC), [container/website/content/](container/website/content/), with one dir per subsite: `01.rpc/` (the framework), `02.runtypes/` and `03.benchmarks/` (`01.rpc/` + `02.runtypes/` inside it).
 
-- **Page structure, section titles, tables and tips** follow the *Writing guidelines* in [container/website/CLAUDE.md](container/website/CLAUDE.md): one job per section (how, what, or why), plain Title Case titles that name the job, one table per topic, a tip where something works a particular way.
-- **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics).
-  Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
+- **Page structure, section titles, tables and tips** follow the *Writing guidelines* in [container/website/CLAUDE.md](container/website/CLAUDE.md): the ideal section template, where a change goes (existing section, new section, new page), when to merge / rewrite / split a section, plain Title Case titles that name the job, one table per topic, a tip where something works a particular way.
+- **Plain, short language.** Rules, not taste:
+  - Everyday words: turn off, hide, show, fail, stop, check, add a comment. NEVER: stand down, surface, land, settle, pin, carry, ride, reach for, lane, honest, deliberate, finding (say error or warning), annotate.
+  - One idea per sentence, under about twenty words. Second person ("your type"). A paragraph is one or two sentences, three at most.
+  - No metaphors, no personification: not "cannot outlive the problem", "keeps the file honest", "help nobody".
+  - No trailing justification clause ("..., which is what you want when ...", "..., so it cannot ...") unless the reason IS the point.
+  - Start with the thing or the action. Never a setup sentence ("Sometimes a whole file raises the same error.").
+  - Say what a feature does for the reader, not how it is built. No internals (hashing, byte offsets, "side-channel", cache mechanics), no history, no comparison with another tool unless the reader needs it to use the feature.
+  - Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
+- **Every page written or changed gets a simplification pass before the PR**, by the `docs-simplifier` subagent running the [simplify-docs skill](.claude/skills/simplify-docs/SKILL.md), never by the session that wrote it. `implement-todo` runs it as its last step. The skill holds real before / after examples of titles and sentences; read them before writing a page.
 - **No dashes chaining clauses or sentences.** No em-dash, en-dash, `--`, or a spaced single `-` as punctuation; use a comma, a period, or parentheses. Hyphenated words (`build-time`) and dashes inside code / flags / URLs are fine.
 - **Prefer fenced code blocks** over heavy inline `code`. Keep essential public API / type names, but do not clutter prose with backticks.
 - **Short frontmatter `description`:** one simple sentence, aim under ~100 chars; leave already-short ones alone.
