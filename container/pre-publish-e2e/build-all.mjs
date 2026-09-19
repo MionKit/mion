@@ -329,6 +329,15 @@ async function buildMionNext(app) {
   } finally {
     child.kill('SIGTERM');
   }
+
+  // Second build, on the bundled lane. Not served: what it has to prove is what is IN the output.
+  // Turbopack takes the fetched lane out through a resolveAlias rather than a plugin hook, so only
+  // a real Turbopack build says whether the alias was honoured.
+  execFileSync(process.execPath, [nextBin, 'build'], {
+    cwd: appDir,
+    stdio: 'inherit',
+    env: {...process.env, NODE_ENV: 'production', MION_E2E_BUNDLE_API: 'bundled'},
+  });
 }
 
 const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext, mionNext: buildMionNext};
