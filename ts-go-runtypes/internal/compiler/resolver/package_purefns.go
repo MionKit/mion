@@ -18,8 +18,7 @@ import (
 // body never degrades to a stub). Demand is every soft dep no graph entry answers. An id whose package is not
 // installed belongs to the program (PFE9012 from validateProgramPureFnDeps), except a built-in with no marker
 // package reachable, a broken install (CFG004). A located package shipping rows but not this id is PFE9012,
-// site-less; sources that could not be read are CFG004 for the marker package (its bodies are the compiler's
-// own contract) and PFE9016 otherwise; nothing to serve at all is PFE9016 once per id, so a silent stub never
+// site-less; nothing to serve at all is PFE9016 once per id, so a silent stub never
 // hides the edge; an artifact this compiler cannot read is PFE9017, two artifacts disagreeing on a body PFE9018.
 // emitMode is the RENDER's mode, not the session's: the bundled-API mirror renders in `functions` whatever the
 // program's mode, and a code string there would be rebuilt with `new Function` at first validation, exactly
@@ -61,21 +60,18 @@ func (sess *Session) servePackagePureFns(graph entrymodules.Graph, diagSink *[]d
 	for _, conflict := range result.Conflicts {
 		appendDiag(diagnostics.CodePureFnArtifactConflict, conflict.ID, conflict.Files[0], conflict.Files[1])
 	}
-	unreadable := map[string]bool{}
+	// A built-in whose package resolves nowhere is the marker package missing from the install,
+	// which reads the same as any other unbuilt dependency now that it ships an artifact too.
 	for _, id := range result.Unresolved {
-		if purefnids.Has(id) && !unreadable[purefnindex.MarkerPackageName] {
-			unreadable[purefnindex.MarkerPackageName] = true
-			appendDiag(diagnostics.CodeBuiltinPureFnSourceUnreadable, purefnindex.MarkerPackageName, "no file of this package is in the program")
+		if purefnids.Has(id) {
+			appendDiag(diagnostics.CodePureFnDepUnbuilt, id, purefnindex.MarkerPackageName)
 		}
 	}
 	for _, miss := range result.Missing {
 		switch {
-		case miss.Err != nil && miss.Package == purefnindex.MarkerPackageName:
-			if !unreadable[miss.Package] {
-				unreadable[miss.Package] = true
-				appendDiag(diagnostics.CodeBuiltinPureFnSourceUnreadable, miss.Package, miss.Err.Error())
-			}
-		case miss.Built || purefnids.Has(miss.ID):
+		// Built means the package ships rows but not this one: a stale reference, not an
+		// unbuilt package. Built-ins read the same way now that they ship in an artifact too.
+		case miss.Built:
 			appendDiag(diagnostics.CodeMissingPureFnDep, miss.ID)
 		default:
 			appendDiag(diagnostics.CodePureFnDepUnbuilt, miss.ID, miss.Package)

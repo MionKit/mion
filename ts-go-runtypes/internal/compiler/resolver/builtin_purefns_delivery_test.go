@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -115,21 +116,20 @@ func keys(m map[string]string) []string {
 	return out
 }
 
-// TestBuiltinDelivery_MarkerWithoutSourcesIsCFG004 — the failure mode the whole
-// lane hangs on. A marker package installed WITHOUT its `src` (a pruned install,
-// a `files` regression) has the bodies nowhere: the dist is hollowed and there
-// is nothing to extract. That must fail the build with the code naming the
-// package, because the alternative is a validator that throws "… is not a
-// function" at its first call.
-func TestBuiltinDelivery_MarkerWithoutSourcesIsCFG004(t *testing.T) {
+// markerBuild scans a file demanding a validator against a marker package with the named parts of
+// its install removed, so a test can say which of them the built-in bodies actually came from.
+func markerBuild(t *testing.T, dropSegments ...string) protocol.Response {
+	t.Helper()
 	r := setupInlineWith(t, map[string]string{"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 `}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
 		programOpts.SingleThreaded = true
 		resolverOpts.SingleThreaded = true
 		for path := range programOpts.Overlay {
-			if strings.Contains(path, "/@mionjs/run-types/src/") {
-				delete(programOpts.Overlay, path)
+			for _, segment := range dropSegments {
+				if strings.Contains(path, segment) {
+					delete(programOpts.Overlay, path)
+				}
 			}
 		}
 	})
@@ -137,10 +137,38 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
+	return resp
+}
+
+// The point of the whole lane: the package's own build publishes its built-in bodies, so an
+// install carrying the artifact serves them with no source of the package in sight.
+func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
+	resp := markerBuild(t, "/@mionjs/run-types/src/")
 	for _, diag := range resp.Diagnostics {
-		if diag.Code == diagnostics.CodeBuiltinPureFnSourceUnreadable {
+		if diag.Code == diagnostics.CodePureFnDepUnbuilt || diag.Code == diagnostics.CodeMissingPureFnDep {
+			t.Fatalf("the artifact must serve the built-ins on its own, got %s %v", diag.Code, diag.Args)
+		}
+	}
+	var served bool
+	for name := range resp.EntryModules {
+		if strings.HasPrefix(name, "pf/") {
+			served = true
+		}
+	}
+	if !served {
+		t.Fatalf("no pure-fn module served, got %v", keys(resp.EntryModules))
+	}
+}
+
+// The failure mode the lane hangs on. A marker package installed with NEITHER its artifact nor
+// its sources has the bodies nowhere, since the dist is hollowed. That must fail the build
+// naming the package, because the alternative is a validator that throws at its first call.
+func TestBuiltinDelivery_MarkerWithNothingToServeFails(t *testing.T) {
+	resp := markerBuild(t, "/@mionjs/run-types/src/", "/"+constants.PureFnArtifactDir+"/")
+	for _, diag := range resp.Diagnostics {
+		if diag.Code == diagnostics.CodePureFnDepUnbuilt {
 			return
 		}
 	}
-	t.Fatalf("expected CFG004 for a marker package with no sources, got %+v", resp.Diagnostics)
+	t.Fatalf("expected PFE9016 for a marker package with nothing to serve, got %+v", resp.Diagnostics)
 }

@@ -304,10 +304,6 @@ var messagesByCode = map[string]message{
 		Headline: "`{0}` is captured from outer scope inside a pure-fn factory; pure functions can't reach outside their own body.",
 		Detail:   "The build inlines factory bodies without their lexical environment, so\nany free variable becomes `undefined` at runtime.\n\nFix: pass `{0}` in as a parameter:\n  const myFn = registerPureFnFactory((utl) => ({0}, value) => ...);\n\nFix: inline its value if it's a known constant:\n  const myFn = registerPureFnFactory((utl) => (value) => {\n    const {0} = 42;\n    ...\n  });\n\nFix: reach another pure function through its id, which the build inlines:\n  import {slugify} from './slug';\n  const myFn = registerPureFnFactory((utl) => (value) => utl.getPureFn(slugify)(value));",
 	},
-	"CFG004": {
-		Headline: "Cannot read `{0}`'s own pure-function sources, so its built-in bodies cannot be served ({1}).",
-		Detail:   "Built-in pure functions are compiled from the marker package's TypeScript\nsources, which ship inside the package. The published JavaScript does not\ncarry the bodies, so there is nowhere else to read them from and letting the\nbuild pass would only move the failure to the first validation at runtime.\n\nFix: reinstall the package, and make sure the install is not pruning its\n`src` directory.",
-	},
 	"PFE9012": {
 		Headline: "Pure fn `{0}` is referenced by a RT function but was never registered.",
 		Detail:   "A RT validator/encoder reaches that pure fn through `utl.usePureFn`, but no\nregistration for that id was found in any scanned file. An id names the\npackage, the file and the binding a pure fn was registered under, so a miss\nmeans that file is outside the scan set, or the registration moved or was\nrenamed.\n\nFix: import the id from the file that registers it, and make sure that file\nis part of the build.",

@@ -3,7 +3,6 @@ package purefnindex
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -652,16 +651,20 @@ func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	}
 }
 
-// The marker package as published (package.json, dist .d.ts, src, no artifact): rows come from the generated source list.
-func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
+// The marker package as published: its own build writes mion-pure-fns/, so its built-ins are
+// served the same way every other package's are.
+func TestMarker_ServedFromItsArtifact(t *testing.T) {
 	store, cwd := sourceTree(t, nil)
 	root, ok := store.ResolvePackage(MarkerPackageName, cwd)
 	if !ok {
 		t.Fatal("marker package not resolved from the consumer cwd")
 	}
 	idx := store.Package(root)
-	if idx.Err != nil || !idx.FromSource {
-		t.Fatalf("marker rows: err=%v fromSource=%v", idx.Err, idx.FromSource)
+	if idx.Err != nil {
+		t.Fatalf("marker rows: %v", idx.Err)
+	}
+	if idx.FromSource {
+		t.Error("the marker package must serve from its artifact, not its sources")
 	}
 	all := purefnids.All()
 	if len(all) == 0 {
@@ -674,10 +677,10 @@ func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
 		}
 	}
 	if len(missing) != 0 {
-		t.Errorf("%d generated id(s) no longer resolve from the marker sources:\n  %s\nregenerate: pnpm miondevx core codegen builtinpurefns", len(missing), strings.Join(missing, "\n  "))
+		t.Errorf("%d generated id(s) are not in the marker artifact:\n  %s\nrebuild: pnpm run check:builds", len(missing), strings.Join(missing, "\n  "))
 	}
-	// circular-pure-fns.ts is side-effect imported by NOTHING, so it is served
-	// only because the generated list names it.
+	// circular-pure-fns.ts is side-effect imported by NOTHING, so a build that followed imports
+	// would lose it; the artifact is rendered from every registration instead.
 	if _, found := idx.Row(purefnids.FindCycle); !found {
 		t.Error("findCycle was not served")
 	}
@@ -698,81 +701,55 @@ func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
 	}
 }
 
-// A marker package installed without a listed source file is an error naming
-// the file, never an empty index that would degrade to a runtime miss.
-func TestMarker_MissingSourceIsAnError(t *testing.T) {
+// A marker package installed with neither its artifact nor its sources serves nothing, and says
+// so through the same PFE9016 lane any unbuilt dependency uses rather than a special case.
+func TestMarker_WithoutArtifactOrSourcesServesNothing(t *testing.T) {
 	store, cwd := sourceTree(t, nil)
 	root, _ := store.ResolvePackage(MarkerPackageName, cwd)
 	pruned := storeOver(map[string]string{
 		root + "/package.json": `{"name":"@mionjs/run-types"}`,
 	})
 	idx := pruned.Package(root)
-	if idx.Err == nil || !strings.Contains(idx.Err.Error(), "missing from the installed package") {
-		t.Fatalf("expected an error naming the missing file, got %v", idx.Err)
+	if idx.Err != nil {
+		t.Fatalf("a pruned install is not an error here, it is an unbuilt package: %v", idx.Err)
 	}
 	if idx.Built() {
 		t.Error("nothing must be served from a pruned install")
 	}
 }
 
-// The generated source list is not stale: every path exists in the real package
-// and every listed file registers something.
-func TestMarker_SourceListMatchesThePackage(t *testing.T) {
+// The built package on disk carries every id the compiler names. Catches a dist built before an
+// edited pure-fn body, which would otherwise surface as a consumer importing a module nothing
+// registers.
+func TestMarker_ArtifactOnDiskHoldsEveryGeneratedID(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(purefnids.SourceFiles) == 0 {
-		t.Fatal("purefnids.SourceFiles is empty (regenerate: pnpm miondevx core codegen builtinpurefns)")
+	store := NewStore(osvfs.FS())
+	idx := store.Package(tspath.NormalizePath(root))
+	if idx.Err != nil {
+		t.Fatal(idx.Err)
 	}
-	files := MarkerSourceFiles(tspath.NormalizePath(root))
-	for _, file := range files {
-		if _, err := os.Stat(file); err != nil {
-			t.Errorf("generated source list names a missing file: %v", err)
-		}
-	}
-	raw, _, err := ExtractSources(tspath.NormalizePath(root), files, SideProgram{SingleThreaded: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	registering := map[string]bool{}
-	for _, entry := range raw {
-		registering[entry.FilePath] = true
-	}
-	for _, file := range files {
-		if !registering[file] {
-			t.Errorf("%s is in the generated list but registers nothing (regenerate: pnpm miondevx core codegen builtinpurefns)", file)
-		}
-	}
-	// The scan the generator narrows from finds every listed file.
-	scanned := ScanRegistrations(root, osvfs.FS())
-	for _, file := range files {
-		if !slices(scanned, file) {
-			t.Errorf("ScanRegistrations misses %s", file)
-		}
+	if !reflect.DeepEqual(idx.IDs(), purefnids.All()) {
+		t.Errorf("the built artifact and the generated constants disagree\nartifact:  %v\nconstants: %v\nrebuild: pnpm run check:builds", idx.IDs(), purefnids.All())
 	}
 }
 
-func slices(haystack []string, needle string) bool {
-	for _, item := range haystack {
-		if item == needle {
-			return true
-		}
-	}
-	return false
-}
-
-// An id is a hash of the body that ships, so a session whose program already
-// holds the marker sources and a side program over the same files must land on
-// the same ids: otherwise one function would split into two entries and a
-// consumer would import a module nothing registers.
+// An id is a hash of the body that ships, so extracting the marker package's sources through a
+// session's own program and through a side program must land on the same ids, and on the ids the
+// generated constants name. The package now serves from its artifact, so this is also what pins
+// the artifact and the shipped sources to the same bodies.
 func TestMarker_BothLanesAgreeOnIds(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	root = tspath.NormalizePath(root)
-	files := MarkerSourceFiles(root)
+	files := ScanRegistrations(root, osvfs.FS())
+	if len(files) == 0 {
+		t.Fatalf("no registration module found under %s", root)
+	}
 	prog, err := program.NewInferred(program.Options{Cwd: root, SingleThreaded: true}, files)
 	if err != nil {
 		t.Fatal(err)
@@ -796,6 +773,6 @@ func TestMarker_BothLanesAgreeOnIds(t *testing.T) {
 		t.Errorf("the two lanes disagree on ids:\nsession: %v\nown:     %v", sessionIDs, ownIDs)
 	}
 	if !reflect.DeepEqual(sessionIDs, purefnids.All()) {
-		t.Errorf("extracted ids differ from the generated constants (regenerate: pnpm miondevx core codegen builtinpurefns)")
+		t.Errorf("ids extracted from the sources differ from the generated constants (regenerate: pnpm miondevx core codegen builtinpurefns)")
 	}
 }
