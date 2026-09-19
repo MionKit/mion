@@ -6,6 +6,8 @@
 //     That rewrite is what makes the e2e meaningful across the families: a packed
 //     @mionjs/core carries an exact @mionjs/run-types version, and verdaccio has
 //     to serve BOTH from the local publishes.
+//     Each one is packed from its PUBLISHED manifest (packPublished), which differs
+//     from the workspace one in exactly one way: no `source` export condition.
 //   - launcher + the platform packages from dist-binaries/ (already assembled
 //     by build-binaries.mjs, optionalDependencies filled) via `npm pack`. All
 //     seven for a release; just the host's after `release binaries --host-only`
@@ -26,6 +28,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {stripSourceCondition} from '../lib/publish-manifest.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PACKAGES = path.join(REPO_ROOT, 'packages');
@@ -50,9 +53,21 @@ function workspacePackageDirs(stagedNames) {
   return dirs;
 }
 
-function pack(cmd, dir) {
-  // pnpm/npm pack both accept --pack-destination and emit <name>-<version>.tgz.
-  execFileSync(cmd, ['pack', '--pack-destination', TARBALLS], {cwd: dir, stdio: 'inherit'});
+// Packs a workspace package from its PUBLISHED manifest: the `source` export condition is
+// stripped for the pack and restored right after, so the repo keeps the condition its own
+// resolution runs on and the tarball never names a src/ it does not carry. Restoring in a
+// `finally` matters — a crash mid-pack must not leave a rewritten manifest checked out.
+function packPublished(dir) {
+  const manifestFile = path.join(dir, 'package.json');
+  const original = fs.readFileSync(manifestFile, 'utf8');
+  const indent = /\n(\s+)"/.exec(original)?.[1].length ?? 2;
+  fs.writeFileSync(manifestFile, `${JSON.stringify(stripSourceCondition(JSON.parse(original)), null, indent)}\n`);
+  try {
+    // pnpm pack accepts --pack-destination and emits <name>-<version>.tgz.
+    execFileSync('pnpm', ['pack', '--pack-destination', TARBALLS], {cwd: dir, stdio: 'inherit'});
+  } finally {
+    fs.writeFileSync(manifestFile, original);
+  }
 }
 
 // npm packs a scoped package @scope/name as scope-name-<version>.tgz.
@@ -94,7 +109,7 @@ function main() {
 
   // Workspace packages: pnpm pack rewrites the workspace:* protocol to the version.
   const workspaceDirs = workspacePackageDirs(new Set(publishOrder));
-  for (const dir of workspaceDirs) pack('pnpm', dir);
+  for (const dir of workspaceDirs) packPublished(dir);
 
   assertReadmes([...workspaceDirs, path.join(DIST_BINARIES, '@mionjs/bin-compiler')]);
 

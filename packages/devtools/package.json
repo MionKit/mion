@@ -85,9 +85,7 @@
   "files": [
     "dist",
     "!dist/**/*.tsbuildinfo",
-    "src",
-    "!src/**/*.spec.ts",
-    "!src/**/*.test.ts",
+    "!dist/**/*.d.ts.map",
     "oxlint-recommended.json",
     "README.md"
   ],
