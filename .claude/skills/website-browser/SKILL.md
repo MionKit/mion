@@ -1,6 +1,6 @@
 ---
 name: website-browser
-description: Start the containerized Nuxt/Docus docs website and drive it in a real browser with playwright-cli — for manual checks, UI review, debugging rendered docs (code-import / twoslash), and end-to-end testing of container/website/.
+description: Start the docs website container and drive it in a real browser with playwright-cli. Use to check, review or debug rendered docs pages.
 allowed-tools: Bash(pnpm:*) Bash(playwright-cli:*) Bash(npx:*)
 ---
 

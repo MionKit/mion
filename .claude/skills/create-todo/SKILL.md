@@ -1,6 +1,6 @@
 ---
 name: create-todo
-description: Turn a rough request or idea into a well-formed todo doc under docs/todos/. Use this whenever the user wants to create, add, file, log, capture, jot down, or write up a todo — note something to do later, record a bug or feature idea for the backlog, or turn a discovered issue into a tracked spec — even when they just say "let's note this down" or "add a todo for X". It captures the request, classifies it (fix / feature / docs / chore), asks whether to write a full ready-to-build plan or just guidelines for the implementer, investigates to the matching depth, and — after you approve — writes the doc with a standard metadata header that the implement-todo skill later reads. It never implements the change; its only output is the todo doc. This is the complement to implement-todo — reach for it whenever something should be remembered as a docs/todos/ item rather than done right now.
+description: Write a request up as a docs/todos/ spec with the metadata header, never implementing it. Use when the user wants to note, file or add a todo.
 ---
 
 # create-todo

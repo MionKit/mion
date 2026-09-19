@@ -1,6 +1,6 @@
 ---
 name: implement-todo
-description: Drive a docs/todos/ spec from selection all the way to a shipped change. Use this whenever the user wants to implement, work on, pick, start, tackle, or "do" a todo — anything under docs/todos/ — whether they name a specific spec ("implement the <name> todo", or a path in docs/todos/) or ask you to choose one ("let's do a todo"). It lists the open todos and asks which to do, summarizes it, decides whether it is a ready-to-build spec or needs investigation first, works out the required tests / docs / fuzzing, and presents a plan for approval via the plan tool BEFORE writing any code — then implements it, runs the PR-readiness gate, moves the spec into docs/done/, and finishes with the mandatory documentation simplification pass run by the docs-simplifier subagent. Reach for it even when the request is as vague as "pick something off the todo list".
+description: Build a docs/todos/ spec end to end, from an approved plan to the gate, docs/done/ and the docs simplification pass. Use when the user wants to implement or pick a todo.
 ---
 
 # implement-todo
