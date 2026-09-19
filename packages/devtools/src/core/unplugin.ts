@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {createUnplugin} from 'unplugin';
 import {getExePath} from '@mionjs/bin-compiler';
 import {renderHeadline} from './diagnosticCatalog.ts';
@@ -411,19 +412,16 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
 // transform injects relative imports to them, so every bundler resolves them
 // natively — no virtual-module hooks. The Vite-only config + HMR hooks ride
 // the `vite` escape hatch.
-/** The subpath @mionjs/client's request path imports the fetched metadata lane through. */
+/** The subpath @mionjs/client's request path imports the fetched metadata lane through, and the
+ *  empty module it is answered with under `bundleApi: 'bundled'`. Resolved to a real file rather
+ *  than served from a `load` hook: a load hook on this plugin changes how esbuild and Bun read
+ *  every other file too. */
 const FETCHED_LANE_ID = '#fetched-lane';
-const FETCHED_LANE_STUB_ID = '\0mion-fetched-lane-stub';
-/** Every name the request path reaches for, as a no-op: it only calls them after deciding the
- *  bundle lacks a method, which under `bundled` is refused before the lane is ever loaded. */
-const FETCHED_LANE_STUB = `export const createMetadataSubRequest = () => ({pointer: [], id: '', isResolved: false, params: []});
-export const extractAndProcessMetadata = () => undefined;
-export const hydrateMetadataCache = () => Promise.resolve();
-export const purgeHydratedMetadata = () => Promise.resolve();
-export const takeMetadataCacheError = () => undefined;
-export const wasHydratedFromCache = () => false;
-export const fetchRemoteMethodsMetadata = () => Promise.resolve();
-`;
+const fetchedLaneStubPath = (): string => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const compiled = path.join(here, 'fetchedLaneStub.js');
+  return fs.existsSync(compiled) ? compiled : path.join(here, 'fetchedLaneStub.ts');
+};
 
 export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) => {
   const options = rawOptions ?? {};
@@ -1279,19 +1277,16 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // through one `#fetched-lane` import, so answering it with an empty module here is what keeps
     // the fetch, the store, eviction and persistence out of the bundle rather than in a chunk
     // nothing ever loads. Only under `bundled`: `mixed` fetches whatever the build could not see.
-    resolveId(id: string) {
-      if (options.bundleApi !== 'bundled') return null;
-      return id === FETCHED_LANE_ID ? FETCHED_LANE_STUB_ID : null;
-    },
-
-    loadInclude(id: string) {
-      return id === FETCHED_LANE_STUB_ID;
-    },
-
-    load(id: string) {
-      if (id !== FETCHED_LANE_STUB_ID) return null;
-      return FETCHED_LANE_STUB;
-    },
+    // Declared only under `bundled`: unplugin turns a resolveId hook into an esbuild onResolve one
+    // that sees every specifier, and Bun's loader then answers differently for files this plugin
+    // has no business in.
+    ...(options.bundleApi === 'bundled'
+      ? {
+          resolveId(id: string) {
+            return id === FETCHED_LANE_ID ? fetchedLaneStubPath() : null;
+          },
+        }
+      : {}),
 
     async transform(this: any, code: string, id: string) {
       if (!resolver) return null;

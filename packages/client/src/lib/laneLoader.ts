@@ -57,6 +57,11 @@ export function registerMetadataCacheHooks(hooks: MetadataCacheHooks): void {
   cacheHooks = hooks;
 }
 
+/** True when a call has reached the lane. Tests only. */
+export function isFetchedLaneLoaded(): boolean {
+  return laneModule !== undefined;
+}
+
 /** Forgets the loaded lane. Only for testing — simulates a process that never reached it. */
 export function resetFetchedLane(): void {
   laneModule = undefined;

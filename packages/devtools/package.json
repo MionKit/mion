@@ -81,10 +81,10 @@
       "types": "./dist/runtypes/next/loader.d.ts",
       "default": "./dist/runtypes/next/loader.js"
     },
-    "./runtypes/next/fetched-lane-stub": {
-      "source": "./src/runtypes/next/fetchedLaneStub.ts",
-      "types": "./dist/runtypes/next/fetchedLaneStub.d.ts",
-      "default": "./dist/runtypes/next/fetchedLaneStub.js"
+    "./fetched-lane-stub": {
+      "source": "./src/core/fetchedLaneStub.ts",
+      "types": "./dist/core/fetchedLaneStub.d.ts",
+      "default": "./dist/core/fetchedLaneStub.js"
     }
   },
   "files": [

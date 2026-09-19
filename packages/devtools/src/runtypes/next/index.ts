@@ -29,7 +29,7 @@ export const RUNTYPES_LOADER = '@mionjs/devtools/runtypes/next/loader';
  *  answers with under `bundleApi: 'bundled'`. Turbopack has no plugin API, so this is a resolve
  *  alias rather than the virtual module every other bundler gets. */
 const FETCHED_LANE_ID = '#fetched-lane';
-const FETCHED_LANE_STUB = '@mionjs/devtools/runtypes/next/fetched-lane-stub';
+const FETCHED_LANE_STUB = '@mionjs/devtools/fetched-lane-stub';
 
 // Which TypeScript files get the rewrite. `condition: {not: 'foreign'}` keeps
 // the loader off node_modules and Next's own internals, which is both a large
