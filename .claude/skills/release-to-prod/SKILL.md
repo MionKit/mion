@@ -1,6 +1,6 @@
 ---
 name: release-to-prod
-description: Cut and publish a RunTypes release end-to-end — decide the bump, curate CHANGELOG.md, open the chore(release) PR into main, then promote main into prod with a MERGE-COMMIT pull request, watch every workflow, and fix failures forward via PRs into main. Use whenever the user wants to release, publish, cut/bump a version, promote main to prod, ship to npm, finish or unblock a release, or asks why a release workflow is red — even for just one phase (a bump PR, a promotion PR, a failed gate). The agent drives all PRs and CI watching, and merges every PR itself when the release is clean; if anything went red it fixes forward, gets back to green, then hands the final merge to the developer with a report of every fix applied.
+description: Cut and publish a release, from the bump and changelog to the merge-commit promotion into prod, watching and fixing every workflow. Use for any release or publish request.
 ---
 
 # Release to prod

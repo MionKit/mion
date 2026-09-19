@@ -1,6 +1,6 @@
 ---
 name: docs-simplifier
-description: Simplifies already written website docs pages and their examples with the simplify-docs skill. Runs in a fresh context on purpose, never in the session that wrote the page. Give it a list of page and example paths, or "the branch", and it edits in place, verifies, and returns a report of every change and every sentence it left alone.
+description: Runs the simplify-docs skill over the given pages and examples in a fresh context, edits in place and returns a report. Never the session that wrote the page.
 model: inherit
 effort: medium
 skills: [simplify-docs]
