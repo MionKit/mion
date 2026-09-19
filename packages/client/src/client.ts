@@ -289,10 +289,9 @@ export class MionClient {
       }
     }
 
-    // Two framework errors the router never saw, riding the first result whose undeclared slot is
-    // free rather than rejecting: a bundled payload the build did not write (the call still ran,
-    // on whatever metadata the cache already held), and a metadata cache write the browser refused
-    // after eviction ran out of things to give up.
+    // Two framework errors the router never saw, taking the first free undeclared slot rather than
+    // rejecting: a bundled payload the build did not write (the call still ran), and a metadata
+    // cache write the browser refused after eviction ran out of things to give up.
     if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
     if (undeclaredPart === undefined) undeclaredPart = metadataCacheHooks()?.takeMetadataCacheError();
 

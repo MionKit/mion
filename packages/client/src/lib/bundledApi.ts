@@ -66,9 +66,7 @@ export function getBundleApiMode(): BundleApiMode | undefined {
   return bundleApiMode;
 }
 
-/** The error a `bundled` client raises for a method its bundle does not carry: the build only
- *  bundles what the program calls through its own dispatch points, so the server is never asked.
- *  It lives here rather than with the fetch so refusing costs a bundled client no lane load. */
+/** Raised for a method the bundle lacks; lives here, not with the fetch, so refusing costs no lane load. */
 export function bundledMetadataMissingError(missing: string[]): RpcError<'route-metadata-not-found'> {
   return new RpcError({
     type: 'route-metadata-not-found',

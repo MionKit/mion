@@ -8,11 +8,8 @@
 import {HandlerType, HeadersSubset} from '@mionjs/core';
 import {getMethod} from './methods.ts';
 
-/**
- * True when a subrequest's first param is the HeadersSubset of a headers middleFn, so it travels as
- * HTTP headers and stays out of the body. The cached metadata decides when there is any; on a route's
- * FIRST optimistic call there may be none yet, and the value itself answers instead.
- */
+/** True when a subrequest's first param travels as HTTP headers rather than in the body; with no
+ *  cached metadata yet (a route's FIRST optimistic call) the value itself answers. */
 export function hasHeadersSubsetParam(id: string, params: any[] | undefined): boolean {
   const method = getMethod(id);
   if (method) return method.type === HandlerType.headersMiddleFn && !!method.headersParam;

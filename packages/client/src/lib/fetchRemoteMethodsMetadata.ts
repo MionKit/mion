@@ -12,8 +12,7 @@ import {deserializeResponseBody} from './serializer.ts';
 import {hasMethod} from './methods.ts';
 
 /** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata.
- *  Part of the fetched lane, so a bundled client never reaches it: the request path refuses a
- *  method its bundle lacks before the lane is ever loaded. */
+ *  Fetched lane only: a bundled client refuses a method its bundle lacks before the lane loads. */
 export async function fetchRemoteMethodsMetadata(
   methodIds: string[],
   options: ClientOptions,

@@ -282,8 +282,7 @@ describe('parity: what the bundle registers equals what the server answers', () 
       const bundled = serializable(getMethod(id));
       expect(bundled, id).toEqual(withoutSettledLimit(serializable(answer.methods[id]), bundled));
     }
-    // the params byte ceiling is the server's request limit, so a bundled entry carries no more of
-    // it than a fetched one does
+    // the params byte ceiling is the server's request limit, so a bundled entry carries no more of it
     expect(useMethodFns('utils/sumTwo')).toBeDefined();
     expect(useMethodFns('utils/sumTwo')).not.toHaveProperty('paramsJsonMaxBytes');
   });

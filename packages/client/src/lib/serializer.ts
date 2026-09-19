@@ -149,9 +149,8 @@ export async function deserializeResponseBody(response: Response, options: Clien
 async function deserializeJsonResponseBody(response: Response, options: ClientOptions) {
   try {
     const parsedBody = await response.json();
-    // Extract & process metadata if present and delete entries after processing (does not use jit functions).
-    // A response can only carry metadata when the client asked for it, and asking awaits the lane
-    // first, so no lane here means there is nothing of its to do.
+    // Runs without jit functions, and deletes the entries it processed. No lane means nothing to do:
+    // a response only carries metadata when the client asked, and asking awaits the lane first.
     const cache = metadataCacheHooks();
     if (cache) {
       cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
@@ -203,7 +202,6 @@ function extractThrownErrors(parsedBody: any): {
  *  `optimistic` until the metadata is known, then the JSON string the encoders write. */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {
-    // When metadata is cached (e.g. after retry), use JIT serialization
     const subRequestIds = Object.keys(req.subRequestList);
     const allCached = subRequestIds.every((id) => hasMethod(id));
     if (allCached) return 'stringifyJson';

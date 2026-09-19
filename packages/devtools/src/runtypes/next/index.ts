@@ -25,9 +25,8 @@ export type {BrokerHandle, NextOptions};
 /** The loader specifier to put in `turbopack.rules`. */
 export const RUNTYPES_LOADER = '@mionjs/devtools/runtypes/next/loader';
 
-/** The subpath @mionjs/client reaches the fetched metadata lane through, and the empty module it
- *  answers with under `bundleApi: 'bundled'`. Turbopack has no plugin API, so this is a resolve
- *  alias rather than the virtual module every other bundler gets. */
+/** The fetched-lane subpath and the empty module it answers with under `bundleApi: 'bundled'`;
+ *  Turbopack has no plugin API, so it is a resolve alias rather than a virtual module. */
 const FETCHED_LANE_ID = '#fetched-lane';
 const FETCHED_LANE_STUB = '@mionjs/devtools/fetched-lane-stub';
 
@@ -109,8 +108,8 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
         ...nextConfig.turbopack?.rules,
         ...runTypesTurbopackRules(socketPath),
       },
-      // A client that ships every route it calls must not also ship the code that asks the server
-      // for one. `mixed` still fetches whatever the build could not see, so it keeps the lane.
+      // `bundled` ships every route it calls, so it drops the lane; `mixed` keeps it to fetch what
+      // the build could not see.
       ...(options.bundleApi === 'bundled'
         ? {resolveAlias: {...nextConfig.turbopack?.resolveAlias, [FETCHED_LANE_ID]: FETCHED_LANE_STUB}}
         : {}),

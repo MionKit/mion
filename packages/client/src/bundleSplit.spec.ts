@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The point of bundling the API: a client that ships every route it calls must not also ship the
-// code that asks the server for one. This builds the REAL client through the REAL preset and reads
-// the artifact, so it cannot pass on a promise the source makes and the bundler ignores.
+// Builds the REAL client through the REAL preset and reads the artifact, so a promise the source
+// makes and the bundler ignores cannot pass here.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
@@ -18,14 +17,13 @@ import {mionVitePlugin} from '@mionjs/devtools/vite';
 
 const packageRoot = path.resolve(__dirname, '..');
 
-// Only what a client app writes: creating the client is what pulls the request path in.
+// Creating the client is what pulls the request path in.
 const APP = `import {initClient} from '${path.join(packageRoot, 'index.ts')}';
 const {routes} = initClient<any>({baseURL: 'http://localhost:3000'});
 export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 `;
 
-/** Names only the fetched lane puts in an artifact: the browser database it opens, the key it opens
- *  it under, and the idle callback the deferred write rides. */
+/** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 
 let root: string;
@@ -37,7 +35,7 @@ beforeAll(() => {
 
 afterAll(() => rmSync(root, {recursive: true, force: true}));
 
-/** Every chunk the build emitted, concatenated: a lane split into its own chunk is still shipped. */
+/** Every chunk concatenated: a lane split into its own chunk is still shipped. */
 async function buildApp(bundleApi?: 'bundled' | 'mixed'): Promise<string> {
   const result = await build({
     root,
