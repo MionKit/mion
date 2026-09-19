@@ -57,9 +57,8 @@ filing, so a rewrite should probably wait until it has landed.
 - [x] `git ls-files` no longer lists `ts-go-runtypes/gen-run-type-kind`.
 - [x] `.gitignore` covers Go build artifacts under `ts-go-runtypes/`, so a rebuilt
   binary never shows as untracked noise or gets committed again.
-- [~] The blob is absent from history, and the repo is measurably smaller: done
-  on the 8 side branches, blocked on `main` and `prod` by a repository rule (see
-  Outcome). The remainder is its own `docs/todos/` spec.
+- [x] The blob is absent from history, and the repo is measurably smaller: a
+  fresh clone's packs went from 64.05 MiB to 55.41 MiB.
 - [x] Everyone with a clone has been told they need to re-clone or reset (this
   doc and the PR description).
 - [x] `pnpm miondevx core codegen all --check` and
@@ -87,14 +86,15 @@ filing, so a rewrite should probably wait until it has landed.
 
 ## Outcome
 
-Shipped: steps 2 to 5 as planned, and the rewrite on every branch the push rules
-allow. `git filter-repo` (2.47, limited to `de6a41cf7^..<branch>`) rewrote the
-3110 commits after `de6a41cf7` on all 10 branches holding the blob; the
-mirror's branches and tags then referenced it from zero commits. The 8 side
-branches were force-pushed:
+Shipped in full. `git filter-repo` (2.47, limited to `de6a41cf7^..<branch>`)
+rewrote the 3110 commits after `de6a41cf7` on all 10 branches holding the blob,
+plus this PR's branch; no tag held it. A fresh clone afterwards references the
+blob from zero commits and the blob object itself is absent.
 
 | branch | before | after |
 | --- | --- | --- |
+| main | 1062e86a0 | 083d5de4b |
+| prod | 83669a5c3 | ac0e1494b |
 | chore/finding-json-size-bound | b6c777540 | 20efb2db0 |
 | chore/finding-jsonsize-binary-view | bc2254a35 | 58abe08c0 |
 | claude/error-handling-review-qp9zc4 | e486e1e3f | ea57d407e |
@@ -104,14 +104,15 @@ branches were force-pushed:
 | docs/router-doc-drift | dd435318b | 7df291b8c |
 | todo/test-ci-missing-runtypes-projects | 9dbc1df57 | d1c256f61 |
 
-Not shipped: `main` (1062e86a0, rewritten as 083d5de4b) and `prod` (83669a5c3,
-rewritten as ac0e1494b). GitHub refused both pushes with `GH013`: the ruleset
-forbids force-pushes and non-PR changes on those branches, and on `main` also
-merge commits (the 16 history-join merges are re-created by the rewrite, so the
-push trips that rule too). Lifting the rules needs the repository owner, so the
-force-push of those two branches is a separate `docs/todos/` spec with the full
-procedure. Until it runs, every fresh clone still carries the blob through
-`main`; the mirror measured 64.05 MiB of packs before and 62.25 MiB after.
+The `main` and `prod` pushes needed the repository ruleset paused: GitHub
+refused them with `GH013` three times over (no force-push, changes only through
+a pull request, and on `main` no merge commits, which the 16 re-created
+history-join merges trip because they are new objects to the server). The owner
+disabled the ruleset for the minutes the push took.
+
+GitHub's own `refs/pull/*/head` refs still point at the old commits; a clone
+never fetches those, and GitHub drops the unreachable objects on its own
+schedule.
 
 Every clone of a rewritten branch must be reset, never merged: `git fetch origin
 && git reset --hard origin/<branch>`, and any local work on top of it rebased
