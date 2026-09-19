@@ -1,36 +1,6 @@
-// Repo-level packaging + env + docs-pipeline contracts. Each guards a
-// hand-maintained mirror that nothing else in CI checks, and each drifted in the
-// past:
-//
-//   - Published-package READMEs: `files` entries that match nothing are silently
-//     ignored by npm, so a package can list "README.md" and publish a blank npm
-//     page. @mionjs/run-types did exactly that. They also have to stay thin: the
-//     option tables and usage walkthroughs they had grown restated the docs site,
-//     which is exactly how a public surface goes stale.
-//   - .env registry mirror: scripts/README.md documents `pnpm run check:env` as
-//     enforcing the REGISTRY -> .env.sample mirror. These tests pin the check's
-//     drift detection so the documented contract stays real.
-//   - Repository coordinates: the type-system packages came back into this repo
-//     from a separate one, and their package.json repository/bugs fields, READMEs
-//     and the generated binary-package README kept pointing at the old repo long
-//     after its history was merged here. Every published package points at
-//     MionKit/mion, and nothing outside the docs/done/ history records names the
-//     old repository.
-//   - Spec references: the docs/todos/ and docs/done/ specs get deleted eventually,
-//     so a code comment, workflow or doc that names one rots into a dangling
-//     pointer and the reader loses the reasoning parked behind the link. About 70
-//     such references had accumulated before the sweep below existed. The
-//     reasoning belongs in the file that needs it; only CHANGELOG.md (history) and
-//     the two spec directories themselves may name a spec.
-//   - Twoslash VFS package names: the docs site mounts each package's built .d.ts
-//     at /node_modules/<npm name>/ so example imports resolve. The mount list kept
-//     the PRE-SCOPE name (`mion`) after the packages moved onto
-//     RunTypes/*, so every example import failed to resolve and the hover
-//     endpoint threw. The failure is invisible from this repo's CI (the website is
-//     containerized), which is exactly why it needs a contract test.
-//   - Compiled executables: a stray `go build` output (3.2 MB) rode in a commit for
-//     a month. The check-tree sweep refuses any tracked executable, and
-//     ts-go-runtypes/.gitignore keeps Go build outputs out of `git add`.
+// Repo-level packaging + env + docs-pipeline contracts. Each guards a hand-maintained mirror
+// nothing else in CI checks (published READMEs, the .env registry, repository URLs, spec
+// references, the twoslash VFS mounts, compiled executables), and each drifted before it existed.
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
@@ -122,6 +92,7 @@ describe('published packages ship a README', () => {
     const packageDir = join(REPO_ROOT, 'packages', dir);
     const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
 
+    // npm silently ignores a `files` entry that matches nothing, so a missing README publishes a blank page.
     it(`${manifest.name} lists README.md in "files" and the file exists`, () => {
       expect(manifest.files).toContain('README.md');
       expect(existsSync(join(packageDir, 'README.md'))).toBe(true);
@@ -203,12 +174,8 @@ describe('published packages point at this repository', () => {
   });
 });
 
-// The four WHOLE-TREE sweeps (this rule, the old-repository one, the NUL-byte one
-// and the compiled-executable one) run from scripts/ci/check-tree.mjs in the always-on `lanes` job, not here:
-// they read docs/, .claude/ and the root prose files, which the lane gate
-// deliberately excludes from the js lane, so a sweep gated on js inputs would miss
-// exactly the edits it exists to catch. What stays here is the RULE itself, over the
-// same implementation the sweep uses.
+// The whole-tree sweeps run from scripts/ci/check-tree.mjs in the always-on `lanes` job, not here:
+// the js lane gate excludes the docs/, .claude/ and root prose paths they read. Only the RULE is tested here.
 describe('no file outside docs/todos and docs/done names a todo or done spec', () => {
   // Fixture paths are assembled so this file never names a spec itself.
   const spec = (dir: 'todos' | 'done', name: string): string => ['docs', dir, `${name}.md`].join('/');
