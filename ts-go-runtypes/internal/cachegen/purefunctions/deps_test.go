@@ -390,6 +390,18 @@ func (table bindingTable) BindingID(dtsPath, name string) (string, bool) {
 	return id, ok
 }
 
+func (table bindingTable) UnbuiltPackage(string) (string, bool) { return "", false }
+
+// unbuiltPackages is a stand-in for the index over packages that ship nothing to serve: `.d.ts` basename → package.
+type unbuiltPackages map[string]string
+
+func (unbuiltPackages) BindingID(string, string) (string, bool) { return "", false }
+
+func (table unbuiltPackages) UnbuiltPackage(dtsPath string) (string, bool) {
+	name, ok := table[dtsPath[strings.LastIndex(dtsPath, "/")+1:]]
+	return name, ok
+}
+
 // A library `.d.ts` typed `PureFnId<string>` (tsc's emit when the build injected
 // the id) carries no literal, so the fourth arm misses; the fifth asks the
 // package's built files, records the id, and lowers the argument to it.
@@ -431,5 +443,17 @@ export const titleOf = registerPureFnFactory(function (utl) {
 	}
 	if !found {
 		t.Error("an untyped .d.ts binding with no package index must still be a PFE9013")
+	}
+
+	// The package ships nothing to serve: the branded name is a pure fn nothing can build, PFE9016 naming it
+	// and the package, and neither an unreadable dep nor a captured outer binding on top.
+	_, diags = extractFromOverlayWith(t, files, func(opts *marker.Options) {
+		opts.PureFnBindings = unbuiltPackages{"index.d.ts": "@acme/text"}
+	})
+	if len(diags) != 1 || diags[0].Code != CodePureFnDepUnbuilt {
+		t.Fatalf("expected exactly one PFE9016, got %+v", diags)
+	}
+	if args := diags[0].Args; len(args) != 2 || args[0] != "slugify" || args[1] != "@acme/text" {
+		t.Errorf("PFE9016 must name the binding and the package, got %v", args)
 	}
 }

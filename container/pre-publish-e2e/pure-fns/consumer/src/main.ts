@@ -1,7 +1,7 @@
 // Prints one JSON line between <<RT>> markers; run.mjs runs the built file under a fresh node and saves it.
 import {registerPureFnFactory, getRTUtils, getRunTypeId} from '@mionjs/run-types';
 import {isoDay} from '@acme/dates';
-import {TITLE_ID} from './ids';
+import {TITLE_ID} from './ids.js';
 
 export const stamp = registerPureFnFactory(function (utl) {
   return function _stamp(label: string, day: string): string {

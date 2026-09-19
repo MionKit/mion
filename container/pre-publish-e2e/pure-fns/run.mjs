@@ -59,13 +59,14 @@ function tarballOf(name) {
   return path.join(TARBALLS, file);
 }
 
-// The checked-in manifest pins a placeholder; the packed one pins the published version, like a library would.
+// The packed manifest pins the published run-types version, like a library would. The checked-in one carries no
+// such pin: an install into a library dir would try to resolve it, and the lane's builds resolve run-types up the tree.
 function pack(name) {
   const dir = path.join(LIBS, name);
   const manifestFile = path.join(dir, 'package.json');
   const original = readFileSync(manifestFile, 'utf8');
   const manifest = JSON.parse(original);
-  manifest.dependencies['@mionjs/run-types'] = VERSION;
+  manifest.dependencies = {...manifest.dependencies, '@mionjs/run-types': VERSION};
   writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
   try {
     run('npm', ['pack', '--pack-destination', TARBALLS], dir);

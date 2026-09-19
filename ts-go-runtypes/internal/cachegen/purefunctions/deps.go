@@ -23,8 +23,8 @@ import (
 //   - lowerings: the argument spans to replace with a quoted id when the body
 //     is stripped. An id reached by IMPORT has no meaning in the emitted
 //     module, which carries the body alone, so the body must carry the literal.
-//   - exempt: the same spans, handed to the purity check so a lowered argument
-//     is not reported as a captured outer binding.
+//   - exempt: those spans plus every branded name from an unbuilt package, handed to the purity check so
+//     neither is reported as a captured outer binding.
 //
 // When utlName is empty (factory has no first parameter), returns nothing — the
 // caller is free to register the entry without deps.
@@ -34,7 +34,7 @@ func (ctx *resolveCtx) extractDeps(sourceFile *ast.SourceFile, factoryFn *ast.No
 	}
 	localTable := buildFactoryLocalTable(factoryFn)
 	depSet := map[string]bool{}
-	var lowerings []textRange
+	var lowerings, exempt []textRange
 	var diags []diagnostics.Diagnostic
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
@@ -42,7 +42,7 @@ func (ctx *resolveCtx) extractDeps(sourceFile *ast.SourceFile, factoryFn *ast.No
 			return false
 		}
 		if node.Kind == ast.KindCallExpression {
-			ctx.handleCall(sourceFile, node, localTable, utlName, depSet, &lowerings, &diags)
+			ctx.handleCall(sourceFile, node, localTable, utlName, depSet, &lowerings, &exempt, &diags)
 		}
 		node.ForEachChild(visit)
 		return false
@@ -53,14 +53,14 @@ func (ctx *resolveCtx) extractDeps(sourceFile *ast.SourceFile, factoryFn *ast.No
 	}
 	body.ForEachChild(visit)
 	if len(depSet) == 0 {
-		return nil, lowerings, lowerings, diags
+		return nil, lowerings, exempt, diags
 	}
 	deps := make([]string, 0, len(depSet))
 	for id := range depSet {
 		deps = append(deps, id)
 	}
 	sort.Strings(deps)
-	return deps, lowerings, lowerings, diags
+	return deps, lowerings, exempt, diags
 }
 
 // handleCall checks one CallExpression. When the callee is a property access
@@ -75,6 +75,7 @@ func (ctx *resolveCtx) handleCall(
 	utlName string,
 	depSet map[string]bool,
 	lowerings *[]textRange,
+	exempt *[]textRange,
 	diags *[]diagnostics.Diagnostic,
 ) {
 	callExpr := call.AsCallExpression()
@@ -120,6 +121,13 @@ func (ctx *resolveCtx) handleCall(
 		return
 	}
 	if id == "" {
+		inner := unwrapExpression(arg)
+		// A branded name from a package that ships nothing to serve is that package's fault, not the call's.
+		if packageName, unbuilt := ctx.unbuiltPackageOf(inner); unbuilt {
+			*diags = append(*diags, diagnostics.New(diagnostics.CodePureFnDepUnbuilt, siteFromNode(sourceFile, arg), inner.Text(), packageName))
+			*exempt = append(*exempt, textRange{Start: inner.Pos(), End: inner.End(), Text: inner.Text()})
+			return
+		}
 		*diags = append(*diags, diagnostics.New(
 			diagnostics.CodePurityDepNotLiteral,
 			siteFromNode(sourceFile, arg),
@@ -131,8 +139,33 @@ func (ctx *resolveCtx) handleCall(
 	depSet[id] = true
 	if lower {
 		inner := unwrapExpression(arg)
-		*lowerings = append(*lowerings, textRange{Start: inner.Pos(), End: inner.End(), Text: jsquote.Single(id)})
+		lowering := textRange{Start: inner.Pos(), End: inner.End(), Text: jsquote.Single(id)}
+		*lowerings = append(*lowerings, lowering)
+		*exempt = append(*exempt, lowering)
 	}
+}
+
+// unbuiltPackageOf names the package of an identifier declared in a `.d.ts` with the PureFnId brand when that
+// package ships no compiled pure fns and no sources: the name is a pure fn, only nothing can serve it.
+func (ctx *resolveCtx) unbuiltPackageOf(identifier *ast.Node) (string, bool) {
+	if identifier.Kind != ast.KindIdentifier || ctx.markerOpts.PureFnBindings == nil || ctx.typeChecker == nil {
+		return "", false
+	}
+	kind, _, matched := marker.DetectAny(ctx.typeChecker, ctx.typeChecker.GetTypeAtLocation(identifier), ctx.markerOpts)
+	if !matched || kind != marker.KindPureFnId {
+		return "", false
+	}
+	symbol := comptimeargs.ResolveImportAlias(ctx.typeChecker, ctx.typeChecker.GetSymbolAtLocation(identifier))
+	packageName, unbuilt := "", false
+	comptimeargs.EachConstVariableDeclaration(symbol, func(variableDecl *ast.VariableDeclaration) bool {
+		declFile := ast.GetSourceFileOfNode(variableDecl.AsNode())
+		if declFile == nil || !declFile.IsDeclarationFile {
+			return true
+		}
+		packageName, unbuilt = ctx.markerOpts.PureFnBindings.UnbuiltPackage(declFile.FileName())
+		return !unbuilt
+	})
+	return packageName, unbuilt
 }
 
 // calleeFirstParamIsCompTimeArgs reports whether the resolved
