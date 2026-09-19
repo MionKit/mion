@@ -229,7 +229,7 @@ const mapping = (fromId: string, toId: string, paramIndex: number, mapperKey: st
   }) as BatchMapping;
 // A mapper's id is the package that owns it (empty for these fixtures, which
 // declare no package name) plus a hash of the body that ships.
-const INLINE_KEY = /^[A-Za-z0-9_.-]*#[A-Za-z0-9_-]{14}$/;
+const INLINE_KEY = /^[A-Za-z0-9_.-]*#pf_[A-Za-z0-9_-]{14}$/;
 
 describe('request-batch diagnostics and readable shapes', () => {
   const register = hasBinary() ? it : it.skip;

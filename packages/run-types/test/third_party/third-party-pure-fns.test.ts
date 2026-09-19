@@ -119,9 +119,9 @@ describe('third-party pure fns: renamed re-export + branded wrapper (node_module
 
       // Both factory arguments are replaced with generated __rt_pf… bindings, and
       // both calls carry the id of the consumer's own binding.
-      const renamedMatch = code.match(/regPF\((__rt_pf[A-Za-z0-9_$]*),\s*'[^']*#[A-Za-z0-9_-]{14}'\)/);
+      const renamedMatch = code.match(/regPF\((__rt_pf[A-Za-z0-9_$]*),\s*'[^']*#pf_[A-Za-z0-9_-]{14}'\)/);
       expect(renamedMatch, `renamed re-export call must carry a pf binding + id in:\n${code}`).toBeTruthy();
-      const wrapperMatch = code.match(/definePureFn\((__rt_pf[A-Za-z0-9_$]*),\s*'[^']*#[A-Za-z0-9_-]{14}'\)/);
+      const wrapperMatch = code.match(/definePureFn\((__rt_pf[A-Za-z0-9_$]*),\s*'[^']*#pf_[A-Za-z0-9_-]{14}'\)/);
       expect(wrapperMatch, `branded wrapper call must carry a pf binding + id in:\n${code}`).toBeTruthy();
 
       // Every injected binding resolves to a real generated module on disk.
