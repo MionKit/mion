@@ -15,26 +15,12 @@ import {
   PrefilledMiddleFnsCache,
 } from './types.ts';
 import type {RunTypeError} from '@mionjs/core';
-import {
-  RpcError,
-  isRpcError,
-  routesCache,
-  MION_ROUTES,
-  MION_BATCH_KEY,
-  HandlerType,
-  HeadersSubset,
-  toBase64Url,
-} from '@mionjs/core';
+import {RpcError, isRpcError, MION_ROUTES, MION_BATCH_KEY, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
-import {fetchRemoteMethodsMetadata} from './lib/fetchRemoteMethodsMetadata.ts';
-import {getBundleApiMode} from './lib/bundledApi.ts';
-import {
-  createMetadataSubRequest,
-  hydrateMetadataCache,
-  purgeHydratedMetadata,
-  wasHydratedFromCache,
-} from './lib/clientMethodsMetadata.ts';
+import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundledApi.ts';
+import {getMethod, hasMethod} from './lib/methods.ts';
+import {loadFetchedLane, metadataCacheHooks} from './lib/laneLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
@@ -90,30 +76,32 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   private async makeCall(originalSerializer: SerializerMode, skipOptimistic?: boolean): Promise<ResponseBody> {
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
-    let allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+    let allCached = subRequestIds.every((id) => hasMethod(id));
     // a bundled client has everything it will ever have at the call site: no store to read, no wire
     // to guess; a method the bundle lacks is refused below, at the metadata step
     const bundled = getBundleApiMode() === 'bundled';
-    // an id this page never heard of may still be in the store from an earlier visit: one indexed
-    // read settles it, while guessing wrong costs the optimistic round trip AND its retry. Hydration
-    // runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
-    if (!allCached && !bundled) {
-      await hydrateMetadataCache(this.options);
-      if (this.signal?.aborted) {
-        this.onError(
-          this.signal.reason ?? new DOMException('This operation was aborted', 'AbortError'),
-          'Request aborted',
-          errors
-        );
-        return Promise.reject(errors);
-      }
-      allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-    }
-    // the optimistic first request sends the params on the plain wire forms every server decoder
-    // accepts; what a decoder cannot read errors and the retry below sends the real encoder
-    const isOptimistic = !allCached && !skipOptimistic && !bundled;
+    let isOptimistic = false;
 
     try {
+      // an id this page never heard of may still be in the store from an earlier visit: one indexed
+      // read settles it, while guessing wrong costs the optimistic round trip AND its retry. Hydration
+      // runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
+      if (!allCached && !bundled) {
+        const lane = await loadFetchedLane();
+        await lane.hydrateMetadataCache(this.options);
+        if (this.signal?.aborted) {
+          this.onError(
+            this.signal.reason ?? new DOMException('This operation was aborted', 'AbortError'),
+            'Request aborted',
+            errors
+          );
+          return Promise.reject(errors);
+        }
+        allCached = subRequestIds.every((id) => hasMethod(id));
+      }
+      // the optimistic first request sends the params on the plain wire forms every server decoder
+      // accepts; what a decoder cannot read errors and the retry below sends the real encoder
+      isOptimistic = !allCached && !skipOptimistic && !bundled;
       if (isOptimistic) {
         (this.options as any).serializer = 'optimistic';
         // The route's chain is unknown until the metadata arrives with the answer, but its scope is not:
@@ -123,10 +111,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         this.restoreScopedPrefilledMiddleFns();
         // Add metadata subrequest (after prefilled restore so we include all IDs)
         const allSubRequestIds = Object.keys(this.subRequestList);
-        this.addSubRequest(createMetadataSubRequest(allSubRequestIds));
+        this.addSubRequest((await loadFetchedLane()).createMetadataSubRequest(allSubRequestIds));
       } else {
         (this.options as any).serializer = originalSerializer;
-        await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.signal);
+        await this.loadMethodsMetadata(subRequestIds, bundled, this.signal);
         this.restorePrefilledMiddleFns(errors);
         if (errors.size) return Promise.reject(errors);
         sanitizeSubRequests(subRequestIds, this);
@@ -184,9 +172,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         // Not optimistic, so the metadata came from somewhere. If that somewhere was the store it can
         // predate the server's current build, and nothing else would ever correct it: drop those ids
         // from memory and from the store, and let the retry go out optimistic and relearn them.
-        if (!this.purgedStaleMetadata && subRequestIds.some((id) => wasHydratedFromCache(id, this.options))) {
+        const cache = metadataCacheHooks();
+        if (cache && !this.purgedStaleMetadata && subRequestIds.some((id) => cache.wasHydratedFromCache(id, this.options))) {
           this.purgedStaleMetadata = true;
-          await purgeHydratedMetadata(subRequestIds, this.options);
+          await cache.purgeHydratedMetadata(subRequestIds, this.options);
           return this.retryWithProperSerialization(originalSerializer);
         }
       }
@@ -198,6 +187,18 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       this.onError(error, 'Error parsing response', errors);
       return Promise.reject(errors);
     }
+  }
+
+  /** Makes sure every id has its metadata. A bundled client refuses what its build did not carry,
+   *  and is the one case that never reaches the fetched lane. */
+  private async loadMethodsMetadata(methodIds: string[], bundled: boolean, signal?: AbortSignal): Promise<void> {
+    if (bundled) {
+      const missing = methodIds.filter((id) => !hasMethod(id));
+      if (missing.length) throw bundledMetadataMissingError(missing);
+      return;
+    }
+    const lane = await loadFetchedLane();
+    await lane.fetchRemoteMethodsMetadata(methodIds, this.options, signal);
   }
 
   /** Checks if the response contains errors that require retry with proper JIT serialization */
@@ -227,7 +228,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     try {
       const subRequestIds = Object.keys(this.subRequestList);
-      await fetchRemoteMethodsMetadata(subRequestIds, this.options);
+      await this.loadMethodsMetadata(subRequestIds, getBundleApiMode() === 'bundled');
       sanitizeSubRequests(subRequestIds, this);
       validateSubRequests(subRequestIds, this, errors, false);
       return Object.values(this.subRequestList)
@@ -245,7 +246,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     try {
       const subRequestIds = Object.keys(this.subRequestList);
-      await fetchRemoteMethodsMetadata(subRequestIds, this.options);
+      await this.loadMethodsMetadata(subRequestIds, getBundleApiMode() === 'bundled');
 
       sanitizeSubRequests(subRequestIds, this);
       validateSubRequests(subRequestIds, this, errors, false);
@@ -388,7 +389,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   private restorePrefilledMiddleFns(errors: RequestErrors): void {
     const routeIds = new Set(this.getRouteIds());
     for (const routeId of routeIds) {
-      const methodMeta = routesCache.getMetadata(routeId);
+      const methodMeta = getMethod(routeId);
       if (!methodMeta) {
         this.setUndeclaredError(
           routeId,
@@ -443,7 +444,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   private storePrefilledMiddleFns(errors: RequestErrors): void {
     Object.keys(this.subRequestList).forEach((id) => {
       const subRequest = this.subRequestList[id];
-      const methodMeta = routesCache.getMetadata(id);
+      const methodMeta = getMethod(id);
       if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
       if (methodMeta.type === HandlerType.route) {
         errors.set(
@@ -470,7 +471,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   /** Returns true if the route is a query (isMutation === false) and not a batch */
   private isQueryRoute(): boolean {
     if (this.batchSubRequests) return false;
-    const meta = routesCache.getMetadata(this.requestId);
+    const meta = getMethod(this.requestId);
     // strict false value required for queries
     return meta?.options?.isMutation === false;
   }
@@ -578,7 +579,7 @@ function reconstructHeadersSubsetFromResponse(
   methodId: string,
   responseHeaders: Headers
 ): HeadersSubset<string, string> | undefined {
-  const method = routesCache.getMetadata(methodId);
+  const method = getMethod(methodId);
 
   if (!method?.headersReturn?.headerNames || method.headersReturn.headerNames.length === 0) {
     return undefined;

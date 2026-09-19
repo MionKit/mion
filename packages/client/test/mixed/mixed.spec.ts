@@ -15,7 +15,8 @@ import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import type {RouteSubRequest} from '../../src/types.ts';
 import {resetClientCaches} from '../../src/lib/testUtils.ts';
-import {isBundledMethod, resetBundledApi} from '../../src/lib/bundledApi.ts';
+import {resetBundledApi} from '../../src/lib/bundledApi.ts';
+import {getMethod, isBundledMethod} from '../../src/lib/methods.ts';
 import {flushMetadataCache, extractAndProcessMetadata} from '../../src/lib/clientMethodsMetadata.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 
@@ -107,7 +108,7 @@ describe('a client built with bundleApi: mixed', () => {
   it('never lets a fetched answer replace a bundled entry', async () => {
     const {routes, middleFns} = initClient<TestServerApi>({baseURL});
     await routes.utils.sumTwo(1).call(withAuth(middleFns));
-    const bundled = routesCache.getMetadata('utils/sumTwo');
+    const bundled = getMethod('utils/sumTwo');
     expect(bundled).toBeDefined();
     const options = {baseURL, basePath: '', suffix: '', storageEngine: 'memory'} as never;
     extractAndProcessMetadata(
@@ -121,6 +122,6 @@ describe('a client built with bundleApi: mixed', () => {
       },
       options
     );
-    expect(routesCache.getMetadata('utils/sumTwo')?.paramsJitHash).toBe(bundled!.paramsJitHash);
+    expect(getMethod('utils/sumTwo')?.paramsJitHash).toBe(bundled!.paramsJitHash);
   });
 });

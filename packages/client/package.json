@@ -2,6 +2,7 @@
     "name": "@mionjs/client",
     "version": "0.12.2",
     "type": "module",
+    "sideEffects": false,
     "description": "Browser client for mion Apps.",
     "keywords": [
         "typescript",
@@ -24,6 +25,13 @@
             "types": "./.dist/esm/index.d.ts",
             "require": "./.dist/cjs/index.cjs",
             "default": "./.dist/esm/index.js"
+        }
+    },
+    "imports": {
+        "#fetched-lane": {
+            "source": "./src/lib/fetchedLane.ts",
+            "require": "./.dist/cjs/lib/fetchedLane.cjs",
+            "default": "./.dist/esm/lib/fetchedLane.js"
         }
     },
     "directories": {

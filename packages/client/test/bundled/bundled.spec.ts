@@ -10,12 +10,13 @@
 // touches the store, and evaluates no code string.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
-import {HeadersSubset, MION_ROUTES, getRoutePath, routesCache, type MethodWithOptions} from '@mionjs/core';
+import {HeadersSubset, MION_ROUTES, getRoutePath, type MethodWithOptions} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../../src/lib/testUtils.ts';
-import {isBundledMethod, resetBundledApi} from '../../src/lib/bundledApi.ts';
+import {resetBundledApi} from '../../src/lib/bundledApi.ts';
+import {bundledMethodIds, getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 
@@ -92,7 +93,7 @@ describe('a client built with bundleApi: bundled', () => {
     // the route, its chain and the middleFn the call named all came from the bundle
     expect(isBundledMethod('sayHello')).toBe(true);
     expect(isBundledMethod('auth')).toBe(true);
-    expect(routesCache.getMetadata('sayHello')?.middleFnIds).toContain('auth');
+    expect(getMethod('sayHello')?.middleFnIds).toContain('auth');
   });
 
   it('neither reads nor writes the metadata store', async () => {
@@ -144,7 +145,7 @@ describe('a client built with bundleApi: bundled', () => {
     const [result, error] = await routes.getRequestInfo('hello').call(withAuth(middleFns));
     expect(error).toBeUndefined();
     expect(result?.httpMethod).toBe('GET');
-    expect(routesCache.getMetadata('getRequestInfo')?.options.isMutation).toBe(false);
+    expect(getMethod('getRequestInfo')?.options.isMutation).toBe(false);
   });
 
   it('gives a returned HeadersSubset back', async () => {
@@ -253,17 +254,17 @@ describe('parity: what the bundle registers equals what the server answers', () 
     const envelope = body[MION_ROUTES.methodsMetadataById];
     const answer = (Array.isArray(envelope) ? envelope[1] : envelope) as {methods: Record<string, MethodWithOptions>};
 
-    const bundledIds = Object.keys(routesCache.getCache()).filter((id) => isBundledMethod(id));
+    const bundledIds = bundledMethodIds();
     expect(bundledIds).toEqual(
       expect.arrayContaining(['sayHello', 'auth', 'utils/sumTwo', 'compact/addNumbers', 'getRequestInfo', 'respondHeaders'])
     );
     for (const id of bundledIds) {
-      const bundled = serializable(routesCache.getMetadata(id));
+      const bundled = serializable(getMethod(id));
       expect(bundled, id).toEqual(withoutSettledLimit(serializable(answer.methods[id]), bundled));
     }
     // the params byte ceiling is the server's request limit, so a bundled entry carries no more of
     // it than a fetched one does
-    expect(routesCache.getMethodJitFns('utils/sumTwo')).toBeDefined();
-    expect(routesCache.getMethodJitFns('utils/sumTwo')).not.toHaveProperty('paramsJsonMaxBytes');
+    expect(useMethodFns('utils/sumTwo')).toBeDefined();
+    expect(useMethodFns('utils/sumTwo')).not.toHaveProperty('paramsJsonMaxBytes');
   });
 });

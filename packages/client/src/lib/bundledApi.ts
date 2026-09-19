@@ -10,12 +10,12 @@ import {
   RpcError,
   getHeadersReflectionFromMarkers,
   getReflectionFromMarkers,
-  routesCache,
   type MethodWithOptions,
   type MethodWithOptsAndJitFns,
   type RtMarkerPayload,
 } from '@mionjs/core';
 import type {BundleApiMode, InjectedApiMetadata} from '../types.ts';
+import {isBundledMethod, resetBundledMethods, setBundledMethod} from './methods.ts';
 
 // The bundled-API lane (the build's `bundleApi` option). A build with it on compiles, for every
 // route the program calls, the same validators and serializers the server holds, and injects at
@@ -40,9 +40,6 @@ export interface BundledMethod extends Pick<
 export interface BundledApiPayload {
   methods: BundledMethod[];
 }
-
-/** The ids whose metadata came from a bundle; a fetched or restored answer never replaces them. */
-const bundledIds = new Set<string>();
 
 /** A payload the build did not write, held until a call can report it once. */
 let pendingPayloadError: RpcError<string> | undefined;
@@ -69,6 +66,20 @@ export function getBundleApiMode(): BundleApiMode | undefined {
   return bundleApiMode;
 }
 
+/** The error a `bundled` client raises for a method its bundle does not carry: the build only
+ *  bundles what the program calls through its own dispatch points, so the server is never asked.
+ *  It lives here rather than with the fetch so refusing costs a bundled client no lane load. */
+export function bundledMetadataMissingError(missing: string[]): RpcError<'route-metadata-not-found'> {
+  return new RpcError({
+    type: 'route-metadata-not-found',
+    publicMessage:
+      `Metadata for ${missing.join(', ')} is not in the bundle. The build (bundleApi: 'bundled') bundles only the routes ` +
+      `and middleFns the program calls through their own call sites; a method reached another way (a generic helper, ` +
+      `client.prefill(...) / client.typeErrors(...), a call the build reported) is not fetched either. ` +
+      `Call it through its own subrequest, or build with bundleApi: 'mixed' to fetch what the bundle lacks.`,
+  });
+}
+
 /** Registers a bundled payload, once per method id. Idempotent and cheap on repeat: a dispatch point
  *  passes the same module on every call. The declared type is what the build writes; the guard is
  *  still run because a `<genDir>/api/` tree from another @mionjs/devtools version can disagree, and
@@ -85,18 +96,9 @@ export function registerBundledApi(payload: InjectedApiMetadata): void {
     return;
   }
   for (const method of payload.methods) {
-    if (bundledIds.has(method.id)) continue;
-    // a fetched or restored entry for the same id gives way: the bundle is what the build compiled
-    routesCache.removeMetadata(method.id);
-    routesCache.setMethodJitFns(method.id, bundledMethodToCacheEntry(method));
-    bundledIds.add(method.id);
+    if (isBundledMethod(method.id)) continue;
+    setBundledMethod(method.id, bundledMethodToCacheEntry(method));
   }
-}
-
-/** True when the method's metadata came from a bundle. Tests only; the client's own
- *  "a fetched answer never replaces a bundled one" guarantee comes from the routes cache. */
-export function isBundledMethod(id: string): boolean {
-  return bundledIds.has(id);
 }
 
 /** Takes the last rejected payload, if any, so a call can report it once. */
@@ -106,9 +108,9 @@ export function takeBundledApiError(): RpcError<string> | undefined {
   return error;
 }
 
-/** Forgets which ids came from a bundle. Tests only (the routes cache is reset alongside). */
+/** Forgets which ids came from a bundle. Tests only. */
 export function resetBundledApi(): void {
-  bundledIds.clear();
+  resetBundledMethods();
   pendingPayloadError = undefined;
   // the lane is NOT cleared: the build's module sets it once at import, and no amount of cache
   // resetting changes which build produced this bundle
