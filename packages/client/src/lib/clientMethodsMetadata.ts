@@ -23,7 +23,7 @@ import {getMetadataStore} from './metadataStore.ts';
 import type {MetadataKind, MetadataRecord, MetadataRecordKey, MetadataStore, StorageEngine} from './storage.ts';
 import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 import {requestPersistenceWhenSilent} from './persistentStorage.ts';
-import {setFetchedMethods} from './methods.ts';
+import {isBundledMethod, setFetchedMethods} from './methods.ts';
 import {registerMetadataCacheHooks, type MetadataCacheHooks} from './laneLoader.ts';
 
 type MetadataRouteKey = typeof MION_ROUTES.methodsMetadata | typeof MION_ROUTES.methodsMetadataById;
@@ -194,6 +194,10 @@ async function persistPayloads(options: ClientOptions, payloads: SerializableMet
         console.warn(`Refused to store metadata for method '${methodId}'`);
         continue;
       }
+      // The server answers for a route's whole chain, so a bundled middleFn rides the answer to a
+      // fetched route. Its row is already in the build's output and would only be read back to be
+      // ignored, so it never reaches the store. Compiled functions nothing points at are swept.
+      if (isBundledMethod(methodId)) continue;
       add('m', methodId, methodData);
     }
   }
