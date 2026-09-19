@@ -32,10 +32,7 @@
     "files": [
         ".dist",
         "!.dist/**/*.tsbuildinfo",
-        "index.ts",
-        "src",
-        "!src/**/*.spec.ts",
-        "!src/**/*.test.ts"
+        "!.dist/**/*.d.ts.map"
     ],
     "repository": {
         "type": "git",

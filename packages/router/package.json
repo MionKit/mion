@@ -33,10 +33,7 @@
     "files": [
         ".dist",
         "!.dist/**/*.tsbuildinfo",
-        "index.ts",
-        "src",
-        "!src/**/*.spec.ts",
-        "!src/**/*.test.ts"
+        "!.dist/**/*.d.ts.map"
     ],
     "repository": {
         "type": "git",
@@ -50,7 +47,7 @@
         "dev": "vite build --watch",
         "dev:test": "vitest watch",
         "lint": "eslint src",
-    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+        "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "clean": "rimraf .dist .coverage .mion",

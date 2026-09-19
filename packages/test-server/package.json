@@ -27,11 +27,7 @@
     "lib": ".dist"
   },
   "files": [
-    ".dist",
-    "index.ts",
-    "src",
-    "!src/**/*.spec.ts",
-    "!src/**/*.test.ts"
+    ".dist"
   ],
   "repository": {
     "type": "git",
