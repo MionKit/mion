@@ -56,9 +56,10 @@ diff, and say in the review list which groups you dropped and why.
 
 ## C - comments (include when comments were added or changed)
 
-No items here. The comment rules live in the code style section of the root
-CLAUDE.md, so this group is sourced entirely from that file. Keep the group and
-its pass, read the items out of the file.
+The comment rules live in the code style section of the root CLAUDE.md, so this
+group is sourced from that file; read the items out of it. One item is global:
+
+- C1 The simplify-comments pass ran: a `chore(comments):` commit sits on the branch after the last edit to a source file, or the branch touched none.
 
 ## B - behaviour and tests (include when code changed)
 

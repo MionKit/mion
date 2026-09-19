@@ -136,7 +136,9 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 - `InjectRunTypeId` (capital T mid-word) — same casing as `RunType`.
 - Prefer type casting over assertions.
 - No `@param` / `@returns` in JSDoc; prefer one-liner comments and one-line `if`s.
-- **A comment earns its line or it goes.** Keep it only if it says something the code cannot: the reason behind a surprising choice, the constraint that forced it, an ordering requirement or invariant. One line where one line does the job. Delete anything that restates the code below it, and never leave commented-out code, an ownerless TODO, or a comment describing behaviour the change just made stale.
+- **A comment earns its line or it goes.** Keep it only if it says something the code cannot: the reason behind a surprising choice, the constraint that forced it, an ordering requirement or invariant. Delete anything that restates the code below it, and never leave commented-out code, an ownerless TODO, or a comment describing behaviour the change just made stale.
+- **Every comment is one line.** The only multi-line comment is a file header, one paragraph at most, and only when the file needs a reason to exist that its name and exports do not give.
+- **Every touched source file gets a comment simplification pass before the PR**, by the `comments-simplifier` subagent running the [simplify-comments skill](.claude/skills/simplify-comments/SKILL.md), never by the session that wrote the code. `implement-todo` runs it as its last step, beside the docs pass.
 - Use meaningful names in Go + TS; avoid one-letter abbreviations like `p`, `c`, `t`; when a struct field has a JSON tag, reuse that name for the local variable. Loop indices (`i`, `k`, `v`) and `err` are fine.
 
 ## Environment variables
@@ -174,6 +176,7 @@ Before opening a PR, confirm the change is **PR ready** — never open one other
 
 - **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Go-side changes also need `go -C ts-go-runtypes test ./internal/... ./cmd/...`.
 - **Docs are updated**, especially the website. Reflect the change in the site's content tree under [container/website/content/](container/website/content/) (follow the **Website Documentation** section below), then run the simplification pass: the `docs-simplifier` subagent over every touched page and example, its result committed on its own. A branch that touched a page or an example and carries no `docs(simplify):` commit is not PR ready.
+- **Comments are simplified** the same way: the `comments-simplifier` subagent over every touched source file, its result committed on its own. A branch that touched a source file and carries no `chore(comments):` commit is not PR ready.
 - If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped!
   Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed, the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane.
 - **A superseded spec is rewritten from scratch**, never cross-referenced. Delete the old one (or `git mv` it to [docs/done/](docs/done/) if part genuinely shipped). Never leave a link, a "supersedes" note, or a summary of the previous version.
