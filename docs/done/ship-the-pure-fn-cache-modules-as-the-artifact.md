@@ -154,6 +154,21 @@ The plan below landed as written, with these decisions taken while building:
 - **The e2e no longer runs a consumer of the runtime-only package:** with `PFE9016` an
   error, the running lanes reach only the two built libraries, and two new lanes (the plugin
   and `mion compile`) assert the build halts naming the id and the package.
+- **A pre-publish e2e lane proves the whole chain with real npm tarballs**
+  (`container/pre-publish-e2e/pure-fns/`, run at the end of the matrix): `@acme/text` built
+  with the published Vite adapter and `@acme/dates` built with the published `mion compile`
+  (reaching `text`), both `npm pack`ed and `npm install`ed into a consumer that is built both
+  ways and run under node; a third library built with plain `tsc` must fail the consumer's
+  builds with `PFE9016`. The lane found the two changes below.
+- **A branded name from an unbuilt package is `PFE9016`, not `PFE9013`.** A tsc-emitted
+  `.d.ts` types a registration `PureFnId<string>`; when its package ships no artifact and no
+  sources the dep walker used to report an unreadable dep plus a closure capture, both pointing
+  at the consumer's code. `PureFnBindingResolver.UnbuiltPackage` now lets it name the binding
+  and the package instead.
+- **`types/.npmignore` ships the gen dir under `npm pack`.** npm honours the generated
+  `types/.gitignore` (`*`) unless a `.npmignore` sits beside it, so a library built with
+  `mion compile` and `--gen-dir dist/.mion` used to publish emitted files whose generated
+  imports were missing. The docs page now says to put the gen dir inside the output dir.
 
 ## Plan
 
