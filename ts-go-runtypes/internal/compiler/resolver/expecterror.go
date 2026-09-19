@@ -176,7 +176,8 @@ func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
 }
 
-// directiveBody returns a directive's kind, the text after the marker, and whether it is a block comment; a trailing comment after code is not a directive, as with `@ts-expect-error`, or which line it covers would be ambiguous.
+// directiveBody returns the kind, the text after the marker, and whether the comment is a block comment.
+// A trailing comment after code is not a directive (as with `@ts-expect-error`): its target line would be ambiguous.
 func directiveBody(text string, span srcscan.Span) (diagnostics.DirectiveKind, string, bool, bool) {
 	if !ownLine(text, span.Start) {
 		return 0, "", false, false
