@@ -1,6 +1,6 @@
 ---
 name: simplify-docs
-description: Simplify ALREADY WRITTEN website docs pages and their examples to the shortest plain-language form without changing a fact. Use when a page under container/website/content/ or an example under packages/examples/src/ was written or changed and must be made simple before the PR; when the user says simplify the docs, simplify this page, make this page readable, the docs are too complex, or names a docs page to clean up; and as the mandatory last step of implement-todo, where it runs in the docs-simplifier subagent. It reviews page structure first (merge, rewrite, split, move or keep each changed section), then every title, paragraph, example, table and tip, cuts repetition, and reports what changed and what it left alone. It never adds content, never changes meaning, never edits code identifiers, never runs a formatter.
+description: Simplify already written website pages and examples to plain short language without changing a fact. Use before a PR on any touched page, or when asked to simplify docs.
 ---
 
 # simplify-docs

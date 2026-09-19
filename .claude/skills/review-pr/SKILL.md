@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Review a pull request or a feature branch against this repo's own bar before it lands. Use whenever the user says review this PR, review my branch, review my changes, review the diff, look over what I changed, is this ready to open, pre-PR check, or names a PR number or branch to review, even if they do not use the word review. It scopes the diff against the target branch, finds the todo spec behind it and checks the spec and PR description still match what shipped, then builds a filtered review list from the CLAUDE.md rules that govern the changed files plus the general engineering checks, gets that list approved, and runs it as parallel passes covering docs language, type and code reuse, a simpler shape with fewer committed lines, comments, and test coverage. It reports findings against the approved list and asks what to do next; it never edits code on its own.
+description: Review a PR or branch against this repo's rules with an approved checklist and parallel passes, reporting findings and never editing. Use when asked to review a PR, branch or diff.
 ---
 
 # review-pr

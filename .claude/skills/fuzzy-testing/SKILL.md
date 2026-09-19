@@ -1,6 +1,6 @@
 ---
 name: fuzzy-testing
-description: Guide someone through adding a fuzz / property test to their code, the structured way — you investigate their repo, ask focused questions, and iterate until you both have the rules worth checking and the tools to check them. Decide WHAT must always be true before building any tooling. Use when adding a fuzz test, a property test, or any test that throws lots of random inputs at the code; when generalising one example/unit test into a test that runs over many inputs; when deciding what rules to check (round-trip, do-it-twice, compare-to-a-trusted-source, predicted-change, leave-the-rest-alone, reject-bad-input); when testing code with memory by feeding it a sequence of actions (model-based / sequence testing); or when hunting edge cases your hand-written tests miss. Grounded in this repo's real harness (packages/run-types/test/fuzz/) with the FriendlyText/MockData sync fuzzer as the worked example.
+description: Add a fuzz or property test the structured way, deciding what must always hold before building the check. Use when adding a fuzz test or running a unit test over random inputs.
 ---
 
 # Fuzzy testing — guide the user through it

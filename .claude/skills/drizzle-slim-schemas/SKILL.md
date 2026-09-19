@@ -1,6 +1,6 @@
 ---
 name: drizzle-slim-schemas
-description: Author or update the slim drizzle recorders of @mionjs/drizzle-orm and the @mionjs/drizzle-orm-<dialect>-core packages from the committed drizzle manifests. Use whenever any packages/drizzle-orm*/manifests/*.manifest.json has pending entries, when `pnpm miondevx core drizzle-manifest --check` fails (new drizzle exports, drifted param shapes, migrated entries missing from a package), when a dialect completeness spec reports a drizzle builder grew a modifier, after a drizzle-orm version bump, when adding a new dialect package, when adding support for a new drizzle DRIVER (d1, durable-sqlite, libsql, neon), when adding or changing a drizzle-e2e container lane or its GHCR image, or when adding/changing a column builder or authoring helper in a package's src. Drives the whole loop, regenerate the manifests, map each pending entry to a slim recorder with a named data type (or skip it with a reason), add the paired tests, flip the status, get the check green, prove BOTH translate roads (drizzle-migrate and convert --to type), add the e2e lane that runs drizzle's own suites against a real database, and label the PR so that lane actually runs.
+description: Add or update the slim drizzle recorders and their e2e lanes from the drizzle manifests. Use when a manifest has pending entries, the manifest check fails, or a dialect or driver is added.
 ---
 
 # drizzle-slim-schemas
