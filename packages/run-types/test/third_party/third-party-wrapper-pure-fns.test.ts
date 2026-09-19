@@ -132,7 +132,7 @@ function assertInjected(code: string, callee: string, consumerFile: string): str
 }
 
 // An id is the owning package (empty for these fixtures) plus a body hash.
-const ID_RE = /^[^#]*#[A-Za-z0-9_-]{14}$/;
+const ID_RE = /^[^#]*#pf_[A-Za-z0-9_-]{14}$/;
 
 describe('third-party pure fns through a wrapper: renamed re-export + branded wrapper (node_modules)', () => {
   const register = hasBinary() ? it : it.skip;
