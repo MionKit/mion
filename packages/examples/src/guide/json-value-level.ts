@@ -6,8 +6,7 @@ import {
 type Message = {id: bigint; sentAt: Date; body: string};
 
 // start-value-codec
-// Both default to the clone strategy, which builds a new value, so undeclared keys
-// are dropped in both directions.
+// both default to the clone strategy, which builds a new value and drops undeclared keys
 const prepare = createPrepareForJsonFn<Message>();
 const restore = createRestoreFromJsonFn<Message>();
 
