@@ -64,6 +64,8 @@ For each section you own, in this order:
 4. **Example.** Trim to what the section explains: five to fifteen lines, no setup the reader does not need, no second feature. Comments become one-liners on the line they explain, saying why that line matters. Delete any comment block at the top. Never change an identifier, an import, or an API call: the example must compile and show the same behaviour.
 5. **Repetition.** Each fact once across paragraph, example comments, table and tip. When two of them say it, keep it where a reader meets it first (usually the example) and cut the other.
 6. **Accuracy.** Never change meaning. A shorter sentence that drops a condition, a code, a default or a limit is wrong, not simpler. When a sentence cannot be made simpler without losing a fact, keep the fact, and list the sentence in the report as left alone.
+7. **Shorter, never longer.** Every sentence you touch ends up shorter than it was, and so does every file. A sentence that grows needs a reason a reader would accept, written next to it in the report; "it reads better" is not one. Moving a fact into a sentence is not a licence to keep the old wording too.
+8. **Cut what a developer already knows.** How to separate items in a list ("split by spaces or commas"), that a config file is edited by hand, that a command runs in a terminal, what a comment is: gone. Keep only what this feature does differently from what the reader would assume.
 
 The frontmatter `description` counts as a paragraph: one plain sentence, under about 100 characters.
 
@@ -73,7 +75,10 @@ The frontmatter `description` counts as a paragraph: one plain sentence, under a
 pnpm run typecheck                               # every example still compiles
 pnpm exec vitest run website-links               # every link and anchor still resolves
 grep -n '—\|–\| -- ' <each page you touched>     # must print nothing
+git show <merge-base>:<file> | wc -w; wc -w <file>   # words before and after, per file, for the report
 ```
+
+A file with more words after than before fails the pass unless every grown sentence carries its reason in the report.
 
 Never run `pnpm run format`, Prettier or any formatter on the content tree: it breaks the `::` components. Edit by hand.
 
@@ -82,21 +87,23 @@ Never run `pnpm run format`, Prettier or any formatter on the content tree: it b
 Short, and complete. Per page:
 
 ```markdown
-## <page path>
+## <page path>   (<N> -> <M> words)
 
 Structure: merged "<B>" into "<A>" (rule: shared example) | rewrote "<A>" (rule: bolted-on second paragraph) | split | moved | kept
 Titles: "<old>" -> "<new>" (rule: code name in title)
 Paragraphs: "<old sentence>" -> "<new sentence>"     (one line per rewritten sentence)
-Examples: <file>: cut top comment block, cut lines N-M (setup), N comments made one-liners
+Grew: "<new sentence>" (<N> -> <M> words, because: <the reason>)
+Examples: <file> (<N> -> <M> words): cut top comment block, cut lines N-M (setup), N comments made one-liners
 Left alone: "<sentence>" (would lose: <the fact>)
 Flagged: "<section>" looks like it belongs on <page> (not moved)
 ```
 
-Every "left alone" and every "flagged" line is for the caller to decide. Every rewrite is yours.
+Every "left alone", "grew" and "flagged" line is for the caller to decide. Every rewrite is yours.
 
 ## What NOT to do
 
 - **Do not add content.** No new sentence that states something the page did not, no new section, no new tip. If a fact is missing, say so under Flagged.
+- **Do not make anything longer without saying why.** A sentence or a file with more words after the pass than before is a failed pass unless its reason is in the report.
 - **Do not change meaning.** Dropping a condition, a code, a default or a limit is an error, not a simplification.
 - **Do not edit code.** Identifiers, imports, API calls and the behaviour an example shows stay as they are. Only comments and unneeded lines go.
 - **Do not touch `index.md` or the about pages' prose.**
