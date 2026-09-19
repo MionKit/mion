@@ -1,7 +1,8 @@
 // Full runtime e2e for pure functions served ACROSS PACKAGES: a consumer's pure
 // fn imports ids from installed libraries, and the build reads each library's
-// pure-fn bodies from the one file a mion build ships for that,
-// `mion-pure-fns.json` in its output dir, never from its bundle.
+// pure-fn bodies from the directory a mion build ships for that,
+// `mion-pure-fns/` in its output dir (the package's own cache modules plus an
+// index), never from its bundle.
 //
 // Three libraries, three lanes:
 //   - @acme/text   — built for real (esbuild + the runtypes esbuild adapter), so
@@ -12,13 +13,15 @@
 //                    under src/, and its own nested copy of @acme/text: the SRC
 //                    lane, with a cross-package dep resolved from its own root.
 //   - @acme/legacy — hand-written JS registering a live function at load, no
-//                    artifact, no src: the runtime-only lane the build reports.
+//                    artifact, no src: nothing can serve it, so a consumer
+//                    reaching it fails to build (PFE9016).
 //
-// Two consumers over one node_modules tree:
+// Two consumers over one node_modules tree, plus the failing pair:
 //   - app-vite    — through the plugin (Rollup adapter): the rewritten consumer
 //                   and the generated modules are written to disk and run under
 //                   plain node.
 //   - app-compile — through `mion compile`, the same sources, then run.
+//   - app-legacy  — both lanes over a consumer of @acme/legacy: the build halts.
 //
 // Both print JSON from a fresh Node process, so what is asserted is what a
 // user's program would see at runtime.
@@ -31,7 +34,11 @@ import {execFileSync} from 'node:child_process';
 import * as esbuild from 'esbuild';
 import runtypesEsbuild from '../../../devtools/src/runtypes/esbuild.ts';
 import runtypesRollup from '../../../devtools/src/runtypes/rollup.ts';
-import {PURE_FN_ARTIFACT_FILE} from '../../../devtools/src/core/go-generated/runtypes-constants.generated.ts';
+import {
+  PURE_FN_ARTIFACT_DIR,
+  PURE_FN_ARTIFACT_INDEX,
+  PURE_FN_HASH_PREFIX,
+} from '../../../devtools/src/core/go-generated/runtypes-constants.generated.ts';
 import {BIN, hasBinary} from '../../../devtools/test/helpers/inline.ts';
 import {runCli} from '../../../devtools/test/helpers/cliCrash.ts';
 
@@ -117,21 +124,18 @@ const LEGACY_DTS = `import type {PureFnId} from '@mionjs/run-types';
 export declare const padId: PureFnId<'${PAD_ID}'>;
 `;
 
-// The consumer body: one pure fn reaching all three libraries. Annotation-free
-// so the plugin's rewritten output runs as plain ESM; the compile lane adds
-// the typed marker pair on top.
+// The consumer body: one pure fn reaching the two built libraries.
+// Annotation-free so the plugin's rewritten output runs as plain ESM; the
+// compile lane adds the typed marker pair on top.
 //
 // The lowered ids leave the imported bindings unused, so a TypeScript emit
 // drops those imports and no library module loads on its own: the served
-// bodies are all the program has, except for the runtime-only package, which
-// the consumer must load for its side effect (what PFE9016 asks for).
+// bodies are all the program has.
 const consumerBody = (titleId: string): string => `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types';
 import {isoDay} from '@acme/dates';
-import {padId} from '@acme/legacy';
-import '@acme/legacy';
 
 export const stamp = registerPureFnFactory(function (utl) {
-  return function _stamp(label, day, n) { return utl.getPureFn(isoDay)(label, day) + '#' + utl.getPureFn(padId)(n); };
+  return function _stamp(label, day) { return utl.getPureFn(isoDay)(label, day); };
 });
 
 export const report = () => {
@@ -141,12 +145,20 @@ export const report = () => {
   return {
     stampId: stamp,
     deps,
-    result: utl.getPureFnByKey(stamp)('Hello World', '2026-09-18T10:00:00Z', 7),
+    result: utl.getPureFnByKey(stamp)('Hello World', '2026-09-18T10:00:00Z'),
     isoDayDeps,
     servedSlugifyCode: utl.getCompiledPureFnByKey(isoDayDeps[0]).code,
     titleStillOwnedByText: utl.hasPureFnByKey('${titleId}'),
   };
 };
+`;
+// A consumer reaching the runtime-only package: nothing can serve padId's
+// body at build time, so this build must fail.
+const legacyMain = `import {registerPureFnFactory} from '@mionjs/run-types';
+import {padId} from '@acme/legacy';
+export const pad = registerPureFnFactory(function (utl) {
+  return function _pad(n) { return utl.getPureFn(padId)(n); };
+});
 `;
 const viteMain = (titleId: string): string =>
   consumerBody(titleId) + `process.stdout.write('<<RT>>' + JSON.stringify(report()) + '<<RT>>');\n`;
@@ -184,11 +196,10 @@ function runNode(file: string, cwd: string): Report {
 }
 
 function expectReport(result: Report): void {
-  expect(result.deps).toHaveLength(2);
+  expect(result.deps).toHaveLength(1);
   expect(result.deps[0]).toMatch(/^@acme\/dates#/);
-  expect(result.deps[1]).toBe(PAD_ID);
-  // app → dates (served from src) → text (served from dist) → legacy (runtime).
-  expect(result.result).toBe('hello-world@2026-09-18#0007');
+  // app → dates (served from src) → text (served from dist).
+  expect(result.result).toBe('hello-world@2026-09-18');
   expect(result.isoDayDeps).toEqual([SLUGIFY_ID]);
   // The body came from the artifact, not a runtime registration.
   expect(result.servedSlugifyCode).toContain('toLowerCase');
@@ -201,28 +212,44 @@ function expectOnlyServedBodies(result: Report): void {
   expect(result.titleStillOwnedByText).toBe(false);
 }
 
-interface ArtifactRow {
-  id: string;
-  bindingName?: string;
-  file?: string;
-  paramNames: string[];
-  code: string;
-  pureFnDependencies: string[];
-}
-interface Artifact {
+interface ArtifactIndex {
   format: number;
   package: string;
-  pureFns: ArtifactRow[];
+  pureFns: {id: string; bindingName?: string; file?: string}[];
 }
 
-function readArtifact(dir: string): Artifact {
-  return JSON.parse(fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_FILE), 'utf8')) as Artifact;
+function readIndex(dir: string): ArtifactIndex {
+  return JSON.parse(fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_DIR, PURE_FN_ARTIFACT_INDEX), 'utf8')) as ArtifactIndex;
+}
+
+// modulePath is where an id's cache module sits inside an artifact directory:
+// `<package>/<hash>.js`, the same path it has under `<genDir>/types/pf/`.
+function modulePath(id: string): string {
+  const [pkg, hash] = id.split(PURE_FN_HASH_PREFIX);
+  return path.join(...pkg.split('/'), `${hash}.js`);
+}
+
+function readModule(dir: string, id: string): string {
+  return fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_DIR, modulePath(id)), 'utf8');
+}
+
+// A consumer is a package of its own and ships its artifact the same way: the
+// index names its one pure fn, and the module next to it is the cache module
+// its build wrote under genDir, byte for byte.
+function expectOwnArtifact(app: string, name: string): {id: string; bindingName?: string; file?: string} {
+  const dist = path.join(app, 'dist');
+  const own = readIndex(dist);
+  expect(own.package).toBe(name);
+  expect(own.pureFns.map((row) => row.bindingName)).toEqual(['stamp']);
+  const [row] = own.pureFns;
+  expect(readModule(dist, row.id)).toBe(fs.readFileSync(path.join(app, '.mion', 'types', 'pf', modulePath(row.id)), 'utf8'));
+  return row;
 }
 
 // The two ids the text build wrote, read off its artifact by binding name.
 function textIds(): {slugify: string; title: string} {
-  const artifact = readArtifact(path.join(TEXT_DIR, 'dist'));
-  const byName = Object.fromEntries(artifact.pureFns.map((row) => [row.bindingName, row.id]));
+  const index = readIndex(path.join(TEXT_DIR, 'dist'));
+  const byName = Object.fromEntries(index.pureFns.map((row) => [row.bindingName, row.id]));
   expect(byName).toEqual({slugify: expect.stringMatching(ID_PATTERN), title: expect.stringMatching(ID_PATTERN)});
   return byName as {slugify: string; title: string};
 }
@@ -244,7 +271,7 @@ function writeApp(name: string, mainRel: string, main: string, include: string[]
 const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
   typeof hook === 'function' ? hook.apply(thisArg, args) : hook.handler.apply(thisArg, args);
 
-describe('pure fns served across packages: dist lane, src lane and the runtime-only lane', () => {
+describe('pure fns served across packages: dist lane, src lane, and the unbuilt package that fails', () => {
   const register = hasBinary() ? it : it.skip;
 
   beforeAll(async () => {
@@ -304,26 +331,29 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
   });
   afterAll(() => fs.rmSync(BASE, {recursive: true, force: true}));
 
-  register('the library built with the plugin ships its pure fns in mion-pure-fns.json next to the bundle', () => {
+  register('the library built with the plugin ships its pure fns in mion-pure-fns/ next to the bundle', () => {
     const {slugify, title} = textIds();
     SLUGIFY_ID = slugify;
     expect(slugify).not.toBe(title);
-    const artifact = readArtifact(path.join(TEXT_DIR, 'dist'));
-    expect(artifact.format).toBe(1);
-    expect(artifact.package).toBe('@acme/text');
-    expect(artifact.pureFns.map((row) => row.id)).toEqual([slugify, title].sort());
-    const rows = Object.fromEntries(artifact.pureFns.map((row) => [row.bindingName, row]));
-    expect(rows.slugify.code).toContain('toLowerCase');
-    expect(rows.slugify.file).toBe('src/index.ts');
-    expect(rows.title.pureFnDependencies).toEqual([slugify]);
-    expect(rows.title.code).toContain(`getPureFn('${slugify}')`);
+    const dist = path.join(TEXT_DIR, 'dist');
+    const index = readIndex(dist);
+    expect(index.format).toBe(1);
+    expect(index.package).toBe('@acme/text');
+    expect(index.pureFns.map((row) => row.id)).toEqual([slugify, title].sort());
+    for (const row of index.pureFns) expect(row.file).toBe('src/index.ts');
+    // One cache module per id, the build's own: the body, the lowered dep.
+    expect(readModule(dist, slugify)).toContain('toLowerCase');
+    const titleModule = readModule(dist, title);
+    expect(titleModule).toContain(String.raw`getPureFn(\'${slugify}\')`);
+    expect(titleModule).toContain(`'${title}'`);
+    expect(fs.readdirSync(path.join(dist, PURE_FN_ARTIFACT_DIR)).sort()).toEqual(['@acme', PURE_FN_ARTIFACT_INDEX]);
     // The bundle holds nothing to read: hollow registrations, no tuple, no id.
-    const dist = fs.readFileSync(path.join(TEXT_DIR, 'dist', 'index.js'), 'utf8');
-    expect(dist).not.toContain('[2,');
-    expect(dist).not.toContain('#pf_');
+    const bundle = fs.readFileSync(path.join(dist, 'index.js'), 'utf8');
+    expect(bundle).not.toContain('[2,');
+    expect(bundle).not.toContain('#pf_');
   });
 
-  register('app-vite: the plugin serves dates from src, text from dist, and reports legacy', async () => {
+  register('app-vite: the plugin serves dates from src and text from dist', async () => {
     const main = viteMain(textIds().title);
     const app = writeApp('app-vite', 'main.ts', main, ['*.ts']);
     const warnings: string[] = [];
@@ -352,12 +382,7 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
         // best-effort teardown
       }
     }
-    // The build said what it could not serve, once, naming the id and the package.
-    const unbuilt = warnings.filter((line) => line.includes('PFE9016'));
-    expect(unbuilt, warnings.join('\n')).toHaveLength(1);
-    expect(unbuilt[0]).toContain(PAD_ID);
-    expect(unbuilt[0]).toContain('@acme/legacy');
-    expect(warnings.filter((line) => line.includes('PFE9012') || line.includes('PFE9013'))).toEqual([]);
+    expect(warnings.filter((line) => /PFE901[236]/.test(line))).toEqual([]);
 
     // Both library bodies were emitted into the consumer's OWN modules, one per
     // id under the owning package's dir: isoDay, and the slugify it reaches (never
@@ -369,9 +394,7 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
     expect(isoDayModule).toContain(String.raw`getPureFn(\'${SLUGIFY_ID}\')`);
     expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
 
-    const own = readArtifact(path.join(app, 'dist'));
-    expect(own.package).toBe('@acme/app-vite');
-    expect(own.pureFns.map((row) => row.bindingName)).toEqual(['stamp']);
+    expectOwnArtifact(app, '@acme/app-vite');
 
     fs.writeFileSync(path.join(app, 'main.mjs'), code);
     expectReport(runNode(path.join(app, 'main.mjs'), app));
@@ -383,28 +406,67 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
       label: 'package-purefns-compile',
     });
     expect(run.status, run.report).toBe(0);
-    const unbuilt = run.stderr.split('\n').filter((line) => line.includes('PFE9016'));
-    expect(unbuilt, run.stderr).toHaveLength(1);
-    expect(unbuilt[0]).toContain(PAD_ID);
+    expect(run.stderr).not.toContain('PFE9016');
 
     const pf = path.join(app, '.mion', 'types', 'pf');
     expect(fs.readdirSync(path.join(pf, '@acme', 'dates'))).toHaveLength(1);
     expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
 
     // The compile lane writes the consumer's own artifact into its outDir.
-    const own = readArtifact(path.join(app, 'dist'));
-    expect(own.package).toBe('@acme/app-compile');
-    expect(own.pureFns.map((row) => row.bindingName)).toEqual(['stamp']);
-    expect(own.pureFns[0].file).toBe('src/main.ts');
+    expect(expectOwnArtifact(app, '@acme/app-compile').file).toBe('src/main.ts');
 
     const emitted = fs.readFileSync(path.join(app, 'dist', 'main.js'), 'utf8');
     expect(emitted).not.toContain("from '@acme/dates'");
-    expect(emitted).toContain("import '@acme/legacy'");
     const result = runNode(path.join(app, 'dist', 'main.js'), app);
     expectReport(result);
     expectOnlyServedBodies(result);
     // Marker coverage rule: both getRunTypeId shapes name one runtype.
     expect(result.staticId).toBeTruthy();
     expect(result.valueId).toBe(result.staticId);
+  });
+
+  register('app-legacy: a dep on a package that ships no compiled pure fns fails the plugin build', async () => {
+    const app = writeApp('app-legacy', 'main.ts', legacyMain, ['*.ts']);
+    const warnings: string[] = [];
+    const ctx = {
+      error(message: string): never {
+        throw new Error(message);
+      },
+      warn(message: unknown): void {
+        warnings.push(typeof message === 'string' ? message : String((message as {message?: string}).message ?? message));
+      },
+    };
+    const plugin = runtypesRollup({binary: BIN, cwd: app, tsconfig: 'tsconfig.json', genDir: path.join(app, '.mion')}) as any;
+    let halted = '';
+    try {
+      await callHook(plugin.buildStart, ctx);
+      await callHook(plugin.transform, ctx, legacyMain, path.join(app, 'main.ts'));
+    } catch (error) {
+      halted = String((error as Error).message);
+    } finally {
+      try {
+        await callHook(plugin.buildEnd, ctx);
+      } catch {
+        // best-effort teardown
+      }
+    }
+    expect(halted, warnings.join('\n')).toContain('build halted');
+    const unbuilt = warnings.filter((line) => line.includes('PFE9016'));
+    expect(unbuilt, warnings.join('\n')).toHaveLength(1);
+    expect(unbuilt[0]).toContain('error PFE9016');
+    expect(unbuilt[0]).toContain(PAD_ID);
+    expect(unbuilt[0]).toContain('@acme/legacy');
+  });
+
+  register('app-legacy-compile: `mion compile` fails the same way', () => {
+    const app = writeApp('app-legacy-compile', path.join('src', 'main.ts'), legacyMain, ['src'], 'src');
+    const run = runCli(['compile', '--cwd', app, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(app, '.mion')], {
+      label: 'package-purefns-legacy-compile',
+    });
+    expect(run.status, run.report).not.toBe(0);
+    const unbuilt = run.stderr.split('\n').filter((line) => line.includes('PFE9016'));
+    expect(unbuilt, run.stderr).toHaveLength(1);
+    expect(unbuilt[0]).toContain(PAD_ID);
+    expect(unbuilt[0]).toContain('@acme/legacy');
   });
 });

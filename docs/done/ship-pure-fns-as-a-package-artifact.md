@@ -111,6 +111,18 @@ bundle is never opened.
 
 The plan below landed as written, with these deviations and decisions taken while building:
 
+- **The single JSON file did not survive to merge.** On the same branch, before this landed on
+  main, the artifact became a directory: `mion-pure-fns/` holding the package's own pure-fn
+  cache modules (the `<package>/<hash>.js` files generate already writes under
+  `<genDir>/types/pf/`, copied byte for byte) plus an `index.json` mapping each binding name
+  and source file to its id, so a consumer's compiler reads the index on first touch and one
+  module per demanded id instead of every body at once. `PFE9016` became an error with it: a
+  package that ships neither the directory nor its sources cannot be served, so the consumer's
+  build fails instead of warning. Everything else below (the walk that never opens a bundle,
+  the own-package rule, `PFE9017` / `PFE9018`, the per-bundler post-bundle hooks, the Next
+  broker's two writes, the source lane) shipped as written, with the file replaced by the
+  directory wherever the text says `mion-pure-fns.json`.
+
 - **Two new diagnostics, not two separate "newer format" and "conflict" shapes as sketched.**
   `PFE9017` (warning) covers every artifact the compiler cannot use, naming the file and the
   reason: a newer `format`, invalid JSON, a missing `format` or `package`, or a row whose id

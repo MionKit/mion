@@ -25,6 +25,11 @@ import path from 'node:path';
 import {ownsBroker, socketPathFor, startBroker} from '../src/runtypes/next/broker.ts';
 import {createLineReader} from '../src/runtypes/next/wire.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
+import {
+  PURE_FN_ARTIFACT_DIR,
+  PURE_FN_ARTIFACT_INDEX,
+  PURE_FN_HASH_PREFIX,
+} from '../src/core/go-generated/runtypes-constants.generated.ts';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const MARKER_PKG = path.resolve(REPO_ROOT, 'packages/run-types');
@@ -95,9 +100,12 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
         fs.rmSync(distDir, {recursive: true, force: true});
         const reply = await askBroker(broker.socketPath, entry, fs.readFileSync(entry, 'utf8'));
         expect(reply.ok).toBe(true);
-        const artifact = JSON.parse(fs.readFileSync(path.join(distDir, 'mion-pure-fns.json'), 'utf8'));
-        expect(artifact.package).toBe('@acme/next-app');
-        expect(artifact.pureFns.map((row: {bindingName: string}) => row.bindingName)).toEqual(['slugify']);
+        const artifactDir = path.join(distDir, PURE_FN_ARTIFACT_DIR);
+        const index = JSON.parse(fs.readFileSync(path.join(artifactDir, PURE_FN_ARTIFACT_INDEX), 'utf8'));
+        expect(index.package).toBe('@acme/next-app');
+        expect(index.pureFns.map((row: {bindingName: string}) => row.bindingName)).toEqual(['slugify']);
+        const hash = (index.pureFns[0].id as string).split(PURE_FN_HASH_PREFIX)[1];
+        expect(fs.existsSync(path.join(artifactDir, '@acme/next-app', `${hash}.js`))).toBe(true);
       } finally {
         await broker.close();
         fs.rmSync(root, {recursive: true, force: true});

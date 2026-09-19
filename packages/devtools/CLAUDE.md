@@ -54,15 +54,18 @@ One module, two namespaces: the default export is the `runtypes` plugin (what ox
 `jsPlugins` loads), `mionPlugin` carries the `@mionjs/*` rules, and `configs.recommended`
 registers both. oxlint never reads `configs.recommended`, so that is ESLint's entry point.
 
-## The pure-fn artifact is written from each bundler's post-bundle hook
+## The pure-fn artifact is synced from each bundler's post-bundle hook
 
-Every generate returns the package's `mion-pure-fns.json` (the package's own pure fns, which
-a consumer's compiler serves from; the Go side keeps the canonical copy under
-`<genDir>/types/`). The plugin writes it into the bundler's OUTPUT dir through
-`writePureFnArtifact` in `src/core/unplugin.ts`, and that write must run from the hook that
-fires once the bundle is on disk: generate runs at `buildStart`, before a bundler empties its
-output dir, so writing there any earlier loses the file. unplugin's universal `writeBundle`
-carries no arguments, so each host names its own hook and reads its own output dir:
+Every generate returns the package's `mion-pure-fns/` directory as a map, path to content: the
+package's own pure-fn cache modules (the same files as under `<genDir>/types/pf/`) plus an
+`index.json`, which a consumer's compiler serves from, one module per demanded id. The plugin
+syncs it into the bundler's OUTPUT dir through `writePureFnArtifact` in `src/core/unplugin.ts`
+(write a file only when its bytes changed, delete every other file in the directory, remove the
+directory when the package registers no pure fn: the directory is the build's, nothing else may
+live in it), and that sync must run from the hook that fires once the bundle is on disk:
+generate runs at `buildStart`, before a bundler empties its output dir, so writing there any
+earlier loses the files. unplugin's universal `writeBundle` carries no arguments, so each host
+names its own hook and reads its own output dir:
 
 | host                   | hook                                                           | output dir                                               |
 | ---------------------- | -------------------------------------------------------------- | -------------------------------------------------------- |
@@ -72,9 +75,10 @@ carries no arguments, so each host names its own hook and reads its own output d
 | bun (bundler host)     | `bun.setup` + `build.onEnd`                                    | `build.config.outdir`; the runtime loader writes none    |
 | next (Turbopack)       | the broker, after `buildStart` and on the first loader request | Next's `distDir`; best effort, an app is never installed |
 
-A package that registers no pure fn gets no file, and a stale one is removed. There is no
-option: the file is what makes a published package's pure fns usable from another package,
-and `files: ["dist"]` already ships it. `test/pure-fn-artifact.test.ts` drives every host.
+A package that registers no pure fn gets no directory, and a stale one is removed. There is
+no option: the directory is what makes a published package's pure fns usable from another
+package (a consumer reaching a package without it fails with `PFE9016`), and `files: ["dist"]`
+already ships it. `test/pure-fn-artifact.test.ts` drives every host.
 
 ## emitMode
 
