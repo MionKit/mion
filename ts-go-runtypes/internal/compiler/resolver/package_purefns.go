@@ -12,14 +12,13 @@ import (
 )
 
 // servePackagePureFns delivers the pure-fn bodies the surviving graph demands from INSTALLED packages
-// (purefnindex): a consumer pure fn importing a library id, or an emitted validator reaching a marker built-in,
-// gets that body emitted into its own module in this render's emit mode and layout, deps pulled along across
+// (purefnindex), emitted into this render's own modules in its emit mode and layout, deps pulled along across
 // packages. Runs after Cascade (demand reflects only entries that ship) and before AddMissingStubs (a served
 // body never degrades to a stub). Demand is every soft dep no graph entry answers. An id whose package is not
-// installed belongs to the program (PFE9012 from validateProgramPureFnDeps), except a built-in with no marker
-// package reachable, a broken install (CFG004). A located package shipping rows but not this id is PFE9012,
-// site-less; nothing to serve at all is PFE9016 once per id, so a silent stub never
-// hides the edge; an artifact this compiler cannot read is PFE9017, two artifacts disagreeing on a body PFE9018.
+// installed belongs to the program (PFE9012 from validateProgramPureFnDeps); a located package shipping rows
+// but not this id is PFE9012, site-less; nothing to serve at all, a missing marker package included, is PFE9016
+// once per id, so a silent stub never hides the edge; an artifact this compiler cannot read is PFE9017, two
+// artifacts disagreeing on a body PFE9018.
 // emitMode is the RENDER's mode, not the session's: the bundled-API mirror renders in `functions` whatever the
 // program's mode, and a code string there would be rebuilt with `new Function` at first validation, exactly
 // where a bundled client is not allowed to.
@@ -60,8 +59,7 @@ func (sess *Session) servePackagePureFns(graph entrymodules.Graph, diagSink *[]d
 	for _, conflict := range result.Conflicts {
 		appendDiag(diagnostics.CodePureFnArtifactConflict, conflict.ID, conflict.Files[0], conflict.Files[1])
 	}
-	// A built-in whose package resolves nowhere is the marker package missing from the install,
-	// which reads the same as any other unbuilt dependency now that it ships an artifact too.
+	// A built-in that resolves nowhere means no marker package installed: the same unbuilt error as any other.
 	for _, id := range result.Unresolved {
 		if purefnids.Has(id) {
 			appendDiag(diagnostics.CodePureFnDepUnbuilt, id, purefnindex.MarkerPackageName)
@@ -69,8 +67,7 @@ func (sess *Session) servePackagePureFns(graph entrymodules.Graph, diagSink *[]d
 	}
 	for _, miss := range result.Missing {
 		switch {
-		// Built means the package ships rows but not this one: a stale reference, not an
-		// unbuilt package. Built-ins read the same way now that they ship in an artifact too.
+		// Built means the package ships rows but not this one: a stale reference, not an unbuilt package.
 		case miss.Built:
 			appendDiag(diagnostics.CodeMissingPureFnDep, miss.ID)
 		default:

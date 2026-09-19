@@ -347,10 +347,8 @@ type Session struct {
 	// FS and checker: an installed package does not change under a running
 	// session, and a per-request program swap must not re-extract it.
 	pureFnIndex *purefnindex.Store
-	// ownPackageName is the package the program's cwd belongs to and ownPackageRoot its
-	// directory, both empty for a nameless root. A package's OWN build is the one allowed to
-	// produce its built-in pure-fn bodies, so this decides whether the built-in filter in
-	// collectProgramPureFns applies. Memoised with the Program, whose cwd it reads.
+	// Only a package's OWN build may produce its built-in pure-fn bodies, so this is what decides
+	// whether collectProgramPureFns applies its built-in filter. Memoised with the Program.
 	ownPackageName string
 	ownPackageRoot string
 	ownPackageDone bool
@@ -670,9 +668,8 @@ func (sess *Session) bindPureFnIndex() {
 	})
 }
 
-// ownPackage is the package the program's cwd belongs to, and its root directory; both
-// empty for a nameless root. Memoised because a build asks it per extraction and the cwd
-// cannot move under one Program.
+// ownPackage is the package the program's cwd belongs to and its root, both empty for a nameless root.
+// Memoised: a build asks per extraction and the cwd cannot move under one Program.
 func (sess *Session) ownPackage() (string, string) {
 	if sess.ownPackageDone || sess.Program == nil {
 		return sess.ownPackageName, sess.ownPackageRoot

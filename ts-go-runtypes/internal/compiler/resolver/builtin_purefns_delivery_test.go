@@ -116,8 +116,7 @@ func keys(m map[string]string) []string {
 	return out
 }
 
-// markerBuild scans a file demanding a validator against a marker package with the named parts of
-// its install removed, so a test can say which of them the built-in bodies actually came from.
+// markerBuild drops the named parts of the marker install, so a test can say where the built-in bodies came from.
 func markerBuild(t *testing.T, dropSegments ...string) protocol.Response {
 	t.Helper()
 	r := setupInlineWith(t, map[string]string{"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
@@ -140,8 +139,7 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 	return resp
 }
 
-// The point of the whole lane: the package's own build publishes its built-in bodies, so an
-// install carrying the artifact serves them with no source of the package in sight.
+// The package's own build publishes its built-in bodies, so an install with the artifact and no src serves them.
 func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
 	resp := markerBuild(t, "/@mionjs/run-types/src/")
 	for _, diag := range resp.Diagnostics {
@@ -160,9 +158,8 @@ func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
 	}
 }
 
-// The failure mode the lane hangs on. A marker package installed with NEITHER its artifact nor
-// its sources has the bodies nowhere, since the dist is hollowed. That must fail the build
-// naming the package, because the alternative is a validator that throws at its first call.
+// With neither artifact nor sources the bodies are nowhere (the dist is hollowed), so the build must fail
+// naming the package; the alternative is a validator that throws at its first call.
 func TestBuiltinDelivery_MarkerWithNothingToServeFails(t *testing.T) {
 	resp := markerBuild(t, "/@mionjs/run-types/src/", "/"+constants.PureFnArtifactDir+"/")
 	for _, diag := range resp.Diagnostics {

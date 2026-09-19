@@ -651,8 +651,7 @@ func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	}
 }
 
-// The marker package as published: its own build writes mion-pure-fns/, so its built-ins are
-// served the same way every other package's are.
+// The marker package as published: its own build writes mion-pure-fns/, so its built-ins serve like any other's.
 func TestMarker_ServedFromItsArtifact(t *testing.T) {
 	store, cwd := sourceTree(t, nil)
 	root, ok := store.ResolvePackage(MarkerPackageName, cwd)
@@ -679,8 +678,7 @@ func TestMarker_ServedFromItsArtifact(t *testing.T) {
 	if len(missing) != 0 {
 		t.Errorf("%d generated id(s) are not in the marker artifact:\n  %s\nrebuild: pnpm run check:builds", len(missing), strings.Join(missing, "\n  "))
 	}
-	// circular-pure-fns.ts is side-effect imported by NOTHING, so a build that followed imports
-	// would lose it; the artifact is rendered from every registration instead.
+	// circular-pure-fns.ts is imported by nothing, so only an artifact rendered from every registration carries it.
 	if _, found := idx.Row(purefnids.FindCycle); !found {
 		t.Error("findCycle was not served")
 	}
@@ -701,8 +699,7 @@ func TestMarker_ServedFromItsArtifact(t *testing.T) {
 	}
 }
 
-// A marker package installed with neither its artifact nor its sources serves nothing, and says
-// so through the same PFE9016 lane any unbuilt dependency uses rather than a special case.
+// With neither artifact nor sources it serves nothing, through the PFE9016 lane any unbuilt dependency uses.
 func TestMarker_WithoutArtifactOrSourcesServesNothing(t *testing.T) {
 	store, cwd := sourceTree(t, nil)
 	root, _ := store.ResolvePackage(MarkerPackageName, cwd)
@@ -718,9 +715,8 @@ func TestMarker_WithoutArtifactOrSourcesServesNothing(t *testing.T) {
 	}
 }
 
-// The built package on disk carries every id the compiler names. Catches a dist built before an
-// edited pure-fn body, which would otherwise surface as a consumer importing a module nothing
-// registers.
+// Catches a dist built before an edited pure-fn body, which a consumer meets as an import of a module
+// nothing registers.
 func TestMarker_ArtifactOnDiskHoldsEveryGeneratedID(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
 	if err != nil {
@@ -736,10 +732,8 @@ func TestMarker_ArtifactOnDiskHoldsEveryGeneratedID(t *testing.T) {
 	}
 }
 
-// An id is a hash of the body that ships, so extracting the marker package's sources through a
-// session's own program and through a side program must land on the same ids, and on the ids the
-// generated constants name. The package now serves from its artifact, so this is also what pins
-// the artifact and the shipped sources to the same bodies.
+// An id is a hash of the body that ships, so the session's own program, a side program and the generated
+// constants must land on the same ids; that agreement is what pins the artifact to the shipped sources.
 func TestMarker_BothLanesAgreeOnIds(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
 	if err != nil {

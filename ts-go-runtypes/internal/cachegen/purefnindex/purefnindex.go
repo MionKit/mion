@@ -5,9 +5,8 @@
 // shape in artifact.go), read wherever it sits under the package root and never a bundle. The index is decoded
 // on first touch (a `.d.ts` import carries a NAME, never an id) and a module opened only for a demanded id, so
 // memory follows what the consumer uses. Source second: with no artifact, rows are extracted from the shipped
-// TypeScript by the same extractor a build runs. The marker package lives there today (hollowed dist, `src` in
-// the tarball), through the GENERATED list purefnids.SourceFiles rather than a scan, since that layout is fixed
-// when the binary is built; any other package is scanned for a registrar call. An id says nothing about where
+// TypeScript by the same extractor a build runs, the package scanned for a registrar call. The marker package
+// is on the artifact lane like any other. An id says nothing about where
 // its body lives, so a demanded id is MATCHED against what came back, never decoded. The resolver is the
 // session's whenever its program already holds the files (in-repo, the `source` condition puts the marker
 // sources there): one resolver and one memo mean the ids here cannot disagree with the program's own
@@ -355,9 +354,8 @@ func ScanRegistrations(root string, fileSystem vfspkg.FS) []string {
 	return files
 }
 
-// extractSource fills the rows from the package's TypeScript, the fallback for a package that
-// ships no artifact: its registration modules are found by a scan, and none found means the
-// package ships nothing to serve. Only the rows are kept, projected to what a served body needs.
+// extractSource is the fallback for a package that ships no artifact: a scan finds its
+// registration modules, and none found means the package ships nothing to serve.
 func (store *Store) extractSource(idx *PackageIndex) {
 	files := ScanRegistrations(idx.Root, store.fs)
 	if len(files) == 0 {
@@ -404,8 +402,7 @@ type SideProgram struct {
 
 // ExtractSources opens a package's sources in a Program of their own, rooted at
 // the package (so its imports resolve from its own node_modules upward), and
-// resolves every pure fn in them. Entries come back RAW, positions included:
-// the generator narrows its file list by them, and the store projects them.
+// resolves every pure fn in them. Entries come back RAW, positions included; the store projects them.
 func ExtractSources(root string, files []string, opts SideProgram) ([]purefunctions.Entry, []diagnostics.Diagnostic, error) {
 	if len(files) == 0 {
 		return nil, nil, fmt.Errorf("no pure-fn sources named for %s", root)
