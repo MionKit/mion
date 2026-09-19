@@ -45,18 +45,29 @@ Already verified, so do not re-derive:
 Already in place, so build on it rather than around it:
 
 - The compiler serves every installed package's pure fns through one lane
-  (`ts-go-runtypes/internal/cachegen/purefnindex/`): a package's built JS is read first (entry
-  tuples plus `registerPureFn(<tuple>, '<id>')` registrations, matched by shape), and its
-  sources only when the built files carry no tuple. run-types is on the source lane today only
-  because its tsc-built dist is hollowed and holds nothing to read. Once its dist carries the
-  tuples, the index reads them with no compiler change, `purefnids.SourceFiles` and `src` in the
-  package's published `files` can go, and the CFG004 lane for missing sources goes with them.
-- The tuples must land in files the package entry does NOT import. A consumer's bundler follows
-  imports, so tuples in the entry's own chunk put the ~11 KB the hollow step keeps out of every
-  consumer bundle straight back in. A sibling directory the index scans (any non-hidden dir under
-  the package root, `dist/pf/` say) that nothing imports keeps both: the compiler serves from it,
-  the bundler never sees it. Hidden dirs are skipped by the index on purpose (a consumer's `.mion`
-  holds served copies of other packages' rows), so not there.
+  (`ts-go-runtypes/internal/cachegen/purefnindex/`). It reads a BUILT ARTIFACT first: a
+  `mion-pure-fns/` directory under the package root, holding `index.json` plus one cache
+  module per id (`constants.PureFnArtifactDir` / `PureFnArtifactIndexFile`). Only a package
+  with no artifact falls back to extracting from its shipped TypeScript.
+- The artifact is written by the build itself. The resolver renders the pure fns OWNED by the
+  package at the program cwd (`renderPureFnArtifact`, `render.go:346`) and the plugin syncs
+  them next to the bundle (`writePureFnArtifact`, `unplugin.ts:887`). So building run-types
+  with `mionVitePlugin` produces the artifact with no compiler change.
+- run-types is on the source lane ONLY because tsc runs no plugin, so no artifact is ever
+  written. That is the whole reason `purefnids.SourceFiles`, the marker branch in
+  `extractSource` (`purefnindex.go:377`), `MarkerSourceFiles`, the CFG004 diagnostic and `src`
+  in the package's published `files` exist. Every one of them goes once the artifact ships.
+- Resolution from `node_modules` already works today (`ResolvePackage` walks up to
+  `node_modules/@mionjs/run-types` and reads its `src`). This is a cleanup of a special case,
+  not a fix for something broken. Nothing may regress for a consumer at any point.
+- The artifact dir must be reachable by the index walk, which skips `node_modules` and ANY
+  directory whose name starts with a dot (`walk`, `purefnindex.go:287`). run-types outputs to
+  `dist/`, so it is fine; the other mion packages output to `.dist/`, which the walk would
+  skip. None of them owns a pure fn today (`@mionjs/core` routes around the registrar on
+  purpose, see `inputMappers.ts:67`), so nothing is broken, but do not copy their outDir.
+- The artifact modules are not imported by the package entry, so a consumer's bundler never
+  follows them. That is what keeps the ~11 KB the hollow step removes out of consumer bundles,
+  which is why the hollow step itself should become redundant rather than move.
 
 Still to establish:
 
@@ -65,6 +76,8 @@ Still to establish:
 - Whether the resolver can take the `source` export condition road that run-types'
   own tests already rely on.
 - How `scripts/core/build.mjs`'s marker-dist / plugin-dist ordering has to change.
+- Whether `src` can leave run-types' published `files` outright, or whether the `source`
+  export condition still needs it for a consumer.
 
 Then propose concrete roads with their costs. Candidates: point the Go fixture
 overlay at `src` (or at the `source` condition) instead of `dist`; or a two-stage
@@ -73,14 +86,39 @@ bootstrap where tsc seeds once and the real build follows. Recommend one.
 Finish by stating plainly whether devtools must stay tsc-built, and why. The
 expected answer is yes, it is the plugin, but establish it rather than assume it.
 
-The implementer plans the details; this doc sets direction only.
+The implementer plans the details. The order below is not a detail: it is the
+only order that keeps every install working at each commit.
+
+## One pull request, in this order
+
+The three steps below are one change. Shipping the artifact without removing the
+special case leaves two live paths for the same ids; removing the special case first
+breaks every install. Neither half ships alone.
+
+1. **Build run-types with `mionVitePlugin`**, so its build emits `dist/mion-pure-fns/`
+   (`index.json` plus one module per built-in id). Keep the output dir un-hidden.
+   Verify the emitted ids match `purefnids.All()` exactly: an id is a hash of the body,
+   so a mismatch means the artifact and the compiler disagree on what a built-in is.
+2. **Delete the marker special case in the compiler**: the `idx.Name == MarkerPackageName`
+   branch in `extractSource`, `MarkerSourceFiles`, the `SourceFiles` block in
+   `ids.generated.go` and its generator half, and the `CFG004` diagnostic. Keep the rest
+   of `purefnids`: `Has()` and the named constants are how an emitter tells a built-in id
+   from a consumer's own, and how `usePureFn` names one.
+3. **Drop what the artifact makes dead**: `src` from run-types' published `files` (if the
+   `source` condition question above allows it), `scripts/core/hollow-builtin-purefns.mjs`,
+   and `pure-fn-ids.generated.ts` if the transform now injects those ids.
 
 ## Done when
 
 - A written answer separating hard constraints from historical accidents, each
   backed by the code that proves it.
-- A recommended road for building run-types with the mion compiler, with its cost,
-  or a clear statement of the specific constraint that makes it not worth doing.
+- run-types builds with the mion compiler and ships `dist/mion-pure-fns/`, or a clear
+  statement of the specific constraint that makes it not worth doing.
+- The compiler has no marker-package branch left: a built-in body is served the same way
+  any other installed package's is.
 - An explicit verdict on whether `pure-fn-ids.generated.ts` and the hollowing step
   survive.
 - An explicit verdict on devtools.
+- The `pre-publish-e2e` lane passes, proving a consumer installing the real tarball still
+  gets every built-in body. This is the gate that catches a pruned artifact, so the PR
+  carries the `pre-publish-e2e` label.
