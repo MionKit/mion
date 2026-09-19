@@ -93,7 +93,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A `@mion-expect-error` comment that is wrong: it silenced nothing (so it is stale and should be deleted, the same check TypeScript runs on an unused `@ts-expect-error`), it names a code that is always reported, or it names a code that does not exist',
+      'A `@mion-expect-error` comment that is wrong, at either scope (the line form, or the block comment at the top of a file that covers the whole file): it silenced nothing (so it is stale and should be deleted, the same check TypeScript runs on an unused `@ts-expect-error`), it names a code that is always reported, or it names a code that does not exist',
   },
   {
     name: 'invalid-downgrade-error',
@@ -101,7 +101,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'warn',
     gate: 'compiler',
     description:
-      'A `@mion-downgrade-error` comment that is wrong: it lowered nothing (so it is stale and should be deleted), it names a code that always stops the build, it names a code that does not exist, or it names one that is already a warning and was never halting anything',
+      'A `@mion-downgrade-error` comment that is wrong, at either scope (the line form, or the block comment at the top of a file that covers the whole file): it lowered nothing (so it is stale and should be deleted), it names a code that always stops the build, it names a code that does not exist, or it names one that is already a warning and was never halting anything',
   },
   {
     name: 'invalid-marker',

@@ -24,6 +24,10 @@ import "strings"
 //     seeing, and only the halt is unwanted — a suite pinning what a broken type
 //     does at runtime. Removing such a finding would hide a correct statement
 //     about the code.
+//
+// Either word reaches one line or a whole file (see DirectiveScope). A file whose
+// every call site raises the same finding says it once at the top instead of
+// carrying the identical comment forty times.
 
 // DirectiveMarker is the word a suppression comment starts with, and
 // DowngradeDirectiveMarker its downgrading sibling. Either comment must be the
@@ -33,6 +37,20 @@ import "strings"
 const (
 	DirectiveMarker          = "@mion-expect-error"
 	DowngradeDirectiveMarker = "@mion-downgrade-error"
+)
+
+// DirectiveScope says how far a directive reaches. The two words are the same at
+// either scope; the comment's SHAPE picks between them, which is how ESLint
+// tells its file-wide `/* eslint-disable */` from its `// eslint-disable-next-line`.
+// A block comment before any code covers the file, everything else covers the
+// next line. The caller works that out; this package only acts on the answer.
+type DirectiveScope uint8
+
+const (
+	// DirectiveScopeLine covers the line below the comment.
+	DirectiveScopeLine DirectiveScope = 1
+	// DirectiveScopeFile covers every line of the file the comment opens.
+	DirectiveScopeFile DirectiveScope = 2
 )
 
 // DirectiveKind says what a directive does to the findings it claims.
@@ -58,6 +76,8 @@ func (kind DirectiveKind) Marker() string {
 type Directive struct {
 	// Kind is what this comment does to the findings it claims.
 	Kind DirectiveKind
+	// Scope is how far it reaches. DirectiveScopeFile ignores AppliesToLine.
+	Scope DirectiveScope
 	// AppliesToLine is the 1-based line the directive silences: the line after
 	// the comment's own last line.
 	AppliesToLine int
@@ -142,21 +162,52 @@ func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(s
 		normalize = func(path string) string { return path }
 	}
 	// Index directives by the line they silence. Only the comment immediately
-	// above a finding counts, so at most one directive claims a given line.
+	// above a finding counts, so at most one directive claims a given line. File
+	// directives are indexed by file instead, and a file may carry several (one
+	// per kind, or several naming different codes).
 	byLine := make(map[directiveKey]int, len(directives))
+	byFile := map[string][]int{}
 	for index, directive := range directives {
-		byLine[directiveKey{file: normalize(directive.Site.FilePath), line: directive.AppliesToLine}] = index
+		file := normalize(directive.Site.FilePath)
+		if directive.Scope == DirectiveScopeFile {
+			byFile[file] = append(byFile[file], index)
+			continue
+		}
+		byLine[directiveKey{file: file, line: directive.AppliesToLine}] = index
 	}
 	used := make([]bool, len(directives))
 
 	survivors := make([]Diagnostic, 0, len(list))
 	for _, diagnostic := range list {
-		index, claimed := byLine[directiveKey{file: normalize(diagnostic.Site.FilePath), line: diagnostic.Site.StartLine}]
-		if claimed && directives[index].covers(diagnostic.Code) {
+		file := normalize(diagnostic.Site.FilePath)
+		// Every claimer counts as used, not just the one whose action won. That
+		// is what keeps a file comment from turning the line comments it covers
+		// into forty "this silenced nothing" reports: each still claims its own
+		// finding. A line comment on a line that raises nothing was already
+		// stale before the file comment arrived, and is still reported.
+		removed := false
+		downgraded := false
+		claim := func(index int) {
 			used[index] = true
 			if directives[index].Kind == DirectiveExpect {
-				continue
+				removed = true
+				return
 			}
+			downgraded = true
+		}
+		if index, claimed := byLine[directiveKey{file: file, line: diagnostic.Site.StartLine}]; claimed && directives[index].covers(diagnostic.Code) {
+			claim(index)
+		}
+		for _, index := range byFile[file] {
+			if directives[index].covers(diagnostic.Code) {
+				claim(index)
+			}
+		}
+		// Removing wins over lowering: a finding cannot be both gone and printed.
+		if removed {
+			continue
+		}
+		if downgraded {
 			diagnostic.Downgraded = true
 		}
 		survivors = append(survivors, diagnostic)
@@ -166,7 +217,8 @@ func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(s
 		return survivors
 	}
 	for index, directive := range directives {
-		if !scope.sawFile(normalize(directive.Site.FilePath)) {
+		file := normalize(directive.Site.FilePath)
+		if !scope.sawFile(file) {
 			continue
 		}
 		malformed := false
@@ -297,9 +349,11 @@ func (directive Directive) covers(code string) bool {
 	} else if !Suppressible(code) {
 		return false
 	}
-	if len(directive.Codes) == 0 {
-		return true
-	}
+	return len(directive.Codes) == 0 || directive.namesCode(code)
+}
+
+// namesCode reports whether code appears in this directive's written list.
+func (directive Directive) namesCode(code string) bool {
 	for _, named := range directive.Codes {
 		if named == code {
 			return true
