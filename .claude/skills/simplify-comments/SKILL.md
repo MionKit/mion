@@ -11,7 +11,7 @@ The output is: the files edited in place, plus a report of every comment changed
 
 ## The rules
 
-1. **One line.** Every comment is a single line. A `/** */` or `/* */` one-liner counts. The only multi-line comment allowed is at the top of a file, one paragraph at most, and only when the file needs a reason to exist that its name and exports do not give.
+1. **One line, under about 120 characters.** Every comment is a single line, and a line is not a paragraph squeezed onto it: past about 120 characters, cut words, or split into two lines of one sentence each. A `/** */` or `/* */` one-liner counts. The only multi-line comment allowed is at the top of a file, one paragraph at most, and only when the file needs a reason to exist that its name and exports do not give.
 2. **Only what the code cannot say.** A comment states a reason, a constraint, an invariant, an ordering requirement, a trap, or a link to the thing that forced the choice. Anything a reader gets from the code below it (what it does, which function it calls, what the branch checks, what the variable holds) goes.
 3. **Correct over short.** When shortening would drop the fact, keep the fact and cut words around it. When you are not sure what the comment means, read the code until you are; if you still are not sure, leave it and list it in the report.
 4. **Always shorter, usually much shorter.** Every comment you touch ends up with fewer words than it had, and most end up with far fewer: five lines to one is the normal outcome, not the exception. A comment that comes out longer is a failed edit; revert it and list it under Kept with why.
@@ -44,7 +44,7 @@ In this order, for each comment you own:
 
 1. **Read the code it sits on** until you can say, in one sentence, what the code does without the comment.
 2. **Find the fact the code cannot say.** Cross out every clause the code already shows. What is left is the comment. If nothing is left, delete it.
-3. **Write it as one line**, plain words, the fact first. A Go doc comment on an exported name still starts with the name.
+3. **Write it as one line**, plain words, the fact first, under about 120 characters. A Go doc comment on an exported name still starts with the name.
 4. **Check it against the code again.** The new line must be true of the code as it is now, not as the old comment described it.
 5. **A multi-line file header** shrinks to one paragraph that says why the file exists and the one thing a reader must know before editing it. Delete the rest, or move a line that belongs to a specific function onto that function.
 
