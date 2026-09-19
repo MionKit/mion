@@ -107,6 +107,7 @@ export {FAMILY_TAG_TO_FN_KEY} from './go-generated/fnHashes.generated.ts';
 // `pureFn.ts` MUST evaluate before any cache factory that references pure-fn
 // helpers (e.g. validationErrors needs newRunTypeErr).
 export {registerPureFnFactory, registerPureFn, type PureFnId} from './runtypes/pureFn.ts';
+export {RUN_TYPES_PURE_FN_ID_PREFIX} from './runtypes/pure-fn-ids.generated.ts';
 // Side-effect import: the package's own pure fns (newRunTypeErr,
 // getUnknownKeysFromArray, …) register at their own registrar call sites now —
 // there is no monolithic pureFnsCache module delivering their bodies — so the

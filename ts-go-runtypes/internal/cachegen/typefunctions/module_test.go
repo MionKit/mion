@@ -444,7 +444,7 @@ func extractInitLine(out, key string) string {
 	}
 	// One rendered entry is one line, so take the line. (Cutting at the first
 	// `);` used to work only because no emitted body contained one; a pure-fn
-	// preamble — `utl.getPureFn('@mionjs/run-types/src/formats/string/string-formats-pure-fns#codePointLength');` — does, and it
+	// preamble — `utl.getPureFn('@mionjs/run-types/src/formats/string/string-formats-pure-fns#pf_codePointLength');` — does, and it
 	// truncated the entry before the assertions could see it.)
 	rest := out[start:]
 	if end := strings.IndexByte(rest, '\n'); end >= 0 {
@@ -1086,10 +1086,10 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 	// module scope, so the legacy skeleton `k_<alias>` identifier shortcut
 	// is gone (aliases only shorten context-var NAMES inside bodies now).
 	deps := []protocol.PureFnDep{
-		{ID: "@acme/app/src/pure#asJSONString"},
+		{ID: "@acme/app/src/pure#pf_asJSONString"},
 		{ID: purefnids.NewRunTypeErr},
 	}
-	want := "['" + "@acme/app/src/pure#asJSONString" + "','" + purefnids.NewRunTypeErr + "']"
+	want := "['" + "@acme/app/src/pure#pf_asJSONString" + "','" + purefnids.NewRunTypeErr + "']"
 	if got := pureFnDepsJS(deps); got != want {
 		t.Errorf("populated → %q, want %q", got, want)
 	}
@@ -1097,9 +1097,9 @@ func TestPureFnDepsJS_EmptyAndPopulated(t *testing.T) {
 
 func TestValidateModule_PureFnDepsRendered(t *testing.T) {
 	deps := pureFnDepsJS([]protocol.PureFnDep{
-		{ID: "@acme/app/src/pure#asJSONString"},
+		{ID: "@acme/app/src/pure#pf_asJSONString"},
 	})
-	if deps != "['"+"@acme/app/src/pure#asJSONString"+"']" {
+	if deps != "['"+"@acme/app/src/pure#pf_asJSONString"+"']" {
 		t.Fatalf("projection mismatch: got %q", deps)
 	}
 	if strings.Contains(deps, "/some/abs/") || strings.Contains(deps, "filePath") {

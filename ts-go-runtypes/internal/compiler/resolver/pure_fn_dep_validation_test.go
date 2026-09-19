@@ -9,7 +9,7 @@ import (
 
 // runtypesDTSWithPureFn is the ambient `mion` module used by the
 // PFE9012 tests. It carries just enough surface to (a) demand a verr entry —
-// whose live body reaches `utl.getPureFn('@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr')` — and (b) let a
+// whose live body reaches `utl.getPureFn('@mionjs/run-types/src/runtypes/pure-fns-utils#pf_newRunTypeErr')` — and (b) let a
 // companion .ts file register a pure fn so the extractor recognizes it. Like a
 // published-package consumer, it resolves `@mionjs/run-types` to a declaration:
 // the runtime's own `rt::`/`rtFormats::` registrations live in the package's
@@ -58,7 +58,7 @@ func assertNoPFE9012(t *testing.T, diags []diagnostics.Diagnostic) {
 // test for the PFE9012 false positive: a published-package consumer resolves
 // `@mionjs/run-types` to its .d.ts (so the runtime's `rt::` registration source
 // is NOT in the program), uses a feature whose emitted body reaches a built-in
-// (createGetValidationErrorsFn -> `@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr`), AND registers its OWN pure
+// (createGetValidationErrorsFn -> `@mionjs/run-types/src/runtypes/pure-fns-utils#pf_newRunTypeErr`), AND registers its OWN pure
 // fn. The consumer's registration used to make the program's registration count
 // non-zero, defeating the "any registration present?" guard and turning every
 // built-in reference into a PFE9012 wall that halted the build. Built-in
@@ -127,7 +127,7 @@ func TestPureFnDepValidation_RegistrationPresent_NoDiagnostic(t *testing.T) {
 export const errorsOf = createGetValidationErrorsFn<{a: string; b: number}>();
 `,
 		"reg.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
-export const _reg = registerPureFnFactory('@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr', function () { return function () { return []; }; });
+export const _reg = registerPureFnFactory('@mionjs/run-types/src/runtypes/pure-fns-utils#pf_newRunTypeErr', function () { return function () { return []; }; });
 `,
 	}
 

@@ -217,7 +217,7 @@ type RTEntry struct {
 	CrossFamilyRefs []CrossFamilyRef `json:"crossFamilyRefs,omitempty"`
 	// PureFnRefs is one entry per pure-fn dependency the body reaches
 	// (walker.PureFnDependencies, each a pure fn's id, e.g.
-	// `@mionjs/run-types#Rt9pQ2wLdKq3f_`). Persisted so a cache hit rebuilds the
+	// `@mionjs/run-types#pf_Rt9pQ2wLdKq3f_`). Persisted so a cache hit rebuilds the
 	// entry's SoftDeps pure-fn edges — the demand-driven built-in delivery
 	// imports the pure-fn module off these.
 	//

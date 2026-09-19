@@ -48,6 +48,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
@@ -171,9 +172,9 @@ func (store *Store) Package(root string) *PackageIndex {
 	}
 	var bindings []nameBinding
 	// A tuple carries its own id literal and a registration names it too, so
-	// a file without `<name>#` holds nothing to read. The substring check is
+	// a file without `<name>#pf_` holds nothing to read. The substring check is
 	// ~20x cheaper than the parse and is what keeps a large package cheap.
-	needle := idx.Name + purefunctions.IDSeparator
+	needle := idx.Name + constants.PureFnHashPrefix
 	for _, file := range store.filesUnder(root, isJSFile) {
 		if content, ok := store.fs.ReadFile(file); ok && strings.Contains(content, needle) {
 			bindings = scanFile(idx, bindings, file, content)
@@ -687,7 +688,7 @@ func registrationID(expression *ast.Node) string {
 		return ""
 	}
 	last := arguments.Nodes[len(arguments.Nodes)-1]
-	if !isStringLiteral(last) || !strings.Contains(last.Text(), "#") {
+	if !isStringLiteral(last) || !strings.Contains(last.Text(), constants.PureFnHashPrefix) {
 		return ""
 	}
 	return last.Text()

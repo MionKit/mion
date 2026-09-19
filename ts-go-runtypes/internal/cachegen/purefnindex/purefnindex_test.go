@@ -24,10 +24,10 @@ import (
 
 const (
 	textPkg    = "/virtual/app/node_modules/@acme/text"
-	slugifyID  = "@acme/text#slug00000000000"
-	titleID    = "@acme/text#title0000000000"
-	isoDayID   = "@acme/dates#day00000000000"
-	trimID     = "@acme/util#trim00000000000"
+	slugifyID  = "@acme/text#pf_slug00000000000"
+	titleID    = "@acme/text#pf_title0000000000"
+	isoDayID   = "@acme/dates#pf_day00000000000"
+	trimID     = "@acme/util#pf_trim00000000000"
 	slugifyRow = `[2,,,'` + slugifyID + `',['utl'],'return (s) => s.toLowerCase();',[]]`
 )
 
@@ -168,7 +168,7 @@ func TestClosure_AcrossPackagesFromDependentRoot(t *testing.T) {
 // installed is unresolved.
 func TestClosure_MissingUnbuiltUnresolved(t *testing.T) {
 	legacyPkg := "/virtual/app/node_modules/@acme/legacy"
-	const padID = "@acme/legacy#pad0000000000"
+	const padID = "@acme/legacy#pf_pad0000000000"
 	store := storeOver(map[string]string{
 		textPkg + "/package.json":   `{"name":"@acme/text"}`,
 		textPkg + "/dist/index.js":  "const a = " + slugifyRow + ";\n",
@@ -176,7 +176,7 @@ func TestClosure_MissingUnbuiltUnresolved(t *testing.T) {
 		legacyPkg + "/index.js":     "export const padId = registerPureFn((s) => s.padStart(4, '0'), '" + padID + "');\n",
 	})
 	result := store.Closure([]Demand{
-		{ID: "@acme/text#gone0000000000", FromDir: "/virtual/app"},
+		{ID: "@acme/text#pf_gone0000000000", FromDir: "/virtual/app"},
 		{ID: padID, FromDir: "/virtual/app"},
 		{ID: trimID, FromDir: "/virtual/app"},
 		{ID: "#own00000000000", FromDir: "/virtual/app"},
@@ -186,7 +186,7 @@ func TestClosure_MissingUnbuiltUnresolved(t *testing.T) {
 	}
 	wantMissing := []Miss{
 		{ID: padID, Package: "@acme/legacy", Root: legacyPkg, Built: false},
-		{ID: "@acme/text#gone0000000000", Package: "@acme/text", Root: textPkg, Built: true},
+		{ID: "@acme/text#pf_gone0000000000", Package: "@acme/text", Root: textPkg, Built: true},
 	}
 	if !reflect.DeepEqual(result.Missing, wantMissing) {
 		t.Errorf("missing = %+v, want %+v", result.Missing, wantMissing)
@@ -198,12 +198,12 @@ func TestClosure_MissingUnbuiltUnresolved(t *testing.T) {
 
 func TestPackageOfID(t *testing.T) {
 	for id, want := range map[string]string{
-		slugifyID:               "@acme/text",
-		"lib#f":                 "lib",
-		"#hash":                 "",
-		"noseparator":           "",
-		purefnids.NewRunTypeErr: "@mionjs/run-types",
-		"@scope/name/deep#hash": "@scope/name/deep",
+		slugifyID:                  "@acme/text",
+		"lib#pf_f":                 "lib",
+		"#hash":                    "",
+		"noseparator":              "",
+		purefnids.NewRunTypeErr:    "@mionjs/run-types",
+		"@scope/name/deep#pf_hash": "@scope/name/deep",
 	} {
 		if got := PackageOfID(id); got != want {
 			t.Errorf("PackageOfID(%q) = %q, want %q", id, got, want)
@@ -350,7 +350,7 @@ func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
 		t.Error("findCycle was not served")
 	}
 	// The closure pulls a dependency's module too (isDateString_YMD → isDateString).
-	result := store.Closure([]Demand{{ID: purefnids.IsDateStringYMD, FromDir: cwd}, {ID: purefnids.IsDateStringDMY, FromDir: cwd}, {ID: "@mionjs/run-types#totallyMadeUp", FromDir: cwd}})
+	result := store.Closure([]Demand{{ID: purefnids.IsDateStringYMD, FromDir: cwd}, {ID: purefnids.IsDateStringDMY, FromDir: cwd}, {ID: "@mionjs/run-types#pf_totallyMadeUp", FromDir: cwd}})
 	served := map[string]int{}
 	for _, entry := range result.Entries {
 		served[entry.ID]++
@@ -361,7 +361,7 @@ func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
 	if served[purefnids.IsDateString] != 1 || served[purefnids.IsDateStringYMD] != 1 {
 		t.Errorf("closure = %v", served)
 	}
-	if len(result.Missing) != 1 || result.Missing[0].ID != "@mionjs/run-types#totallyMadeUp" || !result.Missing[0].Built {
+	if len(result.Missing) != 1 || result.Missing[0].ID != "@mionjs/run-types#pf_totallyMadeUp" || !result.Missing[0].Built {
 		t.Errorf("a made-up built-in must be a miss on a built package, got %+v", result.Missing)
 	}
 }

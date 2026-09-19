@@ -100,11 +100,11 @@ func TestDeps_StringLiteralTypeResolves(t *testing.T) {
 	// the generated constants file exports. That resolves and lowers too.
 	code := codeOf(t, "titleOf", `
 import {registerPureFnFactory} from '@mionjs/run-types';
-declare const remoteId: '@acme/other/src/slug#slugify';
+declare const remoteId: '@acme/other/src/slug#pf_slugify';
 export const titleOf = registerPureFnFactory(function (utl) {
   return function _f(s: string) { return utl.getPureFn(remoteId)(s); };
 });`)
-	if !strings.Contains(code, "utl.getPureFn('@acme/other/src/slug#slugify')") {
+	if !strings.Contains(code, "utl.getPureFn('@acme/other/src/slug#pf_slugify')") {
 		t.Errorf("expected the literal-typed id to lower, got:\n%s", code)
 	}
 }
@@ -164,7 +164,7 @@ func TestDeps_FactoryLocalConst(t *testing.T) {
 	code := codeOf(t, "local", `
 import {registerPureFnFactory} from '@mionjs/run-types';
 export const local = registerPureFnFactory(function (utl) {
-  const KEY = '@acme/app/src/other#localDep';
+  const KEY = '@acme/app/src/other#pf_localDep';
   return function _f(x: any) {
     return utl.getPureFn(KEY)(x);
   };
@@ -175,12 +175,12 @@ export const local = registerPureFnFactory(function (utl) {
 	deps, _ := depsOf(t, "local", `
 import {registerPureFnFactory} from '@mionjs/run-types';
 export const local = registerPureFnFactory(function (utl) {
-  const KEY = '@acme/app/src/other#localDep';
+  const KEY = '@acme/app/src/other#pf_localDep';
   return function _f(x: any) {
     return utl.getPureFn(KEY)(x);
   };
 });`)
-	if len(deps) != 1 || deps[0] != "@acme/app/src/other#localDep" {
+	if len(deps) != 1 || deps[0] != "@acme/app/src/other#pf_localDep" {
 		t.Fatalf("expected the const's value as the dep, got %v", deps)
 	}
 }
@@ -190,10 +190,10 @@ func TestDeps_StringLiteralAtCallSite(t *testing.T) {
 import {registerPureFnFactory} from '@mionjs/run-types';
 export const literal = registerPureFnFactory(function (utl) {
   return function _f(x: any) {
-    return utl.getPureFn('@acme/app/src/other#written')(x);
+    return utl.getPureFn('@acme/app/src/other#pf_written')(x);
   };
 });`)
-	if len(deps) != 1 || deps[0] != "@acme/app/src/other#written" {
+	if len(deps) != 1 || deps[0] != "@acme/app/src/other#pf_written" {
 		t.Fatalf("expected the written id as the dep, got %v", deps)
 	}
 }
@@ -205,13 +205,13 @@ func TestDeps_DedupAndSort(t *testing.T) {
 import {registerPureFnFactory} from '@mionjs/run-types';
 export const dedup = registerPureFnFactory(function (utl) {
   return function _f(x: any) {
-    utl.getPureFn('@acme/app/src/other#z')(x);
-    utl.usePureFn('@acme/app/src/other#a')(x);
-    utl.getPureFn('@acme/app/src/other#a')(x);
+    utl.getPureFn('@acme/app/src/other#pf_z')(x);
+    utl.usePureFn('@acme/app/src/other#pf_a')(x);
+    utl.getPureFn('@acme/app/src/other#pf_a')(x);
     return 1;
   };
 });`)
-	want := []string{"@acme/app/src/other#a", "@acme/app/src/other#z"}
+	want := []string{"@acme/app/src/other#pf_a", "@acme/app/src/other#pf_z"}
 	if strings.Join(deps, ",") != strings.Join(want, ",") {
 		t.Fatalf("expected sorted-deduped %v, got %v", want, deps)
 	}
@@ -405,7 +405,7 @@ export const titleOf = registerPureFnFactory(function (utl) {
   return function _f(s: string) { return utl.getPureFn(slugify)(s); };
 });`,
 	}
-	const slugifyID = "@acme/text#slug00000000000"
+	const slugifyID = "@acme/text#pf_slug00000000000"
 	entries, diags := extractFromOverlayWith(t, files, func(opts *marker.Options) {
 		opts.PureFnBindings = bindingTable{"index.d.ts#slugify": slugifyID}
 	})

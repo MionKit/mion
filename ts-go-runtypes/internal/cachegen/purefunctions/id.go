@@ -5,14 +5,15 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
 // A pure function's id is the package that owns it and a hash of the function
 // itself:
 //
-//	<package name>#<hash of the body that ships>
-//	@mionjs/run-types#Kq3f_xN9pQ2wLd
-//	@acme/text#9Zt1bRm4cVaPqL
+//	<package name>#pf_<hash of the body that ships>
+//	@mionjs/run-types#pf_Kq3f_xN9pQ2wLd
+//	@acme/text#pf_9Zt1bRm4cVaPqL
 //
 // One rule for every registration, wherever it is written. The id depends on
 // the function and nothing else: renaming the binding it is assigned to,
@@ -35,10 +36,6 @@ import (
 // the registrar call, the key the emitted module registers under, and the
 // literal a dependent body carries after lowering.
 
-// IDSeparator splits the package half of an id from its hash. A package name
-// can hold no `#`, so the LAST one always splits.
-const IDSeparator = "#"
-
 // IDFor builds the id of a registration written in filePath whose shipped body
 // hashes to hash. A file under no NAMED package keeps the hash alone, which is
 // what an in-memory overlay or a scratch project gets; unlike a path, that is
@@ -46,17 +43,17 @@ const IDSeparator = "#"
 func IDFor(markerOpts marker.Options, filePath, hash string) string {
 	opts := marker.WithDefaults(markerOpts)
 	packageName, _ := marker.PackageOfFile(filePath, opts.FS)
-	return packageName + IDSeparator + hash
+	return packageName + constants.PureFnHashPrefix + hash
 }
 
 // SplitID returns an id's package and hash halves. ok is false for a string
 // with no separator, which is never an id this package produced.
 func SplitID(id string) (packageName, hash string, ok bool) {
-	sep := strings.LastIndex(id, IDSeparator)
+	sep := strings.LastIndex(id, constants.PureFnHashPrefix)
 	if sep < 0 {
 		return "", "", false
 	}
-	return id[:sep], id[sep+len(IDSeparator):], true
+	return id[:sep], id[sep+len(constants.PureFnHashPrefix):], true
 }
 
 // valueNodeOf climbs the wrappers that carry no runtime meaning — parentheses,

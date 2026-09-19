@@ -149,7 +149,7 @@ func TestRender_MissingStub(t *testing.T) {
 
 func TestRender_PureFnModuleNameEncoding(t *testing.T) {
 	const core = purefnids.NewRunTypeErr
-	const weirdKey = "we ird/deep#fn$x"
+	const weirdKey = "we ird/deep#pf_fn$x"
 	graph := Graph{}
 	graph.Add(&Entry{Key: core, Kind: KindPureFn, ArgsText: "'" + core + "','h1'"})
 	graph.Add(&Entry{Key: weirdKey, Kind: KindPureFn, ArgsText: "'" + weirdKey + "','h2'", Deps: []string{core}})
@@ -240,7 +240,7 @@ func keysOf(m map[string]string) []string {
 // A missing stub for a pure-fn id is named like a pure-fn module: the id's `#`
 // would otherwise end up in an import URL as a fragment and never resolve.
 func TestModuleName_MissingStubForPureFnIdUsesPureFnLayout(t *testing.T) {
-	const id = "@acme/legacy/index#padId"
+	const id = "@acme/legacy/index#pf_padId"
 	if got, want := ModuleName(id, KindMissing), ModuleName(id, KindPureFn); got != want || strings.Contains(got, "#") {
 		t.Errorf("ModuleName(missing pure-fn id) = %q, want %q", got, want)
 	}

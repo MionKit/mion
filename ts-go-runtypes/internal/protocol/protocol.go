@@ -469,7 +469,7 @@ type PureFnSite struct {
 	Start int    `json:"start"`
 	End   int    `json:"end"`
 	// Key is the id the entry is interned under: the package that owns the pure
-	// fn and a hash of the body that ships (`@acme/text#9Zt1bRm4cVaPqL`).
+	// fn and a hash of the body that ships (`@acme/text#pf_9Zt1bRm4cVaPqL`).
 	Key string `json:"key"`
 	// BindingName is the identifier the registration was assigned to, or empty
 	// for one written straight into a call. It is not part of the id — a hash
