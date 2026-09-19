@@ -411,6 +411,20 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
 // transform injects relative imports to them, so every bundler resolves them
 // natively — no virtual-module hooks. The Vite-only config + HMR hooks ride
 // the `vite` escape hatch.
+/** The subpath @mionjs/client's request path imports the fetched metadata lane through. */
+const FETCHED_LANE_ID = '#fetched-lane';
+const FETCHED_LANE_STUB_ID = '\0mion-fetched-lane-stub';
+/** Every name the request path reaches for, as a no-op: it only calls them after deciding the
+ *  bundle lacks a method, which under `bundled` is refused before the lane is ever loaded. */
+const FETCHED_LANE_STUB = `export const createMetadataSubRequest = () => ({pointer: [], id: '', isResolved: false, params: []});
+export const extractAndProcessMetadata = () => undefined;
+export const hydrateMetadataCache = () => Promise.resolve();
+export const purgeHydratedMetadata = () => Promise.resolve();
+export const takeMetadataCacheError = () => undefined;
+export const wasHydratedFromCache = () => false;
+export const fetchRemoteMethodsMetadata = () => Promise.resolve();
+`;
+
 export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) => {
   const options = rawOptions ?? {};
   // Wire mode for the per-file rewrite. Default 'edits' (the light path that
@@ -1258,6 +1272,25 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // this is one filter for all hosts rather than an esbuild special case.
     transformInclude(id: string) {
       return /\.[mc]?[jt]sx?$/.test(id);
+    },
+
+    // A client whose whole API came with the build never asks the server how a route works, never
+    // stores an answer and never rebuilds a compiled function. @mionjs/client reaches that code
+    // through one `#fetched-lane` import, so answering it with an empty module here is what keeps
+    // the fetch, the store, eviction and persistence out of the bundle rather than in a chunk
+    // nothing ever loads. Only under `bundled`: `mixed` fetches whatever the build could not see.
+    resolveId(id: string) {
+      if (options.bundleApi !== 'bundled') return null;
+      return id === FETCHED_LANE_ID ? FETCHED_LANE_STUB_ID : null;
+    },
+
+    loadInclude(id: string) {
+      return id === FETCHED_LANE_STUB_ID;
+    },
+
+    load(id: string) {
+      if (id !== FETCHED_LANE_STUB_ID) return null;
+      return FETCHED_LANE_STUB;
     },
 
     async transform(this: any, code: string, id: string) {

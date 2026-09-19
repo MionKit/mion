@@ -25,6 +25,12 @@ export type {BrokerHandle, NextOptions};
 /** The loader specifier to put in `turbopack.rules`. */
 export const RUNTYPES_LOADER = '@mionjs/devtools/runtypes/next/loader';
 
+/** The subpath @mionjs/client reaches the fetched metadata lane through, and the empty module it
+ *  answers with under `bundleApi: 'bundled'`. Turbopack has no plugin API, so this is a resolve
+ *  alias rather than the virtual module every other bundler gets. */
+const FETCHED_LANE_ID = '#fetched-lane';
+const FETCHED_LANE_STUB = '@mionjs/devtools/runtypes/next/fetched-lane-stub';
+
 // Which TypeScript files get the rewrite. `condition: {not: 'foreign'}` keeps
 // the loader off node_modules and Next's own internals, which is both a large
 // speed-up and the documented way to scope a Turbopack rule.
@@ -38,7 +44,7 @@ interface TurbopackRule {
   as?: string;
 }
 interface NextConfigLike {
-  turbopack?: {rules?: Record<string, unknown>; [key: string]: unknown};
+  turbopack?: {rules?: Record<string, unknown>; resolveAlias?: Record<string, unknown>; [key: string]: unknown};
   webpack?: (config: WebpackConfigLike, context: unknown) => WebpackConfigLike;
   [key: string]: unknown;
 }
@@ -103,6 +109,11 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
         ...nextConfig.turbopack?.rules,
         ...runTypesTurbopackRules(socketPath),
       },
+      // A client that ships every route it calls must not also ship the code that asks the server
+      // for one. `mixed` still fetches whatever the build could not see, so it keeps the lane.
+      ...(options.bundleApi === 'bundled'
+        ? {resolveAlias: {...nextConfig.turbopack?.resolveAlias, [FETCHED_LANE_ID]: FETCHED_LANE_STUB}}
+        : {}),
     },
   };
 }
