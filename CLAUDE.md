@@ -233,6 +233,8 @@ User-facing docs live in ONE content tree (Nuxt + Docus Markdown + MDC), [contai
   - No metaphors, no personification: not "cannot outlive the problem", "keeps the file honest", "help nobody".
   - No trailing justification clause ("..., which is what you want when ...", "..., so it cannot ...") unless the reason IS the point.
   - Start with the thing or the action. Never a setup sentence ("Sometimes a whole file raises the same error.").
+  - Cut what a developer already knows: how to separate list items, that a file is edited by hand, what a comment is. Say only what this feature does differently.
+  - Shorter always wins. An edit that makes a sentence longer needs a reason the reader would accept.
   - Say what a feature does for the reader, not how it is built. No internals (hashing, byte offsets, "side-channel", cache mechanics), no history, no comparison with another tool unless the reader needs it to use the feature.
   - Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
 - **Every page written or changed gets a simplification pass before the PR**, by the `docs-simplifier` subagent running the [simplify-docs skill](.claude/skills/simplify-docs/SKILL.md), never by the session that wrote it. `implement-todo` runs it as its last step. The skill holds real before / after examples of titles and sentences; read them before writing a page.

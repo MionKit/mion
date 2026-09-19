@@ -34,6 +34,12 @@ The test for a title: read it alone in the table of contents. It must say what t
 | A bare comment covers anything reported on that line, and only your editor can then tell you it went stale, because the build does not run every check the editor does. | A comment with no code hides every error on that line. |
 | Use it for findings you cannot annotate: a type inside a package you do not own, or a problem in your project config. | Use it when you cannot add a comment: the type is in a package you do not own. |
 
+One more, from the first run of this pass itself. Moving a fact into a sentence made it longer, and the fact was one every developer assumes:
+
+| Longer | Shorter |
+| --- | --- |
+| Use `//` above a line to cover that line. Use `/* */` at the top of the file, before any code, to cover the whole file. Put several codes on one comment, split by spaces or commas. | Use `//` above a line to cover that line. Use `/* */` at the top of the file, before any code, to cover the whole file. Several codes fit on one comment. |
+
 What the wrong side keeps doing:
 
 - A metaphor for a plain action: "stand down", "outlive", "help nobody", "keeps honest".
@@ -41,6 +47,7 @@ What the wrong side keeps doing:
 - A setup sentence before the point: "Sometimes a whole file ...".
 - Internals the reader cannot act on: "the word your editor's problem matcher reads", "the build does not run every check the editor does".
 - The feature's vocabulary where the reader has a word: "finding" for error, "annotate" for add a comment, "stand down" for turn off.
+- Telling a developer what they already know: how to separate list items, that a file is edited by hand, what a comment is.
 
 ## Example comments
 
