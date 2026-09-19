@@ -114,6 +114,38 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
+// The same two directives at FILE scope: a block comment before any code covers
+// every line, the way ESLint reads `/* eslint-disable */`. Two bad calls, so the
+// fixtures also show one comment answering what would otherwise be two.
+const FILE_EXPECT_SRC = `/* @mion-expect-error VL002 */
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+export const firstBad = createValidateFn<symbol>();
+export const secondBad = createValidateFn<symbol>();
+export const goodStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const goodReflected = getRunTypeId(sample);
+`;
+
+const FILE_DOWNGRADE_SRC = `/* @mion-downgrade-error VL002 */
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+export const firstBad = createValidateFn<symbol>();
+export const secondBad = createValidateFn<symbol>();
+export const goodStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const goodReflected = getRunTypeId(sample);
+`;
+
+// A file directive over a program that raises nothing it names: stale at file
+// scope reports the same way it does at line scope, so the comment cannot
+// outlive its problem.
+const STALE_FILE_SRC = `/* @mion-expect-error VL002 */
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+export const good = createValidateFn<{name: string}>();
+export const goodStatic = getRunTypeId<{name: string}>();
+const sample = {name: 'Ada'};
+export const goodReflected = getRunTypeId(sample);
+`;
+
 // A function at a PROPERTY position drops with a Warning (VL010-class), never
 // an Error — the strict default must NOT halt on it.
 const WARNING_ENTRY_SRC = `import {createValidateFn} from '@mionjs/run-types';
@@ -203,6 +235,9 @@ const EXPECT_ERROR_DIR = path.join(FIXTURE_DIR, 'expect-error-program');
 const STALE_EXPECT_DIR = path.join(FIXTURE_DIR, 'stale-expect-program');
 const DOWNGRADE_ERROR_DIR = path.join(FIXTURE_DIR, 'downgrade-error-program');
 const STALE_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'stale-downgrade-program');
+const FILE_EXPECT_DIR = path.join(FIXTURE_DIR, 'file-expect-program');
+const FILE_DOWNGRADE_DIR = path.join(FIXTURE_DIR, 'file-downgrade-program');
+const STALE_FILE_DIR = path.join(FIXTURE_DIR, 'stale-file-program');
 
 describe('downgradeErrors — Error-severity diagnostics fail the build in every lane', () => {
   const register = hasBinary() ? it : it.skip;
@@ -218,6 +253,9 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     writeFixture(STALE_EXPECT_DIR, STALE_EXPECT_SRC);
     writeFixture(DOWNGRADE_ERROR_DIR, DOWNGRADE_ERROR_SRC);
     writeFixture(STALE_DOWNGRADE_DIR, STALE_DOWNGRADE_SRC);
+    writeFixture(FILE_EXPECT_DIR, FILE_EXPECT_SRC);
+    writeFixture(FILE_DOWNGRADE_DIR, FILE_DOWNGRADE_SRC);
+    writeFixture(STALE_FILE_DIR, STALE_FILE_SRC);
   });
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));
 
@@ -329,6 +367,44 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
     try {
       await callHook(plugin.buildStart, ctx);
       expect(ctx.warnings.join('\n')).toContain('warning DWN001');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('a block comment at the top of a file removes the finding at every site in it', async () => {
+    // Two bad calls, one comment. The whole point of the file scope: a file that
+    // stands the same code down on every line says it once.
+    const plugin = makePlugin(FILE_EXPECT_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx); // must NOT throw — both findings are gone
+      expect(ctx.warnings.join('\n')).not.toContain('VL002');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('a file-scope `@mion-downgrade-error` keeps both findings printing and stops the halt', async () => {
+    const plugin = makePlugin(FILE_DOWNGRADE_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx); // must NOT throw
+      const all = ctx.warnings.join('\n');
+      expect(all).toContain('warning VL002');
+      expect(all).toContain('(downgraded)');
+      expect(all).not.toContain('error VL002');
+    } finally {
+      await callHook(plugin.buildEnd, ctx);
+    }
+  });
+
+  register('an unused file directive is reported but does not halt (EXP001)', async () => {
+    const plugin = makePlugin(STALE_FILE_DIR);
+    const ctx = makeCtx();
+    try {
+      await callHook(plugin.buildStart, ctx);
+      expect(ctx.warnings.join('\n')).toContain('warning EXP001');
     } finally {
       await callHook(plugin.buildEnd, ctx);
     }
