@@ -158,6 +158,24 @@ func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
 	}
 }
 
+// The mirror, and what a dev tree relies on: with no artifact built yet the package is scanned
+// for its registrations like any other unbuilt dependency, so a sibling package compiles against
+// a run-types that has never been built.
+func TestBuiltinDelivery_SourcesServeWithoutArtifact(t *testing.T) {
+	resp := markerBuild(t, "/"+constants.PureFnArtifactDir+"/")
+	for _, diag := range resp.Diagnostics {
+		if diag.Code == diagnostics.CodePureFnDepUnbuilt || diag.Code == diagnostics.CodeMissingPureFnDep {
+			t.Fatalf("the sources must still serve the built-ins, got %s %v", diag.Code, diag.Args)
+		}
+	}
+	for name := range resp.EntryModules {
+		if strings.HasPrefix(name, "pf/") {
+			return
+		}
+	}
+	t.Fatalf("no pure-fn module served, got %v", keys(resp.EntryModules))
+}
+
 // With neither artifact nor sources the bodies are nowhere (the dist is hollowed), so the build must fail
 // naming the package; the alternative is a validator that throws at its first call.
 func TestBuiltinDelivery_MarkerWithNothingToServeFails(t *testing.T) {
