@@ -30,8 +30,8 @@
     "imports": {
         "#fetched-lane": {
             "source": "./src/lib/fetchedLane.ts",
-            "require": "./.dist/cjs/lib/fetchedLane.cjs",
-            "default": "./.dist/esm/lib/fetchedLane.js"
+            "require": "./.dist/cjs/src/lib/fetchedLane.cjs",
+            "default": "./.dist/esm/src/lib/fetchedLane.js"
         }
     },
     "directories": {
