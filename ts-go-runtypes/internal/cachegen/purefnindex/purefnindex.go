@@ -170,8 +170,12 @@ func (store *Store) Package(root string) *PackageIndex {
 		}
 	}
 	var bindings []nameBinding
+	// A tuple carries its own id literal and a registration names it too, so
+	// a file without `<name>#` holds nothing to read. The substring check is
+	// ~20x cheaper than the parse and is what keeps a large package cheap.
+	needle := idx.Name + purefunctions.IDSeparator
 	for _, file := range store.filesUnder(root, isJSFile) {
-		if content, ok := store.fs.ReadFile(file); ok {
+		if content, ok := store.fs.ReadFile(file); ok && strings.Contains(content, needle) {
 			bindings = scanFile(idx, bindings, file, content)
 		}
 	}
