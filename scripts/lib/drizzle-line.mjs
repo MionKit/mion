@@ -56,12 +56,20 @@ export function lockstepVersion(repoRoot = REPO_ROOT) {
   return readJson(path.join(repoRoot, 'version.json')).version;
 }
 
-// What npm actually ships from a dialect package, minus the build output: `.dist`
-// is derived from `src`, and comparing it would flag rebuild noise as a change.
-export function isPublishedSource(relPath) {
+// A repo path whose edit changes what npm would ship. The tarball carries no `src/`, so
+// this is the GIT side only: `.dist` is derived from `src`, and a rebuild is not a change.
+export function isTrackedSource(relPath) {
   if (relPath === 'package.json') return true;
   if (!relPath.startsWith('src/')) return false;
   return !relPath.endsWith('.spec.ts') && !relPath.endsWith('.test.ts');
+}
+
+// A path inside a tarball that counts towards "same version means same bytes". Everything
+// npm serves, which is now the build output: sources stopped shipping, so filtering to
+// `src/` here would compare nothing but package.json and call two different publishes equal.
+// `.tsbuildinfo` is the one exclusion — a local tsc cache, inert to a consumer.
+export function isPublishedFile(relPath) {
+  return !relPath.endsWith('.tsbuildinfo');
 }
 
 function git(repoRoot, args) {
@@ -104,7 +112,7 @@ export function unreleasedChanges(repoRoot, packageDir) {
   const sha = releasePointSha(repoRoot, packageDir);
   if (!sha) return {known: false, sha: undefined, files: []};
   const raw = git(repoRoot, ['diff', '--name-only', `${sha}..HEAD`, '--', packageDir]).trim();
-  const files = raw ? raw.split('\n').filter((file) => isPublishedSource(file.slice(packageDir.length + 1))) : [];
+  const files = raw ? raw.split('\n').filter((file) => isTrackedSource(file.slice(packageDir.length + 1))) : [];
   return {known: true, sha, files};
 }
 
@@ -125,19 +133,19 @@ export function plannedVersion(currentVersion, drizzleVersion, hasUnreleasedChan
 const tarList = (tarball) => execFileSync('tar', ['-tzf', tarball], {encoding: 'utf8'}).trim().split('\n');
 const tarRead = (tarball, entry) => execFileSync('tar', ['-xzOf', tarball, entry], {encoding: 'buffer'});
 
-// name -> sha256 over every published source file in a packed tarball.
+// name -> sha256 over every file a packed tarball ships.
 // package.json is normalized first: its own `version` is what the comparison
 // DECIDES, and `devDependencies` are inert in a published package (npm never
 // installs them, and pnpm rewrites the workspace:* ones to a concrete version at
 // pack time, which would otherwise read as a change on every release). What is
 // left — exports, files, dependencies, peerDependencies — is exactly what a
 // consumer gets, so a change there IS a change.
-export function tarballSourceDigests(tarball) {
+export function tarballFileDigests(tarball) {
   const digests = new Map();
   for (const entry of tarList(tarball)) {
     if (!entry.startsWith('package/') || entry.endsWith('/')) continue;
     const relPath = entry.slice('package/'.length);
-    if (!isPublishedSource(relPath)) continue;
+    if (!isPublishedFile(relPath)) continue;
     let body = tarRead(tarball, entry);
     if (relPath === 'package.json') body = Buffer.from(JSON.stringify({...JSON.parse(body.toString('utf8')), version: '', devDependencies: {}}));
     digests.set(relPath, createHash('sha256').update(body).digest('hex'));
@@ -145,10 +153,10 @@ export function tarballSourceDigests(tarball) {
   return digests;
 }
 
-// Published-source paths that differ between two packed tarballs (added, removed
-// or edited), sorted. Empty means the two publishes carry identical content.
-export function tarballSourceDiff(a, b) {
-  const [left, right] = [tarballSourceDigests(a), tarballSourceDigests(b)];
+// Paths that differ between two packed tarballs (added, removed or edited), sorted.
+// Empty means the two publishes carry identical content.
+export function tarballContentDiff(a, b) {
+  const [left, right] = [tarballFileDigests(a), tarballFileDigests(b)];
   const changed = new Set();
   for (const [file, digest] of left) if (right.get(file) !== digest) changed.add(file);
   for (const file of right.keys()) if (!left.has(file)) changed.add(file);

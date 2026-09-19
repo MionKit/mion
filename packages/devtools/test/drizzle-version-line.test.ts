@@ -17,13 +17,14 @@ import {afterEach, describe, expect, it} from 'vitest';
 import * as drizzleLine from '../../../scripts/lib/drizzle-line.mjs';
 
 const {
-  isPublishedSource,
+  isPublishedFile,
+  isTrackedSource,
   lockstepVersion,
   peerRangeFor,
   plannedVersion,
   readDialectPackages,
   REPO_ROOT,
-  tarballSourceDiff,
+  tarballContentDiff,
   unreleasedChanges,
 } = drizzleLine;
 
@@ -94,19 +95,34 @@ describe('drizzle line — what version comes next', () => {
   });
 });
 
-describe('drizzle line — which files count as published', () => {
-  it('counts the sources and the manifest npm actually ships', () => {
-    expect(isPublishedSource('src/index.ts')).toBe(true);
-    expect(isPublishedSource('src/stubs-formats-mappings/refine.stub.ts')).toBe(true);
-    expect(isPublishedSource('package.json')).toBe(true);
+describe('drizzle line — which repo edits change what npm would ship', () => {
+  it('counts the sources the build output is derived from, and the manifest', () => {
+    expect(isTrackedSource('src/index.ts')).toBe(true);
+    expect(isTrackedSource('src/stubs-formats-mappings/refine.stub.ts')).toBe(true);
+    expect(isTrackedSource('package.json')).toBe(true);
   });
 
   it('ignores tests, build output and repo tooling', () => {
-    expect(isPublishedSource('src/index.spec.ts')).toBe(false);
-    expect(isPublishedSource('src/index.test.ts')).toBe(false);
-    expect(isPublishedSource('.dist/esm/src/index.js')).toBe(false);
-    expect(isPublishedSource('manifests/pg.manifest.json')).toBe(false);
-    expect(isPublishedSource('vitest.config.ts')).toBe(false);
+    expect(isTrackedSource('src/index.spec.ts')).toBe(false);
+    expect(isTrackedSource('src/index.test.ts')).toBe(false);
+    expect(isTrackedSource('.dist/esm/src/index.js')).toBe(false);
+    expect(isTrackedSource('manifests/pg.manifest.json')).toBe(false);
+    expect(isTrackedSource('vitest.config.ts')).toBe(false);
+  });
+});
+
+describe('drizzle line — which tarball entries the byte comparison reads', () => {
+  // Sources stopped shipping, so a src-only filter here would compare package.json alone
+  // and call two different publishes equal.
+  it('counts everything npm serves, build output included', () => {
+    expect(isPublishedFile('package.json')).toBe(true);
+    expect(isPublishedFile('.dist/esm/src/index.js')).toBe(true);
+    expect(isPublishedFile('.dist/esm/src/index.d.ts')).toBe(true);
+    expect(isPublishedFile('.dist/esm/src/index.js.map')).toBe(true);
+  });
+
+  it('ignores the tsc cache, which no consumer reads', () => {
+    expect(isPublishedFile('.dist/esm/tsconfig.tsbuildinfo')).toBe(false);
   });
 });
 
@@ -153,27 +169,32 @@ describe('drizzle line — unreleased changes since the last bump', () => {
 });
 
 describe('drizzle line — a live version must mean the same bytes', () => {
-  const base = {'package.json': '{"name":"@mionjs/dialect","version":"0.45.0"}', 'src/index.ts': 'export const one = 1;\n'};
+  // The published shape: manifest plus build output, no sources.
+  const base = {
+    'package.json': '{"name":"@mionjs/dialect","version":"0.45.0"}',
+    '.dist/esm/src/index.js': 'export const one = 1;\n',
+    '.dist/esm/src/index.d.ts': 'export declare const one: number;\n',
+  };
 
   it('sees no difference between identical publishes', () => {
-    expect(tarballSourceDiff(makeTarball(base), makeTarball(base))).toEqual([]);
+    expect(tarballContentDiff(makeTarball(base), makeTarball(base))).toEqual([]);
   });
 
   it('ignores the version field itself — content is what decides', () => {
     const other = {...base, 'package.json': '{"name":"@mionjs/dialect","version":"0.45.9"}'};
-    expect(tarballSourceDiff(makeTarball(base), makeTarball(other))).toEqual([]);
+    expect(tarballContentDiff(makeTarball(base), makeTarball(other))).toEqual([]);
   });
 
-  it('catches an edited source, an added one and a removed one', () => {
-    expect(tarballSourceDiff(makeTarball(base), makeTarball({...base, 'src/index.ts': 'export const one = 2;\n'}))).toEqual([
-      'src/index.ts',
-    ]);
-    expect(tarballSourceDiff(makeTarball(base), makeTarball({...base, 'src/refine.ts': 'export const two = 2;\n'}))).toEqual([
-      'src/refine.ts',
-    ]);
-    expect(tarballSourceDiff(makeTarball({...base, 'src/refine.ts': 'export const two = 2;\n'}), makeTarball(base))).toEqual([
-      'src/refine.ts',
-    ]);
+  it('catches an edited file, an added one and a removed one', () => {
+    expect(
+      tarballContentDiff(makeTarball(base), makeTarball({...base, '.dist/esm/src/index.js': 'export const one = 2;\n'}))
+    ).toEqual(['.dist/esm/src/index.js']);
+    expect(
+      tarballContentDiff(makeTarball(base), makeTarball({...base, '.dist/esm/src/refine.js': 'export const two = 2;\n'}))
+    ).toEqual(['.dist/esm/src/refine.js']);
+    expect(
+      tarballContentDiff(makeTarball({...base, '.dist/esm/src/refine.js': 'export const two = 2;\n'}), makeTarball(base))
+    ).toEqual(['.dist/esm/src/refine.js']);
   });
 
   it('ignores devDependencies — npm never installs them, and pack stamps them every release', () => {
@@ -181,7 +202,7 @@ describe('drizzle line — a live version must mean the same bytes', () => {
       ...base,
       'package.json': '{"name":"@mionjs/dialect","version":"0.45.0","devDependencies":{"@mionjs/run-types":"0.13.0"}}',
     };
-    expect(tarballSourceDiff(makeTarball(base), makeTarball(withDev))).toEqual([]);
+    expect(tarballContentDiff(makeTarball(base), makeTarball(withDev))).toEqual([]);
   });
 
   it('counts a moved peer range — that IS what the consumer resolves against', () => {
@@ -189,14 +210,19 @@ describe('drizzle line — a live version must mean the same bytes', () => {
       ...base,
       'package.json': '{"name":"@mionjs/dialect","version":"0.45.0","peerDependencies":{"@mionjs/run-types":">=0.13.0 <0.14.0"}}',
     };
-    expect(tarballSourceDiff(makeTarball(base), makeTarball(moved))).toEqual(['package.json']);
+    expect(tarballContentDiff(makeTarball(base), makeTarball(moved))).toEqual(['package.json']);
   });
 
-  it('ignores build output, so a rebuild alone never reads as a change', () => {
+  // The build output IS the published package now, so a difference there is a difference
+  // a consumer gets — the old src-only comparison would have read this as unchanged.
+  it('counts a changed build output', () => {
     const rebuilt = {...base, '.dist/esm/src/index.js': 'export const one=1;//built later\n'};
-    expect(
-      tarballSourceDiff(makeTarball({...base, '.dist/esm/src/index.js': 'export const one=1;\n'}), makeTarball(rebuilt))
-    ).toEqual([]);
+    expect(tarballContentDiff(makeTarball(base), makeTarball(rebuilt))).toEqual(['.dist/esm/src/index.js']);
+  });
+
+  it('ignores the tsc cache a local build leaves in the dist dir', () => {
+    const withCache = {...base, '.dist/esm/tsconfig.tsbuildinfo': '{"version":"5.9"}'};
+    expect(tarballContentDiff(makeTarball(base), makeTarball(withCache))).toEqual([]);
   });
 });
 

@@ -33,7 +33,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {missingPlatformTarballs} from '../lib/binary-platforms.mjs';
-import {fetchPublishedTarball, tarballSourceDiff} from '../lib/drizzle-line.mjs';
+import {fetchPublishedTarball, tarballContentDiff} from '../lib/drizzle-line.mjs';
 import {publishRank, readWorkspaceManifests} from '../lib/publish-order.mjs';
 import {describeReceipt, receiptOptOut, verifyReceipt} from './receipt.mjs';
 
@@ -133,7 +133,7 @@ function drizzlePublishPlan(file) {
     try {
       const live = fetchPublishedTarball(name, version, scratch, registry);
       if (!live) return {error: `${name}@${version} is live but its tarball could not be downloaded — cannot verify the skip`};
-      const changed = tarballSourceDiff(path.join(TARBALLS, file), live);
+      const changed = tarballContentDiff(path.join(TARBALLS, file), live);
       if (changed.length > 0) {
         return {error: `${name}@${version} is already live with DIFFERENT sources (${changed.join(', ')}) — bump its patch (pnpm miondevx release bump ...) and re-pack`};
       }
