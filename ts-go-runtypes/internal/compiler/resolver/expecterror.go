@@ -14,8 +14,9 @@ import (
 // expecterror.go finds the `@mion-expect-error` / `@mion-downgrade-error`
 // comments in the program's own source and hands them to
 // diagnostics.ApplyDirectives, which owns what they mean. This half owns only
-// three things a comment lexer and a line map can answer: WHERE the real
-// comments are, WHICH line each one covers, and WHICH of the two it is.
+// what a comment lexer and a line map can answer: WHERE the real comments are,
+// WHICH line each one covers, WHICH of the two it is, and whether its shape and
+// position make it a file directive rather than a line one.
 //
 // It runs at the Dispatch choke point, so a directive removes a finding for
 // every consumer at once: the bundler build, `mion compile`, and the editor's
@@ -127,16 +128,26 @@ func carriesDirective(text string) bool {
 func fileDirectives(filePath string, sourceFile *ast.SourceFile) []diagnostics.Directive {
 	text := sourceFile.Text()
 	spans := srcscan.Comments(text, srcscan.LiteralTokenRanges(sourceFile))
+	codeStart := firstCodeOffset(text, spans)
 	var directives []diagnostics.Directive
 	for _, span := range spans {
-		kind, body, isDirective := directiveBody(text, span)
+		kind, body, isBlock, isDirective := directiveBody(text, span)
 		if !isDirective {
 			continue
 		}
 		startLine, startCol := textpos.LineCol(sourceFile, span.Start)
 		endLine, endCol := textpos.LineCol(sourceFile, span.End)
+		scope := diagnostics.DirectiveScopeLine
+		// A block comment before any code covers the file, the way ESLint's
+		// `/* eslint-disable */` does. A line comment never does, and neither
+		// does a block comment further down, which stays the line form it is
+		// today.
+		if isBlock && span.End <= codeStart {
+			scope = diagnostics.DirectiveScopeFile
+		}
 		directives = append(directives, diagnostics.Directive{
-			Kind: kind,
+			Kind:  kind,
+			Scope: scope,
 			// The comment silences the line BELOW its last line, so a block
 			// comment spanning several lines still points at the code under it.
 			AppliesToLine: endLine + 1,
@@ -153,18 +164,48 @@ func fileDirectives(filePath string, sourceFile *ast.SourceFile) []diagnostics.D
 	return directives
 }
 
-// directiveBody reports whether a comment span is a directive, and returns
-// which kind it is plus the text after the marker.
+// firstCodeOffset is where the file's code begins: the first byte that is
+// neither whitespace nor inside a comment. Comments come in source order, so one
+// pass over them is enough. A file of nothing but comments answers its length,
+// which makes every directive in it a file directive.
+func firstCodeOffset(text string, spans []srcscan.Span) int {
+	offset := 0
+	for _, span := range spans {
+		for offset < span.Start && isSpace(text[offset]) {
+			offset++
+		}
+		if offset < span.Start {
+			return offset
+		}
+		offset = span.End
+	}
+	for offset < len(text) && isSpace(text[offset]) {
+		offset++
+	}
+	return offset
+}
+
+// isSpace reports whether b is whitespace between the top of a file and its
+// first code.
+func isSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
+}
+
+// directiveBody reports whether a comment span is a directive, and returns which
+// kind it is, the text after the marker, and whether it was written as a block
+// comment (which is what makes it a file directive at the top of a file).
 //
 // The comment must be the first thing on its own line. A trailing comment after
 // code is deliberately not a directive: it would otherwise be ambiguous whether
 // it covers the line it sits on or the next one, and TypeScript draws the same
 // line for `@ts-expect-error`.
-func directiveBody(text string, span srcscan.Span) (diagnostics.DirectiveKind, string, bool) {
+func directiveBody(text string, span srcscan.Span) (diagnostics.DirectiveKind, string, bool, bool) {
 	if !ownLine(text, span.Start) {
-		return 0, "", false
+		return 0, "", false, false
 	}
-	inner := strings.TrimSpace(strings.Trim(strings.TrimPrefix(strings.TrimPrefix(text[span.Start:span.End], "//"), "/*"), "*/"))
+	raw := text[span.Start:span.End]
+	isBlock := strings.HasPrefix(raw, "/*")
+	inner := strings.TrimSpace(strings.Trim(strings.TrimPrefix(strings.TrimPrefix(raw, "//"), "/*"), "*/"))
 	// Tolerate a leading `*` so the directive also works inside a JSDoc block.
 	inner = strings.TrimSpace(strings.TrimPrefix(inner, "*"))
 	for _, kind := range []diagnostics.DirectiveKind{diagnostics.DirectiveExpect, diagnostics.DirectiveDowngrade} {
@@ -175,11 +216,11 @@ func directiveBody(text string, span srcscan.Span) (diagnostics.DirectiveKind, s
 		rest := inner[len(marker):]
 		// `@mion-expect-errorFOO` is a different word, not a bare directive.
 		if rest != "" && !isSeparator(rest[0]) {
-			return 0, "", false
+			return 0, "", false, false
 		}
-		return kind, rest, true
+		return kind, rest, isBlock, true
 	}
-	return 0, "", false
+	return 0, "", false, false
 }
 
 // ownLine reports whether only whitespace precedes offset on its line.

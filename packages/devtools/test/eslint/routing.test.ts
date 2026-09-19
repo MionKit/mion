@@ -59,6 +59,20 @@ describe('family routing (compiler diagnostics grouped by Go prefix family, name
     expect(ruleOf({code: 'ZZ999', family: Family.Marker, severity: Severity.Error})).toBe('invalid-marker');
     expect(ruleOf({code: 'ZZ999', family: Family.PureFn, severity: Severity.Error})).toBe('pure-functions');
   });
+
+  // The two source directives are one rule each, whatever is wrong with the
+  // comment and whichever scope it was written at: the line form, or the block
+  // comment at the top of a file that covers the whole file. Both scopes report
+  // through the same codes, so the editor squiggle lands on the comment either
+  // way.
+  it('routes every directive code to its own rule, at both scopes', () => {
+    for (const code of ['EXP001', 'EXP002', 'EXP003']) {
+      expect(ruleOf({code, family: Family.Marker})).toBe('invalid-expect-error');
+    }
+    for (const code of ['DWN001', 'DWN002', 'DWN003', 'DWN004']) {
+      expect(ruleOf({code, family: Family.Marker})).toBe('invalid-downgrade-error');
+    }
+  });
 });
 
 describe('enrichment routing (per-concern rules, named for what they catch)', () => {
