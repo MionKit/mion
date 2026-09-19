@@ -27,8 +27,8 @@ import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
-import {takeMetadataCacheError} from './lib/clientMethodsMetadata.ts';
 import {getBundleApiMode, registerBundledApi, takeBundledApiError} from './lib/bundledApi.ts';
+import {metadataCacheHooks} from './lib/laneLoader.ts';
 
 /**
  * Creates the client: the typed `routes` / `middleFns` proxies plus the client itself.
@@ -294,7 +294,7 @@ export class MionClient {
     // on whatever metadata the cache already held), and a metadata cache write the browser refused
     // after eviction ran out of things to give up.
     if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
-    if (undeclaredPart === undefined) undeclaredPart = takeMetadataCacheError();
+    if (undeclaredPart === undefined) undeclaredPart = metadataCacheHooks()?.takeMetadataCacheError();
 
     return [routeResultPart, routeErrorPart, undeclaredPart, middleFnsResults, middleFnsErrors] as any;
   }

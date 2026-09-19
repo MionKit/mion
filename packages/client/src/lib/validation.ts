@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, routesCache} from '@mionjs/core';
+import {RpcError} from '@mionjs/core';
+import {getMethod, useMethodFns} from './methods.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {RequestErrors, SubRequest} from '../types.ts';
 import type {MionClientRequest} from '../request.ts';
@@ -21,7 +22,7 @@ export function validateSubRequests(
   subRequestIds.forEach((id) => {
     const subRequest = req.subRequestList[id];
     validateSubRequest(id, subRequest, errors);
-    const methodMeta = routesCache.getMetadata(id);
+    const methodMeta = getMethod(id);
     if (validateRouteMiddleFns && methodMeta?.middleFnIds?.length) {
       const validMiddleFnIds = methodMeta.middleFnIds.filter((middleFnId) => middleFnId != null);
       validateSubRequests(validMiddleFnIds, req, errors, validateRouteMiddleFns);
@@ -50,7 +51,7 @@ export function validateSubRequest(id: string, subRequest: SubRequest<any>, erro
 }
 
 function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-error' | 'unexpected-validation-error'> {
-  const method = routesCache.useMethodJitFns(id);
+  const method = useMethodFns(id);
   if (!method.paramsCount) return;
   const paramsJit = method.paramsJitFns;
   if (paramsJit.typeErrors.isNoop) return;

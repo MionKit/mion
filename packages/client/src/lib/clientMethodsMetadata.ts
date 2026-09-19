@@ -23,6 +23,8 @@ import {getMetadataStore} from './metadataStore.ts';
 import type {MetadataKind, MetadataRecord, MetadataRecordKey, MetadataStore, StorageEngine} from './storage.ts';
 import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 import {requestPersistenceWhenSilent} from './persistentStorage.ts';
+import {setFetchedMethods} from './methods.ts';
+import {registerMetadataCacheHooks, type MetadataCacheHooks} from './laneLoader.ts';
 
 type MetadataRouteKey = typeof MION_ROUTES.methodsMetadata | typeof MION_ROUTES.methodsMetadataById;
 
@@ -443,3 +445,14 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
   addSerializedJitCaches(serializableMethodsData.deps, serializableMethodsData.purFnDeps);
   addRoutesToCache(serializableMethodsData.methods);
 }
+
+// Loading this module IS the moment the fetched lane exists, so it is where the table it fills and
+// the calls the request path makes without loading become visible. It sits here rather than in
+// fetchedLane.ts because the lane's pieces are public API and a consumer can import one directly.
+setFetchedMethods(routesCache);
+registerMetadataCacheHooks({
+  extractAndProcessMetadata: extractAndProcessMetadata as MetadataCacheHooks['extractAndProcessMetadata'],
+  takeMetadataCacheError,
+  wasHydratedFromCache,
+  purgeHydratedMetadata,
+});

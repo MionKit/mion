@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HandlerType, HeadersSubset, routesCache} from '@mionjs/core';
+import {HandlerType, HeadersSubset} from '@mionjs/core';
+import {getMethod} from './methods.ts';
 
 /**
  * True when a subrequest's first param is the HeadersSubset of a headers middleFn, so it travels as
@@ -13,7 +14,7 @@ import {HandlerType, HeadersSubset, routesCache} from '@mionjs/core';
  * FIRST optimistic call there may be none yet, and the value itself answers instead.
  */
 export function hasHeadersSubsetParam(id: string, params: any[] | undefined): boolean {
-  const method = routesCache.getMetadata(id);
+  const method = getMethod(id);
   if (method) return method.type === HandlerType.headersMiddleFn && !!method.headersParam;
   return params?.[0] instanceof HeadersSubset;
 }

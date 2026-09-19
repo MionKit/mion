@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HandlerType, routesCache} from '@mionjs/core';
+import {HandlerType} from '@mionjs/core';
+import {hasMethod, useMethodFns} from './methods.ts';
 import type {MionClientRequest} from '../request.ts';
 
 // Params arrays already sanitized. Keyed on the ARRAY, not the subRequest: a prefilled middleFn
@@ -30,8 +31,8 @@ export function sanitizeSubRequests(subRequestIds: string[], req: MionClientRequ
     if (!Array.isArray(params) || sanitizedParams.has(params)) continue;
     // inputFrom placeholders are filled by the server after the source route runs
     if (subRequest.mappings && subRequest.mappings.length > 0) continue;
-    if (!routesCache.hasMetadata(id)) continue;
-    const method = routesCache.useMethodJitFns(id);
+    if (!hasMethod(id)) continue;
+    const method = useMethodFns(id);
     const formatTransform = method.paramsJitFns.formatTransform;
     if (!method.options?.sanitizeParams || !method.paramsCount || !formatTransform || formatTransform.isNoop) continue;
     // a headersFn's first param is the HeadersSubset, never part of the body params type

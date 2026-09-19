@@ -6,17 +6,10 @@
  * ######## */
 
 import type {ResponseBody} from '@mionjs/router';
-import {
-  type MethodWithJitFns,
-  RpcError,
-  isRpcError,
-  routesCache,
-  MION_ROUTES,
-  HandlerType,
-  type SerializerMode,
-} from '@mionjs/core';
+import {type MethodWithJitFns, RpcError, isRpcError, MION_ROUTES, HandlerType, type SerializerMode} from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
-import {extractAndProcessMetadata} from './clientMethodsMetadata.ts';
+import {metadataCacheHooks} from './laneLoader.ts';
+import {hasMethod, useMethodFns} from './methods.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';
 
@@ -63,7 +56,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
     const subRequest = req.subRequestList[id];
     if (!subRequest) continue;
     let params = subRequest.params;
-    const method = routesCache.useMethodJitFns(id);
+    const method = useMethodFns(id);
     if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
       params = getParamsWithoutHeadersSubset(params);
     }
@@ -156,16 +149,21 @@ export async function deserializeResponseBody(response: Response, options: Clien
 async function deserializeJsonResponseBody(response: Response, options: ClientOptions) {
   try {
     const parsedBody = await response.json();
-    // Extract & process metadata if present and delete entries after processing (does not use jit functions)
-    extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
-    extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
+    // Extract & process metadata if present and delete entries after processing (does not use jit functions).
+    // A response can only carry metadata when the client asked for it, and asking awaits the lane
+    // first, so no lane here means there is nothing of its to do.
+    const cache = metadataCacheHooks();
+    if (cache) {
+      cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
+      cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
+    }
     // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
     const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
     if (platformError) return {[MION_ROUTES.platformError]: platformError};
     // Deserialize the body using jit functions
     const deserializedBody: ResponseBody = {};
     Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
-      const method = routesCache.useMethodJitFns(methodId);
+      const method = useMethodFns(methodId);
       deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
     });
     if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
@@ -207,7 +205,7 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {
     // When metadata is cached (e.g. after retry), use JIT serialization
     const subRequestIds = Object.keys(req.subRequestList);
-    const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+    const allCached = subRequestIds.every((id) => hasMethod(id));
     if (allCached) return 'stringifyJson';
     return 'optimistic';
   }

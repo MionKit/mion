@@ -5,39 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isRpcError, MION_ROUTES, RpcError, getRoutePath, routesCache} from '@mionjs/core';
-import {getBundleApiMode} from './bundledApi.ts';
+import {isRpcError, MION_ROUTES, getRoutePath} from '@mionjs/core';
 import {ClientOptions, RequestBody} from '../types.ts';
 import {hydrateMetadataCache} from './clientMethodsMetadata.ts';
 import {deserializeResponseBody} from './serializer.ts';
+import {hasMethod} from './methods.ts';
 
-/** The error a `bundled` client raises for a method its bundle does not carry: the build only
- *  bundles what the program calls through its own dispatch points, so the server is never asked. */
-export function bundledMetadataMissingError(missing: string[]): RpcError<'route-metadata-not-found'> {
-  return new RpcError({
-    type: 'route-metadata-not-found',
-    publicMessage:
-      `Metadata for ${missing.join(', ')} is not in the bundle. The build (bundleApi: 'bundled') bundles only the routes ` +
-      `and middleFns the program calls through their own call sites; a method reached another way (a generic helper, ` +
-      `client.prefill(...) / client.typeErrors(...), a call the build reported) is not fetched either. ` +
-      `Call it through its own subrequest, or build with bundleApi: 'mixed' to fetch what the bundle lacks.`,
-  });
-}
-
-/** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
+/** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata.
+ *  Part of the fetched lane, so a bundled client never reaches it: the request path refuses a
+ *  method its bundle lacks before the lane is ever loaded. */
 export async function fetchRemoteMethodsMetadata(
   methodIds: string[],
   options: ClientOptions,
   signal?: AbortSignal
 ): Promise<void> {
-  // a bundled client never asks the server nor the store: what the build did not bundle is an error
-  if (getBundleApiMode() === 'bundled') {
-    const missing = methodIds.filter((id) => !routesCache.hasMetadata(id));
-    if (missing.length) throw bundledMetadataMissingError(missing);
-    return;
-  }
   await hydrateMetadataCache(options);
-  const missingAfterLocal = methodIds.filter((path) => !routesCache.hasMetadata(path));
+  const missingAfterLocal = methodIds.filter((path) => !hasMethod(path));
   if (!missingAfterLocal.length) return;
   const body: RequestBody = {
     [MION_ROUTES.methodsMetadataById]: [missingAfterLocal],
@@ -54,7 +37,7 @@ export async function fetchRemoteMethodsMetadata(
     const deserialized = await deserializeResponseBody(response, options);
     const platformError = deserialized[MION_ROUTES.platformError];
     if (isRpcError(platformError)) throw platformError;
-    const stillMissing = missingAfterLocal.filter((id) => !routesCache.hasMetadata(id));
+    const stillMissing = missingAfterLocal.filter((id) => !hasMethod(id));
     if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);
   } catch (error: any) {
     // Preserve abort/timeout DOMException so the caller's onError can classify it correctly
