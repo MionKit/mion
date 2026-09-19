@@ -4,7 +4,7 @@
 // correct AFTER that bundler mangled it (ESM/CJS, tree-shaking, minification).
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {existsSync, readFileSync} from 'node:fs';
+import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
@@ -95,6 +95,33 @@ test('mion-next: the app serves its own mion API, on both wires and in a batch',
   assert.equal(batch.message, 'Hello batch!');
   assert.equal(batch.sum, 3);
 });
+
+// The bundled lane through a REAL Turbopack build. Turbopack has no plugin API, so @mionjs/devtools
+// takes the fetched metadata lane out with a `turbopack.resolveAlias` instead of the resolveId hook
+// every other bundler gets. Nothing but a real build says whether that alias was honoured.
+test('mion-next: a bundled Turbopack build ships no metadata fetch or browser cache', () => {
+  const dist = path.join(APPS, 'mion-next', 'dist/next-bundled');
+  assert.ok(existsSync(dist), 'mion-next: dist/next-bundled is missing — did build-all.mjs run for it?');
+  const code = readAllJs(dist);
+
+  // Guard against a vacuous pass: the bundled routes have to be in there before an absence means
+  // anything. The build injects each called route's compiled functions at its call site.
+  assert.match(code, /sayHello/, 'mion-next bundled: the build emitted no bundled route');
+
+  // The fetched lane and nothing else: the store it opens, the key it opens it under, and the idle
+  // callback its deferred write rides.
+  for (const marker of ['indexedDB', 'mion:client', 'requestIdleCallback']) {
+    assert.ok(!code.includes(marker), `mion-next bundled: the output still carries '${marker}'`);
+  }
+});
+
+/** Every JavaScript file a build wrote, concatenated: a lane split into its own chunk still ships. */
+function readAllJs(dir) {
+  return readdirSync(dir, {recursive: true, withFileTypes: true})
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+    .map((entry) => readFileSync(path.join(entry.parentPath, entry.name), 'utf8'))
+    .join('\n');
+}
 
 // React escapes the JSON it renders into the page; undo just enough to parse it.
 function decodeEntities(text) {
