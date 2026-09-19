@@ -1,6 +1,6 @@
 ---
 name: create-todo
-description: Turn a rough request or idea into a well-formed todo doc under docs/todos/. Use this whenever the user wants to create, add, file, log, capture, jot down, or write up a todo — note something to do later, record a bug or feature idea for the backlog, or turn a discovered issue into a tracked spec — even when they just say "let's note this down" or "add a todo for X". It captures the request, classifies it (fix / feature / docs / chore), asks whether to write a full ready-to-build plan or just guidelines for the implementer, investigates to the matching depth, and — after you approve — writes the doc with a standard metadata header that the implement-todo skill later reads. It never implements the change; its only output is the todo doc. This is the complement to implement-todo — reach for it whenever something should be remembered as a docs/todos/ item rather than done right now.
+description: Write a request up as a docs/todos/ spec with the metadata header, never implementing it. Use when the user wants to note, file or add a todo.
 ---
 
 # create-todo
@@ -57,7 +57,7 @@ If you already had to ask the `type` question in step 2, fold both into a single
 
 The depth is the difference between the two paths. Match it to what the user chose:
 
-**Guidelines — superficial, just enough to be correct.** Your goal is an *accurate, actionable pointer*, not a solution. Verify the premise holds so you don't file a todo built on a false assumption: confirm the problem is real (or the feature makes sense), that the files / functions / symbols you name actually exist and are roughly where you say (a couple of quick greps), and that nothing obvious makes the idea a dead end. Then stop. Do **not** design the solution, enumerate edge cases, or write a test plan — that is deliberately left for the implementer, who will have to re-derive the current state anyway. Over-investigating here wastes the work twice.
+**Guidelines — superficial, just enough to be correct.** Your goal is an *accurate, actionable pointer*, not a solution. Verify the premise holds so you don't file a todo built on a false assumption: confirm the problem is real (or the feature makes sense), that the files / functions / symbols you name actually exist and are roughly where you say (a couple of quick greps), and that nothing obvious makes the idea a dead end. If the change is user-visible, also name the docs page it lands on and whether it is an existing section (which one) or a new one, using the *Where a change goes* table in [container/website/CLAUDE.md](../../../container/website/CLAUDE.md); that is a grep of the content tree, not design work. Then stop. Do **not** design the solution, enumerate edge cases, or write a test plan — that is deliberately left for the implementer, who will have to re-derive the current state anyway. Over-investigating here wastes the work twice.
 
 **Full plan — planner-grade, like the Plan agent.** Do the deep work now: read the relevant code, pin the exact call sites (`file:line`), design the approach, enumerate the concrete changes, the test plan (which layer, what it pins, both `getRunTypeId` shapes if the marker API is involved — see [CLAUDE.md](../../../CLAUDE.md)), the docs impact, and — for a feature — whether it is a fuzzing candidate (a cheap oracle like round-trip, determinism, or compare-to-a-trusted-source). Draw the **Out of scope** line explicitly and a concrete **Done when**. Spawn an **Explore** agent for breadth or a **Plan** agent for the approach when the surface is large. The aim is that `implement-todo` can later build from your doc with minimal re-investigation.
 
@@ -85,9 +85,18 @@ Then the body, sized to the `spec`:
 - **Guidelines** — keep it lean:
   - `## Intent` — what and why.
   - `## Direction` — the rough approach plus the pointers/constraints you verified; state plainly that the implementer plans the details.
-  - `## Done when` — the acceptance bar, roughly.
+  - `## Docs` — the page, and "existing section <title>" or "new section" (or "none, because …"), plus the fixed last line below.
+  - `## Done when` — the acceptance bar, roughly, ending with the simplification pass.
 - **Full plan** — the shape every full-plan spec in `docs/todos/` follows (open any one with `spec: full-plan` in its header to see it):
   - `## Problem`, `## Plan` (or `## Fix direction`) with `file:line` pointers, `## Tests`, `## Docs`, `## Fuzzing` (if a feature), `## Out of scope`, `## Done when`.
+
+**Every `## Docs` section, both shapes, ends with this step, word for word:**
+
+```markdown
+Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
+```
+
+And every `## Done when` lists both passes: "the simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own". A todo with no docs impact says "Docs: none, because …" and skips the docs line; a todo that touches any page or example never does. The comments pass has no opt-out short of a branch that touched no source file.
 
 Close by telling the user where you filed it and, if they want, that they can pick it up any time with `implement-todo`.
 

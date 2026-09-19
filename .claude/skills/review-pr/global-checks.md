@@ -29,6 +29,7 @@ diff, and say in the review list which groups you dropped and why.
 - D6 Short sentences over long chained clauses.
 - D7 No internals a user cannot act on.
 - D8 The page still reads in order after the edit, no orphan paragraph or dead link.
+- D9 The simplify-docs pass ran: a `docs(simplify):` commit sits on the branch after the last edit to a page or example, or the branch touched neither.
 
 ## T - types and reuse (include when types or exported functions were added)
 
@@ -55,9 +56,10 @@ diff, and say in the review list which groups you dropped and why.
 
 ## C - comments (include when comments were added or changed)
 
-No items here. The comment rules live in the code style section of the root
-CLAUDE.md, so this group is sourced entirely from that file. Keep the group and
-its pass, read the items out of the file.
+The comment rules live in the code style section of the root CLAUDE.md, so this
+group is sourced from that file; read the items out of it. One item is global:
+
+- C1 The simplify-comments pass ran: a `chore(comments):` commit sits on the branch after the last edit to a source file, or the branch touched none.
 
 ## B - behaviour and tests (include when code changed)
 

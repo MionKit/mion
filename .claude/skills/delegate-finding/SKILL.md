@@ -1,6 +1,6 @@
 ---
 name: delegate-finding
-description: Delegate an UNRELATED finding to a parallel background agent so the main task keeps moving. Use whenever work surfaces a bug, doc drift, or gap that is NOT on the current task's code path — the findings rule in CLAUDE.md says such a finding is never backlogged or fixed inline; it is handed to a background session the user can watch and steer. This skill drives the whole handoff: file the finding as a guidelines todo (create-todo), pin a stable commit on the current branch, spawn a background session in the Mion cloud environment from that commit, and instruct it to fix the finding on its own branch and PR via implement-todo — with the finding's PR merged BEFORE the main task's PR.
+description: Hand an unrelated finding to a parallel background session with its own todo, branch and PR. Use when work turns up a bug or gap off the current task's path.
 ---
 
 # delegate-finding
