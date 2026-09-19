@@ -347,6 +347,9 @@ importers:
 
   packages/run-types:
     devDependencies:
+      '@mionjs/bin-compiler':
+        specifier: workspace:*
+        version: link:../bin-compiler
       '@mionjs/devtools':
         specifier: workspace:*
         version: link:../devtools

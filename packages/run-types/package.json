@@ -89,7 +89,7 @@
     "directory": "packages/run-types"
   },
   "scripts": {
-    "build": "tsc --build tsconfig.json && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
+    "build": "mion compile && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "pretest": "node ../../scripts/miondevx.mjs core build --trust-stamp",
     "test": "vitest run",
@@ -98,6 +98,7 @@
     "fresh-start": "pnpm run clean && node ../../scripts/lib/rmrf.mjs node_modules"
   },
   "devDependencies": {
+    "@mionjs/bin-compiler": "workspace:*",
     "@mionjs/devtools": "workspace:*"
   }
 }

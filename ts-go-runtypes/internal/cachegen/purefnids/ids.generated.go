@@ -176,31 +176,16 @@ func NameOf(id string) string {
 	return names[id]
 }
 
-// Has reports whether id names one of the package's own pure functions.
-// Their bodies never come from a consumer's program — the compiler extracts
-// them from the package's own sources — so a build checks a reference to one
-// against this set instead of against the registrations it extracted.
+// Has reports whether id names one of the package's own pure functions. Only
+// that package's OWN build produces their bodies, so a consumer's build drops any
+// it extracted and takes the served row instead.
 func Has(id string) bool {
 	return ids[id]
 }
 
-// SourceFiles are this package's files that register a pure function, relative
-// to its root. Scanned for a registrar call when this file was generated and
-// narrowed to the files that produced an entry, so there is nothing to keep in
-// sync and nothing to scan at build time: the resolver resolves these against
-// whatever root it finds the installed package at, and a path the install does
-// not have is CFG004.
-var SourceFiles = []string{
-	"src/formats/datetime/dateTime-pure-fns.ts",
-	"src/formats/string/credit-card-pure-fns.ts",
-	"src/formats/string/string-formats-pure-fns.ts",
-	"src/runtypes/circular-pure-fns.ts",
-	"src/runtypes/pure-fns-utils.ts",
-}
-
 // All returns every built-in id, sorted. An id is a hash of the body that
-// ships, so a test can assert that each one still resolves from the sources and
-// catch a body edited without regenerating this file.
+// ships, so a test can assert that the package's artifact still holds each one
+// and catch a body edited without regenerating this file.
 func All() []string {
 	out := make([]string, 0, len(ids))
 	for id := range ids {

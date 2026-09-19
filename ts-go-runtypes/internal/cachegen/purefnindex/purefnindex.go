@@ -355,50 +355,15 @@ func ScanRegistrations(root string, fileSystem vfspkg.FS) []string {
 	return files
 }
 
-// MarkerSourceFiles are the marker package's registration modules, resolved
-// under its root: the generated list, because that package's layout is fixed
-// when the binary is built and a scan per session would re-derive a constant.
-func MarkerSourceFiles(root string) []string {
-	files := make([]string, len(purefnids.SourceFiles))
-	for i, relative := range purefnids.SourceFiles {
-		files[i] = tspath.ResolvePath(root, relative)
-	}
-	sort.Strings(files)
-	return files
-}
-
-// extractSource fills the rows from the package's TypeScript. The marker
-// package's files are the generated list and every one of them must be there
-// (a pruned or skewed install is an error, never a silent runtime miss); any
-// other package's are scanned, and none found means the package ships nothing
-// to serve. Only the rows are kept, projected to what a served body needs.
+// extractSource fills the rows from the package's TypeScript, the fallback for a package that
+// ships no artifact: its registration modules are found by a scan, and none found means the
+// package ships nothing to serve. Only the rows are kept, projected to what a served body needs.
 func (store *Store) extractSource(idx *PackageIndex) {
-	var files []string
-	if idx.Name == MarkerPackageName {
-		files = MarkerSourceFiles(idx.Root)
-		for _, file := range files {
-			if !store.fs.FileExists(file) {
-				idx.Err = fmt.Errorf("%s is missing from the installed package", file)
-				return
-			}
-		}
-	} else {
-		files = ScanRegistrations(idx.Root, store.fs)
-	}
+	files := ScanRegistrations(idx.Root, store.fs)
 	if len(files) == 0 {
 		return
 	}
-	entries, diags, err := store.extract(idx.Root, files)
-	if err == nil && idx.Name == MarkerPackageName {
-		// A diagnostic over the marker package's OWN sources is not a user error
-		// to report against their code; it means the installed sources are
-		// broken, truncated, or hold a dependency cycle.
-		if len(diags) > 0 {
-			err = fmt.Errorf("extractor rejected %s (%s %v)", diags[0].Site.FilePath, diags[0].Code, diags[0].Args)
-		} else if len(entries) == 0 {
-			err = fmt.Errorf("no pure-fn registrations found in %v", files)
-		}
-	}
+	entries, _, err := store.extract(idx.Root, files)
 	if err != nil {
 		idx.Err = err
 		return
