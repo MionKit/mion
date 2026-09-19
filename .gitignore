@@ -162,6 +162,8 @@ packages/*/.uws-cache/
 
 # Consumer e2e fixture install artifacts (the fixture source IS tracked).
 /container/pre-publish-e2e/package-lock.json
+# the @acme/src-types tarball build-all.mjs packs before it installs the fixture
+/container/pre-publish-e2e/.fixtures/
 # the mion-next lane's round-trip report, written by build-all.mjs
 /container/pre-publish-e2e/apps/mion-next/selftest.json
 /logs/

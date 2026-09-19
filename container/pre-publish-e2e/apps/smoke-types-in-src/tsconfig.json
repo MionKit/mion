@@ -1,0 +1,7 @@
+{
+  // No custom conditions: @acme/src-types resolves through plain `types`, which points into its
+  // src/. A package's own manifest says where its definitions live and the resolver follows it,
+  // so nothing needs a dependency to keep them in a dist.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src", "../shared/src"]
+}
