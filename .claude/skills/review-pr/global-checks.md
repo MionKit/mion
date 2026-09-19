@@ -29,6 +29,7 @@ diff, and say in the review list which groups you dropped and why.
 - D6 Short sentences over long chained clauses.
 - D7 No internals a user cannot act on.
 - D8 The page still reads in order after the edit, no orphan paragraph or dead link.
+- D9 The simplify-docs pass ran: a `docs(simplify):` commit sits on the branch after the last edit to a page or example, or the branch touched neither.
 
 ## T - types and reuse (include when types or exported functions were added)
 
