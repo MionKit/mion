@@ -170,7 +170,7 @@ func TestNoopPredicate_SoundAgainstEmitters(t *testing.T) {
 	}
 	emitters := map[string]typefunctions.Emitter{
 		"prepareForJsonMutate":   typefunctions.PrepareForJsonEmitter{},
-		"restoreFromJsonMutate":        typefunctions.RestoreFromJsonEmitter{},
+		"restoreFromJsonMutate":  typefunctions.RestoreFromJsonEmitter{},
 		"restoreFromJsonClone":   typefunctions.RestoreFromJsonCloneEmitter{},
 		"prepareForJsonClone":    typefunctions.PrepareForJsonCloneEmitter{},
 		"formatTransform":        typefunctions.FormatTransformEmitter{},

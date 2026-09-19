@@ -9,6 +9,7 @@ import {entryTupleAt, resolveEntryTupleFn} from './runtypes/entryTuple.ts';
 import {ParseMismatch, RTParseError} from './runtypes/parseError.ts';
 import type {AnyFn, RunType} from './runtypes/types.ts';
 import type {DataOnly} from './runtypes/dataOnly.ts';
+import type {JSONShape} from './runtypes/jsonShape.ts';
 // One-way (erased) type edge: formatErrors.ts imports TypeFormatError back
 // from here, and both sides are `import type`.
 import type {FormatErrorsOf} from './runtypes/formatErrors.ts';
@@ -293,10 +294,13 @@ export type FormatTransformValue<T> = T extends string
  *  Never a step inside validate / parse / encode / decode. **/
 export type FormatTransformFn<T> = (value: FormatTransformValue<T>) => FormatTransformValue<T>;
 
-// Internal RT-primitive signatures consumed by the JSON encoder/decoder.
-export type PrepareForJsonFn = (value: unknown) => unknown;
-export type RestoreFromJsonFn = (value: unknown) => unknown;
-export type StringifyJsonFn = (value: unknown) => string | undefined;
+// The value-level JSON signatures: what createPrepareForJsonFn / createRestoreFromJsonFn /
+// createStringifyJsonFn return, and what the string encoder and decoder compose.
+// `T` defaults to `unknown`, where `JSONShape<unknown>` and `DataOnly<unknown>` are both
+// `unknown` — so the bare alias is the shape `getRTFunction` hands back.
+export type PrepareForJsonFn<T = unknown> = (value: T) => JSONShape<T>;
+export type RestoreFromJsonFn<T = unknown> = (value: unknown) => DataOnly<T>;
+export type StringifyJsonFn<T = unknown> = (value: T) => string | undefined;
 
 /** Stringifier returned by `createJsonEncoderFn<T>()`. Returns the JSON string,
  *  OR `undefined` for top-level `undefined` inputs (matches `JSON.stringify`). **/
@@ -340,6 +344,24 @@ export type ParseFn<T = unknown> = (value: unknown) => DataOnly<T>;
  *  for strip and `'parseFail'` for fail. **/
 export type ParseStrategy = 'preserve' | 'strip' | 'fail';
 export type ParseOptions = {strategy?: ParseStrategy};
+
+/** Caller-controlled `strategy` for `createPrepareForJsonFn<T>()` and
+ *  `createRestoreFromJsonFn<T>()`. The same three words on both sides, so a pair reads as a
+ *  pair: encode with `clone` and decode with `clone`.
+ *
+ *  - `'clone'` (default): build a NEW value from the declared shape. Undeclared properties
+ *    are dropped by construction, in both directions.
+ *  - `'mutate'`: transform the value in place. Nothing is allocated and undeclared
+ *    properties are kept.
+ *  - `'compact'`: the positional wire — objects become arrays, so property names never
+ *    reach the wire. Prepare and restore must agree on it.
+ *
+ *  COMPILE-TIME: each value selects a different compiled family, so an unrecognised one
+ *  takes `'clone'` rather than failing. `createJsonDecoderFn` keeps its own
+ *  `strip` / `preserve` words — its `strip` blanks keys instead of rebuilding. **/
+export type JsonValueStrategy = 'clone' | 'mutate' | 'compact';
+export type PrepareForJsonOptions = {strategy?: JsonValueStrategy};
+export type RestoreFromJsonOptions = {strategy?: JsonValueStrategy};
 
 /** Caller-controlled `strategy` for `createJsonEncoderFn<T>()`. The walk mode:
  *
@@ -497,18 +519,80 @@ export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
 ) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'unknownKeyErrors'>) => UnknownKeyErrorsFn);
 
-// The VALUE-level JSON transforms — `prepareForJson` (maps a typed value to a
-// JSON-safe value: bigint to string, Date preserved, undeclared keys stripped, …)
-// and `restoreFromJsonMutate` (maps a JSON-safe value back to the typed shape:
-// BigInt(...), Date revival, …), plus their per-strategy siblings (`pjs`/`rjs`/
-// `cj`/`cjr`/`sj`/`ukuw`) — have NO dedicated `createX` factory. A framework that
-// parses ONE JSON envelope per request and needs per-value transforms names the
-// primitive it wants in an `InjectTypeFnArgs<T, '<key>'>` marker and recovers the
-// injected handle with `getRTFunction<'<key>'>(…)` (below). Root `undefined` /
-// `void` are handled inside the primitives (prepare passes the value; restore
-// returns `undefined` for any input), so neither throws — the string encoder's
-// `[value]` array envelope is a JSON-document concern the caller's own envelope
-// replaces.
+// =============================================================================
+// The VALUE-level JSON transforms — a JSON-safe value in, a typed value out, with
+// no string step. A framework that parses ONE envelope per request and transforms
+// many values inside it uses these instead of the string encoder and decoder.
+//
+// Root `undefined` / `void` are handled inside each compiled body (prepare passes
+// the value through, restore returns `undefined` for any input), so none of them
+// throws: the string encoder's `[value]` array envelope is a JSON-document concern
+// the caller's own envelope replaces.
+// =============================================================================
+
+/** Returns a prepare function for `T`: a typed value in, a JSON-safe value out
+ *  (bigint to string, Date preserved, Map/Set to arrays). Default
+ *  `strategy: 'clone'`; see `JsonValueStrategy`.
+ *
+ *  Pair it with `createRestoreFromJsonFn<T>()` on the SAME strategy. The caller owns
+ *  the `JSON.stringify`, which is the point: one stringify can cover many values. **/
+export const createPrepareForJsonFn = createTypeFnArgsFunction<PrepareForJsonFn>(
+  'createPrepareForJsonFn',
+  identityValueFn
+) as unknown as (<T>(
+  runType: RunType<T>,
+  options?: CompTimeFnArgs<PrepareForJsonOptions>,
+  id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>
+) => PrepareForJsonFn<T>) &
+  (<T>(
+    val?: T,
+    options?: CompTimeFnArgs<PrepareForJsonOptions>,
+    id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>
+  ) => PrepareForJsonFn<T>);
+
+/** Returns a restore function for `T`: the output of `JSON.parse` in, the typed value
+ *  out (BigInt(...), Date revival, Map/Set rebuilt). Default `strategy: 'clone'`; see
+ *  `JsonValueStrategy`.
+ *
+ *  It does NOT check the value. Reach for `createParseFn<T>()` when the data is
+ *  untrusted and you want the restore and the check in one walk. **/
+export const createRestoreFromJsonFn = createTypeFnArgsFunction<RestoreFromJsonFn>(
+  'createRestoreFromJsonFn',
+  identityValueFn
+) as unknown as (<T>(
+  runType: RunType<T>,
+  options?: CompTimeFnArgs<RestoreFromJsonOptions>,
+  id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>
+) => RestoreFromJsonFn<T>) &
+  (<T>(
+    val?: T,
+    options?: CompTimeFnArgs<RestoreFromJsonOptions>,
+    id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>
+  ) => RestoreFromJsonFn<T>);
+
+/** Returns a single-pass stringifier for `T`: a typed value straight to a JSON string,
+ *  with no intermediate value. Undeclared properties never reach the string.
+ *
+ *  It is what `createJsonEncoderFn<T>({strategy: 'direct'})` uses. Reach for this one
+ *  when you are writing a fragment into an envelope you assemble yourself. **/
+export const createStringifyJsonFn = createRTFunction<StringifyJsonFn>('createStringifyJsonFn', ((value: unknown) =>
+  JSON.stringify(value)) as StringifyJsonFn) as unknown as (<T>(
+  runType: RunType<T>,
+  id?: InjectTypeFnArgs<T, 'stringifyJson'>
+) => StringifyJsonFn<T>) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'stringifyJson'>) => StringifyJsonFn<T>);
+
+/** Returns a function that sets every undeclared property on incoming JSON to
+ *  `undefined`, so a later restore walks only what the type declares. It BLANKS rather
+ *  than rebuilds, which is what makes it cheap enough to run on a whole payload.
+ *
+ *  Different job from `createCloneExactShapeFn<T>()`, which copies a live value and
+ *  keeps only declared properties. **/
+export const createStripUnknownKeysFn = createRTFunction<RestoreFromJsonFn>(
+  'createStripUnknownKeysFn',
+  identityValueFn
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) => RestoreFromJsonFn<T>) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) => RestoreFromJsonFn<T>);
 
 // createFormatTransformFn returns a `(value) => transformedValue` for `T`. Identity
 // fallback covers both noop-format types and the no-plugin case.
@@ -707,10 +791,8 @@ const parseNoPluginFallback: ParseRestoreFn = () => {
 // =============================================================================
 
 /** Maps each `InjectTypeFnArgs` fnKey to the runtime function shape
- *  `getRTFunction` returns for it. The JSON value-level primitives
- *  (the prepare / restore / stringify / compact set) are the primary users — they have no
- *  `createX` factory — but every createX-backed family is keyed too, so a wrapper
- *  resolves any of them by naming the SAME fnKey it put in the marker. Families
+ *  `getRTFunction` returns for it. Every family is keyed, so a wrapper resolves any of
+ *  them by naming the SAME fnKey it put in the marker. Families
  *  whose fn is generic in `T` (`validate` / `jsonDecoder` / `formatTransform` /
  *  `fromBinary`) resolve to
  *  the base `T = unknown`; reach for the dedicated `createX<T>()` factory when you
@@ -739,7 +821,8 @@ export interface RTFunctionByKey {
   // Binary I/O primitives (serializer/deserializer-threaded).
   toBinary: ToBinaryFn;
   fromBinary: FromBinaryFn;
-  // JSON value-level primitives — recovered ONLY through getRTFunction (no factory).
+  // JSON value-level primitives — also reachable through createPrepareForJsonFn /
+  // createRestoreFromJsonFn / createStringifyJsonFn / createStripUnknownKeysFn.
   prepareForJsonMutate: PrepareForJsonFn; // transforms in place, keeps undeclared keys
   prepareForJsonClone: PrepareForJsonFn; // builds a new value from the declared shape
   restoreFromJsonMutate: RestoreFromJsonFn; // restores in place, keeps undeclared keys
@@ -758,14 +841,11 @@ export type RTFunctionKey = keyof RTFunctionByKey;
  *  tuple, keyed by the SAME fnKey the marker names — the generic,
  *  family-agnostic counterpart of the `createX` factories. A framework wrapper
  *  that declares its OWN `InjectTypeFnArgs<T, Fn>` marker parameter (e.g. mion's
- *  `route()`) forwards the injected slot here to get the callable fn without a
- *  dedicated factory per function. This is the only way to reach the JSON
- *  value-level primitives that have no `createX` (`'prepareForJsonMutate'`,
- *  `'prepareForJsonClone'`, `'restoreFromJsonMutate'`, `'restoreFromJsonClone'`,
- *  `'stringifyJson'`, `'stripUnknownKeysWire'`, `'compactForJson'`,
- *  `'compactFromJson'`); it also resolves any createX-backed family the same
- *  way. The type parameter is the fnKey (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`), so the
- *  return type comes straight from `RTFunctionByKey`.
+ *  `route()`) forwards the injected slot here to get the callable fn without one factory
+ *  call per function. It resolves every family, including the value-level JSON set that
+ *  `createPrepareForJsonFn` and its siblings compile. The type parameter is the fnKey
+ *  (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`), so the return type comes straight
+ *  from `RTFunctionByKey`.
  *
  *  Registers the tuple's dependency closure, then returns `entry.fn` by the
  *  tuple's key (the fnHash already encodes the exact function). Degrade paths

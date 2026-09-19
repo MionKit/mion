@@ -1205,6 +1205,12 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 			op = selected
 		}
 	}
+	// The value-level JSON families take the same road: their strategy names the
+	// operation rather than a variant. No project-wide default exists for them (unlike
+	// parse), so only the site's own value is read.
+	if selected, swapped := jsonValueStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
+		op = selected
+	}
 	var optionNames []string
 	var strategy string
 	switch op.Axis {
@@ -1518,6 +1524,35 @@ func parseStrategyOperation(op operations.Operation, strategy string) (operation
 		// 'preserve' and anything unrecognised: the default family, already `op`.
 		// Loose is the default because it is the cheapest shape (no pre-pass, no
 		// key check) and it is what zod does, which strips only under `.strict()`.
+		return op, false
+	}
+	resolved, ok := operations.ByName(name)
+	if !ok {
+		return op, false
+	}
+	return resolved, true
+}
+
+// jsonValueStrategyOperations maps a value-level JSON family's DEFAULT operation to the
+// operation each non-default `strategy` selects. Only the two non-default arms need a row:
+// `clone` IS the default and is already `op`.
+var jsonValueStrategyOperations = map[string]map[string]string{
+	"prepareForJsonClone":  {"mutate": "prepareForJsonMutate", "compact": "compactForJson"},
+	"restoreFromJsonClone": {"mutate": "restoreFromJsonMutate", "compact": "compactFromJson"},
+}
+
+// jsonValueStrategyOperation routes createPrepareForJsonFn / createRestoreFromJsonFn's
+// `strategy` to its family, the same operation-swap road parseStrategyOperation takes and
+// for the same reason: these are AxisNone, so the strategy IS the operation. One table
+// rather than a helper per family — the two differ only in which names they map to.
+// An absent or unrecognised value takes the default, 'clone'.
+func jsonValueStrategyOperation(op operations.Operation, strategy string) (operations.Operation, bool) {
+	byStrategy, isValueFamily := jsonValueStrategyOperations[op.Name]
+	if !isValueFamily {
+		return op, false
+	}
+	name, mapped := byStrategy[strategy]
+	if !mapped {
 		return op, false
 	}
 	resolved, ok := operations.ByName(name)

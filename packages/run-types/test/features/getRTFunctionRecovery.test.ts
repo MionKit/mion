@@ -1,12 +1,12 @@
 // End-to-end acceptance test for `getRTFunction` — the generic resolver that
 // recovers the compiled fn for `T` from an injected `InjectTypeFnArgs<T, Fn>`
 // tuple. This is the surface a framework wrapper (mion) uses to pull a
-// per-strategy JSON prepare / restore for a route's params / response type
-// WITHOUT a dedicated createX factory: name the primitive's fnKey in the marker,
-// forward the injected slot to `getRTFunction`, get the callable fn back.
+// per-strategy JSON prepare / restore for a route's params / response type from ONE
+// marker: name each fnKey in the marker, forward each injected slot to `getRTFunction`,
+// get the callable fns back. Each family also has its own createX; this is the road that
+// carries several of them at once.
 //
-// The JSON value-level primitives have no `createX`, so this test is where their
-// public recoverability is pinned: `'pjs'` (clone prepare), `'rj'` (restore),
+// This test is where the marker road's coverage lives: `'pjs'` (clone prepare), `'rj'` (restore),
 // `'cj'` / `'cjr'` (compact encode / decode), `'sj'` (direct stringify) and
 // `'ukuw'` (strip wire pre-pass). Per the CLAUDE.md marker-coverage rule both
 // call shapes are exercised — the static `recoverX<T>()` form and the
