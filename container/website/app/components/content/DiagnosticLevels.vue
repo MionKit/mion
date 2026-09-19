@@ -4,17 +4,17 @@ const levels = [
   {
     key: 'error',
     label: 'Error',
-    text: 'The build could not produce the code at all, so there is nothing to ship for that piece. It stops that piece of the build everywhere, and nothing you can set or write stands one down.',
+    text: 'mion could not build the code at all, so there is nothing to ship for it. The build stops there, everywhere, and nothing you write or set turns it off.',
   },
   {
     key: 'runtime',
     label: 'RuntimeError',
-    text: 'An error too: the code is written, but it throws when called or no longer checks what you asked for. It blocks a production bundle, while a dev server reports it and keeps running. You can stand one down with a comment or a setting.',
+    text: "The build is not stopped during dev mode but code will generate an error at runtime. Production build will fail so you don't ship runtime errors.",
   },
   {
     key: 'warning',
     label: 'Warning',
-    text: 'Worth knowing, nothing is wrong. Usually a member with no data form (a method, a function-valued property, a symbol key) left out of the generated function. It never stops anything.',
+    text: 'Worth knowing, nothing is broken. Usually a field mion skipped because it is not data: a method, a function, a symbol key. It never stops anything.',
   },
 ];
 </script>
