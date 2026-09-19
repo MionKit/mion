@@ -11,6 +11,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
+
+	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
 // End-to-end coverage for demand-driven built-in pure-fn DELIVERY: a real scan
@@ -116,14 +119,25 @@ func keys(m map[string]string) []string {
 	return out
 }
 
-// markerBuild drops the named parts of the marker install, so a test can say where the built-in bodies came from.
-func markerBuild(t *testing.T, dropSegments ...string) protocol.Response {
+// markerBuild drops the named parts of the marker install, so a test can say where the built-in
+// bodies came from. The base fixture is the CONSUMER INSTALL (no sources); addSources layers the
+// package's own src/ back in, which is the workspace shape.
+func markerBuild(t *testing.T, addSources bool, dropSegments ...string) protocol.Response {
 	t.Helper()
 	r := setupInlineWith(t, map[string]string{"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 `}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
 		programOpts.SingleThreaded = true
 		resolverOpts.SingleThreaded = true
+		if addSources {
+			sources, err := testfixtures.RealMarkerSources()
+			if err != nil {
+				t.Fatalf("marker sources: %v", err)
+			}
+			for rel, content := range sources {
+				programOpts.Overlay[tspath.ResolvePath(programOpts.Cwd, rel)] = content
+			}
+		}
 		for path := range programOpts.Overlay {
 			for _, segment := range dropSegments {
 				if strings.Contains(path, segment) {
@@ -139,9 +153,10 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 	return resp
 }
 
-// The package's own build publishes its built-in bodies, so an install with the artifact and no src serves them.
+// The package's own build publishes its built-in bodies, so an install with the artifact and no
+// src serves them — which is every install, since the tarball carries no sources.
 func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
-	resp := markerBuild(t, "/@mionjs/run-types/src/")
+	resp := markerBuild(t, false)
 	for _, diag := range resp.Diagnostics {
 		if diag.Code == diagnostics.CodePureFnDepUnbuilt || diag.Code == diagnostics.CodeMissingPureFnDep {
 			t.Fatalf("the artifact must serve the built-ins on its own, got %s %v", diag.Code, diag.Args)
@@ -158,11 +173,11 @@ func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
 	}
 }
 
-// The mirror, and what a dev tree relies on: with no artifact built yet the package is scanned
-// for its registrations like any other unbuilt dependency, so a sibling package compiles against
-// a run-types that has never been built.
+// The mirror, and what the WORKSPACE relies on: with the sources present and no artifact built
+// yet the package is scanned for its registrations like any other unbuilt dependency, so a
+// sibling package compiles against a run-types that has never been built.
 func TestBuiltinDelivery_SourcesServeWithoutArtifact(t *testing.T) {
-	resp := markerBuild(t, "/"+constants.PureFnArtifactDir+"/")
+	resp := markerBuild(t, true, "/"+constants.PureFnArtifactDir+"/")
 	for _, diag := range resp.Diagnostics {
 		if diag.Code == diagnostics.CodePureFnDepUnbuilt || diag.Code == diagnostics.CodeMissingPureFnDep {
 			t.Fatalf("the sources must still serve the built-ins, got %s %v", diag.Code, diag.Args)
@@ -179,7 +194,7 @@ func TestBuiltinDelivery_SourcesServeWithoutArtifact(t *testing.T) {
 // With neither artifact nor sources the bodies are nowhere (the dist is hollowed), so the build must fail
 // naming the package; the alternative is a validator that throws at its first call.
 func TestBuiltinDelivery_MarkerWithNothingToServeFails(t *testing.T) {
-	resp := markerBuild(t, "/@mionjs/run-types/src/", "/"+constants.PureFnArtifactDir+"/")
+	resp := markerBuild(t, false, "/"+constants.PureFnArtifactDir+"/")
 	for _, diag := range resp.Diagnostics {
 		if diag.Code == diagnostics.CodePureFnDepUnbuilt {
 			return

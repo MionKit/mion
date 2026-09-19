@@ -33,40 +33,45 @@ export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 
 export type InlineSources = Record<string, string>;
 
-// The REAL `@mionjs/run-types` package — its package.json plus the built
-// dist/**/*.d.ts declaration tree (esm AND dist/cjs/, since a node16-style
-// CommonJS importer resolves the `require` export condition) — keyed as
-// virtual node_modules paths for setSources. `withInlineSources` always
-// injects it, so test snippets resolve the marker module exactly the way a
-// consumer install does; there is no hand-written module stand-in to drift
-// ("Real types, never copies" in packages/run-types/test/fuzz/README.md). Read once
-// per worker; the dist is guaranteed fresh by `pretest` → `check:builds`.
+// The REAL `@mionjs/run-types` package as a CONSUMER INSTALL: its PUBLISHED package.json
+// (no `source` condition, the one thing pack.mjs strips) plus the built dist — the
+// **/*.d.ts declaration tree (esm AND dist/cjs/, since a node16-style CommonJS importer
+// resolves the `require` export condition) and the `mion-pure-fns/` artifact its own build
+// writes, which is where the built-in pure-fn bodies come from now that the dist is hollowed.
+// Keyed as virtual node_modules paths for setSources. `withInlineSources` always injects it,
+// so test snippets resolve the marker module exactly the way a consumer install does; there is
+// no hand-written module stand-in to drift ("Real types, never copies" in
+// packages/run-types/test/fuzz/README.md). No sources: the tarball carries none, so a fixture
+// that mounted them would resolve down a road no consumer has. Read once per worker; the dist
+// is guaranteed fresh by `pretest` → `check:builds`.
 const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/run-types');
+const ARTIFACT_SEGMENT = `${path.sep}mion-pure-fns${path.sep}`;
+
+// The TS twin of scripts/lib/publish-manifest.mjs: every `source` key dropped, at any depth.
+const withoutSource = (node: unknown): unknown => {
+  if (Array.isArray(node)) return node.map(withoutSource);
+  if (!node || typeof node !== 'object') return node;
+  return Object.fromEntries(
+    Object.entries(node as Record<string, unknown>)
+      .filter(([key]) => key !== 'source')
+      .map(([key, value]) => [key, withoutSource(value)])
+  );
+};
+
 export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
   const files: InlineSources = {};
-  files['node_modules/@mionjs/run-types/package.json'] = fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8')) as Record<string, unknown>;
+  files['node_modules/@mionjs/run-types/package.json'] = JSON.stringify({...manifest, exports: withoutSource(manifest.exports)});
   const walk = (dir: string, rel: string): void => {
     for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
-      if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
-      else if (entry.name.endsWith('.d.ts')) {
-        files[`node_modules/@mionjs/run-types/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full, `${rel}${entry.name}/`);
+      else if (entry.name.endsWith('.d.ts') || full.includes(ARTIFACT_SEGMENT)) {
+        files[`node_modules/@mionjs/run-types/dist/${rel}${entry.name}`] = fs.readFileSync(full, 'utf8');
       }
     }
   };
   walk(path.join(MARKER_PKG_DIR, 'dist'), '');
-  // The sources ride along because the tarball ships them and they are the ONLY
-  // place the built-in pure-fn bodies exist: the dist is hollowed, and the
-  // compiler extracts each demanded body from the file its id names. A package
-  // mounted without them is not the package a consumer installs.
-  const walkSrc = (dir: string, rel: string): void => {
-    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
-      if (entry.isDirectory()) walkSrc(path.join(dir, entry.name), `${rel}${entry.name}/`);
-      else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts') && !entry.name.endsWith('.test.ts')) {
-        files[`node_modules/@mionjs/run-types/src/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
-      }
-    }
-  };
-  walkSrc(path.join(MARKER_PKG_DIR, 'src'), '');
   return files;
 })();
 

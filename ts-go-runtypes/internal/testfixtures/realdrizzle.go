@@ -1,10 +1,10 @@
-// realdrizzle.go — the REAL @mionjs drizzle packages (package.json + src
-// trees) plus the marker package's SOURCES, keyed as virtual node_modules
-// paths, for suites that exercise the drizzle conversion arm. Sources, not
-// dists: the drizzle packages publish src/ behind the "source" export
-// condition, so programs mounting this fixture must pass
-// Conditions: ["source"] (which is also why the marker package rides along as
-// src here — under that condition its dist .d.ts overlay would not resolve).
+// realdrizzle.go — the REAL @mionjs drizzle packages (package.json + src trees) plus the
+// marker package's SOURCES, keyed as virtual node_modules paths, for suites that exercise
+// the drizzle conversion arm. This models the WORKSPACE, not an install: the packages are
+// mounted at their `source` export condition, so programs using this fixture must pass
+// Conditions: ["source"] (which is also why the marker package rides along as src here —
+// under that condition its dist .d.ts overlay would not resolve). A published tarball
+// carries neither the sources nor the condition; RealMarkerPackage is that shape.
 // Same "real files, never copies" rule as RealMarkerPackage.
 package testfixtures
 
