@@ -50,7 +50,7 @@ export interface SerializationCase {
 
   /** Decoder thunks. `stripDecoder` builds `createJsonDecoderFn<T>()`
    *  (default strategy 'strip': undeclared keys become `undefined` via
-   *  ukuWire before restoreFromJson). `preserveDecoder` builds
+   *  ukuWire before restoreFromJsonMutate). `preserveDecoder` builds
    *  `createJsonDecoderFn<T>(undefined, {strategy: 'preserve'})` —
    *  undeclared keys on the parsed value pass through to the restored
    *  result untouched. The round-trip adapter pairs each encoder
@@ -64,7 +64,7 @@ export interface SerializationCase {
   compactDecoder: () => JsonDecoderFn;
 
   /** Sample values to round-trip via the **mutate** path
-   *  (`prepareForJson + JSON.stringify` / `JSON.parse + restoreFromJson`).
+   *  (`prepareForJson + JSON.stringify` / `JSON.parse + restoreFromJsonMutate`).
    *  Required for every case.
    *
    *  Returns valid inputs for `prepareForJson`: the mutate path
@@ -83,7 +83,7 @@ export interface SerializationCase {
 
   /** Optional override consumed by the **clone** (shape-derived, strips)
    *  path adapter (`prepareForJsonSafe + JSON.stringify` /
-   *  `JSON.parse + (stripUnknownKeys | unknownKeyErrors) + restoreFromJson`).
+   *  `JSON.parse + (stripUnknownKeys | unknownKeyErrors) + restoreFromJsonMutate`).
    *
    *  Provide only when the clone path produces a different observable
    *  than the mutate path — typically when an input carries extras

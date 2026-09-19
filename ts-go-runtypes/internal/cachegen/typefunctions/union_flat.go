@@ -319,7 +319,7 @@ func mergedPropPrepareBody(mp FlatMergedProp, accessor, discAccessor string, ctx
 	return strings.Join(arms, ""), true
 }
 
-// --- restoreFromJson decode --------------------------------------------------
+// --- restoreFromJsonMutate decode --------------------------------------------------
 
 // emitUnionRestoreFromJsonFlat — the decode-side of the flat-union wire
 // shape. Under the all-or-nothing wrap rule

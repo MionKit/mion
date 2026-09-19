@@ -165,8 +165,8 @@ export const deserializePrepareForJson = deserializeRTFunction<PrepareForJsonFn>
 export const deserializeRestoreFromJson = deserializeRTFunction<RestoreFromJsonFn>(
   'deserializeRestoreFromJson',
   identityValueFn
-) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) => RestoreFromJsonFn) &
-  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) => RestoreFromJsonFn);
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) => RestoreFromJsonFn) &
+  (<T>(val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) => RestoreFromJsonFn);
 
 export const deserializeStringifyJson = deserializeRTFunction<StringifyJsonFn>(
   'deserializeStringifyJson',

@@ -28,7 +28,7 @@ func patternPropsDump() protocol.Dump {
 func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 	dump := patternPropsDump()
 	regex := `new RegExp("^d_")`
-	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson", "restoreFromJsonStrip", "compactForJson", "compactFromJson", "cloneExactShape", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "restoreFromJsonClone", "compactForJson", "compactFromJson", "cloneExactShape", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// The binary decoder reads the count the encoder wrote, so it filters
 		// nothing itself: its evidence is the key read of the pattern block.
@@ -44,7 +44,7 @@ func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 		}
 	}
 	// The decode roads carry the prototype-name refusal on the pattern sweep too.
-	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonStrip"} {
+	for _, fam := range []string{"restoreFromJsonMutate", "compactFromJson", "restoreFromJsonClone"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, UnsafeKeyMessage) {
 			t.Errorf("[%s] the pattern-keyed decode sweep must refuse prototype-named keys; got:\n%s", fam, out)
@@ -64,7 +64,7 @@ func TestPatternProps_NoopValueMatchesIndexSignatureVerdicts(t *testing.T) {
 	if out := renderModule(t, dump, "prepareForJsonMutate"); !strings.Contains(out, "_outer','objectLiteral',,true") {
 		t.Errorf("[prepareForJson] a number-valued pattern rebuilds nothing on encode; got:\n%s", out)
 	}
-	if out := renderModule(t, dump, "restoreFromJson"); strings.Contains(out, "_outer','objectLiteral',,true") || !strings.Contains(out, UnsafeKeyMessage) {
-		t.Errorf("[restoreFromJson] the pattern sweep ships its refusal and the entry is live; got:\n%s", out)
+	if out := renderModule(t, dump, "restoreFromJsonMutate"); strings.Contains(out, "_outer','objectLiteral',,true") || !strings.Contains(out, UnsafeKeyMessage) {
+		t.Errorf("[restoreFromJsonMutate] the pattern sweep ships its refusal and the entry is live; got:\n%s", out)
 	}
 }

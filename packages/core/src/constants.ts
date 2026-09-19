@@ -111,8 +111,8 @@ export const JIT_FUNCTION_IDS = {
   prepareForJsonMutate: getFnHash('prepareForJsonMutate'),
   stringifyJson: getFnHash('stringifyJson'),
   compactForJson: getFnHash('compactForJson'),
-  restoreFromJson: getFnHash('restoreFromJson'),
-  restoreFromJsonStrip: getFnHash('restoreFromJsonStrip'),
+  restoreFromJsonMutate: getFnHash('restoreFromJsonMutate'),
+  restoreFromJsonClone: getFnHash('restoreFromJsonClone'),
   compactFromJson: getFnHash('compactFromJson'),
 } as const;
 
@@ -130,9 +130,9 @@ export const ENCODE_FAMILY_BY_STRATEGY = {
  *  decode too (clone rebuilds the declared shape, so does compact) or it covers only bytes mion
  *  wrote; mutate and direct keep undeclared keys. */
 export const DECODE_FAMILY_BY_STRATEGY = {
-  clone: 'restoreFromJsonStrip',
-  mutate: 'restoreFromJson',
-  direct: 'restoreFromJson',
+  clone: 'restoreFromJsonClone',
+  mutate: 'restoreFromJsonMutate',
+  direct: 'restoreFromJsonMutate',
   compact: 'compactFromJson',
 } as const;
 /** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */

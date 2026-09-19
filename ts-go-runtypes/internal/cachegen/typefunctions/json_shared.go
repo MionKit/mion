@@ -5,7 +5,7 @@ import (
 )
 
 // jsonWireSupports is the ONE supported-kind set for every JSON-wire
-// family — prepareForJson, restoreFromJson, stringifyJson, and the
+// family — prepareForJson, restoreFromJsonMutate, stringifyJson, and the
 // compact / prepare-safe / compact-restore variants that already
 // delegated. The families share the set by definition (they are stages
 // of the same wire format), so a kind gaining JSON support lands here

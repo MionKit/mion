@@ -68,7 +68,7 @@ const (
 	CodePJSNonSerializablePropDrop = "PJS015"
 )
 
-// restoreFromJson family.
+// restoreFromJsonMutate family.
 const (
 	CodeRJNeverRoot               = "RJ001"
 	CodeRJNonSerializableRoot     = "RJ002"

@@ -60,8 +60,8 @@ func TestTemporal_EmitValidate(t *testing.T) {
 func TestTemporal_EmitRestoreFromJson(t *testing.T) {
 	// rj is demand-driven now: createJsonDecoderFn (default strip → [rj, ukuw]) seeds it.
 	resp := emitSourcesForFn(t, "createJsonDecoderFn", "PlainDate")
-	if !strings.Contains(familyEntrySources(*resp, "restoreFromJson"), "Temporal.PlainDate.from(") {
-		t.Fatalf("restoreFromJson missing Temporal.PlainDate.from:\n%s", familyEntrySources(*resp, "restoreFromJson"))
+	if !strings.Contains(familyEntrySources(*resp, "restoreFromJsonMutate"), "Temporal.PlainDate.from(") {
+		t.Fatalf("restoreFromJsonMutate missing Temporal.PlainDate.from:\n%s", familyEntrySources(*resp, "restoreFromJsonMutate"))
 	}
 }
 

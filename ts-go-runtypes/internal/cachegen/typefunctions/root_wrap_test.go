@@ -36,14 +36,14 @@ func TestRootWrap_UndefinedVoidEncodersWrap(t *testing.T) {
 	}
 }
 
-// Decoders are deliberately unchanged: restoreFromJson for undefined/void is
+// Decoders are deliberately unchanged: restoreFromJsonMutate for undefined/void is
 // `return v = undefined`, so it yields undefined for ANY parsed input — the
 // wrapped document round-trips with no decode-side unwrap.
 func TestRootWrap_UndefinedDecodersUnchanged(t *testing.T) {
 	for _, tag := range []string{"jdST", "jdPR"} {
 		body := compositeBodyForKind(t, reflection.KindUndefined, tag)
 		if !strings.Contains(body, "rjFn(") {
-			t.Errorf("%s decoder should still call restoreFromJson; got:\n%s", tag, body)
+			t.Errorf("%s decoder should still call restoreFromJsonMutate; got:\n%s", tag, body)
 		}
 		if strings.Contains(body, "[0]") {
 			t.Errorf("%s decoder should not need to unwrap [0]; got:\n%s", tag, body)

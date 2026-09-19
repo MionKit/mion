@@ -139,7 +139,7 @@ describe('json noop markers (00JsonOnly.spec.ts port)', () => {
     //   - prepareForJson is identity → the pj entry is elided (no dispatch, no
     //     trailing throw). (Previously it kept the validate-and-return-unchanged
     //     dispatch — the finding-B asymmetry, now removed.)
-    //   - restoreFromJson has nothing to decode → the rj side is identity → the
+    //   - restoreFromJsonMutate has nothing to decode → the rj side is identity → the
     //     decoder composite elides it and the entry never loads.
     // For `bigint | Date`, both members are non-noop on at least one half (bigint
     // pj/rj are non-noop, Date rj is non-noop), so the wrap is preserved on every

@@ -80,7 +80,7 @@ func TestPatternKey_DecodersLeaveANonMatchingKeyAlone(t *testing.T) {
 	if !strings.Contains(gated, "if (!reIdx0.test(k0)) continue;") || strings.Contains(gated, "v[k0] = undefined") {
 		t.Errorf("[stripUnknownKeysWire] the pattern must gate the value arm only; got:\n%s", gated)
 	}
-	for _, family := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonStrip"} {
+	for _, family := range []string{"restoreFromJsonMutate", "compactFromJson", "restoreFromJsonClone"} {
 		entry := familyEntry(t, keyed, family, "rec")
 		if !strings.Contains(entry, "if (!reIdx0.test(k0)) continue;") || strings.Contains(entry, "= undefined") || strings.Contains(entry, "delete ") {
 			t.Errorf("[%s] a key matching no pattern must be left as is; got:\n%s", family, entry)

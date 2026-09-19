@@ -35,7 +35,7 @@ func compositeBodyFor(t *testing.T, tag string) string {
 // materializes before returning, so the read is always live.
 func TestJsonComposite_DirectFnBind_DecoderStrip(t *testing.T) {
 	body := compositeBodyFor(t, "jdST")
-	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
+	rjKey := operations.PlainHash("restoreFromJsonMutate") + "_obj1"
 	ukuwKey := operations.PlainHash("stripUnknownKeysWire") + "_obj1"
 	for _, want := range []string{
 		"const rjFn = utl.getRT('" + rjKey + "').fn",
@@ -95,7 +95,7 @@ func TestJsonComposite_DirectFnBind_CompactDecoder(t *testing.T) {
 // a composite whose primitive never rendered surfaces as an Error diag
 // (JCP001) instead of a runtime `undefined.fn` TypeError.
 func TestAssertCompositeSoftDeps_MissingPrimitiveFails(t *testing.T) {
-	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
+	rjKey := operations.PlainHash("restoreFromJsonMutate") + "_obj1"
 	graph := entrymodules.Graph{}
 	graph.Add(&entrymodules.Entry{
 		Key: "jd1_obj1", Kind: entrymodules.KindTypeFn, FamilyTag: "jdPR",

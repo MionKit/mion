@@ -3,15 +3,15 @@ import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 type Message = {id: bigint; sentAt: Date; body: string};
 
 // start-value-codec
-// prepareForJson and restoreFromJson have no factory of their own, so you name
+// prepareForJson and restoreFromJsonMutate have no factory of their own, so you name
 // the pair you want in a marker and recover the handles with getRTFunction.
 // This pair builds a fresh value both ways, so undeclared keys are dropped.
 function jsonValueCodec<T>(
-  fns?: InjectTypeFnArgs<T, 'prepareForJsonClone', 'restoreFromJsonStrip'>
+  fns?: InjectTypeFnArgs<T, 'prepareForJsonClone', 'restoreFromJsonClone'>
 ) {
   return {
     prepare: getRTFunction<'prepareForJsonClone'>(fns?.[0]),
-    restore: getRTFunction<'restoreFromJsonStrip'>(fns?.[1]),
+    restore: getRTFunction<'restoreFromJsonClone'>(fns?.[1]),
   };
 }
 

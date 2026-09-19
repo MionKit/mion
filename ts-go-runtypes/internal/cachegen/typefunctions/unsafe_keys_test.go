@@ -55,7 +55,7 @@ func TestUnsafeKeys_GuardTextIsOneSourceOfTruth(t *testing.T) {
 
 func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 	cases := map[string]string{
-		"restoreFromJson":     unsafeKeyThrow("k0"),
+		"restoreFromJsonMutate":     unsafeKeyThrow("k0"),
 		"prepareForJsonClone": unsafeKeySkip("k0"),
 		"validate":            "if (" + unsafeKeyCheck("k0") + ") return false;",
 		"validationErrors":    "if (" + unsafeKeyCheck("k0") + ") {",
@@ -216,7 +216,7 @@ func TestUnsafeKeys_DeclaredUnsafeNameOneContainerDeeperStillDrops(t *testing.T)
 		wrapperProp := &reflection.RunType{ID: "pw", Kind: reflection.KindPropertySignature, Name: "inner", IsSafeName: true, Child: makeRef(root.ID)}
 		outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pw")}}
 		dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{}, shared...), root, wrapperProp, outer)}
-		for _, fam := range []string{"validate", "restoreFromJson", "fromBinary"} {
+		for _, fam := range []string{"validate", "restoreFromJsonMutate", "fromBinary"} {
 			out := renderModule(t, dump, fam)
 			if strings.Contains(out, "[UPN001]") {
 				t.Errorf("[%s/%s] a member one %s deeper drops, it never throws the root; got:\n%s", fam, label, label, out)
@@ -244,7 +244,7 @@ func TestUnsafeKeys_DecoderGuardShipsForANoopValueType(t *testing.T) {
 	prop := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "bag", IsSafeName: true, Child: makeRef("rec")}
 	outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{num, key, idx, rec, prop, outer}}
-	for _, fam := range []string{"restoreFromJson", "compactFromJson", "restoreFromJsonStrip"} {
+	for _, fam := range []string{"restoreFromJsonMutate", "compactFromJson", "restoreFromJsonClone"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, unsafeKeyThrow("k0")) {
 			t.Errorf("[%s] the key loop must ship its prototype-name refusal for a noop value type; got:\n%s", fam, out)

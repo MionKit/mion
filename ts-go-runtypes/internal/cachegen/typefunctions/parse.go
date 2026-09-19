@@ -25,7 +25,7 @@ import (
 // a plain `validate` while doing the same work — the statement form with its
 // per-node status writes is simply worse code than the `&&` expression validate
 // compiles to. Reusing the real functions is both faster and far less to own:
-// every improvement to validate or restoreFromJson now reaches parse for free,
+// every improvement to validate or restoreFromJsonMutate now reaches parse for free,
 // and parse can no longer drift behind the families it duplicates.
 //
 // # Which pieces, per strategy
@@ -40,7 +40,7 @@ import (
 //
 // # Why the rj call is wrapped
 //
-// restoreFromJson assumes its caller already validated, so on malformed input it
+// restoreFromJsonMutate assumes its caller already validated, so on malformed input it
 // throws RAW: `BigInt('nope')` is a SyntaxError, the RegExp arm indexes
 // `.match()` output with no null check, and a non-object where an object belongs
 // is a TypeError. Parse is the one family whose whole job is untrusted input, so
@@ -86,7 +86,7 @@ func (ParseEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-// Supports — the JSON wire kind set, the same one restoreFromJson covers. A kind
+// Supports — the JSON wire kind set, the same one restoreFromJsonMutate covers. A kind
 // outside it has no wire form to restore FROM, so parse cannot serve it either;
 // the renderer emits an alwaysThrow entry rather than silently degrading to
 // identity, because a parse that quietly accepts everything is worse than one
@@ -146,7 +146,7 @@ func (e ParseEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType)
 	// The restore, wrapped because its arms throw raw on malformed input. Omitted
 	// outright when the restore is provably identity over the whole subtree.
 	if !isNoopForRestoreJson(resolved, ctx) {
-		restoreHash := operations.PlainHash("restoreFromJson") + "_" + resolved.ID
+		restoreHash := operations.PlainHash("restoreFromJsonMutate") + "_" + resolved.ID
 		ctx.registerRTLookup(restoreHash)
 		// The raw throw rides along as the mismatch's `cause`. A restore arm that
 		// throws has ALREADY told us what is wrong with the wire value, and that

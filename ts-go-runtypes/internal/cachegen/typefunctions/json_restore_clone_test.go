@@ -4,13 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// rjsEntry renders the restoreFromJsonStrip family for a dump and returns the entry for id.
+// rjsEntry renders the restoreFromJsonClone family for a dump and returns the entry for id.
 func rjsEntry(t *testing.T, runTypes []*reflection.RunType, id string) string {
 	t.Helper()
-	return familyEntry(t, runTypes, "restoreFromJsonStrip", id)
+	return familyEntry(t, runTypes, "restoreFromJsonClone", id)
 }
 
 // templateKeyIndex is the index signature `[k: \`<prefix>${string}\`]: <valueID>`.
@@ -27,7 +28,7 @@ func templateKeyIndex(id, prefix, valueID string) []*reflection.RunType {
 // admits no wire key, and a dropped declared member's wire key has to go. A
 // plain `[k: string]: number` admits everything, so the in-place walk is
 // delegated to and only its prototype-name refusal ships.
-func TestRestoreFromJsonStrip_IndexSignatureRebuildTriggers(t *testing.T) {
+func TestRestoreFromJsonClone_IndexSignatureRebuildTriggers(t *testing.T) {
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 	sym := &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}
@@ -69,7 +70,7 @@ func TestRestoreFromJsonStrip_IndexSignatureRebuildTriggers(t *testing.T) {
 // An index signature is always open: a key its pattern does not match is
 // validation's to refuse, so the rebuild sweep copies it and only skips the
 // value transform. Two pattern signatures sharing a value type keep both arms.
-func TestRestoreFromJsonStrip_PatternKeysAreCopiedNotDropped(t *testing.T) {
+func TestRestoreFromJsonClone_PatternKeysAreCopiedNotDropped(t *testing.T) {
 	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 	method := &reflection.RunType{ID: "pm", Kind: reflection.KindMethodSignature, Name: "m"}
 	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxA"), makeRef("idxB"), makeRef("pm")}}
@@ -91,7 +92,7 @@ func TestRestoreFromJsonStrip_PatternKeysAreCopiedNotDropped(t *testing.T) {
 // The remaining rebuild positions render, each with the rebuild where the
 // object sits: under a named class's serializer registry branch, inside a Map's
 // value slot, and through a circular type's tuple slot.
-func TestRestoreFromJsonStrip_RebuildPositions(t *testing.T) {
+func TestRestoreFromJsonClone_RebuildPositions(t *testing.T) {
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
 	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
@@ -116,7 +117,10 @@ func TestRestoreFromJsonStrip_RebuildPositions(t *testing.T) {
 		t.Errorf("a Map of objects must rebuild each value before the constructor; got:\n%s", mapEntry)
 	}
 	circular := rjsEntry(t, runTypes, "self")
-	if !strings.Contains(circular, "r0.list = v.list;v = r0;") || !strings.Contains(circular, "v.list[1] = NWjz_self(v.list[1])") {
+	// The self-reference is emitted as a call to this family's own entry, so the
+	// prefix comes from the registry: a hardcoded hash rots on every rename.
+	selfCall := "v.list[1] = " + operations.PlainHash("restoreFromJsonClone") + "_self(v.list[1])"
+	if !strings.Contains(circular, "r0.list = v.list;v = r0;") || !strings.Contains(circular, selfCall) {
 		t.Errorf("a circular type must rebuild itself and recurse through its tuple slot; got:\n%s", circular)
 	}
 }

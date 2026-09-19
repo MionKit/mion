@@ -82,17 +82,17 @@ export interface FuzzTarget {
   /** createParseFn for the same type, and the composition it fuses. `parse`
    *  throws on a mismatch, so both oracles below run it inside a try.
    *
-   *  `restoreFromJson` is the reference half, recovered through a marker wrapper
+   *  `restoreFromJsonMutate` is the reference half, recovered through a marker wrapper
    *  because the primitive has no createX factory. Without it O19 can only check
    *  that parse's OWN output validates, which a parse that wrongly rejects
    *  everything would still satisfy — supply it and the oracle becomes the
    *  two-sided equality O18 is for the fused validator. **/
   parse?: (value: unknown) => unknown;
-  restoreFromJson?: (value: unknown) => unknown;
+  restoreFromJsonMutate?: (value: unknown) => unknown;
   /** The STRIPPING restore (`rjs`), mion's `clone` decoder. Recovered through a marker wrapper like
-   *  `restoreFromJson`, since the primitive has no createX factory. O26 holds it to the stronger
+   *  `restoreFromJsonMutate`, since the primitive has no createX factory. O26 holds it to the stronger
    *  contract: an undeclared wire key comes back GONE, not blanked. **/
-  restoreFromJsonSafe?: (value: unknown) => unknown;
+  restoreFromJsonClone?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -578,8 +578,8 @@ function survivingPlantedKeys(
  *  arm may then leave alone for validate to refuse, so on such a wire a survivor inside a union is
  *  admitted too. **/
 export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  const {jsonEncode, restoreFromJsonSafe} = target;
-  if (!jsonEncode || !restoreFromJsonSafe) return null;
+  const {jsonEncode, restoreFromJsonClone} = target;
+  if (!jsonEncode || !restoreFromJsonClone) return null;
   let wire: string | undefined;
   try {
     wire = jsonEncode(deepCloneForRoundTrip(value));
@@ -597,7 +597,7 @@ export function checkWireStripDeletes(target: FuzzTarget, value: unknown, ctx: C
   // The restore rewrites its input in place, so it gets its own copy.
   let restored: unknown;
   try {
-    restored = restoreFromJsonSafe(JSON.parse(JSON.stringify(planted)));
+    restored = restoreFromJsonClone(JSON.parse(JSON.stringify(planted)));
   } catch (err) {
     return violation(
       'O26',
@@ -858,7 +858,7 @@ export function checkParseRoundTrip(target: FuzzTarget, value: unknown, ctx: Che
   return null;
 }
 
-/** O19 — parse accepts exactly what `restoreFromJson` + `validate` accepts.
+/** O19 — parse accepts exactly what `restoreFromJsonMutate` + `validate` accepts.
  *
  *  The mirror of O18: parse fuses restore and check into one walk, so the
  *  composition it replaces is the trusted source, and the comparison runs BOTH
@@ -875,7 +875,7 @@ export function checkParseRoundTrip(target: FuzzTarget, value: unknown, ctx: Che
  *  half-restored — and would hand the mutated mock to the oracles that run
  *  after this one. **/
 export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  const {parse, restoreFromJson} = target;
+  const {parse, restoreFromJsonMutate} = target;
   if (!parse) return null;
 
   let parsed: unknown;
@@ -891,12 +891,12 @@ export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCt
     return violation('O19', target, ctx, `parse failed with a raw ${thrownName} instead of RTParseError`, value);
   }
 
-  if (restoreFromJson) {
+  if (restoreFromJsonMutate) {
     let expected: boolean | undefined;
     try {
-      expected = target.validate(restoreFromJson(deepCloneForRoundTrip(value)));
+      expected = target.validate(restoreFromJsonMutate(deepCloneForRoundTrip(value)));
     } catch {
-      // The reference side is undefined for this input: restoreFromJson assumes
+      // The reference side is undefined for this input: restoreFromJsonMutate assumes
       // well-formed data and has no guards of its own (which is the whole reason
       // parse needed them). O3 owns validate's totality.
       expected = undefined;
@@ -904,7 +904,7 @@ export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCt
     if (expected !== undefined && expected === threw) {
       const verb = threw ? 'rejected' : 'accepted';
       const refVerb = expected ? 'accepts' : 'rejects';
-      return violation('O19', target, ctx, `parse ${verb} a value restoreFromJson + validate ${refVerb}`, value);
+      return violation('O19', target, ctx, `parse ${verb} a value restoreFromJsonMutate + validate ${refVerb}`, value);
     }
   }
 

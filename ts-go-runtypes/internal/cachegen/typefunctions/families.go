@@ -29,21 +29,21 @@ func family(key string, emitter Emitter) FamilySpec {
 // they name, so validate needs no special last-place collection pass.
 var Families = []FamilySpec{
 	family("validationErrors", ValidationErrorsEmitter{}),
-	// prepareForJson / restoreFromJson: the mutating JSON round-trip pair —
-	// `restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(v))))` must
+	// prepareForJson / restoreFromJsonMutate: the mutating JSON round-trip pair —
+	// `restoreFromJsonMutate(JSON.parse(JSON.stringify(prepareForJson(v))))` must
 	// deep-equal v. Unions emit the flat wire shape (see union_flat.go).
 	family("prepareForJsonMutate", PrepareForJsonEmitter{}),
-	family("restoreFromJson", RestoreFromJsonEmitter{}),
+	family("restoreFromJsonMutate", RestoreFromJsonEmitter{}),
 	// stringifyJson: single-pass serialiser that builds the JSON string
 	// directly from the type — never mutates v, strips extras by construction.
 	family("stringifyJson", StringifyJsonEmitter{}),
 	// prepareForJsonClone: non-mutating prepareForJson sibling that strips
 	// undeclared properties and returns a new value.
 	family("prepareForJsonClone", PrepareForJsonCloneEmitter{}),
-	// restoreFromJsonStrip: the DECODE mirror of prepareForJsonClone — rebuilds each
+	// restoreFromJsonClone: the DECODE mirror of prepareForJsonClone — rebuilds each
 	// object from the declared shape while applying the restore transforms, so an
-	// undeclared key on the wire is gone rather than blanked. See json_restore_safe.go.
-	family("restoreFromJsonStrip", RestoreFromJsonStripEmitter{}),
+	// undeclared key on the wire is gone rather than blanked. See json_restore_clone.go.
+	family("restoreFromJsonClone", RestoreFromJsonCloneEmitter{}),
 	// compactForJson / compactFromJson: the `compact` strategy's positional-tuple
 	// round-trip pair — declared object props as a positional array (no key names)
 	// instead of a keyed object. Non-mutating clone on encode, keyed-object rebuild

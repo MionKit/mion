@@ -43,11 +43,11 @@ type EncodeFamily<S> = S extends 'clone'
 // to hold for a payload mion did not write. `mutate` keeps them both ways, `direct` shares the
 // plain restore.
 type DecodeFamily<S> = S extends 'clone'
-  ? 'restoreFromJsonStrip'
+  ? 'restoreFromJsonClone'
   : S extends 'compact'
     ? 'compactFromJson'
     : S extends string
-      ? 'restoreFromJson'
+      ? 'restoreFromJsonMutate'
       : never;
 
 /** Options naming no `encoder`, the default for a helper called outside the factory. */

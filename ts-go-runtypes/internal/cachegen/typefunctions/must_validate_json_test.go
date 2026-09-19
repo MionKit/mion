@@ -11,7 +11,7 @@ import (
 
 // The MustValidateJson contract (reflection/must_validate_json.go): a JSON
 // decoder converts only the exact wire form and leaves anything else for
-// validate. Two directions, both over the rendered restoreFromJson and
+// validate. Two directions, both over the rendered restoreFromJsonMutate and
 // compactFromJson bodies:
 //
 //   - every kind the table flags renders a guard on the SAME variable before
@@ -22,7 +22,7 @@ import (
 // The JS side runs the same predicate over every emitted decoder body as the
 // GC-GUARD generated-code oracle (hand-written corpus + the secgen fuzz lane).
 
-var jsonDecodeFamilies = []string{"restoreFromJson", "compactFromJson", "restoreFromJsonStrip"}
+var jsonDecodeFamilies = []string{"restoreFromJsonMutate", "compactFromJson", "restoreFromJsonClone"}
 
 // transformCalls capture the wire variable a constructor is called on.
 var transformCalls = []*regexp.Regexp{
@@ -170,7 +170,7 @@ func TestMustValidateJson_ATransformOnlyAppearsUnderAFlaggedKind(t *testing.T) {
 }
 
 func TestMustValidateJson_UnionEnvelopeIsLeftForValidateWhenNotAnArray(t *testing.T) {
-	body := renderModule(t, unionDump(mkDate(), mkStr()), "restoreFromJson")
+	body := renderModule(t, unionDump(mkDate(), mkStr()), "restoreFromJsonMutate")
 	if !strings.Contains(body, "if (Array.isArray(v) && v.length === 2) {const ") {
 		t.Errorf("the union envelope unwrap must be guarded on the wire shape; got:\n%s", body)
 	}
@@ -178,7 +178,7 @@ func TestMustValidateJson_UnionEnvelopeIsLeftForValidateWhenNotAnArray(t *testin
 
 func TestMustValidateJson_SymbolLiteralOnlyFromItsWireForm(t *testing.T) {
 	dump := flaggedDumps()["lsym"]
-	body := renderModule(t, dump, "restoreFromJson")
+	body := renderModule(t, dump, "restoreFromJsonMutate")
 	if !strings.Contains(body, "typeof v === 'string' && v.startsWith('Symbol:') ? Symbol(v.substring(7)) : v") {
 		t.Errorf("a symbol literal must be rebuilt only from its 'Symbol:' wire form; got:\n%s", body)
 	}

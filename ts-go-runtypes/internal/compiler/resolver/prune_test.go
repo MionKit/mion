@@ -25,8 +25,8 @@ func TestPrune_ElidedPrimitivesNotEmitted(t *testing.T) {
 type PlainDTO = {a: string; b?: number};
 export const dec = createJsonDecoderFn<PlainDTO>();
 `)
-	if hasFamilyEntry(resp, "restoreFromJson") {
-		t.Errorf("noop rj entry must be pruned once the composite elides it, got %v", familyEntryKeys(resp, "restoreFromJson"))
+	if hasFamilyEntry(resp, "restoreFromJsonMutate") {
+		t.Errorf("noop rj entry must be pruned once the composite elides it, got %v", familyEntryKeys(resp, "restoreFromJsonMutate"))
 	}
 	if !hasFamilyEntry(resp, "stripUnknownKeysWire") {
 		t.Error("ukuw does real work for an object DTO — its module must survive the prune")
@@ -75,8 +75,8 @@ export const dec = createJsonDecoderFn<PlainDTO>(undefined, {strategy: 'preserve
 	if hasFamilyEntry(resp, "prepareForJsonMutate") {
 		t.Errorf("noop pj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "prepareForJsonMutate"))
 	}
-	if hasFamilyEntry(resp, "restoreFromJson") {
-		t.Errorf("noop rj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "restoreFromJson"))
+	if hasFamilyEntry(resp, "restoreFromJsonMutate") {
+		t.Errorf("noop rj entry must be pruned once the composite collapses, got %v", familyEntryKeys(resp, "restoreFromJsonMutate"))
 	}
 	for opName, strategy := range map[string]string{"jsonEncoder": "mutate", "jsonDecoder": "preserve"} {
 		keys := compositeEntryKeys(t, resp, opName, strategy)
@@ -137,7 +137,7 @@ func TestPrune_LivePrimitivesStayEmitted(t *testing.T) {
 type Stamped = {a: string; at: Date};
 export const dec = createJsonDecoderFn<Stamped>();
 `)
-	if !hasFamilyEntry(resp, "restoreFromJson") {
+	if !hasFamilyEntry(resp, "restoreFromJsonMutate") {
 		t.Error("rj must stay emitted when the decoder needs the Date rebuild")
 	}
 	if all := allEntrySources(resp); !strings.Contains(all, "rjFn") {
@@ -189,7 +189,7 @@ func TestPrune_AlwaysThrowPrimitiveSurvives(t *testing.T) {
 	resp := scopeScan(t, `import {createJsonDecoderFn} from '@mionjs/run-types';
 export const dec = createJsonDecoderFn<symbol>();
 `)
-	if !hasFamilyEntry(resp, "restoreFromJson") {
+	if !hasFamilyEntry(resp, "restoreFromJsonMutate") {
 		t.Error("the alwaysThrow rj entry must survive the prune — it is live, not noop")
 	}
 	if all := allEntrySources(resp); !strings.Contains(all, "rjFn") {
@@ -208,7 +208,7 @@ type Stamped = {a: string; at: Date};
 export const decPlain = createJsonDecoderFn<PlainDTO>();
 export const decStamped = createJsonDecoderFn<Stamped>();
 `)
-	keys := familyEntryKeys(resp, "restoreFromJson")
+	keys := familyEntryKeys(resp, "restoreFromJsonMutate")
 	if len(keys) != 1 {
 		t.Fatalf("expected exactly the Date-bearing rj entry to survive, got %v", keys)
 	}
@@ -221,7 +221,7 @@ export const decStamped = createJsonDecoderFn<Stamped>();
 	if stampedID == "" {
 		t.Fatal("Stamped runtype missing from the response")
 	}
-	if want := operations.PlainHash("restoreFromJson") + "_" + stampedID; keys[0] != want {
+	if want := operations.PlainHash("restoreFromJsonMutate") + "_" + stampedID; keys[0] != want {
 		t.Errorf("surviving rj key %q must belong to the Date-bearing type (%q)", keys[0], want)
 	}
 }

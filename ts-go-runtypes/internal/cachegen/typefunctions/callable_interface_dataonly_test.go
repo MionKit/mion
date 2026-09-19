@@ -35,7 +35,7 @@ func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 
 	// Every serializer treats a root callable interface as function-like →
 	// alwaysThrow (no real `_cal(` factory body).
-	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson", "restoreFromJsonStrip", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		if strings.Contains(out, "_cal(") {
 			t.Errorf("[%s] a root callable interface should alwaysThrow (function-like), not render an object factory; got:\n%s", fam, out)
@@ -59,7 +59,7 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	outer := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("px"), makeRef("py")}}
 	dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{mkStr()}, parts...), propX, propY, outer)}
 
-	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson", "restoreFromJsonStrip", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// alwaysThrow renders the object entry as `_obj','<kind>',,,,,,'<message>'`
 		// (typeName then five holes, then a quoted `Cannot …` message); a dropped
@@ -82,7 +82,7 @@ func TestF2b_CallableInArrayElementAlwaysThrows(t *testing.T) {
 	functionRootCodes := map[string]string{
 		"prepareForJsonMutate": "PJ003",
 		"prepareForJsonClone":  "PJS003",
-		"restoreFromJson":      "RJ003",
+		"restoreFromJsonMutate":      "RJ003",
 		"stringifyJson":        "SJ003",
 		"toBinary":             "TB003",
 		"fromBinary":           "FB003",

@@ -499,7 +499,7 @@ export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
 
 // The VALUE-level JSON transforms — `prepareForJson` (maps a typed value to a
 // JSON-safe value: bigint to string, Date preserved, undeclared keys stripped, …)
-// and `restoreFromJson` (maps a JSON-safe value back to the typed shape:
+// and `restoreFromJsonMutate` (maps a JSON-safe value back to the typed shape:
 // BigInt(...), Date revival, …), plus their per-strategy siblings (`pjs`/`rjs`/
 // `cj`/`cjr`/`sj`/`ukuw`) — have NO dedicated `createX` factory. A framework that
 // parses ONE JSON envelope per request and needs per-value transforms names the
@@ -524,7 +524,7 @@ export const createFormatTransformFn = createRTFunction<FormatTransformFn<unknow
 // Composition moved to the Go backend (Slice 4): the plugin emits one composite
 // cache entry per (typeId, strategy) — keyed by the strategy's opaque composite
 // fnHash — that wraps the underlying RT primitives (prepareForJson /
-// stringifyJson / unknownKeysToUndefined / restoreFromJson / ukuWire) with
+// stringifyJson / unknownKeysToUndefined / restoreFromJsonMutate / ukuWire) with
 // native JSON. So both factories collapse to the same pure `resolveTupleEntry`
 // lookup as binary: the injected `[typeId, fnId]` tuple's `fnId` is the composite
 // fnHash, and the runtime just resolves `<fnId>_<typeId>`. No runtime strategy
@@ -614,7 +614,7 @@ export function createJsonDecoderFn<T>(
  *  Replaces the three-call glue this used to take:
  *
  *  ```ts
- *  const restored = restoreFromJson(data);
+ *  const restored = restoreFromJsonMutate(data);
  *  if (!isUser(restored)) throw new Error(...getValidationErrors(restored));
  *  ```
  *
@@ -670,7 +670,7 @@ export function createParseFn<T>(
       if (err instanceof ParseMismatch) {
         // A throw from the restore is a DESERIALIZATION failure, so it reports as
         // one rather than as type errors — the same split `@mionjs/router` makes
-        // when its restoreFromJson call throws. Only a value that deserialized
+        // when its restoreFromJsonMutate call throws. Only a value that deserialized
         // and then failed the check gets the validation report.
         if (err.cause !== undefined) throw new RTParseError({deserializeError: messageOf(err.cause)}, err.cause);
         throw new RTParseError(getErrors(err.value));
@@ -742,8 +742,8 @@ export interface RTFunctionByKey {
   // JSON value-level primitives — recovered ONLY through getRTFunction (no factory).
   prepareForJsonMutate: PrepareForJsonFn; // transforms in place, keeps undeclared keys
   prepareForJsonClone: PrepareForJsonFn; // builds a new value from the declared shape
-  restoreFromJson: RestoreFromJsonFn; // restores in place, keeps undeclared keys
-  restoreFromJsonStrip: RestoreFromJsonFn; // rebuilds the declared shape, so undeclared keys are dropped
+  restoreFromJsonMutate: RestoreFromJsonFn; // restores in place, keeps undeclared keys
+  restoreFromJsonClone: RestoreFromJsonFn; // rebuilds the declared shape, so undeclared keys are dropped
   stringifyJson: StringifyJsonFn; // single pass, value -> JSON string
   stripUnknownKeysWire: RestoreFromJsonFn; // the strip decoder's wire pre-pass
   compactForJson: PrepareForJsonFn; // compact encode (positional wire)
@@ -761,7 +761,7 @@ export type RTFunctionKey = keyof RTFunctionByKey;
  *  `route()`) forwards the injected slot here to get the callable fn without a
  *  dedicated factory per function. This is the only way to reach the JSON
  *  value-level primitives that have no `createX` (`'prepareForJsonMutate'`,
- *  `'prepareForJsonClone'`, `'restoreFromJson'`, `'restoreFromJsonStrip'`,
+ *  `'prepareForJsonClone'`, `'restoreFromJsonMutate'`, `'restoreFromJsonClone'`,
  *  `'stringifyJson'`, `'stripUnknownKeysWire'`, `'compactForJson'`,
  *  `'compactFromJson'`); it also resolves any createX-backed family the same
  *  way. The type parameter is the fnKey (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`), so the

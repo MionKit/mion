@@ -48,14 +48,14 @@ export type InjectRunTypeId<T> = string & {
  *
  * `Fn` also names the JSON value-level primitives that have NO dedicated factory —
  * `'prepareForJsonMutate'`/`'prepareForJsonClone'`,
- * `'restoreFromJson'`/`'restoreFromJsonStrip'` (the strip restore rebuilds the
+ * `'restoreFromJsonMutate'`/`'restoreFromJsonClone'` (the strip restore rebuilds the
  * declared shape), `'stringifyJson'` (direct stringify),
  * `'stripUnknownKeysWire'` (strip wire pre-pass) and
  * `'compactForJson'`/`'compactFromJson'`. A wrapper recovers those from the
  * injected tuple with the generic
  * `getRTFunction<'prepareForJsonClone'>(fns?.[i])` resolver (keyed by the SAME fnKey)
  * instead of a factory, so a framework that owns its own JSON envelope can pull a
- * per-strategy `prepareForJson` / `restoreFromJson` for `T` and apply it at the
+ * per-strategy `prepareForJson` / `restoreFromJsonMutate` for `T` and apply it at the
  * value level (no string hop).
  *
  * MULTIPLE functions — `InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>`:

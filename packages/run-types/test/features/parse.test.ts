@@ -93,7 +93,7 @@ describe('createParseFn — rejection', () => {
 describe('createParseFn — junk never escapes as a raw throw', () => {
   const cases: Array<[string, () => unknown]> = [
     ['bigint from a non-numeric string', () => createParseFn<{n: bigint}>()({n: 'not a number'})],
-    // A WHOLE number is valid input (BigInt(12) works, so restoreFromJson takes
+    // A WHOLE number is valid input (BigInt(12) works, so restoreFromJsonMutate takes
     // it); a fractional one is what BigInt() throws a RangeError on.
     ['bigint from a fractional number', () => createParseFn<{n: bigint}>()({n: 1.5})],
     ['bigint from null', () => createParseFn<{n: bigint}>()({n: null})],
@@ -278,7 +278,7 @@ describe('createParseFn — agrees with createValidateFn', () => {
   });
 });
 
-// Parse fuses restoreFromJson with validate, so it must accept exactly what that
+// Parse fuses restoreFromJsonMutate with validate, so it must accept exactly what that
 // composition accepts — including a value that is ALREADY in its runtime form.
 // `BigInt(42n)` and `new Date(dateObj)` are both fine, so a guard that only let
 // strings through made parse stricter than the function it replaces, and made

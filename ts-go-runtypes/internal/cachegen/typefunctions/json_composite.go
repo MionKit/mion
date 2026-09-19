@@ -18,7 +18,7 @@ import (
 //
 // `createJsonEncoderFn<T>()` / `createJsonDecoderFn<T>()` are the only RT families
 // whose runtime work is COMPOSED from several primitives (prepareForJson +
-// JSON.stringify, restoreFromJson + ukuWire + JSON.parse, …) selected by a
+// JSON.stringify, restoreFromJsonMutate + ukuWire + JSON.parse, …) selected by a
 // compile-time `strategy`. Every other family is a single cache entry the
 // runtime looks up by key. To make the JSON pair uniform with the rest, the
 // composition lives here: one Go-emitted entry per (typeId, strategy) that wraps
@@ -326,7 +326,7 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 	// arrayWrap wraps a JSON-value expression in a one-element array when the
 	// root type (undefined / void) has no top-level JSON form. Encode then emits
 	// the valid document "[null]" instead of the bare JS value `undefined`; the
-	// decoder's restoreFromJson returns undefined for any input, so the
+	// decoder's restoreFromJsonMutate returns undefined for any input, so the
 	// round-trip holds with NO decode-side change. See rootNeedsDataOnlyWrap.
 	arrayWrap := func(expr string) string {
 		if wrapRoot {
@@ -380,9 +380,9 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 	case "jsonDecoder":
 		switch composite.Strategy {
 		case "preserve":
-			body = "return " + wrap("rjFn", "restoreFromJson", "JSON.parse(s)") + ";"
+			body = "return " + wrap("rjFn", "restoreFromJsonMutate", "JSON.parse(s)") + ";"
 		case "strip":
-			body = "return " + wrap("rjFn", "restoreFromJson", wrap("ukuwFn", "stripUnknownKeysWire", "JSON.parse(s)")) + ";"
+			body = "return " + wrap("rjFn", "restoreFromJsonMutate", wrap("ukuwFn", "stripUnknownKeysWire", "JSON.parse(s)")) + ";"
 		case "compact":
 			// Inverse of compactForJson: rebuild the keyed object from the
 			// positional array JSON.parse produced.

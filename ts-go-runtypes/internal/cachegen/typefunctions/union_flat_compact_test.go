@@ -111,7 +111,7 @@ func TestCompactForJsonModule_NestedObjectUnionKeepsEnvelope(t *testing.T) {
 
 // TestCompactFromJsonModule_NestedObjectUnionUnwraps — the compact decode of
 // the same fixture unwraps the envelope and rebuilds the nested object, while
-// restoreFromJson stays identity (`return v`).
+// restoreFromJsonMutate stays identity (`return v`).
 func TestCompactFromJsonModule_NestedObjectUnionUnwraps(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildNestedObjectUnionFixture()}
 
@@ -126,9 +126,9 @@ func TestCompactFromJsonModule_NestedObjectUnionUnwraps(t *testing.T) {
 		t.Errorf("compact decode must rebuild the nested object into `v.b`; got:\n%s", compact)
 	}
 
-	restore := renderModuleDefault(t, dump, "restoreFromJson")
+	restore := renderModuleDefault(t, dump, "restoreFromJsonMutate")
 	if strings.Contains(restore, "= v[0]") {
-		t.Errorf("restoreFromJson of a JSON-compatible object union must stay identity; got:\n%s", restore)
+		t.Errorf("restoreFromJsonMutate of a JSON-compatible object union must stay identity; got:\n%s", restore)
 	}
 }
 
@@ -211,7 +211,7 @@ func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
 		t.Errorf("clone encode must rebuild the array's elements so an undeclared key is dropped; got:\n%s", clone)
 	}
 	// The clone decode rebuilds each element from the declared shape on arrival.
-	restoreSafe := unionEntry(t, renderModuleDefault(t, dump, "restoreFromJsonStrip"), "restoreFromJsonStrip")
+	restoreSafe := unionEntry(t, renderModuleDefault(t, dump, "restoreFromJsonClone"), "restoreFromJsonClone")
 	if !strings.Contains(restoreSafe, "r0.c = ") {
 		t.Errorf("clone decode must rebuild the array's elements from the declared shape; got:\n%s", restoreSafe)
 	}
@@ -222,7 +222,7 @@ func TestAtomicOnlyUnion_StripsInsideItsMembers(t *testing.T) {
 	}
 	// The mutate pair is the control: it keeps undeclared keys on purpose, both ways, so its entry
 	// stays the noop short form (a trailing `,,true` and no body at all).
-	for _, family := range []string{"prepareForJsonMutate", "restoreFromJson"} {
+	for _, family := range []string{"prepareForJsonMutate", "restoreFromJsonMutate"} {
 		if entry := unionEntry(t, renderModuleDefault(t, dump, family), family); !strings.Contains(entry, ",,true)") {
 			t.Errorf("[%s] mutate must keep passing the value through untouched; got:\n%s", family, entry)
 		}
@@ -244,7 +244,7 @@ func TestPureAtomicUnion_StaysCompiledAway(t *testing.T) {
 	for label, members := range unions {
 		union := &reflection.RunType{ID: "uni", Kind: reflection.KindUnion, Children: members, SafeUnionChildren: members}
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{str, num, anyT, anyArr, union}}
-		for _, family := range []string{"prepareForJsonClone", "restoreFromJsonStrip"} {
+		for _, family := range []string{"prepareForJsonClone", "restoreFromJsonClone"} {
 			entry := unionEntry(t, renderModuleDefault(t, dump, family), family)
 			if strings.Contains(entry, "typeof v ===") || strings.Contains(entry, ".map(") {
 				t.Errorf("[%s] %s must compile to nothing, not a dispatch chain; got:\n%s", family, label, entry)
@@ -299,7 +299,7 @@ func TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys(t *testing.T) {
 			t.Errorf("[%s] the object member must be encoded as is, got:\n%s", family, got)
 		}
 	}
-	for _, family := range []string{"restoreFromJsonStrip", "compactFromJson"} {
+	for _, family := range []string{"restoreFromJsonClone", "compactFromJson"} {
 		got := entry(bare, family)
 		if strings.Contains(got, "const r0") || !strings.Contains(got, "for (const k0 in v)") {
 			t.Errorf("[%s] the object member must not be rebuilt while the record arm keeps its key loop, got:\n%s", family, got)
@@ -317,7 +317,7 @@ func TestCarveOutUnion_EveryFamilyKeepsUndeclaredKeys(t *testing.T) {
 	if !strings.Contains(direct, "ls1.push(JSON.stringify(k1) + ':' + s0)") || !strings.Contains(direct, `ls1.push('"a":'+'"'+v.a.toJSON()+'"')`) {
 		t.Errorf("[stringifyJson] the object member must write every own key and only the Date through its own arm, got:\n%s", direct)
 	}
-	for _, family := range []string{"restoreFromJsonStrip", "compactFromJson"} {
+	for _, family := range []string{"restoreFromJsonClone", "compactFromJson"} {
 		got := entry(dated, family)
 		if !strings.Contains(got, "if (dec0 === -1) {v.a = typeof v.a === 'string' ? new Date(v.a) : v.a}") || strings.Contains(got, "const r0") {
 			t.Errorf("[%s] the object member must be restored in place, got:\n%s", family, got)

@@ -32,7 +32,7 @@ type Resolve<RO, O, D extends Direction, Default extends string> =
       : DirectionStrategy<EncoderOf<O>, D>
     : DirectionStrategy<EncoderOf<RO>, D>;
 type EncodeFamily<S> = S extends 'clone' ? 'prepareForJsonClone' : S extends 'mutate' ? 'prepareForJsonMutate' : S extends 'direct' ? 'stringifyJson' : S extends 'compact' ? 'compactForJson' : never;
-type DecodeFamily<S> = S extends 'clone' ? 'restoreFromJsonStrip' : S extends 'compact' ? 'compactFromJson' : S extends string ? 'restoreFromJson' : never;
+type DecodeFamily<S> = S extends 'clone' ? 'restoreFromJsonClone' : S extends 'compact' ? 'compactFromJson' : S extends string ? 'restoreFromJsonMutate' : never;
 type ParamsStrategy<RO, O> = Resolve<RO, O, 'params', 'direct'>;
 type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
 
@@ -79,8 +79,8 @@ const FAMILY_BY_HASH: Record<string, string> = Object.fromEntries(
       'prepareForJsonClone',
       'stringifyJson',
       'compactForJson',
-      'restoreFromJson',
-      'restoreFromJsonStrip',
+      'restoreFromJsonMutate',
+      'restoreFromJsonClone',
       'compactFromJson',
       'toBinary',
       'fromBinary',
@@ -125,8 +125,8 @@ export const r = mion.route(${HANDLER});
     });
     expect(markerDiagsOf(response)).toEqual([]);
     const {params, ret} = routeSites(response.sites, 'plain.ts');
-    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJson']);
-    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJson']);
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJsonMutate']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate']);
   });
 
   register('a route literal selects compact on both directions, and only compact', async () => {
@@ -173,9 +173,9 @@ export const overridden = mion.route(${HANDLER}, {encoder: {return: 'compact'}})
     // two calls, three sites each (paramsFns, returnFns, paramsId)
     expect(own.length).toBe(6);
     const [inheritedParams, inheritedReturn, , overriddenParams, overriddenReturn] = own;
-    expect(familiesOf(inheritedParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonStrip']);
-    expect(familiesOf(inheritedReturn)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJson']);
-    expect(familiesOf(overriddenParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonStrip']);
+    expect(familiesOf(inheritedParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonClone']);
+    expect(familiesOf(inheritedReturn)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJsonMutate']);
+    expect(familiesOf(overriddenParams)).toEqual(['validate', 'validationErrors', 'prepareForJsonClone', 'restoreFromJsonClone']);
     expect(familiesOf(overriddenReturn)).toEqual(['validate', 'validationErrors', 'compactForJson', 'compactFromJson']);
   });
 
@@ -206,8 +206,8 @@ export const r = mion.route(${HANDLER}, widenedPreset);
     // DirectionStrategy filters that widened union out: the defaults get compiled. The runtime value
     // still says 'compact', so the router refuses the route at init (pinned in @mionjs/router).
     const {params, ret} = routeSites(response.sites, 'widened.ts');
-    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJson']);
-    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJson']);
+    expect(familiesOf(params)).toEqual(['validate', 'validationErrors', 'stringifyJson', 'restoreFromJsonMutate']);
+    expect(familiesOf(ret)).toEqual(['validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate']);
   });
 
   register('a call expression as the options is CTA001 (non-literal)', async () => {
