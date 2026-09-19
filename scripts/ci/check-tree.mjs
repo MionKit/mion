@@ -1,6 +1,6 @@
 // check-tree.mjs — the repo hygiene sweeps that read EVERY tracked file.
 //
-// These three used to live only inside repo-contracts.test.ts, which runs in the
+// The first three used to live only inside repo-contracts.test.ts, which runs in the
 // js-lint job. That was fine while js-lint ran on every commit, and became a hole
 // the moment lanes started skipping by content (scripts/ci/lanes.mjs): a sweep that
 // reads docs/, .claude/ and the root prose files cannot be gated on paths that
@@ -12,7 +12,7 @@
 // there is exactly one implementation of each.
 //
 // Usage: `pnpm run check:tree`, or `node scripts/ci/check-tree.mjs`.
-import {readFileSync} from 'node:fs';
+import {closeSync, openSync, readFileSync, readSync} from 'node:fs';
 import {join} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, success} from '../lib/proc.mjs';
@@ -67,10 +67,55 @@ export function nulBytes() {
   return files.filter((file) => readFileSync(join(REPO_ROOT, file)).includes(0));
 }
 
+// A compiled executable is never a source file. One `go build` output (3.2 MB)
+// was swept into a commit and every clone paid for it until history was rewritten.
+const EXECUTABLE_MAGIC = [
+  [0x7f, 0x45, 0x4c, 0x46], // ELF
+  [0xfe, 0xed, 0xfa, 0xce], // Mach-O 32-bit
+  [0xfe, 0xed, 0xfa, 0xcf], // Mach-O 64-bit
+  [0xce, 0xfa, 0xed, 0xfe], // Mach-O 32-bit, reversed byte order
+  [0xcf, 0xfa, 0xed, 0xfe], // Mach-O 64-bit, reversed byte order
+  [0xca, 0xfe, 0xba, 0xbe], // Mach-O universal
+];
+
+export function isCompiledExecutable(header, mode) {
+  if (EXECUTABLE_MAGIC.some((magic) => magic.every((byte, i) => header[i] === byte))) return true;
+  // `MZ` also opens ordinary text, so a PE header only counts on a file git marks executable.
+  return mode === '100755' && header[0] === 0x4d && header[1] === 0x5a;
+}
+
+export function compiledExecutables() {
+  const listed = capture('git', ['ls-files', '-z', '--stage'], {cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024});
+  if (listed.status !== 0) die(`git ls-files failed: ${listed.stderr.trim()}`);
+  const entries = listed.stdout
+    .split('\0')
+    .filter(Boolean)
+    .map((line) => {
+      const [meta, file] = line.split('\t');
+      return {mode: meta.split(' ')[0], file};
+    })
+    // Symlinks and submodule pointers have no bytes of their own to read.
+    .filter(({mode}) => mode !== '120000' && mode !== '160000')
+    .filter(({file}) => !file.startsWith('ts-go-runtypes/third_party/') && !/(^|\/)(_deps|node_modules)\//.test(file));
+  if (entries.length < 500) die(`the executable sweep listed only ${entries.length} files, so git ls-files stopped matching`);
+  const header = Buffer.alloc(4);
+  return entries
+    .filter(({mode, file}) => {
+      const fd = openSync(join(REPO_ROOT, file), 'r');
+      try {
+        return readSync(fd, header, 0, 4, 0) === 4 && isCompiledExecutable(header, mode);
+      } finally {
+        closeSync(fd);
+      }
+    })
+    .map(({file}) => file);
+}
+
 export const SWEEPS = [
   {name: 'no file outside docs/todos and docs/done names a spec', run: specReferences, fix: 'put the reasoning in the file that needs it; a spec gets deleted and the reference rots'},
   {name: 'no tracked file outside docs/ names the old repository', run: oldRepoReferences, fix: 'point it at MionKit/mion'},
   {name: 'no tracked source carries a literal NUL byte', run: nulBytes, fix: 'strip the NUL; git treats the file as binary and a rebase cannot merge it'},
+  {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
 ];
 
 export function main() {

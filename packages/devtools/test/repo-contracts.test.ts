@@ -28,11 +28,14 @@
 //     RunTypes/*, so every example import failed to resolve and the hover
 //     endpoint threw. The failure is invisible from this repo's CI (the website is
 //     containerized), which is exactly why it needs a contract test.
+//   - Compiled executables: a stray `go build` output (3.2 MB) rode in a commit for
+//     a month. The check-tree sweep refuses any tracked executable, and
+//     ts-go-runtypes/.gitignore keeps Go build outputs out of `git add`.
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
 // @ts-expect-error — a plain .mjs repo script, no types.
-import {specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
+import {isCompiledExecutable, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
 import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join, posix} from 'node:path';
@@ -200,8 +203,8 @@ describe('published packages point at this repository', () => {
   });
 });
 
-// The three WHOLE-TREE sweeps (this rule, the old-repository one and the NUL-byte
-// one) run from scripts/ci/check-tree.mjs in the always-on `lanes` job, not here:
+// The four WHOLE-TREE sweeps (this rule, the old-repository one, the NUL-byte one
+// and the compiled-executable one) run from scripts/ci/check-tree.mjs in the always-on `lanes` job, not here:
 // they read docs/, .claude/ and the root prose files, which the lane gate
 // deliberately excludes from the js lane, so a sweep gated on js inputs would miss
 // exactly the edits it exists to catch. What stays here is the RULE itself, over the
@@ -1409,6 +1412,52 @@ describe('no manifest declares vite-node', () => {
       for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
         expect(Object.keys(pkg[field] ?? {}), `${manifest} ${field}`).not.toContain('vite-node');
       }
+    }
+  });
+});
+
+describe('no tracked file is a compiled executable', () => {
+  const header = (...bytes: number[]): Buffer => Buffer.from(bytes);
+
+  it('flags an ELF or Mach-O header whatever the mode, and a PE header on an executable file', () => {
+    expect(isCompiledExecutable(header(0x7f, 0x45, 0x4c, 0x46), '100644')).toBe(true);
+    expect(isCompiledExecutable(header(0xcf, 0xfa, 0xed, 0xfe), '100644')).toBe(true);
+    expect(isCompiledExecutable(header(0xca, 0xfe, 0xba, 0xbe), '100755')).toBe(true);
+    expect(isCompiledExecutable(header(0x4d, 0x5a, 0x90, 0x00), '100755')).toBe(true);
+  });
+
+  it('passes a script, a plain file that happens to start with MZ, and a wasm module', () => {
+    expect(isCompiledExecutable(Buffer.from('#!/u'), '100755')).toBe(false);
+    expect(isCompiledExecutable(Buffer.from('MZ h'), '100644')).toBe(false);
+    expect(isCompiledExecutable(header(0x00, 0x61, 0x73, 0x6d), '100644')).toBe(false);
+  });
+});
+
+describe('Go build outputs under ts-go-runtypes are ignored', () => {
+  // --no-index answers for a hypothetical path, so no binary has to exist to check the rule.
+  const ignored = (path: string): boolean =>
+    spawnSync('git', ['check-ignore', '-q', '--no-index', path], {cwd: REPO_ROOT}).status === 0;
+
+  it('ignores a binary at the module root or inside its cmd/ dir', () => {
+    for (const path of [
+      'ts-go-runtypes/gen-run-type-kind',
+      'ts-go-runtypes/mion',
+      'ts-go-runtypes/cmd/mion/mion',
+      'ts-go-runtypes/cmd/mion/mion.exe',
+    ]) {
+      expect(ignored(path), path).toBe(true);
+    }
+  });
+
+  it('keeps every source, config and fixture path', () => {
+    for (const path of [
+      'ts-go-runtypes/go.mod',
+      'ts-go-runtypes/CLAUDE.md',
+      'ts-go-runtypes/cmd/mion/main.go',
+      'ts-go-runtypes/cmd/mion/testdata/fixture',
+      'ts-go-runtypes/internal/reflection/x.go',
+    ]) {
+      expect(ignored(path), path).toBe(false);
     }
   });
 });
