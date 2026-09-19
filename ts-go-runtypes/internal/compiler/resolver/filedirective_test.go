@@ -8,24 +8,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// filedirective_test.go covers the FILE scope of both source directives, through
-// the real scan. The words are the same two the line tests use; what makes one a
-// file directive is its shape and position — a block comment before any code,
-// the way ESLint reads `/* eslint-disable */`.
-//
-// The whole-program op is what these dispatch, for the same reason the line
-// tests do: "this comment stood nothing down" is only answerable against every
-// finding the program has.
-//
-// Marker coverage rule: every fixture carries BOTH getRunTypeId call shapes, the
-// static `getRunTypeId<T>()` and the value-inferred `getRunTypeId(value)`, and
-// TestFileDirective_FormEquivalence asserts the pair resolves to one entry while
-// a file directive is in force.
+// filedirective_test.go covers the file scope of both directives through the real scan: a block
+// comment before any code, as ESLint reads `/* eslint-disable */`. Every test dispatches the
+// whole-program op, since "this comment stood nothing down" is only answerable against every
+// finding. Marker coverage rule: every fixture carries both getRunTypeId call shapes, and
+// TestFileDirective_FormEquivalence asserts the pair resolves to one entry.
 
-// twoFindingsSource raises VL002 at two sites and PJS005 at a third, which is the
-// shape the file form exists for: one comment at the top rather than one comment
-// per site. The healthy marker calls prove a file directive changes only the
-// findings it names, never the rewrites.
+// twoFindingsSource raises VL002 at two sites and PJS005 at a third; the healthy marker calls pin the rewrites.
 const twoFindingsSource = `import {createValidateFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
 export const firstBad = createValidateFn<symbol>();
 export const secondBad = createValidateFn<symbol>();
@@ -35,14 +24,12 @@ const sample = {name: 'Ada'};
 export const idReflected = getRunTypeId(sample);
 `
 
-// atTop puts a comment before any code, which is the position that makes a block
-// comment a file directive.
+// atTop puts a comment before any code, the position that makes a block comment a file directive.
 func atTop(comment string) string {
 	return comment + "\n" + twoFindingsSource
 }
 
-// vl002Count is how many VL002 findings survived, and how many of those carry the
-// downgrade mark. Two sites raise it, so a file form has to reach both.
+// vl002Count counts surviving VL002 findings and how many are downgraded.
 func vl002Count(list []diagnostics.Diagnostic) (found int, downgraded int) {
 	for _, diagnostic := range list {
 		if diagnostic.Code != diagnostics.CodeVLSymbolRoot {
@@ -95,8 +82,7 @@ func TestFileDirective_DowngradeMarksEverySite(t *testing.T) {
 	}
 }
 
-// A file directive reaches its OWN file. `Files` in the pass scope is what keeps
-// that honest, and a second file in the same program proves it.
+// A file directive reaches only its own file.
 func TestFileDirective_ASecondFileStillReportsNormally(t *testing.T) {
 	session := setupInline(t, map[string]string{
 		"quiet.ts": atTop("/* @mion-expect-error */"),
@@ -117,9 +103,7 @@ func TestFileDirective_ASecondFileStillReportsNormally(t *testing.T) {
 	}
 }
 
-// LevelError is never silenceable at any scope: the build produced no code for
-// the thing, so standing the finding down buys a call that throws anyway. The
-// file form must not become the one way around that.
+// LevelError is never silenceable at any scope: no code was emitted, so silencing only buys a call that throws.
 func TestFileDirective_FatalCodeIsRefusedAtFileScope(t *testing.T) {
 	codes := generateDiagnostics(t, atTop("/* @mion-expect-error MKR014 */"))
 	if !contains(codes, diagnostics.CodeExpectErrorNotSuppressible) {
@@ -131,8 +115,6 @@ func TestFileDirective_FatalCodeIsRefusedAtFileScope(t *testing.T) {
 	}
 }
 
-// The block form below the top keeps meaning what it means today: the line under
-// it. Only its position at the top of a file promotes it.
 func TestFileDirective_BlockCommentBelowTheTopIsStillALineDirective(t *testing.T) {
 	list := generateDiags(t, strings.Replace(twoFindingsSource,
 		"export const secondBad = createValidateFn<symbol>();",
@@ -142,8 +124,6 @@ func TestFileDirective_BlockCommentBelowTheTopIsStillALineDirective(t *testing.T
 	}
 }
 
-// A line comment never becomes a file directive, wherever it sits. At the top of
-// this file it covers the import line, which raises nothing.
 func TestFileDirective_LineCommentAtTheTopIsStillALineDirective(t *testing.T) {
 	list := generateDiags(t, atTop("// @mion-expect-error VL002"))
 	codes := codesIn(list)
@@ -155,8 +135,6 @@ func TestFileDirective_LineCommentAtTheTopIsStillALineDirective(t *testing.T) {
 	}
 }
 
-// A file directive that stood nothing down reports itself, the same reverse
-// check that keeps a line comment from outliving its problem.
 func TestFileDirective_StoodNothingDownReportsItself(t *testing.T) {
 	const healthy = `import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const good = createValidateFn<{name: string}>();
@@ -174,8 +152,7 @@ export const idReflected = getRunTypeId(sample);
 	}
 }
 
-// The file form is the answer to a file that repeats one comment, so it must not
-// then report every one of those comments as redundant.
+// The file form exists for a file that repeats one comment, so it must not report those comments as redundant.
 func TestFileDirective_CoveredLineDirectivesAreNotJudged(t *testing.T) {
 	source := atTop("/* @mion-expect-error VL002 */")
 	source = strings.Replace(source,
@@ -187,9 +164,7 @@ func TestFileDirective_CoveredLineDirectivesAreNotJudged(t *testing.T) {
 	}
 }
 
-// A file expect leaves nothing for any line comment to act on, so a downgrade
-// comment under it is not reported either. The file form wins, whichever word
-// the line below it used.
+// A file expect leaves nothing for a line downgrade to act on, so it is not reported either.
 func TestFileDirective_FileExpectCoversALineDowngrade(t *testing.T) {
 	source := atTop("/* @mion-expect-error VL002 */")
 	source = strings.Replace(source,
@@ -201,8 +176,7 @@ func TestFileDirective_FileExpectCoversALineDowngrade(t *testing.T) {
 	}
 }
 
-// The reverse does not hold: a file downgrade only KEEPS the finding, so a line
-// expect below it still removes one and is judged on its own.
+// A file downgrade only keeps the finding, so a line expect below it still removes one and is judged on its own.
 func TestFileDirective_FileDowngradeDoesNotCoverAStaleLineExpect(t *testing.T) {
 	source := atTop("/* @mion-downgrade-error VL002 */")
 	source = strings.Replace(source,
@@ -214,8 +188,6 @@ func TestFileDirective_FileDowngradeDoesNotCoverAStaleLineExpect(t *testing.T) {
 	}
 }
 
-// A line directive the file form does NOT cover is still judged: quieting the
-// covered ones must not quiet the rest of the file.
 func TestFileDirective_UncoveredLineDirectivesAreStillJudged(t *testing.T) {
 	source := atTop("/* @mion-expect-error VL002 */")
 	source = strings.Replace(source,
@@ -227,8 +199,7 @@ func TestFileDirective_UncoveredLineDirectivesAreStillJudged(t *testing.T) {
 	}
 }
 
-// Removing wins over lowering. A finding cannot be both gone and printed, so a
-// file downgrade plus a line expect on the same site leaves nothing to print.
+// A finding cannot be both gone and printed.
 func TestFileDirective_ExpectBeatsDowngrade(t *testing.T) {
 	source := atTop("/* @mion-downgrade-error VL002 */")
 	source = strings.Replace(source,
@@ -244,9 +215,7 @@ func TestFileDirective_ExpectBeatsDowngrade(t *testing.T) {
 	}
 }
 
-// TestFileDirective_FormEquivalence is the paired marker check: both
-// getRunTypeId call shapes must land on ONE cache entry while a file directive
-// is in force, so standing a whole file down never disturbs the rewrites.
+// TestFileDirective_FormEquivalence: both getRunTypeId shapes share one entry while a file directive is in force.
 func TestFileDirective_FormEquivalence(t *testing.T) {
 	const staticForm = `/* @mion-expect-error VL002 */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';

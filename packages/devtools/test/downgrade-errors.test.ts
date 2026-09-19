@@ -114,9 +114,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// The same two directives at FILE scope: a block comment before any code covers
-// every line, the way ESLint reads `/* eslint-disable */`. Two bad calls, so the
-// fixtures also show one comment answering what would otherwise be two.
+// File scope: a block comment before any code covers every line; two bad calls, so one comment answers both.
 const FILE_EXPECT_SRC = `/* @mion-expect-error VL002 */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const firstBad = createValidateFn<symbol>();
@@ -135,9 +133,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// A file directive over a program that raises nothing it names: stale at file
-// scope reports the same way it does at line scope, so the comment cannot
-// outlive its problem.
+// Nothing here raises VL002, so the file directive is stale and reports the same way a line one does.
 const STALE_FILE_SRC = `/* @mion-expect-error VL002 */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const good = createValidateFn<{name: string}>();
@@ -373,8 +369,6 @@ describe('downgradeErrors — Error-severity diagnostics fail the build in every
   });
 
   register('a block comment at the top of a file removes the finding at every site in it', async () => {
-    // Two bad calls, one comment. The whole point of the file scope: a file that
-    // stands the same code down on every line says it once.
     const plugin = makePlugin(FILE_EXPECT_DIR);
     const ctx = makeCtx();
     try {
