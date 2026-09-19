@@ -1,16 +1,7 @@
-// check-tree.mjs — the repo hygiene sweeps that read EVERY tracked file.
-//
-// The first three used to live only inside repo-contracts.test.ts, which runs in the
-// js-lint job. That was fine while js-lint ran on every commit, and became a hole
-// the moment lanes started skipping by content (scripts/ci/lanes.mjs): a sweep that
-// reads docs/, .claude/ and the root prose files cannot be gated on paths that
-// deliberately exclude them, or an offending edit lands unseen.
-//
-// So they run here instead, from the `lanes` job, which always runs and installs
-// nothing: git plus node, no workspace, no build. The rules themselves are still
-// unit-tested in repo-contracts.test.ts, which imports these same functions, so
-// there is exactly one implementation of each.
-//
+// check-tree.mjs — the repo hygiene sweeps that read EVERY tracked file. They run from the
+// always-on `lanes` job (git plus node, no install, no build), never from a gated vitest lane:
+// lanes skip by content (scripts/ci/lanes.mjs) and exclude the docs/, .claude/ and root prose
+// paths a sweep reads. repo-contracts.test.ts unit-tests the rules by importing these functions.
 // Usage: `pnpm run check:tree`, or `node scripts/ci/check-tree.mjs`.
 import {closeSync, openSync, readFileSync, readSync} from 'node:fs';
 import {join} from 'node:path';
@@ -67,8 +58,7 @@ export function nulBytes() {
   return files.filter((file) => readFileSync(join(REPO_ROOT, file)).includes(0));
 }
 
-// A compiled executable is never a source file. One `go build` output (3.2 MB)
-// was swept into a commit and every clone paid for it until history was rewritten.
+// A committed `go build` output (3.2 MB) once cost every clone until history was rewritten.
 const EXECUTABLE_MAGIC = [
   [0x7f, 0x45, 0x4c, 0x46], // ELF
   [0xfe, 0xed, 0xfa, 0xce], // Mach-O 32-bit
@@ -80,7 +70,7 @@ const EXECUTABLE_MAGIC = [
 
 export function isCompiledExecutable(header, mode) {
   if (EXECUTABLE_MAGIC.some((magic) => magic.every((byte, i) => header[i] === byte))) return true;
-  // `MZ` also opens ordinary text, so a PE header only counts on a file git marks executable.
+  // `MZ` also opens ordinary text, so PE only counts with the executable bit.
   return mode === '100755' && header[0] === 0x4d && header[1] === 0x5a;
 }
 
