@@ -152,7 +152,7 @@ function ensureTarballs(force) {
 // in-container verdaccio, build every bundler app, then assert over the output.
 const MATRIX_SCRIPT = `set -eu
 cd /e2e
-cp -a /e2e-src/apps /e2e-src/test /e2e-src/build-all.mjs /e2e-src/lint-all.mjs /e2e-src/tsconfig.base.json /e2e/
+cp -a /e2e-src/apps /e2e-src/test /e2e-src/pure-fns /e2e-src/build-all.mjs /e2e-src/lint-all.mjs /e2e-src/tsconfig.base.json /e2e/
 rm -rf /e2e/apps/*/dist /e2e/apps/*/.rt /e2e/apps/shared/.rt /e2e/apps/*/.next /e2e/apps/*/selftest.json
 echo "e2e-matrix: installing @mionjs/run-types@$MION_E2E_VERSION + devtools from $MION_E2E_REGISTRY"
 # Install with npm (like a real consumer + the host smoke): additive onto the
@@ -175,7 +175,10 @@ npm install "@mionjs/run-types@$MION_E2E_VERSION" "@mionjs/devtools@$MION_E2E_VE
 echo "e2e-matrix: building every bundler app"
 node build-all.mjs
 echo "e2e-matrix: asserting over the build output (runtime + rewrite evidence + lint transport)"
-node --test test/*.test.mjs`;
+node --test test/*.test.mjs
+echo "e2e-matrix: pure functions shipped in npm tarballs (two libraries built, packed and installed; a consumer built with the Vite adapter and with mion compile)"
+node pure-fns/run.mjs
+node --test pure-fns/test/*.test.mjs`;
 
 // ── the mion consumer lanes (in-container) ───────────────────────────────────
 // Both run in the SAME registry container as the runtypes matrix, but out of the

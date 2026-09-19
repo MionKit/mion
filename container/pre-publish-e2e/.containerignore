@@ -10,6 +10,7 @@ test/
 host-smoke/
 mion-consumer/
 mion-bun/
+pure-fns/
 build-all.mjs
 lint-all.mjs
 tsconfig.base.json

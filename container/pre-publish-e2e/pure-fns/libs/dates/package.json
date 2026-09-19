@@ -1,0 +1,11 @@
+{
+  "name": "@acme/dates",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Pure-fn e2e fixture: a library built with `mion compile`, reaching a pure function of @acme/text. Its gen dir sits inside dist so the emitted imports ship with it. The run-types version is stamped by run.mjs before packing.",
+  "files": ["dist"],
+  "types": "./dist/index.d.ts",
+  "exports": {".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"}},
+  "dependencies": {"@acme/text": "0.0.0", "@mionjs/run-types": "0.0.0-stamped-by-run-mjs"}
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@acme/consumer-plain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure-fn e2e fixture: a project reaching the pure function of @acme/plain, which ships no compiled pure functions and no sources. Both builds must fail with PFE9016. Declares no dependency on purpose: run.mjs installs the tarball with --no-save."
+}

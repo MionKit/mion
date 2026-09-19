@@ -1,0 +1,11 @@
+{
+  "name": "@acme/plain",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "Pure-fn e2e fixture: a library built with plain tsc and no mion, so it ships neither dist/mion-pure-fns/ nor its sources. A consumer reaching its pure function must fail to build with PFE9016.",
+  "files": ["dist"],
+  "types": "./dist/index.d.ts",
+  "exports": {".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"}},
+  "dependencies": {"@mionjs/run-types": "0.0.0-stamped-by-run-mjs"}
+}
