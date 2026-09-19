@@ -22,9 +22,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// Every artifact fixture lives ONLY in the overlay, under /virtual: nothing on
-// disk, so a package the index finds was found through the program FS. An id is
-// matched, never decoded, so the hash halves here are just distinct strings.
+// Every artifact fixture lives ONLY in the overlay under /virtual, so a package found was found through the
+// program FS. Ids are matched, never decoded, so the hash halves are just distinct strings.
 
 const (
 	textPkg   = "/virtual/app/node_modules/@acme/text"
@@ -40,11 +39,8 @@ var (
 	titleEntry   = purefunctions.Entry{ID: titleID, BindingName: "title", FilePath: "src/title.ts", ParamNames: []string{"utl"}, Code: "return 1;", PureFnDependencies: []string{slugifyID}}
 )
 
-// artifactDir is the artifact directory a build writes, staged for tests at
-// dir: index.json listing the entries (in the given order, bypassing the sort
-// so a fixture can stage rows in any order) plus one cache module per entry,
-// rendered by the real renderer in the given emit mode. An entry's FilePath is
-// the index's `file`, relative to the package root.
+// artifactDir stages an artifact directory at dir: the index in the given row order (bypassing the sort) plus
+// each entry's module from the real renderer in the given emit mode. An entry's FilePath is the index's `file`.
 func artifactDir(dir, packageName string, mode constants.EmitMode, entries ...purefunctions.Entry) map[string]string {
 	rows := make([]ArtifactIndexRow, 0, len(entries))
 	for _, entry := range entries {
@@ -65,8 +61,7 @@ func indexJSON(packageName string, rows ...ArtifactIndexRow) string {
 	return string(payload) + "\n"
 }
 
-// moduleFor renders an entry's cache module exactly as generate does, with
-// its deps stubbed the way a build stubs a dep it does not hold.
+// moduleFor renders the module as generate does, deps stubbed as a build stubs a dep it does not hold.
 func moduleFor(entry purefunctions.Entry, mode constants.EmitMode) string {
 	graph := purefunctions.CollectEntries([]purefunctions.Entry{entry}, mode)
 	graph.AddMissingStubs(nil)
@@ -91,8 +86,7 @@ func storeOver(files map[string]string) *Store {
 	return NewStore(program.NewOverlayFS(osvfs.FS(), files))
 }
 
-// textPackage stages the @acme/text package: its manifest, its untyped .d.ts,
-// and whatever the test adds under its root (paths relative to the root).
+// textPackage stages @acme/text: manifest, untyped .d.ts, and the test's files (paths relative to the root).
 func textPackage(files map[string]string) map[string]string {
 	all := map[string]string{
 		textPkg + "/package.json":    `{"name":"@acme/text"}`,
@@ -126,9 +120,7 @@ func codes(entries []purefunctions.Entry) []string {
 	return out
 }
 
-// The artifact directory in the output dir: a module read on demand gives the
-// package's row projected to the served shape, and a binding name answers an
-// untyped .d.ts import from the index alone.
+// A module read on demand gives the served row; a binding name answers an untyped .d.ts import from the index alone.
 func TestArtifact_RowsAndBindingID(t *testing.T) {
 	store := storeOver(merge(textPackage(map[string]string{
 		"/dist/index.js": "export const slugify = registerPureFn(null);\n",
@@ -149,8 +141,7 @@ func TestArtifact_RowsAndBindingID(t *testing.T) {
 	}
 }
 
-// recordingFS counts the files read through it, so a test can prove a bundle
-// was never opened and a module was opened only on demand.
+// recordingFS records every read, to prove a bundle was never opened and a module only on demand.
 type recordingFS struct {
 	vfspkg.FS
 	reads []string
@@ -161,9 +152,7 @@ func (fs *recordingFS) ReadFile(path string) (string, bool) {
 	return fs.FS.ReadFile(path)
 }
 
-// A package whose bundle carries the tuples and the registrations but ships
-// no artifact is unbuilt: the bundle is never opened, however large, however
-// many `<package>#pf_` literals it holds.
+// A bundle carrying tuples and registrations but no artifact is unbuilt, and the bundle is never opened.
 func TestArtifact_BundleIsNeverOpened(t *testing.T) {
 	bundle := strings.Repeat("const t = [2,,,'"+slugifyID+"',['utl'],'"+slugCode+"',[]];\nexport const slugify = registerPureFn(t, '"+slugifyID+"');\n", 2000)
 	fs := &recordingFS{FS: program.NewOverlayFS(osvfs.FS(), textPackage(map[string]string{
@@ -185,9 +174,7 @@ func TestArtifact_BundleIsNeverOpened(t *testing.T) {
 	}
 }
 
-// Memory follows demand: indexing a package opens its manifest and its index
-// and no module; serving one id opens that id's module and no other, however
-// many the package ships.
+// Indexing opens the manifest and the index only; serving an id opens that id's module and no other.
 func TestArtifact_OnlyDemandedModulesAreOpened(t *testing.T) {
 	third := purefunctions.Entry{ID: "@acme/text#pf_third000000000", BindingName: "third", FilePath: "src/third.ts", Code: "return 3;"}
 	fs := &recordingFS{FS: program.NewOverlayFS(osvfs.FS(), merge(textPackage(nil), textArtifact(slugifyEntry, titleEntry, third)))}
@@ -228,9 +215,7 @@ func TestArtifact_OnlyDemandedModulesAreOpened(t *testing.T) {
 	}
 }
 
-// One entry, three emit modes: the module a code-mode, a functions-mode and a
-// both-mode build writes reads back to the same served row, so a consumer is
-// served whatever mode the library was built in.
+// The module of each emit mode reads back to the same served row, so a library's build mode never matters to a consumer.
 func TestReadModule_EmitModesAgree(t *testing.T) {
 	entry := purefunctions.Entry{ID: titleID, ParamNames: []string{"utl", "x"}, Code: "return utl.getPureFn('" + slugifyID + "')(x) + '</script>';", PureFnDependencies: []string{slugifyID}}
 	want := served(entry)
@@ -251,8 +236,7 @@ func TestReadModule_EmitModesAgree(t *testing.T) {
 	}
 }
 
-// An ESM and a CJS build both write the directory: identical rows merge into
-// one, in any order and wherever the directories sit.
+// An ESM and a CJS build both write the directory; identical rows merge, in any order, wherever the directories sit.
 func TestArtifact_SecondBuildMergesIdenticalRows(t *testing.T) {
 	store := storeOver(merge(textPackage(nil),
 		artifactDir(textPkg+"/dist/esm/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry, titleEntry),
@@ -268,11 +252,8 @@ func TestArtifact_SecondBuildMergesIdenticalRows(t *testing.T) {
 	}
 }
 
-// Two directories giving one id different bodies is a conflict naming both
-// modules, found when the id is demanded; the first read is kept so the rest
-// of the build can still report. A body no build demands is never compared.
-// Two indexes disagreeing on a name is a conflict naming both indexes, found
-// on first touch.
+// Differing bodies are a conflict naming both modules, found on demand (a body nothing demands is never
+// compared), the first copy kept; differing names are a conflict naming both indexes, found on first touch.
 func TestArtifact_ConflictingBodies(t *testing.T) {
 	stale := slugifyEntry
 	stale.Code = "return (s) => s.toUpperCase();"
@@ -311,9 +292,7 @@ func TestArtifact_ConflictingBodies(t *testing.T) {
 	}
 }
 
-// An index from a newer compiler, or a file that is not an index, is a problem
-// that names the file and the reason; a copy of another package's artifact is
-// silently not this package's.
+// A newer or malformed index is a problem naming the file and the reason; another package's artifact is silently not ours.
 func TestArtifact_UnreadableIndexAndForeign(t *testing.T) {
 	index := func(sub, content string) map[string]string {
 		return map[string]string{textPkg + sub + "/" + constants.PureFnArtifactDir + "/" + constants.PureFnArtifactIndexFile: content}
@@ -358,9 +337,7 @@ func TestArtifact_UnreadableIndexAndForeign(t *testing.T) {
 	}
 }
 
-// A listed module that is missing, holds another id's tuple, or holds none is
-// a problem naming the module, found when the id is demanded; the id is then
-// a miss on a built package, and a second demand reports nothing twice.
+// A listed module missing, swapped or empty is a problem found on demand; the id is a miss on a built package, reported once.
 func TestArtifact_UnreadableModules(t *testing.T) {
 	dir := textPkg + "/dist/" + constants.PureFnArtifactDir
 	gone := purefunctions.Entry{ID: "@acme/text#pf_gone0000000000", BindingName: "gone", Code: "return 0;"}
@@ -399,9 +376,7 @@ func TestArtifact_UnreadableModules(t *testing.T) {
 	}
 }
 
-// One row bound to a name answers it. Two rows bound to one name are told
-// apart by the declaration's basename against each row's source file; the
-// same basename twice answers nothing, as does a name no row is bound to.
+// Two rows bound to one name are told apart by basename against the declaration's; the same basename twice answers nothing.
 func TestBindingID_NameAndFileTiebreak(t *testing.T) {
 	inSlug := purefunctions.Entry{ID: slugifyID, BindingName: "make", FilePath: "src/slug.ts", Code: "return 1;"}
 	inTitle := purefunctions.Entry{ID: titleID, BindingName: "make", FilePath: "src/title.ts", Code: "return 2;"}
@@ -466,9 +441,7 @@ func TestClosure_AcrossPackagesFromDependentRoot(t *testing.T) {
 	}
 }
 
-// A located package lacking the row is a miss on a built package; a located
-// package with no artifact at all is unbuilt; a package that is not installed
-// is unresolved.
+// A located package lacking the row is a miss; one with no artifact is unbuilt; one not installed is unresolved.
 func TestClosure_MissingUnbuiltUnresolved(t *testing.T) {
 	legacyPkg := "/virtual/app/node_modules/@acme/legacy"
 	const padID = "@acme/legacy#pf_pad0000000000"
@@ -513,9 +486,7 @@ func TestPackageOfID(t *testing.T) {
 	}
 }
 
-// A nested node_modules is another package's, and a hidden dir is a build's
-// scratch (a consumer's `.mion` holds served copies of other packages' rows):
-// neither is part of this package's artifacts.
+// A nested node_modules is another package's and a hidden dir a build's scratch (served copies of others' rows): neither counts.
 func TestArtifact_SkipsNestedNodeModulesAndHiddenDirs(t *testing.T) {
 	util := purefunctions.Entry{ID: trimID, Code: "return 0;"}
 	store := storeOver(merge(map[string]string{
@@ -567,10 +538,8 @@ func rowNamed(idx *PackageIndex, name string) (purefunctions.Entry, bool) {
 	return purefunctions.Entry{}, false
 }
 
-// A package with no artifact (a plain tsc emit) but shipping its TypeScript
-// under src/: the rows come from the source, extracted the way its own build
-// would, including the dep it imports from an artifact-shipping package's
-// untyped .d.ts, and stripped of the positions a rewrite would use.
+// No artifact (a plain tsc emit) but src/: rows are extracted as the package's own build would, the dep it
+// imports from an artifact-shipping package's untyped .d.ts included, rewrite positions stripped.
 func TestSource_FallbackWhenNoArtifact(t *testing.T) {
 	store, cwd := sourceTree(t, merge(map[string]string{
 		"node_modules/@acme/text/package.json":       `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
@@ -609,8 +578,7 @@ func TestSource_FallbackWhenNoArtifact(t *testing.T) {
 	}
 }
 
-// The artifact wins: a package shipping both an artifact and its src is read
-// from the artifact, and src is never parsed.
+// A package shipping both an artifact and src is read from the artifact; src is never parsed.
 func TestSource_ArtifactWinsOverSource(t *testing.T) {
 	store, cwd := sourceTree(t, merge(map[string]string{
 		"node_modules/@acme/text/package.json": `{"name":"@acme/text"}`,
@@ -622,9 +590,7 @@ func TestSource_ArtifactWinsOverSource(t *testing.T) {
 	}
 }
 
-// The equivalence oracle: a package read from its sources and the same package
-// read from the artifact its build would write produce the same rows, so a
-// consumer cannot tell which lane served it.
+// Equivalence oracle: the source lane and the artifact lane give the same rows, so a consumer cannot tell them apart.
 func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	store, cwd := sourceTree(t, merge(map[string]string{
 		"node_modules/@acme/text/package.json":    `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
@@ -642,8 +608,7 @@ func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	if !reflect.DeepEqual(rendered, RenderArtifactIndex("@acme/dates", datesRoot, append([]purefunctions.Entry{raw[2], raw[0]}, raw[1]))) {
 		t.Error("the render must not depend on entry order")
 	}
-	// The modules a dates build writes, rendered from its own graph in each
-	// emit mode, plus the index: what its dist ships.
+	// What a dates build's dist ships: its modules in each emit mode, plus the index.
 	for _, mode := range []constants.EmitMode{constants.EmitCode, constants.EmitFunctions} {
 		graph := purefunctions.CollectEntries(raw, mode)
 		graph.AddMissingStubs(nil)
@@ -687,8 +652,7 @@ func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	}
 }
 
-// The marker package, as a published consumer sees it: package.json, the dist
-// .d.ts and src, no artifact. Its rows come from the generated source list.
+// The marker package as published (package.json, dist .d.ts, src, no artifact): rows come from the generated source list.
 func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
 	store, cwd := sourceTree(t, nil)
 	root, ok := store.ResolvePackage(MarkerPackageName, cwd)

@@ -16,31 +16,26 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// An artifact is what a build wrote: whatever a body holds (any text, any
-// binding, any file path), the module the real renderer writes for it in each
-// emit mode reads back to the same served row, the index round-trips, and two
-// renders give the same bytes.
+// Whatever the body, binding or path, the real renderer's module in each emit mode reads back to the same
+// served row, the index round-trips, and two renders give the same bytes.
 func FuzzArtifactRoundTrip(f *testing.F) {
 	f.Add("slug00000000000", "slugify", "src/slug.ts", "return (s) => s.toLowerCase();", "utl", "@acme/text#pf_other000000000")
 	f.Add("x", "", "", "", "", "")
 	f.Add("h", "n", "src/a.ts", "return '</script>' + \"\\u2028\" + `\x00`;", "p", "")
 	f.Add("h", "n", "src/ü.ts", "return 'é';", "ü", "@acme/text#pf_ß")
 	f.Add("h", "n", "src/a.ts", "return function(){ return `}`; }", "p", "")
-	// Two the fuzzer found: a param that is no identifier with a body that does
-	// not parse, and a hash that is a dot (a legal file name, not a traversal).
+	// Fuzzer finds: a non-identifier param with an unparsable body, and a dot hash (a legal file name, not a traversal).
 	f.Add("0", "0", "0", "\"", "0", "0")
 	f.Add(".", "0", "0", "0", "0", "")
 	f.Fuzz(func(t *testing.T, hash, binding, file, code, param, dep string) {
 		for _, text := range []string{hash, binding, file, code, param, dep} {
-			// Every field comes out of parsed TypeScript, which is valid UTF-8;
-			// JSON cannot carry anything else.
+			// Real fields come out of parsed TypeScript, so they are valid UTF-8; JSON carries nothing else.
 			if !utf8.ValidString(text) {
 				t.Skip()
 			}
 		}
 		if strings.Contains(hash, "#") {
-			// A hash never holds the separator; such an id is not one this
-			// package owns and the index parser must say so.
+			// A hash never holds the separator: such an id is not this package's, and the parser must say so.
 			id := "@acme/text" + constants.PureFnHashPrefix + hash
 			if _, err := ParseArtifactIndex(RenderArtifactIndex("@acme/text", "/pkg", []purefunctions.Entry{{ID: id}})); err == nil && PackageOfID(id) != "@acme/text" {
 				t.Fatalf("an id owned by another package was accepted: %q", id)
@@ -85,8 +80,7 @@ func FuzzArtifactRoundTrip(f *testing.F) {
 			t.Fatalf("module path = %q", path)
 		}
 		for _, segment := range strings.Split(path, "/") {
-			// A segment is never empty or a dot-only name, so the path stays
-			// inside the artifact directory.
+			// No empty or dot-only segment, so the path stays inside the artifact directory.
 			if segment == "" || strings.Trim(segment, ".") == "" {
 				t.Fatalf("module path %q escapes the directory", path)
 			}
@@ -97,10 +91,8 @@ func FuzzArtifactRoundTrip(f *testing.F) {
 		want := served(entry)
 		want.BindingName = ""
 		modes := []constants.EmitMode{constants.EmitCode}
-		// A functions-mode module wraps the body in a live function literal,
-		// which only a real body (an identifier per param, a block that
-		// parses) survives; the extractor never hands the renderer anything
-		// else, so the fuzzer does not either.
+		// A functions-mode module wraps the body in a live function literal, which only a real body (identifier
+		// params, a parsing block) survives; the extractor hands the renderer nothing else, so neither does the fuzzer.
 		if (param == "" || scanner.IsIdentifierText(param, core.LanguageVariantStandard)) && parsesAsBody(entry.ParamNames, code) {
 			modes = append(modes, constants.EmitFunctions, constants.EmitBoth)
 		}

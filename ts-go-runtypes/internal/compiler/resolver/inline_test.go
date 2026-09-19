@@ -84,8 +84,7 @@ func setupInlineWith(t testing.TB, sources map[string]string, mutate func(*progr
 	}
 	for rel, code := range sources {
 		overlay[tspath.ResolvePath(cwd, rel)] = code
-		// A package.json names the fixture's own package; it is read through
-		// the FS, never a program root.
+		// A package.json names the fixture's package and is read through the FS, never as a program root.
 		if filepath.Base(rel) != "package.json" {
 			relNames = append(relNames, rel)
 		}

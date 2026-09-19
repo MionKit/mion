@@ -95,8 +95,7 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
       try {
         expect(broker.owner).toBe(true);
         const entry = path.join(root, 'src/entry.ts');
-        // Turbopack empties distDir between the config load and the first
-        // loader call, so the copy written after buildStart is gone by then.
+        // Turbopack empties distDir between the config load and the first loader call.
         fs.rmSync(distDir, {recursive: true, force: true});
         const reply = await askBroker(broker.socketPath, entry, fs.readFileSync(entry, 'utf8'));
         expect(reply.ok).toBe(true);

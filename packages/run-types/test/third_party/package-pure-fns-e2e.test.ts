@@ -1,30 +1,12 @@
-// Full runtime e2e for pure functions served ACROSS PACKAGES: a consumer's pure
-// fn imports ids from installed libraries, and the build reads each library's
-// pure-fn bodies from the directory a mion build ships for that,
-// `mion-pure-fns/` in its output dir (the package's own cache modules plus an
-// index), never from its bundle.
-//
-// Three libraries, three lanes:
-//   - @acme/text   — built for real (esbuild + the runtypes esbuild adapter), so
-//                    its dist carries the artifact: the ARTIFACT lane. Its
-//                    bundle is then hollowed, so the artifact is the only place
-//                    the bodies exist.
-//   - @acme/dates  — a plain tsc-style emit (no artifact) plus its TypeScript
-//                    under src/, and its own nested copy of @acme/text: the SRC
-//                    lane, with a cross-package dep resolved from its own root.
-//   - @acme/legacy — hand-written JS registering a live function at load, no
-//                    artifact, no src: nothing can serve it, so a consumer
-//                    reaching it fails to build (PFE9016).
-//
-// Two consumers over one node_modules tree, plus the failing pair:
-//   - app-vite    — through the plugin (Rollup adapter): the rewritten consumer
-//                   and the generated modules are written to disk and run under
-//                   plain node.
-//   - app-compile — through `mion compile`, the same sources, then run.
-//   - app-legacy  — both lanes over a consumer of @acme/legacy: the build halts.
-//
-// Both print JSON from a fresh Node process, so what is asserted is what a
-// user's program would see at runtime.
+// Runtime e2e for pure fns served ACROSS PACKAGES: a consumer's pure fn imports ids from installed libraries,
+// and the build reads each body from `mion-pure-fns/` in the library's output dir, never from its bundle.
+// @acme/text is built for real and its bundle then hollowed, so the artifact is the only place its bodies
+// exist (the ARTIFACT lane); @acme/dates is a plain tsc-style emit plus src/, with its own nested @acme/text
+// (the SRC lane, a cross-package dep resolved from its own root); @acme/legacy registers a live function at
+// load with no artifact and no src, so a consumer reaching it fails to build (PFE9016). Two consumers share one
+// node_modules tree, app-vite through the Rollup adapter and app-compile through `mion compile`, and both
+// print JSON from a fresh Node process, so what is asserted is what a user's program sees at runtime;
+// app-legacy runs both lanes over a consumer of @acme/legacy and must halt.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import os from 'node:os';
@@ -45,9 +27,8 @@ import {runCli} from '../../../devtools/test/helpers/cliCrash.ts';
 // packages/run-types — the real @mionjs/run-types every fixture symlinks in.
 const CORE_PKG_DIR = fileURLToPath(new URL('../..', import.meta.url));
 
-// An id is the package plus a hash of the body that ships, so the ids of the
-// two built libraries are only known once they are built (read off the
-// artifact and the registry); only the runtime-only package writes its own.
+// An id hashes the body that ships, so the two built libraries' ids are only known once built.
+// Only the runtime-only package writes its own.
 const PAD_ID = '@acme/legacy#pf_pad00000000000';
 const ID_PATTERN = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
 
@@ -92,8 +73,7 @@ const TEXT_DTS = `import type {PureFnId} from '@mionjs/run-types';
 export declare const slugify: PureFnId<string>;
 export declare const title: PureFnId<string>;
 `;
-// What the text bundle is replaced with after the build: hollow registrations,
-// so nothing but the artifact can be the source of the bodies a consumer runs.
+// Replaces the text bundle after its build, so only the artifact can be the source of the bodies.
 const TEXT_HOLLOW = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
 export const slugify = registerPureFn(null);
 export const title = registerPureFnFactory(null);
@@ -124,13 +104,8 @@ const LEGACY_DTS = `import type {PureFnId} from '@mionjs/run-types';
 export declare const padId: PureFnId<'${PAD_ID}'>;
 `;
 
-// The consumer body: one pure fn reaching the two built libraries.
-// Annotation-free so the plugin's rewritten output runs as plain ESM; the
-// compile lane adds the typed marker pair on top.
-//
-// The lowered ids leave the imported bindings unused, so a TypeScript emit
-// drops those imports and no library module loads on its own: the served
-// bodies are all the program has.
+// Annotation-free, so the plugin's rewritten output runs as plain ESM (the compile lane adds the typed marker pair).
+// Lowering leaves the imports unused, so a TypeScript emit drops them: the served bodies are all the program has.
 const consumerBody = (titleId: string): string => `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types';
 import {isoDay} from '@acme/dates';
 
@@ -152,8 +127,7 @@ export const report = () => {
   };
 };
 `;
-// A consumer reaching the runtime-only package: nothing can serve padId's
-// body at build time, so this build must fail.
+// Reaches the runtime-only package, whose body nothing can serve at build time: this build must fail.
 const legacyMain = `import {registerPureFnFactory} from '@mionjs/run-types';
 import {padId} from '@acme/legacy';
 export const pad = registerPureFnFactory(function (utl) {
@@ -222,8 +196,7 @@ function readIndex(dir: string): ArtifactIndex {
   return JSON.parse(fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_DIR, PURE_FN_ARTIFACT_INDEX), 'utf8')) as ArtifactIndex;
 }
 
-// modulePath is where an id's cache module sits inside an artifact directory:
-// `<package>/<hash>.js`, the same path it has under `<genDir>/types/pf/`.
+// The same path the module has under `<genDir>/types/pf/`.
 function modulePath(id: string): string {
   const [pkg, hash] = id.split(PURE_FN_HASH_PREFIX);
   return path.join(...pkg.split('/'), `${hash}.js`);
@@ -233,9 +206,7 @@ function readModule(dir: string, id: string): string {
   return fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_DIR, modulePath(id)), 'utf8');
 }
 
-// A consumer is a package of its own and ships its artifact the same way: the
-// index names its one pure fn, and the module next to it is the cache module
-// its build wrote under genDir, byte for byte.
+// A consumer is a package of its own and ships its artifact the same way.
 function expectOwnArtifact(app: string, name: string): {id: string; bindingName?: string; file?: string} {
   const dist = path.join(app, 'dist');
   const own = readIndex(dist);
@@ -246,7 +217,6 @@ function expectOwnArtifact(app: string, name: string): {id: string; bindingName?
   return row;
 }
 
-// The two ids the text build wrote, read off its artifact by binding name.
 function textIds(): {slugify: string; title: string} {
   const index = readIndex(path.join(TEXT_DIR, 'dist'));
   const byName = Object.fromEntries(index.pureFns.map((row) => [row.bindingName, row.id]));
@@ -302,8 +272,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
       });
       // The generated dir is a build scratch, not part of what ships.
       fs.rmSync(path.join(TEXT_DIR, '.mion'), {recursive: true, force: true});
-      // The bundle the build wrote is replaced by hollow registrations: from
-      // here on the artifact is the only place the bodies exist.
+      // From here on the artifact is the only place the bodies exist.
       fs.writeFileSync(path.join(TEXT_DIR, 'dist', 'index.js'), TEXT_HOLLOW);
     }
 
@@ -372,8 +341,7 @@ describe('pure fns served across packages: dist lane, src lane, and the unbuilt 
       const transformed = (await callHook(plugin.transform, ctx, main, path.join(app, 'main.ts'))) as {code: string} | null;
       expect(transformed, 'the consumer must be transformed').toBeTruthy();
       code = transformed!.code;
-      // Rollup's writeBundle, once the bundle is on disk: the consumer is a
-      // package of its own and ships its artifact the same way.
+      // The consumer is a package of its own and ships its artifact the same way.
       await callHook(plugin.writeBundle, ctx, {dir: path.join(app, 'dist')});
     } finally {
       try {

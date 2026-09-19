@@ -16,10 +16,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The package's pure-fn artifact: every generate hands back the package's OWN
-// cache modules, byte for byte what it wrote under <genDir>/types/pf/, plus the
-// index mapping each binding name and source file to its id, for the adapter
-// to sync next to the bundle.
+// Every generate hands back the package's OWN cache modules, byte for byte what it wrote under <genDir>/types/pf/,
+// plus the index, for the adapter to sync next to the bundle.
 
 const artifactSources = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
@@ -100,9 +98,7 @@ func TestPureFnArtifact_GenerateReturnsOwnModulesAndIndex(t *testing.T) {
 	}
 }
 
-// allSingle folds the cache into one `pf` bundle; the artifact is still one
-// module per pure fn, each readable on its own, since a consumer reads one
-// module per demanded id.
+// allSingle folds the cache into one bundle, but the artifact stays one module per pure fn: a consumer reads one per id.
 func TestPureFnArtifact_AllSingleIsStillPerEntry(t *testing.T) {
 	outDir := t.TempDir()
 	gen := generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}, outDir, constants.ModuleModeAllSingle)
@@ -121,8 +117,7 @@ func TestPureFnArtifact_AllSingleIsStillPerEntry(t *testing.T) {
 	}
 }
 
-// A package that registers nothing gets no artifact; a nameless cwd owns no
-// id and gets none either.
+// No registrations, no artifact; a nameless cwd owns no id and gets none either.
 func TestPureFnArtifact_NoRowsMeansNothing(t *testing.T) {
 	const typesOnly = `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{a: number}>();
@@ -135,8 +130,7 @@ export const id = getRunTypeId<{a: number}>();
 	}
 }
 
-// Only the building package's rows go in: a sibling package the program
-// reaches through its sources belongs to its own artifact.
+// A sibling package reached through sources belongs to its own artifact, not this one.
 func TestPureFnArtifact_OwnPackageOnly(t *testing.T) {
 	sources := map[string]string{
 		"package.json": `{"name":"@acme/app"}`,
@@ -177,9 +171,7 @@ export const pad = registerPureFn((s: string): string => s.padStart(4, '0'));
 	}
 }
 
-// SyncArtifactDir makes the directory hold exactly the given files: unchanged
-// bytes are left alone, stale files and emptied subdirectories go, and an empty
-// set removes the directory.
+// Unchanged bytes are left alone, stale files and emptied subdirectories go, an empty set removes the directory.
 func TestSyncArtifactDir(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), constants.PureFnArtifactDir)
 	files := map[string]string{constants.PureFnArtifactIndexFile: "{}\n", "@acme/x/h.js": "export const a = 1;\n"}

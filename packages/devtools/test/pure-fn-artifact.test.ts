@@ -1,10 +1,6 @@
-// Every bundler adapter syncs the package's pure-fn artifact directory,
-// `mion-pure-fns/` (the package's own cache modules plus an index), into ITS
-// OWN output directory once the bundle is on disk, so `files: ["dist"]`
-// publishes it and a consumer's compiler serves the package's pure fns from it. Two real builds (vite lib mode, esbuild) prove the
-// file lands where the bundle does; the other hosts are driven through the
-// shape unplugin hands them (rollup's writeBundle options, webpack's compiler,
-// bun's build object), since those bundlers are not workspace dependencies.
+// Each bundler adapter syncs `mion-pure-fns/` into its own output dir once the bundle is on disk, so
+// `files: ["dist"]` publishes it. Two real builds (vite lib mode, esbuild) prove where it lands; the other
+// hosts are driven through the shape unplugin hands them, since those bundlers are not workspace dependencies.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {build, createBuilder} from 'vite';
 import * as esbuild from 'esbuild';
@@ -42,7 +38,7 @@ export const id = getRunTypeId<{a: number}>();
 
 let BASE = '';
 
-// A library project a build can run over: named, so its ids have an owner.
+// Named, so its ids have an owner.
 function writeProject(name: string, source: string): string {
   const root = path.join(BASE, name);
   fs.mkdirSync(path.join(root, 'src'), {recursive: true});
@@ -72,8 +68,7 @@ function readIndex(dir: string): ArtifactIndex {
   return JSON.parse(fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_DIR, PURE_FN_ARTIFACT_INDEX), 'utf8')) as ArtifactIndex;
 }
 
-// modulePath is where an id's cache module sits inside the artifact directory:
-// `<package>/<hash>.js`, the same path it has under `<genDir>/types/pf/`.
+// The same path the module has under `<genDir>/types/pf/`.
 function modulePath(id: string): string {
   const [pkg, hash] = id.split(PURE_FN_HASH_PREFIX);
   return path.join(...pkg.split('/'), `${hash}.js`);
@@ -92,8 +87,6 @@ function artifactFiles(dir: string): string[] {
   return found.sort();
 }
 
-// The artifact a build of a LIB_SRC project writes: the index naming both
-// pure fns, and each one's module byte-identical to its twin under genDir.
 function expectLibArtifact(dir: string, name: string, bindings = ['slugify', 'title']): void {
   const index = readIndex(dir);
   expect(index.format).toBe(1);
@@ -114,8 +107,7 @@ function expectLibArtifact(dir: string, name: string, bindings = ['slugify', 'ti
 
 const pluginOptions = (root: string) => ({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: path.join(root, '.mion')});
 
-// The raw unplugin options object, the shape every host is handed: its
-// per-bundler escape hatches are what the fake hosts below call.
+// The per-bundler escape hatches on the raw options object are what the fake hosts below call.
 function rawPlugin(root: string): any {
   const raw = unplugin.raw(pluginOptions(root), {framework: 'webpack', versions: {}} as UnpluginContextMeta);
   return Array.isArray(raw) ? raw[0] : raw;

@@ -338,21 +338,11 @@ func (sess *Session) collectPureFnReport(metrics *protocol.Metrics) []protocol.P
 	return purefunctions.Report(kept, sess.opts.EmitMode, sess.opts.ModuleMode == constants.ModuleModeAllSingle)
 }
 
-// renderPureFnArtifact renders the package's pure-fn artifact: the cache
-// modules of the whole-program registrations OWNED by the package the program
-// builds (the package that holds the program's cwd), exactly as generate writes
-// them under types/pf/ (per entry, imports relativized), plus the index that
-// maps each one's binding name and source file to its id
-// (purefnindex.RenderArtifactIndex). Keyed by path inside the artifact
-// directory. A workspace sibling reached through the `source` condition is
-// extracted too but belongs to its own artifact, and the marker package's
-// built-ins belong to the marker package (so run-types itself gets them the day
-// it builds with the compiler, and no other package ever does). Nil when the
-// package registers nothing, or has no name to own an id.
-//
-// The modules come from the pure-fn slice of the final graph, rendered per
-// entry whatever the module mode: in `allSingle` the cache folds them into one
-// bundle, but a consumer reads one module per demanded id.
+// renderPureFnArtifact renders the cache modules of the pure fns OWNED by the package at the program's cwd,
+// byte for byte as generate writes them under types/pf/, plus the index (purefnindex.RenderArtifactIndex),
+// keyed by path inside the artifact dir. A workspace sibling reached through the `source` condition, and the
+// marker package's built-ins, are extracted too but belong to their own package's artifact. Nil when nothing is owned.
+// Rendered per entry whatever the module mode: `allSingle` folds the cache, but a consumer reads one module per id.
 func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, error) {
 	if sess.Program == nil {
 		return nil, nil
@@ -371,9 +361,7 @@ func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *pro
 	if len(own) == 0 {
 		return nil, nil
 	}
-	// The slice a per-entry render of the own modules needs: every pure-fn
-	// entry (a dep's module is imported by name) and the stubs keyed by a
-	// pure-fn id (a dep nothing answered).
+	// Every pure-fn entry (a dep's module is imported by name) plus the stubs for deps nothing answered.
 	slice := entrymodules.Graph{}
 	for key, entry := range graph {
 		if entry.Kind == entrymodules.KindPureFn || (entry.Kind == entrymodules.KindMissing && strings.Contains(key, constants.PureFnHashPrefix)) {

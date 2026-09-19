@@ -145,7 +145,7 @@ func elapsedMs(start time.Time) float64 {
 // node entries for every dumped type, demand-driven family entries (parallel
 // fan-out preserved), JSON composites, pure fns, the cross-family fixpoint,
 // the global dangling-dep cascade, and missing stubs for demanded keys that
-// didn't survive. Returns the rendered modules keyed by module BASENAME.
+// didn't survive. Returns the modules keyed by module BASENAME, plus the package's pure-fn artifact.
 func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunctions.RenderOpts, pureFnGraph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, map[string]string, error) {
 	var graph entrymodules.Graph
 	if sess.opts.ModuleMode == constants.ModuleModeAllModules {
@@ -1009,9 +1009,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				}
 			}
 		}
-		// The package's pure-fn artifact rides the response for whoever owns
-		// the bundler's output dir; its modules are already on disk under
-		// types/pf/.
+		// Not written here: the caller owns the bundler's output dir; the modules are already on disk under types/pf/.
 		genResponse.PureFnArtifact = genArtifact
 		if sess.opts.PureFnReportWire {
 			batchReport := requestbatch.Report(genBatchSites)

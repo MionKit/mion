@@ -456,24 +456,16 @@ const (
 	// modules (`pf/<ns>/<fn>`), keeping them visually distinct from the hash-
 	// keyed runtype / type-fn modules.
 	PureFnModuleDir = "pf"
-	// PureFnHashPrefix joins the two halves of a pure-fn id, the owning package
-	// and the hash of the body that ships: `@acme/text#pf_9Zt1bRm4cVaPqL`. It is
-	// the ONE spelling on both sides: the build writes it into every id it
-	// injects and every tuple it emits, and a consumer's compiler splits an id
-	// on it to find the owning package. A package name holds no `#`, so the
-	// last occurrence always splits an id.
+	// PureFnHashPrefix joins a pure-fn id's owning package to its body hash: `@acme/text#pf_9Zt1bRm4cVaPqL`.
+	// One spelling on both sides: the build writes it into every id, a consumer's compiler splits ids on it.
+	// A package name holds no `#`, so the last occurrence always splits an id.
 	PureFnHashPrefix = "#pf_"
-	// PureFnArtifactDir is the directory every mion build writes into its
-	// output directory: the package's own pure-fn cache modules, copied as
-	// generate wrote them (`<package>/<hash>.js`, the `pf/` subtree minus its
-	// first segment), plus the index below. A consumer's compiler serves an
-	// installed package's pure fns from this directory alone, one module per
-	// demanded id, and never opens its bundle, so the name is fixed and the
-	// directory rides `files: ["dist"]` into the tarball.
+	// PureFnArtifactDir is what every mion build writes into its output dir: its own `pf/` cache modules
+	// (`<package>/<hash>.js`, as generate wrote them) plus the index below. A consumer's compiler serves an
+	// installed package's pure fns from here alone, never its bundle, and `files: ["dist"]` ships it.
 	PureFnArtifactDir = "mion-pure-fns"
-	// PureFnArtifactIndexFile is the index inside PureFnArtifactDir: every id
-	// the package ships with its binding name and source file, the map a
-	// consumer's `.d.ts` import (a name, never an id) is resolved through.
+	// PureFnArtifactIndexFile lists every shipped id with its binding name and source file: a `.d.ts` import
+	// carries a name, never an id, and is resolved through it.
 	PureFnArtifactIndexFile = "index.json"
 	// RpcModuleDir is the folder under the output root that holds the batch
 	// transport: `rpc/batches.generated.js` (the batch table the server

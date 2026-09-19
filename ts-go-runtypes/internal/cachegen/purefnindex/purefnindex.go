@@ -1,36 +1,18 @@
-// Package purefnindex reads the pure functions an INSTALLED package ships, so a
-// consumer whose program sees only that package's `.d.ts` still receives the
-// bodies at build time: emitted into the consumer's own modules (a fn entry's
-// deps thunk registers them before the body runs) and checked as an edge at all.
-// One lane for every package, the marker package included.
-//
-// The artifact first. Every mion build copies its own pure-fn cache modules
-// into one directory in its output directory, `mion-pure-fns/`
-// (constants.PureFnArtifactDir): the same `<package>/<hash>.js` files generate
-// writes under `<genDir>/types/pf/`, plus an `index.json` listing every id with
-// the binding its registration was assigned to and its source file (the shape
-// is in artifact.go). The index reads that directory wherever it sits under the
-// package root and never a bundle. It decodes the index on first touch (a
-// `.d.ts` import carries a NAME, never an id, so the name-to-id map is needed
-// before anything else) and opens a module only for an id a build demands, so
-// memory follows what the consumer uses, not what the package ships.
-//
-// Source second. When no artifact is found but the package ships its
-// TypeScript, the rows are extracted from that source with the same extractor a
-// build runs, so the ids and bodies are the ones its own build would produce.
-// The marker package is the one that lives here today: its dist is hollowed and
-// its tarball ships `src`, and its registration files are a GENERATED list
-// (purefnids.SourceFiles) rather than a scan, because that layout is fixed when
-// the binary is built. Any other package is scanned for a registrar call. An id
-// says nothing about where its body lives (it is the package plus a hash of the
-// body), so a demanded id is MATCHED against what came back, never decoded.
-//
-// Whose resolver: the session's, whenever the session's program already holds
-// those files (in-repo, the `source` condition puts the marker sources there).
-// One resolver and one memo mean the ids here cannot disagree with the ids the
-// program's own extraction produced; only a package the program does not hold
-// pays for a side Program of its own. Everything goes through the program FS, so
-// an overlay-only package behaves like an installed one.
+// Package purefnindex reads the pure functions an INSTALLED package ships, so a consumer whose program sees only
+// that package's `.d.ts` still gets the bodies at build time, emitted into its own modules and checked as an
+// edge. One lane for every package, the marker package included. The artifact comes first: every mion build
+// copies its own pure-fn cache modules into `mion-pure-fns/` in its output dir (constants.PureFnArtifactDir;
+// shape in artifact.go), read wherever it sits under the package root and never a bundle. The index is decoded
+// on first touch (a `.d.ts` import carries a NAME, never an id) and a module opened only for a demanded id, so
+// memory follows what the consumer uses. Source second: with no artifact, rows are extracted from the shipped
+// TypeScript by the same extractor a build runs. The marker package lives there today (hollowed dist, `src` in
+// the tarball), through the GENERATED list purefnids.SourceFiles rather than a scan, since that layout is fixed
+// when the binary is built; any other package is scanned for a registrar call. An id says nothing about where
+// its body lives, so a demanded id is MATCHED against what came back, never decoded. The resolver is the
+// session's whenever its program already holds the files (in-repo, the `source` condition puts the marker
+// sources there): one resolver and one memo mean the ids here cannot disagree with the program's own
+// extraction, and only a package the program does not hold pays for a side Program. Everything goes through
+// the program FS, so an overlay-only package behaves like an installed one.
 package purefnindex
 
 import (
@@ -52,11 +34,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// RegistrarNeedle is what a source file that registers a pure fn contains.
-// `registerPureFnFactory` has it as a prefix, so one needle covers both
-// registrars. It finds a DIRECT registrar call: a package registering through a
-// wrapper of its own names the registrar only in the wrapper's module, and such
-// a package must ship the artifact for its rows to be found.
+// RegistrarNeedle marks a source file that registers a pure fn; `registerPureFnFactory` shares the prefix. Only a
+// DIRECT call is found: a package registering through a wrapper of its own must ship the artifact instead.
 const RegistrarNeedle = "registerPureFn"
 
 // MarkerPackageName is the package that owns the built-in pure fns: the package
@@ -102,68 +81,52 @@ func (store *Store) Bind(fs vfspkg.FS, host Host) {
 	store.host = host
 }
 
-// ArtifactProblem is an artifact file the index could not use: an index of a
-// newer format or that is not one, a module the index lists but the directory
-// lacks, or a module holding no tuple for its id. Reported, because a package
-// whose artifact is skipped may look unbuilt or lack an id.
+// ArtifactProblem is an artifact file the index could not use (a bad or newer index, a listed module missing or
+// without its tuple); reported, since a skipped artifact makes a package look unbuilt or lacking an id.
 type ArtifactProblem struct {
 	Package string
 	File    string
 	Reason  string
 }
 
-// ArtifactConflict is one id two artifact directories of the same package
-// disagree on: a different body (an ESM and a CJS build that drifted apart, or
-// a stale copy), or a different binding name or file in their indexes. The
-// first copy read is kept; the build must fail, because one id is one body.
+// ArtifactConflict is one id two artifact directories of a package disagree on, by body or by index row (builds
+// that drifted apart, or a stale copy). The first copy read is kept, but the build must fail: one id is one body.
 type ArtifactConflict struct {
 	Package string
 	ID      string
 	Files   [2]string
 }
 
-// PackageIndex is what one installed package ships: the ids its artifact
-// indexes list (bodies read on demand), or every row extracted from its
-// sources, and the names its registrations are bound to.
+// PackageIndex is what one installed package ships, from its artifact indexes (bodies read on demand) or from its sources.
 type PackageIndex struct {
 	Root string
 	// Name is the package.json name, the owner half of every id the package
 	// owns; empty for a nameless package.
 	Name string
-	// FromSource is set when no artifact was found and the rows were extracted
-	// from the package's sources instead.
+	// FromSource: no artifact was found, so the rows came from the package's sources.
 	FromSource bool
-	// Err is why the package's sources could not be extracted at all: a listed
-	// file the install lacks, or the extractor rejecting them. Only set when
-	// no artifact was found; a package with no sources has none.
+	// Err is why the sources could not be extracted: a listed file the install lacks, or the extractor rejecting
+	// them. Only set when no artifact was found; a package with no sources has none.
 	Err error
-	// Problems and Conflicts are what reading the artifacts turned up, the
-	// index on first touch and each module when its id is demanded; see the
-	// types.
+	// Problems and Conflicts are what reading the artifacts turned up: the index on first touch, each module when demanded.
 	Problems  []ArtifactProblem
 	Conflicts []ArtifactConflict
-	// listed maps an id to the artifact directories whose index lists it, in
-	// walk order; the first is the one a module is served from.
+	// listed maps an id to the artifact directories listing it, in walk order; the first serves the module.
 	listed map[string][]string
-	// indexOf is the index file each listed id was first read from, for the
-	// conflict a second index disagreeing on its name raises.
+	// indexOf is the index file an id was first read from, named by the conflict a second index raises.
 	indexOf map[string]string
-	// rows holds the served rows: read from a module on demand, or all of them
-	// when extracted from source. unreadable marks an id whose module could
-	// not be read, so a second demand neither re-reads nor re-reports it.
+	// rows are read from a module on demand, or all at once from source; unreadable marks an id whose module
+	// failed, so a second demand neither re-reads nor re-reports it.
 	rows       map[string]purefunctions.Entry
 	unreadable map[string]bool
-	// byName maps a binding name to the ids registered under it anywhere in the
-	// package. One id answers; two answer only through the file tiebreak.
+	// byName maps a binding name to the ids under it anywhere in the package; two answer only through the file tiebreak.
 	byName map[string][]string
 	// rowFile is each row's source file relative to Root, when known.
 	rowFile map[string]string
 	store   *Store
 }
 
-// Built reports whether the package ships any pure fn the build can serve. A
-// package with none was not built by mion and ships no source (or registers
-// nothing): its registrations only exist at runtime.
+// Built reports whether the package ships a pure fn the build can serve; with none, its registrations exist only at runtime.
 func (idx *PackageIndex) Built() bool { return len(idx.listed) > 0 || len(idx.rows) > 0 }
 
 // IDs lists every id the package ships, sorted.
@@ -191,9 +154,7 @@ func (store *Store) Package(root string) *PackageIndex {
 		return idx
 	}
 	idx := &PackageIndex{Root: root, listed: map[string][]string{}, indexOf: map[string]string{}, rows: map[string]purefunctions.Entry{}, unreadable: map[string]bool{}, byName: map[string][]string{}, rowFile: map[string]string{}, store: store}
-	// Registered before the read so a package whose sources import a binding of
-	// its own (through this store) finds the index under construction rather
-	// than reading itself again.
+	// Registered before the read, so a package whose sources import its own binding finds the index under construction.
 	store.packages[root] = idx
 	if store.fs == nil {
 		return idx
@@ -218,8 +179,7 @@ func (store *Store) Package(root string) *PackageIndex {
 			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: err.Error()})
 			continue
 		}
-		// A copy of another package's artifact (vendored, or a nameless root
-		// holding one) is not this package's.
+		// A vendored copy of another package's artifact, or one under a nameless root, is not this package's.
 		if index.Package != idx.Name {
 			continue
 		}
@@ -231,11 +191,8 @@ func (store *Store) Package(root string) *PackageIndex {
 	return idx
 }
 
-// addIndex records one directory's index. A repeat of an id is the same
-// function arriving from a second build of the package (ESM and CJS both write
-// the directory) unless its name or file differs, which is a conflict; either
-// way the directory is listed, so the bodies are compared when the id is
-// demanded.
+// addIndex records one directory's index. A repeated id is a second build of the package (ESM and CJS both write
+// the directory): a conflict if its name or file differs, listed either way so the bodies are compared on demand.
 func (idx *PackageIndex) addIndex(dir, file string, index ArtifactIndex) {
 	for _, row := range index.PureFns {
 		if first, dup := idx.indexOf[row.ID]; dup {
@@ -272,11 +229,8 @@ func (idx *PackageIndex) nameOf(id string) string {
 	return ""
 }
 
-// Row returns the served row for an id the package ships. On the artifact lane
-// the module is read the first time the id is asked for, from every directory
-// whose index lists it: identical copies merge, a differing body is a conflict
-// (the first copy is kept), a copy that is missing or holds no tuple for the
-// id is a problem. Nothing is read for an id no build demands.
+// Row returns the served row, reading the id's module on first demand from every directory listing it; the
+// first readable copy is kept, a differing one is a conflict.
 func (idx *PackageIndex) Row(id string) (purefunctions.Entry, bool) {
 	if row, ok := idx.rows[id]; ok {
 		return row, true
@@ -316,12 +270,9 @@ func (idx *PackageIndex) Row(id string) (purefunctions.Entry, bool) {
 	return kept, true
 }
 
-// walk visits root and every directory under it, listings only, skipping a
-// nested node_modules (another package) and any hidden dir (`.mion`, `.git`: a
-// build's scratch, where a consumer build writes served COPIES of other
-// packages' rows, never the package's own). visit returns whether to descend
-// into that directory. Every child of a directory is visited before any child
-// is descended, so a shallower match is always listed before a deeper one.
+// walk visits root and every directory under it, skipping a nested node_modules (another package) and hidden
+// dirs (`.mion`, `.git`: a build's scratch, holding served COPIES of other packages' rows). visit says whether to
+// descend. Every child is visited before any is descended, so a shallower match is listed before a deeper one.
 func (store *Store) walk(root string, visit func(dir string, entries vfspkg.Entries) bool) {
 	if !store.fs.DirectoryExists(root) {
 		return
@@ -353,8 +304,7 @@ func (store *Store) walk(root string, visit func(dir string, entries vfspkg.Entr
 	}
 }
 
-// artifactDirsUnder lists the artifact directories under root, in walk order.
-// An artifact directory holds nothing but modules, so it is not descended.
+// artifactDirsUnder lists the artifact directories under root in walk order; one holds only modules, so it is not descended.
 func (store *Store) artifactDirsUnder(root string) []string {
 	var dirs []string
 	store.walk(root, func(dir string, entries vfspkg.Entries) bool {
@@ -587,9 +537,7 @@ func (store *Store) ResolvePackage(name, fromDir string) (string, bool) {
 	return root, root != ""
 }
 
-// PackageOfID returns the package that owns a pure-fn id (`@acme/text#pf_9Zt1…`
-// → `@acme/text`). Empty when the id has no separator (not an id) or no owner
-// half (a nameless-package id has no package to look up).
+// PackageOfID is the owner half of an id (`@acme/text#pf_9Zt1…` → `@acme/text`); empty when not an id or nameless.
 func PackageOfID(id string) string {
 	packageName, _, ok := purefunctions.SplitID(id)
 	if !ok {
@@ -598,12 +546,9 @@ func PackageOfID(id string) string {
 	return packageName
 }
 
-// BindingID maps a name declared in a `.d.ts` file to the pure-fn id the
-// package registers it under: a declaration is emitted from the same binding
-// the registration is assigned to, so the one row bound to that name is the
-// answer a source build would give. Two rows sharing a name are told apart by
-// their source file's basename against the declaration's (`dist/slug.d.ts` is
-// emitted from `src/slug.ts`); still ambiguous answers nothing.
+// BindingID maps a `.d.ts` name to the id the package registers it under: a declaration is emitted from the same
+// binding as the registration. Two rows sharing a name are told apart by basename (`dist/slug.d.ts` comes from
+// `src/slug.ts`); still ambiguous answers nothing.
 func (store *Store) BindingID(dtsPath, name string) (string, bool) {
 	if store.fs == nil || name == "" {
 		return "", false
@@ -636,8 +581,7 @@ func (store *Store) BindingID(dtsPath, name string) (string, bool) {
 	return "", false
 }
 
-// moduleBasename is a file's name without directory or extensions
-// (`dist/slug.d.ts` → `slug`, `src/slug.ts` → `slug`).
+// moduleBasename strips directory and every extension: `dist/slug.d.ts` → `slug`.
 func moduleBasename(path string) string {
 	name := tspath.GetBaseFileName(tspath.NormalizePath(path))
 	if dot := strings.IndexByte(name, '.'); dot > 0 {
@@ -668,11 +612,8 @@ type Miss struct {
 	Err     error
 }
 
-// Result is what Closure found: the rows to serve (sorted by id, every
-// transitive dep included), the demanded ids a located package lacks, the ids
-// whose package could not be located at all (left to the program's own
-// registrations and its PFE9012 check), and what reading the located packages'
-// artifacts turned up.
+// Result is what Closure found: Entries sorted by id with every transitive dep, and Unresolved left to the
+// program's own registrations and its PFE9012 check.
 type Result struct {
 	Entries    []purefunctions.Entry
 	Missing    []Miss
@@ -681,12 +622,9 @@ type Result struct {
 	Conflicts  []ArtifactConflict
 }
 
-// Closure serves every demanded id plus the transitive closure of its deps,
-// resolving each dep from the root of the package whose row names it. A dep on
-// the row's own package short-circuits to that same root, so a nested copy never
-// resolves to a hoisted sibling with a different body. Reading a module can add
-// a problem or a conflict, so each visited package's are collected once the
-// walk is done.
+// Closure serves every demanded id plus its transitive deps, each resolved from the root of the package whose
+// row names it; a dep on the row's own package stays at that root, so a nested copy never resolves to a hoisted
+// sibling. Problems and conflicts are collected after the walk, since reading a module can add them.
 func (store *Store) Closure(demands []Demand) Result {
 	var result Result
 	seen := map[string]bool{}

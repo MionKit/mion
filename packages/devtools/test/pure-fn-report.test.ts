@@ -130,8 +130,7 @@ describe('pure-fn build report', () => {
     const typeFiles = fs.readdirSync(typesDir);
     expect(typeFiles).not.toContain('pure-fns-report.js');
     expect(fs.readFileSync(path.join(typesDir, '.gitignore'), 'utf8')).toContain('*');
-    // The package's pure-fn artifact is the cache modules under pf/ themselves;
-    // no second copy of them lives under types/.
+    // The artifact is the pf/ cache modules themselves; no second copy lives under types/.
     expect(typeFiles).toContain(PURE_FN_MODULE_DIR);
     expect(typeFiles).not.toContain(PURE_FN_ARTIFACT_DIR);
   });

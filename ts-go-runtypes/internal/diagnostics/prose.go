@@ -241,8 +241,7 @@ export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Err
 	CodePureFnDepUnbuilt: {
 		Summary: "A helper (a pure function) imported from another package cannot be built because that package ships neither its compiled pure functions nor its sources. Build the package with mion and publish its output directory, or publish its sources.",
 	},
-	// No Example: PFE9017 and PFE9018 need an installed package carrying a
-	// `mion-pure-fns/` directory, which the diag-example harness cannot stage.
+	// No Example: PFE9017 and PFE9018 need an installed package with a `mion-pure-fns/`, which the harness cannot stage.
 	CodePureFnArtifactUnreadable: {
 		Summary: "A file in an installed package's `mion-pure-fns/` directory cannot be read: the index was written by a newer mion, or a listed module is missing or broken. The file is skipped, so the package's helpers (pure functions) may look missing. Update the compiler, or rebuild that package with the version you use.",
 	},
