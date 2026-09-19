@@ -120,11 +120,17 @@ directly.
 
 ## Docs
 
-`container/website/content/02.runtypes/08.diagnostics/01.error-levels.md` gains
-"Standing a Code Down for a Whole File" after the two line-directive sections: the shape rule
-as a table, the codeless form and what it costs, and which of the three to reach for (the line
-when one call site is involved, the block comment with the code named when the file has one
-known finding, the block comment with no codes when the whole file is deliberate).
+`container/website/content/02.runtypes/08.diagnostics/01.error-levels.md` had one section per
+directive per scope, which is three sections saying nearly the same thing. They collapse into
+one, "Disabling Errors": what each word does, a line comment covers the line under it and a
+block comment before any code covers the file, one table for the three shapes, and the codeless
+form with what it costs.
+
+The example is a real file, `packages/examples/src/guide/disabling-errors.ts`, pulled in with
+`<code-import>` so the root typecheck fails on drift. It carries all three forms with comments
+around them, and the resolver run over it prints exactly what the page claims: the two calls the
+file comment covers report `warning VL002 (downgraded)`, the one the line comment covers reports
+nothing, and the build exits zero.
 
 ## Out of scope
 
