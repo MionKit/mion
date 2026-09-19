@@ -1,6 +1,6 @@
 ---
 name: implement-todo
-description: Build a docs/todos/ spec end to end, from an approved plan to the gate, docs/done/ and the docs simplification pass. Use when the user wants to implement or pick a todo.
+description: Build a docs/todos/ spec end to end, from an approved plan to the gate, docs/done/ and the docs and comment simplification passes. Use when the user wants to implement or pick a todo.
 ---
 
 # implement-todo
@@ -20,6 +20,7 @@ Take one spec from `docs/todos/` and carry it to a finished, PR-ready change. Th
 7. **Implement** to the plan and the spec's Done-when.
 8. **Gate + finish**: tests green, docs updated, the spec reconciled with what actually shipped, then `git mv` into `docs/done/`.
 9. **Documentation simplification**: the `docs-simplifier` subagent runs the simplify-docs skill over every page and example this change touched. Always, never by you.
+10. **Comment simplification**: the `comments-simplifier` subagent runs the simplify-comments skill over every source file this change touched. Always, never by you. Steps 9 and 10 run at the same time.
 
 ## Step 1 — Pick the todo
 
@@ -119,6 +120,16 @@ The last step before the change is PR ready, and it runs even when the docs chan
 4. Re-run what the pass can break: `pnpm run typecheck` (the examples) and `pnpm exec vitest run website-links` (renamed anchors).
 5. Commit the pass on its own: `docs(simplify): <page>`.
 
+## Step 10 — Comment simplification (always, by a subagent)
+
+Same shape as step 9, for the comments in the code this change touched. Spawn it in the same message as step 9's agent so the two run at once; they never touch the same files (`packages/examples/` belongs to the docs pass, everything else to this one).
+
+1. List what the branch touched: `git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- '*.ts' '*.go' '*.mjs' '*.js' '*.vue'`. Nothing listed means the step is a no-op; say so.
+2. Spawn the agent with the Agent tool, `subagent_type: comments-simplifier`, and give it those paths (or "the branch"). Do not run the skill yourself, and do not tell the agent why a comment is there. If the type is not found (agent definitions load at session start), spawn `general-purpose` with the body of `.claude/agents/comments-simplifier.md` as the prompt plus the instruction to read `.claude/skills/simplify-comments/SKILL.md` first.
+3. Read its report. For every shortened or deleted comment, check the code: a fact the code cannot show (a reason, a constraint, an invariant, a trap) that the pass dropped goes back, in one line. Decide every **Kept** line yourself.
+4. Re-run what the pass can break: `pnpm run lint`, and `go -C ts-go-runtypes vet ./internal/... ./cmd/...` when a Go file changed. Run the skill's diff guard once more: nothing but comment lines may have changed.
+5. Commit the pass on its own: `chore(comments): <area>`.
+
 Close by telling the user what shipped versus the todo's Done-when, and flag anything you consciously left for a follow-up.
 
 ## What NOT to do
@@ -129,7 +140,7 @@ Close by telling the user what shipped versus the todo's Done-when, and flag any
 - **Do not add fuzzing without asking**, and do not hand-roll the fuzzer — route to the fuzzy-testing skill.
 - **Do not pull candidates from `docs/done/` or `docs/maybe/`** — only `docs/todos/` holds ready work.
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
-- **Do not skip the simplification pass, do not run it in this session, and do not accept a result that changed a fact.** Even a one-sentence docs change goes through the `docs-simplifier` subagent (the one exception is a branch that touched no page and no example), and its report is reviewed against the code, sentence by sentence, before it is committed.
+- **Do not skip either simplification pass, do not run one in this session, and do not accept a result that changed a fact.** Even a one-sentence docs change goes through the `docs-simplifier` subagent and even a one-comment code change through the `comments-simplifier` subagent (the one exception is a branch that touched nothing of that kind), and each report is reviewed against the code, line by line, before it is committed.
 - **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — delegate it via the [delegate-finding skill](../delegate-finding/) (parallel agent, own PR, merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
 - **Do not reference a todo or done doc from any other file.** Not from docs, skills, workflows or code comments: those specs get deleted eventually. Write the reasoning where it is needed; if a spec lists documents that may go stale after merge, that list lives in the spec itself.
