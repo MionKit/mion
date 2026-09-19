@@ -123,14 +123,13 @@ Close by telling the user what shipped versus the todo's Done-when, and flag any
 
 ## What NOT to do
 
-- **Do not skip the simplification pass, and do not run it in this session.** Even a one-sentence docs change goes through the `docs-simplifier` subagent. The one exception is a branch that touched no page and no example.
 
 - **Do not edit any file before the plan is approved.** Steps 1-6 are analysis only.
 - **Do not skip tests on a fix or a feature** — the gate rejects it and so should you.
 - **Do not add fuzzing without asking**, and do not hand-roll the fuzzer — route to the fuzzy-testing skill.
 - **Do not pull candidates from `docs/done/` or `docs/maybe/`** — only `docs/todos/` holds ready work.
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
-- **Do not accept a simplification that changed a fact.** The subagent's report is reviewed against the code, sentence by sentence, before it is committed.
+- **Do not skip the simplification pass, do not run it in this session, and do not accept a result that changed a fact.** Even a one-sentence docs change goes through the `docs-simplifier` subagent (the one exception is a branch that touched no page and no example), and its report is reviewed against the code, sentence by sentence, before it is committed.
 - **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — delegate it via the [delegate-finding skill](../delegate-finding/) (parallel agent, own PR, merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
 - **Do not reference a todo or done doc from any other file.** Not from docs, skills, workflows or code comments: those specs get deleted eventually. Write the reasoning where it is needed; if a spec lists documents that may go stale after merge, that list lives in the spec itself.
