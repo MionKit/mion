@@ -50,6 +50,20 @@ After:
 // Kept for adoption: a project turning mion on cannot yet list the codes it has not met.
 ```
 
+## One line is not a paragraph on one line
+
+Before, from the first run of this pass, 170 characters:
+
+```go
+// DirectiveScope says how far a directive reaches; the caller picks it from the comment's shape (a block comment before any code covers the file, as ESLint's `/* eslint-disable */` does).
+```
+
+After:
+
+```go
+// DirectiveScope is picked from the comment's shape: a block comment before any code covers the file.
+```
+
 ## Half restates the code
 
 Before, above `if removed { continue }`:
