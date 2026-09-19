@@ -27,7 +27,9 @@ import (
 // site-less); one whose sources could not be read is CFG004 for the marker
 // package (its bodies are the compiler's own contract) and the runtime-only
 // lane otherwise; a located package with nothing to serve at all is that lane,
-// reported once per id as PFE9016 so a silent stub never hides the edge.
+// reported once per id as PFE9016 so a silent stub never hides the edge. An
+// artifact a located package ships but this compiler cannot read is PFE9017,
+// and two of its artifacts disagreeing on a body is PFE9018.
 //
 // emitMode is the RENDER's mode, not the session's: the bundled-API mirror
 // renders in `functions` whatever the program's own mode, and a body shipped as
@@ -63,6 +65,12 @@ func (sess *Session) servePackagePureFns(graph entrymodules.Graph, diagSink *[]d
 	}
 	appendDiag := func(code string, args ...string) {
 		*diagSink = append(*diagSink, diagnostics.New(code, diagnostics.Site{}, args...))
+	}
+	for _, problem := range result.Problems {
+		appendDiag(diagnostics.CodePureFnArtifactUnreadable, problem.File, problem.Reason)
+	}
+	for _, conflict := range result.Conflicts {
+		appendDiag(diagnostics.CodePureFnArtifactConflict, conflict.ID, conflict.Files[0], conflict.Files[1])
 	}
 	unreadable := map[string]bool{}
 	for _, id := range result.Unresolved {

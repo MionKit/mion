@@ -6,10 +6,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/requestbatch"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
@@ -332,6 +335,32 @@ func (sess *Session) collectPureFnReport(metrics *protocol.Metrics) []protocol.P
 		kept = append(kept, entry)
 	}
 	return purefunctions.Report(kept, sess.opts.EmitMode, sess.opts.ModuleMode == constants.ModuleModeAllSingle)
+}
+
+// collectPureFnArtifact renders the package's pure-fn artifact
+// (purefnindex.RenderArtifact): the whole-program registrations OWNED by the
+// package the program builds, which is the package that holds the program's
+// cwd. A workspace sibling reached through the `source` condition is extracted
+// too but belongs to its own artifact, and the marker package's built-ins
+// belong to the marker package (so run-types itself gets them the day it
+// builds with the compiler, and no other package ever does). Nil when the
+// package registers nothing, or has no name to own an id.
+func (sess *Session) collectPureFnArtifact(metrics *protocol.Metrics) []byte {
+	if sess.Program == nil {
+		return nil
+	}
+	ownPackage, ownRoot := marker.PackageOfFile(tspath.CombinePaths(sess.Program.Cwd, "package.json"), sess.Program.FS)
+	if ownPackage == "" {
+		return nil
+	}
+	entries, _, _ := sess.extractProgramPureFns(metrics)
+	kept := make([]purefunctions.Entry, 0, len(entries))
+	for _, entry := range entries {
+		if purefnindex.PackageOfID(entry.Key()) == ownPackage {
+			kept = append(kept, entry)
+		}
+	}
+	return purefnindex.RenderArtifact(ownPackage, ownRoot, kept)
 }
 
 // pureFnReportForEntries builds the report for an already-extracted per-request

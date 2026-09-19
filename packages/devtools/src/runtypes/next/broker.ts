@@ -71,6 +71,12 @@ export interface NextOptions extends PluginOptions {
   // Where the broker listens. Derived from the project root by default; set it
   // only to keep two projects that share a root from sharing one resolver.
   socketPath?: string;
+  // Where the broker writes the package's `mion-pure-fns.json`: Next's distDir,
+  // as withRunTypes derives it. Best effort, since Turbopack has no post-build
+  // hook: written once buildStart is done and again on the first loader
+  // request (by then Turbopack has emptied the dir). A Next app is never
+  // installed as a package, so nothing reads this copy.
+  artifactDir?: string;
 }
 
 export interface BrokerHandle {
@@ -179,7 +185,13 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     buildEnd?: (this: unknown) => unknown;
     transform?: (this: unknown, code: string, id: string) => unknown;
     rtHotUpdate?: (ctx: unknown, updates: {file: string; content?: string}[]) => Promise<void>;
+    rtWritePureFnArtifact?: (dir: string) => Promise<void>;
   };
+  const writeArtifact = async (): Promise<void> => {
+    if (!options.artifactDir) return;
+    await built.rtWritePureFnArtifact?.(options.artifactDir).catch((error) => debug(`artifact write failed: ${String(error)}`));
+  };
+  let artifactWrittenOnRequest = false;
 
   // Warnings raised while rewriting one file are routed back to that file's
   // loader so Turbopack can attribute them; anything raised outside a request
@@ -212,6 +224,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       debug(`buildStart done, ${countGenerated()} generated modules`);
       refreshStamp(true);
       startWatching();
+      void writeArtifact();
     })
     .catch((error) => {
       startupError = error;
@@ -373,6 +386,10 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     try {
       await ready;
       if (startupError) throw startupError;
+      if (!artifactWrittenOnRequest) {
+        artifactWrittenOnRequest = true;
+        await writeArtifact();
+      }
       // Never rewrite against a tree a watcher-driven regenerate is mid-way
       // through writing.
       await hotUpdate;

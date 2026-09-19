@@ -1720,6 +1720,28 @@
       "example": null
     },
     {
+      "code": "PFE9017",
+      "subsystem": "pure-functions",
+      "level": "warning",
+      "severity": "warning",
+      "headline": "`{0}` could not be read as a pure-fn artifact: {1}.",
+      "detail": "A mion build writes the package's pure functions into `mion-pure-fns.json`\nnext to its output, and a consumer's build reads that file to serve the\nbodies. This one was skipped: it was written in a format this compiler does\nnot know, or it is not that file. Skipped means the package may now look as\nif it shipped no compiled pure functions.\n\nFix: update the mion compiler to the version that wrote the file, or rebuild\nthe package with the version in use.",
+      "summary": "An installed package ships a `mion-pure-fns.json` this compiler cannot read, usually because it was written by a newer mion. The file is skipped, so the package's helpers (pure functions) may look missing. Update the compiler, or rebuild that package with the version you use.",
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "PFE9018",
+      "subsystem": "pure-functions",
+      "level": "error",
+      "severity": "error",
+      "headline": "Pure fn `{0}` has two different bodies in `{1}` and `{2}`.",
+      "detail": "A pure function's id is a hash of the body that ships, so one id is one body.\nTwo artifacts of the same installed package give this id different bodies,\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns.json`, or remove the stale copy.",
+      "summary": "Two `mion-pure-fns.json` files of one installed package give the same helper (a pure function) two different bodies, so one of them is stale. The build stops rather than pick one. Rebuild the package so every output directory carries the same file, or delete the stale copy.",
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "OVR001",
       "subsystem": "overrides",
       "level": "runtimeError",

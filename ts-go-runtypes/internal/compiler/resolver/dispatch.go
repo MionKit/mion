@@ -1005,6 +1005,14 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				}
 			}
 		}
+		// The package's pure-fn artifact, always: its canonical copy lands
+		// under types/ and its content rides the response for whoever owns
+		// the bundler's output dir.
+		artifact := sess.collectPureFnArtifact(metrics)
+		if artifactErr := WriteOrRemoveFile(pureFnArtifactPath(outDir), artifact); artifactErr != nil {
+			return protocol.Response{Error: artifactErr.Error()}
+		}
+		genResponse.PureFnArtifact = string(artifact)
 		if sess.opts.PureFnReportWire {
 			batchReport := requestbatch.Report(genBatchSites)
 			genResponse.BatchSites = batchReport

@@ -241,6 +241,14 @@ export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Err
 	CodePureFnDepUnbuilt: {
 		Summary: "A helper (a pure function) imported from another package could not be served at build time because that package's published files carry no compiled pure functions. The build still runs, but the helper is registered only when that package's own module loads first. Build the package with mion, or import its module before the helper is used.",
 	},
+	// No Example: PFE9017 and PFE9018 need an installed package carrying a
+	// `mion-pure-fns.json`, which the diag-example harness cannot stage.
+	CodePureFnArtifactUnreadable: {
+		Summary: "An installed package ships a `mion-pure-fns.json` this compiler cannot read, usually because it was written by a newer mion. The file is skipped, so the package's helpers (pure functions) may look missing. Update the compiler, or rebuild that package with the version you use.",
+	},
+	CodePureFnArtifactConflict: {
+		Summary: "Two `mion-pure-fns.json` files of one installed package give the same helper (a pure function) two different bodies, so one of them is stale. The build stops rather than pick one. Rebuild the package so every output directory carries the same file, or delete the stale copy.",
+	},
 	CodeMarkerDuplicateFnKey: {
 		Summary: "An `InjectTypeFnArgs` marker lists each function family it needs once, in order. Naming the same family twice injects a second identical handle that nothing reads, so it is almost always a copy-paste slip and the build stops. List each family at most once.",
 		Fix: `function route<H extends Handler>(

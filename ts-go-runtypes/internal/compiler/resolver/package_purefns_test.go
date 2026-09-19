@@ -1,16 +1,19 @@
 package resolver_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // End-to-end coverage for serving an INSTALLED package's pure fns: a consumer
 // pure fn imports a library id whose `.d.ts` carries no literal, the library's
-// compiled file (or its src) provides the body, and the consumer's module graph
+// artifact (or its src) provides the body, and the consumer's module graph
 // binds it like any other pure-fn dep.
 
 const (
@@ -18,14 +21,19 @@ const (
 	libTitleID   = "@acme/text#pf_title0000000000"
 	libSlugMod   = "pf/@acme/text/slug00000000000"
 	libTitleMod  = "pf/@acme/text/title0000000000"
-	libSlugRow   = `[2,,,'` + libSlugifyID + `',['utl'],'return (s) => s.toLowerCase();',[]]`
-	libTitleRow  = `[2,,,'` + libTitleID + `',['utl'],'return (s) => utl.getPureFn(\'` + libSlugifyID + `\')(s) + "!";',['` + libSlugifyID + `']]`
 	libPackage   = `{"name":"@acme/text","types":"./dist/index.d.ts","exports":{".":{"types":"./dist/index.d.ts","default":"./dist/index.js"}}}`
 	libDts       = `import type {PureFnId} from '@mionjs/run-types';
 export declare const slugify: PureFnId<string>;
 export declare const title: PureFnId<string>;
 `
-	consumerTS = `import {registerPureFnFactory} from '@mionjs/run-types';
+	// The hollowed registrations a library ships when its bodies travel on the
+	// artifact; a bundle that inlined the tuples would work the same, unread.
+	libIndexJS = `import {registerPureFn} from '@mionjs/run-types';
+export const slugify = registerPureFn(null);
+export const title = registerPureFn(null);
+`
+	libArtifactPath = "node_modules/@acme/text/dist/" + constants.PureFnArtifactFileName
+	consumerTS      = `import {registerPureFnFactory} from '@mionjs/run-types';
 import {title} from '@acme/text';
 export const shout = registerPureFnFactory(function (utl) {
   return function _shout(s: string): string { return utl.getPureFn(title)(s).toUpperCase(); };
@@ -33,12 +41,29 @@ export const shout = registerPureFnFactory(function (utl) {
 `
 )
 
-func builtTextLib(indexJS string) map[string]string {
-	return map[string]string{
+var (
+	libSlugRow  = purefnindex.ArtifactRow{ID: libSlugifyID, BindingName: "slugify", File: "src/index.ts", ParamNames: []string{"utl"}, Code: "return (s) => s.toLowerCase();", PureFnDependencies: []string{}}
+	libTitleRow = purefnindex.ArtifactRow{ID: libTitleID, BindingName: "title", File: "src/index.ts", ParamNames: []string{"utl"}, Code: `return (s) => utl.getPureFn('` + libSlugifyID + `')(s) + "!";`, PureFnDependencies: []string{libSlugifyID}}
+)
+
+func libArtifact(rows ...purefnindex.ArtifactRow) string {
+	payload, err := json.MarshalIndent(purefnindex.Artifact{Format: purefnindex.ArtifactFormat, Package: "@acme/text", PureFns: rows}, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(payload) + "\n"
+}
+
+func builtTextLib(artifact string) map[string]string {
+	files := map[string]string{
 		"node_modules/@acme/text/package.json":    libPackage,
 		"node_modules/@acme/text/dist/index.d.ts": libDts,
-		"node_modules/@acme/text/dist/index.js":   indexJS,
+		"node_modules/@acme/text/dist/index.js":   libIndexJS,
 	}
+	if artifact != "" {
+		files[libArtifactPath] = artifact
+	}
+	return files
 }
 
 func scanLibConsumer(t *testing.T, files map[string]string) protocol.Response {
@@ -52,16 +77,13 @@ func scanLibConsumer(t *testing.T, files map[string]string) protocol.Response {
 	return resp
 }
 
-// TestPackagePureFns_ServedFromBuiltFiles — the library's dist carries the
-// tuples: the consumer's pure fn gets the imported id lowered and the library's
-// row, plus the row it depends on, served as modules in the consumer's graph.
-func TestPackagePureFns_ServedFromBuiltFiles(t *testing.T) {
-	resp := scanLibConsumer(t, builtTextLib(`import {registerPureFn} from '@mionjs/run-types';
-const t1 = `+libSlugRow+`;
-const t2 = `+libTitleRow+`;
-export const slugify = registerPureFn(t1, '`+libSlugifyID+`');
-export const title = registerPureFn(t2, '`+libTitleID+`');
-`))
+// TestPackagePureFns_ServedFromArtifact — the library's dist carries the
+// artifact: the consumer's pure fn gets the imported id lowered and the
+// library's row, plus the row it depends on, served as modules in the
+// consumer's graph. The library's JS is hollow, so the artifact is the only
+// place the bodies exist.
+func TestPackagePureFns_ServedFromArtifact(t *testing.T) {
+	resp := scanLibConsumer(t, builtTextLib(libArtifact(libSlugRow, libTitleRow)))
 	if len(resp.Diagnostics) != 0 {
 		t.Fatalf("expected no diagnostics, got %+v", resp.Diagnostics)
 	}
@@ -71,7 +93,7 @@ export const title = registerPureFn(t2, '`+libTitleID+`');
 		}
 	}
 	if served := resp.EntryModules[libTitleMod]; !strings.Contains(served, `(s) + "!";`) {
-		t.Errorf("served body must come from the library's tuple: %s", served)
+		t.Errorf("served body must come from the library's artifact: %s", served)
 	}
 	// The consumer's own id has no package half (the fixture cwd is nameless),
 	// so its module is the one pure-fn module outside the library's prefix.
@@ -86,13 +108,35 @@ export const title = registerPureFn(t2, '`+libTitleID+`');
 	}
 }
 
-// TestPackagePureFns_ServedFromSource — the library's dist has no tuple (a
+// TestPackagePureFns_BundleTuplesAreNotRead — a library whose bundle inlines
+// the tuples and the `registerPureFn(<tuple>, '<id>')` registrations but ships
+// no artifact is unbuilt: nothing is read out of the bundle.
+func TestPackagePureFns_BundleTuplesAreNotRead(t *testing.T) {
+	files := builtTextLib("")
+	files["node_modules/@acme/text/dist/index.d.ts"] = "export declare const title: '" + libTitleID + "';\n"
+	files["node_modules/@acme/text/dist/index.js"] = `import {registerPureFn} from '@mionjs/run-types';
+const t1 = [2,,,'` + libSlugifyID + `',['utl'],'return (s) => s.toLowerCase();',[]];
+const t2 = [2,,,'` + libTitleID + `',['utl'],'return (s) => s;',['` + libSlugifyID + `']];
+export const slugify = registerPureFn(t1, '` + libSlugifyID + `');
+export const title = registerPureFn(t2, '` + libTitleID + `');
+`
+	resp := scanLibConsumer(t, files)
+	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnDepUnbuilt {
+		t.Fatalf("expected one PFE9016, got %+v", resp.Diagnostics)
+	}
+	if _, served := resp.EntryModules[libSlugMod]; served {
+		t.Error("a body read out of the bundle was served")
+	}
+}
+
+// TestPackagePureFns_ServedFromSource — the library ships no artifact (a
 // plain tsc emit) but ships src/: the body is extracted from source.
 func TestPackagePureFns_ServedFromSource(t *testing.T) {
-	files := builtTextLib(`import {registerPureFn} from '@mionjs/run-types';
+	files := builtTextLib("")
+	files["node_modules/@acme/text/dist/index.js"] = `import {registerPureFn} from '@mionjs/run-types';
 export const slugify = registerPureFn((s) => s.toLowerCase());
 export const title = registerPureFn((s) => s + '!');
-`)
+`
 	files["node_modules/@acme/text/src/slug.ts"] = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 export const title = registerPureFnFactory(function (utl) {
@@ -120,8 +164,8 @@ export const title = registerPureFnFactory(function (utl) {
 }
 
 // TestPackagePureFns_UnbuiltPackageWarns — an installed package with no
-// compiled pure fn (and no src) is the runtime-only lane: the edge is reported
-// once as PFE9016, the build goes on, and the dep stubs out as before.
+// artifact (and no src) is the runtime-only lane: the edge is reported once as
+// PFE9016, the build goes on, and the dep stubs out as before.
 func TestPackagePureFns_UnbuiltPackageWarns(t *testing.T) {
 	resp := scanLibConsumer(t, map[string]string{
 		"node_modules/@acme/text/package.json":    libPackage,
@@ -154,27 +198,59 @@ func TestPackagePureFns_UnbuiltPackageWarns(t *testing.T) {
 	}
 }
 
-// TestPackagePureFns_BuiltPackageLacksId — a built package that ships tuples
+// TestPackagePureFns_BuiltPackageLacksId — a package whose artifact holds rows
 // but not the demanded one is a real miss: PFE9012, as for a built-in.
 func TestPackagePureFns_BuiltPackageLacksId(t *testing.T) {
-	resp := scanLibConsumer(t, map[string]string{
-		"node_modules/@acme/text/package.json":    libPackage,
-		"node_modules/@acme/text/dist/index.d.ts": "export declare const title: '" + libTitleID + "';\n",
-		"node_modules/@acme/text/dist/index.js":   "const t1 = " + libSlugRow + ";\nexport const slugify = registerPureFn(t1, '" + libSlugifyID + "');\n",
-	})
+	files := builtTextLib(libArtifact(libSlugRow))
+	files["node_modules/@acme/text/dist/index.d.ts"] = "export declare const title: '" + libTitleID + "';\n"
+	resp := scanLibConsumer(t, files)
 	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodeMissingPureFnDep {
 		t.Fatalf("expected one PFE9012, got %+v", resp.Diagnostics)
+	}
+}
+
+// TestPackagePureFns_ArtifactConflictIsAnError — an ESM and a CJS artifact of
+// one package disagreeing on a body fail the build, naming the id and both
+// files; the first read is still served so the graph stays whole.
+func TestPackagePureFns_ArtifactConflictIsAnError(t *testing.T) {
+	stale := libTitleRow
+	stale.Code = "return (s) => s;"
+	files := builtTextLib(libArtifact(libSlugRow, libTitleRow))
+	files["node_modules/@acme/text/dist/cjs/"+constants.PureFnArtifactFileName] = libArtifact(libSlugRow, stale)
+	resp := scanLibConsumer(t, files)
+	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnArtifactConflict {
+		t.Fatalf("expected one PFE9018, got %+v", resp.Diagnostics)
+	}
+	args := resp.Diagnostics[0].Args
+	if len(args) != 3 || args[0] != libTitleID || !strings.HasSuffix(args[1], "/dist/"+constants.PureFnArtifactFileName) || !strings.HasSuffix(args[2], "/dist/cjs/"+constants.PureFnArtifactFileName) {
+		t.Errorf("PFE9018 must name the id and both files, got %v", args)
+	}
+	if resp.Diagnostics[0].Severity != diagnostics.SeverityError {
+		t.Errorf("a conflict is an error, got %d", resp.Diagnostics[0].Severity)
+	}
+}
+
+// TestPackagePureFns_NewerArtifactWarns — an artifact from a newer compiler is
+// skipped with PFE9017 naming the file and the reason, and the package then
+// reads as unbuilt (PFE9016), never as a silently served guess.
+func TestPackagePureFns_NewerArtifactWarns(t *testing.T) {
+	files := builtTextLib(strings.Replace(libArtifact(libSlugRow, libTitleRow), `"format": 1`, `"format": 7`, 1))
+	files["node_modules/@acme/text/dist/index.d.ts"] = "export declare const title: '" + libTitleID + "';\n"
+	resp := scanLibConsumer(t, files)
+	codes := codesOf(resp)
+	if len(codes) != 2 || codes[0] != diagnostics.CodePureFnArtifactUnreadable || codes[1] != diagnostics.CodePureFnDepUnbuilt {
+		t.Fatalf("expected PFE9017 then PFE9016, got %+v", resp.Diagnostics)
+	}
+	args := resp.Diagnostics[0].Args
+	if len(args) != 2 || !strings.HasSuffix(args[0], libArtifactPath) || !strings.Contains(args[1], "newer artifact format 7") {
+		t.Errorf("PFE9017 must name the file and the reason, got %v", args)
 	}
 }
 
 // Marker coverage rule: alongside the pure-fn edge, both getRunTypeId call
 // shapes resolve to one cache entry.
 func TestPackagePureFns_GetRunTypeIdShapesAgree(t *testing.T) {
-	files := builtTextLib(`const t1 = ` + libSlugRow + `;
-const t2 = ` + libTitleRow + `;
-export const slugify = registerPureFn(t1, '` + libSlugifyID + `');
-export const title = registerPureFn(t2, '` + libTitleID + `');
-`)
+	files := builtTextLib(libArtifact(libSlugRow, libTitleRow))
 	files["static.ts"] = `import {getRunTypeId} from '@mionjs/run-types';
 getRunTypeId<{slug: string}>();
 `

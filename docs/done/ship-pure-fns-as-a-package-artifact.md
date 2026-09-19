@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-19
 ---
 
@@ -106,6 +106,34 @@ bundle is never opened.
   tarball, which is its own spec.
 - **No option, no `package.json` field, no CLI verb.** Internal and transparent: build with any
   adapter or `mion compile`, the file lands next to the bundle, `files: ["dist"]` publishes it.
+
+## What shipped
+
+The plan below landed as written, with these deviations and decisions taken while building:
+
+- **Two new diagnostics, not two separate "newer format" and "conflict" shapes as sketched.**
+  `PFE9017` (warning) covers every artifact the compiler cannot use, naming the file and the
+  reason: a newer `format`, invalid JSON, a missing `format` or `package`, or a row whose id
+  another package owns. `PFE9018` (error) is the conflict: one id, two bodies, both files named.
+  A copy of another package's artifact is skipped silently (it is not this package's).
+- **The reader lives in one file, `purefnindex/artifact.go`,** shared by the writer (the
+  resolver's `collectPureFnArtifact`) and the index, so the shape has one definition. The
+  encoder does not HTML-escape (`<`, `>`, `&` stay readable in a shipped file).
+- **The "own package" rule needed no built-in exclusion.** Filtering by the id's package half
+  already keeps the marker package's built-ins out of every other package's artifact, and in
+  the day run-types builds with the compiler it keeps them in its own.
+- **Ambiguous binding names tiebreak by file basename on BOTH lanes:** the source lane records
+  each row's file too, so an artifact and a source extraction of one package answer the same.
+- **The Next broker takes an `artifactDir` option** (derived from `distDir` by `withRunTypes`)
+  and writes twice, after `buildStart` and on the first loader request, because Turbopack
+  empties `distDir` in between. Best effort, as planned.
+- **The response wire needed one more line:** `protocol.Response` has a hand-written
+  marshaller, so `pureFnArtifact` had to be listed there as well as on the struct.
+- **Inline resolver fixtures may now carry a `package.json`** (read through the FS, never a
+  program root), which is how a Go test builds a named package; the JS report fixture got a
+  name for the same reason.
+- **The fuzz oracle constrains inputs to valid UTF-8:** every field comes from parsed
+  TypeScript, and JSON cannot carry anything else. The fuzzer found that before the constraint.
 
 ## Plan
 
@@ -257,7 +285,7 @@ modules for the same fixture) is the end-to-end form of the same oracle.
 - Replacing or merging `pure-fns-report.json`; it keeps its own shape and consumers.
 - A post-build guarantee on the Next Turbopack lane.
 
-## Done when
+## Done when (all met)
 
 - Every build lane (`mion compile`, vite, rollup, rolldown, esbuild, webpack, rspack, bun
   bundler host) writes `mion-pure-fns.json` into its output directory when the package registers
