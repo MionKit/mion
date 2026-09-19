@@ -75,7 +75,7 @@ func randomID(rng *rand.Rand) string {
 	default:
 		owner = "" // an overlay or a scratch project keeps the hash alone
 	}
-	return owner + idSeparator + CodeHash(randomSegment(rng, 20))
+	return owner + IDSeparator + CodeHash(randomSegment(rng, 20))
 }
 
 var jsIdentifierRE = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
@@ -97,7 +97,7 @@ func TestFuzz_IDModuleNameInjectivity(t *testing.T) {
 		if !ok {
 			t.Fatalf("SplitID(%q) found no separator", id)
 		}
-		if location+idSeparator+name != id {
+		if location+IDSeparator+name != id {
 			t.Fatalf("SplitID(%q) does not round-trip: (%q, %q)", id, location, name)
 		}
 
