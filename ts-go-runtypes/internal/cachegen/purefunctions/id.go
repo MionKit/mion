@@ -35,9 +35,9 @@ import (
 // the registrar call, the key the emitted module registers under, and the
 // literal a dependent body carries after lowering.
 
-// idSeparator splits the package half of an id from its hash. A package name
+// IDSeparator splits the package half of an id from its hash. A package name
 // can hold no `#`, so the LAST one always splits.
-const idSeparator = "#"
+const IDSeparator = "#"
 
 // IDFor builds the id of a registration written in filePath whose shipped body
 // hashes to hash. A file under no NAMED package keeps the hash alone, which is
@@ -46,17 +46,17 @@ const idSeparator = "#"
 func IDFor(markerOpts marker.Options, filePath, hash string) string {
 	opts := marker.WithDefaults(markerOpts)
 	packageName, _ := marker.PackageOfFile(filePath, opts.FS)
-	return packageName + idSeparator + hash
+	return packageName + IDSeparator + hash
 }
 
 // SplitID returns an id's package and hash halves. ok is false for a string
 // with no separator, which is never an id this package produced.
 func SplitID(id string) (packageName, hash string, ok bool) {
-	sep := strings.LastIndex(id, idSeparator)
+	sep := strings.LastIndex(id, IDSeparator)
 	if sep < 0 {
 		return "", "", false
 	}
-	return id[:sep], id[sep+len(idSeparator):], true
+	return id[:sep], id[sep+len(IDSeparator):], true
 }
 
 // valueNodeOf climbs the wrappers that carry no runtime meaning — parentheses,
