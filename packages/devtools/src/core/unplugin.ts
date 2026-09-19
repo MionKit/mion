@@ -7,7 +7,7 @@ import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts'
 import {ResolverClient, type GenerateResult} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Level, Severity, type BatchSite, type Diagnostic, type PureFnSite} from './protocol.ts';
-import {PURE_FN_ARTIFACT_FILE, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
+import {PURE_FN_ARTIFACT_DIR, type ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
 import {
   DOWNGRADED_NOTE,
@@ -476,11 +476,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // The resolved RunTypes output root (<cwd>/.mion by default). Set by
   // ensureResolver once cwdAbs is known; modules land under <genDirAbs>/types.
   let genDirAbs = '';
-  // The package's `mion-pure-fns.json` content from the last generate, placed
-  // next to the bundle by writePureFnArtifact once the bundle is on disk.
-  // Generate cannot put it there itself: it runs at buildStart, before a
-  // bundler empties its output dir.
-  let pureFnArtifact = '';
+  // The package's `mion-pure-fns/` directory from the last generate (path to
+  // content), synced next to the bundle by writePureFnArtifact once the bundle
+  // is on disk. Generate cannot put it there itself: it runs at buildStart,
+  // before a bundler empties its output dir.
+  let pureFnArtifact: Record<string, string> = {};
   // Vite's resolved root, captured in configResolved. Stays empty under every
   // other bundler (no equivalent hook), where ensureResolver falls back to
   // options.cwd ?? process.cwd().
@@ -887,23 +887,49 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     return gen;
   }
 
-  // writePureFnArtifact places the artifact in a bundler's output dir, or
-  // removes a stale one when the package registers no pure fn,
-  // write-only-on-change so a watch build is not retriggered. Each adapter
-  // calls it from the hook that runs once its bundle is on disk, with the
-  // output dir read from that bundler's own options (unplugin's arg-less
-  // writeBundle carries none); the Next broker calls it directly.
+  // writePureFnArtifact syncs the artifact directory into a bundler's output
+  // dir: `<dir>/mion-pure-fns/` holds exactly the last generate's files, each
+  // written only when its bytes changed (so a watch build is not retriggered),
+  // every other file in it deleted, the directory itself removed when the
+  // package registers no pure fn. The directory is the build's; nothing else
+  // may live in it. Each adapter calls it from the hook that runs once its
+  // bundle is on disk, with the output dir read from that bundler's own
+  // options (unplugin's arg-less writeBundle carries none); the Next broker
+  // calls it directly.
   async function writePureFnArtifact(dir: string): Promise<void> {
     if (!dir) return;
-    const target = path.join(dir, PURE_FN_ARTIFACT_FILE);
-    if (!pureFnArtifact) {
-      await fs.promises.rm(target, {force: true});
+    const artifactDir = path.join(dir, PURE_FN_ARTIFACT_DIR);
+    const files = Object.keys(pureFnArtifact);
+    if (files.length === 0) {
+      await fs.promises.rm(artifactDir, {recursive: true, force: true});
       return;
     }
-    const existing = await fs.promises.readFile(target, 'utf8').catch(() => null);
-    if (existing === pureFnArtifact) return;
-    await fs.promises.mkdir(dir, {recursive: true});
-    await fs.promises.writeFile(target, pureFnArtifact);
+    const live = new Set<string>();
+    for (const rel of files) {
+      const target = path.join(artifactDir, ...rel.split('/'));
+      live.add(target);
+      const content = pureFnArtifact[rel];
+      const existing = await fs.promises.readFile(target, 'utf8').catch(() => null);
+      if (existing === content) continue;
+      await fs.promises.mkdir(path.dirname(target), {recursive: true});
+      await fs.promises.writeFile(target, content);
+    }
+    await pruneArtifactDir(artifactDir, live);
+  }
+
+  // pruneArtifactDir deletes every file under dir not in live, then any
+  // subdirectory left empty, deepest first.
+  async function pruneArtifactDir(dir: string, live: Set<string>): Promise<boolean> {
+    let empty = true;
+    for (const entry of await fs.promises.readdir(dir, {withFileTypes: true})) {
+      const target = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (await pruneArtifactDir(target, live)) await fs.promises.rmdir(target);
+        else empty = false;
+      } else if (live.has(target)) empty = false;
+      else await fs.promises.rm(target, {force: true});
+    }
+    return empty;
   }
 
   // outputDirOf reads a bundler's output dir off its output options: a dir, or

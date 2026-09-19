@@ -246,14 +246,9 @@ func Run(opts Options) (*Result, error) {
 	}
 	sort.Strings(result.EmittedFiles)
 	// The package's pure-fn artifact goes next to the emit, where `files:
-	// ["dist"]` publishes it; a package with no pure fn gets no file.
+	// ["dist"]` publishes it; a package with no pure fn gets no directory.
 	if outDir != "" {
-		if gen.PureFnArtifact != "" {
-			if err := os.MkdirAll(outDir, 0o755); err != nil {
-				return nil, fmt.Errorf("compile: mkdir %s: %w", outDir, err)
-			}
-		}
-		if err := resolver.WriteOrRemoveFile(filepath.Join(outDir, constants.PureFnArtifactFileName), []byte(gen.PureFnArtifact)); err != nil {
+		if err := resolver.SyncArtifactDir(filepath.Join(outDir, constants.PureFnArtifactDir), gen.PureFnArtifact); err != nil {
 			return nil, fmt.Errorf("compile: %w", err)
 		}
 	}

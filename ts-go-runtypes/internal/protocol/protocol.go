@@ -271,11 +271,12 @@ type Response struct {
 	// OpScanFiles (the rescanned files' delta) when the resolver's pure-fn
 	// report is enabled. Empty otherwise. See PureFnSite.
 	PureFnSites []PureFnSite `json:"pureFnSites,omitempty"`
-	// PureFnArtifact is the content of the package's `mion-pure-fns.json`
-	// (generate only): the package's own pure fns, for the caller to write into
-	// the bundler's output directory once the bundle is on disk. Empty when the
-	// package registers none, in which case the caller removes a stale file.
-	PureFnArtifact string `json:"pureFnArtifact,omitempty"`
+	// PureFnArtifact is the package's pure-fn artifact directory (generate
+	// only): path inside `mion-pure-fns/` to content, the package's own cache
+	// modules plus `index.json`, for the caller to sync into the bundler's
+	// output directory once the bundle is on disk. Empty when the package
+	// registers none, in which case the caller removes a stale directory.
+	PureFnArtifact map[string]string `json:"pureFnArtifact,omitempty"`
 	// BatchSites is the structured request-batch build report — one record per
 	// `batch([...])` call site — populated on OpGenerate (whole program) and
 	// OpScanFiles (the rescanned files' delta) when the resolver's build report
@@ -705,7 +706,7 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	if len(response.PureFnSites) > 0 {
 		out["pureFnSites"] = response.PureFnSites
 	}
-	if response.PureFnArtifact != "" {
+	if len(response.PureFnArtifact) > 0 {
 		out["pureFnArtifact"] = response.PureFnArtifact
 	}
 	if len(response.BatchSites) > 0 {

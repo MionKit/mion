@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-19
 ---
 
@@ -128,9 +128,36 @@ Memory is bounded by the index (an id, a name and a file per row) plus the deman
   whose `files` left the directory out reads as unbuilt, which is the error above.
 - **No option, no manifest field.** `files: ["dist"]` publishes the directory.
 
+## What shipped
+
+The plan below landed as written, with these decisions taken while building:
+
+- **The artifact rides the module render, not a second collect.** `collectEntryModules`
+  returns the artifact map beside the modules; `renderPureFnArtifact` (`resolver/render.go`)
+  renders the pure-fn slice of the FINAL graph per entry (so `allSingle` still yields one
+  module per id) and keeps only the own-package entries the graph holds, relativizing
+  imports exactly as `generateToDisk` does. The resolver's own test pins byte equality with
+  the `types/pf/` file.
+- **The walk visits every child before descending.** With directories instead of files, a
+  parent that sorts earlier (`dist/cjs/`) used to list its artifact before `dist/`'s; the
+  walk now lists all children of a directory first, so the shallower copy is always first
+  and the one whose body is kept. `filesUnder` (the source scan) is built on the same walk.
+- **An unreadable module is remembered.** `Row(id)` marks an id whose every copy failed so a
+  second demand in the session neither re-reads nor re-reports it; `IDs()` lists what a
+  package ships for the marker-lane tests that used to read the rows map.
+- **The fuzzer hands the `functions`-mode renderer only what the extractor would:** an
+  identifier per param and a body that parses, since a live function literal cannot wrap
+  anything else; `code` mode is fuzzed with any text. It also found that the module path must
+  be checked per segment (a hash of `.` makes a legal file named `..js`, not a traversal).
+- **PFE9018's title and all three messages were reworded** for the directory: a conflict is
+  a different body when demanded or a different name in the index, both files named.
+- **The e2e no longer runs a consumer of the runtime-only package:** with `PFE9016` an
+  error, the running lanes reach only the two built libraries, and two new lanes (the plugin
+  and `mion compile`) assert the build halts naming the id and the package.
+
 ## Plan
 
-Line numbers are the current branch's (`claude/clever-ritchie-vm5swp` at 2192738b1).
+Line numbers are the branch at filing time's (`claude/clever-ritchie-vm5swp` at 2192738b1).
 
 ### 1. Go: render the artifact from the module render (`internal/compiler/resolver/`)
 
@@ -284,7 +311,7 @@ in all three emit modes, plus the index round trip. No new harness.
 - Hollowing third-party registrations, moving run-types off its source lane, any option or
   manifest field.
 
-## Done when
+## Done when (all met)
 
 - Every build lane (`mion compile`, vite, rollup, rolldown, esbuild, webpack, rspack, bun
   bundler host, the Next broker) syncs `mion-pure-fns/` into its output directory: the index

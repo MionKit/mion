@@ -463,12 +463,18 @@ const (
 	// on it to find the owning package. A package name holds no `#`, so the
 	// last occurrence always splits an id.
 	PureFnHashPrefix = "#pf_"
-	// PureFnArtifactFileName is the file every mion build writes into its output
-	// directory: the package's own pure functions (id, binding, body, deps) as
-	// JSON, and nothing else. A consumer's compiler serves an installed
-	// package's pure fns from this file alone and never opens its bundle, so the
-	// name is fixed and the file rides `files: ["dist"]` into the tarball.
-	PureFnArtifactFileName = "mion-pure-fns.json"
+	// PureFnArtifactDir is the directory every mion build writes into its
+	// output directory: the package's own pure-fn cache modules, copied as
+	// generate wrote them (`<package>/<hash>.js`, the `pf/` subtree minus its
+	// first segment), plus the index below. A consumer's compiler serves an
+	// installed package's pure fns from this directory alone, one module per
+	// demanded id, and never opens its bundle, so the name is fixed and the
+	// directory rides `files: ["dist"]` into the tarball.
+	PureFnArtifactDir = "mion-pure-fns"
+	// PureFnArtifactIndexFile is the index inside PureFnArtifactDir: every id
+	// the package ships with its binding name and source file, the map a
+	// consumer's `.d.ts` import (a name, never an id) is resolved through.
+	PureFnArtifactIndexFile = "index.json"
 	// RpcModuleDir is the folder under the output root that holds the batch
 	// transport: `rpc/batches.generated.js` (the batch table the server
 	// registers) plus `rpc/pf/<ns>/<fn>.js` (the inline inputFrom mappers it

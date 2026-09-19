@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import type {PureFnSite} from '../src/core/protocol.ts';
 import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {PURE_FN_ARTIFACT_DIR, PURE_FN_MODULE_DIR} from '../src/core/go-generated/runtypes-constants.generated.ts';
 
 let FIXTURE_DIR = '';
 
@@ -129,10 +130,10 @@ describe('pure-fn build report', () => {
     const typeFiles = fs.readdirSync(typesDir);
     expect(typeFiles).not.toContain('pure-fns-report.js');
     expect(fs.readFileSync(path.join(typesDir, '.gitignore'), 'utf8')).toContain('*');
-    // The package's pure-fn artifact keeps the same lifecycle: the canonical
-    // copy sits beside the report, data, never a module.
-    expect(typeFiles).toContain('mion-pure-fns.json');
-    expect(typeFiles).not.toContain('mion-pure-fns.js');
+    // The package's pure-fn artifact is the cache modules under pf/ themselves;
+    // no second copy of them lives under types/.
+    expect(typeFiles).toContain(PURE_FN_MODULE_DIR);
+    expect(typeFiles).not.toContain(PURE_FN_ARTIFACT_DIR);
   });
 
   register('report shape is identical across moduleMode; module field carries the layout', async () => {

@@ -239,32 +239,61 @@ func pureFnReportPath(outDir string) string {
 	return filepath.Join(outDir, typesSubdir, pureFnReportFileName)
 }
 
-// pureFnArtifactPath is the canonical copy of the package's pure-fn artifact:
-// `<outDir>/types/mion-pure-fns.json`, the same lifecycle as the report files
-// (regenerated every build, gitignored with types/, never a module, never
-// GC'd). The bundler adapters and `mion compile` copy its content into the
-// bundler's OUTPUT dir once the bundle is on disk; generate cannot write there
-// itself because it runs at buildStart, before a bundler empties that dir.
-func pureFnArtifactPath(outDir string) string {
-	return filepath.Join(outDir, typesSubdir, constants.PureFnArtifactFileName)
-}
-
-// WriteOrRemoveFile writes content to path write-only-on-change, or removes
-// the file when content is empty, so a stale artifact never outlives the last
-// pure fn of a package. Shared with the compile lane, which places the same
-// artifact in the tsconfig outDir.
-func WriteOrRemoveFile(path string, content []byte) error {
-	if len(content) == 0 {
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			return unwritableOutDirError(path, err)
+// SyncArtifactDir makes dir hold exactly files (paths inside dir to content):
+// a file is written only when its bytes changed, every other file in dir is
+// deleted, and an empty map removes dir itself, so a stale module never
+// outlives the pure fn it was written for. Shared by the compile lane, which
+// places the package's pure-fn artifact in the tsconfig outDir; the bundler
+// adapters do the same from their post-bundle hook, because generate runs at
+// buildStart, before a bundler empties that dir.
+func SyncArtifactDir(dir string, files map[string]string) error {
+	if len(files) == 0 {
+		if err := os.RemoveAll(dir); err != nil {
+			return unwritableOutDirError(dir, err)
 		}
 		return nil
 	}
-	if existing, readErr := os.ReadFile(path); readErr == nil && string(existing) == string(content) {
-		return nil
+	live := map[string]bool{}
+	for rel, content := range files {
+		path := filepath.Join(dir, filepath.FromSlash(rel))
+		live[path] = true
+		if existing, err := os.ReadFile(path); err == nil && string(existing) == content {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return unwritableOutDirError(path, err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return unwritableOutDirError(path, err)
+		}
 	}
-	if err := os.WriteFile(path, content, 0o644); err != nil {
-		return unwritableOutDirError(path, err)
+	var subdirs []string
+	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if path != dir {
+				subdirs = append(subdirs, path)
+			}
+			return nil
+		}
+		if live[path] {
+			return nil
+		}
+		return os.Remove(path)
+	})
+	if err != nil {
+		return unwritableOutDirError(dir, err)
+	}
+	// Deepest first, so a directory emptied by its children's removal goes too.
+	sort.Slice(subdirs, func(i, j int) bool { return len(subdirs[i]) > len(subdirs[j]) })
+	for _, subdir := range subdirs {
+		if entries, readErr := os.ReadDir(subdir); readErr == nil && len(entries) == 0 {
+			if err := os.Remove(subdir); err != nil {
+				return unwritableOutDirError(subdir, err)
+			}
+		}
 	}
 	return nil
 }

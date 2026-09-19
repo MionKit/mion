@@ -325,16 +325,16 @@ var messagesByCode = map[string]message{
 		Detail:   "A pure function's id is computed from where it lives: the package, the file\nand the name it is bound to. The build injects it, so source normally passes\nnone. An id written by hand, or left behind by a move or a rename, would\nregister the body under one id while every reference to it uses the other.\n\nFix: delete the argument and let the build inject it, or regenerate the file\nthe id is imported from.",
 	},
 	"PFE9016": {
-		Headline: "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions; it is only registered when that package's module loads.",
-		Detail:   "A pure fn imported from an installed package is normally served at build time\nfrom that package's compiled files, so the body is bound into this build's own\nmodule and registered before anything calls it. This package carries no compiled\npure fn (it was not built with mion, or registers none), so the id resolves only\nat runtime, and only if the package's module has already loaded.\n\nFix: build the package with mion (a bundler plugin or `mion compile`), or make\nsure the consuming code imports the package's module before the pure fn runs.",
+		Headline: "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions.",
+		Detail:   "A pure fn imported from an installed package is served at build time from\nthat package's compiled pure functions (the `mion-pure-fns/` directory its\nmion build writes next to its output) or from its TypeScript sources, so the\nbody is bound into this build's own module. This package ships neither, so\nthis pure fn cannot be built.\n\nFix: build the package with mion (a bundler plugin or `mion compile`) and\npublish its output directory, or publish its sources.",
 	},
 	"PFE9017": {
-		Headline: "`{0}` could not be read as a pure-fn artifact: {1}.",
-		Detail:   "A mion build writes the package's pure functions into `mion-pure-fns.json`\nnext to its output, and a consumer's build reads that file to serve the\nbodies. This one was skipped: it was written in a format this compiler does\nnot know, or it is not that file. Skipped means the package may now look as\nif it shipped no compiled pure functions.\n\nFix: update the mion compiler to the version that wrote the file, or rebuild\nthe package with the version in use.",
+		Headline: "`{0}` could not be read as part of a pure-fn artifact: {1}.",
+		Detail:   "A mion build writes the package's compiled pure functions into\n`mion-pure-fns/` next to its output (an `index.json` plus one module per pure\nfunction), and a consumer's build reads that directory to serve the bodies.\nThis file was skipped: the index was written in a format this compiler does\nnot know or is not an index, or a module the index lists is missing or holds\nno tuple for its id. Skipped means the package may now look as if it shipped\nno compiled pure functions, or lacks one.\n\nFix: update the mion compiler to the version that wrote the directory, or\nrebuild the package with the version in use.",
 	},
 	"PFE9018": {
-		Headline: "Pure fn `{0}` has two different bodies in `{1}` and `{2}`.",
-		Detail:   "A pure function's id is a hash of the body that ships, so one id is one body.\nTwo artifacts of the same installed package give this id different bodies,\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns.json`, or remove the stale copy.",
+		Headline: "Pure fn `{0}` differs between `{1}` and `{2}`.",
+		Detail:   "A pure function's id is a hash of the body that ships, so one id is one body\nunder one name. Two `mion-pure-fns/` directories of the same installed package\ndisagree on this id (a different body, or a different name in their indexes),\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns/`, or remove the stale copy.",
 	},
 	"UPN001": {
 		Headline: "Property `{0}` can never be data and is dropped: the rest of the type still works.",

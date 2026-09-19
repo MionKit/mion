@@ -1,20 +1,25 @@
 package resolver_test
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The package's pure-fn artifact: every generate renders the package's OWN
-// registrations into <genDir>/types/mion-pure-fns.json and hands the same
-// bytes back on the response, for the adapter to place next to the bundle.
+// The package's pure-fn artifact: every generate hands back the package's OWN
+// cache modules, byte for byte what it wrote under <genDir>/types/pf/, plus the
+// index mapping each binding name and source file to its id, for the adapter
+// to sync next to the bundle.
 
 const artifactSources = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
@@ -23,83 +28,116 @@ export const title = registerPureFnFactory(function (utl) {
 });
 `
 
-func generateArtifact(t *testing.T, sources map[string]string, outDir string) (protocol.Response, []byte) {
+func generateArtifact(t *testing.T, sources map[string]string, outDir string, moduleMode string) protocol.Response {
 	t.Helper()
-	r := setupGen(t, sources, outDir)
+	r := setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.GenDir = outDir
+		resolverOpts.TransformRelative = true
+		resolverOpts.ModuleMode = moduleMode
+	})
 	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
-	onDisk, err := os.ReadFile(filepath.Join(outDir, "types", constants.PureFnArtifactFileName))
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-	return gen, onDisk
+	return gen
 }
 
-func TestPureFnArtifact_GenerateWritesAndReturnsIt(t *testing.T) {
+// parseIndex reads the artifact's index off a generate response.
+func parseIndex(t *testing.T, gen protocol.Response) purefnindex.ArtifactIndex {
+	t.Helper()
+	index, err := purefnindex.ParseArtifactIndex([]byte(gen.PureFnArtifact[constants.PureFnArtifactIndexFile]))
+	if err != nil {
+		t.Fatalf("index: %v\n%q", err, gen.PureFnArtifact)
+	}
+	return index
+}
+
+func TestPureFnArtifact_GenerateReturnsOwnModulesAndIndex(t *testing.T) {
 	outDir := t.TempDir()
 	sources := map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}
-	gen, onDisk := generateArtifact(t, sources, outDir)
-	if gen.PureFnArtifact == "" || string(onDisk) != gen.PureFnArtifact {
-		t.Fatalf("response and disk must carry the same artifact:\nresponse: %q\ndisk: %q", gen.PureFnArtifact, onDisk)
+	gen := generateArtifact(t, sources, outDir, constants.ModuleModeDefault)
+	index := parseIndex(t, gen)
+	if index.Package != "@acme/app" || len(index.PureFns) != 2 || len(gen.PureFnArtifact) != 3 {
+		t.Fatalf("index = %+v, files = %v", index, keys(gen.PureFnArtifact))
 	}
-	artifact, err := purefnindex.ParseArtifact(onDisk)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if artifact.Package != "@acme/app" || len(artifact.PureFns) != 2 {
-		t.Fatalf("artifact = %+v", artifact)
-	}
-	if artifact.PureFns[0].ID > artifact.PureFns[1].ID {
+	if index.PureFns[0].ID > index.PureFns[1].ID {
 		t.Error("rows must be sorted by id")
 	}
-	names := map[string]purefnindex.ArtifactRow{}
-	for _, row := range artifact.PureFns {
-		names[row.BindingName] = row
+	ids := map[string]string{}
+	for _, row := range index.PureFns {
+		ids[row.BindingName] = row.ID
 		if !strings.HasPrefix(row.ID, "@acme/app"+constants.PureFnHashPrefix) || row.File != "src/text.ts" {
 			t.Errorf("row = %+v", row)
 		}
+		// The module is the same file generate wrote under types/pf/.
+		path := purefnindex.ModulePath(row.ID)
+		module, ok := gen.PureFnArtifact[path]
+		if !ok {
+			t.Fatalf("no module for %s in %v", row.ID, keys(gen.PureFnArtifact))
+		}
+		onDisk, err := os.ReadFile(filepath.Join(outDir, "types", constants.PureFnModuleDir, filepath.FromSlash(path)))
+		if err != nil || string(onDisk) != module {
+			t.Errorf("%s: the artifact module must be the types/pf/ file byte for byte (err %v):\nartifact: %q\ndisk:     %q", row.ID, err, module, onDisk)
+		}
+		if strings.Contains(module, constants.EntryModulePrefix) {
+			t.Errorf("%s: imports must be relativized as on disk: %s", row.ID, module)
+		}
 	}
-	if !strings.Contains(names["title"].Code, "getPureFn('"+names["slugify"].ID+"')") || len(names["title"].PureFnDependencies) != 1 {
-		t.Errorf("title must carry its lowered dep: %+v", names["title"])
+	title, err := purefnindex.ReadModule(ids["title"], gen.PureFnArtifact[purefnindex.ModulePath(ids["title"])])
+	if err != nil || !strings.Contains(title.Code, "getPureFn('"+ids["slugify"]+"')") || !reflect.DeepEqual(title.PureFnDependencies, []string{ids["slugify"]}) {
+		t.Errorf("title must carry its lowered dep (err %v): %+v", err, title)
 	}
-	// The artifact is data, never a module: not in the manifest, not GC'd.
+	// The artifact is not a second module set: nothing of it is in the manifest.
 	for _, basename := range gen.Generated {
-		if strings.Contains(basename, "mion-pure-fns") {
+		if strings.Contains(basename, constants.PureFnArtifactDir) {
 			t.Errorf("the artifact leaked into the module manifest: %s", basename)
 		}
 	}
-	again, onDiskAgain := generateArtifact(t, sources, outDir)
-	if again.PureFnArtifact != gen.PureFnArtifact || !bytes.Equal(onDisk, onDiskAgain) {
+	if again := generateArtifact(t, sources, outDir, constants.ModuleModeDefault); !reflect.DeepEqual(again.PureFnArtifact, gen.PureFnArtifact) {
 		t.Error("the artifact must be byte-stable across runs")
 	}
 }
 
-// A package that registers nothing gets no file, and a stale one from an
-// earlier build is removed; a nameless cwd owns no id and gets none either.
-func TestPureFnArtifact_NoRowsMeansNoFile(t *testing.T) {
+// allSingle folds the cache into one `pf` bundle; the artifact is still one
+// module per pure fn, each readable on its own, since a consumer reads one
+// module per demanded id.
+func TestPureFnArtifact_AllSingleIsStillPerEntry(t *testing.T) {
 	outDir := t.TempDir()
-	if _, onDisk := generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}, outDir); onDisk == nil {
-		t.Fatal("first build must write the artifact")
+	gen := generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}, outDir, constants.ModuleModeAllSingle)
+	if _, err := os.Stat(filepath.Join(outDir, "types", constants.PureFnModuleDir+".js")); err != nil {
+		t.Fatalf("allSingle must write the pf bundle: %v", err)
 	}
+	index := parseIndex(t, gen)
+	if len(index.PureFns) != 2 || len(gen.PureFnArtifact) != 3 {
+		t.Fatalf("index = %+v, files = %v", index, keys(gen.PureFnArtifact))
+	}
+	for _, row := range index.PureFns {
+		entry, err := purefnindex.ReadModule(row.ID, gen.PureFnArtifact[purefnindex.ModulePath(row.ID)])
+		if err != nil || entry.Code == "" {
+			t.Errorf("%s: per-entry module unreadable (err %v): %+v", row.ID, err, entry)
+		}
+	}
+}
+
+// A package that registers nothing gets no artifact; a nameless cwd owns no
+// id and gets none either.
+func TestPureFnArtifact_NoRowsMeansNothing(t *testing.T) {
 	const typesOnly = `import {getRunTypeId} from '@mionjs/run-types';
 export const id = getRunTypeId<{a: number}>();
 `
-	gen, onDisk := generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/types.ts": typesOnly}, outDir)
-	if gen.PureFnArtifact != "" || onDisk != nil {
-		t.Errorf("no pure fn, no file: response=%q disk=%q", gen.PureFnArtifact, onDisk)
+	if gen := generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/types.ts": typesOnly}, t.TempDir(), constants.ModuleModeDefault); len(gen.PureFnArtifact) != 0 {
+		t.Errorf("no pure fn, no artifact: %v", keys(gen.PureFnArtifact))
 	}
-	gen, onDisk = generateArtifact(t, map[string]string{"src/text.ts": artifactSources}, t.TempDir())
-	if gen.PureFnArtifact != "" || onDisk != nil {
-		t.Errorf("a nameless package owns no id: response=%q disk=%q", gen.PureFnArtifact, onDisk)
+	if gen := generateArtifact(t, map[string]string{"src/text.ts": artifactSources}, t.TempDir(), constants.ModuleModeDefault); len(gen.PureFnArtifact) != 0 {
+		t.Errorf("a nameless package owns no id: %v", keys(gen.PureFnArtifact))
 	}
 }
 
 // Only the building package's rows go in: a sibling package the program
 // reaches through its sources belongs to its own artifact.
 func TestPureFnArtifact_OwnPackageOnly(t *testing.T) {
-	outDir := t.TempDir()
 	sources := map[string]string{
 		"package.json": `{"name":"@acme/app"}`,
 		"src/text.ts":  artifactSources,
@@ -114,25 +152,84 @@ export const padded = registerPureFnFactory(function (utl) {
 export const pad = registerPureFn((s: string): string => s.padStart(4, '0'));
 `,
 	}
-	_, onDisk := generateArtifact(t, sources, outDir)
-	artifact, err := purefnindex.ParseArtifact(onDisk)
-	if err != nil {
-		t.Fatal(err)
+	gen := generateArtifact(t, sources, t.TempDir(), constants.ModuleModeDefault)
+	index := parseIndex(t, gen)
+	if len(index.PureFns) != 3 || len(gen.PureFnArtifact) != 4 {
+		t.Errorf("expected the three @acme/app rows and their modules, got %+v %v", index.PureFns, keys(gen.PureFnArtifact))
 	}
-	if len(artifact.PureFns) != 3 {
-		t.Errorf("expected the three @acme/app rows, got %+v", artifact.PureFns)
-	}
-	for _, row := range artifact.PureFns {
+	crossing := false
+	for _, row := range index.PureFns {
 		if purefnindex.PackageOfID(row.ID) != "@acme/app" {
 			t.Errorf("a foreign row leaked in: %+v", row)
 		}
-		for _, dep := range row.PureFnDependencies {
+		entry, err := purefnindex.ReadModule(row.ID, gen.PureFnArtifact[purefnindex.ModulePath(row.ID)])
+		if err != nil {
+			t.Fatalf("%s: %v", row.ID, err)
+		}
+		for _, dep := range entry.PureFnDependencies {
 			if purefnindex.PackageOfID(dep) == "@acme/util" {
-				return // the dep edge crosses packages; the row does not
+				crossing = true // the dep edge crosses packages; the row does not
 			}
 		}
 	}
-	t.Error("padded must depend on @acme/util's pad")
+	if !crossing {
+		t.Error("padded must depend on @acme/util's pad")
+	}
+}
+
+// SyncArtifactDir makes the directory hold exactly the given files: unchanged
+// bytes are left alone, stale files and emptied subdirectories go, and an empty
+// set removes the directory.
+func TestSyncArtifactDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), constants.PureFnArtifactDir)
+	files := map[string]string{constants.PureFnArtifactIndexFile: "{}\n", "@acme/x/h.js": "export const a = 1;\n"}
+	if err := resolver.SyncArtifactDir(dir, files); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(dir, "@acme", "x", "old.js")
+	emptied := filepath.Join(dir, "@acme", "gone", "old.js")
+	for _, path := range []string{stale, emptied, filepath.Join(dir, "stray.txt")} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("stale"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	kept := filepath.Join(dir, "@acme", "x", "h.js")
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(kept, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := resolver.SyncArtifactDir(dir, files); err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	if err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() {
+			rel, _ := filepath.Rel(dir, path)
+			found = append(found, filepath.ToSlash(rel))
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(found)
+	if !reflect.DeepEqual(found, []string{"@acme/x/h.js", constants.PureFnArtifactIndexFile}) {
+		t.Errorf("files after sync = %v", found)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "@acme", "gone")); !os.IsNotExist(err) {
+		t.Errorf("an emptied subdirectory must go: %v", err)
+	}
+	if info, err := os.Stat(kept); err != nil || !info.ModTime().Equal(old) {
+		t.Errorf("an unchanged file must not be rewritten: %v %v", info.ModTime(), err)
+	}
+	if err := resolver.SyncArtifactDir(dir, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("an empty set must remove the directory: %v", err)
+	}
 }
 
 // Marker coverage rule: alongside the artifact, both getRunTypeId call shapes

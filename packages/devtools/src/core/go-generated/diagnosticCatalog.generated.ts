@@ -971,29 +971,28 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       "A pure function is identified by a hash of the body that ships, and that\nbody carries the ids of the pure functions it reaches. Two that reach each\nother would each have to contain the other's id, which has no answer.\n\nThis also never worked at runtime: materialising either one would call\nstraight back into the other and recurse forever.\n\nFix: break the cycle. Inline the shared part into both, or move it into a\nthird pure function that neither of them reaches back into.",
   },
   PFE9016: {
-    headline:
-      "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions; it is only registered when that package's module loads.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'purefn',
-    detail:
-      "A pure fn imported from an installed package is normally served at build time\nfrom that package's compiled files, so the body is bound into this build's own\nmodule and registered before anything calls it. This package carries no compiled\npure fn (it was not built with mion, or registers none), so the id resolves only\nat runtime, and only if the package's module has already loaded.\n\nFix: build the package with mion (a bundler plugin or `mion compile`), or make\nsure the consuming code imports the package's module before the pure fn runs.",
-  },
-  PFE9017: {
-    headline: '`{0}` could not be read as a pure-fn artifact: {1}.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'purefn',
-    detail:
-      "A mion build writes the package's pure functions into `mion-pure-fns.json`\nnext to its output, and a consumer's build reads that file to serve the\nbodies. This one was skipped: it was written in a format this compiler does\nnot know, or it is not that file. Skipped means the package may now look as\nif it shipped no compiled pure functions.\n\nFix: update the mion compiler to the version that wrote the file, or rebuild\nthe package with the version in use.",
-  },
-  PFE9018: {
-    headline: 'Pure fn `{0}` has two different bodies in `{1}` and `{2}`.',
+    headline: 'Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions.',
     level: 'error',
     severity: 'error',
     family: 'purefn',
     detail:
-      "A pure function's id is a hash of the body that ships, so one id is one body.\nTwo artifacts of the same installed package give this id different bodies,\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns.json`, or remove the stale copy.",
+      "A pure fn imported from an installed package is served at build time from\nthat package's compiled pure functions (the `mion-pure-fns/` directory its\nmion build writes next to its output) or from its TypeScript sources, so the\nbody is bound into this build's own module. This package ships neither, so\nthis pure fn cannot be built.\n\nFix: build the package with mion (a bundler plugin or `mion compile`) and\npublish its output directory, or publish its sources.",
+  },
+  PFE9017: {
+    headline: '`{0}` could not be read as part of a pure-fn artifact: {1}.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'purefn',
+    detail:
+      "A mion build writes the package's compiled pure functions into\n`mion-pure-fns/` next to its output (an `index.json` plus one module per pure\nfunction), and a consumer's build reads that directory to serve the bodies.\nThis file was skipped: the index was written in a format this compiler does\nnot know or is not an index, or a module the index lists is missing or holds\nno tuple for its id. Skipped means the package may now look as if it shipped\nno compiled pure functions, or lacks one.\n\nFix: update the mion compiler to the version that wrote the directory, or\nrebuild the package with the version in use.",
+  },
+  PFE9018: {
+    headline: 'Pure fn `{0}` differs between `{1}` and `{2}`.',
+    level: 'error',
+    severity: 'error',
+    family: 'purefn',
+    detail:
+      "A pure function's id is a hash of the body that ships, so one id is one body\nunder one name. Two `mion-pure-fns/` directories of the same installed package\ndisagree on this id (a different body, or a different name in their indexes),\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns/`, or remove the stale copy.",
   },
   PFN001: {
     headline: '`PureFunction<F>` argument must be an INLINE arrow or function expression.',

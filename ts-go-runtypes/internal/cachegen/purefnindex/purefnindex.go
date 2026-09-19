@@ -4,16 +4,16 @@
 // deps thunk registers them before the body runs) and checked as an edge at all.
 // One lane for every package, the marker package included.
 //
-// The artifact first. Every mion build writes the package's own pure functions
-// into one file in its output directory, `mion-pure-fns.json`
-// (constants.PureFnArtifactFileName; the shape is in artifact.go). The index
-// reads only that file, wherever it sits under the package root, and never a
-// bundle: the parse is bounded by the pure functions a package ships, not by
-// whatever its bundler produced, and a registration the bundle dropped is still
-// there. Each row carries the binding its registration was assigned to, which
-// is how an untyped `.d.ts` binding (`declare const slugify: PureFnId<string>`,
-// what a declaration emitter writes when the id was injected by the build) maps
-// back to its id.
+// The artifact first. Every mion build copies its own pure-fn cache modules
+// into one directory in its output directory, `mion-pure-fns/`
+// (constants.PureFnArtifactDir): the same `<package>/<hash>.js` files generate
+// writes under `<genDir>/types/pf/`, plus an `index.json` listing every id with
+// the binding its registration was assigned to and its source file (the shape
+// is in artifact.go). The index reads that directory wherever it sits under the
+// package root and never a bundle. It decodes the index on first touch (a
+// `.d.ts` import carries a NAME, never an id, so the name-to-id map is needed
+// before anything else) and opens a module only for an id a build demands, so
+// memory follows what the consumer uses, not what the package ships.
 //
 // Source second. When no artifact is found but the package ships its
 // TypeScript, the rows are extracted from that source with the same extractor a
@@ -48,6 +48,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
@@ -101,32 +102,34 @@ func (store *Store) Bind(fs vfspkg.FS, host Host) {
 	store.host = host
 }
 
-// ArtifactProblem is an artifact file the index could not use: a newer format,
-// or a file that is not an artifact at all. Reported, because a package whose
-// artifact is skipped may look unbuilt.
+// ArtifactProblem is an artifact file the index could not use: an index of a
+// newer format or that is not one, a module the index lists but the directory
+// lacks, or a module holding no tuple for its id. Reported, because a package
+// whose artifact is skipped may look unbuilt or lack an id.
 type ArtifactProblem struct {
 	Package string
 	File    string
 	Reason  string
 }
 
-// ArtifactConflict is one id two artifacts of the same package give different
-// bodies (an ESM and a CJS build that drifted apart, or a stale copy). The first
-// row read is kept; the build must fail, because one id is one body.
+// ArtifactConflict is one id two artifact directories of the same package
+// disagree on: a different body (an ESM and a CJS build that drifted apart, or
+// a stale copy), or a different binding name or file in their indexes. The
+// first copy read is kept; the build must fail, because one id is one body.
 type ArtifactConflict struct {
 	Package string
 	ID      string
 	Files   [2]string
 }
 
-// PackageIndex is what one installed package ships: its pure-fn rows by id and
-// the names its registrations are bound to.
+// PackageIndex is what one installed package ships: the ids its artifact
+// indexes list (bodies read on demand), or every row extracted from its
+// sources, and the names its registrations are bound to.
 type PackageIndex struct {
 	Root string
 	// Name is the package.json name, the owner half of every id the package
 	// owns; empty for a nameless package.
 	Name string
-	Rows map[string]purefunctions.Entry
 	// FromSource is set when no artifact was found and the rows were extracted
 	// from the package's sources instead.
 	FromSource bool
@@ -134,23 +137,51 @@ type PackageIndex struct {
 	// file the install lacks, or the extractor rejecting them. Only set when
 	// no artifact was found; a package with no sources has none.
 	Err error
-	// Problems and Conflicts are what reading the artifacts turned up; see
-	// the types.
+	// Problems and Conflicts are what reading the artifacts turned up, the
+	// index on first touch and each module when its id is demanded; see the
+	// types.
 	Problems  []ArtifactProblem
 	Conflicts []ArtifactConflict
+	// listed maps an id to the artifact directories whose index lists it, in
+	// walk order; the first is the one a module is served from.
+	listed map[string][]string
+	// indexOf is the index file each listed id was first read from, for the
+	// conflict a second index disagreeing on its name raises.
+	indexOf map[string]string
+	// rows holds the served rows: read from a module on demand, or all of them
+	// when extracted from source. unreadable marks an id whose module could
+	// not be read, so a second demand neither re-reads nor re-reports it.
+	rows       map[string]purefunctions.Entry
+	unreadable map[string]bool
 	// byName maps a binding name to the ids registered under it anywhere in the
 	// package. One id answers; two answer only through the file tiebreak.
 	byName map[string][]string
 	// rowFile is each row's source file relative to Root, when known.
 	rowFile map[string]string
-	// artifactOf is the artifact file each row was read from.
-	artifactOf map[string]string
+	store   *Store
 }
 
 // Built reports whether the package ships any pure fn the build can serve. A
 // package with none was not built by mion and ships no source (or registers
 // nothing): its registrations only exist at runtime.
-func (idx *PackageIndex) Built() bool { return len(idx.Rows) > 0 }
+func (idx *PackageIndex) Built() bool { return len(idx.listed) > 0 || len(idx.rows) > 0 }
+
+// IDs lists every id the package ships, sorted.
+func (idx *PackageIndex) IDs() []string {
+	seen := map[string]bool{}
+	var ids []string
+	for id := range idx.listed {
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	for id := range idx.rows {
+		if !seen[id] {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
 
 // Package returns the index of the package rooted at root, reading it on first
 // use. root is the directory holding its package.json.
@@ -159,7 +190,7 @@ func (store *Store) Package(root string) *PackageIndex {
 	if idx, ok := store.packages[root]; ok {
 		return idx
 	}
-	idx := &PackageIndex{Root: root, Rows: map[string]purefunctions.Entry{}, byName: map[string][]string{}, rowFile: map[string]string{}, artifactOf: map[string]string{}}
+	idx := &PackageIndex{Root: root, listed: map[string][]string{}, indexOf: map[string]string{}, rows: map[string]purefunctions.Entry{}, unreadable: map[string]bool{}, byName: map[string][]string{}, rowFile: map[string]string{}, store: store}
 	// Registered before the read so a package whose sources import a binding of
 	// its own (through this store) finds the index under construction rather
 	// than reading itself again.
@@ -175,49 +206,50 @@ func (store *Store) Package(root string) *PackageIndex {
 			idx.Name = manifest.Name
 		}
 	}
-	for _, file := range store.filesUnder(root, IsArtifactFile) {
+	for _, dir := range store.artifactDirsUnder(root) {
+		file := tspath.CombinePaths(dir, constants.PureFnArtifactIndexFile)
 		content, ok := store.fs.ReadFile(file)
 		if !ok {
+			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: "missing"})
 			continue
 		}
-		artifact, err := ParseArtifact([]byte(content))
+		index, err := ParseArtifactIndex([]byte(content))
 		if err != nil {
 			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: err.Error()})
 			continue
 		}
 		// A copy of another package's artifact (vendored, or a nameless root
 		// holding one) is not this package's.
-		if artifact.Package != idx.Name {
+		if index.Package != idx.Name {
 			continue
 		}
-		idx.addArtifact(file, artifact)
+		idx.addIndex(dir, file, index)
 	}
-	if len(idx.Rows) == 0 {
+	if len(idx.listed) == 0 {
 		store.extractSource(idx)
-	}
-	for _, row := range idx.Rows {
-		idx.addName(row.BindingName, row.ID)
 	}
 	return idx
 }
 
-// addArtifact merges one artifact's rows. A repeat of an id is the same
+// addIndex records one directory's index. A repeat of an id is the same
 // function arriving from a second build of the package (ESM and CJS both write
-// the file) unless its body differs, which is a conflict.
-func (idx *PackageIndex) addArtifact(file string, artifact Artifact) {
-	for _, row := range artifact.PureFns {
-		entry := row.Entry()
-		if existing, dup := idx.Rows[row.ID]; dup {
-			if !reflect.DeepEqual(existing, entry) {
-				idx.Conflicts = append(idx.Conflicts, ArtifactConflict{Package: idx.Name, ID: row.ID, Files: [2]string{idx.artifactOf[row.ID], file}})
+// the directory) unless its name or file differs, which is a conflict; either
+// way the directory is listed, so the bodies are compared when the id is
+// demanded.
+func (idx *PackageIndex) addIndex(dir, file string, index ArtifactIndex) {
+	for _, row := range index.PureFns {
+		if first, dup := idx.indexOf[row.ID]; dup {
+			if idx.rowFile[row.ID] != row.File || idx.nameOf(row.ID) != row.BindingName {
+				idx.Conflicts = append(idx.Conflicts, ArtifactConflict{Package: idx.Name, ID: row.ID, Files: [2]string{first, file}})
 			}
-			continue
+		} else {
+			idx.indexOf[row.ID] = file
+			idx.addName(row.BindingName, row.ID)
+			if row.File != "" {
+				idx.rowFile[row.ID] = row.File
+			}
 		}
-		idx.Rows[row.ID] = entry
-		idx.artifactOf[row.ID] = file
-		if row.File != "" {
-			idx.rowFile[row.ID] = row.File
-		}
+		idx.listed[row.ID] = append(idx.listed[row.ID], dir)
 	}
 }
 
@@ -228,14 +260,116 @@ func (idx *PackageIndex) addName(name, id string) {
 	idx.byName[name] = append(idx.byName[name], id)
 }
 
-func (store *Store) filesUnder(root string, keep func(name string) bool) []string {
-	if !store.fs.DirectoryExists(root) {
-		return nil
+// nameOf is the binding name an id was first listed under.
+func (idx *PackageIndex) nameOf(id string) string {
+	for name, ids := range idx.byName {
+		for _, candidate := range ids {
+			if candidate == id {
+				return name
+			}
+		}
 	}
+	return ""
+}
+
+// Row returns the served row for an id the package ships. On the artifact lane
+// the module is read the first time the id is asked for, from every directory
+// whose index lists it: identical copies merge, a differing body is a conflict
+// (the first copy is kept), a copy that is missing or holds no tuple for the
+// id is a problem. Nothing is read for an id no build demands.
+func (idx *PackageIndex) Row(id string) (purefunctions.Entry, bool) {
+	if row, ok := idx.rows[id]; ok {
+		return row, true
+	}
+	dirs := idx.listed[id]
+	if len(dirs) == 0 || idx.unreadable[id] {
+		return purefunctions.Entry{}, false
+	}
+	var kept purefunctions.Entry
+	keptFile := ""
+	for _, dir := range dirs {
+		file := tspath.CombinePaths(dir, ModulePath(id))
+		content, ok := idx.store.fs.ReadFile(file)
+		if !ok {
+			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: "listed in " + constants.PureFnArtifactIndexFile + " but missing"})
+			continue
+		}
+		entry, err := ReadModule(id, content)
+		if err != nil {
+			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: err.Error()})
+			continue
+		}
+		entry.BindingName = idx.nameOf(id)
+		if keptFile == "" {
+			kept, keptFile = entry, file
+			continue
+		}
+		if !reflect.DeepEqual(kept, entry) {
+			idx.Conflicts = append(idx.Conflicts, ArtifactConflict{Package: idx.Name, ID: id, Files: [2]string{keptFile, file}})
+		}
+	}
+	if keptFile == "" {
+		idx.unreadable[id] = true
+		return purefunctions.Entry{}, false
+	}
+	idx.rows[id] = kept
+	return kept, true
+}
+
+// walk visits root and every directory under it, listings only, skipping a
+// nested node_modules (another package) and any hidden dir (`.mion`, `.git`: a
+// build's scratch, where a consumer build writes served COPIES of other
+// packages' rows, never the package's own). visit returns whether to descend
+// into that directory. Every child of a directory is visited before any child
+// is descended, so a shallower match is always listed before a deeper one.
+func (store *Store) walk(root string, visit func(dir string, entries vfspkg.Entries) bool) {
+	if !store.fs.DirectoryExists(root) {
+		return
+	}
+	var walkDir func(dir string, entries vfspkg.Entries)
+	walkDir = func(dir string, entries vfspkg.Entries) {
+		names := append([]string(nil), entries.Directories...)
+		sort.Strings(names)
+		var descend []string
+		var descendEntries []vfspkg.Entries
+		for _, name := range names {
+			if name == "node_modules" || strings.HasPrefix(name, ".") {
+				continue
+			}
+			child := tspath.CombinePaths(dir, name)
+			childEntries := store.fs.GetAccessibleEntries(child)
+			if visit(child, childEntries) {
+				descend = append(descend, child)
+				descendEntries = append(descendEntries, childEntries)
+			}
+		}
+		for i, child := range descend {
+			walkDir(child, descendEntries[i])
+		}
+	}
+	rootEntries := store.fs.GetAccessibleEntries(root)
+	if visit(root, rootEntries) {
+		walkDir(root, rootEntries)
+	}
+}
+
+// artifactDirsUnder lists the artifact directories under root, in walk order.
+// An artifact directory holds nothing but modules, so it is not descended.
+func (store *Store) artifactDirsUnder(root string) []string {
+	var dirs []string
+	store.walk(root, func(dir string, entries vfspkg.Entries) bool {
+		if IsArtifactDir(tspath.GetBaseFileName(dir)) && dir != root {
+			dirs = append(dirs, dir)
+			return false
+		}
+		return true
+	})
+	return dirs
+}
+
+func (store *Store) filesUnder(root string, keep func(name string) bool) []string {
 	var files []string
-	var walk func(dir string)
-	walk = func(dir string) {
-		entries := store.fs.GetAccessibleEntries(dir)
+	store.walk(root, func(dir string, entries vfspkg.Entries) bool {
 		names := append([]string(nil), entries.Files...)
 		sort.Strings(names)
 		for _, name := range names {
@@ -243,19 +377,8 @@ func (store *Store) filesUnder(root string, keep func(name string) bool) []strin
 				files = append(files, tspath.CombinePaths(dir, name))
 			}
 		}
-		dirs := append([]string(nil), entries.Directories...)
-		sort.Strings(dirs)
-		for _, name := range dirs {
-			// A nested node_modules is another package; a hidden dir (`.mion`,
-			// `.git`) is a build's scratch, where a consumer build writes served
-			// COPIES of other packages' rows, never the package's own.
-			if name == "node_modules" || strings.HasPrefix(name, ".") {
-				continue
-			}
-			walk(tspath.CombinePaths(dir, name))
-		}
-	}
-	walk(root)
+		return true
+	})
 	return files
 }
 
@@ -331,7 +454,8 @@ func (store *Store) extractSource(idx *PackageIndex) {
 		return
 	}
 	for _, entry := range entries {
-		idx.Rows[entry.Key()] = served(entry)
+		idx.rows[entry.Key()] = served(entry)
+		idx.addName(entry.BindingName, entry.Key())
 		if rel := relativeToRoot(idx.Root, entry.FilePath); rel != "" {
 			idx.rowFile[entry.Key()] = rel
 		}
@@ -560,11 +684,13 @@ type Result struct {
 // Closure serves every demanded id plus the transitive closure of its deps,
 // resolving each dep from the root of the package whose row names it. A dep on
 // the row's own package short-circuits to that same root, so a nested copy never
-// resolves to a hoisted sibling with a different body.
+// resolves to a hoisted sibling with a different body. Reading a module can add
+// a problem or a conflict, so each visited package's are collected once the
+// walk is done.
 func (store *Store) Closure(demands []Demand) Result {
 	var result Result
 	seen := map[string]bool{}
-	visitedRoots := map[string]bool{}
+	visited := map[string]*PackageIndex{}
 	queue := append([]Demand(nil), demands...)
 	for len(queue) > 0 {
 		demand := queue[0]
@@ -583,12 +709,8 @@ func (store *Store) Closure(demands []Demand) Result {
 			continue
 		}
 		idx := store.Package(root)
-		if !visitedRoots[idx.Root] {
-			visitedRoots[idx.Root] = true
-			result.Problems = append(result.Problems, idx.Problems...)
-			result.Conflicts = append(result.Conflicts, idx.Conflicts...)
-		}
-		row, found := idx.Rows[demand.ID]
+		visited[idx.Root] = idx
+		row, found := idx.Row(demand.ID)
 		if !found {
 			result.Missing = append(result.Missing, Miss{ID: demand.ID, Package: packageName, Root: root, Built: idx.Built(), Err: idx.Err})
 			continue
@@ -601,6 +723,10 @@ func (store *Store) Closure(demands []Demand) Result {
 			}
 			queue = append(queue, next)
 		}
+	}
+	for _, idx := range visited {
+		result.Problems = append(result.Problems, idx.Problems...)
+		result.Conflicts = append(result.Conflicts, idx.Conflicts...)
 	}
 	sort.Slice(result.Entries, func(i, j int) bool { return result.Entries[i].Key() < result.Entries[j].Key() })
 	sort.Strings(result.Unresolved)
