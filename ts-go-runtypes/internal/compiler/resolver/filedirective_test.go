@@ -14,7 +14,7 @@ import (
 // finding. Marker coverage rule: every fixture carries both getRunTypeId call shapes, and
 // TestFileDirective_FormEquivalence asserts the pair resolves to one entry.
 
-// twoFindingsSource raises VL002 at two sites and PJS005 at a third; the healthy marker calls prove a file directive never disturbs the rewrites.
+// twoFindingsSource raises VL002 at two sites and PJS005 at a third; the healthy marker calls pin the rewrites.
 const twoFindingsSource = `import {createValidateFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
 export const firstBad = createValidateFn<symbol>();
 export const secondBad = createValidateFn<symbol>();
@@ -29,7 +29,7 @@ func atTop(comment string) string {
 	return comment + "\n" + twoFindingsSource
 }
 
-// vl002Count counts surviving VL002 findings and how many are downgraded; two sites raise it, so a file form must reach both.
+// vl002Count counts surviving VL002 findings and how many are downgraded.
 func vl002Count(list []diagnostics.Diagnostic) (found int, downgraded int) {
 	for _, diagnostic := range list {
 		if diagnostic.Code != diagnostics.CodeVLSymbolRoot {
@@ -215,7 +215,7 @@ func TestFileDirective_ExpectBeatsDowngrade(t *testing.T) {
 	}
 }
 
-// TestFileDirective_FormEquivalence is the paired marker check: both getRunTypeId shapes share one entry while a file directive is in force.
+// TestFileDirective_FormEquivalence: both getRunTypeId shapes share one entry while a file directive is in force.
 func TestFileDirective_FormEquivalence(t *testing.T) {
 	const staticForm = `/* @mion-expect-error VL002 */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';

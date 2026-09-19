@@ -114,7 +114,7 @@ const sample = {name: 'Ada'};
 export const goodReflected = getRunTypeId(sample);
 `;
 
-// File scope: a block comment before any code covers every line, as ESLint reads `/* eslint-disable */`; two bad calls, so one comment answers both.
+// File scope: a block comment before any code covers every line; two bad calls, so one comment answers both.
 const FILE_EXPECT_SRC = `/* @mion-expect-error VL002 */
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 export const firstBad = createValidateFn<symbol>();
