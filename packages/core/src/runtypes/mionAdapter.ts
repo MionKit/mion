@@ -50,8 +50,8 @@ export const MION_FN_KEYS = [
   'prepareForJsonMutate',
   'stringifyJson',
   'compactForJson',
-  'restoreFromJson',
-  'restoreFromJsonStrip',
+  'restoreFromJsonMutate',
+  'restoreFromJsonClone',
   'compactFromJson',
 ] as const satisfies readonly FnHashKey[];
 
@@ -211,7 +211,7 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 }
 
 const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
-const DECODE_FAMILIES = ['restoreFromJson', 'restoreFromJsonStrip', 'compactFromJson'] as const;
+const DECODE_FAMILIES = ['restoreFromJsonMutate', 'restoreFromJsonClone', 'compactFromJson'] as const;
 type CompiledJsonFamilies = {strategy: JsonStrategy; encodeFamily: (typeof ENCODE_FAMILIES)[number]; decodeFamily: DecodeFamily};
 
 /** The JSON strategy a fn set was compiled for, read off its injected families: exactly one encode
@@ -254,7 +254,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
   const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
   const encode = getRTFunction<'prepareForJsonMutate'>(fns[encodeFamily], identity as JsonEncodeFn);
-  const decode = getRTFunction<'restoreFromJson'>(fns[decodeFamily], identity as never);
+  const decode = getRTFunction<'restoreFromJsonMutate'>(fns[decodeFamily], identity as never);
   // formatTransform (sanitizeParams) follows the same rule: a real, non-noop entry or nothing
   if (fns.formatTransform !== undefined) getRTFunction<'formatTransform'>(fns.formatTransform);
   // getRTFunction initialized the injected tuples, so the full entries are now

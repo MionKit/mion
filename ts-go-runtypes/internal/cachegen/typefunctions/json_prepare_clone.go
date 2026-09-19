@@ -826,7 +826,7 @@ func emitIndexSignaturePrepareForJsonClone(rt *reflection.RunType, ctx *EmitCont
 // (object branch wraps as `[-1, mergedObject]`; atomic branch wraps
 // as `[memberIndex, value]` when layout.AtomicNeedsTuple, raw
 // otherwise) so the result decodes through the existing flat
-// restoreFromJson. Each clause returns a NEW value built from
+// restoreFromJsonMutate. Each clause returns a NEW value built from
 // safeChildExpr / buildSafeObjectClone; the input is never touched.
 func emitUnionPrepareForJsonClone(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	return emitUnionPrepareForJsonCloneLayout(rt, ctx, v, buildFlatLayout(rt, ctx))

@@ -194,7 +194,7 @@ func wrapStringifyWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, 
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// wrapRestoreWithClassSerializer wraps the structural restoreFromJson body
+// wrapRestoreWithClassSerializer wraps the structural restoreFromJsonMutate body
 // (`rj` family — mutates / rebinds `v` to the reconstructed value) of a
 // plain user class in a runtime registry branch. Decode always rebuilds a
 // real instance through `utl.deserializeClass`; whether it recurses the

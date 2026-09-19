@@ -21,13 +21,13 @@ import {
 // mion's `clone` strategy decodes with `rjs`, which has no createX factory: it is recovered through
 // the marker, the same wrapper shape the router's generated call site uses. The primitive takes a
 // parsed value; parsing here makes it string-in like the factories, so one row feeds every decoder.
-function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
-  const restore = getRTFunction<'restoreFromJsonStrip'>(id);
+function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+  const restore = getRTFunction<'restoreFromJsonClone'>(id);
   return (wire: string) => restore(JSON.parse(wire));
 }
 // The mutate decode, the one family that KEEPS undeclared keys on purpose.
-function mutateDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJson'>) {
-  const restore = getRTFunction<'restoreFromJson'>(id);
+function mutateDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) {
+  const restore = getRTFunction<'restoreFromJsonMutate'>(id);
   return (wire: string) => restore(JSON.parse(wire));
 }
 

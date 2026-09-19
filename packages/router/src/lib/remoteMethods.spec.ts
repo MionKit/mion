@@ -138,7 +138,7 @@ describe('Public Methods should', () => {
       compiled.isNoop ? compiled.fn : new Function('utl', compiled.code!)(utl);
 
     const isType = materialize(compiledIsType);
-    const restoreFromJson = materialize(compiledRestoreFromJson);
+    const restoreFromJsonMutate = materialize(compiledRestoreFromJson);
     const encodeJson = materialize(compiledEncodeJson);
 
     const date = new Date('2022-12-19T00:24:00.00');
@@ -150,7 +150,7 @@ describe('Public Methods should', () => {
     expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
 
     // ###### Serialization ######
-    const deserialized = restoreFromJson([123, '2022-12-19T00:24:00.00']);
+    const deserialized = restoreFromJsonMutate([123, '2022-12-19T00:24:00.00']);
     expect(deserialized).toEqual([123, date]);
 
     // ###### Serialization ######

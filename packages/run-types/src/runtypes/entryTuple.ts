@@ -494,7 +494,7 @@ const errorShaped = (fnID: string): FamilyMeta => ({fnID, args: errorArgs, defau
 
 // Keyed by the tuple's slot-0 family tag. The seven JSON-composite tags borrow
 // the metadata of the family whose module hosted them pre-migration (encoder
-// strategies rode prepareForJson, decoder strategies restoreFromJson) — Go:
+// strategies rode prepareForJson, decoder strategies restoreFromJsonMutate) — Go:
 // constants.JsonCompositeHostTags — EXCEPT the noop fn: a composite's identity
 // is native JSON, not the host primitive's value identity. A noop composite
 // tuple (every primitive binding elided AND no wrapRoot envelope — see

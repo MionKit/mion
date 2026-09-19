@@ -283,7 +283,7 @@ export const fromValue = createThing(value);
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
 function route<H extends Handler>(
   handler: H,
-  fns?: InjectTypeFnArgs<Parameters<H>, 'validate', 'validationErrors', 'hasUnknownKeys', 'unknownKeyErrors', 'formatTransform', 'prepareForJsonClone', 'restoreFromJsonStrip'>
+  fns?: InjectTypeFnArgs<Parameters<H>, 'validate', 'validationErrors', 'hasUnknownKeys', 'unknownKeyErrors', 'formatTransform', 'prepareForJsonClone', 'restoreFromJsonClone'>
 ) {
   return {handler, fns};
 }

@@ -12,7 +12,7 @@
 //   strip     ukuw + rj                  BLANKED: still an own key, set to undefined
 //   preserve  rj                         kept, with its value
 //   compact   cjr (compactFromJson)      deleted (rebuilt from positions)
-//   rjs       restoreFromJsonSafe        deleted (rebuilt from the declared shape)
+//   rjs       restoreFromJsonClone        deleted (rebuilt from the declared shape)
 //
 // The strategy is read at build time, so it has to be a literal at the call site; a variable
 // resolves to no strategy and the call falls back to the default.
@@ -24,8 +24,8 @@ type Sample = {a: string; n: bigint};
 
 // `rjs` is what mion's `clone` route decodes with. It has no createX factory, so it is recovered
 // through a marker, the shape a framework wrapper uses.
-function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
-  return getRTFunction<'restoreFromJsonStrip'>(id);
+function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+  return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
 describe('encoder modes — clone strategy', () => {

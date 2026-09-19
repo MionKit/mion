@@ -28,8 +28,8 @@ function recoverClonePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJs
 function recoverMutatePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonMutate'>) {
   return getRTFunction<'prepareForJsonMutate'>(id);
 }
-function recoverRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) {
-  return getRTFunction<'restoreFromJson'>(id);
+function recoverRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) {
+  return getRTFunction<'restoreFromJsonMutate'>(id);
 }
 function recoverCompactEncode<T>(_val?: T, id?: InjectTypeFnArgs<T, 'compactForJson'>) {
   return getRTFunction<'compactForJson'>(id);
@@ -43,8 +43,8 @@ function recoverDirectStringify<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stringify
 function recoverStripWire<T>(_val?: T, id?: InjectTypeFnArgs<T, 'stripUnknownKeysWire'>) {
   return getRTFunction<'stripUnknownKeysWire'>(id);
 }
-function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
-  return getRTFunction<'restoreFromJsonStrip'>(id);
+function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+  return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
 type Payload = {id: bigint; when: Date; name: string};

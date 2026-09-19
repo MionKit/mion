@@ -13,7 +13,7 @@ import (
 func TestFamilies_RegistryRoundTrip(t *testing.T) {
 	// 23 = 17 + the two fused validator families (validateStrict /
 	// validationErrorsStrict) behind `{checkUnknowns: true}` + the three
-	// createParseFn families, one per undeclared-key strategy + restoreFromJsonStrip.
+	// createParseFn families, one per undeclared-key strategy + restoreFromJsonClone.
 	if len(Families) != 23 {
 		t.Fatalf("expected 23 type-walking families, got %d", len(Families))
 	}

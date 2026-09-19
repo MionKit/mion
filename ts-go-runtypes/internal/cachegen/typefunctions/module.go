@@ -682,7 +682,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	// typeName, and isNoop=true are passed. The JS-side consumer builds
 	// the entry with a family-specific identity `fn` (`() => true` for
 	// validate, `(v, pth, er) => er` for validationErrors, `(v) => v` for
-	// prepareForJson / restoreFromJson, native JSON for the composites) and
+	// prepareForJson / restoreFromJsonMutate, native JSON for the composites) and
 	// leaves `code`, `rtDependencies`, `pureFnDependencies`, and
 	// `createRTFn` as undefined. Same dep-call wiring works — a parent
 	// referencing the noop entry's `<hash>.fn(v)` still hits a real

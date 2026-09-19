@@ -245,7 +245,7 @@ export const _ = createValidateFn<unknown>();
   // Tuple slots are structural — a function or symbol slot can't be
   // silently dropped without changing the tuple's length / shape on the
   // wire. The serialization families (prepareForJson, prepareForJsonSafe,
-  // restoreFromJson, stringifyJson, toBinary, fromBinary) propagate the
+  // restoreFromJsonMutate, stringifyJson, toBinary, fromBinary) propagate the
   // CodeNS upward so the renderer emits an alwaysThrow factory keyed on
   // the leaf's per-family code. Regression coverage for the array-style
   // short-circuits we removed in the tuple emits.
@@ -333,7 +333,7 @@ export const _b = createBinaryEncoderFn<[number, symbol]>();
   // neither diagnostic interface. The composite then bound a never-rendered
   // primitive (`utl.getRT(cj_<id>).fn` on a module that never registered),
   // surfacing the internal JCP001 "never rendered — please file an issue" error.
-  // The fix delegates cj → prepareForJsonSafe (PJS*) and cjr → restoreFromJson
+  // The fix delegates cj → prepareForJsonSafe (PJS*) and cjr → restoreFromJsonMutate
   // (RJ*), so compact now alwaysThrows with the SAME per-family code as its
   // siblings and never trips JCP001. See docs/done/jcp001-*.
   register('compact strategy alwaysThrows (PJS003 / RJ003) with NO JCP001 for a function tuple slot', async () => {

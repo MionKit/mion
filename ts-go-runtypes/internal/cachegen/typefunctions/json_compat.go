@@ -7,7 +7,7 @@ import (
 // isJsonCompatible reports whether values of type `rt` round-trip
 // identically through native `JSON.parse(JSON.stringify(v))` AND would
 // have no special encode/decode transform applied by any of the three
-// JSON emit families (prepareForJson, stringifyJson, restoreFromJson).
+// JSON emit families (prepareForJson, stringifyJson, restoreFromJsonMutate).
 //
 // Both halves of that conjunction matter:
 //

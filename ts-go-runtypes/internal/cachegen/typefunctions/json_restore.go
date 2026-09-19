@@ -7,13 +7,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// RestoreFromJsonEmitter implements the `restoreFromJson` rt function —
+// RestoreFromJsonEmitter implements the `restoreFromJsonMutate` rt function —
 // reconstructs the runtime shape from a value produced by JSON.parse
 // (Dates from ISO strings, BigInts from decimal strings, Symbols from
 // "Symbol:<desc>" strings, RegExps from "/source/flags" strings).
 //
 // Paired with PrepareForJsonEmitter — round-trip
-// `restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(v))))`
+// `restoreFromJsonMutate(JSON.parse(JSON.stringify(prepareForJson(v))))`
 // must deep-equal v for every valid sample.
 //
 // Mirrors the per-kind emitRestoreFromJson methods under
@@ -21,7 +21,7 @@ import (
 type RestoreFromJsonEmitter struct{}
 
 // Args mirrors `rtArgs.vλl = 'v'` — same single-arg shape as
-// PrepareForJsonEmitter; restoreFromJson reassigns v to the
+// PrepareForJsonEmitter; restoreFromJsonMutate reassigns v to the
 // reconstructed value.
 func (RestoreFromJsonEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
@@ -48,7 +48,7 @@ func (RestoreFromJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContex
 // NoopChildComposesAround — a value slot that round-trips raw needs no rebuild; empty code composes correctly.
 func (RestoreFromJsonEmitter) NoopChildComposesAround() {}
 
-// ReturnName is `v` — restoreFromJson mutates / rebinds v and returns
+// ReturnName is `v` — restoreFromJsonMutate mutates / rebinds v and returns
 // the reconstructed value.
 func (RestoreFromJsonEmitter) ReturnName() string {
 	return "v"
@@ -181,7 +181,7 @@ func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	case reflection.KindArray:
 		// (ref: nodes/member/array.ts:emitRestoreFromJson) — same body
 		// shape as emitPrepareForJson. Each element gets the child's
-		// restoreFromJson applied in place. Empty child code collapses
+		// restoreFromJsonMutate applied in place. Empty child code collapses
 		// the whole loop to a noop.
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
@@ -430,7 +430,7 @@ func (RestoreFromJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID
 }
 
 // Finalize — same shape as PrepareForJsonEmitter.Finalize. Mirrors
-// the handleFunctionReturn for restoreFromJson: identity body for
+// the handleFunctionReturn for restoreFromJsonMutate: identity body for
 // noops, factory still emitted so dep-call chains resolve. isNoop
 // is set to true on identity bodies to match the
 // `00JsonOnly.spec.ts` semantics (cache entry exists, but consumer

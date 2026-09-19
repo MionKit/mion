@@ -132,16 +132,16 @@
       "doc": "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept."
     },
     {
-      "name": "restoreFromJson",
-      "tag": "rj",
-      "group": "primitive",
-      "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties."
-    },
-    {
-      "name": "restoreFromJsonStrip",
+      "name": "restoreFromJsonClone",
       "tag": "rjs",
       "group": "primitive",
       "doc": "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped."
+    },
+    {
+      "name": "restoreFromJsonMutate",
+      "tag": "rj",
+      "group": "primitive",
+      "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties."
     },
     {
       "name": "stringifyJson",

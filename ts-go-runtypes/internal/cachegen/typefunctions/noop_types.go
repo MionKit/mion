@@ -46,8 +46,8 @@ import (
 // delegates to another family's helpers, the predicate arm delegates to that
 // family's predicate the same way (compactForJson reuses prepareForJsonClone's
 // wholesale — their diverging object arms agree on never-noop; compactFromJson
-// delegates restoreFromJson's shared arms but answers false at its own object
-// arms, where restoreFromJson's raw round-trip does NOT hold for the
+// delegates restoreFromJsonMutate's shared arms but answers false at its own object
+// arms, where restoreFromJsonMutate's raw round-trip does NOT hold for the
 // positional rebuild). Where an emitter decides a slot through a helper
 // (isStrippedUnionMember, objectHasIndexSignatureChild, iterableInnerTypes,
 // literalFlavour, …), the predicate calls the SAME helper so that arm cannot
@@ -75,7 +75,7 @@ type NoopComposeAround interface {
 }
 
 // jsonNoopMode selects between the encode (prepareForJson) and decode
-// (restoreFromJson) arm tables of the shared JSON-transform predicate. The
+// (restoreFromJsonMutate) arm tables of the shared JSON-transform predicate. The
 // two sides diverge exactly where the emitters do: Date/Temporal are noop on
 // encode (native toJSON covers them) but rebuild on decode; `undefined` is
 // noop on encode but force-rebinds on decode; unions always emit the
@@ -706,9 +706,9 @@ func isNoopForStringifyJson(rt *reflection.RunType, ctx *EmitContext) bool {
 
 /** isNoopForCompactFromJson reports whether the cjr entry for rt is the
  *  identity. **/
-// Mirrors CompactFromJsonEmitter.Emit, which reuses restoreFromJson's arms
+// Mirrors CompactFromJsonEmitter.Emit, which reuses restoreFromJsonMutate's arms
 // EXCEPT at object positions — the positional→keyed rebuild is real work for
-// every object shape restoreFromJson would let round-trip raw. Atomic and
+// every object shape restoreFromJsonMutate would let round-trip raw. Atomic and
 // literal arms match rj; undefined/void force-rebind; Date/Temporal/Map/Set/
 // classes rebuild; the union arm IS emitUnionRestoreFromJsonFlat, so its
 // noop condition delegates to the shared restore-side union rule.
@@ -791,7 +791,7 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return true
 
 	case reflection.KindTupleMember:
-		// Same rule as restoreFromJson: optional slots normalize (never
+		// Same rule as restoreFromJsonMutate: optional slots normalize (never
 		// identity), required slots follow their child.
 		if rt.Optional {
 			return false
@@ -823,7 +823,7 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 
 /** isNoopForRestoreJsonSafe reports whether the rjs entry for rt is the
  *  identity. **/
-// Mirrors RestoreFromJsonStripEmitter.Emit, which reuses restoreFromJson's arms
+// Mirrors RestoreFromJsonCloneEmitter.Emit, which reuses restoreFromJsonMutate's arms
 // EXCEPT where it rebuilds — and a rebuild is real work at every object shape rj
 // would let round-trip raw. Unlike cjr this returns ONE verdict with no separate
 // key-guard conjunct: cjr's shape half feeds the compact envelope decision, and

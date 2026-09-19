@@ -547,7 +547,7 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	}
 	// clone both ways: the clone prepare writes the declared shape, the strip restore
 	// rebuilds it on arrival. The manifest names families by their MARKER token.
-	if got := strings.Join(getById.Families, ","); got != "validate,validationErrors,hasUnknownKeys,unknownKeyErrors,formatTransform,prepareForJsonClone,restoreFromJsonStrip,validate,validationErrors,hasUnknownKeys,unknownKeyErrors,prepareForJsonClone,restoreFromJsonStrip" {
+	if got := strings.Join(getById.Families, ","); got != "validate,validationErrors,hasUnknownKeys,unknownKeyErrors,formatTransform,prepareForJsonClone,restoreFromJsonClone,validate,validationErrors,hasUnknownKeys,unknownKeyErrors,prepareForJsonClone,restoreFromJsonClone" {
 		t.Errorf("getById families: %s", got)
 	}
 	if getById.Options["validateParams"] != true {

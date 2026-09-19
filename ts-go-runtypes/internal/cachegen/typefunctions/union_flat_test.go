@@ -114,7 +114,7 @@ func TestPrepareForJsonModule_ObjectUnionMergesProps(t *testing.T) {
 // length-2 + typeof-number heuristic is gone.
 func TestRestoreFromJsonModule_ObjectUnionDecodesFlat(t *testing.T) {
 	dump := protocol.Dump{RunTypes: buildBigIntDateUnionFixture()}
-	out := renderModuleDefault(t, dump, "restoreFromJson")
+	out := renderModuleDefault(t, dump, "restoreFromJsonMutate")
 
 	if strings.Contains(out, "Array.isArray(v) && v.length === 2 && typeof v[0] === 'number'") {
 		t.Errorf("optimised emit must NOT use the length-2 + typeof[0]==='number' shape gate — it false-positives on legitimate raw values; got:\n%s", out)

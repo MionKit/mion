@@ -14,7 +14,7 @@ import (
 // own key with a for-in loop, so the loop has to skip declared sibling keys (the
 // named prop owns its own transform / decode). Binary already does this (F1);
 // the clone (prepareForJsonClone) path always did via its declared-key skip. This
-// pins the mutate (prepareForJson), restore (restoreFromJson), and direct
+// pins the mutate (prepareForJson), restore (restoreFromJsonMutate), and direct
 // (stringifyJson) walks, which previously corrupted the named prop on the wire
 // round-trip (a `number` becoming a `bigint`).
 
@@ -30,9 +30,9 @@ func mixedIndexSigObject() protocol.Dump {
 
 func TestG1_JsonIndexSigSkipsSiblingNamedProp(t *testing.T) {
 	dump := mixedIndexSigObject()
-	// prepareForJson / restoreFromJson / stringifyJson all walk own keys with a
+	// prepareForJson / restoreFromJsonMutate / stringifyJson all walk own keys with a
 	// for-in; each must guard the index loop with the sibling-named Set skip.
-	for _, fam := range []string{"prepareForJsonMutate", "restoreFromJson", "stringifyJson"} {
+	for _, fam := range []string{"prepareForJsonMutate", "restoreFromJsonMutate", "stringifyJson"} {
 		out := renderModule(t, dump, fam)
 		if !strings.Contains(out, "siblingNamed_idx.has(") {
 			t.Errorf("[%s] index-sig for-in loop must skip declared sibling keys (siblingNamed_idx.has) so the named prop is not transformed by the index value; got:\n%s", fam, out)

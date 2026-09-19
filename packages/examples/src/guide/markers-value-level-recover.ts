@@ -1,7 +1,7 @@
 import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 
 // Some functions the generated code is built from, like the per-strategy
-// prepareForJson and restoreFromJson, have no createX factory of their own. You
+// prepareForJson and restoreFromJsonMutate, have no createX factory of their own. You
 // still reach them from a marker: name the primitive and recover the injected
 // handle with getRTFunction, which turns it into the callable function for T.
 // You pass the same key you named in the marker, so getRTFunction knows the
@@ -12,10 +12,10 @@ import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 // that owns its own JSON envelope uses it to transform values without a string
 // round-trip.
 function jsonValueCodec<T>(
-  fns?: InjectTypeFnArgs<T, 'prepareForJsonClone', 'restoreFromJsonStrip'>
+  fns?: InjectTypeFnArgs<T, 'prepareForJsonClone', 'restoreFromJsonClone'>
 ) {
   const prepare = getRTFunction<'prepareForJsonClone'>(fns?.[0]);
-  const restore = getRTFunction<'restoreFromJsonStrip'>(fns?.[1]);
+  const restore = getRTFunction<'restoreFromJsonClone'>(fns?.[1]);
   return {prepare, restore};
 }
 

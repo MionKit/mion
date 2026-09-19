@@ -140,7 +140,7 @@ func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 }
 
 // The `compact` strategy's encode/decode walks REUSE prepareForJsonClone /
-// restoreFromJson arm-by-arm (only the object arm diverges to a positional
+// restoreFromJsonMutate arm-by-arm (only the object arm diverges to a positional
 // array — see json_compact.go / json_compact_restore.go), so they DELEGATE
 // their diagnostic codes the same way: cj → pjs, cjr → rj. Without these the
 // compact emitters implement neither DiagCodeProvider nor LeafDiagCodeProvider,
@@ -168,14 +168,14 @@ func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-// restoreFromJsonStrip changes no leaf's serializability (a rebuild or a guard
-// around one of restoreFromJson's arms never makes a leaf unserializable), so
+// restoreFromJsonClone changes no leaf's serializability (a rebuild or a guard
+// around one of restoreFromJsonMutate's arms never makes a leaf unserializable), so
 // it delegates its diagnostic codes the same way compactFromJson does.
-func (RestoreFromJsonStripEmitter) DiagCodeFor(slot DiagSlot) string {
+func (RestoreFromJsonCloneEmitter) DiagCodeFor(slot DiagSlot) string {
 	return restoreFromJsonCodes[slot]
 }
 
-func (RestoreFromJsonStripEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+func (RestoreFromJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 

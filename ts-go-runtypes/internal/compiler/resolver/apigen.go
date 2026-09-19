@@ -580,9 +580,9 @@ func decodeFamily(strategy string) string {
 	case "clone":
 		// The stripping decoder: clone promises undeclared keys are dropped, and
 		// that has to hold for a payload mion did not write.
-		return "restoreFromJsonStrip"
+		return "restoreFromJsonClone"
 	default:
-		return "restoreFromJson"
+		return "restoreFromJsonMutate"
 	}
 }
 

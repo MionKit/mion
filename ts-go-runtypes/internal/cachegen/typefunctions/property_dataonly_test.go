@@ -55,7 +55,7 @@ func objFactoryIsAlwaysThrow(rendered string) bool {
 // allSerdeFamilies — validate + validationErrors + the six serialization families.
 var allSerdeFamilies = []string{
 	"validate", "validationErrors", "prepareForJsonMutate", "prepareForJsonClone",
-	"stringifyJson", "restoreFromJson", "restoreFromJsonStrip", "toBinary", "fromBinary",
+	"stringifyJson", "restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary",
 }
 
 // nonSerPropDropCodes maps each family to its …015 directly-stripped-property
@@ -66,8 +66,8 @@ var nonSerPropDropCodes = map[string]string{
 	"prepareForJsonMutate": diagnostics.CodePJNonSerializablePropDrop,
 	"prepareForJsonClone":  diagnostics.CodePJSNonSerializablePropDrop,
 	"stringifyJson":        diagnostics.CodeSJNonSerializablePropDrop,
-	"restoreFromJson":      diagnostics.CodeRJNonSerializablePropDrop,
-	"restoreFromJsonStrip": diagnostics.CodeRJNonSerializablePropDrop,
+	"restoreFromJsonMutate":      diagnostics.CodeRJNonSerializablePropDrop,
+	"restoreFromJsonClone": diagnostics.CodeRJNonSerializablePropDrop,
 	"toBinary":             diagnostics.CodeTBNonSerializablePropDrop,
 	"fromBinary":           diagnostics.CodeFBNonSerializablePropDrop,
 }
@@ -81,8 +81,8 @@ var symbolRootCodes = map[string]string{
 	"prepareForJsonMutate": diagnostics.CodePJSymbolRoot,
 	"prepareForJsonClone":  diagnostics.CodePJSSymbolRoot,
 	"stringifyJson":        diagnostics.CodeSJSymbolRoot,
-	"restoreFromJson":      diagnostics.CodeRJSymbolRoot,
-	"restoreFromJsonStrip": diagnostics.CodeRJSymbolRoot,
+	"restoreFromJsonMutate":      diagnostics.CodeRJSymbolRoot,
+	"restoreFromJsonClone": diagnostics.CodeRJSymbolRoot,
 	"toBinary":             diagnostics.CodeTBSymbolRoot,
 	"fromBinary":           diagnostics.CodeFBSymbolRoot,
 }
@@ -95,8 +95,8 @@ var functionPropDropCodes = map[string]string{
 	"prepareForJsonMutate": diagnostics.CodePJFunctionPropDropped,
 	"prepareForJsonClone":  diagnostics.CodePJSFunctionPropDropped,
 	"stringifyJson":        diagnostics.CodeSJFunctionPropDropped,
-	"restoreFromJson":      diagnostics.CodeRJFunctionPropDropped,
-	"restoreFromJsonStrip": diagnostics.CodeRJFunctionPropDropped,
+	"restoreFromJsonMutate":      diagnostics.CodeRJFunctionPropDropped,
+	"restoreFromJsonClone": diagnostics.CodeRJFunctionPropDropped,
 	"toBinary":             diagnostics.CodeTBFunctionPropDropped,
 	"fromBinary":           diagnostics.CodeFBFunctionPropDropped,
 }
@@ -140,7 +140,7 @@ func TestF3_DirectlyStrippedPropertyDrops(t *testing.T) {
 // The surrounding object still serializes its data props: `{good: bigint; bad:
 // symbol}` drops `bad` and keeps `good`. The rendered factory must reference
 // `good` and must not alwaysThrow. `good` is a bigint (not a string) so every
-// family — including prepareForJson / restoreFromJson, which no-op a string —
+// family — including prepareForJson / restoreFromJsonMutate, which no-op a string —
 // emits a real `good` transform.
 func TestF3_DroppedPropertyKeepsSiblings(t *testing.T) {
 	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}

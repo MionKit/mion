@@ -1211,54 +1211,55 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   RJ010: {
     headline:
-      'Property `{0}` is a function: `restoreFromJson` does not handle function values, so this property is silently not decoded.',
+      'Property `{0}` is a function: `restoreFromJsonMutate` does not handle function values, so this property is silently not decoded.',
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      '`restoreFromJson` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
+      '`restoreFromJsonMutate` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
   },
   RJ011: {
-    headline: "Method `{0}` is silently not decoded by `restoreFromJson`: methods aren't data.",
+    headline: "Method `{0}` is silently not decoded by `restoreFromJsonMutate`: methods aren't data.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      "Class and object methods aren't part of the serialisable shape, so\n`restoreFromJson` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
+      "Class and object methods aren't part of the serialisable shape, so\n`restoreFromJsonMutate` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
   },
   RJ012: {
-    headline: "Static member `{0}` is silently not decoded by `restoreFromJson`: statics aren't part of instance data.",
+    headline: "Static member `{0}` is silently not decoded by `restoreFromJsonMutate`: statics aren't part of instance data.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      'Class static members live on the class, not on individual instances.\n`restoreFromJson` operates on instance shape, so statics are excluded.',
+      'Class static members live on the class, not on individual instances.\n`restoreFromJsonMutate` operates on instance shape, so statics are excluded.',
   },
   RJ013: {
-    headline: "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJson`: symbol keys aren't JSON-representable.",
+    headline:
+      "Symbol-keyed property `{0}` is silently not decoded by `restoreFromJsonMutate`: symbol keys aren't JSON-representable.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `restoreFromJson` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
+      "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `restoreFromJsonMutate` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
   },
   RJ014: {
     headline:
-      "Union member(s) of type `{0}` can't be represented as data: `restoreFromJson` drops them, so the union is decoded as its remaining members.",
+      "Union member(s) of type `{0}` can't be represented as data: `restoreFromJsonMutate` drops them, so the union is decoded as its remaining members.",
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `restoreFromJson` decoded only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `restoreFromJson` throws at build time instead.',
+      'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `restoreFromJsonMutate` decoded only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `restoreFromJsonMutate` throws at build time instead.',
   },
   RJ015: {
     headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJson` drops it, so this property is silently not decoded.',
+      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `restoreFromJsonMutate` drops it, so this property is silently not decoded.',
     level: 'warning',
     severity: 'warning',
     family: 'runtype',
     detail:
-      '`restoreFromJson` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `restoreFromJson` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
+      '`restoreFromJsonMutate` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `restoreFromJsonMutate` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
   },
   SJ001: {
     headline: 'Type `{0}` can never be stringified to JSON: the generated function will always fail.',

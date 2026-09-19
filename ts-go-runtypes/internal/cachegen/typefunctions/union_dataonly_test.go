@@ -46,7 +46,7 @@ func unionEntryWorks(rendered string) bool {
 
 // jsonFamilies are the flat-union families that share buildFlatLayout; binary
 // (toBinary/fromBinary) shares it too and is covered by the same change.
-var jsonFamilies = []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson"}
+var jsonFamilies = []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate"}
 
 func TestDataOnlyUnion_DropsStrippedMember(t *testing.T) {
 	dump := unionDump(mkDate(), mkSym())
@@ -118,7 +118,7 @@ var dropWarnFamilies = map[string]string{
 	"prepareForJsonMutate": diagnostics.CodePJUnionMemberDropped,
 	"prepareForJsonClone":  diagnostics.CodePJSUnionMemberDropped,
 	"stringifyJson":        diagnostics.CodeSJUnionMemberDropped,
-	"restoreFromJson":      diagnostics.CodeRJUnionMemberDropped,
+	"restoreFromJsonMutate":      diagnostics.CodeRJUnionMemberDropped,
 	"toBinary":             diagnostics.CodeTBUnionMemberDropped,
 	"fromBinary":           diagnostics.CodeFBUnionMemberDropped,
 }
@@ -216,7 +216,7 @@ func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	}
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, propB, obj, union}}
 
-	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"validate", "prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
 		// A real union factory (`<hash>_uni(…){`) — family-agnostic, since binary
 		// encode/decode bodies take `(v,Ser)` / `(ret,Des)` not just `(v)`. An

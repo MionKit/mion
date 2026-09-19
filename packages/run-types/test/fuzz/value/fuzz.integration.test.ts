@@ -34,21 +34,21 @@ import {renderCrashes} from '../core/crashGuard.ts';
 import {unreachedKeyedTargets, type FuzzTarget} from './fuzzOracle.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 
-// restoreFromJson has no createX factory — it is reached by declaring its fnKey
+// restoreFromJsonMutate has no createX factory — it is reached by declaring its fnKey
 // in a trailing InjectTypeFnArgs marker, the same wrapper shape a framework
 // writes. Schema-first like every factory below, so the plugin resolves T from
 // the concretely-typed `const schema` rather than injecting `unknown`.
 //
 // It is the reference half of O19: parse fuses this restore with validate, so
 // the two together are what parse must agree with.
-function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJson'>) {
-  return getRTFunction<'restoreFromJson'>(id);
+function recoverRestore<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonMutate'>) {
+  return getRTFunction<'restoreFromJsonMutate'>(id);
 }
 
 // The STRIPPING restore, recovered the same way — mion's `clone` strategy decodes with it and it has
 // no createX factory either. O26's subject: it must DELETE an undeclared wire key, not blank it.
-function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
-  return getRTFunction<'restoreFromJsonStrip'>(id);
+function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+  return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
 const targets: FuzzTarget[] = [];
@@ -78,8 +78,8 @@ const targets: FuzzTarget[] = [];
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -101,8 +101,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -126,8 +126,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -151,8 +151,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -176,8 +176,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -201,8 +201,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -226,8 +226,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -255,8 +255,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -277,8 +277,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -305,8 +305,8 @@ const targets: FuzzTarget[] = [];
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -332,7 +332,7 @@ const targets: FuzzTarget[] = [];
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -438,7 +438,7 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -488,7 +488,7 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     hasUnknownKeysBlind: createHasUnknownKeysFn(schema),
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
   });
@@ -518,8 +518,8 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -542,8 +542,8 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     unknownKeyErrors: createUnknownKeyErrorsFn(schema),
     clone: createCloneExactShapeFn(schema),
     parse: createParseFn(schema),
-    restoreFromJson: recoverRestore(schema),
-    restoreFromJsonSafe: recoverRestoreSafe(schema),
+    restoreFromJsonMutate: recoverRestore(schema),
+    restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
     binaryEncode: createBinaryEncoderFn(schema),
@@ -607,7 +607,7 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
   // on everything, so the fuzz run above would go quietly vacuous. Pin that the
   // recovered fn really restores: the DateBigint target is the one whose leaves
   // change shape between the wire and the runtime value.
-  it('O19 reference: the recovered restoreFromJson is the compiled one, not identity', () => {
+  it('O19 reference: the recovered restoreFromJsonMutate is the compiled one, not identity', () => {
     const schema = RT.object({created: TF.date(), id: TF.bigInt()});
     const restore = recoverRestore(schema);
     const restored = restore({created: '2020-01-02T03:04:05.000Z', id: '42'}) as {created: Date; id: bigint};

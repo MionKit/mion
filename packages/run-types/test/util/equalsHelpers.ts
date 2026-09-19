@@ -1,6 +1,6 @@
 // Ported verbatim from the reference
 // packages/run-types/src/rtCompilers/equalsHelpers.ts. Used by the
-// prepareForJson + restoreFromJson adapter tests to normalise both sides
+// prepareForJson + restoreFromJsonMutate adapter tests to normalise both sides
 // of a round-trip comparison before invoking `expect(...).toEqual(...)`.
 //
 // Two cases motivate this helper:
@@ -39,7 +39,7 @@
 export function normalizeForComparison(actual: any, expected: any): {actual: any; expected: any} {
   // Handle symbols — different Symbol instances with the same description
   // are NOT equal under Vitest's toEqual. Round-tripping a symbol through
-  // prepareForJson/JSON.parse/restoreFromJson produces a brand-new
+  // prepareForJson/JSON.parse/restoreFromJsonMutate produces a brand-new
   // symbol; compare by description instead.
   if (typeof actual === 'symbol' || typeof expected === 'symbol') {
     return {

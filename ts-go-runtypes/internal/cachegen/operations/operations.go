@@ -15,7 +15,7 @@
 // token scheme (constants.CompFns, DemandsForFnId, …): the readable token is
 // gone, the demand rides structured on protocol.Site, and the cache key is a
 // pure hash. The registry below is the superset of the old CompFns map — it
-// also enumerates the internal-only primitives (prepareForJson, restoreFromJson,
+// also enumerates the internal-only primitives (prepareForJson, restoreFromJsonMutate,
 // …) that have no public createX function but are reachable as JSON-composite
 // dependencies or cross-family edges, because the emitter must hash THOSE too.
 package operations
@@ -190,7 +190,7 @@ var registry = []Operation{
 		Strategies:      []string{"strip", "preserve", "compact"},
 	},
 
-	// JSON value-level primitives — the per-strategy prepareForJson / restoreFromJson
+	// JSON value-level primitives — the per-strategy prepareForJson / restoreFromJsonMutate
 	// building blocks the createJsonEncoderFn / createJsonDecoderFn composites wrap. They
 	// have no dedicated createX factory, but a framework wrapper (mion) recovers any
 	// of them by naming its FnKey in an InjectTypeFnArgs<T, '<tag>'> marker and
@@ -208,8 +208,8 @@ var registry = []Operation{
 	//   - ukuw: the strip decoder's unknown-keys-to-undefined wire pre-pass.
 	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate"},
 	{Name: "prepareForJsonClone", Doc: "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
-	{Name: "restoreFromJson", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJson"},
-	{Name: "restoreFromJsonStrip", Doc: "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonStrip"},
+	{Name: "restoreFromJsonMutate", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonMutate"},
+	{Name: "restoreFromJsonClone", Doc: "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonClone"},
 	{Name: "stringifyJson", Doc: "Writes a value straight to a JSON string in one pass, with no intermediate value.", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
 	{Name: "stripUnknownKeysWire", Doc: "Blanks undeclared properties on incoming JSON before it is restored.", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "stripUnknownKeysWire"},
 	// compactForJson / compactFromJson: the positional-tuple JSON round-trip pair

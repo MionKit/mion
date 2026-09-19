@@ -13,7 +13,7 @@ import (
 // instance arrives as a POSITIONAL ARRAY (declared props by position, no key
 // names) and is rebuilt into a keyed object, applying each property's restore
 // transform by position. Every other arm (atomics, arrays, TS tuples, Map/Set,
-// unions, pure index signatures) is reused verbatim from the restoreFromJson
+// unions, pure index signatures) is reused verbatim from the restoreFromJsonMutate
 // helpers — recursion routes back through THIS emitter via ctx.CompileChild.
 //
 // The object arm REBINDS its value accessor to the rebuilt object (`v = _r`),
@@ -28,7 +28,7 @@ func (CompactFromJsonEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-// Supports mirrors the restoreFromJson supported surface.
+// Supports mirrors the restoreFromJsonMutate supported surface.
 func (CompactFromJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
@@ -38,7 +38,7 @@ func (CompactFromJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 }
 
 // EmitDependencyCall captures the child's return into the accessor (`v = <hash>.fn(v)`)
-// so a rebound object propagates — same as restoreFromJson.
+// so a rebound object propagates — same as restoreFromJsonMutate.
 func (CompactFromJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
@@ -53,7 +53,7 @@ func (CompactFromJsonEmitter) Finalize(raw string) (string, bool) {
 
 func (CompactFromJsonEmitter) ReturnName() string { return "v" }
 
-// IsNoopType — restoreFromJson's arms with the object arms forced false (the
+// IsNoopType — restoreFromJsonMutate's arms with the object arms forced false (the
 // positional rebuild is real work where rj would round-trip raw); see
 // isNoopForCompactFromJson. Delegating rj's predicate wholesale would be
 // UNSOUND — the gate would skip the rebuild and decoded objects would stay
@@ -63,7 +63,7 @@ func (CompactFromJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContex
 }
 
 // NoopChildComposesAround — an identity child slot passes through unchanged
-// (same composition rule as restoreFromJson); empty code composes correctly.
+// (same composition rule as restoreFromJsonMutate); empty code composes correctly.
 func (CompactFromJsonEmitter) NoopChildComposesAround() {}
 
 // Emit mirrors RestoreFromJsonEmitter.Emit; only the object-literal and
@@ -146,7 +146,7 @@ func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		// merged object stays KEYED on the wire even under compact (a union has no single positional
 		// shape), so it has room for an undeclared key and the positional argument for skipping the
 		// rebuild does not apply.
-		return emitUnionRestoreFromJsonStripLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
+		return emitUnionRestoreFromJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}

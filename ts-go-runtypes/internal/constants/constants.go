@@ -78,8 +78,8 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_pj_",
 		Tag:       "pj",
 	},
-	"restoreFromJson": {
-		Name:      "restoreFromJsonModule",
+	"restoreFromJsonMutate": {
+		Name:      "restoreFromJsonMutateModule",
 		VarPrefix: "g_rj_",
 		Tag:       "rj",
 	},
@@ -103,8 +103,8 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_cjr_",
 		Tag:       "cjr",
 	},
-	"restoreFromJsonStrip": {
-		Name:      "restoreFromJsonStripModule",
+	"restoreFromJsonClone": {
+		Name:      "restoreFromJsonCloneModule",
 		VarPrefix: "g_rjs_",
 		Tag:       "rjs",
 	},
@@ -165,7 +165,7 @@ var CacheModules = CacheModuleGroup{
 // A composite entry wraps the underlying primitives (pj/pjs/sj/uku/rj/ukuw)
 // with native JSON and is keyed by the strategy's composite fnHash. It does NOT
 // get a CacheModules entry: composites emit no type-walking factory and ride the
-// prepareForJson / restoreFromJson module bodies (already loaded into rtUtils),
+// prepareForJson / restoreFromJsonMutate module bodies (already loaded into rtUtils),
 // so there is no virtual module / VarPrefix to mirror. Each strategy DOES need
 // its own short tag so the on-disk cache basename (`<typehash>/<tag>.json`) is
 // distinct — two strategies of one type must not collide on a single `je.json`.
@@ -690,7 +690,7 @@ const (
 // JsonCompositeHostTags maps each JSON-composite family tag to the family
 // whose runtime entry metadata (fnID / args / defaultParamValues) the
 // composite borrows: encoder strategies registered through the prepareForJson
-// consumer pre-migration, decoder strategies through restoreFromJson. The
+// consumer pre-migration, decoder strategies through restoreFromJsonMutate. The
 // TS-side familyMeta table mirrors this mapping by hand (see rtUtils.ts).
 var JsonCompositeHostTags = func() map[string]string {
 	out := make(map[string]string, len(jsonCompositeTags))

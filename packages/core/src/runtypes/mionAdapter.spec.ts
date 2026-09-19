@@ -36,7 +36,7 @@ function fakeRoute<H extends AnyHandler>(
     'unknownKeyErrors',
     'formatTransform',
     'stringifyJson',
-    'restoreFromJson'
+    'restoreFromJsonMutate'
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -45,7 +45,7 @@ function fakeRoute<H extends AnyHandler>(
     'hasUnknownKeys',
     'unknownKeyErrors',
     'prepareForJsonMutate',
-    'restoreFromJson'
+    'restoreFromJsonMutate'
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -92,7 +92,7 @@ function fakeCloneRoute<H extends AnyHandler>(
     'unknownKeyErrors',
     'formatTransform',
     'prepareForJsonClone',
-    'restoreFromJsonStrip'
+    'restoreFromJsonClone'
   >,
   returnFns?: InjectTypeFnArgs<
     HandlerReturn<H>,
@@ -101,7 +101,7 @@ function fakeCloneRoute<H extends AnyHandler>(
     'hasUnknownKeys',
     'unknownKeyErrors',
     'stringifyJson',
-    'restoreFromJson'
+    'restoreFromJsonMutate'
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>

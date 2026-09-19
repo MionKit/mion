@@ -15,7 +15,7 @@ import (
 // handles Dates via their built-in toJSON() contract.
 //
 // Paired with RestoreFromJsonEmitter — round-trip
-// `restoreFromJson(JSON.parse(JSON.stringify(prepareForJson(v))))`
+// `restoreFromJsonMutate(JSON.parse(JSON.stringify(prepareForJson(v))))`
 // must deep-equal v for every valid sample.
 //
 // Mirrors the per-kind emitPrepareForJson methods under
@@ -260,7 +260,7 @@ func emitObjectJsonChildren(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	// transform corrupts a named prop whose type differs from the index value
 	// (e.g. a `number` prop under a `[k: number]: bigint` index — G1). The
 	// prepareForJsonClone (clone) path already does this via its declared-key
-	// skip; this brings the mutate (prepareForJson) and restore (restoreFromJson)
+	// skip; this brings the mutate (prepareForJson) and restore (restoreFromJsonMutate)
 	// walks into line. Shared by both, since they share this object walk.
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
 	var parts []string
@@ -753,7 +753,7 @@ func (PrepareForJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID 
 }
 
 // Finalize matches the handleFunctionReturn for the
-// prepareForJson / restoreFromJson family (rtFnCompiler.ts:435):
+// prepareForJson / restoreFromJsonMutate family (rtFnCompiler.ts:435):
 // empty / identity bodies are rewritten to `return v` and the
 // isNoop flag is set to true, but the factory is STILL emitted
 // (createRTFunction wraps the body unconditionally). The

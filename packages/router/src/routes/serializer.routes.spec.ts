@@ -99,7 +99,7 @@ describe('deserialize json Request Body', () => {
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
     void deserializeRequestBody(context);
-    // JSON body is only parsed, no restoreFromJson is applied until the handler is executed: a Date
+    // JSON body is only parsed, no restoreFromJsonMutate is applied until the handler is executed: a Date
     // is still the string it arrived as, which is why this compares against the WIRE form
     expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
   });
@@ -111,7 +111,7 @@ describe('deserialize json Request Body', () => {
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
     void deserializeRequestBody(context);
-    // JSON body is only parsed, no restoreFromJson is applied until the handler is executed: a Date
+    // JSON body is only parsed, no restoreFromJsonMutate is applied until the handler is executed: a Date
     // is still the string it arrived as, which is why this compares against the WIRE form
     expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
   });
@@ -141,7 +141,7 @@ describe('deserialize json Request Body', () => {
     expect(context.request.body).toEqual({});
     expect(typeof context.request.rawBody).toEqual('string');
     void deserializeRequestBody(context);
-    // JSON body is only parsed, no restoreFromJson is applied until the handler is executed: a Date
+    // JSON body is only parsed, no restoreFromJsonMutate is applied until the handler is executed: a Date
     // is still the string it arrived as, which is why this compares against the WIRE form
     expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
   });

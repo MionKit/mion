@@ -16,7 +16,7 @@ import (
 // the output regardless of what's on `v`.
 //
 // Paired with RestoreFromJsonEmitter — round-trip
-// `restoreFromJson(JSON.parse(stringifyJson(v)))` must deep-equal v
+// `restoreFromJsonMutate(JSON.parse(stringifyJson(v)))` must deep-equal v
 // for every valid sample. Output is observably equivalent to
 // `JSON.stringify(prepareForJson(v))` modulo property order (the spec
 // sorts optional members first; we keep declaration order) and the

@@ -102,7 +102,7 @@ func TestParse_BodyComposesRatherThanWalks(t *testing.T) {
 // bare validate.
 func TestParse_OmitsTheRestoreCallWhenNothingRestores(t *testing.T) {
 	body := parseBody(t, "parse", srcFor(parseSrcNothingToRestore, "preserve"))
-	if strings.Contains(body, familyPrefix(t, "restoreFromJson")) {
+	if strings.Contains(body, familyPrefix(t, "restoreFromJsonMutate")) {
 		t.Errorf("emitted a restore call for a type with nothing to restore:\n%s", body)
 	}
 	if strings.Contains(body, "try{") {
@@ -110,12 +110,12 @@ func TestParse_OmitsTheRestoreCallWhenNothingRestores(t *testing.T) {
 	}
 }
 
-// A Date DOES need restoring, and restoreFromJson throws RAW on malformed input
+// A Date DOES need restoring, and restoreFromJsonMutate throws RAW on malformed input
 // (BigInt('nope') is a SyntaxError, the RegExp arm indexes a null match). The
 // wrap is what makes parse total, so it is pinned together with the call.
 func TestParse_WrapsTheRestoreCall(t *testing.T) {
 	body := parseBody(t, "parse", srcFor(parseSrcRestoring, "preserve"))
-	if !strings.Contains(body, familyPrefix(t, "restoreFromJson")) {
+	if !strings.Contains(body, familyPrefix(t, "restoreFromJsonMutate")) {
 		t.Fatalf("a restoring type emitted no restore call:\n%s", body)
 	}
 	if !strings.Contains(body, "try{") || !strings.Contains(body, "catch(e){") {

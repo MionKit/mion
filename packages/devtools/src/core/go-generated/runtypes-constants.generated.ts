@@ -23,8 +23,8 @@ export const CACHE_MODULES = {
   prepareForJsonClone: {name: 'prepareForJsonCloneModule', varPrefix: 'g_pjs_', tag: 'pjs'},
   prepareForJsonMutate: {name: 'prepareForJsonMutateModule', varPrefix: 'g_pj_', tag: 'pj'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
-  restoreFromJson: {name: 'restoreFromJsonModule', varPrefix: 'g_rj_', tag: 'rj'},
-  restoreFromJsonStrip: {name: 'restoreFromJsonStripModule', varPrefix: 'g_rjs_', tag: 'rjs'},
+  restoreFromJsonClone: {name: 'restoreFromJsonCloneModule', varPrefix: 'g_rjs_', tag: 'rjs'},
+  restoreFromJsonMutate: {name: 'restoreFromJsonMutateModule', varPrefix: 'g_rj_', tag: 'rj'},
   runTypes: {name: 'runTypesModule', varPrefix: 't_', tag: 't'},
   stringifyJson: {name: 'stringifyJsonModule', varPrefix: 'g_sj_', tag: 'sj'},
   stripUnknownKeysWire: {name: 'stripUnknownKeysWireModule', varPrefix: 'g_ukuw_', tag: 'ukuw'},
@@ -78,12 +78,12 @@ export const PREPAREFORJSONMUTATE_TAG = 'pj';
 export const PUREFNS_VAR_PREFIX = '';
 export const PUREFNS_MODULE_NAME = 'pureFnsModule';
 export const PUREFNS_TAG = '';
-export const RESTOREFROMJSON_VAR_PREFIX = 'g_rj_';
-export const RESTOREFROMJSON_MODULE_NAME = 'restoreFromJsonModule';
-export const RESTOREFROMJSON_TAG = 'rj';
-export const RESTOREFROMJSONSTRIP_VAR_PREFIX = 'g_rjs_';
-export const RESTOREFROMJSONSTRIP_MODULE_NAME = 'restoreFromJsonStripModule';
-export const RESTOREFROMJSONSTRIP_TAG = 'rjs';
+export const RESTOREFROMJSONCLONE_VAR_PREFIX = 'g_rjs_';
+export const RESTOREFROMJSONCLONE_MODULE_NAME = 'restoreFromJsonCloneModule';
+export const RESTOREFROMJSONCLONE_TAG = 'rjs';
+export const RESTOREFROMJSONMUTATE_VAR_PREFIX = 'g_rj_';
+export const RESTOREFROMJSONMUTATE_MODULE_NAME = 'restoreFromJsonMutateModule';
+export const RESTOREFROMJSONMUTATE_TAG = 'rj';
 export const RUNTYPES_VAR_PREFIX = 't_';
 export const RUNTYPES_MODULE_NAME = 'runTypesModule';
 export const RUNTYPES_TAG = 't';

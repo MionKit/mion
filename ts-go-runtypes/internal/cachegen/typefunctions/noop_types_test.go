@@ -223,7 +223,7 @@ func dumpFor(types map[string]*reflection.RunType) protocol.Dump {
 func TestDispatchGate_CircularIdentityCollapses(t *testing.T) {
 	_, types := noopPredicateTypes(t)
 	dump := dumpFor(types)
-	for _, familyKey := range []string{"prepareForJsonMutate", "restoreFromJson"} {
+	for _, familyKey := range []string{"prepareForJsonMutate", "restoreFromJsonMutate"} {
 		graph := FamilyByKey(familyKey).Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
 		key := operations.PlainHash(familyKey) + "_circ"
 		entry := graph[key]
@@ -245,8 +245,8 @@ func TestDispatchGate_CircularIdentityCollapses(t *testing.T) {
 func TestDispatchGate_KeepsRealTransformDepCalls(t *testing.T) {
 	_, types := noopPredicateTypes(t)
 	dump := dumpFor(types)
-	graph := FamilyByKey("restoreFromJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-	key := operations.PlainHash("restoreFromJson") + "_circDat"
+	graph := FamilyByKey("restoreFromJsonMutate").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
+	key := operations.PlainHash("restoreFromJsonMutate") + "_circDat"
 	entry := graph[key]
 	if entry == nil {
 		t.Fatal("no rj entry for circDat")
@@ -274,8 +274,8 @@ func TestDispatchGate_ElidesNoopExternalChild(t *testing.T) {
 	types["pnc"] = propNamed
 	types["parent"] = parent
 	dump := dumpFor(types)
-	graph := FamilyByKey("restoreFromJson").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
-	key := operations.PlainHash("restoreFromJson") + "_parent"
+	graph := FamilyByKey("restoreFromJsonMutate").Collect(dump, RenderOpts{EmitMode: constants.EmitBoth}, nil)
+	key := operations.PlainHash("restoreFromJsonMutate") + "_parent"
 	entry := graph[key]
 	if entry == nil {
 		t.Fatal("no rj entry for parent")
@@ -295,7 +295,7 @@ func TestDispatchGate_ElidesNoopExternalChild(t *testing.T) {
 // the runtime registers the composite's native-JSON noop instead (entryTuple's
 // noopStringify for je*, noopParse for jd*).
 func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
-	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
+	rjKey := operations.PlainHash("restoreFromJsonMutate") + "_obj1"
 	ukuwKey := operations.PlainHash("stripUnknownKeysWire") + "_obj1"
 	pjKey := operations.PlainHash("prepareForJsonMutate") + "_obj1"
 	runType := &reflection.RunType{ID: "obj1", Kind: reflection.KindObjectLiteral}
@@ -431,7 +431,7 @@ func TestNoopType_StringifyJsonRoot(t *testing.T) {
 	}
 }
 
-// TestNoopType_CompactFromJson pins the cjr arm — restoreFromJson's rules with
+// TestNoopType_CompactFromJson pins the cjr arm — restoreFromJsonMutate's rules with
 // every object arm forced false (the positional→keyed rebuild). objCompat is
 // THE divergence pin: rj lets it round-trip raw, cjr must not. Unions are the
 // same story one level up: compact ENCODE goes through the stripping encoder, so
@@ -478,7 +478,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 	}
 }
 
-// TestNoopType_RestoreFromJsonStrip pins the rjs arm — restoreFromJson's rules with every arm that
+// TestNoopType_RestoreFromJsonClone pins the rjs arm — restoreFromJsonMutate's rules with every arm that
 // REBUILDS forced false. The union rows are the ones that matter: rjs must answer false wherever an
 // undeclared key can hide, including inside an ATOMIC member, because an array member means the
 // layout carries no ObjectMembers at all and the union would otherwise short-circuit to identity.
@@ -486,7 +486,7 @@ func TestNoopType_CompactFromJson(t *testing.T) {
 // A wrong `true` here is not a missed optimisation, it is data corruption: this emitter sits on the
 // walker's dispatch gate, so a false positive replaces the child call with empty code and the
 // rebuild never runs at any nested position.
-func TestNoopType_RestoreFromJsonStrip(t *testing.T) {
+func TestNoopType_RestoreFromJsonClone(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
 	cases := []struct {
 		id   string

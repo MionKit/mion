@@ -67,8 +67,8 @@ function atPath(value: unknown, path: readonly (string | number)[]): unknown {
 
 /** The decode half of the `clone` route mion serves: the `rjs` family has no createX factory, so it
  *  is recovered through a marker, the same shape a framework wrapper uses. **/
-function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonStrip'>) {
-  return getRTFunction<'restoreFromJsonStrip'>(id);
+function cloneDecoder<T>(id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
+  return getRTFunction<'restoreFromJsonClone'>(id);
 }
 
 describe('every unknown-key family agrees', () => {
