@@ -1,22 +1,15 @@
-import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {
+  createPrepareForJsonFn,
+  createRestoreFromJsonFn,
+} from '@mionjs/run-types';
 
 type Message = {id: bigint; sentAt: Date; body: string};
 
 // start-value-codec
-// prepareForJson and restoreFromJsonMutate have no factory of their own, so you name
-// the pair you want in a marker and recover the handles with getRTFunction.
-// This pair builds a fresh value both ways, so undeclared keys are dropped.
-function jsonValueCodec<T>(
-  fns?: InjectTypeFnArgs<T, 'prepareForJsonClone', 'restoreFromJsonClone'>
-) {
-  return {
-    prepare: getRTFunction<'prepareForJsonClone'>(fns?.[0]),
-    restore: getRTFunction<'restoreFromJsonClone'>(fns?.[1]),
-  };
-}
-
-// A concrete call site: the build injects both handles for Message here.
-const messageCodec = jsonValueCodec<Message>();
+// Both default to the clone strategy, which builds a new value, so undeclared keys
+// are dropped in both directions.
+const prepare = createPrepareForJsonFn<Message>();
+const restore = createRestoreFromJsonFn<Message>();
 
 const message: Message = {
   id: 42n,
@@ -24,8 +17,8 @@ const message: Message = {
   body: 'hi',
 };
 
-const safe = messageCodec.prepare(message); // JSON-safe value, no string yet
-const back = messageCodec.restore(safe); // typed shape again, bigint and Date included
+const safe = prepare(message); // JSON-safe value, no string yet
+const back = restore(safe); // typed shape again, bigint and Date included
 // end-value-codec
 
-export {jsonValueCodec, messageCodec, safe, back};
+export {prepare, restore, safe, back};
