@@ -144,7 +144,7 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
       expect(clientRun.status, clientRun.report).toBe(0);
       const clientJs = fs.readFileSync(path.join(client, 'dist', 'a.js'), 'utf8');
       const batchId = /'(b_[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
-      const mapperKey = /'(@acme\/client-app#[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
+      const mapperKey = /'(@acme\/client-app#pf_[A-Za-z0-9_-]+)'/.exec(clientJs)?.[1];
       expect(batchId, clientJs).toBeDefined();
       expect(mapperKey, clientJs).toBeDefined();
       expect(table).toContain(`"${batchId}"`);
@@ -255,7 +255,7 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
       const twice = generated.find((file) => fs.readFileSync(file, 'utf8').includes('getPureFn('));
       expect(twice, `no module reaching another pure fn in ${generated.join(', ')}`).toBeDefined();
       // the body rides the tuple as a quoted string, so its own quotes arrive escaped
-      expect(fs.readFileSync(twice!, 'utf8')).toMatch(/getPureFn\(\\'@acme\/pure-app#[A-Za-z0-9_-]{14}\\'\)/);
+      expect(fs.readFileSync(twice!, 'utf8')).toMatch(/getPureFn\(\\'@acme\/pure-app#pf_[A-Za-z0-9_-]{14}\\'\)/);
 
       const stdout = execFileSync(process.execPath, [path.join(project, 'dist', 'main.js')], {
         cwd: project,
@@ -265,7 +265,7 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
       expect(payload, `the compiled program must print its result; got:\n${stdout}`).toBeTruthy();
       const result = JSON.parse(payload![1]) as {trimId: string; twiceId: string; deps: string[]; result: string};
       // An id is the owning package plus a hash of the body that ships.
-      const ID_RE = /^@acme\/pure-app#[A-Za-z0-9_-]{14}$/;
+      const ID_RE = /^@acme\/pure-app#pf_[A-Za-z0-9_-]{14}$/;
       expect(result.trimId).toMatch(ID_RE);
       expect(result.twiceId).toMatch(ID_RE);
       expect(result.twiceId).not.toBe(result.trimId);

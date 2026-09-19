@@ -239,8 +239,8 @@ func (graph Graph) AddMissingStubs(demanded []string) {
 // `pf/@mionjs/run-types/rXVwGkGDX08BsQ` with non-safe bytes escaped per segment.
 // A file under no named package has no owner half and lands directly at
 // `pf/<hash>`. The basename stays a valid module specifier, and the encoding is
-// injective because `#` and `/` are the only separators an id can hold and
-// neither survives escaping inside a segment.
+// injective because the hash prefix and `/` are the only separators an id can
+// hold and neither survives escaping inside a segment.
 func ModuleName(key string, kind Kind) string {
 	if kind == KindRunTypeBundle {
 		return constants.RunTypesBundleBasename
@@ -248,12 +248,12 @@ func ModuleName(key string, kind Kind) string {
 	// A missing stub keyed by a pure-fn id (a soft dep no entry answered, e.g.
 	// a package registered only at runtime) takes the pure-fn layout too: the
 	// raw id holds a `#`, which a module URL reads as a fragment.
-	if kind != KindPureFn && !(kind == KindMissing && strings.Contains(key, "#")) {
+	if kind != KindPureFn && !(kind == KindMissing && strings.Contains(key, constants.PureFnHashPrefix)) {
 		return key
 	}
 	location, name := key, ""
-	if idx := strings.LastIndex(key, "#"); idx >= 0 {
-		location, name = key[:idx], key[idx+1:]
+	if idx := strings.LastIndex(key, constants.PureFnHashPrefix); idx >= 0 {
+		location, name = key[:idx], key[idx+len(constants.PureFnHashPrefix):]
 	}
 	segments := []string{constants.PureFnModuleDir}
 	if location != "" {

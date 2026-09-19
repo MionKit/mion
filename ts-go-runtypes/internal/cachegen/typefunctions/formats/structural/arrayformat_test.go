@@ -16,7 +16,7 @@ func arrAnnotation(params map[string]any) *reflection.FormatAnnotation {
 // closure used to be rebuilt inside the emitted body on EVERY validator call.
 // It now lives in `rt::canonicalJson`, constructed once per module and reached
 // as a DEPENDENCY of the family's own predicate — an array names
-// `@mionjs/run-types/src/runtypes/pure-fns-utils#uniqueArrayItems`, never a shared one with a runtime kind test.
+// `@mionjs/run-types/src/runtypes/pure-fns-utils#pf_uniqueArrayItems`, never a shared one with a runtime kind test.
 func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 	ctx := newStubCtx()
 	emitter := formattedArrayEmitter{kind: reflection.KindArray}

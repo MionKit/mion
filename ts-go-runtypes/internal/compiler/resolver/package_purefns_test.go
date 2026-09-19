@@ -14,8 +14,8 @@ import (
 // binds it like any other pure-fn dep.
 
 const (
-	libSlugifyID = "@acme/text#slug00000000000"
-	libTitleID   = "@acme/text#title0000000000"
+	libSlugifyID = "@acme/text#pf_slug00000000000"
+	libTitleID   = "@acme/text#pf_title0000000000"
 	libSlugMod   = "pf/@acme/text/slug00000000000"
 	libTitleMod  = "pf/@acme/text/title0000000000"
 	libSlugRow   = `[2,,,'` + libSlugifyID + `',['utl'],'return (s) => s.toLowerCase();',[]]`

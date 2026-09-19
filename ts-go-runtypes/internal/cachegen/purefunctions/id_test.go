@@ -35,7 +35,7 @@ func TestIDFor_PackageAndHash(t *testing.T) {
 	file := writePackage(t, dir, `{"name": "@acme/text"}`, "src/slug.ts")
 
 	id := IDFor(marker.Options{Cwd: dir}, file, "Kq3f_xN9pQ2wLd")
-	if want := "@acme/text#Kq3f_xN9pQ2wLd"; id != want {
+	if want := "@acme/text#pf_Kq3f_xN9pQ2wLd"; id != want {
 		t.Errorf("IDFor = %q, want %q", id, want)
 	}
 	owner, hash, ok := SplitID(id)
@@ -108,7 +108,7 @@ func TestIDFor_NoNamedPackageKeepsTheHashAlone(t *testing.T) {
 
 	fromClient := IDFor(marker.Options{Cwd: client}, file, "Kq3f_xN9pQ2wLd")
 	fromServer := IDFor(marker.Options{Cwd: filepath.Join(base, "server")}, file, "Kq3f_xN9pQ2wLd")
-	if want := "#Kq3f_xN9pQ2wLd"; fromClient != want {
+	if want := "#pf_Kq3f_xN9pQ2wLd"; fromClient != want {
 		t.Errorf("IDFor from the client = %q, want %q", fromClient, want)
 	}
 	if fromServer != fromClient {
@@ -123,8 +123,8 @@ func TestSplitID_RejectsAStringThatIsNotAnId(t *testing.T) {
 	if _, _, ok := SplitID("plainName"); ok {
 		t.Error("a string with no separator must not parse as an id")
 	}
-	owner, hash, ok := SplitID("@acme/text#outer#inner")
-	if !ok || owner != "@acme/text#outer" || hash != "inner" {
+	owner, hash, ok := SplitID("@acme/text#pf_outer#pf_inner")
+	if !ok || owner != "@acme/text#pf_outer" || hash != "inner" {
 		t.Errorf("SplitID split at the wrong separator: (%q, %q, %v)", owner, hash, ok)
 	}
 }
