@@ -11,18 +11,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// expecterror.go finds the `@mion-expect-error` / `@mion-downgrade-error`
-// comments in the program's own source and hands them to
-// diagnostics.ApplyDirectives, which owns what they mean. This half owns only
-// what a comment lexer and a line map can answer: WHERE the real comments are,
-// WHICH line each one covers, WHICH of the two it is, and whether its shape and
-// position make it a file directive rather than a line one.
-//
-// It runs at the Dispatch choke point, so a directive removes a finding for
-// every consumer at once: the bundler build, `mion compile`, and the editor's
-// lint squiggles. That is what a source-level assertion should do, unlike
-// `downgradeErrors`, which is build policy and is applied by the consumer that
-// decides whether to halt.
+// expecterror.go finds the directive comments and hands them to diagnostics.ApplyDirectives,
+// which owns what they mean; this half answers only where each real comment is, which line or
+// file it covers, and which word it is. It runs at the Dispatch choke point so a directive acts
+// for every consumer at once (build, `mion compile`, editor lint), unlike `downgradeErrors`,
+// which is build policy applied by the consumer that decides whether to halt.
 
 // settleDiagnostics is the last thing every op's diagnostics pass through: the
 // repeats collapse, then the directive comments take effect. Both
@@ -138,18 +131,14 @@ func fileDirectives(filePath string, sourceFile *ast.SourceFile) []diagnostics.D
 		startLine, startCol := textpos.LineCol(sourceFile, span.Start)
 		endLine, endCol := textpos.LineCol(sourceFile, span.End)
 		scope := diagnostics.DirectiveScopeLine
-		// A block comment before any code covers the file, the way ESLint's
-		// `/* eslint-disable */` does. A line comment never does, and neither
-		// does a block comment further down, which stays the line form it is
-		// today.
+		// Same shape rule as ESLint's `/* eslint-disable */`: only a block comment before any code covers the file.
 		if isBlock && span.End <= codeStart {
 			scope = diagnostics.DirectiveScopeFile
 		}
 		directives = append(directives, diagnostics.Directive{
 			Kind:  kind,
 			Scope: scope,
-			// The comment silences the line BELOW its last line, so a block
-			// comment spanning several lines still points at the code under it.
+			// endLine, not startLine: a multi-line block comment still points at the code under it.
 			AppliesToLine: endLine + 1,
 			Codes:         directiveCodes(body),
 			Site: diagnostics.Site{
@@ -164,10 +153,7 @@ func fileDirectives(filePath string, sourceFile *ast.SourceFile) []diagnostics.D
 	return directives
 }
 
-// firstCodeOffset is where the file's code begins: the first byte that is
-// neither whitespace nor inside a comment. Comments come in source order, so one
-// pass over them is enough. A file of nothing but comments answers its length,
-// which makes every directive in it a file directive.
+// firstCodeOffset is the first byte outside whitespace and comments; a comments-only file answers its length.
 func firstCodeOffset(text string, spans []srcscan.Span) int {
 	offset := 0
 	for _, span := range spans {
@@ -185,20 +171,12 @@ func firstCodeOffset(text string, spans []srcscan.Span) int {
 	return offset
 }
 
-// isSpace reports whether b is whitespace between the top of a file and its
-// first code.
+// isSpace reports whether b is whitespace.
 func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
 }
 
-// directiveBody reports whether a comment span is a directive, and returns which
-// kind it is, the text after the marker, and whether it was written as a block
-// comment (which is what makes it a file directive at the top of a file).
-//
-// The comment must be the first thing on its own line. A trailing comment after
-// code is deliberately not a directive: it would otherwise be ambiguous whether
-// it covers the line it sits on or the next one, and TypeScript draws the same
-// line for `@ts-expect-error`.
+// directiveBody returns a directive's kind, the text after the marker, and whether it is a block comment; a trailing comment after code is not a directive, as with `@ts-expect-error`, or which line it covers would be ambiguous.
 func directiveBody(text string, span srcscan.Span) (diagnostics.DirectiveKind, string, bool, bool) {
 	if !ownLine(text, span.Start) {
 		return 0, "", false, false

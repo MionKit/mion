@@ -2,32 +2,13 @@ package diagnostics
 
 import "strings"
 
-// expecterror.go holds the SEMANTICS of the two source-level directives: which
-// codes each may act on, which diagnostics it acts on, and the EXP / DWN codes a
-// wrong directive earns. Finding the comments and turning byte offsets into line
-// numbers is the caller's job (the resolver holds the parse and the line map), so
-// this package stays free of any compiler dependency.
-//
-// The contract follows TypeScript's `@ts-expect-error`: the directive sits on
-// the line above a finding, and one that did nothing is itself reported. That
-// reverse check is the reason a directive is safer than a config-level list: it
-// cannot quietly outlive the problem it was added for. It is reported as a
-// WARNING, unlike TypeScript's, which is an error: a comment that has gone stale
-// says nothing about the emitted code, so it must not fail a build.
-//
-// The two differ only in what they do to the finding:
-//
-//   - `@mion-expect-error` REMOVES it. Use it when the finding is noise at that
-//     site.
-//   - `@mion-downgrade-error` KEEPS it and marks it downgraded, so it still
-//     prints and no longer halts. Use it when the finding is TRUE and worth
-//     seeing, and only the halt is unwanted — a suite pinning what a broken type
-//     does at runtime. Removing such a finding would hide a correct statement
-//     about the code.
-//
-// Either word reaches one line or a whole file (see DirectiveScope). A file whose
-// every call site raises the same finding says it once at the top instead of
-// carrying the identical comment forty times.
+// expecterror.go holds the semantics of the two source directives; finding the comments is the
+// resolver's job, so this package stays free of any compiler dependency. The contract follows
+// TypeScript's `@ts-expect-error`: a directive that did nothing is itself reported, so it cannot
+// outlive its problem, but as a WARNING, since a stale comment says nothing about the emitted code.
+// `@mion-expect-error` removes a finding; `@mion-downgrade-error` keeps it printing and only stops
+// the halt, for a finding that is true and worth seeing. Either reaches one line or, at file scope,
+// the whole file (see DirectiveScope).
 
 // DirectiveMarker is the word a suppression comment starts with, and
 // DowngradeDirectiveMarker its downgrading sibling. Either comment must be the
@@ -39,11 +20,7 @@ const (
 	DowngradeDirectiveMarker = "@mion-downgrade-error"
 )
 
-// DirectiveScope says how far a directive reaches. The two words are the same at
-// either scope; the comment's SHAPE picks between them, which is how ESLint
-// tells its file-wide `/* eslint-disable */` from its `// eslint-disable-next-line`.
-// A block comment before any code covers the file, everything else covers the
-// next line. The caller works that out; this package only acts on the answer.
+// DirectiveScope says how far a directive reaches; the caller picks it from the comment's shape (a block comment before any code covers the file, as ESLint's `/* eslint-disable */` does).
 type DirectiveScope uint8
 
 const (
@@ -76,7 +53,7 @@ func (kind DirectiveKind) Marker() string {
 type Directive struct {
 	// Kind is what this comment does to the findings it claims.
 	Kind DirectiveKind
-	// Scope is how far it reaches. DirectiveScopeFile ignores AppliesToLine.
+	// Scope at DirectiveScopeFile ignores AppliesToLine.
 	Scope DirectiveScope
 	// AppliesToLine is the 1-based line the directive silences: the line after
 	// the comment's own last line.
@@ -161,10 +138,7 @@ func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(s
 	if normalize == nil {
 		normalize = func(path string) string { return path }
 	}
-	// Index directives by the line they silence. Only the comment immediately
-	// above a finding counts, so at most one directive claims a given line. File
-	// directives are indexed by file instead, and a file may carry several (one
-	// per kind, or several naming different codes).
+	// At most one line directive claims a line, but a file may carry several file directives.
 	byLine := make(map[directiveKey]int, len(directives))
 	byFile := map[string][]int{}
 	for index, directive := range directives {
@@ -180,11 +154,7 @@ func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(s
 	survivors := make([]Diagnostic, 0, len(list))
 	for _, diagnostic := range list {
 		file := normalize(diagnostic.Site.FilePath)
-		// Every claimer counts as used, not just the one whose action won. That
-		// is what keeps a file comment from turning the line comments it covers
-		// into forty "this silenced nothing" reports: each still claims its own
-		// finding. A line comment on a line that raises nothing was already
-		// stale before the file comment arrived, and is still reported.
+		// Mark every claimer used, or a file comment would report every line comment it covers as stale.
 		removed := false
 		downgraded := false
 		claim := func(index int) {
@@ -203,7 +173,7 @@ func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(s
 				claim(index)
 			}
 		}
-		// Removing wins over lowering: a finding cannot be both gone and printed.
+		// A finding cannot be both gone and printed.
 		if removed {
 			continue
 		}
