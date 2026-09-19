@@ -22,12 +22,12 @@ func mkRegexp() *reflection.RunType {
 var serdeFamilies = []string{"prepareForJsonMutate", "prepareForJsonClone", "stringifyJson", "restoreFromJsonMutate", "toBinary", "fromBinary"}
 
 var regexpRootCodes = map[string]string{
-	"prepareForJsonMutate": diagnostics.CodePJNonSerializableRoot,
-	"prepareForJsonClone":  diagnostics.CodePJSNonSerializableRoot,
-	"stringifyJson":        diagnostics.CodeSJNonSerializableRoot,
-	"restoreFromJsonMutate":      diagnostics.CodeRJNonSerializableRoot,
-	"toBinary":             diagnostics.CodeTBNonSerializableRoot,
-	"fromBinary":           diagnostics.CodeFBNonSerializableRoot,
+	"prepareForJsonMutate":  diagnostics.CodePJNonSerializableRoot,
+	"prepareForJsonClone":   diagnostics.CodePJSNonSerializableRoot,
+	"stringifyJson":         diagnostics.CodeSJNonSerializableRoot,
+	"restoreFromJsonMutate": diagnostics.CodeRJNonSerializableRoot,
+	"toBinary":              diagnostics.CodeTBNonSerializableRoot,
+	"fromBinary":            diagnostics.CodeFBNonSerializableRoot,
 }
 
 func TestRegexp_PropertyDropsLikeAFunction(t *testing.T) {

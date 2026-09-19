@@ -114,13 +114,13 @@ func renderWithDiag(t *testing.T, dump protocol.Dump, familyKey, rootID string) 
 // DataOnly union-member-drop code. validationErrors is absent: its union arm
 // delegates to validate, so the user sees VL014 from the validate render.
 var dropWarnFamilies = map[string]string{
-	"validate":             diagnostics.CodeVLUnionMemberDropped,
-	"prepareForJsonMutate": diagnostics.CodePJUnionMemberDropped,
-	"prepareForJsonClone":  diagnostics.CodePJSUnionMemberDropped,
-	"stringifyJson":        diagnostics.CodeSJUnionMemberDropped,
-	"restoreFromJsonMutate":      diagnostics.CodeRJUnionMemberDropped,
-	"toBinary":             diagnostics.CodeTBUnionMemberDropped,
-	"fromBinary":           diagnostics.CodeFBUnionMemberDropped,
+	"validate":              diagnostics.CodeVLUnionMemberDropped,
+	"prepareForJsonMutate":  diagnostics.CodePJUnionMemberDropped,
+	"prepareForJsonClone":   diagnostics.CodePJSUnionMemberDropped,
+	"stringifyJson":         diagnostics.CodeSJUnionMemberDropped,
+	"restoreFromJsonMutate": diagnostics.CodeRJUnionMemberDropped,
+	"toBinary":              diagnostics.CodeTBUnionMemberDropped,
+	"fromBinary":            diagnostics.CodeFBUnionMemberDropped,
 }
 
 func findCode(sink []diagnostics.Diagnostic, code string) (diagnostics.Diagnostic, bool) {

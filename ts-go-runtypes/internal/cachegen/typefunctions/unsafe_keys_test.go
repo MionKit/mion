@@ -55,10 +55,10 @@ func TestUnsafeKeys_GuardTextIsOneSourceOfTruth(t *testing.T) {
 
 func TestUnsafeKeys_EveryIndexSignatureLoopIsGuarded(t *testing.T) {
 	cases := map[string]string{
-		"restoreFromJsonMutate":     unsafeKeyThrow("k0"),
-		"prepareForJsonClone": unsafeKeySkip("k0"),
-		"validate":            "if (" + unsafeKeyCheck("k0") + ") return false;",
-		"validationErrors":    "if (" + unsafeKeyCheck("k0") + ") {",
+		"restoreFromJsonMutate": unsafeKeyThrow("k0"),
+		"prepareForJsonClone":   unsafeKeySkip("k0"),
+		"validate":              "if (" + unsafeKeyCheck("k0") + ") return false;",
+		"validationErrors":      "if (" + unsafeKeyCheck("k0") + ") {",
 	}
 	for fam, want := range cases {
 		out := renderModule(t, recordDump(), fam)

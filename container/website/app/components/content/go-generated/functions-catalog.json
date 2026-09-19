@@ -1,73 +1,44 @@
 {
-  "groups": [
-    {
-      "key": "factory",
-      "label": "Has a factory",
-      "description": "Called directly through its own createX function."
-    },
-    {
-      "key": "primitive",
-      "label": "No factory",
-      "description": "Smaller pieces the string encoders and decoders are built from. Name one in a marker and recover it with getRTFunction."
-    },
-    {
-      "key": "internal",
-      "label": "Internal",
-      "description": "Plumbing another feature compiles for you. You never name these yourself."
-    }
-  ],
   "functions": [
-    {
-      "name": "classSerializerReg",
-      "tag": "csr",
-      "group": "internal",
-      "doc": "Carries a class's build-time name so it can be registered without pulling in the whole type graph. Internal to registerClassSerializer.",
-      "factory": "registerClassSerializer"
-    },
     {
       "name": "cloneExactShape",
       "tag": "ces",
-      "group": "factory",
       "doc": "Copies a value keeping only the properties the type declares.",
       "factory": "createCloneExactShapeFn"
     },
     {
       "name": "compactForJson",
       "tag": "cj",
-      "group": "primitive",
-      "doc": "Builds a value whose objects are positional arrays, so property names never reach the wire."
+      "doc": "Builds a value whose objects are positional arrays, so property names never reach the wire.",
+      "factory": "createPrepareForJsonFn"
     },
     {
       "name": "compactFromJson",
       "tag": "cjr",
-      "group": "primitive",
-      "doc": "Rebuilds a keyed object from the positional array the compact encoder wrote."
+      "doc": "Rebuilds a keyed object from the positional array the compact encoder wrote.",
+      "factory": "createRestoreFromJsonFn"
     },
     {
       "name": "formatTransform",
       "tag": "fmt",
-      "group": "factory",
       "doc": "Applies the type's format rules to a value, for example trimming a string or clamping a number.",
       "factory": "createFormatTransformFn"
     },
     {
       "name": "fromBinary",
       "tag": "fb",
-      "group": "factory",
       "doc": "Reads a value back from the binary wire format.",
       "factory": "createBinaryDecoderFn"
     },
     {
       "name": "hasUnknownKeys",
       "tag": "huk",
-      "group": "factory",
       "doc": "Answers whether a value carries any property the type does not declare.",
       "factory": "createHasUnknownKeysFn",
       "options": "HasUnknownKeysOptions"
     },
     {
       "name": "jsonDecoder",
-      "group": "factory",
       "doc": "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.",
       "factory": "createJsonDecoderFn",
       "options": "strategy",
@@ -79,7 +50,6 @@
     },
     {
       "name": "jsonEncoder",
-      "group": "factory",
       "doc": "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, write the string in one pass, or use the compact positional wire.",
       "factory": "createJsonEncoderFn",
       "options": "strategy",
@@ -94,71 +64,66 @@
     {
       "name": "jsonSchema",
       "tag": "jsc",
-      "group": "factory",
       "doc": "Returns the JSON Schema document describing the type.",
       "factory": "createJsonSchemaFn"
     },
     {
       "name": "parse",
       "tag": "prs",
-      "group": "factory",
       "doc": "Restores a JSON.parse output into the typed shape and checks it in one walk, throwing on a mismatch. Undeclared properties are kept.",
       "factory": "createParseFn"
     },
     {
       "name": "parseFail",
       "tag": "prsf",
-      "group": "factory",
       "doc": "Parse, rejecting any value that carries an undeclared property.",
       "factory": "createParseFn"
     },
     {
       "name": "parseStrip",
       "tag": "prss",
-      "group": "factory",
       "doc": "Parse, with undeclared properties removed before the value is restored.",
       "factory": "createParseFn"
     },
     {
       "name": "prepareForJsonClone",
       "tag": "pjs",
-      "group": "primitive",
-      "doc": "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped."
+      "doc": "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.",
+      "factory": "createPrepareForJsonFn"
     },
     {
       "name": "prepareForJsonMutate",
       "tag": "pj",
-      "group": "primitive",
-      "doc": "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept."
+      "doc": "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.",
+      "factory": "createPrepareForJsonFn"
     },
     {
       "name": "restoreFromJsonClone",
       "tag": "rjs",
-      "group": "primitive",
-      "doc": "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped."
+      "doc": "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.",
+      "factory": "createRestoreFromJsonFn"
     },
     {
       "name": "restoreFromJsonMutate",
       "tag": "rj",
-      "group": "primitive",
-      "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties."
+      "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.",
+      "factory": "createRestoreFromJsonFn"
     },
     {
       "name": "stringifyJson",
       "tag": "sj",
-      "group": "primitive",
-      "doc": "Writes a value straight to a JSON string in one pass, with no intermediate value."
+      "doc": "Writes a value straight to a JSON string in one pass, with no intermediate value.",
+      "factory": "createStringifyJsonFn"
     },
     {
       "name": "stripUnknownKeysWire",
       "tag": "ukuw",
-      "group": "primitive",
-      "doc": "Blanks undeclared properties on incoming JSON before it is restored."
+      "doc": "Blanks undeclared properties on incoming JSON before it is restored.",
+      "factory": "createStripUnknownKeysFn"
     },
     {
       "name": "toBinary",
       "tag": "tb",
-      "group": "factory",
       "doc": "Writes a value to the compact binary wire format.",
       "factory": "createBinaryEncoderFn",
       "rejectCircularRefs": true
@@ -166,14 +131,12 @@
     {
       "name": "unknownKeyErrors",
       "tag": "uke",
-      "group": "factory",
       "doc": "Returns one error per undeclared property, with the path to each one.",
       "factory": "createUnknownKeyErrorsFn"
     },
     {
       "name": "validate",
       "tag": "val",
-      "group": "factory",
       "doc": "Answers whether a value matches the type. The cheapest check, and the one every other validator builds on.",
       "factory": "createValidateFn",
       "options": "ValidateOptions",
@@ -182,7 +145,6 @@
     {
       "name": "validateStrict",
       "tag": "vst",
-      "group": "factory",
       "doc": "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.",
       "factory": "createValidateFn",
       "options": "ValidateOptions",
@@ -191,7 +153,6 @@
     {
       "name": "validationErrors",
       "tag": "verr",
-      "group": "factory",
       "doc": "Returns the list of reasons a value does not match the type, with the path to each one.",
       "factory": "createGetValidationErrorsFn",
       "options": "ValidateOptions",
@@ -200,7 +161,6 @@
     {
       "name": "validationErrorsStrict",
       "tag": "vest",
-      "group": "factory",
       "doc": "Returns the reasons a value does not match, including undeclared properties, in a single walk.",
       "factory": "createGetValidationErrorsFn",
       "options": "ValidateOptions",

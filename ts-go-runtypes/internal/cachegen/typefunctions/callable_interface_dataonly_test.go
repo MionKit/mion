@@ -80,12 +80,12 @@ func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 // rendered module is the proof the entry is now present + controlled.
 func TestF2b_CallableInArrayElementAlwaysThrows(t *testing.T) {
 	functionRootCodes := map[string]string{
-		"prepareForJsonMutate": "PJ003",
-		"prepareForJsonClone":  "PJS003",
-		"restoreFromJsonMutate":      "RJ003",
-		"stringifyJson":        "SJ003",
-		"toBinary":             "TB003",
-		"fromBinary":           "FB003",
+		"prepareForJsonMutate":  "PJ003",
+		"prepareForJsonClone":   "PJS003",
+		"restoreFromJsonMutate": "RJ003",
+		"stringifyJson":         "SJ003",
+		"toBinary":              "TB003",
+		"fromBinary":            "FB003",
 	}
 	parts := callableInterface("cal", true)
 	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("cal")}

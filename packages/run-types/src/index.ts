@@ -185,14 +185,12 @@ export {
 // of re-declaring the names.
 export {typeFormats, type FormatName, type TypeFormatMeta} from './go-generated/typeFormats.generated.ts';
 
-// String JSON I/O is `createJsonEncoderFn` + `createJsonDecoderFn`. The VALUE-level
-// transforms they build on — the per-strategy prepareForJson / restoreFromJsonMutate
-// primitives (`pj`/`pjs`/`rj`/`rjs`/`sj`/`ukuw`/`cj`/`cjr`) — have NO factory: a
-// framework that owns its own JSON envelope names the primitive in an
-// `InjectTypeFnArgs` marker and recovers the injected slot with `getRTFunction`,
-// keyed by the SAME fnKey (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`). Its `RTFunctionByKey`
-// map + the fn-type aliases are exported so the return type is inferred from the
-// key.
+// String JSON I/O is `createJsonEncoderFn` + `createJsonDecoderFn`; the VALUE-level
+// transforms they build on are `createPrepareForJsonFn` / `createRestoreFromJsonFn` /
+// `createStringifyJsonFn` / `createStripUnknownKeysFn`. `getRTFunction` resolves any
+// family from a marker a wrapper declared itself, keyed by the SAME fnKey
+// (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`); `RTFunctionByKey` maps each key to
+// its shape, so the return type is inferred.
 export {
   getRTFunction,
   type RTFunctionByKey,
@@ -232,15 +230,20 @@ export {
   type ParseOptions,
   type ParseStrategy,
   type ParseRestoreFn,
-  // The value-level JSON primitives have NO factory — they are recovered via
-  // `getRTFunction<'prepareForJsonMutate'>(…)` / `getRTFunction<'restoreFromJsonMutate'>(…)` / … . Their fn-type
-  // aliases stay public so callers can name the shapes: `pj`/`pjs`/`cj` return
-  // PrepareForJsonFn, `rj`/`rjs`/`cjr`/`ukuw` return RestoreFromJsonFn, `sj` returns
-  // StringifyJsonFn (value → JSON string). `RTFunctionByKey` maps each fnKey to
-  // its shape, so `getRTFunction<'prepareForJsonClone'>()`'s return type is inferred.
+  // The value-level JSON transforms: a JSON-safe value in or out, with no string step.
+  // The prepare and restore pair share one `strategy` vocabulary, so `clone` out pairs
+  // with `clone` back. A wrapper carrying several of them in ONE marker still resolves
+  // them through `getRTFunction`, keyed by the same fnKey.
+  createPrepareForJsonFn,
   type PrepareForJsonFn,
+  type PrepareForJsonOptions,
+  createRestoreFromJsonFn,
   type RestoreFromJsonFn,
+  type RestoreFromJsonOptions,
+  type JsonValueStrategy,
+  createStringifyJsonFn,
   type StringifyJsonFn,
+  createStripUnknownKeysFn,
 } from './createRTFunctions.ts';
 
 // Binary I/O re-exported from a dedicated module so bundlers can drop the

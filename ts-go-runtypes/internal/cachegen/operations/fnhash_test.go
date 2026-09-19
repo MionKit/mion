@@ -261,22 +261,14 @@ func TestEveryOperationIsDocumented(t *testing.T) {
 	}
 }
 
-// TestFactoryIsSetForFactoryBackedOperations pins the other half of the catalog
-// row: the JSON value-level primitives are exactly the operations with no
-// createX, and every other public operation names the factory that compiles it.
-func TestFactoryIsSetForFactoryBackedOperations(t *testing.T) {
-	factoryless := map[string]bool{
-		"prepareForJsonMutate": true, "prepareForJsonClone": true,
-		"restoreFromJsonMutate": true, "restoreFromJsonClone": true,
-		"stringifyJson": true, "stripUnknownKeysWire": true,
-		"compactForJson": true, "compactFromJson": true,
-	}
+// TestEveryPublicOperationNamesItsFactory pins the other half of the catalog row.
+// Every operation a user can reach is reachable through a createX, so the catalog
+// page has no factoryless column left to render; only non-Public plumbing may
+// leave Factory empty.
+func TestEveryPublicOperationNamesItsFactory(t *testing.T) {
 	for _, op := range All() {
-		switch {
-		case factoryless[op.Name] && op.Factory != "":
-			t.Errorf("operation %q has no createX factory but names %q", op.Name, op.Factory)
-		case !factoryless[op.Name] && op.Factory == "":
-			t.Errorf("operation %q should name the createX factory that compiles it", op.Name)
+		if op.Public && op.Factory == "" {
+			t.Errorf("public operation %q should name the createX factory that compiles it", op.Name)
 		}
 	}
 }
