@@ -17,6 +17,7 @@ import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../../src/lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {bundledMethodIds, getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
+import {isFetchedLaneLoaded} from '../../src/lib/laneLoader.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 
@@ -103,6 +104,25 @@ describe('a client built with bundleApi: bundled', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(store.readAll).not.toHaveBeenCalled();
     expect(store.write).not.toHaveBeenCalled();
+  });
+
+  it('never loads the code that asks the server how a route works', async () => {
+    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    await routes.utils.sumTwo(40).call(withAuth(middleFns));
+    await routes.compact.addNumbers(2, 3).typeErrors();
+    expect(isFetchedLaneLoaded()).toBe(false);
+  });
+
+  it('refuses a route the bundle lacks without loading the lane, and does not throw', async () => {
+    const {client} = initClient<TestServerApi>({baseURL});
+    const [, , undeclared] = await client.execute({
+      pointer: ['flow', 'getOrgLabel'],
+      id: 'flow/getOrgLabel',
+      isResolved: false,
+      params: ['acme'],
+    } as never);
+    expect(undeclared?.type).toBe('route-metadata-not-found');
+    expect(isFetchedLaneLoaded()).toBe(false);
   });
 
   it('runs with dynamic code disabled: the bundle carries live functions, never code strings', async () => {
