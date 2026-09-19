@@ -139,7 +139,7 @@ describe('the whole-tree sweeps run ungated', () => {
   });
 
   it('carries every sweep, so adding one to the script reaches CI for free', () => {
-    expect((SWEEPS as {name: string}[]).length).toBeGreaterThanOrEqual(3);
+    expect((SWEEPS as {name: string}[]).length).toBeGreaterThanOrEqual(4);
     for (const sweep of SWEEPS as {name: string; run: () => string[]}[]) expect(typeof sweep.run).toBe('function');
   });
 
