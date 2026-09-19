@@ -51,22 +51,15 @@ const (
 	// module and no injected id. Materialising such a pair also recurses
 	// forever at runtime, so this replaces a hang with a build error.
 	CodePureFnDependencyCycle = "PFE9015"
-	// CodePureFnDepUnbuilt: a pure fn imported from an installed package that
-	// ships neither its compiled pure fns (`mion-pure-fns/`) nor its sources,
-	// so the build cannot serve the body. LevelError: the consumer's pure fn
-	// is not built; the package has to be built with mion first.
+	// CodePureFnDepUnbuilt: an installed package ships neither `mion-pure-fns/` nor its sources, so the body
+	// cannot be served. LevelError: the consumer's pure fn is not built until the package is built with mion.
 	CodePureFnDepUnbuilt = "PFE9016"
-	// CodePureFnArtifactUnreadable: a file of an installed package's
-	// `mion-pure-fns/` could not be read: an index of a newer format than this
-	// compiler knows or not an index at all, or a module the index lists that
-	// is missing or holds no tuple for its id. LevelWarning: the file is
-	// skipped, so the package may then look unbuilt (PFE9016) or lack an id
-	// (PFE9012); this names the cause.
+	// CodePureFnArtifactUnreadable: an installed package's `mion-pure-fns/` file was skipped (an index of a newer
+	// format or not one, a listed module missing or without its tuple). LevelWarning: the package may then look
+	// unbuilt (PFE9016) or lack an id (PFE9012); this names the cause.
 	CodePureFnArtifactUnreadable = "PFE9017"
-	// CodePureFnArtifactConflict: two artifact directories of one installed
-	// package disagree on one id, a different body or a different name.
-	// LevelError: an id is one body, and serving either would silently pick a
-	// version the other build did not ship.
+	// CodePureFnArtifactConflict: two `mion-pure-fns/` of one installed package give an id a different body or
+	// name. LevelError: an id is one body, and serving either would silently pick one build over the other.
 	CodePureFnArtifactConflict = "PFE9018"
 )
 

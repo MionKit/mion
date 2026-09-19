@@ -239,13 +239,9 @@ func pureFnReportPath(outDir string) string {
 	return filepath.Join(outDir, typesSubdir, pureFnReportFileName)
 }
 
-// SyncArtifactDir makes dir hold exactly files (paths inside dir to content):
-// a file is written only when its bytes changed, every other file in dir is
-// deleted, and an empty map removes dir itself, so a stale module never
-// outlives the pure fn it was written for. Shared by the compile lane, which
-// places the package's pure-fn artifact in the tsconfig outDir; the bundler
-// adapters do the same from their post-bundle hook, because generate runs at
-// buildStart, before a bundler empties that dir.
+// SyncArtifactDir makes dir hold exactly files (paths inside dir to content), touching only changed bytes; an
+// empty map removes dir, so a stale module never outlives its pure fn. Twin of unplugin's writePureFnArtifact,
+// which the bundler adapters run post-bundle because generate runs at buildStart, before a bundler empties the dir.
 func SyncArtifactDir(dir string, files map[string]string) error {
 	if len(files) == 0 {
 		if err := os.RemoveAll(dir); err != nil {

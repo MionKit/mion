@@ -271,11 +271,8 @@ type Response struct {
 	// OpScanFiles (the rescanned files' delta) when the resolver's pure-fn
 	// report is enabled. Empty otherwise. See PureFnSite.
 	PureFnSites []PureFnSite `json:"pureFnSites,omitempty"`
-	// PureFnArtifact is the package's pure-fn artifact directory (generate
-	// only): path inside `mion-pure-fns/` to content, the package's own cache
-	// modules plus `index.json`, for the caller to sync into the bundler's
-	// output directory once the bundle is on disk. Empty when the package
-	// registers none, in which case the caller removes a stale directory.
+	// PureFnArtifact (generate only) is the package's `mion-pure-fns/` as path to content, for the caller to
+	// sync into the bundler's output dir once the bundle is on disk; empty means remove a stale one.
 	PureFnArtifact map[string]string `json:"pureFnArtifact,omitempty"`
 	// BatchSites is the structured request-batch build report — one record per
 	// `batch([...])` call site — populated on OpGenerate (whole program) and

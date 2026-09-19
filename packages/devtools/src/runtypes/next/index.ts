@@ -86,12 +86,11 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
   // it needs no broker — starting one there would just spawn a second resolver.
   if (!isTurbopack()) return withWebpackPlugin(nextConfig, options);
 
-  // Processes that load the config without bundling (Next's detached telemetry
-  // flush) get the rules but no resolver: nothing there will ever call a loader.
-  // The pure-fn artifact lands in Next's own output dir, as it does for every
-  // other bundler; the broker writes it, since Turbopack has no post-build hook.
+  // The artifact lands in Next's own output dir like any bundler's; the broker writes it, Turbopack having no post-build hook.
   const artifactDir =
     options.artifactDir ?? path.resolve(root, typeof nextConfig.distDir === 'string' ? nextConfig.distDir : '.next');
+  // Processes that load the config without bundling (Next's detached telemetry
+  // flush) get the rules but no resolver: nothing there will ever call a loader.
   const socketPath = ownsBroker()
     ? (await startBroker(root, {...options, artifactDir})).socketPath
     : (options.socketPath ?? socketPathFor(root));

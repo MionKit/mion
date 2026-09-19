@@ -476,10 +476,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // The resolved RunTypes output root (<cwd>/.mion by default). Set by
   // ensureResolver once cwdAbs is known; modules land under <genDirAbs>/types.
   let genDirAbs = '';
-  // The package's `mion-pure-fns/` directory from the last generate (path to
-  // content), synced next to the bundle by writePureFnArtifact once the bundle
-  // is on disk. Generate cannot put it there itself: it runs at buildStart,
-  // before a bundler empties its output dir.
+  // Held until writePureFnArtifact: generate runs at buildStart, before a bundler empties its output dir.
   let pureFnArtifact: Record<string, string> = {};
   // Vite's resolved root, captured in configResolved. Stays empty under every
   // other bundler (no equivalent hook), where ensureResolver falls back to
@@ -664,9 +661,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
 
   async function transformViaGo(ctx: any, rel: string, driftCheck?: {code: string}) {
     const result = await resolver!.transform([rel]);
-    // A file outside the buildStart Program may surface new types / pure fns;
-    // regenerate so the modules its injected imports point at exist on disk
-    // before the bundler resolves them. (write-only-on-change keeps it cheap.)
+    // A file outside the buildStart Program may add types or pure fns, whose modules must be on disk
+    // before the bundler resolves the injected imports; write-only-on-change keeps it cheap.
     if (result.addedRunTypes || result.addedPureFns) await regenerate();
     surfaceNewErrors(ctx, result.diagnostics ?? []);
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
@@ -879,23 +875,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     return false;
   }
 
-  // Every generate goes through here so the artifact tracks the last
-  // whole-program render: the initial build and every regenerate after it.
+  // Every generate goes through here, so the artifact always tracks the last whole-program render.
   async function regenerate(): Promise<GenerateResult> {
     const gen = await resolver!.generate();
     pureFnArtifact = gen.pureFnArtifact;
     return gen;
   }
 
-  // writePureFnArtifact syncs the artifact directory into a bundler's output
-  // dir: `<dir>/mion-pure-fns/` holds exactly the last generate's files, each
-  // written only when its bytes changed (so a watch build is not retriggered),
-  // every other file in it deleted, the directory itself removed when the
-  // package registers no pure fn. The directory is the build's; nothing else
-  // may live in it. Each adapter calls it from the hook that runs once its
-  // bundle is on disk, with the output dir read from that bundler's own
-  // options (unplugin's arg-less writeBundle carries none); the Next broker
-  // calls it directly.
+  // `<dir>/mion-pure-fns/` is the build's alone; a file with unchanged bytes is skipped so a watch build is not retriggered.
+  // Each bundler's own post-bundle hook calls it, since unplugin's arg-less writeBundle carries no output dir.
   async function writePureFnArtifact(dir: string): Promise<void> {
     if (!dir) return;
     const artifactDir = path.join(dir, PURE_FN_ARTIFACT_DIR);
@@ -917,8 +905,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     await pruneArtifactDir(artifactDir, live);
   }
 
-  // pruneArtifactDir deletes every file under dir not in live, then any
-  // subdirectory left empty, deepest first.
   async function pruneArtifactDir(dir: string, live: Set<string>): Promise<boolean> {
     let empty = true;
     for (const entry of await fs.promises.readdir(dir, {withFileTypes: true})) {
@@ -932,8 +918,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     return empty;
   }
 
-  // outputDirOf reads a bundler's output dir off its output options: a dir, or
-  // the dir of a single output file (esbuild `outfile`, rollup `output.file`).
   function outputDirOf(output: {dir?: string; file?: string; outdir?: string; outfile?: string; absWorkingDir?: string}): string {
     const base = output.absWorkingDir ?? process.cwd();
     const dir = output.dir ?? output.outdir;
@@ -942,13 +926,12 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     return file ? path.dirname(path.resolve(base, file)) : '';
   }
 
-  // The rollup-shaped writeBundle (vite, rollup, rolldown): fires once per
-  // output, so a multi-environment vite build puts a copy in every output dir.
+  // Fires once per output, so a multi-environment vite build gets a copy in every output dir.
   async function writeArtifactForOutput(this: unknown, output: {dir?: string; file?: string}): Promise<void> {
     await writePureFnArtifact(outputDirOf(output));
   }
 
-  // webpack and rspack: afterEmit is the hook after the bundle is on disk.
+  // afterEmit runs once the bundle is on disk.
   function writeArtifactAfterEmit(compiler: {
     options: {output: {path?: string}};
     hooks: {afterEmit: {tapPromise: (name: string, fn: () => Promise<void>) => void}};
@@ -1184,8 +1167,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // uses to absorb an edit. Turbopack gives loaders no update callback, so the
     // Next broker watches the source tree and calls this itself.
     rtHotUpdate: applyHotUpdate,
-    // Not an unplugin hook either: the Next broker has no post-bundle hook, so
-    // it writes the artifact itself once buildStart is done.
+    // Not an unplugin hook either: Turbopack has no post-bundle hook, so the Next broker writes the artifact itself.
     rtWritePureFnArtifact: writePureFnArtifact,
     // Must run BEFORE vite/esbuild's built-in TypeScript transform. The
     // resolver returns byte offsets into the ORIGINAL source — if the
@@ -1205,13 +1187,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       activeBuilds += 1;
       warnBelowTypeScriptFloor(options.cwd ?? process.cwd(), PLUGIN_NAME);
       ensureResolver();
-      // generate writes the modules and echoes the SESSION-resolved root back.
-      // When no explicit genDir was set that is the resolver's inferred
-      // <srcDir>/.mion, which this dependency-free plugin cannot compute
-      // for itself — adopt it so the enriched-dir HMR suppression knows where
-      // the tree lives. The VCS-hygiene files (per-folder READMEs, the
-      // types/.gitignore) are written by the Go side inside generate, so the
-      // CLI compile lane gets them too.
+      // The echoed root is adopted because the resolver's inferred <srcDir>/.mion cannot be computed here,
+      // and the enriched-dir HMR suppression needs it. The VCS-hygiene files (per-folder READMEs, the
+      // types/.gitignore) are written by the Go side inside generate, so the CLI compile lane gets them too.
       const gen = await regenerate();
       if (gen.outDir) genDirAbs = gen.outDir;
       // Adopt the tsconfig-echoed downgradeErrors (the explicit plugin option
@@ -1339,7 +1317,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     rspack: writeArtifactAfterEmit,
     bun: {
       setup(build: {config?: {outdir?: string}; onEnd?: (callback: () => Promise<void>) => void}) {
-        // The runtime loader (`--preload`) has no bundle and no onEnd: nothing to write.
+        // The runtime loader (`--preload`) has no bundle, so no onEnd.
         if (typeof build.onEnd === 'function')
           build.onEnd(() => writePureFnArtifact(outputDirOf({outdir: build.config?.outdir})));
       },

@@ -261,9 +261,7 @@ func TestEmitCapture_ConcurrentWritesAreSafe(t *testing.T) {
 	}
 }
 
-// The pure-fn artifact lands next to the emit, where `files: ["dist"]`
-// publishes it, holding the package's own registrations; `--no-emit` writes
-// nothing at all.
+// The artifact lands next to the emit, where `files: ["dist"]` publishes it; `--no-emit` writes nothing.
 func TestCompile_WritesPureFnArtifactIntoOutDir(t *testing.T) {
 	markerFiles, err := testfixtures.RealMarkerPackage()
 	if err != nil {

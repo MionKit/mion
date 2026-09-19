@@ -11,30 +11,19 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// servePackagePureFns delivers the pure-fn bodies the surviving graph demands
-// from INSTALLED packages (purefnindex): a consumer pure fn that imports a
-// library id, or an emitted validator that reaches one of the marker package's
-// own built-ins, gets that body emitted into its own module, in this render's
-// emit mode and layout, with the package's own deps pulled along across
-// packages. Runs after Cascade (demand reflects only entries that ship) and
-// before AddMissingStubs (a served body never degrades to a KindMissing stub).
-//
-// Demand is every soft dep no graph entry answers. An id whose package is not
-// installed belongs to the program (a consumer's own missing registration is
-// PFE9012 from validateProgramPureFnDeps), except a built-in: a program that
-// demands one and reaches no marker package is a broken install (CFG004). A
-// located package that ships rows but not this id is a build error (PFE9012,
-// site-less); one whose sources could not be read is CFG004 for the marker
-// package (its bodies are the compiler's own contract) and the runtime-only
-// lane otherwise; a located package with nothing to serve at all is that lane,
-// reported once per id as PFE9016 so a silent stub never hides the edge. An
-// artifact a located package ships but this compiler cannot read is PFE9017,
-// and two of its artifacts disagreeing on a body is PFE9018.
-//
-// emitMode is the RENDER's mode, not the session's: the bundled-API mirror
-// renders in `functions` whatever the program's own mode, and a body shipped as
-// a code string there would be rebuilt with `new Function` at the first
-// validation, exactly where a bundled client is not allowed to.
+// servePackagePureFns delivers the pure-fn bodies the surviving graph demands from INSTALLED packages
+// (purefnindex): a consumer pure fn importing a library id, or an emitted validator reaching a marker built-in,
+// gets that body emitted into its own module in this render's emit mode and layout, deps pulled along across
+// packages. Runs after Cascade (demand reflects only entries that ship) and before AddMissingStubs (a served
+// body never degrades to a stub). Demand is every soft dep no graph entry answers. An id whose package is not
+// installed belongs to the program (PFE9012 from validateProgramPureFnDeps), except a built-in with no marker
+// package reachable, a broken install (CFG004). A located package shipping rows but not this id is PFE9012,
+// site-less; sources that could not be read are CFG004 for the marker package (its bodies are the compiler's
+// own contract) and PFE9016 otherwise; nothing to serve at all is PFE9016 once per id, so a silent stub never
+// hides the edge; an artifact this compiler cannot read is PFE9017, two artifacts disagreeing on a body PFE9018.
+// emitMode is the RENDER's mode, not the session's: the bundled-API mirror renders in `functions` whatever the
+// program's mode, and a code string there would be rebuilt with `new Function` at first validation, exactly
+// where a bundled client is not allowed to.
 func (sess *Session) servePackagePureFns(graph entrymodules.Graph, diagSink *[]diagnostics.Diagnostic, emitMode constants.EmitMode) {
 	if sess.pureFnIndex == nil || sess.Program == nil {
 		return
