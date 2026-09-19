@@ -65,12 +65,11 @@ describe('published tarballs never carry tsc build info', () => {
   }
 });
 
-// @mionjs/run-types' pure-fn bodies are stripped out of the dist
-// (scripts/core/hollow-builtin-purefns.mjs) and the compiler extracts them from
-// `src` at build time, so the tarball shipping `src` is what makes a published
-// consumer work at all. WHICH files hold them is not asserted here: that list is
-// generated into the resolver by cmd/gen-builtin-purefns, not declared.
-describe('@mionjs/run-types publishes the sources its pure fns come from', () => {
+// Every published mion package ships `src` for its `source` export condition, and nothing
+// rewrites the manifest at publish time, so dropping it would leave that condition pointing at
+// files the tarball does not carry. The pure-fn bodies no longer depend on it: they ship in
+// dist/mion-pure-fns/, written by the package's own mion build.
+describe('@mionjs/run-types publishes the sources its `source` condition names', () => {
   const packageDir = join(REPO_ROOT, 'packages', 'run-types');
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
 
@@ -78,12 +77,41 @@ describe('@mionjs/run-types publishes the sources its pure fns come from', () =>
     expect(manifest.files).toContain('src');
   });
 
-  // Only spec/test files may be excluded, and the generator's scan skips exactly
-  // those two suffixes. Any other exclusion could drop a registration module from
-  // the tarball while the in-repo build still found it.
-  it('excludes nothing that would drop a registration module', () => {
+  // Only spec/test files may be excluded. Any other exclusion could drop a module the `source`
+  // condition resolves to, which fails only for the consumer that asks for that condition.
+  it('excludes nothing but the spec and test files', () => {
     const negations = (manifest.files as string[]).filter((entry) => entry.startsWith('!src'));
     expect(negations).toEqual(['!src/**/*.spec.ts', '!src/**/*.test.ts']);
+  });
+});
+
+// The built-in pure-fn bodies are stripped out of the dist (scripts/core/hollow-builtin-purefns.mjs)
+// and served from the artifact instead, so a build that stops writing it, or a `files` entry that
+// stops shipping it, leaves every consumer's validator with nothing to call.
+describe('@mionjs/run-types publishes the artifact its built-in pure fns are served from', () => {
+  const packageDir = join(REPO_ROOT, 'packages', 'run-types');
+  const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
+
+  it('builds with the mion compiler, which is what writes the artifact', () => {
+    expect(manifest.scripts.build).toContain('mion compile');
+  });
+
+  // `dist` in `files` ships it, so the only way to lose it is to stop emitting it there.
+  it('ships it under a published dist dir', () => {
+    expect(manifest.files).toContain('dist');
+  });
+
+  // Skipped on a host that has not built the package; CI builds it before this suite runs.
+  it('holds one module per indexed id, on a built tree', () => {
+    const indexFile = join(packageDir, 'dist', 'mion-pure-fns', 'index.json');
+    if (!existsSync(indexFile)) return;
+    const index = JSON.parse(readFileSync(indexFile, 'utf8'));
+    expect(index.package).toBe('@mionjs/run-types');
+    expect(index.pureFns.length).toBeGreaterThan(0);
+    for (const row of index.pureFns) {
+      const [owner, hash] = row.id.split('#pf_');
+      expect(existsSync(join(packageDir, 'dist', 'mion-pure-fns', ...owner.split('/'), `${hash}.js`))).toBe(true);
+    }
   });
 });
 

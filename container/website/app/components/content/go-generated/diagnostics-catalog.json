@@ -92,17 +92,6 @@
       "example": null
     },
     {
-      "code": "CFG004",
-      "subsystem": "project-config",
-      "level": "error",
-      "severity": "error",
-      "headline": "Cannot read `{0}`'s own pure-function sources, so its built-in bodies cannot be served ({1}).",
-      "detail": "Built-in pure functions are compiled from the marker package's TypeScript\nsources, which ship inside the package. The published JavaScript does not\ncarry the bodies, so there is nowhere else to read them from and letting the\nbuild pass would only move the failure to the first validation at runtime.\n\nFix: reinstall the package, and make sure the install is not pruning its\n`src` directory.",
-      "summary": null,
-      "fix": null,
-      "example": null
-    },
-    {
       "code": "BAT001",
       "subsystem": "markers",
       "level": "error",
