@@ -1,4 +1,4 @@
-// Prints one JSON line between <<RT>> markers; run.mjs runs the built file under a fresh node and saves it.
+// run.mjs runs the built file under a fresh node and saves the <<RT>> line as the report.
 import {registerPureFnFactory, getRTUtils, getRunTypeId} from '@mionjs/run-types';
 import {isoDay} from '@acme/dates';
 import {TITLE_ID} from './ids.js';

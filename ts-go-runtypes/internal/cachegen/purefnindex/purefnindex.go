@@ -581,8 +581,8 @@ func (store *Store) BindingID(dtsPath, name string) (string, bool) {
 	return "", false
 }
 
-// UnbuiltPackage answers marker.PureFnBindingResolver: the package of dtsPath when it ships neither an artifact
-// nor sources. A nameless root owns no id, so it is never unbuilt.
+// UnbuiltPackage answers marker.PureFnBindingResolver: dtsPath's package when it ships neither artifact nor sources.
+// A nameless root owns no id, so it is never unbuilt.
 func (store *Store) UnbuiltPackage(dtsPath string) (string, bool) {
 	if store.fs == nil {
 		return "", false

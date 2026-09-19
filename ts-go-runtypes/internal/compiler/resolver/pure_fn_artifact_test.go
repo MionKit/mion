@@ -246,8 +246,7 @@ getRunTypeId(value);
 	}
 }
 
-// A gen dir placed inside a published dir (a library built with `mion compile`) ships its modules: npm pack
-// honours the `types/.gitignore` unless a `.npmignore` sits beside it.
+// npm pack honours `types/.gitignore` unless a `.npmignore` sits beside it, so a gen dir under dist/ would not ship.
 func TestGenerate_TypesDirShipsUnderNpmPack(t *testing.T) {
 	outDir := t.TempDir()
 	generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}, outDir, constants.ModuleModeDefault)

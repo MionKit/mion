@@ -181,8 +181,7 @@ func TestPackagePureFns_UnbuiltPackageErrors(t *testing.T) {
 		"node_modules/@acme/text/dist/index.d.ts": libDts,
 		"node_modules/@acme/text/dist/index.js":   "export const title = registerPureFn(null, '" + libTitleID + "');\n",
 	})
-	// The .d.ts carries no literal (tsc's emit) and the package has nothing to resolve the name through: PFE9016
-	// names the binding and the package, with no unreadable-dep or captured-binding error on top.
+	// tsc's emit carries no literal and the package has nothing to resolve the name through: PFE9016 alone.
 	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnDepUnbuilt {
 		t.Fatalf("expected one PFE9016, got %+v", resp.Diagnostics)
 	}

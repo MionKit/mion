@@ -1,5 +1,4 @@
-// Assertions over what run.mjs left: the packed tarballs, the installed libraries, the consumer's
-// two builds and the reports their outputs printed. Read-only; run.mjs did every build.
+// Read-only assertions over what run.mjs left under out/ and the consumer; run.mjs did every build.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
@@ -19,10 +18,9 @@ const ID = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
 const tarballOf = (name) => path.join(TARBALLS, readdirSync(TARBALLS).find((file) => file.startsWith(`acme-${name}-`)));
 const entriesOf = (tarball) => execFileSync('tar', ['-tzf', tarball], {encoding: 'utf8'}).trim().split('\n');
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
-// A library's output dir once installed; a consumer's is one of its own build dirs.
 const installed = (name) => path.join(CONSUMER, 'node_modules/@acme', name, 'dist');
 const readIndex = (outDir) => readJson(path.join(outDir, ARTIFACT_DIR, INDEX));
-// The same path the module has under `<genDir>/types/pf/`.
+// Mirrors the module's path under `<genDir>/types/pf/`.
 const modulePath = (id) => {
   const [pkg, hash] = id.split(HASH_PREFIX);
   return path.join(...pkg.split('/'), `${hash}.js`);
@@ -85,7 +83,7 @@ test('installed @acme/text: the index maps each export to its id and each id to 
   assert.ok(readModule(dir, slugify).includes('toLowerCase'), 'slugify module carries its body');
   const titleModule = readModule(dir, title);
   assert.ok(titleModule.includes(`getPureFn(\\'${slugify}\\')`), 'title module carries the lowered slugify id');
-  // The .d.ts is what tsc emitted: a name, no id. The index is how a consumer maps it.
+  // tsc's emit carries no id; the index is how a consumer maps the name.
   const dts = readFileSync(path.join(dir, 'index.d.ts'), 'utf8');
   assert.ok(!dts.includes(HASH_PREFIX), `the declarations carry no id:\n${dts}`);
 });
@@ -97,7 +95,7 @@ test('installed @acme/dates: its module carries the lowered @acme/text id and li
   const module = readModule(installed('dates'), isoDay);
   assert.ok(module.includes(`getPureFn(\\'${slugify}\\')`), `isoDay must reach slugify by id:\n${module}`);
   assert.ok(module.includes(`'${slugify}'`), 'the dep list names slugify');
-  // `mion compile` bakes the id into the declaration, so a consumer needs no index lookup for it.
+  // `mion compile` bakes the id into the declaration; no index lookup needed.
   assert.ok(readFileSync(path.join(installed('dates'), 'index.d.ts'), 'utf8').includes(isoDay));
 });
 
@@ -134,7 +132,7 @@ for (const lane of ['vite', 'cli']) {
     assert.match(report.stampId, /^@acme\/consumer#pf_/);
     assert.equal(report.deps.length, 1);
     assert.match(report.deps[0], /^@acme\/dates#pf_/);
-    // consumer -> dates -> text, all three bodies bound into the consumer's own modules.
+    // The result crosses consumer -> dates -> text: all three bodies served.
     assert.equal(report.result, 'hello-world@2026-09-18');
     assert.deepEqual(report.isoDayDeps, [slugify]);
     assert.ok(report.servedSlugifyCode.includes('toLowerCase'));
@@ -143,7 +141,7 @@ for (const lane of ['vite', 'cli']) {
 }
 
 test('consumer (mion compile): nothing of @acme/text ran, so title exists nowhere in the registry', () => {
-  // The Vite bundle keeps `import '@acme/dates'` for its side effects, which loads text too; the tsc-style emit drops it.
+  // Only cli: the Vite bundle keeps `import '@acme/dates'` for side effects, which loads text too.
   assert.equal(readJson(path.join(OUT, 'report-cli.json')).titleStillOwnedByText, false);
 });
 

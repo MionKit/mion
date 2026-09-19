@@ -1,14 +1,8 @@
-// Pure functions shipped in real npm tarballs. Builds two libraries with the PUBLISHED
-// packages (@acme/text with the Vite adapter, @acme/dates with `mion compile`, the second
-// reaching a pure function of the first), packs them with `npm pack`, installs the tarballs
-// into a consumer with `npm install`, and builds that consumer twice (Vite adapter, `mion
-// compile`), running each output under a fresh node. A third library built with plain tsc
-// ships no compiled pure functions, and a consumer reaching it must fail both builds.
-// Everything the assertions read (tarballs, reports, build logs) lands under out/.
-//
-// Runs from the matrix root (/e2e in the container), where the published @mionjs/* are
-// installed and vite + typescript are baked. Needs MION_E2E_VERSION and MION_E2E_REGISTRY;
-// MION_E2E_BINARY overrides the launcher for host iteration, as in build-all.mjs.
+// Proves pure functions survive real npm tarballs: two libraries built with the PUBLISHED packages
+// (@acme/text via the Vite adapter, @acme/dates via `mion compile`, reaching a pure fn of text) are packed,
+// installed into a consumer, built twice and run under a fresh node; a plain-tsc library must fail both
+// consumer builds. Runs from the matrix root (/e2e in the container), which holds the published @mionjs/*
+// plus vite and typescript; everything the assertions read lands under out/.
 import {execFileSync, spawnSync} from 'node:child_process';
 import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
@@ -41,14 +35,13 @@ function run(file, args, cwd) {
   execFileSync(file, args, {cwd, stdio: 'inherit', env: process.env});
 }
 
-// Captures both streams so a diagnostic printed by the plugin is kept with the exit code.
+// Both streams, so a plugin diagnostic stays with the exit code.
 function capture(file, args, cwd) {
   const result = spawnSync(file, args, {cwd, encoding: 'utf8', env: process.env});
   return {status: result.status, output: `${result.stdout ?? ''}${result.stderr ?? ''}`};
 }
 
-// Like a real consumer: npm, from the same registry the published packages come from, and --no-save so a
-// tarball path never lands in a manifest that gets packed.
+// npm like a real consumer; --no-save so a tarball path never lands in a manifest that gets packed.
 function npmInstall(cwd, specs) {
   run('npm', ['install', ...specs, '--no-save', '--registry', REGISTRY, '--no-audit', '--no-fund', '--legacy-peer-deps'], cwd);
 }
@@ -59,8 +52,8 @@ function tarballOf(name) {
   return path.join(TARBALLS, file);
 }
 
-// The packed manifest pins the published run-types version, like a library would. The checked-in one carries no
-// such pin: an install into a library dir would try to resolve it, and the lane's builds resolve run-types up the tree.
+// Pins run-types only in the packed manifest: checked in, the library install would try to resolve it,
+// and the builds find run-types up the tree anyway.
 function pack(name) {
   const dir = path.join(LIBS, name);
   const manifestFile = path.join(dir, 'package.json');
@@ -97,7 +90,7 @@ function buildLibraries() {
   const text = path.join(LIBS, 'text');
   run(process.execPath, [path.join(HERE, 'vite-build.mjs'), 'lib', text], HERE);
   run(TSC, ['-p', path.join(text, 'tsconfig.json')], text);
-  // The gen dir is build scratch: what ships is the bundle and dist/mion-pure-fns/.
+  // Build scratch; what ships is the bundle and dist/mion-pure-fns/.
   rmSync(path.join(text, '.mion'), {recursive: true, force: true});
   pack('text');
 
@@ -124,7 +117,7 @@ function runNode(file, cwd) {
 function buildConsumer() {
   log('@acme/consumer: installs both tarballs, builds with the Vite adapter and with `mion compile`, runs both');
   npmInstall(CONSUMER, [tarballOf('text'), tarballOf('dates'), `@mionjs/run-types@${VERSION}`]);
-  // The consumer asks the registry about title, which nothing demands; its id is only known once text is built.
+  // Nothing demands title, so its id comes from text's built index.
   const titleId = readIndex(path.join(CONSUMER, 'node_modules/@acme/text')).pureFns.find((row) => row.bindingName === 'title').id;
   writeFileSync(path.join(CONSUMER, 'src/ids.ts'), `export const TITLE_ID = '${titleId}';\n`);
 
@@ -139,7 +132,7 @@ function buildConsumer() {
   writeFileSync(path.join(OUT, 'report-cli.json'), JSON.stringify(runNode(path.join(CONSUMER, 'dist-cli/main.js'), CONSUMER), null, 2));
 }
 
-// A build that succeeds here is the failure: the assertions read the captured output for PFE9016.
+// The test reads the saved output for PFE9016.
 function buildPlainConsumer() {
   log('@acme/consumer-plain: installs the @acme/plain tarball; both builds must fail');
   npmInstall(CONSUMER_PLAIN, [tarballOf('plain'), `@mionjs/run-types@${VERSION}`]);

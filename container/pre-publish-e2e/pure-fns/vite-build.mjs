@@ -1,7 +1,4 @@
-// One Vite build through the published Vite adapter, in a process of its own so run.mjs
-// captures its whole output and a failed build cannot take the driver down with it.
-// `node vite-build.mjs lib <dir>` bundles src/index.ts into dist/ (a library);
-// `node vite-build.mjs app <dir>` bundles src/main.ts into dist-vite/ for node.
+// One Vite build per process, so run.mjs captures its whole output and a failed build cannot take the driver down.
 import path from 'node:path';
 import {build} from 'vite';
 import runtypes from '@mionjs/devtools/runtypes/vite';
@@ -13,7 +10,7 @@ if (!['lib', 'app'].includes(mode) || !dir) {
 }
 const root = path.resolve(dir);
 const lib = mode === 'lib';
-// Every installed package stays external: the library's tarball, not this bundle, is what a consumer runs.
+// External, so a consumer runs the library's tarball rather than a copy bundled here.
 const EXTERNAL = /^@(mionjs|acme)\//;
 
 await build({
