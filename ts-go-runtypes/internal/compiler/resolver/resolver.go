@@ -37,6 +37,7 @@ import (
 	"sync"
 
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
@@ -346,6 +347,13 @@ type Session struct {
 	// FS and checker: an installed package does not change under a running
 	// session, and a per-request program swap must not re-extract it.
 	pureFnIndex *purefnindex.Store
+	// ownPackageName is the package the program's cwd belongs to and ownPackageRoot its
+	// directory, both empty for a nameless root. A package's OWN build is the one allowed to
+	// produce its built-in pure-fn bodies, so this decides whether the built-in filter in
+	// collectProgramPureFns applies. Memoised with the Program, whose cwd it reads.
+	ownPackageName string
+	ownPackageRoot string
+	ownPackageDone bool
 	// batchFileCache is the request-batch twin of pureFnFileCache: per-file
 	// `batch([...])` extraction memoised for the current Program, dropped
 	// alongside it.
@@ -635,6 +643,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.apiFileCache = apimeta.NewFileCache()
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
+	sess.ownPackageName, sess.ownPackageRoot, sess.ownPackageDone = "", "", false
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
@@ -659,6 +668,18 @@ func (sess *Session) bindPureFnIndex() {
 		Cache:          sess.pureFnFileCache,
 		SingleThreaded: sess.opts.SingleThreaded,
 	})
+}
+
+// ownPackage is the package the program's cwd belongs to, and its root directory; both
+// empty for a nameless root. Memoised because a build asks it per extraction and the cwd
+// cannot move under one Program.
+func (sess *Session) ownPackage() (string, string) {
+	if sess.ownPackageDone || sess.Program == nil {
+		return sess.ownPackageName, sess.ownPackageRoot
+	}
+	sess.ownPackageName, sess.ownPackageRoot = marker.PackageOfFile(tspath.CombinePaths(sess.Program.Cwd, "package.json"), sess.Program.FS)
+	sess.ownPackageDone = true
+	return sess.ownPackageName, sess.ownPackageRoot
 }
 
 // Reset wipes ALL user-supplied resolver state: every interned Type, the
@@ -692,6 +713,7 @@ func (sess *Session) Reset() {
 	sess.apiFileCache = apimeta.NewFileCache()
 	sess.hasBatchesMemo = nil
 	sess.importsRouterMemo = nil
+	sess.ownPackageName, sess.ownPackageRoot, sess.ownPackageDone = "", "", false
 	sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
 	sess.overridesBuilt = false
 	sess.overrideEntries = nil
