@@ -21,7 +21,7 @@ import {
   getOrCreateGlobal,
   HandlerType,
 } from '@mionjs/core';
-import {getRTUtils} from '@mionjs/run-types';
+import {getRTUtils, RUN_TYPES_PURE_FN_ID_PREFIX} from '@mionjs/run-types';
 
 // ############# PRIVATE STATE #############
 const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());
@@ -101,20 +101,16 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
   return newRemoteMethod as MethodWithOptions;
 }
 
-/** The package whose own pure fns never ride the wire. Their bodies are hollowed in the dist build
- *  and supplied from the compiler's built-in table, so every one is already registered wherever
- *  `@mionjs/run-types` is loaded, which on the client is guaranteed since @mionjs/core
- *  value-imports it. A pure fn's id starts with the package that owns it, then the separator,
- *  so this is a prefix test rather than a list anyone has to keep in sync. */
-const RUN_TYPES_ID_PREFIX = '@mionjs/run-types#';
-
 /** Serializes a pure function and everything it reaches into the wire cache, keyed by id. */
 export function serializePureDeps(id: string, purFnDeps: PureFnsDataCache, depth = 0) {
   if (depth >= MAX_STACK_DEPTH) throw new Error(`Max depth reached serializing pure function dependencies, for: ${id}`);
   // Built-ins never ride the wire: the client already has them, and their bodies are hollowed
   // server-side so there would be nothing to send. addSerializedJitCaches skipped them on restore
   // anyway (hasPureFnByKey short-circuit) — skipping here just stops shipping the dead weight.
-  if (id.startsWith(RUN_TYPES_ID_PREFIX)) return;
+  // Run-types' own pure fns never ride the wire: their bodies are hollowed in the dist build and
+  // served by the compiler, so every one is already registered wherever `@mionjs/run-types` is
+  // loaded, which on the client is guaranteed since @mionjs/core value-imports it.
+  if (id.startsWith(RUN_TYPES_PURE_FN_ID_PREFIX)) return;
   // Already serialized (prevents infinite recursion on circular dependencies).
   if (purFnDeps[id]) return;
   const pureDep = resolveCompiledPureFn(id);

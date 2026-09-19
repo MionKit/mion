@@ -63,12 +63,12 @@ func programForSources(t *testing.T, files map[string]string) (*program.Program,
 
 func TestNewIndex_Get(t *testing.T) {
 	entries := []Entry{
-		{ID: "@acme/app/src/a#asJSONString"},
-		{ID: "@acme/app/src/a#safeKey"},
+		{ID: "@acme/app/src/a#pf_asJSONString"},
+		{ID: "@acme/app/src/a#pf_safeKey"},
 	}
 	idx := NewIndex(entries)
 
-	for _, id := range []string{"@acme/app/src/a#asJSONString", "@acme/app/src/a#safeKey"} {
+	for _, id := range []string{"@acme/app/src/a#pf_asJSONString", "@acme/app/src/a#pf_safeKey"} {
 		entry, ok := idx.Get(id)
 		if !ok {
 			t.Fatalf("expected to find %q", id)
@@ -77,7 +77,7 @@ func TestNewIndex_Get(t *testing.T) {
 			t.Fatalf("entry.Key()=%q, want %q", entry.Key(), id)
 		}
 	}
-	if _, ok := idx.Get("@acme/app/src/a#missing"); ok {
+	if _, ok := idx.Get("@acme/app/src/a#pf_missing"); ok {
 		t.Fatal("expected miss for unknown id")
 	}
 }
@@ -102,14 +102,14 @@ export const slugify = registerPureFnFactory(function () { return function () { 
 
 func TestValidatePureFnDependencies_MissingID_PFE9012(t *testing.T) {
 	idx := NewIndex(nil)
-	diags := ValidatePureFnDependencies([]protocol.PureFnDep{{ID: "@acme/app/src/a#doesNotExist"}}, idx)
+	diags := ValidatePureFnDependencies([]protocol.PureFnDep{{ID: "@acme/app/src/a#pf_doesNotExist"}}, idx)
 	if len(diags) != 1 {
 		t.Fatalf("expected exactly 1 diagnostic, got %d (%+v)", len(diags), diags)
 	}
 	if diags[0].Code != CodeMissingPureFnDep {
 		t.Fatalf("expected %s, got %s", CodeMissingPureFnDep, diags[0].Code)
 	}
-	if len(diags[0].Args) != 1 || diags[0].Args[0] != "@acme/app/src/a#doesNotExist" {
+	if len(diags[0].Args) != 1 || diags[0].Args[0] != "@acme/app/src/a#pf_doesNotExist" {
 		t.Errorf("expected the missing id as the only arg, got %v", diags[0].Args)
 	}
 }
@@ -126,20 +126,20 @@ func TestValidatePureFnDependencies_PackageOwnedExempt(t *testing.T) {
 		{ID: purefnids.NewRunTypeErr},
 		{ID: purefnids.CountEnumKeys},
 		{ID: purefnids.IsUUID},
-		{ID: "@acme/app/src/a#typoFn"}, // user typo — the only genuine miss
+		{ID: "@acme/app/src/a#pf_typoFn"}, // user typo — the only genuine miss
 	}
 	diags := ValidatePureFnDependencies(deps, idx)
 	if len(diags) != 1 {
 		t.Fatalf("expected exactly 1 diagnostic (the user typo only), got %d (%+v)", len(diags), diags)
 	}
-	if diags[0].Code != CodeMissingPureFnDep || diags[0].Args[0] != "@acme/app/src/a#typoFn" {
+	if diags[0].Code != CodeMissingPureFnDep || diags[0].Args[0] != "@acme/app/src/a#pf_typoFn" {
 		t.Fatalf("expected the typo to be the sole miss, got %+v", diags[0].Args)
 	}
 }
 
 func TestValidatePureFnDependencies_DedupesRepeatedMisses(t *testing.T) {
 	idx := NewIndex(nil)
-	missing := protocol.PureFnDep{ID: "@acme/app/src/a#missing"}
+	missing := protocol.PureFnDep{ID: "@acme/app/src/a#pf_missing"}
 	diags := ValidatePureFnDependencies([]protocol.PureFnDep{missing, missing, missing, missing}, idx)
 	if len(diags) != 1 {
 		t.Fatalf("expected 1 dedupe-collapsed diagnostic, got %d (%+v)", len(diags), diags)
@@ -151,9 +151,9 @@ func TestValidatePureFnDependencies_DedupesRepeatedMisses(t *testing.T) {
 // an id the predicate does not claim stays a PFE9012.
 func TestValidatePureFnDependencies_LibraryDepExempt(t *testing.T) {
 	idx := NewIndex(nil)
-	idx.LibraryDep = func(id string) bool { return id == "@acme/text/src/slug#slugify" }
-	diags := ValidatePureFnDependencies([]protocol.PureFnDep{{ID: "@acme/text/src/slug#slugify"}, {ID: "@acme/app/src/a#gone"}}, idx)
-	if len(diags) != 1 || diags[0].Args[0] != "@acme/app/src/a#gone" {
+	idx.LibraryDep = func(id string) bool { return id == "@acme/text/src/slug#pf_slugify" }
+	diags := ValidatePureFnDependencies([]protocol.PureFnDep{{ID: "@acme/text/src/slug#pf_slugify"}, {ID: "@acme/app/src/a#pf_gone"}}, idx)
+	if len(diags) != 1 || diags[0].Args[0] != "@acme/app/src/a#pf_gone" {
 		t.Fatalf("expected one PFE9012 for the program's own miss, got %+v", diags)
 	}
 }

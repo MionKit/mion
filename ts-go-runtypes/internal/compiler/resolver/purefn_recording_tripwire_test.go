@@ -63,7 +63,7 @@ export const bd = createBinaryDecoderFn<WithFmt>();
 
 // emittedPureFnRe matches a `getPureFn`/`usePureFn` call in an emitted body. The
 // body rides the tuple as a quoteJS single-quoted string, so its inner quotes
-// arrive escaped (`getPureFn(\'@mionjs/run-types/src/…#newRunTypeErr\')`); the
+// arrive escaped (`getPureFn(\'@mionjs/run-types/src/…#pf_newRunTypeErr\')`); the
 // leading `\\*['"]` tolerates the escaped form, a bare single quote, or a double
 // quote so a raw getPureFn written in any quote style is still caught (that's
 // the whole point).

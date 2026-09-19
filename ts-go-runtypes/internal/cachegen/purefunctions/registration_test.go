@@ -204,7 +204,7 @@ func TestExtractRegistration_ExplicitIDMismatch_PFE9014(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
 import {registerPureFn} from '@mionjs/run-types';
-export const double = registerPureFn((n: number): number => n * 2, '@acme/app/a#somethingElse');`,
+export const double = registerPureFn((n: number): number => n * 2, '@acme/app/a#pf_somethingElse');`,
 	})
 	if len(entries) != 0 {
 		t.Fatalf("a mismatched id must yield no entry, got %+v", entries)
@@ -212,7 +212,7 @@ export const double = registerPureFn((n: number): number => n * 2, '@acme/app/a#
 	if len(diags) != 1 || diags[0].Code != CodePureFnIdMismatch {
 		t.Fatalf("expected one PFE9014, got %+v", diags)
 	}
-	if len(diags[0].Args) != 2 || diags[0].Args[0] != "@acme/app/a#somethingElse" || !strings.HasPrefix(diags[0].Args[1], idPrefix) {
+	if len(diags[0].Args) != 2 || diags[0].Args[0] != "@acme/app/a#pf_somethingElse" || !strings.HasPrefix(diags[0].Args[1], idPrefix) {
 		t.Errorf("expected (written, computed) args, got %v", diags[0].Args)
 	}
 }

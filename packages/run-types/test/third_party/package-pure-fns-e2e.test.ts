@@ -38,8 +38,8 @@ const CORE_PKG_DIR = fileURLToPath(new URL('../..', import.meta.url));
 // An id is the package plus a hash of the body that ships, so the ids of the
 // two built libraries are only known once they are built (read off the dist
 // and the registry); only the runtime-only package writes its own.
-const PAD_ID = '@acme/legacy#pad00000000000';
-const ID_PATTERN = /^@acme\/[a-z]+#[A-Za-z0-9_-]{14}$/;
+const PAD_ID = '@acme/legacy#pf_pad00000000000';
+const ID_PATTERN = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
 
 let BASE = '';
 let TEXT_DIR = '';
@@ -197,7 +197,9 @@ function expectOnlyServedBodies(result: Report): void {
 function textIds(): {slugify: string; title: string} {
   const dist = fs.readFileSync(path.join(TEXT_DIR, 'dist', 'index.js'), 'utf8');
   const ids = [
-    ...dist.matchAll(/(slugify|title)\d* = registerPureFn\w*\(\s*__rt_pf[A-Za-z0-9_$]*,\s*"(@acme\/text#[A-Za-z0-9_-]{14})"\)/g),
+    ...dist.matchAll(
+      /(slugify|title)\d* = registerPureFn\w*\(\s*__rt_pf[A-Za-z0-9_$]*,\s*"(@acme\/text#pf_[A-Za-z0-9_-]{14})"\)/g
+    ),
   ];
   const byName = Object.fromEntries(ids.map((match) => [match[1], match[2]]));
   expect(byName, dist).toEqual({slugify: expect.stringMatching(ID_PATTERN), title: expect.stringMatching(ID_PATTERN)});
@@ -330,7 +332,7 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
     expect(datesModules).toHaveLength(1);
     const isoDayModule = fs.readFileSync(path.join(pf, '@acme', 'dates', datesModules[0]), 'utf8');
     expect(isoDayModule).toContain(String.raw`getPureFn(\'${SLUGIFY_ID}\')`);
-    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#')[1] + '.js']);
+    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
 
     fs.writeFileSync(path.join(app, 'main.mjs'), code);
     expectReport(runNode(path.join(app, 'main.mjs'), app));
@@ -348,7 +350,7 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
 
     const pf = path.join(app, '.mion', 'types', 'pf');
     expect(fs.readdirSync(path.join(pf, '@acme', 'dates'))).toHaveLength(1);
-    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#')[1] + '.js']);
+    expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
 
     const emitted = fs.readFileSync(path.join(app, 'dist', 'main.js'), 'utf8');
     expect(emitted).not.toContain("from '@acme/dates'");

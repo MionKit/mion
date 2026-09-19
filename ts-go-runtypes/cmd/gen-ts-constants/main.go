@@ -129,6 +129,8 @@ func writeEntryModuleConstants(out *strings.Builder) {
 	fmt.Fprintf(out, "export const ENTRY_MODULE_SUFFIX = %q;\n", constants.EntryModuleSuffix)
 	fmt.Fprintf(out, "export const ENTRY_BINDING_PREFIX = %q;\n", constants.EntryBindingPrefix)
 	fmt.Fprintf(out, "export const PURE_FN_MODULE_DIR = %q;\n", constants.PureFnModuleDir)
+	out.WriteString("// Joins a pure-fn id's package half to its hash half; the literal a consumer's compiler finds a package's pure fns by.\n")
+	fmt.Fprintf(out, "export const PURE_FN_HASH_PREFIX = %q;\n", constants.PureFnHashPrefix)
 	out.WriteString("// The batch transport the SERVER build generates under <genDir>/rpc — see internal/compiler/resolver/rpcgen.go.\n")
 	fmt.Fprintf(out, "export const RPC_MODULE_DIR = %q;\n", constants.RpcModuleDir)
 	fmt.Fprintf(out, "export const BATCHES_MODULE_FILE = %q;\n", constants.BatchesModuleFile)

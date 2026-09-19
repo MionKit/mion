@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/core"
 	"github.com/microsoft/typescript-go/shim/parser"
@@ -75,7 +77,7 @@ func randomID(rng *rand.Rand) string {
 	default:
 		owner = "" // an overlay or a scratch project keeps the hash alone
 	}
-	return owner + IDSeparator + CodeHash(randomSegment(rng, 20))
+	return owner + constants.PureFnHashPrefix + CodeHash(randomSegment(rng, 20))
 }
 
 var jsIdentifierRE = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
@@ -97,7 +99,7 @@ func TestFuzz_IDModuleNameInjectivity(t *testing.T) {
 		if !ok {
 			t.Fatalf("SplitID(%q) found no separator", id)
 		}
-		if location+IDSeparator+name != id {
+		if location+constants.PureFnHashPrefix+name != id {
 			t.Fatalf("SplitID(%q) does not round-trip: (%q, %q)", id, location, name)
 		}
 

@@ -320,7 +320,7 @@ describe('mionAdapter: json strategy per compiled family set', () => {
 describe('direct mion cache resolution', () => {
   it('unknown jit/pure lookups are plain misses (undefined), never throw', () => {
     expect(getRTUtils().getRT('isType_does_not_exist')).toBeUndefined();
-    expect(resolveCompiledPureFn('@acme/app/src/fns#missing')).toBeUndefined();
+    expect(resolveCompiledPureFn('@acme/app/src/fns#pf_missing')).toBeUndefined();
   });
 
   it('resolves a pure fn registered through RunTypes', () => {
@@ -338,15 +338,15 @@ describe('addSerializedJitCaches (client restore lane)', () => {
     addSerializedJitCaches(
       {},
       {
-        '@acme/app#specNamedParam': {
-          id: '@acme/app#specNamedParam',
+        '@acme/app#pf_specNamedParam': {
+          id: '@acme/app#pf_specNamedParam',
           paramNames: ['rtu'],
           code: 'return () => typeof rtu;',
           pureFnDependencies: [],
         },
       }
     );
-    const restored = getRTUtils().getPureFnByKey('@acme/app#specNamedParam');
+    const restored = getRTUtils().getPureFnByKey('@acme/app#pf_specNamedParam');
     expect(restored).toBeDefined();
     expect(restored!()).toBe('object'); // resolves `rtu` -> it was bound, not undeclared
   });

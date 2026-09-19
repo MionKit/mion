@@ -22,7 +22,7 @@ import (
 // (the module emitter reads only Key()/ParamNames/Code/BodyHash).
 type Entry struct {
 	// ID identifies this pure function: the package that owns it and a hash of
-	// the body that ships (`@acme/text#9Zt1bRm4cVaPqL`). Built by IDFor; it is
+	// the body that ships (`@acme/text#pf_9Zt1bRm4cVaPqL`). Built by IDFor; it is
 	// the registry key everywhere.
 	ID string
 	// BindingName is the identifier the registration is assigned to, or empty
