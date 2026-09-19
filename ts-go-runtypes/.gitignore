@@ -1,0 +1,9 @@
+# `go build` drops its binary at the module root or in the cmd/<x>/ dir it ran from.
+# Go sources always carry an extension, so an extensionless file at those two levels is a build output.
+/*
+!/*.*
+!/*/
+/cmd/*/*
+!/cmd/*/*.*
+!/cmd/*/*/
+*.exe
