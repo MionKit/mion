@@ -1,6 +1,6 @@
 ---
 name: implement-todo
-description: Drive a docs/todos/ spec from selection all the way to a shipped change. Use this whenever the user wants to implement, work on, pick, start, tackle, or "do" a todo — anything under docs/todos/ — whether they name a specific spec ("implement the <name> todo", or a path in docs/todos/) or ask you to choose one ("let's do a todo"). It lists the open todos and asks which to do, summarizes it, decides whether it is a ready-to-build spec or needs investigation first, works out the required tests / docs / fuzzing, and presents a plan for approval via the plan tool BEFORE writing any code — then implements it, runs the PR-readiness gate, and moves the spec into docs/done/. Reach for it even when the request is as vague as "pick something off the todo list".
+description: Drive a docs/todos/ spec from selection all the way to a shipped change. Use this whenever the user wants to implement, work on, pick, start, tackle, or "do" a todo — anything under docs/todos/ — whether they name a specific spec ("implement the <name> todo", or a path in docs/todos/) or ask you to choose one ("let's do a todo"). It lists the open todos and asks which to do, summarizes it, decides whether it is a ready-to-build spec or needs investigation first, works out the required tests / docs / fuzzing, and presents a plan for approval via the plan tool BEFORE writing any code — then implements it, runs the PR-readiness gate, moves the spec into docs/done/, and finishes with the mandatory documentation simplification pass run by the docs-simplifier subagent. Reach for it even when the request is as vague as "pick something off the todo list".
 ---
 
 # implement-todo
@@ -19,6 +19,7 @@ Take one spec from `docs/todos/` and carry it to a finished, PR-ready change. Th
 6. **Present the plan** for approval — always, even for a complete spec.
 7. **Implement** to the plan and the spec's Done-when.
 8. **Gate + finish**: tests green, docs updated, the spec reconciled with what actually shipped, then `git mv` into `docs/done/`.
+9. **Documentation simplification**: the `docs-simplifier` subagent runs the simplify-docs skill over every page and example this change touched. Always, never by you.
 
 ## Step 1 — Pick the todo
 
@@ -58,7 +59,7 @@ The header's `type` orients this: a `fix` or `feature` always needs tests, a `do
 - Marker API (`getRunTypeId`, the `createX` factories) → cover **both** call shapes (static `getRunTypeId<T>()` and value-first `getRunTypeId(value)`) per the Marker test coverage rule in [ts-go-runtypes/CLAUDE.md](../../../ts-go-runtypes/CLAUDE.md).
 - A pure docs or chore todo may legitimately have no code test — say so explicitly rather than skipping silently.
 
-**Docs — decide when the answer is clear, ask when it is not.** A new or changed feature almost always needs docs: the website (`container/website/sites/<site>/content/`). A fix usually needs docs only if it changes documented behavior. If you cannot tell whether a change is user-visible enough to document, **ask** (AskUserQuestion). When you do touch website content, follow the house voice (plain, user-focused, no em/en-dashes; prefer `<code-import>` examples) — see the Website docs style section in [CLAUDE.md](../../../CLAUDE.md).
+**Docs — decide when the answer is clear, ask when it is not.** A new or changed feature almost always needs docs: the website (`container/website/content/`). A fix usually needs docs only if it changes documented behavior. If you cannot tell whether a change is user-visible enough to document, **ask** (AskUserQuestion). Name the page AND the placement in the plan: an existing section (which one) or a new section, decided with the *Where a change goes* table in [container/website/CLAUDE.md](../../../container/website/CLAUDE.md). When you write it, follow the ideal section template there and the language rules in the *Website Documentation* section of [CLAUDE.md](../../../CLAUDE.md), and read the wrong / right pairs in [the simplify-docs skill](../simplify-docs/examples.md) first. The simplification pass in step 9 is the check on that, not a substitute for it.
 
 **Fuzzing — for features, judge candidacy, then propose.** RunTypes has a real property-test harness (`packages/run-types/test/fuzz/`, run via `pnpm miondevx core fuzz <suite>`), and many features here have a cheap correctness oracle that makes fuzzing pay off. Quickly gut-check the feature for one:
 - **round-trip** (an encode/decode or serialize/parse pair should return the value),
@@ -78,7 +79,7 @@ Present the plan with the **plan tool (ExitPlanMode)**, even when the todo was a
 
 - the change you will make (and the key files, from the spec's own pointers),
 - the **test** plan (layer + what the tests will pin, both marker shapes if applicable),
-- the **docs** plan (which files, or an explicit "no docs needed because …"),
+- the **docs** plan (which page, and existing section or new section; or an explicit "no docs needed because …"),
 - the **fuzzing** decision (proposed + confirmed, or "not a fuzz candidate because …"),
 - the **finish**: run the gate, then `git mv` the spec into `docs/done/`.
 
@@ -108,15 +109,28 @@ Run the gate before calling it done:
 - **Reconcile the spec with what shipped.** If the implementation diverged from the original todo — a different approach, a narrower or wider outcome, a decision the spec did not anticipate — edit the todo file so it describes what was **actually built** before it moves. A stale spec landing in `docs/done/` misleads the next reader.
 - **Move the spec.** `git mv` it from `docs/todos/` into `docs/done/` and update it to match what shipped. This is a hard PR-readiness requirement, not an afterthought. If you deliberately shipped only PART of it, SPLIT rather than park: the moved doc records what landed and why the rest was cut, and the remainder becomes a NEW `docs/todos/` spec that reads on its own. There is no half-done lane.
 
+## Step 9 — Documentation simplification (always, by a subagent)
+
+The last step before the change is PR ready, and it runs even when the docs change is one sentence. It is a subagent pass on purpose: this session knows why every sentence exists and will defend it, and that is exactly how the complex wording gets through. A fresh context reads the page the way its reader will.
+
+1. List what the branch touched: `git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/examples/src`. Nothing listed means the step is a no-op; say so and stop here.
+2. Spawn the agent with the Agent tool, `subagent_type: docs-simplifier`, and give it those paths (or "the branch"). Do not run the skill yourself, and do not tell the agent why a sentence is there. If the tool answers that the type is not found (agent definitions load at session start), spawn `general-purpose` instead with the body of `.claude/agents/docs-simplifier.md` as the prompt plus the instruction to read `.claude/skills/simplify-docs/SKILL.md` first; same paths, same rules.
+3. Read its report. For every rewrite, check the new sentence against the code: a simplification that dropped a condition, a code, a default or a limit is wrong, so restore the fact in plain words. Decide every **Left alone** and **Flagged** line yourself: rewrite it, keep it, or move the section.
+4. Re-run what the pass can break: `pnpm run typecheck` (the examples) and `pnpm exec vitest run website-links` (renamed anchors).
+5. Commit the pass on its own: `docs(simplify): <page>`.
+
 Close by telling the user what shipped versus the todo's Done-when, and flag anything you consciously left for a follow-up.
 
 ## What NOT to do
+
+- **Do not skip the simplification pass, and do not run it in this session.** Even a one-sentence docs change goes through the `docs-simplifier` subagent. The one exception is a branch that touched no page and no example.
 
 - **Do not edit any file before the plan is approved.** Steps 1-6 are analysis only.
 - **Do not skip tests on a fix or a feature** — the gate rejects it and so should you.
 - **Do not add fuzzing without asking**, and do not hand-roll the fuzzer — route to the fuzzy-testing skill.
 - **Do not pull candidates from `docs/done/` or `docs/maybe/`** — only `docs/todos/` holds ready work.
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
+- **Do not accept a simplification that changed a fact.** The subagent's report is reviewed against the code, sentence by sentence, before it is committed.
 - **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — delegate it via the [delegate-finding skill](../delegate-finding/) (parallel agent, own PR, merged before this todo's PR); a spec is only for what truly cannot land in either lane, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
 - **Do not reference a todo or done doc from any other file.** Not from docs, skills, workflows or code comments: those specs get deleted eventually. Write the reasoning where it is needed; if a spec lists documents that may go stale after merge, that list lives in the spec itself.
