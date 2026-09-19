@@ -109,9 +109,11 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         // alone says which prefills belong. Leaving a required one out (an auth) would fail the request
         // and cost the retry round trip; the server ignores any key that is not in the chain.
         this.restoreScopedPrefilledMiddleFns();
-        // Add metadata subrequest (after prefilled restore so we include all IDs)
-        const allSubRequestIds = Object.keys(this.subRequestList);
-        this.addSubRequest((await loadFetchedLane()).createMetadataSubRequest(allSubRequestIds));
+        // Only the ids the client still lacks (after the prefilled restore added its own): asking
+        // for one it already holds would bring back the server's copy of a BUNDLED method, store it,
+        // and let a later stale-metadata purge drop the build's own entry for good.
+        const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
+        this.addSubRequest((await loadFetchedLane()).createMetadataSubRequest(missingIds));
       } else {
         (this.options as any).serializer = originalSerializer;
         await this.loadMethodsMetadata(subRequestIds, bundled, this.signal);

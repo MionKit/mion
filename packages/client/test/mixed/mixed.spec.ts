@@ -105,6 +105,21 @@ describe('a client built with bundleApi: mixed', () => {
     expect(stored).not.toContain('utils/sumTwo');
   });
 
+  it("keeps a bundled middleFn out of the store when it rides a fetched route's chain", async () => {
+    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    // a bundled dispatch point first, so the chain's auth middleFn comes from the build
+    await routes.utils.sumTwo(1).call(withAuth(middleFns));
+    expect(isBundledMethod('auth')).toBe(true);
+    // then a route the bundle lacks; the server answers for its WHOLE chain, auth included
+    await callThroughWideHelper(routes.flow.getOrgLabel('acme'), withAuth(middleFns));
+    await flushMetadataCache();
+    const stored = (await store.readAll(baseURL)).map((record) => record.id);
+    expect(stored).toContain('flow/getOrgLabel');
+    expect(stored).not.toContain('auth');
+    // and the build's own entry is still the one a call reads
+    expect(isBundledMethod('auth')).toBe(true);
+  });
+
   it('never lets a fetched answer replace a bundled entry', async () => {
     const {routes, middleFns} = initClient<TestServerApi>({baseURL});
     await routes.utils.sumTwo(1).call(withAuth(middleFns));
