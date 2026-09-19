@@ -245,3 +245,23 @@ getRunTypeId(value);
 		t.Errorf("getRunTypeId<T>() and getRunTypeId(value) must agree: %q vs %q", a.ID, b.ID)
 	}
 }
+
+// A gen dir placed inside a published dir (a library built with `mion compile`) ships its modules: npm pack
+// honours the `types/.gitignore` unless a `.npmignore` sits beside it.
+func TestGenerate_TypesDirShipsUnderNpmPack(t *testing.T) {
+	outDir := t.TempDir()
+	generateArtifact(t, map[string]string{"package.json": `{"name":"@acme/app"}`, "src/text.ts": artifactSources}, outDir, constants.ModuleModeDefault)
+	gitignore, err := os.ReadFile(filepath.Join(outDir, "types", ".gitignore"))
+	if err != nil || !strings.Contains(string(gitignore), "*") {
+		t.Fatalf("types/.gitignore must ignore everything (err %v): %q", err, gitignore)
+	}
+	npmignore, err := os.ReadFile(filepath.Join(outDir, "types", ".npmignore"))
+	if err != nil {
+		t.Fatalf("types/.npmignore must exist: %v", err)
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(npmignore)), "\n") {
+		if !strings.HasPrefix(line, "#") {
+			t.Errorf("types/.npmignore must ignore nothing, got %q", line)
+		}
+	}
+}

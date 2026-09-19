@@ -181,12 +181,13 @@ func TestPackagePureFns_UnbuiltPackageErrors(t *testing.T) {
 		"node_modules/@acme/text/dist/index.d.ts": libDts,
 		"node_modules/@acme/text/dist/index.js":   "export const title = registerPureFn(null, '" + libTitleID + "');\n",
 	})
-	// The .d.ts carries no literal and the package has no binding to resolve
-	// it through, so the consumer's dep arg is unreadable (PFE9013, plus the
-	// closure capture it can no longer exempt) as before; a literal-typed .d.ts
-	// (the run-types shape) reaches the serve step.
-	if codes := codesOf(resp); !strings.Contains(strings.Join(codes, " "), diagnostics.CodePurityDepNotLiteral) {
-		t.Fatalf("expected a PFE9013, got %v", codes)
+	// The .d.ts carries no literal (tsc's emit) and the package has nothing to resolve the name through: PFE9016
+	// names the binding and the package, with no unreadable-dep or captured-binding error on top.
+	if codes := codesOf(resp); len(codes) != 1 || codes[0] != diagnostics.CodePureFnDepUnbuilt {
+		t.Fatalf("expected one PFE9016, got %+v", resp.Diagnostics)
+	}
+	if args := resp.Diagnostics[0].Args; len(args) != 2 || args[0] != "title" || args[1] != "@acme/text" {
+		t.Errorf("PFE9016 must name the binding and the package, got %v", args)
 	}
 	typed := map[string]string{
 		"node_modules/@acme/text/package.json":    libPackage,

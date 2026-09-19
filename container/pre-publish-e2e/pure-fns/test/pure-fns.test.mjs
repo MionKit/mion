@@ -19,15 +19,16 @@ const ID = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
 const tarballOf = (name) => path.join(TARBALLS, readdirSync(TARBALLS).find((file) => file.startsWith(`acme-${name}-`)));
 const entriesOf = (tarball) => execFileSync('tar', ['-tzf', tarball], {encoding: 'utf8'}).trim().split('\n');
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
-const installed = (name) => path.join(CONSUMER, 'node_modules/@acme', name);
-const readIndex = (pkgDir) => readJson(path.join(pkgDir, 'dist', ARTIFACT_DIR, INDEX));
+// A library's output dir once installed; a consumer's is one of its own build dirs.
+const installed = (name) => path.join(CONSUMER, 'node_modules/@acme', name, 'dist');
+const readIndex = (outDir) => readJson(path.join(outDir, ARTIFACT_DIR, INDEX));
 // The same path the module has under `<genDir>/types/pf/`.
 const modulePath = (id) => {
   const [pkg, hash] = id.split(HASH_PREFIX);
   return path.join(...pkg.split('/'), `${hash}.js`);
 };
-const readModule = (dir, id) => readFileSync(path.join(dir, ARTIFACT_DIR, modulePath(id)), 'utf8');
-const idsOf = (pkgDir) => Object.fromEntries(readIndex(pkgDir).pureFns.map((row) => [row.bindingName, row.id]));
+const readModule = (outDir, id) => readFileSync(path.join(outDir, ARTIFACT_DIR, modulePath(id)), 'utf8');
+const idsOf = (outDir) => Object.fromEntries(readIndex(outDir).pureFns.map((row) => [row.bindingName, row.id]));
 
 for (const [name, builtWith] of [
   ['text', 'the Vite adapter'],
@@ -47,10 +48,11 @@ for (const [name, builtWith] of [
 test('@acme/dates (mion compile): the gen dir placed inside dist ships, so the emitted imports resolve once installed', () => {
   const entries = entriesOf(tarballOf('dates'));
   assert.ok(entries.some((entry) => entry.startsWith('package/dist/.mion/types/pf/@acme/dates/')), `dist/.mion must ship:\n${entries.join('\n')}`);
-  const emitted = readFileSync(path.join(installed('dates'), 'dist/index.js'), 'utf8');
+  const emitted = readFileSync(path.join(installed('dates'), 'index.js'), 'utf8');
   const imports = [...emitted.matchAll(/from '([^']+)'/g)].map((match) => match[1]);
+  assert.ok(imports.some((specifier) => specifier.startsWith('./.mion/')), `the emit imports its generated modules:\n${emitted}`);
   for (const specifier of imports.filter((entry) => entry.startsWith('.'))) {
-    assert.ok(existsSync(path.join(installed('dates'), 'dist', specifier)), `${specifier} must resolve inside the installed package`);
+    assert.ok(existsSync(path.join(installed('dates'), specifier)), `${specifier} must resolve inside the installed package`);
   }
 });
 
@@ -77,14 +79,14 @@ test('installed @acme/text: the index maps each export to its id and each id to 
   for (const row of index.pureFns) {
     assert.match(row.id, ID);
     assert.equal(row.file, 'src/index.ts');
-    assert.ok(existsSync(path.join(dir, 'dist', ARTIFACT_DIR, modulePath(row.id))), `${row.id}: module at the path its id names`);
+    assert.ok(existsSync(path.join(dir, ARTIFACT_DIR, modulePath(row.id))), `${row.id}: module at the path its id names`);
   }
   const {slugify, title} = idsOf(dir);
-  assert.ok(readModule(path.join(dir, 'dist'), slugify).includes('toLowerCase'), 'slugify module carries its body');
-  const titleModule = readModule(path.join(dir, 'dist'), title);
+  assert.ok(readModule(dir, slugify).includes('toLowerCase'), 'slugify module carries its body');
+  const titleModule = readModule(dir, title);
   assert.ok(titleModule.includes(`getPureFn(\\'${slugify}\\')`), 'title module carries the lowered slugify id');
   // The .d.ts is what tsc emitted: a name, no id. The index is how a consumer maps it.
-  const dts = readFileSync(path.join(dir, 'dist/index.d.ts'), 'utf8');
+  const dts = readFileSync(path.join(dir, 'index.d.ts'), 'utf8');
   assert.ok(!dts.includes(HASH_PREFIX), `the declarations carry no id:\n${dts}`);
 });
 
@@ -92,11 +94,11 @@ test('installed @acme/dates: its module carries the lowered @acme/text id and li
   const {slugify} = idsOf(installed('text'));
   const {isoDay} = idsOf(installed('dates'));
   assert.match(isoDay, ID);
-  const module = readModule(path.join(installed('dates'), 'dist'), isoDay);
+  const module = readModule(installed('dates'), isoDay);
   assert.ok(module.includes(`getPureFn(\\'${slugify}\\')`), `isoDay must reach slugify by id:\n${module}`);
   assert.ok(module.includes(`'${slugify}'`), 'the dep list names slugify');
   // `mion compile` bakes the id into the declaration, so a consumer needs no index lookup for it.
-  assert.ok(readFileSync(path.join(installed('dates'), 'dist/index.d.ts'), 'utf8').includes(isoDay));
+  assert.ok(readFileSync(path.join(installed('dates'), 'index.d.ts'), 'utf8').includes(isoDay));
 });
 
 test('consumer (Vite adapter): only the demanded modules are generated, and the consumer ships its own artifact', () => {

@@ -581,6 +581,19 @@ func (store *Store) BindingID(dtsPath, name string) (string, bool) {
 	return "", false
 }
 
+// UnbuiltPackage answers marker.PureFnBindingResolver: the package of dtsPath when it ships neither an artifact
+// nor sources. A nameless root owns no id, so it is never unbuilt.
+func (store *Store) UnbuiltPackage(dtsPath string) (string, bool) {
+	if store.fs == nil {
+		return "", false
+	}
+	name, root := marker.PackageOfFile(dtsPath, store.fs)
+	if root == "" || name == "" || store.Package(root).Built() {
+		return "", false
+	}
+	return name, true
+}
+
 // moduleBasename strips directory and every extension: `dist/slug.d.ts` → `slug`.
 func moduleBasename(path string) string {
 	name := tspath.GetBaseFileName(tspath.NormalizePath(path))
