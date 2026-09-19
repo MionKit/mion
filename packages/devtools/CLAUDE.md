@@ -54,6 +54,28 @@ One module, two namespaces: the default export is the `runtypes` plugin (what ox
 `jsPlugins` loads), `mionPlugin` carries the `@mionjs/*` rules, and `configs.recommended`
 registers both. oxlint never reads `configs.recommended`, so that is ESLint's entry point.
 
+## The pure-fn artifact is written from each bundler's post-bundle hook
+
+Every generate returns the package's `mion-pure-fns.json` (the package's own pure fns, which
+a consumer's compiler serves from; the Go side keeps the canonical copy under
+`<genDir>/types/`). The plugin writes it into the bundler's OUTPUT dir through
+`writePureFnArtifact` in `src/core/unplugin.ts`, and that write must run from the hook that
+fires once the bundle is on disk: generate runs at `buildStart`, before a bundler empties its
+output dir, so writing there any earlier loses the file. unplugin's universal `writeBundle`
+carries no arguments, so each host names its own hook and reads its own output dir:
+
+| host                   | hook                                                           | output dir                                               |
+| ---------------------- | -------------------------------------------------------------- | -------------------------------------------------------- |
+| vite, rollup, rolldown | `writeBundle(outputOptions)`                                   | `dir`, or the dir of `file`; once per environment        |
+| esbuild                | `esbuild.setup` + `build.onEnd`                                | `initialOptions.outdir`, or the dir of `outfile`         |
+| webpack, rspack        | `compiler.hooks.afterEmit`                                     | `compiler.options.output.path`                           |
+| bun (bundler host)     | `bun.setup` + `build.onEnd`                                    | `build.config.outdir`; the runtime loader writes none    |
+| next (Turbopack)       | the broker, after `buildStart` and on the first loader request | Next's `distDir`; best effort, an app is never installed |
+
+A package that registers no pure fn gets no file, and a stale one is removed. There is no
+option: the file is what makes a published package's pure fns usable from another package,
+and `files: ["dist"]` already ships it. `test/pure-fn-artifact.test.ts` drives every host.
+
 ## emitMode
 
 `emitMode: 'functions'` is rejected at config time by the mion presets — mion's client

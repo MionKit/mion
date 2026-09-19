@@ -35,6 +35,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
@@ -244,6 +245,18 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 	sort.Strings(result.EmittedFiles)
+	// The package's pure-fn artifact goes next to the emit, where `files:
+	// ["dist"]` publishes it; a package with no pure fn gets no file.
+	if outDir != "" {
+		if gen.PureFnArtifact != "" {
+			if err := os.MkdirAll(outDir, 0o755); err != nil {
+				return nil, fmt.Errorf("compile: mkdir %s: %w", outDir, err)
+			}
+		}
+		if err := resolver.WriteOrRemoveFile(filepath.Join(outDir, constants.PureFnArtifactFileName), []byte(gen.PureFnArtifact)); err != nil {
+			return nil, fmt.Errorf("compile: %w", err)
+		}
+	}
 	return result, nil
 }
 

@@ -66,6 +66,8 @@ describe('pure-fn build report', () => {
   beforeEach(() => {
     FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-pf-report-'));
     fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG);
+    // Named, so the fixture owns its ids and gets a pure-fn artifact.
+    fs.writeFileSync(path.join(FIXTURE_DIR, 'package.json'), JSON.stringify({name: '@acme/report'}));
     writeMarkerPackage(FIXTURE_DIR);
     fs.writeFileSync(path.join(FIXTURE_DIR, 'consumer.ts'), CONSUMER);
   });
@@ -127,6 +129,10 @@ describe('pure-fn build report', () => {
     const typeFiles = fs.readdirSync(typesDir);
     expect(typeFiles).not.toContain('pure-fns-report.js');
     expect(fs.readFileSync(path.join(typesDir, '.gitignore'), 'utf8')).toContain('*');
+    // The package's pure-fn artifact keeps the same lifecycle: the canonical
+    // copy sits beside the report, data, never a module.
+    expect(typeFiles).toContain('mion-pure-fns.json');
+    expect(typeFiles).not.toContain('mion-pure-fns.js');
   });
 
   register('report shape is identical across moduleMode; module field carries the layout', async () => {

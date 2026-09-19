@@ -328,6 +328,14 @@ var messagesByCode = map[string]message{
 		Headline: "Pure fn `{0}` comes from `{1}`, which ships no compiled pure functions; it is only registered when that package's module loads.",
 		Detail:   "A pure fn imported from an installed package is normally served at build time\nfrom that package's compiled files, so the body is bound into this build's own\nmodule and registered before anything calls it. This package carries no compiled\npure fn (it was not built with mion, or registers none), so the id resolves only\nat runtime, and only if the package's module has already loaded.\n\nFix: build the package with mion (a bundler plugin or `mion compile`), or make\nsure the consuming code imports the package's module before the pure fn runs.",
 	},
+	"PFE9017": {
+		Headline: "`{0}` could not be read as a pure-fn artifact: {1}.",
+		Detail:   "A mion build writes the package's pure functions into `mion-pure-fns.json`\nnext to its output, and a consumer's build reads that file to serve the\nbodies. This one was skipped: it was written in a format this compiler does\nnot know, or it is not that file. Skipped means the package may now look as\nif it shipped no compiled pure functions.\n\nFix: update the mion compiler to the version that wrote the file, or rebuild\nthe package with the version in use.",
+	},
+	"PFE9018": {
+		Headline: "Pure fn `{0}` has two different bodies in `{1}` and `{2}`.",
+		Detail:   "A pure function's id is a hash of the body that ships, so one id is one body.\nTwo artifacts of the same installed package give this id different bodies,\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns.json`, or remove the stale copy.",
+	},
 	"UPN001": {
 		Headline: "Property `{0}` can never be data and is dropped: the rest of the type still works.",
 		Detail:   "Writing `__proto__` on a plain object swaps the object's prototype instead of\nstoring a value, so no decoder can restore that key and no encoder can write\nit. The member is dropped from every generated function, the way a member whose\nvalue cannot cross the wire is dropped.\n\nTypeScript ACCEPTS the declaration, which is why this is worth saying: the type\npromises a string, and at runtime there is no such key at all.\n  const v: Settings = {ok: 1, __proto__: 'x'};  // compiles\n  Object.keys(v);                               // ['ok']\n\n`prototype` and `constructor` are ordinary property names and are kept.\n\nFix: rename the property to keep the data:\n  interface Settings {\n-   __proto__: string;\n+   parent: string;\n  }",

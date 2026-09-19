@@ -979,6 +979,22 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "A pure fn imported from an installed package is normally served at build time\nfrom that package's compiled files, so the body is bound into this build's own\nmodule and registered before anything calls it. This package carries no compiled\npure fn (it was not built with mion, or registers none), so the id resolves only\nat runtime, and only if the package's module has already loaded.\n\nFix: build the package with mion (a bundler plugin or `mion compile`), or make\nsure the consuming code imports the package's module before the pure fn runs.",
   },
+  PFE9017: {
+    headline: '`{0}` could not be read as a pure-fn artifact: {1}.',
+    level: 'warning',
+    severity: 'warning',
+    family: 'purefn',
+    detail:
+      "A mion build writes the package's pure functions into `mion-pure-fns.json`\nnext to its output, and a consumer's build reads that file to serve the\nbodies. This one was skipped: it was written in a format this compiler does\nnot know, or it is not that file. Skipped means the package may now look as\nif it shipped no compiled pure functions.\n\nFix: update the mion compiler to the version that wrote the file, or rebuild\nthe package with the version in use.",
+  },
+  PFE9018: {
+    headline: 'Pure fn `{0}` has two different bodies in `{1}` and `{2}`.',
+    level: 'error',
+    severity: 'error',
+    family: 'purefn',
+    detail:
+      "A pure function's id is a hash of the body that ships, so one id is one body.\nTwo artifacts of the same installed package give this id different bodies,\nwhich means one of them is stale or was produced by a different build.\n\nFix: rebuild the package so every output directory carries the same\n`mion-pure-fns.json`, or remove the stale copy.",
+  },
   PFN001: {
     headline: '`PureFunction<F>` argument must be an INLINE arrow or function expression.',
     level: 'runtimeError',

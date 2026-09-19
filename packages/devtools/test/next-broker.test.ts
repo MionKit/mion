@@ -67,6 +67,45 @@ function askBroker(socketPath: string, file: string, code: string): Promise<any>
 describe('@mionjs/devtools / next broker', () => {
   const register = hasBinary() ? it : it.skip;
 
+  register(
+    'writes the pure-fn artifact into distDir once buildStart is done and again on the first request',
+    async () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-artifact-'));
+      writeProject(root);
+      fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({name: '@acme/next-app', type: 'module'}));
+      fs.writeFileSync(
+        path.join(root, 'src/pure.ts'),
+        `import {registerPureFn} from '@mionjs/run-types';
+export const slugify = registerPureFn((s: string): string => s.toLowerCase());
+`
+      );
+      const distDir = path.join(root, '.next');
+      const broker = await startBroker(root, {
+        binary: BIN,
+        cwd: root,
+        tsconfig: 'tsconfig.json',
+        genDir: '.mion',
+        artifactDir: distDir,
+      });
+      try {
+        expect(broker.owner).toBe(true);
+        const entry = path.join(root, 'src/entry.ts');
+        // Turbopack empties distDir between the config load and the first
+        // loader call, so the copy written after buildStart is gone by then.
+        fs.rmSync(distDir, {recursive: true, force: true});
+        const reply = await askBroker(broker.socketPath, entry, fs.readFileSync(entry, 'utf8'));
+        expect(reply.ok).toBe(true);
+        const artifact = JSON.parse(fs.readFileSync(path.join(distDir, 'mion-pure-fns.json'), 'utf8'));
+        expect(artifact.package).toBe('@acme/next-app');
+        expect(artifact.pureFns.map((row: {bindingName: string}) => row.bindingName)).toEqual(['slugify']);
+      } finally {
+        await broker.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
   it('keeps a resolver out of processes that only LOAD the config', () => {
     // Next's detached telemetry flush evaluates next.config but never bundles,
     // so a resolver started there is pure waste that also outlives the build.

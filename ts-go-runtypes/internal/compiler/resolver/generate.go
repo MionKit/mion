@@ -239,6 +239,36 @@ func pureFnReportPath(outDir string) string {
 	return filepath.Join(outDir, typesSubdir, pureFnReportFileName)
 }
 
+// pureFnArtifactPath is the canonical copy of the package's pure-fn artifact:
+// `<outDir>/types/mion-pure-fns.json`, the same lifecycle as the report files
+// (regenerated every build, gitignored with types/, never a module, never
+// GC'd). The bundler adapters and `mion compile` copy its content into the
+// bundler's OUTPUT dir once the bundle is on disk; generate cannot write there
+// itself because it runs at buildStart, before a bundler empties that dir.
+func pureFnArtifactPath(outDir string) string {
+	return filepath.Join(outDir, typesSubdir, constants.PureFnArtifactFileName)
+}
+
+// WriteOrRemoveFile writes content to path write-only-on-change, or removes
+// the file when content is empty, so a stale artifact never outlives the last
+// pure fn of a package. Shared with the compile lane, which places the same
+// artifact in the tsconfig outDir.
+func WriteOrRemoveFile(path string, content []byte) error {
+	if len(content) == 0 {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return unwritableOutDirError(path, err)
+		}
+		return nil
+	}
+	if existing, readErr := os.ReadFile(path); readErr == nil && string(existing) == string(content) {
+		return nil
+	}
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		return unwritableOutDirError(path, err)
+	}
+	return nil
+}
+
 // batchReportPath is the batch twin of pureFnReportPath:
 // `<outDir>/types/batches-report.json`, equally hardcoded.
 func batchReportPath(outDir string) string {

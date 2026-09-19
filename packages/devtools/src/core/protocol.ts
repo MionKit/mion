@@ -514,6 +514,13 @@ export interface Response {
   // entry — populated on `generate` (whole program) and `scanFiles` (the
   // rescanned files' delta) when the resolver's pure-fn report is enabled.
   pureFnSites?: PureFnSite[];
+  /**
+   * generate only: the content of the package's `mion-pure-fns.json`, the
+   * package's own pure fns, for the adapter to write into the bundler's output
+   * directory once the bundle is on disk. Empty when the package registers
+   * none, in which case a stale file is removed.
+   */
+  pureFnArtifact?: string;
   // The structured request-batch build report — one record per `batch([...])`
   // call site — populated on `generate` (whole program) and `scanFiles` (the
   // rescanned files' delta) when the resolver's build report is enabled.
