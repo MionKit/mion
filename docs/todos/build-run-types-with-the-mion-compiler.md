@@ -122,3 +122,42 @@ breaks every install. Neither half ships alone.
 - The `pre-publish-e2e` lane passes, proving a consumer installing the real tarball still
   gets every built-in body. This is the gate that catches a pruned artifact, so the PR
   carries the `pre-publish-e2e` label.
+
+## Plan — the compiler skips the marker package, fix that first (approved 2026-09-19)
+
+The "One pull request, in this order" section above assumed a plugin on run-types would
+produce the artifact by itself. It would not. The compiler skips the marker package in
+TWO places, both deliberate, so adding a plugin to run-types today changes nothing:
+
+- `resolver/render.go:302-308` drops every built-in entry from the whole-program graph, so
+  `renderPureFnArtifact` finds nothing of its own to write. Reason given there: a CONSUMER
+  building in-repo resolves run-types through the `source` condition, so the extractor
+  would find the built-in registrations and clash with the served table.
+- `resolver/dispatch.go:1294-1301` refuses to rewrite the package's own registration call
+  sites, because a rewritten site imports a pf module that is only emitted on demand and
+  would dangle otherwise.
+
+So the build tool is not the blocker and never was. Fix the compiler and BOTH roads work,
+a bundler plugin and `mion compile` alike, since both drive the same resolver.
+
+What ships:
+
+1. **Narrow the graph filter, not the rewrite filter.** Keep a package's own built-ins in
+   the graph when the program IS that package, through a memoised `sess.ownPackage()`
+   around `marker.PackageOfFile(<cwd>/package.json)` that `renderPureFnArtifact` already
+   computes by hand. The rewrite filter stays as it is, so run-types' sources compile
+   unchanged and `scripts/core/hollow-builtin-purefns.mjs` keeps working.
+2. **run-types builds through the mion compiler** (vite + `mionVitePlugin`), keeping
+   `outDir: 'dist'` and `preserveModulesRoot: 'src'`: ten-plus places hard-code
+   `packages/run-types/dist/<path>`. CJS stays `dist/cjs/*.js`, not core's `.cjs`. The dts
+   config carries `lib: [..., "esnext.temporal"]` or declaration emit silently drops the
+   marker declarations. `composite: true` stays on `tsconfig.json` for six drizzle project
+   references, with a separate `tsconfig.build.json` for vite. `scripts/core/build.mjs`
+   swaps its marker/plugin order, since the marker build now needs the devtools dist.
+3. **Delete the marker source lane**: the `MarkerPackageName` branch in `extractSource`,
+   `MarkerSourceFiles`, `SourceFiles` in `ids.generated.go` and its generator half, and
+   `CFG004`. `purefnids.Has`, the named constants, `NameOf` and `All` all stay.
+
+Decided with the user: `src` stays in the published `files`. Every published mion package
+ships `src` for its `source` export condition and nothing rewrites the manifest at publish
+time. Removing it gets its own spec.
