@@ -269,8 +269,7 @@ type Options struct {
 // package's compiled files implements it.
 type PureFnBindingResolver interface {
 	BindingID(dtsPath, name string) (id string, ok bool)
-	// UnbuiltPackage names the package a `.d.ts` belongs to when it ships no compiled pure fns and no sources,
-	// so a branded name it declares is reported as unbuilt (PFE9016) rather than as an unreadable dep.
+	// UnbuiltPackage names the `.d.ts`'s package when it ships no compiled pure fns and no sources: PFE9016, not an unreadable dep.
 	UnbuiltPackage(dtsPath string) (name string, unbuilt bool)
 }
 

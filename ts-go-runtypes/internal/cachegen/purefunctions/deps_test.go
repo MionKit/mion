@@ -392,7 +392,7 @@ func (table bindingTable) BindingID(dtsPath, name string) (string, bool) {
 
 func (table bindingTable) UnbuiltPackage(string) (string, bool) { return "", false }
 
-// unbuiltPackages is a stand-in for the index over packages that ship nothing to serve: `.d.ts` basename → package.
+// unbuiltPackages fakes the index: `.d.ts` basename → package that ships nothing to serve.
 type unbuiltPackages map[string]string
 
 func (unbuiltPackages) BindingID(string, string) (string, bool) { return "", false }
@@ -445,8 +445,7 @@ export const titleOf = registerPureFnFactory(function (utl) {
 		t.Error("an untyped .d.ts binding with no package index must still be a PFE9013")
 	}
 
-	// The package ships nothing to serve: the branded name is a pure fn nothing can build, PFE9016 naming it
-	// and the package, and neither an unreadable dep nor a captured outer binding on top.
+	// An unbuilt package: PFE9016 alone, no unreadable-dep or captured-binding error on top.
 	_, diags = extractFromOverlayWith(t, files, func(opts *marker.Options) {
 		opts.PureFnBindings = unbuiltPackages{"index.d.ts": "@acme/text"}
 	})

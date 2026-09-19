@@ -23,8 +23,7 @@ import (
 //   - lowerings: the argument spans to replace with a quoted id when the body
 //     is stripped. An id reached by IMPORT has no meaning in the emitted
 //     module, which carries the body alone, so the body must carry the literal.
-//   - exempt: those spans plus every branded name from an unbuilt package, handed to the purity check so
-//     neither is reported as a captured outer binding.
+//   - exempt: lowerings plus branded names from unbuilt packages, which the purity check must not report as captured.
 //
 // When utlName is empty (factory has no first parameter), returns nothing — the
 // caller is free to register the entry without deps.
@@ -122,7 +121,7 @@ func (ctx *resolveCtx) handleCall(
 	}
 	if id == "" {
 		inner := unwrapExpression(arg)
-		// A branded name from a package that ships nothing to serve is that package's fault, not the call's.
+		// The package that ships nothing to serve is at fault, not the call.
 		if packageName, unbuilt := ctx.unbuiltPackageOf(inner); unbuilt {
 			*diags = append(*diags, diagnostics.New(diagnostics.CodePureFnDepUnbuilt, siteFromNode(sourceFile, arg), inner.Text(), packageName))
 			*exempt = append(*exempt, textRange{Start: inner.Pos(), End: inner.End(), Text: inner.Text()})
@@ -145,8 +144,7 @@ func (ctx *resolveCtx) handleCall(
 	}
 }
 
-// unbuiltPackageOf names the package of an identifier declared in a `.d.ts` with the PureFnId brand when that
-// package ships no compiled pure fns and no sources: the name is a pure fn, only nothing can serve it.
+// unbuiltPackageOf names the package of a PureFnId-branded `.d.ts` name when it ships no compiled pure fns and no sources.
 func (ctx *resolveCtx) unbuiltPackageOf(identifier *ast.Node) (string, bool) {
 	if identifier.Kind != ast.KindIdentifier || ctx.markerOpts.PureFnBindings == nil || ctx.typeChecker == nil {
 		return "", false
