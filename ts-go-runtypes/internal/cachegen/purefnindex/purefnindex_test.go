@@ -15,6 +15,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/vfs/osvfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
@@ -35,24 +36,63 @@ const (
 )
 
 var (
-	slugifyRow = ArtifactRow{ID: slugifyID, BindingName: "slugify", File: "src/slug.ts", ParamNames: []string{"utl"}, Code: slugCode, PureFnDependencies: []string{}}
-	titleRow   = ArtifactRow{ID: titleID, BindingName: "title", File: "src/title.ts", ParamNames: []string{"utl"}, Code: "return 1;", PureFnDependencies: []string{slugifyID}}
+	slugifyEntry = purefunctions.Entry{ID: slugifyID, BindingName: "slugify", FilePath: "src/slug.ts", ParamNames: []string{"utl"}, Code: slugCode}
+	titleEntry   = purefunctions.Entry{ID: titleID, BindingName: "title", FilePath: "src/title.ts", ParamNames: []string{"utl"}, Code: "return 1;", PureFnDependencies: []string{slugifyID}}
 )
 
-// artifact renders an artifact file for tests, bypassing the sort so a fixture
-// can stage rows in any order.
-func artifact(packageName string, rows ...ArtifactRow) string {
-	payload, err := json.MarshalIndent(Artifact{Format: ArtifactFormat, Package: packageName, PureFns: rows}, "", "  ")
+// artifactDir is the artifact directory a build writes, staged for tests at
+// dir: index.json listing the entries (in the given order, bypassing the sort
+// so a fixture can stage rows in any order) plus one cache module per entry,
+// rendered by the real renderer in the given emit mode. An entry's FilePath is
+// the index's `file`, relative to the package root.
+func artifactDir(dir, packageName string, mode constants.EmitMode, entries ...purefunctions.Entry) map[string]string {
+	rows := make([]ArtifactIndexRow, 0, len(entries))
+	for _, entry := range entries {
+		rows = append(rows, ArtifactIndexRow{ID: entry.ID, BindingName: entry.BindingName, File: entry.FilePath})
+	}
+	files := map[string]string{dir + "/" + constants.PureFnArtifactIndexFile: indexJSON(packageName, rows...)}
+	for _, entry := range entries {
+		files[dir+"/"+ModulePath(entry.ID)] = moduleFor(entry, mode)
+	}
+	return files
+}
+
+func indexJSON(packageName string, rows ...ArtifactIndexRow) string {
+	payload, err := json.MarshalIndent(ArtifactIndex{Format: ArtifactFormat, Package: packageName, PureFns: rows}, "", "  ")
 	if err != nil {
 		panic(err)
 	}
 	return string(payload) + "\n"
 }
 
+// moduleFor renders an entry's cache module exactly as generate does, with
+// its deps stubbed the way a build stubs a dep it does not hold.
+func moduleFor(entry purefunctions.Entry, mode constants.EmitMode) string {
+	graph := purefunctions.CollectEntries([]purefunctions.Entry{entry}, mode)
+	graph.AddMissingStubs(nil)
+	modules, err := entrymodules.RenderGrouped(graph, nil)
+	if err != nil {
+		panic(err)
+	}
+	return modules[entrymodules.ModuleName(entry.ID, entrymodules.KindPureFn)]
+}
+
+func merge(sets ...map[string]string) map[string]string {
+	all := map[string]string{}
+	for _, set := range sets {
+		for path, content := range set {
+			all[path] = content
+		}
+	}
+	return all
+}
+
 func storeOver(files map[string]string) *Store {
 	return NewStore(program.NewOverlayFS(osvfs.FS(), files))
 }
 
+// textPackage stages the @acme/text package: its manifest, its untyped .d.ts,
+// and whatever the test adds under its root (paths relative to the root).
 func textPackage(files map[string]string) map[string]string {
 	all := map[string]string{
 		textPkg + "/package.json":    `{"name":"@acme/text"}`,
@@ -64,6 +104,20 @@ func textPackage(files map[string]string) map[string]string {
 	return all
 }
 
+// textArtifact is @acme/text's artifact directory under dist, in code mode.
+func textArtifact(entries ...purefunctions.Entry) map[string]string {
+	return artifactDir(textPkg+"/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, entries...)
+}
+
+func rowOf(t *testing.T, idx *PackageIndex, id string) purefunctions.Entry {
+	t.Helper()
+	row, ok := idx.Row(id)
+	if !ok {
+		t.Fatalf("%s is not served: problems=%+v err=%v", id, idx.Problems, idx.Err)
+	}
+	return row
+}
+
 func codes(entries []purefunctions.Entry) []string {
 	out := make([]string, 0, len(entries))
 	for _, entry := range entries {
@@ -72,31 +126,31 @@ func codes(entries []purefunctions.Entry) []string {
 	return out
 }
 
-// The artifact in the output dir: its rows are the package's rows, projected
-// to the served shape, and a binding name answers an untyped .d.ts import.
+// The artifact directory in the output dir: a module read on demand gives the
+// package's row projected to the served shape, and a binding name answers an
+// untyped .d.ts import from the index alone.
 func TestArtifact_RowsAndBindingID(t *testing.T) {
-	store := storeOver(textPackage(map[string]string{
+	store := storeOver(merge(textPackage(map[string]string{
 		"/dist/index.js": "export const slugify = registerPureFn(null);\n",
-		"/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", slugifyRow),
-	}))
+	}), textArtifact(slugifyEntry)))
 	idx := store.Package(textPkg)
 	if !idx.Built() || idx.Name != "@acme/text" || idx.FromSource {
 		t.Fatalf("package not indexed: built=%v name=%q fromSource=%v", idx.Built(), idx.Name, idx.FromSource)
 	}
-	want := purefunctions.Entry{ID: slugifyID, BindingName: "slugify", ParamNames: []string{"utl"}, Code: slugCode}
-	if got := idx.Rows[slugifyID]; !reflect.DeepEqual(got, want) {
-		t.Errorf("row = %+v, want %+v", got, want)
-	}
 	if id, ok := store.BindingID(textPkg+"/dist/index.d.ts", "slugify"); !ok || id != slugifyID {
 		t.Errorf("BindingID = %q, %v", id, ok)
 	}
-	if len(idx.Problems) != 0 || len(idx.Conflicts) != 0 {
-		t.Errorf("problems=%+v conflicts=%+v", idx.Problems, idx.Conflicts)
+	want := purefunctions.Entry{ID: slugifyID, BindingName: "slugify", ParamNames: []string{"utl"}, Code: slugCode}
+	if got := rowOf(t, idx, slugifyID); !reflect.DeepEqual(got, want) {
+		t.Errorf("row = %+v, want %+v", got, want)
+	}
+	if !reflect.DeepEqual(idx.IDs(), []string{slugifyID}) || len(idx.Problems) != 0 || len(idx.Conflicts) != 0 {
+		t.Errorf("ids=%v problems=%+v conflicts=%+v", idx.IDs(), idx.Problems, idx.Conflicts)
 	}
 }
 
 // recordingFS counts the files read through it, so a test can prove a bundle
-// was never opened.
+// was never opened and a module was opened only on demand.
 type recordingFS struct {
 	vfspkg.FS
 	reads []string
@@ -119,7 +173,7 @@ func TestArtifact_BundleIsNeverOpened(t *testing.T) {
 	}))}
 	idx := NewStore(fs).Package(textPkg)
 	if idx.Built() {
-		t.Fatalf("a bundle must not be read as rows: %v", idx.Rows)
+		t.Fatalf("a bundle must not be read as rows: %v", idx.IDs())
 	}
 	for _, read := range fs.reads {
 		if strings.HasSuffix(read, ".js") || strings.HasSuffix(read, ".mjs") || strings.HasSuffix(read, ".cjs") {
@@ -131,61 +185,150 @@ func TestArtifact_BundleIsNeverOpened(t *testing.T) {
 	}
 }
 
-// An ESM and a CJS build both write the artifact: identical rows merge into
-// one, in any order and wherever the files sit.
-func TestArtifact_SecondBuildMergesIdenticalRows(t *testing.T) {
-	store := storeOver(textPackage(map[string]string{
-		"/dist/esm/" + constants.PureFnArtifactFileName: artifact("@acme/text", slugifyRow, titleRow),
-		"/dist/cjs/" + constants.PureFnArtifactFileName: artifact("@acme/text", titleRow, slugifyRow),
-	}))
+// Memory follows demand: indexing a package opens its manifest and its index
+// and no module; serving one id opens that id's module and no other, however
+// many the package ships.
+func TestArtifact_OnlyDemandedModulesAreOpened(t *testing.T) {
+	third := purefunctions.Entry{ID: "@acme/text#pf_third000000000", BindingName: "third", FilePath: "src/third.ts", Code: "return 3;"}
+	fs := &recordingFS{FS: program.NewOverlayFS(osvfs.FS(), merge(textPackage(nil), textArtifact(slugifyEntry, titleEntry, third)))}
+	// Manifest lookups (package.json up the tree) are not artifact reads.
+	artifactReads := func() []string {
+		var reads []string
+		for _, read := range fs.reads {
+			if !strings.HasSuffix(read, "package.json") {
+				reads = append(reads, read)
+			}
+		}
+		return reads
+	}
+	dir := textPkg + "/dist/" + constants.PureFnArtifactDir
+	store := NewStore(fs)
 	idx := store.Package(textPkg)
-	if len(idx.Rows) != 2 || len(idx.Conflicts) != 0 || len(idx.Problems) != 0 {
-		t.Errorf("rows=%d conflicts=%+v problems=%+v", len(idx.Rows), idx.Conflicts, idx.Problems)
+	if len(idx.IDs()) != 3 {
+		t.Fatalf("ids = %v", idx.IDs())
+	}
+	wantReads := []string{dir + "/" + constants.PureFnArtifactIndexFile}
+	if got := artifactReads(); !reflect.DeepEqual(got, wantReads) {
+		t.Errorf("indexing read %v, want %v", got, wantReads)
+	}
+	if id, ok := store.BindingID(textPkg+"/dist/index.d.ts", "third"); !ok || id != third.ID || !reflect.DeepEqual(artifactReads(), wantReads) {
+		t.Errorf("a name lookup must open no module: %q %v reads=%v", id, ok, fs.reads)
+	}
+	result := store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}})
+	if len(result.Entries) != 2 || len(result.Missing) != 0 {
+		t.Fatalf("closure = %+v", result)
+	}
+	wantReads = append(wantReads, dir+"/"+ModulePath(titleID), dir+"/"+ModulePath(slugifyID))
+	if got := artifactReads(); !reflect.DeepEqual(got, wantReads) {
+		t.Errorf("serving title read %v, want %v", got, wantReads)
+	}
+	store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}})
+	if got := artifactReads(); !reflect.DeepEqual(got, wantReads) {
+		t.Errorf("a second demand must be served from the cache, reads=%v", got)
+	}
+}
+
+// One entry, three emit modes: the module a code-mode, a functions-mode and a
+// both-mode build writes reads back to the same served row, so a consumer is
+// served whatever mode the library was built in.
+func TestReadModule_EmitModesAgree(t *testing.T) {
+	entry := purefunctions.Entry{ID: titleID, ParamNames: []string{"utl", "x"}, Code: "return utl.getPureFn('" + slugifyID + "')(x) + '</script>';", PureFnDependencies: []string{slugifyID}}
+	want := served(entry)
+	for _, mode := range []constants.EmitMode{constants.EmitCode, constants.EmitFunctions, constants.EmitBoth} {
+		got, err := ReadModule(titleID, moduleFor(entry, mode))
+		if err != nil || !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: row = %+v (err %v), want %+v", mode, got, err, want)
+		}
+	}
+	if _, err := ReadModule(slugifyID, moduleFor(entry, constants.EmitCode)); err == nil || !strings.Contains(err.Error(), "holds the tuple of") {
+		t.Errorf("another id's module must be refused, got %v", err)
+	}
+	if _, err := ReadModule(slugifyID, "export const x = 1;\n"); err == nil || !strings.Contains(err.Error(), "no pure-fn tuple") {
+		t.Errorf("a module with no tuple must be refused, got %v", err)
+	}
+	if got := ModulePath(slugifyID); got != "@acme/text/slug00000000000.js" {
+		t.Errorf("ModulePath = %q", got)
+	}
+}
+
+// An ESM and a CJS build both write the directory: identical rows merge into
+// one, in any order and wherever the directories sit.
+func TestArtifact_SecondBuildMergesIdenticalRows(t *testing.T) {
+	store := storeOver(merge(textPackage(nil),
+		artifactDir(textPkg+"/dist/esm/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry, titleEntry),
+		artifactDir(textPkg+"/dist/cjs/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitFunctions, titleEntry, slugifyEntry),
+	))
+	idx := store.Package(textPkg)
+	result := store.Closure([]Demand{{ID: titleID, FromDir: "/virtual/app"}})
+	if len(idx.IDs()) != 2 || len(result.Entries) != 2 || len(result.Conflicts) != 0 || len(result.Problems) != 0 {
+		t.Errorf("ids=%v closure=%+v", idx.IDs(), result)
 	}
 	if id, ok := store.BindingID(textPkg+"/dist/index.d.ts", "title"); !ok || id != titleID {
-		t.Errorf("a name seen in two artifacts still answers once: %q, %v", id, ok)
+		t.Errorf("a name seen in two indexes still answers once: %q, %v", id, ok)
 	}
 }
 
-// Two artifacts giving one id different bodies is a conflict naming both
-// files; the first read is kept so the rest of the build can still report.
+// Two directories giving one id different bodies is a conflict naming both
+// modules, found when the id is demanded; the first read is kept so the rest
+// of the build can still report. A body no build demands is never compared.
+// Two indexes disagreeing on a name is a conflict naming both indexes, found
+// on first touch.
 func TestArtifact_ConflictingBodies(t *testing.T) {
-	stale := slugifyRow
+	stale := slugifyEntry
 	stale.Code = "return (s) => s.toUpperCase();"
-	store := storeOver(textPackage(map[string]string{
-		"/dist/a/" + constants.PureFnArtifactFileName: artifact("@acme/text", slugifyRow),
-		"/dist/b/" + constants.PureFnArtifactFileName: artifact("@acme/text", stale),
-	}))
+	staleTitle := titleEntry
+	staleTitle.Code = "return 2;"
+	dirA, dirB := textPkg+"/dist/a/"+constants.PureFnArtifactDir, textPkg+"/dist/b/"+constants.PureFnArtifactDir
+	store := storeOver(merge(textPackage(nil),
+		artifactDir(dirA, "@acme/text", constants.EmitCode, slugifyEntry, titleEntry),
+		artifactDir(dirB, "@acme/text", constants.EmitCode, stale, staleTitle),
+	))
 	idx := store.Package(textPkg)
-	want := []ArtifactConflict{{Package: "@acme/text", ID: slugifyID, Files: [2]string{textPkg + "/dist/a/" + constants.PureFnArtifactFileName, textPkg + "/dist/b/" + constants.PureFnArtifactFileName}}}
-	if !reflect.DeepEqual(idx.Conflicts, want) {
-		t.Errorf("conflicts = %+v, want %+v", idx.Conflicts, want)
-	}
-	if idx.Rows[slugifyID].Code != slugCode {
-		t.Errorf("the first row read must be kept, got %q", idx.Rows[slugifyID].Code)
+	if len(idx.Conflicts) != 0 {
+		t.Fatalf("a body is compared only when demanded, got %+v", idx.Conflicts)
 	}
 	result := store.Closure([]Demand{{ID: slugifyID, FromDir: "/virtual/app"}})
+	want := []ArtifactConflict{{Package: "@acme/text", ID: slugifyID, Files: [2]string{dirA + "/" + ModulePath(slugifyID), dirB + "/" + ModulePath(slugifyID)}}}
 	if !reflect.DeepEqual(result.Conflicts, want) {
-		t.Errorf("closure must surface the conflict of a demanded package: %+v", result.Conflicts)
+		t.Errorf("conflicts = %+v, want %+v", result.Conflicts, want)
+	}
+	if len(result.Entries) != 1 || result.Entries[0].Code != slugCode {
+		t.Errorf("the first copy read must be kept, got %+v", result.Entries)
+	}
+	renamed := titleEntry
+	renamed.BindingName = "heading"
+	store = storeOver(merge(textPackage(nil),
+		artifactDir(dirA, "@acme/text", constants.EmitCode, titleEntry),
+		artifactDir(dirB, "@acme/text", constants.EmitCode, renamed),
+	))
+	idx = store.Package(textPkg)
+	want = []ArtifactConflict{{Package: "@acme/text", ID: titleID, Files: [2]string{dirA + "/" + constants.PureFnArtifactIndexFile, dirB + "/" + constants.PureFnArtifactIndexFile}}}
+	if !reflect.DeepEqual(idx.Conflicts, want) {
+		t.Errorf("index conflicts = %+v, want %+v", idx.Conflicts, want)
+	}
+	if id, ok := store.BindingID(textPkg+"/dist/index.d.ts", "title"); !ok || id != titleID {
+		t.Errorf("the first index read names the row: %q, %v", id, ok)
 	}
 }
 
-// An artifact from a newer compiler, or a file that is not an artifact, is a
-// problem that names the file and the reason; a copy of another package's
-// artifact is silently not this package's.
-func TestArtifact_UnreadableAndForeign(t *testing.T) {
-	newer := strings.Replace(artifact("@acme/text", slugifyRow), `"format": 1`, `"format": 2`, 1)
-	store := storeOver(textPackage(map[string]string{
-		"/dist/" + constants.PureFnArtifactFileName:   newer,
-		"/dist/x/" + constants.PureFnArtifactFileName: "{not json",
-		"/dist/y/" + constants.PureFnArtifactFileName: `{"format":1,"package":"@acme/text","pureFns":[{"id":"` + trimID + `"}]}`,
-		"/vendor/" + constants.PureFnArtifactFileName: artifact("@acme/util", ArtifactRow{ID: trimID, ParamNames: []string{}, PureFnDependencies: []string{}}),
-		"/dist/z/" + constants.PureFnArtifactFileName: `{"package":"@acme/text","pureFns":[]}`,
-		"/dist/w/" + constants.PureFnArtifactFileName: `{"format":1,"pureFns":[]}`,
-	}))
+// An index from a newer compiler, or a file that is not an index, is a problem
+// that names the file and the reason; a copy of another package's artifact is
+// silently not this package's.
+func TestArtifact_UnreadableIndexAndForeign(t *testing.T) {
+	index := func(sub, content string) map[string]string {
+		return map[string]string{textPkg + sub + "/" + constants.PureFnArtifactDir + "/" + constants.PureFnArtifactIndexFile: content}
+	}
+	store := storeOver(merge(textPackage(nil),
+		index("/dist", strings.Replace(indexJSON("@acme/text", ArtifactIndexRow{ID: slugifyID}), `"format": 1`, `"format": 2`, 1)),
+		index("/dist/x", "{not json"),
+		index("/dist/y", `{"format":1,"package":"@acme/text","pureFns":[{"id":"`+trimID+`"}]}`),
+		index("/vendor", indexJSON("@acme/util", ArtifactIndexRow{ID: trimID})),
+		index("/dist/z", `{"package":"@acme/text","pureFns":[]}`),
+		index("/dist/w", `{"format":1,"pureFns":[]}`),
+	))
 	idx := store.Package(textPkg)
 	if idx.Built() {
-		t.Errorf("nothing readable must mean nothing served, got %v", idx.Rows)
+		t.Errorf("nothing readable must mean nothing served, got %v", idx.IDs())
 	}
 	reasons := map[string]string{}
 	for _, problem := range idx.Problems {
@@ -194,12 +337,13 @@ func TestArtifact_UnreadableAndForeign(t *testing.T) {
 			t.Errorf("problem must name the package: %+v", problem)
 		}
 	}
+	indexPath := constants.PureFnArtifactDir + "/" + constants.PureFnArtifactIndexFile
 	for file, want := range map[string]string{
-		"dist/" + constants.PureFnArtifactFileName:   "newer artifact format 2 (this compiler reads up to 1)",
-		"dist/x/" + constants.PureFnArtifactFileName: "not valid JSON",
-		"dist/y/" + constants.PureFnArtifactFileName: `row "` + trimID + `" is not owned by "@acme/text"`,
-		"dist/z/" + constants.PureFnArtifactFileName: "missing `format`",
-		"dist/w/" + constants.PureFnArtifactFileName: "missing `package`",
+		"dist/" + indexPath:   "newer artifact format 2 (this compiler reads up to 1)",
+		"dist/x/" + indexPath: "not valid JSON",
+		"dist/y/" + indexPath: `row "` + trimID + `" is not owned by "@acme/text"`,
+		"dist/z/" + indexPath: "missing `format`",
+		"dist/w/" + indexPath: "missing `package`",
 	} {
 		if got, ok := reasons[file]; !ok || !strings.HasPrefix(got, want) {
 			t.Errorf("%s: reason = %q (reported %v), want prefix %q", file, got, ok, want)
@@ -214,18 +358,58 @@ func TestArtifact_UnreadableAndForeign(t *testing.T) {
 	}
 }
 
+// A listed module that is missing, holds another id's tuple, or holds none is
+// a problem naming the module, found when the id is demanded; the id is then
+// a miss on a built package, and a second demand reports nothing twice.
+func TestArtifact_UnreadableModules(t *testing.T) {
+	dir := textPkg + "/dist/" + constants.PureFnArtifactDir
+	gone := purefunctions.Entry{ID: "@acme/text#pf_gone0000000000", BindingName: "gone", Code: "return 0;"}
+	swapped := purefunctions.Entry{ID: "@acme/text#pf_swap0000000000", BindingName: "swapped", Code: "return 0;"}
+	empty := purefunctions.Entry{ID: "@acme/text#pf_empty000000000", BindingName: "empty", Code: "return 0;"}
+	files := merge(textPackage(nil), textArtifact(slugifyEntry, gone, swapped, empty))
+	delete(files, dir+"/"+ModulePath(gone.ID))
+	files[dir+"/"+ModulePath(swapped.ID)] = moduleFor(slugifyEntry, constants.EmitCode)
+	files[dir+"/"+ModulePath(empty.ID)] = "export const nothing = [];\n"
+	store := storeOver(files)
+	demands := []Demand{{ID: slugifyID, FromDir: "/virtual/app"}, {ID: gone.ID, FromDir: "/virtual/app"}, {ID: swapped.ID, FromDir: "/virtual/app"}, {ID: empty.ID, FromDir: "/virtual/app"}}
+	result := store.Closure(demands)
+	if len(result.Entries) != 1 || len(result.Missing) != 3 {
+		t.Fatalf("closure = %+v", result)
+	}
+	for _, miss := range result.Missing {
+		if !miss.Built {
+			t.Errorf("a built package lacking a readable module is still built: %+v", miss)
+		}
+	}
+	reasons := map[string]string{}
+	for _, problem := range result.Problems {
+		reasons[strings.TrimPrefix(problem.File, dir+"/")] = problem.Reason
+	}
+	for file, want := range map[string]string{
+		ModulePath(gone.ID):    "listed in index.json but missing",
+		ModulePath(swapped.ID): `holds the tuple of "` + slugifyID + `", not "` + swapped.ID + `"`,
+		ModulePath(empty.ID):   "holds no pure-fn tuple",
+	} {
+		if got := reasons[file]; got != want {
+			t.Errorf("%s: reason = %q, want %q", file, got, want)
+		}
+	}
+	if again := store.Closure(demands); len(again.Problems) != 3 {
+		t.Errorf("a second demand must not report the problems twice: %+v", again.Problems)
+	}
+}
+
 // One row bound to a name answers it. Two rows bound to one name are told
 // apart by the declaration's basename against each row's source file; the
 // same basename twice answers nothing, as does a name no row is bound to.
 func TestBindingID_NameAndFileTiebreak(t *testing.T) {
-	inSlug := ArtifactRow{ID: slugifyID, BindingName: "make", File: "src/slug.ts", ParamNames: []string{}, Code: "return 1;", PureFnDependencies: []string{}}
-	inTitle := ArtifactRow{ID: titleID, BindingName: "make", File: "src/title.ts", ParamNames: []string{}, Code: "return 2;", PureFnDependencies: []string{}}
-	store := storeOver(textPackage(map[string]string{
-		"/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", inSlug, inTitle),
+	inSlug := purefunctions.Entry{ID: slugifyID, BindingName: "make", FilePath: "src/slug.ts", Code: "return 1;"}
+	inTitle := purefunctions.Entry{ID: titleID, BindingName: "make", FilePath: "src/title.ts", Code: "return 2;"}
+	store := storeOver(merge(textPackage(map[string]string{
 		"/dist/slug.d.ts":        "export declare const make: string;\n",
 		"/dist/title.d.ts":       "export declare const make: string;\n",
 		"/dist/types/other.d.ts": "export declare const make: string;\n",
-	}))
+	}), textArtifact(inSlug, inTitle)))
 	if id, ok := store.BindingID(textPkg+"/dist/slug.d.ts", "make"); !ok || id != slugifyID {
 		t.Errorf("slug.d.ts make = %q, %v", id, ok)
 	}
@@ -238,10 +422,11 @@ func TestBindingID_NameAndFileTiebreak(t *testing.T) {
 	if _, ok := store.BindingID(textPkg+"/dist/slug.d.ts", "nothing"); ok {
 		t.Error("a name no registration binds must not resolve")
 	}
-	sameFile := storeOver(textPackage(map[string]string{
-		"/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", inSlug, ArtifactRow{ID: titleID, BindingName: "make", File: "src/slug.ts", ParamNames: []string{}, Code: "return 2;", PureFnDependencies: []string{}}),
+	inSlugToo := inTitle
+	inSlugToo.FilePath = "src/slug.ts"
+	sameFile := storeOver(merge(textPackage(map[string]string{
 		"/dist/slug.d.ts": "export declare const make: string;\n",
-	}))
+	}), textArtifact(inSlug, inSlugToo)))
 	if id, ok := sameFile.BindingID(textPkg+"/dist/slug.d.ts", "make"); ok {
 		t.Errorf("two rows from one file bound to one name must not pick one, got %q", id)
 	}
@@ -253,18 +438,18 @@ func TestBindingID_NameAndFileTiebreak(t *testing.T) {
 func TestClosure_AcrossPackagesFromDependentRoot(t *testing.T) {
 	datesPkg := "/virtual/app/node_modules/@acme/dates"
 	nestedText := datesPkg + "/node_modules/@acme/text"
-	nestedSlug := slugifyRow
+	nestedSlug := slugifyEntry
 	nestedSlug.Code = "return (s) => s;"
-	isoDay := ArtifactRow{ID: isoDayID, BindingName: "isoDay", ParamNames: []string{"utl"}, Code: `return utl.getPureFn("` + slugifyID + `");`, PureFnDependencies: []string{slugifyID}}
-	files := map[string]string{
-		textPkg + "/package.json":                                `{"name":"@acme/text"}`,
-		textPkg + "/dist/" + constants.PureFnArtifactFileName:    artifact("@acme/text", slugifyRow),
-		datesPkg + "/package.json":                               `{"name":"@acme/dates"}`,
-		datesPkg + "/dist/" + constants.PureFnArtifactFileName:   artifact("@acme/dates", isoDay),
-		nestedText + "/package.json":                             `{"name":"@acme/text"}`,
-		nestedText + "/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", titleRow, nestedSlug),
-	}
-	store := storeOver(files)
+	isoDay := purefunctions.Entry{ID: isoDayID, BindingName: "isoDay", ParamNames: []string{"utl"}, Code: `return utl.getPureFn("` + slugifyID + `");`, PureFnDependencies: []string{slugifyID}}
+	store := storeOver(merge(map[string]string{
+		textPkg + "/package.json":    `{"name":"@acme/text"}`,
+		datesPkg + "/package.json":   `{"name":"@acme/dates"}`,
+		nestedText + "/package.json": `{"name":"@acme/text"}`,
+	},
+		textArtifact(slugifyEntry),
+		artifactDir(datesPkg+"/dist/"+constants.PureFnArtifactDir, "@acme/dates", constants.EmitFunctions, isoDay),
+		artifactDir(nestedText+"/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, titleEntry, nestedSlug),
+	))
 	result := store.Closure([]Demand{{ID: isoDayID, FromDir: "/virtual/app"}})
 	if len(result.Missing) != 0 || len(result.Unresolved) != 0 {
 		t.Fatalf("unexpected misses: %+v %+v", result.Missing, result.Unresolved)
@@ -282,17 +467,16 @@ func TestClosure_AcrossPackagesFromDependentRoot(t *testing.T) {
 }
 
 // A located package lacking the row is a miss on a built package; a located
-// package with no artifact at all is the runtime-only lane; a package that is
-// not installed is unresolved.
+// package with no artifact at all is unbuilt; a package that is not installed
+// is unresolved.
 func TestClosure_MissingUnbuiltUnresolved(t *testing.T) {
 	legacyPkg := "/virtual/app/node_modules/@acme/legacy"
 	const padID = "@acme/legacy#pf_pad0000000000"
-	store := storeOver(map[string]string{
-		textPkg + "/package.json":                             `{"name":"@acme/text"}`,
-		textPkg + "/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", slugifyRow),
-		legacyPkg + "/package.json":                           `{"name":"@acme/legacy"}`,
-		legacyPkg + "/index.js":                               "export const padId = registerPureFn((s) => s.padStart(4, '0'), '" + padID + "');\n",
-	})
+	store := storeOver(merge(map[string]string{
+		textPkg + "/package.json":   `{"name":"@acme/text"}`,
+		legacyPkg + "/package.json": `{"name":"@acme/legacy"}`,
+		legacyPkg + "/index.js":     "export const padId = registerPureFn((s) => s.padStart(4, '0'), '" + padID + "');\n",
+	}, textArtifact(slugifyEntry)))
 	result := store.Closure([]Demand{
 		{ID: "@acme/text#pf_gone0000000000", FromDir: "/virtual/app"},
 		{ID: padID, FromDir: "/virtual/app"},
@@ -330,21 +514,21 @@ func TestPackageOfID(t *testing.T) {
 }
 
 // A nested node_modules is another package's, and a hidden dir is a build's
-// scratch (a consumer's `.mion` holds its own canonical copy and served copies
-// of other packages' rows): neither is part of this package's artifacts.
+// scratch (a consumer's `.mion` holds served copies of other packages' rows):
+// neither is part of this package's artifacts.
 func TestArtifact_SkipsNestedNodeModulesAndHiddenDirs(t *testing.T) {
-	util := ArtifactRow{ID: trimID, ParamNames: []string{}, Code: "return 0;", PureFnDependencies: []string{}}
-	store := storeOver(map[string]string{
-		textPkg + "/package.json":                                                     `{"name":"@acme/text"}`,
-		textPkg + "/dist/" + constants.PureFnArtifactFileName:                         artifact("@acme/text", slugifyRow),
-		textPkg + "/node_modules/@acme/util/package.json":                             `{"name":"@acme/util"}`,
-		textPkg + "/node_modules/@acme/util/dist/" + constants.PureFnArtifactFileName: artifact("@acme/util", util),
-		textPkg + "/.mion/types/" + constants.PureFnArtifactFileName:                  artifact("@acme/text", titleRow),
-		textPkg + "/test/.mion/types/" + constants.PureFnArtifactFileName:             artifact("@acme/text", titleRow),
-	})
-	idx := store.Package(textPkg)
-	if _, leaked := idx.Rows[trimID]; leaked || len(idx.Rows) != 1 {
-		t.Errorf("rows = %v", idx.Rows)
+	util := purefunctions.Entry{ID: trimID, Code: "return 0;"}
+	store := storeOver(merge(map[string]string{
+		textPkg + "/package.json":                         `{"name":"@acme/text"}`,
+		textPkg + "/node_modules/@acme/util/package.json": `{"name":"@acme/util"}`,
+	},
+		textArtifact(slugifyEntry),
+		artifactDir(textPkg+"/node_modules/@acme/util/dist/"+constants.PureFnArtifactDir, "@acme/util", constants.EmitCode, util),
+		artifactDir(textPkg+"/.mion/types/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, titleEntry),
+		artifactDir(textPkg+"/test/.mion/types/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, titleEntry),
+	))
+	if ids := store.Package(textPkg).IDs(); !reflect.DeepEqual(ids, []string{slugifyID}) {
+		t.Errorf("ids = %v", ids)
 	}
 }
 
@@ -377,10 +561,8 @@ export const isoDay = registerPureFnFactory(function (utl) {
 `
 
 func rowNamed(idx *PackageIndex, name string) (purefunctions.Entry, bool) {
-	for _, row := range idx.Rows {
-		if row.BindingName == name {
-			return row, true
-		}
+	if ids := idx.byName[name]; len(ids) == 1 {
+		return idx.Row(ids[0])
 	}
 	return purefunctions.Entry{}, false
 }
@@ -390,21 +572,20 @@ func rowNamed(idx *PackageIndex, name string) (purefunctions.Entry, bool) {
 // would, including the dep it imports from an artifact-shipping package's
 // untyped .d.ts, and stripped of the positions a rewrite would use.
 func TestSource_FallbackWhenNoArtifact(t *testing.T) {
-	store, cwd := sourceTree(t, map[string]string{
-		"node_modules/@acme/text/package.json":                             `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
-		"node_modules/@acme/text/dist/index.js":                            "export const slugify = registerPureFn(null);\n",
-		"node_modules/@acme/text/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", slugifyRow),
-		"node_modules/@acme/text/dist/index.d.ts":                          "import type {PureFnId} from '@mionjs/run-types';\nexport declare const slugify: PureFnId<string>;\n",
-		"node_modules/@acme/dates/package.json":                            `{"name":"@acme/dates","types":"./dist/index.d.ts"}`,
-		"node_modules/@acme/dates/dist/index.js":                           "import {registerPureFnFactory} from '@mionjs/run-types';\nexport const isoDay = registerPureFnFactory(function (utl) { return function (d) { return d; }; });\n",
-		"node_modules/@acme/dates/dist/index.d.ts":                         "export declare const isoDay: string;\n",
-		"node_modules/@acme/dates/src/index.ts":                            datesSrc,
-		"node_modules/@acme/dates/src/index.spec.ts":                       "import {registerPureFn} from '@mionjs/run-types';\nexport const notScanned = registerPureFn((s: string): string => s);\n",
-	})
+	store, cwd := sourceTree(t, merge(map[string]string{
+		"node_modules/@acme/text/package.json":       `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
+		"node_modules/@acme/text/dist/index.js":      "export const slugify = registerPureFn(null);\n",
+		"node_modules/@acme/text/dist/index.d.ts":    "import type {PureFnId} from '@mionjs/run-types';\nexport declare const slugify: PureFnId<string>;\n",
+		"node_modules/@acme/dates/package.json":      `{"name":"@acme/dates","types":"./dist/index.d.ts"}`,
+		"node_modules/@acme/dates/dist/index.js":     "import {registerPureFnFactory} from '@mionjs/run-types';\nexport const isoDay = registerPureFnFactory(function (utl) { return function (d) { return d; }; });\n",
+		"node_modules/@acme/dates/dist/index.d.ts":   "export declare const isoDay: string;\n",
+		"node_modules/@acme/dates/src/index.ts":      datesSrc,
+		"node_modules/@acme/dates/src/index.spec.ts": "import {registerPureFn} from '@mionjs/run-types';\nexport const notScanned = registerPureFn((s: string): string => s);\n",
+	}, artifactDir("node_modules/@acme/text/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry)))
 	datesRoot := tspath.ResolvePath(cwd, "node_modules/@acme/dates")
 	idx := store.Package(datesRoot)
-	if !idx.FromSource || len(idx.Rows) != 1 {
-		t.Fatalf("expected one row from src, got fromSource=%v rows=%v err=%v", idx.FromSource, idx.Rows, idx.Err)
+	if !idx.FromSource || len(idx.IDs()) != 1 {
+		t.Fatalf("expected one row from src, got fromSource=%v ids=%v err=%v", idx.FromSource, idx.IDs(), idx.Err)
 	}
 	row, ok := rowNamed(idx, "isoDay")
 	if !ok || !strings.HasPrefix(row.ID, "@acme/dates#") || !reflect.DeepEqual(row.PureFnDependencies, []string{slugifyID}) || !strings.Contains(row.Code, "getPureFn('"+slugifyID+"')") {
@@ -431,14 +612,13 @@ func TestSource_FallbackWhenNoArtifact(t *testing.T) {
 // The artifact wins: a package shipping both an artifact and its src is read
 // from the artifact, and src is never parsed.
 func TestSource_ArtifactWinsOverSource(t *testing.T) {
-	store, cwd := sourceTree(t, map[string]string{
-		"node_modules/@acme/text/package.json":                             `{"name":"@acme/text"}`,
-		"node_modules/@acme/text/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", slugifyRow),
-		"node_modules/@acme/text/src/slug.ts":                              "import {registerPureFn} from '@mionjs/run-types';\nexport const slugify = registerPureFn((s: string): string => s.toUpperCase());\n",
-	})
+	store, cwd := sourceTree(t, merge(map[string]string{
+		"node_modules/@acme/text/package.json": `{"name":"@acme/text"}`,
+		"node_modules/@acme/text/src/slug.ts":  "import {registerPureFn} from '@mionjs/run-types';\nexport const slugify = registerPureFn((s: string): string => s.toUpperCase());\n",
+	}, artifactDir("node_modules/@acme/text/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry)))
 	idx := store.Package(tspath.ResolvePath(cwd, "node_modules/@acme/text"))
-	if idx.FromSource || idx.Rows[slugifyID].Code != slugCode {
-		t.Errorf("artifact must win: fromSource=%v row=%+v", idx.FromSource, idx.Rows[slugifyID])
+	if row := rowOf(t, idx, slugifyID); idx.FromSource || row.Code != slugCode {
+		t.Errorf("artifact must win: fromSource=%v row=%+v", idx.FromSource, row)
 	}
 }
 
@@ -446,46 +626,62 @@ func TestSource_ArtifactWinsOverSource(t *testing.T) {
 // read from the artifact its build would write produce the same rows, so a
 // consumer cannot tell which lane served it.
 func TestArtifact_EqualsSourceExtraction(t *testing.T) {
-	store, cwd := sourceTree(t, map[string]string{
-		"node_modules/@acme/text/package.json":                             `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
-		"node_modules/@acme/text/dist/" + constants.PureFnArtifactFileName: artifact("@acme/text", slugifyRow),
-		"node_modules/@acme/text/dist/index.d.ts":                          "import type {PureFnId} from '@mionjs/run-types';\nexport declare const slugify: PureFnId<string>;\n",
-		"node_modules/@acme/dates/package.json":                            `{"name":"@acme/dates"}`,
-		"node_modules/@acme/dates/src/index.ts":                            datesSrc,
-		"node_modules/@acme/dates/src/pad.ts":                              "import {registerPureFn} from '@mionjs/run-types';\nexport const pad = registerPureFn((s: string): string => s.padStart(4, '0'));\nregisterPureFn((s: string): string => s.trim());\n",
-	})
+	store, cwd := sourceTree(t, merge(map[string]string{
+		"node_modules/@acme/text/package.json":    `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
+		"node_modules/@acme/text/dist/index.d.ts": "import type {PureFnId} from '@mionjs/run-types';\nexport declare const slugify: PureFnId<string>;\n",
+		"node_modules/@acme/dates/package.json":   `{"name":"@acme/dates"}`,
+		"node_modules/@acme/dates/src/index.ts":   datesSrc,
+		"node_modules/@acme/dates/src/pad.ts":     "import {registerPureFn} from '@mionjs/run-types';\nexport const pad = registerPureFn((s: string): string => s.padStart(4, '0'));\nregisterPureFn((s: string): string => s.trim());\n",
+	}, artifactDir("node_modules/@acme/text/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry)))
 	datesRoot := tspath.ResolvePath(cwd, "node_modules/@acme/dates")
 	raw, diags, err := ExtractSources(datesRoot, ScanRegistrations(datesRoot, store.fs), SideProgram{FS: store.fs, SingleThreaded: true, Bindings: store})
 	if err != nil || len(diags) != 0 || len(raw) != 3 {
 		t.Fatalf("extract: err=%v diags=%+v entries=%d", err, diags, len(raw))
 	}
-	rendered := RenderArtifact("@acme/dates", datesRoot, raw)
-	if !reflect.DeepEqual(rendered, RenderArtifact("@acme/dates", datesRoot, append([]purefunctions.Entry{raw[2], raw[0]}, raw[1]))) {
+	rendered := RenderArtifactIndex("@acme/dates", datesRoot, raw)
+	if !reflect.DeepEqual(rendered, RenderArtifactIndex("@acme/dates", datesRoot, append([]purefunctions.Entry{raw[2], raw[0]}, raw[1]))) {
 		t.Error("the render must not depend on entry order")
 	}
-	viaArtifact := storeOver(map[string]string{
-		datesRoot + "/package.json":                             `{"name":"@acme/dates"}`,
-		datesRoot + "/dist/" + constants.PureFnArtifactFileName: string(rendered),
-	}).Package(datesRoot)
-	fromSource := store.Package(datesRoot)
-	if !fromSource.FromSource || viaArtifact.FromSource {
-		t.Fatalf("lanes: source=%v artifact=%v err=%v", fromSource.FromSource, viaArtifact.FromSource, fromSource.Err)
+	// The modules a dates build writes, rendered from its own graph in each
+	// emit mode, plus the index: what its dist ships.
+	for _, mode := range []constants.EmitMode{constants.EmitCode, constants.EmitFunctions} {
+		graph := purefunctions.CollectEntries(raw, mode)
+		graph.AddMissingStubs(nil)
+		modules, err := entrymodules.RenderGrouped(graph, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := datesRoot + "/dist/" + constants.PureFnArtifactDir
+		files := map[string]string{datesRoot + "/package.json": `{"name":"@acme/dates"}`, dir + "/" + constants.PureFnArtifactIndexFile: string(rendered)}
+		for _, entry := range raw {
+			files[dir+"/"+ModulePath(entry.ID)] = modules[entrymodules.ModuleName(entry.ID, entrymodules.KindPureFn)]
+		}
+		viaArtifact := storeOver(files).Package(datesRoot)
+		fromSource := store.Package(datesRoot)
+		if !fromSource.FromSource || viaArtifact.FromSource {
+			t.Fatalf("lanes: source=%v artifact=%v err=%v", fromSource.FromSource, viaArtifact.FromSource, fromSource.Err)
+		}
+		if !reflect.DeepEqual(viaArtifact.IDs(), fromSource.IDs()) {
+			t.Errorf("%s: ids differ:\nartifact: %v\nsource:   %v", mode, viaArtifact.IDs(), fromSource.IDs())
+		}
+		for _, id := range fromSource.IDs() {
+			if got, want := rowOf(t, viaArtifact, id), rowOf(t, fromSource, id); !reflect.DeepEqual(got, want) {
+				t.Errorf("%s: %s differs:\nartifact: %+v\nsource:   %+v", mode, id, got, want)
+			}
+		}
+		if !reflect.DeepEqual(viaArtifact.rowFile, fromSource.rowFile) || viaArtifact.rowFile[raw[0].ID] == "" {
+			t.Errorf("files differ:\nartifact: %v\nsource:   %v", viaArtifact.rowFile, fromSource.rowFile)
+		}
 	}
-	if !reflect.DeepEqual(viaArtifact.Rows, fromSource.Rows) {
-		t.Errorf("rows differ:\nartifact: %+v\nsource:   %+v", viaArtifact.Rows, fromSource.Rows)
-	}
-	if !reflect.DeepEqual(viaArtifact.rowFile, fromSource.rowFile) || viaArtifact.rowFile[raw[0].ID] == "" {
-		t.Errorf("files differ:\nartifact: %v\nsource:   %v", viaArtifact.rowFile, fromSource.rowFile)
-	}
-	var parsed Artifact
+	var parsed ArtifactIndex
 	if err := json.Unmarshal(rendered, &parsed); err != nil {
 		t.Fatal(err)
 	}
 	if parsed.Format != ArtifactFormat || parsed.Package != "@acme/dates" || !sort.SliceIsSorted(parsed.PureFns, func(i, j int) bool { return parsed.PureFns[i].ID < parsed.PureFns[j].ID }) {
-		t.Errorf("artifact = %+v", parsed)
+		t.Errorf("index = %+v", parsed)
 	}
 	for _, row := range parsed.PureFns {
-		if !strings.HasPrefix(row.File, "src/") || row.ParamNames == nil || row.PureFnDependencies == nil {
+		if !strings.HasPrefix(row.File, "src/") {
 			t.Errorf("row = %+v", row)
 		}
 	}
@@ -509,7 +705,7 @@ func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
 	}
 	var missing []string
 	for _, id := range all {
-		if _, found := idx.Rows[id]; !found {
+		if _, found := idx.Row(id); !found {
 			missing = append(missing, purefnids.NameOf(id)+" ("+id+")")
 		}
 	}
@@ -518,7 +714,7 @@ func TestMarker_ServedFromSourcesThroughTheGeneratedList(t *testing.T) {
 	}
 	// circular-pure-fns.ts is side-effect imported by NOTHING, so it is served
 	// only because the generated list names it.
-	if _, found := idx.Rows[purefnids.FindCycle]; !found {
+	if _, found := idx.Row(purefnids.FindCycle); !found {
 		t.Error("findCycle was not served")
 	}
 	// The closure pulls a dependency's module too (isDateString_YMD → isDateString).
@@ -629,12 +825,7 @@ func TestMarker_BothLanesAgreeOnIds(t *testing.T) {
 		if idx.Err != nil {
 			t.Fatal(idx.Err)
 		}
-		out := make([]string, 0, len(idx.Rows))
-		for id := range idx.Rows {
-			out = append(out, id)
-		}
-		sort.Strings(out)
-		return out
+		return idx.IDs()
 	}
 	sessionIDs, ownIDs := ids(viaSession), ids(own)
 	if !reflect.DeepEqual(sessionIDs, ownIDs) {

@@ -146,7 +146,7 @@ func elapsedMs(start time.Time) float64 {
 // fan-out preserved), JSON composites, pure fns, the cross-family fixpoint,
 // the global dangling-dep cascade, and missing stubs for demanded keys that
 // didn't survive. Returns the rendered modules keyed by module BASENAME.
-func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunctions.RenderOpts, pureFnGraph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, error) {
+func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunctions.RenderOpts, pureFnGraph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, map[string]string, error) {
 	var graph entrymodules.Graph
 	if sess.opts.ModuleMode == constants.ModuleModeAllModules {
 		graph = runtype.CollectEntriesPerNode(dump, sess.opts.JSONMaxBytes)
@@ -156,7 +156,7 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 
 	familyGraphs, err := sess.collectFamilies(dump, rtOpts, metrics)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, familyGraph := range familyGraphs {
 		graph.Merge(familyGraph)
@@ -215,7 +215,11 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	if metrics != nil {
 		metrics.RenderMs["entryModules"] = elapsedMs(renderStart)
 	}
-	return modules, err
+	if err != nil {
+		return nil, nil, err
+	}
+	artifact, err := sess.renderPureFnArtifact(graph, metrics)
+	return modules, artifact, err
 }
 
 // collectFamilies runs every type-walking family's per-entry collection.
@@ -845,7 +849,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				// out of the per-file pure-fn signals (replacements / addedPureFns)
 				// — those track registerPureFnFactory rewrites, not overrides.
 				allPureFns := append(append([]purefunctions.Entry(nil), pureFnEntries...), sess.overrideEntries...)
-				modules, modulesErr := sess.collectEntryModules(scoped, rtOpts, purefunctions.CollectEntries(allPureFns, sess.opts.EmitMode), metrics)
+				modules, _, modulesErr := sess.collectEntryModules(scoped, rtOpts, purefunctions.CollectEntries(allPureFns, sess.opts.EmitMode), metrics)
 				if modulesErr != nil {
 					return protocol.Response{Error: modulesErr.Error()}
 				}
@@ -902,7 +906,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
 		response.Diagnostics = append(response.Diagnostics, dumpBatchDiagnostics...)
 		response.BatchSites = sess.batchReportForSites(dumpBatchSites)
-		modules, modulesErr := sess.collectEntryModules(fullDump, rtOpts, pureFnGraph, metrics)
+		modules, _, modulesErr := sess.collectEntryModules(fullDump, rtOpts, pureFnGraph, metrics)
 		if modulesErr != nil {
 			return protocol.Response{Error: modulesErr.Error()}
 		}
@@ -936,7 +940,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genOpts := sess.rtRenderOpts(&genDiagnostics, genRooted, genReaching)
 		genOpts.PureFnDepSink = &genPureFnDeps
 		genPureFnGraph, genPureFnsDiagnostics := sess.collectProgramPureFns(metrics)
-		genModules, genModulesErr := sess.collectEntryModules(genDump, genOpts, genPureFnGraph, metrics)
+		genModules, genArtifact, genModulesErr := sess.collectEntryModules(genDump, genOpts, genPureFnGraph, metrics)
 		if genModulesErr != nil {
 			return protocol.Response{Error: genModulesErr.Error()}
 		}
@@ -1005,14 +1009,10 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				}
 			}
 		}
-		// The package's pure-fn artifact, always: its canonical copy lands
-		// under types/ and its content rides the response for whoever owns
-		// the bundler's output dir.
-		artifact := sess.collectPureFnArtifact(metrics)
-		if artifactErr := WriteOrRemoveFile(pureFnArtifactPath(outDir), artifact); artifactErr != nil {
-			return protocol.Response{Error: artifactErr.Error()}
-		}
-		genResponse.PureFnArtifact = string(artifact)
+		// The package's pure-fn artifact rides the response for whoever owns
+		// the bundler's output dir; its modules are already on disk under
+		// types/pf/.
+		genResponse.PureFnArtifact = genArtifact
 		if sess.opts.PureFnReportWire {
 			batchReport := requestbatch.Report(genBatchSites)
 			genResponse.BatchSites = batchReport

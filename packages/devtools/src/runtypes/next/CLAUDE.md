@@ -92,9 +92,9 @@ Each of these was a real failure before it was a rule.
    for an ordinary imported type and an ambient one). The stamp is belt-and-braces for
    builds and load-bearing for dev. Test it in **dev**, with a type that has no import edge.
 
-8. **The broker writes the pure-fn artifact itself, twice.** Every other host has a
-   post-bundle hook that puts `mion-pure-fns.json` next to the bundle; Turbopack has none, so
-   the broker writes it into Next's `distDir` (`artifactDir`, derived by `withRunTypes`)
+8. **The broker syncs the pure-fn artifact directory itself, twice.** Every other host has a
+   post-bundle hook that puts `mion-pure-fns/` next to the bundle; Turbopack has none, so
+   the broker syncs it into Next's `distDir` (`artifactDir`, derived by `withRunTypes`)
    once `buildStart` is done AND again on the first loader request. The second write is not
    redundant: Turbopack empties `distDir` between loading the config and running the first
    loader, so the first copy is gone by then. Best effort by design, a Next app is never

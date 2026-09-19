@@ -51,20 +51,22 @@ const (
 	// module and no injected id. Materialising such a pair also recurses
 	// forever at runtime, so this replaces a hang with a build error.
 	CodePureFnDependencyCycle = "PFE9015"
-	// CodePureFnDepUnbuilt: a pure fn imported from an installed package whose
-	// published files carry no compiled pure fn, so the build cannot serve the
-	// body and only that package's own load-time registration provides it.
-	// LevelWarning: the output runs whenever the package module loads first,
-	// which is what it did before the build could look.
+	// CodePureFnDepUnbuilt: a pure fn imported from an installed package that
+	// ships neither its compiled pure fns (`mion-pure-fns/`) nor its sources,
+	// so the build cannot serve the body. LevelError: the consumer's pure fn
+	// is not built; the package has to be built with mion first.
 	CodePureFnDepUnbuilt = "PFE9016"
-	// CodePureFnArtifactUnreadable: an installed package's `mion-pure-fns.json`
-	// could not be read (a newer format than this compiler knows, or not an
-	// artifact at all). LevelWarning: the file is skipped, so the package may
-	// then look unbuilt (PFE9016) or lack an id (PFE9012); this names the cause.
+	// CodePureFnArtifactUnreadable: a file of an installed package's
+	// `mion-pure-fns/` could not be read: an index of a newer format than this
+	// compiler knows or not an index at all, or a module the index lists that
+	// is missing or holds no tuple for its id. LevelWarning: the file is
+	// skipped, so the package may then look unbuilt (PFE9016) or lack an id
+	// (PFE9012); this names the cause.
 	CodePureFnArtifactUnreadable = "PFE9017"
-	// CodePureFnArtifactConflict: two artifacts of one installed package give
-	// one id different bodies. LevelError: an id is one body, and serving either
-	// would silently pick a version the other build did not ship.
+	// CodePureFnArtifactConflict: two artifact directories of one installed
+	// package disagree on one id, a different body or a different name.
+	// LevelError: an id is one body, and serving either would silently pick a
+	// version the other build did not ship.
 	CodePureFnArtifactConflict = "PFE9018"
 )
 
@@ -83,9 +85,9 @@ func init() {
 		{Code: CodeMissingPureFnDep, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "RT depends on missing pure-fn"},
 		{Code: CodePurityDepNotLiteral, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Pure-fn dep arg not a literal"},
 		{Code: CodePureFnIdMismatch, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Explicit pure-fn id does not match its location"},
-		{Code: CodePureFnDepUnbuilt, Family: FamilyPureFn, Level: LevelWarning, Scope: ScopeNotSource, Title: "Pure-fn dep lives in a package that ships no compiled pure fns"},
+		{Code: CodePureFnDepUnbuilt, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Pure-fn dep lives in a package that ships no compiled pure fns"},
 		{Code: CodePureFnArtifactUnreadable, Family: FamilyPureFn, Level: LevelWarning, Scope: ScopeNotSource, Title: "Pure-fn artifact of an installed package could not be read"},
-		{Code: CodePureFnArtifactConflict, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Two pure-fn artifacts of one package disagree on a body"},
+		{Code: CodePureFnArtifactConflict, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Two pure-fn artifact directories of one package disagree on an id"},
 	} {
 		register(definition)
 	}

@@ -1,7 +1,7 @@
-// Every bundler adapter writes the package's pure-fn artifact,
-// `mion-pure-fns.json`, into ITS OWN output directory once the bundle is on
-// disk, so `files: ["dist"]` publishes it and a consumer's compiler serves the
-// package's pure fns from it. Two real builds (vite lib mode, esbuild) prove the
+// Every bundler adapter syncs the package's pure-fn artifact directory,
+// `mion-pure-fns/` (the package's own cache modules plus an index), into ITS
+// OWN output directory once the bundle is on disk, so `files: ["dist"]`
+// publishes it and a consumer's compiler serves the package's pure fns from it. Two real builds (vite lib mode, esbuild) prove the
 // file lands where the bundle does; the other hosts are driven through the
 // shape unplugin hands them (rollup's writeBundle options, webpack's compiler,
 // bun's build object), since those bundlers are not workspace dependencies.
@@ -15,15 +15,19 @@ import path from 'node:path';
 import {unplugin} from '../src/core/unplugin.ts';
 import runtypesVite from '../src/runtypes/vite.ts';
 import runtypesEsbuild from '../src/runtypes/esbuild.ts';
-import {PURE_FN_ARTIFACT_FILE} from '../src/core/go-generated/runtypes-constants.generated.ts';
+import {
+  PURE_FN_ARTIFACT_DIR,
+  PURE_FN_ARTIFACT_INDEX,
+  PURE_FN_HASH_PREFIX,
+} from '../src/core/go-generated/runtypes-constants.generated.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
 const MARKER_PKG = path.resolve(__dirname, '../../run-types');
 
-interface Artifact {
+interface ArtifactIndex {
   format: number;
   package: string;
-  pureFns: {id: string; bindingName?: string; file?: string; code: string; pureFnDependencies: string[]}[];
+  pureFns: {id: string; bindingName?: string; file?: string}[];
 }
 
 const LIB_SRC = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
@@ -64,19 +68,48 @@ function writeProject(name: string, source: string): string {
   return root;
 }
 
-function readArtifact(dir: string): Artifact {
-  return JSON.parse(fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_FILE), 'utf8')) as Artifact;
+function readIndex(dir: string): ArtifactIndex {
+  return JSON.parse(fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_DIR, PURE_FN_ARTIFACT_INDEX), 'utf8')) as ArtifactIndex;
 }
 
-function expectLibArtifact(dir: string, name: string): void {
-  const artifact = readArtifact(dir);
-  expect(artifact.format).toBe(1);
-  expect(artifact.package).toBe(`@acme/${name}`);
-  expect(artifact.pureFns.map((row) => row.bindingName).sort()).toEqual(['slugify', 'title']);
-  for (const row of artifact.pureFns) {
+// modulePath is where an id's cache module sits inside the artifact directory:
+// `<package>/<hash>.js`, the same path it has under `<genDir>/types/pf/`.
+function modulePath(id: string): string {
+  const [pkg, hash] = id.split(PURE_FN_HASH_PREFIX);
+  return path.join(...pkg.split('/'), `${hash}.js`);
+}
+
+function artifactFiles(dir: string): string[] {
+  const found: string[] = [];
+  const walk = (current: string): void => {
+    for (const entry of fs.readdirSync(current, {withFileTypes: true})) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else found.push(path.relative(dir, full).split(path.sep).join('/'));
+    }
+  };
+  walk(dir);
+  return found.sort();
+}
+
+// The artifact a build of a LIB_SRC project writes: the index naming both
+// pure fns, and each one's module byte-identical to its twin under genDir.
+function expectLibArtifact(dir: string, name: string, bindings = ['slugify', 'title']): void {
+  const index = readIndex(dir);
+  expect(index.format).toBe(1);
+  expect(index.package).toBe(`@acme/${name}`);
+  expect(index.pureFns.map((row) => row.bindingName).sort()).toEqual(bindings);
+  const expectedFiles = [PURE_FN_ARTIFACT_INDEX];
+  for (const row of index.pureFns) {
     expect(row.id).toMatch(new RegExp(`^@acme/${name}#pf_[A-Za-z0-9_-]{14}$`));
     expect(row.file).toBe('src/index.ts');
+    const rel = modulePath(row.id);
+    expectedFiles.push(rel.split(path.sep).join('/'));
+    const module = fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_DIR, rel), 'utf8');
+    expect(module).toBe(fs.readFileSync(path.join(BASE, name, '.mion', 'types', 'pf', rel), 'utf8'));
+    expect(module).toContain(`'${row.id}'`);
   }
+  expect(artifactFiles(path.join(dir, PURE_FN_ARTIFACT_DIR))).toEqual(expectedFiles.sort());
 }
 
 const pluginOptions = (root: string) => ({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: path.join(root, '.mion')});
@@ -255,17 +288,32 @@ describe('the pure-fn artifact lands in every bundler output dir', () => {
   );
 
   register(
-    'a package with no pure fn gets no file, and a stale one is removed',
+    "the directory is the build's: a removed pure fn loses its module, a stray file goes, no pure fn means no directory",
     async () => {
-      const root = writeProject('no-pure-fns', NO_PURE_FN_SRC);
+      const root = writeProject('sync', LIB_SRC);
       const outDir = path.join(root, 'dist');
-      fs.mkdirSync(outDir, {recursive: true});
-      fs.writeFileSync(path.join(outDir, PURE_FN_ARTIFACT_FILE), '{"format":1,"package":"@acme/no-pure-fns","pureFns":[]}\n');
+      const artifactDir = path.join(outDir, PURE_FN_ARTIFACT_DIR);
+      fs.mkdirSync(path.join(artifactDir, '@acme', 'stale'), {recursive: true});
+      fs.writeFileSync(path.join(artifactDir, '@acme', 'stale', 'old.js'), 'export const old = 1;\n');
+      fs.writeFileSync(path.join(artifactDir, 'stray.txt'), 'not ours\n');
       const plugin = rawPlugin(root);
       await withStarted(plugin, async () => {
         await plugin.rollup.writeBundle.call(ctx, {dir: outDir});
       });
-      expect(fs.existsSync(path.join(outDir, PURE_FN_ARTIFACT_FILE))).toBe(false);
+      expectLibArtifact(outDir, 'sync');
+      // Only slugify stays: title's module is deleted and the index re-rendered.
+      fs.writeFileSync(path.join(root, 'src', 'index.ts'), LIB_SRC.split('export const title')[0]);
+      const again = rawPlugin(root);
+      await withStarted(again, async () => {
+        await again.rollup.writeBundle.call(ctx, {dir: outDir});
+      });
+      expectLibArtifact(outDir, 'sync', ['slugify']);
+      fs.writeFileSync(path.join(root, 'src', 'index.ts'), NO_PURE_FN_SRC);
+      const none = rawPlugin(root);
+      await withStarted(none, async () => {
+        await none.rollup.writeBundle.call(ctx, {dir: outDir});
+      });
+      expect(fs.existsSync(artifactDir)).toBe(false);
     },
     120_000
   );

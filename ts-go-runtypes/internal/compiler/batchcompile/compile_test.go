@@ -290,31 +290,39 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 			CacheDir:   filepath.Join(tmp, ".cache"),
 		},
 	}
-	artifactPath := filepath.Join(tmp, "dist", constants.PureFnArtifactFileName)
+	artifactDir := filepath.Join(tmp, "dist", constants.PureFnArtifactDir)
 	noEmit := opts
 	noEmit.NoEmit = true
 	if _, err := Run(noEmit); err != nil {
 		t.Fatalf("compile --no-emit: %v", err)
 	}
-	if _, err := os.Stat(artifactPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(artifactDir); !os.IsNotExist(err) {
 		t.Fatalf("--no-emit must write no artifact: %v", err)
 	}
 	if _, err := Run(opts); err != nil {
 		t.Fatalf("compile: %v", err)
 	}
-	onDisk, err := os.ReadFile(artifactPath)
+	onDisk, err := os.ReadFile(filepath.Join(artifactDir, constants.PureFnArtifactIndexFile))
 	if err != nil {
-		t.Fatalf("artifact not written: %v", err)
+		t.Fatalf("index not written: %v", err)
 	}
-	artifact, err := purefnindex.ParseArtifact(onDisk)
+	index, err := purefnindex.ParseArtifactIndex(onDisk)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if artifact.Package != "@acme/lib" || len(artifact.PureFns) != 1 || artifact.PureFns[0].BindingName != "slugify" || artifact.PureFns[0].File != "src/slug.ts" {
-		t.Errorf("artifact = %+v", artifact)
+	if index.Package != "@acme/lib" || len(index.PureFns) != 1 || index.PureFns[0].BindingName != "slugify" || index.PureFns[0].File != "src/slug.ts" {
+		t.Errorf("index = %+v", index)
 	}
-	canonical, err := os.ReadFile(filepath.Join(tmp, ".mion", "types", constants.PureFnArtifactFileName))
-	if err != nil || string(canonical) != string(onDisk) {
-		t.Errorf("the outDir copy must equal the canonical one under genDir: %v", err)
+	modulePath := filepath.FromSlash(purefnindex.ModulePath(index.PureFns[0].ID))
+	module, err := os.ReadFile(filepath.Join(artifactDir, modulePath))
+	if err != nil {
+		t.Fatalf("module not written: %v", err)
+	}
+	canonical, err := os.ReadFile(filepath.Join(tmp, ".mion", "types", constants.PureFnModuleDir, modulePath))
+	if err != nil || string(canonical) != string(module) {
+		t.Errorf("the outDir module must equal the cache module under genDir: %v", err)
+	}
+	if entry, err := purefnindex.ReadModule(index.PureFns[0].ID, string(module)); err != nil || !strings.Contains(entry.Code, "toLowerCase") {
+		t.Errorf("module = %+v (err %v)", entry, err)
 	}
 }

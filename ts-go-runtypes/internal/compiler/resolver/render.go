@@ -4,6 +4,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
@@ -337,30 +338,58 @@ func (sess *Session) collectPureFnReport(metrics *protocol.Metrics) []protocol.P
 	return purefunctions.Report(kept, sess.opts.EmitMode, sess.opts.ModuleMode == constants.ModuleModeAllSingle)
 }
 
-// collectPureFnArtifact renders the package's pure-fn artifact
-// (purefnindex.RenderArtifact): the whole-program registrations OWNED by the
-// package the program builds, which is the package that holds the program's
-// cwd. A workspace sibling reached through the `source` condition is extracted
-// too but belongs to its own artifact, and the marker package's built-ins
-// belong to the marker package (so run-types itself gets them the day it
-// builds with the compiler, and no other package ever does). Nil when the
+// renderPureFnArtifact renders the package's pure-fn artifact: the cache
+// modules of the whole-program registrations OWNED by the package the program
+// builds (the package that holds the program's cwd), exactly as generate writes
+// them under types/pf/ (per entry, imports relativized), plus the index that
+// maps each one's binding name and source file to its id
+// (purefnindex.RenderArtifactIndex). Keyed by path inside the artifact
+// directory. A workspace sibling reached through the `source` condition is
+// extracted too but belongs to its own artifact, and the marker package's
+// built-ins belong to the marker package (so run-types itself gets them the day
+// it builds with the compiler, and no other package ever does). Nil when the
 // package registers nothing, or has no name to own an id.
-func (sess *Session) collectPureFnArtifact(metrics *protocol.Metrics) []byte {
+//
+// The modules come from the pure-fn slice of the final graph, rendered per
+// entry whatever the module mode: in `allSingle` the cache folds them into one
+// bundle, but a consumer reads one module per demanded id.
+func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, error) {
 	if sess.Program == nil {
-		return nil
+		return nil, nil
 	}
 	ownPackage, ownRoot := marker.PackageOfFile(tspath.CombinePaths(sess.Program.Cwd, "package.json"), sess.Program.FS)
 	if ownPackage == "" {
-		return nil
+		return nil, nil
 	}
 	entries, _, _ := sess.extractProgramPureFns(metrics)
-	kept := make([]purefunctions.Entry, 0, len(entries))
+	var own []purefunctions.Entry
 	for _, entry := range entries {
-		if purefnindex.PackageOfID(entry.Key()) == ownPackage {
-			kept = append(kept, entry)
+		if purefnindex.PackageOfID(entry.Key()) == ownPackage && graph[entry.Key()] != nil {
+			own = append(own, entry)
 		}
 	}
-	return purefnindex.RenderArtifact(ownPackage, ownRoot, kept)
+	if len(own) == 0 {
+		return nil, nil
+	}
+	// The slice a per-entry render of the own modules needs: every pure-fn
+	// entry (a dep's module is imported by name) and the stubs keyed by a
+	// pure-fn id (a dep nothing answered).
+	slice := entrymodules.Graph{}
+	for key, entry := range graph {
+		if entry.Kind == entrymodules.KindPureFn || (entry.Kind == entrymodules.KindMissing && strings.Contains(key, constants.PureFnHashPrefix)) {
+			slice.Add(entry)
+		}
+	}
+	modules, err := entrymodules.RenderGrouped(slice, nil)
+	if err != nil {
+		return nil, err
+	}
+	files := map[string]string{constants.PureFnArtifactIndexFile: string(purefnindex.RenderArtifactIndex(ownPackage, ownRoot, own))}
+	for _, entry := range own {
+		basename := entrymodules.ModuleName(entry.Key(), entrymodules.KindPureFn)
+		files[purefnindex.ModulePath(entry.Key())] = relativizeModuleImports(basename, modules[basename])
+	}
+	return files, nil
 }
 
 // pureFnReportForEntries builds the report for an already-extracted per-request

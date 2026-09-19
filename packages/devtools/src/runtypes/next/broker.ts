@@ -71,7 +71,7 @@ export interface NextOptions extends PluginOptions {
   // Where the broker listens. Derived from the project root by default; set it
   // only to keep two projects that share a root from sharing one resolver.
   socketPath?: string;
-  // Where the broker writes the package's `mion-pure-fns.json`: Next's distDir,
+  // Where the broker syncs the package's `mion-pure-fns/`: Next's distDir,
   // as withRunTypes derives it. Best effort, since Turbopack has no post-build
   // hook: written once buildStart is done and again on the first loader
   // request (by then Turbopack has emptied the dir). A Next app is never
