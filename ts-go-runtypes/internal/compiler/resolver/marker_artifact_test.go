@@ -15,8 +15,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// markerPackageRoot is the real @mionjs/run-types package: the artifact it publishes is the
-// compiler's own contract, so these tests build the actual sources rather than a stand-in.
+// markerPackageRoot is the real @mionjs/run-types: its published artifact is the compiler's own contract.
 func markerPackageRoot(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "packages", "run-types"))
@@ -26,10 +25,9 @@ func markerPackageRoot(t *testing.T) string {
 	return tspath.NormalizePath(root)
 }
 
-// A package's own build is the single producer of its built-in bodies, so generating over the
-// marker package's sources must hand back an artifact holding EVERY id the compiler names.
-// Before this, the whole-program filter that stops a consumer double-producing them also
-// emptied the package's own artifact, which is why it had to ship its sources instead.
+// A package's own build is the single producer of its built-in bodies, so generating over the marker
+// package's sources must hand back an artifact holding EVERY id the compiler names: the whole-program
+// filter that stops a consumer double-producing them once emptied the package's own artifact.
 func TestMarkerArtifact_HoldsEveryBuiltinID(t *testing.T) {
 	root := markerPackageRoot(t)
 	scanned := purefnindex.ScanRegistrations(root, osvfs.FS())
@@ -62,7 +60,6 @@ func TestMarkerArtifact_HoldsEveryBuiltinID(t *testing.T) {
 	if !reflect.DeepEqual(got, purefnids.All()) {
 		t.Errorf("artifact ids differ from the generated constants\ngot:  %v\nwant: %v", got, purefnids.All())
 	}
-	// Every listed id must have a module beside the index, and that module must read back.
 	for _, id := range got {
 		content, ok := gen.PureFnArtifact[purefnindex.ModulePath(id)]
 		if !ok {
@@ -74,9 +71,8 @@ func TestMarkerArtifact_HoldsEveryBuiltinID(t *testing.T) {
 	}
 }
 
-// The filter is narrowed to the OWNING package, not removed: a consumer resolving the marker
-// package through the `source` condition must still drop its built-ins, or the served table
-// and the consumer's own extraction would both produce the same id.
+// The filter is narrowed to the OWNING package, not removed: a consumer resolving the marker package
+// through the `source` condition must still drop its built-ins, or two producers answer one id.
 func TestMarkerArtifact_ConsumerStillDropsBuiltins(t *testing.T) {
 	outDir := t.TempDir()
 	sources := map[string]string{

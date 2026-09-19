@@ -37,20 +37,15 @@ var (
 	markerErr   error
 )
 
-// RealMarkerPackage returns the real `@mionjs/run-types` package — its
-// package.json, the built dist/**/*.d.ts declaration tree (both the esm
-// surface and dist/cjs/, since a node16-style CommonJS importer resolves the
-// `require` export condition), its dist/mion-pure-fns/ artifact, which the
-// built-in bodies are served from, and its src/**/*.ts sources, which the
-// published tarball also ships — keyed by node_modules-relative path under
-// MarkerPackagePrefix. Callers overlay the entries under a test cwd WITHOUT
-// adding them as program roots: module resolution pulls them in through the
-// `@mionjs/run-types` import. Read once per process; errors when the marker
-// dist is unbuilt (run `pnpm run check:builds`).
-// artifactDirSegment matches the pure-fn artifact anywhere under the dist, which a dual
-// ESM/CJS build writes once per output dir.
+// artifactDirSegment matches anywhere under the dist: a dual ESM/CJS build writes one artifact per output dir.
 const artifactDirSegment = string(filepath.Separator) + constants.PureFnArtifactDir + string(filepath.Separator)
 
+// RealMarkerPackage returns the real `@mionjs/run-types` as overlay entries keyed under
+// MarkerPackagePrefix: package.json, the dist .d.ts tree (dist/cjs/ too, a node16 CommonJS
+// importer resolves the `require` condition), the pure-fn artifact and the src sources.
+// Overlay them under a test cwd WITHOUT adding program roots; resolution pulls them in through
+// the `@mionjs/run-types` import. Read once per process; errors when the dist is unbuilt
+// (run `pnpm run check:builds`).
 func RealMarkerPackage() (map[string]string, error) {
 	markerOnce.Do(func() { markerFiles, markerErr = readMarkerPackage() })
 	return markerFiles, markerErr
@@ -74,8 +69,7 @@ func readMarkerPackage() (map[string]string, error) {
 		if err != nil {
 			return err
 		}
-		// Declarations plus the pure-fn artifact: the two things the tarball carries that a
-		// consumer's build reads. The rest of the dist is the package's own runtime.
+		// The rest of the dist is the package's own runtime, which a consumer's build never reads.
 		if entry.IsDir() || !(strings.HasSuffix(path, ".d.ts") || strings.Contains(path, artifactDirSegment)) {
 			return nil
 		}
@@ -96,9 +90,8 @@ func readMarkerPackage() (map[string]string, error) {
 	if len(files) < 2 {
 		return nil, fmt.Errorf("testfixtures: no .d.ts files under %s — build the marker dist with `pnpm run check:builds`", distRoot)
 	}
-	// The sources ride along because the tarball ships them (`files` carries `src`, minus the
-	// spec/test files) for the `source` export condition. A fixture without them is not the
-	// package a consumer installs.
+	// The tarball ships `src` for the `source` export condition, so a fixture without it is not
+	// the package a consumer installs.
 	srcRoot := filepath.Join(pkgRoot, "src")
 	srcErr := filepath.WalkDir(srcRoot, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {

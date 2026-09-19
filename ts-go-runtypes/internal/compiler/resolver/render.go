@@ -288,17 +288,10 @@ func (sess *Session) extractProgramPureFns(metrics *protocol.Metrics) (entries [
 // diagnostics from the in-place extraction alongside.
 func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodules.Graph, []diagnostics.Diagnostic) {
 	entries, _, diags := sess.extractProgramPureFns(metrics)
-	// Precedence: the built-in pure-fn table is the SINGLE producer of every
-	// package-owned body. An IN-REPO program resolves the package via `src/`
-	// (the `source` condition), so the extractor would ALSO find the built-in
-	// registrations and serve a second, clashing producer for the same id. Drop
-	// those program entries — the table wins on an id clash — so there is exactly one
-	// pure-fn module per built-in id regardless of how the package resolved. (A
-	// published consumer never hits this: its program has only a .d.ts, nothing to
-	// extract.) A consumer's own ids are not in the table and pass through
-	// untouched.
-	// …unless THIS program is the package that owns them: then its own build is the single
-	// producer, and dropping them would leave it with no artifact to publish.
+	// The package's OWN build is the single producer of a built-in body; an in-repo program
+	// resolves that package through the `source` condition and would extract a second body for
+	// the same id, so those entries are dropped. Unless THIS program is that package: dropping
+	// them would leave it with no artifact to publish.
 	ownPackage, _ := sess.ownPackage()
 	ownsBuiltins := ownPackage == purefnindex.MarkerPackageName
 	kept := entries[:0]
@@ -308,11 +301,9 @@ func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodu
 		}
 		kept = append(kept, entry)
 	}
-	// Override cfn entries (whole-program) join the program pure-fn graph so the
-	// type-fn redirects resolve their override dep modules on the OpDump /
-	// OpGenerate paths too — not just OpScanFiles. Without this the plugin's
-	// generate() emits the redirect but not the cfn module it imports, and the
-	// runtime throws "Pure function not found" at the first createX call.
+	// Override cfn entries join here so the type-fn redirects resolve their dep modules on
+	// OpDump / OpGenerate too, not just OpScanFiles. Without it generate() emits a redirect
+	// whose module is missing and the runtime throws "Pure function not found" at the first createX.
 	kept = append(kept, sess.overrideEntries...)
 	return purefunctions.CollectEntries(kept, sess.opts.EmitMode), diags
 }

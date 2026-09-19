@@ -65,10 +65,8 @@ describe('published tarballs never carry tsc build info', () => {
   }
 });
 
-// Every published mion package ships `src` for its `source` export condition, and nothing
-// rewrites the manifest at publish time, so dropping it would leave that condition pointing at
-// files the tarball does not carry. The pure-fn bodies no longer depend on it: they ship in
-// dist/mion-pure-fns/, written by the package's own mion build.
+// Nothing rewrites the manifest at publish time, so dropping `src` would leave the `source` export
+// condition pointing at files the tarball does not carry.
 describe('@mionjs/run-types publishes the sources its `source` condition names', () => {
   const packageDir = join(REPO_ROOT, 'packages', 'run-types');
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
@@ -77,17 +75,15 @@ describe('@mionjs/run-types publishes the sources its `source` condition names',
     expect(manifest.files).toContain('src');
   });
 
-  // Only spec/test files may be excluded. Any other exclusion could drop a module the `source`
-  // condition resolves to, which fails only for the consumer that asks for that condition.
+  // Any other exclusion could drop a module the `source` condition resolves to, and only that consumer fails.
   it('excludes nothing but the spec and test files', () => {
     const negations = (manifest.files as string[]).filter((entry) => entry.startsWith('!src'));
     expect(negations).toEqual(['!src/**/*.spec.ts', '!src/**/*.test.ts']);
   });
 });
 
-// The built-in pure-fn bodies are stripped out of the dist (scripts/core/hollow-builtin-purefns.mjs)
-// and served from the artifact instead, so a build that stops writing it, or a `files` entry that
-// stops shipping it, leaves every consumer's validator with nothing to call.
+// The built-in bodies are stripped from the dist (scripts/core/hollow-builtin-purefns.mjs) and served
+// from the artifact, so losing it leaves every consumer's validator with nothing to call.
 describe('@mionjs/run-types publishes the artifact its built-in pure fns are served from', () => {
   const packageDir = join(REPO_ROOT, 'packages', 'run-types');
   const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));

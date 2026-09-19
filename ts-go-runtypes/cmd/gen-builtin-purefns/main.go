@@ -1,29 +1,9 @@
-// Command gen-builtin-purefns regenerates everything the build needs to know
-// about the package's own pure functions, by running the SAME extractor the
-// resolver uses on user pure fns over the registration sources in
-// packages/run-types/src. Two outputs from one run:
-//
-//   - internal/cachegen/purefnids/ids.generated.go — one Go const per built-in
-//     id, so an emitter names a pure fn the way source does instead of
-//     hardcoding a namespace and a path.
-//   - packages/run-types/src/runtypes/pure-fn-ids.generated.ts — the same ids
-//     for the TS side. The compiler never rewrites the package's own
-//     registration call sites, so they pass their id explicitly and this file is
-//     where it comes from.
-//
-// The bodies themselves are not generated: the package's own build writes them
-// into its mion-pure-fns/ artifact, which a consumer's compiler serves from.
-//
-// Run from the ts-go-runtypes module root:
-//
-//	go run ./cmd/gen-builtin-purefns
-//
-// or, wired into the codegen family with a --check drift gate:
-//
-//	pnpm miondevx core codegen builtinpurefns [--check]
-//
-// The TS files stay the authored source of truth. Edit the src, never the
-// generated files.
+// Command gen-builtin-purefns writes the ids of the package's own pure functions twice from one
+// extractor pass over packages/run-types/src, so the two sets cannot disagree: Go consts in
+// internal/cachegen/purefnids, and pure-fn-ids.generated.ts for the package's own registration
+// call sites, which the compiler never rewrites and which therefore pass their id explicitly.
+// Bodies are not generated; the package's own build writes them into its mion-pure-fns/ artifact.
+// Run `pnpm miondevx core codegen builtinpurefns [--check]`; edit the src, never the generated files.
 package main
 
 import (
@@ -68,16 +48,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// The scan runs HERE, once, in this repo, and its answer is written into the
-	// generated file the binary compiles in, so a consumer never re-derives it.
 	pkgRoot = tspath.NormalizePath(pkgRoot)
 	scanned := purefnindex.ScanRegistrations(pkgRoot, osvfs.FS())
 	if len(scanned) == 0 {
 		return fmt.Errorf("no file under %s/src registers a pure function", pkgRoot)
 	}
-	// The SAME call the resolver serves bodies with, so the id constants the
-	// emitters compile against and the bodies a consumer receives can never come
-	// from different files or a different resolution.
+	// The SAME call the resolver serves bodies with, so the generated ids and the served bodies
+	// cannot come from a different resolution.
 	entries, diags, err := purefnindex.ExtractSources(pkgRoot, scanned, purefnindex.SideProgram{})
 	if err != nil {
 		return err
@@ -87,9 +64,7 @@ func run() error {
 	}
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key() < entries[j].Key() })
-	// A defensive clash guard mirrored by the package's init(): the extractor
-	// already dedups, so a clash here would mean two src files register the same
-	// key with different bodies.
+	// Mirrored by the generated init(): the extractor dedups, so a clash means two src files register one key differently.
 	seen := make(map[string]bool, len(entries))
 	for _, entry := range entries {
 		if seen[entry.Key()] {
