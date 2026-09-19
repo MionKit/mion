@@ -8,5 +8,7 @@ no separate guidance here — the two authoritative sources are:
   `<code-import>` / twoslash usage.
 - The root [CLAUDE.md](../../CLAUDE.md) → *Website Documentation* section — the
   prose voice and the rules for what a style pass may and may not touch.
+- The [simplify-docs skill](../../.claude/skills/simplify-docs/SKILL.md) — the pass every
+  written or changed page goes through before the PR, with real before / after examples.
 
 Container and image lifecycle: [CONTAINER.md](CONTAINER.md).
