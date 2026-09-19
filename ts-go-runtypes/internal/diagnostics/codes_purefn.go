@@ -57,6 +57,15 @@ const (
 	// LevelWarning: the output runs whenever the package module loads first,
 	// which is what it did before the build could look.
 	CodePureFnDepUnbuilt = "PFE9016"
+	// CodePureFnArtifactUnreadable: an installed package's `mion-pure-fns.json`
+	// could not be read (a newer format than this compiler knows, or not an
+	// artifact at all). LevelWarning: the file is skipped, so the package may
+	// then look unbuilt (PFE9016) or lack an id (PFE9012); this names the cause.
+	CodePureFnArtifactUnreadable = "PFE9017"
+	// CodePureFnArtifactConflict: two artifacts of one installed package give
+	// one id different bodies. LevelError: an id is one body, and serving either
+	// would silently pick a version the other build did not ship.
+	CodePureFnArtifactConflict = "PFE9018"
 )
 
 func init() {
@@ -75,6 +84,8 @@ func init() {
 		{Code: CodePurityDepNotLiteral, Family: FamilyPureFn, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "Pure-fn dep arg not a literal"},
 		{Code: CodePureFnIdMismatch, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Explicit pure-fn id does not match its location"},
 		{Code: CodePureFnDepUnbuilt, Family: FamilyPureFn, Level: LevelWarning, Scope: ScopeNotSource, Title: "Pure-fn dep lives in a package that ships no compiled pure fns"},
+		{Code: CodePureFnArtifactUnreadable, Family: FamilyPureFn, Level: LevelWarning, Scope: ScopeNotSource, Title: "Pure-fn artifact of an installed package could not be read"},
+		{Code: CodePureFnArtifactConflict, Family: FamilyPureFn, Level: LevelError, Scope: ScopeNotSource, Title: "Two pure-fn artifacts of one package disagree on a body"},
 	} {
 		register(definition)
 	}

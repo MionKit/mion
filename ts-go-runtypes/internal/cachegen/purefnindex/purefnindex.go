@@ -4,16 +4,18 @@
 // deps thunk registers them before the body runs) and checked as an edge at all.
 // One lane for every package, the marker package included.
 //
-// Built files first. Every mion build writes each pure fn as an entry tuple
-// (`[2, deps, , id, paramNames, code, deps]`) and rewrites its registration to
-// `registerPureFn(<tuple>, '<id>')`; both survive bundling and minification
-// because the scan keys on literal SHAPE, never on an identifier name. Per file
-// the scan also records the exported names bound to a registration call, which
+// The artifact first. Every mion build writes the package's own pure functions
+// into one file in its output directory, `mion-pure-fns.json`
+// (constants.PureFnArtifactFileName; the shape is in artifact.go). The index
+// reads only that file, wherever it sits under the package root, and never a
+// bundle: the parse is bounded by the pure functions a package ships, not by
+// whatever its bundler produced, and a registration the bundle dropped is still
+// there. Each row carries the binding its registration was assigned to, which
 // is how an untyped `.d.ts` binding (`declare const slugify: PureFnId<string>`,
 // what a declaration emitter writes when the id was injected by the build) maps
 // back to its id.
 //
-// Source second. When no built file carries a tuple but the package ships its
+// Source second. When no artifact is found but the package ships its
 // TypeScript, the rows are extracted from that source with the same extractor a
 // build runs, so the ids and bodies are the ones its own build would produce.
 // The marker package is the one that lives here today: its dist is hollowed and
@@ -35,42 +37,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/microsoft/typescript-go/shim/core"
-	"github.com/microsoft/typescript-go/shim/parser"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
-	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
-)
-
-// tupleKindPureFn is slot 0 of a pure-fn entry tuple (entrymodules.KindPureFn,
-// entryTuple.ts KIND_PURE_FN); the literal is compared as text.
-const tupleKindPureFn = "2"
-
-// Tuple slots after the shared head (kind, deps thunk, footer). Mirrors
-// purefunctions.CollectEntries: key, paramNames, code, deps, factory.
-const (
-	slotKey     = 3
-	slotParams  = 4
-	slotCode    = 5
-	slotDeps    = 6
-	slotFactory = 7
 )
 
 // RegistrarNeedle is what a source file that registers a pure fn contains.
 // `registerPureFnFactory` has it as a prefix, so one needle covers both
 // registrars. It finds a DIRECT registrar call: a package registering through a
 // wrapper of its own names the registrar only in the wrapper's module, and such
-// a package must ship built files for its rows to be found.
+// a package must ship the artifact for its rows to be found.
 const RegistrarNeedle = "registerPureFn"
 
 // MarkerPackageName is the package that owns the built-in pure fns: the package
@@ -116,30 +101,50 @@ func (store *Store) Bind(fs vfspkg.FS, host Host) {
 	store.host = host
 }
 
-// PackageIndex is what one installed package ships: its pure-fn rows by id and,
-// per file, the exported names bound to a registration call.
+// ArtifactProblem is an artifact file the index could not use: a newer format,
+// or a file that is not an artifact at all. Reported, because a package whose
+// artifact is skipped may look unbuilt.
+type ArtifactProblem struct {
+	Package string
+	File    string
+	Reason  string
+}
+
+// ArtifactConflict is one id two artifacts of the same package give different
+// bodies (an ESM and a CJS build that drifted apart, or a stale copy). The first
+// row read is kept; the build must fail, because one id is one body.
+type ArtifactConflict struct {
+	Package string
+	ID      string
+	Files   [2]string
+}
+
+// PackageIndex is what one installed package ships: its pure-fn rows by id and
+// the names its registrations are bound to.
 type PackageIndex struct {
 	Root string
 	// Name is the package.json name, the owner half of every id the package
 	// owns; empty for a nameless package.
 	Name string
 	Rows map[string]purefunctions.Entry
-	// FromSource is set when no built file carried a tuple and the rows were
-	// extracted from the package's sources instead.
+	// FromSource is set when no artifact was found and the rows were extracted
+	// from the package's sources instead.
 	FromSource bool
 	// Err is why the package's sources could not be extracted at all: a listed
 	// file the install lacks, or the extractor rejecting them. Only set when
-	// the built files carried nothing; a package with no sources has none.
+	// no artifact was found; a package with no sources has none.
 	Err error
-	// exportsByFile maps a built JS file to its exported name → id bindings.
-	// Only ids that ARE rows count, so an unrelated call ending in a string
-	// literal never becomes a binding.
-	exportsByFile map[string]map[string]string
-	// byName maps a binding name to the one id registered under it anywhere in
-	// the package: a local or exported binding of a built file, or the
-	// BindingName of an extracted row. An empty value marks a name two rows
-	// share, which answers nothing.
-	byName map[string]string
+	// Problems and Conflicts are what reading the artifacts turned up; see
+	// the types.
+	Problems  []ArtifactProblem
+	Conflicts []ArtifactConflict
+	// byName maps a binding name to the ids registered under it anywhere in the
+	// package. One id answers; two answer only through the file tiebreak.
+	byName map[string][]string
+	// rowFile is each row's source file relative to Root, when known.
+	rowFile map[string]string
+	// artifactOf is the artifact file each row was read from.
+	artifactOf map[string]string
 }
 
 // Built reports whether the package ships any pure fn the build can serve. A
@@ -154,7 +159,7 @@ func (store *Store) Package(root string) *PackageIndex {
 	if idx, ok := store.packages[root]; ok {
 		return idx
 	}
-	idx := &PackageIndex{Root: root, Rows: map[string]purefunctions.Entry{}, exportsByFile: map[string]map[string]string{}, byName: map[string]string{}}
+	idx := &PackageIndex{Root: root, Rows: map[string]purefunctions.Entry{}, byName: map[string][]string{}, rowFile: map[string]string{}, artifactOf: map[string]string{}}
 	// Registered before the read so a package whose sources import a binding of
 	// its own (through this store) finds the index under construction rather
 	// than reading itself again.
@@ -170,36 +175,25 @@ func (store *Store) Package(root string) *PackageIndex {
 			idx.Name = manifest.Name
 		}
 	}
-	var bindings []nameBinding
-	// A tuple carries its own id literal and a registration names it too, so
-	// a file without `<name>#pf_` holds nothing to read. The substring check is
-	// ~20x cheaper than the parse and is what keeps a large package cheap.
-	needle := idx.Name + constants.PureFnHashPrefix
-	for _, file := range store.filesUnder(root, isJSFile) {
-		if content, ok := store.fs.ReadFile(file); ok && strings.Contains(content, needle) {
-			bindings = scanFile(idx, bindings, file, content)
+	for _, file := range store.filesUnder(root, IsArtifactFile) {
+		content, ok := store.fs.ReadFile(file)
+		if !ok {
+			continue
 		}
+		artifact, err := ParseArtifact([]byte(content))
+		if err != nil {
+			idx.Problems = append(idx.Problems, ArtifactProblem{Package: idx.Name, File: file, Reason: err.Error()})
+			continue
+		}
+		// A copy of another package's artifact (vendored, or a nameless root
+		// holding one) is not this package's.
+		if artifact.Package != idx.Name {
+			continue
+		}
+		idx.addArtifact(file, artifact)
 	}
 	if len(idx.Rows) == 0 {
 		store.extractSource(idx)
-	}
-	// Bindings are kept only for ids the package really ships; resolved after
-	// the walk because a row may live in a later file than its registration (a
-	// bundle chunk order is the bundler's choice).
-	for file, bindings := range idx.exportsByFile {
-		for name, id := range bindings {
-			if _, isRow := idx.Rows[id]; !isRow {
-				delete(bindings, name)
-			}
-		}
-		if len(bindings) == 0 {
-			delete(idx.exportsByFile, file)
-		}
-	}
-	for _, binding := range bindings {
-		if _, isRow := idx.Rows[binding.id]; isRow {
-			idx.addName(binding.name, binding.id)
-		}
 	}
 	for _, row := range idx.Rows {
 		idx.addName(row.BindingName, row.ID)
@@ -207,18 +201,31 @@ func (store *Store) Package(root string) *PackageIndex {
 	return idx
 }
 
-// nameBinding is one name a built file binds to a registration's id.
-type nameBinding struct{ name, id string }
+// addArtifact merges one artifact's rows. A repeat of an id is the same
+// function arriving from a second build of the package (ESM and CJS both write
+// the file) unless its body differs, which is a conflict.
+func (idx *PackageIndex) addArtifact(file string, artifact Artifact) {
+	for _, row := range artifact.PureFns {
+		entry := row.Entry()
+		if existing, dup := idx.Rows[row.ID]; dup {
+			if !reflect.DeepEqual(existing, entry) {
+				idx.Conflicts = append(idx.Conflicts, ArtifactConflict{Package: idx.Name, ID: row.ID, Files: [2]string{idx.artifactOf[row.ID], file}})
+			}
+			continue
+		}
+		idx.Rows[row.ID] = entry
+		idx.artifactOf[row.ID] = file
+		if row.File != "" {
+			idx.rowFile[row.ID] = row.File
+		}
+	}
+}
 
 func (idx *PackageIndex) addName(name, id string) {
 	if name == "" {
 		return
 	}
-	if previous, seen := idx.byName[name]; seen && previous != id {
-		idx.byName[name] = ""
-		return
-	}
-	idx.byName[name] = id
+	idx.byName[name] = append(idx.byName[name], id)
 }
 
 func (store *Store) filesUnder(root string, keep func(name string) bool) []string {
@@ -250,10 +257,6 @@ func (store *Store) filesUnder(root string, keep func(name string) bool) []strin
 	}
 	walk(root)
 	return files
-}
-
-func isJSFile(name string) bool {
-	return strings.HasSuffix(name, ".js") || strings.HasSuffix(name, ".mjs") || strings.HasSuffix(name, ".cjs")
 }
 
 // IsRegistrationCandidate keeps authored TypeScript only: a declaration file
@@ -329,6 +332,9 @@ func (store *Store) extractSource(idx *PackageIndex) {
 	}
 	for _, entry := range entries {
 		idx.Rows[entry.Key()] = served(entry)
+		if rel := relativeToRoot(idx.Root, entry.FilePath); rel != "" {
+			idx.rowFile[entry.Key()] = rel
+		}
 	}
 	idx.FromSource = len(entries) > 0
 }
@@ -457,9 +463,9 @@ func (store *Store) ResolvePackage(name, fromDir string) (string, bool) {
 	return root, root != ""
 }
 
-// PackageOfID returns the package that owns a pure-fn id (`@acme/text#9Zt1…` →
-// `@acme/text`). Empty when the id has no `#` (not an id) or no owner half (a
-// nameless-package id has no package to look up).
+// PackageOfID returns the package that owns a pure-fn id (`@acme/text#pf_9Zt1…`
+// → `@acme/text`). Empty when the id has no separator (not an id) or no owner
+// half (a nameless-package id has no package to look up).
 func PackageOfID(id string) string {
 	packageName, _, ok := purefunctions.SplitID(id)
 	if !ok {
@@ -469,11 +475,11 @@ func PackageOfID(id string) string {
 }
 
 // BindingID maps a name declared in a `.d.ts` file to the pure-fn id the
-// package registers it under. The sibling built file (`x.d.ts` → `x.js` /
-// `.mjs` / `.cjs`) is consulted first, then the one binding of that name
-// anywhere in the package: a declaration is emitted from the same binding the
-// registration is assigned to, so a unique match is the answer a source build
-// would give.
+// package registers it under: a declaration is emitted from the same binding
+// the registration is assigned to, so the one row bound to that name is the
+// answer a source build would give. Two rows sharing a name are told apart by
+// their source file's basename against the declaration's (`dist/slug.d.ts` is
+// emitted from `src/slug.ts`); still ambiguous answers nothing.
 func (store *Store) BindingID(dtsPath, name string) (string, bool) {
 	if store.fs == nil || name == "" {
 		return "", false
@@ -486,24 +492,34 @@ func (store *Store) BindingID(dtsPath, name string) (string, bool) {
 	if !idx.Built() {
 		return "", false
 	}
-	dtsPath = tspath.NormalizePath(dtsPath)
-	if base, ok := strings.CutSuffix(dtsPath, ".d.ts"); ok {
-		for _, ext := range []string{".js", ".mjs", ".cjs"} {
-			if id, found := idx.exportsByFile[base+ext][name]; found {
-				return id, true
-			}
-		}
-	} else if base, ok := strings.CutSuffix(dtsPath, ".d.mts"); ok {
-		if id, found := idx.exportsByFile[base+".mjs"][name]; found {
-			return id, true
-		}
-	} else if base, ok := strings.CutSuffix(dtsPath, ".d.cts"); ok {
-		if id, found := idx.exportsByFile[base+".cjs"][name]; found {
-			return id, true
+	ids := idx.byName[name]
+	if len(ids) == 1 {
+		return ids[0], true
+	}
+	if len(ids) == 0 {
+		return "", false
+	}
+	base := moduleBasename(dtsPath)
+	var matches []string
+	for _, id := range ids {
+		if file, known := idx.rowFile[id]; known && moduleBasename(file) == base {
+			matches = append(matches, id)
 		}
 	}
-	id := idx.byName[name]
-	return id, id != ""
+	if len(matches) == 1 {
+		return matches[0], true
+	}
+	return "", false
+}
+
+// moduleBasename is a file's name without directory or extensions
+// (`dist/slug.d.ts` → `slug`, `src/slug.ts` → `slug`).
+func moduleBasename(path string) string {
+	name := tspath.GetBaseFileName(tspath.NormalizePath(path))
+	if dot := strings.IndexByte(name, '.'); dot > 0 {
+		name = name[:dot]
+	}
+	return name
 }
 
 // Demand is one pure-fn id a consumer graph needs, and the directory to resolve
@@ -529,13 +545,16 @@ type Miss struct {
 }
 
 // Result is what Closure found: the rows to serve (sorted by id, every
-// transitive dep included), the demanded ids a located package lacks, and the
-// ids whose package could not be located at all (left to the program's own
-// registrations and its PFE9012 check).
+// transitive dep included), the demanded ids a located package lacks, the ids
+// whose package could not be located at all (left to the program's own
+// registrations and its PFE9012 check), and what reading the located packages'
+// artifacts turned up.
 type Result struct {
 	Entries    []purefunctions.Entry
 	Missing    []Miss
 	Unresolved []string
+	Problems   []ArtifactProblem
+	Conflicts  []ArtifactConflict
 }
 
 // Closure serves every demanded id plus the transitive closure of its deps,
@@ -545,6 +564,7 @@ type Result struct {
 func (store *Store) Closure(demands []Demand) Result {
 	var result Result
 	seen := map[string]bool{}
+	visitedRoots := map[string]bool{}
 	queue := append([]Demand(nil), demands...)
 	for len(queue) > 0 {
 		demand := queue[0]
@@ -563,6 +583,11 @@ func (store *Store) Closure(demands []Demand) Result {
 			continue
 		}
 		idx := store.Package(root)
+		if !visitedRoots[idx.Root] {
+			visitedRoots[idx.Root] = true
+			result.Problems = append(result.Problems, idx.Problems...)
+			result.Conflicts = append(result.Conflicts, idx.Conflicts...)
+		}
 		row, found := idx.Rows[demand.ID]
 		if !found {
 			result.Missing = append(result.Missing, Miss{ID: demand.ID, Package: packageName, Root: root, Built: idx.Built(), Err: idx.Err})
@@ -580,205 +605,7 @@ func (store *Store) Closure(demands []Demand) Result {
 	sort.Slice(result.Entries, func(i, j int) bool { return result.Entries[i].Key() < result.Entries[j].Key() })
 	sort.Strings(result.Unresolved)
 	sort.Slice(result.Missing, func(i, j int) bool { return result.Missing[i].ID < result.Missing[j].ID })
+	sort.Slice(result.Problems, func(i, j int) bool { return result.Problems[i].File < result.Problems[j].File })
+	sort.Slice(result.Conflicts, func(i, j int) bool { return result.Conflicts[i].ID < result.Conflicts[j].ID })
 	return result
-}
-
-// scanFile parses one built JS file and records its pure-fn tuples and the
-// exported names bound to a registration call; every name so bound, exported or
-// local, is appended to bindings for the package-wide name map. Parse errors
-// are not reported: a file the parser cannot read simply contributes nothing,
-// and the consumer's own diagnostics (PFE9012 / PFE9016) say what was not found.
-func scanFile(idx *PackageIndex, bindings []nameBinding, file, content string) []nameBinding {
-	path := tspath.NormalizePath(file)
-	sourceFile := parser.ParseSourceFile(ast.SourceFileParseOptions{FileName: path, Path: tspath.Path(path)}, content, core.ScriptKindJS)
-	if sourceFile == nil {
-		return bindings
-	}
-	// The `const x = registerPureFn(…, 'id'); export {x as y}` shape a bundler
-	// emits binds through a file-local name.
-	fileLocals := map[string]string{}
-	exports := map[string]string{}
-	for _, statement := range sourceFile.Statements.Nodes {
-		switch statement.Kind {
-		case ast.KindVariableStatement:
-			exported := ast.GetCombinedModifierFlags(statement)&ast.ModifierFlagsExport != 0
-			for _, declarator := range statement.AsVariableStatement().DeclarationList.AsVariableDeclarationList().Declarations.Nodes {
-				nameNode := declarator.Name()
-				if nameNode == nil || nameNode.Kind != ast.KindIdentifier {
-					continue
-				}
-				if id := registrationID(declarator.Initializer()); id != "" {
-					fileLocals[nameNode.Text()] = id
-					bindings = append(bindings, nameBinding{nameNode.Text(), id})
-					if exported {
-						exports[nameNode.Text()] = id
-					}
-				}
-			}
-		case ast.KindExportDeclaration:
-			exportDecl := statement.AsExportDeclaration()
-			if exportDecl.ModuleSpecifier != nil || exportDecl.ExportClause == nil || exportDecl.ExportClause.Kind != ast.KindNamedExports {
-				continue
-			}
-			for _, specifier := range exportDecl.ExportClause.AsNamedExports().Elements.Nodes {
-				exportSpecifier := specifier.AsExportSpecifier()
-				local := exportSpecifier.Name()
-				if exportSpecifier.PropertyName != nil {
-					local = exportSpecifier.PropertyName
-				}
-				if local == nil || exportSpecifier.Name() == nil {
-					continue
-				}
-				if id, ok := fileLocals[local.Text()]; ok {
-					exports[exportSpecifier.Name().Text()] = id
-					bindings = append(bindings, nameBinding{exportSpecifier.Name().Text(), id})
-				}
-			}
-		case ast.KindExpressionStatement:
-			// CommonJS: `exports.x = …` / `module.exports.x = …`.
-			expression := statement.AsExpressionStatement().Expression
-			if expression == nil || expression.Kind != ast.KindBinaryExpression {
-				continue
-			}
-			binary := expression.AsBinaryExpression()
-			if binary.OperatorToken.Kind != ast.KindEqualsToken || !isExportsMember(binary.Left) {
-				continue
-			}
-			if id := registrationID(binary.Right); id != "" {
-				name := binary.Left.AsPropertyAccessExpression().Name().Text()
-				exports[name] = id
-				bindings = append(bindings, nameBinding{name, id})
-			}
-		}
-	}
-	if len(exports) > 0 {
-		idx.exportsByFile[path] = exports
-	}
-	var visit ast.Visitor
-	visit = func(node *ast.Node) bool {
-		if node == nil {
-			return false
-		}
-		if node.Kind == ast.KindArrayLiteralExpression {
-			if entry, ok := tupleEntry(node, content); ok {
-				if _, dup := idx.Rows[entry.ID]; !dup {
-					idx.Rows[entry.ID] = entry
-				}
-			}
-		}
-		node.ForEachChild(visit)
-		return false
-	}
-	sourceFile.AsNode().ForEachChild(visit)
-	return bindings
-}
-
-// registrationID returns the id literal a registration call carries as its last
-// argument (`registerPureFn(<tuple>, '<id>')`, or the CommonJS
-// `(0, m.registerPureFn)(<tuple>, '<id>')`), or "" when the expression is not
-// such a call. Any callee is accepted: a minifier may rename the import, and
-// the id's later match against the rows is what makes the binding real.
-func registrationID(expression *ast.Node) string {
-	expression = unwrapParens(expression)
-	if expression == nil || expression.Kind != ast.KindCallExpression {
-		return ""
-	}
-	arguments := expression.AsCallExpression().Arguments
-	if arguments == nil || len(arguments.Nodes) < 2 {
-		return ""
-	}
-	last := arguments.Nodes[len(arguments.Nodes)-1]
-	if !isStringLiteral(last) || !strings.Contains(last.Text(), constants.PureFnHashPrefix) {
-		return ""
-	}
-	return last.Text()
-}
-
-func isExportsMember(node *ast.Node) bool {
-	if node == nil || node.Kind != ast.KindPropertyAccessExpression {
-		return false
-	}
-	receiver := node.AsPropertyAccessExpression().Expression
-	if receiver == nil {
-		return false
-	}
-	if receiver.Kind == ast.KindIdentifier {
-		return receiver.Text() == "exports"
-	}
-	if receiver.Kind == ast.KindPropertyAccessExpression {
-		inner := receiver.AsPropertyAccessExpression()
-		return inner.Expression != nil && inner.Expression.Kind == ast.KindIdentifier && inner.Expression.Text() == "module" && inner.Name().Text() == "exports"
-	}
-	return false
-}
-
-func unwrapParens(node *ast.Node) *ast.Node {
-	for node != nil && node.Kind == ast.KindParenthesizedExpression {
-		node = node.AsParenthesizedExpression().Expression
-	}
-	return node
-}
-
-func isStringLiteral(node *ast.Node) bool {
-	return node != nil && (node.Kind == ast.KindStringLiteral || node.Kind == ast.KindNoSubstitutionTemplateLiteral)
-}
-
-// tupleEntry reads a pure-fn entry tuple off an array literal: slot 0 the kind
-// `2`, slot 3 the id, then paramNames, code and deps. In `functions` emit mode
-// the code slot is a hole and the body is the function literal in the factory
-// slot, whose block text is exactly the code the build wrote.
-func tupleEntry(node *ast.Node, content string) (purefunctions.Entry, bool) {
-	elements := node.AsArrayLiteralExpression().Elements.Nodes
-	if len(elements) <= slotDeps {
-		return purefunctions.Entry{}, false
-	}
-	if elements[0].Kind != ast.KindNumericLiteral || elements[0].Text() != tupleKindPureFn || !isStringLiteral(elements[slotKey]) {
-		return purefunctions.Entry{}, false
-	}
-	if _, _, isID := purefunctions.SplitID(elements[slotKey].Text()); !isID {
-		return purefunctions.Entry{}, false
-	}
-	paramNames, ok := stringArray(elements[slotParams])
-	if !ok {
-		return purefunctions.Entry{}, false
-	}
-	deps, ok := stringArray(elements[slotDeps])
-	if !ok {
-		return purefunctions.Entry{}, false
-	}
-	code := ""
-	switch {
-	case isStringLiteral(elements[slotCode]):
-		code = elements[slotCode].Text()
-	case len(elements) > slotFactory && ast.IsFunctionLike(elements[slotFactory]) && elements[slotFactory].Body() != nil:
-		body := elements[slotFactory].Body()
-		text := strings.TrimSpace(content[body.Pos():body.End()])
-		if !strings.HasPrefix(text, "{") || !strings.HasSuffix(text, "}") {
-			return purefunctions.Entry{}, false
-		}
-		code = text[1 : len(text)-1]
-	default:
-		return purefunctions.Entry{}, false
-	}
-	return purefunctions.Entry{
-		ID:                 elements[slotKey].Text(),
-		ParamNames:         paramNames,
-		Code:               code,
-		PureFnDependencies: deps,
-	}, true
-}
-
-func stringArray(node *ast.Node) ([]string, bool) {
-	if node == nil || node.Kind != ast.KindArrayLiteralExpression {
-		return nil, false
-	}
-	elements := node.AsArrayLiteralExpression().Elements.Nodes
-	out := make([]string, 0, len(elements))
-	for _, element := range elements {
-		if !isStringLiteral(element) {
-			return nil, false
-		}
-		out = append(out, element.Text())
-	}
-	return out, true
 }

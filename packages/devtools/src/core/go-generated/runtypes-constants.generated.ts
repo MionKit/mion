@@ -118,8 +118,10 @@ export const ENTRY_MODULE_PREFIX = 'rtmod:/';
 export const ENTRY_MODULE_SUFFIX = '.js';
 export const ENTRY_BINDING_PREFIX = '__rt_';
 export const PURE_FN_MODULE_DIR = 'pf';
-// Joins a pure-fn id's package half to its hash half; the literal a consumer's compiler finds a package's pure fns by.
+// Joins a pure-fn id's package half to its hash half.
 export const PURE_FN_HASH_PREFIX = '#pf_';
+// The file every build writes into the bundler's output dir: the package's own pure fns, which a consumer's compiler serves from.
+export const PURE_FN_ARTIFACT_FILE = 'mion-pure-fns.json';
 // The batch transport the SERVER build generates under <genDir>/rpc — see internal/compiler/resolver/rpcgen.go.
 export const RPC_MODULE_DIR = 'rpc';
 export const BATCHES_MODULE_FILE = 'batches.generated.js';

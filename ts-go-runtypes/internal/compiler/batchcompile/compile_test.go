@@ -12,6 +12,7 @@ import (
 
 	// Register the concrete format emitters — the in-process test never runs
 	// main.go, whose blank import normally does this.
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnindex"
 	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/sourcerewrite"
@@ -19,6 +20,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsengine"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // Minimal ambient marker declaration so `mion` resolves in a bare temp
@@ -256,5 +258,63 @@ func TestEmitCapture_ConcurrentWritesAreSafe(t *testing.T) {
 		if capture.files[name] != "emitted" {
 			t.Fatalf("%s missing from the capture", name)
 		}
+	}
+}
+
+// The pure-fn artifact lands next to the emit, where `files: ["dist"]`
+// publishes it, holding the package's own registrations; `--no-emit` writes
+// nothing at all.
+func TestCompile_WritesPureFnArtifactIntoOutDir(t *testing.T) {
+	markerFiles, err := testfixtures.RealMarkerPackage()
+	if err != nil {
+		t.Fatalf("real marker package unavailable: %v", err)
+	}
+	tmp := t.TempDir()
+	for rel, content := range markerFiles {
+		writeFile(t, filepath.Join(tmp, filepath.FromSlash(rel)), content)
+	}
+	writeFile(t, filepath.Join(tmp, "package.json"), `{"name":"@acme/lib","type":"module"}`)
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "slug.ts"), `import {registerPureFn} from '@mionjs/run-types';
+export const slugify = registerPureFn((s: string): string => s.toLowerCase());
+`)
+	opts := Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, ".mion"),
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			CacheDir:   filepath.Join(tmp, ".cache"),
+		},
+	}
+	artifactPath := filepath.Join(tmp, "dist", constants.PureFnArtifactFileName)
+	noEmit := opts
+	noEmit.NoEmit = true
+	if _, err := Run(noEmit); err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	if _, err := os.Stat(artifactPath); !os.IsNotExist(err) {
+		t.Fatalf("--no-emit must write no artifact: %v", err)
+	}
+	if _, err := Run(opts); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	onDisk, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatalf("artifact not written: %v", err)
+	}
+	artifact, err := purefnindex.ParseArtifact(onDisk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if artifact.Package != "@acme/lib" || len(artifact.PureFns) != 1 || artifact.PureFns[0].BindingName != "slugify" || artifact.PureFns[0].File != "src/slug.ts" {
+		t.Errorf("artifact = %+v", artifact)
+	}
+	canonical, err := os.ReadFile(filepath.Join(tmp, ".mion", "types", constants.PureFnArtifactFileName))
+	if err != nil || string(canonical) != string(onDisk) {
+		t.Errorf("the outDir copy must equal the canonical one under genDir: %v", err)
 	}
 }

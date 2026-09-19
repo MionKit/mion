@@ -15,11 +15,11 @@ import type {
 } from '../markers.ts';
 
 /**
- * A pure function's identity: where it lives. The build computes it from the
- * package, the file and the name the registration is bound to, so
- * `export const slugify = registerPureFn(v => …)` in `src/slug.ts` of
- * `@acme/text` is `'@acme/text/src/slug#slugify'`. A registration bound to no
- * name is identified by a hash of its body instead.
+ * A pure function's identity: the package that owns it and a hash of the body
+ * that ships, so `export const slugify = registerPureFn(v => …)` anywhere in
+ * `@acme/text` is `'@acme/text#pf_9Zt1bRm4cVaPqL'`. The file and the binding
+ * name are not part of it: a move or a rename keeps the id, a change to the
+ * body (or to the id of a helper it reaches) changes it.
  *
  * The brand means only a value a registrar returned type-checks where an id is
  * asked for, so a body reaches another pure fn by importing it:

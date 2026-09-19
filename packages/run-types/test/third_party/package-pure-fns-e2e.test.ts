@@ -1,16 +1,18 @@
 // Full runtime e2e for pure functions served ACROSS PACKAGES: a consumer's pure
 // fn imports ids from installed libraries, and the build reads each library's
-// pure-fn bodies straight from what that library ships, with no artifact
-// beyond its built files.
+// pure-fn bodies from the one file a mion build ships for that,
+// `mion-pure-fns.json` in its output dir, never from its bundle.
 //
 // Three libraries, three lanes:
 //   - @acme/text   — built for real (esbuild + the runtypes esbuild adapter), so
-//                    its dist bundle carries the entry tuples: the DIST lane.
-//   - @acme/dates  — a plain tsc-style emit (no tuples) plus its TypeScript
+//                    its dist carries the artifact: the ARTIFACT lane. Its
+//                    bundle is then hollowed, so the artifact is the only place
+//                    the bodies exist.
+//   - @acme/dates  — a plain tsc-style emit (no artifact) plus its TypeScript
 //                    under src/, and its own nested copy of @acme/text: the SRC
 //                    lane, with a cross-package dep resolved from its own root.
 //   - @acme/legacy — hand-written JS registering a live function at load, no
-//                    tuple, no src: the runtime-only lane the build reports.
+//                    artifact, no src: the runtime-only lane the build reports.
 //
 // Two consumers over one node_modules tree:
 //   - app-vite    — through the plugin (Rollup adapter): the rewritten consumer
@@ -29,6 +31,7 @@ import {execFileSync} from 'node:child_process';
 import * as esbuild from 'esbuild';
 import runtypesEsbuild from '../../../devtools/src/runtypes/esbuild.ts';
 import runtypesRollup from '../../../devtools/src/runtypes/rollup.ts';
+import {PURE_FN_ARTIFACT_FILE} from '../../../devtools/src/core/go-generated/runtypes-constants.generated.ts';
 import {BIN, hasBinary} from '../../../devtools/test/helpers/inline.ts';
 import {runCli} from '../../../devtools/test/helpers/cliCrash.ts';
 
@@ -36,8 +39,8 @@ import {runCli} from '../../../devtools/test/helpers/cliCrash.ts';
 const CORE_PKG_DIR = fileURLToPath(new URL('../..', import.meta.url));
 
 // An id is the package plus a hash of the body that ships, so the ids of the
-// two built libraries are only known once they are built (read off the dist
-// and the registry); only the runtime-only package writes its own.
+// two built libraries are only known once they are built (read off the
+// artifact and the registry); only the runtime-only package writes its own.
 const PAD_ID = '@acme/legacy#pf_pad00000000000';
 const ID_PATTERN = /^@acme\/[a-z]+#pf_[A-Za-z0-9_-]{14}$/;
 
@@ -81,6 +84,12 @@ export const title = registerPureFnFactory(function (utl) {
 const TEXT_DTS = `import type {PureFnId} from '@mionjs/run-types';
 export declare const slugify: PureFnId<string>;
 export declare const title: PureFnId<string>;
+`;
+// What the text bundle is replaced with after the build: hollow registrations,
+// so nothing but the artifact can be the source of the bodies a consumer runs.
+const TEXT_HOLLOW = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
+export const slugify = registerPureFn(null);
+export const title = registerPureFnFactory(null);
 `;
 
 // @acme/dates ships the way run-types does: a hollowed dist (the registration
@@ -181,7 +190,7 @@ function expectReport(result: Report): void {
   // app → dates (served from src) → text (served from dist) → legacy (runtime).
   expect(result.result).toBe('hello-world@2026-09-18#0007');
   expect(result.isoDayDeps).toEqual([SLUGIFY_ID]);
-  // The body came from the built dist, not a runtime registration.
+  // The body came from the artifact, not a runtime registration.
   expect(result.servedSlugifyCode).toContain('toLowerCase');
 }
 
@@ -192,17 +201,29 @@ function expectOnlyServedBodies(result: Report): void {
   expect(result.titleStillOwnedByText).toBe(false);
 }
 
-// The two ids the text build wrote, read off its dist: the registration sites
-// carry them as the registrar's trailing argument (esbuild double-quotes).
+interface ArtifactRow {
+  id: string;
+  bindingName?: string;
+  file?: string;
+  paramNames: string[];
+  code: string;
+  pureFnDependencies: string[];
+}
+interface Artifact {
+  format: number;
+  package: string;
+  pureFns: ArtifactRow[];
+}
+
+function readArtifact(dir: string): Artifact {
+  return JSON.parse(fs.readFileSync(path.join(dir, PURE_FN_ARTIFACT_FILE), 'utf8')) as Artifact;
+}
+
+// The two ids the text build wrote, read off its artifact by binding name.
 function textIds(): {slugify: string; title: string} {
-  const dist = fs.readFileSync(path.join(TEXT_DIR, 'dist', 'index.js'), 'utf8');
-  const ids = [
-    ...dist.matchAll(
-      /(slugify|title)\d* = registerPureFn\w*\(\s*__rt_pf[A-Za-z0-9_$]*,\s*"(@acme\/text#pf_[A-Za-z0-9_-]{14})"\)/g
-    ),
-  ];
-  const byName = Object.fromEntries(ids.map((match) => [match[1], match[2]]));
-  expect(byName, dist).toEqual({slugify: expect.stringMatching(ID_PATTERN), title: expect.stringMatching(ID_PATTERN)});
+  const artifact = readArtifact(path.join(TEXT_DIR, 'dist'));
+  const byName = Object.fromEntries(artifact.pureFns.map((row) => [row.bindingName, row.id]));
+  expect(byName).toEqual({slugify: expect.stringMatching(ID_PATTERN), title: expect.stringMatching(ID_PATTERN)});
   return byName as {slugify: string; title: string};
 }
 let SLUGIFY_ID = '';
@@ -254,6 +275,9 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
       });
       // The generated dir is a build scratch, not part of what ships.
       fs.rmSync(path.join(TEXT_DIR, '.mion'), {recursive: true, force: true});
+      // The bundle the build wrote is replaced by hollow registrations: from
+      // here on the artifact is the only place the bodies exist.
+      fs.writeFileSync(path.join(TEXT_DIR, 'dist', 'index.js'), TEXT_HOLLOW);
     }
 
     // @acme/dates: tsc-style dist + src, with its own nested @acme/text.
@@ -280,15 +304,23 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
   });
   afterAll(() => fs.rmSync(BASE, {recursive: true, force: true}));
 
-  register('the library built with the plugin ships its tuples in one dist file', () => {
+  register('the library built with the plugin ships its pure fns in mion-pure-fns.json next to the bundle', () => {
     const {slugify, title} = textIds();
     SLUGIFY_ID = slugify;
-    const dist = fs.readFileSync(path.join(TEXT_DIR, 'dist', 'index.js'), 'utf8');
-    // The tuples sit next to the registrations, ids in their key slot; the
-    // scan keys on shape, not on quotes or names.
-    expect(dist).toContain(`[2,`);
-    expect(dist).toContain(`"${title}"`);
     expect(slugify).not.toBe(title);
+    const artifact = readArtifact(path.join(TEXT_DIR, 'dist'));
+    expect(artifact.format).toBe(1);
+    expect(artifact.package).toBe('@acme/text');
+    expect(artifact.pureFns.map((row) => row.id)).toEqual([slugify, title].sort());
+    const rows = Object.fromEntries(artifact.pureFns.map((row) => [row.bindingName, row]));
+    expect(rows.slugify.code).toContain('toLowerCase');
+    expect(rows.slugify.file).toBe('src/index.ts');
+    expect(rows.title.pureFnDependencies).toEqual([slugify]);
+    expect(rows.title.code).toContain(`getPureFn('${slugify}')`);
+    // The bundle holds nothing to read: hollow registrations, no tuple, no id.
+    const dist = fs.readFileSync(path.join(TEXT_DIR, 'dist', 'index.js'), 'utf8');
+    expect(dist).not.toContain('[2,');
+    expect(dist).not.toContain('#pf_');
   });
 
   register('app-vite: the plugin serves dates from src, text from dist, and reports legacy', async () => {
@@ -310,6 +342,9 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
       const transformed = (await callHook(plugin.transform, ctx, main, path.join(app, 'main.ts'))) as {code: string} | null;
       expect(transformed, 'the consumer must be transformed').toBeTruthy();
       code = transformed!.code;
+      // Rollup's writeBundle, once the bundle is on disk: the consumer is a
+      // package of its own and ships its artifact the same way.
+      await callHook(plugin.writeBundle, ctx, {dir: path.join(app, 'dist')});
     } finally {
       try {
         await callHook(plugin.buildEnd, ctx);
@@ -334,6 +369,10 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
     expect(isoDayModule).toContain(String.raw`getPureFn(\'${SLUGIFY_ID}\')`);
     expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
 
+    const own = readArtifact(path.join(app, 'dist'));
+    expect(own.package).toBe('@acme/app-vite');
+    expect(own.pureFns.map((row) => row.bindingName)).toEqual(['stamp']);
+
     fs.writeFileSync(path.join(app, 'main.mjs'), code);
     expectReport(runNode(path.join(app, 'main.mjs'), app));
   });
@@ -351,6 +390,12 @@ describe('pure fns served across packages: dist lane, src lane and the runtime-o
     const pf = path.join(app, '.mion', 'types', 'pf');
     expect(fs.readdirSync(path.join(pf, '@acme', 'dates'))).toHaveLength(1);
     expect(fs.readdirSync(path.join(pf, '@acme', 'text'))).toEqual([SLUGIFY_ID.split('#pf_')[1] + '.js']);
+
+    // The compile lane writes the consumer's own artifact into its outDir.
+    const own = readArtifact(path.join(app, 'dist'));
+    expect(own.package).toBe('@acme/app-compile');
+    expect(own.pureFns.map((row) => row.bindingName)).toEqual(['stamp']);
+    expect(own.pureFns[0].file).toBe('src/main.ts');
 
     const emitted = fs.readFileSync(path.join(app, 'dist', 'main.js'), 'utf8');
     expect(emitted).not.toContain("from '@acme/dates'");

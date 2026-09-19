@@ -397,6 +397,8 @@ export interface GenerateResult {
   // none). The plugin adopts it as its downgrade set:
   // options.downgradeErrors ?? this ?? nothing.
   downgradeErrors?: string[];
+  /** The package's `mion-pure-fns.json` content; empty when it registers no pure fn. */
+  pureFnArtifact: string;
 }
 
 // EnrichResult is the shape returned by enrich(): the computed mirror files (the
@@ -534,6 +536,7 @@ abstract class ResolverClientBase implements ResolverConnection {
       pureFnSites: resp.pureFnSites,
       batchSites: resp.batchSites,
       downgradeErrors: resp.downgradeErrors,
+      pureFnArtifact: resp.pureFnArtifact ?? '',
     };
   }
 
