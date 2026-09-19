@@ -20,7 +20,7 @@ const (
 	DowngradeDirectiveMarker = "@mion-downgrade-error"
 )
 
-// DirectiveScope says how far a directive reaches; the caller picks it from the comment's shape (a block comment before any code covers the file, as ESLint's `/* eslint-disable */` does).
+// DirectiveScope is picked from the comment's shape: a block comment before any code covers the file.
 type DirectiveScope uint8
 
 const (
