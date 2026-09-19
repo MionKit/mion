@@ -9,7 +9,7 @@
 // plugin resolves the host binary via the published @mionjs/bin-compiler launcher
 // (no binary option); set MION_E2E_BINARY=<abs path> for host iteration.
 import {execFileSync, spawn} from 'node:child_process';
-import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -38,6 +38,26 @@ function ensureEnrichment() {
   cli(['enrich', '--no-emit']);
 }
 
+// The @acme/src-types fixture: a dependency whose type definitions live under src/ rather than
+// a dist, installed for smoke-source and smoke-types-in-src. Packed first, so what the apps
+// resolve is what its `files` list actually ships. Unpacked into node_modules by hand rather
+// than by `npm install`: the matrix root's package.json is the BAKED toolchain manifest and npm
+// would be free to prune it mid-run.
+function ensureSrcTypesFixture() {
+  const libDir = path.join(APPS, 'libs/src-types');
+  const packDir = path.join(HERE, '.fixtures');
+  const target = path.join(HERE, 'node_modules/@acme/src-types');
+  rmSync(packDir, {recursive: true, force: true});
+  rmSync(target, {recursive: true, force: true});
+  mkdirSync(packDir, {recursive: true});
+  mkdirSync(target, {recursive: true});
+  console.log('fixture: pack @acme/src-types (type definitions under src/)');
+  execFileSync('npm', ['pack', '--pack-destination', packDir], {cwd: libDir, stdio: 'inherit'});
+  const tarball = readdirSync(packDir).find((entry) => entry.endsWith('.tgz'));
+  if (!tarball) throw new Error(`build-all: npm pack produced no tarball for @acme/src-types in ${packDir}`);
+  execFileSync('tar', ['-xzf', path.join(packDir, tarball), '--strip-components=1', '-C', target], {stdio: 'inherit'});
+}
+
 // Common RT plugin options for an app dir.
 function rtOptions(appDir) {
   return {
@@ -50,11 +70,11 @@ function rtOptions(appDir) {
 
 const isCore = (request) => CORE_EXTERNAL.test(request);
 
-// ── the apps: eight bundler adapters over ten builds ────────────────────────
+// ── the apps: eight bundler adapters over eleven builds ─────────────────────
 // build-vite carries the FULL feature matrix (imports the shared index); every
-// light smoke imports apps/shared/src/minimal.ts. smoke-source is the seventh
-// build but not a seventh bundler — it reuses the esbuild adapter to cover a
-// different resolution mode.
+// light smoke imports apps/shared/src/minimal.ts. smoke-source and
+// smoke-types-in-src are not extra bundlers — both reuse the esbuild adapter to
+// cover a different resolution mode.
 const APP_LIST = [
   {name: 'build-vite', adapter: 'vite'},
   {name: 'smoke-esbuild', adapter: 'esbuild'},
@@ -62,11 +82,14 @@ const APP_LIST = [
   {name: 'smoke-rolldown', adapter: 'rolldown'},
   {name: 'smoke-webpack', adapter: 'webpack'},
   {name: 'smoke-rspack', adapter: 'rspack'},
-  // Source-first consumer: customConditions:["source"] makes @mionjs/run-types
-  // resolve to its published src/, so the plugin's scan walks the library's own
-  // internals. Guards the first-party diagnostic scoping — without it the build
-  // halts on the library's own CTA001/CTA003.
+  // Source-first consumer: customConditions:["source"] makes @acme/src-types resolve to its
+  // TypeScript source, so the plugin's scan walks a dependency's own internals. Guards the
+  // first-party diagnostic scoping — without it the build halts on the library's CTA001/CTA003.
   {name: 'smoke-source', adapter: 'esbuild'},
+  // The same fixture with NO custom conditions, so its definitions are found through plain
+  // `types`. Together the two say the resolver follows a dependency's manifest wherever its
+  // definitions sit, which is what lets the @mionjs/* packages ship none of their sources.
+  {name: 'smoke-types-in-src', adapter: 'esbuild'},
   // Bun has TWO plugin hosts and they are different code paths, so each gets an
   // app: `Bun.build` (bundler, produces a dist like every other adapter) and the
   // `Bun.plugin` RUNTIME loader (no bundle step, transforms on import). Both run
@@ -326,6 +349,7 @@ async function main() {
   // build-vite is the only app that imports the enrichment mirrors; regenerate
   // them first (the smokes use the lean subset and don't need them).
   if (apps.some((app) => app.name === 'build-vite')) ensureEnrichment();
+  if (apps.some((app) => app.name === 'smoke-source' || app.name === 'smoke-types-in-src')) ensureSrcTypesFixture();
   let failed = 0;
   for (const app of apps) {
     const started = process.hrtime.bigint();

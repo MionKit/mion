@@ -14,6 +14,8 @@ import {tmpdir} from 'node:os';
 import {sampleKeys, sampleMirrorDrift} from '../../../scripts/env/check.mjs';
 // @ts-expect-error — a plain .mjs script, no types
 import {REGISTRY} from '../../../scripts/lib/env.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {stripSourceCondition} from '../../../scripts/lib/publish-manifest.mjs';
 
 interface RegistryEntry {
   name: string;
@@ -41,7 +43,7 @@ const PUBLISHED_PACKAGE_DIRS = ['run-types', 'devtools', 'bin-compiler'];
 const THIN_README_MAX_LINES = 45;
 
 // Every publishable workspace package, by manifest: non-private with a name.
-function publishableManifests(): {dir: string; manifest: {name: string; files?: string[]}}[] {
+function publishableManifests(): {dir: string; manifest: {name: string; files?: string[]; exports?: unknown}}[] {
   const packagesDir = join(REPO_ROOT, 'packages');
   return readdirSync(packagesDir)
     .map((dir) => ({dir, file: join(packagesDir, dir, 'package.json')}))
@@ -65,20 +67,71 @@ describe('published tarballs never carry tsc build info', () => {
   }
 });
 
-// Nothing rewrites the manifest at publish time, so dropping `src` would leave the `source` export
-// condition pointing at files the tarball does not carry.
-describe('@mionjs/run-types publishes the sources its `source` condition names', () => {
-  const packageDir = join(REPO_ROOT, 'packages', 'run-types');
-  const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
+// A published package ships type definitions and build output, never its sources: nothing
+// resolves the `source` export condition unless a consumer asks for it by name, and the
+// declaration maps that DID need `src` are excluded with it.
+describe('published packages ship no sources', () => {
+  for (const {manifest} of publishableManifests()) {
+    const files = (manifest.files ?? []) as string[];
 
-  it('lists src in "files"', () => {
-    expect(manifest.files).toContain('src');
+    it(`${manifest.name} lists no source entry in "files"`, () => {
+      expect(files).not.toContain('src');
+      expect(files).not.toContain('index.ts');
+      expect(files.filter((entry) => entry.startsWith('!src'))).toEqual([]);
+    });
+
+    // A .d.ts.map names ../src/*.ts and embeds no source of its own, so without src it
+    // resolves to nothing and every "go to definition" in a consumer's editor dead-ends.
+    const distDirs = files.filter((entry) => entry === 'dist' || entry === '.dist');
+    if (distDirs.length === 0) continue;
+    it(`${manifest.name} excludes *.d.ts.map from its shipped dist dir`, () => {
+      for (const dir of distDirs) expect(files).toContain(`!${dir}/**/*.d.ts.map`);
+    });
+  }
+});
+
+// The workspace manifest keeps the condition (the root tsconfig's customConditions and the
+// vitest configs resolve siblings through it); pack.mjs strips it from the tarball, where it
+// would name a src/ that is no longer there.
+describe('the `source` condition is a workspace-only thing', () => {
+  const sourceKeys = (node: unknown): string[] => {
+    if (!node || typeof node !== 'object') return [];
+    return Object.entries(node as Record<string, unknown>).flatMap(([key, value]) =>
+      key === 'source' ? [key] : sourceKeys(value)
+    );
+  };
+
+  const sourceTargets = (node: unknown): string[] => {
+    if (!node || typeof node !== 'object') return [];
+    return Object.entries(node as Record<string, unknown>).flatMap(([key, value]) =>
+      key === 'source' && typeof value === 'string' ? [value] : sourceTargets(value)
+    );
+  };
+
+  it('points at a file that is really there, or in-repo resolution silently falls back to a stale dist', () => {
+    const checked: string[] = [];
+    for (const {dir, manifest} of publishableManifests()) {
+      for (const target of sourceTargets(manifest.exports)) {
+        checked.push(`${manifest.name} ${target}`);
+        expect(existsSync(join(REPO_ROOT, 'packages', dir, target)), `${manifest.name}: ${target}`).toBe(true);
+      }
+    }
+    expect(checked.length).toBeGreaterThan(0);
   });
 
-  // Any other exclusion could drop a module the `source` condition resolves to, and only that consumer fails.
-  it('excludes nothing but the spec and test files', () => {
-    const negations = (manifest.files as string[]).filter((entry) => entry.startsWith('!src'));
-    expect(negations).toEqual(['!src/**/*.spec.ts', '!src/**/*.test.ts']);
+  it('is gone from the manifest pack.mjs publishes', () => {
+    for (const {manifest} of publishableManifests()) {
+      expect(sourceKeys(stripSourceCondition(manifest).exports), manifest.name).toEqual([]);
+    }
+  });
+
+  it('changes nothing else about the manifest', () => {
+    const manifest = {name: '@mionjs/x', files: ['dist'], exports: {'.': {source: './src/index.ts', types: './dist/index.d.ts'}}};
+    expect(stripSourceCondition(manifest)).toEqual({
+      name: '@mionjs/x',
+      files: ['dist'],
+      exports: {'.': {types: './dist/index.d.ts'}},
+    });
   });
 });
 
