@@ -1661,7 +1661,7 @@
       "headline": "Pure fn `{0}` is referenced by a RT function but was never registered.",
       "detail": "A RT validator/encoder reaches that pure fn through `utl.usePureFn`, but no\nregistration for that id was found in any scanned file. An id names the\npackage, the file and the binding a pure fn was registered under, so a miss\nmeans that file is outside the scan set, or the registration moved or was\nrenamed.\n\nFix: import the id from the file that registers it, and make sure that file\nis part of the build.",
       "summary": "A generated validator or encoder calls a helper (a pure function) that was never registered, so the built output would fail the moment it runs. This almost always means a source file that registers the helper with `registerPureFnFactory` is not part of the compile. Import the `mion` entry that provides it, or include the file that registers it, so the build can see the definition.",
-      "fix": "import {registerPureFnFactory} from '@mionjs/run-types';\nexport const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));",
+      "fix": "import {registerPureFnFactory} from '@mionjs/run-types/runtime';\nexport const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));",
       "example": null
     },
     {
