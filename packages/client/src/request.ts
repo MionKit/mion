@@ -18,7 +18,7 @@ import type {RunTypeError} from '@mionjs/core';
 import {RpcError, isRpcError, MION_ROUTES, MION_BATCH_KEY, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
-import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundledApi.ts';
+import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundleApiMode.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';

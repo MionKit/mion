@@ -27,7 +27,8 @@ import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
-import {getBundleApiMode, registerBundledApi, takeBundledApiError} from './lib/bundledApi.ts';
+import {getBundleApiMode} from './lib/bundleApiMode.ts';
+import {registerBundledApi, takeBundledApiError} from '#bundled-api';
 import {metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 
 /**
