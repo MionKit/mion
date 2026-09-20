@@ -398,6 +398,11 @@ async function runWebsite(args) {
     const {main} = await import('./website/gen-test-counts.mjs');
     return main(rest);
   }
+  // Remeasure the published client's bundled size, same posture as test-counts.
+  if (sub === 'client-size') {
+    const {main} = await import('./website/gen-client-size.mjs');
+    return main(rest);
+  }
   if (sub === 'shell') {
     const {main} = await import('./website/site.mjs');
     return main(['shell']);

@@ -931,6 +931,38 @@ describe('website-test-counts', () => {
   });
 });
 
+// The rpc home page's client-size line is the same seam as the test counts: a
+// generated file, a component that reads it, and a page that names the component,
+// each in a different language and nothing else checking they still meet.
+describe('website-client-size', () => {
+  const SIZE_FILE = join(REPO_ROOT, 'container/website/app/data/client-size.json');
+  const COMPONENT = join(REPO_ROOT, 'container/website/app/components/content/ClientSize.vue');
+  const RPC_HOME = join(REPO_ROOT, 'container/website/content/01.rpc/01.introduction/01.about-mion-rpc.md');
+
+  it('ships a committed size the component can import', () => {
+    expect(existsSync(SIZE_FILE)).toBe(true);
+    const size = JSON.parse(readFileSync(SIZE_FILE, 'utf8'));
+    // Sanity, not exactness: the bytes move on every release. A zero means the
+    // generator fell back to nothing and the page would claim the client is free.
+    expect(size.client.gzipped).toBeGreaterThan(1000);
+    expect(size.client.minified).toBeGreaterThan(size.client.gzipped);
+  });
+
+  it('the component reads the generated file rather than a literal', () => {
+    const component = readFileSync(COMPONENT, 'utf8');
+    expect(component).toContain("from '../../data/client-size.json'");
+  });
+
+  it('the home page names the component and says whose size it is', () => {
+    const home = readFileSync(RPC_HOME, 'utf8');
+    expect(home).toContain(':client-size');
+    // The todo's own bar: a reader must not read the package size as their app's cost.
+    expect(home).toMatch(/Your app ships less/);
+    // A hand-typed kB figure beside it is a number nothing updates.
+    expect(home.replace(/:client-size/g, ''), 'a literal size crept into the page').not.toMatch(/\d+(\.\d+)?\s*kB/);
+  });
+});
+
 // A mock generator has no place in a browser bundle that only calls routes, so
 // `@mionjs/run-types` keeps it on its own subpath. The barrel is where it would
 // come back: one re-export there puts it in every bundle that touches a format.

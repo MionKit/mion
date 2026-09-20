@@ -32,6 +32,7 @@ import {main as benchMain} from './bench-data/bench.mjs';
 import {main as checkStaticMain} from './check-static.mjs';
 import {buildSite, ensureMionDists, outputDir} from './site.mjs';
 import {main as testCountsMain} from './gen-test-counts.mjs';
+import {main as clientSizeMain} from './gen-client-size.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 
@@ -109,6 +110,11 @@ export async function main(args) {
   // ships the last known-good numbers rather than failing the whole site build.
   step('     homepage test counts -> container/website/app/data/test-counts.json');
   testCountsMain([]);
+
+  // The rpc home page's client-size line. Reads the @mionjs dists stage 2 built;
+  // committed like the counts, so a host that cannot measure ships the last good one.
+  step('     client size -> container/website/app/data/client-size.json');
+  clientSizeMain([]);
 
   const started = Date.now();
   step(`5/6  Nuxt ${target} -> ${outputDir()}`);
