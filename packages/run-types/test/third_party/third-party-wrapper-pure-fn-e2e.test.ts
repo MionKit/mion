@@ -55,7 +55,7 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 // The framework surface: barrel re-export + a branded wrapper that forwards to
 // the registrar (so calling the wrapper genuinely registers the fn).
 const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
-export {registerPureFn} from '@mionjs/run-types';
+export {registerPureFn} from '@mionjs/run-types/runtime';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   pureFnId?: InjectPureFnId<F>,
@@ -63,7 +63,7 @@ export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
 `;
 
 const TOOLKIT_JS = `import {registerPureFn} from '@mionjs/run-types/runtime';
-export {registerPureFn} from '@mionjs/run-types';
+export {registerPureFn} from '@mionjs/run-types/runtime';
 export function registerAcmePureFn(fn, pureFnId) {
   return registerPureFn(fn, pureFnId);
 }

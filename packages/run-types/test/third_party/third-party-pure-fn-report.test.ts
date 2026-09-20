@@ -45,14 +45,14 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 });
 
 const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
-export {registerPureFn} from '@mionjs/run-types';
+export {registerPureFn} from '@mionjs/run-types/runtime';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   pureFnId?: InjectPureFnId<F>,
 ): unknown;
 `;
 
-const TOOLKIT_JS = `export {registerPureFn} from '@mionjs/run-types';
+const TOOLKIT_JS = `export {registerPureFn} from '@mionjs/run-types/runtime';
 export function registerAcmePureFn(fn, pureFnId) {
   return {fn, pureFnId};
 }
