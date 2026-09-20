@@ -1,6 +1,4 @@
-// Public entry for the `@mionjs/run-types/mocking` subpath. Mock generation is a
-// development feature, so it lives off the main entry: a browser client that only
-// validates never reaches this module graph and never carries it.
+// `@mionjs/run-types/mocking` entry, off the main one: a client that only validates never carries it.
 
 export {createMockDataFn} from './createMockData.ts';
 export type {MockOptions, MockTypeFn, RunTypeMockOptions} from './mockTypes.ts';

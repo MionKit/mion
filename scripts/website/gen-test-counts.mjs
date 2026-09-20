@@ -70,9 +70,8 @@ const readExisting = () => {
 // Regenerate what we can. A counter that cannot run keeps the committed value
 // rather than writing a zero — a homepage tile reading "0 tests" would be worse
 // than one reading a slightly stale number, and silently wrong either way, so it
-// warns. `--check` turns the same comparison into a gate (used by CI), and refuses
-// that fallback: comparing a kept value against itself always matches, so a check
-// that cannot count would report green on a stale file.
+// warns. `--check` turns the same comparison into a gate (used by CI) and refuses that fallback:
+// a kept value always matches itself, so a check that cannot count would report green on a stale file.
 export function main(args = []) {
   const check = args.includes('--check');
   for (const arg of args) if (arg !== '--check') die(`gen-test-counts: unknown arg '${arg}' (want: [--check])`, 2);

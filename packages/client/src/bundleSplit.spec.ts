@@ -26,8 +26,7 @@ export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 
-/** Names only the bundled-API REGISTRATION puts in an artifact. The light half
- *  (setBundleApiMode, the missing-metadata error) rides every build, so its strings are no use. */
+/** Names only the bundled-API REGISTRATION puts in an artifact; the light half is in every build. */
 const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
 
 /** Names only the mock generator and the built-in pattern table put in an artifact. */
@@ -87,9 +86,8 @@ describe('the fetched metadata lane and the bundled API', () => {
   }, 120_000);
 });
 
-// Mock generation and the built-in pattern table used to reach every client through
-// @mionjs/core's formats import, which cost ~6.5 kB gzipped for code a browser never
-// runs. The source promises they are gone; only the artifact proves it.
+// Mock generation and the pattern table used to reach every client through @mionjs/core's formats
+// import, ~6.5 kB gzipped a browser never runs; only the artifact proves they are gone.
 describe('what a default client leaves out', () => {
   it('carries no mock generation', async () => {
     const code = await buildApp();

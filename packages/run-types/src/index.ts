@@ -13,25 +13,15 @@ export {
   getRunTypeId,
 } from './markers.ts';
 
-// RT registry — evaluated BEFORE `./createRTFunctions.ts` so rtUtils is a real function by the
-// time downstream cache modules call `initCache(getRTUtils())` at module top level through any
-// ESM cycle. getRTUtils itself moved to the `./runtime` subpath, so the ordering rides a bare
-// import instead of the re-export that used to carry it; dropping this line leaves a value-used
-// builder with no instantiable row, which the elision fuzz reports as E2-value-missing-reflection.
-// `getRunType` is the value-bearing twin of `getRunTypeId` — same two call shapes, returning the
-// traversable RunType<T> node instead of its id. It stays on the main entry BECAUSE it is that
-// twin: the build reads value-use of a builder through it, and moving it to a subpath leaves a
-// value-used builder with no instantiable row (elision fuzz: E2-value-missing-reflection).
+// Evaluated BEFORE `./createRTFunctions.ts`: it pulls in rtUtils, which cache modules call through
+// `initCache(getRTUtils())` at module top level across any ESM cycle.
+// getRunType stays on the main entry: the build reads value-use of a builder through it, and on a
+// subpath that builder is left with no instantiable row (elision fuzz: E2-value-missing-reflection).
 export {getRunType} from './getRunType.ts';
 
-// Compiled-fn data model + reconstruction — the surface a consumer needs to ship
-// compiled RT functions over the wire and rebuild them on the far side: send the
-// closure-free `CompiledFnData` (its `code` is the factory body), restore the
-// factory with `buildFactoryFromCode(code)` (the `new Function('utl', code)` step;
-// `buildPureFnFactoryFromCode` is the pure-fn-lane twin), assemble a `CompiledTypeFn`,
-// write it back through the already-public `RTUtils.addToRTCache` / `.addPureFn`, then
-// materialise + call via `getRTUtils().getRT(hash)`. Only the argument types and the
-// restore helpers were unreachable before — the cache-write methods were already public.
+// The wire surface for compiled RT functions: send the closure-free `CompiledFnData` (its `code` is
+// the factory body), restore it with `buildFactoryFromCode` (on the `./runtime` subpath), write back
+// through `RTUtils.addToRTCache` / `.addPureFn`, then call via `getRTUtils().getRT(hash)`.
 export {
   type CompiledFnData,
   type CompiledTypeFn,
@@ -46,9 +36,6 @@ export {
 // a `RunType<T>` carries (`InferType<typeof schema>`). Both are part of the
 // value-first surface: builders return `RunType<T>`, `InferType` maps back.
 export {type RunType} from './runtypes/types.ts';
-// `getRunType` is the value-bearing twin of `getRunTypeId` — same two call
-// shapes, but returns the traversable RunType<T> node instead of its id string.
-// Exported after getRTUtils so the registry is initialised first.
 export {type DataOnly} from './runtypes/dataOnly.ts';
 export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta.ts';
 // `JSONShape<T>` — the RunTypes JSON wire twin of `DataOnly<T>` (what
@@ -89,42 +76,18 @@ export {
   type FriendlyI18nOptions,
 } from './enrich/createFriendlyText.ts';
 
-// getFnHash derives the version-independent fnHash for a function family (+ its
-// compile-time options) — the fnHash half of the `<fnHash>_<typeId>` runtime
-// cache key. A framework holding a type's injected typeId can rebuild the key
-// itself (`getFnHash('validate') + '_' + typeId`) instead of hand-pinning a
-// family→prefix map. The hashes ride a Go-generated table (single source of
-// truth = operations.FnHashFor); stable across releases, so consumers derive
-// once and never re-pin on a version bump.
-// FAMILY_TAG_TO_FN_KEY translates the SHORT family tag a compiled entry carries
-// at slot 0 of its tuple into the readable key a marker names it by. The two are
-// separate vocabularies on purpose: generated code stays small, markers stay
-// legible. A framework that projects an injected payload by the tag it finds
-// (mion's route helpers do) needs this to speak one vocabulary again.
-
 // Run-type registration is per-entry now: each marker call site imports its
 // type's virtual entry module and registers it (plus transitive children) on
 // first use — there is no monolithic cache module to populate up front.
 
 // `pureFn.ts` MUST evaluate before any cache factory that references pure-fn
 // helpers (e.g. validationErrors needs newRunTypeErr).
-// Side-effect import: the package's own pure fns (newRunTypeErr,
-// getUnknownKeysFromArray, …) register at their own registrar call sites now —
-// there is no monolithic pureFnsCache module delivering their bodies — so the
-// package entry MUST load the registration file before any materialised factory
-// reaches one of them.
+// Side-effect import: the package's own pure fns (newRunTypeErr, getUnknownKeysFromArray, …) register
+// at their own call sites, so the entry MUST load this before any materialised factory reaches one.
 import './runtypes/pure-fns-utils.ts';
 
-// Custom class serializer registry — register a class (with an optional
-// serialize/deserialize handler) so the JSON + binary families rebuild a real
-// instance instead of decoding to a plain object. See classSerializerRegistry.ts.
-
-// Type-format base machinery — the per-format types live under
-// `src/formats/` (the `@mionjs/run-types/formats` subpath); the
-// brand alias + the mock registry sit here at the root so the format
-// modules can import them without a self-referential barrel cycle.
-// Validation is build-time (Go); the runtime only needs the per-kind
-// mock registry.
+// Per-format types live on the `/formats` subpath; the brand alias stays at root so a format module
+// can import it without a self-referential barrel cycle.
 export {
   type TypeFormat,
   type TypeFormatBase,
@@ -168,16 +131,6 @@ export {
   type RunTypeSubKindValue,
 } from './go-generated/runTypeKind.generated.ts';
 
-// Built-in type-format metadata (auto-generated from the Go format registry —
-// see typeFormats.generated.ts). `typeFormats` is the runtime table of every
-// canonical format name mion stamps on a reflected prop's
-// `formatAnnotation.name`, each with the base `RunTypeKind` it refines;
-// `FormatName` is the union of those names. A consumer that maps a reflected
-// format to something external (a DB column, a UI label) keys off these instead
-// of re-declaring the names.
-
-// `getRTFunction` resolves any family from a marker a wrapper declared itself, keyed by the
-// SAME fnKey; `RTFunctionByKey` maps each key to its shape, so the return type is inferred.
 export {
   // createValidateFn / createGetValidationErrorsFn are overloaded: a value-first `RunType`
   // schema as the first arg (the value a `define` builder returns) is a distinct
@@ -262,8 +215,7 @@ export {
   overrideJsonDecoder,
 } from './overrideRTFunctions.ts';
 
-// Mock generation is NOT exported here: it lives on the `@mionjs/run-types/mocking`
-// subpath so a bundle that never asks for it never carries it.
+// Mock generation lives on the `@mionjs/run-types/mocking` subpath, so a bundle never carries it unasked.
 
 // Standard Schema v1 adapter — re-exported from `./standard/` so bundlers can
 // drop the adapter subtree when consumers never call createStandardSchema. The

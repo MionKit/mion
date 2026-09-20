@@ -5,18 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Cache resets for tests that need a fresh client or router. Off the main barrel on purpose:
-// a browser bundle must never carry them, and `export *` would put them there.
-//
-// The caches are reached through the SAME getOrCreateGlobal keys routerUtils.ts uses, so this
-// module clears the live instances without widening that module's exports.
+// Cache resets for tests, off the main barrel so a browser bundle never carries them. The caches are
+// reached through the SAME getOrCreateGlobal keys routerUtils.ts uses, so its exports stay unchanged.
 
 import {getRTFnCaches, getRTUtils} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from './utils.ts';
 import type {JitCompiledFunctions} from './types/general.types.ts';
 
-/** Clears every compiled fn from the mion cache, simulating a fresh client. Build-injected
- *  entries re-register from their tuples on next use; pure-fn/format registrations stay. */
+/** Build-injected entries re-register from their tuples on next use; pure-fn/format registrations stay. */
 export function resetJitFnCaches(): void {
   const utl = getRTUtils();
   const cache = getRTFnCaches().rtFnsCache as Record<string, {rtFnHash: string} | undefined>;

@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// JIT_FUNCTION_IDS is written out instead of calling getFnHash at module load, because that
-// call shipped the whole Go-generated hash table to every browser. This is the guarantee the
-// literal gives up: each value must still be what getFnHash answers for its family.
+// JIT_FUNCTION_IDS is written out because calling getFnHash shipped the whole Go-generated hash
+// table to every browser; this is the guarantee the literal gives up.
 
 import {describe, expect, it} from 'vitest';
 import {getFnHash} from '@mionjs/run-types/runtime';

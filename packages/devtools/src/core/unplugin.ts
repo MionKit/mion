@@ -421,9 +421,7 @@ const metadataFromServerStubPath = (): string => {
   return fs.existsSync(compiled) ? compiled : path.join(here, 'metadataFromServerStub.ts');
 };
 
-/** The subpath @mionjs/client imports the bundled-API lane through. The mirror of the one above:
- *  that lane is the DEFAULT behaviour and goes away under `bundled`, this one only exists when a
- *  build opts into `bundleApi`, so the stub answers when the option is absent. */
+/** Mirror of the stub above: this lane exists only under `bundleApi`, so the stub answers when the option is absent. */
 const BUNDLED_API_ID = '#bundled-api';
 const bundledApiStubPath = (): string => {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -1289,8 +1287,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ? {
           resolveId(id: string) {
             if (options.bundleApi === 'bundled' && id === METADATA_FROM_SERVER_ID) return metadataFromServerStubPath();
-            // No bundleApi means no dispatch point ever receives injected metadata, so the
-            // registration lane is dead code; stubbing it drops core's marker reflection with it.
+            // No bundleApi means no injected metadata reaches a dispatch point, so stubbing the dead
+            // registration lane drops core's marker reflection with it.
             if (options.bundleApi === undefined && id === BUNDLED_API_ID) return bundledApiStubPath();
             return null;
           },

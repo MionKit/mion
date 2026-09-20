@@ -1,9 +1,6 @@
-// Public entry for `@mionjs/run-types/runtime` — the cache and compiled-fn plumbing a host
-// needs to LOAD and RUN what the build compiled, as opposed to authoring types with it.
-//
-// Off the main entry on purpose. `getRTUtils` reaches classSerializerRegistry, which reaches
-// entryTuple, so a barrel that carries it puts that whole subtree in every bundle that touches
-// the package. Only @mionjs/core, @mionjs/router and the drizzle packages call any of this.
+// `@mionjs/run-types/runtime` entry: the cache and compiled-fn plumbing a host needs to LOAD and RUN
+// what the build compiled. Off the main entry because getRTUtils reaches classSerializerRegistry and
+// entryTuple, which a barrel would put in every bundle that touches the package.
 
 export {getRTUtils, getRTFnCaches, type RTUtils} from '../runtypes/rtUtils.ts';
 export {buildFactoryFromCode, buildPureFnFactoryFromCode, entryCode} from '../runtypes/rtUtils.ts';

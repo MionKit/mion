@@ -931,9 +931,8 @@ describe('website-test-counts', () => {
   });
 });
 
-// The rpc home page's client-size line is the same seam as the test counts: a
-// generated file, a component that reads it, and a page that names the component,
-// each in a different language and nothing else checking they still meet.
+// Same seam as the test counts: a generated file, a component reading it and a page naming the
+// component, each in a different language and nothing else checking they still meet.
 describe('website-client-size', () => {
   const SIZE_FILE = join(REPO_ROOT, 'container/website/app/data/client-size.json');
   const COMPONENT = join(REPO_ROOT, 'container/website/app/components/content/ClientSize.vue');
@@ -942,8 +941,7 @@ describe('website-client-size', () => {
   it('ships a committed size the component can import', () => {
     expect(existsSync(SIZE_FILE)).toBe(true);
     const size = JSON.parse(readFileSync(SIZE_FILE, 'utf8'));
-    // Sanity, not exactness: the bytes move on every release. A zero means the
-    // generator fell back to nothing and the page would claim the client is free.
+    // Sanity, not exactness: a zero means the generator fell back to nothing and the page claims the client is free.
     expect(size.client.gzipped).toBeGreaterThan(1000);
     expect(size.client.minified).toBeGreaterThan(size.client.gzipped);
   });
@@ -954,8 +952,7 @@ describe('website-client-size', () => {
   });
 
   it('the page carries no hand-typed size beside the component', () => {
-    // The line is off the page until the number is worth promoting; the generator, the
-    // committed file and the release gate stay, so the number keeps being tracked.
+    // The line is off the page for now; the generator, the committed file and the release gate stay.
     const home = readFileSync(RPC_HOME, 'utf8');
     if (!home.includes(':client-size')) return;
     expect(home).toMatch(/Your app ships less/);
@@ -963,9 +960,8 @@ describe('website-client-size', () => {
   });
 });
 
-// A mock generator has no place in a browser bundle that only calls routes, so
-// `@mionjs/run-types` keeps it on its own subpath. The barrel is where it would
-// come back: one re-export there puts it in every bundle that touches a format.
+// A mock generator has no place in a browser bundle that only calls routes, and one re-export on
+// the barrel puts it back in every bundle that touches a format.
 describe('run-types mocking subpath', () => {
   const RUN_TYPES = join(REPO_ROOT, 'packages/run-types');
 
@@ -989,8 +985,7 @@ describe('run-types mocking subpath', () => {
   });
 });
 
-// The published client is a browser package, so nothing under test/ may reach its
-// tarball: those files import vitest and node:child_process.
+// Nothing under test/ may reach the client's tarball: those files import vitest and node:child_process.
 describe('client published surface', () => {
   it('the build program excludes the test tree', () => {
     const build = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/client/tsconfig.build.json'), 'utf8'));
@@ -998,15 +993,15 @@ describe('client published surface', () => {
   });
 
   it('no client source module is a test helper', () => {
-    // testUtils.ts lived under src/lib/ and shipped: it is not *.spec.ts, so the build
-    // program included it and the tarball carried a cache reset nothing else calls.
+    // testUtils.ts lived under src/lib/: not *.spec.ts, so the build included it and the tarball
+    // carried a cache reset nothing else calls.
     const strays = globSync('src/**/*{testUtils,testHelpers,mocks}*.ts', {cwd: join(REPO_ROOT, 'packages/client')});
     expect(strays).toEqual([]);
   });
 });
 
-// A cache reset belongs to a test run, never to a shipped bundle. Both helpers document
-// themselves as test-only, and `export *` put them on the barrel every client imports.
+// A cache reset belongs to a test run, never to a shipped bundle, and `export *` put these two on
+// the barrel every client imports.
 describe('core keeps test helpers off the barrel', () => {
   const CORE = join(REPO_ROOT, 'packages/core');
   const TEST_ONLY = ['resetJitFnCaches', 'resetJitFunctionsCache'];

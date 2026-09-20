@@ -1,12 +1,8 @@
 <script setup lang="ts">
-// The published @mionjs/client's bundled size, for the rpc home page.
-//
-// Measured by scripts/website/gen-client-size.mjs and imported (not fetched) so the
-// real number is in the prerendered HTML: a size that hydrates from a placeholder is
-// a visible flash on the fold.
-//
-// Renders an inline span, so a page can name it mid-sentence and keep the words that
-// qualify the number (it is the package, not an app's cost) in the content tree.
+// Measured by scripts/website/gen-client-size.mjs and imported, not fetched, so the number is in the
+// prerendered HTML: hydrating it from a placeholder flashes on the fold. An inline span, so a page
+// can name it mid-sentence and keep the words qualifying it (the package, not an app's cost) in the
+// content tree.
 import clientSize from '../../data/client-size.json'
 
 const props = withDefaults(defineProps<{of?: 'gzipped' | 'minified'}>(), {of: 'gzipped'})
