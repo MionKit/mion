@@ -18,7 +18,7 @@
 // floor (`runFloor`): a fixed bounded type whose hand-inflated value MUST
 // exceed its bound, else the comparison could never fire.
 
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {runFuzzLoop} from '../core/runLoop.ts';
 import {

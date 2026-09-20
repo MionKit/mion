@@ -7,7 +7,7 @@
 // The same merge happens wherever the union sits, so a `Map` value, a `Map`
 // key and a bare root are all checked here.
 import {describe, it, expect} from 'vitest';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';
 import type {GeneratedType, PropShape, TypeShape} from '../core/typeGen.ts';

@@ -7,7 +7,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {RunTypeKind, RunTypeSubKind, type RunType} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 
 describe('RunTypeKind / RunTypeSubKind — public index exports', () => {
   it('exposes both const maps (kind/subKind name → numeric index) matching the Go wire values', () => {

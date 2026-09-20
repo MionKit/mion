@@ -7,7 +7,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {createValidateFn} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import {String} from '@mionjs/run-types/formats';
 
 // Proves the mion pattern-checking sidecar actually runs through mion's plugin, and that

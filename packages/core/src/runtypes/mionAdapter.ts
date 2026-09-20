@@ -6,7 +6,8 @@
  * ######## */
 
 import {getRunTypeId, RunTypeKind} from '@mionjs/run-types';
-import {FAMILY_TAG_TO_FN_KEY, getRTFunction, getRTUtils, getRunType} from '@mionjs/run-types/runtime';
+import {FAMILY_TAG_TO_FN_KEY, getRTFunction, getRTUtils} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import type {GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '@mionjs/run-types';
 import type {FnHashKey} from '@mionjs/run-types/runtime';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types/runtime';
