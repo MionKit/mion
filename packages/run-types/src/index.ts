@@ -76,14 +76,8 @@ export {
   type FriendlyI18nOptions,
 } from './enrich/createFriendlyText.ts';
 
-// Run-type registration is per-entry now: each marker call site imports its
-// type's virtual entry module and registers it (plus transitive children) on
-// first use — there is no monolithic cache module to populate up front.
-
-// `pureFn.ts` MUST evaluate before any cache factory that references pure-fn
-// helpers (e.g. validationErrors needs newRunTypeErr).
-// Side-effect import: the package's own pure fns (newRunTypeErr, getUnknownKeysFromArray, …) register
-// at their own call sites, so the entry MUST load this before any materialised factory reaches one.
+// Side-effect import: registers the package's own pure fns (newRunTypeErr, getUnknownKeysFromArray, …),
+// which MUST evaluate before any materialised factory reaches one.
 import './runtypes/pure-fns-utils.ts';
 
 // Per-format types live on the `/formats` subpath; the brand alias stays at root so a format module
