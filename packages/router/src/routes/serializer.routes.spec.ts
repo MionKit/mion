@@ -53,9 +53,8 @@ const compactRoutes = {
   getUser: mion.route((ctx, name: string): User => ({name, age: 1, lastActivity}), {serializer: 'compact'}),
 } satisfies Routes;
 
-// The same routes answering with the `mutate` serializer: it rewrites the value in place, so the body
-// still holds the very objects the handlers returned (a Date stays a Date until the platform
-// stringifies it).
+// The same routes answering with the `mutate` serializer: it rewrites in place, so the body still holds
+// the objects the handlers returned (a Date stays a Date until the platform stringifies it).
 const mutateRoutes = {
   auth: routes.auth,
   users: {

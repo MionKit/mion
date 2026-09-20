@@ -9,15 +9,11 @@ import type {RTValidationError, DataOnly as RtDataOnly} from '@mionjs/run-types'
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Serializer strategies ##########################################
-// One strategy per direction (params: client encodes, server decodes; return: the reverse), named
-// after the RunTypes JSON encoder strategies. Each one names a decoder per side, see
-// DECODE_FAMILY_BY_STRATEGY. A BUILD-TIME literal: the marker families a route compiles are
-// derived from it in types.
+// One strategy per direction (params: client encodes, server decodes; return: the reverse), each naming
+// a decoder per side (DECODE_FAMILY_BY_STRATEGY). A BUILD-TIME literal: types derive the marker families from it.
 
-/** The JSON strategies a mion route can pick. RunTypes also offers `direct`; mion does not, it
- *  costs three times the memory of `clone` and twice the time for identical bytes. Written out
- *  rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route, and
- *  the subset is pinned by a type test instead. */
+/** RunTypes also offers `direct`; mion does not, it costs 3x the memory of `clone` and 2x the time for identical bytes.
+ *  Written out rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route. */
 export type SerializerStrategy = 'clone' | 'mutate' | 'compact';
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
 export interface SerializerPair {
@@ -31,10 +27,10 @@ export interface ResolvedSerializer {
   params: SerializerStrategy;
   return: SerializerStrategy;
 }
-/** Which wire a strategy is being read for. Direction names the machine that decodes it. */
+/** The direction names the machine that decodes that wire. */
 export type SerializerDirection = keyof ResolvedSerializer;
-// Response framing: HOW the body reaches the platform. A route response is always a JSON-safe
-// value the adapter stringifies; `stringifyJson` covers the REQUEST body and the client's own wire.
+// A route response is always a JSON-safe value the adapter stringifies; `stringifyJson` covers the
+// REQUEST body and the client's own wire.
 
 export const SerializerModes = {
   /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */

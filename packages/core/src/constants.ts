@@ -109,18 +109,14 @@ export const JIT_FUNCTION_IDS = {
   compactFromJson: 'FFsn',
 } as const satisfies Record<string, string>;
 
-/** The compiled family each strategy ENCODES with, named by its MARKER token (the name a route's
- *  InjectTypeFnArgs asks for), not by the short tag the compiled entry carries: `clone` builds a
- *  new JSON-safe value, `mutate` transforms in place, `compact` builds the positional array. */
+/** Named by the MARKER token a route's InjectTypeFnArgs asks for, not the short tag the compiled entry carries. */
 export const ENCODE_FAMILY_BY_STRATEGY = {
   clone: 'prepareForJsonClone',
   mutate: 'prepareForJsonMutate',
   compact: 'compactForJson',
 } as const;
-/** The compiled family each strategy DECODES with, one entry per SIDE. The two sides do not face
- *  the same problem: the server decodes params from any caller, so it rebuilds the declared shape
- *  unless the strategy's whole point is passing the object through; the client decodes a return
- *  its own server wrote, and never hands its caller a key the return type does not declare. */
+/** One decoder per SIDE: the server decodes params from any caller, so it rebuilds the declared shape.
+ *  The client decodes a return its own server wrote, and never hands on an undeclared key. */
 export const DECODE_FAMILY_BY_STRATEGY = {
   clone: {server: 'restoreFromJsonClone', client: 'restoreFromJsonClone'},
   mutate: {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
