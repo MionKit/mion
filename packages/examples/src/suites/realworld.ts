@@ -6,8 +6,8 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  createMockDataFn,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 // One real-world type, the single source of truth every suite + benchmark
 // below is generated from. A handful of formats (uuid, email), a Date, a

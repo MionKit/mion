@@ -1,7 +1,8 @@
 // Family 10 — Mocking. Mirrors guide/mocking-*.ts + custom-mocking-function.ts.
 // createMockDataFn output passes createValidateFn for the same T; options + formats
 // are honored; a custom per-kind mock generator is registered.
-import {createMockDataFn, createValidateFn, registerMockingFunction, RunTypeKind, type FormatAnnotation} from '@mionjs/run-types';
+import {createValidateFn, RunTypeKind, type FormatAnnotation} from '@mionjs/run-types';
+import {createMockDataFn, registerMockingFunction} from '@mionjs/run-types/mocking';
 import type * as TF from '@mionjs/run-types/formats';
 import {type CheckResult, ok} from './check';
 

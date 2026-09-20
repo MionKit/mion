@@ -27,7 +27,8 @@
 //     slips in). Documented follow-up in docs/FUZZING.md.
 
 import {describe, it, expect} from 'vitest';
-import {createCloneExactShapeFn, createHasUnknownKeysFn, createMockDataFn, createValidateFn, getRunType} from '@mionjs/run-types';
+import {createCloneExactShapeFn, createHasUnknownKeysFn, createValidateFn, getRunType} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {runCloneFuzz, runCloneFuzzForDuration} from './cloneFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';

@@ -17,11 +17,11 @@ import {describe, expect, it} from 'vitest';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
-  createMockDataFn,
   createFormatTransformFn,
   getRunTypeId,
   type TypeFormat,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 // Side-effect import FIRST: the formats module registers the per-kind mock
 // fns at load (mockStringFormat). The named import below is erased by the
 // transpiler when its bindings are only used as TYPES — without this value

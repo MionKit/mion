@@ -931,6 +931,32 @@ describe('website-test-counts', () => {
   });
 });
 
+// A mock generator has no place in a browser bundle that only calls routes, so
+// `@mionjs/run-types` keeps it on its own subpath. The barrel is where it would
+// come back: one re-export there puts it in every bundle that touches a format.
+describe('run-types mocking subpath', () => {
+  const RUN_TYPES = join(REPO_ROOT, 'packages/run-types');
+
+  it('the main entry exports no mock name', () => {
+    const barrel = readFileSync(join(RUN_TYPES, 'src/index.ts'), 'utf8');
+    const reexports = [...barrel.matchAll(/^export .*from '(\.\/mocking\/[^']+)';$/gm)].map((match) => match[1]);
+    expect(reexports).toEqual([]);
+  });
+
+  it('the formats entry does not drag the mock registrations in', () => {
+    const formats = readFileSync(join(RUN_TYPES, 'src/formats/index.ts'), 'utf8');
+    // createMockData.ts already registers these; a copy here is what shipped them.
+    expect(formats).not.toMatch(/^import '\.\.\/mocking\//m);
+  });
+
+  it('publishes the subpath the docs and examples import', () => {
+    const exports = JSON.parse(readFileSync(join(RUN_TYPES, 'package.json'), 'utf8')).exports;
+    expect(Object.keys(exports)).toContain('./mocking');
+    expect(exports['./mocking'].source).toBe('./src/mocking/index.ts');
+    expect(existsSync(join(RUN_TYPES, 'src/mocking/index.ts'))).toBe(true);
+  });
+});
+
 // ── mion server benchmarks (container/mion-bench) ──────────────────────────────
 //
 // Three hand-maintained mirrors, none of which any other check covers, and each of

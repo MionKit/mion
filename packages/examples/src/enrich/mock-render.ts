@@ -1,4 +1,4 @@
-import {createMockDataFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {User} from './user';
 import {mockUser} from './mock-user';
 

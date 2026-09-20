@@ -1,4 +1,4 @@
-import {createMockDataFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 type Account = {
   balance: number;

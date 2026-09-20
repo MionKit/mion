@@ -16,7 +16,8 @@
 
 import path from 'node:path';
 import {describe, it, expect} from 'vitest';
-import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn, createMockDataFn} from '@mionjs/run-types';
+import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {

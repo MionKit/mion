@@ -16,7 +16,8 @@
 // key order.
 
 import {describe, it, expect} from 'vitest';
-import {createMockDataFn, createValidateFn, type DataOnly} from '@mionjs/run-types';
+import {createValidateFn, type DataOnly} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';
 

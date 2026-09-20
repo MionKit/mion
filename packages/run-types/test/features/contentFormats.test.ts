@@ -6,7 +6,8 @@
 // getRunTypeId call shapes.
 
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as TF from '@mionjs/run-types/formats';
 import '@mionjs/run-types/formats';
 

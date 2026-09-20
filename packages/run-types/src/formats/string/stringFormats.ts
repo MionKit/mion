@@ -11,11 +11,10 @@
 import {TypeFormat} from '../../runtypes/typeFormat.ts';
 import type {FormatNameOf, FormatParamsOf, FormatBrandNameOf} from '../../runtypes/typeFormat.ts';
 import type {FormatPattern, StringPatternArgs} from '../../runtypes/formatPattern.ts';
-// Built-in regex patterns — value import so the format types below can
-// reference them by `typeof`. The Go scanner recovers {source, flags,
-// mockSamples} from each const's literal type. Defined + sample-validated
-// in ./string-patterns.ts.
-import {
+// Built-in regex patterns, used ONLY as `typeof X_PATTERN` below, so the import is
+// type-only: a value import would ship the whole pattern table to every browser.
+// The Go scanner recovers {source, flags, mockSamples} from each const's literal type.
+import type {
   ALPHA_PATTERN,
   ALPHANUMERIC_PATTERN,
   NUMERIC_PATTERN,

@@ -13,10 +13,10 @@ import {
   createCloneExactShapeFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
-  createMockDataFn,
   createValidateFn,
   type DataOnly,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 interface Rule {
   name: string;

@@ -11,11 +11,11 @@ import '@mionjs/run-types/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
-  createMockDataFn,
   createStandardSchema,
   registerFormatPattern,
   type DataOnly,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 // The content-keyword presets are ordinary string formats: the encodings

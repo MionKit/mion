@@ -10,7 +10,8 @@
 
 import type * as TF from '@mionjs/run-types/formats';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn, createMockDataFn} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import '@mionjs/run-types/formats';
 
 const NOW = Date.UTC(2026, 5, 15, 12, 0, 0);

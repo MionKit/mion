@@ -40,6 +40,17 @@
         "default": "./dist/cjs/formats/datetime/temporalFormats.js"
       }
     },
+    "./mocking": {
+      "source": "./src/mocking/index.ts",
+      "import": {
+        "types": "./dist/mocking/index.d.ts",
+        "default": "./dist/mocking/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/mocking/index.d.ts",
+        "default": "./dist/cjs/mocking/index.js"
+      }
+    },
     "./builders": {
       "source": "./src/builders/index.ts",
       "import": {

@@ -6,7 +6,8 @@
 // own runtype, no plugin needed) so the assertions exercise the real factory.
 
 import {describe, it, expect} from 'vitest';
-import {createMockDataFn, createValidateFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';
 

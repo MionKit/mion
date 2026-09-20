@@ -14,7 +14,6 @@ import * as RT from '@mionjs/run-types/builders';
 import {
   getRTFunction,
   type InjectTypeFnArgs,
-  createMockDataFn,
   createValidateFn,
   createParseFn,
   createHasUnknownKeysFn,
@@ -27,6 +26,7 @@ import {
   createBinaryDecoderFn,
   registerClassSerializer,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
