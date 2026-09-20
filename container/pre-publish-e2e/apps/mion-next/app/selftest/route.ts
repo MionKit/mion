@@ -18,7 +18,7 @@ export async function GET(request: Request): Promise<Response> {
   const {routes} = initClient<MionApi>({baseURL, basePath: '/api'});
 
   const [greeting, greetingError] = await routes.sayHello('mion').call();
-  // Compact wire: the same client, a route whose encoder is positional.
+  // Compact wire: the same client, a route whose serializer is positional.
   const [sum, sumError] = await routes.addNumbers(40, 2).call();
   // Batch: one request carrying both, run by the id this build baked into the server.
   const [[batched, batchedSum], [batchedError, batchedSumError], batchFatal] = await batch([
