@@ -957,6 +957,15 @@ describe('run-types mocking subpath', () => {
   });
 });
 
+// The published client is a browser package, so nothing under test/ may reach its
+// tarball: those files import vitest and node:child_process.
+describe('client published surface', () => {
+  it('the build program excludes the test tree', () => {
+    const build = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/client/tsconfig.build.json'), 'utf8'));
+    expect(build.exclude).toContain('test');
+  });
+});
+
 // ── mion server benchmarks (container/mion-bench) ──────────────────────────────
 //
 // Three hand-maintained mirrors, none of which any other check covers, and each of
