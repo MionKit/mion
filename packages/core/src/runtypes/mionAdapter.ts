@@ -12,7 +12,7 @@ import type {GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '
 import type {FnHashKey} from '@mionjs/run-types/runtime';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types/runtime';
 import {getJitFnHashes} from '../routerUtils.ts';
-import {DECODE_FAMILY_BY_STRATEGY, STRATEGY_BY_ENCODE_FAMILY, type DecodeFamily} from '../constants.ts';
+import {DECODE_FAMILY_BY_STRATEGY, DECODE_SIDE_BY_DIRECTION, STRATEGY_BY_ENCODE_FAMILY, type DecodeFamily} from '../constants.ts';
 import type {
   AnyFn,
   MionTypeFn,
@@ -20,7 +20,8 @@ import type {
   JitCompiledFunctions,
   JitFunctionsHashes,
   JsonEncodeFn,
-  JsonStrategy,
+  SerializerStrategy,
+  SerializerDirection,
   PureFnsDataCache,
 } from '../types/general.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
@@ -43,7 +44,6 @@ export const MION_FN_KEYS = [
   'formatTransform',
   'prepareForJsonClone',
   'prepareForJsonMutate',
-  'stringifyJson',
   'compactForJson',
   'restoreFromJsonMutate',
   'restoreFromJsonClone',
@@ -196,11 +196,19 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 
 const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
 const DECODE_FAMILIES = ['restoreFromJsonMutate', 'restoreFromJsonClone', 'compactFromJson'] as const;
-type CompiledJsonFamilies = {strategy: JsonStrategy; encodeFamily: (typeof ENCODE_FAMILIES)[number]; decodeFamily: DecodeFamily};
+type CompiledJsonFamilies = {
+  strategy: SerializerStrategy;
+  encodeFamily: (typeof ENCODE_FAMILIES)[number];
+  decodeFamily: DecodeFamily;
+};
 
 /** The JSON strategy a fn set was compiled for, read off its injected families: exactly one encode
  *  family and its matching decode family. Anything else is build / version skew and fails closed. */
-function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: string): CompiledJsonFamilies {
+function strategyFromFamilies(
+  fns: Partial<Record<FnHashKey, unknown>>,
+  label: string,
+  direction: SerializerDirection
+): CompiledJsonFamilies {
   const encodeFamilies = ENCODE_FAMILIES.filter((family) => fns[family] !== undefined);
   const decodeFamilies = DECODE_FAMILIES.filter((family) => fns[family] !== undefined);
   if (encodeFamilies.length !== 1 || decodeFamilies.length !== 1)
@@ -210,17 +218,23 @@ function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: s
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
   const strategy = STRATEGY_BY_ENCODE_FAMILY[encodeFamilies[0]];
-  if (DECODE_FAMILY_BY_STRATEGY[strategy] !== decodeFamilies[0])
+  const expected = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
+  if (expected !== decodeFamilies[0])
     throw new Error(
-      `RunTypes: mismatched JSON families for '${label}': encoder '${encodeFamilies[0]}' (${strategy}) needs decoder ` +
-        `'${DECODE_FAMILY_BY_STRATEGY[strategy]}', got '${decodeFamilies[0]}'.`
+      `RunTypes: mismatched JSON families for '${label}': encoder '${encodeFamilies[0]}' (${strategy}) on the ` +
+        `${direction} wire needs decoder '${expected}', got '${decodeFamilies[0]}'.`
     );
   return {strategy, encodeFamily: encodeFamilies[0], decodeFamily: decodeFamilies[0]};
 }
 
 /** Builds mion JitCompiledFunctions from one injected marker payload: the validators and ONE json
  *  pair. Throws when the marker was never injected. */
-export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: string): JitCompiledFunctions {
+export function buildJitFnsFromMarker(
+  injected: unknown,
+  typeId: string,
+  label: string,
+  direction: SerializerDirection
+): JitCompiledFunctions {
   if (!isInjectedFnsArray(injected))
     throw new Error(
       `RunTypes: no compiled type functions injected for '${label}'. ` +
@@ -234,7 +248,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
       `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
         `validate/validationErrors are required). Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  const {strategy, encodeFamily, decodeFamily} = strategyFromFamilies(fns, label);
+  const {strategy, encodeFamily, decodeFamily} = strategyFromFamilies(fns, label, direction);
   const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
   const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
   const encode = getRTFunction<'prepareForJsonMutate'>(fns[encodeFamily], identity as JsonEncodeFn);
@@ -243,7 +257,7 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   if (fns.formatTransform !== undefined) getRTFunction<'formatTransform'>(fns.formatTransform);
   // getRTFunction initialized the injected tuples, so the full entries are now
   // resolvable from the mion cache under `<fnHashPrefix>_<typeId>`.
-  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, strategy);
+  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, strategy, direction);
   const utl = getRTUtils();
   const formatTransformEntry = hashes.formatTransform ? utl.getRT(hashes.formatTransform) : undefined;
   return {
@@ -367,8 +381,8 @@ export function getReflectionFromMarkers(
   const paramsRunType = resolveInjectedRunType(rtFns.paramsId);
   const params = getParamsFromRunType(paramsRunType);
   const paramsArity = params.length;
-  const paramsJitFns = buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`);
-  const returnJitFns = buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`);
+  const paramsJitFns = buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`, 'params');
+  const returnJitFns = buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`, 'return');
   const reflection: RtMethodReflection = {
     paramsCount: paramsArity,
     paramNames: params.map((param) => param.name ?? ''),
@@ -449,7 +463,7 @@ export function buildHeaderJitFnsFromMarker(
     );
   const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
   const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
-  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, 'mutate');
+  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, 'mutate', 'params');
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
     typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],

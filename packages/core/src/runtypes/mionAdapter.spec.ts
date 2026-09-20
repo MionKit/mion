@@ -26,7 +26,7 @@ type AnyHandler = (ctx: any, ...params: any[]) => any;
 type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
 type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
-// The built-in defaults: params `direct` (sj) and return `mutate` (pj).
+// `mutate` on both directions: the params decoder keeps undeclared keys, the return decoder does not.
 function fakeRoute<H extends AnyHandler>(
   handler: H,
   paramsFns?: InjectTypeFnArgs<
@@ -36,7 +36,7 @@ function fakeRoute<H extends AnyHandler>(
     'hasUnknownKeys',
     'unknownKeyErrors',
     'formatTransform',
-    'stringifyJson',
+    'prepareForJsonMutate',
     'restoreFromJsonMutate'
   >,
   returnFns?: InjectTypeFnArgs<
@@ -46,7 +46,7 @@ function fakeRoute<H extends AnyHandler>(
     'hasUnknownKeys',
     'unknownKeyErrors',
     'prepareForJsonMutate',
-    'restoreFromJsonMutate'
+    'restoreFromJsonClone'
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -101,8 +101,8 @@ function fakeCloneRoute<H extends AnyHandler>(
     'validationErrors',
     'hasUnknownKeys',
     'unknownKeyErrors',
-    'stringifyJson',
-    'restoreFromJsonMutate'
+    'prepareForJsonMutate',
+    'restoreFromJsonClone'
   >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -140,14 +140,11 @@ describe('mionAdapter: reflection from injected markers', () => {
 
   it('decodes JSON params and encodes returns with the strategy each side compiled', () => {
     const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-    expect(reflection.paramsJitFns.json.strategy).toBe('direct');
+    expect(reflection.paramsJitFns.json.strategy).toBe('mutate');
     expect(reflection.returnJitFns.json.strategy).toBe('mutate');
     const wire = JSON.parse('[{"name":"rex","born":"1970-01-01T00:00:00.123Z"}]');
     const restored = reflection.paramsJitFns.json.decode.fn!(wire) as [Pet];
     expect(restored[0].born).toBeInstanceOf(Date);
-    // params `direct`: the encoder writes the JSON string
-    const str = reflection.paramsJitFns.json.encode.fn!([{name: 'rex', born: new Date(123)}]);
-    expect(str).toContain('1970-01-01T00:00:00.123Z');
     // return `mutate`: the encoder transforms in place and returns the JSON-safe value the
     // platform stringifies (a Date needs no rewrite, JSON.stringify calls its toJSON)
     const value = {name: 'rex', born: new Date(123)};
@@ -194,7 +191,7 @@ describe('mionAdapter: reflection from injected markers', () => {
     // so this verifies the derived `<fnHash>_<typeId>` keys resolve to real emitted entries.
     // A version bump re-hashes typeIds but getFnHash tracks it — no manual refresh needed.
     const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-    const hashes = getJitFnHashes(reflection.paramsJitHash, 'direct');
+    const hashes = getJitFnHashes(reflection.paramsJitHash, 'mutate', 'params');
     const utl = getRTUtils();
     for (const key of ['isType', 'typeErrors', 'encode', 'decode'] as const) {
       const compiled = utl.getRT(hashes[key]);
@@ -216,7 +213,7 @@ describe('mionAdapter: reflection from injected markers', () => {
 
   it('throws a clear error when markers were not injected', () => {
     expect(() => getReflectionFromMarkers(undefined, () => 1, 'nope')).toThrow(/no injected type information/);
-    expect(() => buildJitFnsFromMarker(undefined, 'x', 'nope')).toThrow(/vite plugin/);
+    expect(() => buildJitFnsFromMarker(undefined, 'x', 'nope', 'params')).toThrow(/vite plugin/);
   });
 });
 
@@ -238,20 +235,30 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(decoded).toEqual({name: 'rex', born: new Date(123)});
   });
 
-  it('clone params and direct return: each side reads its own strategy', () => {
+  it('clone params and mutate return: each side reads its own strategy', () => {
     const reflection = getReflectionFromMarkers(clone.rtFns, clone.handler, 'clone');
     expect(reflection.paramsJitFns.json.strategy).toBe('clone');
-    expect(reflection.returnJitFns.json.strategy).toBe('direct');
+    expect(reflection.returnJitFns.json.strategy).toBe('mutate');
     const input = [{name: 'rex', born: new Date(123)}];
     const prepared = reflection.paramsJitFns.json.encode.fn!(input) as [{born: unknown}];
     expect(prepared[0].born).toBe('1970-01-01T00:00:00.123Z');
     expect(input[0].born).toBeInstanceOf(Date); // clone never mutates the input
-    expect(typeof reflection.returnJitFns.json.encode.fn!({name: 'rex', born: new Date(123)})).toBe('string');
+  });
+
+  // The whole point of the per-side split: `mutate` keeps undeclared keys where the SERVER decodes
+  // them (params) and drops them where the CLIENT does (return), so a caller of a mion client never
+  // sees a property its return type does not declare.
+  it('mutate names a different decoder on each side', () => {
+    const reflection = getReflectionFromMarkers(clone.rtFns, clone.handler, 'clone');
+    expect(getJitFnHashes(reflection.returnJitHash, 'mutate', 'return').decode).toBe(
+      reflection.returnJitFns.json.decode.rtFnHash
+    );
+    expect(getJitFnHashes('x', 'mutate', 'params').decode).not.toBe(getJitFnHashes('x', 'mutate', 'return').decode);
   });
 
   it('names the strategy families in the hashes so the deps lane ships exactly them', () => {
     const reflection = getReflectionFromMarkers(compact.rtFns, compact.handler, 'compact');
-    const hashes = getJitFnHashes(reflection.returnJitHash, 'compact');
+    const hashes = getJitFnHashes(reflection.returnJitHash, 'compact', 'return');
     expect(hashes.encode).toBe(reflection.returnJitFns.json.encode.rtFnHash);
     expect(hashes.decode).toBe(reflection.returnJitFns.json.decode.rtFnHash);
   });
@@ -269,7 +276,8 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     const fns = buildJitFnsFromMarker(
       [tuple('val'), tuple('verr'), tuple('huk'), tuple('uke'), tuple('pjs'), tuple('rjs')],
       'x',
-      'clone'
+      'clone',
+      'params'
     );
     expect(fns.isType).toBeDefined();
     expect(fns.typeErrors).toBeDefined();
@@ -282,17 +290,21 @@ describe('mionAdapter: json strategy per compiled family set', () => {
 
   it('fails closed on a payload with no encode family, two encode families, or a mismatched decoder', () => {
     const okValidators = [tuple('val'), tuple('verr')];
-    expect(() => buildJitFnsFromMarker([...okValidators, tuple('rj')], 'x', 'noEncode')).toThrow(
+    expect(() => buildJitFnsFromMarker([...okValidators, tuple('rj')], 'x', 'noEncode', 'params')).toThrow(
       /exactly one JSON encode family/
     );
-    expect(() => buildJitFnsFromMarker([...okValidators, tuple('pj'), tuple('sj'), tuple('rj')], 'x', 'twoEncoders')).toThrow(
-      /exactly one JSON encode family/
-    );
-    expect(() => buildJitFnsFromMarker([...okValidators, tuple('cj'), tuple('rj')], 'x', 'mismatch')).toThrow(
+    expect(() =>
+      buildJitFnsFromMarker([...okValidators, tuple('pj'), tuple('cj'), tuple('rj')], 'x', 'twoEncoders', 'params')
+    ).toThrow(/exactly one JSON encode family/);
+    expect(() => buildJitFnsFromMarker([...okValidators, tuple('cj'), tuple('rj')], 'x', 'mismatch', 'params')).toThrow(
       /needs decoder 'compactFromJson'/
     );
-    expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr')).toThrow(
+    expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr', 'params')).toThrow(
       /validate\/validationErrors are required/
+    );
+    // the server's `mutate` decoder on the return wire, where the client's rebuilding one belongs
+    expect(() => buildJitFnsFromMarker([...okValidators, tuple('pj'), tuple('rj')], 'x', 'wrongSide', 'return')).toThrow(
+      /needs decoder 'restoreFromJsonClone'/
     );
   });
 
@@ -304,12 +316,13 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     const withPair = buildJitFnsFromMarker(
       [tuple('val'), tuple('verr'), tuple('huk'), tuple('uke'), tuple('pj'), tuple('rj')],
       'x',
-      'keyed'
+      'keyed',
+      'params'
     );
     expect(withPair.hasUnknownKeys).toBeDefined();
     expect(withPair.unknownKeyErrors).toBeDefined();
 
-    const without = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('cj'), tuple('cjr')], 'x', 'compact');
+    const without = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('cj'), tuple('cjr')], 'x', 'compact', 'params');
     expect(without.hasUnknownKeys).toBeUndefined();
     expect(without.unknownKeyErrors).toBeUndefined();
   });
@@ -419,7 +432,7 @@ describe('mionAdapter: formatTransform (sanitizeParams) fn', () => {
 
   it('names the fmt hash so the deps lane can ship it', () => {
     const clean = getReflectionFromMarkers(cleanRoute.rtFns, cleanRoute.handler, 'cleanRoute');
-    const hashes = getJitFnHashes(clean.paramsJitHash, 'direct');
+    const hashes = getJitFnHashes(clean.paramsJitHash, 'mutate', 'params');
     expect(hashes.formatTransform).toBe(clean.paramsJitFns.formatTransform!.rtFnHash);
   });
 });
