@@ -53,8 +53,8 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
 // The client's view of the API (PublicApi<typeof routes>): a headers middleFn, a called route and
 // a route nothing calls.
 const API_TS = `type Headers = {headers: {authorization: string}};
-type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; strictTypes: undefined; sanitizeParams: undefined};
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; strictTypes: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
 export type Api = {
   auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   users: {

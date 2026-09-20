@@ -92,7 +92,7 @@ describe('Compact Serialization E2E', () => {
         expect(error?.type).toBe('intentional-error');
     });
 
-    it('carries a plain middleFn (no encoder of its own) on the compact wire', async () => {
+    it('carries a plain middleFn (no serializer of its own) on the compact wire', async () => {
         const [result, error, fatal, middleFnsResults] = await routes.compact.echo('test').call({
             middleFns: {
                 auth: middleFns.auth(authHeaders),

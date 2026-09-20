@@ -24,7 +24,7 @@ const mion = createMionRouter({basePath: 'api'});
 export const routes = {
   // start-trimmed
   // The handler reads the whole row and returns it. The RETURN TYPE says PublicUser, and the
-  // default `clone` encoder builds the payload from that type, so only id, name and avatarUrl
+  // default `clone` serializer builds the payload from that type, so only id, name and avatarUrl
   // reach the wire. The password hash and the internal notes never leave the process.
   getUser: mion.route((ctx, id: string): PublicUser => db.users.byId(id)),
   // end-trimmed
@@ -38,7 +38,7 @@ export const routes = {
       const row = db.users.byId(id);
       return {id: row.id, name: row.name, avatarUrl: row.avatarUrl};
     },
-    {encoder: 'mutate'}
+    {serializer: 'mutate'}
   ),
   // end-mutate
 } satisfies Routes;

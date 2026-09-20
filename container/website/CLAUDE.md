@@ -73,7 +73,7 @@ Read it before writing or restyling any page on any subsite.
   - **What** a feature is: describe it, then show it.
   - **Why** something is done a particular way: the reason, kept short.
 - **Titles name the job, plainly.** Title Case, a noun phrase or a gerund that says what
-  the section covers: "Defining a Route", "Registering Routes", "Encoder Strategies",
+  the section covers: "Defining a Route", "Registering Routes", "Serializer Strategies",
   "Why Only Serializable Data". No slogan or headline titles ("What's in the box",
   "Fast by construction", "Identity never moves"), no questions, no backticks. A reader
   scanning the table of contents must know what each section is about.

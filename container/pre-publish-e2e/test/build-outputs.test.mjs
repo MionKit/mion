@@ -86,7 +86,7 @@ test('mion-next: the app serves its own mion API, on both wires and in a batch',
   assert.equal(json.message, 'Hello mion!');
   assert.equal(json.atIsDate, true, 'mion-next: the Date did not survive the JSON round trip');
 
-  // Compact wire: the same client, a route whose encoder is positional.
+  // Compact wire: the same client, a route whose serializer is positional.
   assert.equal(compact.error, '', `mion-next compact round trip failed: ${compact.error}`);
   assert.equal(compact.sum, 42);
 

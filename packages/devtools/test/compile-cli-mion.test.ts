@@ -283,7 +283,7 @@ describe('mion compile — a pure fn that imports another pure fn id', () => {
 // dirs, the prerelease gate for a split deployment.
 const API_ROUTER_DTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
     [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
@@ -321,7 +321,7 @@ const API_CLIENT_DTS = `declare module '@mionjs/client' {
 // The client's own view of the API leaves out the boolean the server declares: with --api-tsconfig
 // the server program answers, so the compiled validators carry it anyway.
 const API_CLIENT_TS = `import {initClient} from '@mionjs/client';
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
 type Api = {
   users: {getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: false}}};
   sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};

@@ -12,7 +12,7 @@ export type Greeting = {message: string; at: Date};
 export const routes = {
   sayHello: mion.route((ctx, name: string): Greeting => ({message: `Hello ${name}!`, at: new Date('2026-01-02T03:04:05.000Z')})),
   // a second route on the COMPACT (positional) wire, so the lane covers both encoders
-  addNumbers: mion.route((ctx, a: number, b: number): number => a + b, {encoder: 'compact'}),
+  addNumbers: mion.route((ctx, a: number, b: number): number => a + b, {serializer: 'compact'}),
 } satisfies Routes;
 
 export const api = mion.initRoutes(routes);

@@ -9,7 +9,7 @@ interface Measurement {
 
 // A route option shared by several routes: written `as const`, so the build reads it like an inline literal.
 const compactRoute = {
-  encoder: 'compact',
+  serializer: 'compact',
   description: 'positional wire',
 } as const;
 
@@ -19,12 +19,12 @@ export const routes = {
 
   // compact on both directions, for this route only
   echoCompact: mion.route((ctx, data: Measurement): Measurement => data, {
-    encoder: 'compact',
+    serializer: 'compact',
   }),
 
   // only the return changes; the params keep the router default
-  echoDirect: mion.route((ctx, data: Measurement): Measurement => data, {
-    encoder: {return: 'direct'},
+  echoMutate: mion.route((ctx, data: Measurement): Measurement => data, {
+    serializer: {return: 'mutate'},
   }),
 
   // the shared preset
@@ -36,6 +36,6 @@ export const routes = {
   // middleFns take the same option: their params and return ride the same wires
   stamp: mion.middleFn(
     (ctx, tag: string): {tag: string; at: Date} => ({tag, at: new Date()}),
-    {encoder: 'compact'}
+    {serializer: 'compact'}
   ),
 } satisfies Routes;
