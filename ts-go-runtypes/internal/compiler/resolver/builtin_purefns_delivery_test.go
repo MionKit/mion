@@ -120,8 +120,7 @@ func keys(m map[string]string) []string {
 }
 
 // markerBuild drops the named parts of the marker install, so a test can say where the built-in
-// bodies came from. The base fixture is the CONSUMER INSTALL (no sources); addSources layers the
-// package's own src/ back in, which is the workspace shape.
+// bodies came from. The base fixture is the CONSUMER INSTALL; addSources layers the workspace's src/ back in.
 func markerBuild(t *testing.T, addSources bool, dropSegments ...string) protocol.Response {
 	t.Helper()
 	r := setupInlineWith(t, map[string]string{"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
@@ -153,8 +152,7 @@ export const e = createGetValidationErrorsFn<{a: string; b: number}>();
 	return resp
 }
 
-// The package's own build publishes its built-in bodies, so an install with the artifact and no
-// src serves them — which is every install, since the tarball carries no sources.
+// An install with the artifact and no src serves the built-ins, which is every install: the tarball has no sources.
 func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
 	resp := markerBuild(t, false)
 	for _, diag := range resp.Diagnostics {
@@ -173,9 +171,9 @@ func TestBuiltinDelivery_ArtifactServesWithoutSources(t *testing.T) {
 	}
 }
 
-// The mirror, and what the WORKSPACE relies on: with the sources present and no artifact built
-// yet the package is scanned for its registrations like any other unbuilt dependency, so a
-// sibling package compiles against a run-types that has never been built.
+// The mirror, and what the WORKSPACE relies on: with sources and no artifact the package is
+// scanned for its registrations like any unbuilt dependency, so a sibling compiles against a
+// run-types that has never been built.
 func TestBuiltinDelivery_SourcesServeWithoutArtifact(t *testing.T) {
 	resp := markerBuild(t, true, "/"+constants.PureFnArtifactDir+"/")
 	for _, diag := range resp.Diagnostics {

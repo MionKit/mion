@@ -38,11 +38,8 @@ function ensureEnrichment() {
   cli(['enrich', '--no-emit']);
 }
 
-// The @acme/src-types fixture: a dependency whose type definitions live under src/ rather than
-// a dist, installed for smoke-source and smoke-types-in-src. Packed first, so what the apps
-// resolve is what its `files` list actually ships. Unpacked into node_modules by hand rather
-// than by `npm install`: the matrix root's package.json is the BAKED toolchain manifest and npm
-// would be free to prune it mid-run.
+// Packed first, so the apps resolve exactly what @acme/src-types's `files` list ships.
+// Unpacked by hand: `npm install` could prune the matrix root's BAKED toolchain manifest.
 function ensureSrcTypesFixture() {
   const libDir = path.join(APPS, 'libs/src-types');
   const packDir = path.join(HERE, '.fixtures');
@@ -71,10 +68,9 @@ function rtOptions(appDir) {
 const isCore = (request) => CORE_EXTERNAL.test(request);
 
 // ── the apps: eight bundler adapters over eleven builds ─────────────────────
-// build-vite carries the FULL feature matrix (imports the shared index); every
-// light smoke imports apps/shared/src/minimal.ts. smoke-source and
-// smoke-types-in-src are not extra bundlers — both reuse the esbuild adapter to
-// cover a different resolution mode.
+// build-vite carries the FULL feature matrix; every light smoke imports
+// apps/shared/src/minimal.ts. smoke-source and smoke-types-in-src reuse the
+// esbuild adapter, so they are builds without being bundlers.
 const APP_LIST = [
   {name: 'build-vite', adapter: 'vite'},
   {name: 'smoke-esbuild', adapter: 'esbuild'},
@@ -82,13 +78,11 @@ const APP_LIST = [
   {name: 'smoke-rolldown', adapter: 'rolldown'},
   {name: 'smoke-webpack', adapter: 'webpack'},
   {name: 'smoke-rspack', adapter: 'rspack'},
-  // Source-first consumer: customConditions:["source"] makes @acme/src-types resolve to its
-  // TypeScript source, so the plugin's scan walks a dependency's own internals. Guards the
-  // first-party diagnostic scoping — without it the build halts on the library's CTA001/CTA003.
+  // Source-first: @acme/src-types resolves to its TypeScript, so the plugin scans a
+  // dependency's own internals. Guards the first-party diagnostic scoping (else CTA001/CTA003).
   {name: 'smoke-source', adapter: 'esbuild'},
-  // The same fixture with NO custom conditions, so its definitions are found through plain
-  // `types`. Together the two say the resolver follows a dependency's manifest wherever its
-  // definitions sit, which is what lets the @mionjs/* packages ship none of their sources.
+  // The same fixture with NO custom conditions, found through plain `types`. Together the two
+  // prove the resolver follows a dependency's manifest, which is what lets @mionjs/* ship no src.
   {name: 'smoke-types-in-src', adapter: 'esbuild'},
   // Bun has TWO plugin hosts and they are different code paths, so each gets an
   // app: `Bun.build` (bundler, produces a dist like every other adapter) and the

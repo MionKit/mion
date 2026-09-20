@@ -1,5 +1,4 @@
-// smoke-types-in-src — a plain consumer of a dependency whose .d.ts files sit under src/.
-// The twin of smoke-source: same fixture, resolved through `types` instead of `source`.
+// The twin of smoke-source: the same src/-definitions fixture, resolved through `types`.
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import type {SrcTypedUser} from '@acme/src-types';
 

@@ -56,18 +56,17 @@ export function lockstepVersion(repoRoot = REPO_ROOT) {
   return readJson(path.join(repoRoot, 'version.json')).version;
 }
 
-// A repo path whose edit changes what npm would ship. The tarball carries no `src/`, so
-// this is the GIT side only: `.dist` is derived from `src`, and a rebuild is not a change.
+// A repo path whose edit changes what npm would ship. The GIT side only: `.dist` is derived
+// from `src`, so a rebuild is not a change.
 export function isTrackedSource(relPath) {
   if (relPath === 'package.json') return true;
   if (!relPath.startsWith('src/')) return false;
   return !relPath.endsWith('.spec.ts') && !relPath.endsWith('.test.ts');
 }
 
-// A path inside a tarball that counts towards "same version means same bytes". Everything
-// npm serves, which is now the build output: sources stopped shipping, so filtering to
-// `src/` here would compare nothing but package.json and call two different publishes equal.
-// `.tsbuildinfo` is the one exclusion — a local tsc cache, inert to a consumer.
+// A tarball path that counts towards "same version means same bytes": everything npm serves,
+// build output included, since a `src/` filter would compare package.json alone. `.tsbuildinfo`
+// is the one exclusion, a local tsc cache no consumer reads.
 export function isPublishedFile(relPath) {
   return !relPath.endsWith('.tsbuildinfo');
 }
@@ -133,13 +132,9 @@ export function plannedVersion(currentVersion, drizzleVersion, hasUnreleasedChan
 const tarList = (tarball) => execFileSync('tar', ['-tzf', tarball], {encoding: 'utf8'}).trim().split('\n');
 const tarRead = (tarball, entry) => execFileSync('tar', ['-xzOf', tarball, entry], {encoding: 'buffer'});
 
-// name -> sha256 over every file a packed tarball ships.
-// package.json is normalized first: its own `version` is what the comparison
-// DECIDES, and `devDependencies` are inert in a published package (npm never
-// installs them, and pnpm rewrites the workspace:* ones to a concrete version at
-// pack time, which would otherwise read as a change on every release). What is
-// left — exports, files, dependencies, peerDependencies — is exactly what a
-// consumer gets, so a change there IS a change.
+// name -> sha256 over every file a packed tarball ships. package.json is normalized first: its
+// own `version` is what the comparison DECIDES, and `devDependencies` are inert once published
+// while pnpm restamps the workspace:* ones at pack time, which would read as a change every release.
 export function tarballFileDigests(tarball) {
   const digests = new Map();
   for (const entry of tarList(tarball)) {
@@ -154,7 +149,6 @@ export function tarballFileDigests(tarball) {
 }
 
 // Paths that differ between two packed tarballs (added, removed or edited), sorted.
-// Empty means the two publishes carry identical content.
 export function tarballContentDiff(a, b) {
   const [left, right] = [tarballFileDigests(a), tarballFileDigests(b)];
   const changed = new Set();
