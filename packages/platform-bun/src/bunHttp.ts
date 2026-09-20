@@ -186,7 +186,6 @@ function reply(
   const bodyType = mionResp.serializer;
   switch (bodyType) {
     case SerializerModes.json: {
-      // Platform adapter uses Response.json() which handles JSON.stringify internally
       return Response.json(mionResp.body, {
         status: mionResp.statusCode,
         headers: responseHeaders,

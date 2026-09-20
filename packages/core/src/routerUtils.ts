@@ -105,7 +105,6 @@ export const routesCache = {
     const metadata = this.getMetadata(id);
     if (!metadata) return undefined;
 
-    // the resolved serializer rides the metadata; a payload without one reads as the built-in defaults
     const serializer = metadata.options.serializer ?? DEFAULT_SERIALIZER;
     const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, serializer.params, 'params');
     const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, serializer.return, 'return');
@@ -164,8 +163,7 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-/** The mion cache keys of one fn set for a strategy on one direction. The direction picks the
- *  decoder: params are decoded by the server, a return by the client, and the two differ. */
+/** The direction picks the decoder: params are decoded by the server, a return by the client. */
 export function getJitFnHashes(
   jitHash: string,
   strategy: SerializerStrategy,

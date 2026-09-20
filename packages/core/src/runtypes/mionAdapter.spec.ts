@@ -245,9 +245,7 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(input[0].born).toBeInstanceOf(Date); // clone never mutates the input
   });
 
-  // The whole point of the per-side split: `mutate` keeps undeclared keys where the SERVER decodes
-  // them (params) and drops them where the CLIENT does (return), so a caller of a mion client never
-  // sees a property its return type does not declare.
+  // `mutate` keeps undeclared keys where the SERVER decodes them (params) and drops them where the CLIENT does.
   it('mutate names a different decoder on each side', () => {
     const reflection = getReflectionFromMarkers(clone.rtFns, clone.handler, 'clone');
     expect(getJitFnHashes(reflection.returnJitHash, 'mutate', 'return').decode).toBe(

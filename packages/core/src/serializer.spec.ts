@@ -5,8 +5,7 @@ import {DEFAULT_SERIALIZER, SERIALIZER_STRATEGIES, isSerializerStrategy, resolve
 import type {SerializerStrategy} from './types/general.types.ts';
 
 describe('the mion serializer strategies', () => {
-  // SerializerStrategy is written out rather than Excluded from the RunTypes union, because the
-  // conditional cost lands on every route. This is what keeps the two in step instead.
+  // SerializerStrategy is written out rather than `Exclude`d from the union: the conditional would cost every route.
   it('names a subset of the RunTypes encoder strategies', () => {
     type IsSubset = SerializerStrategy extends JsonEncoderStrategy ? true : false;
     const subset: IsSubset = true;
@@ -31,8 +30,7 @@ describe('the mion serializer strategies', () => {
     expect(() => resolveSerializer('direct' as never, undefined)).toThrow(/clone, mutate, compact/);
   });
 
-  // The point of the per-side split: the server decodes params from any caller and the client
-  // decodes a return its own server wrote, so `mutate` cannot name the same decoder on both.
+  // The server decodes params from any caller, the client a return its own server wrote.
   it('gives mutate a different decoder on each side, and the others the same one', () => {
     expect(DECODE_FAMILY_BY_STRATEGY.mutate.server).toBe('restoreFromJsonMutate');
     expect(DECODE_FAMILY_BY_STRATEGY.mutate.client).toBe('restoreFromJsonClone');

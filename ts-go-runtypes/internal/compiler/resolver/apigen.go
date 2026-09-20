@@ -558,11 +558,10 @@ func serializerStrategies(options map[string]any) (params, ret string) {
 	return params, ret
 }
 
-// encodeFamily / serverDecodeFamily / clientDecodeFamily mirror EncodeFamily,
-// ServerDecodeFamily and ClientDecodeFamily in
-// packages/router/src/types/serializer.ts (and the maps in core's constants.ts).
-// A disagreement between the two copies makes strategyFromFamilies throw on the
-// bundled lane, which is what the client-bundled and client-mixed suites catch.
+// encodeFamily / serverDecodeFamily / clientDecodeFamily mirror the same names in
+// packages/router/src/types/serializer.ts and the maps in core's constants.ts; a
+// disagreement makes strategyFromFamilies throw on the bundled lane, which the
+// client-bundled and client-mixed suites catch.
 func encodeFamily(strategy string) string {
 	switch strategy {
 	case "mutate":
@@ -574,9 +573,8 @@ func encodeFamily(strategy string) string {
 	}
 }
 
-// serverDecodeFamily answers the params wire, which the server decodes from any
-// caller: it rebuilds the declared shape unless the strategy exists to pass the
-// object through.
+// serverDecodeFamily answers the params wire: the server decodes from any caller,
+// so it rebuilds the declared shape unless the strategy exists to pass through.
 func serverDecodeFamily(strategy string) string {
 	switch strategy {
 	case "compact":
@@ -588,8 +586,8 @@ func serverDecodeFamily(strategy string) string {
 	}
 }
 
-// clientDecodeFamily answers the return wire, which the client decodes from its
-// own server: it never hands a caller a key the return type does not declare.
+// clientDecodeFamily answers the return wire: the client decodes its own server's
+// answer, and never hands on a key the return type does not declare.
 func clientDecodeFamily(strategy string) string {
 	if strategy == "compact" {
 		return "compactFromJson"

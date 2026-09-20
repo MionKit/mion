@@ -8,16 +8,14 @@
 import type {DefaultSerializer, SerializerOption, ResolvedSerializer} from '@mionjs/core';
 import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
-// Type-level serializer resolution: the families a route compiles come from the `serializer`
-// literals, route first, then factory, then the built-in default. A slot resolving to `never` is
-// not compiled.
+// The families a route compiles come from the `serializer` literals: route first, then factory, then
+// the built-in default. A slot resolving to `never` is not compiled.
 
 type Direction = keyof ResolvedSerializer;
 /** The `serializer` literal an options type carries, `never` when it has none. */
 type SerializerOf<Options> = Options extends {serializer: infer E} ? E : never;
-/** One direction of a serializer literal: a string sets both, an object names each. Non-distributive
- *  and filtered through SingleLiteral, so a widened or union `serializer` resolves to `never` and
- *  falls through instead of compiling every family its union names. */
+/** Non-distributive and filtered through SingleLiteral, so a widened or union `serializer` resolves to
+ *  `never` and falls through instead of compiling every family its union names. */
 type DirectionStrategy<E, D extends Direction> = [E] extends [string]
   ? SingleLiteral<E>
   : [E] extends [Record<D, infer S extends string>]
@@ -39,8 +37,7 @@ type EncodeFamily<S> = S extends 'clone'
       ? 'compactForJson'
       : never;
 // The server decodes params from ANY caller, so it rebuilds the declared shape unless the strategy
-// exists to pass the object through. The `S extends string` arm keeps a `never` strategy `never`,
-// which is what leaves the slot uncompiled.
+// exists to pass the object through. The `S extends string` arm leaves a `never` strategy uncompiled.
 type ServerDecodeFamily<S> = S extends 'compact'
   ? 'compactFromJson'
   : S extends 'mutate'
@@ -48,8 +45,7 @@ type ServerDecodeFamily<S> = S extends 'compact'
     : S extends string
       ? 'restoreFromJsonClone'
       : never;
-// The client decodes a return its own server wrote, and never hands its caller a property the
-// return type does not declare.
+// The client decodes a return its own server wrote, and never hands on a property the return type omits.
 type ClientDecodeFamily<S> = S extends 'compact' ? 'compactFromJson' : S extends string ? 'restoreFromJsonClone' : never;
 
 /** Options naming no `serializer`, the default for a helper called outside the factory. */
@@ -65,10 +61,9 @@ type ParamsEncode<RouteOpts, RouterOpts = NoSerializerOptions> = EncodeFamily<Pa
 type ParamsDecode<RouteOpts, RouterOpts = NoSerializerOptions> = ServerDecodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
 type ReturnEncode<RouteOpts, RouterOpts = NoSerializerOptions> = EncodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
 type ReturnDecode<RouteOpts, RouterOpts = NoSerializerOptions> = ClientDecodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-/** The `strictTypes` pair, compiled only where the SERVER's params decoder keeps undeclared keys,
- *  which is `mutate` alone: every other decoder rebuilds the declared shape, so the key is gone
- *  before the handler sees it and the check has nothing left to find. Spelled as the strategy
- *  rather than routed through ServerDecodeFamily, which costs an extra instantiation per route. */
+/** `mutate` alone keeps undeclared keys: every other params decoder rebuilds the declared shape, so the
+ *  key is gone before the check runs. Spelled as the strategy, not via ServerDecodeFamily, which costs an
+ *  instantiation per route. */
 type UnknownKeys<Strategy, Key> = Strategy extends 'mutate' ? Key : never;
 type ParamsHasUnknownKeys<RouteOpts, RouterOpts = NoSerializerOptions> = UnknownKeys<
   ParamsStrategy<RouteOpts, RouterOpts>,
@@ -90,15 +85,11 @@ type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUni
 type LiteralSerializer<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: SingleLiteral<E[K]>};
 
 // ####### The mion injection slots #######
-// The trailing marker parameters every route / middleFn helper carries, written ONCE. The helper
-// signatures in types/mionRouter.ts index this tuple (`MarkerSlots<...>[0]`) instead of respelling
-// the markers: a type alias wrapped directly AROUND a marker hides it from the mion scanner, but a
-// tuple ELEMENT keeps the marker's own alias, so the scanner still reads it at the call site.
-// The fn key vocabulary is MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so
-// order does not matter, and a strategy slot resolving to `never` is not compiled.
-// 'fmt' (the sanitizeParams lane) is requested on the PARAMS side only, and so is the unknown-key
-// pair: the answer side of a route is written by the handler, never by a caller, and nothing reads
-// returnJitFns.hasUnknownKeys.
+// The marker parameters every helper carries, written ONCE. types/mionRouter.ts indexes this tuple
+// (`MarkerSlots<...>[0]`) instead of respelling the markers: an alias wrapped AROUND a marker hides it
+// from the mion scanner, a tuple ELEMENT keeps it readable at the call site.
+// Fn keys are MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so order does not matter.
+// 'fmt' and the unknown-key pair are PARAMS-only: the answer side is written by the handler, never a caller.
 
 /** The four injection slots of a route / middleFn call, in declaration order. */
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoSerializerOptions> = [

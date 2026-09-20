@@ -27,10 +27,9 @@ func TestApiGen_EveryHardcodedFamilyResolves(t *testing.T) {
 	}
 }
 
-// TestApiGen_DecodeFamilyPerSide pins the split these two functions exist for: the
-// server decodes params from any caller and the client decodes a return its own
-// server wrote, so `mutate` cannot name the same decoder on both sides. The TS
-// copy is DECODE_FAMILY_BY_STRATEGY in packages/core/src/constants.ts.
+// TestApiGen_DecodeFamilyPerSide pins why the two differ: the server decodes params
+// from any caller, the client a return its own server wrote. The TS copy is
+// DECODE_FAMILY_BY_STRATEGY in packages/core/src/constants.ts.
 func TestApiGen_DecodeFamilyPerSide(t *testing.T) {
 	cases := []struct{ strategy, server, client string }{
 		{"clone", "restoreFromJsonClone", "restoreFromJsonClone"},

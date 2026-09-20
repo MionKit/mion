@@ -10,8 +10,7 @@ import type {SerializerOption, ResolvedSerializer, SerializerStrategy} from './t
 // The `serializer` option is a BUILD-TIME literal, so the runtime only reads a resolved pair back and
 // checks it against what was compiled (mionAdapter reads the strategy off the injected families).
 
-/** The built-in defaults: `clone` both ways. Never touches the encoded value, and builds the
- *  payload from the DECLARED type, so anything the type does not declare never reaches the wire. */
+/** Defaults to `clone` both ways: it never mutates the input and drops anything the type does not declare. */
 export const DEFAULT_SERIALIZER = Object.freeze({params: 'clone', return: 'clone'} as const) satisfies ResolvedSerializer;
 /** The default pair as literal types, for the router's helper types. */
 export type DefaultSerializer = typeof DEFAULT_SERIALIZER;

@@ -123,8 +123,7 @@ describe('PublicMethods run type functionality', () => {
   });
 });
 
-// The metadata route returns a union, so its encoder wraps the answer in the `[memberIndex, value]`
-// envelope every union rides on the wire. The real client unwraps it the same way.
+// A union answer rides the `[memberIndex, value]` envelope on the wire; the real client unwraps it the same way.
 const unwrap = (value: unknown): any => (Array.isArray(value) ? value[1] : value);
 
 describe('Client Routes should', () => {
@@ -371,8 +370,7 @@ describe('Client Routes should', () => {
       }),
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-    // a declared error rides its own encoder like any other union member, so the slot holds the
-    // encoded shape rather than the live RpcError the handler returned
+    // a declared error rides its own encoder, so the slot holds the encoded shape, not the live RpcError
     expect(unwrap(response.body[methodsId])).toMatchObject({
       type: 'rpc-metadata-not-found',
       publicMessage: 'Errors getting Remote Methods Metadata',
@@ -422,10 +420,8 @@ describe('the methodsMetadata middleFn answers on the json framing every chain u
 
   afterEach(() => resetRouter());
 
-  // The answer rides the same json framing as every other slot, whatever the route picked: the
-  // middleFn pins the built-in default on its own wires, so its encoder never follows the route's.
-  // Each route spells its serializer INLINE: the option is a build-time literal, so a variable
-  // holding it is a build error (CTA001).
+  // The middleFn pins the built-in default on its own wires, so its encoder never follows the route's.
+  // Each route spells its serializer INLINE: a variable holding a build-time literal is a build error (CTA001).
   const expectMetadataInBody = async (routes: Routes) => {
     mion.initRoutes(routes);
     const request: RawRequest = {
