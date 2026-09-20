@@ -1,27 +1,20 @@
-// End-to-end acceptance test for `getRTFunction` — the generic resolver that
-// recovers the compiled fn for `T` from an injected `InjectTypeFnArgs<T, Fn>`
-// tuple. This is the surface a framework wrapper (mion) uses to pull a
-// per-strategy JSON prepare / restore for a route's params / response type from ONE
-// marker: name each fnKey in the marker, forward each injected slot to `getRTFunction`,
-// get the callable fns back. Each family also has its own createX; this is the road that
-// carries several of them at once.
+// End-to-end acceptance test for `getRTFunction`, the generic resolver that recovers the
+// compiled fn for `T` from an injected `InjectTypeFnArgs<T, Fn>` tuple. It is the road a
+// framework wrapper (mion) takes to pull several compiled fns for a route out of ONE marker;
+// each family also has its own createX factory.
 //
-// This test is where the marker road's coverage lives: `'pjs'` (clone prepare), `'rj'` (restore),
-// `'cj'` / `'cjr'` (compact encode / decode), `'sj'` (direct stringify) and
-// `'ukuw'` (strip wire pre-pass). Per the CLAUDE.md marker-coverage rule both
-// call shapes are exercised — the static `recoverX<T>()` form and the
-// value-first `recoverX(value)` reflection form — with one paired test asserting
-// the two forms resolve the SAME compiled fn (the runtime analog of the Go-side
+// Coverage for that marker road: `'pjs'` (clone prepare), `'rj'` (restore), `'cj'` / `'cjr'`
+// (compact encode / decode), `'sj'` (direct stringify) and `'ukuw'` (strip wire pre-pass).
+// Per the CLAUDE.md marker-coverage rule both call shapes are exercised, with one paired test
+// asserting they resolve the SAME compiled fn (runtime analog of the Go-side
 // TestAtomic_FormEquivalence hash check).
 
 import {describe, test, expect} from 'vitest';
 import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
 
-// Test-only wrappers: declare the primitive's fnKey in a trailing
-// InjectTypeFnArgs marker and resolve the injected tuple through getRTFunction,
-// keyed by the SAME fnKey — exactly the wrapper shape a framework declares.
-// `_val` exists only so the reflection call shape `recoverX(value)` can infer
-// `T` from the value; it is never read at runtime.
+// Test-only wrappers, exactly the shape a framework declares: the fnKey in a trailing
+// InjectTypeFnArgs marker, resolved through getRTFunction by the SAME fnKey. `_val` exists
+// only so the reflection shape `recoverX(value)` can infer `T`; it is never read.
 function recoverClonePrepare<T>(_val?: T, id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>) {
   return getRTFunction<'prepareForJsonClone'>(id);
 }

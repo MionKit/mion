@@ -46,14 +46,11 @@ export type InjectRunTypeId<T> = string & {
  * SINGLE function (the common case) — `InjectTypeFnArgs<T, 'validate'>`: the injected
  * value is the family's entry-module tuple, resolved by the one `createX`.
  *
- * `Fn` also names the JSON value-level families —
- * `'prepareForJsonMutate'`/`'prepareForJsonClone'`,
- * `'restoreFromJsonMutate'`/`'restoreFromJsonClone'` (the clone restore rebuilds the
- * declared shape), `'stringifyJson'`, `'stripUnknownKeysWire'` and
- * `'compactForJson'`/`'compactFromJson'`. A wrapper recovers those from the injected
- * tuple with `getRTFunction<'prepareForJsonClone'>(fns?.[i])`, keyed by the SAME fnKey,
- * which is how one marker can carry several of them at once; a single one is simpler
- * through its own `createPrepareForJsonFn` / `createRestoreFromJsonFn`.
+ * `Fn` also names the JSON value-level families (the `prepareForJson` / `restoreFromJson`
+ * Mutate and Clone pairs, where Clone rebuilds the declared shape, plus `'stringifyJson'`,
+ * `'stripUnknownKeysWire'` and `'compactForJson'`/`'compactFromJson'`). ONE marker can carry
+ * several at once, recovered with `getRTFunction<'prepareForJsonClone'>(fns?.[i])` keyed by
+ * the SAME fnKey; a single one is simpler through its own `createPrepareForJsonFn`.
  *
  * MULTIPLE functions — `InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>`:
  * the site needs several compiled fns for the same `T` (a framework wrapper such

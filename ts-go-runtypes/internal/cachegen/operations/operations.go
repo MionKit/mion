@@ -11,13 +11,11 @@
 // references with the SAME fnHash. Routing both halves through this package is
 // what guarantees they agree — see fnhash.go.
 //
-// This replaces the hand-maintained family-tag / variant-suffix / JSON-strategy
-// token scheme (constants.CompFns, DemandsForFnId, …): the readable token is
-// gone, the demand rides structured on protocol.Site, and the cache key is a
-// pure hash. The registry below is the superset of the old CompFns map — it also
-// enumerates the value-level primitives (prepareForJsonMutate, restoreFromJsonMutate, …)
-// reached as JSON-composite dependencies or cross-family edges, because the emitter must
-// hash THOSE too.
+// This replaced the hand-maintained token scheme (constants.CompFns, DemandsForFnId, …): the
+// demand now rides structured on protocol.Site and the cache key is a pure hash. The registry
+// below is that map's superset — it also enumerates the value-level primitives
+// (prepareForJsonMutate, restoreFromJsonMutate, …) reached as JSON-composite dependencies or
+// cross-family edges, because the emitter must hash THOSE too.
 package operations
 
 import "strings"
@@ -72,9 +70,8 @@ type Operation struct {
 	// It is the text the docs catalog page renders, kept here so a new operation
 	// cannot ship without one (TestEveryOperationIsDocumented).
 	Doc string
-	// Factory is the public `createX` export that compiles this operation. Every Public
-	// operation names one; only non-Public plumbing may leave it empty. Rendered by the
-	// docs catalog page.
+	// Factory is the public `createX` export that compiles this operation, rendered by the
+	// docs catalog page. Only non-Public plumbing may leave it empty.
 	Factory string
 	// CircularGuarded marks an operation whose runtime factory can inline the
 	// circular-reference guard: validate, validationErrors, toBinary, jsonEncoder.
@@ -87,11 +84,9 @@ type Operation struct {
 	CircularGuarded bool
 }
 
-// registry is the complete operation set: the createX-backed operations (plain
-// and fused validators included) plus the 7 JSON value-level primitives the
-// composites and cross-family edges reference.
-// All are Public (marker-recoverable) — the primitives via getRTFunction rather
-// than a dedicated factory. Order is not load-bearing (keyed by Name / FnKey).
+// registry is the complete operation set: the createX-backed operations (plain and fused
+// validators included) plus the JSON value-level primitives the composites and cross-family
+// edges reference. Order is not load-bearing (keyed by Name / FnKey).
 var registry = []Operation{
 	// Public — validators (ValidateOptions axis). Both guard circular refs.
 	{Name: "validate", Doc: "Answers whether a value matches the type. The cheapest check, and the one every other validator builds on.", Factory: "createValidateFn", FamilyTag: "val", Axis: AxisValidateOptions, Public: true, FnKey: "validate", CircularGuarded: true},
@@ -191,33 +186,24 @@ var registry = []Operation{
 	},
 
 	// JSON value-level primitives — the building blocks the createJsonEncoderFn /
-	// createJsonDecoderFn composites wrap, and what createPrepareForJsonFn /
-	// createRestoreFromJsonFn / createStringifyJsonFn / createStripUnknownKeysFn compile.
-	// The prepare and restore factories share a `strategy`, so three operations sit behind
-	// each; the scanner swaps the operation the same way createParseFn's does
-	// (jsonValueStrategyOperation in resolver/scan.go). A framework threading its own
-	// marker still reaches any of them by FnKey through getRTFunction.
-	// Each FnKey equals its family tag; there is no runtime hashing, so the resolver reads
-	// the plugin-injected plain fnHash rather than reconstruct it (the same path the
-	// TEST-ONLY deserialize twins exercise).
-	//   - pj (mutate prepare) / pjs (clone prepare): value → JSON-safe value.
-	//   - rj (mutate restore): JSON-safe value → typed value, in place.
-	//   - rjs (clone restore): the decode mirror of pjs — rebuilds each object from the
-	//     declared shape, so undeclared keys are DELETED rather than left in place. mion's
-	//     `clone` strategy decodes with it; no createJsonDecoderFn strategy composes it.
-	//   - sj (direct): single-pass value → JSON string (the `direct` encoder body).
-	//   - ukuw: the strip decoder's unknown-keys-to-undefined wire pre-pass.
+	// createJsonDecoderFn composites wrap, and what createPrepareForJsonFn and its three
+	// siblings compile. Three operations sit behind each prepare / restore factory, one per
+	// `strategy`, swapped the way createParseFn's are (jsonValueStrategyOperation in
+	// resolver/scan.go). A framework threading its own marker still reaches any of them by
+	// FnKey through getRTFunction. Each FnKey equals its family tag; there is no runtime
+	// hashing, so the resolver reads the plugin-injected plain fnHash rather than reconstruct
+	// it (the same path the TEST-ONLY deserialize twins exercise).
+	//   - rjs (clone restore): mion's `clone` strategy decodes with it; no
+	//     createJsonDecoderFn strategy composes it.
+	//   - sj: the `direct` encoder body. ukuw: the strip decoder's wire pre-pass.
 	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", Factory: "createPrepareForJsonFn", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate"},
 	{Name: "prepareForJsonClone", Doc: "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.", Factory: "createPrepareForJsonFn", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
 	{Name: "restoreFromJsonMutate", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", Factory: "createRestoreFromJsonFn", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonMutate"},
 	{Name: "restoreFromJsonClone", Doc: "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.", Factory: "createRestoreFromJsonFn", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonClone"},
 	{Name: "stringifyJson", Doc: "Writes a value straight to a JSON string in one pass, with no intermediate value.", Factory: "createStringifyJsonFn", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
 	{Name: "stripUnknownKeysWire", Doc: "Blanks undeclared properties on incoming JSON before it is restored.", Factory: "createStripUnknownKeysFn", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "stripUnknownKeysWire"},
-	// compactForJson / compactFromJson: the positional-tuple JSON round-trip pair
-	// the `compact` strategy composes. compactForJson builds a NEW value emitting
-	// declared object props as a positional array (no key names); compactFromJson
-	// rebuilds the keyed object from positions. Recoverable via the marker like the
-	// other value-level primitives (and reached as compact composite dependencies).
+	// compactForJson / compactFromJson: the positional-tuple round-trip pair the `compact`
+	// strategy composes, also reached as compact composite dependencies.
 	{Name: "compactForJson", Doc: "Builds a value whose objects are positional arrays, so property names never reach the wire.", Factory: "createPrepareForJsonFn", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson"},
 	{Name: "compactFromJson", Doc: "Rebuilds a keyed object from the positional array the compact encoder wrote.", Factory: "createRestoreFromJsonFn", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson"},
 }

@@ -185,12 +185,8 @@ export {
 // of re-declaring the names.
 export {typeFormats, type FormatName, type TypeFormatMeta} from './go-generated/typeFormats.generated.ts';
 
-// String JSON I/O is `createJsonEncoderFn` + `createJsonDecoderFn`; the VALUE-level
-// transforms they build on are `createPrepareForJsonFn` / `createRestoreFromJsonFn` /
-// `createStringifyJsonFn` / `createStripUnknownKeysFn`. `getRTFunction` resolves any
-// family from a marker a wrapper declared itself, keyed by the SAME fnKey
-// (`getRTFunction<'prepareForJsonClone'>(fns?.[0])`); `RTFunctionByKey` maps each key to
-// its shape, so the return type is inferred.
+// `getRTFunction` resolves any family from a marker a wrapper declared itself, keyed by the
+// SAME fnKey; `RTFunctionByKey` maps each key to its shape, so the return type is inferred.
 export {
   getRTFunction,
   type RTFunctionByKey,
@@ -230,10 +226,8 @@ export {
   type ParseOptions,
   type ParseStrategy,
   type ParseRestoreFn,
-  // The value-level JSON transforms: a JSON-safe value in or out, with no string step.
-  // The prepare and restore pair share one `strategy` vocabulary, so `clone` out pairs
-  // with `clone` back. A wrapper carrying several of them in ONE marker still resolves
-  // them through `getRTFunction`, keyed by the same fnKey.
+  // The value-level JSON transforms, no string step; several of them in ONE wrapper marker
+  // resolve through `getRTFunction` instead.
   createPrepareForJsonFn,
   type PrepareForJsonFn,
   type PrepareForJsonOptions,

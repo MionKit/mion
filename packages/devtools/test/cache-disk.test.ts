@@ -80,11 +80,10 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     }
     expect(rtFiles.length).toBeGreaterThan(0);
     const parsed = JSON.parse(fs.readFileSync(rtFiles[0], 'utf8'));
-    // Mirrors disk.FormatVersion (internal/cachegen/diskcache/format.go). Bumped to 17
-    // when the restore families were renamed: their fnHash moved while their tags, and so
-    // their cache basenames, stayed, so a v16 payload would be read as a hit carrying the
-    // old prefix. Earlier: v16 added Diagnostics so a warm entry re-emits its findings;
-    // v15 added PureFnRefs; v14 dropped constants.Version from the fnHash salt.
+    // Mirrors disk.FormatVersion (internal/cachegen/diskcache/format.go). v17: renaming the
+    // restore families moved their fnHash while their cache basenames (their tags) stayed, so a
+    // v16 payload would read as a hit carrying the old prefix. Earlier: v16 added Diagnostics,
+    // v15 added PureFnRefs, v14 dropped constants.Version from the fnHash salt.
     expect(parsed.version).toBe(17);
     expect(typeof parsed.structuralID).toBe('string');
     expect(parsed.structuralID.length).toBeGreaterThan(0);

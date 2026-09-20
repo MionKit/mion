@@ -133,11 +133,10 @@ package diskcache
 // provenance is a property of the current build's call sites, not of the cached
 // type. A hit re-emits each finding against the live provenance. v15 payloads
 // carry no diagnostics and must miss so the walk re-derives them.
-// v17 is the same failure mode as v14: `restoreFromJson` was renamed to
-// restoreFromJsonMutate and `restoreFromJsonStrip` to restoreFromJsonClone, which moves
-// both families' fnHash while their tags (rj / rjs) and so their cache basenames
-// stay put. A v16 payload bakes the OLD prefix into its ArgsText key slot, and
-// the header check is structural-id only, so it would be read as a hit and feed
+// v17, the same failure mode as v14: renaming restoreFromJson / restoreFromJsonStrip to
+// restoreFromJsonMutate / restoreFromJsonClone moves both families' fnHash while their tags
+// (rj / rjs) and so their cache basenames stay put. A v16 payload bakes the OLD prefix into
+// its ArgsText key slot and the header check is structural-id only, so it would hit and feed
 // the runtime a key nothing registers. v16 payloads must miss.
 const FormatVersion = 17
 

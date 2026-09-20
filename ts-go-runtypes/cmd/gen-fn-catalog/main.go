@@ -1,15 +1,10 @@
 // gen-fn-catalog dumps the compiled-function catalog as JSON.
 //
-// internal/cachegen/operations is the single source of truth for which functions the
-// build can compile for a type: the name a marker calls each one by, the createX factory
-// that compiles it, the compile-time options that refine it, and the one-line description
-// authored on the registry row. This program imports that package and prints one JSON
-// object of {functions} to stdout.
-//
-// scripts/core/gen-fn-catalog.mjs writes the dump to the website's
-// components/content/go-generated/ directory, where FunctionCatalog.vue renders
-// it as the "All Compiled Functions" docs page. Keeping the page generated is
-// what stops it drifting the moment a function is added or removed.
+// internal/cachegen/operations is the single source of truth for which functions the build
+// can compile for a type, so this program imports it and prints one {functions} object to
+// stdout. scripts/core/gen-fn-catalog.mjs writes that dump into the website's
+// components/content/go-generated/, where FunctionCatalog.vue renders the "All Compiled
+// Functions" page; generated is what stops the page drifting when a function is added.
 //
 // Run via the miondevx command:
 //
@@ -25,9 +20,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 )
 
-// fn is the per-function shape the page renders. Tag is the short name the
-// EMITTED code uses; Name is the readable one a marker spells. They are separate
-// vocabularies on purpose, so the page shows both.
+// fn is the per-function shape the page renders. Tag is the short name the EMITTED code
+// uses, Name the one a marker spells: separate vocabularies, so the page shows both.
 type fn struct {
 	Name     string   `json:"name"`
 	Tag      string   `json:"tag,omitempty"`
@@ -57,8 +51,7 @@ func main() {
 	all := operations.All()
 	out := make([]fn, 0, len(all))
 	for _, op := range all {
-		// Non-Public rows are plumbing another feature compiles for you; they have no
-		// factory a reader could call, so the page never lists them.
+		// Non-Public rows are plumbing with no factory a reader could call, so the page skips them.
 		if !op.Public {
 			continue
 		}

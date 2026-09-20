@@ -1205,9 +1205,9 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 			op = selected
 		}
 	}
-	// The value-level JSON families take the same road: their strategy names the
-	// operation rather than a variant. No project-wide default exists for them (unlike
-	// parse), so only the site's own value is read.
+	// Same road for the value-level JSON families, whose strategy names the operation rather
+	// than a variant. They have no project-wide default (unlike parse), so only the site's
+	// own value is read.
 	if selected, swapped := jsonValueStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
 		op = selected
 	}
@@ -1533,19 +1533,17 @@ func parseStrategyOperation(op operations.Operation, strategy string) (operation
 	return resolved, true
 }
 
-// jsonValueStrategyOperations maps a value-level JSON family's DEFAULT operation to the
-// operation each non-default `strategy` selects. Only the two non-default arms need a row:
-// `clone` IS the default and is already `op`.
+// jsonValueStrategyOperations maps a value-level JSON family's DEFAULT operation to the one
+// each non-default `strategy` selects; `clone` IS the default and is already `op`.
 var jsonValueStrategyOperations = map[string]map[string]string{
 	"prepareForJsonClone":  {"mutate": "prepareForJsonMutate", "compact": "compactForJson"},
 	"restoreFromJsonClone": {"mutate": "restoreFromJsonMutate", "compact": "compactFromJson"},
 }
 
 // jsonValueStrategyOperation routes createPrepareForJsonFn / createRestoreFromJsonFn's
-// `strategy` to its family, the same operation-swap road parseStrategyOperation takes and
-// for the same reason: these are AxisNone, so the strategy IS the operation. One table
-// rather than a helper per family — the two differ only in which names they map to.
-// An absent or unrecognised value takes the default, 'clone'.
+// `strategy` to its family, the road parseStrategyOperation takes and for the same reason:
+// these are AxisNone, so the strategy IS the operation. One table serves both families, which
+// differ only in the names they map to. An absent or unrecognised value takes 'clone'.
 func jsonValueStrategyOperation(op operations.Operation, strategy string) (operations.Operation, bool) {
 	byStrategy, isValueFamily := jsonValueStrategyOperations[op.Name]
 	if !isValueFamily {
