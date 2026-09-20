@@ -429,7 +429,7 @@ const bundledApiStubPath = (): string => {
   return fs.existsSync(compiled) ? compiled : path.join(here, 'bundledApiStub.ts');
 };
 
-export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) => {
+export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, meta) => {
   const options = rawOptions ?? {};
   // Wire mode for the per-file rewrite. Default 'edits' (the light path that
   // wins the bundler dev loop); 'go' is the full-transform fallback. Validated
@@ -1280,10 +1280,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
 
     // Under `bundled` the whole API came with the build, so answering `#metadata-from-server` with an empty
     // module keeps the fetch, the store, eviction and persistence out of the bundle rather than in a
-    // chunk nothing loads; `mixed` still fetches what the build could not see. Declared only under
-    // `bundled`: unplugin turns a resolveId hook into an esbuild onResolve one that sees every
-    // specifier, and Bun's loader then answers differently for files this plugin has no business in.
-    ...(options.bundleApi === 'bundled' || options.bundleApi === undefined
+    // chunk nothing loads; `mixed` still fetches what the build could not see.
+    // NEVER declared on bun: unplugin registers one `onResolve({filter: /.*/})` for the whole plugin as
+    // soon as any resolveId hook exists, and bun's loader then fails every module this plugin returns
+    // null for, entry point included. The stub is a size win, so bun keeps the real modules instead.
+    ...(meta.framework !== 'bun' && (options.bundleApi === 'bundled' || options.bundleApi === undefined)
       ? {
           resolveId(id: string) {
             if (options.bundleApi === 'bundled' && id === METADATA_FROM_SERVER_ID) return metadataFromServerStubPath();
