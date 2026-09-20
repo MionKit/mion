@@ -28,9 +28,8 @@ The two sides do not face the same problem, so one entry cannot be right for bot
 - **The server decodes params from anyone.** A caller need not be a mion client, so the server's
   params decoder is the only thing standing between an undeclared key and the handler. It has to
   rebuild the declared shape.
-- **The client decodes a return the server itself wrote.** Whatever the server's encoder put on the
-  wire is exactly what arrives, so the client has nothing to defend against and can take the cheapest
-  in-place restore.
+- **The client decodes a return the server itself wrote.** That is a different problem, so it is a
+  different answer, and today it gets the same one.
 
 The option name is the second half. `encoder` names one of the four things it decides, and it is the
 only place in the codebase that says "encoder" at all: the response framing enum is `SerializerModes`,
@@ -53,9 +52,24 @@ Settled in review, not open for the implementer to re-litigate.
   (`packages/router/src/types/general.ts:44`, `packages/router/src/types/remoteMethods.ts:81`); that
   retirement is undone. `EncoderOption`, `EncoderPair`, `ResolvedEncoder`, `EncoderLiteralGuard`,
   `DEFAULT_ENCODER` and `resolveEncoder` rename with it.
-- **Keep the RunTypes words.** No new vocabulary for the strategies. The encoder words stay
-  `clone | mutate | direct | compact` and any decoder the spec names uses the run-types decoder
-  words, so nothing has to be translated between the two packages.
+- **Keep the RunTypes words.** No new vocabulary for the strategies. The encoder words stay the
+  run-types ones and any decoder the spec names uses the run-types decoder words, so nothing has to
+  be translated between the two packages.
+- **Drop `direct` from the mion router.** The router's strategies become
+  `clone | mutate | compact`. `direct` stays in run-types, where `createJsonEncoderFn` keeps
+  offering it; only mion stops exposing it. It was measured and it is worse on every axis that
+  mattered (below), and it is the one strategy whose reach is chain-wide: a single middleFn using it
+  reframes the whole response.
+
+  ```ts
+  // packages/router/src/lib/framing.ts:13, deleted with it
+  if (method.hasReturnData && method.returnJitFns.json.strategy === 'direct') return SerializerModes.stringifyJson;
+  ```
+
+  That takes `SerializerModes.stringifyJson`, the `json.strategy === 'direct'` branch in
+  `packages/client/src/lib/serializer.ts:106`, the `stringifyJson` response path in
+  `packages/router/src/routes/serializer.routes.ts` and the framing mode itself. Its `direct` row
+  leaves both decoder columns.
 - **Split the decoder lookup in two**, one entry for the server side and one for the client side,
   replacing the single `DECODE_FAMILY_BY_STRATEGY`.
 - **The client decoder always rebuilds the declared shape, unless the strategy is `compact`.** A
@@ -71,17 +85,14 @@ That gives one entry per side:
 export const DECODE_FAMILY_BY_STRATEGY = {
   clone:   {server: 'restoreFromJsonClone',  client: 'restoreFromJsonClone'},
   mutate:  {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
-  direct:  {server: 'restoreFromJsonClone',  client: 'restoreFromJsonClone'},
   compact: {server: 'compactFromJson',       client: 'compactFromJson'},
 } as const;
 ```
 
-Two rows change behaviour, both of them fixes:
-
-- `direct` decodes the way it encodes now, on both sides. It drops undeclared keys when writing the
-  wire and used to keep them when reading one.
-- A `mutate` return no longer hands the client keys the return type does not declare. The server
-  keeps passing them through on params, which is what the strategy is for.
+One row changes behaviour: a `mutate` return no longer hands the client keys the return type does
+not declare. The server keeps passing them through on params, which is what the strategy is for. The
+`direct` row is gone entirely, which also settles its old asymmetry (it dropped undeclared keys when
+writing the wire and kept them when reading one).
 
 The client column only ever holds two values, compact or clone, so it is a rule rather than a real
 per-strategy choice. It stays in the table so both sides are read in one place.
@@ -109,9 +120,20 @@ in the first place. The table above is written against the behaviour, not the na
 - **`WireStrategy` carries encoder words only.** `packages/core/src/types/general.types.ts:17` aliases
   it straight to `JsonEncoderStrategy`, and the comment above it says "The decoder is implied". mion
   never surfaces `JsonDecoderStrategy` (`strip | preserve | compact`) anywhere.
-- **`direct` is asymmetric and it looks accidental.** Its encoder drops undeclared keys and its
-  decoder keeps them, because it was pointed at the same entry as `mutate`. Nothing forces that
-  pairing; `direct` is otherwise a faster `clone`.
+- **`direct` was measured and it is not faster, and it costs far more memory.** A `Catalog` of
+  40,000 products, ten fields each including a `Date` and a nested object, encoded to the same
+  13.5 MB of JSON by every lane. Numbers stable across both orderings and across payload sizes.
+
+  | lane | peak heap | ms per call |
+  | --- | --- | --- |
+  | `clone`, prepare + `JSON.stringify` (the router's path) | 22.1 MB | 75 |
+  | `clone`, one-call encoder | 22.1 MB | 88 |
+  | `direct` | 66.1 MB | 162 |
+
+  Three times the memory and about twice the time. It builds the string by concatenation in JS,
+  where the clone path hands a finished value to native `JSON.stringify`. The one thing it was
+  supposed to buy, encoding without allocating a clone, it does not buy: the intermediate strings
+  cost more than the clone did.
 - **The decoder side welds two axes together, the same way the option does.** There are only two
   keyed decoders: rebuild-and-drop, or in-place-and-keep. "Restore in place AND drop undeclared keys"
   has no family. If the server params decoder should be both cheap and strict, that family has to be
@@ -145,7 +167,8 @@ in the first place. The table above is written against the behaviour, not the na
   same thing, since the direction decides the side.
 - Whether the missing "in place and drop" decoder family is worth emitting, so a side that drops
   undeclared keys does not also pay the rebuild. Both columns above take the rebuild today.
-- Whether `serializer` replaces `encoder` in one release or the old key is deprecated for one.
+- Whether `serializer` replaces `encoder` in one release or the old key is deprecated for one, and
+  whether a route still writing `direct` gets a type error or falls back to `clone` for one release.
 - Whether run-types renames `strip` / `preserve` to match the family names that already say `clone`
   and `mutate`, or keeps them as the lower-level words the router maps onto.
 - The moot `strictTypes` signal. Under the split the condition is sayable in one line: it only does
@@ -158,8 +181,9 @@ in the first place. The table above is written against the behaviour, not the na
   server and on the client, without opening the framework.
 - The server's params decoder and the client's return decoder are chosen separately, and the reason
   each one is what it is is written next to it.
-- `direct` decodes the way it encodes, and a `mutate` return no longer reaches the client's caller
-  carrying undeclared keys. Both have a test.
+- `direct` is gone from the router's strategies, along with the `stringifyJson` framing mode and its
+  branches in the client and the response path. `createJsonEncoderFn` still offers it.
+- A `mutate` return no longer reaches the client's caller carrying undeclared keys, with a test.
 - A pairing that cannot round-trip is a type error, not a runtime surprise.
 - The option is called `serializer` everywhere, and `encoder` is either gone or documented as the
   deprecated spelling.
