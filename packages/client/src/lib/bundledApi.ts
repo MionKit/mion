@@ -71,9 +71,10 @@ export function bundledMetadataMissingError(missing: string[]): RpcError<'route-
   return new RpcError({
     type: 'route-metadata-not-found',
     publicMessage:
-      `No generated code for ${missing.join(', ')}. With bundleApi: 'bundled' the build generates code only for the ` +
-      `routes and middleFns it can name at the call site, and a helper hid this one's name. ` +
-      `Call the route by its name, or build with bundleApi: 'mixed' to get it from the server.`,
+      `This mion client was built with bundleApi: 'bundled', so it ships generated code to call and validate ` +
+      `every route it uses, and it has none for ${missing.map((id) => `"${id}"`).join(', ')}. The build generates ` +
+      `that code only where it can see which route a call names, and a wrapper that accepts any route hides it. ` +
+      `Call the route directly, or build with bundleApi: 'mixed' to fetch what the build could not see.`,
   });
 }
 
