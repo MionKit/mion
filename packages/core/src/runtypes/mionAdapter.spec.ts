@@ -6,7 +6,8 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {getRTUtils, registerPureFnFactory, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+import {getRTUtils, registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {
   addSerializedJitCaches,
   buildJitFnsFromMarker,

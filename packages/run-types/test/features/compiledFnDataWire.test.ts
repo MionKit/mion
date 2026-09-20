@@ -25,9 +25,9 @@ import {
   createJsonEncoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  getRTFnCaches,
   type CompiledFnData,
 } from '@mionjs/run-types';
+import {getRTFnCaches} from '@mionjs/run-types/runtime';
 
 // Each of these registers at least one entry of a distinct family shape:
 //   validate            → value-shaped  (vλl)

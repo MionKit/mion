@@ -21,7 +21,7 @@ import {
   registerInputMapperTuple,
 } from '@mionjs/core';
 import type {BatchDefinition} from '@mionjs/core';
-import {getRTUtils} from '@mionjs/run-types';
+import {getRTUtils} from '@mionjs/run-types/runtime';
 import {headersFromRecord} from './lib/headers.ts';
 import {mionClientRoutes} from './routes/client.routes.ts';
 import {

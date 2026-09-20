@@ -17,13 +17,8 @@
 // and createXxx(value) (reflect).
 
 import {afterEach, describe, expect, it} from 'vitest';
-import {
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  registerClassSerializer,
-} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
 
 afterEach(() => {

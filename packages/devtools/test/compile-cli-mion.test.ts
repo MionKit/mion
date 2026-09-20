@@ -202,10 +202,10 @@ describe('mion compile — a mion client and a mion server, in two projects', ()
 // imported id as a literal (it closes over nothing), and the generated modules must
 // register under the same ids the rewritten source passes — which is what proves the
 // CLI and the bundler plugins share the one Go transform.
-const PURE_FNS_TS = `import {registerPureFn} from '@mionjs/run-types';
+const PURE_FNS_TS = `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const trim = registerPureFn((s) => s.trim());
 `;
-const PURE_MAIN_TS = `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types';
+const PURE_MAIN_TS = `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types/runtime';
 import {trim} from './fns.js';
 
 const trimTwice = registerPureFnFactory((utl) => {

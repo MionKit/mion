@@ -17,7 +17,7 @@ import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg
 import {refineTableType} from '@mionjs/drizzle-orm';
 import type {InferInsertModel, InferSelectModel, InferUpdateModel} from '@mionjs/drizzle-orm';
 import {Number} from '@mionjs/run-types/formats';
-import {registerClassSerializer} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 // ============ Router ============
 // The one router of this server: the options live here, and every route / middleFn below is

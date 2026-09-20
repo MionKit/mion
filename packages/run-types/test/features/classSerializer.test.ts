@@ -26,9 +26,9 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  registerClassSerializer,
   getRunTypeId,
 } from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 // Registry isolation helpers live next to the registry; not part of the
 // public barrel (tests reach in directly).
 import {

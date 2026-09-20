@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRTUtils, registerPureFn} from '@mionjs/run-types';
+import {getRTUtils, registerPureFn} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from '../utils.ts';
 
 // ############# batch input mappers — a transport with a security boundary #############

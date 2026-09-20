@@ -19,14 +19,8 @@
 // equivalence.
 
 import {afterEach, describe, expect, it} from 'vitest';
-import {
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  registerClassSerializer,
-  getRunTypeId,
-  getRTUtils,
-  getRTFnCaches,
-} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@mionjs/run-types';
+import {registerClassSerializer, getRTUtils, getRTFnCaches} from '@mionjs/run-types/runtime';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
 import {FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';
 

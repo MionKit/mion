@@ -18,7 +18,8 @@
 // resolves to no strategy and the call falls back to the default.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonEncoderFn, createJsonDecoderFn, getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type Sample = {a: string; n: bigint};
 

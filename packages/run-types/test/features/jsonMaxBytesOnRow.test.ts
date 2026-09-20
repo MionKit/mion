@@ -12,7 +12,8 @@
 // land on the same registered entry.
 
 import {describe, it, expect} from 'vitest';
-import {getRunType, getRunTypeId} from '@mionjs/run-types';
+import {getRunTypeId} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types/runtime';
 import * as TF from '@mionjs/run-types/formats';
 import * as RT from '@mionjs/run-types/builders';
 

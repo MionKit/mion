@@ -6,7 +6,8 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn, registerClassSerializer} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {RpcError, TypedError, FatalError, isFatalError} from './errors.ts'; // side effect: registers the mion error-class serializers
 import {HeadersSubset} from './headers.ts'; // side effect: registers the HeadersSubset serializer
 

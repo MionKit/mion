@@ -80,7 +80,7 @@ describe('@mionjs/devtools / next broker', () => {
       fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({name: '@acme/next-app', type: 'module'}));
       fs.writeFileSync(
         path.join(root, 'src/pure.ts'),
-        `import {registerPureFn} from '@mionjs/run-types';
+        `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 `
       );

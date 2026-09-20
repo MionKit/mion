@@ -16,7 +16,6 @@ export {
 // RT registry — exported BEFORE `./createRTFunctions.ts` so rtUtils is a
 // real function by the time downstream cache modules call `initCache(getRTUtils())`
 // at module top level through any ESM cycle.
-export {getRTUtils, getRTFnCaches, type RTUtils} from './runtypes/rtUtils.ts';
 
 // Compiled-fn data model + reconstruction — the surface a consumer needs to ship
 // compiled RT functions over the wire and rebuild them on the far side: send the
@@ -35,7 +34,6 @@ export {
   type PureFunctionData,
   type AnyFn,
 } from './runtypes/types.ts';
-export {buildFactoryFromCode, buildPureFnFactoryFromCode, entryCode} from './runtypes/rtUtils.ts';
 
 // The generic runtime type node + the helper that recovers the source TS type
 // a `RunType<T>` carries (`InferType<typeof schema>`). Both are part of the
@@ -44,7 +42,6 @@ export {type RunType} from './runtypes/types.ts';
 // `getRunType` is the value-bearing twin of `getRunTypeId` — same two call
 // shapes, but returns the traversable RunType<T> node instead of its id string.
 // Exported after getRTUtils so the registry is initialised first.
-export {getRunType} from './getRunType.ts';
 export {type DataOnly} from './runtypes/dataOnly.ts';
 export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta.ts';
 // `JSONShape<T>` — the RunTypes JSON wire twin of `DataOnly<T>` (what
@@ -92,13 +89,11 @@ export {
 // family→prefix map. The hashes ride a Go-generated table (single source of
 // truth = operations.FnHashFor); stable across releases, so consumers derive
 // once and never re-pin on a version bump.
-export {getFnHash, type FnHashKey, type FnHashOptions} from './fnHash.ts';
 // FAMILY_TAG_TO_FN_KEY translates the SHORT family tag a compiled entry carries
 // at slot 0 of its tuple into the readable key a marker names it by. The two are
 // separate vocabularies on purpose: generated code stays small, markers stay
 // legible. A framework that projects an injected payload by the tag it finds
 // (mion's route helpers do) needs this to speak one vocabulary again.
-export {FAMILY_TAG_TO_FN_KEY} from './go-generated/fnHashes.generated.ts';
 
 // Run-type registration is per-entry now: each marker call site imports its
 // type's virtual entry module and registers it (plus transitive children) on
@@ -106,8 +101,6 @@ export {FAMILY_TAG_TO_FN_KEY} from './go-generated/fnHashes.generated.ts';
 
 // `pureFn.ts` MUST evaluate before any cache factory that references pure-fn
 // helpers (e.g. validationErrors needs newRunTypeErr).
-export {registerPureFnFactory, registerPureFn, type PureFnId} from './runtypes/pureFn.ts';
-export {RUN_TYPES_PURE_FN_ID_PREFIX} from './runtypes/pure-fn-ids.generated.ts';
 // Side-effect import: the package's own pure fns (newRunTypeErr,
 // getUnknownKeysFromArray, …) register at their own registrar call sites now —
 // there is no monolithic pureFnsCache module delivering their bodies — so the
@@ -118,13 +111,6 @@ import './runtypes/pure-fns-utils.ts';
 // Custom class serializer registry — register a class (with an optional
 // serialize/deserialize handler) so the JSON + binary families rebuild a real
 // instance instead of decoding to a plain object. See classSerializerRegistry.ts.
-export {
-  registerClassSerializer,
-  type ClassSerializerHandler,
-  type AnyClass,
-  type SerializableClass,
-  type DeserializeClassFn,
-} from './runtypes/classSerializerRegistry.ts';
 
 // Type-format base machinery — the per-format types live under
 // `src/formats/` (the `@mionjs/run-types/formats` subpath); the
@@ -182,14 +168,10 @@ export {
 // `FormatName` is the union of those names. A consumer that maps a reflected
 // format to something external (a DB column, a UI label) keys off these instead
 // of re-declaring the names.
-export {typeFormats, type FormatName, type TypeFormatMeta} from './go-generated/typeFormats.generated.ts';
 
 // `getRTFunction` resolves any family from a marker a wrapper declared itself, keyed by the
 // SAME fnKey; `RTFunctionByKey` maps each key to its shape, so the return type is inferred.
 export {
-  getRTFunction,
-  type RTFunctionByKey,
-  type RTFunctionKey,
   // createValidateFn / createGetValidationErrorsFn are overloaded: a value-first `RunType`
   // schema as the first arg (the value a `define` builder returns) is a distinct
   // overload from the type/value reflection form — both reflect `T`.

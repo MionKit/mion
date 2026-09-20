@@ -27,11 +27,11 @@ import {
   createParseFn,
   createValidateFn,
   isSerializationError,
-  registerClassSerializer,
   BinaryDecodeError,
   RTParseError,
   type DataOnly,
 } from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 const message = (key: string) => `[mion] Unsafe property name: ${key}`;
 

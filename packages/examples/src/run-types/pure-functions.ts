@@ -1,4 +1,4 @@
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 
 // Pure functions belong to RunTypes — mion registers none of its own. `registerPureFn` takes an
 // INLINE function literal: the build extracts the body and compiles it ahead of time, so it has to

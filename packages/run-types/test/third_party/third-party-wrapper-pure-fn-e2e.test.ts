@@ -62,7 +62,7 @@ export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
 ): string;
 `;
 
-const TOOLKIT_JS = `import {registerPureFn} from '@mionjs/run-types';
+const TOOLKIT_JS = `import {registerPureFn} from '@mionjs/run-types/runtime';
 export {registerPureFn} from '@mionjs/run-types';
 export function registerAcmePureFn(fn, pureFnId) {
   return registerPureFn(fn, pureFnId);
@@ -72,7 +72,7 @@ export function registerAcmePureFn(fn, pureFnId) {
 // Annotation-free, so the rewritten output is valid ESM JS. Registers through
 // the wrapper, then looks the fn up by the id it got back and calls it.
 const CONSUMER_SRC = `import {registerAcmePureFn} from '@acme/toolkit';
-import {getRTUtils} from '@mionjs/run-types';
+import {getRTUtils} from '@mionjs/run-types/runtime';
 
 const doubleId = registerAcmePureFn(function _double(n) { return n * 2; });
 

@@ -8,7 +8,7 @@
 import type {CoreRouterOptions, AnyErrorParams, TypedErrorParams, RpcErrorParams, RunTypeError} from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
-import {registerClassSerializer} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import type {DataOnly} from '@mionjs/run-types';
 
 // ############# Validation Error Types #############

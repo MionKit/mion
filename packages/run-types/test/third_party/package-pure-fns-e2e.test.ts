@@ -63,18 +63,18 @@ const libManifest = (name: string): string =>
 
 // @acme/text: source the esbuild build compiles; the .d.ts is what tsc emits
 // when the build injects the ids, `PureFnId<string>` with no literal in it.
-const TEXT_SRC = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
+const TEXT_SRC = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.trim().toLowerCase().replace(/\\s+/g, '-'));
 export const title = registerPureFnFactory(function (utl) {
   return function _title(s: string): string { return utl.getPureFn(slugify)(s) + '!'; };
 });
 `;
-const TEXT_DTS = `import type {PureFnId} from '@mionjs/run-types';
+const TEXT_DTS = `import type {PureFnId} from '@mionjs/run-types/runtime';
 export declare const slugify: PureFnId<string>;
 export declare const title: PureFnId<string>;
 `;
 // Replaces the text bundle after its build, so only the artifact can be the source of the bodies.
-const TEXT_HOLLOW = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
+const TEXT_HOLLOW = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn(null);
 export const title = registerPureFnFactory(null);
 `;
@@ -82,31 +82,31 @@ export const title = registerPureFnFactory(null);
 // @acme/dates ships the way run-types does: a hollowed dist (the registration
 // keeps no body and no id, nothing in it is a tuple) plus src/, where the
 // registration is extracted from with its dep on the nested @acme/text.
-const DATES_SRC = `import {registerPureFnFactory} from '@mionjs/run-types';
+const DATES_SRC = `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {slugify} from '@acme/text';
 export const isoDay = registerPureFnFactory(function (utl) {
   return function _isoDay(label: string, day: string): string { return utl.getPureFn(slugify)(label) + '@' + day.slice(0, 10); };
 });
 `;
-const DATES_DIST = `import {registerPureFnFactory} from '@mionjs/run-types';
+const DATES_DIST = `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const isoDay = registerPureFnFactory(null);
 `;
-const DATES_DTS = `import type {PureFnId} from '@mionjs/run-types';
+const DATES_DTS = `import type {PureFnId} from '@mionjs/run-types/runtime';
 export declare const isoDay: PureFnId<string>;
 `;
 
 // @acme/legacy: registered at load only; the .d.ts carries the literal so a
 // consumer's build can name the edge it cannot serve.
-const LEGACY_JS = `import {registerPureFn} from '@mionjs/run-types';
+const LEGACY_JS = `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const padId = registerPureFn(function (n) { return String(n).padStart(4, '0'); }, '${PAD_ID}');
 `;
-const LEGACY_DTS = `import type {PureFnId} from '@mionjs/run-types';
+const LEGACY_DTS = `import type {PureFnId} from '@mionjs/run-types/runtime';
 export declare const padId: PureFnId<'${PAD_ID}'>;
 `;
 
 // Annotation-free, so the plugin's rewritten output runs as plain ESM (the compile lane adds the typed marker pair).
 // Lowering leaves the imports unused, so a TypeScript emit drops them: the served bodies are all the program has.
-const consumerBody = (titleId: string): string => `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types';
+const consumerBody = (titleId: string): string => `import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types/runtime';
 import {isoDay} from '@acme/dates';
 
 export const stamp = registerPureFnFactory(function (utl) {
@@ -128,7 +128,7 @@ export const report = () => {
 };
 `;
 // Reaches the runtime-only package, whose body nothing can serve at build time: this build must fail.
-const legacyMain = `import {registerPureFnFactory} from '@mionjs/run-types';
+const legacyMain = `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {padId} from '@acme/legacy';
 export const pad = registerPureFnFactory(function (utl) {
   return function _pad(n) { return utl.getPureFn(padId)(n); };

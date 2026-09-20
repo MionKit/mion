@@ -18,13 +18,13 @@ import {
   createJsonEncoderFn,
   createUnknownKeyErrorsFn,
   createValidateFn,
-  getRTFunction,
   type HasUnknownKeysFn,
   type InjectTypeFnArgs,
   type JsonDecoderFn,
   type JsonEncoderFn,
   type UnknownKeyErrorsFn,
 } from '../../src/index.ts';
+import {getRTFunction} from '../../src/runtime/index.ts';
 
 type Inner = {a: string};
 type TwoObjects = Inner | {b: number};

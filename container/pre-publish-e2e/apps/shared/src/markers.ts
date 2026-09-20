@@ -9,7 +9,8 @@
 // (Fixed: the injected handle is an opaque entry tuple, so the old
 // getRTUtils().getRunType(id) path returned undefined; forwarding to
 // getRunType / getRunTypeId resolves it.)
-import {getRunType, getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types/runtime';
 import {type CheckResult, ok, eq} from './check';
 
 interface User {

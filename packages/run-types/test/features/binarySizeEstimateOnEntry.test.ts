@@ -11,7 +11,8 @@
 import {describe, it, expect} from 'vitest';
 import * as TF from '@mionjs/run-types/formats';
 import * as RT from '@mionjs/run-types/builders';
-import {createBinaryEncoderFn, createValidateFn, getRTFnCaches} from '@mionjs/run-types';
+import {createBinaryEncoderFn, createValidateFn} from '@mionjs/run-types';
+import {getRTFnCaches} from '@mionjs/run-types/runtime';
 
 interface SizedUser {
   id: number;

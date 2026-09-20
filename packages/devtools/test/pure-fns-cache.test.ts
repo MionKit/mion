@@ -94,7 +94,7 @@ describe('@mionjs/devtools / pure-fns virtual module', () => {
 
   register('emits pureFns entries with structurally-valid metadata', async () => {
     const sources = {
-      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const asJSONString = registerPureFnFactory(function () {
   return function _stringify(s: string): string {
     return JSON.stringify(s);
@@ -138,7 +138,7 @@ export const safeKey = registerPureFnFactory(function () {
 
   register('swaps the fn argument for the entry binding and splices the computed id', async () => {
     const sources = {
-      'src.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'src.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const foo = registerPureFnFactory(function () {
   return function _f(x: number) { return x + 1; };
 });
@@ -166,7 +166,7 @@ export const foo = registerPureFnFactory(function () {
 
   register('a registration bound to no name is identified by its body, and equal bodies collapse', async () => {
     const sources = {
-      'anon.ts': `import {registerPureFn} from '@mionjs/run-types';
+      'anon.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const pair = [
   registerPureFn(function _id(n: number): number { return n; }),
   registerPureFn(function _id(n: number): number { return n; }),
@@ -191,10 +191,10 @@ export const pair = [
 
   register('records a dependency from an IMPORTED id and lowers it to a literal', async () => {
     const sources = {
-      'dep.ts': `import {registerPureFn} from '@mionjs/run-types';
+      'dep.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const trim = registerPureFn((s: string): string => s.trim());
 `,
-      'consumer.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types';
+      'consumer.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types/runtime';
 import {trim} from './dep.ts';
 export const trimTwice = registerPureFnFactory(function (utl: RTUtils) {
   const once = utl.getPureFn(trim);
@@ -219,7 +219,7 @@ export const trimTwice = registerPureFnFactory(function (utl: RTUtils) {
 
   register('emits PFE9013 for a lookup argument that names no pure fn', async () => {
     const sources = {
-      'bad-dep.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types';
+      'bad-dep.ts': `import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types/runtime';
 export const x = registerPureFnFactory(function (utl: RTUtils) {
   return function _f(key: any, value: any) { return utl.getPureFn(key)(value); };
 });
@@ -233,7 +233,7 @@ export const x = registerPureFnFactory(function (utl: RTUtils) {
 
   register('emits PFE9014 when a written id disagrees with the computed one', async () => {
     const sources = {
-      'wrong-id.ts': `import {registerPureFn} from '@mionjs/run-types';
+      'wrong-id.ts': `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#pf_somethingElse');
 `,
     };
@@ -250,7 +250,7 @@ export const halve = registerPureFn((n: number): number => n / 2, 'wrong-id#pf_s
 
   register('emits PFN001 for non-inline factory reference (was PFE9003 pre-marker-migration)', async () => {
     const sources = {
-      'bad-fn.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'bad-fn.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const externalFn: (utl: unknown) => () => void;
 export const x = registerPureFnFactory(externalFn);
 `,
@@ -271,7 +271,7 @@ export const x = registerPureFnFactory(externalFn);
     // A pure-fn literal must have no external handle — the build AOT-compiles it,
     // so the original must not be reachable as a value. An exported factory is.
     const sources = {
-      'exp.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'exp.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const factory = () => function v(x: number) { return x; };
 export const cpf = registerPureFnFactory(factory);
 `,
@@ -287,7 +287,7 @@ export const cpf = registerPureFnFactory(factory);
   register('emits PFN002 for an IMPORTED pure-fn factory (external handle)', async () => {
     const sources = {
       'lib.ts': `export const factory = () => function v(x: number) { return x; };`,
-      'use.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'use.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {factory} from './lib';
 export const cpf = registerPureFnFactory(factory);
 `,
@@ -304,7 +304,7 @@ export const cpf = registerPureFnFactory(factory);
     // each is hashed by the body it ships, so both survive with nothing to
     // report and neither resolves the other's body.
     const sources = {
-      'collide.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'collide.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 {
   const collideFn = registerPureFnFactory(function () {
     return function v1() { return 1; };
@@ -333,7 +333,7 @@ export const cpf = registerPureFnFactory(factory);
 
   register('emits PFE9010 (forbidden identifier) for eval inside a factory body', async () => {
     const sources = {
-      'impure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'impure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const evilFn = registerPureFnFactory(function () {
   return function _evil() {
     return eval('1+1');
@@ -358,7 +358,7 @@ export const evilFn = registerPureFnFactory(function () {
     // captures must blow up at scan time, since the cached fn body
     // can't see anything outside its own scope.
     const sources = {
-      'closure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'closure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 const PRECISION = 0.001;
 export const rounder = registerPureFnFactory(function () {
   return function _round(n: number) {
@@ -421,7 +421,7 @@ export const rounder = registerPureFnFactory(function () {
   }
 
   const USER_PURE_FN = {
-    'pf.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+    'pf.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const answer = registerPureFnFactory(function () {
   return function _answer(): number { return 42; };
 });

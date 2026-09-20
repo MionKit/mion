@@ -13,7 +13,7 @@ import {Routes} from '../types/general.ts';
 import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
 import {getJitFnHashes, HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
-import {getRTUtils} from '@mionjs/run-types';
+import {getRTUtils} from '@mionjs/run-types/runtime';
 import type {InitializedTypeFn} from '@mionjs/run-types';
 
 const shared = {auth: {me: null as any}};

@@ -19,7 +19,8 @@
 // stops loading — the exact ambiguity that masked this contract before.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn, getRTFnCaches, getRunTypeId} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn, getRunTypeId} from '@mionjs/run-types';
+import {getRTFnCaches} from '@mionjs/run-types/runtime';
 
 interface NoJsonENCDECRequired {
   a: number;

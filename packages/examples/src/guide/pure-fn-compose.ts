@@ -1,4 +1,4 @@
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {slugify} from './custom-pure-fn.js';
 
 // One pure function reaching another: import its id and hand it to the factory

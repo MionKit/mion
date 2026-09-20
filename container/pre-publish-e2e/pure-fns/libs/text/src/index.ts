@@ -1,4 +1,4 @@
-import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types/runtime';
 
 export const slugify = registerPureFn((s: string): string => s.trim().toLowerCase().replace(/\s+/g, '-'));
 
