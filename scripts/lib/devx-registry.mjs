@@ -181,6 +181,7 @@ export const AREAS = {
         build: (args) => !hasFlag(args, '--static'),
       },
       {name: 'test-counts', summary: "recount the homepage's test tiles (vitest list + go test -list)", flags: [['--check', 'fail instead of writing']]},
+      {name: 'client-size', summary: "remeasure the home page's @mionjs/client size (bundled, minified, gzipped)", flags: [['--check', 'fail instead of writing']]},
       {name: 'container-build', summary: 'container-only prod build (not the full pipeline)'},
       {name: 'shell', summary: 'debug shell inside the website container', ...noBuild},
     ],

@@ -215,7 +215,37 @@ homepage's "Tested to the highest standard" tiles used to carry hand-typed numbe
 
 The file carries no timestamp, so regenerating with unchanged counts leaves it
 byte-identical and the tree stays clean. `pnpm miondevx website test-counts --check`
-reports staleness instead of writing. It is deliberately **not** wired into CI:
-every PR that adds a test moves the count, so a gate there would fail honest PRs
-for a number the build regenerates anyway. The committed value is a fallback, not
-a claim about `main` at this instant.
+reports staleness instead of writing.
+
+It is **not** a per-PR gate: every PR that adds a test moves the count, so a gate
+there would fail honest PRs for a number the build regenerates anyway. On `main` the
+committed value is a fallback, not a claim about this instant. It IS gated in
+[release-gate.yml](../.github/workflows/release-gate.yml), after `pnpm run build`,
+because a release is where a stale number would actually reach a reader.
+
+`--check` fails when it cannot count, rather than falling back to the committed
+value. The fallback compares a kept value against itself and always matches, so a
+`--check` on a host with no Go toolchain would otherwise report a stale file green.
+
+## The rpc home page's client size
+
+Same shape, one number: what the published `@mionjs/client` costs an app that
+installs it.
+
+- **Producer** — [gen-client-size.mjs](../scripts/website/gen-client-size.mjs), run
+  as `pnpm miondevx website client-size`. It bundles
+  `packages/client/.dist/esm/index.js` with esbuild, minified, with **nothing
+  external**, so `@mionjs/core` and whatever it pulls from `@mionjs/run-types` are
+  inlined. The client's own dist externalises every `@mionjs/*`, so its size alone
+  describes nothing a consumer downloads. Each emitted chunk is gzipped separately
+  and summed, which is what a server does.
+- **Data** — `container/website/app/data/client-size.json`, **committed**, no
+  timestamp, same reasons as the counts.
+- **Consumer** — [ClientSize.vue](../container/website/app/components/content/ClientSize.vue),
+  named inline as `:client-size` from the "Fully Typed Client" card. It renders only
+  the number, so the words that qualify it (this is the package, not an app's cost)
+  stay in the content tree where the docs pass can reach them.
+
+It needs the `@mionjs/*` dists built, which is why the website build runs it right
+after the stage that builds them, and why the release gate runs it after
+`pnpm run build`.
