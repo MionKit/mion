@@ -7,14 +7,14 @@ interface Measurement {
   samples: number[];
 }
 
-// A route option shared by several routes: written `as const`, so the build reads it like an inline literal.
+// a preset shared by several routes, `as const` so the build reads it like an inline literal
 const compactRoute = {
   serializer: 'compact',
   description: 'positional wire',
 } as const;
 
 export const routes = {
-  // the built-in default: clone on both directions
+  // the router default: clone on both directions
   echo: mion.route((ctx, data: Measurement): Measurement => data),
 
   // compact on both directions, for this route only
@@ -33,7 +33,7 @@ export const routes = {
     compactRoute
   ),
 
-  // middleFns take the same option: their params and return ride the same wires
+  // middleFns take the same option: their params and return use the same wires
   stamp: mion.middleFn(
     (ctx, tag: string): {tag: string; at: Date} => ({tag, at: new Date()}),
     {serializer: 'compact'}
