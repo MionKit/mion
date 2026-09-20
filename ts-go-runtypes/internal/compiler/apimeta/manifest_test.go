@@ -13,7 +13,7 @@ func row(paramsId, returnId string) ManifestMethod {
 		ParamsId:    paramsId,
 		ReturnId:    returnId,
 		Families:    []string{"val", "verr", "huk", "uke", "fmt", "pj", "rj"},
-		Options:     map[string]any{"encoder": map[string]any{"params": "clone", "return": "clone"}, "validateParams": true},
+		Options:     map[string]any{"serializer": map[string]any{"params": "clone", "return": "clone"}, "validateParams": true},
 		MiddleFnIds: []string{"auth"},
 	}
 }

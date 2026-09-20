@@ -60,15 +60,15 @@ const clientDts = `declare module '@mionjs/client' {
 // compiled types, nested under sub-trees. A headers middleFn (auth), a plain
 // middleFn before the users group, one after it, and routes at two levels.
 const apiType = `type Headers = {headers: {authorization: string}};
-type Opts<M> = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: M; strictTypes: undefined; sanitizeParams: undefined};
-type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; strictTypes: undefined; sanitizeParams: undefined};
+type Opts<M> = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: M; strictTypes: undefined; sanitizeParams: undefined};
+type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; strictTypes: undefined; sanitizeParams: undefined};
 export type Api = {
   auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   log: {type: 2; handler: (line: string) => Promise<string>; options: MfOpts; types?: {params: [line: string]; return: string; headers: never; isAsync: false}};
   users: {
     getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: Opts<false>; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: true}};
     audit: {type: 2; handler: (why: string) => Promise<void>; options: MfOpts; types?: {params: [why: string]; return: void; headers: never; isAsync: false}};
-    remove: {type: 1; handler: (id: number) => Promise<boolean>; options: {alwaysRun: false; validateParams: true; validateReturn: false; description: 'drop'; encoder: {params: 'compact'; return: 'direct'}; isMutation: true; strictTypes: true; sanitizeParams: undefined}; types?: {params: [id: number]; return: boolean; headers: never; isAsync: false}};
+    remove: {type: 1; handler: (id: number) => Promise<boolean>; options: {alwaysRun: false; validateParams: true; validateReturn: false; description: 'drop'; serializer: {params: 'compact'; return: 'mutate'}; isMutation: true; strictTypes: true; sanitizeParams: undefined}; types?: {params: [id: number]; return: boolean; headers: never; isAsync: false}};
   };
   after: {type: 2; handler: (n: number) => Promise<number>; options: MfOpts; types?: {params: [n: number]; return: number; headers: never; isAsync: false}};
   sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: Opts<undefined>; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
@@ -359,9 +359,9 @@ func TestWalkApi_ReadsResolvedOptionsAndDropsUndefinedKeys(t *testing.T) {
 	if _, present := remove["sanitizeParams"]; present {
 		t.Errorf("an undefined option must be absent, got %v", remove["sanitizeParams"])
 	}
-	encoder, _ := remove["encoder"].(map[string]any)
-	if encoder["params"] != "compact" || encoder["return"] != "direct" {
-		t.Errorf("remove encoder %v", encoder)
+	serializer, _ := remove["serializer"].(map[string]any)
+	if serializer["params"] != "compact" || serializer["return"] != "mutate" {
+		t.Errorf("remove serializer %v", serializer)
 	}
 	getById := tree.ById["users/getById"].Options
 	if getById["isMutation"] != false {
@@ -377,7 +377,7 @@ func TestWalkApi_ReadsResolvedOptionsAndDropsUndefinedKeys(t *testing.T) {
 
 func TestWalkApi_WidenedOptionIsReportedNotGuessed(t *testing.T) {
 	overlay := setupOverlay(t, map[string]string{"a.ts": `import {initClient} from '@mionjs/client';
-type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: boolean; sanitizeParams: undefined}; types?: {params: [n: number]; return: number; headers: never; isAsync: false}}};
+type Api = {r: {type: 1; handler: (n: number) => Promise<number>; options: {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: boolean; sanitizeParams: undefined}; types?: {params: [n: number]; return: number; headers: never; isAsync: false}}};
 const {routes} = initClient<Api>({});
 export const a = routes.r(1).call();
 `})

@@ -35,7 +35,7 @@ import (
 //  3. assigns the params / return / headers type ids under the checker that
 //     owns them (`AssignIDUnder`, so an API resolved in another program still
 //     lands in this session's cache) and demands, per type, exactly the families
-//     the server's marker slots name (types/encoder.ts MarkerSlots),
+//     the server's marker slots name (types/serializer.ts MarkerSlots),
 //  4. renders those entries as a SELF-CONTAINED module tree under
 //     <outDir>/api/types/ in `functions` emit mode, whatever the program's own
 //     mode (a client never evaluates code strings), plus one module per method
@@ -496,9 +496,9 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry := &apiMethodEntry{method: method}
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
-	paramsStrategy, returnStrategy := encoderStrategies(method.Options)
-	paramsKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", "formatTransform", encodeFamily(paramsStrategy), decodeFamily(paramsStrategy)}
-	returnKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", encodeFamily(returnStrategy), decodeFamily(returnStrategy)}
+	paramsStrategy, returnStrategy := serializerStrategies(method.Options)
+	paramsKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", "formatTransform", encodeFamily(paramsStrategy), serverDecodeFamily(paramsStrategy)}
+	returnKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", encodeFamily(returnStrategy), clientDecodeFamily(returnStrategy)}
 	entry.paramsFns = apiFnSite(entry.paramsId, paramsKeys)
 	entry.returnFns = apiFnSite(entry.returnId, returnKeys)
 	entry.paramsRef = protocol.Site{ID: entry.paramsId}
@@ -541,31 +541,32 @@ func apiFnSite(id string, fnKeys []string) protocol.Site {
 	return site
 }
 
-// encoderStrategies reads the resolved `encoder` pair off a method's options;
+// serializerStrategies reads the resolved `serializer` pair off a method's options;
 // a missing or widened direction falls back to the built-in default, `clone`.
-func encoderStrategies(options map[string]any) (params, ret string) {
+func serializerStrategies(options map[string]any) (params, ret string) {
 	params, ret = "clone", "clone"
-	encoder, ok := options["encoder"].(map[string]any)
+	serializer, ok := options["serializer"].(map[string]any)
 	if !ok {
 		return params, ret
 	}
-	if value, ok := encoder["params"].(string); ok && value != "" {
+	if value, ok := serializer["params"].(string); ok && value != "" {
 		params = value
 	}
-	if value, ok := encoder["return"].(string); ok && value != "" {
+	if value, ok := serializer["return"].(string); ok && value != "" {
 		ret = value
 	}
 	return params, ret
 }
 
-// encodeFamily / decodeFamily mirror EncodeFamily / DecodeFamily in
-// packages/router/src/types/encoder.ts (and ENCODE_FAMILY_BY_STRATEGY in core).
+// encodeFamily / serverDecodeFamily / clientDecodeFamily mirror EncodeFamily,
+// ServerDecodeFamily and ClientDecodeFamily in
+// packages/router/src/types/serializer.ts (and the maps in core's constants.ts).
+// A disagreement between the two copies makes strategyFromFamilies throw on the
+// bundled lane, which is what the client-bundled and client-mixed suites catch.
 func encodeFamily(strategy string) string {
 	switch strategy {
 	case "mutate":
 		return "prepareForJsonMutate"
-	case "direct":
-		return "stringifyJson"
 	case "compact":
 		return "compactForJson"
 	default:
@@ -573,17 +574,27 @@ func encodeFamily(strategy string) string {
 	}
 }
 
-func decodeFamily(strategy string) string {
+// serverDecodeFamily answers the params wire, which the server decodes from any
+// caller: it rebuilds the declared shape unless the strategy exists to pass the
+// object through.
+func serverDecodeFamily(strategy string) string {
 	switch strategy {
 	case "compact":
 		return "compactFromJson"
-	case "clone":
-		// The stripping decoder: clone promises undeclared keys are dropped, and
-		// that has to hold for a payload mion did not write.
-		return "restoreFromJsonClone"
-	default:
+	case "mutate":
 		return "restoreFromJsonMutate"
+	default:
+		return "restoreFromJsonClone"
 	}
+}
+
+// clientDecodeFamily answers the return wire, which the client decodes from its
+// own server: it never hands a caller a key the return type does not declare.
+func clientDecodeFamily(strategy string) string {
+	if strategy == "compact" {
+		return "compactFromJson"
+	}
+	return "restoreFromJsonClone"
 }
 
 // renderApiMethodModule renders `api/m/<id>.js`: the method's metadata row plus

@@ -12,8 +12,8 @@ import (
 // every generated API method instead of failing anything.
 func TestApiGen_EveryHardcodedFamilyResolves(t *testing.T) {
 	keys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", "formatTransform"}
-	for _, strategy := range []string{"clone", "mutate", "direct", "compact", ""} {
-		keys = append(keys, encodeFamily(strategy), decodeFamily(strategy))
+	for _, strategy := range []string{"clone", "mutate", "compact", ""} {
+		keys = append(keys, encodeFamily(strategy), serverDecodeFamily(strategy), clientDecodeFamily(strategy))
 	}
 	for _, fnKey := range keys {
 		op, known := operations.ByFnKey(fnKey)
@@ -23,6 +23,27 @@ func TestApiGen_EveryHardcodedFamilyResolves(t *testing.T) {
 		}
 		if !op.Public {
 			t.Errorf("apigen names fnKey %q, which is not a public operation", fnKey)
+		}
+	}
+}
+
+// TestApiGen_DecodeFamilyPerSide pins the split these two functions exist for: the
+// server decodes params from any caller and the client decodes a return its own
+// server wrote, so `mutate` cannot name the same decoder on both sides. The TS
+// copy is DECODE_FAMILY_BY_STRATEGY in packages/core/src/constants.ts.
+func TestApiGen_DecodeFamilyPerSide(t *testing.T) {
+	cases := []struct{ strategy, server, client string }{
+		{"clone", "restoreFromJsonClone", "restoreFromJsonClone"},
+		{"mutate", "restoreFromJsonMutate", "restoreFromJsonClone"},
+		{"compact", "compactFromJson", "compactFromJson"},
+		{"", "restoreFromJsonClone", "restoreFromJsonClone"},
+	}
+	for _, testCase := range cases {
+		if got := serverDecodeFamily(testCase.strategy); got != testCase.server {
+			t.Errorf("serverDecodeFamily(%q) = %q, want %q", testCase.strategy, got, testCase.server)
+		}
+		if got := clientDecodeFamily(testCase.strategy); got != testCase.client {
+			t.Errorf("clientDecodeFamily(%q) = %q, want %q", testCase.strategy, got, testCase.client)
 		}
 	}
 }
