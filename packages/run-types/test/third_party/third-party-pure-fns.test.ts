@@ -48,7 +48,7 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 // The framework surface: barrel re-export + a branded wrapper. Only this file
 // names '@mionjs/run-types', and it lives in node_modules.
 const TOOLKIT_DTS = `import type {InjectPureFnId, PureFunctionFactory} from '@mionjs/run-types';
-export {registerPureFnFactory} from '@mionjs/run-types';
+export {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export type Factory = (utl: unknown) => (...args: any[]) => any;
 export declare function definePureFn<F extends Factory>(
   createPureFn: PureFunctionFactory<F> | null,
@@ -56,7 +56,7 @@ export declare function definePureFn<F extends Factory>(
 ): unknown;
 `;
 
-const TOOLKIT_JS = `export {registerPureFnFactory} from '@mionjs/run-types';
+const TOOLKIT_JS = `export {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export function definePureFn(createPureFn, pureFnId) {
   return {pureFnId, createPureFn};
 }

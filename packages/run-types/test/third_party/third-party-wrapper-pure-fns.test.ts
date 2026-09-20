@@ -53,7 +53,7 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
 // The framework surface: barrel re-export + branded wrappers. Only this file
 // names '@mionjs/run-types', and it lives in node_modules.
 const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnId} from '@mionjs/run-types';
-export {registerPureFn} from '@mionjs/run-types';
+export {registerPureFn} from '@mionjs/run-types/runtime';
 export declare function registerAcmePureFn<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   pureFnId?: InjectPureFnId<F>,
@@ -66,7 +66,7 @@ export declare function mapAcmeFrom<Source, MappedInput>(
 ): unknown;
 `;
 
-const TOOLKIT_JS = `export {registerPureFn} from '@mionjs/run-types';
+const TOOLKIT_JS = `export {registerPureFn} from '@mionjs/run-types/runtime';
 export function registerAcmePureFn(fn, pureFnId) {
   return {fn, pureFnId};
 }
