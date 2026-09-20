@@ -7,6 +7,7 @@
 
 import {
   DECODE_FAMILY_BY_STRATEGY,
+  DECODE_SIDE_BY_DIRECTION,
   ENCODE_FAMILY_BY_STRATEGY,
   JIT_FUNCTION_IDS,
   PATH_SEPARATOR,
@@ -14,14 +15,15 @@ import {
   ROUTE_PATH_ROOT,
   EMPTY_HASH,
 } from './constants.ts';
-import {DEFAULT_ENCODER} from './encoder.ts';
+import {DEFAULT_SERIALIZER} from './serializer.ts';
 import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {
   CoreRouterOptions,
   MionTypeFn,
   JitCompiledFunctions,
   JitFunctionsHashes,
-  JsonStrategy,
+  SerializerStrategy,
+  SerializerDirection,
 } from './types/general.types.ts';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from './utils.ts';
@@ -103,10 +105,10 @@ export const routesCache = {
     const metadata = this.getMetadata(id);
     if (!metadata) return undefined;
 
-    // the resolved encoder rides the metadata; a payload without one reads as the built-in defaults
-    const encoder = metadata.options.encoder ?? DEFAULT_ENCODER;
-    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, encoder.params);
-    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, encoder.return);
+    // the resolved serializer rides the metadata; a payload without one reads as the built-in defaults
+    const serializer = metadata.options.serializer ?? DEFAULT_SERIALIZER;
+    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, serializer.params, 'params');
+    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, serializer.return, 'return');
     const headersParam = metadata.headersParam
       ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
       : undefined;
@@ -162,13 +164,19 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-/** The mion cache keys of one fn set for a JSON strategy. */
-export function getJitFnHashes(jitHash: string, strategy: JsonStrategy): JitFunctionsHashes {
+/** The mion cache keys of one fn set for a strategy on one direction. The direction picks the
+ *  decoder: params are decoded by the server, a return by the client, and the two differ. */
+export function getJitFnHashes(
+  jitHash: string,
+  strategy: SerializerStrategy,
+  direction: SerializerDirection
+): JitFunctionsHashes {
+  const decodeFamily = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
   return {
     isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
     typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
     encode: `${JIT_FUNCTION_IDS[ENCODE_FAMILY_BY_STRATEGY[strategy]]}_${jitHash}`,
-    decode: `${JIT_FUNCTION_IDS[DECODE_FAMILY_BY_STRATEGY[strategy]]}_${jitHash}`,
+    decode: `${JIT_FUNCTION_IDS[decodeFamily]}_${jitHash}`,
     hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
     unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
     // Named for every hash: the entry only exists when a params marker demanded it (the return
@@ -179,18 +187,22 @@ export function getJitFnHashes(jitHash: string, strategy: JsonStrategy): JitFunc
 
 /** Rebuilds a type's fn set from the mion cache (the client metadata lane): validators and the JSON
  *  pair of the given strategy. Noop set for the empty hash, and results are cached per (strategy, hash). */
-export function getJitFunctionsFromHash(jitHash: string, strategy: JsonStrategy): JitCompiledFunctions {
+export function getJitFunctionsFromHash(
+  jitHash: string,
+  strategy: SerializerStrategy,
+  direction: SerializerDirection
+): JitCompiledFunctions {
   // Empty hash means no JIT functions were generated (optimization for no params or void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
 
-  const cacheKey = `${strategy}:${jitHash}`;
+  const cacheKey = `${strategy}:${direction}:${jitHash}`;
   const cached = jitFunctionsCache.get(cacheKey);
   if (cached) return cached;
 
   // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
   // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
   const utl = getRTUtils();
-  const hashes = getJitFnHashes(jitHash, strategy);
+  const hashes = getJitFnHashes(jitHash, strategy, direction);
   const isType = utl.getRT(hashes.isType);
   const typeErrors = utl.getRT(hashes.typeErrors);
   const encode = utl.getRT(hashes.encode);
@@ -229,7 +241,7 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
   if (cached) return cached;
 
   const utl = getRTUtils();
-  const hashes = getJitFnHashes(jitHash, 'mutate');
+  const hashes = getJitFnHashes(jitHash, 'mutate', 'params');
   const jitFns = {
     isType: utl.getRT(hashes.isType),
     typeErrors: utl.getRT(hashes.typeErrors),
@@ -248,10 +260,10 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
  *  and never materializes any code, so a restore can refuse the method and refetch it. */
 export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   const utl = getRTUtils();
-  const encoder = metadata.options.encoder ?? DEFAULT_ENCODER;
-  const hasFullSet = (jitHash: string, strategy: JsonStrategy): boolean => {
+  const serializer = metadata.options.serializer ?? DEFAULT_SERIALIZER;
+  const hasFullSet = (jitHash: string, strategy: SerializerStrategy, direction: SerializerDirection): boolean => {
     if (jitHash === EMPTY_HASH) return true;
-    const hashes = getJitFnHashes(jitHash, strategy);
+    const hashes = getJitFnHashes(jitHash, strategy, direction);
     return (
       utl.hasRTFn(hashes.isType) && utl.hasRTFn(hashes.typeErrors) && utl.hasRTFn(hashes.encode) && utl.hasRTFn(hashes.decode)
     );
@@ -259,8 +271,8 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   // Exactly what getJitFunctionsFromHash refuses to build, no more: the header sets are deliberately
   // left out, because getHeaderJitFunctionsFromHash returns them empty instead of throwing (a client
   // is never sent them, it only reads headersParam to tell a headers middleFn apart).
-  if (!hasFullSet(metadata.paramsJitHash, encoder.params)) return false;
-  return hasFullSet(metadata.returnJitHash, encoder.return);
+  if (!hasFullSet(metadata.paramsJitHash, serializer.params, 'params')) return false;
+  return hasFullSet(metadata.returnJitHash, serializer.return, 'return');
 }
 
 /**

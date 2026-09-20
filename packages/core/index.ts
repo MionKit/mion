@@ -25,7 +25,7 @@ export * from './src/types/general.types.ts';
 export * from './src/types/method.types.ts';
 export * from './src/types/pureFunctions.types.ts';
 export * from './src/constants.ts';
-export * from './src/encoder.ts';
+export * from './src/serializer.ts';
 export * from './src/errors.ts';
 export * from './src/routerUtils.ts';
 export * from './src/utils.ts';

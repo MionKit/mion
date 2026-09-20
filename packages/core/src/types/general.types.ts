@@ -8,34 +8,36 @@
 import type {RTValidationError, DataOnly as RtDataOnly, JsonEncoderStrategy} from '@mionjs/run-types';
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
-// ########################################## Encoder strategies ##########################################
+// ########################################## Serializer strategies ##########################################
 // One strategy per direction (params: client encodes, server decodes; return: the reverse), named
-// after the RunTypes JSON encoder strategies. The decoder is implied. A BUILD-TIME literal: the
-// marker families a route compiles are derived from it in types.
+// after the RunTypes JSON encoder strategies. Each one names a decoder per side, see
+// DECODE_FAMILY_BY_STRATEGY. A BUILD-TIME literal: the marker families a route compiles are
+// derived from it in types.
 
-/** The RunTypes JSON encoder strategies a mion route can pick per direction. */
-export type JsonStrategy = JsonEncoderStrategy;
-/** The encoder strategy of one direction. */
-export type WireStrategy = JsonStrategy;
+/** The JSON strategies a mion route can pick. RunTypes also offers `direct`; mion does not, it
+ *  costs three times the memory of `clone` and twice the time for identical bytes. */
+export type SerializerStrategy = Exclude<JsonEncoderStrategy, 'direct'>;
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
-export interface EncoderPair {
-  params?: WireStrategy;
-  return?: WireStrategy;
+export interface SerializerPair {
+  params?: SerializerStrategy;
+  return?: SerializerStrategy;
 }
-/** The `encoder` option on the router factory and on route / middleFn options: a string sets both directions. */
-export type EncoderOption = WireStrategy | EncoderPair;
+/** The `serializer` option on the router factory and on route / middleFn options: a string sets both directions. */
+export type SerializerOption = SerializerStrategy | SerializerPair;
 /** The resolved per-direction pair every executable carries and the methods metadata ships. */
-export interface ResolvedEncoder {
-  params: WireStrategy;
-  return: WireStrategy;
+export interface ResolvedSerializer {
+  params: SerializerStrategy;
+  return: SerializerStrategy;
 }
-// Response framing: HOW the body reaches the platform, derived from the chain's strategies.
-// `mutate` / `clone` / `compact` frame as `json`, `direct` as `stringifyJson`.
+/** Which wire a strategy is being read for. Direction names the machine that decodes it. */
+export type SerializerDirection = keyof ResolvedSerializer;
+// Response framing: HOW the body reaches the platform. A route response is always a JSON-safe
+// value the adapter stringifies; `stringifyJson` covers the REQUEST body and the client's own wire.
 
 export const SerializerModes = {
   /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */
   json: 1,
-  /** the body is a JSON string the router joined from `direct` encoders */
+  /** the body is a JSON string: every request body, and what the client sends */
   stringifyJson: 3,
   /** Client-only: sends plain JSON without compiled functions, fetches metadata in the same response */
   optimistic: 4,
@@ -140,9 +142,9 @@ export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
  *  assertion is only sound because of the emitMode restriction above. */
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
-/** The JSON pair compiled for ONE strategy. `encode` returns a JSON-safe value, or a string for `direct`. */
+/** The JSON pair compiled for ONE strategy and ONE direction. */
 export interface JitJsonFunctions {
-  strategy: JsonStrategy;
+  strategy: SerializerStrategy;
   encode: MionTypeFn<JsonEncodeFn>;
   decode: MionTypeFn<JsonDecodeFn>;
 }
@@ -172,8 +174,8 @@ export interface JitFunctionsHashes {
 export type JsonStringifyFn = (value: any) => JSONString;
 export type RestoreFromJsonFn = (value: JSONValue) => any;
 export type PrepareForJsonFn = (value: any) => JSONValue;
-/** A compiled JSON encoder of any strategy: a JSON-safe value, or the JSON string for `direct`. */
-export type JsonEncodeFn = (value: any) => JSONValue | JSONString;
+/** A compiled JSON encoder of any strategy. */
+export type JsonEncodeFn = (value: any) => JSONValue;
 export type JsonDecodeFn = RestoreFromJsonFn;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CoreRouterOptions} from './types/general.types.ts';
+import type {CoreRouterOptions, SerializerStrategy} from './types/general.types.ts';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   /** automatically generate and uuid */
@@ -103,41 +103,40 @@ export const JIT_FUNCTION_IDS = {
   // the JSON families, one encoder per strategy and the two decoders (see ENCODE_FAMILY_BY_STRATEGY)
   prepareForJsonClone: 'A0Qb',
   prepareForJsonMutate: 'AwYs',
-  stringifyJson: 'i4VX',
   compactForJson: 'rpEK',
   restoreFromJsonMutate: 'w8ie',
   restoreFromJsonClone: 'Ky89',
   compactFromJson: 'FFsn',
 } as const satisfies Record<string, string>;
 
-/** The compiled family each JSON strategy ENCODES with, named by its MARKER token (the name a
- *  route's InjectTypeFnArgs asks for), not by the short tag the compiled entry carries: `clone`
- *  builds a new JSON-safe value, `mutate` transforms in place, `direct` writes the JSON string,
- *  `compact` builds the positional array. */
+/** The compiled family each strategy ENCODES with, named by its MARKER token (the name a route's
+ *  InjectTypeFnArgs asks for), not by the short tag the compiled entry carries: `clone` builds a
+ *  new JSON-safe value, `mutate` transforms in place, `compact` builds the positional array. */
 export const ENCODE_FAMILY_BY_STRATEGY = {
   clone: 'prepareForJsonClone',
   mutate: 'prepareForJsonMutate',
-  direct: 'stringifyJson',
   compact: 'compactForJson',
 } as const;
-/** The compiled family each JSON strategy DECODES with. A strategy that strips on encode strips on
- *  decode too (clone rebuilds the declared shape, so does compact) or it covers only bytes mion
- *  wrote; mutate and direct keep undeclared keys. */
+/** The compiled family each strategy DECODES with, one entry per SIDE. The two sides do not face
+ *  the same problem: the server decodes params from any caller, so it rebuilds the declared shape
+ *  unless the strategy's whole point is passing the object through; the client decodes a return
+ *  its own server wrote, and never hands its caller a key the return type does not declare. */
 export const DECODE_FAMILY_BY_STRATEGY = {
-  clone: 'restoreFromJsonClone',
-  mutate: 'restoreFromJsonMutate',
-  direct: 'restoreFromJsonMutate',
-  compact: 'compactFromJson',
+  clone: {server: 'restoreFromJsonClone', client: 'restoreFromJsonClone'},
+  mutate: {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
+  compact: {server: 'compactFromJson', client: 'compactFromJson'},
 } as const;
 /** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */
 export const STRATEGY_BY_ENCODE_FAMILY = {
   prepareForJsonClone: 'clone',
   prepareForJsonMutate: 'mutate',
-  stringifyJson: 'direct',
   compactForJson: 'compact',
 } as const;
+/** Params are decoded by the server and a return by the client, so the direction names the machine. */
+export const DECODE_SIDE_BY_DIRECTION = {params: 'server', return: 'client'} as const;
+export type DecodeSide = (typeof DECODE_SIDE_BY_DIRECTION)[keyof typeof DECODE_SIDE_BY_DIRECTION];
 export type EncodeFamily = (typeof ENCODE_FAMILY_BY_STRATEGY)[keyof typeof ENCODE_FAMILY_BY_STRATEGY];
-export type DecodeFamily = (typeof DECODE_FAMILY_BY_STRATEGY)[keyof typeof DECODE_FAMILY_BY_STRATEGY];
+export type DecodeFamily = (typeof DECODE_FAMILY_BY_STRATEGY)[SerializerStrategy][DecodeSide];
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';

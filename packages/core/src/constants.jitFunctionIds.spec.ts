@@ -22,7 +22,6 @@ const FAMILY_BY_ID: Record<keyof typeof JIT_FUNCTION_IDS, FnHashKey> = {
   formatTransform: 'formatTransform',
   prepareForJsonClone: 'prepareForJsonClone',
   prepareForJsonMutate: 'prepareForJsonMutate',
-  stringifyJson: 'stringifyJson',
   compactForJson: 'compactForJson',
   restoreFromJsonMutate: 'restoreFromJsonMutate',
   restoreFromJsonClone: 'restoreFromJsonClone',
