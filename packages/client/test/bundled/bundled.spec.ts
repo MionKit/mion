@@ -14,7 +14,7 @@ import {HeadersSubset, MION_ROUTES, getRoutePath, type MethodWithOptions} from '
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import {batch} from '../../src/batch.ts';
-import {resetClientCaches} from '../../src/lib/testUtils.ts';
+import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {bundledMethodIds, getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
 import {isMetadataFromServerLoaded} from '../../src/lib/metadataFromServerLoader.ts';

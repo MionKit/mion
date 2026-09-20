@@ -9,7 +9,7 @@ import {describe, it, expect, beforeEach} from 'vitest';
 import {HeadersSubset} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from './client.ts';
-import {resetClientCaches} from './lib/testUtils.ts';
+import {resetClientCaches} from '../test/lib/testUtils.ts';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 
 describe('a route returning a HeadersSubset', () => {

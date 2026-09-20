@@ -6,7 +6,7 @@ import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {isCompiledExecutable, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
-import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
+import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, globSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join, posix} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -995,6 +995,36 @@ describe('client published surface', () => {
   it('the build program excludes the test tree', () => {
     const build = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/client/tsconfig.build.json'), 'utf8'));
     expect(build.exclude).toContain('test');
+  });
+
+  it('no client source module is a test helper', () => {
+    // testUtils.ts lived under src/lib/ and shipped: it is not *.spec.ts, so the build
+    // program included it and the tarball carried a cache reset nothing else calls.
+    const strays = globSync('src/**/*{testUtils,testHelpers,mocks}*.ts', {cwd: join(REPO_ROOT, 'packages/client')});
+    expect(strays).toEqual([]);
+  });
+});
+
+// A cache reset belongs to a test run, never to a shipped bundle. Both helpers document
+// themselves as test-only, and `export *` put them on the barrel every client imports.
+describe('core keeps test helpers off the barrel', () => {
+  const CORE = join(REPO_ROOT, 'packages/core');
+  const TEST_ONLY = ['resetJitFnCaches', 'resetJitFunctionsCache'];
+
+  it('publishes them on the ./testing subpath instead', () => {
+    const exports = JSON.parse(readFileSync(join(CORE, 'package.json'), 'utf8')).exports;
+    expect(Object.keys(exports)).toContain('./testing');
+    const entry = readFileSync(join(CORE, 'testing.ts'), 'utf8');
+    for (const name of TEST_ONLY) expect(entry, name).toContain(name);
+  });
+
+  it('the modules the barrel re-exports define none of them', () => {
+    // index.ts uses `export *`, so a definition in either module is a barrel export.
+    for (const file of ['src/routerUtils.ts', 'src/runtypes/mionAdapter.ts']) {
+      const source = readFileSync(join(CORE, file), 'utf8');
+      for (const name of TEST_ONLY)
+        expect(source, `${file} defines ${name}`).not.toMatch(new RegExp(`export function ${name}\\b`));
+    }
   });
 });
 

@@ -11,7 +11,7 @@ import {fetchRemoteMethodsMetadata} from './fetchRemoteMethodsMetadata.ts';
 import {ClientOptions} from '../types.ts';
 import {routesCache} from '@mionjs/core';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
-import {resetClientCaches} from './testUtils.ts';
+import {resetClientCaches} from '../../test/lib/testUtils.ts';
 import {getMetadataStore, resetMetadataStore} from './metadataStore.ts';
 import {flushMetadataCache} from './clientMethodsMetadata.ts';
 

@@ -15,7 +15,7 @@ import {HeadersSubset, MION_ROUTES, routesCache} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from './client.ts';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
-import {resetClientCaches} from './lib/testUtils.ts';
+import {resetClientCaches} from '../test/lib/testUtils.ts';
 import {
   flushMetadataCache,
   hydrateMetadataCache,
