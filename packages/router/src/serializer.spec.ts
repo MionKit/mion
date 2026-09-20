@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The `encoder` option end to end: what the route and factory literals make the build compile, the
-// pair the runtime resolves, the framing derived from the chain, and each strategy's wire.
+// The `serializer` option end to end: what the build compiles, what the runtime resolves, the framing, and each wire.
 import {describe, it, expect, beforeEach} from 'vitest';
 import {
   createMionRouter,
@@ -29,7 +28,7 @@ interface Pet {
 
 const pet = (): Pet => ({name: 'rex', born: new Date('2020-01-02T03:04:05.000Z'), tags: ['good']});
 
-// the two factories this file declares routes through: no router-wide encoder, and a compact one
+// the two factories this file declares routes through: no router-wide serializer, and a compact one
 const mion = createMionRouter();
 resetRouter();
 const compactMion = createMionRouter({serializer: 'compact'});
@@ -98,8 +97,7 @@ describe('serializer strategies at the router level', () => {
       expect(getMiddleFnExecutable('guard')!.paramsJitFns.json.strategy).toBe('compact');
     });
 
-    // the cases above share the file's two factories; these two build their own router so the whole
-    // path from the factory literal to the compiled functions is visible in one test
+    // these two build their own router, so the path from factory literal to compiled functions is one test
     it('a router-wide compact reaches a route that names no encoder', () => {
       const ownRouter = createMionRouter({serializer: 'compact'});
       const noLiteral = ownRouter.route((ctx, p: Pet): Pet => p);
@@ -143,11 +141,8 @@ describe('serializer strategies at the router level', () => {
     });
   });
 
-  // The strictTypes pair follows the SERVER's params decoder. `clone` and `compact` rebuild the
-  // params from the declared type as they decode, so an undeclared key is gone before the handler
-  // and there is nothing for an unknown-key check to find. Only `mutate` restores in place and
-  // keeps every key, so only it keeps the pair. The answer side never compiles them on any wire: it
-  // is written by the handler, never by a caller, and nothing reads them.
+  // The pair follows the SERVER's params decoder: only `mutate` restores in place and keeps every key,
+  // every other decoder rebuilds the declared shape. The answer side never compiles it: nothing reads it.
   describe('the unknown-key pair follows the wire', () => {
     const cloneRoute = mion.route((ctx, p: Pet): Pet => p, {serializer: 'clone'});
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
@@ -202,8 +197,8 @@ describe('serializer strategies at the router level', () => {
     });
   });
 
-  // Response framing no longer varies: a route hands the adapter a JSON-safe value whatever its
-  // strategy, and `stringifyJson` is left for the REQUEST body and the client's own wire.
+  // Framing does not vary: a route hands the adapter a JSON-safe value whatever its strategy, and
+  // `stringifyJson` is left for the REQUEST body and the client's own wire.
   describe('every chain frames its response as json', () => {
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
     const mutateRoute = mion.route((ctx, p: Pet): Pet => p, {serializer: {return: 'mutate'}});
@@ -286,12 +281,9 @@ describe('serializer strategies at the router level', () => {
     });
   });
 
-  // Encoding is only half the promise. A route's strategy also decides what survives on the way
-  // IN, because the caller need not be a mion client: curl, another language or a patched client
-  // can send whatever it likes, and only the decoder stands between that and the handler.
-  // The return wire is decoded by the CLIENT, and the client's decoder is not the server's. Whatever
-  // a strategy puts on the wire, a caller of a mion client never sees a property the return type
-  // does not declare: `mutate` sends its undeclared keys and the client still drops them.
+  // A strategy also decides what survives on the way IN: the caller need not be a mion client, so only
+  // the decoder stands between what it sends and the handler. The return wire is decoded by the CLIENT,
+  // whose decoder is not the server's: `mutate` sends its undeclared keys and the client still drops them.
   describe('what arrives at the caller', () => {
     interface Slice {
       name: string;
@@ -322,9 +314,8 @@ describe('serializer strategies at the router level', () => {
       expect(Object.keys(await decodedReturn('mutateOut'))).toEqual(['name']);
     });
 
-    // A cache key is `<familyPrefix>_<typeId>`, so the prefix is what says which decoder was
-    // compiled. On a route that is `mutate` BOTH ways the two sides still differ, which is the
-    // split itself.
+    // A cache key is `<familyPrefix>_<typeId>`, so the prefix says which decoder was compiled; on a
+    // `mutate` route the two sides still differ.
     it('so the two sides of mutate compile different decode families', () => {
       const bothWays = mion.route((ctx, slice: Slice): Slice => slice, {serializer: 'mutate'});
       mion.initRoutes({bothWays});
@@ -417,10 +408,8 @@ describe('serializer strategies at the router level', () => {
     });
 
     it('clone drops an undeclared key hiding inside a union member', async () => {
-      // A union of an array and a number carries no object member of its own, so the
-      // encoder and decoder both used to hand it straight through and the object inside the array
-      // kept whatever the caller sent. Validation does not cover it: undeclared keys on an object
-      // literal are accepted unless strictTypes is on.
+      // A union of an array and a number carries no object member of its own, and validation does not
+      // cover it: undeclared keys on an object literal pass unless strictTypes is on, only the decoder drops them.
       const unionIn = mion.route((ctx, p: {a: string}[] | number): string => {
         seen.union = p;
         return typeof p === 'number' ? 'num' : String(p.length);
@@ -453,9 +442,8 @@ describe('serializer strategies at the router level', () => {
     });
   });
 
-  // A middleFn declaring no `encoder` of its own inherits the route's wire like any chain member.
-  // Its params and its return value must BOTH survive the round trip: a chain member whose data is
-  // dropped from the body is silent data loss, which is what this pins against.
+  // A middleFn declaring no `serializer` inherits the route's wire like any chain member. Its params and
+  // its return value must BOTH survive the round trip; a member dropped from the body is silent data loss.
   describe('a chain member with no encoder of its own', () => {
     const stamp = compactMion.middleFn((ctx, tag?: string): {tag: string} | null => (tag ? {tag} : null));
     const compactRoute = compactMion.route((ctx, p: Pet): Pet => p);
@@ -484,18 +472,14 @@ describe('serializer strategies at the router level', () => {
     });
   });
 
-  // mion's own built-in methods (@thrownErrors, notFound, platformError, the metadata middleFn)
-  // are DECLARED at module level, through the same helper bodies the factory closes over. They
-  // cannot inherit a router-wide `encoder`: createMionRouter is generic, so a marker call site
-  // inside it would carry an unresolved type parameter, and initRouter takes the widened options
-  // type. The build therefore compiles them against the built-in default, and each one must PIN
-  // that default. An unpinned one resolves the router-wide value at runtime, disagrees with what
-  // the build compiled, and refuses to start.
+  // mion's built-ins (@thrownErrors, notFound, platformError, the metadata middleFn) are DECLARED at module
+  // level and cannot inherit a router-wide `serializer`: createMionRouter is generic, so a marker call site
+  // inside it carries an unresolved type parameter, and initRouter takes the widened options type.
+  // The build compiles them against the built-in default, so each must PIN it or it refuses to start.
   describe("mion's own built-in methods", () => {
     const plainRoute = mion.route((ctx, p: Pet): Pet => p);
 
-    // each built-in method's resolved pair must be the one its own compiled functions carry, never
-    // the router-wide value; a mismatch is what assertCompiledSerializer refuses to start on
+    // a pair differing from the method's own compiled functions is what assertCompiledSerializer refuses
     const expectBuiltInsPinned = () => {
       for (const id of Object.values(MION_ROUTES) as string[]) {
         const method = getAnyExecutable(id) as RemoteMethod | undefined;
@@ -506,16 +490,15 @@ describe('serializer strategies at the router level', () => {
       }
     };
 
-    // one test per strategy, each with an INLINE literal: a variable holding the union would widen
-    // the serializer, which resolves to the default instead of the value under test
+    // an INLINE literal per test: a variable holding the union widens the serializer back to the default
     it('pin their own wire under a router-wide compact', () => {
       const ownRouter = createMionRouter({serializer: 'compact'});
       ownRouter.initRoutes({noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
       expectBuiltInsPinned();
     });
 
-    it('pin their own wire under a router-wide direct', () => {
-      const ownRouter = createMionRouter({serializer: 'mutate'});
+    it('pin their own wire under a router-wide clone', () => {
+      const ownRouter = createMionRouter({serializer: 'clone'});
       ownRouter.initRoutes({noLiteral: ownRouter.route((ctx, p: Pet): Pet => p)});
       expectBuiltInsPinned();
     });
@@ -530,8 +513,7 @@ describe('serializer strategies at the router level', () => {
       mion.initRoutes({plainRoute});
       const thrown = getAnyExecutable(MION_ROUTES.thrownErrors) as RemoteMethod;
       const metadata = getAnyExecutable(MION_ROUTES.methodsMetadata) as RemoteMethod;
-      // a typed built-in method needs its compiled functions like any other: a noop encoder here
-      // would mean the build never saw the call site
+      // a noop encoder would mean the build never saw the call site
       expect(thrown.returnJitFns.json.encode.isNoop).toBe(false);
       expect(thrown.returnJitHash).not.toBe('');
       expect(metadata.returnJitFns.json.encode.isNoop).toBe(false);
