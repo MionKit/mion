@@ -295,11 +295,7 @@ export function resetRoutesCache() {
   for (const k in methodsCache) delete methodsCache[k];
 }
 
-/** Resets the JIT functions cache. Useful for testing purposes only. */
-export function resetJitFunctionsCache(): void {
-  jitFunctionsCache.clear();
-  headerJitFunctionsCache.clear();
-}
+// resetJitFunctionsCache moved to @mionjs/core/testing, same reason.
 
 // Noop fns for handlers with no params or void return; the json pair reads as `mutate`, which frames
 // as a plain json value and never encodes anything.

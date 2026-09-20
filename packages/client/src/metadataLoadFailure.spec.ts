@@ -11,7 +11,7 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import type {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
-import {resetClientCaches} from './lib/testUtils.ts';
+import {resetClientCaches} from '../test/lib/testUtils.ts';
 
 const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};

@@ -16,7 +16,7 @@ import type {ClientOptions} from '../types.ts';
 import {getMetadataStore, resetMetadataStore} from './metadataStore.ts';
 import type {MetadataRecord} from './storage.ts';
 import {MION_ROUTES} from '@mionjs/core';
-import {resetClientCaches} from './testUtils.ts';
+import {resetClientCaches} from '../../test/lib/testUtils.ts';
 
 const options: ClientOptions = {
   baseURL: 'http://localhost:1',

@@ -5,8 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {resetJitFnCaches, resetJitFunctionsCache, routesCache} from '@mionjs/core';
-import {resetMetadataCacheState} from './clientMethodsMetadata.ts';
+import {routesCache} from '@mionjs/core';
+import {resetJitFnCaches, resetJitFunctionsCache} from '@mionjs/core/testing';
+import {resetMetadataCacheState} from '../../src/lib/clientMethodsMetadata.ts';
 
 /** Resets all client caches. Only for testing — simulates app restart.
  *  Leaves the stored cache alone: a page reload keeps it, which is the point of it. */

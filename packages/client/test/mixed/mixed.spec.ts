@@ -14,7 +14,7 @@ import {HeadersSubset, MION_ROUTES, routesCache} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
 import type {RouteSubRequest} from '../../src/types.ts';
-import {resetClientCaches} from '../../src/lib/testUtils.ts';
+import {resetClientCaches} from '../lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {getMethod, isBundledMethod} from '../../src/lib/methods.ts';
 import {flushMetadataCache, extractAndProcessMetadata} from '../../src/lib/clientMethodsMetadata.ts';

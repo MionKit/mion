@@ -26,6 +26,12 @@
             "types": "./.dist/esm/index.d.ts",
             "require": "./.dist/cjs/index.cjs",
             "default": "./.dist/esm/index.js"
+        },
+        "./testing": {
+            "source": "./testing.ts",
+            "types": "./.dist/esm/testing.d.ts",
+            "require": "./.dist/cjs/testing.cjs",
+            "default": "./.dist/esm/testing.js"
         }
     },
     "directories": {

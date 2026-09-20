@@ -20,7 +20,7 @@ import {
 } from './clientMethodsMetadata.ts';
 import {MemoryMetadataStore, getMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from './metadataStore.ts';
 import type {MetadataRecord, MetadataStore} from './storage.ts';
-import {resetClientCaches} from './testUtils.ts';
+import {resetClientCaches} from '../../test/lib/testUtils.ts';
 import type {ClientOptions} from '../types.ts';
 
 const baseURL = 'http://localhost:2';

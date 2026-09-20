@@ -5,15 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-  FAMILY_TAG_TO_FN_KEY,
-  getRTFnCaches,
-  getRTFunction,
-  getRTUtils,
-  getRunType,
-  getRunTypeId,
-  RunTypeKind,
-} from '@mionjs/run-types';
+import {FAMILY_TAG_TO_FN_KEY, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@mionjs/run-types';
 import type {FnHashKey, GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '@mionjs/run-types';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types';
 import {getJitFnHashes} from '../routerUtils.ts';
@@ -161,18 +153,7 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
   }
 }
 
-/**
- * Clears every compiled fn from the mion cache. Tests only (simulates a fresh
- * client): build-injected entries re-register from their tuples on next use; runtime
- * pure-fn/format registrations are left in place.
- */
-export function resetJitFnCaches(): void {
-  const utl = getRTUtils();
-  const cache = getRTFnCaches().rtFnsCache as Record<string, {rtFnHash: string} | undefined>;
-  for (const entry of Object.values(cache)) {
-    if (entry) utl.removeFromRTCache(entry as never);
-  }
-}
+// resetJitFnCaches moved to @mionjs/core/testing: a shipped client must not carry a cache reset.
 
 /** Reads the compiled pure fn an id names, for wire serialization.
  *
