@@ -58,12 +58,33 @@ Settled in review, not open for the implementer to re-litigate.
   words, so nothing has to be translated between the two packages.
 - **Split the decoder lookup in two**, one entry for the server side and one for the client side,
   replacing the single `DECODE_FAMILY_BY_STRATEGY`.
-- **The client decoder is the in-place restore unless the strategy is `compact`.** The input comes
-  fresh out of `JSON.parse`, so restoring in place allocates nothing and mutates nothing the caller
-  holds. It is also correct, because the server's own encoder already decided what is on the wire.
-- **The server params decoder rebuilds the declared shape**, for every strategy except `compact`,
-  which has its own decoder. This is what makes a strategy's "undeclared keys are dropped" promise
-  hold for a payload mion did not write.
+- **The client decoder always rebuilds the declared shape, unless the strategy is `compact`.** A
+  caller of a mion client never sees a property its return type does not declare, whatever the server
+  put on the wire and whatever version it is running.
+- **The server params decoder rebuilds too, except under `mutate`**, whose whole point is passing the
+  object through. `compact` has its own decoder on both sides.
+
+That gives one entry per side:
+
+```ts
+// packages/core/src/constants.ts, replacing the single-entry map
+export const DECODE_FAMILY_BY_STRATEGY = {
+  clone:   {server: 'restoreFromJsonClone',  client: 'restoreFromJsonClone'},
+  mutate:  {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
+  direct:  {server: 'restoreFromJsonClone',  client: 'restoreFromJsonClone'},
+  compact: {server: 'compactFromJson',       client: 'compactFromJson'},
+} as const;
+```
+
+Two rows change behaviour, both of them fixes:
+
+- `direct` decodes the way it encodes now, on both sides. It drops undeclared keys when writing the
+  wire and used to keep them when reading one.
+- A `mutate` return no longer hands the client keys the return type does not declare. The server
+  keeps passing them through on params, which is what the strategy is for.
+
+The client column only ever holds two values, compact or clone, so it is a rule rather than a real
+per-strategy choice. It stays in the table so both sides are read in one place.
 
 ### One correction that this rests on, stated plainly
 
@@ -80,12 +101,8 @@ suggests at first read.
 - `restoreFromJsonClone` (run-types `strip`) rebuilds from the declared shape and DROPS undeclared keys.
 - `restoreFromJsonMutate` (run-types `preserve`) restores in place and KEEPS undeclared keys.
 
-So "the client always takes the in-place restore" is safe because of the SERVER's encoder, not
-because the client's decoder removes anything. The one hole is `serializer: 'mutate'` on the return
-direction: that encoder deliberately sends undeclared keys, and an in-place client decoder keeps
-them. The spec has to say whether that is the accepted behaviour of `mutate` (it is the strategy
-whose whole point is passing the object through) or whether the client decoder drops on that one
-strategy.
+The names read backwards at a glance, which is how `direct` ended up pointed at the keeping decoder
+in the first place. The table above is written against the behaviour, not the name.
 
 ## What was checked
 
@@ -124,10 +141,10 @@ strategy.
 
 ## Points left to the implementer
 
-- Whether the two decoder lookups are two maps or one map of pairs, and what they are called.
-- Whether `direct` keeps its asymmetric decoder or is fixed to decode the way it encodes.
-- Whether the missing "in place and drop" decoder family is worth emitting, or the server side simply
-  takes the rebuilding decoder and the cost is accepted.
+- Whether the two entries are keyed `server` / `client` as above or `params` / `return`. They are the
+  same thing, since the direction decides the side.
+- Whether the missing "in place and drop" decoder family is worth emitting, so a side that drops
+  undeclared keys does not also pay the rebuild. Both columns above take the rebuild today.
 - Whether `serializer` replaces `encoder` in one release or the old key is deprecated for one.
 - Whether run-types renames `strip` / `preserve` to match the family names that already say `clone`
   and `mutate`, or keeps them as the lower-level words the router maps onto.
@@ -141,6 +158,8 @@ strategy.
   server and on the client, without opening the framework.
 - The server's params decoder and the client's return decoder are chosen separately, and the reason
   each one is what it is is written next to it.
+- `direct` decodes the way it encodes, and a `mutate` return no longer reaches the client's caller
+  carrying undeclared keys. Both have a test.
 - A pairing that cannot round-trip is a type error, not a runtime surprise.
 - The option is called `serializer` everywhere, and `encoder` is either gone or documented as the
   deprecated spelling.
