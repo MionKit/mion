@@ -16,7 +16,7 @@ import {resetClientCaches} from './lib/testUtils.ts';
 const baseURL = TEST_SERVER_BASE_URL;
 const user = {name: 'John', surname: 'Doe'};
 
-vi.mock('#fetched-lane', () => {
+vi.mock('#metadata-from-server', () => {
   throw new Error('Failed to fetch dynamically imported module');
 });
 
@@ -28,8 +28,8 @@ describe('a fetched lane that cannot be loaded', () => {
   });
 
   it('comes back in the undeclared slot, never as a throw', async () => {
-    const {resetFetchedLane} = await import('./lib/laneLoader.ts');
-    resetFetchedLane();
+    const {resetMetadataFromServer} = await import('./lib/metadataFromServerLoader.ts');
+    resetMetadataFromServer();
     const {initClient} = await import('./client.ts');
     const {routes} = initClient<TestServerApi>({baseURL});
 
@@ -37,6 +37,6 @@ describe('a fetched lane that cannot be loaded', () => {
 
     expect(result).toBeUndefined();
     expect(error).toBeUndefined();
-    expect(undeclared?.type).toBe('metadata-lane-load-error');
+    expect(undeclared?.type).toBe('metadata-load-error');
   });
 });

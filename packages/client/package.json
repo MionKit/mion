@@ -28,10 +28,10 @@
         }
     },
     "imports": {
-        "#fetched-lane": {
-            "source": "./src/lib/fetchedLane.ts",
-            "require": "./.dist/cjs/src/lib/fetchedLane.cjs",
-            "default": "./.dist/esm/src/lib/fetchedLane.js"
+        "#metadata-from-server": {
+            "source": "./src/lib/metadataFromServer.ts",
+            "require": "./.dist/cjs/src/lib/metadataFromServer.cjs",
+            "default": "./.dist/esm/src/lib/metadataFromServer.js"
         }
     },
     "directories": {
