@@ -1,6 +1,6 @@
 import {createMionRouter, Routes} from '@mionjs/router';
 
-// A wide row, the way a database table comes back.
+// a wide row, the way a database table comes back
 export interface DbUser {
   id: string;
   email: string;
@@ -16,23 +16,19 @@ export interface DbUser {
 
 declare const db: {users: {byId: (id: string) => DbUser}};
 
-// The public shape of that row: three of its ten columns.
+// the public shape of that row: three of its ten columns
 export type PublicUser = Pick<DbUser, 'id' | 'name' | 'avatarUrl'>;
 
 const mion = createMionRouter({basePath: 'api'});
 
 export const routes = {
   // start-trimmed
-  // The handler reads the whole row and returns it. The RETURN TYPE says PublicUser, and the
-  // default `clone` serializer builds the payload from that type, so only id, name and avatarUrl
-  // reach the wire. The password hash and the internal notes never leave the process.
+  // returns the whole row, but the PublicUser return type decides what is sent
   getUser: mion.route((ctx, id: string): PublicUser => db.users.byId(id)),
   // end-trimmed
 
   // start-mutate
-  // `mutate` skips the copy and rewrites the value in place, which is faster and allocates
-  // nothing. It also sends the object AS IS, so the whole row would go out here. Use it when the
-  // handler builds the exact response object and throws it away afterwards.
+  // `mutate` sends the object as is, so this handler builds exactly what the type declares
   getUserFast: mion.route(
     (ctx, id: string): PublicUser => {
       const row = db.users.byId(id);

@@ -6,11 +6,10 @@ interface User {
   age: number;
 }
 
-// Enable strictTypes globally: a param with unknown/extra properties is rejected.
-// It applies to mutate routes only; clone and compact drop unknown keys while decoding.
+// strictTypes on the router: every mutate route rejects params with extra properties
 const mion = createMionRouter({strictTypes: true});
 
-// Or enable strictTypes per-route
+// or set it per route
 const routes = {
   // this route rejects objects with extra properties: mutate hands the check what arrived
   createUser: mion.route((ctx, user: User): User => user, {
