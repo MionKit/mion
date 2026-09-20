@@ -11,7 +11,7 @@ import {MiddleFnsCollection, MayReturnError} from '../types/publicMethods.ts';
 import {AnyObject, Mutable, MION_ROUTES, StatusCodes, SerializerModes} from '@mionjs/core';
 import {rawMiddleFn} from '../lib/handlers.ts';
 import {getRouteExecutable, getRouterOptions} from '../router.ts';
-import {RpcError, FatalError, isRpcError} from '@mionjs/core';
+import {FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {recordUndeclaredError} from '../lib/dispatchError.ts';
 
@@ -101,12 +101,8 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
   const response = context.response as Mutable<MionResponse>;
   const respBody: AnyObject = response.body;
   const bodyType = context.response.serializer;
-  const thrownErrors = context.request.thrownErrors as Record<string, RpcError<string>> | undefined;
-  // Add thrownErrors to response body before the serializer runs
-  if (thrownErrors) (response.body as Mutable<AnyObject>)['@thrownErrors'] = thrownErrors;
   if (bodyType !== SerializerModes.json) throw new Error(`Invalid body type ${context.request.bodyType}`);
-  // prepareForJson mutates response.body in place, so rawBody stays unset and the platform adapter
-  // runs the stringify
+  // prepareForJson mutates response.body in place, so rawBody stays unset and the adapter stringifies
   response.headers.set('content-type', 'application/json; charset=utf-8');
   prepareBodyForJson(context, context.executionChain.methods, respBody);
 }
@@ -121,7 +117,6 @@ function isUndeclaredError(method: RemoteMethod, value: unknown): boolean {
 }
 
 function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
-  // prepareForJson mutates the response body in place
   for (let i = 0; i < executionChain.length; i++) {
     const method = executionChain[i];
     const returnValue = respBody[method.id];
@@ -133,8 +128,7 @@ function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[]
       onPrepareForJsonExecutableError(context, method, e);
     }
   }
-  // Prepare thrownErrors if they exist, read off the request after the loop: a failure raised inside
-  // it creates the map when it is the first error
+  // read off the request after the loop: a failure inside it creates the map when it is the first error
   const thrownErrors = context.request.thrownErrors;
   if (thrownErrors) {
     (respBody as Mutable<ResponseBody>)['@thrownErrors'] = thrownErrors;
