@@ -13,7 +13,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getRunTypeId} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import * as TF from '@mionjs/run-types/formats';
 import * as RT from '@mionjs/run-types/builders';
 

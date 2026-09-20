@@ -10,7 +10,7 @@
 // getRTUtils().getRunType(id) path returned undefined; forwarding to
 // getRunType / getRunTypeId resolves it.)
 import {getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import {type CheckResult, ok, eq} from './check';
 
 interface User {

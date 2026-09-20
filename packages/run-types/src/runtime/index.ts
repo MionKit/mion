@@ -7,7 +7,6 @@
 
 export {getRTUtils, getRTFnCaches, type RTUtils} from '../runtypes/rtUtils.ts';
 export {buildFactoryFromCode, buildPureFnFactoryFromCode, entryCode} from '../runtypes/rtUtils.ts';
-export {getRunType} from '../getRunType.ts';
 export {getFnHash, type FnHashKey, type FnHashOptions} from '../fnHash.ts';
 export {FAMILY_TAG_TO_FN_KEY} from '../go-generated/fnHashes.generated.ts';
 export {registerPureFnFactory, registerPureFn, type PureFnId} from '../runtypes/pureFn.ts';

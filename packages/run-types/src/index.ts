@@ -13,9 +13,16 @@ export {
   getRunTypeId,
 } from './markers.ts';
 
-// RT registry — exported BEFORE `./createRTFunctions.ts` so rtUtils is a
-// real function by the time downstream cache modules call `initCache(getRTUtils())`
-// at module top level through any ESM cycle.
+// RT registry — evaluated BEFORE `./createRTFunctions.ts` so rtUtils is a real function by the
+// time downstream cache modules call `initCache(getRTUtils())` at module top level through any
+// ESM cycle. getRTUtils itself moved to the `./runtime` subpath, so the ordering rides a bare
+// import instead of the re-export that used to carry it; dropping this line leaves a value-used
+// builder with no instantiable row, which the elision fuzz reports as E2-value-missing-reflection.
+// `getRunType` is the value-bearing twin of `getRunTypeId` — same two call shapes, returning the
+// traversable RunType<T> node instead of its id. It stays on the main entry BECAUSE it is that
+// twin: the build reads value-use of a builder through it, and moving it to a subpath leaves a
+// value-used builder with no instantiable row (elision fuzz: E2-value-missing-reflection).
+export {getRunType} from './getRunType.ts';
 
 // Compiled-fn data model + reconstruction — the surface a consumer needs to ship
 // compiled RT functions over the wire and rebuild them on the far side: send the

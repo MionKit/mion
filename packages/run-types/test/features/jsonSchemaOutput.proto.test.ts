@@ -9,7 +9,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {getRunTypeId} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import type * as TF from '@mionjs/run-types/formats';
 // Side-effect import: registers format mock fns (unrelated here) AND keeps the
 // formats module in the runtime graph like real format-using apps have it.

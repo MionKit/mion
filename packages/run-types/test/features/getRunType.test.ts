@@ -7,7 +7,8 @@
 
 import {describe, it, expect} from 'vitest';
 import {getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
-import {getRunType, getRTUtils} from '@mionjs/run-types/runtime';
+import {getRTUtils} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';
 

@@ -9,7 +9,8 @@
 
 import {describe, expect, it} from 'vitest';
 import {createGetValidationErrorsFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn} from '@mionjs/run-types';
-import {getFnHash, getRunType} from '@mionjs/run-types/runtime';
+import {getFnHash} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 
 describe('hasUnknownKeys', () => {
   it('returns false when the value matches the schema', () => {

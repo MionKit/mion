@@ -1,5 +1,5 @@
 import {RunTypeKind} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 
 type Order = {
   id: string;

@@ -9,7 +9,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {getRunTypeId, RunTypeKind, type RunType} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 
 describe('tuple labels — id-relevant, per-site reliable', () => {
   it('same shape, different labels → different ids, each with its OWN label', () => {

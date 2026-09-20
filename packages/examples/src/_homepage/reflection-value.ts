@@ -1,4 +1,4 @@
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 
 // The same Order type as above, declared here so the example compiles on its own.
 type Order = {

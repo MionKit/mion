@@ -5,7 +5,7 @@
 // element, which no bound the type declares could cover, so the json-size fuzz
 // lane's stringify oracle drops binary views before measuring (`stringifyWire`).
 import {describe, it, expect} from 'vitest';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 import {openClient, compileType, hasBinary} from './typeFuzzHarness.ts';
 import {stringifyWire} from './jsonSizeFuzzRunner.ts';
 import {typecheckGeneratedType} from './tsValidate.ts';

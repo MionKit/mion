@@ -21,7 +21,7 @@ import {
   getRunTypeId,
   type RunType,
 } from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types/runtime';
+import {getRunType} from '@mionjs/run-types';
 
 class WireError extends Error {
   constructor(
