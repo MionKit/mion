@@ -54,12 +54,32 @@ const rows = [...functions].sort((a, b) => a.factory.localeCompare(b.factory) ||
 </template>
 
 <style scoped>
+/* Styled here rather than inherited: the site's prose table rules only reach tables the
+   markdown parser generated, not a component's own. */
 .fns {
   width: 100%;
   margin-top: 1rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
 }
 
-.fns code {
+.fns th,
+.fns td {
+  padding: 0.5rem 1rem 0.5rem 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.fns th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The two name columns take only what they need, so the description gets the rest. */
+.fns td:first-child,
+.fns td:nth-child(2) {
+  width: 1%;
   white-space: nowrap;
 }
 
