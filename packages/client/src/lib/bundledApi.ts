@@ -71,10 +71,9 @@ export function bundledMetadataMissingError(missing: string[]): RpcError<'route-
   return new RpcError({
     type: 'route-metadata-not-found',
     publicMessage:
-      `Metadata for ${missing.join(', ')} is not in the bundle. The build (bundleApi: 'bundled') bundles only the routes ` +
-      `and middleFns the program calls through their own call sites; a method reached another way (a generic helper, ` +
-      `client.prefill(...) / client.typeErrors(...), a call the build reported) is not fetched either. ` +
-      `Call it through its own subrequest, or build with bundleApi: 'mixed' to fetch what the bundle lacks.`,
+      `No generated code for ${missing.join(', ')}. With bundleApi: 'bundled' the build writes the validators ` +
+      `and serializers as JavaScript files, but only for what your code calls by name. Call it by name, or use ` +
+      `bundleApi: 'mixed' so the client asks the server for the rest.`,
   });
 }
 
