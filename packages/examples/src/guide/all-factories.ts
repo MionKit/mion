@@ -41,6 +41,8 @@ const decodeUser = createJsonDecoderFn<User>();
 // JSON as a value when you own the envelope; pair the same strategy on both sides
 const prepareUser = createPrepareForJsonFn<User>();
 const restoreUser = createRestoreFromJsonFn<User>();
+
+// the same road, with no strategy to pick
 const stringifyUser = createStringifyJsonFn<User>();
 const stripUserExtras = createStripUnknownKeysFn<User>();
 
