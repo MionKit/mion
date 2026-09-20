@@ -26,6 +26,10 @@ export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 
+/** Names only the bundled-API REGISTRATION puts in an artifact. The light half
+ *  (setBundleApiMode, the missing-metadata error) rides every build, so its strings are no use. */
+const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
+
 /** Names only the mock generator and the built-in pattern table put in an artifact. */
 const MOCK_MARKERS = ['createMockDataFn', 'mockStringFormat', 'mockBoundedDateTime', 'registerMockingFunction'];
 const PATTERN_MARKERS = ['DOMAIN_PUNYCODE_PATTERN', 'RELATIVE_JSON_POINTER_PATTERN'];
@@ -95,5 +99,15 @@ describe('what a default client leaves out', () => {
   it('carries no built-in pattern table', async () => {
     const code = await buildApp();
     for (const marker of PATTERN_MARKERS) expect(code, marker).not.toContain(marker);
+  }, 120_000);
+
+  it('carries no bundled-API registration, which only a bundleApi build can reach', async () => {
+    const code = await buildApp();
+    for (const marker of BUNDLED_API_MARKERS) expect(code, marker).not.toContain(marker);
+  }, 120_000);
+
+  it('a bundleApi build still gets the real registration', async () => {
+    const code = await buildApp('bundled');
+    for (const marker of BUNDLED_API_MARKERS) expect(code, marker).toContain(marker);
   }, 120_000);
 });

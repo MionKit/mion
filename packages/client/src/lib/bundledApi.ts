@@ -14,8 +14,11 @@ import {
   type MethodWithOptsAndJitFns,
   type RtMarkerPayload,
 } from '@mionjs/core';
-import type {BundleApiMode, InjectedApiMetadata} from '../types.ts';
+import type {InjectedApiMetadata} from '../types.ts';
 import {isBundledMethod, resetBundledMethods, setBundledMethod} from './methods.ts';
+// setBundleApiMode and the missing-metadata error live in the light half, which request.ts imports
+// without reaching the marker reflection this module needs.
+export {setBundleApiMode, getBundleApiMode, bundledMetadataMissingError} from './bundleApiMode.ts';
 
 // The bundled-API lane (the build's `bundleApi` option). A build with it on compiles, for every
 // route the program calls, the same validators and serializers the server holds, and injects at
@@ -43,40 +46,6 @@ export interface BundledApiPayload {
 
 /** A payload the build did not write, held until a call can report it once. */
 let pendingPayloadError: RpcError<string> | undefined;
-
-/** The lane the build put this bundle on, set by the module the build writes under `<genDir>/api/`
- *  and imported into every file that calls `initClient`. Undefined means the build option is off
- *  and the client fetches its metadata, as it always did. */
-let bundleApiMode: BundleApiMode | undefined;
-
-/** Puts the client on the lane the build compiled for. Called by generated code, never by hand:
- *  it is a build option, so the build is the one place it is set. */
-export function setBundleApiMode(mode: BundleApiMode): void {
-  if (mode !== 'bundled' && mode !== 'mixed') {
-    throw new RpcError({
-      type: 'bundle-api-invalid-mode',
-      publicMessage: `The generated bundleApi module named an unknown mode '${String(mode)}'; expected 'bundled' or 'mixed'.`,
-    });
-  }
-  bundleApiMode = mode;
-}
-
-/** The lane the build put this client on; undefined means the fetched lane. */
-export function getBundleApiMode(): BundleApiMode | undefined {
-  return bundleApiMode;
-}
-
-/** Raised for a method the bundle lacks; lives here, not with the fetch, so refusing never loads that code. */
-export function bundledMetadataMissingError(missing: string[]): RpcError<'route-metadata-not-found'> {
-  return new RpcError({
-    type: 'route-metadata-not-found',
-    publicMessage:
-      `This mion client was built with bundleApi: 'bundled', so it carries the code to call and validate every ` +
-      `route it uses, but it has none for ${missing.map((id) => `"${id}"`).join(', ')}. This happens when the ` +
-      `client was built against an API that did not have the route yet, or had it under another name. Rebuild ` +
-      `the client against the current API, or build with bundleApi: 'mixed' to fetch what it does not carry.`,
-  });
-}
 
 /** Registers a bundled payload, once per method id. Idempotent and cheap on repeat: a dispatch point
  *  passes the same module on every call. The declared type is what the build writes; the guard is

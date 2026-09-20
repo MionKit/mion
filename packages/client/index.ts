@@ -14,7 +14,7 @@ export * from './src/lib/validation.ts';
 export * from './src/lib/serializer.ts';
 export * from './src/lib/clientMethodsMetadata.ts';
 // setBundleApiMode: called by the module the build writes under <genDir>/api/, never by hand
-export {bundledMetadataMissingError, setBundleApiMode} from './src/lib/bundledApi.ts';
+export {bundledMetadataMissingError, setBundleApiMode} from './src/lib/bundleApiMode.ts';
 export * from './src/lib/fetchRemoteMethodsMetadata.ts';
 export * from './src/request.ts';
 export * from './src/client.ts';

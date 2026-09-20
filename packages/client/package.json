@@ -32,6 +32,11 @@
             "source": "./src/lib/metadataFromServer.ts",
             "require": "./.dist/cjs/src/lib/metadataFromServer.cjs",
             "default": "./.dist/esm/src/lib/metadataFromServer.js"
+        },
+        "#bundled-api": {
+            "source": "./src/lib/bundledApi.ts",
+            "require": "./.dist/cjs/src/lib/bundledApi.cjs",
+            "default": "./.dist/esm/src/lib/bundledApi.js"
         }
     },
     "directories": {

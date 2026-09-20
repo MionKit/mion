@@ -421,6 +421,16 @@ const metadataFromServerStubPath = (): string => {
   return fs.existsSync(compiled) ? compiled : path.join(here, 'metadataFromServerStub.ts');
 };
 
+/** The subpath @mionjs/client imports the bundled-API lane through. The mirror of the one above:
+ *  that lane is the DEFAULT behaviour and goes away under `bundled`, this one only exists when a
+ *  build opts into `bundleApi`, so the stub answers when the option is absent. */
+const BUNDLED_API_ID = '#bundled-api';
+const bundledApiStubPath = (): string => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const compiled = path.join(here, 'bundledApiStub.js');
+  return fs.existsSync(compiled) ? compiled : path.join(here, 'bundledApiStub.ts');
+};
+
 export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) => {
   const options = rawOptions ?? {};
   // Wire mode for the per-file rewrite. Default 'edits' (the light path that
@@ -1275,10 +1285,14 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // chunk nothing loads; `mixed` still fetches what the build could not see. Declared only under
     // `bundled`: unplugin turns a resolveId hook into an esbuild onResolve one that sees every
     // specifier, and Bun's loader then answers differently for files this plugin has no business in.
-    ...(options.bundleApi === 'bundled'
+    ...(options.bundleApi === 'bundled' || options.bundleApi === undefined
       ? {
           resolveId(id: string) {
-            return id === METADATA_FROM_SERVER_ID ? metadataFromServerStubPath() : null;
+            if (options.bundleApi === 'bundled' && id === METADATA_FROM_SERVER_ID) return metadataFromServerStubPath();
+            // No bundleApi means no dispatch point ever receives injected metadata, so the
+            // registration lane is dead code; stubbing it drops core's marker reflection with it.
+            if (options.bundleApi === undefined && id === BUNDLED_API_ID) return bundledApiStubPath();
+            return null;
           },
         }
       : {}),
