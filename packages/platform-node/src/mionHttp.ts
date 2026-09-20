@@ -256,13 +256,6 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   switch (bodyType) {
     // Buffer.byteLength counts the same bytes end() is about to write, without building a copy of
     // the whole response first. node encodes the string straight into its own write buffer.
-    case SerializerModes.stringifyJson: {
-      const rawBody = mionResp.rawBody as string;
-      httpResp.setHeader('content-length', Buffer.byteLength(rawBody, 'utf8'));
-      // content-type already set by serializer
-      httpResp.end(rawBody, 'utf8');
-      break;
-    }
     case SerializerModes.json: {
       // Platform adapter stringifies the prepared body object
       const jsonString = JSON.stringify(mionResp.body);

@@ -28,9 +28,16 @@ import {
   isAnyMiddleFnDef,
   isPublicExecutable,
 } from './types/guards.ts';
-import {HandlerType, isTestEnv, resetRoutesCache, getOrCreateGlobal, resolveEncoder, DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
-import {getRawMethodReflection, getHandlerReflection, assertCompiledEncoder} from './lib/reflection.ts';
-import {getChainFraming} from './lib/framing.ts';
+import {
+  HandlerType,
+  isTestEnv,
+  resetRoutesCache,
+  getOrCreateGlobal,
+  resolveSerializer,
+  DEFAULT_MAX_BODY_SIZE,
+  SerializerModes,
+} from '@mionjs/core';
+import {getRawMethodReflection, getHandlerReflection, assertCompiledSerializer} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
@@ -445,7 +452,7 @@ function recursiveCreateExecutionChain(
     const executionChain: MethodsExecutionChain = {
       routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
       methods,
-      serializer: getChainFraming(methods),
+      serializer: SerializerModes.json,
       path,
       declaredBodySize: maxBodySize,
       maxBodySize: maxBodySize ?? platformMaxBodySize,
@@ -482,7 +489,7 @@ function buildNotFoundChains(): void {
     notFoundChains.set(id, {
       routeIndex: -1, // there is no route in this chain
       methods,
-      serializer: getChainFraming(methods),
+      serializer: SerializerModes.json,
       // a shared chain answers for many paths, so the request brings its own
       path: undefined,
       declaredBodySize: undefined,
@@ -518,7 +525,7 @@ export function getExecutableFromMiddleFn(
 
   let executable: MixedMiddleFn;
   {
-    const encoder = resolveEncoder(middleFn.options?.encoder, routerOptions.encoder, middleFnId);
+    const serializer = resolveSerializer(middleFn.options?.serializer, routerOptions.serializer, middleFnId);
     const reflectionData = getHandlerReflection(
       middleFn,
       middleFnId,
@@ -527,7 +534,7 @@ export function getExecutableFromMiddleFn(
       isHeader,
       middleFn.options?.strictTypes
     );
-    assertCompiledEncoder(middleFnId, encoder, reflectionData);
+    assertCompiledSerializer(middleFnId, serializer, reflectionData);
     const middleFnType = isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn;
     executable = {
       id: middleFnId,
@@ -545,7 +552,7 @@ export function getExecutableFromMiddleFn(
         validateParams: middleFn.options?.validateParams ?? true,
         validateReturn: middleFn.options?.validateReturn ?? false,
         description: middleFn.options?.description,
-        encoder,
+        serializer,
         strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: middleFn.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
@@ -596,7 +603,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
 
   let executable: RouteMethod;
   {
-    const encoder = resolveEncoder(route.options?.encoder, routerOptions.encoder, routeId);
+    const serializer = resolveSerializer(route.options?.serializer, routerOptions.serializer, routeId);
     const reflectionData = getHandlerReflection(
       route,
       routeId,
@@ -605,7 +612,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       false,
       route.options?.strictTypes
     );
-    assertCompiledEncoder(routeId, encoder, reflectionData);
+    assertCompiledSerializer(routeId, serializer, reflectionData);
     executable = {
       id: routeId,
       type: HandlerType.route,
@@ -621,7 +628,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         validateParams: route.options?.validateParams ?? true,
         validateReturn: route.options?.validateReturn ?? false,
         description: route.options?.description,
-        encoder,
+        serializer,
         isMutation: route.options?.isMutation,
         strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,

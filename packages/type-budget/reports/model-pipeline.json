@@ -26,23 +26,23 @@
     {
       "step": 4,
       "label": "mion route api",
-      "delta": 525,
+      "delta": 523,
       "budget": 525,
-      "cumulative": 2671
+      "cumulative": 2669
     },
     {
       "step": 5,
       "label": "initClient",
       "delta": 3048,
       "budget": 3048,
-      "cumulative": 5719
+      "cumulative": 5717
     },
     {
       "step": 6,
       "label": "db query (toDrizzle)",
       "delta": 7828,
       "budget": 7852,
-      "cumulative": 13547
+      "cumulative": 13545
     }
   ],
   "totalBudget": 13560,

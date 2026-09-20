@@ -318,8 +318,7 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   // An unknown serializer becomes a fatal-error response BEFORE corking — uWS ignores a second
   // writeStatus inside the same cork, so the swap can't happen mid-write.
   const bodyType = mionResp.serializer;
-  const isKnownBodyType = bodyType === SerializerModes.stringifyJson || bodyType === SerializerModes.json;
-  if (!isKnownBodyType) {
+  if (bodyType !== SerializerModes.json) {
     const error = new FatalError({
       publicMessage: 'unknown-mion-response-format',
       type: 'unknown-error',
@@ -331,7 +330,7 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   // Serialized BEFORE the cork: uWS warns that a cork buffer must not be held across event loop
   // iterations, and holding it through the processor time of serializing a large body is the same
   // mistake in smaller form. The cork should span the writes it exists to batch, nothing else.
-  const payload = mionResp.serializer === SerializerModes.json ? JSON.stringify(mionResp.body) : (mionResp.rawBody as string);
+  const payload = JSON.stringify(mionResp.body);
 
   // cork batches status + headers + body into one syscall; headers are write-only in uWS and
   // must all precede end(). content-length is skipped: uWS derives and writes its own from the

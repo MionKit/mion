@@ -127,20 +127,11 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
   }
 
   const bodyType = routeResponse.serializer;
-  let responseBody: string;
 
-  switch (bodyType) {
-    case SerializerModes.stringifyJson:
-      responseBody = routeResponse.rawBody as string;
-      break;
-    case SerializerModes.json:
-      // Platform adapter stringifies the prepared body object
-      responseBody = JSON.stringify(routeResponse.body);
-      singleHeaders['content-type'] = 'application/json; charset=utf-8';
-      break;
-    default:
-      throw new Error(`Unknown body type: ${bodyType}`);
-  }
+  if (bodyType !== SerializerModes.json) throw new Error(`Unknown body type: ${bodyType}`);
+  // the router hands over a prepared body object, the adapter does the stringify
+  const responseBody = JSON.stringify(routeResponse.body);
+  singleHeaders['content-type'] = 'application/json; charset=utf-8';
 
   // the body is always text, so `isBase64Encoded` stays at API Gateway's default (false)
   const resp: APIGatewayProxyResult = {

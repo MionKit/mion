@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {ParamsStrategy, ReturnStrategy} from './encoder.ts';
+import type {ParamsStrategy, ReturnStrategy} from './serializer.ts';
 
 // The options of a route or middleFn AS THE ROUTER RESOLVES THEM, at type level: the route literal,
 // then the router literal, then the built-in default, the same three steps `getExecutableFromRoute`
@@ -31,7 +31,7 @@ export type ResolvedRouteOptions<RO, O> = {
   validateParams: Pick3<Named<RO, 'validateParams'>, undefined, true>;
   validateReturn: Pick3<Named<RO, 'validateReturn'>, undefined, false>;
   description: Named<RO, 'description'>;
-  encoder: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
+  serializer: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   isMutation: Named<RO, 'isMutation'>;
   strictTypes: Pick3<Named<RO, 'strictTypes'>, Named<O, 'strictTypes'>, undefined>;
   sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;
@@ -47,7 +47,7 @@ export type ResolvedMiddleFnOptions<RO, O> = {
   validateParams: Pick3<Named<RO, 'validateParams'>, undefined, true>;
   validateReturn: Pick3<Named<RO, 'validateReturn'>, undefined, false>;
   description: Named<RO, 'description'>;
-  encoder: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
+  serializer: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   strictTypes: Pick3<Named<RO, 'strictTypes'>, Named<O, 'strictTypes'>, undefined>;
   sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;
   /** The middleFn's own contribution to the request limit of the chains it sits in, when declared. */

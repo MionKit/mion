@@ -625,10 +625,7 @@ describe('StrictTypes validation', () => {
   // the only strategies where the unknown-key check can still fire. `clone` and `compact` rebuild
   // the params from the declared shape on arrival, which drops the key before validation sees it.
   const keepsExtras = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
-    encoder: {params: 'mutate'},
-  });
-  const keepsExtrasDirect = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
-    encoder: {params: 'direct'},
+    serializer: {params: 'mutate'},
   });
 
   const getDefaultRequest = (path: string, params?): {headers: MionHeaders; body: string} => ({
@@ -639,9 +636,9 @@ describe('StrictTypes validation', () => {
   beforeEach(() => resetRouter());
 
   it('should reject extra properties with strictTypes enabled globally', async () => {
-    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({keepsExtras, keepsExtrasDirect});
+    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({keepsExtras});
 
-    for (const id of ['keepsExtras', 'keepsExtrasDirect'] as const) {
+    for (const id of ['keepsExtras'] as const) {
       const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
       const response = await dispatchRoute(`/${id}`, request.body, request.headers, headersFromRecord({}), request, {});
       const error = response.body[MION_ROUTES.thrownErrors]?.[id];
@@ -673,7 +670,7 @@ describe('StrictTypes validation', () => {
   it('should support per-route strictTypes override', async () => {
     const strictRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
       strictTypes: true,
-      encoder: {params: 'mutate'},
+      serializer: {params: 'mutate'},
     });
     const normalRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'NORMAL', surname: user.surname}));
     mion.initRoutes({strictRoute, normalRoute});
@@ -707,7 +704,7 @@ describe('sanitizeParams', () => {
   type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
   const echoEmail = mion.route((ctx, email: CleanEmail): string => email);
   // the same route on the compact wire: the positional pair is compiled from the route literal
-  const echoEmailCompact = mion.route((ctx, email: CleanEmail): string => email, {encoder: 'compact'});
+  const echoEmailCompact = mion.route((ctx, email: CleanEmail): string => email, {serializer: 'compact'});
   const RAW = ' John@Example.COM ';
   const CLEAN = 'john@example.com';
 

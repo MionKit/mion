@@ -104,68 +104,11 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
   const thrownErrors = context.request.thrownErrors as Record<string, RpcError<string>> | undefined;
   // Add thrownErrors to response body before the serializer runs
   if (thrownErrors) (response.body as Mutable<AnyObject>)['@thrownErrors'] = thrownErrors;
-  switch (bodyType) {
-    case SerializerModes.stringifyJson: {
-      // json - use stringifyJson JIT function
-      response.headers.set('content-type', 'application/json; charset=utf-8');
-      const body = stringifyBody(context, context.executionChain.methods, respBody);
-      response.rawBody = body;
-      break;
-    }
-    case SerializerModes.json: {
-      // pre-serialized object - only prepare for JSON, don't stringify
-      // Platform adapters will handle the actual JSON stringification
-      // prepareForJson mutates response.body in place, so we don't set rawBody
-      response.headers.set('content-type', 'application/json; charset=utf-8');
-      prepareBodyForJson(context, context.executionChain.methods, respBody);
-      break;
-    }
-    default:
-      throw new Error(`Invalid body type ${context.request.bodyType}`);
-  }
-}
-
-function stringifyBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): string {
-  const props: string[] = [];
-  for (let i = 0; i < executionChain.length; i++) {
-    const method = executionChain[i];
-    const returnValue = respBody[method.id];
-    if (!method.hasReturnData || typeof returnValue === 'undefined') continue;
-    try {
-      const jsonValue = stringifyHandlerReturnValue(method, returnValue);
-      if (!jsonValue) continue;
-      props.push(`${method.quotedId}:${jsonValue}`);
-    } catch (e: any) {
-      onStringifyExecutableError(context, method, e);
-    }
-  }
-
-  // Serialize thrownErrors if they exist. Read off the REQUEST after the loop: a failure raised
-  // inside it (a stringify error) creates the map when it is the
-  // first error, and the body's slot was assigned before the loop ran.
-  const thrownErrors = context.request.thrownErrors;
-  if (thrownErrors) {
-    (respBody as Mutable<ResponseBody>)['@thrownErrors'] = thrownErrors;
-    const method = getRouteExecutable(MION_ROUTES.thrownErrors)!;
-    try {
-      const jsonValue = stringifyHandlerReturnValue(method, thrownErrors);
-      if (jsonValue) props.push(`${method.quotedId}:${jsonValue}`);
-    } catch (e: any) {
-      onStringifyExecutableError(context, method, e);
-    }
-  }
-  return `{${props.join(',')}}`;
-}
-
-function onStringifyExecutableError(context: CallContext, method: RemoteMethod, e: any) {
-  const err = new FatalError({
-    statusCode: StatusCodes.UNEXPECTED_ERROR,
-    type: 'json-stringify-response-error',
-    publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.json.encode.typeName}`,
-    originalError: e,
-    errorData: {methodId: method.id},
-  });
-  recordUndeclaredError(context, method.id, err);
+  if (bodyType !== SerializerModes.json) throw new Error(`Invalid body type ${context.request.bodyType}`);
+  // prepareForJson mutates response.body in place, so rawBody stays unset and the platform adapter
+  // runs the stringify
+  response.headers.set('content-type', 'application/json; charset=utf-8');
+  prepareBodyForJson(context, context.executionChain.methods, respBody);
 }
 
 /** True when a slot holds an error the route's return type does not declare (a batch mapping step
@@ -175,16 +118,6 @@ function onStringifyExecutableError(context: CallContext, method: RemoteMethod, 
  *  part of the return union, so its own encoder keeps it. */
 function isUndeclaredError(method: RemoteMethod, value: unknown): boolean {
   return isRpcError(value) && !method.returnJitFns.isType.fn(value);
-}
-
-function stringifyHandlerReturnValue(method: RemoteMethod, returnValue: any): string {
-  if (!method.hasReturnData) return '';
-  const {json} = method.returnJitFns;
-  // data that needs no custom encoding rides native json
-  if (json.encode.isNoop || isUndeclaredError(method, returnValue)) return JSON.stringify(returnValue);
-  const encoded = json.encode.fn(returnValue);
-  // `direct` writes the string itself; every other strategy hands back a JSON-safe value
-  return json.strategy === 'direct' ? (encoded as string) : JSON.stringify(encoded);
 }
 
 function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
@@ -200,7 +133,8 @@ function prepareBodyForJson(context: CallContext, executionChain: RemoteMethod[]
       onPrepareForJsonExecutableError(context, method, e);
     }
   }
-  // Prepare thrownErrors if they exist, read off the request after the loop (see stringifyBody)
+  // Prepare thrownErrors if they exist, read off the request after the loop: a failure raised inside
+  // it creates the map when it is the first error
   const thrownErrors = context.request.thrownErrors;
   if (thrownErrors) {
     (respBody as Mutable<ResponseBody>)['@thrownErrors'] = thrownErrors;
@@ -230,9 +164,7 @@ function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any 
   const {json} = method.returnJitFns;
   // an undeclared error is left as it is: the platform's JSON.stringify writes its own fields
   if (json.encode.isNoop || isUndeclaredError(method, returnValue)) return returnValue;
-  const encoded = json.encode.fn(returnValue);
-  // a `direct` member never lands in a json-framed chain, the parse only covers one appended outside it
-  return json.strategy === 'direct' ? JSON.parse(encoded as string) : encoded;
+  return json.encode.fn(returnValue);
 }
 
 const SERIALIZE_RESPONSE_ID = 'mionSerializeResponse';

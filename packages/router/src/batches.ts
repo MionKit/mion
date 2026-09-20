@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getChainFraming} from './lib/framing.ts';
 import {
   RpcError,
   FatalError,
@@ -16,6 +15,7 @@ import {
   getRoutePath,
   ROUTER_ITEM_SEPARATOR_CHAR,
   isRpcError,
+  SerializerModes,
 } from '@mionjs/core';
 import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
@@ -272,7 +272,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     // Use the first route's routeIndex since that's where the first route handler is
     routeIndex: firstRouteIndex,
     methods,
-    serializer: getChainFraming(methods),
+    serializer: SerializerModes.json,
     // cached per member-path list, so one chain answers every endpoint path that reaches it
     path: undefined,
     batchId: entry.id,

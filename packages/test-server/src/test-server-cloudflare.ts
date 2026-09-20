@@ -26,8 +26,8 @@ const getSharedData = () => ({auth: {me: null as any}});
 // ############# Routes #############
 
 // Declares the routes; setup() creates the router that actually initializes them, once per setup()
-// call (resetRouter() clears the once-guard in between). The encoder is a build-time literal, so the
-// `direct` variant is a second route set rather than a runtime option.
+// call (resetRouter() clears the once-guard in between). The serializer is a build-time literal, so
+// the `mutate` variant is a second route set rather than a runtime option.
 const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
@@ -45,14 +45,14 @@ const updateHeaders: Route = mion.route((context: Context): void => {
 
 const cloudflareRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 
-// the same routes answering with the `direct` encoder (the router joins the strings)
-const directRoutes = {
+// the same routes answering with the `mutate` serializer, which transforms in place
+const mutateRoutes = {
   changeUserName: mion.route((ctx: Context, user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname}), {
-    encoder: {return: 'direct'},
+    serializer: {return: 'mutate'},
   }),
   getDate: mion.route(
     (ctx: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')},
-    {encoder: {return: 'direct'}}
+    {serializer: {return: 'mutate'}}
   ),
   updateHeaders,
 } satisfies Routes;
@@ -61,8 +61,8 @@ const directRoutes = {
 
 export interface CloudflareSetupOptions {
   basePath?: string;
-  /** `direct` answers with the string encoder (stringifyJson framing); the default is `mutate` (json framing). */
-  encoder?: 'direct' | 'mutate';
+  /** `mutate` answers with the in-place encoder; the default is `clone`. */
+  serializer?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
@@ -74,7 +74,7 @@ export async function setup(options?: CloudflareSetupOptions) {
     contextDataFactory: getSharedData,
     basePath: 'api/',
   });
-  router.initRoutes(options?.encoder === 'direct' ? directRoutes : cloudflareRoutes);
+  router.initRoutes(options?.serializer === 'mutate' ? mutateRoutes : cloudflareRoutes);
   const handler = createCloudflareHandler({
     basePath: options?.basePath ?? '',
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},

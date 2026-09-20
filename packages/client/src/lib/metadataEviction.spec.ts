@@ -10,13 +10,13 @@
 // finds them, and what must never mistake a function that is still reachable for one of those.
 
 import {describe, it, expect} from 'vitest';
-import {getJitFnHashes, DEFAULT_ENCODER} from '@mionjs/core';
+import {getJitFnHashes, DEFAULT_SERIALIZER} from '@mionjs/core';
 import type {CompiledFnData, MethodWithOptions} from '@mionjs/core';
 import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 
 /** The hash a method's params validator is stored under, derived the way core derives it. */
 function paramsIsTypeHash(jitHash: string): string {
-  return getJitFnHashes(jitHash, DEFAULT_ENCODER.params).isType;
+  return getJitFnHashes(jitHash, DEFAULT_SERIALIZER.params, 'params').isType;
 }
 
 function method(id: string, paramsJitHash: string): MethodWithOptions {

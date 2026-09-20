@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreRouterOptions, EncoderOption} from '@mionjs/core';
+import {CoreRouterOptions, SerializerOption} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
@@ -35,13 +35,11 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   pathTransform?: (request: Req, path: string) => string;
   /** factory function to initialize shared call context data */
   contextDataFactory?: ContextDataFactory<ContextData>;
-  /** The router-wide encoder strategy: `clone`, `mutate`, `direct` or `compact`. A string
-   *  sets both directions, an object sets `params` and `return` separately. A BUILD-TIME literal, so
-   *  a widened value is a type error; any route overrides either direction with its own `encoder`.
+  /** The router-wide serializer strategy: `clone`, `mutate` or `compact`. A string sets both
+   *  directions, an object sets `params` and `return` separately. A BUILD-TIME literal, so a
+   *  widened value is a type error; any route overrides either direction with its own `serializer`.
    *  @default {params: 'clone', return: 'clone'} */
-  encoder?: EncoderOption;
-  /** Retired: the wire choice is `encoder`. Typed `never` so the old key is a type error. */
-  serializer?: never;
+  serializer?: SerializerOption;
   /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
   strictTypes?: boolean;
   /** When true, the rewrites the params types declare under a format's `transform` key (trim / case /

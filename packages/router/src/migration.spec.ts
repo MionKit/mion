@@ -33,12 +33,12 @@ describe('mion migration: basic route', () => {
     return `hello ${user.name} ${user.surname} x${times}`;
   });
 
-  // `direct` return encoder → response.rawBody carries the jit-stringified body
+  // the `mutate` return encoder transforms in place; the adapter stringifies response.body
   const getSameUser = mion.route(
     (ctx, user: User): User => {
       return user;
     },
-    {encoder: {return: 'direct'}}
+    {serializer: {return: 'mutate'}}
   );
 
   const asyncDouble = mion.route(async (ctx, val: number): Promise<number> => {
@@ -93,9 +93,8 @@ describe('mion migration: basic route', () => {
     };
     const response = await dispatchRoute('/getSameUser', request.body, request.headers, headersFromRecord({}), request, {});
     expect(response.hasErrors).toBeFalsy();
-    // response.body values are already serialized (stringifyJson mode → rawBody string)
-    expect(response.rawBody).toContain(birthIso);
-    const parsed = JSON.parse(response.rawBody as string);
+    // the router prepares a JSON-safe value and the platform adapter stringifies it
+    const parsed = JSON.parse(JSON.stringify(response.body));
     expect(parsed.getSameUser).toEqual({name: 'Ann', surname: 'Beta', birth: birthIso});
   });
 
