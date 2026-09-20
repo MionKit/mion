@@ -120,6 +120,13 @@ jobs:
         run: pnpm run check-format
       - name: Build FE dists (canonical, for packing)
         run: pnpm run build
+      # The home page's measured numbers are committed files, so a release could ship a
+      # stale one. Gated here rather than per-PR: every test-adding PR moves the count,
+      # and this is the first step where every @mionjs dist the size needs exists.
+      - name: Homepage numbers are fresh (client size + test counts)
+        run: |
+          pnpm miondevx website client-size --check
+          pnpm miondevx website test-counts --check
       - name: Cross-compile the 7-platform binary packages
         run: pnpm miondevx release binaries
       - name: Pack every package into tarballs/
