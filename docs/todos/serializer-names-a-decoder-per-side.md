@@ -66,10 +66,17 @@ Settled in review, not open for the implementer to re-litigate.
   if (method.hasReturnData && method.returnJitFns.json.strategy === 'direct') return SerializerModes.stringifyJson;
   ```
 
-  That takes `SerializerModes.stringifyJson`, the `json.strategy === 'direct'` branch in
-  `packages/client/src/lib/serializer.ts:106`, the `stringifyJson` response path in
-  `packages/router/src/routes/serializer.routes.ts` and the framing mode itself. Its `direct` row
-  leaves both decoder columns.
+  `SerializerModes.stringifyJson` STAYS. It is also the REQUEST framing every platform adapter sets
+  (`packages/platform-aws/src/awsLambda.ts:59` and its six siblings) and the client's own default
+  (`packages/client/src/constants.ts:30`), neither of which has anything to do with `direct`.
+
+  What goes is the RESPONSE side, where `direct` was the only thing that could select it:
+  `getChainFraming` and its file, the `stringifyJson` arm of the response switch in all seven
+  platform adapters, the two `json.strategy === 'direct'` branches in
+  `packages/router/src/routes/serializer.routes.ts`, the one in
+  `packages/client/src/lib/serializer.ts:106`, and the `encoder: 'direct'` on the internal route at
+  `packages/router/src/routes/client.routes.ts:145`. A route response is then always a prepared
+  value the platform stringifies. Its `direct` row leaves both decoder columns.
 - **Split the decoder lookup in two**, one entry for the server side and one for the client side,
   replacing the single `DECODE_FAMILY_BY_STRATEGY`.
 - **The client decoder always rebuilds the declared shape, unless the strategy is `compact`.** A
