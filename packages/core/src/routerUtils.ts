@@ -23,7 +23,7 @@ import type {
   JitFunctionsHashes,
   JsonStrategy,
 } from './types/general.types.ts';
-import {getRTUtils} from '@mionjs/run-types';
+import {getRTUtils} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from './utils.ts';
 
 // Null-prototype on purpose: the id comes off the wire (a body names its methods), so a plain

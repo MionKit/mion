@@ -18,10 +18,10 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  getRunType,
   getRunTypeId,
   type RunType,
 } from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types/runtime';
 
 class WireError extends Error {
   constructor(

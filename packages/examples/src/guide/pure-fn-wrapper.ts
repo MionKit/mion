@@ -1,8 +1,5 @@
-import {
-  registerPureFn,
-  type PureFunction,
-  type InjectPureFnId,
-} from '@mionjs/run-types';
+import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 
 // A library wraps the registrar behind its own API. The two markers ride the
 // signature (the argument carries PureFunction, the trailing slot carries

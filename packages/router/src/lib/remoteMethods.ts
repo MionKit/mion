@@ -21,7 +21,7 @@ import {
   getOrCreateGlobal,
   HandlerType,
 } from '@mionjs/core';
-import {getRTUtils, RUN_TYPES_PURE_FN_ID_PREFIX} from '@mionjs/run-types';
+import {getRTUtils, RUN_TYPES_PURE_FN_ID_PREFIX} from '@mionjs/run-types/runtime';
 
 // ############# PRIVATE STATE #############
 const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());

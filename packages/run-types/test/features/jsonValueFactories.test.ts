@@ -10,9 +10,9 @@ import {
   createRestoreFromJsonFn,
   createStringifyJsonFn,
   createStripUnknownKeysFn,
-  getRTFunction,
   type InjectTypeFnArgs,
 } from '@mionjs/run-types';
+import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type Payload = {id: bigint; when: Date; tags: Map<string, number>; name: string};
 

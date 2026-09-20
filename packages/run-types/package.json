@@ -1,113 +1,135 @@
 {
-  "name": "@mionjs/run-types",
-  "version": "0.12.2",
-  "description": "Sentinel marker + canonical reflection helper for mion RunTypes. The vite plugin rewrites every call of a function whose trailing parameter type is InjectRunTypeId<T> exported from this package.",
-  "type": "module",
-  "license": "MIT",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "source": "./src/index.ts",
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "require": {
-        "types": "./dist/cjs/index.d.ts",
-        "default": "./dist/cjs/index.js"
-      }
+    "name": "@mionjs/run-types",
+    "version": "0.12.2",
+    "description": "Sentinel marker + canonical reflection helper for mion RunTypes. The vite plugin rewrites every call of a function whose trailing parameter type is InjectRunTypeId<T> exported from this package.",
+    "type": "module",
+    "sideEffects": [
+        "./src/formats/**",
+        "./dist/formats/**",
+        "./dist/cjs/formats/**",
+        "./src/runtypes/pure-fns-utils.ts",
+        "./dist/runtypes/pure-fns-utils.js",
+        "./dist/cjs/runtypes/pure-fns-utils.js",
+        "./src/runtypes/circular-pure-fns.ts",
+        "./dist/runtypes/circular-pure-fns.js",
+        "./dist/cjs/runtypes/circular-pure-fns.js"
+    ],
+    "license": "MIT",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "source": "./src/index.ts",
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/cjs/index.d.ts",
+                "default": "./dist/cjs/index.js"
+            }
+        },
+        "./formats": {
+            "source": "./src/formats/index.ts",
+            "import": {
+                "types": "./dist/formats/index.d.ts",
+                "default": "./dist/formats/index.js"
+            },
+            "require": {
+                "types": "./dist/cjs/formats/index.d.ts",
+                "default": "./dist/cjs/formats/index.js"
+            }
+        },
+        "./formats/temporal": {
+            "source": "./src/formats/datetime/temporalFormats.ts",
+            "import": {
+                "types": "./dist/formats/datetime/temporalFormats.d.ts",
+                "default": "./dist/formats/datetime/temporalFormats.js"
+            },
+            "require": {
+                "types": "./dist/cjs/formats/datetime/temporalFormats.d.ts",
+                "default": "./dist/cjs/formats/datetime/temporalFormats.js"
+            }
+        },
+        "./mocking": {
+            "source": "./src/mocking/index.ts",
+            "import": {
+                "types": "./dist/mocking/index.d.ts",
+                "default": "./dist/mocking/index.js"
+            },
+            "require": {
+                "types": "./dist/cjs/mocking/index.d.ts",
+                "default": "./dist/cjs/mocking/index.js"
+            }
+        },
+        "./runtime": {
+            "source": "./src/runtime/index.ts",
+            "import": {
+                "types": "./dist/runtime/index.d.ts",
+                "default": "./dist/runtime/index.js"
+            },
+            "require": {
+                "types": "./dist/cjs/runtime/index.d.ts",
+                "default": "./dist/cjs/runtime/index.js"
+            }
+        },
+        "./builders": {
+            "source": "./src/builders/index.ts",
+            "import": {
+                "types": "./dist/builders/index.d.ts",
+                "default": "./dist/builders/index.js"
+            },
+            "require": {
+                "types": "./dist/cjs/builders/index.d.ts",
+                "default": "./dist/cjs/builders/index.js"
+            }
+        },
+        "./schema": {
+            "source": "./src/builders/index.ts",
+            "import": {
+                "types": "./dist/builders/index.d.ts",
+                "default": "./dist/builders/index.js"
+            },
+            "require": {
+                "types": "./dist/cjs/builders/index.d.ts",
+                "default": "./dist/cjs/builders/index.js"
+            }
+        }
     },
-    "./formats": {
-      "source": "./src/formats/index.ts",
-      "import": {
-        "types": "./dist/formats/index.d.ts",
-        "default": "./dist/formats/index.js"
-      },
-      "require": {
-        "types": "./dist/cjs/formats/index.d.ts",
-        "default": "./dist/cjs/formats/index.js"
-      }
+    "bin": {
+        "mion-skills": "./bin/skills.mjs"
     },
-    "./formats/temporal": {
-      "source": "./src/formats/datetime/temporalFormats.ts",
-      "import": {
-        "types": "./dist/formats/datetime/temporalFormats.d.ts",
-        "default": "./dist/formats/datetime/temporalFormats.js"
-      },
-      "require": {
-        "types": "./dist/cjs/formats/datetime/temporalFormats.d.ts",
-        "default": "./dist/cjs/formats/datetime/temporalFormats.js"
-      }
+    "files": [
+        "dist",
+        "!dist/**/*.tsbuildinfo",
+        "!dist/**/*.d.ts.map",
+        "bin",
+        "skills",
+        "README.md"
+    ],
+    "publishConfig": {
+        "access": "public"
     },
-    "./mocking": {
-      "source": "./src/mocking/index.ts",
-      "import": {
-        "types": "./dist/mocking/index.d.ts",
-        "default": "./dist/mocking/index.js"
-      },
-      "require": {
-        "types": "./dist/cjs/mocking/index.d.ts",
-        "default": "./dist/cjs/mocking/index.js"
-      }
+    "homepage": "https://mion.pages.dev/runtypes",
+    "bugs": {
+        "url": "https://github.com/MionKit/mion/issues"
     },
-    "./builders": {
-      "source": "./src/builders/index.ts",
-      "import": {
-        "types": "./dist/builders/index.d.ts",
-        "default": "./dist/builders/index.js"
-      },
-      "require": {
-        "types": "./dist/cjs/builders/index.d.ts",
-        "default": "./dist/cjs/builders/index.js"
-      }
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/MionKit/mion.git",
+        "directory": "packages/run-types"
     },
-    "./schema": {
-      "source": "./src/builders/index.ts",
-      "import": {
-        "types": "./dist/builders/index.d.ts",
-        "default": "./dist/builders/index.js"
-      },
-      "require": {
-        "types": "./dist/cjs/builders/index.d.ts",
-        "default": "./dist/cjs/builders/index.js"
-      }
+    "scripts": {
+        "build": "mion compile --gen-dir .mion-build && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
+        "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+        "pretest": "node ../../scripts/miondevx.mjs core build --trust-stamp",
+        "test": "vitest run",
+        "dev:test": "vitest watch",
+        "clean": "node ../../scripts/lib/rmrf.mjs dist .mion .mion-build .coverage tsconfig.tsbuildinfo",
+        "fresh-start": "pnpm run clean && node ../../scripts/lib/rmrf.mjs node_modules"
+    },
+    "devDependencies": {
+        "@mionjs/bin-compiler": "workspace:*",
+        "@mionjs/devtools": "workspace:*"
     }
-  },
-  "bin": {
-    "mion-skills": "./bin/skills.mjs"
-  },
-  "files": [
-    "dist",
-    "!dist/**/*.tsbuildinfo",
-    "!dist/**/*.d.ts.map",
-    "bin",
-    "skills",
-    "README.md"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "homepage": "https://mion.pages.dev/runtypes",
-  "bugs": {
-    "url": "https://github.com/MionKit/mion/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/MionKit/mion.git",
-    "directory": "packages/run-types"
-  },
-  "scripts": {
-    "build": "mion compile --gen-dir .mion-build && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
-    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
-    "pretest": "node ../../scripts/miondevx.mjs core build --trust-stamp",
-    "test": "vitest run",
-    "dev:test": "vitest watch",
-    "clean": "node ../../scripts/lib/rmrf.mjs dist .mion .mion-build .coverage tsconfig.tsbuildinfo",
-    "fresh-start": "pnpm run clean && node ../../scripts/lib/rmrf.mjs node_modules"
-  },
-  "devDependencies": {
-    "@mionjs/bin-compiler": "workspace:*",
-    "@mionjs/devtools": "workspace:*"
-  }
 }

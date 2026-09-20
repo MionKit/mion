@@ -16,12 +16,12 @@
 import {describe, test, expect} from 'vitest';
 import {FN_HASHES} from '../../src/go-generated/fnHashes.generated.ts';
 import {
-  getFnHash,
   type InjectTypeFnArgs,
   type CompTimeFnArgs,
   type ValidateOptions,
   type HasUnknownKeysCompileOptions,
 } from '@mionjs/run-types';
+import {getFnHash} from '@mionjs/run-types/runtime';
 import {entryTupleKey, isEntryTuple, FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';
 
 // Pull the injected fnHash (the 3-char prefix of the `<fnHash>_<typeId>` key) out

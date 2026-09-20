@@ -26,8 +26,8 @@ import {
   createValidateFn,
   createHasUnknownKeysFn,
   createUnknownKeyErrorsFn,
-  registerClassSerializer,
 } from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
 
 afterEach(() => {

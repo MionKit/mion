@@ -1,4 +1,5 @@
-import {getFnHash, getRunTypeId} from '@mionjs/run-types';
+import {getRunTypeId} from '@mionjs/run-types';
+import {getFnHash} from '@mionjs/run-types/runtime';
 
 // Every generated function is stored under a key with two parts: a short id for
 // the FUNCTION (which family it belongs to, plus any compile-time options) and

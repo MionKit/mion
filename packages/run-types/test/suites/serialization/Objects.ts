@@ -1,11 +1,6 @@
 import * as TF from '@mionjs/run-types/formats';
-import {
-  createBinaryDecoderFn,
-  createBinaryEncoderFn,
-  createJsonDecoderFn,
-  createJsonEncoderFn,
-  registerClassSerializer,
-} from '@mionjs/run-types';
+import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 

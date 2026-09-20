@@ -8,14 +8,8 @@
 // test/suites/cloning/.
 
 import {describe, expect, it} from 'vitest';
-import {
-  createGetValidationErrorsFn,
-  createHasUnknownKeysFn,
-  createUnknownKeyErrorsFn,
-  createValidateFn,
-  getFnHash,
-  getRunType,
-} from '@mionjs/run-types';
+import {createGetValidationErrorsFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn, createValidateFn} from '@mionjs/run-types';
+import {getFnHash, getRunType} from '@mionjs/run-types/runtime';
 
 describe('hasUnknownKeys', () => {
   it('returns false when the value matches the schema', () => {

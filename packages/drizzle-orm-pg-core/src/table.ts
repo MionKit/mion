@@ -31,7 +31,7 @@ import {
   rtValueKey,
 } from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types/runtime';
 import {pgColumnHelpers, type PgColumnHelpers} from './columns.ts';
 import {requireColumns} from './views.ts';
 import type {} from './helpers.ts';

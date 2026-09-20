@@ -16,7 +16,8 @@
 
 import * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {getRunTypeId, getRTUtils, type InferType} from '@mionjs/run-types';
+import {getRunTypeId, type InferType} from '@mionjs/run-types';
+import {getRTUtils} from '@mionjs/run-types/runtime';
 import * as RT from '@mionjs/run-types/builders';
 import '@mionjs/run-types/formats';
 

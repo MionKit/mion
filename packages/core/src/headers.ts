@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerClassSerializer, type DataOnly} from '@mionjs/run-types';
+import {type DataOnly} from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 // type-headers-subset-start
 /** Type-safe wrapper for HTTP headers */

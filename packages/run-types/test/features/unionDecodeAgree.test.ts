@@ -10,13 +10,8 @@
 // One row per union shape, every encode and decode function on the same value.
 
 import {describe, expect, it} from 'vitest';
-import {
-  createHasUnknownKeysFn,
-  createJsonDecoderFn,
-  createJsonEncoderFn,
-  getRTFunction,
-  type InjectTypeFnArgs,
-} from '../../src/index.ts';
+import {createHasUnknownKeysFn, createJsonDecoderFn, createJsonEncoderFn, type InjectTypeFnArgs} from '../../src/index.ts';
+import {getRTFunction} from '../../src/runtime/index.ts';
 
 // mion's `clone` strategy decodes with `rjs`, which has no createX factory: it is recovered through
 // the marker, the same wrapper shape the router's generated call site uses. The primitive takes a

@@ -6,12 +6,6 @@ import {describe, it, expect} from 'vitest';
 // client is the concrete case) can consume mion instead of reimplementing
 // the structs. If any of these stops being exported the import itself fails.
 import {
-  getRTUtils,
-  getRTFnCaches,
-  buildFactoryFromCode,
-  buildPureFnFactoryFromCode,
-  entryCode,
-  type RTUtils,
   type CompiledFnData,
   type CompiledTypeFn,
   type InitializedTypeFn,
@@ -20,6 +14,14 @@ import {
   type PureFunctionData,
   type AnyFn,
 } from '@mionjs/run-types';
+import {
+  getRTUtils,
+  getRTFnCaches,
+  buildFactoryFromCode,
+  buildPureFnFactoryFromCode,
+  entryCode,
+  type RTUtils,
+} from '@mionjs/run-types/runtime';
 
 describe('public compiled-fn exports — reachable + reconstructable from the package barrel', () => {
   // The closure-free wire form a server would serialize and send: `code` is the

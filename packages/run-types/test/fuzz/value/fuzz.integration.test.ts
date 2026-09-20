@@ -12,7 +12,6 @@ import * as TF from '@mionjs/run-types/formats';
 import {describe, it, expect} from 'vitest';
 import * as RT from '@mionjs/run-types/builders';
 import {
-  getRTFunction,
   type InjectTypeFnArgs,
   createValidateFn,
   createParseFn,
@@ -24,8 +23,8 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  registerClassSerializer,
 } from '@mionjs/run-types';
+import {getRTFunction, registerClassSerializer} from '@mionjs/run-types/runtime';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';

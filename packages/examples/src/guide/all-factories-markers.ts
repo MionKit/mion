@@ -1,4 +1,5 @@
-import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {type InjectTypeFnArgs} from '@mionjs/run-types';
+import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type User = {id: bigint; name: string; signedUpAt: Date};
 

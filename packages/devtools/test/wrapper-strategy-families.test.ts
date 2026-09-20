@@ -4,7 +4,7 @@
 // resolved signature, so a slot resolving to `never` injects nothing. Each case pins the exact
 // families a call compiles, proving the selection lives entirely in TypeScript types.
 import {describe, expect, it} from 'vitest';
-import {getFnHash} from '@mionjs/run-types';
+import {getFnHash} from '@mionjs/run-types/runtime';
 import {Family, type Diagnostic, type Site} from '../src/core/protocol.ts';
 import {hasBinary, withInlineSources} from './helpers/inline.ts';
 

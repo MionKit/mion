@@ -1,4 +1,4 @@
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {slugify} from '@acme/text';
 
 export const isoDay = registerPureFnFactory(function (utl) {

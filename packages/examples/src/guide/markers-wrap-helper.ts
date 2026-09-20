@@ -1,4 +1,5 @@
-import {getRunType, type InjectRunTypeId} from '@mionjs/run-types';
+import {type InjectRunTypeId} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types/runtime';
 
 // Wrap mion into your OWN helper. Declare a trailing
 // `id?: InjectRunTypeId<T>` parameter and the build fills it in at every

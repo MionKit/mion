@@ -22,8 +22,8 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  getRTFunction,
 } from '@mionjs/run-types';
+import {getRTFunction} from '@mionjs/run-types/runtime';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
 import {Severity, type Diagnostic, type Site} from '../../../../devtools/src/core/protocol.ts';

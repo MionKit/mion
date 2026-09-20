@@ -6,7 +6,6 @@
  * ######## */
 
 import type {CoreRouterOptions} from './types/general.types.ts';
-import {getFnHash} from '@mionjs/run-types';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   /** automatically generate and uuid */
@@ -90,31 +89,31 @@ export const HandlerType = {
 } as const;
 
 /**
- * Per-function cache-key prefixes, DERIVED from RunTypes' `getFnHash` (no hardcoding).
- * Each entry is the `<fnHash>` half of the mion runtime cache key `<fnHash>_<typeId>`
- * (see src/runtypes/mionAdapter), keyed by mion's family name and mapped to the
- * mion fn key. Since RunTypes 0.9.3 the fnHash salt no longer folds the binary
- * version, so these prefixes are STABLE across releases and `getFnHash` reads them from
- * mion' Go-generated table (the single source of truth) — a version bump needs NO
- * refresh here (the `<typeId>` half still carries the version for cache invalidation). The
- * prefixes are TYPE-INDEPENDENT (family + default options only), so one value per family
- * covers every type.
+ * Per-function cache-key prefixes: the `<fnHash>` half of the runtime cache key
+ * `<fnHash>_<typeId>` (see src/runtypes/mionAdapter), keyed by mion's family name.
+ * They are TYPE-INDEPENDENT (family plus default options only), so one value per family
+ * covers every type, and the fnHash salt no longer folds the binary version, so they are
+ * stable across releases.
+ *
+ * Written out rather than derived through `getFnHash`: that call shipped RunTypes'
+ * whole Go-generated hash table to every browser for thirteen four-character strings.
+ * constants.jitFunctionIds.spec.ts fails if any value drifts from `getFnHash`.
  */
 export const JIT_FUNCTION_IDS = {
-  isType: getFnHash('validate'),
-  typeErrors: getFnHash('validationErrors'),
-  hasUnknownKeys: getFnHash('hasUnknownKeys'), // strictTypes
-  unknownKeyErrors: getFnHash('unknownKeyErrors'), // strictTypes
-  formatTransform: getFnHash('formatTransform'), // sanitizeParams
+  isType: 'Eq2V',
+  typeErrors: 'swxg',
+  hasUnknownKeys: 'GsPX', // strictTypes
+  unknownKeyErrors: 'r8yS', // strictTypes
+  formatTransform: 'mzca', // sanitizeParams
   // the JSON families, one encoder per strategy and the two decoders (see ENCODE_FAMILY_BY_STRATEGY)
-  prepareForJsonClone: getFnHash('prepareForJsonClone'),
-  prepareForJsonMutate: getFnHash('prepareForJsonMutate'),
-  stringifyJson: getFnHash('stringifyJson'),
-  compactForJson: getFnHash('compactForJson'),
-  restoreFromJsonMutate: getFnHash('restoreFromJsonMutate'),
-  restoreFromJsonClone: getFnHash('restoreFromJsonClone'),
-  compactFromJson: getFnHash('compactFromJson'),
-} as const;
+  prepareForJsonClone: 'A0Qb',
+  prepareForJsonMutate: 'AwYs',
+  stringifyJson: 'i4VX',
+  compactForJson: 'rpEK',
+  restoreFromJsonMutate: 'w8ie',
+  restoreFromJsonClone: 'Ky89',
+  compactFromJson: 'FFsn',
+} as const satisfies Record<string, string>;
 
 /** The compiled family each JSON strategy ENCODES with, named by its MARKER token (the name a
  *  route's InjectTypeFnArgs asks for), not by the short tag the compiled entry carries: `clone`

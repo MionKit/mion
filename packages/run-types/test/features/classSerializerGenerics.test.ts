@@ -15,9 +15,9 @@ import {
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  registerClassSerializer,
   getRunTypeId,
 } from '@mionjs/run-types';
+import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {
   clearClassSerializers,
   unregisterClassSerializer,

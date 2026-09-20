@@ -11,7 +11,7 @@
 // The caches are reached through the SAME getOrCreateGlobal keys routerUtils.ts uses, so this
 // module clears the live instances without widening that module's exports.
 
-import {getRTFnCaches, getRTUtils} from '@mionjs/run-types';
+import {getRTFnCaches, getRTUtils} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from './utils.ts';
 import type {JitCompiledFunctions} from './types/general.types.ts';
 

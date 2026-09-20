@@ -22,7 +22,7 @@ import type {
 import type {EntryColRefs, TableEntry} from '@mionjs/drizzle-orm';
 import {buildRtTableFromGraph, createRtTable, RtValueRecorder, RtViewBuilder, rtValueKey} from '@mionjs/drizzle-orm';
 import type {InjectRunTypeId} from '@mionjs/run-types';
-import {getRunType} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types/runtime';
 import {mysqlColumnHelpers, type MySqlColumnHelpers} from './columns.ts';
 import {requireColumns} from './views.ts';
 import type {} from './helpers.ts';

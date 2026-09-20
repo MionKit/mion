@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {getRTUtils, registerPureFn} from '@mionjs/run-types';
+import {getRTUtils, registerPureFn} from '@mionjs/run-types/runtime';
 import {getInputMapper, hasInputMapper, registerInputMapperTuple} from './inputMappers.ts';
 
 // A mapper id is the pure fn's own id: where the client wrote it. These fixtures

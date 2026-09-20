@@ -16,7 +16,8 @@
 // assert, on a third unrelated shape.)
 
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, getRunTypeId, getRTUtils, getRTFnCaches, type InferType} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId, type InferType} from '@mionjs/run-types';
+import {getRTUtils, getRTFnCaches} from '@mionjs/run-types/runtime';
 import {object} from '@mionjs/run-types/builders';
 import {string, number} from '@mionjs/run-types/formats';
 import {FN_HASH_LEN} from '../../src/runtypes/entryTuple.ts';

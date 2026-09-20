@@ -27,7 +27,8 @@ const TSCONFIG_SRC = JSON.stringify({
 // params-side marker (validator + JSON decoder), the response-side marker (JSON
 // encoder), and a reflection marker for the params runtype graph. Each marker
 // param is forwarded to its factory / resolver.
-const WRAPPER_SRC = `import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn, getRunType} from '@mionjs/run-types';
+const WRAPPER_SRC = `import {createGetValidationErrorsFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {getRunType} from '@mionjs/run-types/runtime';
 import type {InjectTypeFnArgs, InjectRunTypeId} from '@mionjs/run-types';
 
 type AnyHandler = (...args: any[]) => unknown;

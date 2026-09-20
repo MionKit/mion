@@ -6,7 +6,8 @@
 // least one asserts the two forms converge on the same entry.)
 
 import {describe, it, expect} from 'vitest';
-import {getRunType, getRunTypeId, getRTUtils, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@mionjs/run-types';
+import {getRunType, getRTUtils} from '@mionjs/run-types/runtime';
 import * as RT from '@mionjs/run-types/builders';
 import * as TF from '@mionjs/run-types/formats';
 

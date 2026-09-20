@@ -5,9 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {FAMILY_TAG_TO_FN_KEY, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@mionjs/run-types';
-import type {FnHashKey, GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '@mionjs/run-types';
-import {buildPureFnFactoryFromCode} from '@mionjs/run-types';
+import {getRunTypeId, RunTypeKind} from '@mionjs/run-types';
+import {FAMILY_TAG_TO_FN_KEY, getRTFunction, getRTUtils, getRunType} from '@mionjs/run-types/runtime';
+import type {GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '@mionjs/run-types';
+import type {FnHashKey} from '@mionjs/run-types/runtime';
+import {buildPureFnFactoryFromCode} from '@mionjs/run-types/runtime';
 import {getJitFnHashes} from '../routerUtils.ts';
 import {DECODE_FAMILY_BY_STRATEGY, STRATEGY_BY_ENCODE_FAMILY, type DecodeFamily} from '../constants.ts';
 import type {

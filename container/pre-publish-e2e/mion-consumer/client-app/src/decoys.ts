@@ -10,7 +10,8 @@
 // pointed at this project with --client-tsconfig, must copy the inline mapper and nothing else:
 // no validator for ClientOnlyShape under the server's types/, no module for clientOnlyHelper
 // under its rpc/pf/. The client's own compile does generate them, which proves they are live.
-import {createValidateFn, registerPureFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 
 export type ClientOnlyShape = {clientOnlyField: string};
 export const isClientOnlyShape = createValidateFn<ClientOnlyShape>();

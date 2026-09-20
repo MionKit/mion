@@ -10,7 +10,8 @@
 // TestAtomic_FormEquivalence hash check).
 
 import {describe, test, expect} from 'vitest';
-import {getRTFunction, type InjectTypeFnArgs} from '@mionjs/run-types';
+import {type InjectTypeFnArgs} from '@mionjs/run-types';
+import {getRTFunction} from '@mionjs/run-types/runtime';
 
 // Test-only wrappers, exactly the shape a framework declares: the fnKey in a trailing
 // InjectTypeFnArgs marker, resolved through getRTFunction by the SAME fnKey. `_val` exists

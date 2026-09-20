@@ -4,14 +4,8 @@
 // way the marker coverage rule asks.
 
 import {describe, expect, it} from 'vitest';
-import {
-  createJsonDecoderFn,
-  createJsonEncoderFn,
-  createValidateFn,
-  getRTFunction,
-  registerClassSerializer,
-  type InjectTypeFnArgs,
-} from '../../src/index.ts';
+import {createJsonDecoderFn, createJsonEncoderFn, createValidateFn, type InjectTypeFnArgs} from '../../src/index.ts';
+import {getRTFunction, registerClassSerializer} from '../../src/runtime/index.ts';
 
 // `_val` only lets the reflection call shape infer T from a value; it is never read.
 function recoverStripRestore<T>(_val?: T, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {

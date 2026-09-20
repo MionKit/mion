@@ -11,7 +11,8 @@
 // registration defeated the resolver's whole-program "any registration present?"
 // guard, and every package-owned built-in was then flagged missing, halting the
 // build. Fixed by checking a built-in against the generated id table instead.
-import {createValidateFn, overrideValidate, registerPureFnFactory, getRTUtils} from '@mionjs/run-types';
+import {createValidateFn, overrideValidate} from '@mionjs/run-types';
+import {registerPureFnFactory, getRTUtils} from '@mionjs/run-types/runtime';
 import {type CheckResult, ok, eq} from './check';
 
 interface Widget {

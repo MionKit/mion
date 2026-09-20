@@ -19,12 +19,12 @@ import {
   createJsonEncoderFn,
   createParseFn,
   createValidateFn,
-  getRTFunction,
   RTParseError,
   isSerializationError,
   type InjectTypeFnArgs,
   ParseMismatch,
 } from '@mionjs/run-types';
+import {getRTFunction} from '@mionjs/run-types/runtime';
 
 type Address = {street: string; city: string};
 type User = {id: number; name: string; address: Address};

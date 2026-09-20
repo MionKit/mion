@@ -182,7 +182,7 @@ export const isNode = createValidateFn(inference, {rejectCircularRefs: true});
   runTest(
     'pure-fn replacement: edits mode reproduces go mode byte-for-byte',
     {
-      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types';
+      'pure.ts': `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const foo = registerPureFnFactory(function () {
   return function _f(x: number) { return x + 1; };
 });
