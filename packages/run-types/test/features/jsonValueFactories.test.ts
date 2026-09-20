@@ -1,12 +1,8 @@
-// End-to-end acceptance test for the four value-level JSON factories:
-// createPrepareForJsonFn, createRestoreFromJsonFn, createStringifyJsonFn and
-// createStripUnknownKeysFn. They compile the same families a marker reaches by fnKey, so
-// the last test in each group asserts the two roads hand back the SAME compiled function.
-// Without that, the factory road could drift from the marker road unnoticed.
-//
-// Per the CLAUDE.md marker-coverage rule both call shapes are exercised — the static
-// `createX<T>()` form and the value-first `createX(value)` reflection form — with one
-// paired test asserting they resolve the same compiled fn.
+// End-to-end acceptance test for the four value-level JSON factories. They compile the same
+// families a marker reaches by fnKey, so the last test in each group asserts the two roads hand
+// back the SAME compiled function; without it the factory road could drift unnoticed.
+// Per the CLAUDE.md marker-coverage rule both call shapes are exercised, with one paired test
+// asserting they resolve the same compiled fn.
 
 import {describe, test, expect} from 'vitest';
 import {

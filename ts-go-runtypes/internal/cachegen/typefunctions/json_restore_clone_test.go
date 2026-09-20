@@ -117,8 +117,7 @@ func TestRestoreFromJsonClone_RebuildPositions(t *testing.T) {
 		t.Errorf("a Map of objects must rebuild each value before the constructor; got:\n%s", mapEntry)
 	}
 	circular := rjsEntry(t, runTypes, "self")
-	// The self-reference is emitted as a call to this family's own entry, so the
-	// prefix comes from the registry: a hardcoded hash rots on every rename.
+	// The self-call carries this family's own prefix, read from the registry: a hardcoded hash rots on every rename.
 	selfCall := "v.list[1] = " + operations.PlainHash("restoreFromJsonClone") + "_self(v.list[1])"
 	if !strings.Contains(circular, "r0.list = v.list;v = r0;") || !strings.Contains(circular, selfCall) {
 		t.Errorf("a circular type must rebuild itself and recurse through its tuple slot; got:\n%s", circular)

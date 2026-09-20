@@ -261,10 +261,8 @@ func TestEveryOperationIsDocumented(t *testing.T) {
 	}
 }
 
-// TestEveryPublicOperationNamesItsFactory pins the other half of the catalog row.
-// Every operation a user can reach is reachable through a createX, so the catalog
-// page has no factoryless column left to render; only non-Public plumbing may
-// leave Factory empty.
+// TestEveryPublicOperationNamesItsFactory pins the other half of the catalog row: every
+// operation a user can reach has a createX, so only non-Public plumbing leaves Factory empty.
 func TestEveryPublicOperationNamesItsFactory(t *testing.T) {
 	for _, op := range All() {
 		if op.Public && op.Factory == "" {

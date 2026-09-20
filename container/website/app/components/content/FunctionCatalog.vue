@@ -7,11 +7,11 @@ interface FunctionEntry {
   /** The short name the emitted code uses. A separate vocabulary on purpose. */
   tag?: string;
   doc: string;
-  /** The createX export that compiles it. Every listed function has one. */
+  /** The createX export that compiles it. */
   factory: string;
   /** The compile-time options bag that refines it, absent when it takes none. */
   options?: string;
-  /** The strategy values the options bag accepts, when it has a set of them. */
+  /** The strategy values the options bag accepts. */
   variants?: string[];
   rejectCircularRefs?: boolean;
 }

@@ -6,14 +6,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Resolver coverage for the value-level JSON factories. Their `strategy` is AxisNone, so
-// it selects a whole FAMILY rather than a variant — the same road createParseFn takes.
-// What these pin is which family each word reaches, and that a default site drags in no
-// other.
+// Resolver coverage for the value-level JSON factories: their `strategy` is AxisNone, so it
+// selects a whole FAMILY rather than a variant, the same road createParseFn takes.
 
-// jsonValueLooseDTS declares the two strategy-carrying factories with `strategy` widened
-// to `string`, so a value the real union rejects can still reach the scanner. That is the
-// only way to test what an unrecognised word compiles to.
+// jsonValueLooseDTS widens `strategy` to `string`: the only way a value the real union rejects
+// can reach the scanner.
 const jsonValueLooseDTS = `declare module '@mionjs/run-types' {
   export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
   export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
@@ -23,9 +20,8 @@ const jsonValueLooseDTS = `declare module '@mionjs/run-types' {
 }
 `
 
-// Clone is the default on BOTH sides, which is what lets a prepare and a restore be
-// written as a pair. The negative half is the point: a plain call must not emit the
-// mutate or compact families too.
+// Clone is the default on BOTH sides, which is what lets a prepare and a restore be written as
+// a pair. The negative half is the point: a plain call must emit no other family.
 func TestJsonValueFactories_DefaultToTheCloneFamilies(t *testing.T) {
 	modules := scanEntryModules(t, `import {createPrepareForJsonFn, createRestoreFromJsonFn} from '@mionjs/run-types';
 interface User {id: number; name: string}
@@ -118,7 +114,7 @@ createRestoreFromJsonFn<{a: string}>(undefined, {strategy: 'nonsense'});
 }
 
 // Marker test coverage rule: both call shapes, plus the equivalence that makes them
-// interchangeable. A static form and a value form of the same type must resolve to one id.
+// interchangeable.
 func TestJsonValueFactories_MarkerStaticForm(t *testing.T) {
 	modules := scanEntryModules(t, `import {createPrepareForJsonFn} from '@mionjs/run-types';
 interface User {id: number; name: string}
