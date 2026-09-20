@@ -24,7 +24,7 @@ import type {MetadataKind, MetadataRecord, MetadataRecordKey, MetadataStore, Sto
 import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 import {requestPersistenceWhenSilent} from './persistentStorage.ts';
 import {isBundledMethod, setFetchedMethods} from './methods.ts';
-import {registerMetadataCacheHooks, type MetadataCacheHooks} from './laneLoader.ts';
+import {registerMetadataCacheHooks, type MetadataCacheHooks} from './metadataFromServerLoader.ts';
 
 type MetadataRouteKey = typeof MION_ROUTES.methodsMetadata | typeof MION_ROUTES.methodsMetadataById;
 
@@ -449,7 +449,7 @@ function addToCaches(serializableMethodsData: SerializableMethodsData) {
   addRoutesToCache(serializableMethodsData.methods);
 }
 
-// Registered here rather than in fetchedLane.ts: the lane's pieces are public API and a consumer
+// Registered here rather than in metadataFromServer.ts: its pieces are public API and a consumer
 // can import one directly, so this module evaluating IS the moment the fetched lane exists.
 setFetchedMethods(routesCache);
 registerMetadataCacheHooks({

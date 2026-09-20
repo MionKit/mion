@@ -20,7 +20,7 @@ import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundledApi.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
-import {loadFetchedLane, metadataCacheHooks} from './lib/laneLoader.ts';
+import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {sanitizeSubRequests} from './lib/sanitize.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
@@ -86,7 +86,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       // guessing wrong costs the optimistic round trip AND its retry. Hydration runs once per baseURL
       // and never rejects, so a missing or blocked store just leaves this false.
       if (!allCached && !bundled) {
-        const lane = await loadFetchedLane();
+        const lane = await loadMetadataFromServer();
         await lane.hydrateMetadataCache(this.options);
         if (this.signal?.aborted) {
           this.onError(
@@ -110,7 +110,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         // Only the ids the client still lacks: asking for one it holds would store the server's copy
         // of a BUNDLED method, and a later stale-metadata purge would drop the build's entry for good.
         const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
-        this.addSubRequest((await loadFetchedLane()).createMetadataSubRequest(missingIds));
+        this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
       } else {
         (this.options as any).serializer = originalSerializer;
         await this.loadMethodsMetadata(subRequestIds, bundled, this.signal);
@@ -194,7 +194,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       if (missing.length) throw bundledMetadataMissingError(missing);
       return;
     }
-    const lane = await loadFetchedLane();
+    const lane = await loadMetadataFromServer();
     await lane.fetchRemoteMethodsMetadata(methodIds, this.options, signal);
   }
 

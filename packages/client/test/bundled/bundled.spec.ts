@@ -17,7 +17,7 @@ import {batch} from '../../src/batch.ts';
 import {resetClientCaches} from '../../src/lib/testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {bundledMethodIds, getMethod, isBundledMethod, useMethodFns} from '../../src/lib/methods.ts';
-import {isFetchedLaneLoaded} from '../../src/lib/laneLoader.ts';
+import {isMetadataFromServerLoaded} from '../../src/lib/metadataFromServerLoader.ts';
 import type {InjectedApiMetadata} from '../../src/types.ts';
 import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} from '../../src/lib/metadataStore.ts';
 
@@ -110,7 +110,7 @@ describe('a client built with bundleApi: bundled', () => {
     const {routes, middleFns} = initClient<TestServerApi>({baseURL});
     await routes.utils.sumTwo(40).call(withAuth(middleFns));
     await routes.compact.addNumbers(2, 3).typeErrors();
-    expect(isFetchedLaneLoaded()).toBe(false);
+    expect(isMetadataFromServerLoaded()).toBe(false);
   });
 
   it('refuses a route the bundle lacks without loading the lane, and does not throw', async () => {
@@ -122,7 +122,7 @@ describe('a client built with bundleApi: bundled', () => {
       params: ['acme'],
     } as never);
     expect(undeclared?.type).toBe('route-metadata-not-found');
-    expect(isFetchedLaneLoaded()).toBe(false);
+    expect(isMetadataFromServerLoaded()).toBe(false);
   });
 
   it('runs with dynamic code disabled: the bundle carries live functions, never code strings', async () => {

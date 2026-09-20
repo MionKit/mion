@@ -414,11 +414,11 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
 // the `vite` escape hatch.
 /** The subpath @mionjs/client imports the fetched metadata lane through; answered with a real file
  *  rather than a `load` hook, which would change how esbuild and Bun read every other file too. */
-const FETCHED_LANE_ID = '#fetched-lane';
-const fetchedLaneStubPath = (): string => {
+const METADATA_FROM_SERVER_ID = '#metadata-from-server';
+const metadataFromServerStubPath = (): string => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const compiled = path.join(here, 'fetchedLaneStub.js');
-  return fs.existsSync(compiled) ? compiled : path.join(here, 'fetchedLaneStub.ts');
+  const compiled = path.join(here, 'metadataFromServerStub.js');
+  return fs.existsSync(compiled) ? compiled : path.join(here, 'metadataFromServerStub.ts');
 };
 
 export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) => {
@@ -1270,7 +1270,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       return /\.[mc]?[jt]sx?$/.test(id);
     },
 
-    // Under `bundled` the whole API came with the build, so answering `#fetched-lane` with an empty
+    // Under `bundled` the whole API came with the build, so answering `#metadata-from-server` with an empty
     // module keeps the fetch, the store, eviction and persistence out of the bundle rather than in a
     // chunk nothing loads; `mixed` still fetches what the build could not see. Declared only under
     // `bundled`: unplugin turns a resolveId hook into an esbuild onResolve one that sees every
@@ -1278,7 +1278,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     ...(options.bundleApi === 'bundled'
       ? {
           resolveId(id: string) {
-            return id === FETCHED_LANE_ID ? fetchedLaneStubPath() : null;
+            return id === METADATA_FROM_SERVER_ID ? metadataFromServerStubPath() : null;
           },
         }
       : {}),

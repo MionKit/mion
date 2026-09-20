@@ -8,7 +8,7 @@
 import type {ResponseBody} from '@mionjs/router';
 import {type MethodWithJitFns, RpcError, isRpcError, MION_ROUTES, HandlerType, type SerializerMode} from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
-import {metadataCacheHooks} from './laneLoader.ts';
+import {metadataCacheHooks} from './metadataFromServerLoader.ts';
 import {hasMethod, useMethodFns} from './methods.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';

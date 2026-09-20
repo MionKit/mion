@@ -66,14 +66,14 @@ export function getBundleApiMode(): BundleApiMode | undefined {
   return bundleApiMode;
 }
 
-/** Raised for a method the bundle lacks; lives here, not with the fetch, so refusing costs no lane load. */
+/** Raised for a method the bundle lacks; lives here, not with the fetch, so refusing never loads that code. */
 export function bundledMetadataMissingError(missing: string[]): RpcError<'route-metadata-not-found'> {
   return new RpcError({
     type: 'route-metadata-not-found',
     publicMessage:
-      `No generated code for ${missing.join(', ')}. With bundleApi: 'bundled' the build writes the validators ` +
-      `and serializers as JavaScript files, but only for what your code calls by name. Call it by name, or use ` +
-      `bundleApi: 'mixed' so the client asks the server for the rest.`,
+      `No generated code for ${missing.join(', ')}. With bundleApi: 'bundled' the build generates code only for the ` +
+      `routes and middleFns it can name at the call site, and a helper hid this one's name. ` +
+      `Call the route by its name, or build with bundleApi: 'mixed' to get it from the server.`,
   });
 }
 

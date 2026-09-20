@@ -28,7 +28,7 @@ import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {getBundleApiMode, registerBundledApi, takeBundledApiError} from './lib/bundledApi.ts';
-import {metadataCacheHooks} from './lib/laneLoader.ts';
+import {metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 
 /**
  * Creates the client: the typed `routes` / `middleFns` proxies plus the client itself.

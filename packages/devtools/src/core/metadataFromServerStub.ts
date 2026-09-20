@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// What `#fetched-lane` resolves to under `bundleApi: 'bundled'`, where a client never asks the
+// What `#metadata-from-server` resolves to under `bundleApi: 'bundled'`, where a client never asks the
 // server how a route works. A real file rather than a virtual module: a `load` hook on the shared
 // unplugin changes how esbuild and Bun read every OTHER file too. Each export only has to exist.
 
