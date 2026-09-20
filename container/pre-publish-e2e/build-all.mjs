@@ -303,10 +303,8 @@ async function waitForOk(url, child, timeoutMs) {
   throw new Error(`mion-next: ${url} did not answer within ${timeoutMs}ms`);
 }
 
-// mion-next is built like smoke-next and then SERVED: the API only exists at request time, so
-// the round trip runs against a real `next start`. The app's own /selftest route does the
-// calling (its batch has to be in the app's program), and this driver only reads the report and
-// writes it where the assertions can find it.
+// SERVED with a real `next start`, because the API only exists at request time. The app's own /selftest
+// route does the calling (its batch has to be in the app's program); this driver only saves the report.
 async function buildMionNext(app) {
   const appDir = path.join(APPS, app.name);
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
@@ -330,9 +328,8 @@ async function buildMionNext(app) {
     child.kill('SIGTERM');
   }
 
-  // Second build, on the bundled lane. Not served: what it has to prove is what is IN the output.
-  // Turbopack takes the fetched lane out through a resolveAlias rather than a plugin hook, so only
-  // a real Turbopack build says whether the alias was honoured.
+  // Second build, on the bundled lane. Not served: what it proves is what is IN the output, and
+  // Turbopack drops the fetched lane through a resolveAlias, which only a real build can confirm.
   execFileSync(process.execPath, [nextBin, 'build'], {
     cwd: appDir,
     stdio: 'inherit',
