@@ -5,17 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The light half of the bundled-API lane: which lane the build chose, and the error a bundled
-// client raises for a route it does not carry. Split from bundledApi.ts because that module
-// reaches the marker reflection in @mionjs/core, and request.ts needs only these two.
+// Split from bundledApi.ts: that module reaches the marker reflection in @mionjs/core, and
+// request.ts needs only these two.
 
 import {RpcError} from '@mionjs/core';
 import type {BundleApiMode} from '../types.ts';
 
 let bundleApiMode: BundleApiMode | undefined;
 
-/** Puts the client on the lane the build compiled for. Called by generated code, never by hand:
- *  it is a build option, so the build is the one place it is set. */
+/** Called by generated code, never by hand: the lane is a build option. */
 export function setBundleApiMode(mode: BundleApiMode): void {
   if (mode !== 'bundled' && mode !== 'mixed') {
     throw new RpcError({

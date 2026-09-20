@@ -7,16 +7,8 @@
 
 import {getOrCreateGlobal} from './src/utils.ts';
 
-// side effect: register every mion format (patterns, pure fns, mocking fns). Type-only
-// imports of format aliases get erased by the transpiler, so registration must ride a module
-// that is always value-imported — @mionjs/core is (every mion package depends on it).
-// REQUIRED even though mion owns no format types of its own: the Go-emitted validator cache
-// resolves format checks through `utl.getPureFn(isUUID)` & co at RUNTIME, so any
-// route whose params use a mion format needs these registrations loaded. Removing this
-// line is a runtime break, not a type-only one.
-// mion error classes (TypedError/RpcError) register themselves with the mion
-// class-serializer registry at the bottom of ./src/errors.ts (exported below), so JSON
-// decoders rebuild real instances.
+// TypedError/RpcError register themselves with the class-serializer registry at the bottom of
+// ./src/errors.ts (exported below), so JSON decoders rebuild real instances.
 
 const __mionLoadCounter = getOrCreateGlobal('mion.core.loadCounter', () => ({count: 0}));
 __mionLoadCounter.count += 1;

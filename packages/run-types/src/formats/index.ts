@@ -2,14 +2,12 @@
 // string-format type catalog plus the runtime registrations every format
 // relies on. Formats are JS-only TYPE aliases; validation / serialization /
 // coercion are emitted on the Go side, keyed off the format name carried in
-// the wire-protocol FormatAnnotation. The runtime here only carries the
-// per-kind mock switch and the pure-fn / pattern registrations.
+// the wire-protocol FormatAnnotation. The only runtime here is the pure-fn registrations.
 //
-// Pure-fn registration MUST evaluate before any format module that reaches a
-// pure fn at runtime — the Go-emitted cache wires
-// `utl.getPureFn(isUUID)` and friends, which the registry
-// must already hold. Importing this for its side effect first keeps the
-// ordering robust regardless of bundler tree-shaking.
+// Pure-fn registration MUST evaluate before any format module that reaches a pure fn at runtime:
+// emitted code looks one up by HASH, `utl.getPureFn('@mionjs/run-types#pf_<hash>')`, and an absent
+// key answers undefined, so a format check would silently accept everything. The side-effect import
+// keeps the ordering whatever a bundler does with the re-exports below.
 import './string/string-formats-pure-fns.ts';
 // Side-effect: registers the credit-card pure fns (the Luhn sum, the format
 // check, the network table and its matcher), split out because the card format
@@ -18,8 +16,8 @@ import './string/credit-card-pure-fns.ts';
 // Side-effect: registers the date / time pure fns (moved out of the
 // string pure-fns file) plus the bound-comparison + relative-now fns.
 import './datetime/dateTime-pure-fns.ts';
-// The per-kind mock fns are NOT imported here: createMockData.ts registers them, so
-// they ride with the mock walker instead of with every bundle that touches a format.
+// The per-kind mock fns are NOT imported here: createMockData.ts registers them, so only a bundle
+// that mocks carries them.
 
 // Re-export the full TYPE surface of every format family. (Kept as `export type *`
 // — the suite exporters' FORMATS_MODULE overlay keys off these lines.)

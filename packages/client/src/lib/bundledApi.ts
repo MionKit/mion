@@ -16,8 +16,7 @@ import {
 } from '@mionjs/core';
 import type {InjectedApiMetadata} from '../types.ts';
 import {isBundledMethod, resetBundledMethods, setBundledMethod} from './methods.ts';
-// setBundleApiMode and the missing-metadata error live in the light half, which request.ts imports
-// without reaching the marker reflection this module needs.
+// Re-exported from the light half, which request.ts imports without the marker reflection this module needs.
 export {setBundleApiMode, getBundleApiMode, bundledMetadataMissingError} from './bundleApiMode.ts';
 
 // The bundled-API lane (the build's `bundleApi` option). A build with it on compiles, for every

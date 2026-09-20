@@ -89,15 +89,10 @@ export const HandlerType = {
 } as const;
 
 /**
- * Per-function cache-key prefixes: the `<fnHash>` half of the runtime cache key
- * `<fnHash>_<typeId>` (see src/runtypes/mionAdapter), keyed by mion's family name.
- * They are TYPE-INDEPENDENT (family plus default options only), so one value per family
- * covers every type, and the fnHash salt no longer folds the binary version, so they are
- * stable across releases.
- *
- * Written out rather than derived through `getFnHash`: that call shipped RunTypes'
- * whole Go-generated hash table to every browser for thirteen four-character strings.
- * constants.jitFunctionIds.spec.ts fails if any value drifts from `getFnHash`.
+ * The `<fnHash>` half of the runtime cache key `<fnHash>_<typeId>` (see src/runtypes/mionAdapter),
+ * one per family: TYPE-INDEPENDENT, and stable across releases since the salt dropped the binary version.
+ * Written out rather than derived: `getFnHash` shipped the whole Go-generated hash table to every browser.
+ * constants.jitFunctionIds.spec.ts fails if a value drifts from `getFnHash`.
  */
 export const JIT_FUNCTION_IDS = {
   isType: 'Eq2V',
