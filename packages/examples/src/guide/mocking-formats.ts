@@ -12,8 +12,6 @@ type Contact = {
 const mockContact = createMockDataFn<Contact>();
 
 const fake = mockContact();
-// id is a real-looking UUID, email is a real-looking address,
-// not just random strings. The mock is format-aware.
 // {id: '3f2504e0-4f89-...', email: 'name@example.com', name: '...'}
 // end-formats
 

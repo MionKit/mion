@@ -1,14 +1,10 @@
 import {RunTypeKind, type FormatAnnotation} from '@mionjs/run-types';
 import {registerMockingFunction} from '@mionjs/run-types/mocking';
 
-// Want mock data to look a certain way for a kind? Register a mock fn for
-// that ReflectionKind. Return `undefined` to fall back to the default mock.
-// Here: make every mocked string format spit out a friendlier value.
+// from now on createMockDataFn uses this for every mocked string format
 registerMockingFunction(RunTypeKind.string, (annotation: FormatAnnotation) => {
-  if (annotation.name === 'email') return 'someone@example.com';
+  if (annotation.name === 'email') return 'someone@example.com'; // friendlier than a random string
   return undefined; // defer to the built-in mock for everything else
 });
 
-// From now on createMockDataFn<T>() uses this when it mocks a string format.
-// (createMockDataFn itself is covered in the Mocking guide.)
 export {};
