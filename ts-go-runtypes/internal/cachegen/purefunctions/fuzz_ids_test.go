@@ -143,7 +143,7 @@ func TestFuzz_LoweringRoundTrip(t *testing.T) {
 	for iteration := 0; iteration < iterations; iteration++ {
 		depCount := 1 + rng.Intn(4)
 		var deps, imports, body strings.Builder
-		deps.WriteString("import {registerPureFn} from '@mionjs/run-types';\n")
+		deps.WriteString("import {registerPureFn} from '@mionjs/run-types/runtime';\n")
 		for i := 0; i < depCount; i++ {
 			fmt.Fprintf(&deps, "export const dep%d = registerPureFn((value: string): string => value + '%d');\n", i, i)
 		}
@@ -160,7 +160,7 @@ func TestFuzz_LoweringRoundTrip(t *testing.T) {
 			}
 			body.WriteString(noiseFor(binding, i))
 		}
-		source := "import {registerPureFnFactory} from '@mionjs/run-types';\n" + imports.String() +
+		source := "import {registerPureFnFactory} from '@mionjs/run-types/runtime';\n" + imports.String() +
 			"export const consumer = registerPureFnFactory(function (utl) {\n" + body.String() +
 			"  return function _f(value: string): string { return value; };\n});\n"
 		t.Logf("iteration %d source:\n%s", iteration, source)

@@ -84,7 +84,7 @@ func TestNewIndex_Get(t *testing.T) {
 
 func TestValidatePureFnDependencies_AllSatisfied(t *testing.T) {
 	prog, files := programForSources(t, map[string]string{
-		"pure.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"pure.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFnFactory(function () { return function () { return 1; }; });
 `,
 	})

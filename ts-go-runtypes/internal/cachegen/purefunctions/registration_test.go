@@ -21,7 +21,7 @@ import (
 func TestExtractRegistration_DirectForm(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const double = registerPureFn((n: number): number => n * 2);`,
 	})
 	if len(diags) != 0 {
@@ -57,7 +57,7 @@ export const double = registerPureFn((n: number): number => n * 2);`,
 func TestExtractRegistration_FactoryForm(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const double = registerPureFnFactory(function (utl) {
   const FACTOR = 2;
   return function _double(n: number): number {
@@ -94,7 +94,7 @@ func TestExtractRegistration_SameBodyTwoBindingsIsOneEntry(t *testing.T) {
 	// rewritten to it; RawEntries is what keeps the duplicate site's offsets.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const first = registerPureFn((n: number): number => n);
 export const second = registerPureFn((n: number): number => n);`,
 	})
@@ -109,7 +109,7 @@ export const second = registerPureFn((n: number): number => n);`,
 func TestExtractRegistration_DifferentBodiesAreDifferentIDs(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const first = registerPureFn((n: number): number => n);
 export const second = registerPureFn((n: number): number => n + 1);`,
 	})
@@ -130,10 +130,10 @@ func TestExtractRegistration_SameBodyTwoFilesOnePackage(t *testing.T) {
 	// ships it once and both call sites resolve to it.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());`,
 		"b.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());`,
 	})
 	if len(diags) != 0 {
@@ -150,7 +150,7 @@ func TestExtractRegistration_NamelessDedupsByBody(t *testing.T) {
 	// collapse to a single entry.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';
 function use<F extends (...args: any[]) => any>(fn: PureFunction<F>, id?: InjectPureFnId<F>) {
   return registerPureFn(fn as never, id as never);
 }
@@ -178,7 +178,7 @@ func TestExtractRegistration_ExplicitIDAccepted(t *testing.T) {
 	// package built by plain tsc does, and it must extract exactly as if the
 	// build had injected it.
 	source := `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const double = registerPureFn((n: number): number => n * 2%s);`
 	computed, _ := extractFromOverlay(t, map[string]string{"a.ts": fmt.Sprintf(source, "")})
 	if len(computed) != 1 {
@@ -203,7 +203,7 @@ func TestExtractRegistration_ExplicitIDMismatch_PFE9014(t *testing.T) {
 	// reference to it uses the other, so it yields no entry at all.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const double = registerPureFn((n: number): number => n * 2, '@acme/app/a#pf_somethingElse');`,
 	})
 	if len(entries) != 0 {
@@ -223,7 +223,7 @@ func TestExtractRegistration_ThroughDirectWrapper(t *testing.T) {
 	// and gets the id of ITS OWN location, not the wrapper's.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';
 function mapFrom<F extends (...args: any[]) => any>(mapper: PureFunction<F>, id?: InjectPureFnId<F>) {
   if (!id) throw new Error('build did not run');
   return registerPureFn(mapper, id);
@@ -245,7 +245,7 @@ func TestExtractRegistration_ThroughFactoryWrapper(t *testing.T) {
 	// The factory-form wrapper forwards PureFunctionFactory + InjectPureFnId.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFnFactory, type PureFunctionFactory, type InjectPureFnId, type RTUtils} from '@mionjs/run-types';
+import {type PureFunctionFactory, type InjectPureFnId} from '@mionjs/run-types'; import {registerPureFnFactory, type RTUtils} from '@mionjs/run-types/runtime';
 function registerAcmeFactory<F extends (utl: RTUtils) => any>(cf: PureFunctionFactory<F>, id?: InjectPureFnId<F>) {
   if (!id) throw new Error('build did not run');
   return registerPureFnFactory(cf, id);
@@ -268,7 +268,7 @@ func TestExtractRegistration_ThroughLeadingParamWrapper(t *testing.T) {
 	// splices at its declared slot.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';
 function inputFrom<Source, MappedInput>(
   source: Source,
   mapper: PureFunction<(value: Source) => MappedInput>,
@@ -302,7 +302,7 @@ func TestExtractRegistration_IDSlotPaddingAcrossOptionalGap(t *testing.T) {
 	// injecting at the id's declared slot pads the gap with `undefined`.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';
 function registerWithOpts<F extends (...args: any[]) => any>(
   fn: PureFunction<F>,
   opts?: {label?: string},
@@ -324,7 +324,7 @@ export const padded = registerWithOpts((n: number): number => n + 1);`,
 func TestExtractRegistration_Replacements(t *testing.T) {
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const double = registerPureFn((n: number): number => n * 2);`,
 	})
 	if len(diags) != 0 || len(entries) != 1 {
@@ -361,7 +361,7 @@ func TestExtractRegistration_ForwardedArgNotExtracted(t *testing.T) {
 	// resolver's job, so this pass bails quietly and the rewrite stays idempotent.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn, type PureFunction, type InjectPureFnId} from '@mionjs/run-types';
+import {type PureFunction, type InjectPureFnId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';
 export function reg<F extends (...args: any[]) => any>(fn: PureFunction<F>, id?: InjectPureFnId<F>) {
   return registerPureFn(fn, id);
 }`,
@@ -379,7 +379,7 @@ func TestExtractRegistration_HollowNotExtracted(t *testing.T) {
 	// extract, and re-scanning one must stay a quiet no-op.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const double = registerPureFn(null);`,
 	})
 	if len(entries) != 0 || len(diags) != 0 {

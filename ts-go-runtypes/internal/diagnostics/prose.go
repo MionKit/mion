@@ -233,7 +233,7 @@ export const errorsOf = createGetValidationErrorsFn<unknown>();`,
 	// reproduces the miss (the diag-example harness always has them present).
 	CodeMissingPureFnDep: {
 		Summary: "A generated validator or encoder calls a helper (a pure function) that was never registered, so the built output would fail the moment it runs. This almost always means a source file that registers the helper with `registerPureFnFactory` is not part of the compile. Import the `mion` entry that provides it, or include the file that registers it, so the build can see the definition.",
-		Fix: `import {registerPureFnFactory} from '@mionjs/run-types';
+		Fix: `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));`,
 	},
 	// No Example: PFE9016 needs an installed package with no compiled pure fn,

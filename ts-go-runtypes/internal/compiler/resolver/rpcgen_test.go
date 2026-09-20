@@ -532,8 +532,8 @@ func writeClientProject(t *testing.T) string {
 	writeTestFile(t, filepath.Join(dir, "src", "routes.ts"), batchRoutesTS)
 	// the batch file also carries a pure fn no batch names; decoys.ts a reflection
 	// marker and another one: the server pass must copy the inline mapper and nothing else
-	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), batchSources["a.ts"]+"import {registerPureFn} from '@mionjs/run-types';\nexport const inBatchFile = registerPureFn((value: number) => value + 1);\n")
-	writeTestFile(t, filepath.Join(dir, "src", "decoys.ts"), `import {getRunTypeId, registerPureFn} from '@mionjs/run-types';
+	writeTestFile(t, filepath.Join(dir, "src", "a.ts"), batchSources["a.ts"]+"import {registerPureFn} from '@mionjs/run-types/runtime';\nexport const inBatchFile = registerPureFn((value: number) => value + 1);\n")
+	writeTestFile(t, filepath.Join(dir, "src", "decoys.ts"), `import {getRunTypeId} from '@mionjs/run-types'; import {registerPureFn} from '@mionjs/run-types/runtime';
 export const clientOnlyId = getRunTypeId<{clientOnlyField: string}>();
 export const clientOnlyHelper = registerPureFn((value: number) => value * 2);
 `)

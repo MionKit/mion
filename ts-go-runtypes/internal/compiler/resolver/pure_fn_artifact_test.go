@@ -19,7 +19,7 @@ import (
 // Every generate hands back the package's OWN cache modules, byte for byte what it wrote under <genDir>/types/pf/,
 // plus the index, for the adapter to sync next to the bundle.
 
-const artifactSources = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
+const artifactSources = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 export const title = registerPureFnFactory(function (utl) {
   return function _title(s: string): string { return utl.getPureFn(slugify)(s) + '!'; };
@@ -135,14 +135,14 @@ func TestPureFnArtifact_OwnPackageOnly(t *testing.T) {
 	sources := map[string]string{
 		"package.json": `{"name":"@acme/app"}`,
 		"src/text.ts":  artifactSources,
-		"src/uses.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"src/uses.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {pad} from '../packages/util/src/pad.ts';
 export const padded = registerPureFnFactory(function (utl) {
   return function _padded(s: string): string { return utl.getPureFn(pad)(s); };
 });
 `,
 		"packages/util/package.json": `{"name":"@acme/util"}`,
-		"packages/util/src/pad.ts": `import {registerPureFn} from '@mionjs/run-types';
+		"packages/util/src/pad.ts": `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const pad = registerPureFn((s: string): string => s.padStart(4, '0'));
 `,
 	}

@@ -224,7 +224,7 @@ export const _ = createBinaryEncoderFn<{a: {n: number}} | {a: {s: string}}>();
 func TestModuleMode_AllSingle_PureFnBundleAndReplacement(t *testing.T) {
 	// The real package declares registerPureFnFactory with the brand-branded
 	// signature the walker's marker check requires — no extension needed.
-	source := `import {registerPureFnFactory} from '@mionjs/run-types';
+	source := `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const doubler = registerPureFnFactory(function (utl) {
   return function double(x: number): number { return x * 2; };
 });
