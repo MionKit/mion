@@ -43,7 +43,10 @@ const PUBLISHED_PACKAGE_DIRS = ['run-types', 'devtools', 'bin-compiler'];
 const THIN_README_MAX_LINES = 45;
 
 // Every publishable workspace package, by manifest: non-private with a name.
-function publishableManifests(): {dir: string; manifest: {name: string; files?: string[]; exports?: unknown}}[] {
+function publishableManifests(): {
+  dir: string;
+  manifest: {name: string; files?: string[]; exports?: unknown; imports?: unknown};
+}[] {
   const packagesDir = join(REPO_ROOT, 'packages');
   return readdirSync(packagesDir)
     .map((dir) => ({dir, file: join(packagesDir, dir, 'package.json')}))
@@ -108,7 +111,7 @@ describe('the `source` condition is a workspace-only thing', () => {
   it('points at a file that is really there, or in-repo resolution silently falls back to a stale dist', () => {
     const checked: string[] = [];
     for (const {dir, manifest} of publishableManifests()) {
-      for (const target of sourceTargets(manifest.exports)) {
+      for (const target of [...sourceTargets(manifest.exports), ...sourceTargets(manifest.imports)]) {
         checked.push(`${manifest.name} ${target}`);
         expect(existsSync(join(REPO_ROOT, 'packages', dir, target)), `${manifest.name}: ${target}`).toBe(true);
       }
@@ -116,18 +119,28 @@ describe('the `source` condition is a workspace-only thing', () => {
     expect(checked.length).toBeGreaterThan(0);
   });
 
-  it('is gone from the manifest pack.mjs publishes', () => {
+  // `imports` too: a package-private `#specifier` names src exactly as an export does, so a
+  // condition left behind there points the consumer who asks for it at a file the tarball lacks.
+  it('is gone from the manifest pack.mjs publishes, in exports and in imports', () => {
     for (const {manifest} of publishableManifests()) {
-      expect(sourceKeys(stripSourceCondition(manifest).exports), manifest.name).toEqual([]);
+      const published = stripSourceCondition(manifest);
+      expect(sourceKeys(published.exports), manifest.name).toEqual([]);
+      expect(sourceKeys(published.imports), manifest.name).toEqual([]);
     }
   });
 
   it('changes nothing else about the manifest', () => {
-    const manifest = {name: '@mionjs/x', files: ['dist'], exports: {'.': {source: './src/index.ts', types: './dist/index.d.ts'}}};
+    const manifest = {
+      name: '@mionjs/x',
+      files: ['dist'],
+      exports: {'.': {source: './src/index.ts', types: './dist/index.d.ts'}},
+      imports: {'#lazy': {source: './src/lazy.ts', default: './dist/lazy.js'}},
+    };
     expect(stripSourceCondition(manifest)).toEqual({
       name: '@mionjs/x',
       files: ['dist'],
       exports: {'.': {types: './dist/index.d.ts'}},
+      imports: {'#lazy': {default: './dist/lazy.js'}},
     });
   });
 });
