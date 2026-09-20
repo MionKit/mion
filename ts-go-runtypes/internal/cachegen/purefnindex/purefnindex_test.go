@@ -89,7 +89,7 @@ func storeOver(files map[string]string) *Store {
 func textPackage(files map[string]string) map[string]string {
 	all := map[string]string{
 		textPkg + "/package.json":    `{"name":"@acme/text"}`,
-		textPkg + "/dist/index.d.ts": "import type {PureFnId} from '@mionjs/run-types';\nexport declare const slugify: PureFnId<string>;\n",
+		textPkg + "/dist/index.d.ts": "import type {PureFnId} from '@mionjs/run-types/runtime';\nexport declare const slugify: PureFnId<string>;\n",
 	}
 	for path, content := range files {
 		all[textPkg+path] = content
@@ -523,7 +523,7 @@ func sourceTree(t *testing.T, files map[string]string) (*Store, string) {
 	return store, cwd
 }
 
-const datesSrc = `import {registerPureFnFactory} from '@mionjs/run-types';
+const datesSrc = `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {slugify} from '@acme/text';
 export const isoDay = registerPureFnFactory(function (utl) {
   return function _isoDay(d: string): string { return utl.getPureFn(slugify)(d).slice(0, 10); };
@@ -543,12 +543,12 @@ func TestSource_FallbackWhenNoArtifact(t *testing.T) {
 	store, cwd := sourceTree(t, merge(map[string]string{
 		"node_modules/@acme/text/package.json":       `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
 		"node_modules/@acme/text/dist/index.js":      "export const slugify = registerPureFn(null);\n",
-		"node_modules/@acme/text/dist/index.d.ts":    "import type {PureFnId} from '@mionjs/run-types';\nexport declare const slugify: PureFnId<string>;\n",
+		"node_modules/@acme/text/dist/index.d.ts":    "import type {PureFnId} from '@mionjs/run-types/runtime';\nexport declare const slugify: PureFnId<string>;\n",
 		"node_modules/@acme/dates/package.json":      `{"name":"@acme/dates","types":"./dist/index.d.ts"}`,
-		"node_modules/@acme/dates/dist/index.js":     "import {registerPureFnFactory} from '@mionjs/run-types';\nexport const isoDay = registerPureFnFactory(function (utl) { return function (d) { return d; }; });\n",
+		"node_modules/@acme/dates/dist/index.js":     "import {registerPureFnFactory} from '@mionjs/run-types/runtime';\nexport const isoDay = registerPureFnFactory(function (utl) { return function (d) { return d; }; });\n",
 		"node_modules/@acme/dates/dist/index.d.ts":   "export declare const isoDay: string;\n",
 		"node_modules/@acme/dates/src/index.ts":      datesSrc,
-		"node_modules/@acme/dates/src/index.spec.ts": "import {registerPureFn} from '@mionjs/run-types';\nexport const notScanned = registerPureFn((s: string): string => s);\n",
+		"node_modules/@acme/dates/src/index.spec.ts": "import {registerPureFn} from '@mionjs/run-types/runtime';\nexport const notScanned = registerPureFn((s: string): string => s);\n",
 	}, artifactDir("node_modules/@acme/text/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry)))
 	datesRoot := tspath.ResolvePath(cwd, "node_modules/@acme/dates")
 	idx := store.Package(datesRoot)
@@ -581,7 +581,7 @@ func TestSource_FallbackWhenNoArtifact(t *testing.T) {
 func TestSource_ArtifactWinsOverSource(t *testing.T) {
 	store, cwd := sourceTree(t, merge(map[string]string{
 		"node_modules/@acme/text/package.json": `{"name":"@acme/text"}`,
-		"node_modules/@acme/text/src/slug.ts":  "import {registerPureFn} from '@mionjs/run-types';\nexport const slugify = registerPureFn((s: string): string => s.toUpperCase());\n",
+		"node_modules/@acme/text/src/slug.ts":  "import {registerPureFn} from '@mionjs/run-types/runtime';\nexport const slugify = registerPureFn((s: string): string => s.toUpperCase());\n",
 	}, artifactDir("node_modules/@acme/text/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry)))
 	idx := store.Package(tspath.ResolvePath(cwd, "node_modules/@acme/text"))
 	if row := rowOf(t, idx, slugifyID); idx.FromSource || row.Code != slugCode {
@@ -593,10 +593,10 @@ func TestSource_ArtifactWinsOverSource(t *testing.T) {
 func TestArtifact_EqualsSourceExtraction(t *testing.T) {
 	store, cwd := sourceTree(t, merge(map[string]string{
 		"node_modules/@acme/text/package.json":    `{"name":"@acme/text","types":"./dist/index.d.ts"}`,
-		"node_modules/@acme/text/dist/index.d.ts": "import type {PureFnId} from '@mionjs/run-types';\nexport declare const slugify: PureFnId<string>;\n",
+		"node_modules/@acme/text/dist/index.d.ts": "import type {PureFnId} from '@mionjs/run-types/runtime';\nexport declare const slugify: PureFnId<string>;\n",
 		"node_modules/@acme/dates/package.json":   `{"name":"@acme/dates"}`,
 		"node_modules/@acme/dates/src/index.ts":   datesSrc,
-		"node_modules/@acme/dates/src/pad.ts":     "import {registerPureFn} from '@mionjs/run-types';\nexport const pad = registerPureFn((s: string): string => s.padStart(4, '0'));\nregisterPureFn((s: string): string => s.trim());\n",
+		"node_modules/@acme/dates/src/pad.ts":     "import {registerPureFn} from '@mionjs/run-types/runtime';\nexport const pad = registerPureFn((s: string): string => s.padStart(4, '0'));\nregisterPureFn((s: string): string => s.trim());\n",
 	}, artifactDir("node_modules/@acme/text/dist/"+constants.PureFnArtifactDir, "@acme/text", constants.EmitCode, slugifyEntry)))
 	datesRoot := tspath.ResolvePath(cwd, "node_modules/@acme/dates")
 	raw, diags, err := ExtractSources(datesRoot, ScanRegistrations(datesRoot, store.fs), SideProgram{FS: store.fs, SingleThreaded: true, Bindings: store})

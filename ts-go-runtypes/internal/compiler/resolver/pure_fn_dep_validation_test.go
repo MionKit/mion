@@ -71,7 +71,7 @@ export const errorsOf = createGetValidationErrorsFn<{a: string; b: number}>();
 `,
 		// The consumer's OWN pure fn, in a user namespace. This is what defeated
 		// the old whole-program count guard and unleashed the built-in wall.
-		"reg.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"reg.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const _reg = registerPureFnFactory('myapp::slugify', function () { return function () { return ''; }; });
 `,
 	}
@@ -126,7 +126,7 @@ func TestPureFnDepValidation_RegistrationPresent_NoDiagnostic(t *testing.T) {
 		"a.ts": `import {createGetValidationErrorsFn} from '@mionjs/run-types';
 export const errorsOf = createGetValidationErrorsFn<{a: string; b: number}>();
 `,
-		"reg.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"reg.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const _reg = registerPureFnFactory('@mionjs/run-types/src/runtypes/pure-fns-utils#pf_newRunTypeErr', function () { return function () { return []; }; });
 `,
 	}

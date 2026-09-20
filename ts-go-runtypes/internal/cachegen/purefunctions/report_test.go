@@ -12,7 +12,7 @@ import (
 // calleeModule attribution resolves to '@acme/toolkit', NOT '@mionjs/run-types',
 // even for a wrapper-only call site.
 const wrapperDts = `declare module '@acme/toolkit' {
-  import type {PureFunction, PureFunctionFactory, InjectPureFnId, RTUtils} from '@mionjs/run-types';
+  import type {PureFunction, PureFunctionFactory, InjectPureFnId} from '@mionjs/run-types'; import type {RTUtils} from '@mionjs/run-types/runtime';
   export function registerAcmePureFn<F extends (...args: any[]) => any>(
     fn: PureFunction<F>,
     id?: InjectPureFnId<F>,
@@ -64,7 +64,7 @@ func reportFixtures(t *testing.T, emitMode constants.EmitMode, bundled bool) []P
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"acme.d.ts": wrapperDts,
 		"a.ts": `
-import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types';
+import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types/runtime';
 import {registerAcmePureFn, registerAcmeFactory, mapAcmeFrom} from '@acme/toolkit';
 
 // factory form, primitive registrar

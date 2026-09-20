@@ -36,6 +36,10 @@ const pureFnDTS = `declare module '@mionjs/run-types' {
     id?: InjectPureFnId<F> & ID,
   ): PureFnId<ID>;
 }
+// The two register fns live on the /runtime subpath; the types stay on the main entry.
+declare module '@mionjs/run-types/runtime' {
+  export {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
+}
 `
 
 // markerAndPureFnDiags narrows a response's diagnostics to the two families a
@@ -73,7 +77,7 @@ func idInsertionReplacement(reps []protocol.Replacement) (protocol.Replacement, 
 func TestPureFn_DirectCall_ZeroDiagnostics(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"runtypes.d.ts": pureFnDTS,
-		"a.ts": `import {registerPureFn} from '@mionjs/run-types';
+		"a.ts": `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const double = registerPureFn((n: number): number => n * 2);
 `,
 	})
@@ -140,12 +144,12 @@ export const lower = registerAcmePureFn((s: string): string => s.toLowerCase());
 func TestPureFn_BothFormsInOneProgram(t *testing.T) {
 	r := setupInline(t, map[string]string{
 		"runtypes.d.ts": pureFnDTS,
-		"factory.ts": `import {registerPureFnFactory} from '@mionjs/run-types';
+		"factory.ts": `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFnFactory(function () {
   return function _slug(s: string): string { return s.toLowerCase(); };
 });
 `,
-		"direct.ts": `import {registerPureFn} from '@mionjs/run-types';
+		"direct.ts": `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const double = registerPureFn((n: number): number => n * 2);
 `,
 	})

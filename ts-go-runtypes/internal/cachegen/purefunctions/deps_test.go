@@ -40,10 +40,10 @@ func TestDeps_ImportedBindingResolvesAndLowers(t *testing.T) {
 	// the emitted body, which ships without the import.
 	entries, diags := extractFromOverlay(t, map[string]string{
 		"dep.ts": `
-import {registerPureFn} from '@mionjs/run-types';
+import {registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());`,
 		"a.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {slugify} from './dep';
 export const titleOf = registerPureFnFactory(function (utl) {
   return function _f(s: string) {
@@ -78,7 +78,7 @@ func TestDeps_ImportedBindingThroughCast(t *testing.T) {
 	// `as` on the lookup result is the usual way to type it; the cast is stripped
 	// and the argument underneath still lowers.
 	code := codeOf(t, "titleOf", `
-import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types';
+import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 export const titleOf = registerPureFnFactory(function (utl) {
   const slug = utl.getPureFn(slugify) as (s: string) => string;
@@ -99,7 +99,7 @@ func TestDeps_StringLiteralTypeResolves(t *testing.T) {
 	// A published package's `.d.ts` carries an id in the TYPE, which is also what
 	// the generated constants file exports. That resolves and lowers too.
 	code := codeOf(t, "titleOf", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const remoteId: '@acme/other/src/slug#pf_slugify';
 export const titleOf = registerPureFnFactory(function (utl) {
   return function _f(s: string) { return utl.getPureFn(remoteId)(s); };
@@ -111,7 +111,7 @@ export const titleOf = registerPureFnFactory(function (utl) {
 
 func TestDeps_AllFourLookupMethods(t *testing.T) {
 	deps, _ := depsOf(t, "multi", `
-import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types';
+import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types/runtime';
 export const a = registerPureFn((x: number) => x + 1);
 export const b = registerPureFn((x: number) => x + 2);
 export const c = registerPureFn((x: number) => x + 3);
@@ -146,7 +146,7 @@ func TestDeps_RenamedUtlParam(t *testing.T) {
 	// User picks their own name for the rtUtils param — the extractor reads it
 	// off Parameters[0] rather than hardcoding `utl`.
 	deps, _ := depsOf(t, "renamed", `
-import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types';
+import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types/runtime';
 export const dep = registerPureFn((x: number) => x);
 export const renamed = registerPureFnFactory(function (J) {
   return function _f(x: any) {
@@ -162,7 +162,7 @@ func TestDeps_FactoryLocalConst(t *testing.T) {
 	// A dep id declared as a `const` INSIDE the factory body: the declaration is
 	// part of the emitted body, so it resolves and nothing is lowered.
 	code := codeOf(t, "local", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const local = registerPureFnFactory(function (utl) {
   const KEY = '@acme/app/src/other#pf_localDep';
   return function _f(x: any) {
@@ -173,7 +173,7 @@ export const local = registerPureFnFactory(function (utl) {
 		t.Errorf("a factory-local const must survive as written, got:\n%s", code)
 	}
 	deps, _ := depsOf(t, "local", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const local = registerPureFnFactory(function (utl) {
   const KEY = '@acme/app/src/other#pf_localDep';
   return function _f(x: any) {
@@ -187,7 +187,7 @@ export const local = registerPureFnFactory(function (utl) {
 
 func TestDeps_StringLiteralAtCallSite(t *testing.T) {
 	deps, _ := depsOf(t, "literal", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const literal = registerPureFnFactory(function (utl) {
   return function _f(x: any) {
     return utl.getPureFn('@acme/app/src/other#pf_written')(x);
@@ -202,7 +202,7 @@ func TestDeps_DedupAndSort(t *testing.T) {
 	// Same dep reached several times → one entry. Several distinct deps →
 	// sorted, so the emitted module is byte-stable.
 	deps, _ := depsOf(t, "dedup", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const dedup = registerPureFnFactory(function (utl) {
   return function _f(x: any) {
     utl.getPureFn('@acme/app/src/other#pf_z')(x);
@@ -219,7 +219,7 @@ export const dedup = registerPureFnFactory(function (utl) {
 
 func TestDeps_UnreadableArg_PFE9013(t *testing.T) {
 	_, diags := depsOf(t, "bad", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const buildKey: (n: number) => string;
 export const bad = registerPureFnFactory(function (utl) {
   return function _f(x: any) {
@@ -244,7 +244,7 @@ func TestDeps_ImportedNonRegistration_PFE9013(t *testing.T) {
 	// An imported binding that is not a registration is not an id: accepting it
 	// would invent a dependency on a pure fn nothing registers.
 	_, diags := depsOf(t, "bad", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 declare const notAPureFn: string;
 export const bad = registerPureFnFactory(function (utl) {
   return function _f(x: any) {
@@ -265,7 +265,7 @@ export const bad = registerPureFnFactory(function (utl) {
 func TestDeps_NoCalls_NilDeps(t *testing.T) {
 	// Factory body has no utl.<lookup>(...) calls → no deps slice.
 	deps, _ := depsOf(t, "plain", `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const plain = registerPureFnFactory(function (utl) {
   return function _f(x: number) { return x + 1; };
 });`)
@@ -281,7 +281,7 @@ func TestDeps_NoFirstParam_NoExtraction(t *testing.T) {
 	// extractor stays out of that path.)
 	_, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const noParam = registerPureFnFactory(function () {
   return function _f() { return 1; };
 });`,
@@ -304,7 +304,7 @@ export const noParam = registerPureFnFactory(function () {
 func TestDeps_CycleAcrossFilesIsReported(t *testing.T) {
 	_, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {beta} from './b';
 export const alpha = registerPureFnFactory(function (utl) {
   return function _a(s: string) {
@@ -312,7 +312,7 @@ export const alpha = registerPureFnFactory(function (utl) {
   };
 });`,
 		"b.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {alpha} from './a';
 export const beta = registerPureFnFactory(function (utl) {
   return function _b(s: string) {
@@ -354,7 +354,7 @@ export const beta = registerPureFnFactory(function (utl) {
 func TestDeps_CycleWithinOneFileIsReported(t *testing.T) {
 	_, diags := extractFromOverlay(t, map[string]string{
 		"a.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const ping = registerPureFnFactory(function (utl) {
   return function _ping(s: string) {
     return utl.getPureFn(pong)(s);
@@ -408,10 +408,10 @@ func (table unbuiltPackages) UnbuiltPackage(dtsPath string) (string, bool) {
 func TestDeps_UntypedDtsBindingResolvesThroughPackageIndex(t *testing.T) {
 	files := map[string]string{
 		"node_modules/@acme/text/package.json": `{"name":"@acme/text","types":"./index.d.ts"}`,
-		"node_modules/@acme/text/index.d.ts": `import type {PureFnId} from '@mionjs/run-types';
+		"node_modules/@acme/text/index.d.ts": `import type {PureFnId} from '@mionjs/run-types/runtime';
 export declare const slugify: PureFnId<string>;`,
 		"a.ts": `
-import {registerPureFnFactory} from '@mionjs/run-types';
+import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {slugify} from '@acme/text';
 export const titleOf = registerPureFnFactory(function (utl) {
   return function _f(s: string) { return utl.getPureFn(slugify)(s); };

@@ -15,7 +15,7 @@ import (
 // forms, so the emitted report covers the whole matrix.
 var reportSources = map[string]string{
 	"runtypes.d.ts": pureFnDTS,
-	"a.ts": `import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types';
+	"a.ts": `import {registerPureFnFactory, registerPureFn} from '@mionjs/run-types/runtime';
 export const mul = registerPureFnFactory((utl) => function _mul(x: number, y: number) { return x * y; });
 export const double = registerPureFn((n: number): number => n * 2);
 `,

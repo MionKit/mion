@@ -273,7 +273,7 @@ func TestCompile_WritesPureFnArtifactIntoOutDir(t *testing.T) {
 	}
 	writeFile(t, filepath.Join(tmp, "package.json"), `{"name":"@acme/lib","type":"module"}`)
 	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
-	writeFile(t, filepath.Join(tmp, "src", "slug.ts"), `import {registerPureFn} from '@mionjs/run-types';
+	writeFile(t, filepath.Join(tmp, "src", "slug.ts"), `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 `)
 	opts := Options{

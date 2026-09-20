@@ -22,18 +22,18 @@ const (
 	libSlugMod   = "pf/@acme/text/slug00000000000"
 	libTitleMod  = "pf/@acme/text/title0000000000"
 	libPackage   = `{"name":"@acme/text","types":"./dist/index.d.ts","exports":{".":{"types":"./dist/index.d.ts","default":"./dist/index.js"}}}`
-	libDts       = `import type {PureFnId} from '@mionjs/run-types';
+	libDts       = `import type {PureFnId} from '@mionjs/run-types/runtime';
 export declare const slugify: PureFnId<string>;
 export declare const title: PureFnId<string>;
 `
 	// Hollow registrations, as a library ships when its bodies travel on the artifact; an inlined bundle would be equally unread.
-	libIndexJS = `import {registerPureFn} from '@mionjs/run-types';
+	libIndexJS = `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn(null);
 export const title = registerPureFn(null);
 `
 	libArtifactDir = "node_modules/@acme/text/dist/" + constants.PureFnArtifactDir
 	libIndexPath   = libArtifactDir + "/" + constants.PureFnArtifactIndexFile
-	consumerTS     = `import {registerPureFnFactory} from '@mionjs/run-types';
+	consumerTS     = `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {title} from '@acme/text';
 export const shout = registerPureFnFactory(function (utl) {
   return function _shout(s: string): string { return utl.getPureFn(title)(s).toUpperCase(); };
@@ -126,7 +126,7 @@ func TestPackagePureFns_ServedFromArtifact(t *testing.T) {
 func TestPackagePureFns_BundleTuplesAreNotRead(t *testing.T) {
 	files := builtTextLib(nil)
 	files["node_modules/@acme/text/dist/index.d.ts"] = "export declare const title: '" + libTitleID + "';\n"
-	files["node_modules/@acme/text/dist/index.js"] = `import {registerPureFn} from '@mionjs/run-types';
+	files["node_modules/@acme/text/dist/index.js"] = `import {registerPureFn} from '@mionjs/run-types/runtime';
 const t1 = [2,,,'` + libSlugifyID + `',['utl'],'return (s) => s.toLowerCase();',[]];
 const t2 = [2,,,'` + libTitleID + `',['utl'],'return (s) => s;',['` + libSlugifyID + `']];
 export const slugify = registerPureFn(t1, '` + libSlugifyID + `');
@@ -144,11 +144,11 @@ export const title = registerPureFn(t2, '` + libTitleID + `');
 // TestPackagePureFns_ServedFromSource: no artifact (a plain tsc emit) but src/, so the body is extracted from source.
 func TestPackagePureFns_ServedFromSource(t *testing.T) {
 	files := builtTextLib(nil)
-	files["node_modules/@acme/text/dist/index.js"] = `import {registerPureFn} from '@mionjs/run-types';
+	files["node_modules/@acme/text/dist/index.js"] = `import {registerPureFn} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s) => s.toLowerCase());
 export const title = registerPureFn((s) => s + '!');
 `
-	files["node_modules/@acme/text/src/slug.ts"] = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types';
+	files["node_modules/@acme/text/src/slug.ts"] = `import {registerPureFn, registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const slugify = registerPureFn((s: string): string => s.toLowerCase());
 export const title = registerPureFnFactory(function (utl) {
   return function _title(s: string): string { return utl.getPureFn(slugify)(s) + '!'; };
