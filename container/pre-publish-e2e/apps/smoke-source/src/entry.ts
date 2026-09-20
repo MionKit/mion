@@ -1,6 +1,6 @@
-// smoke-source — a SOURCE-FIRST consumer: its tsconfig asks for the `source` condition, so
-// @acme/src-types resolves to its TypeScript source and the plugin scans a dependency's own
-// internals. Guards the first-party diagnostic scoping (program.IsSourceFileFromExternalLibrary).
+// smoke-source — a SOURCE-FIRST consumer: its tsconfig asks for the `source` condition, so the
+// plugin scans @acme/src-types's own TypeScript. Guards the first-party diagnostic scoping
+// (program.IsSourceFileFromExternalLibrary).
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 import type {SrcTypedUser} from '@acme/src-types';
 

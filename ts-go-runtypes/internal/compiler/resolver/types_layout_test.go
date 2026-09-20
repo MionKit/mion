@@ -10,20 +10,15 @@ import (
 )
 
 // A dependency's own package.json decides where its type definitions live, and the resolver
-// follows it wherever that is: it never guesses a directory. tsgo owns the whole lookup
-// (program.New/NewInferred adopt the parsed CompilerOptions wholesale), so these are the
-// layouts a real dependency ships, each resolved with NO customConditions — the definitions
-// are found through `exports`/`types` alone, the way any npm package is consumed.
-//
-// This is what lets the mion packages stop publishing src: nothing in the pipeline needs a
-// dependency's sources to be present to model its types.
+// follows it: it never guesses a directory (tsgo owns the whole lookup, program.New/NewInferred
+// adopt the parsed CompilerOptions wholesale). Every layout here resolves with NO
+// customConditions, through `exports`/`types` alone, which is what lets the mion packages stop
+// publishing src.
 
-// The type every layout provides, as a declaration file.
 const layoutDeclaration = `export interface LayoutUser { id: string; name: string; age: number }
 `
 
-// Both getRunTypeId shapes over the dependency's type (marker coverage rule), plus a
-// createValidateFn site so a function-cache entry is demanded too.
+// Both getRunTypeId shapes (marker coverage rule) plus a createValidateFn site, so a function-cache entry is demanded.
 const layoutConsumer = `import {getRunTypeId, createValidateFn} from '@mionjs/run-types';
 import type {LayoutUser} from '@dep/models';
 
@@ -49,8 +44,7 @@ func TestTypeDefinitionLayouts_ResolveFromThePackageManifest(t *testing.T) {
 			declAt:      "dist/index.d.ts",
 		},
 		{
-			// The layout the user asked to prove: a package that keeps its definitions under
-			// src/ and says so. Nothing about `src` is special to the resolver.
+			// A package that keeps its definitions under src/ and says so; `src` is not special to the resolver.
 			name:        "definitions in src",
 			packageJSON: `{"name":"@dep/models","types":"./src/index.d.ts","exports":{".":{"types":"./src/index.d.ts","default":"./dist/index.js"}}}`,
 			declAt:      "src/index.d.ts",
@@ -101,8 +95,7 @@ func TestTypeDefinitionLayouts_ResolveFromThePackageManifest(t *testing.T) {
 	}
 }
 
-// Writes @dep/models to a real temp dir in the given layout, then scans a consumer of it
-// under a tsconfig that names no custom conditions.
+// Writes @dep/models to a temp dir in the given layout, then scans a consumer under a tsconfig with no conditions.
 func scanOverDependencyLayout(t *testing.T, packageJSON, declAt string) protocol.Response {
 	t.Helper()
 	dir := tspath.NormalizePath(t.TempDir())

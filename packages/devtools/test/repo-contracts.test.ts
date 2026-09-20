@@ -67,8 +67,7 @@ describe('published tarballs never carry tsc build info', () => {
   }
 });
 
-// A published package ships type definitions and build output, never its sources: nothing
-// resolves the `source` export condition unless a consumer asks for it by name, and the
+// Nothing resolves the `source` condition unless a consumer asks for it by name, and the
 // declaration maps that DID need `src` are excluded with it.
 describe('published packages ship no sources', () => {
   for (const {manifest} of publishableManifests()) {
@@ -80,8 +79,7 @@ describe('published packages ship no sources', () => {
       expect(files.filter((entry) => entry.startsWith('!src'))).toEqual([]);
     });
 
-    // A .d.ts.map names ../src/*.ts and embeds no source of its own, so without src it
-    // resolves to nothing and every "go to definition" in a consumer's editor dead-ends.
+    // A .d.ts.map names ../src/*.ts and embeds none of its own, so without src it resolves to nothing.
     const distDirs = files.filter((entry) => entry === 'dist' || entry === '.dist');
     if (distDirs.length === 0) continue;
     it(`${manifest.name} excludes *.d.ts.map from its shipped dist dir`, () => {
@@ -90,9 +88,8 @@ describe('published packages ship no sources', () => {
   }
 });
 
-// The workspace manifest keeps the condition (the root tsconfig's customConditions and the
-// vitest configs resolve siblings through it); pack.mjs strips it from the tarball, where it
-// would name a src/ that is no longer there.
+// The workspace keeps the condition (the root tsconfig and the vitest configs resolve siblings
+// through it); pack.mjs strips it from the tarball, where it would name a src/ that is gone.
 describe('the `source` condition is a workspace-only thing', () => {
   const sourceKeys = (node: unknown): string[] => {
     if (!node || typeof node !== 'object') return [];

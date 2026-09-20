@@ -45,14 +45,12 @@ var (
 // artifactDirSegment matches anywhere under the dist: a dual ESM/CJS build writes one artifact per output dir.
 const artifactDirSegment = string(filepath.Separator) + constants.PureFnArtifactDir + string(filepath.Separator)
 
-// RealMarkerPackage returns the real `@mionjs/run-types` as a CONSUMER INSTALL: overlay
-// entries keyed under MarkerPackagePrefix holding the published package.json, the dist .d.ts
-// tree (dist/cjs/ too, a node16 CommonJS importer resolves the `require` condition) and the
-// pure-fn artifact. No sources, and no `source` export condition, because the tarball carries
-// neither — a fixture that shipped them would resolve down a road no consumer has.
-// Overlay them under a test cwd WITHOUT adding program roots; resolution pulls them in through
-// the `@mionjs/run-types` import. Read once per process; errors when the dist is unbuilt
-// (run `pnpm run check:builds`).
+// RealMarkerPackage returns the real `@mionjs/run-types` as a CONSUMER INSTALL, keyed under
+// MarkerPackagePrefix: the published package.json, the dist .d.ts tree (dist/cjs/ too, a node16
+// CommonJS importer resolves `require`) and the pure-fn artifact. No sources and no `source`
+// condition, because the tarball carries neither. Overlay under a test cwd WITHOUT adding program
+// roots; resolution pulls them in through the import. Read once per process; errors when the dist
+// is unbuilt (run `pnpm run check:builds`).
 func RealMarkerPackage() (map[string]string, error) {
 	markerOnce.Do(func() { markerFiles, markerErr = readMarkerPackage() })
 	return markerFiles, markerErr
@@ -104,8 +102,7 @@ func readMarkerPackage() (map[string]string, error) {
 	return files, nil
 }
 
-// withoutSourceCondition is scripts/lib/publish-manifest.mjs's twin: the manifest as npm
-// serves it, with every `source` export condition removed at any depth.
+// withoutSourceCondition is scripts/lib/publish-manifest.mjs's twin: every `source` condition dropped, at any depth.
 func withoutSourceCondition(manifest []byte) (string, error) {
 	var decoded any
 	if err := json.Unmarshal(manifest, &decoded); err != nil {
@@ -139,11 +136,10 @@ func dropSourceKeys(node any) any {
 	}
 }
 
-// RealMarkerSources returns the marker package's own `src/**/*.ts` as overlay entries under
-// MarkerPackagePrefix. Layer it OVER RealMarkerPackage to model the WORKSPACE shape, where a
-// sibling resolves run-types through the `source` condition and its pure-fn bodies can be
-// extracted straight from the sources. A consumer install has none of this, which is why it is
-// a separate opt-in rather than part of the package fixture.
+// RealMarkerSources returns the marker package's own `src/**/*.ts` under MarkerPackagePrefix.
+// Layer it OVER RealMarkerPackage for the WORKSPACE shape, where a sibling resolves through the
+// `source` condition and the pure-fn bodies come straight from the sources. Opt-in, because a
+// consumer install has none of it.
 func RealMarkerSources() (map[string]string, error) {
 	markerSrcOnce.Do(func() { markerSrcFiles, markerSrcErr = readMarkerSources() })
 	return markerSrcFiles, markerSrcErr

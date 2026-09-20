@@ -6,8 +6,7 @@
 //     That rewrite is what makes the e2e meaningful across the families: a packed
 //     @mionjs/core carries an exact @mionjs/run-types version, and verdaccio has
 //     to serve BOTH from the local publishes.
-//     Each one is packed from its PUBLISHED manifest (packPublished), which differs
-//     from the workspace one in exactly one way: no `source` export condition.
+//     Each is packed from its PUBLISHED manifest (packPublished): no `source` condition.
 //   - launcher + the platform packages from dist-binaries/ (already assembled
 //     by build-binaries.mjs, optionalDependencies filled) via `npm pack`. All
 //     seven for a release; just the host's after `release binaries --host-only`
@@ -53,9 +52,8 @@ function workspacePackageDirs(stagedNames) {
   return dirs;
 }
 
-// Packs a workspace package from its PUBLISHED manifest: the `source` export condition is
-// stripped for the pack and restored right after, so the repo keeps the condition its own
-// resolution runs on and the tarball never names a src/ it does not carry. Restoring in a
+// Strips the `source` export condition for the pack and restores it after: the repo needs the
+// condition for its own resolution, the tarball must not name a src/ it does not carry. The
 // `finally` matters — a crash mid-pack must not leave a rewritten manifest checked out.
 function packPublished(dir) {
   const manifestFile = path.join(dir, 'package.json');

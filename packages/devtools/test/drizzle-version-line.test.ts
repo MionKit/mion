@@ -112,8 +112,7 @@ describe('drizzle line — which repo edits change what npm would ship', () => {
 });
 
 describe('drizzle line — which tarball entries the byte comparison reads', () => {
-  // Sources stopped shipping, so a src-only filter here would compare package.json alone
-  // and call two different publishes equal.
+  // A src-only filter would compare package.json alone and call two different publishes equal.
   it('counts everything npm serves, build output included', () => {
     expect(isPublishedFile('package.json')).toBe(true);
     expect(isPublishedFile('.dist/esm/src/index.js')).toBe(true);
@@ -169,7 +168,6 @@ describe('drizzle line — unreleased changes since the last bump', () => {
 });
 
 describe('drizzle line — a live version must mean the same bytes', () => {
-  // The published shape: manifest plus build output, no sources.
   const base = {
     'package.json': '{"name":"@mionjs/dialect","version":"0.45.0"}',
     '.dist/esm/src/index.js': 'export const one = 1;\n',
@@ -213,8 +211,7 @@ describe('drizzle line — a live version must mean the same bytes', () => {
     expect(tarballContentDiff(makeTarball(base), makeTarball(moved))).toEqual(['package.json']);
   });
 
-  // The build output IS the published package now, so a difference there is a difference
-  // a consumer gets — the old src-only comparison would have read this as unchanged.
+  // The build output IS the published package, so a difference there is one the consumer gets.
   it('counts a changed build output', () => {
     const rebuilt = {...base, '.dist/esm/src/index.js': 'export const one=1;//built later\n'};
     expect(tarballContentDiff(makeTarball(base), makeTarball(rebuilt))).toEqual(['.dist/esm/src/index.js']);

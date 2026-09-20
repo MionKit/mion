@@ -1,4 +1,4 @@
-// What a plain consumer resolves, through `types`. No build output anywhere in this package.
+// What a plain consumer resolves through `types`; the package has no dist.
 export interface SrcTypedUser {
   id: number;
   label: string;

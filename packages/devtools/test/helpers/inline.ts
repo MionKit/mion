@@ -33,17 +33,13 @@ export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 
 export type InlineSources = Record<string, string>;
 
-// The REAL `@mionjs/run-types` package as a CONSUMER INSTALL: its PUBLISHED package.json
-// (no `source` condition, the one thing pack.mjs strips) plus the built dist — the
-// **/*.d.ts declaration tree (esm AND dist/cjs/, since a node16-style CommonJS importer
-// resolves the `require` export condition) and the `mion-pure-fns/` artifact its own build
-// writes, which is where the built-in pure-fn bodies come from now that the dist is hollowed.
-// Keyed as virtual node_modules paths for setSources. `withInlineSources` always injects it,
-// so test snippets resolve the marker module exactly the way a consumer install does; there is
-// no hand-written module stand-in to drift ("Real types, never copies" in
-// packages/run-types/test/fuzz/README.md). No sources: the tarball carries none, so a fixture
-// that mounted them would resolve down a road no consumer has. Read once per worker; the dist
-// is guaranteed fresh by `pretest` → `check:builds`.
+// The REAL `@mionjs/run-types` as a CONSUMER INSTALL, keyed as virtual node_modules paths: the
+// published package.json (no `source` condition, what pack.mjs strips), the dist .d.ts tree
+// (dist/cjs/ too, a node16 CommonJS importer resolves `require`) and the `mion-pure-fns/`
+// artifact, the only place the built-in pure-fn bodies live once the dist is hollowed.
+// No sources, because the tarball carries none. No hand-written stand-in to drift ("Real types,
+// never copies" in packages/run-types/test/fuzz/README.md). Read once per worker; the dist is
+// kept fresh by `pretest` → `check:builds`.
 const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/run-types');
 const ARTIFACT_SEGMENT = `${path.sep}mion-pure-fns${path.sep}`;
 

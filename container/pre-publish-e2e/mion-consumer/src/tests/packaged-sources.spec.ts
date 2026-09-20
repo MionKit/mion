@@ -14,8 +14,7 @@ import {fileURLToPath} from 'node:url';
 // so these assertions read the tarballs verdaccio actually served, unpacked.
 const consumerRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-/** Every package that keeps a `source` export condition in the repo. Each must ship the PUBLISHED
- *  manifest instead: no condition, no sources, just the type definitions and the build output. */
+/** Packages that keep a `source` condition in the repo; each must ship the PUBLISHED manifest instead. */
 const publicPackages = [
     '@mionjs/run-types',
     '@mionjs/core',
@@ -34,8 +33,8 @@ const publicPackages = [
     '@mionjs/drizzle-orm-sqlite-core',
     '@mionjs/devtools',
 ];
-// NOT listed: @mionjs/bin-uws ships plain JS (lib/) and never had a `source` condition,
-// and the @mionjs/native-uws-<os>-<arch> payloads are binaries staged at release time.
+// NOT listed: @mionjs/bin-uws ships plain JS (lib/) and never had a `source` condition; the
+// @mionjs/native-uws-<os>-<arch> payloads are binaries staged at release time.
 
 function pkgDir(name: string): string {
     return resolve(consumerRoot, 'node_modules', name);
@@ -70,9 +69,9 @@ describe('published tarballs ship type definitions, never sources', () => {
             const root = pkgDir(name);
             const manifest = readManifest(name);
 
-            // scripts/release/pack.mjs strips it, because it names a src/ the tarball does not
-            // carry — and a consumer who asks for the condition fails on a dangling one, where
-            // an absent one just falls through to `types`.
+            // scripts/release/pack.mjs strips it: it would name a src/ the tarball does not carry,
+            // and a dangling condition fails the consumer who asks, where an absent one falls
+            // through to `types`.
             it('declares no `source` export condition', () => {
                 const sourcePaths = collectSourcePathsFromExports(manifest.exports);
                 expect(sourcePaths, `${name} still declares "source": ${sourcePaths.join(', ')}`).toEqual([]);
@@ -89,8 +88,7 @@ describe('published tarballs ship type definitions, never sources', () => {
                 expect(declarations.length, `${name}: no declaration files found under ${distRoot}`).toBeGreaterThan(0);
             });
 
-            // A .d.ts.map names ../src/*.ts and embeds no source of its own, so with the sources
-            // gone it resolves to nothing: dead weight that breaks "go to definition" either way.
+            // A .d.ts.map names ../src/*.ts and embeds none of its own, so with src gone it resolves to nothing.
             it('ships no declaration maps, which would have nothing to point at', () => {
                 const maps = walk(root).filter((file) => file.endsWith('.d.ts.map'));
                 expect(maps, `${name}: dangling declaration maps: ${maps.join(', ')}`).toEqual([]);
