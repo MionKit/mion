@@ -70,7 +70,9 @@ const readExisting = () => {
 // Regenerate what we can. A counter that cannot run keeps the committed value
 // rather than writing a zero — a homepage tile reading "0 tests" would be worse
 // than one reading a slightly stale number, and silently wrong either way, so it
-// warns. `--check` turns the same comparison into a gate (used by CI).
+// warns. `--check` turns the same comparison into a gate (used by CI), and refuses
+// that fallback: comparing a kept value against itself always matches, so a check
+// that cannot count would report green on a stale file.
 export function main(args = []) {
   const check = args.includes('--check');
   for (const arg of args) if (arg !== '--check') die(`gen-test-counts: unknown arg '${arg}' (want: [--check])`, 2);
@@ -81,6 +83,7 @@ export function main(args = []) {
   try {
     counts.frontEnd = countFrontEndTests();
   } catch (err) {
+    if (check) die(`gen-test-counts: --check cannot verify the committed front-end count - ${err.message}`);
     if (!existing?.frontEnd) die(`gen-test-counts: cannot count the front-end tests and no committed count to fall back on - ${err.message}`);
     warn(`front-end count kept at ${existing.frontEnd.tests} (could not recount: ${err.message})`);
     counts.frontEnd = existing.frontEnd;
@@ -89,6 +92,7 @@ export function main(args = []) {
   try {
     counts.go = countGoTests();
   } catch (err) {
+    if (check) die(`gen-test-counts: --check cannot verify the committed Go count - ${err.message}`);
     if (!existing?.go) die(`gen-test-counts: cannot count the Go tests and no committed count to fall back on - ${err.message}`);
     warn(`Go count kept at ${existing.go.tests} (could not recount: ${err.message})`);
     counts.go = existing.go;
