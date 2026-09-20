@@ -953,12 +953,12 @@ describe('website-client-size', () => {
     expect(component).toContain("from '../../data/client-size.json'");
   });
 
-  it('the home page names the component and says whose size it is', () => {
+  it('the page carries no hand-typed size beside the component', () => {
+    // The line is off the page until the number is worth promoting; the generator, the
+    // committed file and the release gate stay, so the number keeps being tracked.
     const home = readFileSync(RPC_HOME, 'utf8');
-    expect(home).toContain(':client-size');
-    // The todo's own bar: a reader must not read the package size as their app's cost.
+    if (!home.includes(':client-size')) return;
     expect(home).toMatch(/Your app ships less/);
-    // A hand-typed kB figure beside it is a number nothing updates.
     expect(home.replace(/:client-size/g, ''), 'a literal size crept into the page').not.toMatch(/\d+(\.\d+)?\s*kB/);
   });
 });
