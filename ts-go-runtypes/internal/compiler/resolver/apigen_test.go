@@ -55,8 +55,8 @@ const apiClientDTS = `declare module '@mionjs/client' {
 // takes: a headers middleFn, a plain middleFn, two routes in a group and one
 // at the root.
 const apiTypeTS = `type Headers = {headers: {authorization: string}};
-type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; strictTypes: undefined; sanitizeParams: undefined};
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; strictTypes: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
 export type Api = {
   auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   users: {
@@ -172,7 +172,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 	// a route module carries its row and the marker payload the server helper
 	// receives, with its entries imported from the mirror
 	getById := readGenerated(t, apiDir, "m/users/getById.js")
-	for _, want := range []string{`"id":"users/getById"`, `"pointer":["users","getById"]`, `"nestLevel":1`, `"type":1`, `"isAsync":true`, `"middleFnIds":["auth","users/audit"]`, `"encoder":{"params":"clone","return":"clone"}`, `"rtFns": {paramsFns: [`, `returnFns: [`, `paramsId: __rt_`, `returnId: __rt_`, "from '../../types/"} {
+	for _, want := range []string{`"id":"users/getById"`, `"pointer":["users","getById"]`, `"nestLevel":1`, `"type":1`, `"isAsync":true`, `"middleFnIds":["auth","users/audit"]`, `"serializer":{"params":"clone","return":"clone"}`, `"rtFns": {paramsFns: [`, `returnFns: [`, `paramsId: __rt_`, `returnId: __rt_`, "from '../../types/"} {
 		if !strings.Contains(getById, want) {
 			t.Errorf("m/users/getById.js lacks %s:\n%s", want, getById)
 		}
@@ -383,7 +383,7 @@ export const b = routes.sum(1, 2).call();
 // and for the inline "server build" session of the manifest tests.
 const apiServerRouterDTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
     [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
@@ -436,7 +436,7 @@ func writeFile(t *testing.T, path, content string) {
 // apiPeerClientTS is the client whose API declaration (numbers only) differs
 // from the server project's (a boolean too), with the same route ids.
 const apiPeerClientTS = `import {initClient} from '@mionjs/client';
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; serializer: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
 type Api = {
   users: {getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: false}}};
   sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
