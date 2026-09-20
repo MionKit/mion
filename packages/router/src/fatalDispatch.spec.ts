@@ -37,15 +37,14 @@ const unwrap = (value: unknown): RpcError<string> => (Array.isArray(value) ? val
 const unwrapValue = (value: unknown): unknown => (Array.isArray(value) ? value[1] : value);
 
 describe('fatal dispatch', () => {
-  it('serializes a fatal response ONCE, so no adapter has to do it again', () => {
+  it('hands the adapter a body to stringify, like every other response', () => {
     const response = getRouterFatalErrorResponse(
       new FatalError({statusCode: StatusCodes.UNEXPECTED_ERROR, type: 'unknown-error', publicMessage: 'nope'}),
       headersFromRecord({})
     );
-    // `json` would send every adapter down the branch that serializes mionResp.body itself, throwing
-    // this string away; `stringifyJson` is what makes them write the one already built here
-    expect(response.serializer).toBe(SerializerModes.stringifyJson);
-    expect(response.rawBody).toBe(JSON.stringify(response.body));
+    expect(response.serializer).toBe(SerializerModes.json);
+    expect(response.rawBody).toBe('');
+    expect(JSON.parse(JSON.stringify(response.body))['@thrownErrors']).toBeDefined();
   });
 
   const ran: string[] = [];

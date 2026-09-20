@@ -123,6 +123,10 @@ describe('PublicMethods run type functionality', () => {
   });
 });
 
+// The metadata route returns a union, so its encoder wraps the answer in the `[memberIndex, value]`
+// envelope every union rides on the wire. The real client unwraps it the same way.
+const unwrap = (value: unknown): any => (Array.isArray(value) ? value[1] : value);
+
 describe('Client Routes should', () => {
   const privateMiddleFn = mion.middleFn((ctx): void => undefined);
   const publicMiddleFn = mion.middleFn((ctx): null => null);
@@ -154,7 +158,7 @@ describe('Client Routes should', () => {
 
   const defaultRouteOpts: RouteOnlyOptions = {
     alwaysRun: false,
-    encoder: {params: 'clone', return: 'clone'},
+    serializer: {params: 'clone', return: 'clone'},
     validateParams: true,
     validateReturn: false,
     description: undefined,
@@ -168,7 +172,7 @@ describe('Client Routes should', () => {
     validateParams: true,
     validateReturn: false,
     description: undefined,
-    encoder: {params: 'clone', return: 'clone'},
+    serializer: {params: 'clone', return: 'clone'},
   };
 
   const methodsMetadata = {
@@ -298,7 +302,7 @@ describe('Client Routes should', () => {
       auth: methodsMetadata.auth,
       last: methodsMetadata.last,
     };
-    const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
+    const methodsData = unwrap(response.body[methodsId]) as SerializableMethodsData;
     const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
     expect(methodsData.methods).toEqual(expectedMethods);
     Object.values(dependencies).forEach((dep) => {
@@ -323,7 +327,7 @@ describe('Client Routes should', () => {
       'users/getUser': methodsMetadata['users/getUser'],
       last: methodsMetadata['last'],
     };
-    const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
+    const methodsData = unwrap(response.body[methodsId]) as SerializableMethodsData;
     const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
     expect(methodsData.methods).toEqual(expectedMethods);
     Object.values(dependencies).forEach((dep) => {
@@ -346,7 +350,7 @@ describe('Client Routes should', () => {
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
     const expectedMethods = methodsMetadata;
-    const methodsData = response.body[methodsId] as SerializableMethodsData; // serializable data for remote methods
+    const methodsData = unwrap(response.body[methodsId]) as SerializableMethodsData;
     const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
     expect(methodsData.methods).toEqual(expectedMethods);
     Object.values(dependencies).forEach((dep) => {
@@ -367,7 +371,9 @@ describe('Client Routes should', () => {
       }),
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-    const expectedResponse = new RpcError({
+    // a declared error rides its own encoder like any other union member, so the slot holds the
+    // encoded shape rather than the live RpcError the handler returned
+    expect(unwrap(response.body[methodsId])).toMatchObject({
       type: 'rpc-metadata-not-found',
       publicMessage: 'Errors getting Remote Methods Metadata',
       errorData: {
@@ -375,7 +381,6 @@ describe('Client Routes should', () => {
         helloWorld: 'Remote Method helloWorld not found',
       },
     });
-    expect(response.body[methodsId]).toEqual(expectedResponse);
   });
 });
 
@@ -412,35 +417,38 @@ describe('Restore Client Routes jit functions', () => {
   });
 });
 
-describe('methodsMetadata middleware should force the stringifyJson framing', () => {
+describe('the methodsMetadata middleFn answers on the json framing every chain uses', () => {
   const metadataKey = MION_ROUTES.methodsMetadata;
 
   afterEach(() => resetRouter());
 
-  it('should force stringifyJson when the route uses the default mutate encoder', async () => {
-    const routes = {
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
-    } satisfies Routes;
+  // The answer rides the same json framing as every other slot, whatever the route picked: the
+  // middleFn pins the built-in default on its own wires, so its encoder never follows the route's.
+  // Each route spells its serializer INLINE: the option is a build-time literal, so a variable
+  // holding it is a build error (CTA001).
+  const expectMetadataInBody = async (routes: Routes) => {
     mion.initRoutes(routes);
-
     const request: RawRequest = {
       headers: headersFromRecord({}),
-      body: JSON.stringify({
-        sayHello: ['World'],
-        [metadataKey]: [['sayHello']],
-      }),
+      body: JSON.stringify({sayHello: ['World'], [MION_ROUTES.methodsMetadata]: [['sayHello']]}),
     };
     const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
-
-    expect(response.serializer).toBe(SerializerModes.stringifyJson);
-    expect(typeof response.rawBody).toBe('string');
-    const parsed = JSON.parse(response.rawBody as string);
-    expect(parsed.sayHello).toBe('Hello, World!');
-    // stringifyJson serializes union return type as [discriminatorIndex, value]
-    const metadataRaw = parsed[metadataKey];
-    expect(metadataRaw).toBeDefined();
-    const metadata = (Array.isArray(metadataRaw) ? metadataRaw[1] : metadataRaw) as SerializableMethodsData;
+    expect(response.serializer).toBe(SerializerModes.json);
+    expect(response.body.sayHello).toBe('Hello, World!');
+    const metadata = unwrap(response.body[MION_ROUTES.methodsMetadata]) as SerializableMethodsData;
     expect(metadata.methods).toHaveProperty('sayHello');
+  };
+
+  it('reaches the client through the body alongside a default route answer', async () => {
+    await expectMetadataInBody({
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
+    } satisfies Routes);
+  });
+
+  it('reaches the client through the body alongside a mutate route answer', async () => {
+    await expectMetadataInBody({
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'mutate'}),
+    } satisfies Routes);
   });
 
   // The middleFn is in every chain, so it skips its params pipeline when no client asked for
@@ -462,8 +470,6 @@ describe('methodsMetadata middleware should force the stringifyJson framing', ()
     expect(response.body.sayHello).toBe('Hello, World!');
     // no answer, and no slot left behind in the response
     expect(response.body[metadataKey]).toBeUndefined();
-    // the middleFn forces stringifyJson only when it answers, so the route keeps its own framing
-    expect(response.serializer).not.toBe(undefined);
   });
 
   it('still validates the metadata params when they ARE sent', async () => {
@@ -483,57 +489,7 @@ describe('methodsMetadata middleware should force the stringifyJson framing', ()
     expect(response.body[MION_ROUTES.thrownErrors]?.[metadataKey]?.type).toBe('validation-error');
   });
 
-  it('should keep stringifyJson when the route already encodes direct', async () => {
-    const routes = {
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: {return: 'direct'}}),
-    } satisfies Routes;
-    mion.initRoutes(routes);
-
-    const request: RawRequest = {
-      headers: headersFromRecord({}),
-      body: JSON.stringify({
-        sayHello: ['World'],
-        [metadataKey]: [['sayHello']],
-      }),
-    };
-    const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
-
-    expect(response.serializer).toBe(SerializerModes.stringifyJson);
-    expect(typeof response.rawBody).toBe('string');
-    const parsed = JSON.parse(response.rawBody as string);
-    expect(parsed.sayHello).toBe('Hello, World!');
-    const metadataRaw = parsed[metadataKey];
-    expect(metadataRaw).toBeDefined();
-    const metadata = (Array.isArray(metadataRaw) ? metadataRaw[1] : metadataRaw) as SerializableMethodsData;
-    expect(metadata.methods).toHaveProperty('sayHello');
-  });
-
-  it('should force stringifyJson when the route encodes direct', async () => {
-    const routes = {
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {encoder: 'direct'}),
-    } satisfies Routes;
-    mion.initRoutes(routes);
-
-    const request: RawRequest = {
-      headers: headersFromRecord({}),
-      body: JSON.stringify({
-        sayHello: ['World'],
-        [metadataKey]: [['sayHello']],
-      }),
-    };
-    const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
-
-    expect(response.serializer).toBe(SerializerModes.stringifyJson);
-    expect(typeof response.rawBody).toBe('string');
-    const parsed = JSON.parse(response.rawBody as string);
-    expect(parsed.sayHello).toBe('Hello, World!');
-    const metadataRaw = parsed[metadataKey];
-    expect(metadataRaw).toBeDefined();
-    const metadata = (Array.isArray(metadataRaw) ? metadataRaw[1] : metadataRaw) as SerializableMethodsData;
-    expect(metadata.methods).toHaveProperty('sayHello');
-  });
-
-  it('should keep the original framing when methodsMetadata is not requested', async () => {
+  it('frames as json when methodsMetadata is not requested', async () => {
     const routes = {
       sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
     } satisfies Routes;
@@ -547,7 +503,6 @@ describe('methodsMetadata middleware should force the stringifyJson framing', ()
     };
     const response = await dispatchRoute('/sayHello', request.body, request.headers, headersFromRecord({}), request, {});
 
-    // the default `mutate` return encoder frames as json (SerializerModes.json)
     expect(response.serializer).toBe(SerializerModes.json);
     expect(response.body.sayHello).toBe('Hello, World!');
   });
@@ -578,7 +533,7 @@ describe('metadata is generated for everything the client can call', () => {
       body: JSON.stringify({takesParams: ['token'], [methodsId]: [[], true]}),
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-    return response.body[methodsId] as SerializableMethodsData;
+    return unwrap(response.body[methodsId]) as SerializableMethodsData;
   }
 
   it('lists every route and every param-taking or data-returning middleFn, and nothing else', async () => {
@@ -593,7 +548,7 @@ describe('metadata is generated for everything the client can call', () => {
       body: JSON.stringify({takesParams: ['token'], [methodsId]: [['takesParams', 'raw', 'users/silent']]}),
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-    const result = response.body[methodsId] as RpcError<string>;
+    const result = unwrap(response.body[methodsId]) as RpcError<string>;
     expect(result.type).toBe('rpc-metadata-not-found');
     expect(result.errorData).toEqual({raw: 'Remote Method raw not found'});
   });

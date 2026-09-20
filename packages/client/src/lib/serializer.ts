@@ -93,7 +93,7 @@ function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
   return JSON.stringify(body, wireFormReplacer);
 }
 
-/** Writes the params with the strategy the server compiled: `direct` writes the string itself. */
+/** Writes the params with the strategy the server compiled. */
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validated: boolean): string {
   if (!method.paramsCount) return '';
   const {json, isType} = method.paramsJitFns;
@@ -101,10 +101,7 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validat
   // with local validation off a wrong-typed value must still reach the server's validation, and the
   // compiled encoders assume the type, so it rides the plain wire form instead
   if (!validated && !isType.isNoop && !isType.fn(params)) return JSON.stringify(params, wireFormReplacer);
-  const write = (): string => {
-    const encoded = json.encode.fn(params);
-    return json.strategy === 'direct' ? (encoded as string) : JSON.stringify(encoded);
-  };
+  const write = (): string => JSON.stringify(json.encode.fn(params));
   // the compiled encoder rejects anything but the real params (a batch mapping's `null` placeholder,
   // a wrong-typed value), so those fall back to the plain wire forms the server decoders accept
   try {
@@ -198,7 +195,7 @@ function extractThrownErrors(parsedBody: any): {
   return {thrownErrors};
 }
 
-/** The request wire, decided by the server's resolved `encoder` and never by a client option:
+/** The request wire, decided by the server's resolved `serializer` and never by a client option:
  *  `optimistic` until the metadata is known, then the JSON string the encoders write. */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {

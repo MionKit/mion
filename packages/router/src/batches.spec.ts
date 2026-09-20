@@ -46,6 +46,9 @@ type RawRequest = {
   body: string;
 };
 
+// The metadata route returns a union, so its answer rides the `[memberIndex, value]` envelope.
+const unwrapUnion = (value: any): any => (Array.isArray(value) ? value[1] : value);
+
 describe('batches', () => {
   const getDefaultRequest = (body: Record<string, any[]>, headers: Record<string, string> = {}): RawRequest => ({
     headers: headersFromRecord(headers),
@@ -473,7 +476,7 @@ describe('batches', () => {
       const response = await dispatchRoute(`/${methodsId}`, request.body, request.headers, headersFromRecord({}), request, {});
 
       expect(response.hasErrors).toBe(false);
-      expect(response.body[methodsId].batches).toEqual(['a', 'b']);
+      expect(unwrapUnion(response.body[methodsId]).batches).toEqual(['a', 'b']);
     });
 
     it('the metadata route omits the batch ids when only some methods are requested', async () => {
@@ -485,7 +488,7 @@ describe('batches', () => {
       const response = await dispatchRoute(`/${methodsId}`, request.body, request.headers, headersFromRecord({}), request, {});
 
       expect(response.hasErrors).toBe(false);
-      expect(response.body[methodsId].batches).toBeUndefined();
+      expect(unwrapUnion(response.body[methodsId]).batches).toBeUndefined();
     });
   });
 

@@ -185,15 +185,6 @@ function reply(
 ): Response {
   const bodyType = mionResp.serializer;
   switch (bodyType) {
-    case SerializerModes.stringifyJson: {
-      // Pass string directly to Response - Bun handles encoding internally
-      // and calculates content-length automatically. This avoids TextEncoder allocation.
-      // content-type already set by serializer
-      return new Response(mionResp.rawBody as string, {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-    }
     case SerializerModes.json: {
       // Platform adapter uses Response.json() which handles JSON.stringify internally
       return Response.json(mionResp.body, {

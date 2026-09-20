@@ -113,7 +113,7 @@ export type NestedData = {
   };
 };
 
-// ============ Compact routes (per-route compact encoder: positional json, no key names on the wire) ============
+// ============ Compact routes (per-route compact serializer: positional json, no key names on the wire) ============
 export type CompactEvent = {
   title: string;
   at: Date;
@@ -123,10 +123,10 @@ export type CompactEvent = {
 
 export const compactTestRoutes = {
   // a spread of shapes on the compact wire
-  echo: route((_ctx, message: string): string => message, {encoder: 'compact'}),
-  addNumbers: route((_ctx, a: number, b: number): number => a + b, {encoder: 'compact'}),
-  getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {encoder: 'compact'}),
-  processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {encoder: 'compact'}),
+  echo: route((_ctx, message: string): string => message, {serializer: 'compact'}),
+  addNumbers: route((_ctx, a: number, b: number): number => a + b, {serializer: 'compact'}),
+  getSimpleUser: route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'compact'}),
+  processSimpleUser: route((_ctx, user: SimpleUser): string => `User: ${user.name}, Age: ${user.age}`, {serializer: 'compact'}),
   getComplexUser: route(
     (_ctx, id: string): ComplexUser => ({
       id,
@@ -139,10 +139,10 @@ export const compactTestRoutes = {
       tags: ['compact', 'positional'],
       scores: [95, 87, 92],
     }),
-    {encoder: 'compact'}
+    {serializer: 'compact'}
   ),
   processComplexUser: route((_ctx, user: ComplexUser): ComplexUser => ({...user, name: user.name.toUpperCase()}), {
-    encoder: 'compact',
+    serializer: 'compact',
   }),
   processNested: route(
     (_ctx, data: NestedData): NestedData => ({
@@ -155,7 +155,7 @@ export const compactTestRoutes = {
         },
       },
     }),
-    {encoder: 'compact'}
+    {serializer: 'compact'}
   ),
   addDays: route(
     (_ctx, date: Date, days: number): Date => {
@@ -163,7 +163,7 @@ export const compactTestRoutes = {
       result.setDate(result.getDate() + days);
       return result;
     },
-    {encoder: 'compact'}
+    {serializer: 'compact'}
   ),
   // an absent optional rides a null placeholder on the compact wire and comes back undefined
   describeEvent: route(
@@ -171,19 +171,19 @@ export const compactTestRoutes = {
       ...event,
       title: note ? `${event.title} (${note})` : event.title,
     }),
-    {encoder: 'compact'}
+    {serializer: 'compact'}
   ),
-  // one direction each: compact params in, a direct string out
+  // one direction each: compact params in, an in-place encoded value out
   mixed: route((_ctx, user: SimpleUser): SimpleUser => ({...user, age: user.age + 1}), {
-    encoder: {params: 'compact', return: 'direct'},
+    serializer: {params: 'compact', return: 'mutate'},
   }),
   // clone never mutates the handler's value
-  cloned: route((_ctx, user: SimpleUser): SimpleUser => user, {encoder: 'clone'}),
+  cloned: route((_ctx, user: SimpleUser): SimpleUser => user, {serializer: 'clone'}),
   // a compact middleFn in the chain: its params and return ride the compact wire too
   stamp: middleFn(
     (_ctx, tag?: string): {tag: string; when: Date} | null => (tag ? {tag, when: new Date('2024-02-02T02:02:02.000Z')} : null),
     {
-      encoder: 'compact',
+      serializer: 'compact',
     }
   ),
   // a PLAIN middleFn in the same chain, declaring no encoder of its own: it must still carry its
@@ -282,7 +282,7 @@ const routes = {
   // strictTypes route: rejects objects carrying unknown/extra properties (R17 client-side gate).
   // The params ride `mutate`, the wire that hands the route exactly what arrived: `clone` and
   // `compact` rebuild the params from the declared type, so an extra key is gone before the check.
-  createUserStrict: route((_ctx, user: User): User => user, {strictTypes: true, encoder: {params: 'mutate'}}),
+  createUserStrict: route((_ctx, user: User): User => user, {strictTypes: true, serializer: {params: 'mutate'}}),
   // sanitizeParams routes: the email's declared transform runs after decode and before validation
   // on the server, and locally on the client when its own sanitizeParams option is on
   sanitizeEmail: route((_ctx, email: Transform<Email, {trim: true; lowercase: true}>): string => email, {

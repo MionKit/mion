@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import type {RTValidationError, DataOnly as RtDataOnly, JsonEncoderStrategy} from '@mionjs/run-types';
+import type {RTValidationError, DataOnly as RtDataOnly} from '@mionjs/run-types';
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Serializer strategies ##########################################
@@ -15,8 +15,10 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 // derived from it in types.
 
 /** The JSON strategies a mion route can pick. RunTypes also offers `direct`; mion does not, it
- *  costs three times the memory of `clone` and twice the time for identical bytes. */
-export type SerializerStrategy = Exclude<JsonEncoderStrategy, 'direct'>;
+ *  costs three times the memory of `clone` and twice the time for identical bytes. Written out
+ *  rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route, and
+ *  the subset is pinned by a type test instead. */
+export type SerializerStrategy = 'clone' | 'mutate' | 'compact';
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
 export interface SerializerPair {
   params?: SerializerStrategy;

@@ -137,13 +137,6 @@ function reply(mionResp: MionResponse, resp: Response): void {
   const bodyType = mionResp.serializer;
   switch (bodyType) {
     // Buffer.byteLength counts the same bytes end() writes, without a full copy of the response first
-    case SerializerModes.stringifyJson: {
-      const rawBody = mionResp.rawBody as string;
-      resp.set('content-length', `${Buffer.byteLength(rawBody, 'utf8')}`);
-      // content-type already set by serializer
-      resp.end(rawBody, 'utf8');
-      break;
-    }
     case SerializerModes.json: {
       // Platform adapter stringifies the prepared body object
       const jsonString = JSON.stringify(mionResp.body);

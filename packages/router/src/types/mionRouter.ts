@@ -6,7 +6,7 @@
  * ######## */
 
 import type {CompTimeArgs, InjectRunTypeId} from '@mionjs/run-types';
-import type {EncoderLiteralGuard, HeaderMarkerSlots, MarkerSlots} from './encoder.ts';
+import type {SerializerLiteralGuard, HeaderMarkerSlots, MarkerSlots} from './serializer.ts';
 import type {CallContext, ContextDataFactory} from './context.ts';
 import type {RouterOptions, Routes} from './general.ts';
 import type {
@@ -49,7 +49,7 @@ import type {PublicApi} from './publicMethods.ts';
 /** The options accepted by `createMionRouter`: every router option is optional. */
 export type RouterOptionsInput = Partial<RouterOptions>;
 /** The factory's parameter type: the options literal, with a widened `encoder` rejected. */
-export type RouterOptionsArg<O extends RouterOptionsInput> = O & EncoderLiteralGuard<O>;
+export type RouterOptionsArg<O extends RouterOptionsInput> = O & SerializerLiteralGuard<O>;
 
 /** The shared call-context data type the factory's `contextDataFactory` produces, `any` when there is none. */
 export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextDataFactory: ContextDataFactory<infer ContextData>}

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_ENCODER, EMPTY_HASH, getJitFnHashes} from '@mionjs/core';
+import {DEFAULT_SERIALIZER, EMPTY_HASH, getJitFnHashes} from '@mionjs/core';
 import type {CompiledFnData, MethodWithOptions, PureFunctionData} from '@mionjs/core';
 import type {MetadataRecordKey} from './storage.ts';
 
@@ -22,21 +22,25 @@ export interface CacheGraph {
 
 /** Every compiled function hash the method itself names, across both directions and both header sets. */
 function methodRootHashes(metadata: MethodWithOptions): string[] {
-  const encoder = metadata.options?.encoder ?? DEFAULT_ENCODER;
+  const serializer = metadata.options?.serializer ?? DEFAULT_SERIALIZER;
   const roots: string[] = [];
   // a root is anything the method COULD reach, and a hash the method never uses is simply absent
   // from the store, which costs nothing here
-  const addSet = (jitHash: string, strategy: Parameters<typeof getJitFnHashes>[1]) => {
+  const addSet = (
+    jitHash: string,
+    strategy: Parameters<typeof getJitFnHashes>[1],
+    direction: Parameters<typeof getJitFnHashes>[2]
+  ) => {
     if (!jitHash || jitHash === EMPTY_HASH) return;
     // the optional hashes are absent on the returned shape, so only the real strings become roots
-    for (const hash of Object.values(getJitFnHashes(jitHash, strategy)) as (string | undefined)[]) {
+    for (const hash of Object.values(getJitFnHashes(jitHash, strategy, direction)) as (string | undefined)[]) {
       if (typeof hash === 'string') roots.push(hash);
     }
   };
-  addSet(metadata.paramsJitHash, encoder.params);
-  addSet(metadata.returnJitHash, encoder.return);
-  if (metadata.headersParam) addSet(metadata.headersParam.jitHash, 'mutate');
-  if (metadata.headersReturn) addSet(metadata.headersReturn.jitHash, 'mutate');
+  addSet(metadata.paramsJitHash, serializer.params, 'params');
+  addSet(metadata.returnJitHash, serializer.return, 'return');
+  if (metadata.headersParam) addSet(metadata.headersParam.jitHash, 'mutate', 'params');
+  if (metadata.headersReturn) addSet(metadata.headersReturn.jitHash, 'mutate', 'return');
   return roots;
 }
 

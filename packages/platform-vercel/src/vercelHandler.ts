@@ -117,12 +117,6 @@ function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
 function reply(mionResp: MionResponse, responseHeaders: any): Response {
   const bodyType = mionResp.serializer;
   switch (bodyType) {
-    case SerializerModes.stringifyJson: {
-      return new Response(mionResp.rawBody as string, {
-        status: mionResp.statusCode,
-        headers: responseHeaders,
-      });
-    }
     case SerializerModes.json: {
       return Response.json(mionResp.body, {
         status: mionResp.statusCode,

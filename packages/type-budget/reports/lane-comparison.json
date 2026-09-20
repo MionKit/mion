@@ -26,7 +26,7 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 525,
+          "delta": 523,
           "budget": 525
         },
         {
@@ -36,7 +36,7 @@
           "budget": 3048
         }
       ],
-      "total": 5719
+      "total": 5717
     },
     {
       "name": "type-only",
@@ -62,7 +62,7 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 502,
+          "delta": 500,
           "budget": 502
         },
         {
@@ -72,7 +72,7 @@
           "budget": 3102
         }
       ],
-      "total": 4298
+      "total": 4296
     },
     {
       "name": "builder",
@@ -98,7 +98,7 @@
         {
           "step": 4,
           "label": "mion route api",
-          "delta": 498,
+          "delta": 496,
           "budget": 498
         },
         {
@@ -108,7 +108,7 @@
           "budget": 3342
         }
       ],
-      "total": 5037
+      "total": 5035
     }
   ]
 }

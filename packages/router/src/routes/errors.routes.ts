@@ -16,7 +16,7 @@ import {route, rawMiddleFn} from '../lib/handlers.ts';
 // options type: either way the build compiles them against the built-in default encoder. So each
 // one PINS that default. Without the pin a router-wide `encoder` is the pair the runtime resolves,
 // it disagrees with what the build compiled, and the router refuses to start.
-const DEFAULT_WIRE = {encoder: {params: 'clone', return: 'clone'}} as const;
+const DEFAULT_WIRE = {serializer: {params: 'clone', return: 'clone'}} as const;
 
 export const mionErrorsRoutes = {
   /**

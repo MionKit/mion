@@ -11,7 +11,7 @@
 
 import 'fake-indexeddb/auto';
 import {describe, beforeEach, afterEach, it, expect, vi} from 'vitest';
-import {DEFAULT_ENCODER, MION_ROUTES, getJitFnHashes, resolveCompiledPureFn, routesCache} from '@mionjs/core';
+import {DEFAULT_SERIALIZER, MION_ROUTES, getJitFnHashes, resolveCompiledPureFn, routesCache} from '@mionjs/core';
 import {
   extractAndProcessMetadata,
   flushMetadataCache,
@@ -48,7 +48,7 @@ function payload(methodId: string, jitHash: string) {
     paramNames: [],
     options: {},
   };
-  const hashes = getJitFnHashes(jitHash, DEFAULT_ENCODER.params);
+  const hashes = getJitFnHashes(jitHash, DEFAULT_SERIALIZER.params, 'params');
   const deps: Record<string, unknown> = {};
   for (const rtFnHash of [hashes.isType, hashes.typeErrors, hashes.encode, hashes.decode]) {
     deps[rtFnHash] = {code: 'return () => true', typeName: 'x', fnID: 'x', rtFnHash};
@@ -58,7 +58,7 @@ function payload(methodId: string, jitHash: string) {
 
 /** The hash the params validator of this method is stored under. */
 function paramsIsTypeHash(jitHash: string): string {
-  return getJitFnHashes(jitHash, DEFAULT_ENCODER.params).isType;
+  return getJitFnHashes(jitHash, DEFAULT_SERIALIZER.params, 'params').isType;
 }
 
 /** Wraps a store, so a test can watch or break one method without losing the others.

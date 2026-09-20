@@ -189,7 +189,7 @@ describe('PublicApi resolved options', () => {
   it('carries the effective options of each method on the API type, equal to what initRoutes returns', () => {
     resetRouter();
     const compact = createMionRouter({
-      encoder: 'compact',
+      serializer: 'compact',
       strictTypes: true,
       contextDataFactory: getSharedData,
       getPublicRoutesData: true,
@@ -197,7 +197,7 @@ describe('PublicApi resolved options', () => {
     const defs = {
       q: compact.query((ctx, n: number): string => `${n}`, {sanitizeParams: true, description: 'd'}),
       m: compact.mutation((ctx, n: number): string => `${n}`, {
-        encoder: {return: 'direct'},
+        serializer: {return: 'mutate'},
         strictTypes: false,
         maxBodySize: 4096,
       }),
@@ -211,7 +211,7 @@ describe('PublicApi resolved options', () => {
       validateParams: true;
       validateReturn: false;
       description: 'd';
-      encoder: {params: 'compact'; return: 'compact'};
+      serializer: {params: 'compact'; return: 'compact'};
       isMutation: false;
       strictTypes: true;
       sanitizeParams: true;
@@ -221,7 +221,7 @@ describe('PublicApi resolved options', () => {
     // declares none exists only at registration, so the type says undefined there
     expectTypeOf<Api['m']['options']['maxBodySize']>().toEqualTypeOf<4096>();
     expectTypeOf<Api['r']['options']['maxBodySize']>().toEqualTypeOf<undefined>();
-    expectTypeOf<Api['m']['options']['encoder']>().toEqualTypeOf<{params: 'compact'; return: 'direct'}>();
+    expectTypeOf<Api['m']['options']['serializer']>().toEqualTypeOf<{params: 'compact'; return: 'mutate'}>();
     expectTypeOf<Api['m']['options']['isMutation']>().toEqualTypeOf<true>();
     expectTypeOf<Api['m']['options']['strictTypes']>().toEqualTypeOf<false>();
     expectTypeOf<Api['r']['options']['isMutation']>().toEqualTypeOf<undefined>();
@@ -231,7 +231,7 @@ describe('PublicApi resolved options', () => {
       validateParams: true;
       validateReturn: true;
       description: undefined;
-      encoder: {params: 'compact'; return: 'compact'};
+      serializer: {params: 'compact'; return: 'compact'};
       strictTypes: true;
       sanitizeParams: undefined;
       maxBodySize: undefined;
@@ -253,7 +253,7 @@ describe('PublicApi resolved options', () => {
       validateParams: true,
       validateReturn: false,
       description: 'd',
-      encoder: {params: 'compact', return: 'compact'},
+      serializer: {params: 'compact', return: 'compact'},
       isMutation: false,
       strictTypes: true,
       sanitizeParams: true,
@@ -262,7 +262,7 @@ describe('PublicApi resolved options', () => {
       alwaysRun: false,
       validateParams: true,
       validateReturn: false,
-      encoder: {params: 'compact', return: 'direct'},
+      serializer: {params: 'compact', return: 'mutate'},
       isMutation: true,
       strictTypes: false,
       maxBodySize: 4096,
@@ -271,7 +271,7 @@ describe('PublicApi resolved options', () => {
       alwaysRun: true,
       validateParams: true,
       validateReturn: true,
-      encoder: {params: 'compact', return: 'compact'},
+      serializer: {params: 'compact', return: 'compact'},
       strictTypes: true,
     });
     // the API type also names the exact types the server compiled each method from

@@ -92,7 +92,7 @@ export interface ClientOptions extends CoreRouterOptions {
   sanitizeParams: boolean;
   /** How the FIRST call of a route goes out: `optimistic` sends the params before the metadata is
    *  known, on the plain wire forms every server decoder accepts, and retries with the route's real
-   *  encoder on an error. The wire itself is decided by the server's `encoder`, never by this option. */
+   *  encoder on an error. The wire itself is decided by the server's `serializer`, never by this option. */
   serializer: SerializerMode;
   /** Where the client keeps what it learned about the remote methods, so a later visit does not have
    *  to ask again. `indexeddb` (the default) uses the browser's own database, `memory` keeps it for

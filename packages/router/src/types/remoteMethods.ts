@@ -1,7 +1,7 @@
 // ####### Executables #######
 
 import type {
-  EncoderOption,
+  SerializerOption,
   HeadersMethodWithJitFns,
   MethodWithJitFns,
   RemoteMethodOpts,
@@ -48,11 +48,11 @@ export interface RawMethod<H extends RawMiddleFnHandler = any> extends RemoteMet
   };
 }
 
-// `encoder` is a BUILD-TIME literal: written inline or as an `as const` preset, or the build reports
+// `serializer` is a BUILD-TIME literal: written inline or as an `as const` preset, or the build reports
 // CTA001 / CTA004. An unset direction falls back to the router-wide value, then to the built-in default.
 // Flat interfaces on purpose: a route declaration instantiates its options type on every call, and a
 // mapped or intersected shape costs measurably more in the type-instantiation budget. Each option type
-// comes in a `Plain` flavour (no `encoder`, the helper default) and a `WithEncoder` one; the public
+// comes in a `Plain` flavour (no `serializer`, the helper default) and a `WithSerializer` one; the public
 // `RouteOptions` & co are the union of both.
 interface RouteOptionsBase {
   description?: string;
@@ -78,31 +78,27 @@ interface MiddleFnOptionsBase {
   strictTypes?: boolean;
   sanitizeParams?: boolean;
 }
-/** Retired: the wire choice is `encoder`. Typed `never` so the old key is a type error, not ignored. */
-interface RetiredOptions {
-  serializer?: never;
-}
 // ####### Route options never inherit the router options #######
 // These types describe what a developer WRITES on one route. They take no router-options type
 // parameter and MUST NOT gain one: a route overriding `{params: 'compact'}` would stop type-checking
 // against a router set to `clone`, and a parameterised `RouteOptions<RouterOpts>` would be a fresh
 // instantiation paid on EVERY route declaration, the exact cost the type budget tracks.
-// Inheritance lives in the two readers instead: the marker slot types (types/encoder.ts) and
-// `resolveEncoder` at runtime (router.ts).
-export interface PlainRouteOptions extends RouteOptionsBase, RetiredOptions {
-  encoder?: never;
+// Inheritance lives in the two readers instead: the marker slot types (types/serializer.ts) and
+// `resolveSerializer` at runtime (router.ts).
+export interface PlainRouteOptions extends RouteOptionsBase {
+  serializer?: never;
 }
-export interface RouteOptionsWithEncoder extends RouteOptionsBase, RetiredOptions {
-  encoder: EncoderOption;
+export interface RouteOptionsWithSerializer extends RouteOptionsBase {
+  serializer: SerializerOption;
 }
-export type RouteOptions = PlainRouteOptions | RouteOptionsWithEncoder;
-export interface PlainMiddleFnOptions extends MiddleFnOptionsBase, RetiredOptions {
-  encoder?: never;
+export type RouteOptions = PlainRouteOptions | RouteOptionsWithSerializer;
+export interface PlainMiddleFnOptions extends MiddleFnOptionsBase {
+  serializer?: never;
 }
-export interface MiddleFnOptionsWithEncoder extends MiddleFnOptionsBase, RetiredOptions {
-  encoder: EncoderOption;
+export interface MiddleFnOptionsWithSerializer extends MiddleFnOptionsBase {
+  serializer: SerializerOption;
 }
-export type MiddleFnOptions = PlainMiddleFnOptions | MiddleFnOptionsWithEncoder;
+export type MiddleFnOptions = PlainMiddleFnOptions | MiddleFnOptionsWithSerializer;
 export type PlainHeadersMiddleFnOptions = PlainMiddleFnOptions;
 export type HeadersMiddleFnOptions = MiddleFnOptions;
 // RawMiddleFnOptions doesn't need encoding - raw middleFns handle their own serialization

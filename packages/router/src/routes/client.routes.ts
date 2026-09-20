@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, Mutable, RpcError, MION_ROUTES, SerializableMethodsData, SerializerModes} from '@mionjs/core';
+import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionjs/core';
 import {
   getMiddleFnExecutable,
   getRouteExecutable,
@@ -23,7 +23,7 @@ import {RouterOptions, Routes} from '../types/general.ts';
 import {MiddleFnsCollection} from '../types/publicMethods.ts';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
 import {RemoteMethod} from '../types/remoteMethods.ts';
-import {CallContext, MionRequest, MionResponse} from '../types/context.ts';
+import {CallContext, MionRequest} from '../types/context.ts';
 
 export interface ClientRouteOptions extends RouterOptions {
   getAllRemoteMethodsMaxNumber?: number;
@@ -80,8 +80,6 @@ function mionMethodsMetadata(
   getAllRemoteMethods?: boolean
 ): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | void {
   if (!methodsIds || methodsIds.length === 0) return;
-  // Force JSON serialization so optimistic client can parse the response
-  (ctx.response as Mutable<MionResponse>).serializer = SerializerModes.stringifyJson;
   return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods);
 }
 
@@ -126,21 +124,19 @@ export function useOnDemandMetadataCaller(executable: RemoteMethod): void {
 export const mionClientMiddleFns = {
   // Pins the built-in default on BOTH directions, like the error routes and for the same reason:
   // declared at module level, so the build compiles it against the default whatever the router-wide
-  // encoder is. It never mutates the cached metadata it returns and frames as json, so a chain's
-  // framing is still decided by its route (the middleFn forces stringifyJson itself when it answers).
+  // serializer is. It never mutates the cached metadata it returns.
   // It sits in EVERY chain and takes an unbounded `string[]` of ids, so it declares a fixed
   // contribution to each chain's request limit: room for the ids a client piggybacks on its first
   // call (bulk metadata has its own route). Without it every chain would take the platform's number.
   [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {
     alwaysRun: true,
-    encoder: {params: 'clone', return: 'clone'},
+    serializer: {params: 'clone', return: 'clone'},
     maxBodySize: 4096,
   }),
 } as const satisfies MiddleFnsCollection;
 
 export const mionClientRoutes = {
-  // The by-id route pins `direct` on both wires: it never mutates the cached metadata it returns and
-  // keeps working whatever the router-wide encoder is (the bootstrap request arrives before the
-  // client knows any strategy).
-  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {encoder: 'direct'}),
+  // Pins the built-in default on both wires: the bootstrap request arrives before the client knows
+  // any strategy, so this route must not follow the router-wide one.
+  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {serializer: 'clone'}),
 } as const satisfies Routes;
