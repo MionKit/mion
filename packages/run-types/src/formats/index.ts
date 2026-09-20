@@ -18,16 +18,8 @@ import './string/credit-card-pure-fns.ts';
 // Side-effect: registers the date / time pure fns (moved out of the
 // string pure-fns file) plus the bound-comparison + relative-now fns.
 import './datetime/dateTime-pure-fns.ts';
-// Side-effect: registers the single string-format mock fn (mockStringFormat)
-// with the runtime mock registry.
-import '../mocking/mockStringFormat.ts';
-// Side-effect: registers the number / bigint format mock fns for
-// ReflectionKind.number / .bigint (constraint-respecting mock values).
-import '../mocking/mockNumberFormat.ts';
-import '../mocking/mockBigIntFormat.ts';
-// Side-effect: registerFormatPattern validates each built-in pattern's
-// mockSamples against its regex at load.
-import './string/string-patterns.ts';
+// The per-kind mock fns are NOT imported here: createMockData.ts registers them, so
+// they ride with the mock walker instead of with every bundle that touches a format.
 
 // Re-export the full TYPE surface of every format family. (Kept as `export type *`
 // — the suite exporters' FORMATS_MODULE overlay keys off these lines.)

@@ -27,8 +27,8 @@ import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createBinarySizerFn,
-  createMockDataFn,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {ResolverClient, type ResolverClientOptions} from '../../../../devtools/src/core/resolver-client.ts';

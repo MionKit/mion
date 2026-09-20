@@ -12,9 +12,9 @@ import type {
 import {
   createJsonDecoderFn,
   createJsonEncoderFn,
-  createMockDataFn,
   createValidateFn,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 export type UsersTable = DZ.PgTable<
   'users',

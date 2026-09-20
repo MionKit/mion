@@ -17,13 +17,13 @@ import {
   createJsonDecoderFn,
   createJsonEncoderFn,
   createJsonSchemaFn,
-  createMockDataFn,
   createParseFn,
   createValidateFn,
   FAMILY_TAG_TO_FN_KEY,
   getRTFnCaches,
   registerClassSerializer,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {entryCode} from '../../src/runtypes/rtUtils.ts';
 import {
   checkGeneratedCode,

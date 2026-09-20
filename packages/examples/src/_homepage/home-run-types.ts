@@ -2,8 +2,8 @@ import {
   createValidateFn,
   createJsonEncoderFn,
   createBinaryEncoderFn,
-  createMockDataFn,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 interface User {
   id: string;
   name: string;

@@ -12,7 +12,8 @@
 
 import type * as TFT from '@mionjs/run-types/formats/temporal';
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, createGetValidationErrorsFn, createMockDataFn} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;
 

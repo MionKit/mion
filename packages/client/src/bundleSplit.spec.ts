@@ -26,6 +26,10 @@ export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 
+/** Names only the mock generator and the built-in pattern table put in an artifact. */
+const MOCK_MARKERS = ['createMockDataFn', 'mockStringFormat', 'mockBoundedDateTime', 'registerMockingFunction'];
+const PATTERN_MARKERS = ['DOMAIN_PUNYCODE_PATTERN', 'RELATIVE_JSON_POINTER_PATTERN'];
+
 let root: string;
 
 beforeAll(() => {
@@ -76,5 +80,20 @@ describe('the fetched metadata lane and the bundled API', () => {
   it('a mixed client keeps the lane, because it still fetches what the build could not see', async () => {
     const code = await buildApp('mixed');
     for (const marker of LANE_MARKERS) expect(code, marker).toContain(marker);
+  }, 120_000);
+});
+
+// Mock generation and the built-in pattern table used to reach every client through
+// @mionjs/core's formats import, which cost ~6.5 kB gzipped for code a browser never
+// runs. The source promises they are gone; only the artifact proves it.
+describe('what a default client leaves out', () => {
+  it('carries no mock generation', async () => {
+    const code = await buildApp();
+    for (const marker of MOCK_MARKERS) expect(code, marker).not.toContain(marker);
+  }, 120_000);
+
+  it('carries no built-in pattern table', async () => {
+    const code = await buildApp();
+    for (const marker of PATTERN_MARKERS) expect(code, marker).not.toContain(marker);
   }, 120_000);
 });

@@ -418,7 +418,7 @@ func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
 // pattern demanded through BOTH createMockDataFn call shapes, each
 // carrying the literal `{mock: {seed: 42}}` the CompTimeHints slot lets
 // the build read.
-const seededMockSource = `import {createMockDataFn} from '@mionjs/run-types';
+const seededMockSource = `import {createMockDataFn} from '@mionjs/run-types/mocking';
 ` + typeFormatBrandDecl + `
 type Code = TypeFormat<string, 'stringFormat', {
   pattern: {source: '^[a-z]{3}$'; flags: ''};

@@ -4,9 +4,9 @@ import {
   createGetValidationErrorsFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
-  createMockDataFn,
   createStandardSchema,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 // start-type
 // One real-world type, the single source of truth for everything below.

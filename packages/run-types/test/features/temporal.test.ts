@@ -11,13 +11,13 @@ import {describe, expect, it} from 'vitest';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
-  createMockDataFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   type BinaryDecoderFn,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 // Temporal is the polyfill global in tests (see test/support/setup.ts).
 const T = (globalThis as {Temporal: typeof Temporal}).Temporal;

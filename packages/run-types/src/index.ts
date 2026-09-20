@@ -159,7 +159,6 @@ export type {FormatErrorsOf} from './runtypes/formatErrors.ts';
 // format fidelity in the derived payload shapes (used by the drizzle-orm packages).
 export type {InsertModel, SelectModel, UpdateModel} from './modelTypes.ts';
 export {type FormatAnnotation} from './runtypes/formatAnnotation.ts';
-export {registerMockingFunction, type MockFormatFn} from './mocking/mockRegistry.ts';
 export {registerFormatPattern, type FormatPattern, type StringPatternArgs} from './runtypes/formatPattern.ts';
 // Reflection-kind enum mirrors (auto-generated from the Go protocol — see
 // runTypeKind.generated.ts). Re-exported so concrete formats under `src/formats/` can
@@ -274,14 +273,8 @@ export {
   overrideJsonDecoder,
 } from './overrideRTFunctions.ts';
 
-// Mock-value generator re-exported from `./mocking/` so bundlers can drop the
-// whole mock subtree when consumers don't reference `createMockDataFn`.
-export {createMockDataFn} from './mocking/createMockData.ts';
-export type {MockOptions, MockTypeFn, RunTypeMockOptions} from './mocking/mockTypes.ts';
-// The seeded/native random source. Exported so a custom mock fn (registered via
-// `registerMockingFunction`) receives a `MockRandom` and stays reproducible
-// under `createMockDataFn(..., { mock: { seed } })`.
-export {MockRandom} from './mocking/mockRandom.ts';
+// Mock generation is NOT exported here: it lives on the `@mionjs/run-types/mocking`
+// subpath so a bundle that never asks for it never carries it.
 
 // Standard Schema v1 adapter — re-exported from `./standard/` so bundlers can
 // drop the adapter subtree when consumers never call createStandardSchema. The

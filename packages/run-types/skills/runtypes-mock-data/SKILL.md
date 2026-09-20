@@ -113,7 +113,7 @@ The consumer imports the map from the sibling and passes it via the `data` optio
 (plain, greppable wiring — no injection magic):
 
 ```ts
-import {createMockDataFn} from 'mion';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {mockUser} from 'src/.mion/enriched/mock/models/user';
 import type {User} from '../models/user';
 
@@ -163,7 +163,7 @@ export const mockUser: MockData<User> = {
 
 ```ts
 // src/test/fixtures.ts — the CONSUMER
-import {createMockDataFn} from 'mion';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import {mockUser} from 'src/.mion/enriched/mock/models/user';
 import type {User} from '../models/user';
 

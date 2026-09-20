@@ -8,7 +8,7 @@
 // estimate stays under, so the overflow no longer depends on the seed.
 
 import {describe, it, expect} from 'vitest';
-import {createMockDataFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {openClient, compileType, hasBinary, type CompiledType} from '../type/typeFuzzHarness.ts';

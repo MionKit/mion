@@ -12,9 +12,9 @@ import type {
 import {
   createJsonDecoderFn,
   createJsonEncoderFn,
-  createMockDataFn,
   createValidateFn,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 // A recorded table, NOT drizzle's PgTable type: toDrizzle() builds that on demand.
 export const users = DZ.pgTable('users', {

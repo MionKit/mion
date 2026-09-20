@@ -1,8 +1,5 @@
-import {
-  registerMockingFunction,
-  RunTypeKind,
-  type FormatAnnotation,
-} from '@mionjs/run-types';
+import {RunTypeKind, type FormatAnnotation} from '@mionjs/run-types';
+import {registerMockingFunction} from '@mionjs/run-types/mocking';
 
 // Want mock data to look a certain way for a kind? Register a mock fn for
 // that ReflectionKind. Return `undefined` to fall back to the default mock.

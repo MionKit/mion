@@ -10,7 +10,8 @@
 // one would mask the regression.
 
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import type * as TF from '@mionjs/run-types/formats';
 
 interface User {

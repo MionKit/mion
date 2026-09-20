@@ -1,4 +1,5 @@
-import {createMockDataFn, createValidateFn} from '@mionjs/run-types';
+import {createValidateFn} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 type User = {
   id: number;

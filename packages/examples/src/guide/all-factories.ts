@@ -16,9 +16,9 @@ import {
   createBinaryDecoderFn,
   createBinarySizerFn,
   createJsonSchemaFn,
-  createMockDataFn,
   createStandardSchema,
 } from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 type User = {id: bigint; name: string; signedUpAt: Date};
 

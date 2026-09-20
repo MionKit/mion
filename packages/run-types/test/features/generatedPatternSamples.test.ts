@@ -14,7 +14,8 @@
 import type * as TF from '@mionjs/run-types/formats';
 import * as TFV from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
-import {createMockDataFn, createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
+import {createMockDataFn} from '@mionjs/run-types/mocking';
 import '@mionjs/run-types/formats';
 
 // Sample-less inline pattern — no mockSamples anywhere in the program.
