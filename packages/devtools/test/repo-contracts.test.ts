@@ -5,7 +5,7 @@
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
 // @ts-expect-error — a plain .mjs repo script, no types.
-import {isCompiledExecutable, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
+import {isCompiledExecutable, miniflareCwdOffenders, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
 import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, globSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join, posix} from 'node:path';
@@ -1576,6 +1576,49 @@ describe('no tracked file is a compiled executable', () => {
     expect(isCompiledExecutable(Buffer.from('#!/u'), '100755')).toBe(false);
     expect(isCompiledExecutable(Buffer.from('MZ h'), '100644')).toBe(false);
     expect(isCompiledExecutable(header(0x00, 0x61, 0x73, 0x6d), '100644')).toBe(false);
+  });
+});
+
+describe('miniflare workers boot from any directory', () => {
+  // miniflare names a modules worker `relative(modulesRoot, scriptPath)`, and modulesRoot defaults
+  // to process.cwd(). CI runs vitest from the repo root, so an unpaired scriptPath is green there
+  // and dies under `pnpm --filter <pkg> test` with workerd's `can't use ".."` boot failure. This is
+  // the rule's unit test; check-tree.mjs runs it over the tree from the one CI job nothing skips.
+  const call = (body: string): string => `const mf = new Miniflare({${body}});`;
+
+  it('flags a scriptPath with no modulesRoot beside it', () => {
+    const text = call("modules: true, scriptPath: BUNDLE, d1Databases: {DB: 'notes'},");
+    expect(miniflareCwdOffenders([{file: 'packages/p/src/a.spec.ts', text}])).toEqual(['packages/p/src/a.spec.ts']);
+  });
+
+  it('passes the pair, and a worker passed as source text', () => {
+    const paired = call('modules: true, scriptPath: BUNDLE, modulesRoot: BUNDLE_DIR,');
+    const inline = call("modules: true, script: 'export default {fetch() {return new Response(null);}};',");
+    expect(
+      miniflareCwdOffenders([
+        {file: 'a.ts', text: paired},
+        {file: 'b.ts', text: inline},
+      ])
+    ).toEqual([]);
+  });
+
+  it('reads each call site on its own, and ends the argument list past parens inside strings', () => {
+    // The bench call sites pass a whole worker as a template literal full of its own parens, so a
+    // scanner that stopped at the first `)` would read the next call site's options as this one's.
+    const templated = 'const a = new Miniflare({script: `addEventListener((e) => f(e));`});\n' + call('scriptPath: BUNDLE,');
+    expect(miniflareCwdOffenders([{file: 'c.ts', text: templated}])).toEqual(['c.ts']);
+  });
+
+  it('does not count a commented-out modulesRoot', () => {
+    const text = call('scriptPath: BUNDLE, // modulesRoot: BUNDLE_DIR,');
+    expect(miniflareCwdOffenders([{file: 'd.ts', text}])).toEqual(['d.ts']);
+  });
+
+  it('the cloudflare storage spec, the one that regressed, pairs them', () => {
+    const file = 'packages/platform-cloudflare/src/cloudflareStorage.workers.spec.ts';
+    const text = readFileSync(join(REPO_ROOT, file), 'utf8');
+    expect(text).toContain('new Miniflare(');
+    expect(miniflareCwdOffenders([{file, text}])).toEqual([]);
   });
 });
 
