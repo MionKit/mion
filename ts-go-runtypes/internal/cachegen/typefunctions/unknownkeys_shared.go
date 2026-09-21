@@ -578,3 +578,18 @@ func emitTupleUnknownKeysRecurse(rt *reflection.RunType, ctx *EmitContext) RTCod
 	body := guardStatement(unknownKeysArrayGuard(ctx.Vλl), strings.Join(parts, ";"))
 	return RTCode{Code: body, Type: CodeS}
 }
+
+// objectCallSignatureChild returns the node's call-signature child, or nil. A shape that has one is a Function with
+// properties bolted on, so several emit decisions (the object guard, the brand guard, the unknown-key check) key off it.
+func objectCallSignatureChild(rt *reflection.RunType, ctx *EmitContext) *reflection.RunType {
+	for _, child := range rt.Children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil {
+			continue
+		}
+		if resolved.Kind == reflection.KindCallSignature {
+			return child
+		}
+	}
+	return nil
+}

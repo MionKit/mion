@@ -938,8 +938,12 @@ func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v strin
 	// by construction. CrossFamilyVariantHash then keys the operation under the walker's own variant, so a strict site carrying
 	// `noLiterals` reaches the validateStrict entry compiled with `noLiterals`, not either default.
 	checkOp := "validate"
-	if ctx.ChecksUnknownKeys() {
+	switch {
+	case ctx.ChecksUnknownKeys():
 		checkOp = "validateStrict"
+	case ctx.ChecksUnionMemberKeys():
+		// Same reason as the strict case: the plain validator accepts a value this family's own validator rejects.
+		checkOp = "validateUnionKeys"
 	}
 	validateHash := ctx.CrossFamilyVariantHash(checkOp) + "_" + rt.ID
 	ctx.registerRTLookup(validateHash)

@@ -64,6 +64,10 @@ var Families = []FamilySpec{
 	// Placed BEFORE validate: the registry's last row must stay `validate`.
 	family("validateStrict", ValidateStrictEmitter{}),
 	family("validationErrorsStrict", ValidationErrorsStrictEmitter{}),
+	// The union-scoped validators (`{checkUnionUnknowns: true}`): the plain bodies plus a key check on each union
+	// member arm and nowhere else (validate_union_keys.go).
+	family("validateUnionKeys", ValidateUnionKeysEmitter{}),
+	family("validationErrorsUnionKeys", ValidationErrorsUnionKeysEmitter{}),
 	// createParseFn, restore + check in one walk. One family per undeclared-key strategy; the emitter value
 	// carries the policy to every node (see parse.go).
 	family("parse", ParseEmitter{Extras: ExtrasPreserve}),

@@ -20,12 +20,15 @@ import (
 // 16 armed rejectCircular forks — so 32 keys apiece. Adding them is what forced
 // FnHashLen 3 → 4 (see fnhash.go).
 //
+// +64: the union-scoped validators vuk / veuk (the `{checkUnionUnknowns: true}`
+// families), the same 32 keys apiece for the same reason.
+//
 // +3: the createParseFn families — parse / parseStrip / parseFail. AxisNone
 // and not CircularGuarded (a JSON.parse output cannot hold a cycle), so one key
 // each; the undeclared-key strategy is the operation, not an axis (see the
 // registry).
 // +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
-const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 3 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 64 + 3 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.

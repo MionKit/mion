@@ -32,8 +32,10 @@ export const CACHE_MODULES = {
   unknownKeyErrors: {name: 'unknownKeyErrorsModule', varPrefix: 'g_uke_', tag: 'uke'},
   validate: {name: 'validateModule', varPrefix: 'g_val_', tag: 'val'},
   validateStrict: {name: 'validateStrictModule', varPrefix: 'g_vst_', tag: 'vst'},
+  validateUnionKeys: {name: 'validateUnionKeysModule', varPrefix: 'g_vuk_', tag: 'vuk'},
   validationErrors: {name: 'validationErrorsModule', varPrefix: 'g_verr_', tag: 'verr'},
   validationErrorsStrict: {name: 'validationErrorsStrictModule', varPrefix: 'g_vest_', tag: 'vest'},
+  validationErrorsUnionKeys: {name: 'validationErrorsUnionKeysModule', varPrefix: 'g_veuk_', tag: 'veuk'},
 } as const satisfies Record<string, CacheModuleSettings>;
 
 export const CLASSSERIALIZERREG_VAR_PREFIX = 'g_csr_';
@@ -105,12 +107,18 @@ export const VALIDATE_TAG = 'val';
 export const VALIDATESTRICT_VAR_PREFIX = 'g_vst_';
 export const VALIDATESTRICT_MODULE_NAME = 'validateStrictModule';
 export const VALIDATESTRICT_TAG = 'vst';
+export const VALIDATEUNIONKEYS_VAR_PREFIX = 'g_vuk_';
+export const VALIDATEUNIONKEYS_MODULE_NAME = 'validateUnionKeysModule';
+export const VALIDATEUNIONKEYS_TAG = 'vuk';
 export const VALIDATIONERRORS_VAR_PREFIX = 'g_verr_';
 export const VALIDATIONERRORS_MODULE_NAME = 'validationErrorsModule';
 export const VALIDATIONERRORS_TAG = 'verr';
 export const VALIDATIONERRORSSTRICT_VAR_PREFIX = 'g_vest_';
 export const VALIDATIONERRORSSTRICT_MODULE_NAME = 'validationErrorsStrictModule';
 export const VALIDATIONERRORSSTRICT_TAG = 'vest';
+export const VALIDATIONERRORSUNIONKEYS_VAR_PREFIX = 'g_veuk_';
+export const VALIDATIONERRORSUNIONKEYS_MODULE_NAME = 'validationErrorsUnionKeysModule';
+export const VALIDATIONERRORSUNIONKEYS_TAG = 'veuk';
 
 // Internal render-format names (rtmod:/<basename>.js) the resolver
 // writes to disk and relativizes to on-disk paths — see internal/compiler/entrymodules.

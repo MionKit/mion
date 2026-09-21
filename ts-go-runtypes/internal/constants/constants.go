@@ -48,6 +48,18 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_vest_",
 		Tag:       "vest",
 	},
+	// The union-scoped validators behind `{checkUnionUnknowns: true}` — the plain
+	// bodies plus a key check on each UNION MEMBER arm and nowhere else.
+	"validateUnionKeys": {
+		Name:      "validateUnionKeysModule",
+		VarPrefix: "g_vuk_",
+		Tag:       "vuk",
+	},
+	"validationErrorsUnionKeys": {
+		Name:      "validationErrorsUnionKeysModule",
+		VarPrefix: "g_veuk_",
+		Tag:       "veuk",
+	},
 	// createParseFn — one family per undeclared-key strategy (see the operations
 	// registry for why strategies are operations here rather than an axis).
 	"parse": {

@@ -970,15 +970,15 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 		// that fails only once it runs.
 		return "", nil, []diagnostics.Diagnostic{unresolvedFnNameDiagnostic(file, call, fnKey)}
 	}
-	// `{checkUnknowns: true}` selects the FUSED validator: one emitted function checking properties AND
-	// undeclared keys in a single walk. It swaps the OPERATION rather than adding a variant, because a variant
-	// is root-scoped and would leave every named nested type unchecked. Everything downstream (the axis, the
-	// option names, the circular fork) is unchanged, so the fused family inherits noLiterals / numberMode /
-	// rejectCircularRefs for free.
-	if extractCheckUnknownsOption(typeChecker, call, lastIndex, argsCount) {
-		if fused, swapped := checkUnknownsOperation(op); swapped {
-			op = fused
-		}
+	// `{checkUnknowns: true}` selects the FUSED validator (properties AND undeclared keys in one walk);
+	// `{checkUnionUnknowns: true}` the narrower one that checks keys on union member arms only. Both swap the
+	// OPERATION rather than adding a variant, because a variant is root-scoped and would leave every named nested
+	// type unchecked. Everything downstream (the axis, the option names, the circular fork) is unchanged, so both
+	// families inherit noLiterals / numberMode / rejectCircularRefs for free.
+	checkUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnknowns")
+	checkUnionUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnionUnknowns")
+	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
+		op = selected
 	}
 	// createParseFn's `strategy` picks which parse family serves the site, by the same operation swap. Read here
 	// rather than in the axis switch below because parse is AxisNone: the strategy IS the operation.
@@ -1239,15 +1239,15 @@ func extractRejectCircularOption(typeChecker *checker.Checker, call *ast.Node, l
 	return armed
 }
 
-// extractCheckUnknownsOption reads a literal `checkUnknowns: true` from the call-site options object of
-// createValidateFn / createGetValidationErrorsFn. Read in place, NOT through the shared validateOptions bag: that
-// bag mirrors constants.ValidateOptions, whose entries become variant LETTERS on the same family, and
-// `checkUnknowns` selects a different operation entirely (see checkUnknownsOperation), so putting it in the table
-// would silently give it a variant suffix and no behaviour. A non-literal value or an absent slot yields false.
-func extractCheckUnknownsOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int) bool {
+// extractBoolValidateOption reads a literal `<option>: true` from the call-site options object of createValidateFn /
+// createGetValidationErrorsFn. Read in place, NOT through the shared validateOptions bag: that bag mirrors
+// constants.ValidateOptions, whose entries become variant LETTERS on the same family, while these options select a
+// different operation entirely (see validatorFamilyOperation), so putting one in the table would silently give it a
+// variant suffix and no behaviour. A non-literal value or an absent slot yields false.
+func extractBoolValidateOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int, option string) bool {
 	enabled := false
 	eachOptionProperty(typeChecker, call, lastIndex, argsCount, func(name string, initializer *ast.Node) {
-		if name != "checkUnknowns" || initializer == nil {
+		if name != option || initializer == nil {
 			return
 		}
 		// Last-write-wins over spreads, same as rejectCircularRefs.
@@ -1311,24 +1311,36 @@ func jsonValueStrategyOperation(op operations.Operation, strategy string) (opera
 	return resolved, true
 }
 
-// checkUnknownsOperation maps a plain validator operation to its FUSED twin, the family whose emitted body also
-// rejects undeclared keys, and returns the operation unchanged when it has none. The call site's marker still
-// says 'val' / 'verr', the injected tuple carrying the fnHash, so this swap is the only thing that routes it.
-func checkUnknownsOperation(op operations.Operation) (operations.Operation, bool) {
-	var fusedName string
+// validatorFamilyOperation maps a plain validator operation to the family the call site's options selected, and returns
+// it unchanged when they selected none. The call site's marker still says 'val' / 'verr', the injected tuple carrying
+// the fnHash, so this swap is the only thing that routes it.
+//
+// `checkUnknowns` wins when both are set: it checks keys at every object-ish node, which is strictly stronger than
+// checking them on union member arms alone.
+func validatorFamilyOperation(op operations.Operation, checkUnknowns, checkUnionUnknowns bool) (operations.Operation, bool) {
+	plain, union := "", ""
 	switch op.Name {
 	case "validate":
-		fusedName = "validateStrict"
+		plain, union = "validateStrict", "validateUnionKeys"
 	case "validationErrors":
-		fusedName = "validationErrorsStrict"
+		plain, union = "validationErrorsStrict", "validationErrorsUnionKeys"
 	default:
 		return op, false
 	}
-	fused, ok := operations.ByName(fusedName)
+	selected := ""
+	switch {
+	case checkUnknowns:
+		selected = plain
+	case checkUnionUnknowns:
+		selected = union
+	default:
+		return op, false
+	}
+	resolved, ok := operations.ByName(selected)
 	if !ok {
 		return op, false
 	}
-	return fused, true
+	return resolved, true
 }
 
 // enclosedByInjectionMarker reports whether call sits, transitively, inside the arguments of ANOTHER call whose

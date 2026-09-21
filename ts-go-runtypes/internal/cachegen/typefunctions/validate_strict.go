@@ -87,6 +87,12 @@ func emitsUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigChild
 	if !ctx.ChecksUnknownKeys() {
 		return false
 	}
+	return nodeTakesUnknownKeyCheck(rt, ctx, callSigChild)
+}
+
+// nodeTakesUnknownKeyCheck is the family-independent half: given that SOME family wants a key check here, can this node
+// carry one at all? Split out so the union-keys families can ask it about a member arm without claiming to be fused.
+func nodeTakesUnknownKeyCheck(rt *reflection.RunType, ctx *EmitContext, callSigChild *reflection.RunType) bool {
 	// A callable shape is a Function, not a plain object: its extra properties are the call signature's business.
 	if callSigChild != nil {
 		return false
