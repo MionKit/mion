@@ -1,12 +1,7 @@
-// Consolidated string-format TYPE aliases — the public type surface of
-// every string format (String, UUIDv4, StringDate,
-// Domain, Email, …). Mocking lives in `stringFormatMock.ts`
-// (one switch keyed by format name) and validation is build-time on the
-// Go side; this file is type-only + the brand wiring.
-//
-// `TypeFormat` IS imported as a value (not `import type`): the value-level
-// import keeps each brand alias's reflection metadata reachable for tsgo
-// (the spec documents the same constraint).
+// Consolidated string-format TYPE aliases. Mocking lives in `stringFormatMock.ts` (one switch keyed by
+// format name) and validation is build-time on the Go side, so this file is type-only plus the brand
+// wiring. `TypeFormat` IS imported as a value (not `import type`): the value-level import keeps each
+// brand alias's reflection metadata reachable for tsgo.
 
 import {TypeFormat} from '../../runtypes/typeFormat.ts';
 import type {FormatNameOf, FormatParamsOf, FormatBrandNameOf} from '../../runtypes/typeFormat.ts';
@@ -55,26 +50,20 @@ import type {
 
 // ─────────────────────────── StringFormat ───────────────────────────
 
-// PatternParam — the regex a string format validates against. Either a
-// `registerFormatPattern(...)` result (validates its samples at load) or an
-// inline `{source, flags?, mockSamples?, message?}` literal (the
-// `StringPatternArgs` shape) the Go scanner recovers directly from the property.
-// `mockSamples` are optional — a pattern without them gets a deterministic
-// sample pool generated from the regex at build time (declare your own to
-// curate the values, or when the build reports it cannot generate for a
-// construct):
+// The regex a string format validates against: a `registerFormatPattern(...)` result (which validates
+// its samples at load) or an inline `{source, flags?, mockSamples?, message?}` literal (the
+// `StringPatternArgs` shape) the Go scanner recovers directly from the property. `mockSamples` are
+// optional, a pattern without them gets a deterministic pool generated from the regex at build time
+// (declare your own to curate the values, or when the build reports it cannot generate one):
 //   const slug = registerFormatPattern({source: '^[a-z-]+$', mockSamples: ['a-b']});
 //   type Slug = String<{pattern: typeof slug}>;
 //   type Digits = String<{pattern: {source: '^[0-9]+$'}}>;
-// A bare `/regex/` VALUE stays deliberately NOT accepted: `typeof /x/` is
-// plain RegExp, so nothing about it survives as literal types for the
-// scanner (see StringPatternArgs.exec). Built-ins encode their pattern as an
-// inline `{source, flags, mockSamples}` literal — a published .d.ts can't
-// carry a regex VALUE for `typeof` recovery.
+// A bare `/regex/` VALUE stays deliberately NOT accepted: `typeof /x/` is plain RegExp, so nothing
+// about it survives as literal types for the scanner, and a published .d.ts cannot carry a regex VALUE
+// for `typeof` recovery.
 export type PatternParam = FormatPattern | StringPatternArgs;
 
-// Samples — canonical valid values for the mock generator: either an
-// explicit list, or (for char-class params) a string of sample chars.
+// Canonical valid values for the mock generator: a list, or (for char-class params) sample chars.
 export type Samples = string | readonly string[];
 
 // allowedChars: the value must consist entirely of `val`'s characters.
@@ -116,25 +105,21 @@ export interface DisallowedValuesParam {
 
 // ─────────────────────────── Transforms ────────────────────────────
 //
-// A format's value REWRITE lives under ONE `transform` key in its params, so a
-// reader of `String<{maxLength: 32; transform: {trim: true}}>` can tell which
-// part checks the value and which part changes it. The rewrite is applied only
-// by `createFormatTransformFn<T>` and by mion's `sanitizeParams` lane, never by
-// validate / parse / encode / decode. The wrapper type `Transform<T, P>` below
-// is the other spelling of the same key.
+// A format's value REWRITE lives under ONE `transform` key in its params, so a reader can tell which
+// part checks the value and which part changes it. It is applied only by `createFormatTransformFn<T>`
+// and mion's `sanitizeParams` lane, never by validate / parse / encode / decode. The wrapper type
+// `Transform<T, P>` below is the other spelling of the same key.
 
-/** The rewrites every string-family format may declare. Applied in this
- *  order: replace, replaceAll, trim, lowercase, uppercase, capitalize. The
- *  replacements go first so a second pass (mion sanitizes on the client AND the
- *  server) finds nothing left to trim. **/
+/** The rewrites every string-family format may declare, applied in this order: replace, replaceAll,
+ *  trim, lowercase, uppercase, capitalize. The replacements go first so a second pass (mion sanitizes
+ *  on the client AND the server) finds nothing left to trim. **/
 export interface StringTransformParams {
   trim?: boolean;
   lowercase?: boolean;
   uppercase?: boolean;
   capitalize?: boolean;
-  /** The FIRST match of `searchValue` becomes `replaceValue`. Not idempotent
-   *  when the text has several matches, so prefer `replaceAll` for a value
-   *  that is sanitized on both the client and the server. **/
+  /** The FIRST match of `searchValue` becomes `replaceValue`. Not idempotent with several matches, so
+   *  prefer `replaceAll` for a value sanitized on both the client and the server. **/
   replace?: {searchValue: string; replaceValue: string};
   /** Every match of `searchValue` becomes `replaceValue`. **/
   replaceAll?: {searchValue: string; replaceValue: string};
@@ -146,9 +131,8 @@ export interface CreditCardTransformParams extends StringTransformParams {
   stripSeparators?: boolean;
 }
 
-/** Which transform bag each string-family format takes. A format missing here
- *  (uuid, the string date / time formats) takes none, so `Transform<UUIDv4, P>`
- *  is a compile error. **/
+/** Which transform bag each string-family format takes. A format missing here (uuid, the string date /
+ *  time formats) takes none, so `Transform<UUIDv4, P>` is a compile error. **/
 export interface TransformParamsByFormat {
   stringFormat: StringTransformParams;
   email: StringTransformParams;
@@ -178,29 +162,22 @@ export interface StringParams {
   allowedValues?: AllowedValuesParam;
   disallowedValues?: DisallowedValuesParam;
   mockSamples?: readonly string[];
-  // JSON Schema content keywords. `contentEncoding` says how the string is
-  // encoded; `contentMediaType` says what the DECODED content is, so they
-  // compose: with both, the value must decode AND parse. These are ordinary
-  // string keywords — there is no separate content FORMAT.
+  // JSON Schema content keywords: `contentEncoding` says how the string is encoded, `contentMediaType`
+  // what the DECODED content is, so with both the value must decode AND parse. Ordinary string
+  // keywords, there is no separate content FORMAT.
   contentEncoding?: 'base64' | 'base32' | 'base16';
   contentMediaType?: 'application/json';
-  // The value rewrite, see StringTransformParams. Applied only by
-  // `createFormatTransformFn<T>` and mion's `sanitizeParams`, NOT by validate.
+  // Applied only by `createFormatTransformFn<T>` and mion's `sanitizeParams`, NOT by validate.
   transform?: StringTransformParams;
 }
 
-// StringParamsValueFirst — the value-first `string()` builder's params: identical
-// to StringParams except `pattern` is typed as the plain `StringPatternArgs`
-// literal (`{source, flags?, mockSamples}`). A `registerFormatPattern(...)` value
-// (now a generic `FormatPattern<A>` that carries its own literals) is assignable
-// here too — both forms keep source/flags/mockSamples as literal TYPES, so a
-// value-first builder reflecting `T` recovers them faithfully and converges on
+// The value-first `string()` builder's params: `pattern` typed as the plain `StringPatternArgs`
+// literal, to which a `registerFormatPattern(...)` value is assignable too. Both forms keep
+// source/flags/mockSamples as literal TYPES, so the builder recovers them faithfully and converges on
 // the same id as the type-first `String<{pattern: typeof x}>` form.
 export type StringParamsValueFirst = Omit<StringParams, 'pattern'> & {pattern?: StringPatternArgs};
 
-// String — the branded string alias users annotate with:
-// `String<{maxLength: 32}>`. `BrandName` produces a nominal type
-// when needed (the convention).
+// The branded string alias users annotate with, e.g. `String<{maxLength: 32}>`.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type String<P extends StringParams = {}, BrandName extends string = never> = TypeFormat<
   string,
@@ -209,10 +186,8 @@ export type String<P extends StringParams = {}, BrandName extends string = never
   BrandName
 >;
 
-// Default string formats — Alpha / AlphaNumeric / Numeric (char-class
-// patterns) and the Lowercase / Uppercase / Capitalize transformers.
-// Alpha/AlphaNumeric/Numeric reference the registered char-class patterns
-// by `typeof` (see ./string-patterns.ts).
+// Alpha / AlphaNumeric / Numeric reference the registered char-class patterns by `typeof`
+// (see ./string-patterns.ts).
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 export type Alpha<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
   'stringFormat',
@@ -229,9 +204,8 @@ export type Numeric<P extends Override<StringParams, 'pattern'> = {}> = PresetFo
   {pattern: typeof NUMERIC_PATTERN},
   P
 >;
-// The case presets pin `transform`: a caller's `transform` would REPLACE the
-// whole block (params merge key by key), so a combined rewrite is spelled
-// `String<{transform: {lowercase: true; trim: true}}>`.
+// The case presets pin `transform`: a caller's `transform` would REPLACE the whole block (params merge
+// key by key), so a combined rewrite is spelled `String<{transform: {lowercase: true; trim: true}}>`.
 export type Lowercase<P extends Override<StringParams, 'transform'> = {}> = PresetFormat<
   'stringFormat',
   {transform: {lowercase: true}},
@@ -247,9 +221,8 @@ export type Capitalize<P extends Override<StringParams, 'transform'> = {}> = Pre
   {transform: {capitalize: true}},
   P
 >;
-// contentEncoding formats — a base64/32/16-encoded string. The type-first
-// spelling of JSON Schema `contentEncoding`; each rides the registered RFC 4648
-// pattern so the door's `contentEncoding: 'base64'` and `TF.base64()` converge.
+// The type-first spelling of JSON Schema `contentEncoding`: each rides the registered RFC 4648 pattern
+// so the door's `contentEncoding: 'base64'` and `TF.base64()` converge.
 export type Base64<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
   'stringFormat',
   {pattern: typeof BASE64_PATTERN},
@@ -269,18 +242,12 @@ export type Base16<P extends Override<StringParams, 'pattern'> = {}> = PresetFor
 
 // ─────────────────────────── JsonContent ────────────────────────────
 //
-// A string whose content parses as JSON — the type-first spelling of JSON
-// Schema `contentMediaType: 'application/json'` (optionally behind
-// `contentEncoding: 'base64'`). NOT a format of its own: these are `String`
-// aliases over the two content keywords, which the string emitter reads like
-// any other string param. Params mirror the schema translation's lowering so
-// the two authoring modes converge. `mockSamples` are id-irrelevant (they feed
-// createMockDataFn only) but carried so the mock draws valid JSON either way.
-// Spans what a JSON payload actually looks like, not just what parses: the
-// three trivial documents that catch empty-input handling, then a flat record,
-// a nested one, an array of records, and a string carrying every JSON escape
-// (quote / backslash / newline) plus non-ASCII text — so a mock consumer meets
-// real escaping instead of only `{}`.
+// A string whose content parses as JSON, the type-first spelling of JSON Schema
+// `contentMediaType: 'application/json'` (optionally behind `contentEncoding: 'base64'`). NOT a format
+// of its own: these are `String` aliases over the two content keywords, mirroring the schema
+// translation's lowering so the two authoring modes converge. `mockSamples` are id-irrelevant (they
+// feed createMockDataFn only) and span what a JSON payload actually looks like, escapes and non-ASCII
+// text included, so a mock consumer meets real escaping instead of only `{}`.
 type DEFAULT_JSON_CONTENT_PARAMS = {
   contentMediaType: 'application/json';
   mockSamples: readonly [
@@ -293,9 +260,8 @@ type DEFAULT_JSON_CONTENT_PARAMS = {
     '{"text":"quote \\" backslash \\\\ newline \\n","unicode":"héllo ✓"}',
   ];
 };
-// The same span of documents, base64-encoded. Each one decodes to valid JSON
-// (the last is multi-byte UTF-8, so it exercises the decode step rather than
-// just the parse step).
+// The same span of documents, base64-encoded; the last is multi-byte UTF-8, so it exercises the decode
+// step rather than just the parse step.
 type DEFAULT_JSON_CONTENT_BASE64_PARAMS = {
   contentEncoding: 'base64';
   contentMediaType: 'application/json';
@@ -320,35 +286,23 @@ export type JsonContentBase64<P extends Override<StringParams> = {}> = PresetFor
 // ─────────────────────────────── UUID ───────────────────────────────
 
 export interface UUIDParams {
-  /** Which UUID version the validator pins.
-   *
-   *  `'4'` / `'7'` additionally require that exact digit in the version slot
-   *  (index 14). `'any'` does NOT skip validation: it checks the full RFC 9562
-   *  string layout — 36 characters, hyphens at 8/13/18/23, a hex digit in every
-   *  other position — and reads the version slot as an ordinary hex digit.
-   *
-   *  `'any'` is what JSON Schema `format: 'uuid'` means, not a workaround for
-   *  it: the RFC's string grammar is hex-and-hyphens with no version
-   *  constraint, and §5.9 / §5.10 make the Nil (all zeros) and Max (all f)
-   *  UUIDs valid, whose version slots name no version. Defaulting the bare
-   *  `UUID` to a pinned version would therefore REJECT valid UUIDs — including
-   *  every v1 and v7 value. Pin a version only when you mean to exclude the
-   *  others (`UUIDv4` / `UUIDv7`). **/
+  /** Which UUID version the validator pins. `'4'` / `'7'` additionally require that exact digit in the
+   *  version slot (index 14). `'any'` does NOT skip validation: it checks the full RFC 9562 string
+   *  layout (36 characters, hyphens at 8/13/18/23, a hex digit everywhere else) and reads the version
+   *  slot as an ordinary hex digit, which is what JSON Schema `format: 'uuid'` means: the RFC's grammar
+   *  carries no version constraint, and §5.9 / §5.10 make the Nil and Max UUIDs valid, whose version
+   *  slots name no version. Defaulting the bare `UUID` to a pinned version would REJECT valid UUIDs,
+   *  every v1 and v7 value included. Pin a version only to exclude the others. **/
   version: '4' | '7' | 'any';
 }
-// Version-agnostic UUID — any RFC 9562 version, the JSON Schema `format:
-// 'uuid'` meaning (see UUIDParams.version for exactly what is checked).
+// Version-agnostic UUID: any RFC 9562 version (UUIDParams.version says exactly what is checked).
 export type UUID = TypeFormat<string, 'uuid', {version: 'any'}, never>;
 export type UUIDv4 = TypeFormat<string, 'uuid', {version: '4'}, never>;
 export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
 // ──────────────────── Date / Time / DateTime ────────────────────────
-//
-// The string date/time/dateTime formats moved to
-// `../datetime/stringDateTimeFormats.ts` (they now share the min/max
-// bound params with the native `Date` family). They are re-exported from
-// the `@mionjs/run-types/formats` subpath via `../index.ts`, so
-// public imports are unchanged.
+// The string date/time/dateTime formats live in `../datetime/stringDateTimeFormats.ts`, sharing the
+// min/max bound params with the native `Date` family, and are re-exported via `../index.ts`.
 
 // ──────────────────────────────── IP ────────────────────────────────
 
@@ -368,15 +322,11 @@ export interface IPParams {
   /** Value rewrite (`{lowercase: true}` canonicalises IPv6 hex digits). Off by default. **/
   transform?: StringTransformParams;
 }
-// The version-pinned aliases pin `version`: `ipv4({allowPort: true})` is the
-// point of the override, `ipv4({version: 6})` would just be `ipv6()` wearing the
-// wrong name.
-// `allowLocalHost` is OFF by default on every IP preset: these formats describe
-// an ADDRESS, so the hostname spelling "localhost" is opt-in
-// (`IPv4<{allowLocalHost: true}>`) rather than something a field silently
-// accepts. It never gates the loopback ADDRESSES — `127.0.0.1` and `::1` are
-// well-formed and pass on their own. This is also what JSON Schema's `ipv4` /
-// `ipv6` format keywords mean, so the schema door needs no override.
+// The version-pinned aliases pin `version`: `ipv4({version: 6})` would just be `ipv6()` wearing the
+// wrong name. `allowLocalHost` is OFF by default on every IP preset, since these formats describe an
+// ADDRESS, so the hostname spelling "localhost" is opt-in rather than silently accepted. It never gates
+// the loopback ADDRESSES, `127.0.0.1` and `::1` are well-formed and pass on their own. That is also
+// what JSON Schema's `ipv4` / `ipv6` format keywords mean, so the schema door needs no override.
 type DEFAULT_IP_PARAMS = {version: 'any'; allowLocalHost: false};
 type DEFAULT_IPV4_PARAMS = {version: 4; allowLocalHost: false};
 type DEFAULT_IPV6_PARAMS = {version: 6; allowLocalHost: false};
@@ -402,8 +352,7 @@ export type IPv6WithPort<P extends Override<IPParams, 'version' | 'allowPort'> =
 
 // ────────────────────────────── Domain ──────────────────────────────
 
-// DomainPartParams — the sub-validators a `names` label or the `tld`
-// accepts (Omit<StringValidators, 'length'|'allowedChars'|'disallowedChars'>).
+// The sub-validators a `names` label or the `tld` accepts.
 export interface DomainPartParams {
   maxLength?: number;
   minLength?: number;
@@ -425,8 +374,7 @@ export interface DomainPartParams {
  *  way to fail per param and never sets it. **/
 export type DomainErrorType = 'label' | 'tld' | 'punycode' | 'bidi' | 'length';
 
-// DomainParams — pattern path (single baked regex) OR names+tld
-// decomposition, never both (Go FMT002 enforces it).
+// Pattern path (single baked regex) OR names+tld decomposition, never both (Go FMT002 enforces it).
 /** A failing value reports WHICH PART failed in the error's `errorType`, one of
  *  `DomainErrorType` (see it for which path sets which). **/
 export interface DomainParams {
@@ -438,9 +386,8 @@ export interface DomainParams {
   mockSamples?: readonly string[];
   names?: DomainPartParams;
   tld?: DomainPartParams;
-  // Enum-like restriction: only these exact domains validate (the build
-  // already accepted it — same param family as plain string formats). Mocks
-  // draw from it FIRST: a synthesized domain would fail its own validator.
+  // Enum-like restriction: only these exact domains validate. Mocks draw from it FIRST, since a
+  // synthesized domain would fail its own validator.
   allowedValues?: AllowedValuesParam;
   /** Value rewrite (`{lowercase: true}` is the usual one). Off by default. **/
   transform?: StringTransformParams;
@@ -450,9 +397,8 @@ type DEFAULT_DOMAIN_PARAMS = {pattern: typeof DOMAIN_PATTERN; maxLength: 253; mi
 type DEFAULT_DOMAIN_UNICODE_PARAMS = {pattern: typeof DOMAIN_UNICODE_PATTERN; maxLength: 253; minLength: 5};
 type DEFAULT_DOMAIN_PUNYCODE_PARAMS = {pattern: typeof DOMAIN_PUNYCODE_PATTERN; maxLength: 253; minLength: 5};
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-// `Domain` leaves `pattern` overridable on purpose (a caller's own domain regex
-// is a supported use); the script-specific variants pin it, since replacing it
-// is exactly `Domain<{pattern}>`.
+// `Domain` leaves `pattern` overridable on purpose (a caller's own domain regex is a supported use);
+// the script-specific variants pin it, since replacing it is exactly `Domain<{pattern}>`.
 export type Domain<P extends Override<DomainParams> = {}> = PresetFormat<'domain', DEFAULT_DOMAIN_PARAMS, P>;
 export type DomainUnicode<P extends Override<DomainParams, 'pattern'> = {}> = PresetFormat<
   'domain',
@@ -474,9 +420,8 @@ export type DEFAULT_STRICT_DOMAIN_PARAMS = {
   names: {maxLength: 63; minLength: 2; pattern: typeof DOMAIN_NAME_PATTERN};
   tld: {maxLength: 12; minLength: 2; pattern: typeof DOMAIN_TLD_PATTERN};
 };
-// DomainStrict — ≤6 labels, ≥2 parts, no hyphen-edge labels, alphabetical tld.
-// The label/tld decomposition IS the strictness, so those two stay pinned;
-// bounds and samples are retunable.
+// ≤6 labels, ≥2 parts, no hyphen-edge labels, alphabetical tld. The label/tld decomposition IS the
+// strictness, so those two stay pinned; bounds and samples are retunable.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type DomainStrict<P extends Override<DomainParams, 'names' | 'tld'> = {}> = PresetFormat<
   'domain',
@@ -484,32 +429,21 @@ export type DomainStrict<P extends Override<DomainParams, 'names' | 'tld'> = {}>
   P
 >;
 
-// FormatDefaults — a defaults bag with an override P layered on top (P's keys
-// win, the rest of the defaults survive). This is what lets a partial override
-// keep the built-in pattern + bounds: `Email<{maxLength: 100}>` replaces only
-// `maxLength`, so the baked pattern and `minLength` remain. The schema door
-// rides the SAME merge (a `format: 'email'` + `minLength` sibling lowers to
-// `Email<{minLength}>`), so the two authoring modes converge on one id.
-// Fast path FIRST: with no override there is nothing to merge, so hand back the
-// defaults bag untouched. That keeps the bare spelling of every preset
-// (`Email`, `UrlHttp`, …) exactly the type it was before it became overridable
-// — same id, and none of the merge cost, which the whole JSON Schema
-// format-lookup table would otherwise pay per row. The fast path earns its keep:
-// dropping it makes a bare preset cost 13 instead of 10.
-//
-// The merge itself is ONE mapped pass over the combined key set. It used to be
-// `Simplify<Omit<Defaults, keyof P> & P>`, which built a Pick, then an
-// intersection, then flattened it again — three passes to produce the type this
-// writes directly, and 19 instantiations per override against 15.
+// A defaults bag with an override P layered on top (P's keys win), which is what lets a partial
+// override keep the built-in pattern + bounds: `Email<{maxLength: 100}>` replaces only `maxLength`.
+// The schema door rides the SAME merge, so the two authoring modes converge on one id. Fast path
+// FIRST: with no override the defaults bag is handed back untouched, so a bare preset keeps the id it
+// had before it became overridable and costs 10 instantiations instead of 13, which the whole JSON
+// Schema format-lookup table would otherwise pay per row. The merge itself is ONE mapped pass over the
+// combined key set: 15 instantiations per override against the 19 of `Simplify<Omit<Defaults, keyof P>
+// & P>`.
 type FormatDefaults<Defaults extends object, P> = [keyof P] extends [never]
   ? Defaults
   : {[K in keyof Defaults | keyof P]: K extends keyof P ? P[K] : K extends keyof Defaults ? Defaults[K] : never};
 
-/** A predefined string format: the Go format `Tag`, the params the preset bakes
- *  in, and whatever the caller layers on top. EVERY named string format below is
- *  spelled through this, so "which keywords can this one override?" has a single
- *  answer — all of them, with `Defaults` supplying whatever the caller left out
- *  — instead of a different answer per name. **/
+/** A predefined string format: the Go format `Tag`, the params the preset bakes in, and whatever the
+ *  caller layers on top. EVERY named string format below is spelled through this, so "which keywords
+ *  can this one override?" has one answer, all of them, instead of a different answer per name. **/
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = TypeFormat<
   string,
@@ -518,21 +452,18 @@ export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = 
   never
 >;
 
-/** What a preset accepts as an override: its params family, minus the key(s)
- *  that ARE the preset's identity. `urlHttp({maxLength: 100})` retunes the
- *  bound, while swapping its pattern is just `url({pattern})` under a
- *  misleading name — so the pinned key is rejected at the call site instead of
+/** What a preset accepts as an override: its params family, minus the key(s) that ARE the preset's
+ *  identity. `urlHttp({maxLength: 100})` retunes the bound, while swapping its pattern is just
+ *  `url({pattern})` under a misleading name, so the pinned key is rejected at the call site instead of
  *  quietly producing a format whose name no longer describes it. **/
 // Instantiated per call site (it rides every preset alias's generic bound), so keep it to one pass over Params.
 export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
 
-/** `T` with its value rewrite set to `P`. The wrapper spelling of the nested
- *  `transform` param: `Transform<Email, {lowercase: true}>` IS
- *  `Email<{transform: {lowercase: true}}>` (same base, same format name, the
- *  params merged, the same nominal brand if `T` carried one), so both spellings
- *  resolve to one structural id. Over a plain `string` it is
- *  `String<{transform: P}>`. It REPLACES any `transform` `T` already declared:
- *  `Transform<Lowercase, {trim: true}>` trims and no longer lowercases. **/
+/** `T` with its value rewrite set to `P`, the wrapper spelling of the nested `transform` param:
+ *  `Transform<Email, {lowercase: true}>` IS `Email<{transform: {lowercase: true}}>` (same base, same
+ *  format name, params merged, the same nominal brand if `T` carried one), so both spellings resolve
+ *  to one structural id. Over a plain `string` it is `String<{transform: P}>`, and it REPLACES any
+ *  `transform` `T` declared: `Transform<Lowercase, {trim: true}>` trims and no longer lowercases. **/
 export type Transform<T extends string, P extends TransformParamsOf<T>> = [FormatNameOf<T>] extends [never]
   ? TypeFormat<string, 'stringFormat', {transform: P}, never>
   : TypeFormat<string, FormatNameOf<T>, FormatDefaults<FormatParamsOf<T> & object, {transform: P}>, FormatBrandNameOf<T>>;
@@ -562,17 +493,15 @@ export interface EmailParams {
   mockSamples?: readonly string[];
   localPart?: StringParams;
   domain?: DomainParams;
-  /** Value rewrite (`{trim: true, lowercase: true}` is the usual one). Off by
-   *  default: an email's local part is case-sensitive by the letter of the RFC,
-   *  so lowercasing is the field's decision, not the format's. **/
+  /** Value rewrite (`{trim: true, lowercase: true}` is the usual one). Off by default: an email's local
+   *  part is case-sensitive by the letter of the RFC, so lowercasing is the field's decision. **/
   transform?: StringTransformParams;
 }
 
 type DEFAULT_EMAIL_PARAMS = {pattern: typeof EMAIL_PATTERN; maxLength: 254; minLength: 7};
-// The RFC 5321 pair. `TF.Email` above is the everyday shape (a dotted domain, a
-// plain local part), which is what most fields want; these two are what the
-// JSON Schema keywords mean, and they accept the whole grammar — quoted local
-// parts, address literals, and for the idn twin a local part in any script.
+// The RFC 5321 pair: `TF.Email` above is the everyday shape (a dotted domain, a plain local part),
+// while these two are what the JSON Schema keywords mean and accept the whole grammar, quoted local
+// parts and address literals included, plus any script for the idn twin.
 type DEFAULT_EMAIL_ADDRESS_PARAMS = {
   emailRfc: 'ascii';
   maxLength: 254;
@@ -622,9 +551,8 @@ export type DEFAULT_STRICT_EMAIL_PARAMS = {
   };
   domain: DEFAULT_STRICT_DOMAIN_PARAMS;
 };
-// EmailStrict — split on the last '@'; local part rejects spaces / brackets /
-// aliasing chars; domain validated strictly. Both halves of that split are the
-// strictness, so both stay pinned.
+// Split on the last '@', local part rejects spaces / brackets / aliasing chars, domain validated
+// strictly. Both halves of that split are the strictness, so both stay pinned.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type EmailStrict<P extends Override<EmailParams, 'localPart' | 'domain'> = {}> = PresetFormat<
   'email',
@@ -645,24 +573,21 @@ export interface UrlParams {
 }
 
 // ── JSON Schema named formats ──
-// Each is the shape its `format` keyword lowers to. They ride the existing
-// 'url' / 'stringFormat' emitters (a pattern plus optional length bounds is all
-// they need), so no new Go emitter arrives with them.
+// Each is the shape its `format` keyword lowers to, riding the existing 'url' / 'stringFormat'
+// emitters (a pattern plus optional length bounds is all they need), so no new Go emitter with them.
 type DEFAULT_URI_PARAMS = {pattern: typeof URI_PATTERN};
 type DEFAULT_URI_REFERENCE_PARAMS = {pattern: typeof URI_REFERENCE_PATTERN};
 type DEFAULT_IRI_PARAMS = {pattern: typeof IRI_PATTERN};
 type DEFAULT_IRI_REFERENCE_PARAMS = {pattern: typeof IRI_REFERENCE_PATTERN};
 type DEFAULT_URI_TEMPLATE_PARAMS = {pattern: typeof URI_TEMPLATE_PATTERN};
-// `idna` routes the check to the pure-fn engine instead of a pattern: an
-// `xn--` label has to be decoded before its characters can be judged. 'ascii'
-// is the RFC 1123 host name, 'unicode' additionally accepts the U-label
-// spelling. HOSTNAME_PATTERN stays on the ASCII preset for its mock pool.
+// `idna` routes the check to the pure-fn engine instead of a pattern: an `xn--` label has to be
+// decoded before its characters can be judged. 'ascii' is the RFC 1123 host name, 'unicode' also
+// accepts the U-label spelling. HOSTNAME_PATTERN stays on the ASCII preset for its mock pool.
 type DEFAULT_HOSTNAME_PARAMS = {pattern: typeof HOSTNAME_PATTERN; maxLength: 253; idna: 'ascii'};
 type DEFAULT_IDN_HOSTNAME_PARAMS = {maxLength: 253; idna: 'unicode'};
 type DEFAULT_STRING_DURATION_PARAMS = {pattern: typeof STRING_DURATION_PATTERN};
-// No pattern: whether a string compiles as a regular expression is a question
-// only the engine can answer, so the check is a pure fn and the pool is
-// declared (nothing can be generated from a constraint like this).
+// No pattern: whether a string compiles as a regular expression is a question only the engine can
+// answer, so the check is a pure fn and the pool is declared (nothing can be generated from it).
 type DEFAULT_REGEX_PARAMS = {
   isRegex: true;
   mockSamples: ['^[a-z]+$', '\\d{4}-\\d{2}-\\d{2}', '(foo|bar)+', '^.*$'];
@@ -730,18 +655,12 @@ export type RelativeJsonPointer<P extends Override<StringParams, 'pattern'> = {}
 /* eslint-enable @typescript-eslint/no-empty-object-type */
 
 // ───────────────────── Predefined string builders ───────────────────
-//
-// Value-first builder per named alias (`TF.email()` → `RunType<Email>`,
-// `TF.ipv4()`, `TF.uuidv4()`, `TF.stringDate({format: 'DD-MM-YYYY'})`, …), each
-// carrying the CONCRETE alias above so the value-first id converges with the
-// type-first `createValidateFn<Email>()`.
-//
-// EVERY predefined string builder takes the SAME optional params bag its type
-// does, layered over that preset's own defaults: `urlHttp({maxLength: 100})`
-// keeps the HTTP(S) pattern and replaces only the bound. There is no
-// params-capable vs params-less tier — the one exception is the UUID family,
-// whose only param is the version each alias exists to pin. For constraints
-// that no preset covers, use `TF.string({…})`.
+// Value-first builder per named alias, each carrying the CONCRETE alias above so the value-first id
+// converges with the type-first `createValidateFn<Email>()`. EVERY predefined string builder takes the
+// SAME optional params bag its type does, layered over that preset's own defaults:
+// `urlHttp({maxLength: 100})` keeps the HTTP(S) pattern and replaces only the bound. The one exception
+// is the UUID family, whose only param is the version each alias exists to pin. For constraints no
+// preset covers, use `TF.string({…})`.
 
 /** The call shape every predefined string builder shares. **/
 export interface PresetFormatBuilder<Tag extends string, Defaults extends object, Params> {
@@ -752,9 +671,8 @@ export interface PresetFormatBuilder<Tag extends string, Defaults extends object
   ): RunType<PresetFormat<Tag, Defaults, P>>;
 }
 
-/** One implementation behind all of them. The first argument is a params bag
- *  only when it is a non-array object: an ARRAY there is an injected
- *  entry-module id, which is the same line compose.ts draws between the two. **/
+/** One implementation behind all of them. The first argument is a params bag only when it is a
+ *  non-array object: an ARRAY there is an injected entry-module id, the same line compose.ts draws. **/
 export function presetFormatBuilder<Tag extends string, Defaults extends object, Params>(
   tag: Tag
 ): PresetFormatBuilder<Tag, Defaults, Params> {
@@ -801,9 +719,8 @@ export const jsonContent = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONT
 export const jsonContentBase64 = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONTENT_BASE64_PARAMS, Override<StringParams>>(
   'stringFormat'
 );
-/** Lowercase string (`Lowercase`). The rewrite is applied only by
- *  `createFormatTransformFn` and mion's `sanitizeParams`; validate accepts any
- *  case. **/
+/** Lowercase string (`Lowercase`). The rewrite is applied only by `createFormatTransformFn` and mion's
+ *  `sanitizeParams`; validate accepts any case. **/
 export const lowercase = presetFormatBuilder<'stringFormat', {transform: {lowercase: true}}, Override<StringParams, 'transform'>>(
   'stringFormat'
 );
@@ -818,10 +735,8 @@ export const capitalize = presetFormatBuilder<
   Override<StringParams, 'transform'>
 >('stringFormat');
 
-/** Value-first twin of `Transform<T, P>`: `TF.transform(TF.email(), {trim: true,
- *  lowercase: true})` is `RunType<Transform<Email, {…}>>` and converges on the
- *  type-first id. Over `TF.string()` it is a `String<{transform: P}>`. Only this
- *  outer call resolves an id; the inner builder is the leaf it wraps. **/
+/** Value-first twin of `Transform<T, P>`, converging on the type-first id; over `TF.string()` it is a
+ *  `String<{transform: P}>`. Only this outer call resolves an id, the inner builder is the leaf. **/
 export function transform<T extends string, const P extends TransformParamsOf<T>>(
   runType: RunType<T>,
   transformParams: CompTimeArgs<ExactParams<P, TransformParamsOf<T>>>,
@@ -830,9 +745,8 @@ export function transform<T extends string, const P extends TransformParamsOf<T>
   return builderResult(id, {type: 'transform', formatParams: {transform: transformParams}, inner: runType});
 }
 
-// The UUID builders take no params, deliberately: `version` is UUIDParams' only
-// member and each alias exists to pin it, so an override could only ever turn
-// one alias into another.
+// The UUID builders take no params, deliberately: `version` is UUIDParams' only member and each alias
+// exists to pin it, so an override could only ever turn one alias into another.
 /** Version-agnostic UUID (`UUID`). **/
 export const uuid = presetBuilder<UUID>('uuid');
 /** UUID v4 (`UUIDv4`). **/

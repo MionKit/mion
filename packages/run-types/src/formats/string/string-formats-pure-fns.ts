@@ -1,15 +1,8 @@
-// Registration module for every pure fn the Go-side format emitters
-// reach via `utl.getPureFn(<the id below>)`. Each * below
-// is registered at module load; importing this file from
-// `src/formats/index.ts` (the `@mionjs/run-types/formats`
-// subpath surface) is enough to guarantee the registrations happen
-// before any user code references a format type.
-//
-// Mirrors (ref: packages/type-formats/src/type-formats-pure-fns.ts)
-// minus the deepkit-coupled `getPureFn` typing — our utl is the
-// runtime helper exported from @mionjs/run-types.
-//
-// Phase 3 ships isUUID. Subsequent phases append more.
+// Registration module for every pure fn the Go-side format emitters reach via
+// `utl.getPureFn(<the id below>)`. Each is registered at module load, so importing this file from
+// `src/formats/index.ts` (the `@mionjs/run-types/formats` subpath surface) is enough to guarantee the
+// registrations happen before any user code references a format type.
+// (ref: packages/type-formats/src/type-formats-pure-fns.ts)
 
 import {registerPureFnFactory} from '../../runtypes/pureFn.ts';
 import {
@@ -28,17 +21,12 @@ import {
 } from '../../runtypes/pure-fn-ids.generated.ts';
 import type {RTUtils} from '../../runtypes/rtUtils.ts';
 
-// UUIDParams — the wire-shape params object the Go emitter
-// passes to isUUID at runtime. Mirrors the UUIDParams
-// keeping only what the validator needs.
+// The wire-shape params object the Go emitter passes to isUUID at runtime, only what the validator needs.
 interface UUIDParams {
   version: string;
 }
 
-// isUUID — port of the same-named pure fn. Length + dash
-// positions + version digit at slot 14 + hex character class on
-// every other slot. Matches the runtime behaviour of the canonical
-// UUIDv4 / UUIDv7 patterns without pulling in a regex engine.
+// Matches the runtime behaviour of the canonical UUIDv4 / UUIDv7 patterns without a regex engine.
 export const isUUID = registerPureFnFactory(function () {
   return function _isUUID(value: string, params: UUIDParams): boolean {
     if (typeof value !== 'string' || value.length !== 36) return false;
@@ -46,9 +34,7 @@ export const isUUID = registerPureFnFactory(function () {
       if (i === 8 || i === 13 || i === 18 || i === 23) {
         if (value[i] !== '-') return false;
       } else if (i === 14 && params.version !== 'any') {
-        // Version-pinned formats check the version digit; the
-        // version-agnostic UUID ('any' — JSON Schema `format: uuid`)
-        // treats slot 14 as an ordinary hex digit below.
+        // The version-agnostic UUID ('any', JSON Schema `format: uuid`) treats slot 14 as ordinary hex.
         if (value[i] !== params.version) return false;
       } else {
         const charCode = value.charCodeAt(i);
@@ -64,16 +50,12 @@ export const isUUID = registerPureFnFactory(function () {
 
 // ############### Length pure fn ###############
 //
-// `minLength` / `maxLength` / `length` count CODE POINTS, not UTF-16 code
-// units, which is what JSON Schema specifies and what a reader means by "two
-// characters": `'💩💩'` is two code points but `.length === 4`, so a plain
-// `.length` check calls it too long under `maxLength: 2`. Only the ambiguous
-// side of each bound routes through here (see lengthConditions in
-// internal/cachegen/typefunctions/formats/string/stringformat.go — bounds a
-// plain `.length` already decides never reach this fn). Two regimes: a short
-// string counts faster in a plain charCode loop than the fixed cost of a
-// regex call, a long all-BMP one is a single native regex scan (measured
-// crossover sits well above the 24 cutoff either way).
+// `minLength` / `maxLength` / `length` count CODE POINTS, not UTF-16 code units, which is what JSON
+// Schema specifies: `'💩💩'` is two code points but `.length === 4`, so a plain `.length` check calls
+// it too long under `maxLength: 2`. Only the ambiguous side of each bound routes through here (see
+// lengthConditions in internal/cachegen/typefunctions/formats/string/stringformat.go; bounds a plain
+// `.length` already decides never reach this fn). Two regimes: a short string counts faster in a
+// charCode loop than the fixed cost of a regex call, a long all-BMP one is one native regex scan.
 export const codePointLength = registerPureFnFactory(function () {
   const highSurrogateRegexp = /[\uD800-\uDBFF]/;
   return function _code_point_length(value: string): number {
@@ -93,12 +75,9 @@ export const codePointLength = registerPureFnFactory(function () {
 
 // ############### Regex pure fn ###############
 //
-// `format: 'regex'` asks whether the STRING is a usable ECMA-262 regular
-// expression, which is not a shape question — the only honest test is handing
-// it to the engine. Unicode mode is what rejects the constructs from other
-// regex dialects that plain mode would quietly accept as literals: the inline
-// flag groups `(?i)` / `(?ims)`, the comment group `(?#…)`, and Python's named
-// group and backreference spellings.
+// `format: 'regex'` asks whether the STRING is a usable ECMA-262 regular expression, which only the
+// engine can answer. Unicode mode is what rejects the constructs from other regex dialects that plain
+// mode would quietly accept as literals: `(?i)` / `(?ims)`, `(?#…)`, Python's named group spellings.
 export const isEcmaRegex = registerPureFnFactory(function () {
   return function _is_ecma_regex(value: string): boolean {
     try {
@@ -112,19 +91,17 @@ export const isEcmaRegex = registerPureFnFactory(function () {
 
 // ############### IDNA pure fns ###############
 //
-// The internationalized host name engine, split the way the date/time fns are:
-// small pieces that reach each other through `utl.getPureFn` so the Go
-// extractor records the transitive deps and ships only what a call site needs.
-//
+// The internationalized host name engine, split into small pieces that reach each other through
+// `utl.getPureFn`, so the Go extractor records the transitive deps and ships only what a call site
+// needs.
 //   punycodeDecode / punycodeEncode  RFC 3492, the `xn--` payload codec
 //   isIdnaLabel                      RFC 5892, one label's characters + context
 //   satisfiesBidi                    RFC 5893, the whole-name ordering rule
 //   isIdnHostname                    the entry point the `domain` emitter calls
 //
-// A host name cannot be a pattern: an `xn--` label has to be DECODED before its
-// characters can be judged, re-encoded to prove the spelling is canonical, and
-// the Bidi rule reads every label at once. Each factory keeps its own tables
-// inline because the extractor lifts the factory body alone.
+// A host name cannot be a pattern: an `xn--` label has to be DECODED before its characters can be
+// judged, re-encoded to prove the spelling is canonical, and the Bidi rule reads every label at once.
+// Each factory keeps its own tables inline because the extractor lifts the factory body alone.
 
 type PunycodeFn = (input: string) => string | false;
 type LabelFn = (label: string) => boolean;
@@ -254,8 +231,7 @@ export const punycodeEncode = registerPureFnFactory(function () {
 }, punycodeEncodeId);
 
 export const isIdnaLabel = registerPureFnFactory(function () {
-  // RFC 5892 section 2.6 exception tables — short, fixed, and derivable from no
-  // Unicode property, so they are spelled out.
+  // RFC 5892 section 2.6 exception tables: derivable from no Unicode property, so spelled out.
   const PVALID_EXCEPTIONS = [0x00df, 0x03c2, 0x06fd, 0x06fe, 0x0f0b, 0x3007];
   const DISALLOWED_EXCEPTIONS = [0x0640, 0x07fa, 0x302e, 0x302f, 0x3031, 0x3032, 0x3033, 0x3034, 0x3035, 0x303b];
   // Canonical_Combining_Class=Virama. JS regex has no escape for it.
@@ -272,8 +248,8 @@ export const isIdnaLabel = registerPureFnFactory(function () {
   const markRegexp = /\p{M}/u;
   const arabicIndicRegexp = /[٠-٩]/u;
   const extendedArabicIndicRegexp = /[۰-۹]/u;
-  // Joining_Type is not a JS regex property either, so the joining SCRIPTS
-  // stand in for it — enough to tell an Arabic neighbour from a Latin one.
+  // Joining_Type is not a JS regex property either, so the joining SCRIPTS stand in for it: enough to
+  // tell an Arabic neighbour from a Latin one.
   const joiningRegexp = /[\p{Script=Arabic}\p{Script=Syriac}\p{Script=Nko}\p{Script=Mandaic}\p{Script=Adlam}]\p{M}*$/u;
   return function _is_idna_label(label: string): boolean {
     if (label === '') return false;
@@ -362,17 +338,14 @@ export const isIdnHostname = registerPureFnFactory(function (utl: RTUtils) {
   const idnSeparatorRegexp = /[.。．｡]/;
   const asciiSeparatorRegexp = /[.]/;
   const asciiLabelRegexp = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
-  // Matched positively rather than as a negated ASCII range: naming the
-  // control characters in a regex trips oxlint no-control-regex, and asking
-  // "is there a character above ASCII" says the same thing.
+  // Matched positively rather than as a negated ASCII range: naming the control characters trips
+  // oxlint no-control-regex, and "is there a character above ASCII" says the same thing.
   const nonAsciiRegexp = /[\u0080-\u{10FFFF}]/u;
-  // Returns the FAILURE MODE rather than a boolean: '' when the name is good,
-  // 'length' (the whole name or one label is too long, or the name is empty),
-  // 'label' (a label breaks the host-name rules), 'punycode' (an `xn--` label
-  // does not decode, or is not the canonical spelling of what it decodes to)
-  // or 'bidi' (the right-to-left rule across the whole name). That feeds the
-  // `errorType` of the emitted format error; validate compares against '' and
-  // pays nothing for it.
+  // Returns the FAILURE MODE rather than a boolean: '' when the name is good, 'length' (whole name or
+  // one label too long, or empty), 'label' (a label breaks the host-name rules), 'punycode' (an `xn--`
+  // label does not decode, or is not the canonical spelling of what it decodes to) or 'bidi' (the
+  // right-to-left rule across the whole name). That feeds the `errorType` of the emitted format error;
+  // validate compares against '' and pays nothing for it.
   return function _is_idn_hostname(value: string, params: {idn?: boolean}): string {
     if (value === '' || value.length > 253) return 'length';
     const labels = value.split(params.idn ? idnSeparatorRegexp : asciiSeparatorRegexp);
@@ -410,32 +383,25 @@ export const isIdnHostname = registerPureFnFactory(function (utl: RTUtils) {
 
 // ############### Email pure fn ###############
 //
-// RFC 5321 addressing, which the EMAIL_PATTERN cannot express: a QUOTED local
-// part may carry spaces, dots in a row, even an `@` of its own, and the domain
-// may be an address literal (`[127.0.0.1]`, `[IPv6:::1]`) instead of a name.
-// Composed from the engines already registered above — the IP checks for the
-// literals, the host-name engine for the ordinary domain — so the rules live in
-// one place each.
-//
-// ONE deliberate departure from the RFC's letter: a NAMED domain must be
-// dotted. RFC 5321 permits `joe@tld`, but the practical default everywhere
-// else — our own `Email` pattern, AJV with `mode: 'full'` — requires the
-// dotted TLD, and the two doors to one concept must agree (the decision:
-// when a spec's letter and the practical default disagree, the practical
-// default wins). Address literals are untouched — brackets, not dots, are
-// their shape.
+// RFC 5321 addressing, which the EMAIL_PATTERN cannot express: a QUOTED local part may carry spaces,
+// dots in a row, even an `@` of its own, and the domain may be an address literal (`[127.0.0.1]`,
+// `[IPv6:::1]`) instead of a name. Composed from the engines registered above (the IP checks for the
+// literals, the host-name engine for the ordinary domain), so each rule lives in one place.
+// ONE deliberate departure from the RFC's letter: a NAMED domain must be dotted. RFC 5321 permits
+// `joe@tld`, but the practical default everywhere else (our own `Email` pattern, AJV with
+// `mode: 'full'`) requires the dotted TLD, and the two doors to one concept must agree. Address
+// literals are untouched, brackets rather than dots are their shape.
 export const isEmailAddress = registerPureFnFactory(function (utl: RTUtils) {
   // The three engines return a failure MODE ('' when good), not a boolean.
   const isIPV4Fn = utl.getPureFn(isIPV4) as (ip: string, params: object) => string;
   const isIPV6Fn = utl.getPureFn(isIPV6) as (ip: string, params: object) => string;
   const isIdnHostnameFn = utl.getPureFn(isIdnHostname) as (value: string, params: object) => string;
-  // Same label separators the host-name engine splits on: '.' for ASCII, plus
-  // the wide stops for an internationalized name. (Redeclared here — each
-  // factory keeps its own tables, the extractor lifts the body alone.)
+  // Same label separators the host-name engine splits on, redeclared here because each factory keeps
+  // its own tables: the extractor lifts the body alone.
   const idnDotRegexp = /[.。．｡]/;
   const asciiAtextRegexp = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+$/;
-  // The internationalized local part widens the repertoire rather than listing
-  // it: anything that is not a separator, a space, or a bracket.
+  // The internationalized local part widens the repertoire rather than listing it: anything that is
+  // not a separator, a space, or a bracket.
   const idnAtextRegexp = /^[^ \t\r\n@.[\]]+$/u;
   const bareQuoteRegexp = /(^|[^\\])"/;
   function isQuoted(local: string): boolean {
@@ -452,12 +418,10 @@ export const isEmailAddress = registerPureFnFactory(function (utl: RTUtils) {
     for (const part of parts) if (part === '' || !atextRegexp.test(part)) return false;
     return true;
   }
-  // Returns the FAILURE MODE rather than a boolean, naming WHICH PART of the
-  // address is wrong: '' when good, 'format' (no '@' at all), 'localPart' (the
-  // part before the last '@'), 'domain' (a named domain after it) or
-  // 'addressLiteral' (a bracketed IP literal after it). That feeds the
-  // `errorType` of the emitted format error; validate compares against '' and
-  // pays nothing for it.
+  // Returns the FAILURE MODE rather than a boolean, naming WHICH PART is wrong: '' good, 'format' (no
+  // '@' at all), 'localPart' (before the last '@'), 'domain' (a named domain after it) or
+  // 'addressLiteral' (a bracketed IP literal after it). That feeds the `errorType` of the emitted
+  // format error; validate compares against '' and pays nothing for it.
   return function _is_email_address(value: string, params: {idn?: boolean}): string {
     // The LAST '@' separates: a quoted local part may contain one of its own.
     const at = value.lastIndexOf('@');
@@ -482,13 +446,10 @@ export const isEmailAddress = registerPureFnFactory(function (utl: RTUtils) {
 
 // ############### IP pure fns ###############
 //
-// isIPV4 / isIPV6 accept a params object carrying the version, allowLocalHost,
-// and allowPort flags. Both delegate the hostname test to isLocalHost.
-//
-// Both return the FAILURE MODE rather than a boolean: '' when good, 'port'
-// when `allowPort` is on and the port piece is the problem (not digits, or
-// over 65535), 'address' for everything else. That feeds the `errorType` of
-// the emitted format error; validate compares against '' and pays nothing.
+// isIPV4 / isIPV6 take a params object carrying version, allowLocalHost and allowPort, and both
+// delegate the hostname test to isLocalHost. Both return the FAILURE MODE rather than a boolean: ''
+// when good, 'port' when `allowPort` is on and the port piece is the problem (not digits, or over
+// 65535), 'address' for everything else. That feeds the `errorType` of the emitted format error.
 
 interface IPParams {
   version: 4 | 6 | 'any';
@@ -498,16 +459,12 @@ interface IPParams {
 
 type IsLocalHostFn = (ip: string) => boolean;
 
-// The HOSTNAME spelling only, and off by default: `allowLocalHost` widens an IP
-// format to also accept the word "localhost", which suits a config field that
-// takes either but is not an address. The loopback ADDRESSES (`127.0.0.1`,
-// `::1`, `0:0:0:0:0:0:0:1`) are ordinary well-formed addresses that the version
-// parsers accept on their own — gating those behind the flag would reject a
-// perfectly good `::1` from anyone who turned it off.
+// The HOSTNAME spelling only, and off by default: `allowLocalHost` widens an IP format to also accept
+// the word "localhost". The loopback ADDRESSES (`127.0.0.1`, `::1`) are ordinary well-formed addresses
+// the version parsers accept on their own; gating those behind the flag would reject a good `::1`.
 export const isLocalHost = registerPureFnFactory(function () {
-  // Length gate first: this runs on EVERY ip validation, and a case-blind
-  // regex call costs more than the answer is worth when the length already
-  // says no.
+  // Length gate first: this runs on EVERY ip validation, and a case-blind regex call costs more than
+  // the answer is worth when the length already says no.
   return function _is_local_host(ip: string): boolean {
     return ip.length === 9 && ip.toLowerCase() === 'localhost';
   };
@@ -515,11 +472,10 @@ export const isLocalHost = registerPureFnFactory(function () {
 
 export const isIPV4 = registerPureFnFactory(function (utl: RTUtils) {
   const isLocalHostFn = utl.getPureFn(isLocalHost) as IsLocalHostFn;
-  // Dotted quad, ASCII digits only. Anchored + `Number`-free on purpose:
-  // `Number('')` is 0, `Number('0x7f')` is 127 and `Number(' 1\n')` is 1, so a
-  // coercion-based octet check silently accepts `192.168..1`, `0x7f.0.0.1` and
-  // trailing whitespace / newlines. `\d` stays ASCII under every flag, which is
-  // what keeps full-width and Bengali digits out.
+  // Dotted quad, ASCII digits only. Anchored and `Number`-free on purpose: `Number('')` is 0,
+  // `Number('0x7f')` is 127 and `Number(' 1\n')` is 1, so a coercion-based octet check silently accepts
+  // `192.168..1`, `0x7f.0.0.1` and trailing whitespace. `\d` stays ASCII under every flag, which keeps
+  // full-width and Bengali digits out.
   const ipv4Regexp = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
   return function _is_ip_v4(ip: string, params: IPParams): string {
     let address = ip;
@@ -543,12 +499,9 @@ export const isIPV4 = registerPureFnFactory(function (utl: RTUtils) {
 export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
   const isLocalHostFn = utl.getPureFn(isLocalHost) as IsLocalHostFn;
   const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
-  // The group walkers work on index RANGES of the one address string — a
-  // split-and-regex version of the same rules measured ~2x slower, all of it
-  // allocation and per-group regex overhead.
-  //
-  // isIPv4Quad: dotted quad over [start, end) with the octet rules of the
-  // ipv4 pattern — 1-3 ASCII digits, value ≤ 255, leading zeros tolerated.
+  // The group walkers work on index RANGES of the one address string: a split-and-regex version of the
+  // same rules measured ~2x slower, all of it allocation and per-group regex overhead.
+  // isIPv4Quad: dotted quad over [start, end) with the ipv4 octet rules, leading zeros tolerated.
   function isIPv4Quad(s: string, start: number, end: number): boolean {
     let octets = 0;
     let val = 0;
@@ -580,10 +533,8 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
     }
     return true;
   }
-  // Counts the 16-bit groups written in one `:`-separated run [start, end),
-  // or -1 when any group is malformed. A dotted quad is accepted in the LAST
-  // position only (the ipv4-mapped form) and counts as the two groups it
-  // encodes.
+  // Counts the 16-bit groups in one `:`-separated run [start, end), or -1 when a group is malformed. A
+  // dotted quad is accepted in the LAST position only (ipv4-mapped) and counts as the two groups it encodes.
   function countGroups(s: string, start: number, end: number, allowIPv4Tail: boolean): number {
     if (start >= end) return 0;
     let count = 0;
@@ -598,9 +549,8 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
     }
     return count;
   }
-  // isAddress: the bare address rules. `::` elides one or more all-zero groups
-  // and may appear at most once; a lone leading / trailing `:` is not an
-  // elision, so those runs come back with an empty group and are rejected.
+  // isAddress: `::` elides one or more all-zero groups and may appear at most once; a lone leading /
+  // trailing `:` is not an elision, so those runs come back with an empty group and are rejected.
   function isAddress(address: string): boolean {
     const elision = address.indexOf('::');
     if (elision === -1) return countGroups(address, 0, address.length, true) === 8;
@@ -616,8 +566,8 @@ export const isIPV6 = registerPureFnFactory(function (utl: RTUtils) {
     let address = ip;
     let port: string | undefined;
     if (params.allowPort) {
-      // With a port the address MUST be bracketed, `[addr]:port`; a bare `::1`
-      // is then not in the accepted shape, which is an address problem.
+      // With a port the address MUST be bracketed, `[addr]:port`; a bare `::1` is then not in the
+      // accepted shape, which counts as an address problem.
       const match = ip.match(ipv6PortRegexp);
       if (!match) return 'address';
       address = match[1];

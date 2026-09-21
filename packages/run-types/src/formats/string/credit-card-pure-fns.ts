@@ -1,115 +1,82 @@
-// The WHOLE credit-card format in one file: the public type and builder, the
-// pure fns behind them, the network table, and the two doors ordinary code uses
-// to reach those. Split out of the shared string-format files because the card
-// format carries more machinery than any other string format, and kept together
-// because everything here is about one thing.
-//
-// This is the shape to copy for the next format that outgrows the shared files:
-// one module, re-exported from `src/formats/index.ts`, which also side-effect
-// imports it so the registrations happen before any user code touches it.
-//
-// The Go emitter records this path as the pure fns' canonical source
-// (creditCardPureFnFilePath in
-// internal/cachegen/typefunctions/formats/string/creditcard.go) — keep the two
-// in sync if either moves.
+// The WHOLE credit-card format in one file: the public type and builder, the pure fns behind them,
+// the network table, and the two doors ordinary code uses to reach those. Split out of the shared
+// string-format files because the card format carries more machinery than any other string format,
+// and the shape to copy for the next format that outgrows them: one module, re-exported from
+// `src/formats/index.ts`, which also side-effect imports it so the registrations happen before any
+// user code touches it. The Go emitter records this path as the pure fns' canonical source
+// (creditCardPureFnFilePath in internal/cachegen/typefunctions/formats/string/creditcard.go), so keep
+// the two in sync if either moves.
 
 import {registerPureFnFactory} from '../../runtypes/pureFn.ts';
 import {luhnSumId, isCreditCardId, cardNetworkRulesId, matchesCardNetworkId} from '../../runtypes/pure-fn-ids.generated.ts';
 import {getRTUtils} from '../../runtypes/rtUtils.ts';
 import type {RTUtils} from '../../runtypes/rtUtils.ts';
-// The shared preset machinery every named string format is built on.
 import {presetFormatBuilder, type CreditCardTransformParams, type Override, type PresetFormat} from './stringFormats.ts';
 
 // ───────────────────────────── Credit card ──────────────────────────
 
-/** Every card network `CreditCard` knows, as a runtime list. The `CardNetwork`
- *  union is derived from it, so the two can never disagree, and the mock
- *  generator picks from this rather than keeping its own list. **/
+/** Every card network `CreditCard` knows, as a runtime list: the `CardNetwork` union derives from it,
+ *  so the two can never disagree, and the mock generator picks from this rather than its own list. **/
 export const CARD_NETWORKS = ['visa', 'mastercard', 'amex', 'discover', 'jcb', 'diners', 'unionpay', 'maestro'] as const;
 
 /** A card network `CreditCard` can pin. */
 export type CardNetwork = (typeof CARD_NETWORKS)[number];
 
-/** The failure modes `CreditCard` reports in `TypeFormatError.errorType`:
- *  `'format'` (not shaped like a card number), `'checksum'` (right shape, the
- *  digits do not add up: the mistyped-digit case) or `'network'` (a good card,
- *  just not one this field takes; only with `networks`). Stable strings, safe
- *  to switch on. **/
+/** The failure modes `CreditCard` reports in `TypeFormatError.errorType`: `'format'` (not shaped like
+ *  a card number), `'checksum'` (right shape, the digits do not add up: the mistyped-digit case) or
+ *  `'network'` (a good card, not one this field takes; only with `networks`). Safe to switch on. **/
 export type CreditCardErrorType = 'format' | 'checksum' | 'network';
 
-/** Params for `CreditCard`. A failing value reports WHICH way it failed in the
- *  error's `errorType`, one of `CreditCardErrorType`. **/
+/** Params for `CreditCard`; a failing value reports WHICH way it failed in the error's `errorType`. **/
 export interface CreditCardParams {
-  /** The networks the field accepts. Omitted means any network, and the
-   *  network table then never reaches the emitted code at all - the check is
-   *  digits plus the Luhn checksum. */
+  /** The networks the field accepts. Omitted means any network, and the network table then never
+   *  reaches the emitted code at all: the check is digits plus the Luhn checksum. */
   networks?: readonly CardNetwork[];
-  /** The characters allowed BETWEEN digits, as one string. Defaults to `' -'`,
-   *  which is how a card number is actually typed and printed:
-   *  `4111 1111 1111 1111` and `4111-1111-1111-1111` both pass out of the box.
-   *  A leading or trailing separator, or two in a row, never passes. Pass `''`
-   *  for a field that must hold digits and nothing else. Accepting the grouping
-   *  does not rewrite it: `transform: {stripSeparators: true}` does. **/
+  /** The characters allowed BETWEEN digits, as one string, `' -'` by default: `4111 1111 1111 1111`
+   *  and `4111-1111-1111-1111` both pass out of the box. A leading or trailing separator, or two in a
+   *  row, never passes. Pass `''` for digits and nothing else. Accepting the grouping does not rewrite
+   *  it: `transform: {stripSeparators: true}` does. **/
   separators?: string;
-  /** Value rewrite. `{stripSeparators: true}` gives bare digits back. OFF by
-   *  default, and deliberately separate from `separators`: accepting the
-   *  grouping someone typed and rewriting it are two different decisions.
-   *  Applied only by `createFormatTransformFn` and mion's `sanitizeParams`,
-   *  never inside validate or decode. **/
+  /** Value rewrite (`{stripSeparators: true}` gives bare digits back), OFF by default and deliberately
+   *  separate from `separators`: accepting the grouping someone typed and rewriting it are two
+   *  decisions. Applied only by `createFormatTransformFn` and mion's `sanitizeParams`, never inside
+   *  validate or decode. **/
   transform?: CreditCardTransformParams;
 }
-// No `mockSamples` here, unlike the pattern-backed formats. A regex cannot be
-// reversed, so those need a declared pool; a card number can be GENERATED, so
-// the mock library builds a fresh valid one per draw (see mockCreditCard, and
-// the `testCreditCards` mock option for the well-known sandbox numbers).
+// No `mockSamples`, unlike the pattern-backed formats: a regex cannot be reversed, so those need a
+// declared pool, while a card number can be GENERATED fresh per draw (mockCreditCard, plus the
+// `testCreditCards` mock option for the well-known sandbox numbers).
 
-// Spaces and dashes are how a card number is written on the card, printed on a
-// receipt and typed into a form, so accepting them is the useful default rather
-// than an opt-in. `TF.CreditCard<{separators: ''}>` is the digits-only field.
+// Spaces and dashes are how a card number is written, printed and typed, so accepting them is the
+// useful default rather than an opt-in. `TF.CreditCard<{separators: ''}>` is the digits-only field.
 type DEFAULT_CREDIT_CARD_PARAMS = {separators: ' -'};
 
-/** A payment card number: 12 to 19 digits whose Luhn checksum holds, which is
- *  what catches a single mistyped digit. Spaces and dashes between digits are
- *  accepted by default; `networks` narrows it to the issuers a field actually
- *  takes. **/
+/** A payment card number: 12 to 19 digits whose Luhn checksum holds, which catches a single mistyped
+ *  digit. Spaces and dashes between digits are accepted by default; `networks` narrows the issuers. **/
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type CreditCard<P extends Override<CreditCardParams> = {}> = PresetFormat<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, P>;
 
-/** Payment card number (`CreditCard`); `creditCard({networks: ['visa']})` pins
- *  the issuers and `creditCard({separators: ' -'})` accepts grouped input. **/
+/** Payment card number (`CreditCard`); `networks` pins the issuers, `separators` accepts grouping. **/
 export const creditCard = presetFormatBuilder<'creditCard', DEFAULT_CREDIT_CARD_PARAMS, Override<CreditCardParams>>('creditCard');
 
-// Split in TWO on purpose, with NO `utl.getPureFn` edge between them: the Go
-// emitter references `matchesCardNetwork` only when the format declares
-// `networks`, so a bare `CreditCard` never drags the network table into the
-// emitted cache. A dependency edge would defeat that — the extractor records
-// transitive deps and would ship both bodies to every call site.
-//
-//   isCreditCard        digits + length + the Luhn checksum
-//   matchesCardNetwork  the per-network prefix / length table
-//
-// The price of the independence is that each strips `separators` itself. That
-// is a handful of bytes against a table of every card network.
+// Split in TWO on purpose, with NO `utl.getPureFn` edge between them: the Go emitter references
+// `matchesCardNetwork` only when the format declares `networks`, so a bare `CreditCard` never drags
+// the network table into the emitted cache, and a dependency edge would ship both bodies to every call
+// site (the extractor records transitive deps). The price is that each strips `separators` itself.
 
-/** One network's issuing rules: the first-digit RANGES it uses (both bounds of a
- *  range carry the same number of digits) and the card lengths it issues. **/
+/** One network's issuing rules: the first-digit RANGES it uses (both bounds of a range carry the same
+ *  number of digits) and the card lengths it issues. **/
 export interface CardNetworkRule {
   prefixes: readonly (readonly [string, string])[];
   lengths: readonly number[];
 }
-/** The whole table, keyed by network name. Exported so the mock generator can
- *  type its `getPureFn(cardNetworkRules)` lookup — the VALUE stays
- *  the pure fn's, so there is exactly one copy. **/
+/** The whole table, keyed by network name. Exported so the mock generator can type its
+ *  `getPureFn(cardNetworkRules)` lookup; the VALUE stays the pure fn's, so there is one copy. **/
 export type CardNetworkRules = Readonly<Record<string, CardNetworkRule>>;
 
-// luhnSum — the Luhn doubling rule, in ONE place. Doubles every second digit
-// counting back from the last, subtracting 9 when a double goes over 9, and
-// skips anything that is not a digit so a grouped number sums like a bare one.
-//
-// Shared by the two jobs that would otherwise each spell it out: the VALIDATOR
-// asks whether the sum is a multiple of 10, and the MOCK GENERATOR asks which
-// final digit would make it one. Two copies of a doubling loop is exactly the
-// kind of thing that drifts.
+// The Luhn doubling rule in ONE place; it skips anything that is not a digit, so a grouped number sums
+// like a bare one. Shared by the VALIDATOR (is the sum a multiple of 10) and the MOCK GENERATOR (which
+// final digit would make it one), because two copies of a doubling loop drift.
 export const luhnSum = registerPureFnFactory(function () {
   return function _luhn_sum(value: string): number {
     let sum = 0;
@@ -129,29 +96,19 @@ export const luhnSum = registerPureFnFactory(function () {
   };
 }, luhnSumId);
 
-// isCreditCard — the base card-number check. A card number is 12 to 19
-// digits whose Luhn checksum comes out to a multiple of 10, which is what
-// catches a mistyped digit; a plain length + character-class test does not.
-//
-// Returns the FAILURE MODE rather than a boolean: '' when the value is a good
-// card number, 'format' when it is not shaped like one at all, 'checksum' when
-// it is but the check digit does not add up. That feeds the `type` field of the
-// emitted format error, so a caller can tell "that is not a card number" from
-// "check the digits you typed". Validate compares against '' and pays nothing
-// for it.
-//
-// The walk here settles SHAPE only (separator placement, digit count); the
-// checksum is luhnSum's, shared with the mock generator. Two short passes
-// over at most 19 characters, and neither allocates.
+// The base card-number check: 12 to 19 digits whose Luhn checksum is a multiple of 10, which catches a
+// mistyped digit where a length + character-class test does not. Returns the FAILURE MODE rather than
+// a boolean ('' good card, 'format' not shaped like one, 'checksum' shaped but not adding up), which
+// feeds the `type` field of the emitted format error; validate compares against '' and pays nothing
+// for it. The walk here settles SHAPE only, the checksum is luhnSum's, shared with the mock generator.
 export const isCreditCard = registerPureFnFactory(function (utl: RTUtils) {
   const luhnSumFn = utl.getPureFn(luhnSum) as (value: string) => number;
   return function _is_credit_card(value: string, params: CreditCardParams): string {
     if (typeof value !== 'string' || value === '') return 'format';
     const separators = params.separators;
     let count = 0;
-    // A separator only ever sits BETWEEN digits, so the character to the right
-    // of the cursor must be a digit whenever a separator is consumed — which
-    // rejects a leading / trailing separator and two in a row.
+    // A separator only ever sits BETWEEN digits, so the character to the right of the cursor must be a
+    // digit whenever a separator is consumed, which rejects a leading / trailing one and two in a row.
     let expectDigit = true;
     for (let i = value.length - 1; i >= 0; i--) {
       const charCode = value.charCodeAt(i);
@@ -170,19 +127,12 @@ export const isCreditCard = registerPureFnFactory(function (utl: RTUtils) {
   };
 }, isCreditCardId);
 
-// cardNetworkRules — the per-network prefix and length table, its own pure fn
-// so the VALIDATOR and the MOCK GENERATOR share one copy. The table is fiddly
-// (prefix ranges per network, the lengths each issues) and a mock that drifted
-// from the validator would silently generate cards its own format rejects.
-//
-// It has to be a pure fn rather than a plain module export: factory bodies are
-// inlined WITHOUT their lexical environment, so a factory referencing an
-// imported const fails the build (PFE9011). A pure fn is the one thing a factory
-// can reach out to, via `utl.getPureFn`. The mock is ordinary code and looks it
-// up through `getRTUtils()`.
-//
-// The top level is frozen because two callers now share the object; the
-// `readonly` types carry the rest of the intent.
+// The per-network prefix and length table, its own pure fn so the VALIDATOR and the MOCK GENERATOR
+// share one copy: a mock that drifted from the validator would silently generate cards its own format
+// rejects. It has to be a pure fn rather than a plain module export, since factory bodies are inlined
+// WITHOUT their lexical environment and a factory referencing an imported const fails the build
+// (PFE9011); `utl.getPureFn` is the one way out, and the mock looks it up through `getRTUtils()`.
+// The top level is frozen because two callers share the object.
 export const cardNetworkRules = registerPureFnFactory(function () {
   const RULES: CardNetworkRules = {
     visa: {prefixes: [['4', '4']], lengths: [13, 16, 19]},
@@ -239,13 +189,9 @@ export const cardNetworkRules = registerPureFnFactory(function () {
   };
 }, cardNetworkRulesId);
 
-// matchesCardNetwork — passes when the number belongs to ANY of the declared
-// networks. Each rule is a set of first-digit ranges plus the digit counts that
-// network issues; both bounds of a range carry the same number of digits, so a
-// plain string comparison of the equal-length head decides membership without
-// parsing a number.
-//
-// Runs AFTER isCreditCard in the emitted `&&` chain, so the value is already
+// Passes when the number belongs to ANY of the declared networks. Both bounds of a prefix range carry
+// the same number of digits, so a plain string comparison of the equal-length head decides membership
+// without parsing a number. Runs AFTER isCreditCard in the emitted `&&` chain, so the value is already
 // known to be digits (plus separators) of a valid length.
 export const matchesCardNetwork = registerPureFnFactory(function (utl: RTUtils) {
   const NETWORK_RULES = (utl.getPureFn(cardNetworkRules) as () => CardNetworkRules)();
@@ -274,12 +220,9 @@ export const matchesCardNetwork = registerPureFnFactory(function (utl: RTUtils) 
 }, matchesCardNetworkId);
 
 // ####### Doors for code OUTSIDE a pure-fn factory (the mock generator) #######
-//
-// A factory body is inlined without its lexical environment, so a factory can
-// only reach a sibling through `utl.getPureFn`. Ordinary code has no such limit,
-// but it should not be spelling string keys and casts at every call site either
-// — so the keys live here, once, behind typed functions the caller imports.
-//
+// A factory body is inlined without its lexical environment, so a factory can only reach a sibling
+// through `utl.getPureFn`. Ordinary code has no such limit, but the keys live here once, behind typed
+// functions, instead of a string key and a cast at every call site.
 // Lazy on purpose: an importer may load before the registrations above run.
 
 /** The per-network prefix and length table the validator checks against. **/
@@ -287,10 +230,9 @@ export function getCardNetworkRules(): CardNetworkRules {
   return (getRTUtils().getPureFn(cardNetworkRules) as () => CardNetworkRules)();
 }
 
-/** The digit that, appended to `body`, makes it a valid card number. Appending a
- *  placeholder `0` first puts the body's digits in the SAME doubling positions
- *  the validator will see, and adds nothing to the sum, so this is the exact
- *  inverse of the validator's own check. **/
+/** The digit that, appended to `body`, makes it a valid card number. The placeholder `0` puts the
+ *  body's digits in the SAME doubling positions the validator will see and adds nothing to the sum,
+ *  so this is the exact inverse of the validator's own check. **/
 export function luhnCheckDigit(body: string): string {
   const luhnSumFn = getRTUtils().getPureFn(luhnSum) as (value: string) => number;
   return String((10 - (luhnSumFn(body + '0') % 10)) % 10);
