@@ -5,10 +5,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// recordFileIDs walks every RunType transitively reachable from `sites` and
-// notes the visited wire ids against `file` in the per-file scope map. The
-// resulting map drives the "scanned files" semantics for IncludeRunTypes /
-// IncludeCacheSources — see scopedDump.
+// recordFileIDs notes every wire id reachable from `sites` against `file`; that per-file map is what
+// makes IncludeRunTypes / IncludeCacheSources mean "scanned files" (see scopedDump).
 func (sess *Session) recordFileIDs(file string, sites []protocol.Site) {
 	if file == "" || len(sites) == 0 {
 		return
@@ -28,9 +26,7 @@ func (sess *Session) recordFileIDs(file string, sites []protocol.Site) {
 		if node == nil {
 			return
 		}
-		// Walk every ref-carrying slot (see protocol.EachRefSlot for the
-		// slot rationale). Inline scalar RunTypes (no .ID) don't reach
-		// further nodes — walk("") returns immediately.
+		// An inline scalar RunType has no .ID and reaches no further node; walk("") returns at once.
 		node.EachRefSlot(func(ref *reflection.RunType) { walk(ref.ID) })
 	}
 	for _, site := range sites {
@@ -38,17 +34,11 @@ func (sess *Session) recordFileIDs(file string, sites []protocol.Site) {
 	}
 }
 
-// scopedDump builds a protocol.Dump covering only the supplied files —
-// the request's per-call projection, not a session-wide accumulation.
-// RunTypes are sorted by id (cache guarantees) and sites are filtered to
-// the same file allowlist. Callers wanting the full in-memory cache use
-// dispatchDump instead.
+// scopedDump projects a protocol.Dump over the supplied files only, per call, never a session-wide
+// accumulation; RunTypes come sorted by id from the cache. The full in-memory cache is dispatchDump.
 func (sess *Session) scopedDump(files []string) protocol.Dump {
-	// The projected nodes are the interned nodes (pointers), so enrich
-	// sample-less pattern annotations before they go on the wire — the
-	// IncludeRunTypes-without-render lane's counterpart to the
-	// rtRenderOpts call (idempotent + memoized, so double-running in one
-	// dispatch costs a map pass).
+	// The projected nodes are the interned pointers, so fill pattern samples before they go on the
+	// wire; this is the rtRenderOpts call's counterpart, idempotent and memoized down to a map pass.
 	sess.enrichPatternSamples()
 	ids := sess.cache.IDsForUnion(files)
 	allowed := make(map[string]struct{}, len(files))

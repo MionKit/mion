@@ -17,19 +17,12 @@ import (
 // for every consumer at once (build, `mion compile`, editor lint), unlike `downgradeErrors`,
 // which is build policy applied by the consumer that decides whether to halt.
 
-// settleDiagnostics is the last thing every op's diagnostics pass through: the
-// repeats collapse, then the directive comments take effect. Both
-// belong here rather than inside a handler because the lanes assemble their
-// diagnostics on different branches of dispatch.
-//
-// APPLYING a directive runs on every op, because a directive is a fact about
-// the source whichever question was asked. REPORTING a wrong directive (the EXP
-// / DWN codes) runs only where the answer is real, which is what directiveScope
-// works out.
-//
-// Cost when no directive exists is one substring scan per source file, and the
-// sweep is skipped entirely when there is neither a finding to silence nor a
-// report to make.
+// settleDiagnostics is the last thing every op's diagnostics pass through: repeats collapse, then the
+// directive comments take effect, both here rather than in a handler because the lanes assemble their
+// diagnostics on different branches of dispatch. APPLYING a directive runs on every op, a directive
+// being a fact about the source whichever question was asked; REPORTING a wrong one (the EXP / DWN
+// codes) runs only where the answer is real, which is what directiveScope works out. Cost when no
+// directive exists is one substring scan per source file.
 func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request protocol.Request) []diagnostics.Diagnostic {
 	list = diagnostics.Dedupe(list)
 	scope := sess.directiveScope(request)
@@ -43,15 +36,12 @@ func (sess *Session) settleDiagnostics(list []diagnostics.Diagnostic, request pr
 	return diagnostics.ApplyDirectives(list, directives, sess.absPath, scope)
 }
 
-// directiveScope describes what this request could report, so the EXP / DWN
-// codes never fire on a question it cannot answer.
-//
-// Two ops report. OpGenerate is the BUILD pass: it covers every file but never
-// asks for the opt-in families, so it judges only directives naming codes it
-// could have raised. OpScanFiles is the LINT pass: it covers the files it was
-// given and, with both opt-ins set, every family for them, which is what makes
-// the editor the place a stale or mistyped directive shows up. Every other op
-// silences without judging.
+// directiveScope describes what this request could report, so the EXP / DWN codes never fire on a
+// question it cannot answer. Two ops report: OpGenerate, the BUILD pass, covers every file but never asks
+// for the opt-in families, so it judges only directives naming codes it could have raised; OpScanFiles,
+// the LINT pass, covers the files it was given and, with both opt-ins set, every family for them, which
+// is what makes the editor the place a stale or mistyped directive shows up. Every other op silences
+// without judging.
 func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassScope {
 	families := map[diagnostics.Family]bool{
 		diagnostics.FamilyPureFn: true,
@@ -83,14 +73,9 @@ func (sess *Session) directiveScope(request protocol.Request) diagnostics.PassSc
 	return diagnostics.PassScope{}
 }
 
-// programDirectives collects every directive in the program's non-declaration
-// source. It covers files with NO diagnostics too, because an unused directive
-// is exactly the case EXP001 exists to report, and that file has nothing else
-// to report.
-//
-// Cost is one substring scan per file (the same prefilter the non-enumerable
-// and router-init passes use); only a file that actually carries the marker
-// pays for a parse-guided comment lex.
+// programDirectives collects every directive in the program's non-declaration source, files with NO
+// diagnostics included: an unused directive is exactly the case EXP001 exists to report, and that file
+// has nothing else to report.
 func (sess *Session) programDirectives() []diagnostics.Directive {
 	if sess.Program == nil || sess.Program.TS == nil {
 		return nil
@@ -108,8 +93,7 @@ func (sess *Session) programDirectives() []diagnostics.Directive {
 	return directives
 }
 
-// carriesDirective is the cheap per-file prefilter: only a file that actually
-// spells one of the markers pays for a parse-guided comment lex.
+// carriesDirective is the cheap per-file prefilter: only a file spelling a marker pays for a comment lex.
 func carriesDirective(text string) bool {
 	return strings.Contains(text, diagnostics.DirectiveMarker) ||
 		strings.Contains(text, diagnostics.DowngradeDirectiveMarker)
@@ -171,7 +155,6 @@ func firstCodeOffset(text string, spans []srcscan.Span) int {
 	return offset
 }
 
-// isSpace reports whether b is whitespace.
 func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
 }
@@ -216,9 +199,8 @@ func ownLine(text string, offset int) bool {
 	return true
 }
 
-// directiveCodes splits the text after the marker into codes. Space and comma
-// both separate, so `VL002, PJ001` and `VL002 PJ001` read the same. No codes is
-// the bare form.
+// directiveCodes splits the text after the marker into codes; space and comma both separate, and no code
+// at all is the bare form.
 func directiveCodes(rest string) []string {
 	fields := strings.FieldsFunc(rest, func(r rune) bool { return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r' })
 	codes := make([]string, 0, len(fields))

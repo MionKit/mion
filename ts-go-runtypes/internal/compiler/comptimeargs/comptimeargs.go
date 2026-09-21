@@ -1,45 +1,9 @@
-// Package comptimeargs validates that an argument passed to a parameter
-// branded with `CompTimeArgs<T>` is fully literal at build time —
-// either at the call site, or via a module-scope `const` whose
-// initializer is itself entirely literal.
-//
-// Accepted leaves:
-//   - String / numeric / bigint / boolean / null literals
-//   - `undefined` (the identifier reference)
-//   - No-substitution template literals (backticks without ${…})
-//   - Regex literals
-//   - Arrow / function expressions (a function definition is itself a
-//     literal value at the AST level)
-//
-// Accepted containers (each member must recurse to a leaf or another
-// container):
-//   - Object literals (`{key: value, ...}`) — computed keys and non-literal
-//     shorthand bindings are rejected.
-//   - Array literals (`[…]`).
-//   - Spread of a statically-resolvable container fragment: `{...base, k: v}`
-//     when `base` resolves (inline or a same-/cross-module `const`) to an
-//     OBJECT literal, and `[...members, x]` when `members` resolves to an
-//     ARRAY literal — each merged member is validated recursively. A spread
-//     whose operand resolves to the wrong container kind (object spread of an
-//     array, or vice-versa) or to a dynamic / non-`const` value is rejected.
-//
-// Accepted indirections (with const-chain trace, depth-capped at 16
-// — same as the regex literal trace in resolver):
-//   - `const x = <literal>; fn(x)` → traces the identifier to its
-//     `const` initializer and re-validates that initializer.
-//   - `as T` and parenthesised expressions are unwrapped transparently.
-//
-// Rejected constructs (any of these inside the literal produces a
-// CTA003 diagnostic with the construct name in arg[0]):
-//   - Spread of a dynamic / shape-mismatched operand (`...fn()`,
-//     `...(cond ? a : b)`, object spread of an array fragment)
-//   - Computed property names (`{[key]: 1}`)
-//   - Function calls (`fn()`)
-//   - Property / element access (`a.b`, `a[b]`)
-//   - Ternary (`a ? b : c`)
-//   - Template-literal substitution (` `${x}` `)
-//   - Binary expressions other than negation of a numeric literal
-//   - `let` / `var` bindings (only `const` is traceable)
+// Package comptimeargs validates that an argument passed to a `CompTimeArgs<T>` parameter is fully
+// literal at build time: a literal leaf, a literal container, or a `const` chain (cross-module for
+// the value walk) that ends in one, with `as T` / parens / `satisfies` unwrapped. Anything the build
+// cannot evaluate — a call, a ternary, property access, a template substitution, a computed key, a
+// `let` / `var` binding, a spread whose operand is dynamic or the wrong container kind — is rejected
+// with a CTA003 carrying the construct name in arg[0].
 package comptimeargs
 
 import (
@@ -47,8 +11,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 )
 
-// DepthCap mirrors the resolver's traceRegexLiteral depth cap. Past 16
-// recursions the validator gives up with ExceededDepth=true.
+// DepthCap bounds every trace in this package; past it the walk gives up with FailDepthExceeded.
 const DepthCap = 16
 
 // FailKind describes why a CheckLiteral / CheckLiteralFunction failed.
@@ -67,12 +30,10 @@ const (
 	// appeared inside the literal (CTA003). Reason carries the construct
 	// name.
 	FailForbiddenConstruct
-	// FailWidenedConst means a comptime arg traced to a `const` whose TYPE
-	// carries a widened (non-literal) value — e.g. `{strategy: 'mutate'}`
-	// widened to `{strategy: string}` for want of an `as const`. The AST
-	// initializer is literal, but the widened type lets TypeScript's
-	// overload/return selection disagree with the value the scanner reads,
-	// so we reject it (CTA004). Reason carries the offending member name.
+	// FailWidenedConst means a comptime arg traced to a `const` whose TYPE carries a widened value
+	// (`{strategy: 'mutate'}` widened to `{strategy: string}` for want of an `as const`). The AST
+	// initializer is literal, but the widened type lets TypeScript's overload selection disagree with
+	// the value the scanner reads, so it is rejected (CTA004). Reason carries the member name.
 	FailWidenedConst
 	// FailExternalHandle means a PureFunction<F> literal is reachable as a
 	// value from outside the AOT-compiled copy — it is imported or exported
@@ -80,12 +41,9 @@ const (
 	FailExternalHandle
 )
 
-// Result reports the outcome of a CheckLiteral / CheckLiteralFunction
-// call. Ok=true means validation passed; otherwise Kind tells the caller
-// which diagnostic to emit and FailingNode points at the AST node
-// responsible (for diagnostic span). Reason carries the construct name
-// for FailForbiddenConstruct, or a short human-readable explanation for
-// the other failure kinds.
+// Result reports the outcome of a check: Kind tells the caller which diagnostic to emit,
+// FailingNode gives its span, and Reason carries the construct name for FailForbiddenConstruct or a
+// short explanation for the other kinds.
 type Result struct {
 	Ok          bool
 	Kind        FailKind
@@ -93,26 +51,22 @@ type Result struct {
 	FailingNode *ast.Node
 }
 
-// CheckLiteral validates that node is a literal (or const-traceable
-// chain ending in one) per the package contract. Pass depth=0 from the
-// resolver entry point.
-// Policy carries the two marker-aware questions the walk cannot answer on its
-// own: only the resolver holds the marker options, so it builds both. A nil
-// field answers "no", which is the conservative verdict.
+// Policy carries the two marker-aware questions the walk cannot answer on its own: only the
+// resolver holds the marker options, so it builds both. A nil field answers "no", the conservative
+// verdict.
 type Policy struct {
-	// IsBuilderCall reports whether a CallExpression is a recognized
-	// value-first builder (RT.string(), RT.object({…}), …). Such a call is a
-	// valid CompTimeArgs leaf — it self-validates its own CompTimeArgs params on
-	// its own scan visit, so the walk STOPS at it rather than recursing into its
-	// args. nil means no call is a builder, so every call stays a forbidden
-	// construct.
+	// IsBuilderCall reports whether a CallExpression is a recognized value-first builder
+	// (RT.string(), RT.object({…}), …). Such a call is a valid CompTimeArgs leaf: it self-validates
+	// its own CompTimeArgs params on its own scan visit, so the walk STOPS at it rather than
+	// recursing into its args. nil leaves every call a forbidden construct.
 	IsBuilderCall func(*ast.Node) bool
-	// IsForwardedParam reports whether an identifier resolves to a PARAMETER
-	// whose own annotation is `CompTimeArgs<…>`. Such an identifier is a
-	// forward, not a value to read: see traceIdentifier.
+	// IsForwardedParam reports whether an identifier resolves to a PARAMETER whose own annotation is
+	// `CompTimeArgs<…>` — a forward, not a value to read: see traceIdentifier.
 	IsForwardedParam func(*ast.Node) bool
 }
 
+// CheckLiteral validates that node is a literal, or a const-traceable chain ending in one, per the
+// package contract. Pass depth=0 from the resolver entry point.
 func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, policy Policy) Result {
 	if depth > DepthCap {
 		return Result{Ok: false, Kind: FailDepthExceeded, Reason: "depth cap exceeded", FailingNode: node}
@@ -132,13 +86,10 @@ func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, polic
 	case ast.KindArrayLiteralExpression:
 		return checkArrayLiteral(typeChecker, unwrapped, depth, policy)
 	case ast.KindPrefixUnaryExpression:
-		// Accept `-1`, `+1`, `-1n` — sign-prefixed numeric / bigint literal.
-		// Reject anything else (`!x`, `~x`, prefix on non-literal).
 		return checkPrefixUnary(typeChecker, unwrapped, depth)
 	case ast.KindCallExpression:
-		// A recognized value-first builder call is a valid leaf — STOP, do not
-		// recurse into its args (it self-validates on its own scan visit). Any
-		// other call is a dynamic construct the build can't evaluate.
+		// A builder call is a valid leaf — STOP, do not recurse into its args (it self-validates on
+		// its own scan visit). Any other call is a dynamic construct the build can't evaluate.
 		if policy.IsBuilderCall != nil && policy.IsBuilderCall(unwrapped) {
 			return Result{Ok: true}
 		}
@@ -149,20 +100,12 @@ func CheckLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, polic
 	return Result{Ok: false, Kind: FailForbiddenConstruct, Reason: forbiddenConstructName(unwrapped.Kind), FailingNode: unwrapped}
 }
 
-// CheckLiteralFunction validates the PureFunction<F> argument under the
-// LITERAL-ONLY rule: the only accepted form is an INLINE arrow / function
-// expression (modulo `as`/parens/`satisfies` wrappers). A named reference —
-// even a module-private `const f = …` or `function f(){}` — is rejected, so the
-// literal has no handle anything else can reach: the build extracts and
-// AOT-compiles the body, and the compiled copy must be the only one that can
-// run. Returns the resolved function-literal node on success — the caller passes
-// it to purefns.CheckPurity for the purity rules.
-//
-// Rejection codes, for a precise fix message:
-//   - imported / exported reference → FailExternalHandle (PFN002): "inline it,
-//     don't import or export it";
-//   - any other named reference or non-function node → FailNonLiteral (PFN001):
-//     "inline the function literal at the call site".
+// CheckLiteralFunction validates a PureFunction<F> argument under the LITERAL-ONLY rule: only an
+// INLINE arrow / function expression is accepted. Even a module-private `const f = …` is rejected,
+// so the literal has no handle anything else can reach — the build AOT-compiles the body and the
+// compiled copy must be the only one that can run. The returned node goes to purefns.CheckPurity.
+// An imported / exported reference fails as FailExternalHandle (PFN002), any other named reference
+// or non-function node as FailNonLiteral (PFN001), so each gets its own fix message.
 func CheckLiteralFunction(typeChecker *checker.Checker, node *ast.Node) (*ast.Node, Result) {
 	unwrapped := UnwrapWrappers(node)
 	if unwrapped == nil {
@@ -172,9 +115,8 @@ func CheckLiteralFunction(typeChecker *checker.Checker, node *ast.Node) (*ast.No
 	case ast.KindArrowFunction, ast.KindFunctionExpression:
 		return unwrapped, Result{Ok: true}
 	case ast.KindIdentifier:
-		// A named reference is never accepted. Distinguish the external-handle
-		// case (imported / exported → PFN002) from a plain local binding
-		// (→ PFN001 "inline it") so the diagnostic points at the right fix.
+		// Distinguish the external-handle case (PFN002) from a plain local binding (PFN001) so the
+		// diagnostic points at the right fix; neither is accepted.
 		symbol := typeChecker.GetSymbolAtLocation(unwrapped)
 		if symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0 {
 			return nil, Result{Ok: false, Kind: FailExternalHandle, Reason: "imported", FailingNode: unwrapped}
@@ -193,13 +135,8 @@ func CheckLiteralFunction(typeChecker *checker.Checker, node *ast.Node) (*ast.No
 	return nil, Result{Ok: false, Kind: FailNonLiteral, Reason: "not an inline arrow or function expression", FailingNode: unwrapped}
 }
 
-// resolveFunctionDeclaration returns the top-level function declaration
-// the identifier resolves to, or (nil, false) when the symbol either
-// doesn't resolve or doesn't point at a function declaration. Mirrors
-// resolveConstInitializer's symbol-walk but matches FunctionDeclaration
-// instead of VariableDeclaration; the declaration node IS the function
-// literal, so callers treat it the same way as an arrow / function
-// expression at the leaf.
+// resolveFunctionDeclaration returns the function declaration the identifier resolves to. The
+// declaration node IS the function literal, so callers treat it like an arrow expression at the leaf.
 func resolveFunctionDeclaration(typeChecker *checker.Checker, identifier *ast.Node) (*ast.Node, bool) {
 	if typeChecker == nil || identifier == nil {
 		return nil, false
@@ -216,15 +153,11 @@ func resolveFunctionDeclaration(typeChecker *checker.Checker, identifier *ast.No
 	return nil, false
 }
 
-// externallyReachable reports whether the same-module declaration a pure-fn
-// identifier resolves to is exported in any form — `export const f`, `export
-// function f`, `export default`, or a later `export {f}` / re-export. The
-// imported case (an alias symbol) is handled by the caller before this runs.
-// Three complementary signals: the inline `export` keyword in the declaration's
-// combined modifier flags (covers `export const` / `export function` / `export
-// default`), the binder's Symbol.ExportSymbol link, and — for the separate
-// `export {f}` statement, which leaves no modifier on the declaration — an
-// export-specifier scan that resolves each exported name back to this symbol.
+// externallyReachable reports whether the same-module declaration a pure-fn identifier resolves to
+// is exported in any form; the imported case is handled by the caller before this runs. Three
+// complementary signals are needed: the declaration's combined `export` modifier flags, the binder's
+// Symbol.ExportSymbol link, and an export-specifier scan for a separate `export {f}` statement,
+// which leaves no modifier on the declaration.
 func externallyReachable(typeChecker *checker.Checker, symbol *ast.Symbol, declarationNode *ast.Node) bool {
 	if symbol != nil && symbol.ExportSymbol != nil {
 		return true
@@ -242,12 +175,9 @@ func externallyReachable(typeChecker *checker.Checker, symbol *ast.Symbol, decla
 	return symbolReExported(typeChecker, symbol, sourceFile.AsNode())
 }
 
-// symbolReExported reports whether any `export { … }` specifier in the file
-// names this symbol (a separate `export {f}` or `export {f as g}` statement —
-// the local declaration carries no `export` modifier). Each specifier's exported
-// name is resolved through its import alias and compared to the target symbol,
-// so a re-export of a DIFFERENT module's binding (which resolves elsewhere) is
-// correctly ignored.
+// symbolReExported reports whether any `export { … }` specifier in the file names this symbol. Each
+// specifier's name is resolved through its import alias and compared to the target symbol, so a
+// re-export of a DIFFERENT module's binding is correctly ignored.
 func symbolReExported(typeChecker *checker.Checker, symbol *ast.Symbol, root *ast.Node) bool {
 	if typeChecker == nil || symbol == nil || root == nil {
 		return false
@@ -274,11 +204,9 @@ func symbolReExported(typeChecker *checker.Checker, symbol *ast.Symbol, root *as
 	return found
 }
 
-// resolveConstDeclarationNode returns the `const` VariableDeclaration NODE the
-// identifier resolves to (same-module), or nil. The node — not just the
-// initializer — is what externallyReachable needs for its export-modifier
-// check; GetCombinedModifierFlags walks up from the declaration to the
-// VariableStatement that carries an `export` keyword.
+// resolveConstDeclarationNode returns the same-module `const` VariableDeclaration NODE the
+// identifier resolves to. The node, not the initializer, is what externallyReachable needs:
+// GetCombinedModifierFlags walks up from it to the VariableStatement carrying the `export` keyword.
 func resolveConstDeclarationNode(typeChecker *checker.Checker, identifier *ast.Node) *ast.Node {
 	if typeChecker == nil || identifier == nil {
 		return nil
@@ -300,15 +228,9 @@ func resolveConstDeclarationNode(typeChecker *checker.Checker, identifier *ast.N
 	return nil
 }
 
-// ResolveLiteralString is the string-typed analogue of CheckLiteralFunction.
-// Validates that node is a string literal (or a const-chain that ends in
-// one) and returns the resolved literal node alongside the Result. The
-// returned node is either KindStringLiteral or KindNoSubstitutionTemplateLiteral
-// — call .Text() on it to read the underlying text.
-//
-// Used by call-site extractors (purefns walker, deps) that need the literal
-// node's text content, not just a pass/fail verdict. CheckLiteral remains
-// the right choice when only the verdict matters.
+// ResolveLiteralString validates that node is a string literal, or a const-chain ending in one, and
+// returns that literal node (KindStringLiteral or KindNoSubstitutionTemplateLiteral) with the
+// Result. For call-site extractors that need the text; use CheckLiteral when only the verdict does.
 func ResolveLiteralString(typeChecker *checker.Checker, node *ast.Node) (*ast.Node, Result) {
 	return resolveLiteralStringRecursive(typeChecker, node, 0)
 }
@@ -334,12 +256,10 @@ func resolveLiteralStringRecursive(typeChecker *checker.Checker, node *ast.Node,
 	return nil, Result{Ok: false, Kind: FailNonLiteral, Reason: "not a string literal", FailingNode: unwrapped}
 }
 
-// UnwrapWrappers strips `as T`, parenthesised and `satisfies T` wrappers
-// off an expression, returning the underlying node (nil for nil/malformed
-// input). Exported because every AST-level literal recovery must agree on
-// the wrapper set — the typeid format-param recovery shares it so a
-// `satisfies`-wrapped value-first param behaves exactly like the
-// CompTimeArgs validation that accepted it.
+// UnwrapWrappers strips `as T`, parenthesised and `satisfies T` wrappers off an expression.
+// Exported because every AST-level literal recovery must agree on the wrapper set: the typeid
+// format-param recovery shares it so a `satisfies`-wrapped value-first param behaves exactly like
+// the CompTimeArgs validation that accepted it.
 func UnwrapWrappers(node *ast.Node) *ast.Node {
 	for node != nil {
 		switch node.Kind {
@@ -380,10 +300,8 @@ func isLiteralLeaf(node *ast.Node) bool {
 		ast.KindRegularExpressionLiteral:
 		return true
 	case ast.KindIdentifier:
-		// `undefined` is parsed as an identifier reference, not a
-		// keyword. Accept only the exact identifier name — any user
-		// binding called `undefined` is a malpractice we don't try to
-		// support here.
+		// `undefined` is parsed as an identifier, not a keyword. Only the exact name is accepted; a
+		// user binding called `undefined` is malpractice this does not try to support.
 		return node.Text() == "undefined"
 	}
 	return false
@@ -416,7 +334,6 @@ func checkObjectLiteral(typeChecker *checker.Checker, node *ast.Node, depth int,
 				return result
 			}
 		case ast.KindShorthandPropertyAssignment:
-			// Trace the identifier through const-chain to a literal.
 			shorthand := property.AsShorthandPropertyAssignment()
 			if shorthand == nil || shorthand.Name() == nil {
 				return Result{Ok: false, Kind: FailNonLiteral, Reason: "nil shorthand property", FailingNode: property}
@@ -460,17 +377,11 @@ func checkArrayLiteral(typeChecker *checker.Checker, node *ast.Node, depth int, 
 	return Result{Ok: true}
 }
 
-// checkObjectSpread validates an object-spread element (`{...operand}`). The
-// operand must statically resolve to an OBJECT literal — inline, or a `const`
-// fragment (possibly imported) — whose own members are all literal. TypeScript
-// itself performs the type-level merge, so once the operand validates the
-// builder reflects the merged type for free. Anything else (an array fragment,
-// a scalar `const`, a dynamic call / ternary, a non-`const` binding) is
-// rejected with a single CTA003 reason: a spread that can't be statically
-// merged into an object has no compile-time value to read. Rejecting on the
-// resolved KIND (rather than re-validating the operand as a bare literal) is
-// the load-bearing soundness choice — a scalar `const` IS a valid literal leaf
-// but is NOT a valid object-spread operand.
+// checkObjectSpread validates an object-spread element: the operand must statically resolve to an
+// OBJECT literal (inline or a possibly-imported `const` fragment) whose members are all literal.
+// TypeScript performs the type-level merge itself, so a validated operand reflects for free.
+// Rejecting on the resolved KIND, rather than re-validating the operand as a bare literal, is the
+// load-bearing soundness choice: a scalar `const` IS a valid literal leaf but not a valid operand.
 func checkObjectSpread(typeChecker *checker.Checker, property *ast.Node, depth int, policy Policy) Result {
 	spread := property.AsSpreadAssignment()
 	if spread == nil || spread.Expression == nil {
@@ -483,10 +394,8 @@ func checkObjectSpread(typeChecker *checker.Checker, property *ast.Node, depth i
 	return CheckLiteral(typeChecker, container, depth+1, policy)
 }
 
-// checkArraySpread is the array-element analogue of checkObjectSpread: the
-// operand must resolve to an ARRAY literal (inline or a `const` fragment).
-// An object fragment, a scalar `const`, or a dynamic / non-`const` operand is
-// rejected with one CTA003 reason — same soundness choice as the object form.
+// checkArraySpread is the array-element analogue of checkObjectSpread: the operand must resolve to
+// an ARRAY literal, same soundness choice as the object form.
 func checkArraySpread(typeChecker *checker.Checker, element *ast.Node, depth int, policy Policy) Result {
 	spread := element.AsSpreadElement()
 	if spread == nil || spread.Expression == nil {
@@ -523,40 +432,29 @@ func traceIdentifier(typeChecker *checker.Checker, node *ast.Node, depth int, po
 	if depth > DepthCap {
 		return Result{Ok: false, Kind: FailDepthExceeded, Reason: "depth cap exceeded", FailingNode: node}
 	}
-	// `undefined` is a literal leaf (see isLiteralLeaf); honour it here
-	// too so shorthand-property `{undefined}` works.
+	// `undefined` is a literal leaf (isLiteralLeaf); honour it here too so `{undefined}` works.
 	if node.Text() == "undefined" {
 		return Result{Ok: true}
 	}
-	// CompTimeArgs identifiers resolve CROSS-MODULE (parity with the spread
-	// trace): an imported `const` fragment / option bag / builder child is
-	// followed through its import alias to the originating declaration. The
-	// pure-fn and string-literal traces keep their own same-module resolvers,
-	// so this cross-module hop is scoped to the literal-value walk.
+	// CompTimeArgs identifiers resolve CROSS-MODULE, parity with the spread trace. The pure-fn and
+	// string-literal traces keep their own same-module resolvers, so the hop is scoped to this walk.
 	initializer, ok := resolveConstInitializerCrossModule(typeChecker, node)
 	if !ok {
-		// A `CompTimeArgs` parameter FORWARDED into another CompTimeArgs position
-		// (`optional(field)` handing its own `field` to `propMod`). The value cannot
-		// be here by construction: it arrives from the enclosing function's own call
-		// sites, and every one of those is walked and demanded at that outer
-		// CompTimeArgs position, so the literal is still required exactly once —
-		// where it is actually written, which is the site the author can fix.
-		// Refusing it here only forces every wrapper, ours and a consumer's, to
-		// carry a suppression comment. The injection markers already bless the same
-		// wrapper shape (the resolver's forwarded-handle rule).
+		// A `CompTimeArgs` parameter FORWARDED into another CompTimeArgs position (`optional(field)`
+		// handing its own `field` to `propMod`). The value cannot be here by construction: it arrives
+		// from the enclosing function's call sites, and each of those is walked and demanded at that
+		// outer position, so the literal is still required exactly once, where the author writes it.
+		// Refusing it here only forces every wrapper, ours and a consumer's, to carry a suppression
+		// comment. The injection markers already bless the same shape (the forwarded-handle rule).
 		if policy.IsForwardedParam != nil && policy.IsForwardedParam(node) {
 			return Result{Ok: true}
 		}
 		return Result{Ok: false, Kind: FailNonLiteral, Reason: "identifier not a `const` binding to a literal", FailingNode: node}
 	}
-	// `as const` guard, scoped to a const that binds an OBJECT LITERAL — option
-	// bags and literal-valued objects, the case where member values widen
-	// (`{strategy: 'mutate'}` → `{strategy: string}` for want of an `as const`).
-	// A const bound to a builder call (`const s = string()`), a ternary, or an
-	// array is NOT walked: its type is a RunType / non-object whose members would
-	// false-positive. The guard matters because a widened option bag lets
-	// TypeScript's overload selection pick one fn variant while the scanner reads
-	// the AST and injects another — `as const` keeps the two in lockstep.
+	// `as const` guard, scoped to a const binding an OBJECT LITERAL, the case where member values
+	// widen. A const bound to a builder call (`const s = string()`), a ternary or an array is NOT
+	// walked: its members would false-positive. The guard matters because a widened option bag lets
+	// TypeScript's overload selection pick one fn variant while the scanner injects another.
 	if container := UnwrapWrappers(initializer); container != nil && container.Kind == ast.KindObjectLiteralExpression {
 		if member, widened := firstWidenedComptimeMember(typeChecker, node); widened {
 			return Result{Ok: false, Kind: FailWidenedConst, Reason: member, FailingNode: node}
@@ -565,12 +463,9 @@ func traceIdentifier(typeChecker *checker.Checker, node *ast.Node, depth int, po
 	return CheckLiteral(typeChecker, initializer, depth+1, policy)
 }
 
-// eachConstVariableDeclaration walks the `const` VariableDeclarations of
-// the identifier's symbol, calling visit on each until it returns false.
-// `let` / `var` are skipped because they can be reassigned, so neither
-// the initializer nor the annotation determines the value at the call
-// site. The single symbol→declarations walk behind resolveConstInitializer
-// and ConstTypeAnnotation.
+// eachConstVariableDeclaration walks the `const` VariableDeclarations of the identifier's symbol
+// until visit returns false. `let` / `var` are skipped because they can be reassigned, so neither
+// the initializer nor the annotation determines the value at the call site.
 func eachConstVariableDeclaration(typeChecker *checker.Checker, identifier *ast.Node, visit func(*ast.VariableDeclaration) bool) {
 	if typeChecker == nil || identifier == nil {
 		return
@@ -578,10 +473,9 @@ func eachConstVariableDeclaration(typeChecker *checker.Checker, identifier *ast.
 	EachConstVariableDeclaration(typeChecker.GetSymbolAtLocation(identifier), visit)
 }
 
-// EachConstVariableDeclaration is the symbol-level walk behind the
-// identifier form — exported so callers that resolve the symbol
-// themselves first (e.g. the typeid format-param recovery, which follows
-// import aliases before walking) reuse the same const filter.
+// EachConstVariableDeclaration is the symbol-level walk behind the identifier form, exported so a
+// caller that resolves the symbol itself first (the typeid format-param recovery follows import
+// aliases before walking) reuses the same const filter.
 func EachConstVariableDeclaration(symbol *ast.Symbol, visit func(*ast.VariableDeclaration) bool) {
 	if symbol == nil {
 		return
@@ -604,12 +498,8 @@ func EachConstVariableDeclaration(symbol *ast.Symbol, visit func(*ast.VariableDe
 	}
 }
 
-// resolveConstInitializer returns the initializer expression of the
-// `const` variable declaration the identifier resolves to, or
-// (nil, false) when the identifier doesn't resolve, isn't a
-// VariableDeclaration, isn't `const`, or has no initializer.
-//
-// Mirrors the resolver-side resolveRegexLiteral const-chain trace.
+// resolveConstInitializer returns the initializer of the same-module `const` declaration the
+// identifier resolves to, or (nil, false) when there is no such `const` with an initializer.
 func resolveConstInitializer(typeChecker *checker.Checker, identifier *ast.Node) (*ast.Node, bool) {
 	var initializer *ast.Node
 	eachConstVariableDeclaration(typeChecker, identifier, func(variableDecl *ast.VariableDeclaration) bool {
@@ -622,13 +512,9 @@ func resolveConstInitializer(typeChecker *checker.Checker, identifier *ast.Node)
 	return initializer, initializer != nil
 }
 
-// resolveConstInitializerCrossModule is the import-alias-following twin of
-// resolveConstInitializer used by the CompTimeArgs literal walk. It mirrors the
-// spread trace (ResolveSpreadContainer): the identifier's symbol is followed
-// through any import aliases to the originating `const`, so an imported fragment
-// / option bag / builder child resolves the same way as a same-module one. Kept
-// separate from resolveConstInitializer so the same-module-only pure-fn and
-// string-literal traces are unaffected.
+// resolveConstInitializerCrossModule is the import-alias-following twin of resolveConstInitializer
+// used by the CompTimeArgs literal walk, so an imported fragment resolves like a same-module one.
+// Kept separate so the same-module-only pure-fn and string-literal traces are unaffected.
 func resolveConstInitializerCrossModule(typeChecker *checker.Checker, identifier *ast.Node) (*ast.Node, bool) {
 	if typeChecker == nil || identifier == nil {
 		return nil, false
@@ -645,16 +531,10 @@ func resolveConstInitializerCrossModule(typeChecker *checker.Checker, identifier
 	return initializer, initializer != nil
 }
 
-// firstWidenedComptimeMember reports the first TOP-LEVEL property of the const's
-// resolved object TYPE that is a widened primitive base — a value that lost its
-// literal type because the const was not declared `as const` (`{a: 'x'}` →
-// `{a: string}`). Returns (propertyName, true) for the offending property,
-// ("", false) when every primitive property is literal. The walk is
-// deliberately shallow and object-only: a property whose type is itself an
-// object is a value-first builder result (e.g. `number()` → a RunType) or a
-// nested literal whose internals must NOT be mistaken for widened comptime
-// values, so it is left alone. The caller only invokes this for a const bound to
-// an object literal, so a non-object resolved type is a no-op guard.
+// firstWidenedComptimeMember reports the first TOP-LEVEL property of the const's resolved object
+// TYPE that lost its literal type for want of an `as const` (`{a: 'x'}` → `{a: string}`). The walk
+// is deliberately shallow and object-only: a property that is itself an object is a builder result
+// or a nested literal whose internals must NOT be mistaken for widened comptime values.
 func firstWidenedComptimeMember(typeChecker *checker.Checker, identifier *ast.Node) (string, bool) {
 	if typeChecker == nil || identifier == nil {
 		return "", false
@@ -671,10 +551,8 @@ func firstWidenedComptimeMember(typeChecker *checker.Checker, identifier *ast.No
 	return "", false
 }
 
-// isWidenedPrimitive reports whether tsType is a base primitive (string /
-// number / boolean / bigint) that has LOST its literal type — i.e. the base
-// flag is set but the corresponding literal flag is not. A literal type
-// (`'mutate'`, `5`, `true`) returns false; so does any non-primitive.
+// isWidenedPrimitive reports whether tsType is a base primitive that has LOST its literal type: the
+// base flag is set and the literal flag is not.
 func isWidenedPrimitive(tsType *checker.Type) bool {
 	if tsType == nil {
 		return false
@@ -695,12 +573,9 @@ func isWidenedPrimitive(tsType *checker.Type) bool {
 	return false
 }
 
-// ConstTypeAnnotation returns the written type-annotation node of the
-// `const` variable declaration the identifier resolves to, or
-// (nil, false) when there is no const binding or it carries no
-// annotation. Exported for the resolver's reflect-form annotation
-// honoring (`const v: T = literal; createValidateFn(v)` reads `T`, not
-// CFA's narrowed apparent type).
+// ConstTypeAnnotation returns the written type-annotation node of the `const` declaration the
+// identifier resolves to. Exported for the resolver's reflect-form annotation honoring:
+// `const v: T = literal; createValidateFn(v)` reads `T`, not CFA's narrowed apparent type.
 func ConstTypeAnnotation(typeChecker *checker.Checker, identifier *ast.Node) (*ast.Node, bool) {
 	var typeNode *ast.Node
 	eachConstVariableDeclaration(typeChecker, identifier, func(variableDecl *ast.VariableDeclaration) bool {
@@ -713,9 +588,8 @@ func ConstTypeAnnotation(typeChecker *checker.Checker, identifier *ast.Node) (*a
 	return typeNode, typeNode != nil
 }
 
-// forbiddenConstructName returns the short label used in CTA003
-// diagnostics for the construct at the given AST kind. Keep names short
-// and user-recognisable — they appear in error messages.
+// forbiddenConstructName returns the CTA003 label for an AST kind. Keep the names short and
+// user-recognisable: they appear in error messages.
 func forbiddenConstructName(kind ast.Kind) string {
 	switch kind {
 	case ast.KindSpreadElement, ast.KindSpreadAssignment:

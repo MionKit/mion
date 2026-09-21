@@ -25,39 +25,23 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The bundled-API lane (mion's `bundleApi` client option). A client program's
-// dispatch sites (internal/compiler/apimeta) name, in their marker's type
-// arguments, the API and the routes they call. On generate this file:
-//
-//  1. resolves every site's routes out of the API type (walked in this program,
-//     or in the `apiTsconfig` program rooted at its `initRoutes` call),
-//  2. selects each route plus the middleFns in its chain,
-//  3. assigns the params / return / headers type ids under the checker that
-//     owns them (`AssignIDUnder`, so an API resolved in another program still
-//     lands in this session's cache) and demands, per type, exactly the families
-//     the server's marker slots name (types/serializer.ts MarkerSlots),
-//  4. renders those entries as a SELF-CONTAINED module tree under
-//     <outDir>/api/types/ in `functions` emit mode, whatever the program's own
-//     mode (a client never evaluates code strings), plus one module per method
-//     (`api/m/<id>.js`: its metadata and the same marker payload a server
-//     helper receives) and one per site shape (`api/s/<id>.js`: the route with
-//     its chain, or a batch's union), and
-//  5. writes the client manifest (`api/manifest.json`) `mion api-check` reads.
-//
-// The transform (OpScanFiles / OpTransform) needs none of that: a dispatch
-// site's injection is decided by its ids alone (apimeta.Replacements), so a
-// client file rewrites before generate ever ran, and the modules it imports
-// are the ones generate writes.
+// The bundled-API lane (mion's `bundleApi` client option). On generate it resolves every dispatch site's
+// routes out of the API type (walked in this program, or in the `apiTsconfig` program rooted at its
+// `initRoutes` call), selects each route plus the middleFns in its chain, assigns the params / return /
+// headers type ids under the checker that owns them (`AssignIDUnder`, so an API resolved in another
+// program still lands in this session's cache), demands per type exactly the families the server's marker
+// slots name (types/serializer.ts MarkerSlots), and renders a SELF-CONTAINED module tree under
+// <outDir>/api/ in `functions` emit mode whatever the program's own mode, a client never evaluating code
+// strings, plus the client manifest `mion api-check` reads. The transform needs none of that: a dispatch
+// site's injection is decided by its ids alone, so a client file rewrites before generate ever ran.
 
 // apiLaneOn reports whether this session bundles API metadata.
 func (sess *Session) apiLaneOn() bool {
 	return sess.opts.BundleApi.Enabled()
 }
 
-// extractApiSitesForScan runs the dispatch-site extractor over the requested
-// files: the sites, their diagnostics and the point insertions for the
-// user's source. Memoised per file (apiFileCache). Nothing when the lane is
-// off.
+// extractApiSitesForScan returns the requested files' dispatch sites, their diagnostics and the point
+// insertions for the user's source, memoised per file; nothing when the lane is off.
 func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []diagnostics.Diagnostic, []protocol.Replacement) {
 	if !sess.apiLaneOn() || sess.Program == nil || len(files) == 0 {
 		return nil, nil, nil
@@ -66,18 +50,16 @@ func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []d
 	return sites, diags, append(apimeta.Replacements(sites), sess.apiLaneImports(files)...)
 }
 
-// apiLaneImports appends `import '<genDir>/api/lane.js';` to every file that
-// calls `initClient`, the way the batch table reaches the modules that create
-// a router. The lane is a build option, so it arrives as a module rather than
-// as a value spliced into a call a user could also write.
+// apiLaneImports appends `import '<genDir>/api/lane.js';` to every file calling `initClient`, the way the
+// batch table reaches the modules that create a router. The lane is a build option, so it arrives as a
+// module rather than as a value spliced into a call a user could also write.
 func (sess *Session) apiLaneImports(files []string) []protocol.Replacement {
 	sites := apimeta.InitSitesFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.apiInitFileCache)
 	if len(sites) == 0 {
 		return nil
 	}
-	// Same two roads as the batch transport's import: under TransformRelative the rewritten file
-	// IS the output, so the path is computed here; otherwise the `rtapi:/` scheme rides out and
-	// the emit-side relativizer turns it into the path the emitted file's own depth needs.
+	// Same two roads as the batch transport's import: under TransformRelative the rewritten file IS the
+	// output, so the path is computed here; otherwise `rtapi:/` goes out for the emit-side relativizer.
 	outDir := ""
 	if sess.opts.TransformRelative {
 		outDir = sess.resolveOutDir()
@@ -95,8 +77,7 @@ func (sess *Session) apiLaneImports(files []string) []protocol.Replacement {
 	return out
 }
 
-// collectProgramApiSites walks every non-declaration file of the program
-// through the dispatch-site extractor (memoised per file).
+// collectProgramApiSites walks every non-declaration file through the dispatch-site extractor.
 func (sess *Session) collectProgramApiSites() ([]apimeta.Site, []diagnostics.Diagnostic) {
 	if !sess.apiLaneOn() || sess.Program == nil {
 		return nil, nil
@@ -112,15 +93,13 @@ func (sess *Session) collectProgramApiSites() ([]apimeta.Site, []diagnostics.Dia
 	return apimeta.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, walkFiles, sess.apiFileCache, sess.opts.BundleApi)
 }
 
-// apiMethodEntry is one selected method with the ids and synthetic sites its
-// module renders from.
+// apiMethodEntry is one selected method with the ids and synthetic sites its module renders from.
 type apiMethodEntry struct {
 	method    *apimeta.Method
 	paramsId  string
 	returnId  string
 	headersId string
-	// The synthetic sites: fn sites demand the families, reflection sites the
-	// runtype facades. Stamped with their bundle modules before rendering.
+	// fn sites demand the families, reflection sites the runtype facades; both stamped before rendering.
 	paramsFns  protocol.Site
 	returnFns  protocol.Site
 	headersFns protocol.Site
@@ -130,13 +109,11 @@ type apiMethodEntry struct {
 	families   []string
 }
 
-// apiBundle is the resolved output of one generate: every selected method,
-// the site modules and the ids they list.
+// apiBundle is the resolved output of one generate.
 type apiBundle struct {
 	methods map[string]*apiMethodEntry
 	order   []string
-	// siteMethods maps a site module basename to the ids it lists, in tree
-	// order: the route(s) the site calls plus every middleFn in their chains.
+	// siteMethods lists a site module's ids in tree order: the routes it calls plus their middleFns.
 	siteMethods map[string][]string
 }
 
@@ -144,8 +121,7 @@ func (bundle *apiBundle) empty() bool {
 	return bundle == nil || len(bundle.methods) == 0
 }
 
-// syntheticSites lists every synthetic site in a stable order, the dump the
-// client mirror is rendered from.
+// syntheticSites is the stable-order dump the client mirror is rendered from.
 func (bundle *apiBundle) syntheticSites() []protocol.Site {
 	var sites []protocol.Site
 	for _, id := range bundle.order {
@@ -158,11 +134,8 @@ func (bundle *apiBundle) syntheticSites() []protocol.Site {
 	return sites
 }
 
-// generateApiBundle resolves the program's dispatch sites and writes the
-// bundled-API tree under <outDir>/api/, plus the API manifest: the server's
-// (from this program's initRoutes calls) when the program initializes an API,
-// else the client's (the bundled methods). The dir is removed when neither
-// applies. Returns the diagnostics the resolution raised.
+// generateApiBundle writes the bundled-API tree under <outDir>/api/ plus the manifest: the server's when
+// this program initializes an API, else the client's. The dir is removed when neither applies.
 func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]diagnostics.Diagnostic, error) {
 	apiDir := filepath.Join(outDir, constants.ApiModuleDir)
 	bundle, diags, err := sess.resolveApiBundle(sites)
@@ -203,24 +176,19 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	return diags, nil
 }
 
-// renderApiLaneModule renders `api/lane.js`, the module that puts the client on
-// the lane the build compiled for. Imported for its side effect into every file
-// that calls `initClient`, the way `rpc/batches.generated.js` reaches a server,
-// so the lane is set in exactly one place: the build that produced the bundle.
+// renderApiLaneModule renders `api/lane.js`, which puts the client on the lane the build compiled for.
+// Imported for its side effect, so the lane is set in exactly one place: the build that made the bundle.
 func renderApiLaneModule(mode constants.BundleApiMode) string {
 	return "// GENERATED by mion (the bundleApi lane). Do not edit.\n" +
 		"import {setBundleApiMode} from '" + apimeta.ClientModule + "';\n" +
 		"setBundleApiMode(" + jsquote.Single(string(mode)) + ");\n"
 }
 
-// renderApiBundle renders the bundle's module tree into files (basename to
-// source, the materializeModules shape): the demanded families as a
-// SELF-CONTAINED client mirror under types/, one module per method, one per
-// site.
+// renderApiBundle renders the bundle's module tree into files, in the materializeModules shape: the
+// demanded families as a SELF-CONTAINED client mirror under types/, one module per method, one per site.
 func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string) ([]diagnostics.Diagnostic, error) {
-	// Stamp each synthetic site with its bundle module (allSingle mode) one by
-	// one: two methods can demand different families for the same type id, so
-	// a site is only its own, never looked up by id.
+	// Stamped one site at a time: two methods can demand different families for the same type id, so a
+	// site is only ever its own, never looked up by id.
 	stamp := func(site *protocol.Site) {
 		*site = sess.stampSiteModules([]protocol.Site{*site})[0]
 	}
@@ -235,10 +203,8 @@ func (sess *Session) renderApiBundle(bundle *apiBundle, files map[string]string)
 		}
 	}
 	stamped := bundle.syntheticSites()
-	// The client mirror: the demanded families rendered as factories only, in
-	// their own tree, with no disk cache (the store is keyed by the session's
-	// own emit mode). Pure fns the program registers ride along in the same
-	// mode, so a validator depending on a user format still resolves.
+	// The client mirror renders factories only, in its own tree, with no disk cache, whose store is keyed
+	// by the session's own emit mode. The program's pure fns come in the same mode, so a format resolves.
 	var renderDiags []diagnostics.Diagnostic
 	renderOpts := sess.rtRenderOpts(&renderDiags, nil, nil)
 	renderOpts.EmitMode = constants.EmitFunctions
@@ -286,12 +252,10 @@ func (entry *apiMethodEntry) manifestRow() apimeta.ManifestMethod {
 	}
 }
 
-// serverApiManifest is the manifest a server build writes: every public
-// method of every `initRoutes(...)` call in THIS program, ids assigned under
-// this program's checker (the same ids the route helpers' marker sites got, so
-// the walk adds nothing to the cache). Nil when the program initializes no
-// API. An id two calls declare with differing rows keeps the first row and
-// is listed as ambiguous (a program holding its spec files does that).
+// serverApiManifest is the manifest a server build writes: every public method of every `initRoutes(...)`
+// call in THIS program, ids assigned under this program's checker, which are the ids the route helpers'
+// marker sites already got, so the walk adds nothing to the cache. An id two calls declare with differing
+// rows keeps the first row and is listed as ambiguous, which a program holding its spec files produces.
 func (sess *Session) serverApiManifest() *apimeta.Manifest {
 	if sess.Program == nil || sess.Program.TS == nil || !sess.importsRouter() {
 		return nil
@@ -339,9 +303,8 @@ func writeIfChanged(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
-// userPureFnEntries drops the package's own built-in registrations an
-// in-repo program surfaces (the package index serves those) and adds the
-// override entries, exactly like collectProgramPureFns.
+// userPureFnEntries drops the built-in registrations an in-repo program surfaces (the package index
+// serves those) and adds the override entries, exactly like collectProgramPureFns.
 func (sess *Session) userPureFnEntries(entries []purefunctions.Entry) []purefunctions.Entry {
 	kept := make([]purefunctions.Entry, 0, len(entries)+len(sess.overrideEntries))
 	for _, entry := range entries {
@@ -377,8 +340,8 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 			continue
 		}
 		if sess.opts.ApiTsconfig != "" {
-			// The API project's own program answers, rooted at its initRoutes
-			// call; the client's walk only says which routes to match on.
+			// The API project's own program answers, rooted at its initRoutes call; the client's walk
+			// only says which routes to match on.
 			if !peerTried {
 				peerTried = true
 				var peerErr error
@@ -413,8 +376,7 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 				}
 			}
 			entry := bundle.methods[method.Id]
-			// The client file reflects these types: an edit to a route's
-			// declaration re-runs its transform (TypeDeps).
+			// The client file reflects these types, so an edit to a route's declaration re-runs its transform.
 			for _, id := range []string{entry.paramsId, entry.returnId, entry.headersId} {
 				sess.cache.RecordFileID(site.FilePath, id)
 			}
@@ -424,9 +386,8 @@ func (sess *Session) resolveApiBundle(sites []apimeta.Site) (*apiBundle, []diagn
 	return bundle, diags, nil
 }
 
-// apiSourceTree opens the `apiTsconfig` program and returns the walked API of
-// the ONE `initRoutes(...)` call whose routes are exactly the client's; nil
-// when none or several match (the caller reports MET005 with the count).
+// apiSourceTree returns the walked API of the ONE `initRoutes(...)` call in the `apiTsconfig` program
+// whose routes are exactly the client's; nil when none or several match, and the caller reports MET005.
 func (sess *Session) apiSourceTree(clientIds []string) (*apimeta.Tree, string, error) {
 	tsconfig := sess.absPath(sess.opts.ApiTsconfig)
 	peer, err := sess.apiPeer.open(sess, tsconfig, "apiTsconfig", nil)
@@ -459,9 +420,8 @@ func (sess *Session) apiSourceTree(clientIds []string) (*apimeta.Tree, string, e
 	return matches[0], candidates, nil
 }
 
-// initRoutesApiTypes returns the resolved return type (the instantiated
-// PublicApi) of every `initRoutes(...)` call in sourceFile whose signature the
-// router package declares.
+// initRoutesApiTypes returns the instantiated PublicApi of every `initRoutes(...)` call whose signature
+// the router package declares.
 func initRoutesApiTypes(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) []*checker.Type {
 	var out []*checker.Type
 	var visit ast.Visitor
@@ -490,8 +450,8 @@ func initRoutesApiTypes(typeChecker *checker.Checker, markerOpts marker.Options,
 	return out
 }
 
-// newApiMethodEntry assigns the method's type ids under the checker that owns
-// them and builds the synthetic sites demanding the server's families.
+// newApiMethodEntry assigns the type ids under the checker that owns them and builds the synthetic sites
+// demanding the server's families.
 func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.Method) *apiMethodEntry {
 	entry := &apiMethodEntry{method: method}
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
@@ -512,11 +472,8 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	return entry
 }
 
-// apiFnSite builds the synthetic multi-function site for one type: the same
-// fnIds and demands the scanner computes for a server helper's
-// `InjectTypeFnArgs<T, F1, F2, …>` slot, whose options slot (the route's own
-// options) names none of the createX options, so every family renders in its
-// plain variant.
+// apiFnSite builds one type's synthetic multi-function site with the same fnIds and demands the scanner
+// computes for a server helper's slot, whose options name no createX option, so every family renders plain.
 func apiFnSite(id string, fnKeys []string) protocol.Site {
 	site := protocol.Site{ID: id}
 	for _, fnKey := range fnKeys {
@@ -541,8 +498,7 @@ func apiFnSite(id string, fnKeys []string) protocol.Site {
 	return site
 }
 
-// serializerStrategies reads the resolved `serializer` pair off a method's options;
-// a missing or widened direction falls back to the built-in default, `clone`.
+// serializerStrategies reads a method's `serializer` pair; a missing or widened direction falls back to `clone`.
 func serializerStrategies(options map[string]any) (params, ret string) {
 	params, ret = "clone", "clone"
 	serializer, ok := options["serializer"].(map[string]any)
@@ -559,9 +515,8 @@ func serializerStrategies(options map[string]any) (params, ret string) {
 }
 
 // encodeFamily / serverDecodeFamily / clientDecodeFamily mirror the same names in
-// packages/router/src/types/serializer.ts and the maps in core's constants.ts; a
-// disagreement makes strategyFromFamilies throw on the bundled lane, which the
-// client-bundled and client-mixed suites catch.
+// packages/router/src/types/serializer.ts and the maps in core's constants.ts; a disagreement makes
+// strategyFromFamilies throw on the bundled lane.
 func encodeFamily(strategy string) string {
 	switch strategy {
 	case "mutate":
@@ -595,9 +550,8 @@ func clientDecodeFamily(strategy string) string {
 	return "restoreFromJsonClone"
 }
 
-// renderApiMethodModule renders `api/m/<id>.js`: the method's metadata row plus
-// the marker payload the server helper receives, its entries imported from the
-// mirror under `api/types/`.
+// renderApiMethodModule renders `api/m/<id>.js`: the method's metadata row plus the marker payload the
+// server helper receives, its entries imported from the mirror under `api/types/`.
 func renderApiMethodModule(basename string, entry *apiMethodEntry) string {
 	method := entry.method
 	var out strings.Builder
@@ -658,8 +612,7 @@ func renderApiMethodModule(basename string, entry *apiMethodEntry) string {
 	return out.String()
 }
 
-// renderApiSiteModule renders `api/s/<id>.js`: the payload a dispatch site
-// registers, the method rows it needs in tree order.
+// renderApiSiteModule renders `api/s/<id>.js`: the method rows a dispatch site registers, in tree order.
 func renderApiSiteModule(basename string, ids []string) string {
 	var out strings.Builder
 	out.WriteString("// GENERATED by mion (bundleApi). Do not edit.\n")
@@ -674,14 +627,12 @@ func renderApiSiteModule(basename string, ids []string) string {
 	return out.String()
 }
 
-// apiSiteBinding is the export of a site module, the identifier the transform
-// splices into the dispatch call (apimeta.Site.SiteBinding, from the basename).
+// apiSiteBinding is the site module's export, the identifier the transform splices into the dispatch call.
 func apiSiteBinding(basename string) string {
 	return entrymodules.BindingName(basename)
 }
 
-// relApiToTypes is the specifier from an `api/<basename>` module to the mirror
-// entry module `api/types/<dep>`.
+// relApiToTypes is the specifier from an `api/<basename>` module to the mirror entry `api/types/<dep>`.
 func relApiToTypes(fromBasename, depBasename string) string {
 	return ensureDotPrefix(relPosix(path.Dir(fromBasename), typesSubdir+"/"+depBasename)) + moduleFileExt
 }

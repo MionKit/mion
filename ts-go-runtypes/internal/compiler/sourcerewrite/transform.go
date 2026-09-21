@@ -1,32 +1,15 @@
-// Package sourcerewrite owns the per-file rewrite + source-map generation
-// compiler-side. It is the Go half of a Go ⇄ JS twin: it reproduces, BYTE-FOR-BYTE,
-// the output of the JS pipeline in packages/devtools/src/core/apply-edits.ts
-// (buildGroupInsertion, buildImportBlock, makeByteToChar, the apply loop) and
-// edit-buffer.ts (EditBuffer + Mappings + VLQ encoder), so the two wire modes
-// (transformMode 'go' — the daemon returns {code, map} — and 'edits' — the plugin
-// applies the edit list) are identical by construction and the bundler's
-// composite-map chain is unchanged either way.
+// Package sourcerewrite owns the per-file rewrite + source-map generation compiler-side. It is the
+// Go half of a Go ⇄ JS twin: its editBuffer reproduces BYTE-FOR-BYTE the output of
+// packages/devtools/src/core/edit-buffer.ts, so the two wire modes ('go', where the daemon returns
+// {code, map}, and 'edits', where the plugin applies the edit list through that JS twin) are
+// identical by construction and the bundler's composite-map chain is unchanged either way.
 //
-// ───────────────────────── UTF-16 vs UTF-8 (CRITICAL) ─────────────────────────
-//
-// The JS EditBuffer indexes UTF-16 code units, and source-map COLUMNS are
-// UTF-16 code units (what JS tooling / browsers expect). Resolver offsets
-// (protocol.Site.Pos, protocol.Replacement.Start/End) are UTF-8 BYTE offsets
-// (tsgo positions count bytes). To produce a byte-identical map this package
-// works in UTF-16 internally:
-//
-//   - `source` is converted to []uint16 via utf16.Encode([]rune(source));
-//   - byteToChar (the port of makeByteToChar) converts a byte offset to a
-//     UTF-16 index, with an identity fast-path when the source is pure ASCII
-//     (len(source) == UTF-16 length);
-//   - all editing / slicing / column math runs in UTF-16 units (EditBuffer);
-//   - the rendered code is decoded back to UTF-8 via string(utf16.Decode(units)).
-//
-// The injected text (call-site bindings, the import block) is always ASCII, so
-// its UTF-16 length == byte length == len. isWordChar is ASCII /\w/ only
-// ([A-Za-z0-9_]); lines split on 0x0A. The VLQ alphabet and delta-encoding
-// match edit-buffer.ts exactly. The magic-string credit/license for the
-// source-map segment math carries over (see editbuffer.go).
+// CRITICAL, UTF-16 vs UTF-8: resolver offsets (protocol.Site.Pos, protocol.Replacement.Start/End)
+// are UTF-8 BYTE offsets, because tsgo positions count bytes, while the JS EditBuffer indexes UTF-16
+// code units and source-map COLUMNS are UTF-16 code units. So this package works in UTF-16
+// internally — makeByteToChar converts at the boundary, all editing / slicing / column math runs on
+// []uint16, and the rendered code is decoded back to UTF-8. Injected text is always ASCII, so its
+// UTF-16 length equals its byte length. isWordChar is ASCII /\w/ only; lines split on 0x0A.
 package sourcerewrite
 
 import (
@@ -38,18 +21,15 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Apply rewrites `source` per the resolver's sites + replacements: call-site
-// bindings (buildGroupInsertion), pure-fn replacements, and the single deduped import
-// block at offset 0 (buildImportBlock) — then generates a v3 source map.
-// Returns (rewrittenCode, map). When there are no sites AND no replacements it
-// returns (source, nil) — matching rewrite.ts. `file` is recorded as sources[0].
+// Apply rewrites `source` per the resolver's sites + replacements: call-site bindings, pure-fn
+// replacements and the single deduped import block at offset 0, then generates a v3 source map.
+// With no sites AND no replacements it returns (source, nil). `file` is recorded as sources[0].
 func Apply(file, source string, sites []protocol.Site, replacements []protocol.Replacement) (string, *protocol.SourceMap) {
 	if len(sites) == 0 && len(replacements) == 0 {
 		return source, nil
 	}
 
-	// Source is edited in UTF-16 units (matching the JS string the EditBuffer
-	// indexed). byteToChar maps every resolver byte offset to its UTF-16 index.
+	// Source is edited in UTF-16 units, matching the JS string the EditBuffer indexes.
 	units := utf16.Encode([]rune(source))
 	byteOffsets := make([]int, 0, len(sites)+2*len(replacements))
 	for _, site := range sites {
@@ -61,9 +41,7 @@ func Apply(file, source string, sites []protocol.Site, replacements []protocol.R
 	toChar := makeByteToChar(source, units, byteOffsets)
 
 	editBuffer := newEditBuffer(units)
-	// Sites are zero-width insertions keyed on Pos; replacements are span edits
-	// keyed on Start/End. The EditBuffer resolves every edit against ORIGINAL
-	// coordinates, so application order is irrelevant.
+	// The EditBuffer resolves every edit against ORIGINAL coordinates, so order is irrelevant.
 	for _, group := range groupSitesByPos(sites) {
 		editBuffer.appendLeft(toChar(group[0].Pos), buildGroupInsertion(group))
 	}
@@ -83,16 +61,14 @@ func Apply(file, source string, sites []protocol.Site, replacements []protocol.R
 	return editBuffer.string(), sourceMap
 }
 
-// makeByteToChar converts resolver UTF-8 byte offsets to UTF-16 code-unit
-// indices (port of rewrite.ts makeByteToChar). Pure-ASCII sources (the common
-// case) short-circuit to identity; otherwise one code-point walk maps exactly
-// the offsets the edits need. Resolver offsets always land on code-point
-// boundaries, so the mapping is exact.
+// makeByteToChar converts resolver UTF-8 byte offsets to UTF-16 code-unit indices. A pure-ASCII
+// source short-circuits to identity; otherwise one code-point walk maps exactly the offsets the
+// edits need. Resolver offsets always land on code-point boundaries, so the mapping is exact.
 func makeByteToChar(source string, units []uint16, byteOffsets []int) func(int) int {
 	if len(source) == len(units) {
 		return func(byteOffset int) int { return byteOffset }
 	}
-	// Dedupe + sort the requested byte offsets, mirroring the JS Set+sort.
+	// Dedupe + sort the requested byte offsets.
 	seen := make(map[int]bool, len(byteOffsets))
 	sorted := make([]int, 0, len(byteOffsets))
 	for _, off := range byteOffsets {
@@ -107,7 +83,6 @@ func makeByteToChar(source string, units []uint16, byteOffsets []int) func(int) 
 	pending := 0
 	byteCursor := 0
 	unit := 0
-	// Iterate code points (runes), matching JS `for (const char of code)`.
 	for _, r := range source {
 		for pending < len(sorted) && sorted[pending] <= byteCursor {
 			byChar[sorted[pending]] = unit
@@ -130,7 +105,7 @@ func makeByteToChar(source string, units []uint16, byteOffsets []int) func(int) 
 	}
 }
 
-// utf8Len mirrors the JS byte-length branch on a code point's value.
+// utf8Len is the number of UTF-8 bytes a rune occupies.
 func utf8Len(r rune) int {
 	switch {
 	case r <= 0x7f:
@@ -144,8 +119,7 @@ func utf8Len(r rune) int {
 	}
 }
 
-// utf16Len is the number of UTF-16 code units a rune occupies (char.length in
-// JS): 1 in the BMP, 2 for astral code points (surrogate pair).
+// utf16Len is the number of UTF-16 code units a rune occupies: 1 in the BMP, 2 for astral.
 func utf16Len(r rune) int {
 	if r > 0xffff {
 		return 2
@@ -153,9 +127,8 @@ func utf16Len(r rune) int {
 	return 1
 }
 
-// entryBasename derives one entry-module basename a site imports: the
-// `<fnHash>_<typeId>` cache key for a createX entry (fnId set), the bare typeId
-// for a reflection entry (fnId empty).
+// entryBasename is one entry-module basename a site imports: the `<fnHash>_<typeId>` cache key for
+// a createX entry, the bare typeId for a reflection entry.
 func entryBasename(id, fnId string) string {
 	if fnId != "" {
 		return fnId + "_" + id
@@ -169,9 +142,8 @@ func entryBinding(id, fnId string) string {
 	return constants.EntryBindingPrefix + entryBasename(id, fnId)
 }
 
-// siteFnIds is the ordered fnId list a site injects: the multi-function list
-// when the marker named several families, else the lone fnId (empty string for
-// a reflection site → bare-id binding).
+// siteFnIds is the ordered fnId list a site injects: the multi-function list when the marker named
+// several families, else the lone fnId (empty for a reflection site, giving a bare-id binding).
 func siteFnIds(site protocol.Site) []string {
 	if len(site.FnIds) > 0 {
 		return site.FnIds
@@ -179,12 +151,10 @@ func siteFnIds(site protocol.Site) []string {
 	return []string{site.FnId}
 }
 
-// siteModuleFor is the module basename ONE fnId of a site is imported from:
-// the per-fnId bundle when the site is multi-function (its fnIds span several
-// families, each its own bundle under allSingle), else the site-wide stamp,
-// else the entry's own module. A binding must never be imported from a module
-// that does not export it, so this tracks fnIds positionally — Modules mirrors
-// FnIds index-for-index.
+// siteModuleFor is the module basename ONE fnId of a site is imported from: the per-fnId bundle
+// when the site is multi-function, else the site-wide stamp, else the entry's own module. A binding
+// must never be imported from a module that does not export it, so Modules mirrors FnIds
+// index-for-index and is read positionally.
 func siteModuleFor(site protocol.Site, index int, fnId string) string {
 	if index < len(site.Modules) && site.Modules[index] != "" {
 		return site.Modules[index]
@@ -195,18 +165,15 @@ func siteModuleFor(site protocol.Site, index int, fnId string) string {
 	return entryBasename(site.ID, fnId)
 }
 
-// SiteImport is one entry-module import a site's injected binding needs: the
-// binding identifier and the basename of the module exporting it (under the
-// output root's types/ dir).
+// SiteImport is one entry-module import a site's injected binding needs: the binding identifier and
+// the basename of the module exporting it, under the output root's types/ dir.
 type SiteImport struct {
 	Binding  string
 	Basename string
 }
 
-// SiteImports lists the entry-module imports one site's binding needs, one per
-// fnId (a reflection site has one, its bare id). Exported for the bundled-API
-// lane, which renders the same bindings into a generated module instead of a
-// user file.
+// SiteImports lists the entry-module imports one site's binding needs, one per fnId. Exported for
+// the bundled-API lane, which renders the same bindings into a generated module, not a user file.
 func SiteImports(site protocol.Site) []SiteImport {
 	if site.ID == "" {
 		return nil
@@ -219,13 +186,10 @@ func SiteImports(site protocol.Site) []SiteImport {
 	return out
 }
 
-// buildImportBlock collects every entry-module import the rewritten file needs
-// and renders the deduped import statements as a SINGLE physical line. One
-// clause shape everywhere: every module exports each entry under its binding
-// name, so clauses import it directly (`{__rt_X}`, never renamed); only the
-// specifier differs (the bundle when site.Module/Modules is stamped, the
-// entry's own module otherwise). Deterministic order (sorted by specifier,
-// clauses sorted within) keeps rewrites byte-stable.
+// buildImportBlock renders every entry-module import the rewritten file needs, deduped, as a SINGLE
+// physical line. One clause shape everywhere: a module exports each
+// entry under its binding name, so clauses import it directly (`{__rt_X}`, never renamed), and only
+// the specifier differs. Sorting by specifier, and clauses within, keeps rewrites byte-stable.
 func buildImportBlock(sites []protocol.Site, replacements []protocol.Replacement) string {
 	bySpecifier := make(map[string]map[string]bool)
 	addClause := func(specifier, clause string) {
@@ -276,12 +240,9 @@ func buildImportBlock(sites []protocol.Site, replacements []protocol.Replacement
 	return strings.Join(statements, " ") + "\n"
 }
 
-// groupSitesByPos buckets sites by their injection position (a call's closing
-// paren). Every marker slot a single call injects shares that call's Pos, so a
-// group is exactly one call's slots; the transform composes ONE insertion per
-// group. Distinct calls have distinct closing parens, so single-marker calls
-// are groups of one (byte-identical to the pre-multislot path). First-occurrence
-// order keeps the output deterministic.
+// groupSitesByPos buckets sites by injection position, a call's closing paren. Every marker slot a
+// single call injects shares that Pos, so a group is exactly one call's slots and the transform
+// composes ONE insertion per group. First-occurrence order keeps the output deterministic.
 func groupSitesByPos(sites []protocol.Site) [][]protocol.Site {
 	index := make(map[int]int, len(sites))
 	groups := make([][]protocol.Site, 0, len(sites))
@@ -297,10 +258,9 @@ func groupSitesByPos(sites []protocol.Site) [][]protocol.Site {
 	return groups
 }
 
-// SlotBinding renders the entry-tuple binding one marker slot injects: an ARRAY
-// of bindings for a multi-function InjectTypeFnArgs<T, F1, F2, …> site
-// (len(FnIds) > 1), else the lone binding — a scalar fn binding, or the bare
-// reflection id when FnId is empty (InjectRunTypeId).
+// SlotBinding renders the binding one marker slot injects: an ARRAY of bindings for a
+// multi-function InjectTypeFnArgs<T, F1, F2, …> site, else the lone binding (a scalar fn binding,
+// or the bare reflection id when FnId is empty).
 func SlotBinding(site protocol.Site) string {
 	if len(site.FnIds) > 1 {
 		bindings := make([]string, 0, len(site.FnIds))
@@ -312,16 +272,11 @@ func SlotBinding(site protocol.Site) string {
 	return entryBinding(site.ID, site.FnId)
 }
 
-// buildGroupInsertion produces the text to splice in just before a call's
-// closing `)` for every marker slot that call injects. A call with ONE marker
-// param is a group of one and renders byte-identically to the pre-multislot
-// path: `undefined` padding for earlier optional params, then the binding. A
-// call with SEVERAL marker params (multi-slot injection — e.g. mion's per-side
-// route markers) renders one binding per marker at its own parameter index,
-// with `undefined` filling the non-marker optional gaps a positional call must
-// still pass. Every site in a group shares the call, so ArgsCount and
-// TrailingComma are read from the first. The scanner only emits slots whose
-// ParamIndex >= ArgsCount (a written arg at a slot is a pass-through, never a
+// buildGroupInsertion produces the text spliced in just before a call's closing `)` for every
+// marker slot that call injects: one binding per marker at its own parameter index, with
+// `undefined` filling the non-marker optional gaps a positional call must still pass. Every site in
+// a group shares the call, so ArgsCount and TrailingComma are read from the first. The scanner only
+// emits slots whose ParamIndex >= ArgsCount (a written arg at a slot is a pass-through, never a
 // site), so the walk below reaches every slot.
 func buildGroupInsertion(group []protocol.Site) string {
 	if len(group) == 0 {
@@ -344,15 +299,12 @@ func buildGroupInsertion(group []protocol.Site) string {
 		if slot, ok := byIndex[index]; ok {
 			parts = append(parts, SlotBinding(slot))
 		} else {
-			// A non-marker optional parameter between argsCount and the last
-			// marker: a positional call must fill it, so pad with `undefined`.
+			// A non-marker optional parameter a positional call must still fill.
 			parts = append(parts, "undefined")
 		}
 	}
 	body := strings.Join(parts, ", ")
-	// Bare body (no leading comma) when there are no prior args OR the arg list
-	// already ends with a trailing comma — both put the position right after a
-	// separator (`(` or `,`).
+	// No leading comma when the position already sits right after a separator (`(` or `,`).
 	if argsCount == 0 || trailingComma {
 		return body
 	}

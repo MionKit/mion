@@ -8,43 +8,21 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// enrichPatternSamples fills auto-generated mockSamples into every
-// sample-less pattern in the session cache's format annotations: for each
-// params map (the annotation's own, or a nested sub-format map like a
-// domain's names/tld or an email's localPart — the mock draws from those
-// too) carrying a `pattern` object with a `source` but NO declared samples
-// (neither pattern.mockSamples nor a sibling mockSamples), it asks the JS
-// engine for PatternSampleCount values and writes them into the pattern
-// object, so every downstream consumer (family emitters, the runtype
-// module's writeFormatAnnotation, wire RunTypes) sees the enriched map.
-//
-// SEEDING — who decides whether a pool is reproducible: the literal
-// `mock.seed` hints carried by the createMockDataFn call sites
-// (protocol.Site.MockSeed, read through the CompTimeHints marker). A node
-// demanded by seeded mock sites gets a run key mixed from their sorted
-// distinct seeds — same seeds, same pool, on every machine and build. A
-// node with NO seeded demand generates under the engine's per-session
-// RANDOM key: a different pool on every fresh build, stable within one
-// session (watch-mode rebuilds never reshuffle mid-session). When a node's
-// seed basis changes mid-session (a newly scanned file adds a seeded
-// site), the pool WE generated is regenerated under the new basis;
-// declared samples are never touched.
-//
-// Runs single-threaded from rtRenderOpts / scopedDump, BEFORE the parallel
-// family collects. The engine memoizes per (pattern, knobs, seed), so
-// repeat dispatches re-ask nothing.
-//
-// This is the ONE deliberate exception to Cache.NodesView's read-only
-// contract, and it is safe because the mutation is post-intern: the
-// structural id was hashed at intern time, so typeIDs never depend on any
-// of this, and re-scans reuse the interned node via byStructural without
-// re-reading the params.
-//
-// Failures (unsupported construct, exhausted retry budget) leave the
-// samples absent and are RECORDED in sess.patternGenFailures — the
-// emit-time validateSamples lane reads that record and surfaces FMT005
-// anchored at the demanding call sites (an engine-level error is left for
-// the emitter's own TestPattern call to surface as FMT004).
+// enrichPatternSamples fills auto-generated mockSamples into every sample-less pattern in the session
+// cache's format annotations, a pattern nested in a sub-format map (a domain's names/tld, an email's
+// localPart) included, so every downstream consumer sees the enriched map. SEEDING decides whether a
+// pool is reproducible: a node demanded by seeded mock sites (the `mock.seed` hints on createMockDataFn
+// call sites, protocol.Site.MockSeed) draws under a key mixed from their sorted distinct seeds, the same
+// pool on every machine and build, while a node with NO seeded demand draws under the engine's
+// per-session RANDOM key, stable within one session so watch-mode rebuilds never reshuffle; when a
+// node's seed basis changes mid-session the pool WE generated is regenerated under the new basis, and
+// declared samples are never touched. Runs single-threaded from rtRenderOpts / scopedDump, BEFORE the
+// parallel family collects, and the engine memoizes per (pattern, knobs, seed), so repeat dispatches
+// re-ask nothing. This is the ONE deliberate exception to Cache.NodesView's read-only contract, safe
+// because the mutation is post-intern: the structural id was hashed at intern time, so typeIDs never
+// depend on any of this. A failure leaves the samples absent and is RECORDED in sess.patternGenFailures,
+// which the emit-time validateSamples lane reads to surface FMT005 at the demanding call sites; an
+// engine-level error is left for the emitter's own TestPattern call to surface as FMT004.
 func (sess *Session) enrichPatternSamples() {
 	if sess == nil || sess.cache == nil {
 		return
@@ -69,10 +47,8 @@ func (sess *Session) enrichPatternSamples() {
 	}
 }
 
-// mockSeedBasis maps every node id to the sorted distinct mock.seed hints
-// of the seeded mock call sites whose demanded type graph reaches it (the
-// same subtree walk recordFileIDs performs). Nodes no seeded site reaches
-// are absent — their pools use the engine's random session key.
+// mockSeedBasis maps a node id to the sorted distinct mock.seed hints of the seeded sites whose demanded
+// graph reaches it (the subtree walk recordFileIDs performs); an absent node uses the engine's random key.
 func (sess *Session) mockSeedBasis() map[string][]string {
 	var basis map[string]map[string]struct{}
 	for _, site := range sess.sites {
@@ -121,11 +97,9 @@ func (sess *Session) mockSeedBasis() map[string][]string {
 	return out
 }
 
-// enrichParamsTree enriches one params-like map, then recurses into its
-// map-valued children (sub-format params). Non-format maps are harmless
-// no-ops: a `pattern` object has no nested `pattern` key, and the
-// char/value op objects ({val, mockSamples, …}) have none either. Depth
-// is bounded defensively — real annotations nest two levels at most.
+// enrichParamsTree enriches one params-like map, then recurses into its map-valued children (sub-format
+// params). A non-format map is a harmless no-op, having no nested `pattern` key. Depth is bounded
+// defensively: real annotations nest two levels at most.
 func (sess *Session) enrichParamsTree(engine jsengine.Engine, params map[string]any, nodeID string, seeds []string, depth int) {
 	if params == nil || depth > 8 {
 		return
@@ -138,9 +112,8 @@ func (sess *Session) enrichParamsTree(engine jsengine.Engine, params map[string]
 	}
 }
 
-// enrichOneParams generates and writes pattern.mockSamples for a single
-// params map when it carries a sample-less pattern (or one whose pool WE
-// generated under a different seed basis). Declared samples always win.
+// enrichOneParams writes pattern.mockSamples for one params map carrying a sample-less pattern, or one
+// whose pool WE generated under a different seed basis; declared samples always win.
 func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]any, nodeID string, seeds []string) {
 	pattern, ok := params["pattern"].(map[string]any)
 	if !ok {
@@ -154,9 +127,7 @@ func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]a
 	basisNow := "\x01" + joinSeeds(seeds)
 	appliedBasis, generatedByUs := sess.patternSeedBasis[basisKey]
 	if hasDeclaredSamples(pattern["mockSamples"]) || hasDeclaredSamples(params["mockSamples"]) {
-		// Samples present: declared ones are never touched; a pool WE wrote
-		// is refreshed only when its seed basis changed (a seeded mock site
-		// appeared after the pool was drawn).
+		// A pool WE wrote is refreshed only when its seed basis changed; declared samples are never touched.
 		if !generatedByUs || appliedBasis == basisNow {
 			return
 		}
@@ -178,12 +149,11 @@ func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]a
 	failureKey := source + "\x00" + flags
 	result, err := engine.GeneratePattern(request)
 	if err != nil {
-		// Engine-level failure: leave it to the emitter's own TestPattern
-		// call, which surfaces FMT004 with the same error.
+		// An engine-level failure is left to the emitter's own TestPattern call, which raises FMT004.
 		return
 	}
-	// A timed-out self-check is recorded as such: the emitter raises the
-	// transient FMT007 for it (never cached) instead of a permanent FMT005.
+	// A timed-out self-check is recorded as such: the emitter raises the transient FMT007 (never cached)
+	// for it instead of a permanent FMT005.
 	if result.TimedOut != "" {
 		sess.patternGenFailures[failureKey] = formats.PatternGenFailure{Reason: result.TimedOut, TimedOut: true}
 		return
@@ -193,8 +163,8 @@ func (sess *Session) enrichOneParams(engine jsengine.Engine, params map[string]a
 		return
 	}
 	if result.CompileError != "" || len(result.Values) == 0 {
-		// CompileError is FMT002's lane (the emitter re-compiles); an empty
-		// clean result is a defensive impossibility — record nothing.
+		// CompileError is FMT002's lane (the emitter re-compiles); an empty clean result is a defensive
+		// impossibility, so record nothing.
 		return
 	}
 	values := make([]any, len(result.Values))
@@ -215,9 +185,7 @@ func joinSeeds(seeds []string) string {
 	return out
 }
 
-// hasDeclaredSamples reports whether a mockSamples param value declares at
-// least one sample (an array of samples, or the single char-set string
-// form).
+// hasDeclaredSamples accepts either an array of samples or the single char-set string form.
 func hasDeclaredSamples(raw any) bool {
 	switch typed := raw.(type) {
 	case []any:

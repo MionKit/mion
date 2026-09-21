@@ -27,9 +27,8 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 	if sess == nil {
 		return typefunctions.RenderOpts{}
 	}
-	// Fill generated mockSamples into sample-less pattern annotations
-	// BEFORE the collects fan out — single-threaded here, idempotent, and
-	// memoized in the engine, so repeat dispatches re-ask nothing.
+	// Fills sample-less pattern annotations BEFORE the collects fan out; single-threaded here, idempotent
+	// and memoized in the engine, so repeat dispatches re-ask nothing.
 	sess.enrichPatternSamples()
 	return typefunctions.RenderOpts{
 		Store:           sess.rtStore,
@@ -39,9 +38,8 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 		RootedSites:     rooted,
 		EmitMode:        sess.opts.EmitMode,
 		InlineMode:      sess.opts.InlineMode,
-		// The JS engine format-pattern checks run on — the validation
-		// authority for mockSamples (FMT001/FMT002), fail-closed with
-		// FMT004 when it cannot run.
+		// The validation authority for mockSamples (FMT001/FMT002), fail-closed with FMT004 when it
+		// cannot run.
 		JSEngine:           sess.opts.JSEngine,
 		PatternSampleCount: sess.opts.PatternSampleCount,
 		PatternGenFailures: sess.patternGenFailures,
@@ -52,18 +50,15 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 			StringBytes: sess.opts.SizeStringBytes,
 			MaxBytes:    sess.opts.SizeMaxBytes,
 		},
-		// One predicate memo per dispatch, shared by every family collect
-		// (the predicates are emitter-independent).
+		// One predicate memo per dispatch, shared by every family collect: the predicates are emitter-independent.
 		Facts: typefunctions.NewFactsTable(),
 	}
 }
 
-// fullRefTable indexes every interned RunType by id for the typefns collectors.
-// A collect seeds its roots from the (possibly scoped) dump but must resolve those
-// roots' child KindRef sentinels against the FULL session cache — a root can
-// reference children interned while scanning a different file. This is the
-// cache's own live table (read-only contract — see Cache.NodesView), so no
-// per-dispatch rebuild/sort/re-stamp happens anymore.
+// fullRefTable indexes every interned RunType by id: a collect seeds its roots from the (possibly scoped)
+// dump but must resolve their child KindRef sentinels against the FULL session cache, a root being able
+// to reference children interned while scanning a different file. It is the cache's own live table, under
+// the read-only contract of Cache.NodesView.
 func (sess *Session) fullRefTable() map[string]*reflection.RunType {
 	if sess == nil || sess.cache == nil {
 		return nil
@@ -71,24 +66,17 @@ func (sess *Session) fullRefTable() map[string]*reflection.RunType {
 	return sess.cache.NodesView()
 }
 
-// demandedSite is one marker call site together with the family tags it asked
-// for. A site demanding several entries (a composite JSON strategy) carries them
-// all; a reflection-only site (getRunTypeId, a builder) demands no function
-// family and never reaches this type.
+// demandedSite is one marker call site with the family tags it asked for; a reflection-only site
+// (getRunTypeId, a builder) demands no function family and never reaches this type.
 type demandedSite struct {
 	site     diagnostics.Site
 	families []string
 }
 
-// buildProvenanceSites converts the resolver's protocol.Site list into the
-// (typefunctions.ProvenanceKey → []diagnostics.Site) maps the typefns walker
-// uses to fan out per-call-site diagnostics. Pos→line/col is computed against
-// the resolver's current Program.
-//
-// It returns TWO maps, both keyed by (type id + family tag): rooted holds only
-// the sites that NAMED each id, and reaching adds every site the id is
-// reachable from. A ScopeRoot code reads the first, everything else the second
-// — see Walker.diagnosticSites.
+// buildProvenanceSites converts the resolver's protocol.Site list into the ProvenanceKey → sites maps the
+// typefns walker fans per-call-site diagnostics out with, both keyed by (type id + family tag): rooted
+// holds only the sites that NAMED each id, reaching adds every site the id is reachable from. A ScopeRoot
+// code reads the first, everything else the second, see Walker.diagnosticSites.
 func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagnostics.Site) {
 	if sess == nil || sess.Program == nil {
 		return nil, nil
@@ -108,9 +96,8 @@ func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagn
 			continue
 		}
 		diagSite := diagnostics.Site{FilePath: site.File}
-		// Fall back to file-only when the file is not in the program
-		// (defensive) — the user still sees which file the finding belongs to
-		// even when line/col cannot be resolved.
+		// File-only fallback when the file is not in the program: the user still sees which file the
+		// finding belongs to when line/col cannot be resolved.
 		if sourceFile, err := sess.sourceFile(site.File); err == nil && sourceFile != nil {
 			diagSite.StartLine, diagSite.StartCol = textpos.LineCol(sourceFile, site.Pos)
 		}
@@ -123,8 +110,7 @@ func (sess *Session) buildProvenanceSites() (rooted, reaching map[string][]diagn
 	return rooted, sess.inheritProvenanceToDescendants(byID)
 }
 
-// demandedFamilies lists the cache-module family tags a site asks to be
-// rendered, deduped so a composite strategy naming one family twice does not
+// demandedFamilies dedupes the site's family tags, so a composite strategy naming one twice does not
 // double-report.
 func demandedFamilies(site protocol.Site) []string {
 	if len(site.Demand) == 0 {
@@ -140,8 +126,7 @@ func demandedFamilies(site protocol.Site) []string {
 	return families
 }
 
-// addProvenance files each site under the id's key for every family that site
-// demanded.
+// addProvenance files each site under the id's key once per family that site demanded.
 func addProvenance(out map[string][]diagnostics.Site, id string, demanded []demandedSite) {
 	for _, entry := range demanded {
 		for _, family := range entry.families {
@@ -151,41 +136,18 @@ func addProvenance(out map[string][]diagnostics.Site, id string, demanded []dema
 	}
 }
 
-// inheritedProvenanceDepthCap bounds the descent through ID-LESS inline nodes.
-// Every interned node is memoized by id (the common case, and the only way a
-// cycle can close, since a circular type is always interned), so this only
-// backstops a pathological un-interned inline subtree.
+// inheritedProvenanceDepthCap bounds the descent through ID-LESS inline nodes; an interned node is
+// memoized by id and a cycle can only close through one, so this backstops an un-interned inline subtree.
 const inheritedProvenanceDepthCap = 32
 
-// inheritProvenanceToDescendants gives every type REACHED BY a marker call site
-// the provenance of that site, not just the type named at the call.
-//
-// # The bug this fixes
-//
-// A child type gets its own cache entry, keyed by its own structural id — an id
-// that was never a marker call argument. So a map built only from call sites has
-// no entry for it, and `Walker.EmitDiagnostic` drops anything it cannot
-// attribute rather than render a diagnostic with an empty filePath. The result
-// was silent: `createJsonEncoderFn<Pet>()` warned that `Pet` serializes
-// structurally, while `createJsonEncoderFn<{pet: Pet}>()` and
-// `createJsonEncoderFn<Pet | Owner>()` said nothing at all — for the exact same
-// class, compiled by the exact same emitter. Nesting is the NORMAL case, so most
-// occurrences of every child-position diagnostic never reached anyone.
-//
-// # Why "every site that reaches it" is the right attribution
-//
-// The established rule for a root type is one diagnostic per CALL SITE, not one
-// per type id. Inheriting provenance keeps that rule intact one level down: a
-// site is told about the types it actually pulls in. A shared child legitimately
-// reports at each site that demands it, exactly as a shared root already does.
-//
-// A descendant inherits the site's DEMANDED families only, the same rule the
-// root follows: a site that asked for a validator hears about the members its
-// validator drops, never about the JSON encoder it did not ask for.
-//
-// Repeats collapse later: identical (code, args, site) tuples are folded by
-// diagnostics.Dedupe, so a child reached by several paths from one site still
-// yields one line.
+// inheritProvenanceToDescendants gives every type REACHED BY a marker call site the provenance of that
+// site, not just the type named at the call. A child type is keyed by its own structural id, which was
+// never a marker call argument, and Walker.EmitDiagnostic drops what it cannot attribute rather than
+// render an empty filePath, so with a call-site-only map every child-position diagnostic went unreported
+// for the NORMAL nested case. The rule stays one diagnostic per CALL SITE, and a descendant inherits the
+// site's DEMANDED families only: a site that asked for a validator hears about the members its validator
+// drops, never about the JSON encoder it did not ask for. Repeats collapse later in diagnostics.Dedupe,
+// so a child reached by several paths from one site still yields one line.
 func (sess *Session) inheritProvenanceToDescendants(byID map[string][]demandedSite) map[string][]diagnostics.Site {
 	out := make(map[string][]diagnostics.Site, len(byID)*2)
 	for id, demanded := range byID {
@@ -195,8 +157,7 @@ func (sess *Session) inheritProvenanceToDescendants(byID map[string][]demandedSi
 	if len(byID) == 0 || len(refTable) == 0 {
 		return out
 	}
-	// Reused across roots: cleared per root so a node visited under one root is
-	// still attributed under the next.
+	// Cleared per root, so a node visited under one root is still attributed under the next.
 	seen := make(map[string]struct{}, 64)
 	for rootID, demanded := range byID {
 		root := refTable[rootID]
@@ -210,10 +171,9 @@ func (sess *Session) inheritProvenanceToDescendants(byID map[string][]demandedSi
 	return out
 }
 
-// inheritFrom walks one root's ref slots, filing the root's sites under every
-// interned descendant. Children arrive as KindRef sentinels carrying an id but
-// no slots of their own, so each id is re-resolved against the full table before
-// descending — the same resolve-then-descend shape the other graph walks use.
+// inheritFrom files one root's sites under every interned descendant. Children arrive as KindRef
+// sentinels carrying an id but no slots of their own, so each id is re-resolved against the full table
+// before descending, the same resolve-then-descend shape the other graph walks use.
 func inheritFrom(
 	node *reflection.RunType,
 	demanded []demandedSite,
@@ -244,20 +204,16 @@ func inheritFrom(
 	})
 }
 
-// extractProgramPureFns walks every source file in the program through the
-// pure-fn extractor (memoized per file via pureFnFileCache, so repeat calls in
-// one dispatch are cheap) and returns the registration entries, the exact
-// walked-file set, and the wire-shaped diagnostics. Shared by
-// collectProgramPureFns (the entry-graph path) and validateProgramPureFnDeps
-// (the PFE9012 registration index) so both observe the SAME whole-program
-// registration set. overrideEntries are NOT folded in here — callers that need
-// them (the graph, the index) append resolver.overrideEntries themselves.
+// extractProgramPureFns walks every program source file through the pure-fn extractor (memoized per file,
+// so repeat calls in one dispatch are cheap). Shared by collectProgramPureFns and
+// validateProgramPureFnDeps so both observe the SAME whole-program registration set. overrideEntries are
+// NOT folded in here: a caller that needs them appends resolver.overrideEntries itself.
 func (sess *Session) extractProgramPureFns(metrics *protocol.Metrics) (entries []purefunctions.Entry, walkFiles []string, diags []diagnostics.Diagnostic) {
 	if sess.Program == nil {
 		return nil, nil, nil
 	}
-	// The override pass extracts the cfn pure-fn entries the type-fn redirects
-	// forward to; idempotent, so this is a cheap guard when scanning already ran.
+	// The override pass extracts the cfn entries the type-fn redirects forward to; idempotent, so this is
+	// a cheap guard when scanning already ran.
 	sess.ensureOverrides()
 	pureFnsStart := time.Now()
 	sourceFiles := sess.Program.TS.SourceFiles()
@@ -275,10 +231,8 @@ func (sess *Session) extractProgramPureFns(metrics *protocol.Metrics) (entries [
 	return entries, walkFiles, diags
 }
 
-// collectProgramPureFns walks every file in the program through the pure-fn
-// extractor and returns the per-entry graph (the OpDump path; OpScanFiles
-// reuses its own per-request extraction instead). Returns the wire-shaped
-// diagnostics from the in-place extraction alongside.
+// collectProgramPureFns returns the per-entry graph for the OpDump path; OpScanFiles reuses its own
+// per-request extraction instead.
 func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodules.Graph, []diagnostics.Diagnostic) {
 	entries, _, diags := sess.extractProgramPureFns(metrics)
 	// The package's OWN build is the single producer of a built-in body; an in-repo program
@@ -301,14 +255,11 @@ func (sess *Session) collectProgramPureFns(metrics *protocol.Metrics) (entrymodu
 	return purefunctions.CollectEntries(kept, sess.opts.EmitMode), diags
 }
 
-// collectPureFnReport builds the whole-program pure-fn build report
-// (protocol.PureFnSite records) when Options.PureFnReportWire is enabled — nil
-// otherwise, so the pipeline pays nothing when the report is off. It reuses the
-// same deduped whole-program extraction as collectProgramPureFns (memoized by
-// the per-Program FileCache, so no extra walk) and drops the built-in
-// entries an in-repo program surfaces — a published consumer never emits those,
-// and they are not user-registered pure fns. Cfn
-// override entries are NOT in this set (they carry no registrar call site).
+// collectPureFnReport builds the whole-program pure-fn build report only when Options.PureFnReportWire is
+// enabled, so the pipeline pays nothing when the report is off. It reuses collectProgramPureFns's memoized
+// extraction and drops the built-in entries an in-repo program surfaces: a published consumer never emits
+// those, and they are not user-registered pure fns. Cfn override entries carry no registrar call site, so
+// they are not in this set either.
 func (sess *Session) collectPureFnReport(metrics *protocol.Metrics) []protocol.PureFnSite {
 	if !sess.opts.PureFnReportWire {
 		return nil
@@ -366,10 +317,8 @@ func (sess *Session) renderPureFnArtifact(graph entrymodules.Graph, metrics *pro
 	return files, nil
 }
 
-// pureFnReportForEntries builds the report for an already-extracted per-request
-// entry set (the OpScanFiles delta), applying the same built-in filter and
-// layout/emitMode as collectPureFnReport. Empty in / empty out; nil when the
-// report is disabled.
+// pureFnReportForEntries builds the report for an already-extracted per-request entry set (the
+// OpScanFiles delta), with the same built-in filter and layout/emitMode as collectPureFnReport.
 func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []protocol.PureFnSite {
 	if !sess.opts.PureFnReportWire || len(entries) == 0 {
 		return nil
@@ -384,11 +333,9 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 	return purefunctions.Report(kept, sess.opts.EmitMode, sess.opts.ModuleMode == constants.ModuleModeAllSingle)
 }
 
-// collectProgramBatches walks every non-declaration source file in the program
-// through the request-batch extractor (memoised per file via batchFileCache)
-// and returns the whole-program site set together with every batch
-// diagnostic: the per-site BAT001 / BAT002 / BAT004 / BAT005 / BAT006 plus the cross-file
-// BAT003 collisions, which only a whole-program fold can see.
+// collectProgramBatches returns the whole-program batch site set with every batch diagnostic: the
+// per-site BAT001 / BAT002 / BAT004 / BAT005 / BAT006 plus the cross-file BAT003 collisions, which only
+// a whole-program fold can see.
 func (sess *Session) collectProgramBatches() ([]requestbatch.Site, []diagnostics.Diagnostic) {
 	if sess.Program == nil {
 		return nil, nil
@@ -405,9 +352,8 @@ func (sess *Session) collectProgramBatches() ([]requestbatch.Site, []diagnostics
 	return sites, append(diags, requestbatch.CheckConflicts(sites)...)
 }
 
-// batchReportForSites builds the wire report for an extracted site set when
-// Options.PureFnReportWire is enabled; nil otherwise (and on an empty set), so
-// a normal scan pays nothing.
+// batchReportForSites builds the wire report only when Options.PureFnReportWire is enabled, so a normal
+// scan pays nothing.
 func (sess *Session) batchReportForSites(sites []requestbatch.Site) []protocol.BatchSite {
 	if !sess.opts.PureFnReportWire || len(sites) == 0 {
 		return nil
@@ -415,42 +361,20 @@ func (sess *Session) batchReportForSites(sites []requestbatch.Site) []protocol.B
 	return requestbatch.Report(sites)
 }
 
-// validateProgramPureFnDeps cross-checks the pure-fn dependencies aggregated
-// while rendering RT function entries (opts.PureFnDepSink) against the
-// program-wide pure-fn registration set, returning PFE9012 diagnostics for any
-// dep whose `<namespace>::<fnName>` registration is missing from every scanned
-// source file. Empty uses (the common non-linting path, or a build that renders
-// no pure-fn-bearing family) or no Program short-circuits to nil.
-//
-// The index is a WHOLE-program extraction — a registration in ANY program file
-// satisfies the dep by key. This is the correctness pivot: the per-file scan
-// set (extractPureFnsForScan) covers only the requested files, so validating
-// against it would false-positive on `newRunTypeErr` and friends, which
-// register in the mion package's own source (pulled into the program by
-// its side-effect import), never in the user's requested files. The dep's
-// FilePath hint drives only ValidatePureFnDependencies' lazy expansion, which
-// stays a no-op here because the whole program is already walked.
-//
-// Site attribution: each missing key fans out to one diagnostic per distinct
-// marker call site that demanded a type reaching it (collected from each use's
-// root provenance), so the squiggle lands on the user's createX<T>() call —
-// mirroring how the walker's root-throw diagnostics fan out. A key whose uses
-// carry no provenance (only transitively-reached children) falls back to a
-// single file-less diagnostic. Output is sorted by (key, file, line, col) so
-// the response is deterministic regardless of family-collect order (serial vs
-// parallel).
-//
-// Built-in exemption (NOT a count guard): the deps reaching here are the ones
-// emitted RT bodies reach, which are ALWAYS ids the package owns (see the
-// AddPureFnDependency call sites, each naming a purefnids constant). Those are
-// registered by the package's own side-effect imports at runtime but their
-// source is a .d.ts in a published-package consumer's program, so cross-checking
-// them false-positives. purefunctions.ValidatePureFnDependencies skips built-in
-// namespaces and validates only user-owned ones, so the check is faithful to
-// runtime for every consumer shape. This replaced the old
-// `len(entries) == 0 → skip` guard, which a consumer's own registerPureFnFactory
-// defeated (entries became non-zero, so every built-in dep was then flagged
-// missing — the PFE9012 wall this fixes).
+// validateProgramPureFnDeps cross-checks the pure-fn dependencies aggregated while rendering RT function
+// entries (opts.PureFnDepSink) against the program-wide registration set, returning PFE9012 for a dep
+// whose id no scanned source file registers. The index is a WHOLE-program extraction, and that is the
+// correctness pivot: the per-file scan set (extractPureFnsForScan) covers only the requested files, so
+// validating against it false-positives on `newRunTypeErr` and friends, which register in the mion
+// package's own source rather than in the user's requested files. Each missing id fans out to one
+// diagnostic per distinct marker call site that demanded a type reaching it, so the squiggle lands on the
+// user's createX<T>() call, as the walker's root-throw diagnostics do; an id reached only transitively
+// falls back to a single file-less diagnostic, and the output is sorted by (key, file, line, col) so the
+// response is deterministic whatever the family-collect order. Built-ins are exempt, and NOT by a count
+// guard: the deps reaching here are ALWAYS ids the package owns, registered by its own side-effect imports
+// at runtime while their source is a .d.ts in a published-package consumer's program, so cross-checking
+// them false-positives; purefunctions.ValidatePureFnDependencies skips built-in namespaces and validates
+// only user-owned ones, faithful to runtime for every consumer shape.
 func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse) []diagnostics.Diagnostic {
 	if len(uses) == 0 || sess.Program == nil {
 		return nil
@@ -461,8 +385,7 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 	index := purefunctions.NewIndex(entries)
 	index.LibraryDep = sess.isLibraryPureFnDep
 
-	// Flatten to the bare deps for the validation core, and index each key's
-	// demanding call sites (deduped) so a miss can be anchored at them.
+	// Index each key's demanding call sites, deduped, so a miss can be anchored at them.
 	deps := make([]protocol.PureFnDep, 0, len(uses))
 	sitesByKey := map[string][]diagnostics.Site{}
 	seenSite := map[string]bool{}
@@ -479,9 +402,8 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 		}
 	}
 
-	// The validation core returns one file-less diagnostic per missing key.
-	// Fan each out to its demanding call sites (or keep it file-less when the
-	// key was only reached transitively, with no site to point at).
+	// The validation core returns one file-less diagnostic per missing key; fan each out to its demanding
+	// call sites, or keep it file-less when there is no site to point at.
 	missing := purefunctions.ValidatePureFnDependencies(deps, index)
 	var diags []diagnostics.Diagnostic
 	for _, diag := range missing {
@@ -512,9 +434,8 @@ func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse
 	return diags
 }
 
-// pureFnDepDiagKey returns the missing `<namespace>::<fnName>` key a PFE9012
-// diagnostic carries in its first arg (see ValidatePureFnDependencies), for
-// deterministic sorting. Falls back to the code for a malformed diagnostic.
+// pureFnDepDiagKey returns the missing pure-fn id a PFE9012 diagnostic carries in its
+// first arg (see ValidatePureFnDependencies), falling back to the code for a malformed diagnostic.
 func pureFnDepDiagKey(diag diagnostics.Diagnostic) string {
 	if len(diag.Args) > 0 {
 		return diag.Args[0]

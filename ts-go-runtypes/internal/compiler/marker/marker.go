@@ -1,29 +1,8 @@
-// Package marker detects whether a TypeScript type matches one of the
-// recognised marker brands. Three kinds are supported:
-//
-//  1. InjectRunTypeId<T> — the trailing-parameter brand that opts a
-//     function into compile-time type-id injection by the
-//     mion transformer.
-//  2. CompTimeArgs<T> — brands a parameter whose corresponding argument
-//     must be a literal at the call site (or via a module-scope `const`
-//     whose initializer is itself entirely literal).
-//  3. PureFunction<F> — brands a function-typed parameter whose argument
-//     must be a literal function definition AND must pass purity rules.
-//
-// The detection is two-layered for every kind:
-//  1. Name match — the type alias' symbol name must equal the configured
-//     marker name (defaults below).
-//  2. Module-of-origin match — the alias must be declared inside one of the
-//     accepted marker packages (always "@mionjs/run-types", plus whatever
-//     Options.Packages adds). This stops a user's own `type
-//     InjectRunTypeId<T> = ...` (or similarly named local brand) from
-//     accidentally triggering rewrites.
-//
-// Layer 2 is what a third-party library configures when it wants to declare
-// the brands itself rather than depend on mion for types alone:
-// Options.Packages ADDS accepted packages (the default is always kept, so the
-// knob can never take working markers away), and Options.SkipPackageCheck
-// drops layer 2 altogether — name-only matching, the deliberate escape hatch.
+// Package marker detects whether a TypeScript type is one of the marker brands (one Kind each,
+// listed below). Detection is two-layered: the alias' symbol name must match the spec's name, AND
+// the alias must be declared in an accepted package, so a user's own `type InjectRunTypeId<T> = …`
+// never triggers rewrites. Options.Packages ADDS accepted packages (the default is always kept, so
+// the knob can never take working markers away); Options.SkipPackageCheck drops layer 2 altogether.
 package marker
 
 import (
@@ -52,113 +31,75 @@ const (
 	// KindPureFunction requires the argument to be an inline function
 	// definition that passes the purity rules.
 	KindPureFunction
-	// KindInjectTypeFnArgs is the trailing-slot injection marker used by the
-	// createX factories. Like KindInjectRunTypeId it injects at the trailing
-	// parameter, but carries a second type-arg (Fn) naming the function, so the
-	// transformer injects a `[typeId, fnId]` tuple and the backend emits only
-	// the demanded function family.
+	// KindInjectTypeFnArgs is the createX trailing-slot marker: a second type-arg (Fn) names the
+	// function, so the transformer injects a `[typeId, fnId]` tuple and the backend emits only the
+	// demanded function family.
 	KindInjectTypeFnArgs
-	// KindCompTimeFnArgs brands the parameter whose literal value selects the
-	// createX function variant (the ValidateOptions bag for validate/validationErrors, the
-	// JSON strategy for the encoder/decoder). Same literal-only validation as
-	// KindCompTimeArgs, but it ALSO tells the scanner which parameter to read
-	// when computing the injected fnHash.
+	// KindCompTimeFnArgs brands the parameter whose literal value selects the createX function
+	// variant. Same literal-only validation as KindCompTimeArgs, and it names the parameter the
+	// scanner reads when computing the injected fnHash.
 	KindCompTimeFnArgs
-	// KindInjectPureFnId is the pure-fn id injection marker (InjectPureFnId<F>).
-	// Like KindInjectRunTypeId it rides the callee signature so it propagates
-	// through wrappers, and the injected value is the id of the sibling
-	// PureFunction<F> registration: its package, its file and the name it is
-	// bound to. The purefunctions extractor recognises a registration by this
-	// brand and splices the id in; the resolver's marker walk does not inject
-	// for it (no createX id/fnId), so it carries no scanCall case.
+	// KindInjectPureFnId (InjectPureFnId<F>) rides the callee signature so it propagates through
+	// wrappers; the injected value is the id of the sibling PureFunction<F> registration (its
+	// package, its file, the name it is bound to). The purefunctions extractor splices the id in;
+	// the resolver's marker walk does not inject for it, so it carries no scanCall case.
 	KindInjectPureFnId
-	// KindPureFunctionFactory brands a function argument as a FACTORY
-	// `(utl) => fn` (the registerPureFnFactory lane). Same inline + purity
-	// rules as KindPureFunction, but it tells the
-	// extractor to emit the factory AS-IS. The plain KindPureFunction is the
-	// DIRECT form — the argument is the pure fn itself, wrapped into `() => fn`.
-	// The marker on the pure-fn parameter is what carries the factory-vs-direct
-	// intent through a wrapper.
+	// KindPureFunctionFactory brands a FACTORY argument `(utl) => fn` (the registerPureFnFactory
+	// lane). Same inline + purity rules as KindPureFunction, but the extractor emits the factory
+	// AS-IS, where the DIRECT KindPureFunction argument is wrapped into `() => fn`. The marker on
+	// the pure-fn parameter is what carries the factory-vs-direct intent through a wrapper.
 	KindPureFunctionFactory
-	// KindCompTimeHints marks a parameter the build READS best-effort but
-	// never validates — the lenient, reusable sibling of KindCompTimeArgs.
-	// Statically readable values inside a literal/const argument are honored
-	// at build time; a dynamic argument stays legal and is simply invisible.
-	// No CTA0xx enforcement, no fn-variant selection, nothing folds into any
-	// id. Identity alias like CompTimeArgs, so detection is syntactic (the
-	// written annotation). Current reader: createMockDataFn's options bag
-	// (`mock.seed` seeds the generated pattern mockSample pools).
+	// KindCompTimeHints marks a parameter the build READS best-effort but never validates — the
+	// lenient sibling of KindCompTimeArgs. A dynamic argument stays legal and is simply invisible:
+	// no CTA0xx enforcement, no fn-variant selection, nothing folds into any id. Identity alias like
+	// CompTimeArgs, so detection is syntactic. Current reader: createMockDataFn's options bag.
 	KindCompTimeHints
-	// KindInjectBatchId is the request-batch id injection marker
-	// (InjectBatchId<Routes>). Like KindInjectPureFnId it rides the callee
-	// signature so it propagates through wrappers, and the injected value is a
-	// deterministic id derived from the ORDERED route ids the sibling
-	// `[...Routes]` argument names (`"b_<hash>"`). The batches extractor
-	// recognises the `batch([...])` call shape by this brand and splices the
-	// id in; the resolver's marker walk does not inject for it (no createX
-	// id/fnId), so it carries no scanCall case.
+	// KindInjectBatchId (InjectBatchId<Routes>) rides the callee signature like KindInjectPureFnId;
+	// the injected value is a deterministic `"b_<hash>"` id over the ORDERED route ids the sibling
+	// `[...Routes]` argument names. The batches extractor splices it in, so no scanCall case.
 	KindInjectBatchId
-	// KindInjectApiMetadata is the mion client's API metadata injection marker
-	// (InjectApiMetadata<Api, Id>): the trailing parameter of a client dispatch
-	// point (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`) and,
-	// without an Id, of `initClient`. The apimeta lane recognises the call by
-	// this brand, reads the API type and the route id off the alias's type
-	// arguments, and fills the slot with an import of the generated module
-	// carrying that route's metadata and compiled functions (the mode literal
-	// at initClient). No scanCall case, like KindInjectBatchId.
+	// KindInjectApiMetadata (InjectApiMetadata<Api, Id>) brands the trailing parameter of a client
+	// dispatch point (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`) and, without an
+	// Id, of `initClient`. The apimeta lane reads the API type and the route id off the alias's type
+	// arguments and fills the slot with an import of the generated metadata module. No scanCall case.
 	KindInjectApiMetadata
-	// KindPureFnId brands the VALUE a pure-fn registrar returns (PureFnId<ID>):
-	// a pure fn's id, which is where it lives. It is not an injection marker and
-	// has no scanCall case; it exists so a build can recognise an id handed to a
-	// `CompTimeArgs<PureFnId>` lookup even when the value comes from a call (a
-	// registrar's) or from a `.d.ts` with no initializer to read. The pure-fn
-	// lane resolves what it points at; the brand is what says it is an id at all.
+	// KindPureFnId (PureFnId<ID>) brands the VALUE a pure-fn registrar returns, not an injection (no
+	// scanCall case): it is what lets a build recognise an id handed to a `CompTimeArgs<PureFnId>`
+	// lookup when the value comes from a call or from a `.d.ts` with no initializer to read.
 	KindPureFnId
 )
 
-// DefaultName is the symbol name the resolver looks for for the
-// injection marker. Used by DefaultSpecs when building the canonical
-// marker set.
+// DefaultName is the symbol name of the id-injection marker.
 const DefaultName = "InjectRunTypeId"
 
-// DefaultInjectTypeFnArgsName is the symbol name for the createX trailing-slot
-// marker that carries the function id (InjectTypeFnArgs<T, Fn>).
+// DefaultInjectTypeFnArgsName is the symbol name of the createX trailing-slot marker.
 const DefaultInjectTypeFnArgsName = "InjectTypeFnArgs"
 
-// DefaultCompTimeArgsName is the symbol name for the CompTimeArgs brand.
+// DefaultCompTimeArgsName is the symbol name of the CompTimeArgs brand.
 const DefaultCompTimeArgsName = "CompTimeArgs"
 
-// DefaultCompTimeFnArgsName is the symbol name for the CompTimeFnArgs brand —
-// the fn-selecting variant of CompTimeArgs used by the createX factories.
+// DefaultCompTimeFnArgsName is the symbol name of the fn-selecting variant of CompTimeArgs.
 const DefaultCompTimeFnArgsName = "CompTimeFnArgs"
 
-// DefaultCompTimeHintsName is the symbol name for the CompTimeHints marker —
-// the lenient, read-only sibling of CompTimeArgs (build reads literal values
-// best-effort, never validates).
+// DefaultCompTimeHintsName is the symbol name of the lenient, read-only sibling of CompTimeArgs.
 const DefaultCompTimeHintsName = "CompTimeHints"
 
-// DefaultPureFunctionName is the symbol name for the PureFunction brand (the
-// DIRECT form — the argument is the pure fn itself).
+// DefaultPureFunctionName is the symbol name of the DIRECT pure-fn brand.
 const DefaultPureFunctionName = "PureFunction"
 
-// DefaultPureFunctionFactoryName is the symbol name for the PureFunctionFactory
-// brand (the FACTORY form — the argument is a `(utl) => fn` factory).
+// DefaultPureFunctionFactoryName is the symbol name of the `(utl) => fn` FACTORY brand.
 const DefaultPureFunctionFactoryName = "PureFunctionFactory"
 
-// DefaultInjectPureFnIdName is the symbol name for the pure-fn id injection
-// marker (InjectPureFnId<F>).
+// DefaultInjectPureFnIdName is the symbol name of the pure-fn id injection marker.
 const DefaultInjectPureFnIdName = "InjectPureFnId"
 
-// DefaultPureFnIdName is the symbol name for the branded id a pure-fn registrar
-// returns (PureFnId<ID>).
+// DefaultPureFnIdName is the symbol name of the branded id a pure-fn registrar returns.
 const DefaultPureFnIdName = "PureFnId"
 
-// DefaultInjectBatchIdName is the symbol name for the request-batch id
-// injection marker (InjectBatchId<Routes>).
+// DefaultInjectBatchIdName is the symbol name of the request-batch id injection marker.
 const DefaultInjectBatchIdName = "InjectBatchId"
 
-// DefaultInjectApiMetadataName is the symbol name for the mion client's API
-// metadata injection marker (InjectApiMetadata<Api, Id>).
+// DefaultInjectApiMetadataName is the symbol name of the client's API metadata injection marker.
 const DefaultInjectApiMetadataName = "InjectApiMetadata"
 
 // DefaultModule is the package the marker types must be declared in.
@@ -168,25 +109,19 @@ const DefaultModule = "@mionjs/run-types"
 type Spec struct {
 	// Name is the symbol name of the marker type alias.
 	Name string
-	// Module is the package the alias is declared in. The check passes
-	// when the alias' declaration is either inside `declare module
-	// "<Module>"` (ambient form, used by synthetic test fixtures) or in a
-	// file whose enclosing on-disk package.json has its `"name"` field
-	// equal to <Module> (real packages — workspace or installed).
+	// Module is the package the alias is declared in: either inside `declare module "<Module>"`
+	// (ambient form, synthetic test fixtures) or in a file whose enclosing package.json `"name"` is
+	// <Module> (real packages, workspace or installed).
 	Module string
 	// Kind is the marker family this spec maps to.
 	Kind Kind
-	// BrandProperty, when non-empty, is the name of the phantom brand
-	// property on the alias. Used as a fallback when alias info is lost
-	// (e.g. CompTimeArgs<A | B> distributes its intersection over the
-	// union — the alias name drops away but the brand property survives
-	// on every member). Empty disables the fallback.
+	// BrandProperty is the phantom brand property on the alias, a fallback for when alias info is
+	// lost (CompTimeArgs<A | B> distributes its intersection over the union, dropping the alias name
+	// while the brand survives on every member). Empty disables the fallback.
 	BrandProperty string
 }
 
-// Brand property names for each marker kind. Kept in sync with the
-// public TypeScript declarations in
-// packages/run-types/src/markers.ts.
+// Brand property names per marker kind, kept in sync with packages/run-types/src/markers.ts.
 const (
 	BrandInjectRunTypeId     = "__rtInjectRunTypeIdBrand"
 	BrandCompTimeArgs        = "__rtCompTimeArgsBrand"
@@ -214,54 +149,37 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultInjectBatchIdName, Module: DefaultModule, Kind: KindInjectBatchId, BrandProperty: BrandInjectBatchId},
 		{Name: DefaultInjectApiMetadataName, Module: DefaultModule, Kind: KindInjectApiMetadata, BrandProperty: BrandInjectApiMetadata},
 		{Name: DefaultPureFnIdName, Module: DefaultModule, Kind: KindPureFnId, BrandProperty: BrandPureFnId},
-		// CompTimeHints is an identity alias (no phantom brand exists on
-		// any resolved type), so BrandProperty stays empty — detection is
-		// purely syntactic via the written annotation (comptimeargs node check).
+		// CompTimeHints is an identity alias with no phantom brand, so detection is syntactic instead
+		// (the comptimeargs node check) and BrandProperty stays empty.
 		{Name: DefaultCompTimeHintsName, Module: DefaultModule, Kind: KindCompTimeHints},
 	}
 }
 
-// Options configures marker detection. Specs is the marker set itself —
-// populated from DefaultSpecs() by WithDefaults when empty; callers that need
-// to add or rename markers (e.g. tests pinning a non-default module)
-// construct Specs directly. Packages and SkipPackageCheck configure the
-// module-of-origin gate that every spec is matched through, and are the
-// project-configurable half (tsconfig `markers`, the bundler plugin's
-// `markers` option, and the resolver's --marker-packages /
-// --no-marker-package-check flags all land here).
+// Options configures marker detection: Specs is the marker set, Packages and SkipPackageCheck the
+// project-configurable module-of-origin gate every spec is matched through (tsconfig `markers`, the
+// bundler plugin's `markers` option and --marker-packages / --no-marker-package-check land here).
 type Options struct {
-	// Specs, when non-empty, replaces the entire marker set. When empty
-	// WithDefaults fills it with DefaultSpecs().
+	// Specs, when non-empty, replaces the entire marker set; empty means DefaultSpecs().
 	Specs []Spec
-	// Packages names ADDITIONAL packages allowed to declare the marker
-	// types, on top of each spec's own Module. Purely additive by design: a
-	// project that configures its own marker package keeps working with
-	// markers imported from mion, so the knob can never silently take
-	// a working call site away. Ignored when SkipPackageCheck is set.
+	// Packages names ADDITIONAL packages allowed to declare the marker types, on top of each spec's
+	// own Module. Purely additive by design, so the knob can never silently take a working call site
+	// away. Ignored when SkipPackageCheck is set.
 	Packages []string
-	// SkipPackageCheck drops the module-of-origin gate entirely — a type is a
-	// marker on its NAME alone, wherever it was declared. The escape hatch for
-	// setups the package gate cannot express; it also means any local `type
-	// InjectRunTypeId<T> = …` starts driving rewrites, so it is off by default
-	// and Packages is the answer to prefer.
+	// SkipPackageCheck drops the module-of-origin gate entirely — a type is a marker on its NAME
+	// alone. The escape hatch for setups the package gate cannot express; it also means any local
+	// `type InjectRunTypeId<T> = …` starts driving rewrites, so prefer Packages.
 	SkipPackageCheck bool
-	// FS, when non-nil, is the virtual filesystem the package-name gate reads
-	// package.json through (DeclaredInModule → packageNameForFile). A marker
-	// declared in an OVERLAY / in-memory node_modules package (the wasm
-	// playground, in-memory test overlays) is invisible to os.ReadFile, so
-	// without this the module-of-origin gate fails and the marker's type
-	// argument is lost (T resolves to `unknown`). nil falls back to os.ReadFile
-	// (real on-disk resolution, the plugin path over a user's real node_modules).
+	// FS is the virtual filesystem the package-name gate reads package.json through. A marker
+	// declared in an OVERLAY / in-memory node_modules package (the wasm playground, test overlays)
+	// is invisible to os.ReadFile, so without this the gate fails and the marker's type argument is
+	// lost (T resolves to `unknown`). nil falls back to os.ReadFile.
 	FS vfspkg.FS
-	// Cwd is the program's working directory, used to report a path relative to
-	// the project when a file belongs to no NAMED package (an overlay, a scratch
-	// project). Empty means the path is reported as-is, minus its leading slash.
+	// Cwd is the working directory a path is reported relative to when a file belongs to no NAMED
+	// package (an overlay, a scratch project). Empty reports the path as-is, minus its leading slash.
 	Cwd string
-	// PureFnBindings resolves a name declared in a `.d.ts` to the pure-fn id the
-	// declaring package's BUILT files register it under. A tsc-emitted `.d.ts`
-	// carries no id for a registration the build injected one into, so the dep
-	// walker asks the package's compiled JS instead. nil (no program, a test)
-	// leaves such a binding unresolved.
+	// PureFnBindings resolves a name declared in a `.d.ts` to the pure-fn id the declaring package's
+	// BUILT files register it under: a tsc-emitted `.d.ts` carries no id for a registration the build
+	// injected one into. nil (no program, a test) leaves such a binding unresolved.
 	PureFnBindings PureFnBindingResolver
 }
 
@@ -273,8 +191,7 @@ type PureFnBindingResolver interface {
 	UnbuiltPackage(dtsPath string) (name string, unbuilt bool)
 }
 
-// WithDefaults populates Specs from DefaultSpecs() when empty. Returns
-// opts otherwise.
+// WithDefaults populates Specs from DefaultSpecs() when empty.
 func WithDefaults(opts Options) Options {
 	if len(opts.Specs) == 0 {
 		opts.Specs = DefaultSpecs()
@@ -289,9 +206,8 @@ func WithDefaults(opts Options) Options {
 func (opts Options) PackageSet() []string {
 	packages := make([]string, 0, len(opts.Specs)+len(opts.Packages)+1)
 	seen := map[string]bool{}
-	// Trim here rather than trusting callers: Packages arrives from a tsconfig
-	// array and a bundler option as well as the (already-trimmed) CLI flag, and
-	// a stray " " would otherwise become a package name nothing can ever match.
+	// Trim here rather than trusting callers: Packages arrives from a tsconfig array and a bundler
+	// option too, and a stray " " would become a package name nothing can ever match.
 	add := func(name string) {
 		name = strings.TrimSpace(name)
 		if name == "" || seen[name] {
@@ -312,13 +228,11 @@ func (opts Options) PackageSet() []string {
 	return packages
 }
 
-// DeclaredInMarkerPackage reports whether symbol satisfies the
-// module-of-origin gate: declared in any package from PackageSet, or anywhere
-// at all when SkipPackageCheck is set. This is THE gate — every caller that
-// asks "did the marker package declare this?" goes through here (the marker
-// scanner itself, the builders' RunType recognition, DataOnly, the enrichment
-// AST check), so a project's configured packages can never reach some of them
-// and miss others.
+// DeclaredInMarkerPackage reports whether symbol satisfies the module-of-origin gate: declared in
+// any package from PackageSet, or anywhere at all when SkipPackageCheck is set. Every caller asking
+// "did the marker package declare this?" goes through here (the marker scanner, the builders'
+// RunType recognition, DataOnly, the enrichment AST check), so a project's configured packages can
+// never reach some of them and miss others.
 func (opts Options) DeclaredInMarkerPackage(symbol *ast.Symbol) bool {
 	if symbol == nil {
 		return false
@@ -329,16 +243,10 @@ func (opts Options) DeclaredInMarkerPackage(symbol *ast.Symbol) bool {
 	return DeclaredInAnyModule(symbol, opts.PackageSet(), opts.FS)
 }
 
-// DetectAny inspects a parameter type against every configured marker
-// spec and returns the matching spec's Kind plus the brand's type
-// argument when one matches. Used by the resolver to dispatch
-// per-parameter validation (CompTimeArgs / PureFunction) in a single walk.
-//
-// When typeChecker is non-nil and the alias-name match fails, the
-// spec's BrandProperty is checked against the type's own properties as
-// a fallback — covers CompTimeArgs<A|B> where TS distributes the
-// intersection over the union and the alias name drops off, but the
-// brand property survives on each member.
+// DetectAny matches a parameter type against every configured marker spec, returning the matching
+// Kind and the brand's type argument. With a non-nil typeChecker, a failed alias-name match falls
+// back to the spec's BrandProperty: CompTimeArgs<A|B> distributes the intersection over the union,
+// which drops the alias name while the brand property survives on each member.
 func DetectAny(typeChecker *checker.Checker, paramType *checker.Type, opts Options) (Kind, *checker.Type, bool) {
 	if paramType == nil {
 		return 0, nil, false
@@ -375,17 +283,11 @@ type NearMiss struct {
 	DeclaringModule string
 }
 
-// DetectNearMiss reports a type that LOOKS like a marker but was rejected by
-// the package gate. It is the diagnostic counterpart of DetectAny and must only
-// be consulted when DetectAny found nothing: a name match plus a gate failure
-// is the one shape that silently costs the user their type argument (the
-// brand-property fallback still emits a site, so the call does not disappear —
-// it quietly reflects `unknown` instead).
-//
-// It deliberately does NOT fire when SkipPackageCheck is set (nothing can be
-// rejected), nor when the alias came from the SAME package as the file that
-// uses it — that is a project's own local brand, exactly what the gate exists
-// to keep inert, and warning about it every time would be noise.
+// DetectNearMiss reports a type that LOOKS like a marker but was rejected by the package gate. Only
+// consult it when DetectAny found nothing: a name match plus a gate failure is the one shape that
+// silently costs the user their type argument (the call still emits a site, reflecting `unknown`).
+// It deliberately stays silent when SkipPackageCheck is set, and when the alias came from the SAME
+// package as the file using it — a project's own local brand, exactly what the gate keeps inert.
 func DetectNearMiss(paramType *checker.Type, opts Options, usingFileModule string) (NearMiss, bool) {
 	if paramType == nil || opts.SkipPackageCheck {
 		return NearMiss{}, false
@@ -430,10 +332,8 @@ func declaringModuleOfSymbol(symbol *ast.Symbol, fs vfspkg.FS) string {
 	return ""
 }
 
-// matchedByBrand reports whether paramType (or any union member when it
-// is a union) carries the brand property unique to spec. Used as a
-// last-resort fallback when the alias name has been lost due to
-// intersection-over-union distribution.
+// matchedByBrand reports whether paramType (or any union member) carries spec's brand property —
+// the last-resort fallback for an alias name lost to intersection-over-union distribution.
 func matchedByBrand(typeChecker *checker.Checker, paramType *checker.Type, spec Spec) bool {
 	if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
 		for _, member := range paramType.Types() {
@@ -462,18 +362,15 @@ func specForKind(specs []Spec, kind Kind) (Spec, bool) {
 	return Spec{}, false
 }
 
-// SpecForKind returns the spec for kind from opts (filled with DefaultSpecs when
-// empty). Exposed so the resolver can read a marker's Name/Module for type-node
-// based detection — used for CompTimeArgs, whose zero-cost identity TS definition
-// (`type CompTimeArgs<T> = T`) drops the alias from the resolved type, so it is
-// detected off the parameter's syntactic `CompTimeArgs<…>` annotation instead.
+// SpecForKind returns the spec for kind from opts. Exposed for type-NODE based detection: the
+// identity definition `type CompTimeArgs<T> = T` drops the alias from the resolved type, so that
+// marker is detected off the parameter's written `CompTimeArgs<…>` annotation instead.
 func SpecForKind(opts Options, kind Kind) (Spec, bool) {
 	return specForKind(WithDefaults(opts).Specs, kind)
 }
 
-// aliasForSpec returns tsType's alias when its symbol name and declaring
-// module match spec — the shared first layer of every alias-based marker
-// match (DetectAny's Kind matching, the InjectTypeFnArgs fn-key read).
+// aliasForSpec returns tsType's alias when its symbol name and declaring module match spec — the
+// shared first layer of every alias-based marker match.
 func aliasForSpec(tsType *checker.Type, spec Spec, opts Options) (*checker.TypeAlias, bool) {
 	alias := checker.Type_alias(tsType)
 	if alias == nil {
@@ -501,12 +398,9 @@ func matchAliasSpec(tsType *checker.Type, spec Spec, opts Options) (*checker.Typ
 	return typeArguments[0], true
 }
 
-// FnKeysForInjectTypeFnArgs returns the Fn type-arguments (every argument after
-// `T`) of an InjectTypeFnArgs<T, F1, F2, …> alias as their string-literal values
-// (e.g. ["val"], or ["val", "verr"] for a multi-function marker). ok is false
-// when paramType is not that alias, the spec is absent, or no Fn argument is a
-// string literal. Used by the scanner to compute the precise fnId(s) injected at
-// a createX call site — one per named family, in declaration order.
+// FnKeysForInjectTypeFnArgs returns the string-literal Fn type-arguments (every argument after `T`)
+// of an InjectTypeFnArgs<T, F1, F2, …> alias, in declaration order — one fnId per named family at a
+// createX call site. ok is false when paramType is not that alias or no Fn argument is a literal.
 func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.Type, opts Options) ([]string, bool) {
 	if paramType == nil {
 		return nil, false
@@ -519,9 +413,8 @@ func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.
 	if keys, ok := fnKeysFromAlias(paramType, spec, opts); ok {
 		return keys, true
 	}
-	// An optional `id?:` parameter resolves to `InjectTypeFnArgs<…> | undefined`,
-	// so the alias rides on the non-undefined union member — mirror DetectAny's
-	// union-member walk to find it.
+	// An optional `id?:` parameter resolves to `InjectTypeFnArgs<…> | undefined`, so the alias rides
+	// on the non-undefined union member — mirror DetectAny's union-member walk to find it.
 	if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
 		for _, member := range paramType.Types() {
 			if keys, ok := fnKeysFromAlias(member, spec, opts); ok {
@@ -532,14 +425,9 @@ func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.
 	return nil, false
 }
 
-// fnKeysFromAlias reads the Fn type-arguments (every argument after `T`) of an
-// InjectTypeFnArgs alias as string-literal values. A single-function marker
-// (`InjectTypeFnArgs<T, 'val'>`) yields one key; a multi-function marker
-// (`InjectTypeFnArgs<T, 'val', 'verr'>`) yields several, in declaration order.
-// Non-literal slots — e.g. the `never`-defaulted F2/F3 of the alias when the
-// caller supplied fewer keys — are skipped, so the same reader handles every
-// arity. Returns ok=false unless tsType carries the matching alias with at
-// least one string-literal Fn argument.
+// fnKeysFromAlias reads the Fn type-arguments of an InjectTypeFnArgs alias as string-literal values.
+// Non-literal slots (the `never`-defaulted F2/F3 when the caller supplied fewer keys) are skipped,
+// so one reader handles every arity. ok is false without at least one string-literal Fn argument.
 func fnKeysFromAlias(tsType *checker.Type, spec Spec, opts Options) ([]string, bool) {
 	alias, ok := aliasForSpec(tsType, spec, opts)
 	if !ok {
@@ -566,14 +454,10 @@ func fnKeysFromAlias(tsType *checker.Type, spec Spec, opts Options) ([]string, b
 	return keys, true
 }
 
-// ApiMetadataArgs reads the two type arguments of an InjectApiMetadata<Api, Id>
-// alias: the API type and the Id type (a string literal, a union of literals for
-// a batch, `string` when a generic helper widened it). The initClient anchor
-// writes no Id (the alias defaults it to `never`, and the instantiation then
-// carries only the written argument), so id is nil there. ok is false when
-// paramType is not that alias. An optional `apiMetadata?:` parameter resolves
-// to `InjectApiMetadata<…> | undefined`, so the union members are walked
-// exactly like FnKeysForInjectTypeFnArgs.
+// ApiMetadataArgs reads the two type arguments of an InjectApiMetadata<Api, Id> alias: the API type
+// and the Id (a string literal, a union of them for a batch, `string` when a generic helper widened
+// it). The initClient anchor writes no Id, so id is nil there. An optional `apiMetadata?:` parameter
+// resolves to a union, so its members are walked exactly like FnKeysForInjectTypeFnArgs.
 func ApiMetadataArgs(paramType *checker.Type, opts Options) (api *checker.Type, id *checker.Type, ok bool) {
 	if paramType == nil {
 		return nil, nil, false
@@ -611,10 +495,8 @@ func apiMetadataArgsFromAlias(tsType *checker.Type, spec Spec, opts Options) (*c
 	return typeArguments[0], typeArguments[1], true
 }
 
-// IsFreeTypeParameter reports whether tsType is a still-unresolved type
-// parameter (e.g. inside a generic wrapper body where the marker's `T` is the
-// wrapper's own type variable). Such sites must be skipped — there's no
-// id to inject when `T` isn't yet bound.
+// IsFreeTypeParameter reports whether tsType is a still-unresolved type parameter (the marker's `T`
+// inside a generic wrapper body). Such a site must be skipped: there is no id to inject.
 func IsFreeTypeParameter(tsType *checker.Type) bool {
 	if tsType == nil {
 		return false
@@ -622,15 +504,11 @@ func IsFreeTypeParameter(tsType *checker.Type) bool {
 	return checker.Type_flags(tsType)&checker.TypeFlagsTypeParameter != 0
 }
 
-// IsErrorLikeAny reports whether tsType is an `any` the AUTHOR DID NOT WRITE —
-// the checker's own error type, produced when a written type name fails to
-// resolve (a typo, a missing dependency, an ambient declaration the program
-// cannot see). It mirrors tsgo's unexported checker.isErrorType exactly: the
-// error type is the intrinsic named "error" (a deliberate `any`, and a resolved
-// `type Foo = any`, are the intrinsic named "any"), and the only OTHER
-// any-flagged types carrying an alias are the ones the checker manufactures for
-// a reference to an unresolved alias symbol — error-like too. Both tests use
-// exported methods on the shim's aliased types, so no shim accessor is needed.
+// IsErrorLikeAny reports whether tsType is an `any` the AUTHOR DID NOT WRITE: the checker's own
+// error type, produced when a written type name fails to resolve. It mirrors tsgo's unexported
+// checker.isErrorType — the error type is the intrinsic named "error" (a deliberate `any` is the
+// intrinsic named "any"), and the only OTHER any-flagged types carrying an alias are the ones the
+// checker manufactures for a reference to an unresolved alias symbol, error-like too.
 func IsErrorLikeAny(tsType *checker.Type) bool {
 	if tsType == nil || tsType.Flags()&checker.TypeFlagsAny == 0 {
 		return false
@@ -638,50 +516,36 @@ func IsErrorLikeAny(tsType *checker.Type) bool {
 	if tsType.Alias() != nil {
 		return true
 	}
-	// Alias-free any-flagged types are all intrinsics (anyType, autoType,
-	// wildcardType, errorType, ...) — the checker creates no other kind.
+	// Alias-free any-flagged types are all intrinsics; the checker creates no other kind.
 	return tsType.AsIntrinsicType().IntrinsicName() == "error"
 }
 
-// freeParamScanDepth bounds FindFreeTypeParameter's walk. Deep enough for any
-// realistic data shape; the bound (not the visited set) is what terminates on a
-// self-instantiating generic, whose fresh per-level types never repeat — those
-// are reported separately by the structural-id depth backstop (MKR009).
+// freeParamScanDepth bounds FindFreeTypeParameter's walk. The bound, not the visited set, is what
+// terminates on a self-instantiating generic, whose fresh per-level types never repeat — those are
+// reported separately by the structural-id depth backstop (MKR009).
 const freeParamScanDepth = 64
 
 // freeParamMaxHops caps the named-type breadcrumbs carried on the diagnostic so
 // a deep chain stays readable (the param declaration is always included).
 const freeParamMaxHops = 3
 
-// FreeTypeParamFinding describes one still-unresolved type parameter found in a
-// marker type argument's data-reachable graph: the parameter's name plus the
-// Related sites the diagnostic carries — the parameter's DECLARATION first
-// ("`T` is declared here"), then up to freeParamMaxHops named-type hops the
-// walk passed through (outermost first), so a failure buried levels down a
-// generics chain points at the exact links.
+// FreeTypeParamFinding describes one still-unresolved type parameter found in a marker type
+// argument's graph. Related holds the parameter's DECLARATION first, then up to freeParamMaxHops
+// named-type hops the walk passed through, outermost first.
 type FreeTypeParamFinding struct {
 	ParamName string
 	Related   []diagnostics.Related
 }
 
-// FindFreeTypeParameter walks the DATA-reachable positions of tsType — union /
-// intersection members, instantiation type arguments (arrays, tuples, Map / Set /
-// Promise, generic references), properties, and index signatures — and reports
-// the first still-unresolved type parameter it finds (`A<T>`, `T[]`, `{a: T}`
-// inside a generic body). Such a type must be rejected at the marker call
-// (MKR010): the free parameter takes a different type at every call site of the
-// surrounding generic, so a single build-time id would alias them all. NOTE the
-// checker applies type-parameter DEFAULTS at use sites before we see the type
-// (a bare `A` over `interface A<S = string>` arrives as `A<string>`), so a
-// defaulted generic used bare never reaches this walk — but a default does NOT
-// resolve the parameter inside the generic's own body, so `A<T>` under
-// `function f<T = string>` is still found (and must be).
+// FindFreeTypeParameter walks the DATA-reachable positions of tsType and reports the first
+// still-unresolved type parameter (`A<T>`, `T[]`, `{a: T}` inside a generic body). Such a type must
+// be rejected at the marker call (MKR010): the free parameter takes a different type at every call
+// site of the surrounding generic, so a single build-time id would alias them all.
 //
-// Signature INTERIORS are deliberately exempt: a function-typed property or
-// method is dropped from the data projection (methods aren't data), and a
-// generic method's own type parameters (`map<U>`) are bound per CALL of the
-// method — never resolvable at reflection time by design, and rejecting them
-// would break ordinary types like `find<T>(query: string): T[]`.
+// NOTE the checker applies type-parameter DEFAULTS at use sites before we see the type, so a bare
+// defaulted generic never reaches this walk, while `A<T>` under `function f<T = string>` still does.
+// Signature INTERIORS are exempt: a function-typed property is dropped from the data projection, and
+// a generic method's own parameters bind per CALL — rejecting them would break `find<T>(): T[]`.
 func FindFreeTypeParameter(typeChecker *checker.Checker, tsType *checker.Type) (FreeTypeParamFinding, bool) {
 	return findFreeTypeParameter(typeChecker, tsType, map[*checker.Type]bool{}, nil, 0)
 }
@@ -707,9 +571,8 @@ func findFreeTypeParameter(typeChecker *checker.Checker, tsType *checker.Type, v
 		return finding, true
 	}
 
-	// Record a breadcrumb when descending THROUGH a named type, so a param found
-	// deeper down the generics chain points at each link. Hop slices are
-	// capacity-capped on append so sibling branches never alias.
+	// Record a breadcrumb when descending THROUGH a named type, so a param found deeper down the
+	// chain points at each link. Hop slices are capacity-capped on append so siblings never alias.
 	if len(hops) < freeParamMaxHops {
 		if hopName, hopSite, ok := namedTypeHop(tsType); ok {
 			hops = append(hops[:len(hops):len(hops)], diagnostics.Related{
@@ -728,15 +591,12 @@ func findFreeTypeParameter(typeChecker *checker.Checker, tsType *checker.Type, v
 		}
 		return FreeTypeParamFinding{}, false
 	}
-	// Intersections fall through: GetPropertiesOfType below sees the combined
-	// members, and a constituent reference's type arguments surface there too.
+	// Intersections fall through: GetPropertiesOfType below sees the combined members.
 	if flags&(checker.TypeFlagsObject|checker.TypeFlagsIntersection) == 0 {
 		return FreeTypeParamFinding{}, false
 	}
 
-	// Instantiation type arguments (arrays, tuples, Map/Set/Promise, generic
-	// references). GetTypeArguments panics on non-reference objects — gate on
-	// the reference flag, same as serialize.go / bridge.go.
+	// GetTypeArguments panics on non-reference objects, so gate on the reference flag.
 	if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		for _, typeArgument := range typeChecker.GetTypeArguments(tsType) {
 			if finding, found := findFreeTypeParameter(typeChecker, typeArgument, visited, hops, depth+1); found {
@@ -769,11 +629,10 @@ func findFreeTypeParameter(typeChecker *checker.Checker, tsType *checker.Type, v
 	return FreeTypeParamFinding{}, false
 }
 
-// namedTypeHop returns the user-visible name + declaration site of a type worth
-// recording as a generics-chain breadcrumb (alias name preferred — an alias
-// instantiation's own symbol is the anonymous literal). Mirrors the
-// user-visible-name filtering in cachegen/runtype/typeid (replicated: importing
-// it from here would cross product areas for two tiny helpers).
+// namedTypeHop returns the user-visible name + declaration site to record as a generics-chain
+// breadcrumb; the alias name is preferred because an alias instantiation's own symbol is the
+// anonymous literal. Mirrors the user-visible-name filtering in cachegen/runtype/typeid, replicated
+// rather than imported so the two product areas stay apart for two tiny helpers.
 func namedTypeHop(tsType *checker.Type) (string, diagnostics.Site, bool) {
 	if alias := checker.Type_alias(tsType); alias != nil {
 		if symbol := alias.Symbol(); symbol != nil && userVisibleTypeName(symbol.Name) {
@@ -790,9 +649,8 @@ func namedTypeHop(tsType *checker.Type) (string, diagnostics.Site, bool) {
 	return "", diagnostics.Site{}, false
 }
 
-// symbolDeclarationSite returns the line/col Site of a symbol's first
-// resolvable declaration, using the declaration file's own name (the
-// declaration may live in a different file than the marker call).
+// symbolDeclarationSite returns the line/col Site of a symbol's first resolvable declaration, named
+// by the declaration's own file — it may live in a different file than the marker call.
 func symbolDeclarationSite(symbol *ast.Symbol) (diagnostics.Site, bool) {
 	for _, declaration := range symbol.Declarations {
 		if declaration == nil {
@@ -814,32 +672,12 @@ func userVisibleTypeName(name string) bool {
 	return name != "" && name[0] != 0xFE && !strings.HasPrefix(name, "__")
 }
 
-// DeclaredInModule reports whether symbol was declared inside the given
-// module. Two forms count:
-//
-//   - `declare module "<module>" { type ... }` (ambient form) — used by
-//     synthetic test fixtures that don't have a real on-disk package.json
-//     (Go fixtures under internal/testfixtures, inline-source vite-plugin
-//     tests, etc).
-//   - A `.d.ts` / `.ts` file whose enclosing on-disk package.json declares
-//     `"name": "<module>"`. Covers both the consumer case
-//     (node_modules/<module>/dist/index.d.ts) and the workspace
-//     self-import case (packages/<dir>/src/index.ts where the package's
-//     name happens to equal <module>). The directory name on disk is
-//     irrelevant — only the `"name"` field is consulted, matching how
-//     Node module resolution defines a package's identity.
-//
-// Earlier versions of this function compared the source-file path
-// against `"/" + module + "/"`. That heuristic broke for workspace
-// self-imports (the on-disk directory `packages/run-types/` does
-// not literally contain the published name `@mionjs/run-types`),
-// forcing tests to insert an ambient-module overlay file as a
-// workaround. The package.json walk removes that workaround and uses
-// the same identity check as the rest of the JS ecosystem.
-// The `fs` argument is the resolver's virtual filesystem: when non-nil the
-// package.json walk reads through it (so overlay / in-memory node_modules
-// packages are recognised); nil falls back to os.ReadFile (real on-disk
-// resolution). The ambient-module form needs no filesystem access at all.
+// DeclaredInModule reports whether symbol was declared inside the given module. Two forms count:
+// the ambient `declare module "<module>"` (synthetic test fixtures with no on-disk package.json),
+// and a file whose enclosing package.json declares `"name": "<module>"` — the directory name on disk
+// is irrelevant, only `"name"`, which is how Node defines a package's identity and is what makes a
+// workspace self-import work. `fs` is the resolver's virtual filesystem, so overlay / in-memory
+// packages are recognised; nil falls back to os.ReadFile. The ambient form needs no filesystem.
 func DeclaredInModule(symbol *ast.Symbol, module string, fs vfspkg.FS) bool {
 	if module == "" {
 		return false
@@ -847,10 +685,9 @@ func DeclaredInModule(symbol *ast.Symbol, module string, fs vfspkg.FS) bool {
 	return DeclaredInAnyModule(symbol, []string{module}, fs)
 }
 
-// DeclaredInAnyModule is DeclaredInModule over a SET of accepted module names —
-// the form the configurable marker package needs. Each declaration's own module
-// is resolved ONCE and then compared against the set, so accepting N packages
-// costs one package.json walk per declaration, not N.
+// DeclaredInAnyModule is DeclaredInModule over a SET of accepted module names. Each declaration's
+// module resolves ONCE and is then compared against the set, so accepting N packages costs one
+// package.json walk per declaration, not N.
 func DeclaredInAnyModule(symbol *ast.Symbol, modules []string, fs vfspkg.FS) bool {
 	if symbol == nil || len(modules) == 0 {
 		return false
@@ -879,14 +716,10 @@ func DeclaredInAnyModule(symbol *ast.Symbol, modules []string, fs vfspkg.FS) boo
 	return false
 }
 
-// DeclaringModuleOfNode returns the module a declaration node belongs to: the
-// nearest enclosing ambient `declare module "<name>"` wrapper (the synthetic
-// test-fixture form), else the `"name"` of the nearest package.json walking up
-// from the node's source file. "" when neither is found. It is the read
-// counterpart of DeclaredInModule (which checks a KNOWN module) — callers that
-// need to REPORT which module a callee was declared in (the pure-fn build
-// report's calleeModule) use this. `fs` is the resolver's virtual filesystem
-// (overlay / in-memory packages); nil falls back to os.ReadFile.
+// DeclaringModuleOfNode returns the module a declaration node belongs to: the nearest enclosing
+// ambient `declare module "<name>"`, else the `"name"` of the nearest package.json above the node's
+// source file. It is the read counterpart of DeclaredInModule (which checks a KNOWN module), for
+// callers that must REPORT the module a callee was declared in. `fs` as in DeclaredInModule.
 func DeclaringModuleOfNode(node *ast.Node, fs vfspkg.FS) string {
 	if node == nil {
 		return ""
@@ -901,34 +734,22 @@ func DeclaringModuleOfNode(node *ast.Node, fs vfspkg.FS) string {
 	return packageNameForFile(sourceFile.FileName(), fs)
 }
 
-// packageNameCache memoises directory→package-name results for the on-disk
-// (os.ReadFile) walk across the life of a resolver process. The on-disk
-// package.json for any given directory doesn't change mid-run, so caching is
-// safe and avoids repeating identical fs walks for every marker-detection call.
-// Storing "" is itself a cached answer (meaning "no package.json found walking
-// up from here"). Only the nil-FS (on-disk) path is cached: overlay/virtual FS
-// reads are already cheap (in-memory) and their contents can change per
-// setSources, so caching them by directory alone would risk cross-overlay
-// staleness.
+// packageNameCache memoises directory→package-name for the on-disk walk, for the life of the
+// process; "" is itself a cached answer. Only the nil-FS path is cached: an overlay's contents can
+// change per setSources, so caching those by directory alone would risk cross-overlay staleness.
 var packageNameCache sync.Map // map[string]packageOfDir
 
-// packageOfDir is one cache row: the nearest package.json's `"name"` and the
-// directory that holds it. Root is set whenever a package.json was found, even
-// a nameless one (it still declares the boundary); both empty means none.
+// packageOfDir is one cache row. Root is set whenever a package.json was found, even a nameless one
+// (it still declares the boundary); both fields empty means none was found.
 type packageOfDir struct {
 	Name string
 	Root string
 }
 
-// PackageOfFile returns the `"name"` field of the nearest package.json found by
-// walking parent directories from filePath, and the directory that holds it.
-// The first package.json hit going up wins — Node's package identity rule. We do
-// NOT keep walking past a package.json that lacks a `"name"` field; that file
-// still declares a package boundary, just a nameless one, so the name comes back
-// empty while the root still points at it. Both empty means no package.json at
-// all (or an unreadable one). When fs is non-nil the walk reads package.json
-// through it (overlay / in-memory packages); nil reads the real on-disk
-// filesystem.
+// PackageOfFile returns the `"name"` of the nearest package.json above filePath and the directory
+// holding it. The first one going up wins, Node's package identity rule, and the walk does NOT
+// continue past a package.json without a `"name"`: it still declares the boundary, so the name comes
+// back empty while root points at it. Both empty means none was found. `fs` as in DeclaredInModule.
 func PackageOfFile(filePath string, fs vfspkg.FS) (name, rootDir string) {
 	if filePath == "" {
 		return "", ""
@@ -953,12 +774,9 @@ func packageNameForFile(filePath string, fs vfspkg.FS) string {
 	return name
 }
 
-// lookupPackageUpward climbs from dir toward the filesystem root, returning the
-// `"name"` of the first readable package.json it finds and the directory holding
-// it. Stops at the root (when GetDirectoryPath is a fixed point). The name is ""
-// for any of: JSON unparseable, name missing or empty; both values are "" when
-// no package.json exists on the chain. Reads through fs when non-nil, otherwise
-// os.ReadFile.
+// lookupPackageUpward climbs from dir to the filesystem root, returning the `"name"` of the first
+// readable package.json and the directory holding it. The name is "" when the JSON is unparseable
+// or names nothing; both values are "" when no package.json exists on the chain.
 func lookupPackageUpward(dir string, fs vfspkg.FS) (name, rootDir string) {
 	current := dir
 	for {
@@ -979,9 +797,8 @@ func lookupPackageUpward(dir string, fs vfspkg.FS) (name, rootDir string) {
 	}
 }
 
-// readPackageJSON reads path via fs (overlay / virtual filesystem) when non-nil,
-// otherwise via os.ReadFile (real disk). ok is false when the file is absent or
-// unreadable.
+// readPackageJSON reads path through fs when non-nil, otherwise os.ReadFile; ok is false when the
+// file is absent or unreadable.
 func readPackageJSON(path string, fs vfspkg.FS) (string, bool) {
 	if fs != nil {
 		return fs.ReadFile(path)
@@ -993,15 +810,13 @@ func readPackageJSON(path string, fs vfspkg.FS) (string, bool) {
 	return string(data), true
 }
 
-// findAmbientModuleName walks the parent chain looking for the nearest
-// `declare module "<name>" { ... }` wrapping node. Returns "" if the
-// declaration isn't inside an ambient module.
+// findAmbientModuleName returns the nearest enclosing `declare module "<name>"`, "" when there is
+// none.
 func findAmbientModuleName(node *ast.Node) string {
 	for node != nil {
 		if node.Kind == ast.KindModuleDeclaration {
 			moduleDecl := node.AsModuleDeclaration()
-			// Skip `namespace X { ... }` — only string-literal-named modules
-			// (i.e. ambient module declarations) count.
+			// Skip `namespace X { … }`: only string-literal-named modules are ambient modules.
 			if moduleDecl != nil && moduleDecl.Keyword != ast.KindNamespaceKeyword {
 				name := moduleDecl.Name()
 				if name != nil && ast.IsStringLiteral(name) {
@@ -1017,10 +832,9 @@ func findAmbientModuleName(node *ast.Node) string {
 	return ""
 }
 
-// CalleeIdentifierName is the name a call expression calls, whether written
-// bare (`call(...)`) or through a property access (`route.call(...)`); empty
-// when it is neither. A lane's cheap textual pre-filter runs on it, before the
-// resolved signature decides anything.
+// CalleeIdentifierName is the name a call expression calls, written bare (`call(…)`) or through a
+// property access (`route.call(…)`); empty when neither. A lane's cheap textual pre-filter runs on
+// it, before the resolved signature decides anything.
 func CalleeIdentifierName(callExpr *ast.CallExpression) string {
 	if callExpr == nil || callExpr.Expression == nil {
 		return ""

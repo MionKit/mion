@@ -9,15 +9,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// detectNonEnumerableRequired walks a file's property declarations for ones
-// tagged `@nonEnumerable` in JSDoc that are NOT optional, emitting NE001. The
-// guard the tag requests applies only to optional properties (the invariant
-// GUARDED ⇒ OPTIONAL-in-type keeps `DataOnly<T>` accurate), so a required
-// tagged property is a silent no-op — this tells the user to add `?`.
-//
-// The check is purely syntactic (JSDoc tag + `?` token), so it needs no type
-// checker. A cheap text pre-filter skips the AST walk entirely for the ~all
-// files that never mention the tag.
+// detectNonEnumerableRequired emits NE001 for a `@nonEnumerable` property that is NOT optional: the
+// guard the tag requests applies only to optional properties (the invariant GUARDED ⇒ OPTIONAL-in-type
+// keeps `DataOnly<T>` accurate), so a required tagged property is a silent no-op until `?` is added.
+// The check is purely syntactic, so it needs no type checker, and the text pre-filter skips the AST
+// walk for the ~all files that never mention the tag.
 func detectNonEnumerableRequired(file string, sourceFile *ast.SourceFile) []diagnostics.Diagnostic {
 	if sourceFile == nil {
 		return nil
@@ -47,16 +43,12 @@ func detectNonEnumerableRequired(file string, sourceFile *ast.SourceFile) []diag
 	return out
 }
 
-// isPropertyMember reports whether node is a class property or interface /
-// object-type property signature — the declarations whose optionality and
-// `@nonEnumerable` tag the guard reads.
+// isPropertyMember reports a class property or property signature, the declarations the guard reads.
 func isPropertyMember(node *ast.Node) bool {
 	return ast.IsPropertyDeclaration(node) || ast.IsPropertySignatureDeclaration(node)
 }
 
-// hasNonEnumerableJSDocTag reports whether the node carries a `@nonEnumerable`
-// JSDoc tag (parsed as a JSDocUnknownTag). Mirrors typeid.hasNonEnumerableTag,
-// which reads the same tag off the property SYMBOL during projection.
+// hasNonEnumerableJSDocTag mirrors typeid.hasNonEnumerableTag, which reads the same tag off the property SYMBOL.
 func hasNonEnumerableJSDocTag(node *ast.Node, sourceFile *ast.SourceFile) bool {
 	for _, jsdoc := range node.JSDoc(sourceFile) {
 		tags := jsdoc.AsJSDoc().Tags
@@ -75,8 +67,7 @@ func hasNonEnumerableJSDocTag(node *ast.Node, sourceFile *ast.SourceFile) bool {
 	return false
 }
 
-// propertyMemberName returns the property's declared name for the diagnostic
-// message, or "" when it has no simple identifier/string name.
+// propertyMemberName returns the property's declared name for the diagnostic message.
 func propertyMemberName(node *ast.Node) string {
 	name := node.Name()
 	if name == nil {

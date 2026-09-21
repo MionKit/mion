@@ -9,43 +9,32 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// virtualImportRE matches an entry-module import specifier in generated code —
-// `from 'rtmod:/<basename>.js'` — capturing the basename. Both the
-// inter-module imports baked into generated module sources and the import block
-// the transform injects into user files use this exact single-quoted shape, so
-// one pattern relativizes both.
+// virtualImportRE captures the basename in `from 'rtmod:/<basename>.js'`; generated module sources and the
+// injected import block share that exact single-quoted shape, so one pattern relativizes both.
 var virtualImportRE = regexp.MustCompile(
 	`from '` + regexp.QuoteMeta(constants.EntryModulePrefix) + `([^']+)` + regexp.QuoteMeta(constants.EntryModuleSuffix) + `'`,
 )
 
-// rpcImportRE matches the batch transport's side-effect import the transform
-// appends to a router-init module, `import 'rtrpc:/<file>'`, capturing the
-// file under <outDir>/rpc. A side-effect import has no `from`, hence its own
-// pattern; the same relativizers handle both roots.
+// rpcImportRE captures the file under <outDir>/rpc in the batch transport's `import 'rtrpc:/<file>'`, appended
+// to a router-init module; a side-effect import has no `from`, hence its own pattern.
 var rpcImportRE = regexp.MustCompile(
 	`import '` + regexp.QuoteMeta(constants.RpcModulePrefix) + `([^']+)'`,
 )
 
-// apiImportRE matches a bundled API module import the transform injects at a
-// dispatch site, `from 'rtapi:/<basename>.js'`, capturing the basename under
-// <outDir>/api. Same `from` shape as the entry-module imports.
+// apiImportRE captures the basename under <outDir>/api in a dispatch site's `from 'rtapi:/<basename>.js'`.
 var apiImportRE = regexp.MustCompile(
 	`from '` + regexp.QuoteMeta(constants.ApiModulePrefix) + `([^']+)` + regexp.QuoteMeta(constants.EntryModuleSuffix) + `'`,
 )
 
-// apiSideEffectImportRE matches the lane module's side-effect import the
-// transform appends to a module calling `initClient`,
-// `import 'rtapi:/lane.js'`. A side-effect import has no `from`, hence its own
-// pattern, the twin of rpcImportRE.
+// apiSideEffectImportRE captures `import 'rtapi:/lane.js'`, appended to a module calling `initClient`: the twin
+// of rpcImportRE, a side-effect import has no `from`.
 var apiSideEffectImportRE = regexp.MustCompile(
 	`import '` + regexp.QuoteMeta(constants.ApiModulePrefix) + `([^']+)` + regexp.QuoteMeta(constants.EntryModuleSuffix) + `'`,
 )
 
-// relativizeModuleImports rewrites every rtmod: import inside a generated
-// module's source into a path relative to that module. Both modules live under
-// <outDir>/types, so this is pure basename arithmetic — no outDir / filesystem
-// access needed. Applied when materializing modules to disk so the files
-// resolve natively in any bundler.
+// relativizeModuleImports rewrites a generated module's rtmod: imports relative to that module, applied when
+// modules are materialized to disk so they resolve natively in any bundler. Both modules live under
+// <outDir>/types, so this is pure basename arithmetic, no outDir or filesystem access needed.
 func relativizeModuleImports(moduleBasename, source string) string {
 	return virtualImportRE.ReplaceAllStringFunc(source, func(match string) string {
 		dep := virtualImportRE.FindStringSubmatch(match)[1]
@@ -53,21 +42,16 @@ func relativizeModuleImports(moduleBasename, source string) string {
 	})
 }
 
-// RelativizeUserImports rewrites the rtmod: specifiers in `code` into paths
-// relative to filePath, pointing at <outDir>/types/<basename>.js. Exported for
-// the compile CLI ([internal/compile]), which relativizes the EMITTED .js
-// against its OUTPUT location (not the source location the plugin uses); the
-// rtmod: specifiers survive tsgo emit unresolved, so one pass fixes them.
+// RelativizeUserImports is exported for the compile CLI ([internal/compiler/batchcompile]), which relativizes
+// the EMITTED .js against its OUTPUT location, not the source location the plugin uses; rtmod: specifiers
+// survive tsgo emit unresolved, so one pass fixes them.
 func RelativizeUserImports(filePath, outDir, code string) string {
 	return relativizeUserImports(filePath, outDir, code)
 }
 
-// relativizeUserImports rewrites the rtmod: specifiers in a transformed
-// USER file's injected import block into paths relative to that file, pointing
-// at <outDir>/types/<basename>.js. The import block is a single physical line,
-// so rewriting only the specifier text (never adding newlines) keeps the source
-// map the transform generated valid. A specifier whose bases can't be related
-// (mismatched abs/rel) is left untouched.
+// relativizeUserImports rewrites a transformed USER file's injected import block relative to that file. The
+// block is a single physical line, so rewriting only the specifier text (never adding newlines) keeps the
+// transform's source map valid. A specifier whose bases can't be related (mismatched abs/rel) is left alone.
 func relativizeUserImports(filePath, outDir, code string) string {
 	code = virtualImportRE.ReplaceAllStringFunc(code, func(match string) string {
 		dep := virtualImportRE.FindStringSubmatch(match)[1]
@@ -103,8 +87,7 @@ func relativizeUserImports(filePath, outDir, code string) string {
 	})
 }
 
-// relUserToApi is the specifier from a user file to <outDir>/api/<basename>.js,
-// the bundled-API twin of relUserToType. Empty when the two cannot be related.
+// relUserToApi is the bundled-API twin of relUserToType, empty when the two paths cannot be related.
 func relUserToApi(filePath, outDir, basename string) string {
 	target := filepath.Join(outDir, constants.ApiModuleDir, filepath.FromSlash(basename))
 	rel, err := filepath.Rel(filepath.Dir(filePath), target)
@@ -114,8 +97,7 @@ func relUserToApi(filePath, outDir, basename string) string {
 	return ensureDotPrefix(filepath.ToSlash(rel)) + moduleFileExt
 }
 
-// relUserToRpc is the specifier from a user file to <outDir>/rpc/<file>, the
-// batch transport twin of relUserToType. Empty when the two cannot be related.
+// relUserToRpc is the batch-transport twin of relUserToType, empty when the two paths cannot be related.
 func relUserToRpc(filePath, outDir, file string) string {
 	target := filepath.Join(outDir, constants.RpcModuleDir, filepath.FromSlash(file))
 	rel, err := filepath.Rel(filepath.Dir(filePath), target)
@@ -125,16 +107,13 @@ func relUserToRpc(filePath, outDir, file string) string {
 	return ensureDotPrefix(filepath.ToSlash(rel))
 }
 
-// relWithinTypes is the specifier from one module (fromBasename) to a sibling
-// dep (depBasename) under the same types/ root: POSIX-relative, `./`-prefixed,
-// with the module extension.
+// relWithinTypes is the specifier from one module to a sibling dep under the same types/ root.
 func relWithinTypes(fromBasename, depBasename string) string {
 	return ensureDotPrefix(relPosix(path.Dir(fromBasename), depBasename)) + moduleFileExt
 }
 
-// relUserToType is the specifier from a user file to <outDir>/types/<dep>.js.
-// Empty when filepath.Rel can't relate the two (e.g. mismatched abs/rel bases),
-// in which case the caller keeps the original specifier.
+// relUserToType is the specifier from a user file to <outDir>/types/<dep>.js, empty when filepath.Rel can't
+// relate the two (mismatched abs/rel bases) and the caller then keeps the original specifier.
 func relUserToType(filePath, outDir, depBasename string) string {
 	target := filepath.Join(outDir, typesSubdir, filepath.FromSlash(depBasename))
 	rel, err := filepath.Rel(filepath.Dir(filePath), target)
@@ -166,11 +145,8 @@ func relPosix(baseDir, target string) string {
 	return strings.Join(segments, "/")
 }
 
-// ensureDotPrefix makes a relative specifier import-resolvable: a bare
-// `foo/bar` becomes `./foo/bar`; `../x` and `./x` are left alone. The check is
-// on the `./` / `../` segment, not the first byte: a dot-folder target such as
-// `.mion/types/x.js` (a user file sitting beside the output root) starts with
-// a dot yet is a BARE specifier until prefixed.
+// ensureDotPrefix makes a relative specifier import-resolvable. The check is on the `./` / `../` segment, not
+// the first byte: a dot-folder target like `.mion/types/x.js` starts with a dot yet is BARE until prefixed.
 func ensureDotPrefix(rel string) string {
 	if rel == "." || rel == ".." || strings.HasPrefix(rel, "./") || strings.HasPrefix(rel, "../") {
 		return rel

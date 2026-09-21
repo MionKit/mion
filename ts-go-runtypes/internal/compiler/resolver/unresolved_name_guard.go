@@ -8,36 +8,17 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// This guard closes the third cause in the silent-`any` family: a WRITTEN type
-// name that failed to resolve (a typo, a missing dependency's types, an ambient
-// declaration the program cannot see). TMP001 covers the Temporal-lib flavor,
-// MKR007 the unresolved-import flavor; MKR013 covers the bare unresolved name.
-//
-// Detection rides marker.IsErrorLikeAny — the checker keeps a DISTINCT error
-// type for failed resolutions (any-flagged, but not the `any` intrinsic), so a
-// deliberately written `any`, and a resolved `type Loose = any`, are legal by
-// construction and need no keyword escape. Two probes per call:
-//
-//   - detectWrittenTypeRefGuards walks the call's written type-argument syntax
-//     ONCE, classifying each TypeReference into the sibling that owns it:
-//     `Temporal.<KnownName>` → TMP001 (temporal_guard.go — note its stricter
-//     any predicate), any other name → MKR013 when it resolved error-like.
-//   - detectUnresolvedNameSlot covers the reflect form, which has no written
-//     type syntax at the call: the slot's RESOLVED type argument being
-//     error-like is itself proof the degradation was never written.
-//
-// Callers suppress MKR013 when MKR007 already fired for the call (the
-// unresolved-import message names the actionable import) — TMP001 always
-// surfaces, its cause being independent of imports — and the slot probe when
-// the walk already named a reference. These two probes see the ROOT type and
-// the syntax written AT the call site only; a member that degraded one object
-// deeper (a named interface's property, a reflect-form value's nested member)
-// is found by the whole-graph walk in silent_any_walk.go, which runs the same
-// three predicates at every member of the resolved type.
+// MKR013, the WRITTEN-name cause in the silent-`any` family (a typo, a missing dependency's types, an
+// ambient declaration the program cannot see); TMP001 covers the Temporal-lib flavor and MKR007 the
+// unresolved-import one. Detection rides marker.IsErrorLikeAny: the checker keeps a DISTINCT error type
+// for failed resolutions, so a deliberately written `any` and a resolved `type Loose = any` are legal by
+// construction and need no keyword escape. Callers suppress MKR013 once MKR007 fired for the call (its
+// message names the actionable import) and the slot probe once the walk named a reference; TMP001 always
+// surfaces, its cause being independent of imports. Both probes see the ROOT type and the syntax written
+// AT the call only; a member that degraded one object deeper is found by the whole-graph walk in
+// silent_any_walk.go.
 
-// detectWrittenTypeRefGuards scans the call's explicit type-argument syntax in
-// one traversal, returning TMP001 and MKR013 hits separately so callers keep
-// their per-family suppression rules.
+// detectWrittenTypeRefGuards returns TMP001 and MKR013 separately, so callers keep their per-family suppression rules.
 func detectWrittenTypeRefGuards(scanChecker *checker.Checker, file string, call *ast.Node) (temporalDiags, nameDiags []diagnostics.Diagnostic) {
 	callExpression := call.AsCallExpression()
 	if callExpression == nil || callExpression.TypeArguments == nil {
@@ -49,9 +30,7 @@ func detectWrittenTypeRefGuards(scanChecker *checker.Checker, file string, call 
 	return temporalDiags, nameDiags
 }
 
-// walkWrittenTypeRefs recurses a type-node subtree, classifying every
-// TypeReference: a known Temporal name with an any-flavored resolution emits
-// TMP001, any other name whose resolved type is error-like `any` emits MKR013.
+// walkWrittenTypeRefs recurses a type-node subtree, classifying every TypeReference into TMP001 or MKR013.
 func walkWrittenTypeRefs(scanChecker *checker.Checker, file string, node *ast.Node, temporalOut, nameOut *[]diagnostics.Diagnostic) {
 	if node == nil {
 		return
@@ -85,10 +64,8 @@ func walkWrittenTypeRefs(scanChecker *checker.Checker, file string, node *ast.No
 	})
 }
 
-// detectUnresolvedNameSlot is the reflect-form probe: the slot's resolved type
-// argument is error-like `any` even though the call wrote no type syntax at
-// all. The diagnostic names the value argument when it is a plain identifier
-// ("value" otherwise) — the site position carries the precision.
+// detectUnresolvedNameSlot is the reflect-form probe: the call wrote no type syntax, so an error-like
+// resolved type argument is itself proof the degradation was never written.
 func detectUnresolvedNameSlot(file string, call *ast.Node, typeArgument *checker.Type) []diagnostics.Diagnostic {
 	if !marker.IsErrorLikeAny(typeArgument) {
 		return nil
@@ -104,8 +81,7 @@ func detectUnresolvedNameSlot(file string, call *ast.Node, typeArgument *checker
 	)}
 }
 
-// writtenEntityName renders a TypeReference's written entity name
-// (`Name` or `Ns.Nested.Name`) for the diagnostic message.
+// writtenEntityName renders a TypeReference's written entity name, `Name` or `Ns.Nested.Name`.
 func writtenEntityName(typeRefNode *ast.Node) (string, bool) {
 	typeRef := typeRefNode.AsTypeReferenceNode()
 	if typeRef == nil || typeRef.TypeName == nil {
@@ -132,8 +108,7 @@ func entityNameText(entity *ast.Node) (string, bool) {
 	return "", false
 }
 
-// reflectValueLabel names the reflect-form call's value argument for the
-// message: the identifier text when the argument is one, "value" otherwise.
+// reflectValueLabel names the reflect-form call's value argument for the diagnostic message.
 func reflectValueLabel(call *ast.Node) string {
 	callExpression := call.AsCallExpression()
 	if callExpression != nil && callExpression.Arguments != nil {
