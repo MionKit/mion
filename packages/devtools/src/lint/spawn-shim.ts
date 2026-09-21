@@ -1,19 +1,9 @@
-// spawn-shim: a tiny pre-spawned launcher the lint session starts at PLUGIN
-// LOAD time, while the host process is still small. Some lint hosts (oxlint
-// runs the Rust linter inside the Node process via napi) reserve tens of GB
-// of virtual address space once linting starts; Node's child_process uses
-// fork() on Linux, and forking a process whose VSZ exceeds physical memory
-// fails with ENOMEM under the kernel's default overcommit heuristic — so the
-// resolver could never be spawned lazily. This shim IS the early fork: it
-// idles until the session knows which binary to run (settings arrive with
-// the first linted file), then starts it and gets out of the data path where
-// it can.
-//
-// Protocol: ONE newline-terminated JSON control line arrives on stdin —
-// `{"exec": "<binary>", "args": [...]}`. The shim spawns the target with its
-// OWN stdout/stderr (inherited — responses flow straight to the session),
-// forwards every later stdin byte to the target, and mirrors the target's
-// exit. stdin EOF before the control line means the session went away: exit.
+// The lint session's early fork, started at PLUGIN LOAD while the host process is still small: a host that
+// runs the Rust linter in-process (oxlint) reserves tens of GB of address space once linting starts, after
+// which fork() fails with ENOMEM on Linux, so the resolver can never be spawned lazily. Protocol: ONE
+// newline-terminated JSON control line on stdin, `{"exec": "<binary>", "args": [...]}`, names the target to
+// spawn with inherited stdio, so responses flow straight to the session; later stdin bytes are forwarded to
+// it and its exit is mirrored. EOF before that line: the session went away, exit.
 
 import {spawn} from 'node:child_process';
 
@@ -33,7 +23,7 @@ function onData(chunk: Buffer): void {
     process.exit(1);
   });
   child.on('exit', (code) => process.exit(code ?? 0));
-  // Protocol bytes that rode in behind the control line must not be lost.
+  // Bytes that arrived behind the control line must not be lost.
   if (rest.length > 0) child.stdin.write(rest);
   process.stdin.pipe(child.stdin);
 }

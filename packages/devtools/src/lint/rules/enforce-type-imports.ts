@@ -13,7 +13,6 @@ export interface Options {
 
 type MessageIds = 'enforceTypeImport' | 'enforceTypeExport' | 'sideEffectImport';
 
-/** Enforce type-only imports from backend code to prevent bundling server code into the frontend. */
 const rule: TSESLint.RuleModule<MessageIds, [Options]> = {
   meta: {
     type: 'suggestion',
@@ -66,11 +65,9 @@ const rule: TSESLint.RuleModule<MessageIds, [Options]> = {
     function fixImport(fixer: TSESLint.RuleFixer, node: TSESTree.ImportDeclaration): TSESLint.RuleFix | TSESLint.RuleFix[] {
       const sourceCode = context.sourceCode;
       if (hasAllValueSpecifiers(node.specifiers)) {
-        // convert entire declaration: insert 'type ' after 'import'
         const importToken = sourceCode.getFirstToken(node)!;
         return fixer.insertTextAfter(importToken, ' type');
       }
-      // mixed: add 'type' to each value specifier
       const fixes: TSESLint.RuleFix[] = [];
       for (const specifier of node.specifiers) {
         if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.importKind !== 'type') {
@@ -102,7 +99,6 @@ const rule: TSESLint.RuleModule<MessageIds, [Options]> = {
         if (!matchesBackend(source)) return;
         if (node.importKind === 'type') return;
 
-        // side-effect import (no specifiers)
         if (node.specifiers.length === 0) {
           context.report({
             node,
@@ -112,7 +108,6 @@ const rule: TSESLint.RuleModule<MessageIds, [Options]> = {
           return;
         }
 
-        // check if all specifiers are already type-only
         const hasValueSpecifier = node.specifiers.some((s) => {
           if (s.type === AST_NODE_TYPES.ImportSpecifier) return s.importKind !== 'type';
           return true;

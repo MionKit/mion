@@ -1,21 +1,15 @@
-// Transport-agnostic mapping from the resolver's wire diagnostics to lint
-// reports: which RULE each diagnostic belongs to, the rendered message, and
-// the 0-based-column location shape lint APIs expect. The OXlint/ESLint
-// plugin entry (index.ts) is one sink over this module; a future LSP sink
-// reuses it unchanged (see the spec's transport-agnostic requirement).
+// Transport-agnostic mapping from the resolver's wire diagnostics to lint reports: the RULE each belongs to,
+// the rendered message, and the 0-based-column loc lint APIs expect. The OXlint/ESLint plugin entry (index.ts)
+// is one sink over this module; another transport reuses it unchanged.
 
 import {DIAGNOSTIC_CATALOG, renderHeadline} from '../core/diagnosticCatalog.ts';
 import {Family, Severity, type Diagnostic, type DiagnosticSite} from '../core/protocol.ts';
 
-// Rules are grouped by the DIAGNOSTIC FAMILY that produced them (the Go
-// catalog's code-prefix families) and NAMED for what they catch, not for their
-// severity. Within a family the two tiers are two different findings — a root
-// the feature cannot represent (the build fails) versus a member it silently
-// skips — so each is its own descriptively-named rule, and a team can set the
-// level of each on its own. Severity, not the name, decides the tier. The
-// concrete code (e.g. `[VL011]`) always rides in the message, so per-code
-// disable comments and lookups keep working. `validate` covers both
-// `createValidateFn` and `createGetValidationErrorsFn` (VL + VE).
+// Rules are grouped by the DIAGNOSTIC FAMILY that produced them and NAMED for what they catch, not for their
+// severity. A family's two tiers are two different errors (a root the feature cannot represent versus a member
+// it silently skips), so each is its own rule and a team levels each on its own; severity picks the tier. The
+// concrete code (`[VL011]`) always rides in the message, so per-code disable comments and lookups keep working.
+// `validate` covers both `createValidateFn` and `createGetValidationErrorsFn` (VL + VE).
 export type RuleName =
   | 'broken-tsconfig'
   | 'invalid-expect-error'
@@ -44,35 +38,24 @@ export type RuleName =
   | 'enrichment-message'
   | 'enrichment-broken-source'
   | 'enrichment-misplaced-file'
-  // The mion route rules. They keep the names they had as hand-written
-  // `@mionjs/*` ESLint rules, so an existing config keeps working, but they are
-  // now compiler-fed like every rule above (see the `namespace` field).
+  // The mion route rules, compiler-fed like every rule above but keeping the names they had as hand-written
+  // `@mionjs/*` ESLint rules, so an existing config keeps working.
   | 'strong-typed-routes'
   | 'no-throw-in-handlers'
   | 'returned-error-type'
   | 'no-unsafe-property-names';
 
-// RuleSpec is the single source of truth for a rule: the plugin namespace it is
-// registered under, its default level, which cheap text pre-filter admits a
-// file to the resolver
-// pass (`compiler` scans any marker / RT / router file, `enrichment` only
-// generated mirror files), and
-// the one-line description lint hosts show. index.ts builds its `rules`
-// record and `recommended` config from this table; nothing hand-lists the
-// rules twice.
+// RuleSpec is the single source of truth for a rule. `gate` picks the text pre-filter that admits a file to the
+// resolver pass: `compiler` any marker / RT / router file, `enrichment` only generated mirror files. index.ts
+// builds its `rules` record and `recommended` config from this table, so nothing hand-lists the rules twice.
 export interface RuleSpec {
   readonly name: RuleName;
-  // Which plugin the rule is registered under. `runtypes` rides the default
-  // export OXlint loads; `@mionjs` rides the named mionPlugin export. Two
-  // namespaces, ONE table: index.ts partitions on this field so neither plugin
-  // hand-lists its rules.
+  // `runtypes` rides the default export OXlint loads, `@mionjs` the named mionPlugin export; index.ts
+  // partitions this ONE table on the field so neither plugin hand-lists its rules.
   readonly namespace: 'runtypes' | '@mionjs';
-  // The level a lint host reports this rule at by default. It must never be
-  // `warn` while the rule carries a code the Go catalog does not call a Warning:
-  // under-reporting a fatal or runtime error is the one direction that is wrong.
-  // The reverse is a rule author's call — a rule may ship at `error` while its
-  // codes are Warnings, which is how a finding can be worth an editor squiggle
-  // without being worth stopping a build (`enrichment-field` is exactly that).
+  // Never `warn` while the rule carries a code the Go catalog does not call a Warning: under-reporting a fatal
+  // or runtime error is the one wrong direction. The reverse is the rule author's call, and is how something
+  // can be worth an editor squiggle without stopping a build (`enrichment-field`).
   readonly default: 'error' | 'warn';
   readonly gate: 'compiler' | 'enrichment';
   readonly description: string;
@@ -296,9 +279,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
       'A generated mirror that is no longer where the generator would write it, usually after its source file moved — re-run the generator to relocate it',
   },
   // ── the mion route rules (@mionjs/*) ─────────────────────────────────────
-  // Same table, same transport; only the namespace differs. They were
-  // hand-written ESLint rules until the compiler could see a handler however it
-  // is written, so the names are unchanged and an existing config keeps working.
+  // Same table, same transport; only the namespace differs.
   {
     name: 'strong-typed-routes',
     namespace: '@mionjs',
@@ -335,23 +316,17 @@ export const RULE_SPECS: readonly RuleSpec[] = [
 
 export const ALL_RULE_NAMES: readonly RuleName[] = RULE_SPECS.map((spec) => spec.name);
 
-// FamilyRules names the rule for each severity tier a family produces.
-// `primary` is the rule for its error-severity codes (and the sole rule for a
-// family that only warns); `warn` is the separate rule a family that spans both
-// tiers routes its Warning-severity codes to. Severity, not the code, picks the
-// tier.
+// FamilyRules names the rule per severity tier: `primary` takes the error-severity codes (and every code of a
+// family that only warns), `warn` the Warning-severity ones of a family spanning both tiers.
 interface FamilyRules {
   primary: RuleName;
   warn?: RuleName;
 }
 
-// PREFIX_TO_FAMILY maps a compiler code's letter prefix to its family rules.
-// Product-family granularity: the four JSON primitives + the composite
-// (PJ/PJS/RJ/SJ/JCP) share the json rules, the two binary halves (TB/FB) share
-// binary, validate absorbs validationErrors (VL/VE), and the marker-scanner
-// prefixes (MKR/CTA/PFN/TMP) share the marker rules. Enrichment codes (FT/MD/GE)
-// and mion route codes (MRT) route by concern instead (see enrichFamily and
-// mionRouteFamily), so they are absent here.
+// PREFIX_TO_FAMILY maps a compiler code's letter prefix to its family rules, at PRODUCT-family granularity: the
+// JSON prefixes share the json rules, the two binary halves share binary, validate absorbs validationErrors, and
+// the marker-scanner prefixes share the marker rules. Enrichment (FT/MD/GE) and mion route (MRT) codes route by
+// concern instead (enrichFamily, mionRouteFamily), so they are absent here.
 const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   CFG: {primary: 'broken-tsconfig'},
   EXP: {primary: 'invalid-expect-error'},
@@ -359,10 +334,8 @@ const PREFIX_TO_FAMILY: Record<string, FamilyRules> = {
   MKR: {primary: 'invalid-marker', warn: 'redundant-marker'},
   CTA: {primary: 'invalid-marker'},
   PFN: {primary: 'invalid-marker'},
-  // Batch transport: a batch the build cannot read is an error like any other
-  // marker; a batch that works but does nothing for this server (BAT008, left
-  // out by a client pointer) or a table nothing imports (BAT009) is the
-  // redundant-marker kind of warning.
+  // Batch transport: a batch the build cannot read is an error like any other marker, while one that works but
+  // does nothing for this server (BAT008) or a table nothing imports (BAT009) is the redundant-marker kind.
   BAT: {primary: 'invalid-marker', warn: 'redundant-marker'},
   TMP: {primary: 'invalid-marker'},
   PFE: {primary: 'pure-functions'},
@@ -392,24 +365,20 @@ function codePrefix(code: string): string {
   return match ? match[0] : code;
 }
 
-// enrichFamily buckets an enrichment code into its concern family. The
-// per-family hygiene codes (FT02x in a FriendlyText mirror, MD02x in a MockData
-// mirror) express the same concerns, so both families share them. An unknown
-// enrich code is treated as a field/content finding rather than dropped.
+// enrichFamily buckets an enrichment code into its concern family; FT02x and MD02x express the same concerns,
+// so both families share them. An unknown enrich code is treated as a field error rather than dropped.
 function enrichFamily(code: string): FamilyRules {
   switch (code) {
-    // Field findings: the map names something the type does not declare, or
-    // collides with the reserved `rt$` prefix. Named per code because the tier
-    // used to be picked by severity, which only worked while every field code
-    // was an error; FT002 and MD001 are Warnings now (a dead entry nothing
-    // reads), and without these arms they would route to the message rule.
+    // Field errors: the map names something the type does not declare, or collides with the reserved `rt$`
+    // prefix. Listed per code because FT002 and MD001 are Warnings, so picking the tier by severity would
+    // route them to the message rule.
     case 'FT002':
     case 'FT011':
     case 'MD001':
     case 'MD011':
       return {primary: 'enrichment-field'};
-    // Message findings: the template is wrong, so what a user reads is wrong or
-    // falls back. Also named per code, for the same reason in reverse.
+    // Message errors: the template is wrong, so what a user reads is wrong or falls back. Per code for the
+    // same reason in reverse.
     case 'FT003':
     case 'FT005':
     case 'FT006':
@@ -421,8 +390,7 @@ function enrichFamily(code: string): FamilyRules {
     case 'MD020':
     case 'FT023':
     case 'MD023':
-      // Unfilled scaffolds: a @todo marker (FT020/MD020) or a blank value
-      // (FT023/MD023) — both mean "not finished yet", so both ride the todo rule.
+      // A @todo marker and a blank value both mean "not finished yet", so both ride the todo rule.
       return {primary: 'no-enrichment-todo'};
     case 'FT021':
     case 'FT022':
@@ -439,11 +407,9 @@ function enrichFamily(code: string): FamilyRules {
   }
 }
 
-// mionRouteFamily buckets a mion route code into its rule. One prefix carries
-// four rules (the codes are one family in the Go catalog but four separate
-// findings a team levels on its own), so they route per code like the
-// enrichment ones rather than through PREFIX_TO_FAMILY. An unknown MRT code
-// rides the annotation rule rather than being dropped.
+// mionRouteFamily buckets a mion route code into its rule: one Go-catalog family, four separate errors a team
+// levels on its own, so they route per code rather than through PREFIX_TO_FAMILY. An unknown MRT code rides
+// strong-typed-routes rather than being dropped.
 function mionRouteFamily(code: string): FamilyRules {
   switch (code) {
     case 'MRT003':
@@ -458,9 +424,8 @@ function mionRouteFamily(code: string): FamilyRules {
   }
 }
 
-// fallbackFamily routes a code whose prefix isn't mapped (a locally built
-// binary running ahead of the catalog) by its coarse wire family, so a
-// diagnostic is never silently dropped.
+// fallbackFamily routes a code whose prefix isn't mapped (a locally built binary running ahead of the catalog)
+// by its coarse wire family, so a diagnostic is never silently dropped.
 function fallbackFamily(family: Family): FamilyRules {
   switch (family) {
     case Family.Marker:
@@ -476,8 +441,8 @@ function fallbackFamily(family: Family): FamilyRules {
   }
 }
 
-// LintLoc is the report location: 1-based line, 0-based column (the
-// ESLint/OXlint `loc` convention — our wire sites are 1-based columns).
+// LintLoc is the report location: 1-based line, 0-based column, the ESLint/OXlint convention; wire sites are
+// 1-based on both.
 export interface LintLoc {
   start: {line: number; column: number};
   end?: {line: number; column: number};
@@ -490,10 +455,8 @@ export interface LintReport {
   loc: LintLoc;
 }
 
-// routeDiagnostic maps one wire diagnostic to its rule + rendered message +
-// location. Never returns null — an unknown code still reports (through its
-// family rule and severity tier) with the fallback message, so a diagnostic is
-// never silently dropped.
+// routeDiagnostic maps one wire diagnostic to its rule, message and location. Never returns null: an unknown
+// code still reports through its family rule with the fallback message, so nothing is silently dropped.
 export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   return {
     ruleName: ruleNameFor(diagnostic),
@@ -502,10 +465,8 @@ export function routeDiagnostic(diagnostic: Diagnostic): LintReport {
   };
 }
 
-// ruleNameFor picks the rule a diagnostic reports under: enrichment and mion
-// route codes route per code (one family, several distinct findings), every
-// other code by its prefix family, and all of them then pick the error or warn
-// rule by the diagnostic's severity.
+// ruleNameFor picks the rule a diagnostic reports under: enrichment and mion route codes route per code, every
+// other by its prefix family, and all of them then pick the error or warn rule by severity.
 function ruleNameFor(diagnostic: Diagnostic): RuleName {
   let family: FamilyRules;
   if (diagnostic.family === Family.Enrich) family = enrichFamily(diagnostic.code);
@@ -514,14 +475,9 @@ function ruleNameFor(diagnostic: Diagnostic): RuleName {
   return diagnostic.severity === Severity.Warning && family.warn ? family.warn : family.primary;
 }
 
-// renderMessage resolves code+args through the catalog, prefixes the stable
-// code (so users can look it up / disable-comment it), and appends related
-// locations inline — lint reports have no first-class related-location field.
-//
-// Unknown-code fallback: a code the catalog lacks should be unreachable in a
-// released install (binary + catalog publish from this one package), but a
-// locally-built mion-bin/mion can run ahead of the catalog during
-// development. Render a useful line instead of dropping the diagnostic.
+// renderMessage prefixes the stable code (so users can look it up or disable-comment it) and appends related
+// locations inline, lint reports having no related-location field. The unknown-code arm is unreachable in a
+// released install (binary and catalog publish together) but a locally built mion-bin/mion can run ahead of it.
 export function renderMessage(diagnostic: Diagnostic): string {
   const known = diagnostic.code in DIAGNOSTIC_CATALOG;
   const headline = known
@@ -534,9 +490,8 @@ export function renderMessage(diagnostic: Diagnostic): string {
   return message;
 }
 
-// lintLoc converts a 1-based wire site to the lint loc shape (0-based
-// columns). Sites missing an end keep a start-only loc; a degenerate site
-// (unanchored) clamps to 1:0 so the report still lands in the file.
+// lintLoc converts a 1-based wire site to 0-based columns. A site missing an end keeps a start-only loc; an
+// unanchored one clamps to 1:0 so the report still lands in the file.
 function lintLoc(site: DiagnosticSite): LintLoc {
   const loc: LintLoc = {
     start: {line: Math.max(1, site.startLine), column: Math.max(0, site.startCol - 1)},
