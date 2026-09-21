@@ -164,9 +164,9 @@ A handler returning such a union writes every own property to the wire, because 
 encode({a: 'public', passwordHash: 'SECRET'})  →  {"a":"public","passwordHash":"SECRET"}
 ```
 
-Returns are deliberately not validated, on the server or in the client. A handler is the
-application's own code, and the client's decoder rebuilds the declared shape. This is recorded as a
-known limit, not scheduled work.
+Returns were not validated at all: `validateReturn` was written into every method and never read.
+That is fixed here, see "The return validator" below. It stays OFF by default, because a handler is
+the application's own code.
 
 ---
 
@@ -281,30 +281,49 @@ instantiations per route and failed the type-budget lane. `ParserOption` takes t
 because a bare string sets BOTH directions, so `parser: 'mutateStrict'` has to be a type error; write
 `{params: 'mutateStrict'}`. At runtime `directionOf` refuses it on the return side with the same message.
 
-### The validate family per strategy
+### One table names every family a strategy compiles
 
-New in `core/src/constants.ts`: `VALIDATE_FAMILY_BY_STRATEGY`, `RETURN_VALIDATE_FAMILY`, four new
-`JIT_FUNCTION_IDS` entries, and `JIT_ID_BY_VALIDATE_FAMILY`. That last one was not in the plan: the ids
-table names the plain pair by mion's own slot (`isType` / `typeErrors`) and every other family by its
-run-types name, so a family name needs one hop to reach its id.
+`core/src/constants.ts` holds ONE constant, `PARSE_MODES`: a row per strategy listing its encode,
+decode, validate and validationErrors families by the marker token a route asks for. The same row
+serves both wires. Four maps keyed four different ways (`ENCODE_FAMILY_BY_STRATEGY`,
+`VALIDATE_FAMILY_BY_STRATEGY` and friends) went through a two-table stage and ended here.
 
-`MarkerSlots` swaps the fixed params pair for `ParamsValidate` / `ParamsValidationErrors`, spelled as a
-conditional chain (an indexed-access lookup measured identical and could not satisfy its own constraint
-from the deferred strategy type). The Go mirror is `paramsValidateFamilies` in `apigen.go`.
+What keeps `mutateStrict` off the return wire is the `ReturnParserStrategy` type, written out
+literally rather than `Exclude`d: the distributive conditional cost ten extra type instantiations per
+route. A spec test pins that the type and the table agree.
+
+`JIT_FUNCTION_IDS` is no longer hand-maintained. `cmd/gen-fn-hashes` writes
+`core/src/go-generated/jitFunctionIds.generated.ts` from the Go operation registry, keyed by family
+name, so the ids and the run-types variant table cannot drift.
+
+`MarkerSlots` reads the table through one `ModeFamily` indexed access. The Go mirror is `parseModes`
+plus `parseMode(strategy)` in `apigen.go`; `markerKeys(isParams)` stays direction-aware because
+`formatTransform` (sanitizeParams) is params-only.
+
+Two behaviour changes come with the single table, each with its own test:
+
+- a `mutate` return is decoded in place, so an undeclared key the handler set reaches the caller;
+  `clone` and `compact` rebuild the declared shape at both ends and still drop it.
+- `clone` and `compact` returns validate with `validateUnionKeys`. `serializer.routes.ts` reads that
+  validator to tell a declared error in a return union from an undeclared one, and a declared
+  `TypedError` still passes it.
+
+### The return validator
+
+`validateReturn` was declared on the route options, stored on every method, and read by nothing.
+`dispatch.ts` now runs `validateReturnOrThrow` before the value is written to the response body. A
+mismatch throws, so it travels as an undeclared fatal rather than a typed slot, which is right: a
+handler answering the wrong shape is a server bug, not data. Default stays `false`.
 
 ### The discriminator
 
 `mutate` and `mutateStrict` share `prepareForJsonMutate`, so the encode family alone stopped naming the
 strategy. The validate family breaks the tie, in `strategyFromFamilies`:
 
-```ts
-const base = STRATEGY_BY_ENCODE_FAMILY[encodeFamilies[0]];
-const strategy: ParserStrategy =
-  base === 'mutate' && direction === 'params' && fns.validateStrict !== undefined ? 'mutateStrict' : base;
-```
-
-The `direction === 'params'` guard is load-bearing and has its own fixture: a return always compiles the
-plain pair, so without it every mutate answer wire would read as `mutateStrict`.
+`strategyFromFamilies` matches a WHOLE row instead: the one `PARSE_MODES` row whose encoder, decoder
+and validator are all present in the injected payload. Nothing else matches, so a payload from a
+different build fails closed there rather than at call time. `direction` survives only to name the
+wire in that error message.
 
 ### `strictTypes` is gone
 
