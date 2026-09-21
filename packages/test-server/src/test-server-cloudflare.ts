@@ -8,6 +8,7 @@
 import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createCloudflareHandler, resetCloudflareHandlerOpts} from '@mionjs/platform-cloudflare';
+import {assertKnownSetupOptions} from './setupOptions.ts';
 
 // ############# Types #############
 
@@ -45,14 +46,16 @@ const updateHeaders: Route = mion.route((context: Context): void => {
 
 const cloudflareRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 
-// the same routes answering with the `mutate` serializer, which transforms in place
+// The same routes answering with the `mutate` serializer, which restores and transforms in place.
+// Both directions, not just `return`: only a `mutate` params decoder keeps keys the type does not
+// declare, and `getDate` handing its own argument back is what carries them to the wire.
 const mutateRoutes = {
   changeUserName: mion.route((ctx: Context, user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname}), {
-    serializer: {return: 'mutate'},
+    serializer: 'mutate',
   }),
   getDate: mion.route(
     (ctx: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')},
-    {serializer: {return: 'mutate'}}
+    {serializer: 'mutate'}
   ),
   updateHeaders,
 } satisfies Routes;
@@ -60,14 +63,22 @@ const mutateRoutes = {
 // ############# Cloudflare Server Setup #############
 
 export interface CloudflareSetupOptions {
+  /** URL prefix the handler strips before routing. */
   basePath?: string;
-  /** `mutate` answers with the in-place encoder; the default is `clone`. */
+  /** `mutate` answers with the in-place serializer; the default is `clone`. */
   serializer?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
+const CLOUDFLARE_SETUP_KEYS = [
+  'basePath',
+  'serializer',
+  'defaultResponseHeaders',
+] as const satisfies readonly (keyof CloudflareSetupOptions)[];
+
 /** Sets up the cloudflare handler inside the workerd runtime. Returns the handler object. */
 export async function setup(options?: CloudflareSetupOptions) {
+  assertKnownSetupOptions(options, CLOUDFLARE_SETUP_KEYS, 'CloudflareTestServer.setup');
   resetCloudflareHandlerOpts();
   resetRouter();
   const router = createMionRouter({

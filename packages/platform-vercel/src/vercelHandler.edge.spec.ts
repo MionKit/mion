@@ -21,6 +21,19 @@ interface EdgeResponse {
   headers: Record<string, string>;
 }
 
+/** The options EdgeTestServer.setup() accepts, mirroring EdgeSetupOptions in the fixture. The fixture
+ *  rejects an unknown key at runtime, so a drift between the two fails the setup instead of being ignored. */
+interface EdgeSetupOptions {
+  serializer?: 'mutate' | 'clone';
+  defaultResponseHeaders?: Record<string, string>;
+}
+
+/** Builds the setup call from a checked object: a hand written literal inside this string is never
+ *  type checked, which is how a block once configured itself with an option that did not exist. */
+function setupCall(options: EdgeSetupOptions = {}): string {
+  return `EdgeTestServer.setup(${JSON.stringify(options)})`;
+}
+
 /** Creates an EdgeVM with the test server bundle loaded */
 function createEdgeVM(): EdgeVM {
   const bundleCode = readFileSync(EDGE_BUNDLE_PATH, 'utf-8');
@@ -60,10 +73,10 @@ async function callHandler(vm: EdgeVM, path: string, body: string, method = 'POS
 describe('vercel handler (edge runtime)', () => {
   let vm: EdgeVM;
 
-  describe('with the direct encoder (stringifyJson framing)', () => {
+  describe('with the default clone serializer', () => {
     beforeAll(async () => {
       vm = createEdgeVM();
-      await vm.evaluate("EdgeTestServer.setup({encoder: 'direct'})");
+      await vm.evaluate(setupCall());
     });
 
     it('should get an ok response from a route', async () => {
@@ -107,12 +120,7 @@ describe('vercel handler (edge runtime)', () => {
     it('should include default headers', async () => {
       // Re-setup with custom default headers
       vm = createEdgeVM();
-      await vm.evaluate(`EdgeTestServer.setup({
-                defaultResponseHeaders: {
-                    'x-app-name': 'MyApp',
-                    'x-instance-id': '3089',
-                }
-            })`);
+      await vm.evaluate(setupCall({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
 
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
@@ -126,10 +134,21 @@ describe('vercel handler (edge runtime)', () => {
     });
   });
 
-  describe('with the default mutate encoder (json framing)', () => {
+  describe('with the mutate serializer', () => {
     beforeAll(async () => {
       vm = createEdgeVM();
-      await vm.evaluate('EdgeTestServer.setup()');
+      await vm.evaluate(setupCall({serializer: 'mutate'}));
+    });
+
+    // Only `mutate` restores the params in place and keeps a key the type does not declare; every other
+    // strategy rebuilds the declared shape. `getDate` hands its own argument back, so the extra key
+    // reaching the wire proves the option applied.
+    it('should keep an undeclared key the clone serializer would drop', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z'), extra: 'kept'}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z', extra: 'kept'}});
     });
 
     it('should get an ok response from a route with Date objects', async () => {
@@ -150,6 +169,15 @@ describe('vercel handler (edge runtime)', () => {
       expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(result.headers['content-type']).toContain('application/json');
       expect(result.headers['server']).toEqual('@mionjs');
+    });
+  });
+
+  describe('setup options', () => {
+    it('should reject an option the fixture does not declare', async () => {
+      const vmWithBadSetup = createEdgeVM();
+      await expect(vmWithBadSetup.evaluate("EdgeTestServer.setup({encoder: 'direct'})")).rejects.toThrow(
+        /unknown setup option\(s\) encoder/
+      );
     });
   });
 });

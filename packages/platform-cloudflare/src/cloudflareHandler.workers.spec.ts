@@ -21,6 +21,21 @@ interface WorkerResponse {
   headers: Record<string, string>;
 }
 
+/** The options CloudflareTestServer.setup() accepts, mirroring CloudflareSetupOptions in the fixture.
+ *  The fixture rejects an unknown key at runtime, so a drift between the two fails the setup instead of
+ *  being ignored. */
+interface CloudflareSetupOptions {
+  basePath?: string;
+  serializer?: 'mutate' | 'clone';
+  defaultResponseHeaders?: Record<string, string>;
+}
+
+/** Builds the setup argument from a checked object: a hand written literal inside the worker script is
+ *  never type checked, which is how a block once configured itself with an option that did not exist. */
+function setupOptions(options: CloudflareSetupOptions = {}): string {
+  return JSON.stringify(options);
+}
+
 /** Creates a Miniflare instance with the test server bundle loaded as a service worker */
 function createMiniflare(setupCode: string, port?: number): Miniflare {
   const bundleCode = readFileSync(CLOUDFLARE_BUNDLE_PATH, 'utf-8');
@@ -64,11 +79,11 @@ async function callHandler(mf: Miniflare, path: string, body: string, method = '
 }
 
 describe('cloudflare handler (workerd runtime)', () => {
-  describe('with the direct encoder (stringifyJson framing)', () => {
+  describe('with the default clone serializer', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare(`{encoder: 'direct'}`);
+      mf = createMiniflare(setupOptions());
     });
 
     afterAll(async () => {
@@ -115,12 +130,7 @@ describe('cloudflare handler (workerd runtime)', () => {
 
     it('should include default headers', async () => {
       await mf.dispose();
-      mf = createMiniflare(`{
-                defaultResponseHeaders: {
-                    'x-app-name': 'MyApp',
-                    'x-instance-id': '3089',
-                }
-            }`);
+      mf = createMiniflare(setupOptions({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
 
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
       const result = await callHandler(mf, '/api/getDate', JSON.stringify(requestData));
@@ -138,7 +148,7 @@ describe('cloudflare handler (workerd runtime)', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare(`{ basePath: '/api/mion' }`);
+      mf = createMiniflare(setupOptions({basePath: '/api/mion'}));
     });
 
     afterAll(async () => {
@@ -155,15 +165,26 @@ describe('cloudflare handler (workerd runtime)', () => {
     });
   });
 
-  describe('with the default mutate encoder (json framing)', () => {
+  describe('with the mutate serializer', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare('{}');
+      mf = createMiniflare(setupOptions({serializer: 'mutate'}));
     });
 
     afterAll(async () => {
       await mf?.dispose();
+    });
+
+    // Only `mutate` restores the params in place and keeps a key the type does not declare; every other
+    // strategy rebuilds the declared shape. `getDate` hands its own argument back, so the extra key
+    // reaching the wire proves the option applied.
+    it('should keep an undeclared key the clone serializer would drop', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z'), extra: 'kept'}]};
+      const result = await callHandler(mf, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z', extra: 'kept'}});
     });
 
     it('should get an ok response from a route with Date objects', async () => {
@@ -186,6 +207,22 @@ describe('cloudflare handler (workerd runtime)', () => {
       expect(result.headers['server']).toEqual('@mionjs');
     });
   });
+
+  describe('setup options', () => {
+    let mf: Miniflare;
+
+    afterAll(async () => {
+      await mf?.dispose();
+    });
+
+    it('should reject an option the fixture does not declare', async () => {
+      mf = createMiniflare(`{encoder: 'direct'}`);
+      const response = await mf.dispatchFetch('http://localhost/api/getDate', {method: 'POST', body: '{}'});
+
+      expect(response.status).toBe(500);
+      expect(await response.text()).toMatch(/unknown setup option\(s\) encoder/);
+    });
+  });
 });
 
 // The reader trusts a declared content-length and calls request.text(): workerd must hand over
@@ -195,7 +232,7 @@ describe('cloudflare handler (workerd runtime): content-length bounds the body',
   let mf: Miniflare;
 
   beforeAll(async () => {
-    mf = createMiniflare('{}', port);
+    mf = createMiniflare(setupOptions(), port);
     await mf.ready;
   });
 
