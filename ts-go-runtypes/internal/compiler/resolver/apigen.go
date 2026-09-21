@@ -457,9 +457,8 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
 	paramsStrategy, returnStrategy := parserStrategies(method.Options)
-	paramsValidate, paramsErrors := paramsValidateFamilies(paramsStrategy)
-	paramsKeys := []string{paramsValidate, paramsErrors, "formatTransform", encodeFamily(paramsStrategy), serverDecodeFamily(paramsStrategy)}
-	returnKeys := []string{"validate", "validationErrors", encodeFamily(returnStrategy), clientDecodeFamily(returnStrategy)}
+	paramsKeys := parsingFamilies(paramsStrategy, false).markerKeys(true)
+	returnKeys := parsingFamilies(returnStrategy, true).markerKeys(false)
 	entry.paramsFns = apiFnSite(entry.paramsId, paramsKeys)
 	entry.returnFns = apiFnSite(entry.returnId, returnKeys)
 	entry.paramsRef = protocol.Site{ID: entry.paramsId}
@@ -515,54 +514,54 @@ func parserStrategies(options map[string]any) (params, ret string) {
 	return params, ret
 }
 
-// encodeFamily / serverDecodeFamily / clientDecodeFamily mirror the same names in
-// packages/router/src/types/parser.ts and the maps in core's constants.ts; a disagreement makes
-// strategyFromFamilies throw on the bundled lane.
-func encodeFamily(strategy string) string {
-	switch strategy {
-	case "mutate", "mutateStrict":
-		return "prepareForJsonMutate"
-	case "compact":
-		return "compactForJson"
-	default:
-		return "prepareForJsonClone"
-	}
+// parsingRow is every family one wire compiles, in the order a marker lists them.
+type parsingRow struct {
+	validate         string
+	validationErrors string
+	encode           string
+	decode           string
 }
 
-// paramsValidateFamilies mirrors VALIDATE_FAMILY_BY_STRATEGY in core's constants.ts: exactly ONE validator per strategy
-// on the params side. A RETURN is written by the handler rather than a caller, so every return wire keeps the plain pair.
-func paramsValidateFamilies(strategy string) (validate, errors string) {
-	switch strategy {
-	case "mutateStrict":
-		return "validateStrict", "validationErrorsStrict"
-	case "mutate":
-		return "validate", "validationErrors"
-	default:
-		// clone / compact: their decoders already rebuild the declared shape, so only a union can still hide a key.
-		return "validateUnionKeys", "validationErrorsUnionKeys"
-	}
+// paramsParsing / returnParsing mirror PARAMS_PARSING / RETURN_PARSING in core's constants.ts, and the marker
+// slot types in packages/router/src/types/parser.ts. All three must name the same families or strategyFromFamilies
+// matches no row on the bundled lane.
+//
+// The params validator differs per strategy because the decoder does: `clone` and `compact` rebuild the declared
+// shape, so only a union can still hide a key. A RETURN is written by the handler rather than a caller, so every
+// return row keeps the plain pair, and `mutateStrict` has no return row at all.
+var paramsParsing = map[string]parsingRow{
+	"clone":        {"validateUnionKeys", "validationErrorsUnionKeys", "prepareForJsonClone", "restoreFromJsonClone"},
+	"mutate":       {"validate", "validationErrors", "prepareForJsonMutate", "restoreFromJsonMutate"},
+	"mutateStrict": {"validateStrict", "validationErrorsStrict", "prepareForJsonMutate", "restoreFromJsonMutate"},
+	"compact":      {"validateUnionKeys", "validationErrorsUnionKeys", "compactForJson", "compactFromJson"},
 }
 
-// serverDecodeFamily answers the params wire: the server decodes from any caller,
-// so it rebuilds the declared shape unless the strategy exists to pass through.
-func serverDecodeFamily(strategy string) string {
-	switch strategy {
-	case "compact":
-		return "compactFromJson"
-	case "mutate", "mutateStrict":
-		return "restoreFromJsonMutate"
-	default:
-		return "restoreFromJsonClone"
-	}
+var returnParsing = map[string]parsingRow{
+	"clone":   {"validate", "validationErrors", "prepareForJsonClone", "restoreFromJsonClone"},
+	"mutate":  {"validate", "validationErrors", "prepareForJsonMutate", "restoreFromJsonClone"},
+	"compact": {"validate", "validationErrors", "compactForJson", "compactFromJson"},
 }
 
-// clientDecodeFamily answers the return wire: the client decodes its own server's
-// answer, and never hands on a key the return type does not declare.
-func clientDecodeFamily(strategy string) string {
-	if strategy == "compact" {
-		return "compactFromJson"
+// parsingFamilies returns the row a strategy compiles on one wire, falling back to `clone` for an unknown or
+// widened strategy, which is the same default parserStrategies applies.
+func parsingFamilies(strategy string, isReturn bool) parsingRow {
+	table := paramsParsing
+	if isReturn {
+		table = returnParsing
 	}
-	return "restoreFromJsonClone"
+	if row, ok := table[strategy]; ok {
+		return row
+	}
+	return table["clone"]
+}
+
+// markerKeys renders a row as the marker's slot list. `formatTransform` (sanitizeParams) is params-only: the
+// answer side is written by the handler, never by a caller.
+func (row parsingRow) markerKeys(isParams bool) []string {
+	if isParams {
+		return []string{row.validate, row.validationErrors, "formatTransform", row.encode, row.decode}
+	}
+	return []string{row.validate, row.validationErrors, row.encode, row.decode}
 }
 
 // renderApiMethodModule renders `api/m/<id>.js`: the method's metadata row plus the marker payload the

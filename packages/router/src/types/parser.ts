@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {DefaultParser, ParserOption, ResolvedParser} from '@mionjs/core';
+import type {DefaultParser, ParamsParsing, ParserOption, ResolvedParser, ReturnParsing} from '@mionjs/core';
 import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 // The families a route compiles come from the `parser` literals: route, then factory, then the default.
@@ -27,24 +27,16 @@ type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = FallbackTo<
   DirectionStrategy<ParserOf<RouteOpts>, D>,
   FallbackTo<DirectionStrategy<ParserOf<RouterOpts>, D>, DefaultParser[D]>
 >;
-// Mirrored by ENCODE_FAMILY_BY_STRATEGY / DECODE_FAMILY_BY_STRATEGY in @mionjs/core.
-type EncodeFamily<S> = S extends 'clone'
-  ? 'prepareForJsonClone'
-  : S extends 'mutate' | 'mutateStrict'
-    ? 'prepareForJsonMutate'
-    : S extends 'compact'
-      ? 'compactForJson'
-      : never;
-// The server decodes params from ANY caller, so it rebuilds the declared shape unless the strategy passes it through.
-type ServerDecodeFamily<S> = S extends 'compact'
-  ? 'compactFromJson'
-  : S extends 'mutate' | 'mutateStrict'
-    ? 'restoreFromJsonMutate'
-    : S extends string
-      ? 'restoreFromJsonClone'
-      : never;
-// The client decodes a return its own server wrote, and never hands on a property the return type omits.
-type ClientDecodeFamily<S> = S extends 'compact' ? 'compactFromJson' : S extends string ? 'restoreFromJsonClone' : never;
+// The type twin of PARAMS_PARSING / RETURN_PARSING in @mionjs/core: one row per strategy per wire, holding
+// every family that wire compiles. Indexed access rather than a conditional chain per family, so a new
+// strategy is a row in core and nothing here. The `extends keyof` guard is what a deferred strategy needs:
+// ParamsStrategy resolves through conditionals, so it cannot satisfy the index constraint on its own.
+type ParamsFamily<S, K extends keyof ParamsParsing[keyof ParamsParsing]> = S extends keyof ParamsParsing
+  ? ParamsParsing[S][K]
+  : never;
+type ReturnFamily<S, K extends keyof ReturnParsing[keyof ReturnParsing]> = S extends keyof ReturnParsing
+  ? ReturnParsing[S][K]
+  : never;
 
 /** Options naming no `parser`, the default for a helper called outside the factory. */
 type NoParserOptions = Record<never, never>;
@@ -55,18 +47,14 @@ export type ParamsStrategy<RouteOpts, RouterOpts = NoParserOptions> = ResolveStr
 export type ReturnStrategy<RouteOpts, RouterOpts = NoParserOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
 
 // The slots of each marker side that vary with the strategy, read by MarkerSlots below.
-type ParamsEncode<RouteOpts, RouterOpts = NoParserOptions> = EncodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-type ParamsDecode<RouteOpts, RouterOpts = NoParserOptions> = ServerDecodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
-type ReturnEncode<RouteOpts, RouterOpts = NoParserOptions> = EncodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-type ReturnDecode<RouteOpts, RouterOpts = NoParserOptions> = ClientDecodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-// Mirrored by VALIDATE_FAMILY_BY_STRATEGY in @mionjs/core: `clone` / `compact` decode into the declared shape, so only
-// a union can still hide a key; `mutate` is the permissive strategy; `mutateStrict` answers for every key itself.
-type ParamsValidate<S> = S extends 'mutateStrict' ? 'validateStrict' : S extends 'mutate' ? 'validate' : 'validateUnionKeys';
-type ParamsValidationErrors<S> = S extends 'mutateStrict'
-  ? 'validationErrorsStrict'
-  : S extends 'mutate'
-    ? 'validationErrors'
-    : 'validationErrorsUnionKeys';
+type ParamsFn<RouteOpts, RouterOpts, K extends keyof ParamsParsing[keyof ParamsParsing]> = ParamsFamily<
+  ParamsStrategy<RouteOpts, RouterOpts>,
+  K
+>;
+type ReturnFn<RouteOpts, RouterOpts, K extends keyof ReturnParsing[keyof ReturnParsing]> = ReturnFamily<
+  ReturnStrategy<RouteOpts, RouterOpts>,
+  K
+>;
 
 /** Intersected onto the factory options so a widened `parser` (plain string, union) is a type error. */
 export type ParserLiteralGuard<Options> = Options extends {parser: infer E}
@@ -88,18 +76,18 @@ type LiteralParser<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: S
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoParserOptions> = [
   paramsFns: InjectTypeFnArgs<
     Params,
-    ParamsValidate<ParamsStrategy<RouteOpts, RouterOpts>>,
-    ParamsValidationErrors<ParamsStrategy<RouteOpts, RouterOpts>>,
+    ParamsFn<RouteOpts, RouterOpts, 'validate'>,
+    ParamsFn<RouteOpts, RouterOpts, 'validationErrors'>,
     'formatTransform',
-    ParamsEncode<RouteOpts, RouterOpts>,
-    ParamsDecode<RouteOpts, RouterOpts>
+    ParamsFn<RouteOpts, RouterOpts, 'encode'>,
+    ParamsFn<RouteOpts, RouterOpts, 'decode'>
   >,
   returnFns: InjectTypeFnArgs<
     Return,
-    'validate',
-    'validationErrors',
-    ReturnEncode<RouteOpts, RouterOpts>,
-    ReturnDecode<RouteOpts, RouterOpts>
+    ReturnFn<RouteOpts, RouterOpts, 'validate'>,
+    ReturnFn<RouteOpts, RouterOpts, 'validationErrors'>,
+    ReturnFn<RouteOpts, RouterOpts, 'encode'>,
+    ReturnFn<RouteOpts, RouterOpts, 'decode'>
   >,
   paramsId: InjectRunTypeId<Params>,
   returnId: InjectRunTypeId<Return>,

@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {JsonEncoderStrategy} from '@mionjs/run-types';
-import {DECODE_FAMILY_BY_STRATEGY, DECODE_SIDE_BY_DIRECTION} from './constants.ts';
+import {PARAMS_PARSING, RETURN_PARSING, parsingRow} from './constants.ts';
 import {DEFAULT_PARSER, PARSER_STRATEGIES, isParserStrategy, resolveParser} from './parser.ts';
 import type {ParserStrategy} from './types/general.types.ts';
 
@@ -34,15 +34,34 @@ describe('the mion parser strategies', () => {
 
   // The server decodes params from any caller, the client a return its own server wrote.
   it('gives mutate a different decoder on each side, and the others the same one', () => {
-    expect(DECODE_FAMILY_BY_STRATEGY.mutate.server).toBe('restoreFromJsonMutate');
-    expect(DECODE_FAMILY_BY_STRATEGY.mutate.client).toBe('restoreFromJsonClone');
+    expect(PARAMS_PARSING.mutate.decode).toBe('restoreFromJsonMutate');
+    expect(RETURN_PARSING.mutate.decode).toBe('restoreFromJsonClone');
     for (const strategy of ['clone', 'compact'] as const) {
-      const {server, client} = DECODE_FAMILY_BY_STRATEGY[strategy];
-      expect([strategy, server]).toEqual([strategy, client]);
+      expect([strategy, PARAMS_PARSING[strategy].decode]).toEqual([strategy, RETURN_PARSING[strategy].decode]);
     }
   });
 
-  it('reads the side off the direction, since the direction names the machine', () => {
-    expect(DECODE_SIDE_BY_DIRECTION).toEqual({params: 'server', return: 'client'});
+  // mutateStrict keeps every key the caller sent and then rejects the undeclared ones. A return is written by the
+  // handler, so there is nothing to reject: having NO return row is what makes the rule a fact of the data.
+  it('is params-only for mutateStrict, and every return row validates with the plain pair', () => {
+    expect(Object.keys(RETURN_PARSING)).not.toContain('mutateStrict');
+    expect(PARAMS_PARSING.mutateStrict.validate).toBe('validateStrict');
+    for (const row of Object.values(RETURN_PARSING)) {
+      expect([row.encode, row.validate]).toEqual([row.encode, 'validate']);
+    }
+  });
+
+  it('reads a row off the direction, since the direction names the machine', () => {
+    expect(parsingRow('mutate', 'params')).toBe(PARAMS_PARSING.mutate);
+    expect(parsingRow('mutate', 'return')).toBe(RETURN_PARSING.mutate);
+  });
+
+  // A route compiles exactly one row, so two strategies on one wire must never name the same set of families,
+  // or the runtime could not tell which one the build picked.
+  it('gives every strategy on a wire its own set of families', () => {
+    for (const table of [PARAMS_PARSING, RETURN_PARSING]) {
+      const sets = Object.values(table).map((row) => [row.validate, row.encode, row.decode].join('|'));
+      expect(new Set(sets).size).toBe(sets.length);
+    }
   });
 });

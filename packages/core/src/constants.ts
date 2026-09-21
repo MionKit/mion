@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CoreRouterOptions, ParserStrategy} from './types/general.types.ts';
+import type {CoreRouterOptions, ParserDirection, ParserStrategy} from './types/general.types.ts';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   autoGenerateErrorId: false,
@@ -70,9 +70,10 @@ export const HandlerType = {
  *  Written out rather than derived, since `getFnHash` shipped the whole Go hash table to every browser.
  *  constants.jitFunctionIds.spec.ts fails if a value drifts from `getFnHash`. */
 export const JIT_FUNCTION_IDS = {
-  isType: 'Eq2V',
-  typeErrors: 'swxg',
-  // One validate pair per parser strategy; VALIDATE_FAMILY_BY_STRATEGY says which strategy runs which.
+  // Keyed by the run-types FAMILY name, the same names PARAMS_PARSING and RETURN_PARSING hold, so a row's
+  // value indexes this table directly.
+  validate: 'Eq2V',
+  validationErrors: 'swxg',
   validateUnionKeys: 'Xhuv',
   validationErrorsUnionKeys: 'OBOg',
   validateStrict: 'fZHy',
@@ -81,7 +82,6 @@ export const JIT_FUNCTION_IDS = {
   hasUnknownKeys: 'GsPX',
   unknownKeyErrors: 'r8yS',
   formatTransform: 'mzca', // sanitizeParams
-  // the JSON families, one encoder and one decoder per strategy (see ENCODE_FAMILY_BY_STRATEGY)
   prepareForJsonClone: 'A0Qb',
   prepareForJsonMutate: 'AwYs',
   compactForJson: 'rpEK',
@@ -90,54 +90,88 @@ export const JIT_FUNCTION_IDS = {
   compactFromJson: 'FFsn',
 } as const satisfies Record<string, string>;
 
-/** Named by the MARKER token a route's InjectTypeFnArgs asks for, not the short tag the compiled entry carries. */
-export const ENCODE_FAMILY_BY_STRATEGY = {
-  clone: 'prepareForJsonClone',
-  mutate: 'prepareForJsonMutate',
-  // Same encoder as `mutate`: the two differ only in which validator the params side runs.
-  mutateStrict: 'prepareForJsonMutate',
-  compact: 'compactForJson',
-} as const;
-/** One decoder per SIDE: the server decodes params from any caller, so it rebuilds the declared shape.
- *  The client decodes a return its own server wrote, and never hands on an undeclared key. */
-export const DECODE_FAMILY_BY_STRATEGY = {
-  clone: {server: 'restoreFromJsonClone', client: 'restoreFromJsonClone'},
-  mutate: {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
-  mutateStrict: {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
-  compact: {server: 'compactFromJson', client: 'compactFromJson'},
+// ###################### What each parser strategy compiles ######################
+// One row per strategy per WIRE, holding every family that wire needs, named by the MARKER token a route's
+// InjectTypeFnArgs asks for rather than the short tag the compiled entry carries. A row IS the marker's slot
+// list, so adding a strategy is one row here and one row in the Go mirror (resolver/apigen.go), never an edit
+// spread over four maps keyed four different ways.
+
+/** The PARAMS wire: the client encodes, the server decodes and validates.
+ *
+ *  The validator differs per strategy because the decoder does. `clone` and `compact` rebuild the declared shape
+ *  as they decode, so only a union can still hide a key; `mutate` rebuilds nothing and is the permissive
+ *  strategy; `mutateStrict` rebuilds nothing either and answers for every key, which needs the fused validator. */
+export const PARAMS_PARSING = {
+  clone: {
+    encode: 'prepareForJsonClone',
+    decode: 'restoreFromJsonClone',
+    validate: 'validateUnionKeys',
+    validationErrors: 'validationErrorsUnionKeys',
+  },
+  mutate: {
+    encode: 'prepareForJsonMutate',
+    decode: 'restoreFromJsonMutate',
+    validate: 'validate',
+    validationErrors: 'validationErrors',
+  },
+  mutateStrict: {
+    // Same JSON pair as `mutate`; the validator is the whole difference.
+    encode: 'prepareForJsonMutate',
+    decode: 'restoreFromJsonMutate',
+    validate: 'validateStrict',
+    validationErrors: 'validationErrorsStrict',
+  },
+  compact: {
+    encode: 'compactForJson',
+    decode: 'compactFromJson',
+    validate: 'validateUnionKeys',
+    validationErrors: 'validationErrorsUnionKeys',
+  },
 } as const;
 
-/** The validator a strategy's PARAMS side runs, always exactly one. `clone` and `compact` rebuild the declared
- *  shape as they decode, so only a union can still hide a key; `mutate` rebuilds nothing and is the permissive
- *  strategy; `mutateStrict` rebuilds nothing either and answers for every key, which needs the fused validator. */
-export const VALIDATE_FAMILY_BY_STRATEGY = {
-  clone: {isType: 'validateUnionKeys', typeErrors: 'validationErrorsUnionKeys'},
-  compact: {isType: 'validateUnionKeys', typeErrors: 'validationErrorsUnionKeys'},
-  mutate: {isType: 'validate', typeErrors: 'validationErrors'},
-  mutateStrict: {isType: 'validateStrict', typeErrors: 'validationErrorsStrict'},
+/** The RETURN wire: the server encodes, the client decodes and validates.
+ *
+ *  Every row validates with the plain pair: a return is written by your own handler, never by a caller, so there
+ *  is no undeclared key to answer for. `mutateStrict` has NO ROW, which is what makes it params-only, and the
+ *  client's decoder always rebuilds the declared shape so it never hands an undeclared key on. */
+export const RETURN_PARSING = {
+  clone: {
+    encode: 'prepareForJsonClone',
+    decode: 'restoreFromJsonClone',
+    validate: 'validate',
+    validationErrors: 'validationErrors',
+  },
+  mutate: {
+    encode: 'prepareForJsonMutate',
+    decode: 'restoreFromJsonClone',
+    validate: 'validate',
+    validationErrors: 'validationErrors',
+  },
+  compact: {
+    encode: 'compactForJson',
+    decode: 'compactFromJson',
+    validate: 'validate',
+    validationErrors: 'validationErrors',
+  },
 } as const;
-/** A RETURN is written by the handler, never by a caller, so every wire compiles the plain pair. */
-export const RETURN_VALIDATE_FAMILY = {isType: 'validate', typeErrors: 'validationErrors'} as const;
-/** JIT_FUNCTION_IDS names the plain pair by mion's own slot and every other family by its run-types name. */
-export const JIT_ID_BY_VALIDATE_FAMILY = {
-  validate: JIT_FUNCTION_IDS.isType,
-  validationErrors: JIT_FUNCTION_IDS.typeErrors,
-  validateUnionKeys: JIT_FUNCTION_IDS.validateUnionKeys,
-  validationErrorsUnionKeys: JIT_FUNCTION_IDS.validationErrorsUnionKeys,
-  validateStrict: JIT_FUNCTION_IDS.validateStrict,
-  validationErrorsStrict: JIT_FUNCTION_IDS.validationErrorsStrict,
-} as const;
-/** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */
-export const STRATEGY_BY_ENCODE_FAMILY = {
-  prepareForJsonClone: 'clone',
-  prepareForJsonMutate: 'mutate',
-  compactForJson: 'compact',
-} as const;
+
+export type ParamsParsing = typeof PARAMS_PARSING;
+export type ReturnParsing = typeof RETURN_PARSING;
+/** The families one wire compiles, whichever direction it is. */
+export type ParsingRow = ParamsParsing[keyof ParamsParsing] | ReturnParsing[keyof ReturnParsing];
+
+/** The row a direction's strategy compiles. A return strategy is narrower, so the cast is what the
+ *  ReturnParserStrategy type already guarantees. */
+export function parsingRow(strategy: ParserStrategy, direction: ParserDirection): ParsingRow {
+  return direction === 'return' ? RETURN_PARSING[strategy as keyof ReturnParsing] : PARAMS_PARSING[strategy];
+}
+
 /** Params are decoded by the server and a return by the client, so the direction names the machine. */
 export const DECODE_SIDE_BY_DIRECTION = {params: 'server', return: 'client'} as const;
 export type DecodeSide = (typeof DECODE_SIDE_BY_DIRECTION)[keyof typeof DECODE_SIDE_BY_DIRECTION];
-export type EncodeFamily = (typeof ENCODE_FAMILY_BY_STRATEGY)[keyof typeof ENCODE_FAMILY_BY_STRATEGY];
-export type DecodeFamily = (typeof DECODE_FAMILY_BY_STRATEGY)[ParserStrategy][DecodeSide];
+export type EncodeFamily = ParsingRow['encode'];
+export type DecodeFamily = ParsingRow['decode'];
+export type ValidateFamily = ParsingRow['validate'];
 
 /** Used when no params exist or the return type is void: no JIT functions are generated. */
 export const EMPTY_HASH = '';
