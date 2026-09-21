@@ -1,21 +1,12 @@
-// Reads an env var under its current MION_ name, falling back to the
-// pre-rename RT_ spelling.
-//
-// The whole RT_ family moved to MION_ when the package namespace did. Most of
-// those vars are internal plumbing the repo's own scripts set on both ends, so
-// they moved and were done. A handful are read from a CONSUMER's environment,
-// where neither end is ours: someone's shell profile, CI job, or .env still
-// says RT_LINT_PRESPAWN. Dropping the old name there would silently stop
-// honouring a value they deliberately set.
-//
-// So the old name keeps working and warns once per process. The warning is the
-// point: a rename a user never hears about is a rename they debug later.
+// Reads an env var under its current MION_ name, falling back to the pre-rename RT_ spelling. The vars
+// that still need it are read from a CONSUMER's environment (a shell profile, a CI job, a .env), where
+// neither end is ours to move, so dropping the old name would silently stop honouring a value someone
+// deliberately set. It warns once per process: a rename a user never hears about is one they debug later.
 
 const warned = new Set<string>();
 
-// readEnvCompat returns the current name's value when it is SET (even empty:
-// an empty value is a deliberate choice, not a fall-through), else the legacy
-// RT_ twin's, warning once when the legacy name is what answered.
+// readEnvCompat prefers the current name whenever it is SET, even to empty: an empty value is a
+// deliberate choice, not a fall-through. It warns once when the legacy RT_ twin is what answered.
 export function readEnvCompat(name: string): string | undefined {
   const current = process.env[name];
   if (current !== undefined) return current;

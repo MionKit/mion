@@ -1,19 +1,9 @@
-// EditBuffer — a minimal in-house string editor + source-map generator for
-// the Vite plugin's rewrite. It exists so the published package carries ZERO
-// runtime dependencies: it replaced `magic-string`, previously the plugin's
-// only dependency.
-//
-// It implements ONLY what rewrite.ts uses — `appendLeft`, `update`,
-// `prepend`, `toString`, `generateMap` — and leans on three properties of the
-// rewrite's edits that a general-purpose editor can't assume:
-//   1. Every edit is expressed against ORIGINAL coordinates (no editing of
-//      already-edited text), so one left-to-right pass is exact and the order
-//      edits are applied in is irrelevant.
-//   2. Edits never overlap (sites land on distinct call close-parens;
-//      replacements on distinct factory-arg spans) — asserted, not resolved.
-//   3. Only the prepended import block adds newlines; every other edit is
-//      newline-free. So generated == original shifted down by the import
-//      block, with column shifts confined to each edited line.
+// EditBuffer — an in-house string editor + source-map generator, so the published package carries
+// ZERO runtime dependencies: it replaced `magic-string`. It implements only what apply-edits.ts
+// uses, and leans on three properties of the rewrite's edits a general-purpose editor can't assume:
+// every edit is against ORIGINAL coordinates (so one left-to-right pass is exact and edit order is
+// irrelevant); edits never overlap (asserted, not resolved); only the prepended import block adds
+// newlines, so column shifts stay confined to each edited line.
 //
 // ───────────────────────── CREDIT / ATTRIBUTION ─────────────────────────
 // The source-map segment math in `Mappings` (advance / addUnedited /
@@ -48,8 +38,7 @@
 //   DEALINGS IN THE SOFTWARE.
 // ─────────────────────────────────────────────────────────────────────────
 
-// SourceMap is a standard source-map v3 object — the plain shape Vite/Rollup
-// accept back from a transform (no methods required).
+// SourceMap is the plain source-map v3 shape a bundler accepts back from a transform (no methods).
 export interface SourceMap {
   version: number;
   sources: (string | null)[];
@@ -70,14 +59,11 @@ interface Replacement {
   content: string;
 }
 
-// EditBuffer accumulates point insertions (appendLeft) and span replacements
-// (update) against an immutable original, plus an optional prepended intro,
-// then renders the patched string and a source map.
+// EditBuffer edits an immutable original: every index it is given is an ORIGINAL coordinate.
 export class EditBuffer {
   private readonly original: string;
   private intro = '';
-  // leftInserts maps an original index to the text inserted immediately to
-  // its left; repeated appendLeft at one index accumulate in call order.
+  // Repeated appendLeft at one index accumulate in call order.
   private readonly leftInserts = new Map<number, string>();
   private readonly replacements: Replacement[] = [];
 
@@ -85,30 +71,25 @@ export class EditBuffer {
     this.original = original;
   }
 
-  // prepend stitches content onto the very front of the output (the import
-  // block); the rewrite only ever calls it once.
+  // prepend adds to the front of the output (the import block); the rewrite only ever calls it once.
   prepend(content: string): this {
     this.intro = content + this.intro;
     return this;
   }
 
-  // appendLeft inserts content immediately to the left of the original index;
-  // later calls at the same index land after earlier ones.
+  // appendLeft inserts to the left of an original index; later calls there land after earlier ones.
   appendLeft(index: number, content: string): this {
     if (!content) return this;
     this.leftInserts.set(index, (this.leftInserts.get(index) ?? '') + content);
     return this;
   }
 
-  // update replaces the original span [start, end) with content.
   update(start: number, end: number, content: string): this {
     if (end < start) throw new Error(`EditBuffer.update: end ${end} < start ${start}`);
     this.replacements.push({start, end, content});
     return this;
   }
 
-  // toString renders the patched source: the intro, then the original woven
-  // with its insertions and replacements.
   toString(): string {
     let out = this.intro;
     this.eachChunk(
@@ -119,8 +100,7 @@ export class EditBuffer {
     return out;
   }
 
-  // generateMap produces a source-map v3 object relocating every generated
-  // position back to the original, with boundary-granular segments.
+  // generateMap maps generated positions back to the original, with boundary-granular segments.
   generateMap(options: GenerateMapOptions = {}): SourceMap {
     const mappings = new Mappings(this.original, makeLocator(this.original));
     if (this.intro) mappings.advance(this.intro);
@@ -138,10 +118,7 @@ export class EditBuffer {
     };
   }
 
-  // eachChunk walks the document left to right, emitting verbatim copies
-  // (onCopy), inserted text with no source origin (onInsert), and replaced
-  // spans (onEdit). A left-insert at an index fires after the chunk ending
-  // there and before any replacement starting at the same index.
+  // eachChunk walks left to right; a left-insert at an index fires before a replacement starting there.
   private eachChunk(
     onCopy: (start: number, end: number) => void,
     onInsert: (text: string) => void,
@@ -180,10 +157,8 @@ export class EditBuffer {
     }
   }
 
-  // assertDisjoint guards the non-overlap invariant the single-pass render
-  // relies on: replacements may not overlap, and no insertion may fall
-  // strictly inside a replaced span. Both are structural impossibilities in
-  // the rewrite's edit set — a violation means a resolver/protocol bug.
+  // assertDisjoint guards the non-overlap invariant the single-pass render relies on.
+  // Both cases are structurally impossible in the rewrite's edit set: a violation means a resolver bug.
   private assertDisjoint(replacements: Replacement[], insertPositions: number[]): void {
     for (let i = 1; i < replacements.length; i++) {
       if (replacements[i].start < replacements[i - 1].end) {
@@ -202,10 +177,8 @@ export class EditBuffer {
   }
 }
 
-// Mappings builds the decoded segment grid (one row per generated line, each
-// segment [generatedColumn, sourceIndex, originalLine, originalColumn]) and
-// VLQ-encodes it. advance/addUnedited/addEdited mirror magic-string so the
-// boundary segmentation and edited-chunk anchoring match its output exactly.
+// Mappings holds one row per generated line; a segment is [generatedColumn, source, origLine, origColumn].
+// advance/addUnedited/addEdited mirror magic-string so the segmentation matches its output exactly.
 class Mappings {
   private generatedLine = 0;
   private generatedColumn = 0;
@@ -216,8 +189,7 @@ class Mappings {
     private readonly locate: (index: number) => {line: number; column: number}
   ) {}
 
-  // advance bumps the generated cursor past emitted-but-unmapped text (the
-  // intro and inserted runs) without recording any segment.
+  // advance moves the cursor past unmapped text (intro, inserted runs) without recording a segment.
   advance(text: string): void {
     if (!text) return;
     const lines = text.split('\n');
@@ -228,10 +200,8 @@ class Mappings {
     this.generatedColumn += lines[lines.length - 1].length;
   }
 
-  // addUnedited maps a verbatim run [start, end), emitting a segment at each
-  // word/non-word boundary while tracking the original line/column and
-  // splitting generated lines on newlines. A newline gets no segment — it
-  // just opens the next line — matching magic-string's addUneditedChunk.
+  // addUnedited maps a verbatim run, emitting a segment at each word/non-word boundary.
+  // A newline gets no segment, it just opens the next line, matching magic-string's addUneditedChunk.
   addUnedited(start: number, end: number): void {
     const loc = this.locate(start);
     let originalLine = loc.line;
@@ -248,13 +218,11 @@ class Mappings {
         continue;
       }
       if (isWordChar(char)) {
-        // Start of a word run gets one segment; the rest of the run rides it.
         if (!inWordRun) {
           this.rows[this.generatedLine].push([this.generatedColumn, 0, originalLine, originalColumn]);
           inWordRun = true;
         }
       } else {
-        // Every non-word char is its own boundary.
         this.rows[this.generatedLine].push([this.generatedColumn, 0, originalLine, originalColumn]);
         inWordRun = false;
       }
@@ -263,9 +231,7 @@ class Mappings {
     }
   }
 
-  // addEdited maps replaced content: one segment at its start pointing at the
-  // original start of the replaced span, then the generated cursor advances
-  // past it. The rewrite's replacement text is always single-line.
+  // addEdited anchors replaced content at the original span start; that text is always single-line.
   addEdited(start: number, content: string): void {
     if (!content) return;
     if (content.includes('\n')) throw new Error('EditBuffer: multi-line replacement text is not supported');
@@ -274,7 +240,6 @@ class Mappings {
     this.generatedColumn += content.length;
   }
 
-  // encode delta-VLQ-encodes the segment grid into the `mappings` string.
   encode(): string {
     let previousSource = 0;
     let previousOriginalLine = 0;
@@ -302,8 +267,7 @@ class Mappings {
 
 const VLQ_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-// encodeVlq base64-VLQ-encodes a single signed integer (sign in the LSB),
-// the inverse of the decoder in test/helpers/sourcemap.ts.
+// encodeVlq base64-VLQ-encodes a signed integer (sign in the LSB); inverse of test/helpers/sourcemap.ts.
 function encodeVlq(value: number): string {
   let vlq = value < 0 ? (-value << 1) | 1 : value << 1;
   let encoded = '';
@@ -316,15 +280,12 @@ function encodeVlq(value: number): string {
   return encoded;
 }
 
-// isWordChar matches magic-string's boundary regex (/\w/): ASCII letters,
-// digits, and underscore.
+// isWordChar matches magic-string's boundary regex (/\w/).
 function isWordChar(char: string): boolean {
   return /\w/.test(char);
 }
 
-// makeLocator returns an original-index -> {line, column} resolver backed by
-// a precomputed line-start table (binary search). Columns are UTF-16 code
-// units, matching the char indices the rewrite passes in.
+// makeLocator resolves an original index to line/column in UTF-16 code units, what the rewrite passes in.
 function makeLocator(source: string): (index: number) => {line: number; column: number} {
   const lineStarts = [0];
   for (let index = 0; index < source.length; index++) {

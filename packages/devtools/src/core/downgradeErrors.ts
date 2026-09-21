@@ -1,40 +1,22 @@
-// The `downgradeErrors` rule: report a named RuntimeError code as a Warning
-// instead, so one known finding stops halting a build while every other one
-// still does.
-//
-// It DOWNGRADES, it never hides. The finding is still printed on every build,
-// which is the difference between "unblock me" and "make this problem
-// invisible". Compare the `@mion-expect-error` comment, which removes a finding
-// outright but is site-local and self-cleaning, so it is the better tool
-// whenever the call site is in your own source.
-//
-// What may be downgraded follows the LEVEL: a RuntimeError can, because output
-// was produced and reporting it while carrying on is a legitimate choice. A
-// fatal Error never can, because there is no output to carry on with — not
-// halting would only ship a call that throws anyway.
-//
-// Severity on the wire stays whatever the catalog says: it is the label form,
-// and what acts on a finding is the consumer. So the downgrade is applied where
-// the halt decision is made — here for the bundler plugin, and in `mion compile`
-// for its exit code — and lint rule routing is left alone by a build setting.
-// The Go twin is ts-go-runtypes/internal/diagnostics/downgrade.go.
+// The `downgradeErrors` rule: report a named RuntimeError code as a Warning, so one known finding
+// stops halting a build while every other one still does. It DOWNGRADES, never hides: the finding is
+// still printed on every build (`@mion-expect-error` removes one outright, site-local and
+// self-cleaning, so it is the better tool when the call site is your own source). Only a RuntimeError
+// qualifies: a fatal Error produced no output to carry on with. Severity on the wire is untouched, so
+// the downgrade is applied where the halt decision is made, here for the bundler plugin and in
+// `mion compile` for its exit code, leaving lint rule routing alone.
+// Go twin: ts-go-runtypes/internal/diagnostics/downgrade.go.
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 import {Level, type Diagnostic} from './protocol.ts';
 
-// DOWNGRADE_ALL is the wildcard shape: every RuntimeError code reports as a
-// Warning, and it never reaches a fatal Error. The blunt instrument, kept for
-// adoption, where a project turning mion on cannot yet list the codes it has
-// not met.
+// Kept for adoption: a project turning mion on cannot yet list the codes it has not met.
 export const DOWNGRADE_ALL = '*';
 
-// DOWNGRADED_NOTE marks a finding that was stood down, by a `downgradeErrors`
-// setting or by a `@mion-downgrade-error` comment, so it never reads as a
-// warning that was always a warning. Twin of diagnostics.DowngradedNote on the
-// Go side, which `mion compile` prints.
+// DOWNGRADED_NOTE marks a lowered finding so it never reads as a warning that was always a warning.
+// Twin of diagnostics.DowngradedNote on the Go side, which `mion compile` prints.
 export const DOWNGRADED_NOTE = '(downgraded)';
 
-// DowngradeSet is a resolved `downgradeErrors` value. `all` is the wildcard;
-// otherwise only the listed codes are downgraded.
+// DowngradeSet is a resolved `downgradeErrors` value; `all` is the wildcard.
 export interface DowngradeSet {
   readonly all: boolean;
   readonly codes: ReadonlySet<string>;
@@ -43,15 +25,9 @@ export interface DowngradeSet {
 // NONE is the strict default: nothing is downgraded.
 export const NONE: DowngradeSet = {all: false, codes: new Set()};
 
-// resolveDowngradeErrors validates a configured value and resolves it into a
-// set, once at plugin-factory time so a config typo fails loudly at the host
-// boundary rather than silently protecting nothing.
-//
-// An unknown code throws (a typo would otherwise read as a working downgrade).
-// A fatal Error throws: those halt regardless, because the build produced no
-// code for the thing. A Warning is accepted and simply does nothing — a code's
-// level may soften between releases and that must never break a consumer's
-// build.
+// resolveDowngradeErrors resolves the configured value once at plugin-factory time, so a typo fails
+// loudly at the host boundary rather than silently protecting nothing. A Warning code is accepted and
+// does nothing: a code's level may soften between releases and that must never break a build.
 export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | undefined): DowngradeSet {
   if (value === undefined) return NONE;
   if (value === DOWNGRADE_ALL) return {all: true, codes: new Set()};
@@ -79,16 +55,9 @@ export function resolveDowngradeErrors(value: string[] | typeof DOWNGRADE_ALL | 
   return {all: false, codes};
 }
 
-// isDowngraded reports whether this diagnostic should be treated as a Warning.
-// Two ways in, one outcome: this build's `downgradeErrors` setting, or the
-// `@mion-downgrade-error` comment the resolver already stamped on the finding.
-// Only a RuntimeError is ever downgraded either way: a fatal Error has no
-// output to accept and a Warning is already one.
-//
-// The level comes off the WIRE, the same field the Go twin reads. The catalog
-// lookup above is for configured code STRINGS, which have no diagnostic to read
-// a level from; using it here would also mean an unrecognised code slipped
-// through the guard.
+// isDowngraded: two ways in, this build's `downgradeErrors` setting or the `@mion-downgrade-error`
+// comment the resolver already stamped on the finding. The level comes off the WIRE, the same field
+// the Go twin reads; the catalog lookup above is for configured code STRINGS, which carry no level.
 export function isDowngraded(set: DowngradeSet, diagnostic: Diagnostic): boolean {
   if (diagnostic.level !== Level.RuntimeError) return false;
   return diagnostic.downgraded === true || set.all || set.codes.has(diagnostic.code);
