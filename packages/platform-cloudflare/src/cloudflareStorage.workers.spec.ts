@@ -23,11 +23,15 @@
 // service worker cannot export a class, so it cannot host a Durable Object.
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {Miniflare} from 'miniflare';
-import {resolve} from 'path';
+import {dirname, resolve} from 'path';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 /** The pre-built modules bundle (all deps inlined + AOT caches), rebuilt every run. */
 const STORAGE_BUNDLE_PATH = resolve(__dirname, '../../test-server/build/test-server-cloudflare-storage.js');
+/** Miniflare names a modules worker `relative(modulesRoot, scriptPath)` and modulesRoot defaults to
+ *  process.cwd(), so from the package dir the name starts with `..` and workerd refuses to boot.
+ *  Pinning the root to the bundle's own dir is what makes the spec run from any directory. */
+const STORAGE_MODULES_ROOT = dirname(STORAGE_BUNDLE_PATH);
 
 let mf: Miniflare;
 
@@ -35,6 +39,7 @@ beforeAll(async () => {
   mf = new Miniflare({
     modules: true,
     scriptPath: STORAGE_BUNDLE_PATH,
+    modulesRoot: STORAGE_MODULES_ROOT,
     // useSQLite is what makes it a SQL-backed Durable Object, which is the only
     // kind drizzle-orm/durable-sqlite can drive.
     durableObjects: {NOTES_DO: {className: 'NotesDurableObject', useSQLite: true}},
