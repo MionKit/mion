@@ -26,9 +26,8 @@ const getSharedData = () => ({auth: {me: null as any}});
 
 // ############# Routes #############
 
-// Declares the routes; setup() creates the router that actually initializes them, once per setup()
-// call (resetRouter() clears the once-guard in between). The serializer is a build-time literal, so
-// the `mutate` variant is a second route set rather than a runtime option.
+// setup() creates the router that initializes these, once per call (resetRouter clears the once-guard).
+// The serializer is a build-time literal, so the `mutate` variant is a second route set, not an option.
 const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
@@ -75,7 +74,7 @@ const CLOUDFLARE_SETUP_KEYS = [
   'defaultResponseHeaders',
 ] as const satisfies readonly (keyof CloudflareSetupOptions)[];
 
-/** Sets up the cloudflare handler inside the workerd runtime. Returns the handler object. */
+/** Sets up the cloudflare handler inside the workerd runtime. */
 export async function setup(options?: CloudflareSetupOptions) {
   assertKnownSetupOptions(options, CLOUDFLARE_SETUP_KEYS, 'CloudflareTestServer.setup');
   resetCloudflareHandlerOpts();
@@ -89,12 +88,11 @@ export async function setup(options?: CloudflareSetupOptions) {
     basePath: options?.basePath ?? '',
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });
-  // Expose handler globally so the service worker fetch listener can access it
+  // the service worker fetch listener reaches it through the global
   (globalThis as any).handler = handler;
   return handler;
 }
 
-/** Resets all state (router + cloudflare handler options) */
 export function resetServer() {
   resetCloudflareHandlerOpts();
   resetRouter();

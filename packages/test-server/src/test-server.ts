@@ -11,7 +11,7 @@ import {PublicApi, Routes, createMionRouter} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 import type {Server as HttpServer} from 'node:http';
 import type {Server as HttpsServer} from 'node:https';
-// Import format types (regular import to ensure JIT functions are created)
+// regular import, not type-only, so the JIT functions get created
 import {String, Email, UUIDv4, Transform} from '@mionjs/run-types/formats';
 import {integer, pgTable, timestamp, uuid, varchar} from '@mionjs/drizzle-orm-pg-core';
 import {refineTableType} from '@mionjs/drizzle-orm';
@@ -20,8 +20,8 @@ import {Number} from '@mionjs/run-types/formats';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 // ============ Router ============
-// The one router of this server: the options live here, and every route / middleFn below is
-// declared through the helpers it returns (plain closures, so destructuring keeps them injected).
+// Every route / middleFn below comes from these helpers: plain closures, so destructuring keeps
+// them injected.
 type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null};
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null});
 const mion = createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
@@ -40,7 +40,7 @@ export type FlowStamp = {id: number; when: Date; counts: Map<string, number>; la
 type User = {name: string; surname: string};
 type Product = {id: string; name: string; price: number};
 
-// Types for testing validation with nested objects (friendlyErrors testing)
+// nested objects, for friendlyErrors tests
 type UserProfile = {
   name: string;
   email: string;
@@ -52,22 +52,19 @@ type UserProfile = {
   };
 };
 
-// Types with format validation for friendlyErrors testing
+// format types, for friendlyErrors tests
 export type UserWithFormats = {
   name: String<{minLength: 2; maxLength: 50}>;
   age: Number<{min: 13; max: 120; integer: true}>;
   email: Email;
 };
 
-// Session info returned by session middleFn
+// returned by the session middleFn
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
 // ============ Drizzle-derived models ============
-// Route-level e2e for the dialect packages: a proxy-built table refined for
-// the API, with the routes below taking/returning the DERIVED types. All the
-// wire functionality (validation of captured + refined params, Date
-// serialize/deserialize over the default JSON serializer) is generated from
-// the types alone.
+// Route-level e2e for the dialect packages: the routes below take and return the DERIVED types,
+// and validation plus Date serialization are generated from those types alone.
 const dbUsersTable = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', {length: 100}).notNull(),
@@ -173,26 +170,24 @@ export const compactTestRoutes = {
     }),
     {serializer: 'compact'}
   ),
-  // one direction each: compact params in, an in-place encoded value out
   mixed: route((_ctx, user: SimpleUser): SimpleUser => ({...user, age: user.age + 1}), {
     serializer: {params: 'compact', return: 'mutate'},
   }),
   // clone never mutates the handler's value
   cloned: route((_ctx, user: SimpleUser): SimpleUser => user, {serializer: 'clone'}),
-  // a compact middleFn in the chain: its params and return ride the compact wire too
+  // a middleFn in the chain: its params and return ride the compact wire too
   stamp: middleFn(
     (_ctx, tag?: string): {tag: string; when: Date} | null => (tag ? {tag, when: new Date('2024-02-02T02:02:02.000Z')} : null),
     {
       serializer: 'compact',
     }
   ),
-  // a PLAIN middleFn in the same chain, declaring no encoder of its own: it must still carry its
-  // params AND its return value on a non-default wire, never be dropped from the body
+  // a PLAIN middleFn declaring no encoder: it must still carry its params AND its return value on
+  // a non-default wire, never be dropped from the body
   plainStamp: middleFn((_ctx, note?: string): {note: string} | null => (note ? {note} : null)),
 } satisfies Routes;
 
-// A subclass of RpcError with fields of its own, declared next to its base in a route signature
-// and registered like any class: the client gets it back as a ScopedAuthError
+// Declared next to its base in a route signature: the client gets it back as a ScopedAuthError
 export class ScopedAuthError extends RpcError<'not-authorized'> {
   readonly scope: string;
   readonly retryAfter: number;
@@ -214,7 +209,6 @@ const routes = {
     }
     ctx.shared.user = {name: 'John', surname: 'Doe'};
   }),
-  // MiddleFn that returns session info on every request (optional param for flexibility in tests)
   session: middleFn((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
     if (!sessionToken) return null;
     if (sessionToken === 'expired') {
@@ -242,10 +236,8 @@ const routes = {
   sumNumbers: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
   greetUser: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'} ${name}`),
 
-  // Drizzle-derived CRUD: insert/select/update over the refined table's models.
-  // The in-memory store stands in for the database; the point is the WIRE -
-  // payloads validate against the derived types and Dates survive the JSON
-  // serializer both directions.
+  // The in-memory store stands in for the database; the point is the WIRE: payloads validate
+  // against the derived types and Dates survive the JSON serializer both directions.
   dbUsers: {
     insert: route((_ctx, user: NewDbUser): DbUser => {
       const row: DbUser = {
@@ -277,11 +269,10 @@ const routes = {
     processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
   },
 
-  // Routes for testing validation and friendly errors
   createUserProfile: route((_ctx, user: UserProfile): UserProfile => user),
-  // strictTypes route: rejects objects carrying unknown/extra properties (R17 client-side gate).
-  // The params ride `mutate`, the wire that hands the route exactly what arrived: `clone` and
-  // `compact` rebuild the params from the declared type, so an extra key is gone before the check.
+  // strictTypes rejects unknown/extra properties (R17 client-side gate). The params ride `mutate`,
+  // which hands the route exactly what arrived: `clone` and `compact` rebuild the params from the
+  // declared type, so an extra key is gone before the check.
   createUserStrict: route((_ctx, user: User): User => user, {strictTypes: true, serializer: {params: 'mutate'}}),
   // sanitizeParams routes: the email's declared transform runs after decode and before validation
   // on the server, and locally on the client when its own sanitizeParams option is on
@@ -294,7 +285,7 @@ const routes = {
     (_ctx, name: string, age: number, email: string): string => `User: ${name}, Age: ${age}, Email: ${email}`
   ),
 
-  // Routes with format types for friendlyErrors testing
+  // format types, for friendlyErrors tests
   createUserWithFormats: route((_ctx, user: UserWithFormats): UserWithFormats => user),
   validateName: route((_ctx, name: String<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`),
   validateAge: route((_ctx, age: Number<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
@@ -322,13 +313,13 @@ const routes = {
     return 'open';
   }),
 
-  // Route that THROWS an undeclared error (never returns it) - pins thrown -> unexpected-slot dispatch
+  // THROWS an undeclared error instead of returning it: pins thrown -> unexpected-slot dispatch
   throwsUnexpectedly: route((_ctx, msg: string): string => {
     // eslint-disable-next-line @mionjs/no-throw-in-handlers -- throwing IS what this fixture pins
     throw new RpcError({publicMessage: msg, type: 'db-connection-lost'});
   }),
 
-  // alwaysRun middleFn that can fail - pins unexpected-slot precedence when several errors exist
+  // an alwaysRun middleFn that can fail: pins unexpected-slot precedence when several errors exist
   audit: middleFn(
     (_ctx, fail?: boolean): string | RpcError<'audit-failed'> => {
       if (fail) return new RpcError({publicMessage: 'Audit failed', type: 'audit-failed'});
@@ -337,11 +328,11 @@ const routes = {
     {alwaysRun: true}
   ),
 
-  // Routes for testing pure functions with UUID validation
+  // UUID validation
   validateUUID: route((_ctx, uuid: UUIDv4): string => `Valid UUID: ${uuid}`),
   getUserById: route((_ctx, userId: UUIDv4): {id: UUIDv4; name: string} => ({id: userId, name: 'Test User'})),
 
-  // Routes for testing serialization/deserialization of complex types
+  // serialization of complex types
   getSameDate: route((_ctx, date: Date): Date => date),
   getDatePlusDays: route((_ctx, date: Date, days: number): Date => {
     const result = new Date(date);
@@ -368,7 +359,7 @@ const routes = {
     return set;
   }),
 
-  // Routes for testing batch inputFrom (output→input mapping between routes)
+  // batch inputFrom: output→input mapping between routes
   getCustomerById: route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
     id: customerId,
     name: 'Test Customer',
@@ -415,7 +406,6 @@ const routes = {
     }),
   },
 
-  // rawMiddleFn to capture HTTP method from the raw IncomingMessage into ctx.shared
   captureHttpMethod: rawMiddleFn((ctx, rawReq: any): void => {
     ctx.shared.httpMethod = rawReq?.method || 'UNKNOWN';
   }),
@@ -423,21 +413,21 @@ const routes = {
   // A route answering with headers: the client rebuilds the HeadersSubset from the response headers
   respondHeaders: route((_ctx, tag: string): HeadersSubset<'x-mion-echo'> => new HeadersSubset({'x-mion-echo': tag})),
 
-  // query() route — client should use GET with ?data= for small payloads
+  // query(): the client uses GET with ?data= for small payloads
   getRequestInfo: query((ctx, message: string): {message: string; httpMethod: string; urlQuery: string | undefined} => ({
     message,
     httpMethod: ctx.shared.httpMethod || 'UNKNOWN',
     urlQuery: ctx.urlQuery,
   })),
 
-  // mutation() route — client should always use POST
+  // mutation(): the client always uses POST
   mutateRequestInfo: mutation((ctx, message: string): {message: string; httpMethod: string; urlQuery: string | undefined} => ({
     message,
     httpMethod: ctx.shared.httpMethod || 'UNKNOWN',
     urlQuery: ctx.urlQuery,
   })),
 
-  // Route that sleeps for the given ms before returning - used for testing timeouts and cancellation
+  // for timeout and cancellation tests
   sleep: route(async (_ctx, ms: number): Promise<number> => {
     await new Promise((resolve) => setTimeout(resolve, ms));
     return ms;
@@ -447,16 +437,15 @@ const routes = {
   compact: compactTestRoutes,
 } satisfies Routes;
 
-// Port used when the caller names none: env var, command line arg, or the default.
+// Used when the caller names no port.
 const defaultPort = process.env.MION_TEST_PORT
   ? parseInt(process.env.MION_TEST_PORT, 10)
   : process.argv[2]
     ? parseInt(process.argv[2], 10)
     : 8076;
 
-/** Starts this test server on `port` and hands back the listening node server, so the caller can
- *  close it. This is how a test project gets a real socket now: its vitest globalSetup imports this
- *  module and calls it, in the SAME process (one program, one resolver, nothing spawned). */
+/** Starts the server and hands back the listening node server, so the caller can close it. A test
+ *  project's vitest globalSetup calls this in the SAME process, nothing is spawned. */
 export async function startTestServer(port: number = defaultPort): Promise<HttpServer | HttpsServer> {
   // Registers the routes, the internal mion routes (methodsMetadataById, …) included.
   mion.initRoutes(routes);
@@ -467,12 +456,11 @@ export async function startTestServer(port: number = defaultPort): Promise<HttpS
   return server;
 }
 
-// Export the combined API type for the client tests
+// used by the client tests
 export type TestServerApi = PublicApi<typeof routes>;
 
-// Importing this module NEVER starts a server; the env var is the explicit opt-in, used by the
-// lanes that run the entry as a program of its own (the compiled-server e2e lane, and the
-// middleware-mode e2e spec, which loads this entry through a vite dev server).
+// Importing this module NEVER starts a server; the env var is the explicit opt-in, set by the lanes
+// that run this entry as a program of its own.
 if (process.env.MION_TEST_SERVER_AUTO_START === 'true') {
   void startTestServer().catch((error) => {
     console.error('Failed to start test server:', error);

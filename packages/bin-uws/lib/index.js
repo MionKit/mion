@@ -3,38 +3,29 @@ import module from 'node:module';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-// uWebSockets.js binaries are raw V8 addons (not node-api), one file per
-// platform-arch-ABI triple, named exactly as upstream commits them:
-// uws_<platform>_<arch>_<abi>.node. The pinned upstream tag lives in this
-// package's manifest (`uwsTag`); the supported matrix below mirrors what that
-// tag ships. Bumping the tag means re-checking BOTH tables (upstream drops and
-// adds Node majors between tags) plus regenerating uws-checksums.json.
+// uWebSockets.js binaries are raw V8 addons (not node-api), one per platform-arch-ABI triple, named
+// as upstream commits them. The tables below mirror what the pinned `uwsTag` ships, so bumping it
+// means re-checking BOTH (upstream drops and adds Node majors) plus regenerating uws-checksums.json.
 const SUPPORTED_PLATFORMS = ['linux-x64', 'linux-arm64', 'darwin-x64', 'darwin-arm64', 'win32-x64'];
 const ABI_TO_NODE_MAJOR = {127: '22', 137: '24', 147: '26'};
 
-// Env var that points the loader at a DIRECTORY holding the .node binary,
-// overriding both lookups below — the escape hatch for air-gapped installs, a
-// vendored copy, or a self-built binary for an unsupported Node ABI (name the
-// file uws_<platform>_<arch>_<abi>.node to match the host). Checked before the
-// support-matrix validation on purpose, so a custom build for an out-of-matrix
-// ABI still loads.
+// Points the loader at a DIRECTORY holding the .node binary, overriding both lookups below; the
+// file must be named uws_<platform>_<arch>_<abi>.node to match the host. Checked BEFORE the
+// support-matrix validation on purpose, so a self-built binary for an out-of-matrix ABI still loads.
 const OVERRIDE_ENV = 'MION_UWS_BINARY_DIR';
 
 function binaryFileName(platform, arch, abi) {
   return `uws_${platform}_${arch}_${abi}.node`;
 }
 
-// The pinned upstream tag, read from this package's own manifest so the loader
-// and the fetch/staging scripts can never disagree about the version.
+// Read from this package's own manifest, so the loader and the fetch/staging scripts cannot disagree.
 function uwsTag() {
   const manifest = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'));
   return manifest.uwsTag;
 }
 
-// Reads the MION_UWS_BINARY_DIR override, returning null when unset or empty
-// (an empty value in a .env behaves like not setting it). A value that does not
-// name a directory throws instead of falling through — a typo must fail loudly,
-// never silently load a DIFFERENT binary than asked.
+// An empty value behaves like not setting it. A value that names no directory throws instead of
+// falling through: a typo must fail loudly, never silently load a DIFFERENT binary.
 function overrideDir(env) {
   const raw = env[OVERRIDE_ENV];
   if (!raw || raw.trim() === '') return null;
@@ -51,7 +42,6 @@ function overrideDir(env) {
   return dir;
 }
 
-// Resolves the absolute path of a package's package.json without importing it.
 // import.meta.resolve is sync on Node >= 20.6; createRequire is the fallback.
 function resolvePackageJson(specifier) {
   if (typeof import.meta.resolve === 'function') {
@@ -61,12 +51,9 @@ function resolvePackageJson(specifier) {
   return require.resolve(specifier);
 }
 
-// Returns the absolute path of the uWebSockets.js native binary for the host.
-// MION_UWS_BINARY_DIR wins when set; in this repo's source tree the on-demand
-// dev cache (packages/bin-uws/.uws-cache/<tag>/) is next; an installed tree
-// resolves the matching optional dependency @mionjs/native-uws-<platform>-<arch>.
-// The `host` argument exists so tests can drive every error path without
-// faking process globals; production callers pass nothing.
+// MION_UWS_BINARY_DIR wins, then this repo's on-demand dev cache, then the optional dependency
+// @mionjs/native-uws-<platform>-<arch>. The `host` argument exists so tests can drive every error
+// path without faking process globals; production callers pass nothing.
 export function resolveUwsBinaryPath(host = {}) {
   const platform = host.platform ?? process.platform;
   const arch = host.arch ?? process.arch;
@@ -104,8 +91,7 @@ export function resolveUwsBinaryPath(host = {}) {
   const normalized = here.replace(/\\/g, '/');
   const inDevTree = normalized.endsWith('/packages/bin-uws/lib');
 
-  // Dev: running from the workspace source — prefer the on-demand-fetched cache
-  // so the monorepo needs no platform package installed.
+  // Dev: prefer the on-demand-fetched cache so the monorepo needs no platform package installed.
   if (inDevTree) {
     const devExe = path.join(here, '..', '.uws-cache', uwsTag(), binaryFile);
     if (fs.existsSync(devExe)) return devExe;
@@ -139,9 +125,8 @@ export function resolveUwsBinaryPath(host = {}) {
 }
 
 let native;
-// Loads (once) and returns the uWebSockets.js native module for the host. The
-// addon is the whole API — upstream's own uws.js is a bare require of the same
-// file — so no wrapper layer sits between callers and uWS.
+// The addon is the whole API (upstream's own uws.js is a bare require of it), so no wrapper layer
+// sits between callers and uWS.
 export function loadUws() {
   if (!native) {
     const require = module.createRequire(import.meta.url);

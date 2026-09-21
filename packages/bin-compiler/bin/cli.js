@@ -4,8 +4,7 @@ import {getExePath} from '../lib/index.js';
 
 const exe = getExePath();
 
-// On POSIX with Node >= 22.15, replace this process so signals and the exit
-// code pass through transparently. Fall back to a child process otherwise.
+// On POSIX with Node >= 22.15, replace this process so signals and the exit code pass through.
 if (process.platform !== 'win32' && typeof process.execve === 'function') {
   try {
     process.execve(exe, [exe, ...process.argv.slice(2)]);

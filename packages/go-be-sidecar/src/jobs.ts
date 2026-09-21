@@ -1,8 +1,6 @@
-// Sidecar job runner: executes JS-regex jobs the Go resolver cannot run
-// itself (RE2 has no lookarounds or backreferences, and diverges from JS
-// semantics even on the shared syntax). Pure functions so the unit tests
-// cover them without spawning a process; the stdio shell (index.ts) and
-// the WASM host hook (hook.ts) are the only I/O layers, and both go
+// Runs the JS-regex jobs the Go resolver cannot: RE2 has no lookarounds or backreferences and
+// diverges from JS semantics even on the shared syntax. Pure functions, so tests need no process;
+// the stdio shell (index.ts) and the WASM host hook (hook.ts) are the only I/O layers, and both go
 // through handleRequestLine so they cannot drift.
 import RandExp from 'randexp';
 
@@ -23,24 +21,16 @@ export interface SidecarJob {
 
 export interface SidecarResult {
   id: number;
-  // The pattern failed `new RegExp` — a regex syntax error in the user's
-  // type definition (Go surfaces it as FMT002).
+  // The pattern failed `new RegExp`, a regex syntax error in the user's type (Go surfaces FMT002).
   compileError?: string;
-  // Evaluating one sample ran out of the match budget, on the quiet retry
-  // too: the pattern may backtrack catastrophically, or the host was simply
-  // saturated. Its own channel, never `compileError`: Go surfaces it as the
-  // TRANSIENT FMT007 and refuses to cache it, so a load spike never turns
-  // into a permanent verdict about the type.
+  // Out of match budget on the quiet retry too: catastrophic backtracking, or a saturated host.
+  // Its own channel, never `compileError`: Go surfaces the TRANSIENT FMT007 and never caches it.
   timedOut?: string;
-  // validate: samples that do NOT match the compiled pattern (Go surfaces
-  // FMT001).
+  // validate: samples that do NOT match the compiled pattern (Go surfaces FMT001).
   offenders?: string[];
-  // generate: the deterministic sample values (deduped; may be fewer than
-  // requested for small finite languages).
+  // generate: deterministic values, deduped; may be fewer than requested for finite languages.
   values?: string[];
-  // generate: the pattern compiles but no samples could be produced — an
-  // unsupported construct made randexp throw, or the whole retry budget
-  // yielded nothing that survives the self-check (Go surfaces FMT005).
+  // generate: pattern compiles but randexp threw, or no draw survived the self-check (Go: FMT005).
   generateError?: string;
   // Protocol-level failure (unknown op); Go treats it as an engine error.
   error?: string;
@@ -54,18 +44,13 @@ interface SidecarRequest {
 const LINE_SEPARATOR = String.fromCharCode(0x2028);
 const PARAGRAPH_SEPARATOR = String.fromCharCode(0x2029);
 
-// JSON.stringify leaves U+2028/U+2029 raw (legal inside JSON strings), but
-// they look like line breaks to newline-framed JS readers. A response can
-// echo them inside offender samples, so escape both — mirroring what Go's
-// encoding/json does on the request side — and no reader on either end can
-// ever see a bogus line break.
+// JSON.stringify leaves U+2028/U+2029 raw, but newline-framed readers see them as line breaks;
+// escape both, as Go's encoding/json does on the request side.
 function encodeLine(value: unknown): string {
   return JSON.stringify(value).split(LINE_SEPARATOR).join('\\u2028').split(PARAGRAPH_SEPARATOR).join('\\u2029');
 }
 
-// handleRequestLine is the whole request/response contract in one place:
-// one request-line JSON in, one response-line JSON out. Shared by the
-// stdio shell and the WASM host hook.
+// The whole request/response contract, shared by the stdio shell and the WASM host hook.
 export function handleRequestLine(line: string): string {
   try {
     const request = JSON.parse(line) as SidecarRequest;
@@ -86,30 +71,19 @@ function runJob(job: SidecarJob): SidecarResult {
   return {id: job.id, error: `unknown op ${JSON.stringify(job.op)}`};
 }
 
-// Strip g/y: `.test` advances lastIndex on global/sticky regexes — the
-// same statefulness guard registerFormatPattern applies at module load.
+// Strip g/y: `.test` advances lastIndex, the same guard registerFormatPattern applies.
 function statelessFlags(flags: string | undefined): string {
   return (flags ?? '').replace(/[gy]/g, '');
 }
 
-// A pattern can backtrack catastrophically — `(x|y)+.*.*` against a long run
-// of `x` never returns from `.test` — and this runner is single-threaded, so
-// one such job wedges the whole process: the request it arrived in is never
-// answered and the resolver waits out its round-trip timeout, then kills the
-// child and gives up on pattern checks for the rest of the build.
-//
-// The guard cannot live in this module. It is shared with the browser hook,
-// whose contract is a SYNCHRONOUS host callback, and no host can interrupt a
-// running match from inside its own thread. So a host that CAN bound one
-// installs its own matcher (the stdio shell does, under a vm timeout); every
-// other host keeps the plain test and behaves exactly as before.
+// A backtracking pattern wedges this single-threaded runner: the resolver times out, kills the
+// child and drops pattern checks for the rest of the build.
+// The guard cannot live here, this module is shared with the browser hook, whose contract is a
+// SYNCHRONOUS host callback; a host that CAN bound a match installs its own matcher instead.
 export const MATCH_TIMED_OUT = Symbol('match-timed-out');
 
-// Budgets a bounding host applies per sample, in milliseconds. A fine pattern
-// matches a sample in well under a millisecond, so the first budget is
-// generous already; the retry budget (see boundedMatch) is what a starved
-// match gets to finish on. Both together stay well under the resolver's 5 s
-// round-trip timeout, which a job must never exhaust.
+// Per-sample budgets a bounding host applies; the retry budget is what a starved match finishes on.
+// Both together stay well under the resolver's 5 s round-trip timeout, which a job must never hit.
 export const MATCH_BUDGET_MS = 250;
 export const MATCH_RETRY_BUDGET_MS = 2000;
 
@@ -121,23 +95,13 @@ export function setPatternMatcher(matcher: PatternMatcher): void {
   matchSample = matcher;
 }
 
-// A host's match budget is WALL-clock (index.ts runs the test under a vm
-// timeout): on a loaded machine the sidecar can be descheduled past the budget
-// in the middle of a trivial `.test`, so ONE timeout does not prove the
-// pattern backtracks (a convert-CLI fuzz replay running beside a parallel Go
-// build flagged /^(\w+)-\1$/ on a 3-character sample; a vitest run beside a Go
-// test run and a fuzz soak flagged the stock email format on 16 characters).
-// A timed-out sample is therefore judged AGAIN, once, on the larger quiet
-// budget, and the retries are capped per batch so a batch of real runaways
-// still answers inside Go's round-trip timeout. A genuine runaway times out
-// again at once and pays both budgets once (Go never memoizes a timeout).
+// The budget is WALL-clock, so ONE timeout does not prove backtracking: under load a trivial
+// `.test` has been descheduled past it. A timed-out sample is judged again on the quiet budget,
+// capped per batch so a batch of real runaways still answers inside Go's round-trip timeout.
 export const MATCH_RETRIES_PER_BATCH = 2;
 let matchRetriesLeft = MATCH_RETRIES_PER_BATCH;
 
-// boundedMatch is the one place a sample is judged: the normal budget first,
-// the quiet retry only when that timed out and the batch still has an
-// allowance. Hosts that cannot bound a match ignore the budget and never time
-// out, so they see exactly one call.
+// The one place a sample is judged; hosts that cannot bound a match never time out, so they see one call.
 function boundedMatch(tester: RegExp, sample: string): boolean | typeof MATCH_TIMED_OUT {
   const first = matchSample(tester, sample, MATCH_BUDGET_MS);
   if (first !== MATCH_TIMED_OUT || matchRetriesLeft <= 0) return first;
@@ -145,10 +109,7 @@ function boundedMatch(tester: RegExp, sample: string): boolean | typeof MATCH_TI
   return matchSample(tester, sample, MATCH_RETRY_BUDGET_MS);
 }
 
-// Reported as timedOut, never as `error`: `error` is the protocol channel and
-// Go treats it as an engine failure, killing the sidecar and disabling pattern
-// checks for the whole build. A pattern nobody could evaluate in time is one
-// job's verdict, and one that must not outlive this build (see SidecarResult).
+// Reported as timedOut, never as `error`: `error` makes Go kill the sidecar and drop pattern checks for the build.
 function runawayMessage(sample: string): string {
   const size = [...sample].length;
   return `pattern evaluation timed out on a ${size}-character sample; the pattern may backtrack catastrophically`;
@@ -158,21 +119,13 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-// randexp does not understand Unicode property escapes: it renders `\p{Letter}`
-// as the literal text `p{Letter}`, so every draw fails the pattern's own
-// self-check and the job dies with generateError. Those escapes are exactly
-// what a `u`-mode pattern is for, and the JSON Schema door compiles every
-// schema `pattern` in `u` mode, so before the GENERATOR sees the source each
-// escape is swapped for a character class of characters that really do satisfy
-// it — decided by the regex engine, so no Unicode table lives here. Inside an
-// existing class the members are spliced in bare, since a nested `[...]` would
-// not parse. The TESTER keeps compiling the ORIGINAL source, which is what
-// makes this safe: an approximation that drifts just fails the self-check and
-// the candidate is dropped, exactly as any other unlucky draw.
+// randexp renders `\p{Letter}` as literal text, so every draw fails the self-check; each escape is
+// swapped for a class of characters the regex engine itself says satisfy it, no Unicode table here.
+// Inside an existing class the members are spliced in bare, a nested `[...]` would not parse.
+// The TESTER keeps the ORIGINAL source, so an approximation that drifts only costs an unlucky draw.
 const PROPERTY_ESCAPE = /\\[pP]\{[^}]*\}/;
-// One character per family the escapes in real schemas select on: latin (both
-// cases), digits, punctuation/space, then accented latin, greek, cyrillic,
-// arabic, hebrew, han, hiragana, hangul, and a non-ASCII digit.
+// One character per family real schemas select on: latin, digits, punctuation/space, accented
+// latin, greek, cyrillic, arabic, hebrew, han, hiragana, hangul, and a non-ASCII digit.
 const PROPERTY_ALPHABET = 'aQz09 _-.,éßπΩЖДاבּ中日ひカ한٣';
 
 function classEscape(char: string): string {
@@ -184,7 +137,6 @@ function expandPropertyEscapes(source: string): string {
   let rest = source;
   let inClass = false;
   while (rest.length > 0) {
-    // Copy escaped pairs verbatim unless the escape is the property one.
     if (rest[0] === '\\') {
       const property = PROPERTY_ESCAPE.exec(rest);
       if (property && property.index === 0) {
@@ -233,9 +185,7 @@ function runValidate(job: SidecarJob): SidecarResult {
   return offenders.length > 0 ? {id: job.id, offenders} : {id: job.id};
 }
 
-// mulberry32: the same tiny seeded PRNG the fuzz harness uses. Drives
-// randexp's documented `randInt` override so generation is fully
-// deterministic per (seed) — same seed, same value stream, everywhere.
+// The same seeded PRNG the fuzz harness uses; drives randexp's `randInt` so a seed pins the value stream.
 function mulberry32(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
@@ -246,15 +196,9 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-// runGenerate draws candidate values from randexp and keeps the ones that
-// survive the SELF-CHECK: the real compiled regex plus the code-point length
-// bounds. The self-check is load-bearing — randexp is lenient with
-// impossible constructs (bad positionals are ignored, unknown backrefs
-// yield empty strings), so a candidate can legitimately fail the pattern
-// it was generated from. Each attempt draws a NEW value from the seeded
-// stream, so retrying recovers unlucky draws; generateError only after
-// the whole budget (count x patternSampleRetries, computed Go-side)
-// yields nothing.
+// The SELF-CHECK is load-bearing: randexp is lenient with impossible constructs, so a candidate can
+// fail the pattern it was generated from. Each attempt draws a NEW value from the seeded stream, so
+// generateError only after the whole budget (count x patternSampleRetries, computed Go-side).
 function runGenerate(job: SidecarJob): SidecarResult {
   const flags = statelessFlags(job.flags);
   let tester: RegExp;
@@ -275,8 +219,7 @@ function runGenerate(job: SidecarJob): SidecarResult {
   const maxLength = Math.max(0, job.maxLength ?? 0); // 0 = unbounded
   const random = mulberry32(job.seed ?? 0);
   generator.randInt = (from, to) => from + Math.floor(random() * (to - from + 1));
-  // Bound infinite quantifiers: honor the declared maxLength when present,
-  // otherwise keep mock values shortish (randexp's own default is 100).
+  // Bound infinite quantifiers: randexp's own default of 100 makes mock values huge.
   generator.max = Math.min(maxLength > 0 ? maxLength : 10, 100);
   const values = new Set<string>();
   for (let attempt = 0; attempt < maxAttempts && values.size < count; attempt++) {
