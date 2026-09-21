@@ -29,7 +29,7 @@ func TestApiGen_EveryHardcodedFamilyResolves(t *testing.T) {
 // TestApiGen_ParseModesMatchTheTsTable pins every row against PARSE_MODES in packages/core/src/constants.ts.
 // A disagreement makes strategyFromFamilies match no row on the bundled lane.
 func TestApiGen_ParseModesMatchTheTsTable(t *testing.T) {
-	want := map[string]parsingRow{
+	want := map[string]parseModeRow{
 		"clone":        {"validateUnionKeys", "validationErrorsUnionKeys", "prepareForJsonClone", "restoreFromJsonClone"},
 		"mutate":       {"validate", "validationErrors", "prepareForJsonMutate", "restoreFromJsonMutate"},
 		"mutateStrict": {"validateStrict", "validationErrorsStrict", "prepareForJsonMutate", "restoreFromJsonMutate"},

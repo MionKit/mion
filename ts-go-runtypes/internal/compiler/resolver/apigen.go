@@ -514,8 +514,8 @@ func parserStrategies(options map[string]any) (params, ret string) {
 	return params, ret
 }
 
-// parsingRow is every family one wire compiles, in the order a marker lists them.
-type parsingRow struct {
+// parseModeRow is every family one wire compiles, in the order a marker lists them.
+type parseModeRow struct {
 	validate         string
 	validationErrors string
 	encode           string
@@ -526,7 +526,7 @@ type parsingRow struct {
 // All three must name the same families or strategyFromFamilies matches no row on the bundled lane.
 // The validator follows the decoder: `clone` and `compact` rebuild the declared shape, so only a union can hide a key.
 // `mutateStrict` has a row like any other; the RETURN wire never reaches it because ReturnParserStrategy leaves it out.
-var parseModes = map[string]parsingRow{
+var parseModes = map[string]parseModeRow{
 	"clone":        {"validateUnionKeys", "validationErrorsUnionKeys", "prepareForJsonClone", "restoreFromJsonClone"},
 	"mutate":       {"validate", "validationErrors", "prepareForJsonMutate", "restoreFromJsonMutate"},
 	"mutateStrict": {"validateStrict", "validationErrorsStrict", "prepareForJsonMutate", "restoreFromJsonMutate"},
@@ -534,7 +534,7 @@ var parseModes = map[string]parsingRow{
 }
 
 // parseMode returns the row a strategy compiles, falling back to `clone` like parserStrategies' own default.
-func parseMode(strategy string) parsingRow {
+func parseMode(strategy string) parseModeRow {
 	if row, ok := parseModes[strategy]; ok {
 		return row
 	}
@@ -543,7 +543,7 @@ func parseMode(strategy string) parsingRow {
 
 // markerKeys renders a row as the marker's slot list. `formatTransform` (sanitizeParams) is params-only: the
 // answer side is written by the handler, never by a caller.
-func (row parsingRow) markerKeys(isParams bool) []string {
+func (row parseModeRow) markerKeys(isParams bool) []string {
 	if isParams {
 		return []string{row.validate, row.validationErrors, "formatTransform", row.encode, row.decode}
 	}
