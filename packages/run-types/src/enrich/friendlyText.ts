@@ -60,13 +60,9 @@ type NonFailingParams = 'isCurrency' | 'mockSamples' | 'transform';
  *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */
 type CountBearingKeys = 'minLength' | 'maxLength' | 'min' | 'max' | 'lt' | 'gt';
 
-/** Per-constraint mode: `type` (the base kind failure) plus one REQUIRED key
- *  per failable format param — a blank `''` means "no custom message" (the
- *  opt-out; deleting a key just gets it re-scaffolded by `mion enrich --update`).
- *  Count-bearing keys accept a plural object, the rest plain templates. NO
- *  index signature: an unknown key is an excess-property error in the IDE
- *  (FT003, moved to compile time). `rt$default` is banned here — it belongs to
- *  the exclusive mode below. */
+/** Per-constraint mode: a blank `''` opts out of a custom message, and deleting a key just gets it re-scaffolded by `mion enrich --update`.
+ *  NO index signature: an unknown key is an excess-property error in the IDE (FT003, moved to compile time).
+ *  `rt$default` is banned here, it belongs to the exclusive mode below. */
 type ConstraintTemplates<P> = {type: FriendlyTemplate} & {
   [K in Exclude<keyof P & string, NonFailingParams>]: K extends CountBearingKeys ? TemplateLeaf : FriendlyTemplate;
 } & {rt$default?: never};
@@ -74,7 +70,7 @@ type ConstraintTemplates<P> = {type: FriendlyTemplate} & {
 /** `rt$default` mode: ONE message for the whole field, whatever failed.
  *  MUTUALLY EXCLUSIVE with per-constraint messages — a node is either fully
  *  custom or fully catch-all, never a mix. Scaffolds are always per-constraint;
- *  picks which mode `gen` scaffolds FIRST; after that the node's authored
+ *  picks which mode `mion enrich` scaffolds FIRST; after that the node's authored
  *  mode is owned by the author and the reconcile follows it. */
 type DefaultOnlyTemplates = {rt$default: FriendlyTemplate; type?: never};
 
@@ -101,7 +97,7 @@ export type ErrorTemplates<F = never> = [F] extends [never]
  *  exactly the keys the field's format params declare. `rt$typeName` is the
  *  lone optional meta: a friendly name for a NAMED type (`PG_User` → `'User'`),
  *  defaulting to the reflected type name. The `rt$` prefix is RESERVED in
- *  enriched types (gen refuses / FT011 flags a colliding `rt$…` property), so
+ *  enriched types (`mion enrich` refuses / FT011 flags a colliding `rt$…` property), so
  *  meta keys can never be shadowed by the homomorphic child map. */
 export interface FriendlyMeta<F = never> {
   rt$label: string;

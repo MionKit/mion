@@ -12,17 +12,13 @@ import (
 	"testing"
 )
 
-// staleVerbPatterns match a user-visible string that tells the reader to run a
-// `gen` command. The CLI has no `gen` verb: the flag set is `enrich`, so every
-// remedy spells `mion enrich …`.
+// staleVerbPatterns match a string naming a `gen` command: the CLI has no `gen` verb, remedies spell `mion enrich`.
 var staleVerbPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(^|[^\w-])gen\s+--`),
 	regexp.MustCompile(`(^|[^\w-])(re-)?run gen(\s|$)`),
 }
 
-// enrichmentSourceRoots are the trees whose string literals reach a user: the
-// enrichment engine, the CLI that drives it, and the diagnostic catalog whose
-// Detail prose is published on the website.
+// enrichmentSourceRoots are the trees whose string literals reach a user, the website-published catalog Detail included.
 var enrichmentSourceRoots = []string{
 	filepath.Join("..", ".."),
 	filepath.Join("..", "..", "..", "cmd", "mion"),
@@ -77,8 +73,7 @@ func TestNoStaleGenVerbInUserVisibleStrings(t *testing.T) {
 	}
 }
 
-// TestBreadcrumbDriftMessagesNameTheEnrichVerb pins the GE002 / GE003 remedies
-// a reader actually types.
+// TestBreadcrumbDriftMessagesNameTheEnrichVerb pins the GE002 / GE003 remedies a reader actually types.
 func TestBreadcrumbDriftMessagesNameTheEnrichVerb(t *testing.T) {
 	dir := t.TempDir()
 	mirrorFile := filepath.Join(dir, "enriched", "user.ts")
@@ -104,8 +99,7 @@ func TestBreadcrumbDriftMessagesNameTheEnrichVerb(t *testing.T) {
 	assertEnrichVerb(t, "GE003", findings[0].Message)
 }
 
-// TestParseMirrorErrorNamesTheEnrichVerb pins the same remedy on the reconcile
-// path, which is where an unparsable mirror stops the run.
+// TestParseMirrorErrorNamesTheEnrichVerb pins the same remedy on the reconcile path's unparsable-mirror stop.
 func TestParseMirrorErrorNamesTheEnrichVerb(t *testing.T) {
 	_, err := ParseMirror("/rt/gen/broken.ts", []byte("export const friendlyUser: FriendlyText<User> = {"))
 	if err == nil {
