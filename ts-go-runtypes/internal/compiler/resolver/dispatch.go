@@ -807,15 +807,9 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if metrics != nil {
 			metrics.PrepMs = elapsedMs(prepStart)
 		}
-		// rtDiagnostics is the sink the walker appends to at every
-		// root-throw / silent-skip site reached during the entry collection
-		// below. Single sink covers every collect in this dispatch so a
-		// single shared throw-site emits one diag per call site. The
-		// render opts (provenance line/col conversion + full ref table)
-		// are built ONLY when collection will actually run — the plain
-		// rewrite-pipeline scan (no entry modules requested) skips all of
-		// that work. IncludeRtDiagnostics runs the SAME collection for its
-		// diagnostics but drops the module payload (lint pass).
+		// One sink for every collect in this dispatch, so a single shared throw-site emits one diag per call site.
+		// The render opts are built ONLY when collection runs; a plain rewrite scan (no entry modules) skips that work.
+		// IncludeRtDiagnostics runs the SAME collection but drops the module payload (lint pass).
 		renderEntries := request.IncludeEntryModules || request.IncludeRtDiagnostics
 		var rtDiagnostics []diagnostics.Diagnostic
 		// rtPureFnDeps accumulates the pure-fn dependencies the family walkers

@@ -565,9 +565,7 @@ func (ctx *EmitContext) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return ""
 }
 
-// EmitDiagnosticSlot is the slot-keyed sibling of EmitDiagnostic for
-// silent-skip sites. Resolves the code via the active emitter's
-// DiagCodeFor; no-op when the slot isn't registered.
+// EmitDiagnosticSlot is the slot-keyed sibling of EmitDiagnostic for silent-skip sites.
 func (ctx *EmitContext) EmitDiagnosticSlot(slot DiagSlot, args ...string) {
 	code := ctx.DiagCodeFor(slot)
 	if code == "" {

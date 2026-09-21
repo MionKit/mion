@@ -56,10 +56,8 @@ type RenderOpts struct {
 	// session. Required when Store is non-nil. The resolver passes its
 	// runtype.Cache here (which satisfies diskcache.HashLookup).
 	Lookup diskcache.HashLookup
-	// DiagSink is the destination for compile-time diagnostics emitted
-	// by the walker at root-throw / silent-skip sites. Nil disables
-	// diagnostic emission entirely — keeps tests that don't care about
-	// the per-call-site fan-out quiet.
+	// DiagSink is where the walker appends compile-time diagnostics from root-throw / silent-skip sites.
+	// Nil disables emission, which keeps tests that don't care about the per-call-site fan-out quiet.
 	DiagSink *[]diagnostics.Diagnostic
 	// PureFnDepSink, when non-nil, accumulates every pure-fn dependency the
 	// walker records while rendering a LIVE entry body (walker.PureFnDependencies
@@ -89,12 +87,8 @@ type RenderOpts struct {
 	// sites available for anchoring.
 	PatternSampleCount int
 	PatternGenFailures map[string]formats.PatternGenFailure
-	// ProvenanceSites maps each rendered entry (ProvenanceKey: type id +
-	// family tag) to the marker call sites that REACH it, the type named at
-	// the call plus everything under it. EmitDiagnostic uses this to fan out
-	// one Diagnostic per call site so the user gets actionable file:line:col
-	// coordinates — without it, a root-throw would record a diagnostic with
-	// empty Site and the warning would be useless in the editor.
+	// ProvenanceSites maps each rendered entry (ProvenanceKey: type id + family tag) to the call sites that REACH it,
+	// the named type plus all under it; EmitDiagnostic fans one Diagnostic per site, else the warning has no location.
 	ProvenanceSites map[string][]diagnostics.Site
 	// RootedSites is the same map narrowed to the sites where the id is the
 	// type NAMED at the call, with nothing inherited from a parent. A
