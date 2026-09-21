@@ -275,29 +275,30 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(fns.json.strategy).toBe('clone');
   });
 
-  it('fails closed on a payload with no encode family, two encode families, or a mismatched decoder', () => {
+  // A payload must match exactly ONE row of its direction's table. Anything else is build skew, and matching the
+  // whole row is what catches a decoder that belongs to another strategy or to the other side of the wire.
+  it('fails closed unless the payload matches exactly one parsing row', () => {
     const okValidators = [tuple('vuk'), tuple('veuk')];
+    // no encoder at all
     expect(() => buildJitFnsFromMarker([...okValidators, tuple('rj')], 'x', 'noEncode', 'params')).toThrow(
-      /exactly one JSON encode family/
+      /matches 0 parser strategies/
     );
-    expect(() =>
-      buildJitFnsFromMarker([...okValidators, tuple('pj'), tuple('cj'), tuple('rj')], 'x', 'twoEncoders', 'params')
-    ).toThrow(/exactly one JSON encode family/);
+    // a clone validator with a compact JSON pair: no row names that combination
     expect(() => buildJitFnsFromMarker([...okValidators, tuple('cj'), tuple('rj')], 'x', 'mismatch', 'params')).toThrow(
-      /needs decoder 'compactFromJson'/
+      /matches 0 parser strategies/
     );
-    expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr', 'params')).toThrow(
-      /needs validate\/validationErrors/
-    );
-    // the server's `mutate` decoder on the return wire, where the client's rebuilding one belongs
+    // the server's `mutate` decoder on the RETURN wire, where the client's rebuilding one belongs
     expect(() =>
       buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'wrongSide', 'return')
-    ).toThrow(/needs decoder 'restoreFromJsonClone'/);
+    ).toThrow(/matches 0 parser strategies/);
+    // the row matched, but its error twin never shipped
+    expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr', 'params')).toThrow(
+      /needs validationErrors beside validate/
+    );
   });
 
-  // `mutate` and `mutateStrict` share an encoder, so the VALIDATE family is the only thing telling them apart.
-  // The direction guard matters as much as the family: a return wire always carries the plain pair, so without
-  // it every mutate answer would read as mutateStrict.
+  // `mutate` and `mutateStrict` share an encoder AND a decoder, so the validator is the only thing telling their
+  // rows apart. The direction matters as much: RETURN_PARSING has no mutateStrict row at all.
   it('tells mutate from mutateStrict by the validate family, on the params wire only', () => {
     const plain = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'mutate', 'params');
     expect(plain.json.strategy).toBe('mutate');

@@ -11,33 +11,21 @@
 import {describe, expect, it} from 'vitest';
 import {getFnHash} from '@mionjs/run-types/runtime';
 import type {FnHashKey} from '@mionjs/run-types/runtime';
-import {JIT_FUNCTION_IDS} from './constants.ts';
-
-// mion's family name -> the run-types family getFnHash is asked for.
-const FAMILY_BY_ID: Record<keyof typeof JIT_FUNCTION_IDS, FnHashKey> = {
-  isType: 'validate',
-  typeErrors: 'validationErrors',
-  validateUnionKeys: 'validateUnionKeys',
-  validationErrorsUnionKeys: 'validationErrorsUnionKeys',
-  validateStrict: 'validateStrict',
-  validationErrorsStrict: 'validationErrorsStrict',
-  hasUnknownKeys: 'hasUnknownKeys',
-  unknownKeyErrors: 'unknownKeyErrors',
-  formatTransform: 'formatTransform',
-  prepareForJsonClone: 'prepareForJsonClone',
-  prepareForJsonMutate: 'prepareForJsonMutate',
-  compactForJson: 'compactForJson',
-  restoreFromJsonMutate: 'restoreFromJsonMutate',
-  restoreFromJsonClone: 'restoreFromJsonClone',
-  compactFromJson: 'compactFromJson',
-};
+import {JIT_FUNCTION_IDS, PARAMS_PARSING, RETURN_PARSING} from './constants.ts';
 
 describe('JIT_FUNCTION_IDS', () => {
-  it.each(Object.entries(FAMILY_BY_ID))('%s still matches getFnHash(%s)', (id, family) => {
-    expect(JIT_FUNCTION_IDS[id as keyof typeof JIT_FUNCTION_IDS]).toBe(getFnHash(family));
+  // The keys ARE the run-types family names, so there is no mapping table to keep in step: a key that is not
+  // a family makes getFnHash throw, and a drifted value fails here.
+  it.each(Object.keys(JIT_FUNCTION_IDS))('%s still matches getFnHash', (family) => {
+    expect(JIT_FUNCTION_IDS[family as keyof typeof JIT_FUNCTION_IDS]).toBe(getFnHash(family as FnHashKey));
   });
 
-  it('names every family the constant declares', () => {
-    expect(Object.keys(FAMILY_BY_ID).sort()).toEqual(Object.keys(JIT_FUNCTION_IDS).sort());
+  // Every family a parser strategy can ask for must have an id, or its route resolves nothing at run time.
+  it('carries an id for every family the parsing tables name', () => {
+    const named = new Set(
+      [...Object.values(PARAMS_PARSING), ...Object.values(RETURN_PARSING)].flatMap((row) => Object.values(row))
+    );
+    const missing = [...named].filter((family) => !(family in JIT_FUNCTION_IDS));
+    expect(missing, `families with no JIT_FUNCTION_IDS entry: ${missing.join(', ')}`).toEqual([]);
   });
 });

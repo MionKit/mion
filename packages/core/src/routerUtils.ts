@@ -6,13 +6,8 @@
  * ######## */
 
 import {
-  DECODE_FAMILY_BY_STRATEGY,
-  RETURN_VALIDATE_FAMILY,
-  VALIDATE_FAMILY_BY_STRATEGY,
-  DECODE_SIDE_BY_DIRECTION,
-  ENCODE_FAMILY_BY_STRATEGY,
   JIT_FUNCTION_IDS,
-  JIT_ID_BY_VALIDATE_FAMILY,
+  parsingRow,
   PATH_SEPARATOR,
   ROUTER_ITEM_SEPARATOR_CHAR,
   ROUTE_PATH_ROOT,
@@ -118,16 +113,14 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-/** The direction picks the decoder: params are decoded by the server, a return by the client. */
+/** One row of PARAMS_PARSING or RETURN_PARSING names every family this wire compiled. */
 export function getJitFnHashes(jitHash: string, strategy: ParserStrategy, direction: ParserDirection): JitFunctionsHashes {
-  const decodeFamily = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
-  // A return always carries the plain pair; a strategy-driven lookup there would name an entry the build never emitted.
-  const validate = direction === 'return' ? RETURN_VALIDATE_FAMILY : VALIDATE_FAMILY_BY_STRATEGY[strategy];
+  const row = parsingRow(strategy, direction);
   return {
-    isType: `${JIT_ID_BY_VALIDATE_FAMILY[validate.isType]}_${jitHash}`,
-    typeErrors: `${JIT_ID_BY_VALIDATE_FAMILY[validate.typeErrors]}_${jitHash}`,
-    encode: `${JIT_FUNCTION_IDS[ENCODE_FAMILY_BY_STRATEGY[strategy]]}_${jitHash}`,
-    decode: `${JIT_FUNCTION_IDS[decodeFamily]}_${jitHash}`,
+    isType: `${JIT_FUNCTION_IDS[row.validate]}_${jitHash}`,
+    typeErrors: `${JIT_FUNCTION_IDS[row.validationErrors]}_${jitHash}`,
+    encode: `${JIT_FUNCTION_IDS[row.encode]}_${jitHash}`,
+    decode: `${JIT_FUNCTION_IDS[row.decode]}_${jitHash}`,
     // Named for every hash: the entry only exists when a params marker demanded it (the return
     // markers never do), so the deps lane ships it exactly when it is real.
     formatTransform: `${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`,
@@ -234,8 +227,8 @@ export function resetRoutesCache() {
 // as a plain json value and never encodes anything.
 // prettier-ignore
 const noopJitFns: JitCompiledFunctions = {
-    isType: fakeJitFn(JIT_FUNCTION_IDS.isType),
-    typeErrors: fakeJitFn(JIT_FUNCTION_IDS.typeErrors),
+    isType: fakeJitFn(JIT_FUNCTION_IDS.validate),
+    typeErrors: fakeJitFn(JIT_FUNCTION_IDS.validationErrors),
     json: {strategy: 'mutate', encode: fakeJitFn(JIT_FUNCTION_IDS.prepareForJsonMutate), decode: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJsonMutate)},
 } as any;
 

@@ -161,7 +161,7 @@ describe('parser strategies at the router level', () => {
         cloneRoute: JIT_FUNCTION_IDS.validateUnionKeys,
         defaultRoute: JIT_FUNCTION_IDS.validateUnionKeys,
         compactRoute: JIT_FUNCTION_IDS.validateUnionKeys,
-        mutateRoute: JIT_FUNCTION_IDS.isType,
+        mutateRoute: JIT_FUNCTION_IDS.validate,
         strictRoute: JIT_FUNCTION_IDS.validateStrict,
       };
       for (const [id, family] of Object.entries(expected)) {
@@ -171,7 +171,7 @@ describe('parser strategies at the router level', () => {
 
     it('only the params direction decides', () => {
       mion.initRoutes({mutateParamsOnly, cloneParamsOnly});
-      expect(familyOf(getRouteExecutable('mutateParamsOnly')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.isType);
+      expect(familyOf(getRouteExecutable('mutateParamsOnly')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validate);
       expect(familyOf(getRouteExecutable('cloneParamsOnly')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validateUnionKeys);
     });
 
@@ -183,7 +183,7 @@ describe('parser strategies at the router level', () => {
     it('the answer side always compiles the plain pair', () => {
       mion.initRoutes({cloneRoute, mutateRoute, strictRoute, mutateParamsOnly, compactRoute});
       for (const id of ['cloneRoute', 'mutateRoute', 'strictRoute', 'mutateParamsOnly', 'compactRoute']) {
-        expect([id, familyOf(getRouteExecutable(id)!.returnJitFns)]).toEqual([id, JIT_FUNCTION_IDS.isType]);
+        expect([id, familyOf(getRouteExecutable(id)!.returnJitFns)]).toEqual([id, JIT_FUNCTION_IDS.validate]);
       }
     });
   });

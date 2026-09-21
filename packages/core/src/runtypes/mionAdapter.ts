@@ -12,14 +12,7 @@ import type {GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '
 import type {FnHashKey} from '@mionjs/run-types/runtime';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types/runtime';
 import {getJitFnHashes} from '../routerUtils.ts';
-import {
-  DECODE_FAMILY_BY_STRATEGY,
-  DECODE_SIDE_BY_DIRECTION,
-  RETURN_VALIDATE_FAMILY,
-  STRATEGY_BY_ENCODE_FAMILY,
-  VALIDATE_FAMILY_BY_STRATEGY,
-  type DecodeFamily,
-} from '../constants.ts';
+import {PARAMS_PARSING, RETURN_PARSING, type ParsingRow} from '../constants.ts';
 import type {
   AnyFn,
   MionTypeFn,
@@ -193,41 +186,34 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
   return fabricateEntry(fn, fnID, label, rtFnHash);
 }
 
-const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
-const DECODE_FAMILIES = ['restoreFromJsonMutate', 'restoreFromJsonClone', 'compactFromJson'] as const;
 type CompiledJsonFamilies = {
   strategy: ParserStrategy;
-  encodeFamily: (typeof ENCODE_FAMILIES)[number];
-  decodeFamily: DecodeFamily;
+  row: ParsingRow;
 };
 
-/** The JSON strategy a fn set was compiled for, read off its injected families: exactly one encode
- *  family and its matching decode family. Anything else is build / version skew and fails closed. */
+/** The strategy a fn set was compiled for, read off its injected families: the ONE row of this direction's
+ *  table whose encoder, decoder and validator are all present. No row matches a payload from a different
+ *  build, so version skew fails closed here rather than at call time.
+ *
+ *  Matching the whole row is what lets `mutate` and `mutateStrict` share an encoder: they differ in the
+ *  validator, and the row carries both. */
 function strategyFromFamilies(
   fns: Partial<Record<FnHashKey, unknown>>,
   label: string,
   direction: ParserDirection
 ): CompiledJsonFamilies {
-  const encodeFamilies = ENCODE_FAMILIES.filter((family) => fns[family] !== undefined);
-  const decodeFamilies = DECODE_FAMILIES.filter((family) => fns[family] !== undefined);
-  if (encodeFamilies.length !== 1 || decodeFamilies.length !== 1)
+  const table = direction === 'return' ? RETURN_PARSING : PARAMS_PARSING;
+  const matched = (Object.keys(table) as (keyof typeof table)[]).filter((strategy) => {
+    const row: ParsingRow = table[strategy];
+    return fns[row.encode] !== undefined && fns[row.decode] !== undefined && fns[row.validate] !== undefined;
+  });
+  if (matched.length !== 1)
     throw new Error(
-      `RunTypes: incomplete compiled-fn payload for '${label}' (expected exactly one JSON encode family and one decode ` +
-        `family, got encode [${encodeFamilies.join(', ')}] decode [${decodeFamilies.join(', ')}]). ` +
+      `RunTypes: the compiled-fn payload for '${label}' matches ${matched.length} parser strategies on the ` +
+        `${direction} wire (got [${Object.keys(fns).join(', ')}]${matched.length ? `, matched [${matched.join(', ')}]` : ''}). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  // `mutate` and `mutateStrict` share an encoder, so the validate family breaks the tie. The direction guard is
-  // load-bearing: a RETURN always compiles the plain pair, so without it every mutate return would read as mutateStrict.
-  const base = STRATEGY_BY_ENCODE_FAMILY[encodeFamilies[0]];
-  const strategy: ParserStrategy =
-    base === 'mutate' && direction === 'params' && fns.validateStrict !== undefined ? 'mutateStrict' : base;
-  const expected = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
-  if (expected !== decodeFamilies[0])
-    throw new Error(
-      `RunTypes: mismatched JSON families for '${label}': encoder '${encodeFamilies[0]}' (${strategy}) on the ` +
-        `${direction} wire needs decoder '${expected}', got '${decodeFamilies[0]}'.`
-    );
-  return {strategy, encodeFamily: encodeFamilies[0], decodeFamily: decodeFamilies[0]};
+  return {strategy: matched[0], row: table[matched[0]]};
 }
 
 /** Builds mion JitCompiledFunctions from one injected marker payload: the validators and ONE json
@@ -246,18 +232,17 @@ export function buildJitFnsFromMarker(
   const fns = byFnKey(injected);
   // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
   // skew — falling back would silently DISABLE validation/serialization for this method.
-  const {strategy, encodeFamily, decodeFamily} = strategyFromFamilies(fns, label, direction);
-  const validateFamily = direction === 'return' ? RETURN_VALIDATE_FAMILY : VALIDATE_FAMILY_BY_STRATEGY[strategy];
-  if (fns[validateFamily.isType] === undefined || fns[validateFamily.typeErrors] === undefined)
+  const {strategy, row} = strategyFromFamilies(fns, label, direction);
+  if (fns[row.validationErrors] === undefined)
     throw new Error(
       `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; the ${strategy} ` +
-        `${direction} wire needs ${validateFamily.isType}/${validateFamily.typeErrors}). ` +
+        `${direction} wire needs ${row.validationErrors} beside ${row.validate}). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  const isType = getRTFunction<'validate'>(fns[validateFamily.isType], alwaysTrue);
-  const typeErrors = getRTFunction<'validationErrors'>(fns[validateFamily.typeErrors], noErrors);
-  const encode = getRTFunction<'prepareForJsonMutate'>(fns[encodeFamily], identity as JsonEncodeFn);
-  const decode = getRTFunction<'restoreFromJsonMutate'>(fns[decodeFamily], identity as never);
+  const isType = getRTFunction<'validate'>(fns[row.validate], alwaysTrue);
+  const typeErrors = getRTFunction<'validationErrors'>(fns[row.validationErrors], noErrors);
+  const encode = getRTFunction<'prepareForJsonMutate'>(fns[row.encode], identity as JsonEncodeFn);
+  const decode = getRTFunction<'restoreFromJsonMutate'>(fns[row.decode], identity as never);
   // formatTransform (sanitizeParams) follows the same rule: a real, non-noop entry or nothing
   if (fns.formatTransform !== undefined) getRTFunction<'formatTransform'>(fns.formatTransform);
   // getRTFunction initialized the injected tuples, so the full entries are now
@@ -270,8 +255,8 @@ export function buildJitFnsFromMarker(
     typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],
     json: {
       strategy,
-      encode: resolveFn(encode as AnyFn, encodeFamily, label, hashes.encode),
-      decode: resolveFn(decode as AnyFn, decodeFamily, label, hashes.decode),
+      encode: resolveFn(encode as AnyFn, row.encode, label, hashes.encode),
+      decode: resolveFn(decode as AnyFn, row.decode, label, hashes.decode),
     },
     ...(formatTransformEntry && !formatTransformEntry.isNoop ? {formatTransform: formatTransformEntry} : {}),
   } as JitCompiledFunctions;
