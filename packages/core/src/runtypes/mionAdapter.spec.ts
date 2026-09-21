@@ -278,8 +278,7 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(fns.json.strategy).toBe('clone');
   });
 
-  // A payload must match exactly ONE PARSE_MODES row. Anything else is build skew, and matching the whole row
-  // is what catches a validator or a decoder that belongs to another strategy.
+  // Anything but exactly ONE matching PARSE_MODES row is build skew; the whole row catches a foreign decoder.
   it('fails closed unless the payload matches exactly one parsing row', () => {
     const okValidators = [tuple('vuk'), tuple('veuk')];
     // no encoder at all
@@ -300,8 +299,8 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     );
   });
 
-  // `mutate` and `mutateStrict` share an encoder AND a decoder, so the validator is the only thing telling their
-  // rows apart. One table now serves both wires, so a return payload matches the same row a params one does.
+  // `mutate` and `mutateStrict` share an encoder AND a decoder, so only the validate family tells their rows apart.
+  // One table serves both wires, so a return payload matches the same row a params one does.
   it('tells mutate from mutateStrict by the validate family', () => {
     const plain = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'mutate', 'params');
     expect(plain.json.strategy).toBe('mutate');

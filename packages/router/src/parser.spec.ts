@@ -141,8 +141,8 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // ONE validator per strategy, the same row whichever wire asks for it. The stripping strategies take the
-  // union-scoped one: their decoder already rebuilt the declared shape, so only a sibling member's key can survive.
+  // ONE validator per strategy, the same row whichever wire asks. The stripping strategies take the union-scoped
+  // one: their decoder already rebuilt the declared shape, so only a sibling member's key can survive.
   describe('the validate family follows the wire', () => {
     const cloneRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'clone'});
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
@@ -280,8 +280,8 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // A return is decoded by the CLIENT, with the same PARSE_MODES row the server encoded with: `clone` rebuilds
-  // the declared shape at both ends, `mutate` rebuilds at neither, so its undeclared keys reach the caller.
+  // The CLIENT decodes a return with the same PARSE_MODES row the server encoded with, so `mutate` rebuilds at
+  // neither end and its undeclared keys reach the caller.
   describe('what arrives at the caller', () => {
     interface Slice {
       name: string;
@@ -303,8 +303,7 @@ describe('parser strategies at the router level', () => {
       expect(Object.keys(await decodedReturn('cloneOut'))).toEqual(['name']);
     });
 
-    // `mutate` rebuilds nothing at either end, so an undeclared key the handler set travels all the way
-    // to the caller. `clone` above is the strategy that drops it.
+    // `clone` above is the strategy that drops an undeclared key.
     it('mutate sends the undeclared ones, and the caller gets them too', async () => {
       mion.initRoutes({mutateOut});
       const response = await dispatchJson('mutateOut', []);
@@ -312,8 +311,7 @@ describe('parser strategies at the router level', () => {
       expect(Object.keys(await decodedReturn('mutateOut')).sort()).toEqual(['name', 'notes', 'secret']);
     });
 
-    // A cache key is `<familyPrefix>_<typeId>`, so the prefix says which decoder was compiled. One PARSE_MODES
-    // row serves both wires, so a strategy names one decoder wherever it is used.
+    // A cache key is `<familyPrefix>_<typeId>`, so the prefix says which decoder was compiled.
     it('so both sides of mutate compile the same decode family', () => {
       const bothWays = mion.route((ctx, slice: Slice): Slice => slice, {parser: 'mutate'});
       mion.initRoutes({bothWays});

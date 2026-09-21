@@ -32,8 +32,7 @@ describe('the mion parser strategies', () => {
     expect(() => resolveParser('direct' as never, undefined)).toThrow(/clone, mutate, mutateStrict, compact/);
   });
 
-  // One row serves both wires, so `mutateStrict` has a row like any other. What keeps it off the return side is
-  // the TYPE, not the data: a return is written by your own handler, so there is no caller to answer for.
+  // `mutateStrict` has a row like any other; ReturnParserStrategy keeps it off the return wire, not the data.
   it('keeps mutateStrict out of the return wire by type', () => {
     expect(Object.keys(PARSE_MODES).sort()).toEqual(['clone', 'compact', 'mutate', 'mutateStrict']);
     expect(PARSE_MODES.mutateStrict.validate).toBe('validateStrict');
@@ -42,8 +41,7 @@ describe('the mion parser strategies', () => {
     expect(paramsOnly).toBe(true);
   });
 
-  // A route compiles exactly one row, so two strategies must never name the same set of families, or the
-  // runtime could not tell which one the build picked.
+  // Two strategies must never name the same families, or the runtime could not tell which row the build picked.
   it('gives every strategy its own set of families', () => {
     const sets = Object.values(PARSE_MODES).map((row) => [row.validate, row.encode, row.decode].join('|'));
     expect(new Set(sets).size).toBe(sets.length);
