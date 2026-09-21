@@ -8,13 +8,9 @@
 import {relative, resolve, sep} from 'path';
 import ts from 'typescript';
 
-/** Rollup lib entries for a package build, derived from the package's OWN build
- *  tsconfig — nothing is hardcoded here. The tsconfig's include/exclude decide
- *  what ships: every TypeScript file in the parsed program becomes an entry
- *  (declaration files are skipped — they cannot be bundle entries). The same
- *  tsconfig should drive vite-plugin-dts (tsconfigPath) and, where present, the
- *  runtypes plugin (runTypes.tsConfig), so all three lanes agree on one list.
- *  `tsconfigFile` is resolved against packageDir (default: tsconfig.build.json). */
+/** Rollup lib entries derived from the package's OWN build tsconfig: its include/exclude decide what ships.
+ *  Point vite-plugin-dts (tsconfigPath) and the runtypes plugin (runTypes.tsConfig) at the same file, so all
+ *  three lanes agree on one list. `tsconfigFile` is resolved against packageDir. */
 export function collectBuildEntries(packageDir: string, tsconfigFile = 'tsconfig.build.json'): Record<string, string> {
   const configPath = resolve(packageDir, tsconfigFile);
   const host: ts.ParseConfigFileHost = {

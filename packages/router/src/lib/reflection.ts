@@ -14,18 +14,13 @@ import {RouteOptions, MiddleFnOptions} from '../types/remoteMethods.ts';
 import {AnyHandlerDef, RawMiddleFnDef} from '../types/definitions.ts';
 
 // ############ This file is the only one consuming type reflection within the router ########
-// mion migration: all type information is injected AT BUILD TIME into the
-// route()/middleFn() factory call sites (see lib/handlers.ts). This module only adapts
-// those injected payloads into the MethodReflect shape the router consumes. There is no
-// runtime reflection, no JIT compilation and no AOT cache layer anymore — the generated
-// function modules emitted by the mion vite plugin ARE the AOT artifacts.
+// All type information is injected AT BUILD TIME into the route()/middleFn() call sites (lib/handlers.ts)
+// and this module only adapts those payloads into the MethodReflect shape the router consumes. No runtime
+// reflection, no JIT compilation, no AOT cache: the modules the mion vite plugin emits ARE the artifacts.
 
 type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
 
-/**
- * Error thrown when a route/middleFn definition carries no injected type information.
- * This means the code was built/executed without the mion vite plugin being active.
- */
+/** The definition carries no injected type information: it was built or run without the mion plugin active. */
 export class MissingRtFnsError extends Error {
   constructor(routeId: string, cause?: string) {
     super(
@@ -37,11 +32,8 @@ export class MissingRtFnsError extends Error {
   }
 }
 
-/**
- * Error thrown when the injected type information IS present but cannot be materialized because
- * the host runtime forbids building functions from strings (workerd, Vercel's EdgeVM, any CSP
- * without 'unsafe-eval'). This is a BUILD-CONFIG problem, not a missing-plugin one.
- */
+/** The injected type information IS present but the host forbids building functions from strings (workerd,
+ *  Vercel's EdgeVM, a CSP without 'unsafe-eval'). A BUILD-CONFIG problem, not a missing-plugin one. */
 export class RuntimeCodeGenBlockedError extends Error {
   constructor(routeId: string, cause?: string) {
     super(
@@ -68,7 +60,6 @@ function isCodeGenBlocked(message?: string): boolean {
 
 // ############ Raw MiddleFn Reflection ############
 
-// Cache for common raw middleFn reflections
 const rawMiddleFnReflectionCache = getOrCreateGlobal(
   'mion.reflection.rawMiddleFnReflectionCache',
   () => new Map<string, MethodReflect>()
@@ -101,11 +92,8 @@ function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = 
  *  getRawMethodReflection instead. */
 type ReflectableDef = Exclude<AnyHandlerDef, RawMiddleFnDef>;
 
-/**
- * Gets reflection data for a route or middleFn definition.
- * All data derives from the mion marker payload the factory stashed on the definition
- * (`def.rtFns`); registration fails loudly when the payload is missing (plugin not active).
- */
+/** All data derives from the mion marker payload the factory stashed on the definition (`def.rtFns`);
+ *  registration fails loudly when that payload is missing (plugin not active). */
 export function getHandlerReflection(
   def: ReflectableDef,
   routeId: string,
@@ -126,10 +114,8 @@ export function getHandlerReflection(
   }
 }
 
-/**
- * Gets reflection data for a raw middleFn. Raw middleFns receive raw request/response and
- * handle their own (de)serialization, so they carry no type info at all.
- */
+/** Raw middleFns receive the raw request / response and handle their own (de)serialization, so they
+ *  carry no type info at all. */
 export function getRawMethodReflection(
   handler: Handler,
   routeId: string, // eslint-disable-line @typescript-eslint/no-unused-vars

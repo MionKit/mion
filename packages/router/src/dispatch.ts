@@ -16,18 +16,12 @@ import {UNSAFE_PROPERTY_NAME_MESSAGE} from '@mionjs/run-types';
 import {markResponseFailed, recordUndeclaredError} from './lib/dispatchError.ts';
 import {createCallContext, createContextFromChain, getRequestBodyType} from './callContext.ts';
 
-/*
- * PERFORMANCE PROFILING NOTE:
- * different options has been tested to improve performance but were discarded due to worst or no noticeable improvements
- * - using promisify(setImmediate): worst or no improvement
- * - using queueMicrotask instead of setImmediate: definitely worst
- * - using callback instead promises: seems to be more slow but use less memory in some scenarios.
- */
+// Profiled and discarded: promisify(setImmediate) (worse or no gain), queueMicrotask instead of
+// setImmediate (definitely worse), callbacks instead of promises (slower, less memory in some scenarios).
 
 // ############# PUBLIC METHODS #############
 
-/** The one-call form for a caller that already has the body (tests, a host that parsed it):
- *  builds the context and dispatches. */
+/** The one-call form for a caller that already has the body (tests, a host that parsed it). */
 export async function dispatchRoute<Req, Resp>(
   path: string,
   reqRawBody: RawRequestBody,
@@ -57,21 +51,18 @@ export async function dispatchWithContext<Req, Resp>(
     request.rawBody = reqRawBody;
     request.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
   }
-  // No catch: runExecutionChain handles every exception itself, and a catch that only re-rejects
-  // changes nothing.
+  // No catch: runExecutionChain handles every exception itself, so one that only re-rejects changes nothing.
   await runExecutionChain(context, rawRequest, rawResponse, getRouterOptions());
   return context.response;
 }
 
-/** Dispatches a request the platform adapter refused after its route resolved: a body past the
- *  limit. The error is recorded exactly as a thrown one is, so the chain runs only the members that
- *  declare `alwaysRun` (a rate limiter, an access log) and answers with the same envelope. There is
- *  no body: the adapter stopped the read, so the context is built without one.
- *
- *  `path` and `urlQuery` travel with the chain rather than on it: mion's not-found chains and a
- *  merged batch chain each answer for many paths, so they carry none of their own. A refusal does
- *  reach one of those, since an adapter checks a declared content-length before it ever asks
- *  whether the chain reads a body. */
+/** Dispatches a request the platform adapter refused after its route resolved: a body past the limit.
+ *  The error is recorded exactly as a thrown one is, so the chain runs only the members that declare
+ *  `alwaysRun` (a rate limiter, an access log) and answers with the same envelope. The adapter stopped
+ *  the read, so the context is built without a body.
+ *  `path` and `urlQuery` travel with the chain rather than on it: mion's not-found chains and a merged
+ *  batch chain each answer for many paths, so they carry none of their own, and a refusal does reach one
+ *  of those (an adapter checks a declared content-length before asking whether the chain reads a body). */
 export function dispatchPlatformError<Req, Resp>(
   chain: MethodsExecutionChain,
   path: string,
@@ -89,7 +80,6 @@ export function dispatchPlatformError<Req, Resp>(
 
 // ############# PRIVATE METHODS #############
 
-// runs the ExecutionChain of a route
 async function runExecutionChain(
   context: CallContext,
   rawRequest: unknown,
@@ -97,10 +87,9 @@ async function runExecutionChain(
   opts: RouterOptions
 ): Promise<MionResponse> {
   const {response, request, executionChain} = context;
-  // Await every step only when there IS something to await. A router whose methods are all
-  // synchronous has no promise anywhere, so awaiting each step cannot change a result and only costs
-  // a promise frame. `alwaysAwait: false` opts a mixed router into the same per-step rule.
-  // Settled when the routes were registered, so this is one read rather than a recomputation.
+  // A router whose methods are all synchronous has no promise anywhere, so awaiting each step cannot
+  // change a result and only costs a promise frame; `alwaysAwait: false` opts a mixed router into the
+  // same per-step rule. Settled when the routes were registered, so this is one read, not a recomputation.
   const alwaysAwait = getAlwaysAwait();
   const executionList = executionChain.methods;
   const executionCount = executionList.length;
@@ -112,18 +101,16 @@ async function runExecutionChain(
     try {
       // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
       // methodCaller is resolved when the method is registered, so the loop never has to pick one
-      // A step the build proved synchronous is called without an await, so a chain of sync steps costs
-      // no promise frames. `isAsync` is decided by the type checker at the call site, not by
-      // inspecting the value, so a plain function returning a promise still awaits.
+      // `isAsync` is decided by the type checker at the call site, not by inspecting the value, so a
+      // plain function returning a promise still awaits and a proven-sync chain costs no promise frames.
       let result;
       if (alwaysAwait || executable.isAsync) {
         result = await executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
       } else {
         result = executable.methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
-        // Backstop for a method whose declared type lied, or that has no declared type at all: an
-        // un-awaited promise would be serialized into the body as the answer. Paid ONCE per method,
-        // on its first run; after that this is a single boolean read. A method caught here is marked
-        // async for good, so every later request awaits it.
+        // Backstop for a method whose declared type lied or is missing: an un-awaited promise would be
+        // serialized into the body as the answer. Paid ONCE per method, on its first run; one caught here
+        // is marked async for good, so every later request awaits it.
         if (executable.asyncChecked !== true) {
           executable.asyncChecked = true;
           if (result !== null && typeof result === 'object' && typeof result.then === 'function') {
@@ -134,10 +121,8 @@ async function runExecutionChain(
       }
 
       if (result === undefined) continue;
-      // ONE read answers "is this a mion error", for every branch below. The brand is an own property
-      // on every TypedError/RpcError/FatalError and on every copy that came off the wire, so nothing
-      // else has to be asked. A non-error result (the common case) pays this read plus, at most, the
-      // native-error check.
+      // ONE read answers "is this a mion error" for every branch below: the brand is an own property on
+      // every TypedError/RpcError/FatalError and on every copy that came off the wire.
       // `null` is a valid answer and reading a property off it throws, so it is excluded first
       const isMionError = result !== null && result['mion@isΣrrθr'] === true;
       if (!executable.hasReturnData) {
@@ -152,9 +137,9 @@ async function runExecutionChain(
         // A plain RpcError is declared too: it stays in its slot and the chain keeps running.
         if (result.isFatal === true) markResponseFailed(context, result, StatusCodes.APPLICATION_ERROR);
       }
-      // An Error mion cannot represent is a bug, not data: without this it would be serialized into
-      // the body and served as a SUCCESSFUL answer. It carries no brand, so it has no typed slot to
-      // land in, and it takes the thrown path instead.
+      // An Error mion cannot represent is a bug, not data: without this it would be serialized into the
+      // body and served as a SUCCESSFUL answer. Carrying no brand it has no typed slot, so it takes the
+      // thrown path instead.
       else if (isNativeError(result)) {
         recordUndeclaredError(context, executable.id, result);
         continue; // like a thrown one: it belongs in @thrownErrors, never in the body
@@ -179,9 +164,8 @@ async function runExecutionChain(
   return context.response;
 }
 
-// The three callers below are NOT async: awaiting the handler only to return its value adds a
-// promise frame per chain member. Returning it hands back the same value, or the same promise, and
-// the loop's own await and try/catch still cover both.
+// The three callers below are NOT async: awaiting the handler only to return its value adds a promise
+// frame per chain member, and the loop's own await and try/catch cover the value and the promise alike.
 function runRawMiddleFn(
   context: CallContext,
   executable: RawMethod,
@@ -223,13 +207,10 @@ function runRouteOrMiddleFn(context: CallContext, executable: HeadersMethod, req
   return executable.handler(context, ...params);
 }
 
-/**
- * sanitizeParams: applies the rewrites the params types declare under a format's `transform` key
- * (trim / case / replace / stripSeparators) in place, after decode and BEFORE validation, when the
- * resolved route option is on and the compiled formatTransform is a live entry. Params only: headers
- * and return values are never sanitized. A transform over wrong-shaped input can throw (`.trim()` on
- * a number): the raw params fall through so validation reports the real error instead of a 500.
- */
+/** Applies the rewrites the params types declare under a format's `transform` key (trim / case /
+ *  replace / stripSeparators) in place, after decode and BEFORE validation. Params only: headers and
+ *  return values are never sanitized. A transform over wrong-shaped input can throw (`.trim()` on a
+ *  number): the raw params fall through so validation reports the real error instead of a 500. */
 function sanitizeParams(params: any[], request: MionRequest, executable: RemoteMethod): any[] {
   if (!executable.options.sanitizeParams) return params;
   const formatTransform = executable.paramsJitFns.formatTransform;
@@ -256,20 +237,18 @@ export function getMethodCaller(executable: RemoteMethod) {
   return executable.methodCaller;
 }
 
-/** Shared, for the members whose id is absent from the body: allocating a fresh empty array per
- *  member per request bought nothing. Frozen, so a handler that tried to mutate its params fails
- *  loudly instead of corrupting the next request. Nothing can reach it anyway: an empty tuple is
- *  spread into the call, so no argument is ever passed. */
+/** Shared, for the members whose id is absent from the body: a fresh empty array per member per request
+ *  bought nothing. Frozen, so a handler that tried to mutate its params fails loudly instead of corrupting
+ *  the next request; nothing can reach it anyway, an empty tuple is spread into the call. */
 const EMPTY_PARAMS: any[] = [];
 Object.freeze(EMPTY_PARAMS);
 
 function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
   const params = request.body[executable.id] as any[] | undefined;
-  // EMPTY_PARAMS is frozen and the decoders mutate what they are handed, so decoding the sentinel
-  // would throw a raw TypeError and report a serialization error where validation should refuse the missing body.
+  // EMPTY_PARAMS is frozen and the decoders mutate what they are handed, so decoding the sentinel would
+  // report a raw serialization error where validation should refuse the missing body.
   if (!params) return EMPTY_PARAMS;
 
-  // For JSON requests, the compiled decoder of the params strategy restores the typed shape
   const {decode} = executable.paramsJitFns.json;
   if (decode.isNoop) return params;
   try {
@@ -277,10 +256,9 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
     return request.body[executable.id] as any[];
   } catch (e: any) {
     if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
-    // Fixed text on the wire (the decoder's own message quotes internal detail); the original stays
-    // on `originalError` for the server logs. `deserializeError` keeps the RTSerializationError shape.
-    // The one message that IS safe to pass on: mion's own constant for a refused key, naming a key
-    // the caller themselves sent. Telling them which key to drop beats a generic "wrong type".
+    // Fixed text on the wire (the decoder's own message quotes internal detail); the original stays on
+    // `originalError` and `deserializeError` keeps the RTSerializationError shape. mion's own constant for
+    // a refused key IS safe to pass on: it names a key the caller sent, which beats a generic "wrong type".
     const refusedKey = typeof e?.message === 'string' && e.message.startsWith(UNSAFE_PROPERTY_NAME_MESSAGE);
     const detail = refusedKey ? (e.message as string) : 'Parameters might be of the wrong type.';
     throw new FatalError({

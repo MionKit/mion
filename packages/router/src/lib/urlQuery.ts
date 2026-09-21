@@ -5,15 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/**
- * The ONE reader of the url query string. Every parameter the router reads goes through it, `id=`
- * for a batch and `data=` for a query body, so there is one set of rules for how a query splits.
- * Router-internal: nothing outside this package reads the query string.
- *
- * Values come back RAW, exactly as they sit in the url: no percent-decoding, no `+` translated to a
- * space. A consumer that needs a decoded value calls `decodeURIComponent` itself, which is what lets
- * the batch id decode while a base64url query body must not.
- */
+/** The ONE reader of the url query string, `id=` for a batch and `data=` for a query body, so there is
+ *  one set of rules for how a query splits. Router-internal: nothing outside this package reads it.
+ *  Values come back RAW, no percent-decoding and no `+` turned into a space; a caller needing a decoded
+ *  value calls `decodeURIComponent` itself, which lets the batch id decode while a query body must not. */
 export function findMionQueryParam(urlQuery: string | undefined, name: string): string | undefined {
   // an empty name is not a parameter: without this, a hostile `?=x` would answer a lookup for ''
   if (!urlQuery || !name) return undefined;

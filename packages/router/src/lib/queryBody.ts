@@ -9,20 +9,15 @@ import {fromBase64Url, FatalError, RpcError, SerializerModes, StatusCodes} from 
 import type {SerializerCode} from '@mionjs/core';
 import {findMionQueryParam} from './urlQuery.ts';
 
-// `atob` throws a raw InvalidCharacterError on anything that is not base64: every adapter used to
-// call this outside its guard, so one `GET /route?data=!` took the node and uws processes down with
-// an unhandled rejection. The catch below turns that throw into a typed error; no pre-check, since a
-// regex over the value would double the cost of every query-body request (measured: 85 to 170 ns)
-// to refuse exactly what `atob` refuses anyway.
+// `atob` throws a raw InvalidCharacterError on anything that is not base64, and one `GET /route?data=!`
+// used to take the node and uws processes down with an unhandled rejection. No pre-check: a regex over
+// the value doubled the cost of every query-body request (85 to 170 ns) to refuse what `atob` refuses.
 
-/** Result of decoding a base64url query body from ?data= */
 export interface QueryBodyResult {
   rawBody: string;
   bodyType: SerializerCode;
 }
 
-/** Detects and decodes base64url-encoded request body from ?data= query param.
- * Returns decoded body + bodyType if found, undefined otherwise. */
 export function decodeQueryBody(urlQuery: string | undefined, rawBody: unknown): QueryBodyResult | undefined {
   if (rawBody) return undefined;
   if (!urlQuery) return undefined;

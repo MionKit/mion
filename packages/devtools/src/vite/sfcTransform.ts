@@ -10,29 +10,14 @@ import {createRequire} from 'node:module';
 import type {Plugin} from 'vite';
 
 // ############# Vue SFC support #############
-// Typed mion code inside a `.vue` <script> needs a path of its own: the runtypes core
-// only transforms plain TS/JS ids, so a marker call in an SFC never got its compiled fns and failed
-// at RUNTIME (missing fns, or a route that never validates) instead of at build time.
-//
-// The engine was never the problem. The resolver holds ONE whole-program view built from the
-// tsconfig and resolves imports through it — including files outside the tsconfig `include` and
-// types from node_modules. What it cannot do is transform a module that exists nowhere on disk,
-// which is exactly what an SFC's <script> is. The fix is to REGISTER that script under a virtual
-// path first, which is the same thing the package's own ESLint lane does with the text ESLint hands
-// it (`dist/lint/lint-worker.js`: setSources → scanFiles):
-//
-//     rt.handleHotUpdate({file: '<Comp.vue>.ts', read: () => script})   setSources + scanFiles + generate
-//     rt.transform(script, '<Comp.vue>.ts')                            → injected code
-//
-// The virtual path sits NEXT TO the .vue file, so the relative import the transform emits
-// (`./.mion/types/<hash>.js`) resolves from the .vue module unchanged.
-//
-// Why this runs BEFORE @vitejs/plugin-vue rather than inside it: plugin-vue exposes its compiler
-// through `api.options`, but `compileScript` is SYNCHRONOUS and the resolver round-trip is not, so
-// there is no way to await inside it. Everything after plugin-vue is too late — it hands the script
-// to esbuild, and by the time any later plugin sees the module the generics and type imports are
-// already erased. So mion injects into the SFC source itself; plugin-vue then compiles a script that
-// already carries its compiled fns.
+// The core only transforms plain TS/JS ids, and it cannot transform a module that exists nowhere on disk,
+// which is exactly what an SFC's <script> is: a marker call in one silently failed at RUNTIME instead. So the
+// script is REGISTERED under a virtual path first (setSources + scanFiles + generate, the same thing
+// src/lint/lint-worker.ts does with the text ESLint hands it) and then transformed under that path. The virtual
+// path sits NEXT TO the .vue file, so the relative import the transform emits resolves from the .vue module
+// unchanged. This runs BEFORE @vitejs/plugin-vue: plugin-vue's `compileScript` is SYNCHRONOUS and the resolver
+// round-trip is not, and everything after plugin-vue sees a script whose generics and type imports esbuild
+// has already erased. plugin-vue then compiles a script that already carries its compiled fns.
 
 /** Structural subset of @vue/compiler-sfc that this file uses (borrowed from plugin-vue). */
 interface SfcBlock {
@@ -48,22 +33,16 @@ interface SfcCompiler {
   parse(source: string, options?: {filename?: string}): SfcParseResult;
 }
 
-/** Cheap gate before any parsing — mirrors the runtypes core' own marker probes, so an SFC with
- *  no mion code costs one regex and nothing else. */
+/** Cheap gate before any parsing, mirroring the core's own marker probes: an SFC with no mion code costs
+ *  one regex and nothing else. */
 const MARKER_PROBE = /['"]@mionjs\/|registerPureFn/;
-/** Marks the boundary when an SFC has BOTH <script> and <script setup>: they are registered as ONE
- *  module so a type declared in one resolves for a marker call in the other (Vue merges them too),
- *  then split apart again. A comment line is never touched by the transform's edits. */
+/** With BOTH <script> and <script setup>, the two are registered as ONE module so a type declared in one
+ *  resolves for a marker call in the other (Vue merges them too). A comment line is never edited. */
 const BLOCK_SPLIT = '\n// #mion-sfc-block\n';
 
-/** Vue's plugin, whose resolved compiler mion borrows so it always parses with the project's own
- *  @vue/compiler-sfc version. */
+/** Vue's plugin, whose resolved compiler is borrowed so parsing uses the project's own @vue/compiler-sfc. */
 const VUE_PLUGIN_NAME = 'vite:vue';
 
-/** The mion SFC plugins: the injector (runs before plugin-vue) and the audit (runs after it).
- *  The audit is wired even when the injector is off — an SFC shipping a marker with no compiled fns
- *  is precisely the silent failure this feature exists to end, and turning the pass off does not
- *  make it safe, only quiet. */
 /** Maps the virtual script path an SFC is registered under back to the real `.vue` file. */
 export interface VirtualSiteMap {
   /** Records that `virtualPath` stands in for `realFile`. */
@@ -72,17 +51,13 @@ export interface VirtualSiteMap {
   resolve(siteFile: string): string | undefined;
 }
 
-/** Builds the virtual->real map shared by the SFC pass and the invalidation handler.
- *
- *  It has to exist BEFORE the mion plugin is constructed (the handler is one of its
- *  options) and before the SFC pass runs (it fills the map), so neither can own it. Paths are
- *  normalised to forward slashes because mion reports site files that way. */
+/** The virtual->real map, shared because it has to exist BEFORE the mion plugin is constructed (the handler
+ *  is one of its options) and before the SFC pass runs (it fills the map), so neither can own it. */
 export function createVirtualSiteMap(): VirtualSiteMap {
   const toReal = new Map<string, string>();
-  // Normalise BOTH separators, not just this platform's. The two sides come from different
-  // producers — mion builds the virtual path from a vite id, mion reports its own program
-  // paths — so keying on `path.sep` alone leaves the match dependent on which of them happened to
-  // use which separator. A miss here is silent: the .vue file just stays stale.
+  // Normalise BOTH separators, not just this platform's: the virtual path is built from a vite id and the
+  // site files come from the resolver's own program paths, so keying on `path.sep` alone leaves the match
+  // dependent on which side used which separator. A miss here is silent, the .vue file just stays stale.
   const key = (file: string): string => file.replace(/\\/g, '/');
   return {
     register(virtualPath, realFile) {
@@ -94,6 +69,8 @@ export function createVirtualSiteMap(): VirtualSiteMap {
   };
 }
 
+/** The injector (before plugin-vue) and the audit (after it). The audit is wired even when the injector is
+ *  off: an SFC shipping a marker with no compiled fns is the silent failure this feature exists to end. */
 export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSites?: VirtualSiteMap): Plugin[] {
   let root = '';
   let vuePlugins: {api?: {options?: {compiler?: SfcCompiler}}}[] = [];
@@ -108,8 +85,7 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
     console.warn(`[mion] ${message}`);
   };
 
-  /** plugin-vue's own compiler first (same version the project compiles with), then a plain
-   *  resolve from the vite root. */
+  /** plugin-vue's own compiler first (the version the project compiles with), then a resolve from the root. */
   const resolveCompiler = (): SfcCompiler | undefined => {
     for (const plugin of vuePlugins) {
       const compiler = plugin.api?.options?.compiler;
@@ -125,14 +101,10 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
     return fallbackCompiler;
   };
 
-  /** Registers the script with the resolver, then transforms it through the mion plugin.
-   *
-   *  `rtHotUpdate` is mion' documented escape hatch for exactly this: "the escape hatch a
-   *  host with no HMR hook of its own uses to absorb an edit" — it takes {file, content} pairs and
-   *  runs setSources → scanFiles → generate, which is all mion needs to make a source that exists
-   *  nowhere on disk visible to the resolver. mion used to fabricate a vite HMR context and call
-   *  `handleHotUpdate` instead, which reached the same shared leaf but used a hook for something
-   *  other than what it is named for. Kept as a fallback so an older plugin still works. */
+  /** `rtHotUpdate` is the documented escape hatch for a host with no HMR hook of its own: it takes
+   *  {file, content} pairs and runs setSources → scanFiles → generate, which is all it takes to make a source
+   *  that exists nowhere on disk visible to the resolver. `handleHotUpdate` reaches the same leaf and is kept
+   *  as a fallback so an older plugin still works. */
   async function injectFns(ctx: unknown, source: string, virtualPath: string): Promise<string | undefined> {
     const plugin = rt as unknown as Record<string, any>;
     const absorb = plugin?.rtHotUpdate;
@@ -179,10 +151,9 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
 
       const lang = blocks.find((block) => block.lang)?.lang ?? 'js';
       const virtualPath = `${file}.${lang}`;
-      // Record the stand-in BEFORE delegating: mion reports stale site files by the
-      // path it knows them under (the virtual one), and the module vite actually serves is
-      // `file`. Without this the .ts files in a project recover from a type edit while the
-      // .vue files keep serving a validator for the old shape.
+      // Record the stand-in BEFORE delegating: stale site files are reported under the virtual path while the
+      // module vite serves is `file`, and without the mapping a .vue file keeps serving the old shape's
+      // validator after a type edit that the project's .ts files recover from.
       virtualSites?.register(virtualPath, file);
       const source = blocks.map((block) => block.content).join(BLOCK_SPLIT);
       const result = await injectFns(this, source, virtualPath);
@@ -204,9 +175,8 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
     },
   };
 
-  // Silence is the defect this whole feature fixes, so a marker that reaches the browser without
-  // its compiled fns must be audible — whatever the cause (plugin ordering, a plugin-vue change,
-  // an SFC shape the injector skipped).
+  // Silence is the defect this feature fixes, so a marker reaching the browser without its compiled fns must
+  // be audible whatever the cause: plugin ordering, a plugin-vue change, an SFC shape the injector skipped.
   const audit: Plugin = {
     name: 'mion-sfc-audit',
     enforce: 'post',
@@ -236,9 +206,8 @@ function bareVueFile(id: string): string | undefined {
   return file;
 }
 
-/** Keeps the injected code on the SAME number of lines as the source it replaces: the transform
- *  prepends its import block, which would otherwise shift every line of the SFC below the script and
- *  break plugin-vue's source map. Folding that block onto the first line keeps every line number. */
+/** Keeps the injected code on the SAME number of lines as the source it replaces: the prepended import block
+ *  would otherwise shift every line below the script and break plugin-vue's source map. */
 function foldImportBlock(source: string, transformed: string): string {
   const extra = transformed.split('\n').length - source.split('\n').length;
   if (extra <= 0) return transformed;

@@ -1,28 +1,17 @@
-// Wire types mirroring the Go side: the reflection model in
-// internal/reflection/runtype.go (RunType and friends) and the wire envelope
-// in internal/protocol/protocol.go. The interfaces below are
-// hand-maintained (to keep the plugin dep-free); the ReflectionKind enum,
-// KIND_REF sentinel, and REFLECTION_SUB_KIND map are code-generated from the same
-// Go source (reflectionKind.generated.ts) so the kind/sub-kind discriminators can
-// never drift.
-//
-// The shape is the canonical runtypes reflection `RunType` discriminated
-// union. Child RunType slots in the JSON wire format are sentinels
-// (`{kind: -1, id: N}`); consumers either re-knot themselves (raw JSON) or
-// import the generated runtypes-cache.ts module which contains a fully-knotted
-// graph.
+// Wire types mirroring Go's internal/reflection/runtype.go and internal/protocol/protocol.go.
+// The interfaces are hand-maintained to keep the plugin dep-free; the ReflectionKind enum,
+// KIND_REF sentinel and REFLECTION_SUB_KIND map are generated from the same Go source, so the
+// kind/sub-kind discriminators cannot drift. Child RunType slots on the wire are sentinels
+// (`{kind: -1, id: N}`); consumers re-knot them, or import the generated cache module whose
+// graph is already knotted.
 
-// ReflectionKind + KIND_REF + REFLECTION_SUB_KIND are GENERATED from
-// internal/reflection/{runtype,subkind}.go (the same source as @mionjs/run-types's
-// RunTypeKind / RunTypeSubKind), re-exported here so existing
-// `import {ReflectionKind} from './protocol.ts'` sites are unchanged.
+// Generated from internal/reflection/{runtype,subkind}.go, the same source as @mionjs/run-types's
+// RunTypeKind / RunTypeSubKind; re-exported here so `import {ReflectionKind} from './protocol.ts'` sites are unchanged.
 import {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind} from './go-generated/reflectionKind.generated.ts';
 export {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind};
 
-// Re-export the cache-module settings generated from
-// internal/constants/constants.go so callers have a single place to import
-// the prefix from. Single source of truth lives in Go; the .generated.ts
-// file is rebuilt via `pnpm run gen:ts-constants`.
+// Cache-module settings generated from internal/constants/constants.go, the single source of
+// truth; regenerate with `pnpm miondevx core codegen constants`.
 export {
   CACHE_MODULES,
   RUNTYPES_VAR_PREFIX,
@@ -33,20 +22,15 @@ export {
 } from './go-generated/runtypes-constants.generated.ts';
 
 export interface ClassRef {
-  // builtin: "Date" | "Map" | "Set" | "RegExp" — footer wires
-  // `t.classType = globalThis.<builtin>`.
+  // "Date" | "Map" | "Set" | "RegExp"; the footer wires `t.classType = globalThis.<builtin>`.
   builtin?: string;
   // user-class export name + originating module path (v2 lazy import).
   name?: string;
   module?: string;
 }
 
-// RunType is a JSON-friendly union of every reflection RunType variant.
-// Optional fields are populated only when relevant to the discriminator
-// `kind`.
-//
-// IDs are short alphanumeric hash strings (default 6 chars). Two
-// structurally-equal types share the same id.
+// RunType is a JSON-friendly union of every reflection variant; optional fields follow the `kind` discriminator.
+// `id` is a short alphanumeric structural hash (default 7 chars), so two structurally-equal types share one id.
 export interface RunType {
   id?: string;
   kind: ReflectionKind | typeof KIND_REF;
@@ -56,10 +40,8 @@ export interface RunType {
   typeName?: string;
   typeArguments?: RunType[];
   isCircular?: boolean;
-  // True for the "non-data" kinds (function / method / call-signature /
-  // symbol / never / non-serialisable class) the validators & serializers
-  // ignore. The node stays in the reflected tree so reflection is complete;
-  // only the node itself is flagged, never its children.
+  // True for the non-data kinds validators and serializers ignore: function / method / call-signature /
+  // symbol / never / non-serialisable class. The node stays in the tree; only it is flagged, never its children.
   notSupported?: boolean;
 
   // TypeLiteral
@@ -72,12 +54,10 @@ export interface RunType {
   visibility?: number;
   isAbstract?: true;
   isStatic?: true;
-  // isSafeName — property / method nodes only. True when `name` is a
-  // valid JS identifier (or all digits) and consumers can emit dot access
-  // (obj.foo). False/missing means bracket notation is required.
+  // Property / method nodes only: `name` is a valid identifier or all digits, so dot access works.
+  // Missing means bracket notation is required.
   isSafeName?: true;
-  // position — parameter / tupleMember nodes only. 0-based slot index in
-  // the parent. Number, not boolean, because zero is a valid slot.
+  // Parameter / tupleMember nodes only: 0-based slot index, a number rather than a flag because zero is a valid slot.
   position?: number;
   defaultVal?: unknown;
   description?: string;
@@ -94,48 +74,22 @@ export interface RunType {
   // multi-typed containers (objectLiteral/class/tuple/union/intersection/enum)
   children?: RunType[];
 
-  // union only — children reordered so superset shapes precede their
-  // subset equivalents (prevents unreachable union members at validate
-  // time). Same ref objects as `children`, just rearranged.
+  // Union only: the same refs as `children`, reordered so supersets precede subsets and no member is unreachable at validate time.
   safeUnionChildren?: RunType[];
 
-  // union only — set by the serialize-time discriminator detection
-  // pass. Parallel to `safeUnionChildren`: entry i is a ref to the
-  // discriminator property within `safeUnionChildren[i]`. Consumer
-  // reads entry.name for the property key and entry.child for the
-  // expected type. Slots for non-object members (simple / any) are
-  // null/undefined. Absent when neither detection pass finds a
-  // usable discriminator. Lives on the union (not the property node)
-  // so the relationship is correctly scoped — the same canonical
-  // property node may be a discriminator in one parent union but not
-  // in another.
-  //
-  // Wire-format equivalent of the FlattenedProp[] output
-  // (ref: packages/run-types/src/nodes/collection/unionDiscriminator.ts).
-  // Only the strictly-new field (the property ref) lives on the wire;
-  // the other FlattenedProp fields are reconstructible. Consumers
-  // call `flattenUnionDiscriminators` from mion
-  // to materialise the full per-member struct in one pass.
+  // Union only, parallel to `safeUnionChildren`: entry i refs the discriminator property of member i,
+  // null for a non-object member. Read entry.name for the key and entry.child for the expected type.
+  // Absent when no usable discriminator was found. Lives on the union, not the property node: the same
+  // canonical property may discriminate one parent union and not another.
   unionDiscriminators?: (RunType | null | undefined)[];
 
-  // The OPEN metadata extension point: object-literal members surviving an
-  // intersection-collapse of a primitive with metadata objects (e.g.
-  // `string & {__brand}`, `number & {dbIndex: true}`). Carried untouched for
-  // consumers to read back via reflection; the engine never interprets it —
-  // formatAnnotation (below) is the CLOSED, engine-executed counterpart.
-  // Each entry is a ref to an objectLiteral RunType. Mirrors deepkit's
-  // TypeAnnotations.decorators.
+  // The OPEN extension point: objectLiteral refs left by collapsing an intersection like `string & {__brand}`.
+  // The engine never interprets them (formatAnnotation below is the CLOSED counterpart); mirrors deepkit's TypeAnnotations.decorators.
   typeMeta?: RunType[];
 
-  // populated when a primitive is branded with a TypeFormat<Base, Name,
-  // Params, ...> marker from `@mionjs/run-types/formats`. Sibling of
-  // the FormatAnnotation (ref: packages/run-types/src/lib/formats.ts) —
-  // the name + params pair that drives format-aware emit. The
-  // structural id folds name + canonicalised params in, so two
-  // distinct param sets produce two distinct cache entries while
-  // equivalent param sets (regardless of object-literal key order)
-  // collapse to one. Recognition rides the unforgeable unique-symbol
-  // sentinels, so hand-written typeMeta objects can never trigger it.
+  // Set when a primitive is branded with a TypeFormat<Base, Name, Params, ...> marker from `@mionjs/run-types/formats`.
+  // The structural id folds name + canonicalised params in, so key order never splits one entry into two.
+  // Recognition rides the unforgeable unique-symbol sentinels, so a hand-written typeMeta object can never trigger it.
   formatAnnotation?: FormatAnnotation;
 
   // enum
@@ -149,71 +103,42 @@ export interface RunType {
   arguments?: RunType[];
   classRef?: ClassRef;
 
-  // objectLiteral (interface form) — direct parent interface types
-  // this declaration extends. Each entry is a ref to the parent's
-  // RunType. Properties inherited from these parents are ALSO
-  // included in `children` (the TS checker merges them via
-  // GetPropertiesOfType), so the runtime path stays simple while
-  // codegen can walk the inheritance tree explicitly. Empty for
-  // anonymous object literals and `type` aliases.
+  // objectLiteral (interface form): refs to the directly extended interfaces, empty for anonymous literals and `type` aliases.
+  // Inherited properties are ALSO in `children`, so the runtime path stays flat while codegen can walk the inheritance tree.
   extends?: RunType[];
 
-  // runtime-only — wired by the cache emitter, never present in wire JSON.
-  // `classType` is a live constructor reference (e.g. globalThis.Date for
-  // KindClass builtins).
+  // Runtime-only live constructor (globalThis.Date for a KindClass builtin), wired by the cache emitter; never in wire JSON.
   classType?: unknown;
 }
 
-// Site records one transformer-injection point. `pos` is the byte offset of
-// the closing `)` of the call expression — the patcher inserts at that
-// offset. `paramIndex` is the 0-based slot the injected id occupies in the
-// call's argument list. `argsCount` is the number of arguments the user
-// already wrote; when less than `paramIndex` the patcher pads with
-// `undefined` so the id lands in the right slot.
+// Site is one injection point: `pos` is the byte offset of the call's closing `)`, where the patcher inserts.
+// `paramIndex` is the 0-based slot the injected id takes; when `argsCount` falls short of it the patcher pads with `undefined`.
 export interface Site {
   file: string;
   pos: number;
   id: string;
   paramIndex?: number;
   argsCount?: number;
-  // fnId is the value injected as the 2nd tuple element for a createX call site
-  // routed through the InjectTypeFnArgs marker: an opaque fn hash, never the
-  // family name the marker spells. When present, the
-  // patcher injects a `[id, fnId]` tuple instead of the bare `"id"` string.
-  // Absent for reflection-only InjectRunTypeId sites.
+  // The opaque fn hash an InjectTypeFnArgs site injects, never the family name the marker spells.
+  // Present means the patcher injects a `[id, fnId]` tuple, not the bare `"id"`; absent means a reflection-only site.
   fnId?: string;
-  // fnIds carries every fnId a MULTI-FUNCTION createX site injects when its
-  // trailing InjectTypeFnArgs<T, F1, F2, …> marker names more than one function
-  // family (e.g. createStandardSchema's <T,'val','verr'>). The rewrite injects
-  // an ARRAY of entry-tuple bindings at the single paramIndex, in this order.
-  // Present only when length > 1; single-fn / reflection sites omit it and the
-  // patcher reads the lone fnId. fnId mirrors fnIds[0] when both are set.
+  // Every fnId a multi-function InjectTypeFnArgs<T, F1, F2, …> site injects, e.g. createStandardSchema's <T,'val','verr'>:
+  // an ARRAY of entry-tuple bindings at the single paramIndex, in this order. fnId mirrors fnIds[0] when both are set.
   fnIds?: string[];
-  // demand is Go-internal emit metadata (which cache entries this site requires)
-  // serialized onto the Site; the plugin does not read it. Mirrored for accuracy.
+  // Go-internal emit metadata, mirrored for accuracy; the plugin does not read it.
   demand?: SiteDemand[];
-  // trailingComma is true when the call's own argument list was written with a
-  // trailing comma (e.g. a formatter-wrapped value-first marker call). The
-  // injector splices the binding WITHOUT a leading comma in that case —
-  // otherwise the pre-existing comma plus the injected `, …` produce an empty
-  // argument `f(a, , …)`, which is invalid JS.
+  // True when the argument list was already written with a trailing comma, so the injector splices WITHOUT a leading one.
+  // Otherwise the two commas produce an empty argument `f(a, , …)`, which is invalid JS.
   trailingComma?: boolean;
-  // module, when present, is the bundle-module BASENAME this site's entry
-  // rides in (allSingle module mode): the rewrite imports the binding from
-  // `rtmod:/<module>.js` instead of the entry's own module. The clause
-  // shape is identical either way (export name == the binding). Mirrors
-  // modules[0] when both are set.
+  // allSingle mode: the bundle-module BASENAME to import the binding from (`rtmod:/<module>.js`) instead of the entry's
+  // own module; the clause shape is identical either way. Mirrors modules[0] when both are set.
   module?: string;
-  // modules carries the bundle basename of EVERY fnId a multi-function site
-  // injects, positionally mirroring fnIds — a multi-fn site's fnIds span
-  // several families and allSingle gives each family its own bundle, so one
-  // basename cannot address them all. Present only for multi-fn allSingle
-  // sites; single-fn / reflection sites carry the lone value in module.
+  // One bundle basename per fnId, positional with fnIds: allSingle gives each family its own bundle, so a single
+  // `module` cannot address a multi-fn site. Present only for multi-fn allSingle sites.
   modules?: string[];
 }
 
-// SiteDemand mirrors Go protocol.SiteDemand — emit metadata only; the plugin
-// never reads it.
+// SiteDemand mirrors Go protocol.SiteDemand: emit metadata only, the plugin never reads it.
 export interface SiteDemand {
   family: string;
   variant?: string;
@@ -221,35 +146,26 @@ export interface SiteDemand {
   fnHash?: string;
 }
 
-// Replacement is a byte-range rewrite on a source file: replace
-// [start, end) with text. Used by the pure-fn extractor to swap the
-// factory argument of every `registerPureFnFactory(ns, fn, factory)`
-// call for the pure fn's entry-module import binding, so the canonical
-// fn body lives only in the emitted entry module.
+// Replacement replaces [start, end) with text: the pure-fn extractor swaps every
+// `registerPureFnFactory(ns, fn, factory)` factory argument for the entry-module import binding,
+// so the canonical fn body lives only in the emitted entry module.
 export interface Replacement {
   file: string;
   start: number;
   end: number;
   text: string;
-  // When non-empty, the virtual-module specifier the rewrite must import for
-  // the substituted expression to resolve — e.g. `rtmod:/pf/rt/foo.js`.
-  // `text` IS the module's export name (every entry exports under its binding
-  // name), so the rewrite imports `{<text>}` directly.
+  // The virtual-module specifier the substituted expression needs (`rtmod:/pf/rt/foo.js`);
+  // `text` IS its export name, so the rewrite imports `{<text>}` directly.
   importFrom?: string;
-  // The export name the import clause brings in when `text` is not that name
-  // (a trailing-slot splice padded with `undefined`, the bundled-API lane).
-  // Absent means `text` is the binding.
+  // The export name to import when `text` is not it (a trailing-slot splice padded with `undefined`,
+  // the bundled-API lane). Absent means `text` is the binding.
   importBinding?: string;
 }
 
-// PureFnSite mirrors Go protocol.PureFnSite — one generated pure-fn entry in the
-// structured build report. Host tooling that relocates pure-fn bodies across
-// bundles (mion's cross-bundle mapper transport) consumes it via the
-// JSON file `<genDir>/types/pure-fns-report.json` or the plugin's `onPureFnReport`
-// callback. Each record is SELF-CONTAINED (`code` + `paramNames` inline) so a
-// consumer never reads the generated module files — that keeps the shape stable
-// across every `moduleMode`. Populated only when the pure-fn report is enabled
-// (`pureFnReport` option / `onPureFnReport` callback).
+// PureFnSite mirrors Go protocol.PureFnSite: one generated pure-fn entry, delivered through the
+// `onPureFnReport` callback or `<genDir>/types/pure-fns-report.json`, only when the report is enabled.
+// Each record is SELF-CONTAINED (`code` + `paramNames` inline), so a consumer never reads a generated
+// module file and the shape holds across every `moduleMode`.
 export interface PureFnSite {
   // The registrar call site's factory-argument span (byte offsets).
   file: string;
@@ -258,21 +174,17 @@ export interface PureFnSite {
   // The pure fn's id: the package that owns it and a hash of the body that
   // ships (`@acme/text#pf_9Zt1bRm4cVaPqL`).
   key: string;
-  // The identifier the registration was assigned to, absent for one written
-  // straight into a call. Not part of the id — a hash is — and carried because
-  // a report of hashes names nothing a reader can search for.
+  // The identifier the registration was assigned to, absent when written straight into a call.
+  // Not part of the id; carried because a report of hashes names nothing a reader can search for.
   bindingName?: string;
-  // The identifier the site invoked (a primitive registrar, a framework wrapper
-  // like `inputFrom` / `registerAcmePureFn`, or a renamed import) and the
-  // nearest-package.json / ambient-module name of the file that DECLARES it — so
-  // a consumer can attribute a site to the framework that exposed the registrar
-  // (`@mionjs/client`, `@acme/toolkit`), even through a wrapper-only file.
+  // The identifier the site invoked (a registrar, a wrapper like `inputFrom`, a renamed import) and the
+  // nearest-package.json / ambient-module name of the file that DECLARES it, so a consumer can attribute
+  // a site to the framework that exposed the registrar even through a wrapper-only file.
   calleeName?: string;
   calleeModule?: string;
   // `direct` (arg IS the pure fn, wrapped) | `factory` (arg is a factory).
   form?: string;
-  // Basename of the generated module this entry rides in: per-entry `pf/<id>`
-  // in default/allModules mode, or the single `pf` bundle in allSingle.
+  // Generated module basename: per-entry `pf/<id>` in default/allModules mode, the single `pf` bundle in allSingle.
   module?: string;
   // Entry payload — emitMode-honoring (`code` empty when the mode ships no body).
   paramNames?: string[];
@@ -280,10 +192,8 @@ export interface PureFnSite {
   pureFnDependencies?: string[];
 }
 
-// BatchMapping mirrors Go protocol.BatchMapping — one `inputFrom(source, mapper)`
-// link inside a request batch: the server feeds the output of route `fromId`
-// through the mapper keyed `mapperKey` into argument `paramIndex` of route
-// `toId`.
+// BatchMapping mirrors Go protocol.BatchMapping: one `inputFrom(source, mapper)` link inside a request batch.
+// The server feeds route `fromId`'s output through the mapper `mapperKey` into argument `paramIndex` of route `toId`.
 export interface BatchMapping {
   fromId: string;
   toId: string;
@@ -292,11 +202,9 @@ export interface BatchMapping {
   mapperKey: string;
 }
 
-// BatchSite mirrors Go protocol.BatchSite — one `batch([...])` call site the
-// build found, so the server build can register the batch plan under the same
-// id the client bundle carries. Delivered through the plugin's `onBatchReport`
-// callback or the JSON file `<genDir>/types/batches-report.json`. Populated only
-// when the build report is enabled; the id itself is injected regardless.
+// BatchSite mirrors Go protocol.BatchSite: one `batch([...])` call site, so the server build registers
+// the plan under the same id the client bundle carries. Delivered through `onBatchReport` or
+// `<genDir>/types/batches-report.json`, only when the build report is enabled; the id is injected regardless.
 export interface BatchSite {
   // The `batch(...)` call expression's span (byte offsets).
   file: string;
@@ -314,46 +222,33 @@ export interface BatchSite {
   calleeModule?: string;
 }
 
-// TransformResult mirrors Go protocol.TransformResult — the per-file output of
-// the `transform` op. Two wire shapes selected by Request.emitEdits:
-//   - 'go' mode (emitEdits unset): `code` is the fully rewritten source, `map`
-//     its source map. The plugin plumbs {code, map} straight to the bundler.
-//   - 'edits' mode (emitEdits set): `code`/`map` are absent and `importBlock` +
-//     `edits` + `sourceHash` carry the raw edit list the FE applies itself (see
-//     apply-edits.ts). Lighter wire: O(sites) instead of the whole file + map.
+// TransformResult mirrors Go protocol.TransformResult, one per file, in the wire shape Request.emitEdits selects:
+//   - 'go' mode (unset): `code` + `map`, which the plugin plumbs straight to the bundler.
+//   - 'edits' mode (set): `importBlock` + `edits` + `sourceHash` for apply-edits.ts, O(sites) instead of file + map.
 export interface TransformResult {
   code?: string;
   map?: SourceMap;
-  // 'edits' mode — the deduped import block prepended at offset 0 (single
-  // physical line, already relativized to <outDir>/types in files-mode).
-  // Absent when the file needs no injected imports.
+  // 'edits' mode: the deduped import block prepended at offset 0, one physical line, relativized to
+  // <outDir>/types in files mode. Absent when the file needs no injected imports.
   importBlock?: string;
-  // 'edits' mode — the flat point/span edit list (NOT the import block), in
-  // UTF-16 code-unit offsets against the ORIGINAL source (the FE indexes JS
-  // strings natively).
+  // 'edits' mode: the flat point/span edit list, NOT the import block, in UTF-16 code-unit offsets
+  // against the ORIGINAL source (the FE indexes JS strings natively).
   edits?: Edit[];
-  // 'edits' mode — FNV-1a/32 hash of the source bytes the offsets index. The
-  // applier hashes the bundler-supplied source and, on mismatch, re-uploads it
-  // (setSources) and re-requests rather than misplacing every offset.
+  // 'edits' mode: FNV-1a/32 hash of the source bytes the offsets index.
+  // On mismatch the applier re-uploads the source (setSources) and re-requests, rather than misplacing every offset.
   sourceHash?: string;
   emittedModules?: string[];
-  // The source files that DECLARE the types this file's call sites reflect —
-  // the edges no bundler can see, because `import type` (and a plain import
-  // used only in type position) is erased and an ambient `.d.ts` type never had
-  // an import edge at all. A host declares these to its bundler
-  // (`addWatchFile` / `addDependency`) so editing a type re-runs the files that
-  // reflect it. Absolute program paths, sorted and deduplicated.
-  //
-  // EMPTY MEANS UNKNOWN, NOT 'no dependencies'. Reading it as "nothing to
-  // declare" ships a validator for a type that no longer exists — silently,
-  // because a stale validator does not error, it accepts data the current type
-  // rejects. Fall back to coarse invalidation instead.
+  // The source files that DECLARE the types this file's call sites reflect: edges no bundler can see, since
+  // `import type` is erased and an ambient `.d.ts` type never had one. A host declares these to its bundler
+  // (`addWatchFile` / `addDependency`) so editing a type re-runs the files that reflect it. Absolute, sorted, deduped.
+  // EMPTY MEANS UNKNOWN, NOT 'no dependencies': read as "nothing to declare" it ships a stale validator,
+  // silently, since a stale validator does not error, it accepts data the current type rejects.
+  // Fall back to coarse invalidation instead.
   typeDeps?: string[];
 }
 
-// Edit mirrors Go protocol.Edit — one point insertion (start === end) or span
-// replacement (start < end) in UTF-16 CODE-UNIT offsets against the original
-// source. Used only by 'edits'-mode transform.
+// Edit mirrors Go protocol.Edit: a point insertion (start === end) or span replacement (start < end),
+// in UTF-16 CODE-UNIT offsets against the original source. 'edits'-mode transform only.
 export interface Edit {
   start: number;
   end: number;
@@ -369,11 +264,8 @@ export interface SourceMap {
   mappings: string;
 }
 
-// FormatAnnotation carries the (name, params) pair extracted from a
-// TypeFormat<Base, Name, Params, ...> brand. Wire-mirror of the Go-side
-// protocol.FormatAnnotation. Params is the JSON-serialisable literal
-// payload — sorted/canonicalised before participating in the cache
-// key so two ordering variants of the same params object share one ID.
+// FormatAnnotation mirrors Go protocol.FormatAnnotation: the (name, params) pair from a TypeFormat<> brand.
+// Params is sorted and canonicalised before it feeds the cache key, so two orderings of one params object share an ID.
 export interface FormatAnnotation {
   name: string;
   params?: Record<string, unknown>;
@@ -381,65 +273,44 @@ export interface FormatAnnotation {
 
 export interface Request {
   op: 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'tsCompile' | 'transform' | 'generate' | 'enrich';
-  // The op's file input: the files to scan (scanFiles), rewrite (transform),
-  // or enrichment-check (enrich). The response's sites cover every listed file
-  // (each tagged with .file); when the include* flags are set, runTypes /
-  // runTypeCacheSource are projected over these files only (NOT the cache's
-  // session-wide contents — use dump for that).
+  // The op's file input: the files to scan (scanFiles), rewrite (transform) or enrichment-check (enrich).
+  // The response's sites cover every listed file, each tagged with .file; the include* flags project
+  // runTypes / entryModules over these files only, never the session-wide cache (use dump for that).
   files?: string[];
   // setSources only — { relpath: source-text }.
   sources?: Record<string, string>;
-  // scanFiles only — when set, the response includes a runTypes slice
-  // covering the request's files.
+  // scanFiles only: the response includes a runTypes slice covering the request's files.
   includeRunTypes?: boolean;
-  // scanFiles only — when set, the response carries the per-entry virtual
-  // module map (entryModules) scoped to the request's files. `dump` always
-  // carries the full session's modules.
+  // scanFiles only: the response carries the per-entry virtual module map scoped to the request's files.
+  // `dump` always carries the full session's modules.
   includeEntryModules?: boolean;
-  // Opts the response into the `metrics` block: tsgo extendedDiagnostics
-  // counters, per-phase wall times, and Go memory deltas. Mirrors the
-  // Go-side Request.IncludeMetrics; zero measurement cost when unset.
+  // Opts into the `metrics` block: tsgo extendedDiagnostics counters, per-phase wall times, Go memory deltas.
+  // Mirrors the Go-side Request.IncludeMetrics; zero measurement cost when unset.
   includeMetrics?: boolean;
-  // generate / transform — the resolved RunTypes output root (e.g.
-  // <srcDir>/.mion). `generate` writes modules under <outDir>/types/;
-  // `transform` injects imports relative to it. Empty keeps virtual specifiers.
+  // generate / transform: the resolved RunTypes output root (e.g. <srcDir>/.mion). `generate` writes modules
+  // under <outDir>/types/, `transform` injects imports relative to it. Empty keeps virtual specifiers.
   outDir?: string;
-  // scanFiles only — opts the response into the enrichment-health pass over
-  // the request's files (tag hygiene + FriendlyText/MockData content +
-  // breadcrumb drift), appended to diagnostics as Family.Enrich entries.
-  // Off by default so the rewrite pipeline pays nothing; the lint plugin is
-  // the consumer.
+  // scanFiles only: the enrichment-health pass (tag hygiene, FriendlyText/MockData content, breadcrumb drift),
+  // appended to diagnostics as Family.Enrich. Off by default so the rewrite pipeline pays nothing; the lint plugin consumes it.
   checkEnrich?: boolean;
-  // scanFiles only — opts the response into the mion route rules over the
-  // request's files (handler annotations, a throw that escapes a handler, a
-  // declared error that is not an RpcError, a property named after a prototype
-  // slot), appended to diagnostics as Family.MionRoute entries. Off by default:
-  // every one of those is an error-severity code, so a build that ran them
-  // would fail on a finding the team may have turned off in its lint config.
+  // scanFiles only: the mion route rules (handler annotations, a throw escaping a handler, a declared error that is
+  // not an RpcError, a property named after a prototype slot), appended as Family.MionRoute. Off by default, because
+  // every one is an error-severity code and a build running them would fail on a finding the team may have turned off in lint.
   checkRouterRules?: boolean;
-  // scanFiles only — opts the response into the RunType-family diagnostics
-  // (emitted while rendering the demanded entries) WITHOUT the entry-module
-  // payload. Implied by includeEntryModules; the lint plugin sets it so one
-  // scan surfaces everything a build would.
+  // scanFiles only: the RunType-family diagnostics WITHOUT the entry-module payload. Implied by includeEntryModules;
+  // the lint plugin sets it so one scan surfaces everything a build would.
   includeRtDiagnostics?: boolean;
-  // transform only — switch from 'go' mode (full code + map per file) to
-  // 'edits' mode: each TransformResult carries importBlock + edits + sourceHash
-  // for the FE to apply itself. A per-request wire knob; the artifacts are
-  // identical either way, so it never affects the disk cache.
+  // transform only: 'edits' mode instead of 'go' mode. A per-request wire knob, because the artifacts are identical
+  // either way, so it never affects the disk cache.
   emitEdits?: boolean;
-  // enrich carries NO fields of its own beyond `files` (empty = whole program):
-  // the wire carries the event, the session carries the config — families, i18n
-  // locales, and the output root ride the spawn flags (--gen-dir / --enrich-*),
-  // defaulting from the tsconfig plugin entry.
+  // enrich carries NOTHING beyond `files` (empty = whole program): the families, i18n locales and output root ride
+  // the spawn flags (--gen-dir / --enrich-*), defaulting from the tsconfig plugin entry.
 }
 
-// Metrics mirrors the Go-side protocol.Metrics — populated on a response
-// only when the request set includeMetrics. The counter group mirrors
-// tsc's `--extendedDiagnostics` (files / lines / identifiers / symbols /
-// types / instantiations), read off the live tsgo Program post-op. The
-// *Ms group is wall time per pipeline phase of the op; renderMs is keyed
-// by cache kind. allocBytes / mallocs / numGC are deltas over the op;
-// heapAlloc / heapInuse are post-op snapshots.
+// Metrics mirrors Go protocol.Metrics, present only when the request set includeMetrics.
+// The counters mirror tsc's `--extendedDiagnostics`, read off the live tsgo Program post-op;
+// the *Ms group is wall time per pipeline phase and renderMs is keyed by cache kind.
+// allocBytes / mallocs / numGC are deltas over the op; heapAlloc / heapInuse are post-op snapshots.
 export interface Metrics {
   files?: number;
   lines?: number;
@@ -464,137 +335,96 @@ export interface Metrics {
 
 export interface Response {
   id?: string;
-  // Acknowledgement for ops that don't return data (setSources / resetCache).
+  // Acknowledgement for ops that return no data (setSources / reset).
   ok?: true;
   added?: RunType[];
-  // Per-cache "did this scan change anything?" signals consumed by the
-  // Vite plugin's handleHotUpdate. `addedRunTypes` is true when this
-  // scan interned new RunTypes; `addedValidate` when at least one of
-  // those is supported by the Validate emitter; `addedPureFns` when
-  // any pure-fn entry appeared (an edited body arrives as a new id).
+  // Per-cache "did this scan change anything?" signals for the Vite plugin's handleHotUpdate:
+  // addedRunTypes when the scan interned new RunTypes, addedValidate when the Validate emitter
+  // supports one of them, addedPureFns for any new pure-fn entry (an edited body arrives as a new id).
   addedRunTypes?: boolean;
   addedValidate?: boolean;
-  // Sibling of addedValidate — true when at least one newly-interned
-  // RunType has a supported emitTypeErrors arm, so the validationErrors
-  // cache module needs invalidating.
+  // Sibling of addedValidate for emitTypeErrors: the validationErrors cache module needs invalidating.
   addedValidationErrors?: boolean;
-  // Sibling of addedValidate for the JSON serializer pair. Set when at
-  // least one newly-interned RunType has a supported emit arm in the
-  // matching emitter — the Vite plugin invalidates each cache module
-  // independently based on its own flag.
+  // Siblings of addedValidate for the JSON serializer pair; the Vite plugin invalidates each cache module off its own flag.
   addedPrepareForJson?: boolean;
   addedRestoreFromJson?: boolean;
   addedStringifyJson?: boolean;
   addedPrepareForJsonSafe?: boolean;
-  // Siblings of addedValidate for the unknown-keys family ported from
-  // the reference emitHasUnknownKeys et al. Set when at least one newly-interned
-  // RunType has a supported emit arm in the matching emitter.
+  // Siblings of addedValidate for the unknown-keys family.
   addedHasUnknownKeys?: boolean;
   addedCloneExactShape?: boolean;
   addedUnknownKeyErrors?: boolean;
   addedUnknownKeysToUndefinedWire?: boolean;
-  // Siblings of addedValidate for the binary serializer pair. Set when at
-  // least one newly-interned RunType has a supported emit arm in the
-  // matching emitter.
+  // Siblings of addedValidate for the binary serializer pair.
   addedToBinary?: boolean;
   addedFromBinary?: boolean;
-  // Sibling of addedValidate for the `format` transform family — true when
-  // a newly-interned RunType carries a value-transforming format.
+  // Sibling of addedValidate for the `format` transform family: a newly-interned RunType carries a value-transforming format.
   addedFormatTransform?: boolean;
   addedPureFns?: boolean;
   sites?: Site[];
-  // Replacements is the byte-range rewrite list the Go transform
-  // applies alongside Sites during OpTransform. The pure-fn extractor
-  // emits one entry per accepted `registerPureFnFactory(ns, fn,
-  // factory)` call: swap the factory argument for the entry-module
-  // import binding (importFrom carries the specifier) so the canonical
-  // fn body lives only in the emitted entry module.
+  // The byte-range rewrites the Go transform applies alongside Sites during OpTransform: one per accepted
+  // `registerPureFnFactory(ns, fn, factory)` call, swapping the factory argument for the entry-module import binding.
   replacements?: Replacement[];
-  // The structured pure-fn build report — one record per generated pure-fn
-  // entry — populated on `generate` (whole program) and `scanFiles` (the
-  // rescanned files' delta) when the resolver's pure-fn report is enabled.
+  // The pure-fn build report: whole program on `generate`, the rescanned files' delta on `scanFiles`,
+  // populated only when the resolver's pure-fn report is enabled.
   pureFnSites?: PureFnSite[];
   // generate only: the package's `mion-pure-fns/` as path to content, for the adapter to sync into the
   // bundler's output dir once the bundle is on disk. Empty when the package registers none, so a stale one is removed.
   pureFnArtifact?: Record<string, string>;
-  // The structured request-batch build report — one record per `batch([...])`
-  // call site — populated on `generate` (whole program) and `scanFiles` (the
-  // rescanned files' delta) when the resolver's build report is enabled.
+  // The request-batch build report: whole program on `generate`, the rescanned files' delta on `scanFiles`,
+  // populated only when the resolver's build report is enabled.
   batchSites?: BatchSite[];
   runTypes?: RunType[];
-  // One rendered ES-module source per cache entry, keyed by module
-  // BASENAME (the `<basename>` of `rtmod:/<basename>.js` — the cache
-  // key for runtype / type-fn entries, the `pf/<ns>/<fn>` encoding for
-  // pure fns). In files-mode the resolver writes these to disk under
-  // `<outDir>/types/` via the `generate` op; this wire field is the
-  // in-memory variant still returned by `dump` (and by `scanFiles` when the
-  // request sets includeEntryModules, scoped to the request's files).
+  // One rendered ES module per cache entry, keyed by the basename in `rtmod:/<basename>.js` (the `pf/<ns>/<fn>`
+  // encoding for pure fns). The in-memory variant, returned by `dump` and by `scanFiles` under includeEntryModules;
+  // in files-mode `generate` writes the same modules under `<outDir>/types/` instead.
   entryModules?: Record<string, string>;
-  // Manifest of live module basenames written under <outDir>/types by the
-  // `generate` op (the current build's filesystem output).
+  // Manifest of live module basenames the `generate` op wrote under <outDir>/types.
   generated?: string[];
-  // Sorted unique list of source files carrying at least one marker site
-  // (program paths exactly as the whole-program scan recorded them), returned
-  // by the `generate` op. The plugin gates its per-file transform on this set
-  // so wrapper call sites (markers forwarded by another package, node_modules
-  // included) rewrite with zero configuration.
+  // Sorted unique source files carrying at least one marker site, from the `generate` op, as program paths.
+  // The plugin gates its per-file transform on this set, so wrapper call sites in another package
+  // (node_modules included) rewrite with zero configuration.
   siteFiles?: string[];
-  // enrich only — the computed enrichment mirror files (path + desired content +
-  // added + kind). The daemon never writes; the caller writes them under its own
-  // HMR-suppression window. Absent on an enrichNoEmit request (diagnostics only).
+  // enrich only: the computed mirror files (path + content + added + kind).
+  // The daemon never writes; the caller writes them under its own HMR-suppression window.
   enrichFiles?: EnrichFile[];
-  // The output root `generate` actually wrote to. When the request left
-  // outDir empty the resolver infers <srcDir>/.mion from the tsconfig and
-  // echoes the absolute path here so the plugin can adopt it.
+  // The output root `generate` actually wrote to: with outDir left empty the resolver infers <srcDir>/.mion
+  // from the tsconfig and echoes the absolute path here, so the plugin can adopt it.
   outDir?: string;
-  // The batch transport, `generate` only. `batchesModule` is the absolute path
-  // of `<outDir>/rpc/batches.generated.js` when the batch source program holds
-  // a batch and this program creates the router (absent otherwise);
-  // `batchSourceFiles` lists the files of a SEPARATE batch source program
-  // (the `clientTsconfig` one) that carry a batch or an inline mapper, for the
-  // dev host to watch; `routerInitFiles` lists the program files that call
-  // createMionRouter, the ones the transform appends the table import to.
+  // The batch transport, `generate` only. `batchesModule` is the absolute `<outDir>/rpc/batches.generated.js`,
+  // absent unless the batch source program holds a batch and this program creates the router.
+  // `batchSourceFiles` are the SEPARATE (`clientTsconfig`) batch source program's files carrying a batch or an
+  // inline mapper, for the dev host to watch; `routerInitFiles` are the createMionRouter files the transform
+  // appends the table import to.
   batchesModule?: string;
   batchSourceFiles?: string[];
   // the separate batch source's source root(s): a file CREATED there must
   // trigger a regenerate too
   batchSourceRoots?: string[];
   routerInitFiles?: string[];
-  // Echo of the tsconfig plugin's downgradeErrors on `generate` (absent when the
-  // tsconfig sets none) so the dependency-free host can honor a tsconfig-only
-  // setting: the plugin's own option wins, then this echo, then nothing
-  // downgraded. Either a list of codes or the single wildcard entry '*'.
+  // Echo of the tsconfig plugin's downgradeErrors on `generate`, absent when the tsconfig sets none, so a
+  // dependency-free host can honor a tsconfig-only setting: the plugin's own option wins, then this echo,
+  // then nothing downgraded. Either a list of codes or the single wildcard entry '*'.
   downgradeErrors?: string[];
-  // One TransformResult per file for the `transform` op: rewritten source +
-  // source map (+ the cache modules the file imports), keyed by file path.
+  // One TransformResult per file for the `transform` op, keyed by file path.
   transformed?: Record<string, TransformResult>;
-  // Diagnostics carries every non-fatal diagnostic the Go binary emits —
-  // pure-fn extractor (PFE9xxx), marker scanner (MKRxxx), RT compiler
-  // (IT/TE/PJ/…/FB). The Family discriminator on each entry tells the
-  // consumer which subsystem produced it. The Vite plugin re-emits each
-  // via `this.warn(formatTscDiagnostic(d))` so VS Code's $tsc problem
-  // matcher picks them up; the build never fails on these.
+  // Every non-fatal diagnostic the Go binary emits: pure-fn extractor (PFE9xxx), marker scanner (MKRxxx),
+  // RT compiler (IT/TE/PJ/…/FB); the Family discriminator says which subsystem produced it.
+  // The Vite plugin re-emits each via `this.warn(formatTscDiagnostic(d))` for VS Code's $tsc problem matcher;
+  // the build never fails on these.
   diagnostics?: Diagnostic[];
-  // tsCompile only — wall-time (ms) of the embedded tsgo's bind +
-  // typecheck + emit pass on the current source overlay. Bench
-  // orchestrators record this alongside scanFiles latency to show the
-  // pure-TypeScript compile cost next to mion' own work.
+  // tsCompile only: wall-time (ms) of the embedded tsgo's bind + typecheck + emit pass on the current source
+  // overlay, so a bench can show the pure-TypeScript compile cost next to mion's own work.
   tsCompileMs?: number;
-  // Per-op performance block; present only when the request set
-  // includeMetrics.
+  // Present only when the request set includeMetrics.
   metrics?: Metrics;
   error?: string;
 }
 
-// Level is a diagnostic's three-way classification and the field a code author
-// writes on the Go side. It answers one question: did the build produce the code
-// for this thing (Error: no), and is what it produced broken when called
-// (RuntimeError: yes). Anything deciding whether a finding may be downgraded or
-// silenced reads THIS, never severity.
-//
-// It rides the wire rather than being looked up in the generated catalog because
-// a locally built binary can run ahead of that catalog, and a build-halt decision
-// must not depend on the two being in sync.
+// Level answers: did the build produce the code for this thing (Error: no), and is what it produced broken
+// when called (RuntimeError: yes). Anything deciding whether a finding may be downgraded or silenced reads
+// THIS, never severity. It rides the wire rather than the generated catalog because a locally built binary
+// can run ahead of that catalog, and a build-halt decision must not depend on the two being in sync.
 export const Level = {
   Error: 1,
   RuntimeError: 2,
@@ -602,11 +432,9 @@ export const Level = {
 } as const;
 export type Level = (typeof Level)[keyof typeof Level];
 
-// Severity is the LABEL form of Level: the word the tsc-shaped output line and
-// VS Code's problem matcher need, so both error levels read as "error" here.
-// Numeric on the wire to match the Go-side encoding; mirror the `as const`
-// literal-union enum shape so consumers can `switch (d.severity)` against the
-// named values.
+// Severity is the LABEL form of Level: the word the tsc-shaped output line and VS Code's problem matcher
+// need, so both error levels read as "error" here. Numeric on the wire to match the Go-side encoding; the
+// `as const` literal-union shape lets consumers `switch (d.severity)` against the named values.
 export const Severity = {
   Error: 1,
   Warning: 2,
@@ -614,11 +442,9 @@ export const Severity = {
 } as const;
 export type Severity = (typeof Severity)[keyof typeof Severity];
 
-// Family classifies a Diagnostic by which subsystem produced it. Same
-// numeric-on-the-wire scheme as Severity. Enrich covers the opt-in
-// enrichment-health pass (Request.checkEnrich): tag hygiene, FriendlyText /
-// MockData content validity, and mirror breadcrumb drift.
-// MionRoute covers the opt-in mion route rules (Request.checkRouterRules).
+// Family classifies a Diagnostic by the subsystem that produced it, numeric on the wire like Severity.
+// Enrich covers the opt-in enrichment-health pass (Request.checkEnrich): tag hygiene, FriendlyText / MockData
+// content validity, mirror breadcrumb drift. MionRoute covers the opt-in route rules (Request.checkRouterRules).
 export const Family = {
   PureFn: 1,
   Marker: 2,
@@ -628,9 +454,8 @@ export const Family = {
 } as const;
 export type Family = (typeof Family)[keyof typeof Family];
 
-// DiagnosticSite is a 1-based source location. `endLine` / `endCol` are
-// optional — runtype-family diagnostics (where the site is the marker
-// call rather than a type declaration) leave them zero.
+// DiagnosticSite is a 1-based source location; runtype-family diagnostics leave `endLine` / `endCol` zero,
+// their site being the marker call rather than a type declaration.
 export interface DiagnosticSite {
   filePath: string;
   startLine: number;
@@ -643,10 +468,8 @@ export interface DiagnosticRelated extends DiagnosticSite {
   message: string;
 }
 
-// EnrichFile mirrors the Go-side protocol.EnrichFile — one computed enrichment
-// mirror file from the `enrich` op: its absolute path, the desired content (the
-// daemon never writes; the caller writes it), whether it is newly added (no prior
-// on-disk file), and its family kind ('friendly' | 'mock').
+// EnrichFile mirrors Go protocol.EnrichFile: one computed mirror file from the `enrich` op, with the content
+// the caller writes (the daemon never does), `added` when no on-disk file existed, `kind` 'friendly' | 'mock'.
 export interface EnrichFile {
   path: string;
   content: string;
@@ -654,20 +477,10 @@ export interface EnrichFile {
   kind?: string;
 }
 
-// Diagnostic mirrors the Go-side diag.Diagnostic. The Family
-// discriminator tells the consumer which subsystem produced it (purefn
-// extractor, marker scanner, runtype RT compiler); the Code is the
-// stable identifier (PFE9004, CTA001, PFN001, VL010, SJ001, …), Level says
-// whether the build produced code for it and whether that code works, and
-// Severity is the label form of the level.
-//
-// The user-facing message is NOT carried on the wire. Per-code message
-// templates live in the GENERATED dictionary `./diagnosticCatalog.generated.ts`
-// (emitted from internal/diagnostics/messages.go via `pnpm miondevx core codegen diag`)
-// and resolve at format time against `args` — typically 0–2 positional
-// substitution values (a property name, a kind label, etc.). The Vite
-// plugin renders the final tsc-style line by looking up Code+Args in the
-// catalog.
+// Diagnostic mirrors the Go-side diag.Diagnostic; `code` is the stable identifier (PFE9004, CTA001, VL010, …).
+// The user-facing message is NOT carried on the wire: per-code templates live in the generated
+// `./go-generated/diagnosticCatalog.generated.ts` (from internal/diagnostics/messages.go via
+// `pnpm miondevx core codegen diag`) and resolve at format time against `args`, 0-2 positional values.
 export interface Diagnostic {
   code: string;
   family: Family;
@@ -676,10 +489,9 @@ export interface Diagnostic {
   args?: string[];
   site: DiagnosticSite;
   related?: DiagnosticRelated[];
-  // Set when a source-level `@mion-downgrade-error` comment claimed this
-  // finding. Level and severity stay whatever the catalog says, so the
-  // consumers that decide whether to halt read this alongside their own
-  // `downgradeErrors` setting. Twin of the Go-side Diagnostic.Downgraded.
+  // Set when a source-level `@mion-downgrade-error` comment claimed this finding; level and severity stay
+  // whatever the catalog says, so whoever decides to halt reads this alongside its own `downgradeErrors`.
+  // Twin of the Go-side Diagnostic.Downgraded.
   downgraded?: boolean;
 }
 

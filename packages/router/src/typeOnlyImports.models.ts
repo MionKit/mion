@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Fixture for typeOnlyImports.spec.ts: these types are consumed there through an
-// `import type`, which TypeScript erases entirely from the emitted JS.
+// Fixture for typeOnlyImports.spec.ts, consumed there through an `import type` TypeScript erases from the JS.
 
 export interface ProbeUser {
   name: string;

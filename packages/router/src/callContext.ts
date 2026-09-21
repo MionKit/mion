@@ -15,23 +15,13 @@ import {getBatchExecutionChain} from './batches.ts';
 
 // ############# CONTEXT CREATION #############
 
-/**
- * Resolves a request to the REGISTERED execution chain that answers it, allocating NOTHING: the
- * chain is the object built at registration, and everything constant per chain rides on it (its
- * path, the request limit its types settled, its batch id). A streaming adapter calls this BEFORE
- * the body so it can read against `chain.maxBodySize`, then builds the context with
- * `createContextFromChain` once the body is in hand.
- *
- * Nothing of the request's own being alive during the read is the point, not merely allocating
- * less. A per-request object that survives the read is promoted to the old heap, and the parsed
- * body later attached to it is then promoted with it instead of dying young, which on a 4 MB body
- * costs real garbage-collector throughput.
- *
- * The chain is SHARED and long-lived: mutating what this returns damages the route for the rest of
- * the process, not one request. An unknown path or an unknown batch id resolves to a not-found
- * chain that never reads the body (`readsBody` false) and runs only the global middleFns that
- * declare `alwaysRun`.
- */
+/** Resolves a request to the REGISTERED chain that answers it, allocating NOTHING, so a streaming adapter
+ *  calls it BEFORE the body to read against `chain.maxBodySize` and `createContextFromChain` after.
+ *  Nothing of the request's own may survive the read: such an object is promoted to the old heap and the
+ *  parsed body attached to it is promoted with it, which on a 4 MB body costs garbage-collector throughput.
+ *  The chain is SHARED and long-lived: mutating what this returns damages the route for the whole process.
+ *  An unknown path or batch id resolves to a not-found chain that never reads the body (`readsBody` false)
+ *  and runs only the global middleFns that declare `alwaysRun`. */
 export function resolveExecutionChain(path: string, urlQuery: string | undefined, rawRequest: unknown): MethodsExecutionChain {
   const opts = getRouterOptions();
   const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
@@ -55,9 +45,8 @@ export function createContextFromChain(
     headers: reqHeaders,
     rawBody: reqRawBody,
     bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
-    // The parse replaces this wholesale, so the fresh object every request allocated here was
-    // thrown away unread. Shared, and FROZEN: a write before the parse would have been a silent
-    // cross-request leak, and is now a throw.
+    // The parse replaces this wholesale, so a fresh object per request was thrown away unread. Shared and
+    // FROZEN: a write before the parse would be a silent cross-request leak, and is now a throw.
     body: EMPTY_BODY,
     thrownErrors: undefined,
   } as MionRequest;
@@ -79,9 +68,8 @@ export function createContextFromChain(
     executionChain: chain,
     maxBodySize: chain.maxBodySize,
     readsBody: chain.readsBody,
-    // Eager, and deliberately so: building it lazily through an accessor measured 2x the heap and
-    // 6% less throughput at 1 KB, because defineProperty pushes every context into V8's dictionary
-    // mode. One empty object per request is far cheaper than a context that is slow to touch.
+    // Eager: a lazy accessor measured 2x the heap and 6% less throughput at 1 KB, because defineProperty
+    // pushes every context into V8's dictionary mode.
     shared: contextDataFactory ? contextDataFactory() : {},
     urlQuery,
     batchId: chain.batchId,
@@ -89,11 +77,9 @@ export function createContextFromChain(
   } as CallContext;
 }
 
-/** One frozen object stands in for every unparsed request body. */
 const EMPTY_BODY: Readonly<AnyObject> = Object.freeze({});
 
-/** The one-call form: resolve and build the context together, for a caller that already has the
- *  body (a host that parsed it, `dispatchRoute`, a test). */
+/** The one-call form, for a caller that already has the body (a host that parsed it, `dispatchRoute`, a test). */
 export function createCallContext(
   path: string,
   urlQuery: string | undefined,
@@ -118,7 +104,6 @@ export function getRequestBodyType(rawBody: RawRequestBody | undefined): Seriali
   return SerializerModes.json;
 }
 
-/** Gets the execution chain (and its request limit) for a path, handling the batch endpoint specially */
 function getExecutionChain(
   originalPath: string,
   transformedPath: string,
@@ -127,19 +112,16 @@ function getExecutionChain(
   opts: RouterOptions
 ): MethodsExecutionChain {
   const hasPrefix = !!opts.basePath;
-  // Batch endpoint: the original path ends with the batch key, under any prefix
-  // (/mion-batch, /api/v1/mion-batch). The chain is resolved by the id in the query string.
+  // the batch key ends the path under any prefix (/mion-batch, /api/v1/mion-batch); the query id picks the chain
   const isBatchPath = hasPrefix ? originalPath.endsWith(MION_BATCH_PATH) : originalPath === MION_BATCH_PATH;
   if (isBatchPath) {
     return getBatchExecutionChain(rawRequest, opts, urlQuery) ?? notFoundChain(MION_ROUTES.batchNotFound);
   }
 
-  // Normal path - get execution chain from router using transformed path
   return getRouteExecutionChain(transformedPath) ?? notFoundChain(MION_ROUTES.notFound);
 }
 
-/** One of mion's own not-found chains (an unknown path, an unknown batch id): built by
- *  initRouter, so its absence is a bug rather than a request error. */
+/** mion's own not-found chains are built by initRouter, so an absent one is a bug, not a request error. */
 function notFoundChain(chainId: string): MethodsExecutionChain {
   const executionChain = getNotFoundExecutionChain(chainId);
   if (!executionChain) {

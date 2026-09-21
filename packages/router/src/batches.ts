@@ -29,35 +29,29 @@ import type {CallContext} from './types/context.ts';
 // ############# BATCH REGISTRY #############
 //
 // A batch is several routes run in ONE request, with `inputFrom` mappings feeding one route's output
-// into another's input on the server. The build reads every `batch([...])` call site in the client,
-// hashes its ordered route ids into an id, and compiles the id → definition table into the server
-// (the generated `.mion/rpc/batches.generated.js` calls replaceBatches). A request carries only the id:
-// nothing untrusted describes a chain any more, so there is no shape to check and no count to cap.
-//
-// Batches are NOT routes: they live in this registry, apart from the route table, and are never
-// looked up by path. The merged execution chain is built once per id (once per tenant when a
-// pathTransform reads the request) and kept on the entry.
+// into another's input on the server. The client build hashes each `batch([...])` call site's ordered
+// route ids into an id and compiles the id → definition table into the server (the generated
+// `.mion/rpc/batches.generated.js` calls replaceBatches), so a request carries only the id: nothing
+// untrusted describes a chain, there is no shape to check and no count to cap. Batches are NOT routes:
+// they live here apart from the route table, never looked up by path, and the merged chain is built
+// once per id (once per tenant when a pathTransform reads the request) and kept on the entry.
 
-/** One registered batch: its definition, its merged chains and its request limit. */
 export interface BatchEntry {
   readonly id: string;
-  /** Route ids in call order, e.g. ['orders/getById', 'users/getById'] */
+  /** Route ids in call order */
   readonly routes: readonly string[];
   readonly mappings: readonly BatchMapping[];
   /** Merged chains keyed by the pathTransform-resolved paths ('' when there is no transform) */
   readonly chains: Map<string, MethodsExecutionChain>;
-  /** Largest request body this batch accepts: the sum of its member routes' resolved limits plus
-   *  the envelope, fixed on the entry when its first chain is built (see resolveBatchMaxBodySize) */
+  /** The members' resolved limits plus the envelope, fixed when the first chain is built (see resolveBatchMaxBodySize) */
   maxBodySize?: number;
 }
 
 const batchesById = getOrCreateGlobal('mion.router.batchesById', () => new Map<string, BatchEntry>());
-/** Cache for mapping RemoteMethods keyed by their unique ID */
 const mappingMethodCache = getOrCreateGlobal('mion.router.batchMappingMethodCache', () => new Map<string, RemoteMethod>());
 
-/** Registers compiled batches; a hand-written server may call it. A malformed definition is a
- *  configuration error and throws at registration, never at request time. Re-registering an id
- *  replaces it; ids not in `table` are left alone (see replaceBatches for the whole-table form). */
+/** A malformed definition is a configuration error and throws at registration, never at request time.
+ *  Re-registering an id replaces it; ids not in `table` are left alone (replaceBatches is the whole-table form). */
 export function registerBatches(table: Record<string, BatchDefinition>): void {
   for (const [id, definition] of Object.entries(table)) {
     assertValidBatchDefinition(id, definition);
@@ -70,16 +64,14 @@ export function registerBatches(table: Record<string, BatchDefinition>): void {
   }
 }
 
-/** Replaces the WHOLE table with `table`. What the generated `.mion/rpc/batches.generated.js`
- *  calls, so every evaluation of it, the first or a dev reload after the client build rewrote it,
- *  leaves exactly the batches in the file registered and nothing from before. */
+/** Replaces the WHOLE table. What the generated `.mion/rpc/batches.generated.js` calls, so every
+ *  evaluation of it leaves exactly that file's batches registered and nothing from before. */
 export function replaceBatches(table: Record<string, BatchDefinition>): void {
   clearBatches();
   registerBatches(table);
 }
 
-/** Rejects a definition the server cannot run. The table is build-generated, so this is a guard
- *  against a stale or hand-edited manifest, reported at boot with the batch id. */
+/** The table is build-generated, so this only guards against a stale or hand-edited manifest. */
 function assertValidBatchDefinition(id: string, definition: BatchDefinition): void {
   const invalid = (reason: string): never => {
     throw new Error(`[mion batches] batch '${id}' is malformed: ${reason}.`);
@@ -104,7 +96,6 @@ function assertValidBatchDefinition(id: string, definition: BatchDefinition): vo
   }
 }
 
-/** Returns a registered batch. */
 export function getBatch(id: string): BatchEntry | undefined {
   return batchesById.get(id);
 }
@@ -114,16 +105,14 @@ export function getBatchIds(): string[] {
   return [...batchesById.keys()];
 }
 
-/** Drops every registered batch and its chains. Called by resetRouter and replaceBatches. */
+/** Called by resetRouter and replaceBatches. */
 export function clearBatches(): void {
   batchesById.clear();
   mappingMethodCache.clear();
 }
 
-/** Largest body a batch request accepts: the sum of its member routes' resolved limits (each
- *  already carries its factor and its envelope; a member whose types cannot say counts the
- *  platform's number) plus the outer braces, fixed on the entry the first time its chain is built
- *  so the limit is read from the table. */
+/** The member routes' resolved limits (each already carries its factor and envelope, or the platform's
+ *  number when its types cannot say) plus the outer braces, fixed the first time a chain is built. */
 export function resolveBatchMaxBodySize(entry: BatchEntry, memberChains: MethodsExecutionChain[]): number {
   if (entry.maxBodySize === undefined) entry.maxBodySize = sumChainMaxBodySize(memberChains);
   return entry.maxBodySize;
@@ -135,17 +124,15 @@ function sumChainMaxBodySize(chains: MethodsExecutionChain[]): number {
   return Math.min(total, getPlatformRequestCap() ?? Infinity);
 }
 
-/** Brings every batch limit already settled down to the platform's request ceiling (the ones not
- *  yet settled read the ceiling when they are). */
+/** The limits not yet settled read the platform ceiling when they are. */
 export function capBatchBodySizes(maxRequestSize: number): void {
   for (const entry of batchesById.values()) {
     if (entry.maxBodySize !== undefined && entry.maxBodySize > maxRequestSize) entry.maxBodySize = maxRequestSize;
   }
 }
 
-/** Re-folds the limit of every batch chain ALREADY built from its entry's current number. Without
- *  it a chain built before a later setPlatformConfig kept serving the number it was built with,
- *  which is a limit the platform had since promised to refuse. */
+/** Re-folds every ALREADY built chain from its entry's current number: without it a chain built before
+ *  a later setPlatformConfig keeps serving a limit the platform has since promised to refuse. */
 export function refreshBatchChainBodyLimits(platformMaxBodySize: number): void {
   for (const entry of batchesById.values()) {
     const limit = entry.maxBodySize ?? platformMaxBodySize;
@@ -178,9 +165,8 @@ export function getMaxBatchBodySize(): number {
 
 // ############# REQUEST RESOLUTION #############
 
-/** Reads the batch id out of the query string (`id=<batchId>`, the only parameter the batch
- *  endpoint reads). Anything else, missing or undecodable, is an unknown id. The id is the one
- *  query value that IS percent-decoded, so it survives a `/` or a space in a route name. */
+/** `id=<batchId>` is the only parameter the batch endpoint reads; missing or undecodable is an unknown id.
+ *  The id is the one query value that IS percent-decoded, so it survives a `/` or a space in a route name. */
 export function readBatchId(urlQuery: string | undefined): string | undefined {
   const rawId = findMionQueryParam(urlQuery, 'id');
   if (rawId === undefined) return undefined;
@@ -191,10 +177,9 @@ export function readBatchId(urlQuery: string | undefined): string | undefined {
   }
 }
 
-/** Resolves a batch request to its merged execution chain by id. Runs while the call context is
- *  acquired, BEFORE the request body is read, so an unknown id costs the server nothing but a Map
- *  lookup: it answers undefined and the caller resolves the batch not-found chain. The id is the
- *  only untrusted input and it is never echoed back. */
+/** Runs while the call context is acquired, BEFORE the body is read, so an unknown id costs nothing but
+ *  a Map lookup: it answers undefined and the caller resolves the batch not-found chain.
+ *  The id is the only untrusted input and it is never echoed back. */
 export function getBatchExecutionChain(
   rawRequest: unknown,
   opts: RouterOptions,
@@ -204,9 +189,8 @@ export function getBatchExecutionChain(
   const entry = batchId ? getBatch(batchId) : undefined;
   if (!entry) return undefined;
 
-  // The chain is built from the TRANSFORMED paths, and pathTransform may read the request (a tenant
-  // header, the host), so with a transform the chains are kept per resolved path list: the same id
-  // from two requests that resolve differently must never share a chain.
+  // pathTransform may read the request (a tenant header, the host), so with a transform the chains are
+  // kept per resolved path list: the same id from two requests that resolve differently never shares a chain.
   const routePaths = entry.routes.map((routeId) => getRoutePath(routeId.split(ROUTER_ITEM_SEPARATOR_CHAR), opts));
   const transformedPaths = opts.pathTransform
     ? routePaths.map((routePath) => opts.pathTransform!(rawRequest, routePath) || routePath)
@@ -220,21 +204,14 @@ export function getBatchExecutionChain(
   return executionChain;
 }
 
-/**
- * Builds a merged execution chain from the batch's routes (already path-transformed).
- * The merged chain includes all methods from all routes, with deduplication by ID:
- * 1. Start middleFns (e.g., mionDeserializeRequest) - from the router, at the beginning
- * 2. Middle methods (routes and their middleFns) - merged from all routes, with mapping steps inserted
- * 3. End middleFns (e.g., mionSerializeResponse) - from the router, at the end
- * Mapping steps are inserted after the source route and before the target route.
- */
+/** Merges the member chains (paths already transformed) deduplicating by id, the router's start and end
+ *  middleFns kept at the two ends and each mapping step inserted between its source and target route. */
 function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]): MethodsExecutionChain {
   const seenIds = new Set<string>();
   const middleMethods: RemoteMethod[] = [];
   const memberChains: MethodsExecutionChain[] = [];
   let firstRouteIndex = -1;
 
-  // Build sets of start and end middleFn IDs for filtering
   const startMiddleFnIds = new Set(startMiddleFns.map((method) => method.id));
   const endMiddleFnIds = new Set(endMiddleFns.map((method) => method.id));
 
@@ -250,10 +227,9 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     }
 
     memberChains.push(chain);
-    // Track the route index from the first route (relative to start middleFns)
     if (firstRouteIndex < 0) firstRouteIndex = chain.routeIndex;
 
-    // Add middle methods from this route's chain, deduplicating by ID; start and end middleFns are added separately
+    // start and end middleFns are added separately, so skip them here
     for (const method of chain.methods) {
       if (seenIds.has(method.id)) continue;
       if (startMiddleFnIds.has(method.id)) continue;
@@ -269,7 +245,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
   // The entry's own number IS the declared one for a batch: it is the sum its members resolved to.
   const declaredBodySize = resolveBatchMaxBodySize(entry, memberChains);
   return {
-    // Use the first route's routeIndex since that's where the first route handler is
+    // the first route's index: where the first route handler sits in the merged methods
     routeIndex: firstRouteIndex,
     methods,
     serializer: SerializerModes.json,
@@ -347,21 +323,19 @@ function insertMappingMethods(entry: BatchEntry, middleMethods: RemoteMethod[]):
     middleMethods[toIndex] = guardMappedTarget(middleMethods[toIndex]);
   }
 
-  // Sort insertions by index descending so splice doesn't shift subsequent indices
+  // descending, so a splice never shifts the indices still to come
   insertions.sort((a, b) => b.index - a.index);
   for (const {index, method} of insertions) middleMethods.splice(index, 0, method);
 }
 
-/** A shallow copy of the target route whose caller skips the handler when a mapping step already
- *  answered it with an error. A copy, never a mutation: the route's own RemoteMethod is shared with
- *  every plain call to that route. */
+/** Skips the handler when a mapping step already answered the target with an error. A copy, never a
+ *  mutation: the route's own RemoteMethod is shared with every plain call to that route. */
 function guardMappedTarget(target: RemoteMethod): RemoteMethod {
   if ((target as GuardedTarget).mappedTargetOf) return target;
   const guarded = {
     ...target,
     mappedTargetOf: target,
-    // the guard below is async whatever the target is, so the dispatcher must await this member even
-    // when the target itself is synchronous
+    // the guard below is async whatever the target is, so the dispatcher must await this member
     isAsync: true,
     methodCaller: async (context: CallContext, executable: RemoteMethod, ...args: unknown[]) => {
       if (isRpcError(context.response.body[executable.id])) return undefined;
@@ -374,7 +348,6 @@ function guardMappedTarget(target: RemoteMethod): RemoteMethod {
 
 type GuardedTarget = RemoteMethod & {mappedTargetOf?: RemoteMethod};
 
-/** Creates or retrieves a cached RemoteMethod that acts as a raw middleFn to execute a mapping between routes */
 function createMappingMethod(mapping: BatchMapping): RemoteMethod {
   const id = `mionInputFrom_${mapping.fromId}_${mapping.mapperKey}_to_${mapping.toId}`;
   const cached = mappingMethodCache.get(id);
@@ -401,13 +374,11 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
   return method;
 }
 
-/** Creates the handler function for a mapping step */
 function createMappingHandler(mapping: BatchMapping) {
   return (ctx: CallContext) => {
     const sourceOutput = ctx.response.body[mapping.fromId];
-    // A source that answered a DECLARED error has no output to map: the target gets a typed error
-    // of its own (its guard then skips the handler) instead of running on a null placeholder and
-    // failing validation as if the caller had sent bad params.
+    // A source that answered a DECLARED error has no output to map, so the target gets a typed error of
+    // its own instead of running on the null placeholder and failing validation as if the params were bad.
     if (isRpcError(sourceOutput)) {
       (ctx.response.body as Record<string, unknown>)[mapping.toId] = new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
@@ -429,8 +400,7 @@ function createMappingHandler(mapping: BatchMapping) {
     try {
       mappedValue = pureFn(sourceOutput);
     } catch (error) {
-      // thrown, so the batch stops like any thrown handler error, but typed and without the
-      // registry key in the public message
+      // thrown, so the batch stops like any handler error, but typed and with no registry key in the message
       throw new FatalError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
         type: 'batch-mapper-failed',
@@ -439,13 +409,12 @@ function createMappingHandler(mapping: BatchMapping) {
         originalError: error as Error,
       });
     }
-    // Replace the null placeholder at paramIndex in the target route's params
+    // the client sent a null placeholder at paramIndex
     const targetParams = ctx.request.body[mapping.toId] as any[];
     if (targetParams) targetParams[mapping.paramIndex] = mappedValue;
   };
 }
 
-/** Custom method caller for mapping handlers, only passes the context */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function runMappingHandler(context: CallContext, executable: RemoteMethod, ...args: unknown[]) {
   return executable.handler(context);
