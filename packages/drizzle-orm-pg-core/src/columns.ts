@@ -219,11 +219,11 @@ export type Bigserial<
 > = RtColType<'bigserial', ColNameArg<A>, ColConfigArg<A, C>, BigintData<ColConfigArg<A, C>>, 'notNull' | 'hasDefault'>;
 export function bigserial<TMode extends 'number' | 'bigint'>(
   config: PgBigIntConfig<TMode>
-): RtPgIntColumn<BigintDataOf<TMode>, true, true, false>;
+): RtPgColumn<BigintDataOf<TMode>, true, true, false>;
 export function bigserial<TName extends string, TMode extends 'number' | 'bigint'>(
   name: TName,
   config: PgBigIntConfig<TMode>
-): RtPgIntColumn<BigintDataOf<TMode>, true, true, false>;
+): RtPgColumn<BigintDataOf<TMode>, true, true, false>;
 export function bigserial(...args: unknown[]) {
   return pgColumn('bigserial', args);
 }
@@ -571,8 +571,8 @@ export type Serial<A extends string | PgColMods | undefined = undefined, C exten
   Int32,
   'notNull' | 'hasDefault'
 >;
-export function serial(): RtPgIntColumn<Int32, true, true, false>;
-export function serial<TName extends string>(name: TName): RtPgIntColumn<Int32, true, true, false>;
+export function serial(): RtPgColumn<Int32, true, true, false>;
+export function serial<TName extends string>(name: TName): RtPgColumn<Int32, true, true, false>;
 export function serial(...args: unknown[]) {
   return pgColumn('serial', args);
 }
@@ -593,8 +593,8 @@ export type Smallserial<
   A extends string | PgColMods | undefined = undefined,
   C extends PgColMods = Record<never, never>,
 > = RtColType<'smallserial', ColNameArg<A>, ColConfigArg<A, C>, Int16, 'notNull' | 'hasDefault'>;
-export function smallserial(): RtPgIntColumn<Int16, true, true, false>;
-export function smallserial<TName extends string>(name: TName): RtPgIntColumn<Int16, true, true, false>;
+export function smallserial(): RtPgColumn<Int16, true, true, false>;
+export function smallserial<TName extends string>(name: TName): RtPgColumn<Int16, true, true, false>;
 export function smallserial(...args: unknown[]) {
   return pgColumn('smallserial', args);
 }

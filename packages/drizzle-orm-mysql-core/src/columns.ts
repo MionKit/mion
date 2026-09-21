@@ -9,7 +9,7 @@
 // identical names and call params, slim recorder returns. THREE kind
 // interfaces, grouped by drizzle's own method sets:
 //   RtMyColumn           the common chain every mysql builder has
-//   RtMyIntColumn        + autoincrement()      (int family + serial)
+//   RtMyIntColumn        + autoincrement()      (every numeric kind + serial)
 //   RtMyTimestampColumn  + defaultNow() / onUpdateNow()
 // Coverage is gated by manifests/mysql.manifest.json; the completeness spec
 // diffs the chain methods against drizzle's builder prototypes.
@@ -143,7 +143,8 @@ export interface MySqlColMods extends Pick<
   references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
   generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
 }
-/** The integer kinds: + autoincrement(). */
+/** + autoincrement(): every numeric kind, floats and decimal included, since
+ *  mysql allows AUTO_INCREMENT on any numeric column. */
 export interface MySqlIntColMods extends MySqlColMods {
   autoincrement?: true;
 }
@@ -307,14 +308,14 @@ export type Decimal<
   A extends string | (MySqlDecimalConfig & MySqlIntColMods) | undefined = undefined,
   C extends MySqlDecimalConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'decimal', ColNameArg<A>, ColConfigArg<A, C>, DecimalData<ColConfigArg<A, C>>>;
-export function decimal(): RtMyColumn<string, false, false, false>;
+export function decimal(): RtMyIntColumn<string, false, false, false>;
 export function decimal<TMode extends 'number' | 'string' | 'bigint' = 'string'>(
   config?: MySqlDecimalConfig<TMode>
-): RtMyColumn<DecimalDataOf<TMode>, false, false, false>;
+): RtMyIntColumn<DecimalDataOf<TMode>, false, false, false>;
 export function decimal<TName extends string, TMode extends 'number' | 'string' | 'bigint' = 'string'>(
   name: TName,
   config?: MySqlDecimalConfig<TMode>
-): RtMyColumn<DecimalDataOf<TMode>, false, false, false>;
+): RtMyIntColumn<DecimalDataOf<TMode>, false, false, false>;
 export function decimal(...args: unknown[]) {
   return myColumn('decimal', args);
 }
@@ -329,12 +330,12 @@ export type Double<
   A extends string | (MySqlDoubleConfig & MySqlIntColMods) | undefined = undefined,
   C extends MySqlDoubleConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'double', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
-export function double(): RtMyColumn<FloatFormat, false, false, false>;
-export function double(config?: MySqlDoubleConfig): RtMyColumn<FloatFormat, false, false, false>;
+export function double(): RtMyIntColumn<FloatFormat, false, false, false>;
+export function double(config?: MySqlDoubleConfig): RtMyIntColumn<FloatFormat, false, false, false>;
 export function double<TName extends string>(
   name: TName,
   config?: MySqlDoubleConfig
-): RtMyColumn<FloatFormat, false, false, false>;
+): RtMyIntColumn<FloatFormat, false, false, false>;
 export function double(...args: unknown[]) {
   return myColumn('double', args);
 }
@@ -349,9 +350,12 @@ export type Float<
   A extends string | (MySqlFloatConfig & MySqlIntColMods) | undefined = undefined,
   C extends MySqlFloatConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'float', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
-export function float(): RtMyColumn<FloatFormat, false, false, false>;
-export function float(config?: MySqlFloatConfig): RtMyColumn<FloatFormat, false, false, false>;
-export function float<TName extends string>(name: TName, config?: MySqlFloatConfig): RtMyColumn<FloatFormat, false, false, false>;
+export function float(): RtMyIntColumn<FloatFormat, false, false, false>;
+export function float(config?: MySqlFloatConfig): RtMyIntColumn<FloatFormat, false, false, false>;
+export function float<TName extends string>(
+  name: TName,
+  config?: MySqlFloatConfig
+): RtMyIntColumn<FloatFormat, false, false, false>;
 export function float(...args: unknown[]) {
   return myColumn('float', args);
 }
@@ -480,9 +484,12 @@ export type Real<
   A extends string | (MySqlRealConfig & MySqlIntColMods) | undefined = undefined,
   C extends MySqlRealConfig & MySqlIntColMods = Record<never, never>,
 > = RtColType<'real', ColNameArg<A>, ColConfigArg<A, C>, FloatFormat>;
-export function real(): RtMyColumn<FloatFormat, false, false, false>;
-export function real(config?: MySqlRealConfig): RtMyColumn<FloatFormat, false, false, false>;
-export function real<TName extends string>(name: TName, config?: MySqlRealConfig): RtMyColumn<FloatFormat, false, false, false>;
+export function real(): RtMyIntColumn<FloatFormat, false, false, false>;
+export function real(config?: MySqlRealConfig): RtMyIntColumn<FloatFormat, false, false, false>;
+export function real<TName extends string>(
+  name: TName,
+  config?: MySqlRealConfig
+): RtMyIntColumn<FloatFormat, false, false, false>;
 export function real(...args: unknown[]) {
   return myColumn('real', args);
 }
