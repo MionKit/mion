@@ -7,15 +7,11 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 )
 
-// mappedTypeLayout mirrors checker.MappedType's field layout (typescript-go
-// internal/checker/types.go, `type MappedType struct`) so the accessors below
-// can read the unexported `declaration` / `modifiersType` fields — the exact
-// technique tsgolint's generated shim uses for its extra_* field accessors
-// (shim/checker/shim.go, `extra_MappedType`). Stand-in until the tsgolint
-// submodule pin advances to a shim generation that exports
-// MappedType_declaration / MappedType_modifiersType; when it does, these two
-// can be replaced by the shim calls (same signatures). Layout drift across
-// typescript-go bumps is guarded by TestMappedTypeLayoutMatchesChecker.
+// mappedTypeLayout mirrors checker.MappedType's field layout (typescript-go internal/checker/types.go) so the
+// accessors below can read the unexported `declaration` / `modifiersType`, the technique tsgolint's generated
+// shim uses for its extra_* accessors (shim/checker/shim.go, `extra_MappedType`). A stand-in until the tsgolint
+// pin exports MappedType_declaration / MappedType_modifiersType, which have the same signatures.
+// Layout drift across typescript-go bumps is guarded by TestMappedTypeLayoutMatchesChecker.
 type mappedTypeLayout struct {
 	checker.ObjectType
 	declaration          *ast.MappedTypeNode

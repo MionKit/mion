@@ -254,7 +254,7 @@ func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *reflection
 // DepthExceeded reports whether the most recent walk hit typeid.maxWalkDepth; the resolver reads it to raise MKR009/MKR008.
 func (cache *Cache) DepthExceeded() bool { return cache.depthExceeded }
 
-// ResetDepthExceeded clears the depth-cap latch before a fresh top-level walk.
+// ResetDepthExceeded clears the depth-cap latch and the sample conflicts before a fresh top-level walk.
 func (cache *Cache) ResetDepthExceeded() {
 	cache.depthExceeded = false
 	cache.depthCulprit = ""
