@@ -220,7 +220,8 @@ ${readWide('w')}`,
   },
   {
     label: 'builder road, wide vocabulary',
-    budget: 688,
+    // 688 while the serials returned RtPgIntColumn: an unbranded serial is cheaper.
+    budget: 676,
     body: `
 const vSrcTable = pgTable('w', {
   id: serial('id').primaryKey(),
