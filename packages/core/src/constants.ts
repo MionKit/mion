@@ -6,6 +6,9 @@
  * ######## */
 
 import type {CoreRouterOptions, ParserDirection, ParserStrategy} from './types/general.types.ts';
+// Generated from the Go operation registry beside run-types' full variant table, so the two cannot drift.
+// Re-exported because every consumer reaches it through @mionjs/core, never through the generated path.
+export {JIT_FUNCTION_IDS} from './go-generated/jitFunctionIds.generated.ts';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   autoGenerateErrorId: false,
@@ -65,30 +68,6 @@ export const HandlerType = {
   headersMiddleFn: 3,
   rawMiddleFn: 4,
 } as const;
-
-/** The `<fnHash>` half of the runtime cache key `<fnHash>_<typeId>`, one per family: TYPE-INDEPENDENT and release-stable.
- *  Written out rather than derived, since `getFnHash` shipped the whole Go hash table to every browser.
- *  constants.jitFunctionIds.spec.ts fails if a value drifts from `getFnHash`. */
-export const JIT_FUNCTION_IDS = {
-  // Keyed by the run-types FAMILY name, the same names PARAMS_PARSING and RETURN_PARSING hold, so a row's
-  // value indexes this table directly.
-  validate: 'Eq2V',
-  validationErrors: 'swxg',
-  validateUnionKeys: 'Xhuv',
-  validationErrorsUnionKeys: 'OBOg',
-  validateStrict: 'fZHy',
-  validationErrorsStrict: 'OB5g',
-  // Standalone public APIs; no parser strategy requests them.
-  hasUnknownKeys: 'GsPX',
-  unknownKeyErrors: 'r8yS',
-  formatTransform: 'mzca', // sanitizeParams
-  prepareForJsonClone: 'A0Qb',
-  prepareForJsonMutate: 'AwYs',
-  compactForJson: 'rpEK',
-  restoreFromJsonMutate: 'w8ie',
-  restoreFromJsonClone: 'Ky89',
-  compactFromJson: 'FFsn',
-} as const satisfies Record<string, string>;
 
 // ###################### What each parser strategy compiles ######################
 // One row per strategy per WIRE, holding every family that wire needs, named by the MARKER token a route's

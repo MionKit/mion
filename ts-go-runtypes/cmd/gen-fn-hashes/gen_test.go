@@ -45,3 +45,36 @@ func TestCollectEntriesNonEmpty(t *testing.T) {
 		t.Errorf("collectEntries returned %d entries, expected the full operation registry (>=10)", got)
 	}
 }
+
+// TestJitFnIdsFileInSync is the same containment guard for mion's narrow mirror. It exists separately from
+// the full table because a consumer bundle cannot afford the full one, and a second file is a second thing
+// to forget: add a public family without regenerating and this fails.
+func TestJitFnIdsFileInSync(t *testing.T) {
+	committed, err := os.ReadFile(jitFnIdsOutputPath())
+	if err != nil {
+		t.Fatalf("read %s: %v", jitFnIdsOutputPath(), err)
+	}
+	src := string(committed)
+	for _, row := range plainVariantHashes() {
+		if !strings.Contains(src, tsKey(row[0])+": "+jsStr(row[1])) {
+			t.Errorf("%s: %s missing from %s — regenerate via `pnpm miondevx core codegen fnhashes`",
+				row[0], row[1], jitFnIdsOutputPath())
+		}
+	}
+}
+
+// TestJitFnIdsMatchTheFullTable pins the one thing splitting the mirrors could break: the narrow table's
+// value for a family must be that family's PLAIN variant in the full one, not some other variant.
+func TestJitFnIdsMatchTheFullTable(t *testing.T) {
+	plain := map[string]string{}
+	for _, entry := range collectEntries() {
+		if hash, ok := entry.variants[""]; ok {
+			plain[entry.fnKey] = hash
+		}
+	}
+	for _, row := range plainVariantHashes() {
+		if plain[row[0]] != row[1] {
+			t.Errorf("%s: narrow table says %q, the full table's plain variant is %q", row[0], row[1], plain[row[0]])
+		}
+	}
+}

@@ -18,7 +18,7 @@
 //
 // Run:
 //
-//	go run ./cmd/gen-fn-hashes > packages/run-types/src/go-generated/fnHashes.generated.ts
+//	go run ./cmd/gen-fn-hashes      # writes both files
 //
 // Or via miondevx (regenerates + formats + drift-checks):
 //
@@ -26,13 +26,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 )
 
 func main() {
-	if _, err := fmt.Fprint(os.Stdout, Generate()); err != nil {
-		log.Fatalf("gen-fn-hashes: write stdout: %v", err)
+	if err := os.WriteFile(fnHashesOutputPath(), []byte(Generate()), 0o644); err != nil {
+		log.Fatalf("gen-fn-hashes: write %s: %v", fnHashesOutputPath(), err)
+	}
+	if err := os.WriteFile(jitFnIdsOutputPath(), []byte(GenerateJitFnIds()), 0o644); err != nil {
+		log.Fatalf("gen-fn-hashes: write %s: %v", jitFnIdsOutputPath(), err)
 	}
 }

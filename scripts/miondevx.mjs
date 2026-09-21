@@ -155,7 +155,9 @@ const CODEGEN = {
   // Writes BOTH mirrors itself (marker RunTypeKind + devtools ReflectionKind enum)
   // from one protocol parse, so they can't drift; no stdoutTo (multi-file output).
   kind: {run: [...GO_RUN, './cmd/gen-run-type-kind'], outputs: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts'], fmt: ['packages/run-types/src/go-generated/runTypeKind.generated.ts', 'packages/devtools/src/core/go-generated/reflectionKind.generated.ts']},
-  fnhashes: {run: [...GO_RUN, './cmd/gen-fn-hashes'], stdoutTo: 'packages/run-types/src/go-generated/fnHashes.generated.ts', outputs: ['packages/run-types/src/go-generated/fnHashes.generated.ts'], fmt: ['packages/run-types/src/go-generated/fnHashes.generated.ts']},
+  // Writes BOTH mirrors itself from one registry walk: run-types' full variant table, and mion's narrow
+  // family → plain hash one (a getFnHash call would pull the whole table into every browser bundle).
+  fnhashes: {run: [...GO_RUN, './cmd/gen-fn-hashes'], outputs: ['packages/run-types/src/go-generated/fnHashes.generated.ts', 'packages/core/src/go-generated/jitFunctionIds.generated.ts'], fmt: ['packages/run-types/src/go-generated/fnHashes.generated.ts', 'packages/core/src/go-generated/jitFunctionIds.generated.ts']},
   // Type-format metadata mirror: the canonical format names (+ base RunTypeKind)
   // each emitter under internal/cachegen/typefunctions/formats registers, so a
   // reflection consumer keys off `typeFormats` instead of re-declaring the names.
