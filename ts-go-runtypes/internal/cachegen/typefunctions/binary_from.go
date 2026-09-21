@@ -430,8 +430,7 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 				innerRT = RTCode{Code: "", Type: CodeS}
 			}
 			bitCheck := bitCheckExpr(des, bitmapVar, i)
-			// An empty body is correct, not a gap: the absorbed property's bit is
-			// still written by the encoder and neither side moves the byte cursor.
+			// An empty body is safe: the encoder writes only the bit, so neither side moves the byte cursor.
 			parts = append(parts, "if ("+bitCheck+") {"+innerRT.Code+"}")
 		}
 	}

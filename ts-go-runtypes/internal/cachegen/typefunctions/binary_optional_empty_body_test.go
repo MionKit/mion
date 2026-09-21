@@ -8,15 +8,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// An optional property whose value kind has no binary emit is ABSORBED
-// (propertyChildFailed returns false for it), leaving the compiled child empty
-// on both wire sides. Nothing guards that empty body, so these tests pin what
-// it emits: the presence bit is still reserved and set, and neither side moves
-// the byte cursor, so the optionals after it keep their masks.
+// Nothing guards the empty body an absorbed optional compiles to (propertyChildFailed absorbs it),
+// so these tests pin what it emits: its presence bit is still reserved and set, and neither side
+// moves the byte cursor.
 
-// buildAbsorbedOptionalFixture builds `{a?: X; b?: string; c?: number}` where
-// X is a type parameter — a kind no binary emitter handles and
-// isStrippedUnionMember does not treat as stripped, so `a` is absorbed.
+// buildAbsorbedOptionalFixture makes `a` absorbed: no binary emitter handles a type parameter, and it is not stripped.
 func buildAbsorbedOptionalFixture() protocol.Dump {
 	typeParam := &reflection.RunType{ID: "tpx", Kind: reflection.KindTypeParameter, Name: "X"}
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
@@ -34,7 +30,6 @@ func buildAbsorbedOptionalFixture() protocol.Dump {
 func TestFromBinary_AbsorbedOptionalEmitsEmptyBitBody(t *testing.T) {
 	out := renderModule(t, buildAbsorbedOptionalFixture(), "fromBinary")
 
-	// Bit 0 is read and its body is empty: no read, no cursor move.
 	if !strings.Contains(out, "if ((Des.view.getUint8(bmI0 + 0) & 1)) {}") {
 		t.Errorf("expected an empty-bodied bit-0 check for the absorbed optional; got:\n%s", out)
 	}
@@ -45,7 +40,6 @@ func TestFromBinary_AbsorbedOptionalEmitsEmptyBitBody(t *testing.T) {
 	if !strings.Contains(out, "if ((Des.view.getUint8(bmI0 + 0) & 4)) {ret.c = ") {
 		t.Errorf("expected `c` to decode under bit 2 (mask 4); got:\n%s", out)
 	}
-	// One bitmap byte, read once before the checks.
 	if !strings.Contains(out, "const bmI0 = Des.index++;") {
 		t.Errorf("expected a single-byte bitmap read; got:\n%s", out)
 	}
@@ -57,8 +51,7 @@ func TestFromBinary_AbsorbedOptionalEmitsEmptyBitBody(t *testing.T) {
 func TestToBinary_AbsorbedOptionalWritesBitOnly(t *testing.T) {
 	out := renderModule(t, buildAbsorbedOptionalFixture(), "toBinary")
 
-	// The decoder's empty body is only safe because the encoder writes the bit
-	// and nothing else for the same member.
+	// The decoder's empty body is only safe because the encoder writes the bit and nothing else.
 	if !strings.Contains(out, "if (v.a !== undefined) {Ser.setBitMask(bmI0, 0)}") {
 		t.Errorf("expected bit 0 set with no value write for the absorbed optional; got:\n%s", out)
 	}
