@@ -62,7 +62,7 @@ type CountBearingKeys = 'minLength' | 'maxLength' | 'min' | 'max' | 'lt' | 'gt';
 
 /** Per-constraint mode: `type` (the base kind failure) plus one REQUIRED key
  *  per failable format param — a blank `''` means "no custom message" (the
- *  opt-out; deleting a key just gets it re-scaffolded by `gen --update`).
+ *  opt-out; deleting a key just gets it re-scaffolded by `mion enrich --update`).
  *  Count-bearing keys accept a plural object, the rest plain templates. NO
  *  index signature: an unknown key is an excess-property error in the IDE
  *  (FT003, moved to compile time). `rt$default` is banned here — it belongs to

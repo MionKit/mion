@@ -159,10 +159,10 @@ func ParseMirror(mirrorPath string, mirrorBytes []byte) (*Index, error) {
 		core.ScriptKindTS,
 	)
 	if sourceFile == nil {
-		return nil, fmt.Errorf("gen --update: cannot parse mirror %s; fix or delete it", mirrorPath)
+		return nil, fmt.Errorf("mion enrich --update: cannot parse mirror %s; fix or delete it", mirrorPath)
 	}
 	if diagnostics := sourceFile.Diagnostics(); len(diagnostics) > 0 {
-		return nil, fmt.Errorf("gen --update: cannot parse mirror %s (%d syntax error(s)); fix or delete it: %s",
+		return nil, fmt.Errorf("mion enrich --update: cannot parse mirror %s (%d syntax error(s)); fix or delete it: %s",
 			mirrorPath, len(diagnostics), firstDiagnosticMessage(diagnostics))
 	}
 
@@ -311,7 +311,7 @@ func (index *Index) indexVariableStatement(text string, statement *ast.Node) {
 			// The duplicate stays reachable via byVar for the var-name fallback.
 			if first, dup := index.byTypeForm[key]; dup {
 				index.Warnings = append(index.Warnings, fmt.Sprintf(
-					"gen --update: duplicate @rtType id %q (form %s) on both %q and %q — keeping the first; fix the marker on the second",
+					"mion enrich --update: duplicate @rtType id %q (form %s) on both %q and %q — keeping the first; fix the marker on the second",
 					typeID, formLabel(isFriendly), first.varName, varName))
 			} else {
 				index.byTypeForm[key] = entry

@@ -106,7 +106,7 @@ func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFind
 		return []DriftFinding{{
 			Code:    diagnostics.CodeGenSourceMissing,
 			Args:    []string{breadcrumb.Spec, resolvedSource},
-			Message: fmt.Sprintf("breadcrumb source %q resolves to a non-existent file (%s) — orphaned mirror; delete it or re-run gen", breadcrumb.Spec, resolvedSource),
+			Message: fmt.Sprintf("breadcrumb source %q resolves to a non-existent file (%s) — orphaned mirror; delete it or re-run mion enrich", breadcrumb.Spec, resolvedSource),
 			Start:   breadcrumb.Start,
 			End:     breadcrumb.End,
 		}}
@@ -125,7 +125,7 @@ func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFind
 		findings = append(findings, DriftFinding{
 			Code:    diagnostics.CodeGenTypeMissing,
 			Args:    []string{resolvedSource, typeName},
-			Message: fmt.Sprintf("source %s no longer declares type %q — re-run gen", resolvedSource, typeName),
+			Message: fmt.Sprintf("source %s no longer declares type %q — re-run mion enrich", resolvedSource, typeName),
 			Start:   breadcrumb.Start,
 			End:     breadcrumb.End,
 		})

@@ -726,7 +726,7 @@ var messagesByCode = map[string]message{
 	},
 	CodeFriendlyReservedProp: {
 		Headline: "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
-		Detail:   "`rt$`-prefixed keys are reserved for enrichment meta (`rt$label`,\n`rt$errors`, `rt$items`, …); a source property with that prefix is\nindistinguishable from node meta, so gen refuses the type and the\nFriendlyType checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$mode: string;\n+   $mode: string;\n  }",
+		Detail:   "`rt$`-prefixed keys are reserved for enrichment meta (`rt$label`,\n`rt$errors`, `rt$items`, …); a source property with that prefix is\nindistinguishable from node meta, so `mion enrich` refuses the type and the\nFriendlyType checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$mode: string;\n+   $mode: string;\n  }",
 	},
 	CodeFriendlyTodo: {
 		Headline: "Unfilled `@todo` placeholder; fill in the real labels/messages, then delete the `@todo` line.",
@@ -753,7 +753,7 @@ var messagesByCode = map[string]message{
 	},
 	CodeMockReservedProp: {
 		Headline: "Property `{0}` collides with the reserved `rt$` enrichment prefix: the type cannot be enriched.",
-		Detail:   "`rt$`-prefixed keys are reserved for enrichment meta (`rt$items`,\n`rt$length`, `rt$optional`, …); a source property with that prefix is\nindistinguishable from node meta, so gen refuses the type and the\nMockData checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$size: number;\n+   $size: number;\n  }",
+		Detail:   "`rt$`-prefixed keys are reserved for enrichment meta (`rt$items`,\n`rt$length`, `rt$optional`, …); a source property with that prefix is\nindistinguishable from node meta, so `mion enrich` refuses the type and the\nMockData checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$size: number;\n+   $size: number;\n  }",
 	},
 	CodeMockTodo: {
 		Headline: "Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.",

@@ -489,7 +489,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'enrich',
     detail:
-      '`rt$`-prefixed keys are reserved for enrichment meta (`rt$label`,\n`rt$errors`, `rt$items`, …); a source property with that prefix is\nindistinguishable from node meta, so gen refuses the type and the\nFriendlyType checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$mode: string;\n+   $mode: string;\n  }',
+      '`rt$`-prefixed keys are reserved for enrichment meta (`rt$label`,\n`rt$errors`, `rt$items`, …); a source property with that prefix is\nindistinguishable from node meta, so `mion enrich` refuses the type and the\nFriendlyType checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$mode: string;\n+   $mode: string;\n  }',
   },
   FT020: {
     headline: 'Unfilled `@todo` placeholder; fill in the real labels/messages, then delete the `@todo` line.',
@@ -587,7 +587,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'enrich',
     detail:
-      '`rt$`-prefixed keys are reserved for enrichment meta (`rt$items`,\n`rt$length`, `rt$optional`, …); a source property with that prefix is\nindistinguishable from node meta, so gen refuses the type and the\nMockData checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$size: number;\n+   $size: number;\n  }',
+      '`rt$`-prefixed keys are reserved for enrichment meta (`rt$items`,\n`rt$length`, `rt$optional`, …); a source property with that prefix is\nindistinguishable from node meta, so `mion enrich` refuses the type and the\nMockData checker reports it here.\n\nFix: rename the property (a plain `$` prefix is fine; only `rt$` is\nreserved):\n  interface Config {\n-   rt$size: number;\n+   $size: number;\n  }',
   },
   MD020: {
     headline: 'Unfilled `@todo` placeholder; fill in the real sample pools/ranges, then delete the `@todo` line.',
