@@ -285,7 +285,7 @@ const (
 //     packages/run-types/src/createRTFunctions.ts.
 //  3. Teach the emitters to honour it (plus any per-option scanner
 //     semantics, e.g. a noop-option diagnostic in analyzeCall).
-//  4. Regenerate the TS mirror (`pnpm run gen:ts-constants`).
+//  4. Regenerate the TS mirror (`pnpm miondevx core codegen constants`).
 //
 // A string-enum option (see numberMode above) instead maps each non-default
 // value to a canonical name here and is read by a dedicated scanner arm.

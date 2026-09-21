@@ -36,5 +36,5 @@ const MarkerCommentPrefix = "/** " + RtTypeTag + " "
 // (`/* @rtOrphan … */` and `/* @rtOrphanChild … */`, non-greedy to the first
 // ` */`). Kept free of the `(?s)` prefix so the SAME source compiles on both
 // halves: Go prepends `(?s)` (reconcile.go), JS constructs it with the `s`
-// flag (@mionjs/devtools lint entry, synced via gen:ts-constants).
+// flag (@mionjs/devtools lint entry, synced via `miondevx core codegen constants`).
 const OrphanBlockPatternSource = `/\* ` + OrphanTag + `(?:Child)? .*? \*/`

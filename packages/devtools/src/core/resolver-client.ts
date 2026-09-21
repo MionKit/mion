@@ -603,43 +603,36 @@ export class ResolverClient extends ResolverClientBase {
     this.child = child;
     const stdin = child.stdin;
     const stdout = child.stdout;
-    // A write into the pipe of a child that just died (exit event not yet
-    // delivered) raises a stream error; swallow it — the exit handler below
-    // owns the failure semantics and `send` retries the interrupted request.
+    // A write into the pipe of a child that just died (exit event not yet delivered) raises a stream error;
+    // swallow it, since the exit handler below owns the failure semantics and `send` retries the request.
     stdin.on('error', () => {});
     const transport = new MessageTransport(stdin, stdout, () => {
       stdin.end();
       child.kill();
     });
     this.transport = transport;
-    // A spawn failure (missing binary, host limits) surfaces as an 'error'
-    // event with NO 'exit' — drain in-flight requests instead of hanging
-    // callers until their timeout.
+    // A spawn failure (missing binary, host limits) raises 'error' with NO 'exit', so drain in-flight requests
+    // instead of hanging callers until their timeout.
     child.on('error', (error) => transport.markClosed(`${SPAWN_FAILED_PREFIX}: ${error.message}`));
     if (this.opts.inlineSources) {
-      // Handshake: write the source map as a single JSON line before any
-      // requests can be queued. The Go side blocks on this before building
-      // its Program, so request() calls made by the caller right after the
-      // constructor naturally land after the handshake on the wire.
+      // Handshake: the Go side blocks on this line before building its Program, so a request() issued right
+      // after the constructor naturally lands after it on the wire.
       transport.writeUnframed(JSON.stringify({sources: this.opts.inlineSources}) + '\n');
     }
     child.on('exit', () => transport.markClosed(RESOLVER_EXITED));
   }
 
-  // An UNEXPECTED child death (never an intentional close) is retryable: the
-  // one-shot lanes are stateless across spawns, so a single respawn + replay
-  // turns transient child loss — a host teardown race, an external kill —
-  // into a stderr warning instead of a failed build. serverMode is excluded:
-  // its accumulated setSources/reset state lives in the child and cannot be
-  // replayed from here.
+  // An UNEXPECTED child death is retryable: the one-shot lanes are stateless across spawns, so one respawn plus
+  // replay turns a transient loss (host teardown race, external kill) into a stderr warning, not a failed build.
+  // serverMode is excluded: its accumulated setSources/reset state lives in the child and cannot be replayed here.
   protected override async send(req: Request): Promise<Response> {
     const attempt = this.transport;
     let resp: Response;
     try {
       resp = await attempt.request(req);
     } catch (error) {
-      // 'resolver is closed' — the transport was already down before this
-      // request was written (e.g. the death happened between two requests).
+      // 'resolver is closed': the transport was already down before this request was written, e.g. the death
+      // happened between two requests.
       if (!this.canRespawn()) throw error;
       this.respawnFor(attempt);
       return this.transport.request(req);
@@ -655,11 +648,9 @@ export class ResolverClient extends ResolverClientBase {
     return !this.intentionalClose && !this.opts.serverMode && this.respawnsLeft > 0;
   }
 
-  // respawnFor replaces the dead child exactly once per loss: concurrent
-  // requests that died together all funnel here, and the transport identity
-  // check makes every caller after the first reuse the fresh child instead of
-  // spawning its own. Synchronous on purpose — no await between the check and
-  // the spawn, so there is no window for a duplicate respawn.
+  // respawnFor replaces the dead child exactly once per loss: concurrent requests that died together all funnel
+  // here, and the transport identity check makes every caller after the first reuse the fresh child.
+  // Synchronous on purpose: no await between the check and the spawn, so no window for a duplicate respawn.
   private respawnFor(dead: MessageTransport): void {
     if (this.transport !== dead) return;
     this.respawnsLeft -= 1;
@@ -673,10 +664,9 @@ export class ResolverClient extends ResolverClientBase {
   }
 }
 
-// ResolverStreamClient drives the same JSON-per-line protocol over caller-
-// supplied streams. The lint session's spawn-shim path uses it: the resolver
-// child's stdio pipes belong to the pre-spawned launcher process rather than
-// a ChildProcess this module owns, so the caller wires close/exit itself.
+// ResolverStreamClient drives the same protocol over caller-supplied streams, for the lint session's spawn-shim
+// path: the stdio pipes belong to the pre-spawned launcher, not to a ChildProcess this module owns, so the
+// caller wires close/exit itself.
 export class ResolverStreamClient extends ResolverClientBase {
   protected transport: MessageTransport;
 
@@ -685,17 +675,16 @@ export class ResolverStreamClient extends ResolverClientBase {
     this.transport = new MessageTransport(stdin, stdout, onClose);
   }
 
-  // markClosed drains in-flight requests with an error when the underlying
-  // process went away (the caller observes the exit, not this class).
+  // markClosed drains in-flight requests with an error once the process went away; the caller observes that
+  // exit, not this class.
   markClosed(reason: string): void {
     this.transport.markClosed(reason);
   }
 }
 
-// unrefHandle releases one stdio pipe from the event loop's keep-alive set.
-// Node backs a piped stdio stream with a Socket (which has unref); the declared
-// Readable/Writable types don't, and a future runtime might not either — so
-// this probes for the method instead of assuming it.
+// unrefHandle releases one stdio pipe from the event loop's keep-alive set. Node backs a piped stdio stream with
+// a Socket, which has unref, but the declared Readable/Writable types do not and a future runtime might not
+// either, so this probes for the method instead of assuming it.
 function unrefHandle(stream: Readable | Writable | null | undefined): void {
   (stream as {unref?: () => void} | null | undefined)?.unref?.();
 }

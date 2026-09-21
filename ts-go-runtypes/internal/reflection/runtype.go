@@ -214,13 +214,8 @@ type RunType struct {
 	// the same canonical property node may be a discriminator in one
 	// parent union but not in another.
 	//
-	// Wire-format equivalent of the FlattenedProp[] output
-	// (ref: packages/run-types/src/nodes/collection/unionDiscriminator.ts).
-	// We carry only the strictly-new field (a ref to the property);
-	// the other FlattenedProp fields are reconstructible from the
-	// surrounding context. JS-side consumers use
-	// `flattenUnionDiscriminators` from mion to
-	// materialise the full per-member struct.
+	// Carries only the strictly-new field, a ref to the property; the rest is
+	// reconstructible from the surrounding context.
 	UnionDiscriminators []*RunType `json:"unionDiscriminators,omitempty"`
 
 	// TypeMeta — the OPEN metadata extension point: user-space (or
