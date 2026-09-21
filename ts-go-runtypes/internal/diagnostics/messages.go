@@ -8,8 +8,9 @@ package diagnostics
 // code + args only; `pnpm miondevx core codegen diag` exports this map into the
 // GENERATED front-end dictionary
 // (packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts) that the
-// bundler plugin, the lint plugin, and the runtime alwaysThrow factory all
-// render from. Every registered code MUST have a Headline
+// bundler plugin and the lint plugin render from. Runtime alwaysThrow text is
+// not rendered there: Go bakes it whole into the cache entry (see
+// cachegen/typefunctions.buildAlwaysThrowMessage). Every registered code MUST have a Headline
 // (TestEveryCodeHasHeadline pins it); an entry for an unregistered code
 // panics at init, mirroring prose.go.
 //
