@@ -523,8 +523,7 @@ export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = 
  *  bound, while swapping its pattern is just `url({pattern})` under a
  *  misleading name — so the pinned key is rejected at the call site instead of
  *  quietly producing a format whose name no longer describes it. **/
-// This rides the generic bound of every preset alias, so it is instantiated per
-// call site: keep it to one pass over Params.
+// Instantiated per call site (it rides every preset alias's generic bound), so keep it to one pass over Params.
 export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
 
 /** `T` with its value rewrite set to `P`. The wrapper spelling of the nested
@@ -552,9 +551,8 @@ export type Transform<T extends string, P extends TransformParamsOf<T>> = [Forma
  *  path (`Email`) has one way to fail per param and never sets it. **/
 export type EmailErrorType = 'format' | 'localPart' | 'domain' | 'addressLiteral' | 'length';
 
-// EmailParams — pattern path, or localPart + domain decomposition. The RFC
-// presets add `emailRfc`, a third road, and Go FMT002 rejects it alongside either
-// of the other two.
+// EmailParams — pattern path, or localPart + domain decomposition.
+// The RFC presets add a third road, `emailRfc`, which Go FMT002 rejects alongside localPart/domain.
 /** A failing value reports WHICH PART failed in the error's `errorType`, one of
  *  `EmailErrorType` (see it for which path sets which). **/
 export interface EmailParams {

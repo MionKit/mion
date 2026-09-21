@@ -269,13 +269,10 @@ function assertionsExactParams(): void {
   RT.propMod({optionl: true}, TF.string({maxLength: 8}));
 }
 
-// The email format has three roads and takes one at a time: a baked pattern, the
-// RFC grammar (`emailRfc`, what the EmailAddress / IdnEmail defaults set) and the
-// localPart/domain split. Mixing the RFC road with the split used to check one
-// and report the other, so the RFC presets pin both split keys shut and a field
-// that wants them uses EmailStrict.
+// Mixing the RFC road (`emailRfc`, the EmailAddress / IdnEmail default) with the localPart/domain
+// split used to check one and report the other, so the RFC presets pin both split keys shut.
 function assertionsEmailPresetRoads(): void {
-  // Still takes its own bounds and mock samples.
+  // The pins must leave the preset's other params overridable.
   const bounded: TF.EmailAddress<{minLength: 10}> = 'joe@example.com' as TF.EmailAddress<{minLength: 10}>;
   void bounded;
   TF.emailAddress({minLength: 10});
@@ -292,8 +289,7 @@ function assertionsEmailPresetRoads(): void {
   // @ts-expect-error — same on the idn builder.
   TF.idnEmail({domain: {maxLength: 253}});
 
-  // EmailStrict is the road that owns the split, and it pins the two keys because
-  // they ARE its strictness.
+  // EmailStrict owns the split and pins the two keys: they ARE its strictness.
   const strict: TF.EmailStrict = 'joe@example.com' as TF.EmailStrict;
   void strict;
   // @ts-expect-error — `localPart` is EmailStrict's identity, not an override.

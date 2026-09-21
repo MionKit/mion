@@ -2,16 +2,11 @@ package string
 
 import "testing"
 
-// A format carrying BOTH `emailRfc` and the `localPart`/`domain` decomposition
-// used to validate under one set of rules and report errors under the other,
-// breaking the validate / getValidationErrors agreement (fuzz oracle O4).
-// `EmailAddress<{localPart: {maxLength: 8}}>` reached that state from the public
-// surface: the preset default supplies `emailRfc` and the user supplies the
-// decomposition.
-//
-// Two things keep it fixed. ValidateParams rejects the pair, and both lanes pick
-// the decomposition when it is present anyway — FMT002 is a RuntimeError, so the
-// code still ships and a dev server only reports it.
+// A format carrying BOTH `emailRfc` and the `localPart`/`domain` decomposition validated under
+// one set of rules and reported errors under the other, breaking the validate /
+// getValidationErrors agreement (fuzz oracle O4); `EmailAddress<{localPart: {maxLength: 8}}>`
+// reached it from the public surface. ValidateParams rejects the pair now, and both lanes pick the
+// decomposition anyway because FMT002 is only a RuntimeError and the code still ships.
 
 func rfcWithPartsParams() map[string]any {
 	return map[string]any{
@@ -46,8 +41,7 @@ func TestEmail_ValidateParams_RejectsRfcWithParts(t *testing.T) {
 		}
 	}
 
-	// The presets that set only one of the two stay buildable: EmailAddress /
-	// IdnEmail carry emailRfc alone, EmailStrict the decomposition alone.
+	// These are the preset shapes: EmailAddress / IdnEmail carry emailRfc alone, EmailStrict the decomposition.
 	accepted := []map[string]any{
 		{"emailRfc": "ascii", "maxLength": 254.0},
 		{"localPart": map[string]any{"maxLength": 64.0}, "domain": map[string]any{"maxLength": 253.0}},

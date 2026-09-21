@@ -12,11 +12,11 @@ import (
 
 // emailEmitter implements the format named "email" — FormatEmail /
 // FormatEmailStrict. Three paths, one per params road (the
-// EmailRunTypeFormat), and ValidateParams rejects any two of them together:
+// EmailRunTypeFormat); ValidateParams rejects the decomposition alongside
+// pattern or emailRfc:
 //
 //   - pattern path: a single baked email regex (FormatEmail).
-//   - RFC path: `emailRfc` runs the isEmailAddress pure fn (EmailAddress /
-//     IdnEmail), described in its own section below.
+//   - RFC path: `emailRfc` runs the isEmailAddress pure fn (EmailAddress / IdnEmail).
 //   - decomposition path: split on the LAST '@' into localPart + domain
 //     (FormatEmailStrict); localPart is validated as a sub-StringFormat
 //     and domain as a sub-domain (which may itself decompose).
@@ -31,11 +31,8 @@ func init() {
 func (emailEmitter) Name() string                    { return "email" }
 func (emailEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// Both lanes below test decomposition before emailRfc, like domain.go: the
-// decomposition keys are always user-written while emailRfc only ever arrives as
-// a preset default, so the explicit rule wins. ValidateParams rejects the pair,
-// but that is a RuntimeError — the code still ships and a dev server only reports
-// it — so the two lanes have to agree on their own.
+// Both lanes test decomposition before emailRfc, like domain.go: user-written keys beat a preset default.
+// ValidateParams rejects the pair, but FMT002 is a RuntimeError and the code still ships, so both lanes must agree.
 func (emailEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailValidateExprFor(ctx, annotation.Params, vλl)
@@ -195,9 +192,7 @@ func (emailEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation,
 	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams ports EmailRunTypeFormat.validateParams
-// (ref: email.runtype.ts:152-187): pattern is mutually exclusive with the
-// localPart/domain decomposition, and maxLength stays in range.
+// ValidateParams ports EmailRunTypeFormat.validateParams (ref: email.runtype.ts:152-187).
 func (emailEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
