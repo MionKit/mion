@@ -47,14 +47,8 @@
 // it saves), and `Date | RegExp` stay named purely as a shortcut for the two
 // builtins schemas carry most.
 //
-// The residual risk is the depth cap, and it is the reverse of the old one: a
-// `Self` nested 24 or more levels under a probed node is left alone rather than
-// substituted. The walk battery pins both columns of the rule and the depth-cap
-// battery pins the cap itself, including that residual.
-//
-// Answering the cap `true` instead was measured and is not an option: every
-// class-carrying node then reaches the rebuild, and the resolver grows past
-// 10 GB and is killed before this file can run.
+// The residual risk is the reverse of the old one: a `Self` 24 or more levels under a probed node is left alone.
+// Answering the cap `true` was measured: every class-carrying node reaches the rebuild and the resolver dies past 10 GB.
 
 import {describe, it, expect} from 'vitest';
 import {measureSubstituteSelf} from './substituteSelfHarness.ts';
@@ -71,8 +65,7 @@ function check(snippet: string, budget: number): number {
   return r.netInstantiations;
 }
 
-/** `{a0: {a1: … {a<levels-1>: leaf}}}` — one plain object per level, so the
- *  nesting depth and the walk's depth counter are the same number. **/
+/** `{a0: {a1: … {a<levels-1>: leaf}}}` — one object per level, so nesting depth and the walk's depth counter match. **/
 function nest(levels: number, leaf: string): string {
   let out = leaf;
   for (let i = levels - 1; i >= 0; i--) out = `{a${i}: ${out}}`;
@@ -232,17 +225,9 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
 
   // ── The depth-cap battery: where the walk stops, and what that costs ──
   //
-  // The cap is the whole reason a class is left intact: a schema body is a
-  // finite tree and bottoms out, a class's members loop and never do, so 24
-  // levels without bottoming out means "not a schema body, leave it alone".
-  // That answer is `false`, and for the nodes it is aimed at it is the TRUE
-  // answer, not a guess — a class, a builtin and an already-resolved
-  // `Recursive<…>` all hold no `Self` at all.
-  //
-  // The cost is a plain object nest that really does hold a `Self` past the
-  // cap. It is pinned here rather than fixed: answering `true` sends every
-  // class-carrying node to the rebuild, and the resolver grows past 10 GB and
-  // is killed. Raising 24 only moves these two cases, it removes neither.
+  // 24 levels without bottoming out means "not a schema body": a body is a finite tree, a class's members loop forever.
+  // The cost is a plain object nest that does hold a `Self` past the cap, pinned rather than fixed: answering `true`
+  // grows the resolver past 10 GB, and raising 24 only moves these two cases, it removes neither.
 
   it('the cap falls at exactly 24 levels', () => {
     checkTypesOnly(
@@ -265,8 +250,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
     );
   });
 
-  // 14441 against the 1933 above: the same nest costs 7x once the walk finds
-  // the `Self` and rebuilds all 23 levels instead of giving up at the cap.
+  // The same nest costs 7x (1933 → 14441) once the walk finds the `Self` and rebuilds all 23 levels.
   it('one level shallower still ties the knot', () => {
     check(
       `

@@ -439,13 +439,9 @@ type ContainsSelf<T, Depth extends unknown[] = []> = AnyTrue<ContainsSelfIn<T, D
 type AnyTrue<B> = [B] extends [never] ? false : [B] extends [false] ? false : true;
 
 type ContainsSelfIn<T, Depth extends unknown[]> = Depth['length'] extends 24
-  ? // Did not bottom out in 24 levels, so the node is a class, a builtin or an
-    // already-resolved `Recursive<…>` — none of which can hold a `Self`, which
-    // makes `false` the answer rather than a guess. `true` was measured and is
-    // not an option: it routes every such node to the rebuild, and the
-    // resolver then grows past 10 GB and is killed before a test can run. The
-    // price is a `Self` nested 24 or more levels under a probed node, which
-    // stays un-substituted.
+  ? // Still going at 24 levels means a class, a builtin or a resolved `Recursive<…>`: none can hold a `Self`.
+    // `true` was measured: every such node reaches the rebuild, the resolver grows past 10 GB and is killed.
+    // Price: a `Self` nested 24 or more levels under a probed node stays un-substituted.
     false
   : 0 extends 1 & T
     ? false
