@@ -191,13 +191,10 @@ type CompiledJsonFamilies = {
   row: ParseModeRow;
 };
 
-/** The strategy a fn set was compiled for, read off its injected families: the ONE PARSE_MODES row whose
- *  encoder, decoder and validator are all present. No row matches a payload from a different build, so
- *  version skew fails closed here rather than at call time.
- *
- *  Matching the whole row is what lets `mutate` and `mutateStrict` share an encoder: they differ in the
- *  validator, and the row carries both. `direction` only names the wire in the error, so a skew report
- *  points at the marker that carried the bad payload. */
+// No row matches a payload from a different build, so version skew fails closed here rather than at call time.
+// `mutate` and `mutateStrict` share an encoder and a decoder, so only the whole row tells their validators apart.
+// `direction` only names the wire in the error, so a skew report points at the marker that carried the payload.
+/** The strategy a fn set was compiled for: the ONE PARSE_MODES row whose encoder, decoder and validator are present. */
 function strategyFromFamilies(
   fns: Partial<Record<FnHashKey, unknown>>,
   label: string,

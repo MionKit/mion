@@ -70,18 +70,14 @@ export const HandlerType = {
 } as const;
 
 // ###################### What each parser strategy compiles ######################
-// One row per strategy, holding every family a wire needs, named by the MARKER token a route's InjectTypeFnArgs
-// asks for rather than the short tag the compiled entry carries. A row IS the marker's slot list, so adding a
-// strategy is one row here and one row in the Go mirror (resolver/apigen.go).
+// A row IS the marker's slot list, named by the MARKER token InjectTypeFnArgs asks for, not the compiled tag.
+// Adding a strategy is one row here and one row in the Go mirror (resolver/apigen.go).
+// The validator follows the decoder: `clone` and `compact` rebuild the declared shape, so only a union can hide a key.
+// `mutate` rebuilds nothing and is the permissive strategy.
+// `mutateStrict` rebuilds nothing either and answers for every key, which needs the fused validator.
+// `mutateStrict` has a row like any other; ReturnParserStrategy leaves it out, a return has no caller to answer for.
 
-/** The families each strategy compiles, the same row on both wires.
- *
- *  The validator differs per strategy because the decoder does. `clone` and `compact` rebuild the declared shape
- *  as they decode, so only a union can still hide a key; `mutate` rebuilds nothing and is the permissive
- *  strategy; `mutateStrict` rebuilds nothing either and answers for every key, which needs the fused validator.
- *
- *  `mutateStrict` has a row like any other, but ReturnParserStrategy leaves it out: a return is written by your
- *  own handler, so there is no caller to answer for. */
+/** The families each strategy compiles, the same row on both wires. */
 export const PARSE_MODES = {
   clone: {
     encode: 'prepareForJsonClone',
@@ -111,7 +107,6 @@ export const PARSE_MODES = {
 } as const;
 
 export type ParseModes = typeof PARSE_MODES;
-/** The families one strategy compiles. */
 export type ParseModeRow = ParseModes[keyof ParseModes];
 
 /** Params are decoded by the server and a return by the client, so the direction names the machine. */

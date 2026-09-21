@@ -126,8 +126,7 @@ export function getJitFnHashes(jitHash: string, strategy: ParserStrategy): JitFu
   };
 }
 
-/** Rebuilds a type's fn set from the mion cache (the client metadata lane): validators and the JSON
- *  pair of the given strategy. Noop set for the empty hash, and results are cached per (strategy, hash). */
+/** Rebuilds a type's fn set from the mion cache (the client metadata lane), cached per strategy and hash. */
 export function getJitFunctionsFromHash(jitHash: string, strategy: ParserStrategy): JitCompiledFunctions {
   // no JIT functions were generated for this type (no params, or a void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
@@ -136,8 +135,7 @@ export function getJitFunctionsFromHash(jitHash: string, strategy: ParserStrateg
   const cached = jitFunctionsCache.get(cacheKey);
   if (cached) return cached;
 
-  // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
-  // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
+  // the MionTypeFn cast also asserts `code`, which holds because mion only allows emitMode 'code' | 'both'
   const utl = getRTUtils();
   const hashes = getJitFnHashes(jitHash, strategy);
   const isType = utl.getRT(hashes.isType);
@@ -192,8 +190,7 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
       utl.hasRTFn(hashes.isType) && utl.hasRTFn(hashes.typeErrors) && utl.hasRTFn(hashes.encode) && utl.hasRTFn(hashes.decode)
     );
   };
-  // Exactly what getJitFunctionsFromHash refuses to build, no more: header sets are left out because
-  // getHeaderJitFunctionsFromHash returns them empty instead of throwing.
+  // Header sets are left out because getHeaderJitFunctionsFromHash returns them empty instead of throwing.
   if (!hasFullSet(metadata.paramsJitHash, parser.params)) return false;
   return hasFullSet(metadata.returnJitHash, parser.return);
 }

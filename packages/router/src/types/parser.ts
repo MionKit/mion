@@ -27,10 +27,9 @@ type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = FallbackTo<
   DirectionStrategy<ParserOf<RouteOpts>, D>,
   FallbackTo<DirectionStrategy<ParserOf<RouterOpts>, D>, DefaultParser[D]>
 >;
-// The type twin of PARSE_MODES in @mionjs/core: one row per strategy, holding every family it compiles.
-// Indexed access rather than a conditional chain per family, so a new strategy is a row in core and nothing
-// here. The `extends keyof` guard is what a deferred strategy needs: ParamsStrategy resolves through
-// conditionals, so it cannot satisfy the index constraint on its own.
+// The type twin of PARSE_MODES in @mionjs/core, indexed so a new strategy is a row in core and nothing here.
+// The `extends keyof` guard is what a deferred strategy needs: ParamsStrategy resolves through conditionals,
+// so it cannot satisfy the index constraint on its own.
 type ModeFamily<S, K extends keyof ParseModeRow> = S extends keyof ParseModes ? ParseModes[S][K] : never;
 
 /** Options naming no `parser`, the default for a helper called outside the factory. */
