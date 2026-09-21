@@ -90,6 +90,21 @@ Do not re-try these without new evidence. Each was implemented and measured.
 expensive than the current `P & Record<Exclude<…>, never>`: the guard costs more to test
 than the `Record` it avoids building.
 
+**`ContainsSelf`'s depth cap answering `true`.** The cap in `ContainsSelfIn`
+([`static.ts`](./static.ts)) answers `false` when 24 levels pass without the node
+bottoming out, which returns the node verbatim. Answering `true` instead, so a node the
+walk could not finish goes to the rebuild, sends every class-carrying node through
+`SubstituteInto`: the resolver grew past 10 GB and was killed before `vitest run
+substituteSelf` could start, against 2.8 s and roughly 200 MB with `false`. Measured on
+the sliced region, the same flip costs +13% on a `Uint8Array` member (104176 to 117817
+net) and +25% on a `DataView` one (8162 to 10242), and makes `ContainsSelf` answer `true`
+for `Fluent`, `Uint8Array`, `Generator` and `WeakMap`, none of which hold a `Self`.
+
+The cap's price stays: a `Self` nested 24 or more levels under a probed node is left
+un-substituted, pinned by the depth-cap battery in
+[`test/types/substituteSelf.compile.test.ts`](../../test/types/substituteSelf.compile.test.ts).
+Raising 24 moves that line and the class walk's cost together; it removes neither.
+
 **Two-overload scalar leaves.** Folding the brand overload into an optional second
 parameter saves 21 at the first call site and costs **2 more per call** after it. A net
 loss for any file with more than a handful of fields, which is the case that matters.

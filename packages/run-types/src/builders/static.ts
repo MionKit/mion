@@ -439,12 +439,13 @@ type ContainsSelf<T, Depth extends unknown[] = []> = AnyTrue<ContainsSelfIn<T, D
 type AnyTrue<B> = [B] extends [never] ? false : [B] extends [false] ? false : true;
 
 type ContainsSelfIn<T, Depth extends unknown[]> = Depth['length'] extends 24
-  ? // Budget spent. A node can be genuinely recursive — a `circular(…)` schema
-    // nested inside another one resolves to a type that contains itself — and
-    // walking one never ends. Answer "assume it recurses", which routes the
-    // node to the rebuild: exactly what every node did before this walk
-    // existed, so the worst case is the OLD behaviour for a carrier buried
-    // deeper than the budget, never a leaked `Self`.
+  ? // Did not bottom out in 24 levels, so the node is a class, a builtin or an
+    // already-resolved `Recursive<…>` — none of which can hold a `Self`, which
+    // makes `false` the answer rather than a guess. `true` was measured and is
+    // not an option: it routes every such node to the rebuild, and the
+    // resolver then grows past 10 GB and is killed before a test can run. The
+    // price is a `Self` nested 24 or more levels under a probed node, which
+    // stays un-substituted.
     false
   : 0 extends 1 & T
     ? false
