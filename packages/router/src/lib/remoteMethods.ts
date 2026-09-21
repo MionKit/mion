@@ -147,13 +147,13 @@ export function serializeMethodDeps(
   const utl = getRTUtils();
   const parser = method.options.parser ?? DEFAULT_PARSER;
   if (paramsJitHash !== EMPTY_HASH) {
-    const paramsJitHashes = getJitFnHashes(paramsJitHash, parser.params, 'params');
+    const paramsJitHashes = getJitFnHashes(paramsJitHash, parser.params);
     for (const k in paramsJitHashes) {
       if (utl.getRT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     }
   }
   if (returnJitHash !== EMPTY_HASH) {
-    const returnJitHashes = getJitFnHashes(returnJitHash, parser.return, 'return');
+    const returnJitHashes = getJitFnHashes(returnJitHash, parser.return);
     let foundAny = false;
     for (const k in returnJitHashes) {
       if (utl.getRT(returnJitHashes[k])) {

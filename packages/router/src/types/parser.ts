@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {DefaultParser, ParamsParsing, ParserOption, ResolvedParser, ReturnParsing} from '@mionjs/core';
+import type {DefaultParser, ParseModeRow, ParseModes, ParserOption, ResolvedParser} from '@mionjs/core';
 import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 // The families a route compiles come from the `parser` literals: route, then factory, then the default.
@@ -27,16 +27,11 @@ type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = FallbackTo<
   DirectionStrategy<ParserOf<RouteOpts>, D>,
   FallbackTo<DirectionStrategy<ParserOf<RouterOpts>, D>, DefaultParser[D]>
 >;
-// The type twin of PARAMS_PARSING / RETURN_PARSING in @mionjs/core: one row per strategy per wire, holding
-// every family that wire compiles. Indexed access rather than a conditional chain per family, so a new
-// strategy is a row in core and nothing here. The `extends keyof` guard is what a deferred strategy needs:
-// ParamsStrategy resolves through conditionals, so it cannot satisfy the index constraint on its own.
-type ParamsFamily<S, K extends keyof ParamsParsing[keyof ParamsParsing]> = S extends keyof ParamsParsing
-  ? ParamsParsing[S][K]
-  : never;
-type ReturnFamily<S, K extends keyof ReturnParsing[keyof ReturnParsing]> = S extends keyof ReturnParsing
-  ? ReturnParsing[S][K]
-  : never;
+// The type twin of PARSE_MODES in @mionjs/core: one row per strategy, holding every family it compiles.
+// Indexed access rather than a conditional chain per family, so a new strategy is a row in core and nothing
+// here. The `extends keyof` guard is what a deferred strategy needs: ParamsStrategy resolves through
+// conditionals, so it cannot satisfy the index constraint on its own.
+type ModeFamily<S, K extends keyof ParseModeRow> = S extends keyof ParseModes ? ParseModes[S][K] : never;
 
 /** Options naming no `parser`, the default for a helper called outside the factory. */
 type NoParserOptions = Record<never, never>;
@@ -47,14 +42,8 @@ export type ParamsStrategy<RouteOpts, RouterOpts = NoParserOptions> = ResolveStr
 export type ReturnStrategy<RouteOpts, RouterOpts = NoParserOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
 
 // The slots of each marker side that vary with the strategy, read by MarkerSlots below.
-type ParamsFn<RouteOpts, RouterOpts, K extends keyof ParamsParsing[keyof ParamsParsing]> = ParamsFamily<
-  ParamsStrategy<RouteOpts, RouterOpts>,
-  K
->;
-type ReturnFn<RouteOpts, RouterOpts, K extends keyof ReturnParsing[keyof ReturnParsing]> = ReturnFamily<
-  ReturnStrategy<RouteOpts, RouterOpts>,
-  K
->;
+type ParamsFn<RouteOpts, RouterOpts, K extends keyof ParseModeRow> = ModeFamily<ParamsStrategy<RouteOpts, RouterOpts>, K>;
+type ReturnFn<RouteOpts, RouterOpts, K extends keyof ParseModeRow> = ModeFamily<ReturnStrategy<RouteOpts, RouterOpts>, K>;
 
 /** Intersected onto the factory options so a widened `parser` (plain string, union) is a type error. */
 export type ParserLiteralGuard<Options> = Options extends {parser: infer E}

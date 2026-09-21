@@ -7,7 +7,7 @@
 
 import {
   JIT_FUNCTION_IDS,
-  parsingRow,
+  PARSE_MODES,
   PATH_SEPARATOR,
   ROUTER_ITEM_SEPARATOR_CHAR,
   ROUTE_PATH_ROOT,
@@ -21,7 +21,6 @@ import type {
   JitCompiledFunctions,
   JitFunctionsHashes,
   ParserStrategy,
-  ParserDirection,
 } from './types/general.types.ts';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from './utils.ts';
@@ -70,8 +69,8 @@ export const routesCache = {
     if (!metadata) return undefined;
 
     const parser = metadata.options.parser ?? DEFAULT_PARSER;
-    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, parser.params, 'params');
-    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, parser.return, 'return');
+    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, parser.params);
+    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, parser.return);
     const headersParam = metadata.headersParam
       ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
       : undefined;
@@ -113,9 +112,9 @@ export function addRoutesToCache(newCache: MethodsCache) {
   }
 }
 
-/** One row of PARAMS_PARSING or RETURN_PARSING names every family this wire compiled. */
-export function getJitFnHashes(jitHash: string, strategy: ParserStrategy, direction: ParserDirection): JitFunctionsHashes {
-  const row = parsingRow(strategy, direction);
+/** One row of PARSE_MODES names every family a wire compiled. */
+export function getJitFnHashes(jitHash: string, strategy: ParserStrategy): JitFunctionsHashes {
+  const row = PARSE_MODES[strategy];
   return {
     isType: `${JIT_FUNCTION_IDS[row.validate]}_${jitHash}`,
     typeErrors: `${JIT_FUNCTION_IDS[row.validationErrors]}_${jitHash}`,
@@ -129,22 +128,18 @@ export function getJitFnHashes(jitHash: string, strategy: ParserStrategy, direct
 
 /** Rebuilds a type's fn set from the mion cache (the client metadata lane): validators and the JSON
  *  pair of the given strategy. Noop set for the empty hash, and results are cached per (strategy, hash). */
-export function getJitFunctionsFromHash(
-  jitHash: string,
-  strategy: ParserStrategy,
-  direction: ParserDirection
-): JitCompiledFunctions {
+export function getJitFunctionsFromHash(jitHash: string, strategy: ParserStrategy): JitCompiledFunctions {
   // no JIT functions were generated for this type (no params, or a void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
 
-  const cacheKey = `${strategy}:${direction}:${jitHash}`;
+  const cacheKey = `${strategy}:${jitHash}`;
   const cached = jitFunctionsCache.get(cacheKey);
   if (cached) return cached;
 
   // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
   // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
   const utl = getRTUtils();
-  const hashes = getJitFnHashes(jitHash, strategy, direction);
+  const hashes = getJitFnHashes(jitHash, strategy);
   const isType = utl.getRT(hashes.isType);
   const typeErrors = utl.getRT(hashes.typeErrors);
   const encode = utl.getRT(hashes.encode);
@@ -173,7 +168,7 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
   if (cached) return cached;
 
   const utl = getRTUtils();
-  const hashes = getJitFnHashes(jitHash, 'mutate', 'params');
+  const hashes = getJitFnHashes(jitHash, 'mutate');
   const jitFns = {
     isType: utl.getRT(hashes.isType),
     typeErrors: utl.getRT(hashes.typeErrors),
@@ -190,17 +185,17 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
 export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   const utl = getRTUtils();
   const parser = metadata.options.parser ?? DEFAULT_PARSER;
-  const hasFullSet = (jitHash: string, strategy: ParserStrategy, direction: ParserDirection): boolean => {
+  const hasFullSet = (jitHash: string, strategy: ParserStrategy): boolean => {
     if (jitHash === EMPTY_HASH) return true;
-    const hashes = getJitFnHashes(jitHash, strategy, direction);
+    const hashes = getJitFnHashes(jitHash, strategy);
     return (
       utl.hasRTFn(hashes.isType) && utl.hasRTFn(hashes.typeErrors) && utl.hasRTFn(hashes.encode) && utl.hasRTFn(hashes.decode)
     );
   };
   // Exactly what getJitFunctionsFromHash refuses to build, no more: header sets are left out because
   // getHeaderJitFunctionsFromHash returns them empty instead of throwing.
-  if (!hasFullSet(metadata.paramsJitHash, parser.params, 'params')) return false;
-  return hasFullSet(metadata.returnJitHash, parser.return, 'return');
+  if (!hasFullSet(metadata.paramsJitHash, parser.params)) return false;
+  return hasFullSet(metadata.returnJitHash, parser.return);
 }
 
 /** The router id of a Route or MiddleFn: its pointer inside the Routes object, e.g. ['users', 'getUser']. */

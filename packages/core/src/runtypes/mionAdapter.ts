@@ -12,7 +12,7 @@ import type {GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '
 import type {FnHashKey} from '@mionjs/run-types/runtime';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types/runtime';
 import {getJitFnHashes} from '../routerUtils.ts';
-import {PARAMS_PARSING, RETURN_PARSING, type ParsingRow} from '../constants.ts';
+import {PARSE_MODES, type ParseModeRow} from '../constants.ts';
 import type {
   AnyFn,
   MionTypeFn,
@@ -188,23 +188,23 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 
 type CompiledJsonFamilies = {
   strategy: ParserStrategy;
-  row: ParsingRow;
+  row: ParseModeRow;
 };
 
-/** The strategy a fn set was compiled for, read off its injected families: the ONE row of this direction's
- *  table whose encoder, decoder and validator are all present. No row matches a payload from a different
- *  build, so version skew fails closed here rather than at call time.
+/** The strategy a fn set was compiled for, read off its injected families: the ONE PARSE_MODES row whose
+ *  encoder, decoder and validator are all present. No row matches a payload from a different build, so
+ *  version skew fails closed here rather than at call time.
  *
  *  Matching the whole row is what lets `mutate` and `mutateStrict` share an encoder: they differ in the
- *  validator, and the row carries both. */
+ *  validator, and the row carries both. `direction` only names the wire in the error, so a skew report
+ *  points at the marker that carried the bad payload. */
 function strategyFromFamilies(
   fns: Partial<Record<FnHashKey, unknown>>,
   label: string,
   direction: ParserDirection
 ): CompiledJsonFamilies {
-  const table = direction === 'return' ? RETURN_PARSING : PARAMS_PARSING;
-  const matched = (Object.keys(table) as (keyof typeof table)[]).filter((strategy) => {
-    const row: ParsingRow = table[strategy];
+  const matched = (Object.keys(PARSE_MODES) as ParserStrategy[]).filter((strategy) => {
+    const row: ParseModeRow = PARSE_MODES[strategy];
     return fns[row.encode] !== undefined && fns[row.decode] !== undefined && fns[row.validate] !== undefined;
   });
   if (matched.length !== 1)
@@ -213,7 +213,7 @@ function strategyFromFamilies(
         `${direction} wire (got [${Object.keys(fns).join(', ')}]${matched.length ? `, matched [${matched.join(', ')}]` : ''}). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  return {strategy: matched[0], row: table[matched[0]]};
+  return {strategy: matched[0], row: PARSE_MODES[matched[0]]};
 }
 
 /** Builds mion JitCompiledFunctions from one injected marker payload: the validators and ONE json
@@ -247,7 +247,7 @@ export function buildJitFnsFromMarker(
   if (fns.formatTransform !== undefined) getRTFunction<'formatTransform'>(fns.formatTransform);
   // getRTFunction initialized the injected tuples, so the full entries are now
   // resolvable from the mion cache under `<fnHashPrefix>_<typeId>`.
-  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, strategy, direction);
+  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, strategy);
   const utl = getRTUtils();
   const formatTransformEntry = hashes.formatTransform ? utl.getRT(hashes.formatTransform) : undefined;
   return {
@@ -419,7 +419,7 @@ export function buildHeaderJitFnsFromMarker(
     );
   const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
   const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
-  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, 'mutate', 'params');
+  const hashes: JitFunctionsHashes = getJitFnHashes(typeId, 'mutate');
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
     typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],

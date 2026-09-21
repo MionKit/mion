@@ -457,8 +457,8 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
 	paramsStrategy, returnStrategy := parserStrategies(method.Options)
-	paramsKeys := parsingFamilies(paramsStrategy, false).markerKeys(true)
-	returnKeys := parsingFamilies(returnStrategy, true).markerKeys(false)
+	paramsKeys := parseMode(paramsStrategy).markerKeys(true)
+	returnKeys := parseMode(returnStrategy).markerKeys(false)
 	entry.paramsFns = apiFnSite(entry.paramsId, paramsKeys)
 	entry.returnFns = apiFnSite(entry.returnId, returnKeys)
 	entry.paramsRef = protocol.Site{ID: entry.paramsId}
@@ -522,37 +522,27 @@ type parsingRow struct {
 	decode           string
 }
 
-// paramsParsing / returnParsing mirror PARAMS_PARSING / RETURN_PARSING in core's constants.ts, and the marker
-// slot types in packages/router/src/types/parser.ts. All three must name the same families or strategyFromFamilies
+// parseModes mirrors PARSE_MODES in core's constants.ts, and the marker slot types in
+// packages/router/src/types/parser.ts. All three must name the same families or strategyFromFamilies
 // matches no row on the bundled lane.
 //
-// The params validator differs per strategy because the decoder does: `clone` and `compact` rebuild the declared
-// shape, so only a union can still hide a key. A RETURN is written by the handler rather than a caller, so every
-// return row keeps the plain pair, and `mutateStrict` has no return row at all.
-var paramsParsing = map[string]parsingRow{
+// The validator differs per strategy because the decoder does: `clone` and `compact` rebuild the declared
+// shape, so only a union can still hide a key. `mutateStrict` has a row like any other; the RETURN wire never
+// reaches it because ReturnParserStrategy leaves it out.
+var parseModes = map[string]parsingRow{
 	"clone":        {"validateUnionKeys", "validationErrorsUnionKeys", "prepareForJsonClone", "restoreFromJsonClone"},
 	"mutate":       {"validate", "validationErrors", "prepareForJsonMutate", "restoreFromJsonMutate"},
 	"mutateStrict": {"validateStrict", "validationErrorsStrict", "prepareForJsonMutate", "restoreFromJsonMutate"},
 	"compact":      {"validateUnionKeys", "validationErrorsUnionKeys", "compactForJson", "compactFromJson"},
 }
 
-var returnParsing = map[string]parsingRow{
-	"clone":   {"validate", "validationErrors", "prepareForJsonClone", "restoreFromJsonClone"},
-	"mutate":  {"validate", "validationErrors", "prepareForJsonMutate", "restoreFromJsonClone"},
-	"compact": {"validate", "validationErrors", "compactForJson", "compactFromJson"},
-}
-
-// parsingFamilies returns the row a strategy compiles on one wire, falling back to `clone` for an unknown or
-// widened strategy, which is the same default parserStrategies applies.
-func parsingFamilies(strategy string, isReturn bool) parsingRow {
-	table := paramsParsing
-	if isReturn {
-		table = returnParsing
-	}
-	if row, ok := table[strategy]; ok {
+// parseMode returns the row a strategy compiles, falling back to `clone` for an unknown or widened strategy,
+// which is the same default parserStrategies applies.
+func parseMode(strategy string) parsingRow {
+	if row, ok := parseModes[strategy]; ok {
 		return row
 	}
-	return table["clone"]
+	return parseModes["clone"]
 }
 
 // markerKeys renders a row as the marker's slot list. `formatTransform` (sanitizeParams) is params-only: the

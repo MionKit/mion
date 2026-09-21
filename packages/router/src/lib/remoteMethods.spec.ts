@@ -123,7 +123,7 @@ describe('Public Methods should', () => {
 
     const utl = getRTUtils();
     // the params direction defaults to `clone`: the encoder builds a JSON-safe value, the decoder restores
-    const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash, 'clone', 'params');
+    const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash, 'clone');
     const compiledIsType = utl.getRT(hashes.isType)!;
     const compiledRestoreFromJson = utl.getRT(hashes.decode)!;
     const compiledEncodeJson = utl.getRT(hashes.encode)!;
@@ -190,7 +190,7 @@ describe('Public Methods should', () => {
     // The error-shaped families are the regression: they carry three slots, and the removed
     // `toWireArgs` workaround collapsed them to one — `{vλl: 'v'}` — injecting an identifier
     // where a default expression belongs.
-    const errorShaped = entries.filter((e) => e.familyTag === 'verr' || e.familyTag === 'uke');
+    const errorShaped = entries.filter((e) => e.familyTag === 'verr' || e.familyTag === 'veuk' || e.familyTag === 'uke');
     expect(errorShaped.length).toBeGreaterThan(0);
     errorShaped.forEach((entry) => {
       expect(entry.defaultParamValues).toEqual({vλl: '', pλth: '[]', εrr: '[]'});
