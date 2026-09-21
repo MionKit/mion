@@ -13,7 +13,7 @@ import (
 func literalSafeTypes() (*EmitContext, map[string]*reflection.RunType) {
 	bigOne := &reflection.RunType{ID: "big1", Kind: reflection.KindLiteral, Flags: []string{"bigint"}, Literal: "1"}
 	bigTwo := &reflection.RunType{ID: "big2", Kind: reflection.KindLiteral, Flags: []string{"bigint"}, Literal: "2"}
-	symLit := &reflection.RunType{ID: "sym1", Kind: reflection.KindLiteral, Flags: []string{"symbol"}, Literal: "tag"}
+	symLit := &reflection.RunType{ID: "sym1", Kind: reflection.KindLiteral, Flags: []string{"symbol"}, Literal: map[string]any{"symbol": "tag"}}
 	strLit := &reflection.RunType{ID: "str1", Kind: reflection.KindLiteral, Literal: "a"}
 
 	unionBig := &reflection.RunType{ID: "uBig", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("big1"), makeRef("big2")}}
@@ -140,13 +140,19 @@ func TestPrepareForJsonClone_ArrayOfBigintLiteralUnion(t *testing.T) {
 	}
 }
 
-// Symbol literals are supported by all four JSON strategies as
-// 'Symbol:' + description; the clone strategy used to skip that transform in an
-// array and emit [null] where its siblings emit ["Symbol:tag"].
+// A symbol literal is refused on every JSON road, so an array of one has no
+// element that can be encoded and the whole entry is unsupported.
 func TestPrepareForJsonClone_ArrayOfSymbolLiteral(t *testing.T) {
-	decl := compileSafeLiteral(t, "arrSym")
-	if !strings.Contains(decl, ".map(") || !strings.Contains(decl, "'Symbol:' + (") {
-		t.Errorf("array of a symbol literal must map each element through the symbol transform, got:\n%s", decl)
+	_, refTable := literalSafeTypes()
+	walker := NewWalker(refTable["arrSym"], "pjs_arrSym", PrepareForJsonCloneEmitter{})
+	walker.InnerPrefix = "pjs_"
+	walker.RefTable = refTable
+	decl, _, unsupported := walker.Compile()
+	if !unsupported {
+		t.Errorf("array of a symbol literal must be unsupported, got:\n%s", decl)
+	}
+	if strings.Contains(decl, "Symbol:") {
+		t.Errorf("no symbol wire form may be emitted, got:\n%s", decl)
 	}
 }
 

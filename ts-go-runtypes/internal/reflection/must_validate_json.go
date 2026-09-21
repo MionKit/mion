@@ -30,7 +30,7 @@ func MustValidateJson(rt *RunType) bool {
 		return true
 	case KindLiteral:
 		for _, flag := range rt.Flags {
-			if flag == "bigint" || flag == "symbol" {
+			if flag == "bigint" {
 				return true
 			}
 		}

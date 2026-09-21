@@ -257,12 +257,9 @@ func emitLiteralFromBinary(rt *reflection.RunType, ret, des string) RTCode {
 		return RTCode{Code: ret + " = " + decimal + "n", Type: CodeS}
 	}
 	if flagSet["symbol"] {
-		entry, ok := literal.(map[string]any)
-		if !ok {
-			return RTCode{Code: "", Type: CodeS}
-		}
-		name, _ := entry["symbol"].(string)
-		return RTCode{Code: ret + " = Symbol(" + quoteJS(name) + ")", Type: CodeS}
+		// Unsupported — a Symbol() built from the type is never the symbol the
+		// literal type names, the same reason the bare kind is refused.
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	lit, err := jsLiteralFromAny(literal)
 	if err != nil {
