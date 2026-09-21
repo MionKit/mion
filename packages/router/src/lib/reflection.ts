@@ -98,11 +98,9 @@ export function getHandlerReflection(
   def: ReflectableDef,
   routeId: string,
   routerOptions: RouterOptions,
-  // handlerOptions/strictTypes stay unused here: option-dependent behavior (strictTypes)
-  // is runtime-gated at dispatch against the compiled unknown-keys fns.
+  // handlerOptions stays unused here: what a route compiles is decided at build time by its parser strategy.
   handlerOptions: RouteOptions | MiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
-  isHeadersMiddleFn: boolean = false,
-  methodStrictTypes?: boolean // eslint-disable-line @typescript-eslint/no-unused-vars
+  isHeadersMiddleFn: boolean = false
 ): MethodReflect {
   try {
     return isHeadersMiddleFn

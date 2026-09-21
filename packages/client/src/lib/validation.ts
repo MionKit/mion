@@ -53,14 +53,10 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
   const paramsJit = method.paramsJitFns;
   if (paramsJit.typeErrors.isNoop) return;
   try {
-    let errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
+    const errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
       ? undefined
       : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
-    // Mirror the server's strictTypes gate so extra-key payloads fail fast: strictness is not baked into
-    // isType, it rides the separate hasUnknownKeys/unknownKeyErrors fns, which the client must run itself.
-    if (!errors?.length && method.options?.strictTypes && paramsJit.hasUnknownKeys && paramsJit.unknownKeyErrors) {
-      if (paramsJit.hasUnknownKeys.fn(params)) errors = paramsJit.unknownKeyErrors.fn(params) as RunTypeError[];
-    }
+    // The route's parser strategy already picked the validator, so isType answers for undeclared keys too.
     if (errors?.length) {
       return new RpcError({
         type: 'validation-error',

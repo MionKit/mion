@@ -15,7 +15,7 @@ validate({name: 'John', age: 30}); // true
 validate({name: 'John', age: 30, extra: 'value'}); // true (extra keys ignored)
 
 // Strict checking: reject objects that carry unknown/extra properties.
-// mion routes turn this on end-to-end with the router/route `strictTypes: true` option.
+// mion routes get the same check end to end with the `parser: {params: 'mutateStrict'}` option.
 const hasUnknownKeys = createHasUnknownKeysFn<User>();
 hasUnknownKeys({name: 'John', age: 30}); // false
 hasUnknownKeys({name: 'John', age: 30, extra: 'value'}); // true

@@ -52,10 +52,6 @@ export interface RemoteMethodOpts {
   parser?: ResolvedParser;
   /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
   isMutation?: boolean | undefined;
-  /** Per-route strictTypes, already resolved (route option ?? router option), so it also rides the methods
-   *  metadata to the client. When true, objects carrying extra properties are rejected through the compiled
-   *  hasUnknownKeys/unknownKeyErrors fns, on the server at dispatch and client-side in local pre-validation. */
-  strictTypes?: boolean;
   /** Per-route sanitizeParams, already resolved (route option ?? router option), so it also rides the methods
    *  metadata to the client. When true, the rewrites the params types declare under a format's `transform` key
    *  are applied after decode and BEFORE validation, on the server at dispatch and, when the client's own

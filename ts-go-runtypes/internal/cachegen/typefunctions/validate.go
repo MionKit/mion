@@ -1026,7 +1026,6 @@ func escapeRegex(s string) string {
 
 // emitObjectValidate emits the object-shape AND-chain for KindObjectLiteral / KindClass, including the callable branch (a
 // CallSignature child swaps the typeof guard from 'object' to 'function') and the all-optional array / native-object rejection.
-// The reference's `strictTypes` option — unknown-property rejection — is the one knob not wired here; lands when a caller needs it.
 // Method-shaped and static children are dropped; a child that returns CodeNS propagates it and the whole factory is skipped.
 func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface requires a function value (typeof === 'function') with optional extra properties on top, so the

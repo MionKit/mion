@@ -35,21 +35,11 @@ function fakeRoute<H extends AnyHandler>(
     HandlerParams<H>,
     'validate',
     'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
     'formatTransform',
     'prepareForJsonMutate',
     'restoreFromJsonMutate'
   >,
-  returnFns?: InjectTypeFnArgs<
-    HandlerReturn<H>,
-    'validate',
-    'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
-    'prepareForJsonMutate',
-    'restoreFromJsonClone'
-  >,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -61,23 +51,13 @@ function fakeCompactRoute<H extends AnyHandler>(
   handler: H,
   paramsFns?: InjectTypeFnArgs<
     HandlerParams<H>,
-    'validate',
-    'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
+    'validateUnionKeys',
+    'validationErrorsUnionKeys',
     'formatTransform',
     'compactForJson',
     'compactFromJson'
   >,
-  returnFns?: InjectTypeFnArgs<
-    HandlerReturn<H>,
-    'validate',
-    'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
-    'compactForJson',
-    'compactFromJson'
-  >,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'compactForJson', 'compactFromJson'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -89,23 +69,13 @@ function fakeCloneRoute<H extends AnyHandler>(
   handler: H,
   paramsFns?: InjectTypeFnArgs<
     HandlerParams<H>,
-    'validate',
-    'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
+    'validateUnionKeys',
+    'validationErrorsUnionKeys',
     'formatTransform',
     'prepareForJsonClone',
     'restoreFromJsonClone'
   >,
-  returnFns?: InjectTypeFnArgs<
-    HandlerReturn<H>,
-    'validate',
-    'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
-    'prepareForJsonMutate',
-    'restoreFromJsonClone'
-  >,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -124,21 +94,11 @@ function fakeHeadersFn<H extends AnyHeaderHandler>(
     HeaderHandlerParams<H>,
     'validate',
     'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
     'formatTransform',
     'prepareForJsonMutate',
     'restoreFromJsonMutate'
   >,
-  returnFns?: InjectTypeFnArgs<
-    HandlerReturn<H>,
-    'validate',
-    'validationErrors',
-    'hasUnknownKeys',
-    'unknownKeyErrors',
-    'prepareForJsonMutate',
-    'restoreFromJsonClone'
-  >,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone'>,
   headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
   paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -306,23 +266,17 @@ describe('mionAdapter: json strategy per compiled family set', () => {
   // meet, so pin the translation directly: a payload carrying only short tags must
   // still resolve every function, and the readable key is what the rest of mion sees.
   it('translates the short family tag a compiled entry carries into the readable fn key', () => {
-    const fns = buildJitFnsFromMarker(
-      [tuple('val'), tuple('verr'), tuple('huk'), tuple('uke'), tuple('pjs'), tuple('rjs')],
-      'x',
-      'clone',
-      'params'
-    );
+    // A `clone` params wire compiles the union-scoped validator pair (vuk / veuk).
+    const fns = buildJitFnsFromMarker([tuple('vuk'), tuple('veuk'), tuple('pjs'), tuple('rjs')], 'x', 'clone', 'params');
     expect(fns.isType).toBeDefined();
     expect(fns.typeErrors).toBeDefined();
-    expect(fns.hasUnknownKeys).toBeDefined();
-    expect(fns.unknownKeyErrors).toBeDefined();
     // The strategy is read back off the encode family, which only works once the
     // tag has been translated to the key ENCODE_FAMILY_BY_STRATEGY speaks.
     expect(fns.json.strategy).toBe('clone');
   });
 
   it('fails closed on a payload with no encode family, two encode families, or a mismatched decoder', () => {
-    const okValidators = [tuple('val'), tuple('verr')];
+    const okValidators = [tuple('vuk'), tuple('veuk')];
     expect(() => buildJitFnsFromMarker([...okValidators, tuple('rj')], 'x', 'noEncode', 'params')).toThrow(
       /exactly one JSON encode family/
     );
@@ -333,31 +287,26 @@ describe('mionAdapter: json strategy per compiled family set', () => {
       /needs decoder 'compactFromJson'/
     );
     expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr', 'params')).toThrow(
-      /validate\/validationErrors are required/
+      /needs validate\/validationErrors/
     );
     // the server's `mutate` decoder on the return wire, where the client's rebuilding one belongs
-    expect(() => buildJitFnsFromMarker([...okValidators, tuple('pj'), tuple('rj')], 'x', 'wrongSide', 'return')).toThrow(
-      /needs decoder 'restoreFromJsonClone'/
-    );
+    expect(() =>
+      buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'wrongSide', 'return')
+    ).toThrow(/needs decoder 'restoreFromJsonClone'/);
   });
 
-  // The strictTypes pair is the one part of a payload that is genuinely optional: the answer side
-  // never asks for it, and neither does a `clone` or `compact` params wire, whose decoder rebuilds
-  // the declared shape. The built set must then leave both OFF, so dispatch and the client take
-  // their `!hasUnknownKeys` early return instead of calling a function that always answers false.
-  it('leaves the strictTypes pair off the set when the marker did not ask for it', () => {
-    const withPair = buildJitFnsFromMarker(
-      [tuple('val'), tuple('verr'), tuple('huk'), tuple('uke'), tuple('pj'), tuple('rj')],
-      'x',
-      'keyed',
-      'params'
-    );
-    expect(withPair.hasUnknownKeys).toBeDefined();
-    expect(withPair.unknownKeyErrors).toBeDefined();
+  // `mutate` and `mutateStrict` share an encoder, so the VALIDATE family is the only thing telling them apart.
+  // The direction guard matters as much as the family: a return wire always carries the plain pair, so without
+  // it every mutate answer would read as mutateStrict.
+  it('tells mutate from mutateStrict by the validate family, on the params wire only', () => {
+    const plain = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'mutate', 'params');
+    expect(plain.json.strategy).toBe('mutate');
 
-    const without = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('cj'), tuple('cjr')], 'x', 'compact', 'params');
-    expect(without.hasUnknownKeys).toBeUndefined();
-    expect(without.unknownKeyErrors).toBeUndefined();
+    const strict = buildJitFnsFromMarker([tuple('vst'), tuple('vest'), tuple('pj'), tuple('rj')], 'x', 'strict', 'params');
+    expect(strict.json.strategy).toBe('mutateStrict');
+
+    const answer = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rjs')], 'x', 'answer', 'return');
+    expect(answer.json.strategy).toBe('mutate');
   });
 });
 

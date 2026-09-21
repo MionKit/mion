@@ -57,7 +57,6 @@ interface RouteOptionsBase {
   validateReturn?: boolean;
   /** Whether this route mutates data (query / mutation set it, route leaves it undefined). */
   isMutation?: boolean | undefined;
-  strictTypes?: boolean;
   sanitizeParams?: boolean;
   /** Largest request body this route accepts, in bytes. Wins over the number derived from the
    *  types and over the router option. */
@@ -72,7 +71,6 @@ interface MiddleFnOptionsBase {
   maxBodySize?: number;
   validateReturn?: boolean;
   alwaysRun?: boolean;
-  strictTypes?: boolean;
   sanitizeParams?: boolean;
 }
 // ####### Route options never inherit the router options #######
