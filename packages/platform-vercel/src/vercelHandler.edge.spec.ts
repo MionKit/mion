@@ -21,15 +21,13 @@ interface EdgeResponse {
   headers: Record<string, string>;
 }
 
-/** The options EdgeTestServer.setup() accepts, mirroring EdgeSetupOptions in the fixture. The fixture
- *  rejects an unknown key at runtime, so a drift between the two fails the setup instead of being ignored. */
+/** Mirrors EdgeSetupOptions in the fixture, which rejects an unknown key, so drift fails the setup. */
 interface EdgeSetupOptions {
   serializer?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
-/** Builds the setup call from a checked object: a hand written literal inside this string is never
- *  type checked, which is how a block once configured itself with an option that did not exist. */
+/** A hand written literal inside the evaluated string is never type checked; this object is. */
 function setupCall(options: EdgeSetupOptions = {}): string {
   return `EdgeTestServer.setup(${JSON.stringify(options)})`;
 }
@@ -118,7 +116,6 @@ describe('vercel handler (edge runtime)', () => {
     });
 
     it('should include default headers', async () => {
-      // Re-setup with custom default headers
       vm = createEdgeVM();
       await vm.evaluate(setupCall({defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'}}));
 
@@ -140,9 +137,8 @@ describe('vercel handler (edge runtime)', () => {
       await vm.evaluate(setupCall({serializer: 'mutate'}));
     });
 
-    // Only `mutate` restores the params in place and keeps a key the type does not declare; every other
-    // strategy rebuilds the declared shape. `getDate` hands its own argument back, so the extra key
-    // reaching the wire proves the option applied.
+    // Only `mutate` keeps a key the type does not declare; every other strategy rebuilds the declared shape.
+    // `getDate` hands its own argument back, so the extra key reaching the wire proves the option applied.
     it('should keep an undeclared key the clone serializer would drop', async () => {
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z'), extra: 'kept'}]};
       const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
