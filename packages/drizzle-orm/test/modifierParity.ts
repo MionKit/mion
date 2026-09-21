@@ -5,12 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Shared parser behind each dialect's per-column modifier parity gate: for one
-// column, the modifiers its manifest entry records, the keys its column TYPE's
-// *ColMods bag accepts, and the methods its BUILDER's return interface offers.
-// A mismatch means one road can spell a modifier the other refuses, which the
-// union-wide gate beside it cannot see. Not part of the shipped build
-// (tsconfig.build.json excludes test/).
+// Shared parser behind each dialect's per-column modifier parity gate: a mismatch means one road
+// can spell a modifier the other refuses, which the union-wide gate beside it cannot see.
+// Not part of the shipped build (tsconfig.build.json excludes test/).
 
 export interface ManifestEntry {
   fn: string;
@@ -41,8 +38,7 @@ export function parseBags(source: string): Map<string, Set<string>> {
   for (const bag of source.matchAll(/^export interface (\w*ColMods)(?: extends ([\s\S]*?))?\s*\{([\s\S]*?)^\}/gm)) {
     const [, name, heritage = '', body] = bag;
     const own = new Set<string>();
-    // Inherited names arrive as a Pick<ColMods, 'a' | 'b'> list; reading every
-    // quoted string instead would also collect value unions like 'virtual'.
+    // Scoped to the Pick<ColMods, ...> list: every quoted string would also collect value unions like 'virtual'.
     const picked = heritage.match(/Pick<\s*ColMods\s*,([\s\S]*?)>/);
     if (picked) for (const key of picked[1].matchAll(/'([\w$]+)'/g)) own.add(key[1]);
     for (const key of body.matchAll(/^ {2}([\w$]+)\?:/gm)) own.add(key[1]);
@@ -101,20 +97,15 @@ export function parseExportRenames(indexSource: string): Map<string, string> {
 
 /** The bag(s) a column type's generic constraints name, or null if not found. */
 function bagOfColumnType(source: string, typeName: string): string | null {
-  // Lazy up to the '>' that closes the parameter list, so a one-line
-  // declaration cannot run on into the next type's ' = RtColType<'.
+  // Lazy so a one-line declaration cannot run on into the next type's ' = RtColType<'.
   const declaration = source.match(new RegExp(String.raw`^export type ${typeName}<([\s\S]*?)>\s*=\s*RtColType<`, 'm'));
   if (!declaration || declaration[1].includes('\nexport ')) return null;
   const named = [...new Set([...declaration[1].matchAll(/\b(\w*ColMods)\b/g)].map((match) => match[1]))];
   return named.length ? named.join('+') : null;
 }
 
-/**
- * Compare, per migrated column, the manifest's modifiers against the keys its
- * column type's bag accepts and the methods its builder's return interface
- * offers. A column with no `typeAlias` is builders-only (mysqlEnum takes a
- * values ARRAY, not a config object), so only its builder is checked.
- */
+/** A column with no `typeAlias` is builders-only, so only its builder is checked:
+ *  mysqlEnum takes a values ARRAY, not a config object. */
 export function columnParity(manifestEntries: ManifestEntry[], columnsSource: string, indexSource: string): ColumnParity[] {
   const bags = parseBags(columnsSource);
   const interfaces = parseColumnInterfaces(columnsSource);

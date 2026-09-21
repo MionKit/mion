@@ -64,10 +64,8 @@ describe('the root drizzle-orm manifest matches the shipped module', () => {
     expect(migrated).toBeGreaterThanOrEqual(1); // sql at minimum
   });
 
-  // Every DIALECT's per-column modifier parity, from this one place: a new
-  // dialect row is covered the day it lands. The dialect packages each gate the
-  // union (every modifier sits in SOME bag), which cannot see a column whose
-  // bag and builder disagree with each other.
+  // Driven off the dialect config, so a new dialect row is covered the day it lands.
+  // The dialect packages gate only the union, which cannot see a column whose bag and builder disagree.
   const columnDialects = dialectsConfig.dialects.filter((row) => !row.noColumnBuilders);
   it.each(columnDialects.map((row) => row.dialect))(
     '%s: every column type and its builder offer exactly the manifest modifiers',

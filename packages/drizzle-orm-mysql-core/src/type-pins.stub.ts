@@ -200,9 +200,8 @@ type _noDefaultNowOnText = Text<'t', {defaultNow: true}>;
 // @ts-expect-error mysql columns have no array() — that is a pg modifier
 type _noArrayOnText = Text<'t', {array: true}>;
 
-// drizzle builds real / float / double / decimal on
-// MySqlColumnBuilderWithAutoIncrement, so autoincrement is theirs on BOTH
-// roads; mysql allows AUTO_INCREMENT on any numeric column, not just integers.
+// mysql allows AUTO_INCREMENT on any numeric column, not just integers.
+// drizzle agrees: real / float / double / decimal sit on MySqlColumnBuilderWithAutoIncrement.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
 const autoincrementNumerics = {
   real: real('r').autoincrement(),
