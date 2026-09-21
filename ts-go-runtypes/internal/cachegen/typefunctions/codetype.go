@@ -58,13 +58,8 @@ const (
 	CodeNS CodeType = "NS"
 )
 
-// RTCode is one emitter's output. `Code == ""` means "no code emitted"
-// (the reference uses `undefined` for the same state — both halves treat
-// empty snippets as a noop the orchestrator can drop).
-//
-// An unsupported leaf carries no throw text of its own: the message a
-// CodeNS entry throws is rendered once at the root by module.go from the
-// leaf's diag code (buildAlwaysThrowMessage).
+// RTCode is one emitter's output; `Code == ""` is the reference's `undefined`, a noop the orchestrator drops.
+// A CodeNS leaf carries no throw text: module.go's buildAlwaysThrowMessage builds it at the root from the leaf's diag code.
 type RTCode struct {
 	Code string
 	Type CodeType

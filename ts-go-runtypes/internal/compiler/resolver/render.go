@@ -20,16 +20,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// rtRenderOpts builds the RenderOpts the typefns entry collectors expect
-// from the resolver's session state. The dispatch path feeds this into
-// every collect call so the disk cache and runtype lookup follow the
-// resolver across requests.
-//
-// sink (when non-nil) is the destination for compile-time diagnostics
-// emitted by the walker at root-throw / silent-skip sites; provenance
-// (when non-nil) maps RT IDs to the marker call sites that reach them, and
-// rooted narrows that to the sites that NAMED each id, so EmitDiagnostic can
-// fan a code out over the set it belongs to.
+// rtRenderOpts builds the typefns RenderOpts from session state, so the disk cache and runtype lookup follow the
+// resolver across requests. sink takes the walker's root-throw / silent-skip diagnostics; provenance maps RT IDs to
+// the sites that reach them and rooted narrows that to the sites that NAMED each id, the set EmitDiagnostic fans over.
 func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, provenance map[string][]diagnostics.Site) typefunctions.RenderOpts {
 	if sess == nil {
 		return typefunctions.RenderOpts{}
