@@ -1,18 +1,9 @@
-// Rule-thread half of the lint session: a synchronous facade over the async
-// resolver, using the worker-thread + Atomics.wait bridge (see
-// lint-worker.ts). Lint rule visitors are synchronous, so the rule thread
-// posts a request to the worker and BLOCKS on a SharedArrayBuffer until the
-// worker signals the response is queued — the standard sync-over-async
-// pattern (synckit-style), hand-rolled so the plugin adds no dependencies.
-//
-// One session serves the whole lint run; per-(file, text-hash) results are
-// memoized so the several rules that share a file's single resolver pass pay
-// for it once, and unchanged files replay instantly on the next run of a
-// long-lived host (the oxlint LSP).
-//
-// The worker starts at PLUGIN LOAD (prewarmSession, called from index.ts):
-// it must pre-spawn the resolver launcher while the host process is still
-// small enough to fork — see the spawn-shim rationale in lint-worker.ts.
+// Rule-thread half of the lint session: lint rule visitors are synchronous, so the rule thread posts to the
+// worker (lint-worker.ts) and BLOCKS on a SharedArrayBuffer until the response is queued, the sync-over-async
+// pattern hand-rolled so the plugin adds no dependencies. One session serves the whole run, memoized per
+// (file, text hash) so the several rules sharing a file's single resolver pass pay once and unchanged files
+// replay instantly in a long-lived host (the oxlint LSP). The worker starts at PLUGIN LOAD (prewarmSession,
+// called from index.ts) to pre-spawn the resolver launcher while the host is still small enough to fork;
 // MION_LINT_PRESPAWN=0 opts out of both the prewarm and the shim.
 
 import {createHash} from 'node:crypto';
@@ -25,8 +16,7 @@ import {WAKE_INDEX, type LintSessionOptions, type LintWorkerRequest, type LintWo
 
 export type {LintSessionOptions} from './session-protocol.ts';
 
-// LintOutcome is one file's result: the wire diagnostics, or the reason the
-// engine could not answer (reported, never silently swallowed).
+// LintOutcome is one file's result: the wire diagnostics, or the reason the engine could not answer.
 export type LintOutcome = {diagnostics: Diagnostic[]} | {engineError: string};
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -38,16 +28,11 @@ export class LintSession {
   private signal = new Int32Array(new SharedArrayBuffer(4));
   private seq = 0;
   private readonly cache = new Map<string, LintOutcome>();
-  // Sticky engine failure: once the bridge is known-broken (worker failure,
-  // timeout), every later file reports the same reason instead of re-paying
-  // the timeout.
+  // Sticky engine failure: once the bridge is known-broken, later files reuse the reason instead of re-paying it.
   private dead: string | null = null;
 
-  // start eagerly creates the worker and resolves once it has pre-spawned
-  // the resolver launcher (its shimReady signal) — the plugin entry awaits
-  // this at load so the launcher fork deterministically precedes the host's
-  // memory ramp. Resolves (never rejects) on worker failure or after a short
-  // grace timeout; the failure then surfaces per-file as an engine error.
+  // start resolves once the worker signals shimReady; the plugin entry awaits it at load so the launcher fork
+  // precedes the host's memory ramp. Never rejects: on worker failure or grace timeout it surfaces per file.
   start(): Promise<void> {
     let worker: Worker;
     try {
@@ -72,12 +57,9 @@ export class LintSession {
     });
   }
 
-  // lintFileSync runs the single resolver pass for one file's buffer text and
-  // returns its diagnostics (all families — the caller routes them to rules).
-  // options carries the per-file timeout budget, the project tsconfig and an
-  // optional resolver binary; the working directory is process.cwd(), never
-  // configurable. The tsconfig and binary only take effect on the FIRST file of a
-  // run, which is when the worker opens its long-lived connection.
+  // lintFileSync runs one file's single resolver pass and returns every family's diagnostics; the caller routes
+  // them. The working directory is always process.cwd(); tsconfig and binary only apply on the run's FIRST file,
+  // which is when the worker opens its long-lived connection.
   lintFileSync(file: string, text: string, options: LintSessionOptions = {}): LintOutcome {
     const key = `${file} ${createHash('sha1').update(text).digest('base64')}`;
     const cached = this.cache.get(key);
@@ -105,10 +87,8 @@ export class LintSession {
     }
 
     const seq = ++this.seq;
-    // Forward ONLY an explicit tsconfig setting (strict: the daemon fails the
-    // op when it is missing or broken). When unset, the Go side resolves the
-    // config exactly as tsc does — searching upward from cwd — mirroring the
-    // bundler plugins; the lint session carries no config logic of its own.
+    // Forward ONLY an explicit tsconfig (strict: the daemon fails the op when it is missing or broken). Unset,
+    // the Go side searches upward from cwd exactly as tsc does, so this side carries no config logic.
     port.postMessage({
       seq,
       file,
@@ -119,8 +99,7 @@ export class LintSession {
 
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const deadline = Date.now() + timeoutMs;
-    // Block until the worker has stored our seq (it posts the response BEFORE
-    // notifying, so once the signal reaches seq the message is in the queue).
+    // The worker posts the response BEFORE notifying, so once the signal reaches seq the message is queued.
     for (;;) {
       const current = Atomics.load(this.signal, WAKE_INDEX);
       if (current >= seq) break;
@@ -131,8 +110,7 @@ export class LintSession {
       }
     }
 
-    // Drain the port for our response (requests are strictly sequential, so
-    // the next message is ours; the loop guards a stale leftover anyway).
+    // Requests are strictly sequential, so the next message is ours; the loop guards a stale leftover anyway.
     for (;;) {
       const received = receiveMessageOnPort(port) as {message: LintWorkerResponse} | undefined;
       if (!received) {
@@ -142,8 +120,7 @@ export class LintSession {
       if (received.message.seq !== seq) continue;
       if (received.message.error) {
         const engineError = `resolver failed: ${received.message.error}`;
-        // Connection-level failures stick: later files answer instantly
-        // instead of re-paying a dead engine. Per-file op errors don't.
+        // Connection-level failures stick so later files answer instantly; per-file op errors don't.
         if (received.message.fatal) this.dead = engineError;
         return {engineError};
       }
@@ -159,9 +136,7 @@ export class LintSession {
       workerData: {port: port2, signal: this.signal},
       transferList: [port2],
     });
-    // The worker must never keep the host process alive after the run; when
-    // the process exits, the worker dies and its resolver child reads EOF and
-    // exits too.
+    // The worker must never keep the host alive; on host exit its resolver child reads EOF and exits too.
     this.worker.unref();
     this.requestPort = port1;
     return port1;
@@ -178,12 +153,8 @@ export class LintSession {
   }
 }
 
-// resolveWorkerURL finds the worker ENTRY FILE. Running from dist (the
-// published package, the normal case) the sibling .js exists. Running from
-// src (this repo's vitest, which imports source), the worker must still be a
-// real on-disk .js — a worker thread loads its file through plain Node, not
-// through vite's transform — so fall back to the built dist twin (the repo's
-// stale-build check keeps dist fresh).
+// resolveWorkerURL finds the worker ENTRY FILE: a worker thread loads it through plain Node, never vite's
+// transform, so running from src falls back to the built dist twin (the repo's stale-build check keeps it fresh).
 function resolveWorkerURL(): URL {
   const sibling = new URL('./lint-worker.js', import.meta.url);
   if (existsSync(fileURLToPath(sibling))) return sibling;
@@ -200,11 +171,8 @@ export function sharedSession(): LintSession {
   return shared;
 }
 
-// prewarmSession starts the shared session's worker at plugin load so the
-// resolver launcher forks while the host is still small (see lint-worker.ts).
-// The plugin entry top-level-awaits the returned promise. MION_LINT_PRESPAWN=0
-// turns the eager start off; the session then starts on the first linted
-// file (fine for small hosts like plain ESLint).
+// prewarmSession starts the shared worker at plugin load so the launcher forks while the host is still small;
+// the plugin entry top-level-awaits it. MION_LINT_PRESPAWN=0 starts the session on the first linted file instead.
 export function prewarmSession(): Promise<void> {
   if (readEnvCompat('MION_LINT_PRESPAWN') === '0') return Promise.resolve();
   return sharedSession().start();
