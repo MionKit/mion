@@ -26,7 +26,7 @@ import (
 // resolver across requests.
 //
 // sink (when non-nil) is the destination for compile-time diagnostics
-// emitted by the walker at RTThrow / silent-skip sites; provenance
+// emitted by the walker at root-throw / silent-skip sites; provenance
 // (when non-nil) maps RT IDs to the marker call sites that reach them, and
 // rooted narrows that to the sites that NAMED each id, so EmitDiagnostic can
 // fan a code out over the set it belongs to.
@@ -441,7 +441,7 @@ func (sess *Session) batchReportForSites(sites []requestbatch.Site) []protocol.B
 // Site attribution: each missing key fans out to one diagnostic per distinct
 // marker call site that demanded a type reaching it (collected from each use's
 // root provenance), so the squiggle lands on the user's createX<T>() call —
-// mirroring how the walker's RTThrow diagnostics fan out. A key whose uses
+// mirroring how the walker's root-throw diagnostics fan out. A key whose uses
 // carry no provenance (only transitively-reached children) falls back to a
 // single file-less diagnostic. Output is sorted by (key, file, line, col) so
 // the response is deterministic regardless of family-collect order (serial vs

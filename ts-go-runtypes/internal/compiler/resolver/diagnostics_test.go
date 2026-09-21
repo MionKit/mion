@@ -16,13 +16,13 @@ func runtypeDiagsOf(diags []diagnostics.Diagnostic) []diagnostics.Diagnostic {
 	return filterDiagsByFamily(diags, diagnostics.FamilyRunType)
 }
 
-// TestDiag_RunTypeRTThrow_NeverAtRoot pins the end-to-end runtype
+// TestDiag_RunTypeRootThrow_NeverAtRoot pins the end-to-end runtype
 // diagnostic flow. A `getRunTypeId<never>()` call site reaches the
-// prepareForJson emitter's RTThrow site for KindNever, which records
+// prepareForJson emitter's unsupported-leaf site for KindNever, which records
 // a PJ001 diagnostic against the marker call site. The diagnostic
 // fans out one entry per call site (per user direction: dedup is
 // one-per-call-site, not one-per-type-id).
-func TestDiag_RunTypeRTThrow_NeverAtRoot_PrepareForJson(t *testing.T) {
+func TestDiag_RunTypeRootThrow_NeverAtRoot_PrepareForJson(t *testing.T) {
 	// pj is demand-driven now, so seed it via createJsonEncoderFn(mutate) → [pj].
 	const code = `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
@@ -64,10 +64,10 @@ export const _ = createJsonEncoderFn<never>(undefined, {strategy: 'mutate'});
 	}
 }
 
-// TestDiag_RunTypeRTThrow_FunctionAtRoot exercises the function-root
+// TestDiag_RunTypeRootThrow_FunctionAtRoot exercises the function-root
 // throw across the JSON families. `getRunTypeId<() => void>()` reaches
-// the function-root RTThrow in each family.
-func TestDiag_RunTypeRTThrow_FunctionAtRoot_PrepareForJson(t *testing.T) {
+// the function-root throw in each family.
+func TestDiag_RunTypeRootThrow_FunctionAtRoot_PrepareForJson(t *testing.T) {
 	// pj is demand-driven now, so seed it via createJsonEncoderFn(mutate) → [pj].
 	const code = `import {createJsonEncoderFn} from '@mionjs/run-types';
 export const _ = createJsonEncoderFn<() => void>(undefined, {strategy: 'mutate'});
