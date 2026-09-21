@@ -77,8 +77,8 @@ const (
 	// OpEnrich scaffolds / reconciles the enrichment mirror files — the daemon face
 	// of the CLI `enrich` verb, so a bundler plugin can drive the scaffold + sync
 	// pass over the warm connection instead of spawning. It returns the computed
-	// mirror CONTENT (Response.EnrichFiles) and NEVER writes; EnrichNoEmit=true
-	// returns Diagnostics only. Shares enrichgen.Plan + mirror.Scaffold/Reconcile
+	// mirror CONTENT (Response.EnrichFiles) and NEVER writes.
+	// Shares enrichgen.Plan + mirror.Scaffold/Reconcile
 	// with the CLI verb, so the two produce byte-identical mirrors.
 	OpEnrich = "enrich"
 )
@@ -203,7 +203,7 @@ type Metrics struct {
 // MarshalJSON below so JSON consumers see the field only when it's set.
 //
 // OK is a simple acknowledgement for ops that don't return data
-// (setSources / resetCache). Emitted only when set so other ops stay tidy.
+// (setSources / reset). Emitted only when set so other ops stay tidy.
 type Response struct {
 	ID    string                `json:"-"`
 	HasID bool                  `json:"-"`
