@@ -35,6 +35,7 @@ import type {
 } from './index.ts';
 import {
   bigint,
+  bigserial,
   boolean,
   date,
   integer,
@@ -383,4 +384,23 @@ type _noDefaultNowOnVarchar = Varchar<'v', {defaultNow: true}>;
 type _noDefaultRandomOnInteger = Integer<'i', {defaultRandom: true}>;
 // @ts-expect-error the identity modifiers are smallint / integer / bigint only
 type _noIdentityOnText = Text<'t', {generatedAlwaysAsIdentity: true}>;
-export type _BagPins = [_noAutoincrementOnVarchar, _noDefaultNowOnVarchar, _noDefaultRandomOnInteger, _noIdentityOnText];
+// The serials are not identity columns: drizzle builds them on plain
+// PgColumnBuilder, so neither road may spell an identity modifier on one.
+// @ts-expect-error serial is already sequence-backed, it takes no identity
+type _noIdentityOnSerial = Serial<'id', {generatedAlwaysAsIdentity: true}>;
+// The builder road must refuse them too, not just the type road.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const noIdentityOnSerialBuilders = {
+  // @ts-expect-error serial takes no identity modifier
+  serial: serial('id').generatedAlwaysAsIdentity(),
+  // @ts-expect-error bigserial takes no identity modifier
+  bigserial: bigserial('id', {mode: 'number'}).generatedByDefaultAsIdentity(),
+};
+export type _BagPins = [
+  _noAutoincrementOnVarchar,
+  _noDefaultNowOnVarchar,
+  _noDefaultRandomOnInteger,
+  _noIdentityOnText,
+  _noIdentityOnSerial,
+  typeof noIdentityOnSerialBuilders,
+];

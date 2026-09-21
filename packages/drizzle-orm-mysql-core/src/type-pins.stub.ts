@@ -15,14 +15,31 @@ import type {
   BigInt64,
   BigUInt64,
   Date as RTDate,
+  Float as FloatFormat,
   Integer as IntegerFormat,
   String as Str,
   StringDateTime,
   UInt8,
 } from '@mionjs/run-types/formats';
 import type {ColDataOf, InferInsertModel, InferSelectModel, InferSelectViewModel, InferUpdateModel} from '@mionjs/drizzle-orm';
-import type {Bigint, Int, MysqlTable, Text, Timestamp, Tinyint, Varchar, Year} from './index.ts';
-import {bigint, int, mysqlEnum, mysqlTable, mysqlView, serial, text, timestamp, tinyint, varchar, year} from './index.ts';
+import type {Bigint, Int, MysqlTable, Real, Text, Timestamp, Tinyint, Varchar, Year} from './index.ts';
+import {
+  bigint,
+  decimal,
+  double,
+  float,
+  int,
+  mysqlEnum,
+  mysqlTable,
+  mysqlView,
+  real,
+  serial,
+  text,
+  timestamp,
+  tinyint,
+  varchar,
+  year,
+} from './index.ts';
 
 /** Data a column type carries (the builder-equivalence probe: a column type IS
  *  the branded column now, so this reads the same brand off both roads). */
@@ -182,4 +199,31 @@ type _noAutoincrementOnVarchar = Varchar<'v', {autoincrement: true}>;
 type _noDefaultNowOnText = Text<'t', {defaultNow: true}>;
 // @ts-expect-error mysql columns have no array() — that is a pg modifier
 type _noArrayOnText = Text<'t', {array: true}>;
-export type _BagPins = [_noAutoincrementOnVarchar, _noDefaultNowOnText, _noArrayOnText];
+
+// drizzle builds real / float / double / decimal on
+// MySqlColumnBuilderWithAutoIncrement, so autoincrement is theirs on BOTH
+// roads; mysql allows AUTO_INCREMENT on any numeric column, not just integers.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- consumed as a type by the pins
+const autoincrementNumerics = {
+  real: real('r').autoincrement(),
+  float: float('f').autoincrement(),
+  double: double('d').autoincrement(),
+  decimal: decimal('de', {mode: 'string'}).autoincrement(),
+};
+type _realAutoincrementConverges = Expect<
+  Equal<
+    InferInsertModel<MysqlTable<'t', {r: (typeof autoincrementNumerics)['real']}>>,
+    InferInsertModel<MysqlTable<'t', {r: Real<'r', {autoincrement: true}>}>>
+  >
+>;
+// autoincrement gives the column a database default, so inserts may omit it.
+type _realAutoincrementOptional = Expect<
+  Equal<InferInsertModel<MysqlTable<'t', {r: Real<'r', {autoincrement: true}>}>>['r'], FloatFormat | null | undefined>
+>;
+export type _BagPins = [
+  _noAutoincrementOnVarchar,
+  _noDefaultNowOnText,
+  _noArrayOnText,
+  _realAutoincrementConverges,
+  _realAutoincrementOptional,
+];
