@@ -1580,10 +1580,8 @@ describe('no tracked file is a compiled executable', () => {
 });
 
 describe('miniflare workers boot from any directory', () => {
-  // miniflare names a modules worker `relative(modulesRoot, scriptPath)`, and modulesRoot defaults
-  // to process.cwd(). CI runs vitest from the repo root, so an unpaired scriptPath is green there
-  // and dies under `pnpm --filter <pkg> test` with workerd's `can't use ".."` boot failure. This is
-  // the rule's unit test; check-tree.mjs runs it over the tree from the one CI job nothing skips.
+  // Unit test for the rule check-tree.mjs runs over the whole tree.
+  // An unpaired scriptPath is green from the repo root and dies under `pnpm --filter <pkg> test`.
   const call = (body: string): string => `const mf = new Miniflare({${body}});`;
 
   it('flags a scriptPath with no modulesRoot beside it', () => {
@@ -1603,8 +1601,7 @@ describe('miniflare workers boot from any directory', () => {
   });
 
   it('reads each call site on its own, and ends the argument list past parens inside strings', () => {
-    // The bench call sites pass a whole worker as a template literal full of its own parens, so a
-    // scanner that stopped at the first `)` would read the next call site's options as this one's.
+    // A bench worker is a template literal full of parens: stopping at the first `)` would read the next call site.
     const templated = 'const a = new Miniflare({script: `addEventListener((e) => f(e));`});\n' + call('scriptPath: BUNDLE,');
     expect(miniflareCwdOffenders([{file: 'c.ts', text: templated}])).toEqual(['c.ts']);
   });

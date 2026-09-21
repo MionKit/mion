@@ -28,9 +28,8 @@ import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 /** The pre-built modules bundle (all deps inlined + AOT caches), rebuilt every run. */
 const STORAGE_BUNDLE_PATH = resolve(__dirname, '../../test-server/build/test-server-cloudflare-storage.js');
-/** Miniflare names a modules worker `relative(modulesRoot, scriptPath)` and modulesRoot defaults to
- *  process.cwd(), so from the package dir the name starts with `..` and workerd refuses to boot.
- *  Pinning the root to the bundle's own dir is what makes the spec run from any directory. */
+/** Without this miniflare names the worker relative to process.cwd(), so from the package dir the
+ *  name starts with `..` and workerd refuses to boot. */
 const STORAGE_MODULES_ROOT = dirname(STORAGE_BUNDLE_PATH);
 
 let mf: Miniflare;
