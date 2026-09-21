@@ -8,6 +8,7 @@
 import {Routes, createMionRouter, resetRouter} from '@mionjs/router';
 import {CallContext, Route} from '@mionjs/router';
 import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-vercel';
+import {assertKnownSetupOptions} from './setupOptions.ts';
 
 // ############# Types #############
 
@@ -45,29 +46,35 @@ const updateHeaders: Route = mion.route((context: Context): void => {
 
 const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 
-// the same routes answering with the `mutate` serializer, which transforms in place
+// The same routes answering with the `mutate` serializer, which restores and transforms in place.
+// Both directions, not just `return`: only a `mutate` params decoder keeps keys the type does not
+// declare, and `getDate` handing its own argument back is what carries them to the wire.
 const mutateRoutes = {
   changeUserName: mion.route((ctx: Context, user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname}), {
-    serializer: {return: 'mutate'},
+    serializer: 'mutate',
   }),
   getDate: mion.route(
     (ctx: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')},
-    {serializer: {return: 'mutate'}}
+    {serializer: 'mutate'}
   ),
   updateHeaders,
 } satisfies Routes;
 
 // ############# Edge Server Setup #############
 
+// No `basePath`: unlike the cloudflare handler, `createVercelHandler` has no such option (vercel's
+// own routing hands the function an already stripped path), so accepting one here could only lie.
 export interface EdgeSetupOptions {
-  basePath?: string;
-  /** `mutate` answers with the in-place encoder; the default is `clone`. */
+  /** `mutate` answers with the in-place serializer; the default is `clone`. */
   serializer?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
+const EDGE_SETUP_KEYS = ['serializer', 'defaultResponseHeaders'] as const satisfies readonly (keyof EdgeSetupOptions)[];
+
 /** Sets up the vercel handler inside the edge runtime. Returns the handler object. */
 export async function setup(options?: EdgeSetupOptions) {
+  assertKnownSetupOptions(options, EDGE_SETUP_KEYS, 'EdgeTestServer.setup');
   resetVercelHandlerOpts();
   resetRouter();
   const router = createMionRouter({
