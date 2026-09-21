@@ -120,8 +120,7 @@ async function runExecutionChain(
         }
       }
 
-      // `undefined` never reaches the body, but validateReturn still has to see it: a handler that
-      // declares a value and answers undefined is exactly the bug the flag is turned on for.
+      // A handler that declares a value and answers undefined is exactly the bug validateReturn is turned on for.
       if (result === undefined) {
         if (executable.options.validateReturn && executable.hasReturnData) validateReturnOrThrow(result, executable);
         continue;

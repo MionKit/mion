@@ -259,15 +259,10 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(hashes.decode).toBe(reflection.returnJitFns.json.decode.rtFnHash);
   });
 
-  // Hand-made payloads: an entry tuple's slot 0 is its SHORT family tag, which the adapter
-  // translates back to the readable fn key a marker names. Keeping these tags short is what
-  // exercises that translation, so do not spell them out here.
+  // An entry tuple's slot 0 is its SHORT family tag; keep them short here, spelling them out would skip the translation.
   const tuple = (tag: string) => [tag, () => [], undefined, `${tag}_fake`];
 
-  // A compiled entry names itself by its SHORT family tag; a marker names the same
-  // family by its readable key. The adapter is the one place those two vocabularies
-  // meet, so pin the translation directly: a payload carrying only short tags must
-  // still resolve every function, and the readable key is what the rest of mion sees.
+  // The adapter is the one place the short family tag and the readable fn key meet, so pin the translation directly.
   it('translates the short family tag a compiled entry carries into the readable fn key', () => {
     // A `clone` params wire compiles the union-scoped validator pair (vuk / veuk).
     const fns = buildJitFnsFromMarker([tuple('vuk'), tuple('veuk'), tuple('pjs'), tuple('rjs')], 'x', 'clone');
