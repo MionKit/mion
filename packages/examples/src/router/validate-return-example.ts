@@ -10,12 +10,12 @@ interface User {
 declare function loadRow(id: number): Promise<unknown>;
 
 export const routes = {
-  // the row comes from the database untyped, so check it before it goes on the wire
+  // the row comes from the database untyped, so check it before sending
   getUser: mion.route(
     async (ctx, id: number): Promise<User> => (await loadRow(id)) as User,
     {validateReturn: true}
   ),
 
-  // the default: the answer is trusted and never walked
+  // the default: the return value is not checked
   getName: mion.route((ctx, id: number): string => `user-${id}`),
 };
