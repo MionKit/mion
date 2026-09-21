@@ -112,8 +112,7 @@ function fakeCloneRoute<H extends AnyHandler>(
   return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
 }
 
-// A mion-headersFn-like wrapper: the handler's 2nd param is the HeadersSubset, so the public
-// params start at the 3rd, exactly as HeaderHandlerParams<H> spells it in @mionjs/router.
+// A mion-headersFn-like wrapper; the param split mirrors HeaderHandlerParams<H> in @mionjs/router.
 type AnyHeaderHandler = (ctx: any, headers: any, ...params: any[]) => any;
 type HeaderHandlerParams<H extends AnyHeaderHandler> = Parameters<H> extends [any, any, ...infer P] ? P : [];
 type HeaderHandlerHeaders<H extends AnyHeaderHandler> = Parameters<H> extends [any, infer Headers, ...any[]] ? Headers : never;
@@ -478,7 +477,7 @@ describe('mionAdapter: headers middleFn reflection', () => {
   );
   const authOnly = fakeHeadersFn((ctx: unknown, headers: HeadersSubset<'authorization'>): void => undefined);
 
-  // paramsCount rides the client methods-metadata payload, so its value for a headers middleFn is public behaviour
+  // paramsCount rides the client methods-metadata payload, so its value here is public behaviour
   it('counts the body params only, never ctx or the HeadersSubset', () => {
     const reflection = getHeadersReflectionFromMarkers(authAndSave.rtFns, authAndSave.handler, 'authAndSave');
     expect(reflection.paramsCount).toBe(2);

@@ -470,11 +470,7 @@ export function buildHeaderJitFnsFromMarker(
   };
 }
 
-/**
- * Builds the mion method reflection for a headers middleFn: body params/return as usual,
- * plus headersParam (extracted from the HeadersSubset param) and headersReturn (when the
- * handler returns a HeadersSubset, its headers get written onto the response).
- */
+/** Headers middleFn reflection: the shared one plus headersParam; headersReturn already rides the shared call. */
 export function getHeadersReflectionFromMarkers(
   rtFns: RtMarkerPayload | undefined,
   handler: AnyFn,
@@ -491,7 +487,7 @@ export function getHeadersReflectionFromMarkers(
   const headerNames = getHeaderNamesFromRunType(headersRunType);
   if (!headerNames)
     throw new Error(`RunTypes: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`);
-  // paramsCount is already the body arity: `paramsId` holds HeaderHandlerParams<H>, which starts after the HeadersSubset
+  // `paramsId` holds HeaderHandlerParams<H>, so the shared paramsCount is already the body arity
   const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
   reflection.headersParam = {
     headerNames,
