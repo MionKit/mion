@@ -20,7 +20,7 @@ The same table, declared three ways and read through the same models:
 | builder road, 20 plain columns | 345 | 345 |
 | pre-branded, 20 plain columns | 326 | 326 |
 | type road, wide vocabulary | 1167 | 1170 |
-| builder road, wide vocabulary | 688 | 688 |
+| builder road, wide vocabulary | 676 | 676 |
 
 The gap between the type road and the pre-branded floor is what being
 reflectable costs: a type-road column carries its db name and config in the
