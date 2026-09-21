@@ -5,121 +5,59 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Custom (de)serializer registry for user-defined classes. The JSON (pj /
-// pjs / rj / sj) and binary (tb / fb) families consult this registry for
-// plain user classes (KindClass + SubKindNone): the emitted factory looks
-// the entry up by the class's structural type id through
-// `utl.getClassSerializer(<id>)` and, when present, routes reconstruction
-// (and optionally serialization) through it instead of the structural object
-// emit. When no entry is registered the families fall back to the structural
-// shape — the default, and the right answer for a class that is pure data.
-//
-// A plain object / interface is pure data: everything it carries survives
-// JSON and comes back the same. A class instance is not — its prototype
-// (methods, getters, setters) is behaviour, its constructor runs arbitrary
-// logic, and it may hold values that cannot be serialised at all. So the
-// wire only ever carries the DATA PROJECTION of an instance; turning that
-// data back into a live object is a *code* problem the build tool cannot
-// solve on its own. That is the whole reason this registry exists: the app
-// hands the runtime the class (a constructor to instantiate) and, when a
-// bare `new Cls()` + copy is not safe, a `deserialize` function.
-//
-// Both handler halves are OPTIONAL:
-//   - `serialize?` omitted  -> structural encode (identical to an interface
-//     of the same shape). The pipeline stringifies / binary-encodes the
-//     declared props.
-//   - `deserialize?` omitted -> `new cls()` with the declared properties set from decodedData.
-//     Safe only for a zero-arg constructor; the overloads enforce that at
-//     compile time (SerializableClass = `new () => T`). At runtime, if the
-//     bare `new cls()` throws, `deserializeClass` surfaces CLS002.
-//
-// Builtins (Date / Map / Set / nonSerializable) are NOT routed
-// through this registry — those arms are handled structurally by the
-// emitters and are not overridable. validate / getValidationErrors are
-// unaffected: they always validate the class by its structural shape.
-//
-// The registry is keyed TWICE, both keys build-time strings:
-//
-//   1. The registration site's structural TYPE ID — recovered from the
-//      trailing injected `id?: InjectTypeFnArgs<T, 'classSerializerReg'>` slot.
-//      Exact-instantiation matches (the same `T` at the registration and the
-//      use site) hit this first.
-//   2. The CLASS NAME, carried by the injected `csr` name-card entry
-//      (its `typeName` slot — the build stamps the source class name there;
-//      see the Go-side classSerializerReg family). Generics are ERASED at
-//      runtime: `RpcError<'a'>` and `RpcError<'b', Data>` are the SAME class
-//      object, so one `registerClassSerializer(RpcError, …)` must reconstruct
-//      every instantiation the program uses. Each instantiation hashes to a
-//      different structural id, but they all share the class name — the
-//      emitter bakes it into the lookup (`utl.getClassSerializer('<id>',
-//      '<className>')`) as a literal.
-//
-// The `csr` marker exists so a registration site demands ONE tiny name-card
-// entry instead of the class's whole reflection graph (the pre-csr
-// InjectRunTypeId form forced the full type graph into the bundle just to
-// recover the name string). A legacy bare-runtype tuple (stale generated code)
-// still resolves: its key is the plain type id and the name falls back to the
-// reflected node when registered.
-//
-// Neither side ever reads runtime `cls.name`, so minification cannot skew the
-// pairing (the only exception is the manual bare-string-id escape hatch, which
-// has no injected entry to read — that path falls back to `cls.name` and is
-// documented as not minification-safe). Two DIFFERENT classes sharing one name
-// make that name ambiguous: the name lane is disabled (with a console warning)
-// and only exact-id matches route through the registry for them.
+// Custom (de)serializer registry for user-defined classes (KindClass + SubKindNone): the JSON (pj / pjs / rj /
+// sj) and binary (tb / fb) families look an entry up by the class's structural type id plus its build-time class
+// name and route reconstruction, and optionally serialization, through it; with nothing registered they fall
+// back to the structural shape, which is the right answer for a class that is pure data. The registry exists
+// because a class instance is NOT pure data — its prototype is behaviour and its constructor runs arbitrary
+// logic — so the wire carries only the DATA PROJECTION and rebuilding a live object is a code problem the build
+// tool cannot solve: the app hands over the class and, when a bare `new Cls()` plus a property copy is not safe,
+// a `deserialize`. The `csr` marker keeps a registration demanding ONE tiny name-card entry instead of the
+// class's whole reflection graph. Builtins (Date / Map / Set / nonSerializable) are NOT routed here and are not
+// overridable, and validate / getValidationErrors always use the class's structural shape.
 
 import type {DataOnly} from './dataOnly.ts';
 import type {InjectTypeFnArgs} from '../markers.ts';
 import {isEntryTuple, initFromTuple, entryTupleKey, FN_HASH_LEN, type EntryTuple} from './entryTuple.ts';
 import {getRTUtils, getRTFnCaches} from './rtUtils.ts';
 
-/** Any class constructor. */
 export interface AnyClass<T = any> {
   new (...args: any[]): T;
 }
 
-/** A class with a ZERO-ARG constructor — safe to reconstruct with a bare
- *  `new cls()` followed by a property copy, so `deserialize` is optional. */
+/** A class with a ZERO-ARG constructor: safe to rebuild with `new cls()` plus a property copy, so
+ *  `deserialize` is optional. */
 export interface SerializableClass<T = any> {
   new (): T;
 }
 
-/** The auto-instantiate decode contract: given the data-only projection a
- *  structural decode produced, return a live instance. */
+/** The decode contract: given the data-only projection a structural decode produced, return a live instance. */
 export type DeserializeClassFn<C> = (deserialized: DataOnly<C>) => C;
 
-/** Optional custom (de)serializer pair for one user-defined class. Both
- *  halves are optional; the type-system overloads on `registerClassSerializer`
- *  make `deserialize` mandatory for classes whose constructor takes args. */
+/** Custom (de)serializer pair for one user-defined class. Both halves are optional; the overloads on
+ *  `registerClassSerializer` make `deserialize` mandatory for a class whose constructor takes args. */
 export interface ClassSerializerHandler<T> {
-  /** Optional. Omit to serialize structurally (like any interface). When
-   *  provided, the user owns the wire shape (on the JSON path, keep it to the
-   *  declared object properties — see the custom-wire-shape follow-up). */
+  /** Omit to serialize structurally, like any interface. When provided, the user owns the wire shape (on the
+   *  JSON path, keep it to the declared object properties). */
   serialize?: (instance: T) => unknown;
   /** Optional for a zero-arg class (default: `new cls()` with the declared properties set from `data`).
-   *  Receives the data-only projection a structural decode produced (methods
-   *  already gone) and returns a real instance. */
+   *  Receives the data-only projection a structural decode produced and returns a real instance. */
   deserialize?: (data: DataOnly<T>) => T;
 }
 
-/** A stored registry entry. The emitted factory bodies read `.serialize` /
- *  `.deserialize` / `.cls` off it. */
+/** A stored registry entry; emitted factory bodies read `.serialize` / `.deserialize` / `.cls` off it. */
 export interface ClassSerializerEntry<T = any> {
-  /** The class constructor — used to instantiate on the auto-instantiate path
-   *  and as the `v instanceof cls` identity check in a union. */
+  /** Used to instantiate on the auto-instantiate path, and as the `v instanceof cls` check in a union. */
   cls: AnyClass<T>;
   serialize?: (instance: T) => unknown;
   deserialize?: (data: DataOnly<T>) => T;
 }
 
-// Module-level registry. `classSerializers` holds the exact-instantiation-id
-// lane; `classSerializersByName` holds the class-name fallback lane (a Set per
-// name: exactly one entry → routable, two+ distinct classes → ambiguous, name
-// lane disabled for that name). `classStates` is the per-class bookkeeping —
-// ONE entry object per class, shared by every key it was registered under, so
-// re-registering (any instantiation) updates the handlers everywhere at once
-// and never evicts coverage. Backs `unregisterClassSerializer(cls)` and
-// registration introspection without needing the id re-injected.
+// `classSerializers` is the exact-instantiation-id lane; `classSerializersByName` the class-name fallback lane
+// (a Set per name: exactly one entry → routable, two or more distinct classes → ambiguous, lane disabled for
+// that name). `classStates` holds ONE entry object per class, shared by every key it was registered under, so
+// re-registering any instantiation updates the handlers everywhere at once and never evicts coverage; it also
+// backs `unregisterClassSerializer(cls)` and registration introspection without the id re-injected.
 interface ClassRegistryState {
   entry: ClassSerializerEntry;
   keys: Set<string>;
@@ -130,35 +68,28 @@ const classSerializersByName = new Map<string, Set<ClassSerializerEntry>>();
 const classStates = new Map<AnyClass, ClassRegistryState>();
 const warnedAmbiguousNames = new Set<string>();
 
-// Monotonic epoch bumped on every registry mutation. Emitted factory bodies
-// cache their `getClassSerializer(<id>)` result in the closure and only re-look
-// it up when the epoch moves — so the hot path is a single int compare per call
-// instead of a Map lookup, while `register` / `unregister` / `clear` still take
-// effect immediately (they bump the epoch, invalidating every cached entry).
+// Monotonic epoch bumped on every registry mutation. Emitted factory bodies cache their `getClassSerializer`
+// result in the closure and re-look-it-up only when the epoch moves, so the hot path is one int compare instead
+// of a Map lookup, while register / unregister / clear still take effect immediately.
 let epoch = 0;
 
-/** Current registry epoch. Emitted decode/encode bodies read this via
- *  `utl.csEpoch()` to decide whether their cached serializer lookup is stale. */
+/** Emitted decode/encode bodies read this via `utl.csEpoch()` to tell whether their cached lookup is stale. */
 export function classSerializerEpoch(): number {
   return epoch;
 }
 
-// The resolved registration identity: the structural TYPE id (the registry
-// key the emitted codecs look up) plus, when the plugin injected the csr
-// name-card tuple, that entry's full cache key (the name source).
+// The resolved registration identity: the structural TYPE id (the registry key the emitted codecs look up) plus,
+// when the plugin injected the csr name-card tuple, that entry's full cache key (the name source).
 interface ClassSerializerIdentity {
   typeId: string;
   entryKey?: string;
 }
 
-// Extract the registration identity from the injected trailing `id` slot. The
-// plugin injects the `csr` name-card entry tuple (key `<csrHash>_<typeId>`);
-// a wrapper / manual call may pass the bare type-id string. A legacy
-// reflection tuple (stale generated code from the pre-csr marker) carries the
-// bare type id as its key — cache keys are alphanumeric with exactly one `_`
-// in fn keys, so the underscore split is unambiguous. Without a plugin there
-// is no injected id, so registration can't be keyed — throw, since the
-// emitted codecs (which the plugin produces) could never match it anyway.
+// Extract the registration identity from the injected trailing `id` slot: the plugin injects the `csr` name-card
+// tuple (key `<csrHash>_<typeId>`), a wrapper or manual call may pass the bare type-id string, and a legacy
+// reflection tuple carries the bare type id as its key — cache keys are alphanumeric with exactly one `_` in fn
+// keys, so the underscore split is unambiguous. Without a plugin there is no id to key on, and the emitted
+// codecs could never match the registration anyway, so it throws.
 function classSerializerIdentity(
   id: InjectTypeFnArgs<unknown, 'classSerializerReg'> | undefined,
   cls: AnyClass
@@ -178,17 +109,14 @@ function classSerializerIdentity(
   );
 }
 
-// Resolve the class's SOURCE name for the name-fallback lane. The injected csr
-// name card carries the build-time class name in its `typeName` slot —
-// minification-proof, and identical to the literal the emitter bakes into
-// `utl.getClassSerializer('<id>', '<className>')`. A legacy reflection tuple
-// has no card; its reflected node (registered by initFromTuple) carries the
-// same string in `node.typeName`. The manual bare-string-id path has neither,
-// so it falls back to runtime `cls.name` (documented: not minification-safe).
+// Resolve the class's SOURCE name for the name-fallback lane. The injected csr name card carries the build-time
+// class name in its `typeName` slot — minification-proof, and identical to the literal the emitter bakes into
+// `utl.getClassSerializer('<id>', '<className>')`. A legacy reflection tuple has no card, so its reflected node
+// supplies the same string; the manual bare-string-id path has neither and falls back to runtime `cls.name`
+// (documented: not minification-safe).
 function classSerializerName(identity: ClassSerializerIdentity, cls: AnyClass): string | undefined {
   if (identity.entryKey !== undefined) {
-    // Raw cache read (getRTFnCaches, not getRT) — the name rides the entry's
-    // typeName slot, so there is no reason to materialize the card's fn.
+    // Raw cache read, not getRT: the name rides the entry's typeName slot, so the card's fn never materializes.
     const typeName = getRTFnCaches().rtFnsCache[identity.entryKey]?.typeName;
     if (typeof typeName === 'string' && typeName.length > 0) return typeName;
   }
@@ -198,9 +126,8 @@ function classSerializerName(identity: ClassSerializerIdentity, cls: AnyClass): 
   return cls.name || undefined;
 }
 
-// Add an entry to the name lane. Two DIFFERENT classes under one name make the
-// name ambiguous — warn once and leave both in the set (lookups route only when
-// the set has exactly one entry; exact-id matches keep working for both).
+// Add an entry to the name lane. Two DIFFERENT classes under one name make the name ambiguous — warn once and
+// leave both in the set; lookups route only when the set has exactly one entry, exact-id matches keep working.
 function indexByName(name: string, entry: ClassSerializerEntry): void {
   let entries = classSerializersByName.get(name);
   if (!entries) {
@@ -218,8 +145,7 @@ function indexByName(name: string, entry: ClassSerializerEntry): void {
   }
 }
 
-// Zero-arg constructor: everything optional. The client literally just hands
-// over the class.
+// Zero-arg constructor: everything optional.
 export function registerClassSerializer<T>(
   cls: SerializableClass<T>,
   handler?: ClassSerializerHandler<T>,
@@ -231,19 +157,14 @@ export function registerClassSerializer<T>(
   handler: ClassSerializerHandler<T> & {deserialize: (data: DataOnly<T>) => T},
   id?: InjectTypeFnArgs<T, 'classSerializerReg'>
 ): void;
-/** Register a custom (de)serializer for a user-defined class. Pass the class
- *  itself — the ENCOURAGED form needs no type argument at all:
+/** Register a custom (de)serializer for a user-defined class. Pass the class itself, no type argument needed:
  *
  *    registerClassSerializer(WireError, {deserialize: (data) => new WireError(…)});
  *
- *  The runtime gets the constructor (to instantiate) and the plugin injects
- *  the trailing `id` for whatever instantiation the compiler infers — which
- *  is incidental by design: one registration covers EVERY instantiation of a
- *  generic class (generics are erased at runtime — same class object) via the
- *  class-name fallback lane the emitted lookups carry. An explicit
- *  `registerClassSerializer<WireError<'x'>>(…)` still works but adds nothing.
- *  Re-registering the same class (any instantiation) updates the handlers
- *  everywhere and never drops previously covered keys. */
+ *  Whichever instantiation the compiler infers for the injected `id` is incidental: one registration covers
+ *  EVERY instantiation of a generic class (generics are erased at runtime — same class object) through the
+ *  class-name fallback lane. Re-registering the same class updates the handlers everywhere and never drops
+ *  previously covered keys. */
 export function registerClassSerializer<T>(
   cls: AnyClass<T>,
   handler?: ClassSerializerHandler<T>,
@@ -270,13 +191,10 @@ export function registerClassSerializer<T>(
   epoch++;
 }
 
-/** Internal lookup used by emitted factory bodies via
- *  `utl.getClassSerializer(<typeId>, <className>)`. Exact instantiation id
- *  first; otherwise the class-name fallback lane (generics are erased at
- *  runtime, so a registration made under ANY instantiation covers the rest —
- *  unless two different classes share the name, which disables that name).
- *  Returns undefined when neither lane matches (the factory then uses the
- *  structural fallback). Bodies emitted before the name lane existed pass no
+/** Internal lookup used by emitted factory bodies via `utl.getClassSerializer(<typeId>, <className>)`: exact
+ *  instantiation id first, otherwise the class-name fallback lane (a registration made under ANY instantiation
+ *  covers the rest, unless two different classes share the name, which disables it). Undefined when neither lane
+ *  matches, so the factory uses the structural fallback. Bodies emitted before the name lane existed pass no
  *  className and keep the exact-id behavior. */
 export function getClassSerializer(typeId: string, className?: string): ClassSerializerEntry | undefined {
   const exact = classSerializers.get(typeId);
@@ -292,16 +210,11 @@ export function isClassSerializerRegistered(cls: AnyClass): boolean {
   return classStates.has(cls);
 }
 
-/** Reconstruct a live instance from decoded data. Used by emitted decode
- *  bodies via `utl.deserializeClass(cs, data, keys)`, where `keys` is the
- *  class's declared property names the emitter hoisted. Prefers the registered
- *  `deserialize`; otherwise auto-instantiates a zero-arg class and sets those
- *  declared properties from the data. The rebuild is driven by the type, never
- *  by the keys on the wire, so an undeclared key (an own `__proto__` included,
- *  what `JSON.parse('{"__proto__": …}')` yields) never touches the instance.
- *  Surfaces CLS002 with a clear, actionable message when the bare `new cls()`
- *  throws (constructor needs args, no `deserialize` registered) rather than a
- *  raw constructor stack. */
+/** Reconstruct a live instance from decoded data, called by emitted decode bodies via
+ *  `utl.deserializeClass(cs, data, keys)` where `keys` is the class's declared property names. Prefers the
+ *  registered `deserialize`; otherwise auto-instantiates a zero-arg class and sets those declared properties.
+ *  The rebuild is driven by the type, never by the keys on the wire, so an undeclared key (an own `__proto__`
+ *  included) never touches the instance. Surfaces CLS002 when the bare `new cls()` throws. */
 export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
   if (entry.deserialize) return entry.deserialize(data);
   let instance: object;
@@ -327,10 +240,9 @@ export function deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOn
   return instance as T;
 }
 
-/** Remove a single registered serializer by class reference (test isolation
- *  helper). Drops every id key the class was registered under and its name
- *  lane entry (a formerly ambiguous name becomes routable again when exactly
- *  one class remains). No injected id needed. */
+/** Remove a single registered serializer by class reference (test isolation helper). Drops every id key the
+ *  class was registered under and its name-lane entry, so a formerly ambiguous name becomes routable again when
+ *  exactly one class remains. No injected id needed. */
 export function unregisterClassSerializer(cls: AnyClass): void {
   const state = classStates.get(cls);
   if (!state) return;
