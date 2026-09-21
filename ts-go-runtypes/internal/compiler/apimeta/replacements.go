@@ -8,8 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// SiteBinding is the import binding a dispatch site's module exports, and the
-// identifier the splice writes into the call: `__rt_s$2Fusers$2FgetById`.
+// SiteBinding is the export of a dispatch site's module, and the identifier the splice writes into the call.
 func (site Site) SiteBinding() string {
 	return entrymodules.BindingName(site.ModuleBasename())
 }
@@ -19,12 +18,9 @@ func MethodBinding(id string) string {
 	return entrymodules.BindingName(MethodModuleBasename(id))
 }
 
-// Replacements turns the sites into the transform's point insertions. The
-// anchor gets the mode as a plain string literal (no ImportFrom); a dispatch
-// site gets its module binding, with ImportFrom naming the site module under
-// the `rtapi:/` scheme, which the same relativizers that place `rtmod:/`
-// imports turn into a path under <outDir>/api, and ImportBinding naming the
-// export, since the spliced Text also carries the padding and the comma.
+// Replacements turns the sites into point insertions. ImportFrom names the site module under the `rtapi:/`
+// scheme, which the relativizers that place `rtmod:/` imports turn into a path under <outDir>/api, and
+// ImportBinding names the export, since the spliced Text also carries the padding and the comma.
 func Replacements(sites []Site) []protocol.Replacement {
 	out := make([]protocol.Replacement, 0, len(sites))
 	for _, site := range sites {
@@ -41,11 +37,8 @@ func Replacements(sites []Site) []protocol.Replacement {
 	return out
 }
 
-// spliceText renders the trailing argument(s) the splice appends at the
-// call's closing `)`: `value` preceded by one `undefined` per skipped optional
-// slot, and by `, ` unless the call has no argument yet (`sub.call()`) or its
-// list already ends with a trailing comma. Same shape as
-// purefunctions.TrailingArgText, plus the empty-list case a dispatch call has.
+// spliceText renders the trailing arguments appended at the call's closing `)`, the shape of
+// purefunctions.TrailingArgText plus the empty-list case a dispatch call has.
 func (site Site) spliceText(value string) string {
 	text := strings.Repeat("undefined, ", site.InjectPad) + value
 	if site.ArgsCount == 0 || site.TrailingComma {

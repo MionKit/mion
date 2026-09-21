@@ -1,23 +1,8 @@
-// Package requestbatch extracts request-batch call sites, the first marker lane
-// that serves mion's RPC layer rather than RunTypes itself: a `batch([...routes],
-// batchId?)` call whose resolved signature carries the InjectBatchId marker
-// (mion's `@mionjs/client` batch, or a wrapper forwarding the brand). For every
-// site the build reads the ORDERED route ids the array literal names, the
-// `inputFrom(source, mapper | name)` links between them, computes the
-// deterministic batch id, and splices that id into the call's empty trailing
-// slot exactly the way the pure-fn lane splices a registration's id.
-//
-// The lane is modelled on internal/cachegen/purefunctions (discovery by brand
-// behind a cheap syntactic pre-filter, a per-Program FileCache, wire-shaped
-// Replacements + a structured report) and imports it one way: the mapper
-// keys a batch records come from the pure-fn extractor itself, so the report
-// and the hash the pure-fn lane injects at the same call can never disagree.
-//
-// Everything the build cannot read, or the server would refuse, is a
-// diagnostic (BAT001 element, BAT002 source order, BAT004 mapper, BAT005
-// duplicate route, BAT006 mapping position), and a batch with any diagnostic
-// yields NO site: a half-read plan must not ship under an id the server would
-// trust.
+// Package requestbatch extracts `batch([...routes], batchId?)` call sites whose resolved signature carries
+// the InjectBatchId marker, reads the ORDERED route ids and the `inputFrom` links between them, and splices
+// the deterministic batch id into the call's empty trailing slot. The mapper keys come from the pure-fn
+// extractor itself, so this report and the hash the pure-fn lane injects at the same call cannot disagree.
+// A batch with any diagnostic yields NO site: a half-read plan must not ship under an id the server trusts.
 package requestbatch
 
 import (
@@ -31,19 +16,15 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// ClientModule is the package that declares the client surface a batch is
-// read against: `RouteSubRequest` (what a route call returns) and
-// `initClient` (what produces the routes proxy). Both gates accept the ambient
-// `declare module '@mionjs/client'` form and the real installed package.
+// ClientModule declares the surface a batch is read against, `RouteSubRequest` and `initClient`; both gates
+// accept the ambient `declare module '@mionjs/client'` form and the real installed package.
 const ClientModule = "@mionjs/client"
 
-// RoutesProperty is the property of the `initClient()` result that holds the
-// routes proxy; every route id is the property chain AFTER it.
+// RoutesProperty holds the routes proxy on the `initClient()` result; a route id is the property chain AFTER it.
 const RoutesProperty = "routes"
 
-// Mapping is one `inputFrom(source, mapper | name)` link inside a batch: the
-// server feeds the output of route FromId through the mapper keyed MapperKey
-// into argument ParamIndex of route ToId.
+// Mapping is one `inputFrom(source, mapper | name)` link: the server feeds route FromId's output through
+// the mapper keyed MapperKey into argument ParamIndex of route ToId.
 type Mapping struct {
 	FromId     string
 	ToId       string
@@ -53,37 +34,31 @@ type Mapping struct {
 
 // Site is one successfully read `batch([...])` call.
 type Site struct {
-	// FilePath / Start / End are the call expression's span (byte offsets).
+	// The call expression's span, in byte offsets.
 	FilePath string
 	Start    int
 	End      int
 	// BatchId is the injected id (`b_<hash>` of the ordered RouteIds).
 	BatchId string
-	// RouteIds are the batched routes in call order (`users/getById`).
+	// RouteIds are the batched routes in call order.
 	RouteIds []string
 	// Mappings are the `inputFrom()` links, sorted by (ToId, ParamIndex).
 	Mappings []Mapping
-	// InjectPos / InjectText drive the id injection: the byte offset of the
-	// call's closing `)` and the literal to splice there. Empty InjectText marks
+	// InjectPos is the closing `)` offset and InjectText the literal to splice; empty InjectText marks
 	// a call whose id slot was already written (a pass-through).
 	InjectPos  int
 	InjectText string
-	// CalleeName / CalleeModule attribute the site to the identifier it invoked
-	// and the package that declares it (report-only).
+	// CalleeName / CalleeModule attribute the site to the identifier and its declaring package (report-only).
 	CalleeName   string
 	CalleeModule string
 
-	// sourceFile / callNode locate the call for the cross-file conflict
-	// diagnostics (CheckConflicts); never on the wire.
+	// sourceFile / callNode locate the call for CheckConflicts; never on the wire.
 	sourceFile *ast.SourceFile
 	callNode   *ast.Node
 }
 
-// FileCache memoizes per-file extraction results for the lifetime of ONE
-// Program, mirroring purefunctions.FileCache: source files are immutable
-// within a Program, so a file's sites/diagnostics never change between
-// requests. The cross-file conflict check (CheckConflicts) is set-dependent
-// and re-runs on every call. Not safe for concurrent use.
+// FileCache memoizes extraction for ONE Program, where source files are immutable, mirroring
+// purefunctions.FileCache. CheckConflicts is set-dependent and re-runs every call. Not safe for concurrent use.
 type FileCache struct {
 	sites map[string][]Site
 	diags map[string][]diagnostics.Diagnostic
@@ -113,12 +88,9 @@ func (cache *FileCache) put(filePath string, sites []Site, diags []diagnostics.D
 	cache.diags[filePath] = diags
 }
 
-// ExtractFromProgramCached walks every file in `files`, finds the branded
-// batch calls, and returns their sites plus the per-site diagnostics.
-// Sites keep file order then source order; diagnostics are sorted by site.
-// The per-Program FileCache is optional (nil degrades to an uncached walk).
-// Cross-file id collisions (BAT003) are NOT folded in here: run
-// CheckConflicts over the whole-program site set.
+// ExtractFromProgramCached returns the branded batch sites of `files` in file then source order, plus diagnostics.
+// The cache is optional (nil degrades to an uncached walk). Cross-file id collisions (BAT003) are NOT folded
+// in here: run CheckConflicts over the whole-program site set.
 func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site
 	var diags []diagnostics.Diagnostic
@@ -139,8 +111,6 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 	return sites, diags
 }
 
-// extractFromSourceFile is the per-file extraction core: walk every
-// CallExpression and dispatch to extractOne.
 func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site
 	var diags []diagnostics.Diagnostic
@@ -164,10 +134,7 @@ func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Optio
 	return sites, diags
 }
 
-// extractOne reads a single branded batch call into a Site. Returns (nil,
-// diags) when the call is not a batch, is a pass-through (id slot already
-// written, or an empty route list the runtime rejects itself), or when any
-// element / mapping could not be read (the diagnostics say which).
+// extractOne reads a single branded batch call into a Site.
 func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnostic) {
 	typeChecker, sourceFile := fileScope.typeChecker, fileScope.sourceFile
 	callExpr := call.AsCallExpression()
@@ -182,8 +149,7 @@ func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Dia
 	if callExpr.Arguments != nil {
 		args = callExpr.Arguments.Nodes
 	}
-	// The id slot is already written (a wrapper forwarding its own id, or
-	// re-scanned rewritten source): a pass-through, never a second splice.
+	// The id slot is already written (a wrapper forwarding its own id, or re-scanned source): never splice twice.
 	if len(args) == 0 || len(args) > idParamIndex {
 		return nil, nil
 	}
@@ -192,8 +158,7 @@ func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Dia
 		return nil, []diagnostics.Diagnostic{fileScope.diag(diagnostics.CodeBatchElementNotReadable, args[0], "routes argument is not an inline array literal")}
 	}
 	elements := routesArg.AsArrayLiteralExpression().Elements
-	// `batch([])`: the runtime throws its own empty-routes error before it ever
-	// looks at the id, so there is nothing to plan and nothing to hash.
+	// `batch([])`: the runtime throws its own empty-routes error before it looks at the id, so nothing to hash.
 	if elements == nil || len(elements.Nodes) == 0 {
 		return nil, nil
 	}
@@ -207,8 +172,7 @@ func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Dia
 			diags = append(diags, fileScope.diag(diagnostics.CodeBatchElementNotReadable, element, reason))
 			continue
 		}
-		// The server keys the request and its results by route id, so one
-		// batch cannot run the same route twice: the second element is the error.
+		// The server keys the request and its results by route id, so one batch cannot run a route twice.
 		if seen[routeId] {
 			diags = append(diags, fileScope.diag(diagnostics.CodeBatchDuplicateRoute, element, routeId))
 			continue
@@ -243,8 +207,7 @@ func (fileScope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Dia
 	return site, nil
 }
 
-// fileScope bundles the per-file handles every resolver step needs, plus the
-// per-declaring-file memo of assignment targets the reassignment guard reads.
+// fileScope also memoises, per declaring file, the assignment targets the reassignment guard reads.
 type fileScope struct {
 	typeChecker     *checker.Checker
 	markerOpts      marker.Options
@@ -267,8 +230,7 @@ func (scope *fileScope) diag(code string, node *ast.Node, args ...string) diagno
 	return diagnostics.New(code, textpos.NodeSite(scope.sourceFile.FileName(), scope.sourceFile, node), args...)
 }
 
-// calleeIdentifierName returns the callee identifier text: `f(...)` yields
-// "f", `ns.f(...)` yields "f"; anything else yields "".
+// calleeIdentifierName returns the callee identifier text; `ns.f(...)` yields "f", anything else "".
 func calleeIdentifierName(callExpr *ast.CallExpression) string {
 	if callExpr == nil || callExpr.Expression == nil {
 		return ""

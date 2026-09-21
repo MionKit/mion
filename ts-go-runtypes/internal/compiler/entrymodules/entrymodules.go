@@ -1,53 +1,18 @@
-// Package entrymodules assembles the per-entry virtual ES modules emitted by the
-// resolver: one module per cache entry (type-fn factory, JSON composite, pure
-// fn), named `rtmod:/<basename>.js`, exporting a single positional tuple
-// under its binding name (ExportName — `__rt_<basename>`, identifier-escaped).
-// The SAME name binds the entry everywhere: the export, every importer's
-// clause (`{__rt_X}`, never renamed), and the call-site binding the rewrite
-// injects — one naming system across per-entry modules and bundles. Runtype
-// nodes are denser than fn entries (one tiny row per node, heavily shared),
-// so they ship as ROWS of THE single data-bundle module
-// (`rtmod:/runtypes.js`, KindRunTypeBundle) aliased by one facade module
-// per reflection root (KindRunTypeFacade) — see
-// internal/cachegen/runtype.CollectEntries.
-//
-// Module shape (every kind):
-//
-//	import {__rt_<dep1>} from 'rtmod:/<dep1>.js';   // DIRECT deps only
-//	…
-//	function ini(rtu){const c=(id)=>rtu.useRunType(id);<footer>}  // runtype only
-//	export const __rt_<basename>=[<kindSlot>,<()=>[__rt_<dep1>,…]|hole>,<ini|hole>,<positional args…>];
-//
-// The deps thunk is inlined straight into slot 1 (lazy: import cycles never
-// hit TDZ); absent head slots (deps/ini) are JS array HOLES (the `,,` run),
-// which read back as undefined under the runtime's index-only tuple access.
-//
-// Tuple layout is fixed at the head: slot 0 is the kind discriminator (0 =
-// runtype, 2 = pure fn, 3 = missing stub, or the QUOTED family tag string for
-// type-fn entries), slot 1 the deps thunk (a hole for dep-less entries — the
-// thunk never includes self, every consumer already holds the tuple), slot 2
-// the initEntry fn (or a hole),
-// slot 3+ the same positional args the per-family `init(…)` / `rt(…)` /
-// `factory(…)` calls passed before the migration (slot 3 is always the cache
-// key). The JS-side `initFromTuple` consumer walks the deps() thunks
-// RECURSIVELY (post-order, visited-set guarded) and registers in two phases:
-// register every unseen tuple in the closure (children before parents), then
-// run each newly-registered tuple's `ini`.
-//
-// Imports and deps() carry the DIRECT dependencies only — never the flattened
-// transitive closure. ESM loads the closure transitively through the dep
-// modules' own imports, and the runtime recursion re-walks the same edges, so
-// flattening bought nothing but O(closure) text per module (quadratic over a
-// dense graph — measured 6x wire payload and 2-4x render time on the real
-// suites before this was fixed).
-//
-// Ordering invariant: a module's import block and deps() entries are
-// LEAVES-FIRST by dependency level (level 0 = no deps), alphabetical by key
-// within a level; self never appears. Cycles are collapsed to one level via
-// Tarjan SCC (members ordered alphabetically), which keeps the output
-// deterministic — cycle members only reference each other through
-// `ini`/registry lookups that run after the whole registration phase, so
-// intra-SCC order is correctness-neutral.
+// Package entrymodules assembles the per-entry virtual ES modules the resolver emits, `rtmod:/<basename>.js`,
+// each exporting one positional tuple under its binding name. The SAME name binds an entry everywhere: the
+// export, every importer's clause and the call-site binding the rewrite injects, so nothing is ever renamed.
+// Runtype nodes are denser than fn entries (one tiny row per node, heavily shared), so they ship as ROWS of
+// THE single data bundle (`rtmod:/runtypes.js`) aliased by one facade module per reflection root; see
+// internal/cachegen/runtype.CollectEntries. The tuple head is fixed: slot 0 the kind discriminator (a QUOTED
+// family tag for type-fn entries), slot 1 the deps thunk, inlined so an import cycle never hits TDZ, slot 2
+// the initEntry fn, slot 3+ the positional args with the cache key always at slot 3; an absent head slot is
+// a JS array HOLE, read back as undefined by the runtime's index-only access. Imports and deps() carry the
+// DIRECT dependencies only: ESM loads the closure through the dep modules' own imports and the runtime
+// recursion re-walks the same edges, so flattening bought only 6x wire payload and 2-4x render time.
+// Ordering invariant: imports and deps() are LEAVES-FIRST by dependency level, alphabetical within a level,
+// cycles collapsed to one level by Tarjan SCC, and self never appears; intra-SCC order is
+// correctness-neutral because cycle members reference each other only through lookups that run after the
+// whole registration phase.
 package entrymodules
 
 import (
@@ -66,73 +31,50 @@ type Kind int
 const (
 	// KindRunType — a runTypes reflection-cache node (tuple slot 0 = 0).
 	KindRunType Kind = 0
-	// KindTypeFn — a type-fn factory entry; slot 0 carries the QUOTED family
-	// tag (e.g. 'val', 'jeCL') instead of a number so the runtime can pick the
-	// per-family entry metadata (fnID / args / noop identity) without a hash
-	// reverse-lookup.
+	// KindTypeFn — a type-fn factory entry; slot 0 carries the QUOTED family tag instead of a number, so
+	// the runtime picks the per-family entry metadata without a hash reverse-lookup.
 	KindTypeFn Kind = 1
 	// KindPureFn — a pure-function entry (tuple slot 0 = 2).
 	KindPureFn Kind = 2
-	// KindMissing — a stub for a demanded key whose entry was dropped
-	// (unsupported kind, dangling-dep cascade). The module resolves so the
-	// injected import never breaks the build; the runtime treats the tuple as
-	// "no factory" and falls back to the family identity fn, preserving the
-	// pre-migration silent-degrade semantics (tuple slot 0 = 3).
+	// KindMissing — a stub for a demanded key whose entry was dropped. The module resolves so the injected
+	// import never breaks the build, and the runtime falls back to the family identity fn (tuple slot 0 = 3).
 	KindMissing Kind = 3
-	// KindRunTypeBundle — THE single runtype data module
-	// (`rtmod:/runtypes.js`): slot 3 carries a content-hash key, slot 4 an
-	// array of headless runtype rows (one per reflection-demanded node,
-	// deduplicated app-wide), slot 2 the ONE combined footer initializer. The
-	// content-hash key (not the fixed module name) is what the runtime's
-	// processed-keys guard sees, so an evolved bundle re-registers its new
-	// rows (tuple slot 0 = 4).
+	// KindRunTypeBundle — THE single runtype data module: slot 3 a content-hash key, slot 4 the headless
+	// runtype rows deduplicated app-wide, slot 2 the ONE combined footer initializer. The runtime's
+	// processed-keys guard sees that content hash, not the fixed module name, so an evolved bundle
+	// re-registers its new rows (tuple slot 0 = 4).
 	KindRunTypeBundle Kind = 4
-	// KindRunTypeFacade — the per-reflection-root alias module
-	// (`rtmod:/<rootId>.js`). Imports the bundle and registers nothing;
-	// it exists so the rewrite's binding-only injection keeps working — the
-	// root id rides in the key slot and the bundle rides the deps thunk
-	// (tuple slot 0 = 5).
+	// KindRunTypeFacade — the per-reflection-root alias module, registering nothing; it exists so the
+	// rewrite's binding-only injection keeps working, the root id in the key slot and the bundle in the
+	// deps thunk (tuple slot 0 = 5).
 	KindRunTypeFacade Kind = 5
 )
 
 // Entry is one compiled cache entry awaiting module assembly.
 type Entry struct {
-	// Key is the canonical cache key: bare typeId (runtype), <fnHash>_<typeId>
-	// (type-fn / composite), or <ns>::<fn> (pure fn).
+	// Key is the canonical cache key: bare typeId, <fnHash>_<typeId> for a type-fn, <ns>::<fn> for a pure fn.
 	Key string
 	// Kind selects the tuple layout. KindTypeFn entries must set FamilyTag.
 	Kind Kind
-	// FamilyTag is the family tag emitted in tuple slot 0 for KindTypeFn
-	// entries ('val', 'pj', 'jeCL', …). Empty for every other kind.
+	// FamilyTag is emitted in tuple slot 0 for KindTypeFn entries; empty for every other kind.
 	FamilyTag string
-	// ArgsText is the pre-joined positional argument text (slot 3 onward);
-	// the first argument is always the quoted Key. Identical to the interior
-	// of the pre-migration `init(…)` / `rt(…)` / `factory(…)` call. Empty for
-	// KindMissing (the stub renders just the quoted key).
+	// ArgsText is the pre-joined positional argument text from slot 3 on, always starting with the quoted
+	// Key. Empty for KindMissing, whose stub renders just that key.
 	ArgsText string
-	// InitBody carries the runtype footer statements (ref patches, classType,
-	// footer literals) — newline-terminated lines referencing `c(id)`. Empty
-	// for non-runtype entries; empty InitBody renders a hole in the ini slot.
+	// InitBody carries the runtype footer statements, newline-terminated lines referencing `c(id)`; empty
+	// for a non-runtype entry, and an empty InitBody renders a hole in the ini slot.
 	InitBody string
-	// Deps lists the HARD direct dependency keys: child runtype refs
-	// (runtype) and same-family child factories (type-fn). A type-fn entry
-	// whose hard dep is missing cascades out (its body calls `<dep>.fn(…)`
-	// unconditionally). Self-references are ignored; duplicates are deduped
-	// at render time.
+	// Deps lists the HARD direct dependency keys, child runtype refs and same-family child factories. A
+	// type-fn entry whose hard dep is missing cascades out, its body calling `<dep>.fn(…)` unconditionally.
+	// Self-references are ignored and duplicates deduped at render time.
 	Deps []string
-	// SoftDeps lists the SOFT direct dependency keys: cross-family edges
-	// (`<valHash>_<member>` union-discriminator lookups), composite→primitive
-	// references, and pure-fn deps. Soft deps are imported exactly like hard
-	// deps (the module closure must load them), but a missing soft dep never
-	// cascades — the emitted bodies guard those lookups (`x?.fn(…) ?? true`,
-	// identity fallbacks), so absence degrades gracefully at runtime via a
-	// KindMissing stub module instead of dropping the dependent entry.
+	// SoftDeps lists the SOFT direct dependency keys: cross-family edges, composite to primitive references
+	// and pure-fn deps. They are imported like hard deps, the module closure must load them, but a missing
+	// soft dep never cascades: the emitted bodies guard those lookups, so it degrades to a KindMissing stub.
 	SoftDeps []string
-	// IsNoop marks a KindTypeFn entry whose fn is the family identity (the
-	// short-form tuple — runtime registers familyMeta's noop fn). Consumers
-	// that reference an entry only to call its fn can elide the reference:
-	// the JSON composite collector reads this to drop dead primitive
-	// bindings. False for every other kind.
+	// IsNoop marks a KindTypeFn entry whose fn is the family identity, so a consumer that references it only
+	// to call its fn can elide the reference; the JSON composite collector drops dead primitive bindings on
+	// it. False for every other kind.
 	IsNoop bool
 }
 
@@ -165,15 +107,10 @@ func (graph Graph) Merge(other Graph) {
 	}
 }
 
-// Cascade removes type-fn entries whose HARD deps are missing from the graph,
-// iterating to fixpoint (dropping X can orphan Y). Mirrors the pre-migration
-// dangling-dep cascade: an entry whose body calls `<dep>.fn(…)` for a dep that
-// never rendered would throw at runtime — and in module form the import would
-// not even resolve. Soft deps never cascade (their lookups are guarded in the
-// emitted bodies); runtype and pure-fn entries never cascade either: runtype
-// refs always resolve against the session cache (a miss is a renderer bug
-// surfaced by Render), and a missing pure-fn dep degrades to a stub (the
-// runtime registers pure fns at their own call sites; see resolver wiring).
+// Cascade removes type-fn entries whose HARD deps are missing, to fixpoint since dropping X can orphan Y:
+// an entry calling `<dep>.fn(…)` for a dep that never rendered would not even resolve its import. Soft deps
+// never cascade, their lookups being guarded in the emitted bodies, and neither do runtype entries (a
+// missing ref is a renderer bug the render pass surfaces) or pure-fn ones (a missing dep degrades to a stub).
 // Returns the dropped keys, sorted.
 func (graph Graph) Cascade() []string {
 	var dropped []string
@@ -203,10 +140,8 @@ func (graph Graph) Cascade() []string {
 	return dropped
 }
 
-// AddMissingStubs inserts a KindMissing stub for every key in demanded that has
-// no surviving entry, plus every unresolved dep of surviving entries (soft
-// cross-family / pure-fn edges whose target never rendered). Stubs make every
-// emitted import specifier resolvable; the runtime skips them.
+// AddMissingStubs stubs every demanded key with no surviving entry, plus every unresolved dep of a
+// surviving one, so each emitted import specifier resolves; the runtime skips a stub.
 func (graph Graph) AddMissingStubs(demanded []string) {
 	for _, key := range demanded {
 		if key == "" {
@@ -232,22 +167,16 @@ func (graph Graph) AddMissingStubs(demanded []string) {
 	}
 }
 
-// ModuleName returns the virtual-module basename for an entry key. Runtype and
-// type-fn keys are short alphanumeric hashes (plus one underscore for fn keys)
-// and pass through unchanged; a pure fn's key is its id, whose owner half is the
-// package that owns it, so it is path-encoded as
-// `pf/@mionjs/run-types/rXVwGkGDX08BsQ` with non-safe bytes escaped per segment.
-// A file under no named package has no owner half and lands directly at
-// `pf/<hash>`. The basename stays a valid module specifier, and the encoding is
-// injective because the hash prefix and `/` are the only separators an id can
-// hold and neither survives escaping inside a segment.
+// ModuleName is the virtual-module basename of an entry key. Runtype and type-fn keys are hashes and pass
+// through; a pure fn's key is its id, path-encoded as `pf/<owner>/<hash>` with non-safe bytes escaped per
+// segment (no owner half lands at `pf/<hash>`). The encoding is injective because the hash prefix and `/`
+// are the only separators an id can hold and neither survives escaping inside a segment.
 func ModuleName(key string, kind Kind) string {
 	if kind == KindRunTypeBundle {
 		return constants.RunTypesBundleBasename
 	}
-	// A missing stub keyed by a pure-fn id (a soft dep no entry answered, e.g.
-	// a package registered only at runtime) takes the pure-fn layout too: the
-	// raw id holds a `#`, which a module URL reads as a fragment.
+	// A missing stub keyed by a pure-fn id takes the pure-fn layout too: the raw id holds a `#`, which
+	// a module URL reads as a fragment.
 	if kind != KindPureFn && !(kind == KindMissing && strings.Contains(key, constants.PureFnHashPrefix)) {
 		return key
 	}
@@ -264,10 +193,8 @@ func ModuleName(key string, kind Kind) string {
 	return strings.Join(append(segments, escapeModuleSegment(name)), "/")
 }
 
-// escapeModuleSegment keeps [@A-Za-z0-9_.-] bytes and hex-escapes everything
-// else as `$XX`, so arbitrary path and fn names produce collision-free,
-// URL-safe path segments ('$' itself is escaped). `@` is safe because a
-// scoped package name is the first segment of every id.
+// escapeModuleSegment hex-escapes as `$XX`, '$' itself included, so any path or fn name gives a
+// collision-free, URL-safe segment. `@` is kept because a scoped package name is an id's first segment.
 func escapeModuleSegment(segment string) string {
 	var builder strings.Builder
 	for i := 0; i < len(segment); i++ {
@@ -283,12 +210,8 @@ func escapeModuleSegment(segment string) string {
 	return builder.String()
 }
 
-// BindingName derives the renamed-import identifier for a module basename:
-// `<EntryBindingPrefix><basename>` with every non-identifier byte hex-escaped
-// as `$XX` ('$' is a legal JS identifier char; literal '$' never survives
-// module escaping un-escaped, so the mapping stays collision-free). Hash-keyed
-// basenames pass through untouched; pure-fn basenames escape their '/', '.'
-// and '-' separators.
+// BindingName is the import identifier for a module basename, every non-identifier byte hex-escaped as
+// `$XX`; a literal '$' never survives module escaping unescaped, so the mapping stays collision-free.
 func BindingName(basename string) string {
 	var builder strings.Builder
 	builder.WriteString(constants.EntryBindingPrefix)
@@ -305,32 +228,24 @@ func BindingName(basename string) string {
 	return builder.String()
 }
 
-// ImportSpecifier builds the full virtual-module specifier for a basename —
-// `rtmod:/<basename>.js`.
+// ImportSpecifier builds the full virtual-module specifier, `rtmod:/<basename>.js`.
 func ImportSpecifier(basename string) string {
 	return constants.EntryModulePrefix + basename + constants.EntryModuleSuffix
 }
 
-// Grouping assigns an entry to a bundle module: a non-empty return is the
-// bundle BASENAME the entry rides in (as a named export under
-// ExportName(entry)); empty means the entry gets its own per-entry module.
-// nil Grouping == everything per-entry (default module mode).
+// Grouping returns the bundle BASENAME an entry rides in as a named export, or empty for its own per-entry
+// module; a nil Grouping means everything per-entry.
 type Grouping func(*Entry) string
 
-// ExportName is the named-export identifier a bundled entry exports under —
-// BindingName over the entry's per-entry basename, so the identifier the
-// rewrite splices at call sites (`__rt_<basename>`) IS the export name and
-// bundle imports never rename.
+// ExportName is BindingName over the entry's per-entry basename, so the identifier the rewrite splices at
+// call sites IS the export name and bundle imports never rename.
 func ExportName(entry *Entry) string {
 	return BindingName(ModuleName(entry.Key, entry.Kind))
 }
 
-// RenderGrouped assembles the graph's modules under a grouping: entries the
-// grouping maps to the same bundle basename render into ONE module (each as a
-// named export), everything else renders per-entry exactly as Render. Bundle
-// members reference same-bundle deps as direct const identifiers; deps living
-// elsewhere arrive as named imports of their export name — same clause shape
-// whether the dep is a per-entry module or another bundle.
+// RenderGrouped renders entries sharing a bundle basename into ONE module, each a named export, and the
+// rest per-entry. A bundle member references a same-bundle dep as a direct const and any other dep as a
+// named import of its export name, the same clause shape for a per-entry module and for another bundle.
 func RenderGrouped(graph Graph, grouping Grouping) (map[string]string, error) {
 	keys := make([]string, 0, len(graph))
 	for key := range graph {
@@ -378,18 +293,14 @@ func RenderGrouped(graph Graph, grouping Grouping) (map[string]string, error) {
 	return out, nil
 }
 
-// levels carries the global ordering metadata: each key's dependency level
-// (leaves = 0; SCC members share a level) used to sort every module's imports
-// and deps() thunk.
+// levels is each key's dependency level (leaves 0, SCC members sharing one), the sort key of every
+// module's imports and deps() thunk.
 type levels map[string]int
 
-// levelOrder computes per-key dependency levels over the whole graph: Tarjan
-// SCC condensation first (cycles collapse to one node), then
+// levelOrder condenses the graph with Tarjan SCC, cycles collapsing to one node, then levels it as
 // level(scc) = 1 + max(level(dep sccs)), leaves at 0.
 func levelOrder(graph Graph, keys []string) levels {
-	// Tarjan SCC, iterative-friendly sizes here (entry graphs are small);
-	// recursion depth equals the longest dep chain, matching the existing
-	// renderer's DFS topo sort.
+	// Recursion depth equals the longest dep chain, which entry graphs keep small.
 	index := 0
 	indices := make(map[string]int, len(graph))
 	low := make(map[string]int, len(graph))
@@ -441,9 +352,8 @@ func levelOrder(graph Graph, keys []string) levels {
 		}
 	}
 
-	// Condensed-DAG levels, memoized. Tarjan emits SCCs in reverse
-	// topological order, so a node's dep SCCs always have smaller… not
-	// guaranteed across roots — use explicit memoized recursion instead.
+	// Condensed-DAG levels by explicit memoized recursion: Tarjan's reverse topological emission does not
+	// order SCCs across separate roots.
 	sccLevel := make([]int, sccCount)
 	for i := range sccLevel {
 		sccLevel[i] = -1
@@ -485,10 +395,8 @@ func levelOrder(graph Graph, keys []string) levels {
 	return out
 }
 
-// sortedDeps returns entry's hard + soft deps deduped and alphabetically
-// sorted (self excluded) — the deterministic edge order every walk in this
-// package uses. Hard/soft only differ for the cascade; ordering, closure and
-// imports treat them uniformly.
+// sortedDeps is the deterministic edge order every walk in this package uses; hard and soft deps differ
+// only for the cascade, ordering and imports treat them alike.
 func sortedDeps(entry *Entry) []string {
 	if entry == nil {
 		return nil
@@ -510,10 +418,9 @@ func sortedDeps(entry *Entry) []string {
 	return out
 }
 
-// directDeps returns entry's direct deps (self excluded, deduped), sorted
-// leaves-first by level then alphabetically — the exact order both the import
-// block and the deps() thunk emit. A dep with no graph entry is a programmer
-// error (the cascade/stub passes guarantee resolvability before Render).
+// directDeps sorts the deps leaves-first by level then alphabetically, the exact order the import block and
+// the deps() thunk emit. A dep with no graph entry is a programmer error: the cascade and stub passes
+// guarantee resolvability before rendering.
 func directDeps(graph Graph, entry *Entry, order levels) ([]string, error) {
 	deps := sortedDeps(entry)
 	for _, dep := range deps {
@@ -530,12 +437,9 @@ func directDeps(graph Graph, entry *Entry, order levels) ([]string, error) {
 	return deps, nil
 }
 
-// depBinding resolves the identifier a module references for one dep, writing
-// the matching import line into imports (deduped per identifier): every entry
-// is bound by its export name everywhere (`{__rt_X}`, no rename) — only the
-// specifier differs (the dep's bundle when grouped, its own module otherwise).
-// Same-bundle deps (selfBundle non-empty) reference the sibling const
-// directly with no import at all.
+// depBinding writes the dep's import line into imports, deduped per identifier: an entry is bound by its
+// export name everywhere and only the specifier differs, the dep's bundle when grouped and its own module
+// otherwise. A same-bundle dep references the sibling const directly, with no import at all.
 func depBinding(graph Graph, depKey string, selfBundle string, groupOf map[string]string, imports *strings.Builder, imported map[string]bool) string {
 	target := graph[depKey]
 	bundle := groupOf[depKey]
@@ -558,8 +462,7 @@ func depBinding(graph Graph, depKey string, selfBundle string, groupOf map[strin
 func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]string) (string, error) {
 	var body strings.Builder
 
-	// Missing stubs: no imports, no deps thunk, no args — just the key. The
-	// deps/ini head slots are JS array holes (the `,,` run).
+	// A missing stub carries just the key; its deps / ini head slots are JS array holes.
 	if entry.Kind == KindMissing {
 		body.WriteString("export const " + ExportName(entry) + "=[" +
 			strconv.Itoa(int(KindMissing)) + ",,," + jsquote.Single(entry.Key) + "];\n")
@@ -571,8 +474,7 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 		return "", err
 	}
 
-	// Import block — the direct deps, in (level, alpha) order, each imported
-	// by its export name (no rename).
+	// The direct deps in (level, alpha) order, each imported by its export name, never renamed.
 	var imports strings.Builder
 	imported := make(map[string]bool)
 	bindings := make([]string, len(deps))
@@ -581,18 +483,15 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 	}
 	body.WriteString(imports.String())
 
-	// deps() thunk — direct deps in import order, never self (every consumer
-	// of the tuple already holds it), inlined straight into the tuple slot.
-	// Dep-less entries leave the slot a JS array hole.
+	// The deps thunk never includes self, every consumer of the tuple already holding it; a dep-less entry
+	// leaves the slot a JS array hole.
 	depsSlot := ""
 	if len(bindings) > 0 {
 		depsSlot = "()=>[" + strings.Join(bindings, ",") + "]"
 	}
 
-	// initEntry — runtype footer scoped to this entry; `c` resolves through
-	// the registry so patched slots hold the materialized singletons, never
-	// raw tuples (imported bindings are only touched inside deps()). Absent
-	// for non-runtype entries — the slot is then a hole.
+	// `c` resolves through the registry so patched slots hold the materialized singletons, never raw
+	// tuples; imported bindings are touched only inside deps().
 	iniSlot := ""
 	if entry.InitBody != "" {
 		body.WriteString("function ini(rtu){const c=(id)=>rtu.useRunType(id);\n")
@@ -617,22 +516,17 @@ func renderModule(graph Graph, entry *Entry, order levels, groupOf map[string]st
 	return body.String(), nil
 }
 
-// facadeHoistMin is the number of folded facades (allSingle mode) above which
-// their identical `()=>[__rt_runtypes]` deps thunk is hoisted into one shared
-// `const rtL=…` local and reused — below it the declaration costs more than it
-// saves (break-even ≈ 2.6). Mirrors the footer's hoistMinRefs.
+// facadeHoistMin is where hoisting the facades' identical deps thunk into one shared local starts paying
+// for the declaration (break-even ≈ 2.6). Mirrors the footer's hoistMinRefs.
 const facadeHoistMin = 3
 
 // facadeThunkLocal is the name of that shared thunk local.
 const facadeThunkLocal = "rtL"
 
-// renderBundle emits ONE module carrying every member entry as a named
-// export. Same module shape per member as renderModule's tuple, but the deps
-// thunk inlines into the tuple (no shared `deps` identifier to collide on),
-// same-bundle deps are direct const references, and per-member ini fns are
-// index-suffixed. Members render leaves-first (level, alpha) so the source
-// reads in dependency order; correctness doesn't depend on it (thunks are
-// lazy, inis run post-registration).
+// renderBundle emits ONE module carrying every member as a named export: the deps thunk inlines so no
+// shared `deps` identifier can collide, same-bundle deps are direct const references and ini fns are
+// index-suffixed. Members render leaves-first only for readability; thunks are lazy and inis run
+// post-registration, so correctness does not depend on it.
 func renderBundle(graph Graph, name string, memberKeys []string, order levels, groupOf map[string]string) (string, error) {
 	members := append([]string(nil), memberKeys...)
 	sort.SliceStable(members, func(i, j int) bool {
@@ -642,9 +536,8 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 		return members[i] < members[j]
 	})
 
-	// allSingle folds every reflection-root facade into this bundle; they all
-	// carry the same `()=>[<bundle>]` deps thunk, so hoist it once when there
-	// are enough to pay for the declaration (see facadeHoistMin).
+	// Every folded reflection-root facade carries the same `()=>[<bundle>]` thunk, so hoist it once when
+	// there are enough to pay for the declaration (see facadeHoistMin).
 	facadeCount := 0
 	for _, key := range members {
 		if graph[key].Kind == KindRunTypeFacade {
@@ -692,9 +585,8 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 		if len(bindings) > 0 {
 			depsSlot = "()=>[" + strings.Join(bindings, ",") + "]"
 		}
-		// Fold every facade's identical bundle thunk onto one shared `rtL`
-		// local, declared once before the first facade export (the kind-4 data
-		// entry it references sorts first, so it is already declared above).
+		// Declared once before the first facade export; the kind-4 data entry it references sorts first, so
+		// it is already declared above.
 		if hoistFacadeThunk && entry.Kind == KindRunTypeFacade && depsSlot != "" {
 			if !facadeThunkEmitted {
 				body.WriteString("const " + facadeThunkLocal + "=" + depsSlot + ";\n")
@@ -712,8 +604,7 @@ func renderBundle(graph Graph, name string, memberKeys []string, order levels, g
 	return imports.String() + body.String(), nil
 }
 
-// kindSlot renders tuple slot 0: the numeric kind, or the quoted family tag
-// for type-fn entries.
+// kindSlot renders tuple slot 0: the numeric kind, or the quoted family tag for a type-fn entry.
 func kindSlot(entry *Entry) (string, error) {
 	switch entry.Kind {
 	case KindRunType:

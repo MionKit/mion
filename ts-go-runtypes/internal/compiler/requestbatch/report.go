@@ -9,10 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// Replacements builds the wire-shaped point insertions that splice each
-// site's batch id into the empty trailing slot of its call (at the closing
-// `)`). Sites whose slot was already written (empty InjectText) are skipped.
-// No ImportFrom: the injected value is a plain string literal.
+// Replacements splices each site's batch id into the empty trailing slot of its call; no ImportFrom,
+// the injected value is a plain string literal.
 func Replacements(sites []Site) []protocol.Replacement {
 	var out []protocol.Replacement
 	for _, site := range sites {
@@ -29,8 +27,7 @@ func Replacements(sites []Site) []protocol.Replacement {
 	return out
 }
 
-// Report builds the structured batch build report, one protocol.BatchSite
-// per site, sorted by (file, start) so the report is deterministic.
+// Report builds the structured batch build report, sorted by (file, start) so it is deterministic.
 func Report(sites []Site) []protocol.BatchSite {
 	sorted := sortedSites(sites)
 	out := make([]protocol.BatchSite, 0, len(sorted))
@@ -58,9 +55,8 @@ func Report(sites []Site) []protocol.BatchSite {
 	return out
 }
 
-// Files returns the sorted unique source files carrying at least one site,
-// the set OpGenerate folds into SiteFiles so a file whose only marker use is
-// `batch([...])` is still transformed.
+// Files returns the sorted unique source files carrying a site, the set OpGenerate folds into SiteFiles so
+// a file whose only marker use is `batch([...])` is still transformed.
 func Files(sites []Site) []string {
 	seen := map[string]bool{}
 	var files []string
@@ -75,12 +71,8 @@ func Files(sites []Site) []string {
 	return files
 }
 
-// CheckConflicts folds a whole-program site set and reports the one
-// cross-site disagreement a batch id cannot survive: BAT003 when two sites
-// with DIFFERENT definitions (routes or mappings) hash to the same id. The
-// first site in (file, start) order wins and is the Related location of every
-// later colliding site. Same routes with different mappings is not a conflict:
-// the mappings are part of the id, so those are two batches.
+// CheckConflicts reports BAT003, two sites with DIFFERENT definitions hashing to the same id; the first in
+// (file, start) order wins and is the Related location of every later colliding site.
 func CheckConflicts(sites []Site) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic
 	byId := map[string]Site{}
@@ -120,8 +112,7 @@ func sameMappings(a, b []Mapping) bool {
 	return true
 }
 
-// siteLocation is the diagnostics location of a site: its call span when the
-// site came out of extraction, a bare file path for a synthetic site.
+// siteLocation is the site's call span, or a bare file path for a synthetic site.
 func siteLocation(site Site) diagnostics.Site {
 	if site.sourceFile == nil || site.callNode == nil {
 		return diagnostics.Site{FilePath: site.FilePath}

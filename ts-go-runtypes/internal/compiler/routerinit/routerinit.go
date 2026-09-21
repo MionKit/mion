@@ -1,15 +1,8 @@
-// Package routerinit finds the modules of a program that create the mion
-// router: every call to `createMionRouter` declared by `@mionjs/router`. Those
-// modules are where the batch transport's import lands: the server build
-// appends `import 'rtrpc:/batches.generated.js';` to each of them, so the
-// batch table and its mappers register before any route runs (ESM imports are
-// hoisted, wherever the statement sits).
-//
-// Detection is checker-based, never textual: the callee's RESOLVED signature
-// must be declared by the router package, so an alias
-// (`{createMionRouter as create}`), a namespace import (`router.createMionRouter`)
-// and a re-export through a local barrel all match, and a same-named function
-// declared elsewhere does not.
+// Package routerinit finds the modules that create the mion router, where the batch transport's import
+// lands: the server build appends it to each of them, so the batch table and its mappers register before any
+// route runs, ESM hoisting the import wherever the statement sits. Detection is checker-based, never
+// textual: the callee's RESOLVED signature must be declared by the router package, so an alias, a namespace
+// import and a barrel re-export all match, and a same-named function declared elsewhere does not.
 package routerinit
 
 import (
@@ -22,25 +15,22 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// RouterModule is the package that declares the router factory. Matched
-// against the nearest package.json name of the declaring file, or the
-// `declare module '@mionjs/router'` ambient form.
+// RouterModule is matched against the declaring file's nearest package.json name, or the ambient
+// `declare module '@mionjs/router'` form.
 const RouterModule = "@mionjs/router"
 
-// FactoryName is the router factory's identifier, used as a cheap pre-filter
-// before the signature is resolved.
+// FactoryName is a cheap pre-filter before the signature is resolved.
 const FactoryName = "createMionRouter"
 
 // Site is one module that creates the router.
 type Site struct {
-	// FilePath is the absolute source path; End is the byte length of its
-	// text, the point the batch import is appended at.
+	// FilePath is absolute; End is the file's byte length, the point the batch import is appended at.
 	FilePath string
 	End      int
 }
 
-// FileCache memoizes per-file detection for the lifetime of one Program
-// (source files are immutable within a Program). Not safe for concurrent use.
+// FileCache memoizes per-file detection for one Program, where source files are immutable. Not safe for
+// concurrent use.
 type FileCache struct {
 	sites map[string][]Site
 }
@@ -50,9 +40,8 @@ func NewFileCache() *FileCache {
 	return &FileCache{sites: map[string][]Site{}}
 }
 
-// ExtractFromProgramCached walks every file in `files` and returns one Site
-// per module that calls the router factory, in file order. The cache is
-// optional (nil degrades to an uncached walk).
+// ExtractFromProgramCached returns one Site per module of `files` that calls the router factory, in file
+// order. The cache is optional (nil degrades to an uncached walk).
 func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache) []Site {
 	var sites []Site
 	for _, filePath := range files {
@@ -93,18 +82,14 @@ func Files(sites []Site) []string {
 	return files
 }
 
-// callsFactory reports whether the file holds at least one call whose callee
-// resolves to the router factory. Declaration files never do.
+// callsFactory reports whether the file calls the router factory; declaration files never do.
 func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) bool {
 	if sourceFile.IsDeclarationFile {
 		return false
 	}
-	// Text pre-filter: this runs on every Program rebuild (every dev edit), and
-	// resolving a symbol per call across the whole program is the cost. A file
-	// that neither spells the factory's name nor names the router package can
-	// only reach the factory through a barrel that RENAMES it, which is
-	// deliberately not detected (BAT009 covers a program left without a
-	// router-init module).
+	// Text pre-filter: this runs on every Program rebuild, and resolving a symbol per call across the whole
+	// program is the cost. The file it skips can only reach the factory through a barrel that RENAMES it,
+	// deliberately not detected; BAT009 covers a program left without a router-init module.
 	if text := sourceFile.Text(); !strings.Contains(text, FactoryName) && !strings.Contains(text, RouterModule) {
 		return false
 	}
@@ -125,11 +110,8 @@ func callsFactory(typeChecker *checker.Checker, markerOpts marker.Options, sourc
 	return found
 }
 
-// isFactoryCall is the two-layer check: the callee's symbol, resolved through
-// any alias chain (a renamed import, a namespace member, a barrel re-export),
-// must be named after the factory; then the resolved signature must be
-// declared by the router package, so a same-named local function never
-// matches.
+// isFactoryCall resolves the callee through any alias chain to the factory's name, then requires the
+// resolved signature to be declared by the router package, so a same-named local never matches.
 func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
@@ -153,9 +135,7 @@ func isFactoryCall(typeChecker *checker.Checker, markerOpts marker.Options, call
 	return marker.DeclaringModuleOfNode(checker.Signature_declaration(signature), markerOpts.FS) == RouterModule
 }
 
-// calleeNameNode returns the identifier a call is made through: the callee
-// itself for `f(...)`, the member name for `ns.f(...)`; nil for any other
-// callee shape.
+// calleeNameNode returns the identifier a call is made through, the member name for `ns.f(...)`.
 func calleeNameNode(callExpr *ast.CallExpression) *ast.Node {
 	if callExpr == nil || callExpr.Expression == nil {
 		return nil

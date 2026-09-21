@@ -8,53 +8,30 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
-// bundledLibDir is the directory the bundled tsgo standard library lives in.
-// Membership of that directory is the only trustworthy "this file is part of
-// the standard library" test — a basename check alone (`lib.` + `.d.ts`) also
-// matches a consumer's own `src/lib.d.ts`. Same rule the projection's
-// "is this type standard library" test uses
-// (internal/cachegen/runtype/typeid.LibDeclaredGlobalOf).
-//
-// A var, not a const, so tests can stage a lib directory. Nothing in
-// production ever assigns it.
+// bundledLibDir membership is the only trustworthy "this file is a standard library file" test: a basename
+// check (`lib.` + `.d.ts`) also matches a consumer's own `src/lib.d.ts`. Same rule as
+// internal/cachegen/runtype/typeid.LibDeclaredGlobalOf. A var, not a const, so tests can stage a lib dir.
 var bundledLibDir = tspath.NormalizePath(bundled.LibPath())
 
-// LibSet is the standard library a Program actually loaded: the resolved lib
-// file basenames, sorted and deduped.
-//
-// It is read from the Program's own source files rather than re-derived from
-// `lib` / `target`, because only the loaded set accounts for what a `full` lib
-// pulls in, what one lib's `/// <reference>` chain adds, and the target's
-// implicit default when no `lib` is written. Those three make the tsconfig
-// spelling a poor stand-in for what the checker actually saw.
+// LibSet is the standard library a Program actually loaded, read from its source files rather than from
+// `lib` / `target`: only the loaded set accounts for what a `full` lib pulls in, what a `/// <reference>`
+// chain adds, and the target's implicit default when no `lib` is written.
 type LibSet struct {
 	// Files are the lib basenames ("lib.es2022.d.ts", …), sorted.
 	Files []string
 }
 
-// Empty reports whether the Program loaded no standard library at all
-// (`lib: []`, `noLib`). Nothing can be reflected soundly in that state: with
-// no `Array` global, `number[]` checks as an empty object and the emitted
-// validator accepts anything, with no diagnostic anywhere.
+// Empty means no standard library at all (`lib: []`, `noLib`), where nothing can be reflected soundly:
+// with no `Array` global, `number[]` checks as an empty object and its validator accepts anything.
 func (set LibSet) Empty() bool { return len(set.Files) == 0 }
 
-// baseEditionFile is the standard library's base ECMAScript edition. Every
-// later edition builds on it through its reference chain, `dom` depends on it,
-// and a bare `target` selects a `full` lib that includes it, so its presence is
-// what separates a real lib selection from one that cannot support reflection.
-//
-// It is what declares `Array`, `Object`, `String`, `Number`, `Boolean` and
-// `Function` — TypeScript's own required globals.
+// baseEditionFile is the base ECMAScript edition every later one builds on, and it declares TypeScript's
+// required globals (`Array`, `Object`, `String`, `Number`, `Boolean`, `Function`).
 const baseEditionFile = "lib.es5.d.ts"
 
-// HasBaseEdition reports whether the loaded set declares the required globals.
-//
-// False means reflection is UNSOUND and silently so. With no `Array` global the
-// checker resolves `number[]` to an empty object instead of an array, and the
-// emitted validator accepts any value with no diagnostic anywhere. Only three
-// selections reach that state: `lib: []`, `noLib`, and a by-feature lib such as
-// `["esnext.disposable"]` used without a base edition (a by-feature entry ADDS
-// to an edition, it cannot replace one).
+// HasBaseEdition reports whether the loaded set declares the required globals; false means reflection is
+// silently UNSOUND. Only `lib: []`, `noLib` and a by-feature lib without a base edition reach that state
+// (a by-feature entry ADDS to an edition, it cannot replace one).
 func (set LibSet) HasBaseEdition() bool {
 	for _, file := range set.Files {
 		if strings.EqualFold(file, baseEditionFile) {

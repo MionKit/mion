@@ -9,25 +9,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// discoverHandlers walks the file once and returns every handler the rules
-// apply to, deduped by function node: a `Handler`-typed const passed straight
-// into `mion.route()` is one handler found down two roads, not two.
-//
-// The three roads, in the order they claim a function:
-//
-//	mion.route(handler)          argument 0 of a call whose resolved signature
-//	                             is one of RouterModule's helper interfaces
-//	const h: Handler = …         a declaration annotated with a handler type
-//	                             declared by RouterModule
-//	/** @mion:route */           a function carrying the JSDoc tag
-//
-// The helper call wins when two roads reach the same function, because its
-// label names the helper the user actually wrote.
+// discoverHandlers returns every handler the rules apply to, deduped by function node: a `Handler`-typed
+// const passed straight into `mion.route()` is one handler found down two roads, not two. Three roads claim
+// a function, a helper call first, then a handler-type annotation, then the `@mion:` JSDoc tag; the helper
+// call wins because its label names the helper the user actually wrote.
 func (scope *fileScope) discoverHandlers() []handler {
 	var found []handler
 	claimed := map[*ast.Node]bool{}
-	// origin is the node in this file that declared the handler; a handler
-	// resolved to another module is reported there instead of at its own body.
+	// A handler resolved to another module is reported at origin instead of at its own body.
 	claim := func(fn *ast.Node, origin *ast.Node, label string, ctxParams int) {
 		if fn == nil || claimed[fn] {
 			return
@@ -50,9 +39,8 @@ func (scope *fileScope) discoverHandlers() []handler {
 		switch node.Kind {
 		case ast.KindCallExpression:
 			if label, ctxParams, ok := scope.helperCall(node); ok {
-				// The handler argument, not the whole call: a handler written
-				// inline is reported on itself, and one that came from another
-				// module is reported on the name this call passes.
+				// The handler argument, not the whole call: an inline handler is reported on itself, one from
+				// another module on the name this call passes.
 				claim(scope.handlerArgument(node), callee(node), label, ctxParams)
 			}
 		case ast.KindVariableDeclaration, ast.KindPropertyDeclaration, ast.KindPropertySignature:
@@ -77,11 +65,9 @@ func (scope *fileScope) discoverHandlers() []handler {
 	return found
 }
 
-// helperCall reports whether a call declares a route, and with which helper.
-// Two layers, like routerinit.isFactoryCall: the callee gives the label the
-// message shows, and the RESOLVED signature must be declared by one of
-// RouterModule's helper interfaces — which is what makes an alias, a namespace
-// import, a destructured helper and a local barrel all match while a same-named
+// helperCall reports whether a call declares a route, and with which helper. Like routerinit.isFactoryCall:
+// the callee gives the label the message shows, and the RESOLVED signature must be declared by one of
+// RouterModule's helper interfaces, which is what makes an alias or a local barrel match while a same-named
 // call from another package does not.
 func (scope *fileScope) helperCall(call *ast.Node) (label string, ctxParams int, ok bool) {
 	callExpr := call.AsCallExpression()
@@ -107,8 +93,7 @@ func (scope *fileScope) helperCall(call *ast.Node) (label string, ctxParams int,
 	return calleeLabel(callExpr, interfaceName), ctxParams, true
 }
 
-// callee is the first argument of a helper call, the node that names the handler
-// in this file, falling back to the call itself for a shape with no arguments.
+// callee is the node that names the handler in this file, the call itself when there are no arguments.
 func callee(call *ast.Node) *ast.Node {
 	if callExpr := call.AsCallExpression(); callExpr != nil && len(callExpr.Arguments.Nodes) > 0 {
 		return callExpr.Arguments.Nodes[0]
@@ -116,9 +101,8 @@ func callee(call *ast.Node) *ast.Node {
 	return call
 }
 
-// calleeLabel is the name the user wrote the call through — `route`, `query`
-// and `mutation` share one interface, so only the call site tells them apart.
-// The interface name is the fallback for a callee shape with no identifier.
+// calleeLabel is the name the user wrote the call through: `route`, `query` and `mutation` share one
+// interface, so only the call site tells them apart. The interface name is the fallback.
 func calleeLabel(callExpr *ast.CallExpression, interfaceName string) string {
 	if nameNode := calleeNameNode(callExpr); nameNode != nil {
 		if name := nameNode.Text(); name != "" {
@@ -128,8 +112,7 @@ func calleeLabel(callExpr *ast.CallExpression, interfaceName string) string {
 	return strings.TrimSuffix(interfaceName, "Helper")
 }
 
-// calleeNameNode returns the identifier a call is made through: the callee
-// itself for `f(...)`, the member name for `ns.f(...)`.
+// calleeNameNode returns the identifier a call is made through, the member name for `ns.f(...)`.
 func calleeNameNode(callExpr *ast.CallExpression) *ast.Node {
 	if callExpr == nil || callExpr.Expression == nil {
 		return nil
@@ -143,9 +126,8 @@ func calleeNameNode(callExpr *ast.CallExpression) *ast.Node {
 	return nil
 }
 
-// enclosingInterfaceName is the name of the interface (or type alias) a call
-// signature declaration sits in. `RouteHelper` for the `mion.route` signature,
-// empty for a plain function declaration.
+// enclosingInterfaceName is the interface or type alias a call signature sits in, empty for a plain
+// function declaration.
 func enclosingInterfaceName(declaration *ast.Node) string {
 	for node := declaration.Parent; node != nil; node = node.Parent {
 		switch node.Kind {
@@ -161,9 +143,8 @@ func enclosingInterfaceName(declaration *ast.Node) string {
 	return ""
 }
 
-// handlerArgument resolves argument 0 of a helper call to the function the
-// rules walk. It follows the shapes the syntactic rules could not: a named
-// reference, a `satisfies` / `as` wrapper, and a const bound to a function.
+// handlerArgument resolves argument 0 of a helper call to the function the rules walk, following a named
+// reference, a `satisfies` / `as` wrapper and a const bound to a function.
 func (scope *fileScope) handlerArgument(call *ast.Node) *ast.Node {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || len(callExpr.Arguments.Nodes) == 0 {
@@ -172,9 +153,8 @@ func (scope *fileScope) handlerArgument(call *ast.Node) *ast.Node {
 	return scope.resolveFunction(callExpr.Arguments.Nodes[0], 0)
 }
 
-// resolveFunction unwraps an expression to the function literal behind it, or
-// nil when there is none in this program. depth bounds the identifier chain so
-// a cycle (`const a = b; const b = a;`) cannot spin.
+// resolveFunction unwraps an expression to the function literal behind it; depth bounds the identifier
+// chain so a cycle cannot spin.
 func (scope *fileScope) resolveFunction(expr *ast.Node, depth int) *ast.Node {
 	if expr == nil || depth > 4 {
 		return nil
@@ -203,8 +183,7 @@ func (scope *fileScope) resolveFunction(expr *ast.Node, depth int) *ast.Node {
 	return nil
 }
 
-// unwrap strips the wrappers that never change which function is being passed:
-// parentheses, `as T`, `satisfies T` and the non-null assertion.
+// unwrap strips the wrappers that never change which function is being passed.
 func unwrap(node *ast.Node) *ast.Node {
 	for node != nil {
 		switch node.Kind {
@@ -229,8 +208,7 @@ func isFunctionLike(node *ast.Node) bool {
 	return false
 }
 
-// declarationInitializer is the initializer of a variable declaration or a
-// property declaration, nil for anything else.
+// declarationInitializer is the initializer of a variable or property declaration, nil for anything else.
 func declarationInitializer(declaration *ast.Node) *ast.Node {
 	switch declaration.Kind {
 	case ast.KindVariableDeclaration:
@@ -254,9 +232,7 @@ func functionOfDeclaration(declaration *ast.Node) *ast.Node {
 	return nil
 }
 
-// annotatedHandler reports whether a declaration carries a `Handler` /
-// `HeaderHandler` annotation declared by RouterModule. The annotation is read
-// through the checker, so a local alias of the handler type still matches.
+// annotatedHandler reads the annotation through the checker, so a local alias of the handler type matches.
 func (scope *fileScope) annotatedHandler(declaration *ast.Node) (ctxParams int, label string, ok bool) {
 	typeNode := ast.GetTypeAnnotationNode(declaration)
 	if typeNode == nil {
@@ -273,8 +249,7 @@ func (scope *fileScope) annotatedHandler(declaration *ast.Node) (ctxParams int, 
 	return ctxParams, symbol.Name, true
 }
 
-// typeSymbolOf resolves a type reference node to the symbol it names, following
-// an alias chain so a re-exported or renamed `Handler` still resolves.
+// typeSymbolOf follows the alias chain, so a re-exported or renamed `Handler` still resolves.
 func (scope *fileScope) typeSymbolOf(typeNode *ast.Node) *ast.Symbol {
 	if typeNode == nil || typeNode.Kind != ast.KindTypeReference {
 		return nil
@@ -294,10 +269,8 @@ func (scope *fileScope) typeSymbolOf(typeNode *ast.Node) *ast.Symbol {
 	return symbol
 }
 
-// jsdocHandlerTag reads the leading trivia of a statement for one of the
-// `@mion:` tags. tsgo parses those as plain comment text rather than as known
-// JSDoc tags, so the trivia is read directly — the same thing the ESLint rule
-// did against the comment attached to the node.
+// jsdocHandlerTag reads the leading trivia directly: tsgo parses an `@mion:` tag as plain comment text
+// rather than as a known JSDoc tag.
 func (scope *fileScope) jsdocHandlerTag(node *ast.Node) (tag struct {
 	label     string
 	ctxParams int
