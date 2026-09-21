@@ -202,13 +202,10 @@ type Related struct {
 // the stable identifier (PFE9001, MKR001, VL010, SJ001, …) and Severity
 // classifies impact.
 //
-// The user-facing message is NOT carried on the wire. Per-code message
-// templates live in the JS-side catalog (packages/devtools/src/core/
-// diagnosticCatalog.ts); the Go side only ships positional substitution
-// values via Args (typically 0-2 strings: a property name, a type
-// argument label, etc.). The Vite plugin resolves Code+Args → final
-// rendered message at format time. Runtime alwaysThrow text does NOT work
-// this way: since cache format v10 Go renders it whole at build time.
+// The user-facing message is NOT on the wire: templates live JS-side in
+// packages/devtools/src/core/diagnosticCatalog.ts and the plugin resolves Code+Args at format
+// time, while Args ships 0-2 substitution values (a property name, a type argument label).
+// Runtime alwaysThrow text is the exception: since cache format v10 Go renders it whole at build time.
 // Level rides the wire next to Severity because the fatal-versus-emitted split
 // is what the downgrade and suppression rules key on, and a build-halt decision
 // must not depend on the GENERATED front-end catalog being in sync: a locally
@@ -413,11 +410,8 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 	return out
 }
 
-// FormatDebug renders a Diagnostic in a compact code+args+location form
-// suitable for Go-side debug logs and test assertions. NOT the user-
-// facing message: the JS-side catalog
-// (packages/devtools/src/core/diagnosticCatalog.ts) owns user
-// wording; the Vite plugin renders the final tsc-style line.
+// FormatDebug renders a Diagnostic for Go-side debug logs and test assertions.
+// NOT the user-facing message: packages/devtools/src/core/diagnosticCatalog.ts owns user wording.
 //
 //	<absPath>(<line>,<col>): <severity> <code>(<arg0>, <arg1>, …)
 //	  Related: <absPath>(<line>,<col>): <message>

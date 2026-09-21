@@ -1,18 +1,14 @@
 package diagnostics
 
-// messages.go is the single source of the USER-FACING wording for every
-// diagnostic code: the single-line Headline (mandatory; `{0}`, `{1}`
-// placeholders substitute against Diagnostic.Args) and the optional
-// multi-line Detail block (explanation + example fix, surfaced in IDE hover
-// and verbose logs). The wire never carries this text: the binary ships
-// code + args only; `pnpm miondevx core codegen diag` exports this map into the
-// GENERATED front-end dictionary
-// (packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts) that the
-// bundler plugin and the lint plugin render from. Runtime alwaysThrow text is
-// not rendered there: Go bakes it whole into the cache entry (see
-// cachegen/typefunctions.buildAlwaysThrowMessage). Every registered code MUST have a Headline
-// (TestEveryCodeHasHeadline pins it); an entry for an unregistered code
-// panics at init, mirroring prose.go.
+// messages.go is the single source of the USER-FACING wording for every diagnostic code: a
+// mandatory Headline (`{0}`, `{1}` substitute against Diagnostic.Args) and an optional Detail block,
+// which only the website diagnostics page renders, as "Full build message".
+// The wire carries code + args only; `pnpm miondevx core codegen diag` exports this map into the
+// GENERATED packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts the bundler
+// plugin and the lint plugin render from. Runtime alwaysThrow text is not rendered there: Go bakes
+// it whole into the cache entry (see cachegen/typefunctions.buildAlwaysThrowMessage). Every code
+// MUST have a Headline (TestEveryCodeHasHeadline pins it); an unregistered code panics at init,
+// mirroring prose.go.
 //
 // Wording standard (same as the docs prose):
 //  1. Use the user's TypeScript vocabulary (property names, identifiers,

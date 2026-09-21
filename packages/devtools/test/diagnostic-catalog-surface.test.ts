@@ -1,6 +1,5 @@
-// The diagnostic catalog grew three exports nothing imported, one documenting a wire protocol
-// cache format v10 had already replaced. A dead render helper reads as live API, so it survives
-// re-reads; these two checks are what a reader cannot do by eye.
+// A dead export reads as live API and survives every re-read, so three of them lived on here;
+// these two checks are what a reader cannot do by eye.
 
 import {describe, it, expect} from 'vitest';
 import {readFileSync, globSync} from 'node:fs';
@@ -16,8 +15,7 @@ function localExports(source: string): string[] {
   return [...source.matchAll(/^export\s+(?:async\s+)?(?:function|const|class)\s+(\w+)/gm)].map((match) => match[1]);
 }
 
-// Counting bare occurrences of a name would call alwaysThrowFactory live off the run-types
-// namesake, so only a binding imported FROM this module proves a caller.
+// Counting bare names would find the run-types namesake; only an import from this module proves a caller.
 function namesImportedFromCatalog(source: string): string[] {
   const imports = source.matchAll(/import\s*\{([^}]*)\}\s*from\s*'[^']*\/diagnosticCatalog\.ts'/g);
   return [...imports].flatMap(([, clause]) => clause.split(',').map((name) => name.trim().split(/\s+as\s+/)[0]));
@@ -39,8 +37,7 @@ describe('diagnosticCatalog exports', () => {
     expect(dead, 'unused export in diagnosticCatalog.ts — delete it or wire it up').toEqual([]);
   });
 
-  // The live one is the utl.alwaysThrowFactory(message) method in run-types. A second function of
-  // that name makes every grep for a caller land on the wrong file, which is how the dead copy lasted.
+  // A second alwaysThrowFactory sends every grep for a caller to run-types' method, which is how the dead copy lasted.
   it('only run-types declares alwaysThrowFactory', () => {
     const declarers = workspaceSources()
       .filter(({text}) => /^\s*(?:export\s+)?(?:async\s+)?(?:function\s+)?alwaysThrowFactory\s*\(/m.test(text))
