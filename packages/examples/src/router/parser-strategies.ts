@@ -10,3 +10,7 @@ export const compactMion = createMionRouter({parser: 'compact'});
 export const mixedMion = createMionRouter({
   parser: {params: 'compact', return: 'mutate'},
 });
+
+// mutateStrict refuses a request carrying a property the params types do not declare.
+// Params only: a return value is written by your own handler, so there is nothing to refuse.
+export const strictMion = createMionRouter({parser: {params: 'mutateStrict'}});
