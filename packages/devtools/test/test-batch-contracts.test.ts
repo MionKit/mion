@@ -92,19 +92,14 @@ describe('the wiring still points at the batch script', () => {
   });
 });
 
-// Hook and test timeouts. Vitest defaults both to 10 s, which a project that compiles
-// TypeScript, runs a real bundler build or spawns the resolver from a hook cannot hold
-// under batch contention: type-budget's modelPipeline hook measures 4.6 s alone and 10.6 s
-// inside the mion-rest batch, where it failed a run that changed nothing near it. Those
-// projects declare their own timeouts, and every project is classified here so a new one
-// cannot arrive on the default unnoticed.
+// Vitest's 10 s default cannot hold a project that compiles, builds or spawns the resolver under batch contention.
+// type-budget's hook: 4.6 s alone, 10.6 s inside the mion-rest batch, where it failed a run that changed nothing near it.
 const HEAVY_TIMEOUT_FLOOR = 30_000;
 
 /** Projects whose tests or hooks compile, build or spawn the resolver. **/
 const HEAVY_PROJECTS = ['runtypes', 'playground', 'type-budget', 'devtools-core', 'devtools', 'drizzle-pg'] as const;
 
-/** The rest: their hooks only build fixtures in memory or start an in-process server, and
- *  the few that do more carry their own inline timeout on the hook itself. **/
+/** The rest: in-memory fixtures or an in-process server, or their own inline timeout on the hook. **/
 const LIGHT_PROJECTS = [
   '@mionjs/go-be-sidecar',
   'mock-format-isolation',
@@ -125,7 +120,7 @@ const LIGHT_PROJECTS = [
   'drizzle-sqlite',
 ] as const;
 
-/** A timeout a project config declares for itself, or undefined when it takes vitest's default. **/
+/** undefined means the project takes vitest's default. **/
 const declaredTimeout = (text: string, key: 'testTimeout' | 'hookTimeout'): number | undefined => {
   const match = new RegExp(`${key}:\\s*([0-9_]+)`).exec(text);
   return match ? Number(match[1].replace(/_/g, '')) : undefined;
@@ -155,8 +150,7 @@ describe('the compile and resolver projects raise their own timeouts', () => {
     }
   });
 
-  // THE regression: a project that compiles or spawns lands on the 10s default, passes alone
-  // and fails only when its batch competes for the CPU.
+  // Pins the regression shape: a new project arriving on the default passes alone, fails only in a batch.
   it('classifies every project the root config declares, exactly once', () => {
     const classified = [...HEAVY_PROJECTS, ...LIGHT_PROJECTS];
     const declared = [...projectConfigs().keys()];

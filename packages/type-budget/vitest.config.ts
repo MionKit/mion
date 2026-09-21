@@ -10,9 +10,8 @@ export default defineConfig({
     name: 'type-budget',
     environment: 'node',
     include: ['test/**/*.test.ts'],
-    // Vitest defaults both timeouts to 10 s, which this project has no headroom for:
-    // the modelPipeline beforeAll compiles the six cumulative snippets plus the consumer
-    // lane, 4.6 s alone and 10.6 s inside the mion-rest batch, where it failed a run.
+    // Vitest's 10 s default is not enough: modelPipeline's beforeAll compiles six snippets plus the consumer lane.
+    // 4.6 s alone, 10.6 s inside the mion-rest batch, where it failed a run.
     testTimeout: 60000,
     hookTimeout: 60000,
   },
