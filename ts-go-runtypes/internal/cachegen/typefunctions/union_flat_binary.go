@@ -7,27 +7,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// union_flat_binary.go owns the toBinary / fromBinary emits for KindUnion.
-// Mirrors union_flat.go's JSON-side wire shape, but writes / reads bytes
-// instead of building a `[idx, value]` JS literal. The wire shape stays
-// flat-prop:
-//
-//   - Atomic union members keep `[memberIndex, valueBytes]` — first the
-//     discriminator byte (uint8, or uint16 when total members > 255),
-//     then the member's serialized bytes.
-//   - Object/class union members are MERGED into one envelope with
-//     discriminator value `-1` (encoded as `0xFF` in uint8 mode, or
-//     `0xFFFF` in uint16 mode). The merged object is encoded as a
-//     bitmap of present merged-props + the values for present props.
-//
-// This file relies on the FlatLayout struct + buildFlatLayout helper
-// in union_flat_layout.go (shared with the JSON family).
+// union_flat_binary.go holds the toBinary / fromBinary emits for KindUnion, over the layout
+// union_flat_layout.go builds. Same flat-prop wire shape as the JSON family, in bytes: an atomic member
+// writes its discriminator (uint8, or uint16 when the union has more than 255 members) then its own bytes,
+// and the merged object/class envelope takes discriminator `-1` (0xFF / 0xFFFF) followed by a bitmap of
+// the present merged props and their values.
 
-// discriminatorWidth returns "Uint8" or "Uint16" depending on the total
-// number of members in the union. We use the same trick at
-// binary/toBinary.ts:376-380 — uint8 when index fits, uint16 otherwise.
-// The `-1` sentinel for the merged-object branch is encoded as the
-// max value (0xFF / 0xFFFF) so the decoder special-cases it.
+// discriminatorWidth returns "Uint8" or "Uint16" from the union's total member count; the `-1` sentinel of
+// the merged-object branch is the max value of that width, which the decoder special-cases.
 func discriminatorWidth(memberCount int) string {
 	if memberCount > 255 {
 		return "Uint16"
@@ -35,8 +22,7 @@ func discriminatorWidth(memberCount int) string {
 	return "Uint8"
 }
 
-// sentinelLiteral returns the JS literal for the merged-object branch's
-// discriminator value, given the width. uint8 → 0xFF, uint16 → 0xFFFF.
+// sentinelLiteral returns the JS literal for the merged-object branch's discriminator at a given width.
 func sentinelLiteral(width string) string {
 	if width == "Uint16" {
 		return "65535"
@@ -44,10 +30,8 @@ func sentinelLiteral(width string) string {
 	return "255"
 }
 
-// writeDiscriminator returns the JS statement that writes `index` at
-// the current serializer position and advances `index`. For uint8 we
-// use `setUint8(index++, value)`; for uint16 we use
-// `setUint16(index, value, 1, (index += 2))`.
+// writeDiscriminator returns the JS statement that writes `value` at the current serializer position and
+// advances the index, the advance fused into the write.
 func writeDiscriminator(ser, width string, value int) string {
 	if width == "Uint16" {
 		return reserveExpr(ser, "2", ser+".view.setUint16("+ser+".index, "+strconv.Itoa(value)+", 1, ("+ser+".index += 2))")
@@ -55,8 +39,7 @@ func writeDiscriminator(ser, width string, value int) string {
 	return reserveExpr(ser, "1", ser+".view.setUint8("+ser+".index++, "+strconv.Itoa(value)+")")
 }
 
-// readDiscriminator returns the JS expression that reads the next
-// discriminator value. The advance is fused in via the `index +=` arg.
+// readDiscriminator returns the JS expression reading the next discriminator, the advance fused into it.
 func readDiscriminator(des, width string) string {
 	if width == "Uint16" {
 		return "(" + des + ".view.getUint16(" + des + ".index, 1) + (" + des + ".index += 2, 0))"
@@ -64,15 +47,10 @@ func readDiscriminator(des, width string) string {
 	return des + ".view.getUint8(" + des + ".index++)"
 }
 
-// emitUnionToBinaryFlat — encode-side of the flat-union binary wire
-// shape. Mirrors emitUnionPrepareForJsonFlat in union_flat.go:74-143
-// but writes bytes instead of building `[idx, v]` literals.
-//
-// The width of the discriminator is chosen by the TOTAL member count
-// (atomic + object members), and the merged-object branch always uses
-// the sentinel value (0xFF or 0xFFFF). Note: this means a union with
-// >255 atomic members but no objects still encodes as uint16 if any
-// originalIndex spills past 255 — handled identically here.
+// emitUnionToBinaryFlat is the encode side of the flat-union binary wire shape, mirroring
+// emitUnionPrepareForJsonFlat but writing bytes instead of building `[idx, v]` literals.
+// The discriminator width comes from the TOTAL member count, atomic plus object, and the merged-object
+// branch always uses the sentinel value.
 func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
@@ -85,11 +63,8 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 
 	var clauses []string
 
-	// Atomic members — `if (guard) { writeDiscriminator(idx); encode; }`. Class
-	// members dispatch by instance identity first, then non-class atomics, then a
-	// class structural fallback (atomicEncodeDispatch) — the same ordering the
-	// JSON encoders use, so a value from one of two SAME-shape classes writes the
-	// correct member index instead of the first structural match.
+	// Arm order is the JSON encoders' (atomicEncodeDispatch), so a value from one of two SAME-shape classes
+	// writes the correct member index instead of the first structural match.
 	prologue, arms := layout.atomicEncodeDispatch(v, ctx)
 	bodyByIndex := make(map[int]string, len(layout.AtomicMembers))
 	for _, m := range layout.AtomicMembers {
@@ -111,8 +86,6 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 		clauses = append(clauses, clause)
 	}
 
-	// Object branch — write sentinel discriminator + merged bitmap +
-	// merged prop values.
 	if len(layout.ObjectMembers) > 0 {
 		var sentinelWrite string
 		if width == "Uint16" {
@@ -121,9 +94,7 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 			sentinelWrite = reserveExpr(ser, "1", ser+".view.setUint8("+ser+".index++, "+sentinel+")")
 		}
 
-		// Separate required vs optional merged props. Required props skip
-		// the bitmap entirely. Optional props share a bitmap (1 bit per
-		// optional prop, 8 per byte).
+		// Required props skip the bitmap entirely; optional props share one, 1 bit each, 8 per byte.
 		var requiredProps, optionalProps []FlatMergedProp
 		for _, mp := range layout.MergedProps {
 			if mp.Required {
@@ -135,7 +106,6 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 
 		parts := []string{sentinelWrite}
 
-		// Required merged props.
 		for _, mp := range requiredProps {
 			accessor := propertyAccessor(v, mp.Name, mp.IsSafeName)
 			propCode, ok := emitMergedPropToBinary(mp, accessor, ctx, ser)
@@ -147,7 +117,6 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 			}
 		}
 
-		// Optional merged props with shared bitmap.
 		if len(optionalProps) > 0 {
 			bitmapInit, bitmapVar := emitOptionalBitmapInit(ctx, ser, len(optionalProps), false)
 			parts = append(parts, bitmapInit)
@@ -163,11 +132,9 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 				if propCode != "" {
 					body = propCode + ";" + setMask
 				}
-				// A stripped sibling means a value from the stripped member still
-				// carries the key with a foreign type — guard the surviving codec
-				// with a value check so such a value leaves the bit UNSET and
-				// writes no bytes (decode skips it), instead of setting the bit
-				// while the codec writes nothing / crashes (G3 / G4).
+				// A value from a stripped sibling still carries the key with a foreign type: guard the
+				// surviving codec so such a value leaves the bit UNSET and writes no bytes, instead of
+				// setting the bit while the codec writes nothing or crashes (G3 / G4).
 				presence := namedPropertyPresenceTest(mp.Name, v, accessor)
 				if mp.HasStrippedCandidate {
 					presence += " && (" + mergedPropSurvivingGuard(mp, accessor, ctx) + ")"
@@ -193,10 +160,8 @@ func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser stri
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeS}
 }
 
-// emitMergedPropToBinary mirrors emitMergedPropPrepare for the binary
-// wire shape. Single-candidate: delegate to the candidate's toBinary.
-// Multi-candidate: write a sub-discriminator (always uint8 since per-
-// prop candidate counts are small) + candidate bytes, gated by validate.
+// emitMergedPropToBinary mirrors emitMergedPropPrepare for the binary wire shape: a multi-candidate prop
+// writes a uint8 sub-discriminator plus the candidate bytes, gated by validate.
 func emitMergedPropToBinary(mp FlatMergedProp, accessor string, ctx *EmitContext, ser string) (string, bool) {
 	if len(mp.Candidates) == 1 {
 		ctx.SetChildAccessor(accessor)
@@ -207,9 +172,7 @@ func emitMergedPropToBinary(mp FlatMergedProp, accessor string, ctx *EmitContext
 		}
 		return strings.TrimSpace(jc.Code), true
 	}
-	// Multi-candidate — always wrap with sub-discriminator. Width is
-	// uint8 (per-prop candidate counts effectively bounded by union
-	// width, but practically <=255).
+	// The sub-discriminator is always uint8: per-prop candidate counts are practically under 255.
 	var arms []string
 	for i, cand := range mp.Candidates {
 		if cand.Resolved == nil {
@@ -242,16 +205,10 @@ func emitMergedPropToBinary(mp FlatMergedProp, accessor string, ctx *EmitContext
 	return strings.Join(arms, ""), true
 }
 
-// emitUnionFromBinaryFlat — decode-side of the flat-union binary wire
-// shape. Reads the discriminator, then either dispatches to the
-// atomic-member's decode OR (when sentinel) reads the merged bitmap +
-// merged prop values.
-//
-// Note vs the JSON sibling (emitUnionRestoreFromJsonFlat): binary unions
-// ALWAYS write a discriminator regardless of layout.AtomicNeedsTuple.
-// JSON can recover atomics from their natural form
-// (`JSON.parse('42') === 42`); binary bytes are typeless so the decoder
-// must know which arm produced them. We ignore AtomicNeedsTuple here.
+// emitUnionFromBinaryFlat is the decode side of the flat-union binary wire shape.
+// Unlike the JSON sibling (emitUnionRestoreFromJsonFlat), binary unions ALWAYS write a discriminator and
+// AtomicNeedsTuple is ignored here: JSON recovers atomics from their natural form, binary bytes are
+// typeless, so the decoder must be told which arm produced them.
 func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
@@ -265,7 +222,6 @@ func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des st
 	readDec := "const " + decVar + " = " + readDiscriminator(des, width)
 	var arms []string
 
-	// Object branch — read merged bitmap + decode each merged prop.
 	if len(layout.ObjectMembers) > 0 {
 		var requiredProps, optionalProps []FlatMergedProp
 		for _, mp := range layout.MergedProps {
@@ -278,7 +234,6 @@ func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des st
 
 		parts := []string{v + " = {}"}
 
-		// Required merged props.
 		for _, mp := range requiredProps {
 			accessor := v + "." + mp.Name
 			if !mp.IsSafeName {
@@ -288,7 +243,6 @@ func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des st
 			if !ok {
 				return RTCode{Code: "", Type: CodeNS}
 			}
-			// Always initialize the prop slot then run the decode.
 			initSlot := accessor + " = undefined"
 			if propCode != "" {
 				parts = append(parts, initSlot+";"+propCode)
@@ -297,7 +251,6 @@ func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des st
 			}
 		}
 
-		// Optional merged props — read bitmap, then decode set bits.
 		if len(optionalProps) > 0 {
 			bitmapInit, bitmapVar := readOptionalBitmapInit(ctx, des, len(optionalProps), false)
 			parts = append(parts, bitmapInit)
@@ -323,8 +276,6 @@ func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des st
 		arms = append(arms, arm)
 	}
 
-	// Atomic arms — read each member's bytes when discriminator matches
-	// its originalIndex.
 	for _, m := range layout.AtomicMembers {
 		childRT := ctx.CompileChild(m.Ref, CodeS)
 		if childRT.Type == CodeNS {
@@ -346,9 +297,8 @@ func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des st
 	return RTCode{Code: readDec + ";" + inner, Type: CodeS}
 }
 
-// emitMergedPropFromBinary mirrors emitMergedPropRestore for the binary
-// wire shape. Single-candidate: delegate. Multi-candidate: read the
-// sub-discriminator, then dispatch.
+// emitMergedPropFromBinary mirrors emitMergedPropRestore for the binary wire shape: a multi-candidate
+// prop reads the sub-discriminator, then dispatches.
 func emitMergedPropFromBinary(mp FlatMergedProp, accessor string, ctx *EmitContext, des string) (string, bool) {
 	if len(mp.Candidates) == 1 {
 		ctx.SetChildAccessor(accessor)

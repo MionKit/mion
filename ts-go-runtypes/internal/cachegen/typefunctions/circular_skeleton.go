@@ -9,15 +9,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// circular_skeleton.go computes the compile-time "circular skeleton" baked into
-// an armed (`{rejectCircularRefs: true}`) guarded factory. The skeleton is the
-// pruned graph of a type's cycle-capable positions: the property/element access
-// paths that lead from one circular node to the next. At runtime the built-in
-// pure fn `findCycle(value, skeleton)` walks ONLY those edges with a
-// descent stack local to itself and reports the first true reference cycle —
-// replacing the previous whole-value, RunType-driven co-walk AND the RunType
-// data bundle it needed. Only cycle-capable positions become skeleton nodes; the
-// acyclic intermediates between them collapse into an edge's path segments.
+// circular_skeleton.go computes the compile-time "circular skeleton" baked into an armed
+// (`{rejectCircularRefs: true}`) guarded factory: the pruned graph of a type's cycle-capable positions,
+// the access paths leading from one circular node to the next. At runtime the built-in pure fn
+// `findCycle(value, skeleton)` walks ONLY those edges, with its own descent stack, and needs no RunType
+// data. Only cycle-capable positions become nodes; the acyclic intermediates collapse into path segments.
 //
 // Runtime shape (see packages/run-types/src/runtypes/circular-pure-fns.ts):
 //
@@ -41,8 +37,8 @@ type circSeg struct {
 	keyNum  bool   // for "k": whether keyName is a numeric index (tuple slot)
 }
 
-// circEdge is one outgoing circular edge: the access path from a node's value to
-// a tracked descendant, and the index of that tracked node.
+// circEdge is one outgoing circular edge: the access path from a node's value to a tracked descendant,
+// and the index of that tracked node.
 type circEdge struct {
 	path []circSeg
 	to   int
@@ -54,12 +50,11 @@ type CircularSkeleton struct {
 	edges   [][]circEdge // edges[i] — outgoing circular edges from node i
 }
 
-// BuildCircularSkeleton returns the circular skeleton for `root`, or nil when the
-// type cannot cycle (no circular node reachable) — in which case the armed
-// factory emits no guard at all (its body is byte-identical to the plain form,
-// keyed differently; a harmless duplicate, per the rejectCircular design). The
-// walk mirrors findCycle's kind dispatch, but STOPS at each circular node
-// instead of descending, recording the access path to it as an edge.
+// BuildCircularSkeleton returns the circular skeleton for `root`, or nil when no circular node is
+// reachable, in which case the armed factory emits no guard at all (its body is byte-identical to the
+// plain form, keyed differently: a harmless duplicate, per the rejectCircular design).
+// The walk emits the segments findCycle understands, but STOPS at each circular node instead of
+// descending, recording the access path to it as an edge.
 func BuildCircularSkeleton(root *reflection.RunType, refTable map[string]*reflection.RunType) *CircularSkeleton {
 	if root == nil {
 		return nil
@@ -70,8 +65,8 @@ func BuildCircularSkeleton(root *reflection.RunType, refTable map[string]*reflec
 	}
 
 	builder := &circSkeletonBuilder{refTable: refTable, index: map[string]int{}, circular: circularIDs}
-	// Node 0 is always the root; other circular nodes get indices 1..k (sorted for
-	// determinism). If the root itself is circular it stays node 0 (never doubled).
+	// Node 0 is always the root, other circular nodes take 1..k sorted for determinism; a circular root
+	// stays node 0 and is never doubled.
 	builder.index[root.ID] = 0
 	others := make([]string, 0, len(circularIDs))
 	for id := range circularIDs {
@@ -100,9 +95,8 @@ func BuildCircularSkeleton(root *reflection.RunType, refTable map[string]*reflec
 	return skeleton
 }
 
-// circSkeletonBuilder holds the per-build state: the ref table, the assigned
-// node indices, and the reachable-circular set + a memo for the leadsToCircular
-// prune.
+// circSkeletonBuilder holds the per-build state: ref table, node indices, the reachable-circular set and
+// the leadsToCircular memo.
 type circSkeletonBuilder struct {
 	refTable map[string]*reflection.RunType
 	index    map[string]int
@@ -110,11 +104,10 @@ type circSkeletonBuilder struct {
 	reaches  map[string]bool
 }
 
-// computeEdges walks `node`'s type subtree, recording an edge for every circular
-// position it reaches (without descending INTO it — that node owns its own
-// edges). Acyclic intermediates collapse into an edge's path. Non-circular
-// subgraphs are DAGs, so the descent terminates; a path-local visited set is a
-// belt-and-braces guard (a node can never legitimately repeat on one path).
+// computeEdges records an edge for every circular position `node`'s subtree reaches, without descending
+// INTO it, since that node owns its own edges; acyclic intermediates collapse into an edge's path.
+// Non-circular subgraphs are DAGs, so the descent terminates and the path-local visited set is only a
+// belt-and-braces guard: a node can never legitimately repeat on one path.
 func (builder *circSkeletonBuilder) computeEdges(node *reflection.RunType) []circEdge {
 	var edges []circEdge
 	var visit func(current *reflection.RunType, path []circSeg, onPath map[string]bool)
@@ -148,9 +141,8 @@ func (builder *circSkeletonBuilder) computeEdges(node *reflection.RunType) []cir
 	return edges
 }
 
-// eachChildPosition yields (segment, childType) for every navigable child of a
-// node, mirroring findCycle's per-kind dispatch. A nil segment means the step
-// is transparent (a union arm or a wrapper): the same value, no path segment.
+// eachChildPosition yields (segment, childType) for every navigable child of a node.
+// A nil segment means a transparent step (a union arm or a wrapper): the same value, no path segment.
 func (builder *circSkeletonBuilder) eachChildPosition(node *reflection.RunType, visit func(seg *circSeg, childType *reflection.RunType)) {
 	switch node.Kind {
 	case reflection.KindObject, reflection.KindObjectLiteral, reflection.KindIntersection:
@@ -164,10 +156,10 @@ func (builder *circSkeletonBuilder) eachChildPosition(node *reflection.RunType, 
 		case reflection.SubKindSet:
 			visit(&circSeg{kind: "s"}, builder.setElementType(node))
 		case reflection.SubKindNone:
-			// User-defined class — validates structurally, walk like an object.
+			// A user-defined class validates structurally, so walk it like an object.
 			builder.eachObjectMember(node, visit)
 		default:
-			// Date / Temporal / RegExp and other atomic builtins — no walkable children.
+			// Date / Temporal / RegExp and other atomic builtins have no walkable children.
 		}
 	case reflection.KindArray:
 		visit(&circSeg{kind: "a"}, node.Child)
@@ -185,13 +177,12 @@ func (builder *circSkeletonBuilder) eachChildPosition(node *reflection.RunType, 
 	}
 }
 
-// eachObjectMember visits an object/class's declared property members (by name)
-// and its index signature (as an iterate-all-values step), skipping methods and
-// unsupported members — matching findCycle's walkObject.
+// eachObjectMember visits an object/class's declared property members by name and its index signature as
+// an iterate-all-values step, skipping methods and unsupported members.
 func (builder *circSkeletonBuilder) eachObjectMember(node *reflection.RunType, visit func(seg *circSeg, childType *reflection.RunType)) {
 	for _, raw := range node.Children {
-		// Object members arrive as KindRef slots — resolve before reading their
-		// Kind / Name / Child, or every property looks nameless and is skipped.
+		// Object members arrive as KindRef slots: resolve before reading Kind / Name / Child, or every
+		// property looks nameless and is skipped.
 		member := builder.resolve(raw)
 		if member == nil {
 			continue
@@ -221,8 +212,8 @@ func (builder *circSkeletonBuilder) resolve(node *reflection.RunType) *reflectio
 	return node
 }
 
-// leadsToCircular reports whether node's ref closure contains a circular node —
-// the prune that keeps the skeleton to only the edges that can reach a cycle.
+// leadsToCircular reports whether node's ref closure contains a circular node: the prune that keeps the
+// skeleton to the edges that can reach a cycle.
 func (builder *circSkeletonBuilder) leadsToCircular(node *reflection.RunType) bool {
 	if builder.reaches == nil {
 		builder.reaches = map[string]bool{}
@@ -249,8 +240,8 @@ func (builder *circSkeletonBuilder) leadsToCircular(node *reflection.RunType) bo
 	return found
 }
 
-// reachableCircularIDs collects every node id flagged IsCircular in root's ref
-// closure. BFS over ref slots, memo-free (single pass, small graphs).
+// reachableCircularIDs collects every node id flagged IsCircular in root's ref closure, memo-free: one
+// pass over small graphs.
 func reachableCircularIDs(root *reflection.RunType, refTable map[string]*reflection.RunType) map[string]bool {
 	circular := map[string]bool{}
 	visited := map[string]bool{}
@@ -279,12 +270,10 @@ func reachableCircularIDs(root *reflection.RunType, refTable map[string]*reflect
 	return circular
 }
 
-// mapElementTypes returns a Map class's key and value element types (the
-// `.child` of its two type arguments), mirroring findCycle's walkMap. The
-// arguments arrive as KindRef slots pointing at KindParameter wrappers
-// (runtype/serialize.go newNativeParameter), so each is resolved before its
-// Child is read: an unresolved ref has no Child, and a Map or Set would then
-// contribute no edge at all, leaving a cycle through it invisible to the guard.
+// mapElementTypes returns a Map class's key and value element types, the `.child` of its two type
+// arguments. Those arrive as KindRef slots pointing at KindParameter wrappers (runtype/serialize.go
+// newNativeParameter), so each is resolved before its Child is read: an unresolved ref has no Child, the
+// Map would contribute no edge, and a cycle through it would be invisible to the guard.
 func (builder *circSkeletonBuilder) mapElementTypes(node *reflection.RunType) (key, value *reflection.RunType) {
 	if len(node.Arguments) > 0 {
 		if wrapper := builder.resolve(node.Arguments[0]); wrapper != nil {
@@ -299,8 +288,8 @@ func (builder *circSkeletonBuilder) mapElementTypes(node *reflection.RunType) (k
 	return key, value
 }
 
-// setElementType returns a Set class's element type (the `.child` of its first
-// type argument, resolved like mapElementTypes), mirroring findCycle's walkSet.
+// setElementType returns a Set class's element type, the `.child` of its first type argument, resolved
+// like mapElementTypes.
 func (builder *circSkeletonBuilder) setElementType(node *reflection.RunType) *reflection.RunType {
 	if len(node.Arguments) > 0 {
 		if wrapper := builder.resolve(node.Arguments[0]); wrapper != nil {
@@ -310,8 +299,8 @@ func (builder *circSkeletonBuilder) setElementType(node *reflection.RunType) *re
 	return nil
 }
 
-// JSLiteral renders the skeleton as the compact JS object literal baked into the
-// armed factory closure and passed to findCycle.
+// JSLiteral renders the skeleton as the compact JS object literal baked into the armed factory closure
+// and passed to findCycle.
 func (skeleton *CircularSkeleton) JSLiteral() string {
 	var out strings.Builder
 	out.WriteString("{c:[")
@@ -352,8 +341,8 @@ func (skeleton *CircularSkeleton) JSLiteral() string {
 	return out.String()
 }
 
-// jsLiteral renders one path segment as its JS array literal, e.g. ['k','next'],
-// ['k',0] (a tuple index), or ['a'] (iterate array elements).
+// jsLiteral renders one path segment as its JS array literal: ['k','next'], ['k',0] for a tuple index,
+// ['a'] for array elements.
 func (seg circSeg) jsLiteral() string {
 	kind := jsquote.Single(seg.kind)
 	if seg.kind != "k" {
