@@ -1,24 +1,17 @@
 package diagnostics
 
-// FriendlyText mirror-file codes (FTxxx). Since the per-family mirror split,
-// a source type enriches into TWO generated files: this group covers the
-// FriendlyText mirror (labels + rt$errors templates, and its per-locale
-// translation twins). Content validity comes from the paired checker in
-// internal/enrichment/validate.go; the FT02x hygiene codes come from the
-// dirty-tag scan in internal/enrichment/mirror/hygiene.go, attributed to this
-// family by the file's const annotations / DSL import. All are opt-in
-// surfaces (Request.CheckEnrich, `mion enrich --no-emit`), never emitted by a
-// build. MockData twins live in codes_mock.go; the mirror↔source linkage
-// codes in codes_gencheck.go.
+// FriendlyText mirror-file codes (FTxxx): the FriendlyText half of a source type's two generated
+// mirrors (labels + rt$errors templates, and the per-locale translation twins). Content validity
+// comes from internal/enrichment/validate.go, the FT02x hygiene codes from the dirty-tag scan in
+// internal/enrichment/mirror/hygiene.go; all are opt-in (Request.CheckEnrich, `mion enrich
+// --no-emit`), never emitted by a build. MockData twins live in codes_mock.go, the mirror↔source
+// linkage codes in codes_gencheck.go.
 //
-// The levels ask what the reader of a rendered message SEES. Every content
-// finding here degrades: to the generic "value is invalid", to the `other`
-// plural arm, to the raw field name, or (FT005) to a message carrying the
-// literal `$[…]` token. Degraded text is enrichment that did not apply, not a
-// broken function — the validation still ran and the error still surfaced — so
-// they are all LevelWarning. FT011 is the one LevelError: a property colliding
-// with the reserved `rt$` prefix fails the enrich plan, so no mirror is written
-// at all.
+// The levels ask what the reader of a rendered message SEES. Every content finding here only
+// degrades the text (to "value is invalid", the `other` plural arm, the raw field name, or a literal
+// `$[…]` token for FT005) while validation still ran, so all are LevelWarning. FT011 is the one
+// LevelError: a property colliding with the reserved `rt$` prefix fails the plan, so no mirror is
+// written at all.
 const (
 	CodeFriendlyUnknownField      = "FT002"
 	CodeFriendlyUnknownConstraint = "FT003"

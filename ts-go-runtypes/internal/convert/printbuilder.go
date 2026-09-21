@@ -1,7 +1,7 @@
-// printbuilder.go — the VALUE-FIRST builders printer: a reflection RunType
-// node to the `RT.*` / `TF.*` call spelling. Shapes with no id-exact builder
-// spelling ride the `getRunType<T>()` escape (builderEscape).
 package convert
+
+// printbuilder.go is the VALUE-FIRST builders printer: a reflection RunType node to its `RT.*` /
+// `TF.*` call spelling. A shape with no id-exact builder spelling rides builderEscape.
 
 import (
 	"fmt"
@@ -25,8 +25,8 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 	}
 	defer leave()
 	if len(node.TypeMeta) > 0 {
-		// User-metadata intersections have no value-first spelling — the
-		// type-argument escape carries the intersection exactly.
+		// A user-metadata intersection has no value-first spelling; the type-argument escape
+		// carries it exactly.
 		return ctx.builderEscape(node)
 	}
 	rt := func(call string) (string, *Diagnostic) {
@@ -105,9 +105,8 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return "", diag
 		}
 		if hasStructuralPayload(node) {
-			// Params outside the public bag surface (`uniqueItems: false`, a
-			// hand-spelled sentinel key) escape whole: the generic bag would
-			// resolve a different brand and move the id.
+			// Params outside the public bag surface escape whole: the generic bag would resolve a
+			// different brand and move the id.
 			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
 				return ctx.builderEscape(node)
 			}
@@ -154,8 +153,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return ctx.collectionBuilder(node, "set", itemText)
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(node.SubKind); ok {
-			// The natural value-first spelling: the no-params temporal
-			// builders return the UNBRANDED base instance type, so the id
+			// The no-params temporal builders return the UNBRANDED base instance type, so the id
 			// converges with the type-first form by construction.
 			ctx.needs.useTFT = true
 			return ctx.names.TFT + "." + lowerFirst(info.Name) + "()", nil
@@ -164,9 +162,8 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return rt("regexp()")
 		}
 		if len(node.Arguments) == 0 {
-			// The plain instance type rides the natural ctor-value builder;
-			// a generic instantiation has no ctor-only spelling and escapes
-			// through getRunType instead.
+			// The plain instance type rides the ctor-value builder; a generic instantiation has no
+			// ctor-only spelling and escapes instead.
 			spelling, diag := ctx.classSpelling(node)
 			if diag != nil {
 				return "", diag
@@ -177,9 +174,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 	case reflection.KindRegexp:
 		return rt("regexp()")
 	case reflection.KindEnum:
-		// NOT `RT.enum(Color)`: the enum builder carries the VALUE union
-		// (`E[keyof E]`, assignment-equivalent but a different reflected
-		// graph), so the id-exact builder spelling is the type-argument one.
+		// NOT `RT.enum(Color)`: that builder carries the VALUE union `E[keyof E]`, which is
+		// assignment-equivalent but a different reflected graph, so the id-exact spelling is the
+		// type-argument one.
 		name, diag := ctx.enumSpelling(node)
 		if diag != nil {
 			return "", diag
@@ -202,8 +199,8 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return "", diag
 		}
 		if hasSignatureMembers(members) {
-			// Callable/method-bearing shapes have no builder spelling that
-			// carries the member kinds — escape the whole object.
+			// A callable or method-bearing shape has no builder spelling carrying the member kinds,
+			// so the whole object escapes.
 			return ctx.builderEscape(node)
 		}
 		bagText := ""
@@ -225,16 +222,16 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 				return "", keyDiag
 			}
 			if !keyed {
-				// Several signatures whose VALUE types differ: one `record`
-				// carries one value type, so the escape takes it.
+				// One `record` carries one value type, so signatures whose VALUE types differ
+				// escape.
 				return ctx.builderEscape(node)
 			}
 			valueText, valueDiag := ctx.builderExpr(indexes[0].value)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			// The structural bag rides the record half (it is the object-level
-			// payload), and the lone string key is `record`'s own default.
+			// The structural bag rides the record half, being the object-level payload, and the lone
+			// string key is `record`'s own default.
 			switch {
 			case keyText == "":
 				recordText = fmt.Sprintf("%s.record(%s%s)", ctx.names.RT, valueText, bagText)
@@ -263,10 +260,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			parts = append(parts, fmt.Sprintf("%s: %s", member.key, innerText))
 		}
 		if recordText != "" {
-			// Named members BESIDE an index: `object(...)` cannot carry an
-			// index and `record(...)` cannot carry named members, but their
-			// INTERSECTION is exactly the shape — `Record<K, V> & {…}` is what
-			// TypeScript resolves the mixed literal to, so the id is identical.
+			// `object(...)` cannot carry an index and `record(...)` cannot carry named members, but
+			// their INTERSECTION is the shape: TypeScript resolves the mixed literal to
+			// `Record<K, V> & {…}`, so the id is identical.
 			ctx.needs.useRT = true
 			return rt(fmt.Sprintf("intersection(%s, %s.object({%s}))", recordText, ctx.names.RT, strings.Join(parts, ", ")))
 		}
@@ -276,21 +272,16 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		if !ok {
 			return "", unsupportedDiag(node, ctx.decl)
 		}
-		// A `never` rest is uninhabited, so it contributes no elements and
-		// TypeScript folds `[T, ...never[]]` into a shape the rebuilt
-		// `rest: RT.never()` does not resolve back to — the group spelling is
-		// NOT id-exact here (the convert fuzz caught `[any, ...never[]]`
-		// changing id on the builders leg, C2). The type-argument escape is
-		// exact, same as for template literals and objects below.
+		// A `never` rest is uninhabited, so TypeScript folds `[T, ...never[]]` into a shape the
+		// rebuilt `rest: RT.never()` does not resolve back to: the group spelling is NOT id-exact
+		// here, while the type-argument escape is.
 		if shape.rest != nil && shape.rest.Kind == reflection.KindNever {
 			return ctx.builderEscape(node)
 		}
-		// Every tuple prints the GROUP form (`RT.tuple({required: […]})`), and
-		// only the groups it actually has — naming them is what makes the
-		// generated definition unambiguous, where a bare list reads as if it
-		// might accept optionals. Labeled tuples wrap each element in
-		// `RT.slot(…)`, unlabeled ones print the element alone; the labels are
-		// id data, so the two spellings must never mix.
+		// Every tuple prints the GROUP form and only the groups it has, since naming them is what
+		// keeps the definition unambiguous where a bare list reads as if it might accept
+		// optionals. A labeled tuple wraps each element in `RT.slot(…)` and an unlabeled one
+		// prints the element alone; labels are id data, so the two spellings never mix.
 		renderList := func(members []*reflection.RunType, labels []string) (string, *Diagnostic) {
 			var parts []string
 			for i, member := range members {
@@ -332,11 +323,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		}
 		return rt(fmt.Sprintf("tuple({%s})", strings.Join(groups, ", ")))
 	case reflection.KindFunction:
-		// All-required named parameters print the slot form
-		// (`RT.func({params: [RT.slot('event', …)], ret})`), which converges
-		// with the written signature (parameter names fold into the id).
-		// Optional / rest / defaulted parameters have no id-exact value-first
-		// spelling — the type-argument escape carries those.
+		// All-required named parameters print the slot form, which converges with the written
+		// signature because parameter names fold into the id. An optional, rest or defaulted
+		// parameter has no id-exact value-first spelling and takes the escape.
 		if slotForm, printable, diag := ctx.funcSlotForm(node); diag != nil {
 			return "", diag
 		} else if printable {
@@ -344,17 +333,16 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		}
 		return ctx.builderEscape(node)
 	case reflection.KindTemplateLiteral, reflection.KindObject:
-		// No value-first spelling carries these exactly (RT.templateLiteral
-		// defaults its part grouping) — the type-argument escape does.
+		// No value-first spelling carries these exactly, RT.templateLiteral defaulting its part
+		// grouping, so the type-argument escape does.
 		return ctx.builderEscape(node)
 	}
 	return "", unsupportedDiag(node, ctx.decl)
 }
 
-// funcSlotForm renders a function node as `RT.func({params: [RT.slot(…)…],
-// ret: …})` when every parameter is named, required, non-rest and default-free
-// — the shape whose value-first id equals the written signature's.
-// printable=false hands anything else back to the escape.
+// funcSlotForm renders a function node as `RT.func({params: [RT.slot(…)…], ret: …})` when every
+// parameter is named, required, non-rest and default-free, the shape whose value-first id equals
+// the written signature's. printable=false hands anything else back to the escape.
 func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *Diagnostic) {
 	var slotParts []string
 	for _, paramRef := range node.Parameters {
@@ -372,8 +360,7 @@ func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *
 	returnNode := ctx.deref(node.Return)
 	ctx.needs.useRT = true
 	if len(slotParts) == 0 {
-		// Zero params: an omitted `params` group spells `() => R` exactly, so
-		// the empty list never needs printing.
+		// An omitted `params` group spells `() => R` exactly, so an empty list never prints.
 		if returnNode != nil && returnNode.Kind == reflection.KindVoid {
 			return ctx.names.RT + ".func()", true, nil
 		}
@@ -390,10 +377,8 @@ func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *
 	return fmt.Sprintf("%s.func({params: [%s], ret: %s})", ctx.names.RT, strings.Join(slotParts, ", "), returnText), true, nil
 }
 
-// builderEscape spells a node as `getRunType<TypeText>()` on the builders
-// target — the escape for shapes with no value-first builder spelling
-// (functions, template literals, metadata intersections, generic class
-// instantiations). Type-argument resolution makes it id-exact by definition.
+// builderEscape spells a node as `getRunType<TypeText>()`, the escape for shapes with no
+// value-first builder spelling. Type-argument resolution makes it id-exact by definition.
 func (ctx *printContext) builderEscape(node *reflection.RunType) (string, *Diagnostic) {
 	escapeText, escapeDiag := ctx.escapeTypeText(node)
 	if escapeDiag != nil {
@@ -403,12 +388,10 @@ func (ctx *printContext) builderEscape(node *reflection.RunType) (string, *Diagn
 	return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, escapeText), nil
 }
 
-// recordKeyText spells the KEY argument of `record(key, value)` for an index
-// set: "" for the lone string key (record's implicit default, so the one-arg
-// form prints), a single key's builder otherwise, and a union of the keys when
-// a shape carries several signatures (`{[k: string]: V; [n: number]: V}` IS
-// `Record<string | number, V>`). Reports keyed=false when the signatures carry
-// DIFFERENT value types, which one `record` cannot say.
+// recordKeyText spells the KEY argument of `record(key, value)`: "" for the lone string key, which
+// is record's implicit default, a single key's builder otherwise, and a union when a shape carries
+// several signatures. keyed is false when the signatures carry DIFFERENT value types, which one
+// `record` cannot say.
 func (ctx *printContext) recordKeyText(indexes []indexSignature) (string, *Diagnostic, bool) {
 	for _, index := range indexes[1:] {
 		if index.value.ID != indexes[0].value.ID {
@@ -433,10 +416,8 @@ func (ctx *printContext) recordKeyText(indexes []indexSignature) (string, *Diagn
 	return fmt.Sprintf("%s.union([%s])", ctx.names.RT, strings.Join(sortArms(keyTexts), ", ")), nil, true
 }
 
-// collectionBuilder spells a Map / Set builder call, with the
-// formattedMap / formattedSet params bag (the collection keywords) as the trailing
-// argument when the node carries one (`RT.set(v, {maxItems: 10})`, `contains`
-// included), mirroring the array arm; a payload outside the public bag
+// collectionBuilder spells a Map / Set builder call, with the collection params bag as the trailing
+// argument when the node carries one, mirroring the array arm. A payload outside the public bag
 // escapes whole.
 func (ctx *printContext) collectionBuilder(node *reflection.RunType, builder, argsText string) (string, *Diagnostic) {
 	if !hasStructuralPayload(node) {

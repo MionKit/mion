@@ -1,45 +1,34 @@
 package diagnostics
 
-// Docs prose for the website diagnostics page, keyed by code. This is the
-// single Go-side source for the human-written explanation of each
-// diagnostic: a plain-language Summary of what triggers it and how to fix
-// it, an optional Fix snippet (the corrected code), and an Example (the
-// TypeScript source that actually triggers the code). The gen-diag-catalog
-// dump exports all three, so scripts/core/gen-diagnostics-catalog.mjs renders the page
-// without a second prose source.
+// Docs prose for the website diagnostics page, keyed by code: the plain-language Summary, an
+// optional Fix snippet and an Example that triggers the code. The gen-diag-catalog dump exports all
+// three, so scripts/core/gen-diagnostics-catalog.mjs renders the page without a second prose source.
 //
-// Example is not just docs. The standardized suite in
-// internal/compiler/resolver/diag_examples_test.go feeds every non-empty Example
-// through the real scan pipeline and asserts this code fires, so an example
-// can never drift from the diagnostic it demonstrates. Author an Example as
-// a complete file: the `mion` import, the type, and the marker call.
+// Example is not just docs: internal/compiler/resolver/diag_examples_test.go feeds every non-empty
+// Example through the real scan and asserts the code fires, so one cannot drift from what it
+// demonstrates. Author it as a complete file: the `mion` import, the type, and the marker call.
 //
-// Voice rules (these render on the website): plain language, no compiler
-// internals, no dashes chaining clauses. Backtick spans in Summary become
-// inline code; keep wider examples in Fix.
+// Voice rules (this renders on the website): plain language, no compiler internals, no dashes
+// chaining clauses. Backtick spans in Summary become inline code, wider examples go in Fix.
 //
-// Codes are filled as they are documented. A prose entry for a code that is
-// not registered panics at init (so prose can never reference a code that
-// does not exist); a registered code with no prose entry is fine, and the
-// generator reports the remaining gaps.
+// A prose entry for an unregistered code panics at init; a registered code with no prose entry is
+// fine, and the generator reports the remaining gaps.
 
 type prose struct {
 	Summary string
 	Fix     string
 	Example string
-	// NestedExample is Example with the trigger moved one object deeper. A
-	// ScopeGraph code that has an Example must have one (see Definition).
+	// NestedExample is Example with the trigger one object deeper; required for a ScopeGraph code
+	// that has an Example (see Definition).
 	NestedExample string
 }
 
 var proseByCode = map[string]prose{
 	// ─────────────────── expect-error directives (EXP) ───────────────────
 
-	// No Examples in this family. The example harness feeds a snippet through a
-	// single-FILE scan, but "did this comment silence anything" is only
-	// answerable against a whole program, so these codes are raised on the
-	// whole-program pass instead. They are covered by expecterror_test.go, which
-	// dispatches that pass directly.
+	// No Examples: the harness scans a single FILE, but "did this comment silence anything" is only
+	// answerable against a whole program, so these are raised on the whole-program pass and covered
+	// by expecterror_test.go.
 
 	CodeExpectErrorUnused: {
 		Summary: "A `@mion-expect-error` comment silenced nothing: the code it names was not reported on the line below it. The comment is checked the same way TypeScript checks `@ts-expect-error`, so a silencer can never outlive the problem it was added for. Delete the comment, or correct the code it names.",
@@ -57,9 +46,8 @@ var proseByCode = map[string]prose{
 
 	// ────────────────── downgrade-error directives (DWN) ──────────────────
 
-	// No Examples, same reason as the EXP family above: "did this comment do
-	// anything" is only answerable against a whole program, so these are raised
-	// on the whole-program pass and covered by downgradeerror_test.go.
+	// No Examples, same reason as the EXP family: only a whole program answers "did this comment do
+	// anything", so these are raised on that pass and covered by downgradeerror_test.go.
 
 	CodeDowngradeErrorUnused: {
 		Summary: "A `@mion-downgrade-error` comment lowered nothing: the code it names was not reported on the line below it. The comment is checked the same way `@mion-expect-error` is, so it can never outlive the problem it was added for. Delete the comment, or correct the code it names.",
@@ -83,16 +71,14 @@ var proseByCode = map[string]prose{
 	// ──────────────────────── project config (CFG) ────────────────────────
 
 	CodeTsconfigLoadFailed: {
-		// No Example: this code is raised by a broken tsconfig.json, not by
-		// TypeScript source, so the example harness (which scans source through
-		// a healthy config) cannot trigger it.
+		// No Example: the harness scans source through a healthy config, and this is raised by a
+		// broken tsconfig.json.
 		Summary: "The tsconfig.json your project named, or the one found next to it, is missing or does not parse. RunTypes reads types through that config, the same one your build uses, so the operation stops instead of guessing with defaults that could resolve your types differently. Fix the tsconfig, or point the tooling at the right file with the plugin or lint `tsconfig` setting, or the CLI `--tsconfig` flag.",
 	},
 
 	CodeUnsupportedLibSelection: {
-		// No Example: this code is raised by the project's `lib` setting, not by
-		// TypeScript source, so the example harness (which scans source through a
-		// healthy config) cannot trigger it.
+		// No Example: the harness scans source through a healthy config, and this is raised by the
+		// project's `lib` setting.
 		Summary: "Your tsconfig `lib` names no base ECMAScript edition, so TypeScript never declares `Array`, `Object`, `String` and the other core globals. Without them `number[]` resolves to an empty object and the generated validator would accept any value, with nothing to warn you. RunTypes stops instead. Name a base edition in `lib` (`[\"ES2022\"]`, or `[\"ES2022\", \"DOM\"]` for browser code), or remove `lib` and let `target` choose it.",
 		Fix:     `{"compilerOptions": {"lib": ["ES2022"]}}`,
 	},
@@ -113,9 +99,8 @@ export const isData = createValidateFn<Uint8Array>();`,
 export const isData = createValidateFn<symbol>();`,
 	},
 	CodeVLFunctionPropDropped: {
-		// No Example: a function-valued property on a plain object surfaces as
-		// VL011 (method drop). VL010 fires only when such a property is dropped
-		// inside a DataOnly union projection, which no minimal type reaches today.
+		// No Example: a function-valued property on a plain object surfaces as VL011, and VL010 fires
+		// only inside a DataOnly union projection, which no minimal type reaches today.
 		Summary: "A function-valued property carries no data, so it is left out of the validated shape. The surrounding data properties are still checked. Drop the property, or replace it with the data it would produce.",
 	},
 	CodeVLMethodDropped: {
@@ -138,8 +123,7 @@ interface App { config: Config }
 export const isApp = createValidateFn<App>();`,
 	},
 	CodeVLSymbolKeyedDropped: {
-		// No Example: the symbol-keyed drop slot is registered but not currently
-		// emitted by the compiler, so no snippet triggers it today.
+		// No Example: the symbol-keyed drop slot is registered but not emitted today.
 		Summary: "JSON has string keys only, so a symbol-keyed property has nowhere to land in the serialized form. Use a string key if the property is real data.",
 		Fix: `interface Item {
   id: string; // instead of [Symbol.for('id')]: string
@@ -182,8 +166,7 @@ export const errorsOf = createGetValidationErrorsFn<Uint8Array>();`,
 export const errorsOf = createGetValidationErrorsFn<symbol>();`,
 	},
 	CodeVEFunctionPropDropped: {
-		// No Example, same reason as VL010: a function-valued property on a plain
-		// object surfaces as VE011, not VE010.
+		// No Example, same reason as VL010: such a property surfaces as VE011.
 		Summary: "Same case as `VL010`, from `createGetValidationErrorsFn`. A function-valued property carries no data and is left out of the report.",
 	},
 	CodeVEMethodDropped: {
@@ -206,8 +189,7 @@ interface App { config: Config }
 export const errorsOf = createGetValidationErrorsFn<App>();`,
 	},
 	CodeVESymbolKeyedDropped: {
-		// No Example, same reason as VL013: the symbol-keyed drop slot is not
-		// currently emitted by the compiler.
+		// No Example, same reason as VL013: the slot is not emitted today.
 		Summary: "Same case as `VL013`, from `createGetValidationErrorsFn`. Symbol keys are not JSON-representable, so the property is left out.",
 	},
 	CodeVENonSerializablePropDrop: {
@@ -227,21 +209,20 @@ export const errorsOf = createGetValidationErrorsFn<unknown>();`,
 
 	// ─────────────────────── pure functions (PFE) ───────────────────────
 
-	// No Example: PFE9012 needs a compiled function to reach a pure fn whose
-	// registration is absent from the program. The built-in helpers register
-	// through the `mion` package itself, so no small type-only snippet
-	// reproduces the miss (the diag-example harness always has them present).
+	// No Example: PFE9012 needs a pure fn whose registration is absent from the program, and the
+	// built-ins register through the `mion` package itself, which the harness always has present.
 	CodeMissingPureFnDep: {
 		Summary: "A generated validator or encoder calls a helper (a pure function) that was never registered, so the built output would fail the moment it runs. This almost always means a source file that registers the helper with `registerPureFnFactory` is not part of the compile. Import the `mion` entry that provides it, or include the file that registers it, so the build can see the definition.",
 		Fix: `import {registerPureFnFactory} from '@mionjs/run-types/runtime';
 export const newRunTypeErr = registerPureFnFactory((utl) => (message) => new Error(message));`,
 	},
-	// No Example: PFE9016 needs an installed package with no compiled pure fn,
-	// which the diag-example harness (a single program) cannot stage.
+	// No Example: PFE9016 needs an installed package with no compiled pure fn, which the harness
+	// cannot stage.
 	CodePureFnDepUnbuilt: {
 		Summary: "A helper (a pure function) imported from another package cannot be built because that package ships neither its compiled pure functions nor its sources. Build the package with mion and publish its output directory, or publish its sources.",
 	},
-	// No Example: PFE9017 and PFE9018 need an installed package with a `mion-pure-fns/`, which the harness cannot stage.
+	// No Example: PFE9017 and PFE9018 need an installed package with a `mion-pure-fns/`, which the
+	// harness cannot stage.
 	CodePureFnArtifactUnreadable: {
 		Summary: "A file in an installed package's `mion-pure-fns/` directory cannot be read: the index was written by a newer mion, or a listed module is missing or broken. The file is skipped, so the package's helpers (pure functions) may look missing. Update the compiler, or rebuild that package with the version you use.",
 	},
@@ -294,8 +275,8 @@ export const id = getRunTypeId<{payload: Payload}>();`,
 	},
 
 	CodeTypeIdCollision: {
-		// No Example: the trigger is two types whose shapes happen to hash to the
-		// same seven characters, which no short snippet can arrange.
+		// No Example: the trigger is two shapes hashing to the same seven characters, which no short
+		// snippet can arrange.
 		Summary: "Every type gets a short id hashed from its shape, and that id names the generated functions, the cache keys and the files on disk. Two types landed on the same id, so nothing after this point could tell them apart, and the build stops. Type ids are always exactly `hashLength` characters, so the fix is to give them more room: raise `hashLength` by one (each extra character is sixty-two times the space). The error names both types and the call site that took the id first.",
 		Fix:     `{"compilerOptions": {"plugins": [{"name": "mion", "hashLength": 8}]}}`,
 	},
@@ -325,10 +306,8 @@ export const outer: Outer = {inner: {ok: 1, __proto__: 'x'}};`,
 	},
 }
 
-// init folds the prose onto the registered Definitions. It runs after the
-// codes_*.go init functions (Go runs a package's init functions in lexical
-// file-name order, and "prose.go" sorts after every "codes_*.go"), so every
-// Definition the prose references already exists.
+// init folds the prose onto the registered Definitions, and runs after the codes_*.go init
+// functions because Go runs them in lexical file-name order and "prose.go" sorts after "codes_*.go".
 func init() {
 	for code, text := range proseByCode {
 		definition, ok := Definitions[code]

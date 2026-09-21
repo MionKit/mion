@@ -1,9 +1,9 @@
-// printtype.go — the TYPE-FIRST printer: a reflection RunType node to the
-// plain TypeScript type spelling. `typeExpr` is the entry (reference/self
-// checks, the cycle guard, the metadata intersection), `typeExprCore` the
-// kind dispatch. The other two targets' escapes render their embedded type
-// text through this printer (print.go's escapeTypeText).
 package convert
+
+// printtype.go is the TYPE-FIRST printer: a reflection RunType node to plain TypeScript type text.
+// `typeExpr` is the entry, holding the reference / self checks, the cycle guard and the metadata
+// intersection, and `typeExprCore` the kind dispatch. The builders target renders its embedded
+// escape text through this printer too (print.go's escapeTypeText).
 
 import (
 	"fmt"
@@ -13,9 +13,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// temporalBrandText renders the TFT brand spelling for a temporal family
-// annotation (`TFT.PlainDate<{min: '2020-01-01'}>`); paramless spellings are
-// the bare alias.
+// temporalBrandText renders a temporal annotation's TFT brand spelling; a paramless one is the bare
+// alias.
 func (ctx *printContext) temporalBrandText(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
 	ctx.needs.useTFT = true
 	if len(annotation.Params) == 0 {
@@ -28,17 +27,13 @@ func (ctx *printContext) temporalBrandText(annotation *reflection.FormatAnnotati
 	return fmt.Sprintf("%s.%s<%s>", ctx.names.TFT, family.TypeAlias, paramsText), true
 }
 
-// recordAliasWouldCycle reports whether printing an index signature as the
-// mapped alias `Record<string, V>` would make the declaration circularly
-// reference itself (TS2456).
+// recordAliasWouldCycle reports whether printing an index signature as the mapped alias
+// `Record<string, V>` would make the declaration circularly reference itself (TS2456).
 //
-// TypeScript resolves an alias body eagerly through its own union arms and
-// through the type ARGUMENTS of another alias, so `type Idx = Record<string,
-// Idx>` and `type Both = Record<string, Both> | number` are both rejected,
-// while every deferred position is fine (`{v: Record<string, X>}`,
-// `Record<string, X[]>`, `[Record<string, X>]`). The index-signature literal
-// `{[key: string]: V}` defers like an ordinary member and is always legal, so
-// it is what gets printed whenever the alias spelling would not compile.
+// TypeScript resolves an alias body eagerly through its own union arms and through another alias's
+// type ARGUMENTS, so `type Idx = Record<string, Idx>` is rejected while every deferred position is
+// fine. The index-signature literal defers like an ordinary member and is always legal, so it is
+// printed whenever the alias spelling would not compile.
 func (ctx *printContext) recordAliasWouldCycle(value *reflection.RunType) bool {
 	seen := map[string]bool{}
 	var walk func(node *reflection.RunType) bool
@@ -63,8 +58,8 @@ func (ctx *printContext) recordAliasWouldCycle(value *reflection.RunType) bool {
 		if found || node.Kind != reflection.KindObjectLiteral {
 			return found
 		}
-		// A nested record's VALUE is another `Record<>` type argument, so it
-		// stays eager; every other object member defers.
+		// A nested record's VALUE is another `Record<>` type argument and stays eager; every other
+		// object member defers.
 		members, indexes, diag := ctx.objectMembers(node)
 		if diag != nil || len(indexes) != 1 || !plainStringIndex(members, indexes) {
 			return false
@@ -74,9 +69,8 @@ func (ctx *printContext) recordAliasWouldCycle(value *reflection.RunType) bool {
 	return walk(value)
 }
 
-// typeExpr renders the type-first spelling of a node: reference/self checks,
-// the cycle guard, then the user-metadata intersection (`base & {…}`) around
-// the core kind spelling.
+// typeExpr renders a node's type-first spelling: reference and self checks, the cycle guard, then
+// the user-metadata intersection around the core kind spelling.
 func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic) {
 	node = ctx.deref(node)
 	if node == nil {
@@ -93,16 +87,14 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	if len(node.TypeMeta) == 0 {
 		return ctx.typeExprCore(node)
 	}
-	// TypeMeta — the open user-metadata objects a collapsed
-	// `base & {…}` intersection carried. The type target restores the
-	// intersection spelling; re-resolving collapses it back to the same
-	// base + metadata pair.
+	// TypeMeta holds the open user-metadata objects a collapsed `base & {…}` intersection carried.
+	// The type target restores the intersection spelling, and re-resolving collapses it back.
 	baseText, baseDiag := ctx.typeExprCore(node)
 	if baseDiag != nil {
 		return "", baseDiag
 	}
-	// A union base binds looser than `&`; an arrow base would swallow the
-	// intersection into its return type.
+	// A union base binds looser than `&`, and an arrow base would swallow the intersection into its
+	// return type.
 	if node.Kind == reflection.KindUnion || node.Kind == reflection.KindFunction {
 		baseText = "(" + baseText + ")"
 	}
@@ -121,8 +113,8 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	return strings.Join(parts, " & "), nil
 }
 
-// typeSuffixNeedsParens marks spellings that bind looser than a postfix
-// `[]` / `?`: unions, metadata intersections and arrow types.
+// typeSuffixNeedsParens marks spellings binding looser than a postfix `[]` / `?`: unions, metadata
+// intersections and arrow types.
 func typeSuffixNeedsParens(node *reflection.RunType) bool {
 	if node == nil {
 		return false
@@ -133,8 +125,8 @@ func typeSuffixNeedsParens(node *reflection.RunType) bool {
 	return node.Kind == reflection.KindUnion || node.Kind == reflection.KindFunction
 }
 
-// wrapForSuffix parenthesizes text when the node's spelling would misparse
-// under a following suffix — unless it printed as a plain name (a reference).
+// wrapForSuffix parenthesizes text that would misparse under a following suffix, unless it printed
+// as a plain name.
 func wrapForSuffix(node *reflection.RunType, text string) string {
 	if !typeSuffixNeedsParens(node) || isIdentifierText(text) {
 		return text
@@ -156,8 +148,7 @@ func isIdentifierText(text string) bool {
 	return true
 }
 
-// typeExprCore is the kind dispatch behind typeExpr (negations, format
-// annotations, then the kind switch), without the reference/cycle/meta layer.
+// typeExprCore is the kind dispatch behind typeExpr, without the reference / cycle / meta layer.
 func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagnostic) {
 	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
 		family, params, known := leafFormat(annotation)
@@ -272,9 +263,8 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			return ctx.collectionSpelling(node, fmt.Sprintf("Set<%s>", itemText), "FormattedSet")
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(node.SubKind); ok {
-			// The registry's Builtin is the qualified global spelling
-			// (`Temporal.Instant`) — in scope whenever the lib is loaded,
-			// which the CNV007 guard has already established.
+			// The registry's Builtin is the qualified global spelling, in scope whenever the lib is
+			// loaded, which the CNV007 guard already established.
 			return info.Builtin, nil
 		}
 		if isRegExpNode(node) {
@@ -293,8 +283,8 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			if diag != nil {
 				return "", diag
 			}
-			// An arrow type as a union arm must parenthesize (parse error
-			// otherwise); metadata intersections are fine under `|`.
+			// An arrow type as a union arm must parenthesize or it is a parse error; a metadata
+			// intersection is fine under `|`.
 			if armNode != nil && armNode.Kind == reflection.KindFunction && !isIdentifierText(armText) {
 				armText = "(" + armText + ")"
 			}
@@ -308,18 +298,16 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		}
 		var baseText string
 		if len(indexes) > 0 && !plainStringIndex(members, indexes) {
-			// A non-string key, several signatures, or an index beside named
-			// members: the object-literal form spells all of them, and it is
-			// what the builders / schema escapes embed as their type text.
+			// The object-literal form spells a non-string key, several signatures and an index beside
+			// named members alike, and is what the builders escape embeds as its type text.
 			literalText, literalDiag := ctx.objectLiteralText(members, indexes)
 			if literalDiag != nil {
 				return "", literalDiag
 			}
 			baseText = literalText
 		} else if len(indexes) > 0 && ctx.recordAliasWouldCycle(indexes[0].value) {
-			// `Record<>` is a mapped ALIAS: TypeScript resolves its argument
-			// while resolving the declaration, so a value that reaches back
-			// here is TS2456. The literal spelling defers and is legal.
+			// `Record<>` is a mapped ALIAS whose argument resolves while the declaration does, so a
+			// value reaching back here is TS2456; the literal spelling defers and is legal.
 			literalText, literalDiag := ctx.objectLiteralText(members, indexes)
 			if literalDiag != nil {
 				return "", literalDiag
@@ -372,8 +360,8 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 					isRest = true
 				}
 			}
-			// Unions, metadata intersections and arrows bind looser than the
-			// `?` suffix and the rest `[]` — parenthesize to keep the meaning.
+			// Unions, metadata intersections and arrows bind looser than the `?` suffix and the rest
+			// `[]`, so they parenthesize to keep their meaning.
 			if isRest || member.Optional {
 				innerText = wrapForSuffix(inner, innerText)
 			}
@@ -413,9 +401,8 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 	return "", unsupportedDiag(node, ctx.decl)
 }
 
-// functionTypeText renders a function node as an arrow type, parameter
-// names included — they fold into the structural id, so the printed labels
-// are the reflected ones.
+// functionTypeText renders a function node as an arrow type with its parameter names, which fold
+// into the structural id, so the printed labels are the reflected ones.
 func (ctx *printContext) functionTypeText(node *reflection.RunType) (string, *Diagnostic) {
 	paramsText, paramsDiag := ctx.parameterListText(node)
 	if paramsDiag != nil {
@@ -441,9 +428,8 @@ func (ctx *printContext) parameterListText(node *reflection.RunType) (string, *D
 			return "", unsupportedDiag(node, ctx.decl)
 		}
 		if param.DefaultVal != nil || hasFlag(param, "nonLiteralDefault") {
-			// Parameter defaults (a `typeof fn` type over a real function)
-			// carry reflection information no printed form spells — refuse
-			// rather than drop it.
+			// A parameter default carries reflection information no printed form spells, so it
+			// refuses rather than drops it.
 			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("parameter %q carries a default value, which has no conversion spelling yet", param.Name)}
 		}
@@ -474,8 +460,7 @@ func (ctx *printContext) parameterListText(node *reflection.RunType) (string, *D
 	return strings.Join(parts, ", "), nil
 }
 
-// templateLiteralText reconstructs the backtick spelling from the reflected
-// texts + placeholder spans.
+// templateLiteralText reconstructs the backtick spelling from the reflected texts and spans.
 func (ctx *printContext) templateLiteralText(node *reflection.RunType) (string, bool) {
 	payload, ok := node.Literal.(map[string]any)
 	if !ok {
@@ -547,24 +532,22 @@ func templateSpanText(span map[string]any) (string, bool) {
 	return "", false
 }
 
-// escapeTemplateText escapes a literal segment for a backtick template. A
-// raw CR must be escaped: the TS scanner normalizes CR/CRLF to LF in cooked
-// template text, so printing it raw would silently change the literal.
+// escapeTemplateText escapes a literal segment for a backtick template. A raw CR must be escaped:
+// the TS scanner normalizes CR / CRLF to LF in cooked template text, silently changing the literal.
 func escapeTemplateText(text string) string {
 	replacer := strings.NewReplacer("\\", "\\\\", "`", "\\`", "${", "\\${", "\r", "\\r")
 	return replacer.Replace(text)
 }
 
-// objectLiteralText renders an object shape as a TypeScript object literal:
-// its named members, then one `[key: K]: V` clause per index signature. The
-// type target prints it directly, and it is also what the builders /
-// json-schema escapes embed when their own form has no word for the shape.
+// objectLiteralText renders an object shape as a TypeScript object literal: its named members, then
+// one `[key: K]: V` clause per index signature. The type target prints it directly, and the builders
+// escape embeds it when its own form has no word for the shape.
 func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []indexSignature) (string, *Diagnostic) {
 	var parts []string
 	for _, member := range members {
 		if member.signatureNode != nil {
-			// Method / call-signature members keep their signature syntax — a
-			// property-typed arrow would be a different member kind (and id).
+			// A method or call-signature member keeps its signature syntax: a property-typed arrow
+			// would be a different member kind, and id.
 			paramsText, paramsDiag := ctx.parameterListText(member.signatureNode)
 			if paramsDiag != nil {
 				return "", paramsDiag
@@ -585,8 +568,8 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 			case member.callSignature:
 				parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
 			case member.readonly:
-				// Method syntax cannot spell `readonly` — the property-arrow
-				// form reflects back identically.
+				// Method syntax cannot spell `readonly`, and the property-arrow form reflects back
+				// identically.
 				parts = append(parts, fmt.Sprintf("readonly %s%s: (%s) => %s", member.key, optionalMark, paramsText, returnText))
 			default:
 				parts = append(parts, fmt.Sprintf("%s%s(%s): %s", member.key, optionalMark, paramsText, returnText))
@@ -616,25 +599,21 @@ func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []in
 		if valueDiag != nil {
 			return "", valueDiag
 		}
-		// The parameter NAME is not part of the type's identity; `key` keeps
-		// the output stable and readable.
+		// The parameter NAME is not part of the type's identity, so `key` keeps the output stable.
 		parts = append(parts, fmt.Sprintf("[key: %s]: %s", keyText, valueText))
 	}
 	return "{" + strings.Join(parts, "; ") + "}", nil
 }
 
-// plainStringIndex reports the shape the value-first `record(...)` and the
-// schema's `additionalProperties` can both say directly: exactly one index
-// signature, string-keyed, with no named members beside it.
+// plainStringIndex reports the shape the value-first `record(...)` can say directly: exactly one
+// string-keyed index signature with no named members beside it.
 func plainStringIndex(members []*objectMember, indexes []indexSignature) bool {
 	return len(indexes) == 1 && len(members) == 0 && indexes[0].key.Kind == reflection.KindString
 }
 
-// collectionSpelling wraps a Map / Set spelling in its structural wrapper
-// (`TF.FormattedSet<Set<T>, {maxItems: 10}>`) when the node carries the
-// formattedSet / formattedMap annotation or a contains slot, exactly as the
-// array arm does with FormattedArray; a payload outside the public params bag
-// takes the raw brand.
+// collectionSpelling wraps a Map / Set spelling in its structural wrapper when the node carries the
+// formattedSet / formattedMap annotation or a contains slot, as the array arm does with
+// FormattedArray. A payload outside the public params bag takes the raw brand.
 func (ctx *printContext) collectionSpelling(node *reflection.RunType, baseText, wrapper string) (string, *Diagnostic) {
 	if !hasStructuralPayload(node) {
 		return baseText, nil

@@ -11,8 +11,7 @@ package diagnostics
 // mirroring prose.go.
 //
 // Wording standard (same as the docs prose):
-//  1. Use the user's TypeScript vocabulary (property names, identifiers,
-//     imported helpers), no compiler internals.
+//  1. Use the user's TypeScript vocabulary, no compiler internals.
 //  2. State the user-visible consequence, not what the compiler did.
 //  3. End the Detail with the fix as concrete code where possible.
 //  4. Headline first; Detail carries the explanation + example.
@@ -687,11 +686,9 @@ var messagesByCode = map[string]message{
 
 	// ─────────── FriendlyText mirror files (FTxxx) ───────────
 	//
-	// Since the per-family mirror split, a source type enriches into TWO
-	// generated files: a FriendlyText mirror (labels + error messages, plus
-	// its per-locale translation twins) and a MockData mirror. FT codes fire
-	// in the FriendlyText file, MD codes in the MockData file; the shared
-	// gen/prune/update commands regenerate both.
+	// A source type enriches into TWO generated files: a FriendlyText mirror (labels + error
+	// messages, plus its per-locale twins) and a MockData mirror. FT codes fire in the first, MD
+	// codes in the second, and the shared gen/prune/update commands regenerate both.
 
 	CodeFriendlyUnknownField: {
 		Headline: "Unknown field `{0}`: the type does not declare it, so this FriendlyText entry is dead.",

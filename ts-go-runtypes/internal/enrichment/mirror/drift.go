@@ -13,22 +13,15 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
-// drift.go is the shared core of the breadcrumb-drift checks (the CLI `check`
-// verb and the resolver's checkEnrich pass): does the mirror file's source
-// breadcrumb still resolve (GE002), and does the source still declare every
-// imported type (GE003)? GE001 (mirror LOCATION drift) needs the project's
-// genDir config, so it stays with the CLI in cmd/mion.
+// drift.go is the shared core of the breadcrumb-drift checks, both the CLI check lane and the resolver's checkEnrich pass:
+// does the mirror's source breadcrumb still resolve (GE002), and does that source still declare every imported type (GE003)?
+// GE001, mirror LOCATION drift, needs the project's genDir config and so stays with the CLI in cmd/mion.
 
-// breadcrumbPattern matches a mirror file's source breadcrumb:
-// `import type { A, B } from '<spec>'`. Group 1 is the comma-separated type
-// names, group 2 the module specifier. It is intentionally line-oriented and
-// tolerant — only the FIRST such line (the source breadcrumb) is read; the
-// mion DSL import and any cross-file value imports are ignored.
+// breadcrumbPattern matches a mirror's source breadcrumb, group 1 the type names and group 2 the module specifier.
+// It is deliberately line-oriented and tolerant; only the first such line is read, the DSL and value imports are ignored.
 var breadcrumbPattern = regexp.MustCompile(`(?m)^import\s+type\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]`)
 
-// Breadcrumb is a mirror file's parsed source link: the imported type names,
-// the module specifier, and the byte range of the import statement match
-// (for diagnostics that anchor to the breadcrumb line).
+// Breadcrumb is a mirror's parsed source link; the byte range is there for a diagnostic anchored to the breadcrumb line.
 type Breadcrumb struct {
 	TypeNames []string
 	Spec      string
@@ -36,10 +29,8 @@ type Breadcrumb struct {
 	End       int
 }
 
-// DriftFinding is one breadcrumb-drift issue, file-anchored. Code is a
-// FamilyEnrich diag code (GE002/GE003); Args are the catalog substitution
-// values; Message is the pre-rendered CLI text. Start/End are byte offsets of
-// the breadcrumb import in the mirror text.
+// DriftFinding is one breadcrumb-drift issue: a FamilyEnrich code, its catalog substitutions, the pre-rendered CLI text,
+// and the byte offsets of the breadcrumb import in the mirror.
 type DriftFinding struct {
 	Code    string
 	Args    []string
@@ -48,11 +39,7 @@ type DriftFinding struct {
 	End     int
 }
 
-// ParseBreadcrumb extracts the source breadcrumb from a mirror file's
-// contents. The mion DSL import (`import type { FriendlyText, MockData }
-// from '@mionjs/run-types'`) is skipped so the SOURCE breadcrumb is the one
-// returned. ok=false when no source breadcrumb is present (not a generated
-// mirror, or no source link to check).
+// ParseBreadcrumb returns a mirror's SOURCE breadcrumb, skipping the DSL import; ok is false when there is no source link.
 func ParseBreadcrumb(contents string) (Breadcrumb, bool) {
 	for _, match := range breadcrumbPattern.FindAllStringSubmatchIndex(contents, -1) {
 		spec := strings.TrimSpace(contents[match[4]:match[5]])
@@ -68,8 +55,7 @@ func ParseBreadcrumb(contents string) (Breadcrumb, bool) {
 	return Breadcrumb{}, false
 }
 
-// SplitImportNames parses the `{ A, B as C }` body of an import clause into
-// the imported type names (the original name before any `as` alias).
+// SplitImportNames parses an import clause body into the imported names, the original name before any `as` alias.
 func SplitImportNames(clause string) []string {
 	var names []string
 	for _, part := range strings.Split(clause, ",") {
@@ -77,7 +63,7 @@ func SplitImportNames(clause string) []string {
 		if name == "" {
 			continue
 		}
-		// `Original as Alias` — the source declares the Original name.
+		// The source declares the Original name of an `Original as Alias`.
 		if idx := strings.Index(name, " as "); idx >= 0 {
 			name = strings.TrimSpace(name[:idx])
 		}
@@ -88,12 +74,8 @@ func SplitImportNames(clause string) []string {
 	return names
 }
 
-// CheckBreadcrumbDrift resolves contents' source breadcrumb relative to
-// mirrorFile and returns the GE002 (source deleted) / GE003 (type no longer
-// declared) findings. Sources are looked up through fs when given (the
-// resolver passes its Program's overlay FS so unsaved/virtual sources
-// resolve); a nil fs falls back to the real disk (the CLI case). A mirror
-// with no breadcrumb yields nothing.
+// CheckBreadcrumbDrift returns the GE002 (source deleted) and GE003 (type no longer declared) findings for one mirror.
+// Sources are looked up through fs, the resolver's overlay FS so an unsaved source resolves; a nil fs means real disk.
 func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFinding {
 	breadcrumb, ok := ParseBreadcrumb(contents)
 	if !ok {
@@ -101,7 +83,7 @@ func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFind
 	}
 	resolvedSource := resolveBreadcrumbFS(fs, mirrorFile, breadcrumb.Spec)
 
-	// GE002 — the source no longer exists (deleted → orphaned mirror).
+	// GE002: the source no longer exists, leaving an orphaned mirror.
 	if !fsFileExists(fs, resolvedSource) {
 		return []DriftFinding{{
 			Code:    diagnostics.CodeGenSourceMissing,
@@ -112,11 +94,11 @@ func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFind
 		}}
 	}
 
-	// GE003 — the source exists but no longer declares an imported type.
+	// GE003: the source exists but no longer declares an imported type.
 	var findings []DriftFinding
 	sourceText, readOK := fsReadFile(fs, resolvedSource)
 	if !readOK {
-		return findings // unreadable source — conservatively report nothing
+		return findings // an unreadable source conservatively reports nothing
 	}
 	for _, typeName := range breadcrumb.TypeNames {
 		if SourceDeclaresType(sourceText, typeName) {
@@ -133,8 +115,7 @@ func CheckBreadcrumbDrift(mirrorFile, contents string, fs vfspkg.FS) []DriftFind
 	return findings
 }
 
-// fsFileExists probes a path through fs, falling back to the real disk when
-// fs is nil. Directories don't count — a breadcrumb must resolve to a file.
+// fsFileExists probes a path through fs, real disk when nil; a directory does not count, a breadcrumb must be a file.
 func fsFileExists(fs vfspkg.FS, path string) bool {
 	if fs != nil {
 		return fs.FileExists(path)
@@ -143,8 +124,7 @@ func fsFileExists(fs vfspkg.FS, path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// fsReadFile reads a path through fs, falling back to the real disk when fs
-// is nil.
+// fsReadFile reads a path through fs, falling back to the real disk when fs is nil.
 func fsReadFile(fs vfspkg.FS, path string) (string, bool) {
 	if fs != nil {
 		return fs.ReadFile(path)
@@ -156,11 +136,8 @@ func fsReadFile(fs vfspkg.FS, path string) (string, bool) {
 	return string(data), true
 }
 
-// resolveBreadcrumbFS is ResolveBreadcrumb with the existence probes routed
-// through fs (nil = real disk): resolve spec relative to the mirror file,
-// preferring the .ts candidate, then .d.ts, returning the .ts candidate when
-// neither exists (so GE002 reports a concrete path). A specifier that already
-// carries its extension resolves as written.
+// resolveBreadcrumbFS is ResolveBreadcrumb with the existence probes routed through fs, preferring .ts then .d.ts.
+// With neither present it returns the .ts candidate, so GE002 reports a concrete path.
 func resolveBreadcrumbFS(fs vfspkg.FS, mirrorFile, spec string) string {
 	if fs == nil {
 		return ResolveBreadcrumb(mirrorFile, spec)
@@ -180,9 +157,7 @@ func resolveBreadcrumbFS(fs vfspkg.FS, mirrorFile, spec string) string {
 	return tsCandidate
 }
 
-// EnrichSeverity maps a FamilyEnrich diag code to the enrichment.Severity the
-// CLI reports (and exits on). Severity ownership stays with the diag catalog;
-// this is the read-side bridge for the text/JSON reports.
+// EnrichSeverity maps a diag code to the enrichment.Severity the CLI exits on; the catalog still owns the severity.
 func EnrichSeverity(code string) enrichment.Severity {
 	switch diagnostics.Definitions[code].Severity {
 	case diagnostics.SeverityError:

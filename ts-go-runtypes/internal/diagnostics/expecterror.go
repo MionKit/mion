@@ -10,11 +10,9 @@ import "strings"
 // the halt, for a finding that is true and worth seeing. Either reaches one line or, at file scope,
 // the whole file (see DirectiveScope).
 
-// DirectiveMarker is the word a suppression comment starts with, and
-// DowngradeDirectiveMarker its downgrading sibling. Either comment must be the
-// first thing on its own line; a trailing comment after code is deliberately not
-// a directive, so there is never a question of whether it applies to the line it
-// sits on or the next one.
+// DirectiveMarker is the word a suppression comment starts with, and DowngradeDirectiveMarker its
+// downgrading sibling. Either must be the first thing on its own line: a trailing comment after code
+// is deliberately not a directive, so it is never in doubt which line it applies to.
 const (
 	DirectiveMarker          = "@mion-expect-error"
 	DowngradeDirectiveMarker = "@mion-downgrade-error"
@@ -80,31 +78,19 @@ var notSuppressible = map[string]bool{
 	CodeDowngradeErrorAlreadyWarning:   true,
 }
 
-// Downgradeable reports whether a directive is allowed to lower code to a
-// warning. Only a LevelRuntimeError is: output exists, so printing it and
-// carrying on is a legitimate choice.
-//
-// A LevelError never is, the same rule `downgradeErrors` applies — the build
-// produced no code for the thing, so not halting would only ship a call that
-// throws anyway. A LevelWarning is already a warning, so the directive would do
-// nothing. An unrecognised code is not downgradeable either. The caller reports
-// each of those three as its own DWN code, because the fix differs.
+// Downgradeable reports whether a directive may lower code to a warning. Only a LevelRuntimeError
+// is: output exists, so printing it and carrying on is legitimate. A LevelError never is (no code
+// was produced), a LevelWarning already is one, and an unrecognised code is not either. The caller
+// reports each of those three as its own DWN code, because the fix differs.
 func Downgradeable(code string) bool {
 	definition, registered := Definitions[code]
 	return registered && definition.Level == LevelRuntimeError
 }
 
-// Suppressible reports whether a directive is allowed to silence code.
-//
-// A LevelError code never is: it means the build cannot produce output at all,
-// so continuing would ship missing output rather than merely risky output. That
-// is the same rule the bundler plugin applies when it halts on LevelError
-// regardless of how findings are otherwise configured. A LevelRuntimeError IS
-// suppressible: output exists, and the author may have written the bad type on
-// purpose (a test suite that checks what a broken validator does at runtime).
-//
-// An unrecognised code is not suppressible either, but the caller reports that
-// as EXP003 (a typo) rather than EXP002.
+// Suppressible reports whether a directive may silence code. A LevelError never is: continuing would
+// ship missing output rather than merely risky output, the same rule the bundler plugin halts on. A
+// LevelRuntimeError is, since output exists and the author may have written the bad type on purpose.
+// An unrecognised code is not either, but the caller reports that as EXP003 rather than EXP002.
 func Suppressible(code string) bool {
 	definition, registered := Definitions[code]
 	if !registered {
@@ -116,21 +102,13 @@ func Suppressible(code string) bool {
 	return !notSuppressible[code]
 }
 
-// ApplyDirectives applies every directive and returns the survivors, followed by
-// the EXP / DWN diagnostics the directives themselves earned. An expect
-// directive removes the finding it claims; a downgrade directive keeps it and
-// marks it Downgraded. Order among survivors is preserved.
+// ApplyDirectives applies every directive and returns the survivors, in order, followed by the EXP /
+// DWN diagnostics the directives themselves earned. A directive that named a bad code does NOT also
+// report its unused code: the user has one problem to fix, not two.
 //
-// A directive that named a bad code does NOT additionally report its unused
-// code: the user has one problem to fix, not two.
-//
-// normalize puts both sides' file paths in one spelling before they are
-// compared. Diagnostic sites echo the CALLER's spelling of a file while a
-// directive is found through the program's resolved path, so without it a
-// relative request would never match. Pass nil to compare paths verbatim.
-//
-// scope says what the calling pass could actually report, which is what keeps
-// the EXP codes from firing on a question this pass cannot answer. See PassScope.
+// normalize puts both sides' paths in one spelling, since a diagnostic site echoes the CALLER's
+// spelling while a directive is found through the program's resolved path; nil compares verbatim.
+// scope keeps the EXP codes from firing on a question this pass cannot answer, see PassScope.
 func ApplyDirectives(list []Diagnostic, directives []Directive, normalize func(string) string, scope PassScope) []Diagnostic {
 	if len(directives) == 0 {
 		return list
@@ -242,24 +220,17 @@ func (directive Directive) unusedCode() string {
 	return CodeExpectErrorUnused
 }
 
-// PassScope says what the pass that produced a diagnostic list could report, so
-// a check only runs where its answer is real.
+// PassScope says what the pass that produced a diagnostic list could report, so a check only runs
+// where its answer is real. Two things vary per pass:
 //
-// Two things vary per pass and both used to be assumed:
+//   - WHICH FILES it looked at. A directive in a file this pass never read was given no chance to
+//     silence anything and must not be judged.
+//   - WHICH FAMILIES it could raise. Enrichment and mion-route are opt-in per request and the
+//     whole-program build pass never asks for them, so judging a `@mion-expect-error MRT002` there
+//     would demand deleting a comment the editor's lint pass needs.
 //
-//   - WHICH FILES it looked at. A per-file lint pass holds one file's findings,
-//     so a directive in some other file has not been given a chance to silence
-//     anything and must not be judged.
-//   - WHICH FAMILIES it could raise. The enrichment and mion-route families are
-//     opt-in per request, and the whole-program build pass never asks for them.
-//     Judging a `@mion-expect-error MRT002` there reported it unused while the
-//     editor's lint pass silenced it correctly, so the build demanded the
-//     deletion of a comment the editor needed.
-//
-// The malformed-directive checks (EXP002 / EXP003) read the comment text alone,
-// so they need only Files. EXP001 additionally needs Families, because "this
-// silenced nothing" is only true if the pass could have raised the thing it
-// names.
+// EXP002 / EXP003 read the comment text alone and need only Files; EXP001 also needs Families,
+// because "this silenced nothing" holds only if the pass could raise what the directive names.
 type PassScope struct {
 	// Reports turns the EXP codes on. A pass that is only rewriting source
 	// leaves it false and silences without judging.

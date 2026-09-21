@@ -14,36 +14,20 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Resolved is the result of resolving a named type in a file: the canonical
-// top-level RunType node plus the cache lookup the enrichment walkers use to
-// follow KindRef sentinels (child slots ride as `{kind:-1, id}` refs).
+// Resolved is a named type's canonical top-level RunType plus the lookup the walkers follow its `{kind:-1, id}` refs with.
 type Resolved struct {
 	// Node is the canonical full RunType for the named type (not a ref).
 	Node *reflection.RunType
-	// Resolve looks up a KindRef's canonical node by id — pass this as the
-	// skeleton / closure emitters' resolve arg.
+	// Resolve looks up a KindRef's canonical node by id, the skeleton / closure emitters' resolve arg.
 	Resolve func(id string) *reflection.RunType
-	// DeclFiles maps a named type's RunType.ID to the absolute path of its
-	// declaration source file (followed through re-exports/aliases to the
-	// original). Populated by ResolveTypeRaw (the closure path needs it to split
-	// the mirror tree cross-file); ResolveType leaves it nil. A type whose decl
-	// file could not be determined is simply absent.
+	// DeclFiles maps a named type's ID to its declaration file, followed through re-exports; an undetermined type is absent.
+	// Only ResolveTypeRaw populates it, the closure path needing it to split the mirror tree cross-file.
 	DeclFiles map[string]string
 }
 
-// ResolveType is the out-of-band resolution bridge: given an already-built
-// Program plus the resolver's checker + runtype cache and an absolute source
-// path, it finds the type alias / interface / class declaration named
-// typeName, asks the checker for its declared type, and projects it through
-// the cache to a canonical *reflection.RunType. The returned Resolve closure
-// (cache.NodeByID) lets the emit walkers follow ref sentinels in the
-// child slots.
-//
-// Callers pass the resolver's OWN checker + cache (res.Checker() /
-// res.Cache()) so projected child ids resolve; the parameters stay primitive
-// so this package never imports the resolver (which imports this package for
-// its checkEnrich pass). It never touches the marker scan or the vite render
-// path.
+// ResolveType finds the declaration named typeName in absPath and projects its declared type to a canonical RunType.
+// Callers pass the resolver's OWN checker and cache so projected child ids resolve; the parameters stay primitive
+// so this package never imports the resolver, which imports this one for its checkEnrich pass.
 func ResolveType(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, absPath, typeName string) (*Resolved, error) {
 	if prog == nil {
 		return nil, fmt.Errorf("enrich.ResolveType: program is nil")
@@ -80,24 +64,15 @@ func ResolveType(prog *program.Program, typeChecker *checker.Checker, cache *run
 	return resolved, nil
 }
 
-// collisionError renders a type-id collision for this lane. The enrichment
-// bridge runs its own cache, outside the resolver that turns a collision into
-// MKR014, so it reports one itself rather than writing mirror files keyed by an
-// id two types share.
+// collisionError reports a type-id collision this lane's own cache found, outside the resolver that turns one into MKR014.
+// Without it the mirror files would be keyed by an id two types share.
 func collisionError(prefix string, collision *runtype.HashCollision) error {
 	return fmt.Errorf("%s: two types get the same id %q at hashLength %d (%q and %q); raise hashLength to %d",
 		prefix, collision.Hash, collision.Length, collision.Owner, collision.Structural, collision.Length+1)
 }
 
-// ResolveTypeRaw is the named-type-closure resolution bridge: like ResolveType,
-// but it returns the RAW (non-inlined) projected node. The raw graph keeps every
-// `{kind:-1, id}` ref sentinel intact, so the closure emitter can tell a
-// named-type reference (a ref whose resolved target carries TypeName != "") from
-// an anonymous inline shape. The returned Resolve closure (cache.NodeByID) is how
-// the emitter follows those refs.
-//
-// Use this for EmitClosure (multi-const, references between named types); the
-// single-const gen path stays on ResolveType (which inlines).
+// ResolveTypeRaw is ResolveType returning the RAW node: every ref sentinel stays intact, which is how the closure emitter
+// tells a named-type reference from an anonymous inline shape. EmitClosure needs it; the single-const path inlines instead.
 func ResolveTypeRaw(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, absPath, typeName string) (*Resolved, error) {
 	if prog == nil {
 		return nil, fmt.Errorf("enrich.ResolveTypeRaw: program is nil")
@@ -135,15 +110,9 @@ func ResolveTypeRaw(prog *program.Program, typeChecker *checker.Checker, cache *
 	return &Resolved{Node: node, Resolve: cache.NodeByID, DeclFiles: declFiles}, nil
 }
 
-// collectDeclFiles walks the checker type graph rooted at tsType and records, for
-// every NAMED type it reaches, a map entry id → absolute declaration source file.
-// The id is the cache's structural id (cache.AssignID) so the result keys line up
-// with the RunType.ID the closure emitter sees. A type whose declaration file
-// cannot be determined is simply omitted (the emitter falls back to the root file).
-//
-// The walk mirrors the projection's reach — properties, array/promise element,
-// type arguments, tuple/Map/Set slots — but is intentionally tolerant: it never
-// errors, and a node it cannot descend just stops there.
+// collectDeclFiles records a declaration file per NAMED type reachable from tsType, keyed by the cache's structural id
+// so the keys line up with the RunType.ID the closure emitter sees; an undeterminable type is omitted.
+// The walk mirrors the projection's reach but is deliberately tolerant: it never errors and stops at a node it cannot descend.
 func collectDeclFiles(typeChecker *checker.Checker, cache *runtype.Cache, tsType *checker.Type) map[string]string {
 	out := map[string]string{}
 	visited := map[*checker.Type]bool{}
@@ -151,21 +120,12 @@ func collectDeclFiles(typeChecker *checker.Checker, cache *runtype.Cache, tsType
 	return out
 }
 
-// declFileWalkDepth bounds the type-graph walk so a pathological / mutually
-// recursive type cannot spin (the per-type visited guard handles ordinary cycles;
-// this is the backstop, matching enrich.maxWalkDepth).
+// declFileWalkDepth is the backstop for a pathological type, matching maxWalkDepth; ordinary cycles are the visited guard's.
 const declFileWalkDepth = 64
 
-// bundledLibPrefix is the bundled default-lib directory (normalized). A type
-// declared under it is a LIB type and is never AssignID'd or descended
-// member-wise here: the architecture projects builtins atomically and never
-// walks or interns lib members, and the newer libs' deeply generic
-// self-referential structures (lib.esnext's IteratorObject family) instantiate
-// FRESH types on every member query — pointer-based cycle detection never
-// fires and the structural-id walk overflows the stack. Only reached when the
-// project tsconfig selects such a lib (target esnext / target unset); a lib
-// file is also never a valid mirror target. Type ARGUMENTS still descend, so a
-// user type inside Map<string, User> is found.
+// bundledLibPrefix is the bundled default-lib directory; a type declared under it is never AssignID'd nor descended into.
+// Builtins are projected atomically, and lib.esnext's IteratorObject family instantiates FRESH types on every member query,
+// so pointer cycle detection never fires and the walk overflows the stack. Type ARGUMENTS still descend.
 var bundledLibPrefix = tspath.NormalizePath(bundled.LibPath())
 
 func walkDeclFiles(typeChecker *checker.Checker, cache *runtype.Cache, tsType *checker.Type, out map[string]string, visited map[*checker.Type]bool, depth int) {
@@ -174,10 +134,8 @@ func walkDeclFiles(typeChecker *checker.Checker, cache *runtype.Cache, tsType *c
 	}
 	visited[tsType] = true
 
-	// Record this type's decl file when it is a NAMED type (alias or interface/
-	// class symbol with a declaration). AssignID projects it into the cache and
-	// returns the same structural id the closure emitter keys on. Lib-declared
-	// types record nothing and stop the member descent (see bundledLibPrefix).
+	// AssignID projects the type into the cache and returns the same structural id the closure emitter keys on.
+	// A lib-declared type records nothing and stops the member descent (see bundledLibPrefix).
 	if file := declFileForType(tsType); file != "" {
 		if strings.HasPrefix(tspath.NormalizePath(file), bundledLibPrefix) {
 			if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
@@ -193,16 +151,12 @@ func walkDeclFiles(typeChecker *checker.Checker, cache *runtype.Cache, tsType *c
 		}
 	}
 
-	// Descend into the type's reachable children. GetPropertiesOfType covers
-	// objects/interfaces/classes; GetTypeArguments covers generic instantiations,
-	// arrays, Promise, Map, Set (their element/args are type arguments).
+	// GetPropertiesOfType covers objects; GetTypeArguments covers generics, arrays, Promise, Map and Set, whose slots are args.
 	for _, property := range typeChecker.GetPropertiesOfType(tsType) {
 		propertyType := typeChecker.GetTypeOfSymbol(property)
 		walkDeclFiles(typeChecker, cache, propertyType, out, visited, depth+1)
 	}
-	// GetTypeArguments only works on TypeReference targets — calling it on a plain
-	// interface (e.g. the lib.d.ts Date interface) panics. Guard with the
-	// ObjectFlagsReference flag, the same gate serialize.go uses.
+	// GetTypeArguments panics on a plain interface such as lib.d.ts Date, hence the ObjectFlagsReference gate serialize.go uses.
 	if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		for _, typeArgument := range typeChecker.GetTypeArguments(tsType) {
 			walkDeclFiles(typeChecker, cache, typeArgument, out, visited, depth+1)
@@ -210,11 +164,8 @@ func walkDeclFiles(typeChecker *checker.Checker, cache *runtype.Cache, tsType *c
 	}
 }
 
-// declFileForType returns the absolute source file a NAMED type is declared in,
-// or "" when the type is anonymous/inline or its declaration file is unknown.
-// Prefers the alias symbol (`type User = …`) then the type's own symbol
-// (interface / class). Re-exports resolve naturally because the symbol's
-// declaration points at the original declaration node.
+// declFileForType returns the file a NAMED type is declared in, "" when anonymous or unknown, preferring the alias symbol.
+// A re-export resolves naturally, the symbol's declaration pointing at the original declaration node.
 func declFileForType(tsType *checker.Type) string {
 	if alias := checker.Type_alias(tsType); alias != nil {
 		if file := declFileForSymbol(alias.Symbol()); file != "" {
@@ -224,8 +175,7 @@ func declFileForType(tsType *checker.Type) string {
 	return declFileForSymbol(tsType.Symbol())
 }
 
-// declFileForSymbol returns the file name of a symbol's first declaration whose
-// source file is resolvable, or "" when none is.
+// declFileForSymbol returns the file of a symbol's first resolvable declaration, "" when none is.
 func declFileForSymbol(symbol *ast.Symbol) string {
 	if symbol == nil {
 		return ""
@@ -242,12 +192,8 @@ func declFileForSymbol(symbol *ast.Symbol) string {
 	return ""
 }
 
-// ProjectType projects an already-resolved checker type through cache to a
-// canonical, fully-inlined *Resolved — the shape the enrichment walkers expect.
-// Use this when the caller already holds the *checker.Type for the type of
-// interest (e.g. the `check` command, which reads T off a `FriendlyText<T>`
-// annotation's type argument) rather than a named declaration in a file.
-// Returns nil when the projection yields no node.
+// ProjectType projects a checker type the caller already holds into the fully-inlined shape the enrichment walkers expect.
+// That is the check lane, which reads T off a `FriendlyText<T>` annotation rather than a named declaration in a file.
 func ProjectType(cache *runtype.Cache, tsType *checker.Type) *Resolved {
 	if cache == nil || tsType == nil {
 		return nil
@@ -256,23 +202,14 @@ func ProjectType(cache *runtype.Cache, tsType *checker.Type) *Resolved {
 	if node == nil {
 		return nil
 	}
-	// The cache hands back a REF graph: a compound node's Children / Child slots
-	// are `{kind:-1, id}` sentinels into the type table. The enrichment walkers
-	// inspect a parent's Children directly (propertyChildren / isObjectLike) and
-	// only deref the per-property Child, so they expect those structural slots to
-	// be the canonical nodes inline. inlineNode rewrites the slots to the
-	// canonical shape (cycle-guarded; deep cycles keep their ref, which the
-	// walkers' own deref still follows via the returned Resolve).
+	// The cache hands back a REF graph, but the walkers read a parent's Children directly and expect canonical nodes there.
+	// A deep cycle keeps its ref, which the walkers' own deref still follows through the returned Resolve.
 	inlined := inlineNode(node, cache.NodeByID, map[string]bool{})
 	return &Resolved{Node: inlined, Resolve: cache.NodeByID}
 }
 
-// inlineNode returns a copy of rt with every ref-bearing structural slot
-// (Children, Child, Return, Parameters, Index) replaced by the canonical node
-// it points at, recursively, so the result matches the fully-inlined shape the
-// enrichment walkers were authored against. seen guards genuine cycles: a node
-// already on the current path keeps its ref form (Kind == KindRef), which the
-// walkers' own deref re-follows at emit time.
+// inlineNode copies rt with every ref-bearing structural slot replaced by the canonical node it points at, recursively.
+// seen guards genuine cycles: a node already on the current path keeps its ref form, which the walkers deref at emit time.
 func inlineNode(rt *reflection.RunType, resolve func(id string) *reflection.RunType, seen map[string]bool) *reflection.RunType {
 	if rt == nil {
 		return nil
@@ -318,17 +255,9 @@ func inlineSlice(in []*reflection.RunType, resolve func(id string) *reflection.R
 	return out
 }
 
-// UnresolvedNameRefs walks the WRITTEN type syntax of typeName's declaration
-// in absPath and returns the entity names of every type reference that
-// resolved to the checker's ERROR type — `any` the author never wrote (a
-// typo, missing dependency types, an ambient declaration outside the
-// program). Enrichment twin of the resolver's MKR013 guard: a mirror
-// scaffolded from such a declaration would silently miss the degraded
-// members, so callers refuse (Plan, the CLI/parity contract) or skip
-// (PlanMany, the transient-edit daemon sync) when the list is non-empty. A
-// written `any`, and a resolved `type Loose = any`, are the true `any`
-// intrinsic and never listed. Returns nil when the declaration is absent —
-// the resolve path reports that case itself.
+// UnresolvedNameRefs returns the entity names in typeName's WRITTEN syntax that resolved to the checker's ERROR type,
+// the `any` an author never wrote. A mirror scaffolded from one would silently miss the degraded members, so Plan refuses
+// and PlanMany skips. A written `any` is the true intrinsic and never listed; an absent declaration returns nil.
 func UnresolvedNameRefs(prog *program.Program, typeChecker *checker.Checker, absPath, typeName string) []string {
 	if prog == nil || typeChecker == nil {
 		return nil
@@ -341,10 +270,7 @@ func UnresolvedNameRefs(prog *program.Program, typeChecker *checker.Checker, abs
 	if nameNode == nil || nameNode.Parent == nil {
 		return nil
 	}
-	// marker.EachWrittenTypeRef follows each reference into the declaration
-	// it names, so a degraded name one declaration deeper (`Payload {user:
-	// User}` over a broken `User`) refuses `Payload` too: its mirror would
-	// silently miss the same members through the reference.
+	// EachWrittenTypeRef follows a reference into the declaration it names, so a degraded name one level deeper refuses too.
 	var names []string
 	marker.EachWrittenTypeRef(typeChecker, nameNode.Parent, func(node *ast.Node, via []string) {
 		if !marker.IsErrorLikeAny(checker.Checker_getTypeFromTypeNode(typeChecker, node)) {
@@ -360,8 +286,7 @@ func UnresolvedNameRefs(prog *program.Program, typeChecker *checker.Checker, abs
 	return names
 }
 
-// writtenEntityName renders a TypeReference's written entity name (`Name` or
-// `Ns.Nested.Name`) for the refusal message.
+// writtenEntityName renders a TypeReference's written entity name, `Ns.Nested.Name` included, for the refusal message.
 func writtenEntityName(typeRefNode *ast.Node) (string, bool) {
 	typeRef := typeRefNode.AsTypeReferenceNode()
 	if typeRef == nil || typeRef.TypeName == nil {
@@ -388,10 +313,7 @@ func writtenEntityName(typeRefNode *ast.Node) (string, bool) {
 	return render(typeRef.TypeName)
 }
 
-// findTypeNameNode walks the source file's top-level statements for a type
-// alias, interface, or class declaration whose name matches typeName, and
-// returns its name identifier node (the location GetSymbolAtLocation expects).
-// Returns nil when no such declaration exists.
+// findTypeNameNode returns typeName's declaration name identifier, the location GetSymbolAtLocation expects, else nil.
 func findTypeNameNode(sourceFile *ast.SourceFile, typeName string) *ast.Node {
 	root := sourceFile.AsNode()
 	if root == nil {

@@ -1,15 +1,11 @@
 package diagnostics
 
-// MockData mirror-file codes (MDxxx): the MockData twin of codes_friendly.go
-// under the per-family mirror split. Content validity from the paired checker
-// in internal/enrichment/validate.go; the MD02x hygiene codes from the dirty-tag
-// scan, attributed to this family by the file's const annotations / DSL
-// import. Opt-in surfaces only (Request.CheckEnrich, `mion enrich --no-emit`).
+// MockData mirror-file codes (MDxxx), the MockData twin of codes_friendly.go. Content validity
+// comes from internal/enrichment/validate.go, the MD02x hygiene codes from the dirty-tag scan;
+// opt-in surfaces only (Request.CheckEnrich, `mion enrich --no-emit`).
 //
-// Same reading as the FriendlyText twins: an unreadable pool is skipped and the
-// mechanical generator's kind default is used, so nothing breaks (LevelWarning).
-// MD011 is LevelError for the same reason as FT011: the plan fails and no mirror
-// is written.
+// An unreadable pool is skipped for the generator's kind default, so nothing breaks (LevelWarning).
+// MD011 is LevelError for the same reason as FT011: the plan fails and no mirror is written.
 const (
 	CodeMockUnknownField = "MD001"
 	CodeMockReservedProp = "MD011"

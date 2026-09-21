@@ -1,31 +1,16 @@
 package convert
 
-// callsites.go — converting marker CALL SITES, the counterpart to recognize.go's
-// declarations.
+// callsites.go converts marker CALL SITES, the counterpart to recognize.go's declarations: a type
+// written as a factory call's type argument (`createValidateFn<{id: string}>()`) has no declaration
+// for that pass to touch. Every factory's FIRST parameter is a `RunType<T>` (the type-first shape is
+// a second overload, see packages/run-types/src/createRTFunctions.ts), so the conversion is a
+// rewrite of the call itself, with no name to invent and no collision to resolve, and the structural
+// id is identical across the two shapes by construction.
 //
-// A declaration is not the only place a type is written. The dominant authoring
-// shape is the type argument of a factory call:
-//
-//	createValidateFn<{id: string; age?: number}>()
-//
-// which the declaration pass cannot touch, because there is no declaration.
-// Every factory's FIRST parameter is a `RunType<T>` (the type-first shape is a
-// second overload — see createRTFunctions.d.ts and the note on index.ts's
-// re-export block), so the value-first spelling of that same call is:
-//
-//	createValidateFn(RT.object({id: TF.string(), age: RT.optional(TF.number())}))
-//
-// and the conversion is a rewrite of the call itself — no name to invent, no
-// statement to place, no collision to resolve. The structural id is identical
-// across the two shapes by construction, which is the whole point of the
-// value-first surface and the oracle every test here asserts.
-//
-// Recognition keys on the MARKER, never on a function name: a call qualifies
-// when its resolved signature carries an `InjectRunTypeId<T>` /
-// `InjectTypeFnArgs<T, …>` parameter, exactly the contract resolver/scan.go's
-// analyzeCall runs on ("the marker IS the contract, not the function name or
-// position"). A user-defined factory that declares the marker is covered for
-// free.
+// Recognition keys on the MARKER, never on a function name: a call qualifies when its resolved
+// signature carries an `InjectRunTypeId<T>` / `InjectTypeFnArgs<T, …>` parameter, the same contract
+// resolver/scan.go's analyzeCall runs on, so a user-defined factory declaring the marker is covered
+// for free.
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
@@ -36,9 +21,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// callSite is one marker call the converter can rewrite: the span it replaces,
-// the reflection node its type resolves to, the form it is written in now, and
-// the argument text that survives the rewrite.
+// callSite is one marker call the converter can rewrite.
 type callSite struct {
 	// label names the callee for diagnostics (`createValidateFn`).
 	label string
@@ -46,29 +29,23 @@ type callSite struct {
 	node *reflection.RunType
 	// form is the shape the call is CURRENTLY written in.
 	form Target
-	// start / end delimit the replaced span: everything from the type-argument
-	// list's `<` (type form) or the argument list's `(` (value form) through
-	// the call's closing `)`.
+	// start / end delimit the replaced span, from the type-argument list's `<` (type form) or the
+	// argument list's `(` (value form) through the call's closing `)`.
 	start int
 	end   int
-	// keepArgs is the source text of the arguments that survive, already
-	// comma-prefixed (`, {strict: true}`), or "" when only the runtype slot
-	// was occupied.
+	// keepArgs is the surviving arguments' source text, already comma-prefixed, or "" when only the
+	// runtype slot was occupied.
 	keepArgs string
-	// inScope is the names spellable AT THIS CALL — the file's top-level set
-	// plus everything its enclosing blocks declare. A declaration only ever
-	// sees the file's top level, but a call lives wherever it was written, and
-	// the suites write plenty of them inside thunks that declare their own
-	// class or enum first. Printing a LIVE symbol (a class, an enum) checks
-	// this set, so without the local names those calls refused as "not in
-	// scope here" even though the name was three lines up.
+	// inScope is the names spellable AT THIS CALL: the file's top level plus everything the
+	// enclosing blocks declare, unlike a declaration, which only ever sees the top level. Printing a
+	// LIVE symbol checks this set, so a call inside a thunk that declares its own class or enum
+	// would otherwise refuse as "not in scope here".
 	inScope map[string]bool
 }
 
-// recognizeCallSites walks the WHOLE file — marker calls live inside object
-// literals and arrow bodies (`validate: () => createValidateFn<any>()`), which
-// recognizeFile's top-level statement loop never reaches — and returns every
-// call the requested target would rewrite, in source order.
+// recognizeCallSites returns every call the target would rewrite, in source order. It walks the
+// WHOLE file because marker calls live inside object literals and arrow bodies, which recognizeFile's
+// top-level statement loop never reaches.
 func recognizeCallSites(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
@@ -104,10 +81,9 @@ func recognizeCallSites(
 	return sites
 }
 
-// scopeNamesAt returns the names spellable at a node: the file's top-level set
-// plus every class / enum / function / variable / type declared by an enclosing
-// block. Walking OUT from the call is what makes a thunk-local `class Invoice`
-// visible to the call that reflects it.
+// scopeNamesAt returns the names spellable at a node: the file's top level plus everything an
+// enclosing block declares, which is what makes a thunk-local `class Invoice` visible to the call
+// that reflects it.
 func scopeNamesAt(node *ast.Node, fileScope map[string]bool) map[string]bool {
 	names := make(map[string]bool, len(fileScope))
 	for name := range fileScope {
@@ -174,24 +150,18 @@ func recognizeCall(
 	if !hasInjectMarker(typeChecker, call, markerOpts) {
 		return nil
 	}
-	// A call that RETURNS a RunType is a BUILDER (`RT.optional(TF.string())`)
-	// or the `getRunType<T>()` escape — both carry the
-	// injection marker too, and neither is a conversion site: they are the
-	// value form's own vocabulary, printed by the declaration pass. Without this
-	// gate the value-form branch below matched every builder taking a RunType
-	// argument and rewrote it into `RT.optional<string>()`, overlapping the
+	// A call that RETURNS a RunType is a builder or the `getRunType<T>()` escape: both carry the
+	// marker, and neither is a conversion site, being the value form's own vocabulary printed by the
+	// declaration pass. Without this gate the value-form branch rewrites a builder and overlaps the
 	// enclosing declaration's own edit.
 	if returnType := typeChecker.GetTypeAtLocation(call); returnType != nil &&
 		builders.IsRunType(returnType, markerOpts) {
 		return nil
 	}
-	// The rewrite moves T from the type-argument list into the FIRST value slot,
-	// which only means the same thing when the callee actually declares a
-	// `RunType<T>` there. Every shipped factory does (the type-first shape is
-	// its second overload), but a marker-bearing function need not: the suites'
-	// own `deserializeValidate<T>(val?: T, options?, id?)` has the reflection
-	// form ONLY, so handing it a builder passed a RunType as the VALUE and
-	// inferred T as `RunType<…>` — 442 converted tests failed on exactly that.
+	// The rewrite moves T into the FIRST value slot, which only means the same thing when the callee
+	// declares a `RunType<T>` there. Every shipped factory does, but a marker-bearing function need
+	// not: one with the reflection form ONLY would take the builder as a VALUE and infer T as
+	// `RunType<…>`.
 	if !hasRunTypeFirstParameter(typeChecker, callExpression, markerOpts) {
 		return nil
 	}
@@ -205,11 +175,10 @@ func recognizeCall(
 	return nil
 }
 
-// recognizeTypeFormCall handles `fn<T>()` — the type-first shape. It converts
-// only to a VALUE target, and only when the runtype slot is genuinely empty:
-// an explicit `undefined` placeholder counts as empty (it is how the type-first
-// overload carries options), anything else is the REFLECTION form
-// (`createValidateFn(sample)`), which must survive verbatim.
+// recognizeTypeFormCall handles the type-first `fn<T>()`. It converts only to a VALUE target and
+// only when the runtype slot is empty; an explicit `undefined` counts as empty, being how the
+// type-first overload carries options, and anything else is the REFLECTION form, which survives
+// verbatim.
 func recognizeTypeFormCall(
 	source string,
 	call *ast.Node,
@@ -239,10 +208,9 @@ func recognizeTypeFormCall(
 	if node == nil {
 		return nil
 	}
-	// A type argument that NAMES a declaration this run converts is left alone:
-	// the declaration pass rewrites it, the reference keeps working through the
-	// printed `InferType<typeof …>` alias, and rewriting the call would only
-	// swap a clean name for the escape.
+	// A type argument that NAMES a declaration this run converts is left alone: the declaration pass
+	// rewrites it, the reference keeps working through the printed `InferType<typeof …>` alias, and
+	// rewriting the call would swap a clean name for the escape.
 	if typeArgumentIsSpelledName(typeArgumentNode, node, set, inScope) {
 		return nil
 	}
@@ -260,10 +228,9 @@ func recognizeTypeFormCall(
 	}
 }
 
-// recognizeValueFormCall handles `fn(<runtype expr>)` — the value-first shape.
-// It converts only to the TYPE target, and only when the first argument really
-// is a `RunType<T>` (the reflection form passes a plain value, whose type is
-// not a RunType reference, so it is excluded by the same check).
+// recognizeValueFormCall handles the value-first `fn(<runtype expr>)`. It converts only to the TYPE
+// target and only when the first argument really is a `RunType<T>`, which excludes the reflection
+// form's plain value.
 func recognizeValueFormCall(
 	source string,
 	call *ast.Node,
@@ -277,12 +244,9 @@ func recognizeValueFormCall(
 	if target != TargetType {
 		return nil
 	}
-	// `builders.IsRunType`, not a bare "generic reference" test: the REFLECTION
-	// form passes an ordinary value, and plenty of ordinary values are generic
-	// references too. A `Promise<undefined>` probe matched the loose check, so
-	// `getRunTypeId(promiseProbe)` was rewritten to `getRunTypeId<undefined>()`
-	// — its first type argument — and the id moved. The FE roundtrip lane caught
-	// it on seed 133220833.
+	// `builders.IsRunType`, not a bare "generic reference" test: the REFLECTION form passes an
+	// ordinary value and plenty of those are generic references too, so a loose check rewrites
+	// `getRunTypeId(promiseProbe)` to `getRunTypeId<undefined>()` and moves the id.
 	runTypeRef := typeChecker.GetTypeAtLocation(arguments[0])
 	if runTypeRef == nil || !builders.IsRunType(runTypeRef, markerOpts) {
 		return nil
@@ -325,15 +289,14 @@ func printCallSite(
 		currentFile: fileCtx.path, rootID: site.node.ID}
 	switch opts.Target {
 	case TargetType:
-		// No name exists to close a cycle on, so a recursive type refuses here
-		// (selfName stays empty) exactly as it does inside an embedded type
-		// expression.
+		// A call has no name to close a cycle on, so a recursive type refuses here (selfName stays
+		// empty) as it does inside an embedded type expression.
 		typeExpr, diag := ctx.typeExpr(site.node)
 		if diag != nil {
 			return nil, diag
 		}
-		// The type-first overload takes the value slot FIRST, so surviving
-		// options need the `undefined` placeholder back.
+		// The type-first overload takes the value slot FIRST, so surviving options need the
+		// `undefined` placeholder back.
 		args := ""
 		if site.keepArgs != "" {
 			args = "undefined" + site.keepArgs
@@ -358,10 +321,8 @@ func printCallSite(
 	return nil, nil
 }
 
-// hasRunTypeFirstParameter reports whether ANY of the callee's call signatures
-// takes a `RunType<…>` in slot 0 — that is, whether the value-first overload
-// exists at all. It is the precondition for moving a type argument into the
-// value slot.
+// hasRunTypeFirstParameter reports whether ANY call signature of the callee takes a `RunType<…>` in
+// slot 0, the precondition for moving a type argument into the value slot.
 func hasRunTypeFirstParameter(typeChecker *checker.Checker, callExpression *ast.CallExpression, markerOpts marker.Options) bool {
 	calleeType := typeChecker.GetTypeAtLocation(callExpression.Expression)
 	if calleeType == nil {
@@ -380,8 +341,8 @@ func hasRunTypeFirstParameter(typeChecker *checker.Checker, callExpression *ast.
 	return false
 }
 
-// hasInjectMarker reports whether the call's resolved signature carries an
-// injection marker parameter — the one contract that makes a call convertible.
+// hasInjectMarker reports whether the call's resolved signature carries an injection marker
+// parameter, the one contract that makes a call convertible.
 func hasInjectMarker(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
 	signature := checker.Checker_getResolvedSignature(typeChecker, call, nil, 0)
 	if signature == nil {
@@ -400,17 +361,12 @@ func hasInjectMarker(typeChecker *checker.Checker, call *ast.Node, markerOpts ma
 	return false
 }
 
-// typeArgumentIsSpelledName reports whether the call already NAMES its type —
-// `createValidateFn<Node>()` rather than an inline shape. Converting one of
-// those would replace a name with the structure it already stands for, and for
-// a RECURSIVE local type it cannot be done at all: a call has no name of its
-// own for the cycle to close on, so the printer refuses. Two ways a name
-// counts: the run converts that declaration itself (the reference keeps
-// working through the printed alias), or the name is simply spellable here,
-// which covers the thunk-local `interface Node {…}` the suites are full of.
-//
-// A QUALIFIED reference is deliberately not a name in this sense: `TF.Email`
-// is a format brand and converts to its builder like any other shape.
+// typeArgumentIsSpelledName reports whether the call already NAMES its type rather than writing an
+// inline shape. Converting one would replace a name with the structure it stands for, and a
+// RECURSIVE local type cannot be converted at all, a call having no name for the cycle to close on.
+// A name counts either when the run converts that declaration itself (the reference keeps working
+// through the printed alias) or when it is simply spellable here. A QUALIFIED reference is
+// deliberately not a name: `TF.Email` is a format brand and converts to its builder.
 func typeArgumentIsSpelledName(typeArgumentNode *ast.Node, node *reflection.RunType, set *Set, inScope map[string]bool) bool {
 	if !ast.IsTypeReferenceNode(typeArgumentNode) || node == nil {
 		return false
@@ -440,9 +396,8 @@ func isUndefinedKeyword(node *ast.Node) bool {
 	return node != nil && node.Kind == ast.KindIdentifier && node.Text() == "undefined"
 }
 
-// trailingArgumentText returns the source text of the arguments from `from`
-// onward, comma-prefixed so it appends directly after an injected first
-// argument. Empty when there are none.
+// trailingArgumentText returns the source text of the arguments from `from` onward, comma-prefixed
+// so it appends after an injected first argument.
 func trailingArgumentText(source string, arguments []*ast.Node, from int) string {
 	if len(arguments) <= from {
 		return ""
@@ -455,8 +410,8 @@ func trailingArgumentText(source string, arguments []*ast.Node, from int) string
 	return ", " + source[start:end]
 }
 
-// typeArgumentListStart finds the `<` opening the type-argument list; the list's
-// own range covers the inner type nodes only.
+// typeArgumentListStart finds the `<` opening the type-argument list, whose own range covers the
+// inner type nodes only.
 func typeArgumentListStart(source string, callExpression *ast.CallExpression) int {
 	if callExpression.TypeArguments == nil {
 		return -1
@@ -472,8 +427,7 @@ func argumentListStart(source string, callExpression *ast.CallExpression, argume
 	return findPrecedingChar(source, arguments[0].Pos(), '(')
 }
 
-// findPrecedingChar scans backward from pos (exclusive) for the nearest want,
-// returning its index or -1.
+// findPrecedingChar scans backward from pos (exclusive) for the nearest want, or -1.
 func findPrecedingChar(source string, pos int, want byte) int {
 	if pos > len(source) {
 		pos = len(source)

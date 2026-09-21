@@ -1,19 +1,14 @@
-// print.go — the printing machinery the three target printers share. Each
-// printer is a pure walk from a reflection RunType node (plus the name table,
-// the run's declaration set and the ref-resolve closure) to source text; no
-// checker access, so they test in isolation. This file holds the walk context
-// (printContext: cycle guard, reference resolution, import needs), printDecl,
-// and every helper two or more targets consume — the target cores live in
-// printtype.go and printbuilder.go. Shapes with no native
-// spelling in a target ride the `getRunType<T>()` escape on builders;
-// anything with no spelling at all
-// reports CNV001 and the declaration stays untouched.
-//
-// Every reflection.RunType field must be printed, refused, or excused — the
-// TestPrintersCoverRunType tripwire (print_coverage_test.go) fails on a field
-// the printers neither consume nor account for, the way the unevaluated*
-// slots once slipped through.
 package convert
+
+// print.go holds the machinery both target printers share: the walk context (printContext: cycle
+// guard, reference resolution, import needs), printDecl, and every helper both targets consume. The
+// target cores live in printtype.go and printbuilder.go. Each printer is a pure walk from a
+// reflection RunType node to source text with no checker access, so they test in isolation. A shape
+// with no native spelling in a target rides the `getRunType<T>()` escape on builders; one with no
+// spelling at all reports CNV001 and the declaration stays untouched.
+//
+// Every reflection.RunType field must be printed, refused or excused: the TestPrintersCoverRunType
+// tripwire (print_coverage_test.go) fails on a field the printers neither consume nor account for.
 
 import (
 	"fmt"
@@ -30,48 +25,42 @@ type printedDecl struct {
 	needs importNeeds
 }
 
-// printContext carries one declaration's printing state: the name table, the
-// options, the ref-resolve closure, and the import needs the walk accumulates.
+// printContext carries one declaration's printing state, including the import needs the walk
+// accumulates.
 type printContext struct {
 	names   *nameTable
 	opts    Options
 	decl    *declaration
 	resolve func(id string) *reflection.RunType
 	needs   importNeeds
-	// Set-wide reference state: the run's declaration table, this file's
-	// import bindings and in-scope names, the root node's id (self back-edges
-	// close on it) and, for the type target only, the declaration's own name.
+	// Set-wide reference state: the run's declaration table, this file's import bindings and
+	// in-scope names, the root node's id (self back-edges close on it) and, for the type target
+	// only, the declaration's own name.
 	set         *Set
 	bindings    *fileBindings
 	inScope     map[string]bool
 	currentFile string
 	rootID      string
 	selfName    string
-	// usedSelf records that a self back-edge printed (`RT.self()`), so the
-	// builders target wraps the whole expression in `RT.circular(…)`.
+	// usedSelf records that a self back-edge printed, so the builders target wraps the whole
+	// expression in `RT.circular(…)`.
 	usedSelf bool
-	// escapeCycle records that a refusal fired because embedded type text
-	// (a getRunType escape) needed to close a cycle — the one refusal class a
-	// type-form declaration recovers from by printing the LAZY PAIR instead
-	// (printLazyPair). Call sites and the type target keep refusing.
+	// escapeCycle records a refusal fired because embedded type text needed to close a cycle, the
+	// one class a type-form declaration recovers from through printLazyPair. Call sites and the type
+	// target keep refusing.
 	escapeCycle bool
-	// innerCycle records that the walk met a cycle closing BELOW the root:
-	// typically a partner inlined because it cycles back through this
-	// declaration that ALSO cycles to itself (`interface A {b: B[]}
-	// interface B {b?: B[]; a?: A}` closes on the shared `B[]` node).
-	// `RT.self()` binds the root only, so no value spelling closes that
-	// inner knot. Like escapeCycle, a type-form declaration recovers by
-	// printing the LAZY PAIR (the real name closes it); call sites and
-	// const-form input keep refusing.
+	// innerCycle records a cycle closing BELOW the root, typically an inlined partner that also
+	// cycles to itself. `RT.self()` binds the root only, so no value spelling closes that inner
+	// knot; like escapeCycle a type-form declaration recovers through the LAZY PAIR, whose real name
+	// closes it, while call sites and const-form input keep refusing.
 	innerCycle bool
-	// walking guards the recursive printers: a node already on the walk path
-	// is a back-edge — the root's id closes as a self-reference, anything
-	// else (a cycle through an unnamed intermediate) reports CNV001.
+	// walking guards the recursive printers: a node already on the path is a back-edge, closing as a
+	// self-reference at the root's id and reporting CNV001 anywhere else.
 	walking map[string]bool
 }
 
-// enter marks a node as on-path; the returned func unmarks it. The second
-// result is false when the node is already on the path (a cycle).
+// enter marks a node as on-path and returns the unmark func; the second result is false when the
+// node was already on the path.
 func (ctx *printContext) enter(node *reflection.RunType) (func(), bool) {
 	if node == nil || node.ID == "" {
 		return func() {}, true
@@ -87,28 +76,24 @@ func (ctx *printContext) enter(node *reflection.RunType) (func(), bool) {
 	return func() { delete(ctx.walking, node.ID) }, true
 }
 
-// anonymousCycleDiag reports a cycle that never passes through the printed
-// declaration's root or a referenceable declaration — there is no spelling
-// that closes it (`self()` / `$ref: '#'` bind the root only).
+// anonymousCycleDiag reports a cycle passing through neither the printed declaration's root nor a
+// referenceable declaration, which no spelling closes: `self()` binds the root only.
 func (ctx *printContext) anonymousCycleDiag() *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 		Message: "cycle through an unnamed type has no conversion spelling (name the cycling type and convert it too)"}
 }
 
-// declRef resolves a node against the run's declaration table: a self
-// back-edge prints the target's self spelling, another declaration's node
-// prints a name reference. The bool reports whether the node WAS a reference
-// (the caller returns the text/diag instead of walking the node).
+// declRef resolves a node against the run's declaration table: a self back-edge prints the target's
+// self spelling, another declaration's node a name reference. The bool reports whether the node WAS
+// a reference, so the caller returns the text instead of walking it.
 func (ctx *printContext) declRef(node *reflection.RunType, target Target) (string, *Diagnostic, bool) {
 	if node == nil || node.ID == "" || ctx.set == nil {
 		return "", nil, false
 	}
 	if node.ID == ctx.rootID {
 		if len(ctx.walking) == 0 {
-			// The declaration's own root — unless another declaration with the
-			// same structural id already names this exact type, in which case
-			// the whole declaration is an alias of it and prints as a
-			// reference (`type C = B`).
+			// The declaration's own root, unless another declaration with the same structural id
+			// already names this exact type, which makes the whole declaration an alias of it.
 			if entry, exists := ctx.set.Table[node.ID]; exists && entry.TypeName != "" && entry.TypeName != declLabel(ctx.decl) {
 				return ctx.refSpelling(entry, target)
 			}
@@ -117,9 +102,8 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 		switch target {
 		case TargetType:
 			if ctx.selfName == "" {
-				// A self back-edge inside an embedded type expression (a
-				// negation embed, an escape) would spell the declaration's own
-				// alias inside its own const initializer — circular in TS.
+				// A self back-edge inside an embedded type expression would spell the declaration's
+				// own alias inside its own const initializer, which is circular in TS.
 				ctx.escapeCycle = true
 				return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 					Message: "self-referential type inside an embedded type expression is not convertible"}, true
@@ -139,27 +123,21 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 	if ctx.reaches(node.ID, ctx.rootID) {
 		// The referenced declaration cycles back here.
 		if target != TargetType {
-			// A name reference would make the printed const's type
-			// self-referential (TS rejects it), so the partner inlines and the
-			// cycle closes at the root instead.
+			// A name reference would make the printed const's type self-referential, which TS
+			// rejects, so the partner inlines and the cycle closes at the root.
 			return "", nil, false
 		}
 		if ctx.selfName == "" && ctx.opts.Target == TargetBuilders {
-			// Embedded type text in a BUILDERS conversion (a getRunType escape
-			// / negation embed): after conversion the referenced name resolves
-			// through `InferType<typeof partnerRT>`, and the partner's const
-			// joins this very cycle — the converted aliases are EAGER, so
-			// TypeScript silently collapses the knot to `any` and the printed
-			// code type-erases the schema (found by the elision fuzz lane).
-			// No spelling closes a cycle inside embedded text, so refuse
-			// loudly like the direct self-back-edge above.
+			// In embedded type text of a BUILDERS conversion the referenced name resolves through
+			// `InferType<typeof partnerRT>` and the partner's const joins this cycle. Those
+			// aliases are EAGER, so TypeScript collapses the knot to `any` and the printed code
+			// type-erases the schema; no spelling closes a cycle inside embedded text, so refuse.
 			ctx.escapeCycle = true
 			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("self-referential type inside an embedded type expression is not convertible (the reference to %s cycles back through this declaration)", entry.TypeName)}, true
 		}
-		// The pure type target keeps the name — its output leaves every
-		// declaration a REAL type, and real type references resolve lazily,
-		// so the cycle stays legal TS.
+		// The pure type target keeps the name: its output leaves every declaration a REAL type and
+		// real type references resolve lazily, so the cycle stays legal TS.
 	}
 	return ctx.refSpelling(entry, target)
 }
@@ -167,15 +145,10 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 // refSpelling renders a table reference in the requested target, resolving
 // the cross-file spelling and recording import needs.
 func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *Diagnostic, bool) {
-	// A name this file cannot SPELL is not a conversion failure — it is just a
-	// name. Inlining the structure says the same thing (structurally identical,
-	// so the id cannot move), which is what the --portable branch above already
-	// does. Two ways the name is unspellable: the declaring file does not export
-	// it, and this file has no import that reaches it — the latter is the common
-	// case for a type the reflection graph reached STRUCTURALLY rather than
-	// through anything this file wrote. Both used to refuse (CNV004), which
-	// stopped 430 of the suite's own files from converting for no better reason
-	// than a lost name.
+	// A name this file cannot SPELL is not a conversion failure: inlining the structure says the
+	// same thing and the id cannot move. Two ways it is unspellable, and neither refuses: the
+	// declaring file does not export it, or this file has no import reaching it, the common case for
+	// a type the graph reached STRUCTURALLY rather than through anything this file wrote.
 	if entry.File != ctx.currentFile && !entry.Exported {
 		return "", nil, false
 	}
@@ -203,10 +176,9 @@ func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *D
 	return "", nil, false
 }
 
-// referenceWorthy gates name references to the kinds users author as named
-// declarations. Atoms, literals and format brands always inline — an aliased
-// `string` must not upgrade every structurally-equal string in the set to a
-// name reference.
+// referenceWorthy gates name references to the kinds users author as named declarations. Atoms,
+// literals and format brands always inline, or an aliased `string` would upgrade every
+// structurally-equal string in the set to a name reference.
 func referenceWorthy(node *reflection.RunType) bool {
 	switch node.Kind {
 	case reflection.KindObjectLiteral, reflection.KindTuple, reflection.KindUnion,
@@ -217,8 +189,8 @@ func referenceWorthy(node *reflection.RunType) bool {
 	return false
 }
 
-// reaches reports whether targetID is reachable from fromID in the resolved
-// graph — the cycle test behind reference-vs-inline decisions.
+// reaches reports whether targetID is reachable from fromID, the cycle test behind
+// reference-vs-inline decisions.
 func (ctx *printContext) reaches(fromID, targetID string) bool {
 	if fromID == targetID {
 		return true
@@ -241,7 +213,7 @@ func (ctx *printContext) reaches(fromID, targetID string) bool {
 			}
 			return
 		}
-		// An inline (non-interned) node: walk its slots directly.
+		// An inline, non-interned node: walk its slots directly.
 		entry.EachRefSlot(scan)
 	}
 	for len(queue) > 0 && !found {
@@ -271,8 +243,7 @@ func (ctx *printContext) deref(node *reflection.RunType) *reflection.RunType {
 	return node
 }
 
-// printDecl renders the full replacement statement(s) for one resolved
-// declaration in the requested target form.
+// printDecl renders the replacement statements for one resolved declaration in the target form.
 func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *fileContext) (*printedDecl, *Diagnostic) {
 	decl := resolved.Decl
 	ctx := &printContext{names: names, opts: opts, decl: decl, resolve: resolved.Resolve,
@@ -292,9 +263,9 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 			return nil, &Diagnostic{Code: CodeNameCollision, Severity: SeverityError, Decl: declLabel(decl),
 				Message: fmt.Sprintf("no free type name derivable from %q", decl.ConstName)}
 		}
-		// The printed TYPE declaration follows the ALIAS's export modifier
-		// (an unexported const may pair with an exported alias other files
-		// import); an alias-less const keeps the const's own.
+		// The printed TYPE declaration follows the ALIAS's export modifier, since an unexported
+		// const may pair with an exported alias other files import; an alias-less const keeps its
+		// own.
 		typeExportPrefix := exportPrefix
 		if decl.Form != TargetType && decl.AliasStmt != nil {
 			typeExportPrefix = ""
@@ -313,27 +284,19 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 		builderExpr, diag := ctx.builderExpr(resolved.Node)
 		if diag != nil {
 			if (ctx.escapeCycle || ctx.innerCycle) && decl.Form == TargetType && decl.Name != "" {
-				// Embedded type text (a getRunType escape) needed to close a
-				// cycle, or an inlined partner cycles to ITSELF. No value
-				// spelling exists — `RT.self()` cannot appear inside type text
-				// and binds the root only, and a converted name resolves
-				// through an EAGER `InferType<typeof constRT>` chain that
-				// collapses the knot to `any` — so print the LAZY PAIR instead:
-				// keep the declaration a REAL type (real names resolve lazily)
-				// and add a `getRunType<Name>()` handle const beside it.
+				// Embedded type text needed to close a cycle, or an inlined partner cycles to ITSELF,
+				// and no value spelling exists: `RT.self()` cannot appear inside type text and an
+				// `InferType<typeof constRT>` chain is EAGER. The LAZY PAIR keeps the declaration
+				// a REAL type, whose name resolves lazily, plus a `getRunType<Name>()` handle.
 				return printLazyPair(resolved, opts, names, fileCtx)
 			}
 			return nil, diag
 		}
 		if ctx.usedSelf {
-			// RT.circular ties the knot through Recursive<Body>, whose Self
-			// substitution instantiates a TUPLE's slots eagerly, so a cycle
-			// closing on a tuple slot has no `RT.circular` spelling (the
-			// substitution unrolls).
-			// A NAMED type-form declaration recovers through the LAZY PAIR,
-			// which sidesteps the substitution entirely (the type stays real).
-			// Only call sites still refuse on the shape (their copy lives in
-			// printCallSite).
+			// RT.circular ties the knot through Recursive<Body>, whose Self substitution
+			// instantiates a TUPLE's slots eagerly, so a cycle closing on a tuple slot has no
+			// `RT.circular` spelling. A NAMED type-form declaration recovers through the LAZY
+			// PAIR, which sidesteps the substitution; only call sites still refuse on the shape.
 			if diag := ctx.eagerTupleCycleDiag(resolved.Node, decl, "RT.circular"); diag != nil {
 				if decl.Form == TargetType && decl.Name != "" {
 					return printLazyPair(resolved, opts, names, fileCtx)
@@ -348,13 +311,11 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 	return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl), Message: "unknown target"}
 }
 
-// printLazyPair renders the lazy-pair builders spelling for a type-form
-// declaration whose cycle only closes through embedded type text: the
-// declaration reprinted as a canonical type alias (the recursion closes on its
-// own REAL name, exactly as the type target prints it) plus a
-// `const <name>RT = getRunType<Name>();` value handle. recognizeFile pairs the
-// two statements back into one builders-form declaration, so re-running the
-// builders target is a byte no-op and the type target collapses the pair.
+// printLazyPair renders the lazy-pair builders spelling for a type-form declaration whose cycle only
+// closes through embedded type text: a canonical type alias, whose recursion closes on its own REAL
+// name, plus a `const <name>RT = getRunType<Name>();` handle. recognizeFile pairs the two statements
+// back into one builders-form declaration, so re-running builders is a byte no-op and the type
+// target collapses the pair.
 func printLazyPair(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *fileContext) (*printedDecl, *Diagnostic) {
 	decl := resolved.Decl
 	ctx := &printContext{names: names, opts: opts, decl: decl, resolve: resolved.Resolve,
@@ -379,10 +340,9 @@ func printLazyPair(resolved *resolvedDecl, opts Options, names *nameTable, fileC
 	return &printedDecl{text: text, needs: ctx.needs}, nil
 }
 
-// assembleConstDecl renders `const nameRT = <expr>;` plus, when the source
-// declaration was type-form (so the type name must survive), the paired
-// `type Name = InferType<typeof nameRT>;` alias. A const-form source keeps
-// its existing const name and its existing alias statement.
+// assembleConstDecl renders `const nameRT = <expr>;` plus, when the source was type-form and the
+// type name must survive, the paired `type Name = InferType<typeof nameRT>;` alias. A const-form
+// source keeps its existing const name and alias statement.
 func assembleConstDecl(decl *declaration, names *nameTable, exportPrefix, expr string, needs importNeeds) (*printedDecl, *Diagnostic) {
 	constName := decl.ConstName
 	if constName == "" {
@@ -400,8 +360,8 @@ func assembleConstDecl(decl *declaration, names *nameTable, exportPrefix, expr s
 	return &printedDecl{text: text, needs: needs}, nil
 }
 
-// exactBrandType renders the exact TypeFormat constructor for an annotation:
-// no defaults merge, provably the reflected brand.
+// exactBrandType renders an annotation's exact TypeFormat constructor, merging no defaults, so it is
+// provably the reflected brand.
 func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
 	paramsText, ok := printFormatParams(annotation.Params, family.BigintParams)
 	if !ok {
@@ -411,15 +371,11 @@ func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation,
 	return fmt.Sprintf("%s<%s, %s, %s>", ctx.names.TypeFormat, family.Base, quoteSingle(annotation.Name), paramsText), true
 }
 
-// structuralParamsPubliclySpellable reports whether a structural annotation's
-// literal params can be reconstructed through the PUBLIC params bags
-// (FormattedCollectionParams, shared by the array / Set / Map wrappers, and
-// FormattedObjectParams — formats/structural.ts). A
-// payload outside that surface — `uniqueItems: false` (the bag declares
-// `uniqueItems?: true`), or an unknown key from a hand-spelled sentinel —
-// must ride the exact raw-brand spelling instead: the generic bag either
-// fails to compile or resolves a DIFFERENT id (the `isRegex` precedent,
-// TestChain_RegexPresetEscapesGenericSpelling).
+// structuralParamsPubliclySpellable reports whether a structural annotation's literal params can be
+// reconstructed through the PUBLIC params bags (FormattedCollectionParams for the array / Set / Map
+// wrappers, FormattedObjectParams for objects). A payload outside that surface, such as
+// `uniqueItems: false` against a bag declaring `uniqueItems?: true`, must ride the exact raw-brand
+// spelling: the generic bag either fails to compile or resolves a DIFFERENT id.
 func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) bool {
 	if annotation == nil {
 		return true
@@ -441,9 +397,8 @@ func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) 
 	var allowed map[string]func(any) bool
 	switch annotation.Name {
 	case "formattedArray", "formattedSet", "formattedMap":
-		// One collection bag for the three families: an array counts its
-		// items, a Set its members, a Map its `[key, value]` pairs, and
-		// `uniqueItems` reads the same way on all three.
+		// One collection bag for the three families: an array counts items, a Set members, a Map
+		// `[key, value]` pairs, and `uniqueItems` reads the same on all three.
 		allowed = map[string]func(any) bool{
 			"minItems":    isNumber,
 			"maxItems":    isNumber,
@@ -469,11 +424,9 @@ func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) 
 	return true
 }
 
-// rawStructuralBrandType spells a structural brand whose params sit outside
-// the public bag surface as the raw sentinel intersection
-// (`Base & TF.StructuralBrand<'formattedArray', {…}>`) — byte-honest with the
-// reflected annotation, so the id cannot move. Child-carrying slots beside
-// such a payload have no raw spelling that carries them too, so they refuse.
+// rawStructuralBrandType spells a brand whose params sit outside the public bag surface as the raw
+// sentinel intersection, matching the reflected annotation byte for byte so the id cannot move. A
+// child-carrying slot beside such a payload has no raw spelling and refuses.
 func (ctx *printContext) rawStructuralBrandType(node *reflection.RunType, baseText string) (string, *Diagnostic) {
 	if len(node.Contains) > 0 || len(node.PatternProps) > 0 || len(node.PropNames) > 0 {
 		return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
@@ -487,12 +440,11 @@ func (ctx *printContext) rawStructuralBrandType(node *reflection.RunType, baseTe
 	return fmt.Sprintf("%s & %s.StructuralBrand<%s, %s>", baseText, ctx.names.TF, quoteSingle(node.FormatAnnotation.Name), paramsText), nil
 }
 
-// structuralSubPrinter renders a child node in the current target's dialect —
-// the printer method threaded into the structural helpers.
+// structuralSubPrinter renders a child node in the current target's dialect, threaded into the
+// structural helpers.
 type structuralSubPrinter func(node *reflection.RunType) (string, *Diagnostic)
 
-// structuralParts renders a node's structural payload (brand params +
-// contains / patternProperties / propertyNames) as sorted `key: value` parts.
+// structuralParts renders a node's structural payload as sorted `key: value` parts.
 func (ctx *printContext) structuralParts(node *reflection.RunType, params map[string]any, sub structuralSubPrinter, target Target) ([]string, *Diagnostic) {
 	var parts []string
 	keys := make([]string, 0, len(params))
@@ -556,8 +508,7 @@ func (ctx *printContext) structuralParts(node *reflection.RunType, params map[st
 	return parts, nil
 }
 
-// closedParts renders the closedness params: both targets
-// carry the exact `closed` / `closedPatterns` lists verbatim.
+// closedParts renders the closedness params; both targets carry the lists verbatim.
 func (ctx *printContext) closedParts(node *reflection.RunType, params map[string]any, target Target, parts *[]string) *Diagnostic {
 	closedValue, hasClosed := params["closed"]
 	closedPatternsValue, hasClosedPatterns := params["closedPatterns"]
@@ -581,12 +532,10 @@ func (ctx *printContext) closedParts(node *reflection.RunType, params map[string
 	return nil
 }
 
-// escapeTypeText renders a node's TYPE spelling for an embed/getRunType
-// escape inside a const initializer. Runs on a FRESH walk context (the
-// enclosing printer has already entered the node) that keeps the root id but
-// no self name: embedding the root's own structure is fine, while a nested
-// back-edge to it would spell the declaration's alias inside its own
-// initializer — the empty selfName turns that into a refusal.
+// escapeTypeText renders a node's TYPE spelling for an escape inside a const initializer. It runs on
+// a FRESH context, the enclosing printer having already entered the node, keeping the root id but no
+// self name: embedding the root's own structure is fine, while the empty selfName turns a nested
+// back-edge, which would spell the declaration's alias inside its own initializer, into a refusal.
 func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diagnostic) {
 	sub := &printContext{names: ctx.names, opts: ctx.opts, decl: ctx.decl, resolve: ctx.resolve,
 		set: ctx.set, bindings: ctx.bindings, inScope: ctx.inScope, currentFile: ctx.currentFile, rootID: ctx.rootID}
@@ -602,11 +551,9 @@ func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
 		Message: fmt.Sprintf("format family %q is not convertible yet (see https://mion.pages.dev/runtypes/guide/source-conversion)", name)}
 }
 
-// tupleShape is a tuple node partitioned into the three builder positions.
-// Ordering is validated: required slots, then optionals, then one rest tail.
-// The parallel label slices carry each slot's projected label; `labeled` is
-// true only when EVERY slot is labeled (the TS grammar — all or none), so a
-// partially-labeled shape (hand-rolled sentinel abuse) stays unprintable.
+// tupleShape is a tuple node partitioned into the three builder positions, in validated order:
+// required slots, then optionals, then one rest tail. `labeled` is true only when EVERY slot is
+// labeled, as the TS grammar demands, so a partially labeled shape stays unprintable.
 type tupleShape struct {
 	required       []*reflection.RunType
 	optional       []*reflection.RunType
@@ -617,8 +564,8 @@ type tupleShape struct {
 	labeled        bool
 }
 
-// tupleMembers partitions a tuple node's members. False when the member
-// layout is one the printers cannot express (interleaved optionals).
+// tupleMembers partitions a tuple node's members, answering false for a layout the printers cannot
+// express, such as interleaved optionals.
 func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bool) {
 	shape := &tupleShape{}
 	memberCount, labelCount := 0, 0
@@ -664,15 +611,15 @@ func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bo
 	}
 	shape.labeled = memberCount > 0 && labelCount == memberCount
 	if labelCount > 0 && labelCount != memberCount {
-		// Partially labeled — no printable spelling on any target.
+		// Partially labeled has no printable spelling on either target.
 		return nil, false
 	}
 	return shape, true
 }
 
-// unionArms visits a node's arms when it is a union, and nothing otherwise.
-// Both eager walks below share it: a conditional / alias resolution distributes
-// over a union immediately, so an arm never hides a self-reference.
+// unionArms visits a union node's arms, and nothing otherwise. Both eager walks below share it: a
+// conditional or alias resolution distributes over a union at once, so an arm never hides a
+// self-reference.
 func (ctx *printContext) unionArms(node *reflection.RunType, visit func(arm *reflection.RunType)) {
 	if node.Kind != reflection.KindUnion {
 		return
@@ -684,9 +631,8 @@ func (ctx *printContext) unionArms(node *reflection.RunType, visit func(arm *ref
 	}
 }
 
-// eagerTupleCycleDiag refuses a declaration whose cycle closes on a tuple slot,
-// naming the back-reference the target would have used. Nil when the shape is
-// convertible.
+// eagerTupleCycleDiag refuses a declaration whose cycle closes on a tuple slot, naming the
+// back-reference the target would have used, and is nil when the shape is convertible.
 func (ctx *printContext) eagerTupleCycleDiag(root *reflection.RunType, decl *declaration, backReference string) *Diagnostic {
 	if !ctx.selfLandsInEagerTupleSlot(root) {
 		return nil
@@ -697,21 +643,17 @@ func (ctx *printContext) eagerTupleCycleDiag(root *reflection.RunType, decl *dec
 			"put the recursion behind an object, array, Map, Set or function slot", backReference)}
 }
 
-// selfLandsInEagerTupleSlot reports whether the declaration's own back-edge sits
-// in a TUPLE SLOT that `Recursive<Body>` instantiates EAGERLY.
+// selfLandsInEagerTupleSlot reports whether the declaration's own back-edge sits in a TUPLE SLOT
+// that `Recursive<Body>` instantiates EAGERLY.
 //
-// A tuple is the one container the value-first form cannot tie a knot through.
-// Every other slot defers — an object member, an array element, a Map / Set /
-// Promise argument, a function parameter or return — so `RT.circular` walks
-// past it and the knot closes. A homomorphic map over a TUPLE instead computes
-// every slot type up front, so `Recursive<Body>` unrolls itself until
-// TypeScript gives up (TS2589). Nested tuples chain that eagerness; a union arm
-// inherits it (the substitution distributes).
+// A tuple is the one container the value-first form cannot tie a knot through: every other slot
+// defers, so `RT.circular` walks past it and the knot closes, while a homomorphic map over a TUPLE
+// computes every slot up front and unrolls until TypeScript gives up (TS2589). Nested tuples chain
+// that eagerness and a union arm inherits it, the substitution distributing.
 //
-// Converting such a declaration anyway emitted a builder whose inferred type
-// kept a raw `Self`: the declaration silently changed identity and would not
-// convert back. The type and JSON Schema forms carry it fine, since
-// `type Pair = [number, Pair]` is an ordinary deferred alias.
+// Converting one anyway emits a builder whose inferred type keeps a raw `Self`, so the declaration
+// changes identity and will not convert back. The type form carries it fine, `type Pair = [number,
+// Pair]` being an ordinary deferred alias.
 func (ctx *printContext) selfLandsInEagerTupleSlot(root *reflection.RunType) bool {
 	seen := map[string]bool{}
 	var walk func(node *reflection.RunType, crossedTuple bool) bool
@@ -723,8 +665,8 @@ func (ctx *printContext) selfLandsInEagerTupleSlot(root *reflection.RunType) boo
 		if node.ID == ctx.rootID && crossedTuple {
 			return true
 		}
-		// A node first reached WITHOUT a tuple slot must stay walkable once one
-		// has been crossed, so the visited key carries the flag.
+		// A node first reached WITHOUT a tuple slot must stay walkable once one has been crossed, so
+		// the visited key carries the flag.
 		key := node.ID
 		if crossedTuple {
 			key += "!"
@@ -760,13 +702,10 @@ func (ctx *printContext) selfLandsInEagerTupleSlot(root *reflection.RunType) boo
 	return walk(root, false)
 }
 
-// isSymbolKeyedName reports whether a member name is a SYMBOL key rather than
-// a string one. Two spellings reach here: tsgo's late-bound form
-// `\xFE@<declarationName>@<symbolId>` (the same prefix
-// cachegen/runtype/serialize.go's stableMemberName strips), and the `@@name`
-// form. Only the second used to be checked, so a genuinely symbol-keyed member
-// printed as a STRING property whose key was the mangled internal spelling —
-// a different type, silently, with a moved id and an exit code of 0.
+// isSymbolKeyedName reports whether a member name is a SYMBOL key. Two spellings reach here: tsgo's
+// late-bound `\xFE@<declarationName>@<symbolId>`, the prefix cachegen/runtype/serialize.go's
+// stableMemberName strips, and the `@@name` form. Checking only the second printed a symbol-keyed
+// member as a STRING property keyed by the mangled internal spelling, silently moving the id.
 func isSymbolKeyedName(name string) bool {
 	if strings.HasPrefix(name, "@@") {
 		return true
@@ -774,10 +713,9 @@ func isSymbolKeyedName(name string) bool {
 	return len(name) >= 2 && name[0] == 0xFE && name[1] == '@'
 }
 
-// liveSymbolName resolves the source-level name a node's live symbol (enum /
-// user class) is spelled with, checking it is actually bound in this file —
-// the reflected name is the DECLARATION name, which an aliased import
-// (`import {Color as C}`) would not bind.
+// liveSymbolName resolves the source-level name a node's live symbol is spelled with and checks it
+// is bound in this file: the reflected name is the DECLARATION name, which an aliased import would
+// not bind.
 func (ctx *printContext) liveSymbolName(node *reflection.RunType, kindWord string) (string, *Diagnostic) {
 	name := node.TypeName
 	if name == "" && node.ClassRef != nil {
@@ -793,9 +731,8 @@ func (ctx *printContext) liveSymbolName(node *reflection.RunType, kindWord strin
 	return name, nil
 }
 
-// enumMemberFlag reports the `enumMember:` marker a single-member enum
-// reference carries — the container name is not reflected, so member
-// references refuse loudly for now.
+// enumMemberFlag reports the `enumMember:` marker a single-member enum reference carries; the
+// container name is not reflected, so such references refuse.
 func enumMemberFlag(node *reflection.RunType) bool {
 	for _, flag := range node.Flags {
 		if strings.HasPrefix(flag, "enumMember:") {
@@ -814,9 +751,8 @@ func (ctx *printContext) enumSpelling(node *reflection.RunType) (string, *Diagno
 	return ctx.liveSymbolName(node, "enum")
 }
 
-// classSpelling resolves a class node to its TYPE spelling (`User`,
-// `Box<string>`, `Error`). Builtin names are global and skip the scope check;
-// user classes must be bound under their declaration name.
+// classSpelling resolves a class node to its TYPE spelling. A builtin name is global and skips the
+// scope check; a user class must be bound under its declaration name.
 func (ctx *printContext) classSpelling(node *reflection.RunType) (string, *Diagnostic) {
 	var name string
 	if node.ClassRef != nil && node.ClassRef.Builtin != "" {
@@ -843,8 +779,7 @@ func (ctx *printContext) classSpelling(node *reflection.RunType) (string, *Diagn
 	return fmt.Sprintf("%s<%s>", name, strings.Join(argumentTexts, ", ")), nil
 }
 
-// nativeArguments derefs the KindParameter wrappers a Map/Set node carries in
-// its Arguments slot, returning the parameter child types in order.
+// nativeArguments derefs the KindParameter wrappers a Map / Set node carries in Arguments, in order.
 func (ctx *printContext) nativeArguments(node *reflection.RunType) []*reflection.RunType {
 	var out []*reflection.RunType
 	for _, argumentRef := range node.Arguments {
@@ -861,9 +796,8 @@ func (ctx *printContext) nativeArguments(node *reflection.RunType) []*reflection
 	return out
 }
 
-// objectMember is one printable member: its source key spelling (quoted when
-// not a safe identifier), flags, the dereferenced value node — or, for
-// method / call-signature members, the signature-bearing node itself.
+// objectMember is one printable member: its key spelling, quoted when not a safe identifier, plus
+// the dereferenced value node, or the signature-bearing node for a method / call signature.
 type objectMember struct {
 	name          string
 	key           string
@@ -880,11 +814,10 @@ type indexSignature struct {
 	value *reflection.RunType
 }
 
-// objectMembers collects an object shape's members: properties, method and
-// call signatures (type-target printable; builders/schema escape the whole
-// object), plus every index signature. Shapes only the TYPE form can spell
-// (a non-string key, several signatures, an index beside named members) are
-// returned rather than refused — the other two targets escape them.
+// objectMembers collects an object shape's members: properties, method and call signatures (which
+// the type target prints and builders escapes as a whole object), plus every index signature. A
+// shape only the TYPE form can spell is returned rather than refused, the builders target escaping
+// it.
 func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, []indexSignature, *Diagnostic) {
 	var members []*objectMember
 	var indexes []indexSignature
@@ -899,9 +832,9 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			if indexKey == nil || indexValue == nil {
 				return nil, nil, unsupportedDiag(node, ctx.decl)
 			}
-			// Non-string keys, several signatures, and named members beside an
-			// index all SPELL fine as a type — only the value-first and schema
-			// forms lack a word for them, and those escape (see indexShape).
+			// A non-string key, several signatures and named members beside an index all SPELL fine
+			// as a type; only the value-first form lacks a word for them, and it escapes (see
+			// indexShape).
 			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue})
 			continue
 		}
@@ -910,9 +843,8 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
 		}
 		if member.NonEnumerable {
-			// The @nonEnumerable JSDoc marker folds into the id but has no
-			// spelling in any printed form — dropping it silently would move
-			// the id, so the declaration refuses instead.
+			// The @nonEnumerable JSDoc marker folds into the id but has no printed spelling, and
+			// dropping it would move the id, so the declaration refuses.
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("member %q is marked @nonEnumerable, which has no conversion spelling yet", member.Name)}
 		}

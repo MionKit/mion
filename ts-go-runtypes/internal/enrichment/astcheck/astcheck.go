@@ -1,13 +1,6 @@
-// Package astcheck is the shared AST walk behind the FriendlyText / MockData
-// content checks: it finds every `const <name>: FriendlyText<T> | MockData<T>
-// = {…}` declaration in a source file, resolves T through the runtype cache,
-// runs the paired checkers from internal/enrich, and anchors each finding to
-// a real source position (the literal node its dotted Path points at).
-//
-// Two consumers share it — `mion check` (cmd/mion) and the
-// resolver's checkEnrich pass (internal/compiler/resolver), which serves the same
-// findings to the @mionjs/devtools lint plugin. It must not import the
-// resolver (the resolver imports it).
+// Package astcheck is the shared AST walk behind the FriendlyText / MockData content checks: it resolves each enrichment
+// const's T through the runtype cache, runs the paired checkers of internal/enrichment, and anchors every finding to a
+// source position. The CLI check lane and the resolver's checkEnrich pass share it, so it must not import the resolver.
 package astcheck
 
 import (
@@ -24,8 +17,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// mapKind identifies which enrichment-map alias a `const … : X<T>` declaration
-// is annotated with.
+// mapKind identifies which enrichment-map alias a declaration is annotated with.
 type mapKind int
 
 const (
@@ -34,22 +26,15 @@ const (
 	mapKindMock
 )
 
-// PositionedFinding pairs an enrichment.Finding with the diagnostics.Site its Path
-// resolved to (the property NAME node inside the const's object literal, or
-// the const's name when the path could not be located).
+// PositionedFinding pairs a Finding with the site its Path resolved to, the const's own name when the path was not found.
 type PositionedFinding struct {
 	enrichment.Finding
 	Site diagnostics.Site
 }
 
-// CheckSourceFile walks sourceFile's variable statements, runs the paired
-// FriendlyText / MockData checks on every enrichment const with an
-// object-literal initializer, and returns position-anchored findings.
-// markerOpts carries the accepted marker package set + the filesystem the
-// package.json gate reads — pass the
-// Program's FS so overlay-backed programs resolve; nil falls through to the
-// real disk (the CLI case). filePath is the path findings report (the
-// resolver echoes request-normalized paths; the CLI passes the absolute path).
+// CheckSourceFile runs the paired checks on every enrichment const with an object-literal initializer, findings anchored.
+// markerOpts carries the accepted marker package set and the FS the package.json gate reads; pass the Program's FS so an
+// overlay-backed program resolves, nil falls through to real disk. filePath is the path findings report.
 func CheckSourceFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, filePath string) []PositionedFinding {
 	var out []PositionedFinding
 	if sourceFile == nil || typeChecker == nil || cache == nil {
@@ -95,8 +80,7 @@ func CheckSourceFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, c
 	return out
 }
 
-// variableDeclarations returns the VariableDeclaration nodes of a
-// VariableStatement.
+// variableDeclarations returns the VariableDeclaration nodes of a VariableStatement.
 func variableDeclarations(statement *ast.Node) []*ast.Node {
 	declaration := statement.AsVariableStatement().DeclarationList
 	if declaration == nil {
@@ -109,15 +93,10 @@ func variableDeclarations(statement *ast.Node) []*ast.Node {
 	return list.Declarations.Nodes
 }
 
-// enrichAnnotation reports whether declaration's type annotation is a
-// reference to FriendlyText / MockData declared in the mion package, and
-// returns the reference's first type argument (T) projected to a checker type.
-//
-// The alias name is read off the type-reference SYNTAX (TypeName symbol),
-// resolving the local import alias to its target via SkipAlias, then confirming
-// the module the same way marker.go does. We can't read it off the resolved
-// `*checker.Type` (marker.go's aliasForSpec path) because FriendlyText<T>'s body
-// reduces immediately, so getTypeFromTypeNode drops the alias info.
+// enrichAnnotation reports whether declaration is annotated with FriendlyText / MockData from the marker package, and
+// returns that reference's first type argument as a checker type.
+// The alias name is read off the SYNTAX, not the resolved type: FriendlyText<T>'s body reduces immediately, so
+// getTypeFromTypeNode drops the alias info that marker.go's aliasForSpec path relies on.
 func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, markerOpts marker.Options) (mapKind, *checker.Type) {
 	if !ast.IsVariableDeclaration(declaration) {
 		return mapKindNone, nil
@@ -134,9 +113,7 @@ func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, marke
 	if symbol == nil {
 		return mapKindNone, nil
 	}
-	// A `import {FriendlyText} from '@mionjs/run-types'` reference resolves to a local
-	// import-alias symbol whose declaration is the import specifier; SkipAlias
-	// follows it to the original type-alias declaration in the package.
+	// An imported reference resolves to a local alias symbol, and SkipAlias follows it to the declaration in the package.
 	if symbol.Flags&ast.SymbolFlagsAlias != 0 {
 		symbol = checker.SkipAlias(symbol, typeChecker)
 	}
@@ -166,8 +143,7 @@ func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, marke
 	return kind, typeArg
 }
 
-// objectLiteralInitializer returns declaration's initializer when it is an
-// object literal, else nil.
+// objectLiteralInitializer returns declaration's initializer when it is an object literal, else nil.
 func objectLiteralInitializer(declaration *ast.Node) *ast.Node {
 	initializer := declaration.AsVariableDeclaration().Initializer
 	if initializer == nil || !ast.IsObjectLiteralExpression(initializer) {
@@ -176,9 +152,7 @@ func objectLiteralInitializer(declaration *ast.Node) *ast.Node {
 	return initializer
 }
 
-// findingSite anchors a finding: the property NAME node its dotted Path
-// resolves to inside the const's literal, falling back to the const's name
-// (then the whole declaration) when the path can't be located.
+// findingSite anchors a finding at the property NAME node its Path resolves to, falling back to the const's own name.
 func findingSite(filePath string, sourceFile *ast.SourceFile, declaration, literal *ast.Node, path string) diagnostics.Site {
 	if node := locatePathNode(literal, path); node != nil {
 		return nodeTokenSite(filePath, sourceFile, node)
@@ -189,10 +163,8 @@ func findingSite(filePath string, sourceFile *ast.SourceFile, declaration, liter
 	return nodeTokenSite(filePath, sourceFile, declaration)
 }
 
-// nodeTokenSite is textpos.NodeSite anchored at the node's TOKEN start (the
-// first real character) rather than node.Pos(), which includes leading trivia
-// — a property key preceded by a newline would otherwise anchor to the end of
-// the previous line.
+// nodeTokenSite anchors at the node's TOKEN start, since node.Pos() includes leading trivia and a property key after a
+// newline would anchor to the end of the previous line.
 func nodeTokenSite(filePath string, sourceFile *ast.SourceFile, node *ast.Node) diagnostics.Site {
 	if sourceFile == nil || node == nil {
 		return diagnostics.Site{}
@@ -203,11 +175,8 @@ func nodeTokenSite(filePath string, sourceFile *ast.SourceFile, node *ast.Node) 
 	return diagnostics.Site{FilePath: filePath, StartLine: startLine, StartCol: startCol, EndLine: endLine, EndCol: endCol}
 }
 
-// locatePathNode resolves a finding's dotted Path (`name.$errors.minLength`)
-// against the const's object literal, returning the NAME node of the deepest
-// matched property. Path segments are literal property keys (the checkers
-// build paths with joinPath over the keys they walk), so a plain split on '.'
-// mirrors the walk. Returns nil when even the first segment is missing.
+// locatePathNode resolves a finding's dotted Path, say `name.rt$errors.minLength`, to the deepest matched property NAME node.
+// Path segments are literal property keys, so a plain split on '.' mirrors the walk; nil when the first segment is missing.
 func locatePathNode(literal *ast.Node, path string) *ast.Node {
 	if literal == nil || path == "" {
 		return nil

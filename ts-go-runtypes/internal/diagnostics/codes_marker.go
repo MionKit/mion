@@ -1,107 +1,76 @@
 package diagnostics
 
-// Marker-scanner codes (MKRxxx). Issued by the resolver when a marker call
-// compiles correctly but uses an anti-pattern.
+// Marker-scanner codes (MKRxxx), raised when a marker call compiles correctly but uses an
+// anti-pattern.
 //
-// The levels here split on ONE mechanical fact: whether the scan still emits a
-// SITE for the call. No site means no cache entry and no injected id, so the
-// call ships un-rewritten and throws `no id injected` — LevelError, because
-// there is no output to accept (MKR003, MKR008, MKR009, MKR010, MKR011,
-// MKR014). A site that IS emitted but built from a type that was read wrongly
-// ships a validator that accepts everything — LevelRuntimeError (MKR007,
-// MKR012, MKR013, and TMP001 / CFG002 elsewhere).
+// The levels split on whether the scan still emits a SITE for the call. No site means no cache entry
+// and no injected id, so the call ships un-rewritten and throws `no id injected`: LevelError
+// (MKR003, MKR008, MKR009, MKR010, MKR011, MKR014, MKR015). A site built from a type that was read wrongly
+// ships a validator that accepts everything: LevelRuntimeError (MKR007, MKR012, MKR013, and
+// TMP001 / CFG002 elsewhere).
 const (
 	CodeMarkerFunctionCallArg         = "MKR001"
 	CodeMarkerFreeTypeParameter       = "MKR003"
 	CodeValidateOptionsNoLiteralsNoop = "MKR004"
 	CodeValidateOptionsNoArrayNoop    = "MKR005"
-	// CodeMarkerDuplicateFnKey: LevelWarning. The scan DEDUPES the repeated key
-	// and emits the site normally, so what ships is correct; the only thing wrong
-	// is a copy-paste slip in the source. It used to fail the build, which the
-	// two questions do not support.
+	// CodeMarkerDuplicateFnKey: LevelWarning, because the scan DEDUPES the repeated key and emits the
+	// site normally, so what ships is correct and only the source has a copy-paste slip.
 	CodeMarkerDuplicateFnKey          = "MKR006"
 	CodeMarkerAnyFromUnresolvedImport = "MKR007"
-	// CodeStructuralIdDepthExceeded fires when the structural-id walk hits its
-	// recursion depth cap with NO classifiable cause: written nesting past the cap.
-	// Deterministic failure in place of a fatal Go stack overflow. Anchors at the
-	// reflection call site, same as the other MKR codes.
+	// CodeStructuralIdDepthExceeded fires when the structural-id walk hits its depth cap with no
+	// classifiable cause, a deterministic failure in place of a fatal Go stack overflow. Anchors at
+	// the reflection call site, like the other MKR codes.
 	CodeStructuralIdDepthExceeded = "MKR008"
-	// CodeMarkerSelfInstantiatingGeneric is the cause-classified variant of the
-	// depth cap: instantiations of ONE named type dominate the overflowing walk,
-	// a self-instantiating generic (e.g. a generic method returning a fresh
-	// instantiation of its own container, lib.esnext's IteratorObject shape). Its
-	// per-level type parameters are bound per call site and can never resolve at
-	// build time, so no finite structural id exists. Args: [0] the type's name.
+	// CodeMarkerSelfInstantiatingGeneric is the cause-classified depth cap: instantiations of ONE
+	// named type dominate the overflowing walk (lib.esnext's IteratorObject shape). Its per-level
+	// type parameters bind per call site, so no finite structural id exists. Args: [0] the type name.
 	CodeMarkerSelfInstantiatingGeneric = "MKR009"
-	// CodeMarkerUnresolvedTypeParameter is the nested sibling of MKR003: the
-	// marker's type argument is not itself a bare type parameter (that is MKR003),
-	// but CONTAINS a still-free one in a data position (`A<T>`, `T[]`, `{a: T}`
-	// inside a generic body). Without the check the free param silently collapses
-	// to `unknown` and every instantiation context shares one aliased id. Args:
-	// [0] the parameter name; Related: the parameter's declaration + generics-chain
-	// hops. Signature interiors (generic methods' own params) are exempt.
+	// CodeMarkerUnresolvedTypeParameter is the nested sibling of MKR003: the type argument CONTAINS a
+	// still-free type parameter in a data position (`A<T>`, `T[]`, `{a: T}`), which without the check
+	// collapses to `unknown` so every instantiation context shares one aliased id. Signature
+	// interiors (a generic method's own params) are exempt. Args: [0] the parameter name; Related:
+	// its declaration + generics-chain hops.
 	CodeMarkerUnresolvedTypeParameter = "MKR010"
-	// CodeMarkerUnresolvedGenericType is the SYNTACTIC guard of the unresolved-generics
-	// model: a written generic reference with fewer type arguments than the
-	// declaration's default-less parameters (`getRunTypeId<A2>()` over
-	// `interface A2<S>`). tsc rejects it (TS2314) but the no-typecheck dev lane
-	// doesn't, and the checker yields plain `any`, so the scan reads the WRITTEN
-	// argument list instead. A parameter WITH a default never trips it (the
-	// checker resolves defaults at use sites). Args: [0] type name, [1] parameter
-	// name; Related: the default-less parameter's declaration + alias hops.
+	// CodeMarkerUnresolvedGenericType is the SYNTACTIC guard: a written generic reference with fewer
+	// type arguments than the declaration's default-less parameters. tsc rejects it (TS2314) but the
+	// no-typecheck dev lane does not, and the checker yields plain `any`, so the scan reads the
+	// WRITTEN argument list instead. A parameter WITH a default never trips it. Args: [0] type name,
+	// [1] parameter name; Related: the parameter's declaration + alias hops.
 	CodeMarkerUnresolvedGenericType = "MKR011"
-	// CodeMarkerUntrustedPackage fires when a type is named exactly like a marker
-	// but was declared by a package the project has not trusted, so the
-	// module-of-origin gate rejected it. The brand-property fallback still emits
-	// a site, so the call does not vanish — it silently reflects `unknown`
-	// instead of the user's type, which is the worst shape of failure (the build
-	// succeeds and the generated validator accepts everything). Args: [0] the
-	// marker name, [1] the declaring package. A same-named brand declared by the
-	// USING file's own package never trips it: that is the local-brand case the
-	// gate exists to keep inert. LevelRuntimeError, raised from LevelWarning: the
-	// entry ships, `unknown` compiles to the accept-everything noop, and the
-	// comment above already calls that the worst shape of failure. A warning was
-	// the one level it could not honestly be.
+	// CodeMarkerUntrustedPackage fires on a type named exactly like a marker but declared by a
+	// package the project has not trusted, which the module-of-origin gate rejects. The
+	// brand-property fallback still emits a site, so the call reflects `unknown` instead of the
+	// user's type: LevelRuntimeError, since `unknown` compiles to the accept-everything noop. A
+	// same-named brand declared by the USING file's own package never trips it, the local-brand case
+	// the gate keeps inert. Args: [0] the marker name, [1] the declaring package.
 	CodeMarkerUntrustedPackage = "MKR012"
-	// CodeMarkerUnresolvedTypeName: a marker's type checked as the checker's
-	// ERROR type — `any` the author never wrote — because a written type name
-	// failed to resolve (a typo, a missing dependency's types, an ambient
-	// declaration outside the scanned program). Third member of the silent-any
-	// guard family: TMP001 is the Temporal-lib cause, MKR007 the unresolved-
-	// import cause, this the bare-name cause. A written `any` keyword and a
-	// resolved `type Loose = any` are the true `any` intrinsic, never the error
-	// type, so deliberate `any` stays legal with no escape hatch needed. Args:
-	// [0] the written type name (or the reflect-form value's identifier).
+	// CodeMarkerUnresolvedTypeName: the marker's type checked as the checker's ERROR type, `any` the
+	// author never wrote, because a written type name failed to resolve. Third member of the
+	// silent-any guard family (TMP001 the Temporal-lib cause, MKR007 the unresolved-import cause,
+	// this the bare-name cause). A written `any` and a resolved `type Loose = any` are the true `any`
+	// intrinsic, never the error type, so deliberate `any` stays legal. Args: [0] the written type
+	// name (or the reflect-form value's identifier).
 	CodeMarkerUnresolvedTypeName = "MKR013"
-	// CodeMarkerUnresolvedFnName: an `InjectTypeFnArgs<T, Fn>` marker names a
-	// function family that does not exist. Nothing is emitted for that slot and
-	// the wrapper receives an empty handle, so the call it forwards to degrades
-	// to its no-plugin fallback at runtime — LevelError by question 1: no code
-	// was produced for the thing the marker asked for. Args: [0] the unknown
-	// token, [1] the closest real token ("" when nothing is close).
+	// CodeMarkerUnresolvedFnName: an `InjectTypeFnArgs<T, Fn>` marker names a function family that
+	// does not exist. Nothing is emitted for that slot and the wrapper gets an empty handle, so the
+	// call degrades to its no-plugin fallback: LevelError, no code was produced for what the marker
+	// asked for. Args: [0] the unknown token, [1] the closest real token ("" when nothing is close).
 	CodeMarkerUnresolvedFnName = "MKR015"
-	// CodeTypeIdCollision: two DIFFERENT types produced the same short type id
-	// at the configured `hashLength`. Every generated name, cache key and disk
-	// path is that id, so nothing downstream could tell the two apart. The build
-	// stops instead: the ids are a fixed length by contract, and the fix is one
-	// option away. With the two-lane hasher a seven-character collision is a
-	// genuinely rare event, so failing loudly costs nothing in practice.
-	// Args: [0] the shared id, [1] the shape that took it first, [2] the shape
-	// that collided with it, [3] the hashLength to try next, [4] where the first
-	// shape came from. Related: the call site that took the id first, present
-	// only when that was a marker call — an inner node (a union member, a tuple
-	// slot) has no site of its own and reads as "another site" in [4].
+	// CodeTypeIdCollision: two DIFFERENT types produced the same short type id at the configured
+	// `hashLength`. Every generated name, cache key and disk path is that id, so nothing downstream
+	// could tell them apart; the build stops instead and the fix is one option away. Args: [0] the
+	// shared id, [1] the shape that took it first, [2] the shape that collided, [3] the hashLength to
+	// try next, [4] where the first shape came from. Related: the site that took the id first,
+	// present only when that was a marker call; an inner node has no site and reads as "another
+	// site" in [4].
 	CodeTypeIdCollision = "MKR014"
 )
 
-// CompTimeArgs-marker codes (CTAxxx). Issued by the resolver when a
-// CompTimeArgs<T>-branded parameter receives an argument the Go scanner
-// cannot statically evaluate at build time.
+// CompTimeArgs-marker codes (CTAxxx), raised when a CompTimeArgs<T>-branded parameter receives an
+// argument the scanner cannot evaluate at build time.
 //
-// LevelRuntimeError, all four. The typeId is injected as normal and the entry
-// ships; the option readers just fall back to their DEFAULTS when the
-// expression is not a readable literal. So what ships is a working function
-// compiled under options the author did not write.
+// All four are LevelRuntimeError: the typeId is injected and the entry ships, but the option readers
+// fall back to their DEFAULTS, so what ships is compiled under options the author did not write.
 const (
 	CodeCompTimeArgsNonLiteral         = "CTA001"
 	CodeCompTimeArgsDepthExceeded      = "CTA002"
@@ -109,50 +78,36 @@ const (
 	CodeCompTimeArgsWidenedConst       = "CTA004"
 )
 
-// PureFunction-marker codes (PFNxxx). Issued by the resolver when a
-// PureFunction<F>-branded parameter receives something other than an
-// inline arrow / function expression. Purity violations themselves are
-// reported via the existing PFE9006-PFE9011 codes from the purefns
-// package, reused unchanged.
+// PureFunction-marker codes (PFNxxx), raised when a PureFunction<F>-branded parameter receives
+// anything but an inline arrow / function expression; purity violations themselves report as
+// PFE9006-PFE9011.
 //
-// LevelRuntimeError: the marker's own typeId entry ships, but the pure-fn
-// walker bails without an entry, so the generated `utl.getPureFn(key)` names a
-// module that was never written and throws when the function is called.
+// LevelRuntimeError: the typeId entry ships, but the pure-fn walker bails, so the generated
+// `utl.getPureFn(key)` names a module that was never written and throws when called.
 const (
 	CodePureFunctionNotLiteral     = "PFN001"
 	CodePureFunctionExternalHandle = "PFN002"
 )
 
-// Project-configuration codes (CFGxxx). Issued when the process cannot load
-// the project tsconfig that was named (or discovered) for it, the config
-// every lane derives its Programs from. Strict like tsc: never downgraded or
-// swallowed; the daemon fails the op with this code tagged in the message
-// (lint hosts synthesize the catalog diagnostic from it, args: [detail],
-// e.g. "tsconfig parse failed: <first tsgo diagnostic>") and CLI lanes exit.
-// FamilyMarker: the scan subsystem owns it: the marker scan is what could
-// not run, keeping the wire enum and its TS mirror untouched.
+// Project-configuration codes (CFGxxx), raised when the project tsconfig every lane derives its
+// Programs from cannot be loaded. Strict like tsc, never downgraded or swallowed: the daemon fails
+// the op with the code tagged in the message (a lint host synthesizes the catalog diagnostic from
+// it, args: [detail]) and CLI lanes exit. FamilyMarker because the marker scan is what could not
+// run, which keeps the wire enum and its TS mirror untouched.
 const (
 	CodeTsconfigLoadFailed = "CFG001"
-	// CodeUnsupportedLibSelection: the project selected a TypeScript standard
-	// library that leaves the required globals undeclared (`lib: []`, `noLib`,
-	// or a by-feature lib such as `["esnext.disposable"]` with no base edition).
-	// Reflection is UNSOUND in that state and silently so: with no `Array`
-	// global, `number[]` checks as an empty object, so the emitted validator
-	// accepts anything and no diagnostic fires anywhere. The silent-`any` guard
-	// family cannot see it — MKR013 keys on a written type NAME, and array sugar
-	// writes none. LevelRuntimeError: the whole cache tree is written and the
-	// rewritten source ships, it is just built on types that cannot be trusted.
-	// Args: [0] the loaded lib files, or "(none)".
+	// CodeUnsupportedLibSelection: the project's `lib` leaves the required globals undeclared
+	// (`lib: []`, `noLib`, or a by-feature lib with no base edition). Reflection is then UNSOUND and
+	// silently so: with no `Array` global, `number[]` checks as an empty object and the validator
+	// accepts anything. The silent-`any` guards cannot see it, since MKR013 keys on a written type
+	// NAME and array sugar writes none. LevelRuntimeError: the cache tree is written and ships, just
+	// built on types that cannot be trusted. Args: [0] the loaded lib files, or "(none)".
 	CodeUnsupportedLibSelection = "CFG002"
-	// CodeEmitOutsideRootDir: `mion compile` would have to write an emitted file
-	// outside the tsconfig `outDir`, because the program reaches a source file
-	// outside its `rootDir` (a `paths` entry into a sibling package, a relative
-	// import above the source root). tsc refuses the same program (TS6059); so
-	// does the compile lane: the file is not written, and the importer that IS
-	// written would point at it, so this is an error, never a warning.
-	// LevelError: the offending path is deleted from the write map, so the file
-	// the importer names never lands. Args:
-	// [0] the output path that was refused, [1] the outDir.
+	// CodeEmitOutsideRootDir: `mion compile` would write an emitted file outside the tsconfig
+	// `outDir`, because the program reaches a source file outside its `rootDir`. tsc refuses the same
+	// program (TS6059). LevelError, never a warning: the offending path is deleted from the write
+	// map, so the file the written importer names never lands. Args: [0] the refused output path,
+	// [1] the outDir.
 	CodeEmitOutsideRootDir = "CFG003"
 )
 
