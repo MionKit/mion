@@ -11,6 +11,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['test/**/*.test.ts'],
+    // Vitest's 10 s default has no headroom here: these hooks spawn the resolver and run
+    // the CLI, and batch-diagnostics alone takes 16 s before any batch contention.
+    testTimeout: 60000,
+    hookTimeout: 60000,
     // The Go binary is built by the root `pretest` script before vitest boots — it
     // MUST exist beforehand because the transform spawns it from `configResolved`,
     // which fires during project initialization (before any globalSetup runs).
