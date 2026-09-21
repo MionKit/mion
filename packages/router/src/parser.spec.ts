@@ -141,9 +141,8 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // Every strategy compiles exactly ONE validator on the params side, and the answer side always the plain
-  // pair. The stripping strategies take the union-scoped one: their decoder already rebuilt the declared
-  // shape, so the only key it could not drop is one another union member declares.
+  // ONE validator per strategy on the params side, the plain pair on the answer side. The stripping strategies take the
+  // union-scoped one: their decoder already rebuilt the declared shape, so only a sibling member's key can survive.
   describe('the validate family follows the wire', () => {
     const cloneRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'clone'});
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
@@ -273,9 +272,9 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // A strategy also decides what survives on the way IN: the caller need not be a mion client, so only
-  // the decoder stands between what it sends and the handler. The return wire is decoded by the CLIENT,
-  // whose decoder is not the server's: `mutate` sends its undeclared keys and the client still drops them.
+  // On the way IN the caller need not be a mion client, so only the decoder stands between what it sends and the
+  // handler. A return is decoded by the CLIENT, whose decoder is not the server's: `mutate` sends its undeclared keys
+  // and the client still drops them.
   describe('what arrives at the caller', () => {
     interface Slice {
       name: string;
@@ -464,10 +463,9 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // mion's built-ins (@thrownErrors, notFound, platformError, the metadata middleFn) are DECLARED at module
-  // level and cannot inherit a router-wide `parser`: createMionRouter is generic, so a marker call site
-  // inside it carries an unresolved type parameter, and initRouter takes the widened options type.
-  // The build compiles them against the built-in default, so each must PIN it or it refuses to start.
+  // mion's built-ins (@thrownErrors, notFound, platformError, the metadata middleFn) are DECLARED at module level and
+  // cannot inherit a router-wide `parser`: createMionRouter is generic, so a marker call site inside it carries an
+  // unresolved type parameter. The build compiles them against the default, so each must PIN it or it refuses to start.
   describe("mion's own built-in methods", () => {
     const plainRoute = mion.route((ctx, p: Pet): Pet => p);
 

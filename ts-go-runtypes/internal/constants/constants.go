@@ -48,8 +48,7 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_vest_",
 		Tag:       "vest",
 	},
-	// The union-scoped validators behind `{checkUnionUnknowns: true}` — the plain
-	// bodies plus a key check on each UNION MEMBER arm and nowhere else.
+	// The union-scoped validators behind `{checkUnionUnknowns: true}`: a key check on UNION MEMBER arms and nowhere else.
 	"validateUnionKeys": {
 		Name:      "validateUnionKeysModule",
 		VarPrefix: "g_vuk_",

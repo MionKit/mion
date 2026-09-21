@@ -1,9 +1,6 @@
-// registerTypeFnTuple joins a compiled entry with its family metadata, keyed by the 4-char family tag the
-// entry carries. A tag with no metadata row is not an error: the call site silently falls back to the
-// identity fn, which for a validator means answering true for every value.
-//
-// Nothing else enumerates the table, so a family added on the Go side with no TypeScript row ships a
-// validator that accepts everything. That is the shape of the FN_HASH_LEN bug only the fuzz lane caught.
+// registerTypeFnTuple joins a compiled entry with its family metadata by 4-char tag. A tag with no row is not an error:
+// the call site silently falls back to the identity fn, which for a validator means answering true for every value.
+// Nothing else enumerates the table, so a Go-side family with no TypeScript row ships a validator that accepts anything.
 
 import {describe, expect, it} from 'vitest';
 import {FAMILY_TAG_TO_FN_KEY} from '@mionjs/run-types/runtime';

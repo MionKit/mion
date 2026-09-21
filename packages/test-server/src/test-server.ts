@@ -270,9 +270,8 @@ const routes = {
   },
 
   createUserProfile: route((_ctx, user: UserProfile): UserProfile => user),
-  // `mutateStrict` keeps every key the caller sent and then rejects the ones the type does not declare, on
-  // the server and in the client's own local pre-validation (R17). `clone` and `compact` would rebuild the
-  // params from the declared type, so the extra key would be gone before anything could report it.
+  // `mutateStrict` keeps every key the caller sent and then rejects the undeclared ones, on the server and in the
+  // client's own pre-validation (R17). `clone` and `compact` would drop the extra key before anything could report it.
   createUserStrict: route((_ctx, user: User): User => user, {parser: {params: 'mutateStrict'}}),
   // sanitizeParams routes: the email's declared transform runs after decode and before validation
   // on the server, and locally on the client when its own sanitizeParams option is on

@@ -86,35 +86,21 @@ export interface ValidateOptions {
    *  than a variant of this one, so `getFnHash('validate', {checkUnknowns: true})` is NOT its cache
    *  key: resolve `getFnHash('validateStrict')`, or `'validationErrorsStrict'` for the errors form. **/
   checkUnknowns?: boolean;
-  /** The narrow half of `checkUnknowns`: checks keys on UNION MEMBER ARMS only, and nowhere else.
-   *  Default `false`, so a plain `createValidateFn<T>()` is unchanged.
+  /** The narrow half of `checkUnknowns`: checks keys on UNION MEMBER ARMS only. Default `false`.
    *
-   *  It exists because a stripping decoder cannot clean a union. `prepareForJsonClone` and
-   *  `compactForJson` rebuild the declared shape, so a plain object's undeclared keys are gone before
-   *  any validator runs. On a union they pool every member's property names into one allowlist, since
-   *  a codec never validates and so cannot know which member matched, and once ANY member carries an
-   *  index signature they emit nothing at all, because a value matching that member really does
-   *  declare every key:
+   *  A stripping decoder cannot clean a union: `prepareForJsonClone` / `compactForJson` never
+   *  validate, so they pool every member's property names into one allowlist, and emit nothing at all
+   *  once ANY member carries an index signature. So `{a: string} | Record<string, number>` accepts
+   *  `{a: 'x', evil: 'garbage'}`, a value matching NEITHER member, and this option rejects it.
    *
-   *  ```ts
-   *  type Something = {a: string} | Record<string, number>;
-   *  const value = {a: 'x', evil: 'garbage'}; // matches NEITHER member
+   *  PER MATCHED BRANCH, not "reject anything extra": with `Record<string, string>` that same value
+   *  IS a valid record and stays accepted. The check runs ONLY on a union with two or more members
+   *  carrying properties by name (object literals, interfaces, records, named classes), so
+   *  `{a: string} | number` answers exactly as plain `validate` does; arrays, tuples, `Date`, `Map`,
+   *  `Set` and atomics do not count.
    *
-   *  isSomething(value); // true  — `{a: string}` matched, nothing looked at `evil`
-   *  isSomethingUnionKeys(value); // false — `{a: string}` does not declare `evil`
-   *  ```
-   *
-   *  PER MATCHED BRANCH, not "reject anything extra". With `Record<string, string>` in place of
-   *  `Record<string, number>` above, the same value IS a valid record and stays accepted.
-   *
-   *  THE CHECK RUNS ONLY on a union with two or more members that can carry properties by name
-   *  (object literals, interfaces, records, named classes). With one such member there is nothing to
-   *  disambiguate, so `{a: string} | number` answers exactly as plain `validate` does. Arrays,
-   *  tuples, `Date`, `Map`, `Set` and atomics carry no such properties and do not count.
-   *
-   *  NOT a weaker `checkUnknowns`. A plain object nested INSIDE a member is not a union node, so its
-   *  own undeclared keys are not checked here; `checkUnknowns` is the option that reaches them.
-   *  Setting both is allowed and `checkUnknowns` wins, being strictly stronger.
+   *  NOT a weaker `checkUnknowns`: a plain object nested INSIDE a member is not a union node, so its
+   *  own undeclared keys go unchecked. Setting both is allowed and `checkUnknowns` wins.
    *
    *  COMPILE-TIME, and like `checkUnknowns` it selects a different compiled FAMILY rather than a
    *  variant, so resolve `getFnHash('validateUnionKeys')`, or `'validationErrorsUnionKeys'` for the
@@ -724,8 +710,7 @@ export interface RTFunctionByKey {
   // reject (or report) undeclared properties.
   validateStrict: ValidateFn;
   validationErrorsStrict: GetValidationErrorsFn;
-  // The `{checkUnionUnknowns: true}` twins — same call shapes, and additionally reject (or
-  // report) a property the union member that matched leaves undeclared.
+  // The `{checkUnionUnknowns: true}` twins: same shapes, rejecting a key the matched union member leaves undeclared.
   validateUnionKeys: ValidateFn;
   validationErrorsUnionKeys: GetValidationErrorsFn;
   // Unknown-keys group.

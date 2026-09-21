@@ -169,9 +169,7 @@ func (ctx *EmitContext) ChecksUnknownKeys() bool {
 
 // ChecksUnionMemberKeys reports whether the family being rendered asserts, on each union arm, that the member which
 // matched declares every key on the value (the validateUnionKeys / validationErrorsUnionKeys families).
-//
-// Rides the emitter identity like ChecksUnknownKeys, and for the same reason: a union nested under a named type is
-// dep-called into its own entry, which renders with this same emitter and so reaches the same verdict.
+// Rides the emitter identity like ChecksUnknownKeys: a union dep-called into its own entry reaches the same verdict.
 func (ctx *EmitContext) ChecksUnionMemberKeys() bool {
 	if ctx.walker == nil {
 		return false

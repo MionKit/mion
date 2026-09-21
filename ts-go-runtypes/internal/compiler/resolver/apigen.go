@@ -529,9 +529,8 @@ func encodeFamily(strategy string) string {
 	}
 }
 
-// paramsValidateFamilies mirrors VALIDATE_FAMILY_BY_STRATEGY in core's constants.ts: exactly ONE validator per
-// strategy on the params side, never a separate hasUnknownKeys call. A RETURN is written by the handler rather
-// than a caller, so every return wire keeps the plain pair.
+// paramsValidateFamilies mirrors VALIDATE_FAMILY_BY_STRATEGY in core's constants.ts: exactly ONE validator per strategy
+// on the params side. A RETURN is written by the handler rather than a caller, so every return wire keeps the plain pair.
 func paramsValidateFamilies(strategy string) (validate, errors string) {
 	switch strategy {
 	case "mutateStrict":

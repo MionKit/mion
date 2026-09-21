@@ -1,7 +1,6 @@
-// A union carrying a Record member is the shape no decoder can clean: a record declares every key, so the
-// stripping strategies keep the whole object, and the pooled unknown-key check answers false for every value.
-// Only a validator that follows the branch that matched can refuse it, which is what each parser strategy now
-// runs. These routes are the end-to-end proof, from wire to handler.
+// A union carrying a Record member is the shape no decoder can clean: a record declares every key, so the stripping
+// strategies keep the whole object and the pooled unknown-key check answers false. Only a validator following the branch
+// that matched can refuse it; these routes are the end-to-end proof, from wire to handler.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter} from './router.ts';

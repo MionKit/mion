@@ -10,10 +10,9 @@ import {initClient} from '../client.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 
-// R17 — the client's local pre-validation, on a route whose parser strategy is `mutateStrict`. The strategy
-// rides the methods metadata, so the client rebuilds the SAME validator the server compiled and an extra-key
-// payload fails before the request leaves. `clone` and `compact` would rebuild the params from the declared
-// type instead, dropping the extra key before anything could report it.
+// R17 — the client's local pre-validation on a `mutateStrict` route: the strategy rides the methods metadata, so the
+// client rebuilds the SAME validator the server compiled. `clone` and `compact` would rebuild the params from the
+// declared type instead, dropping the extra key before anything could report it.
 
 describe('client local pre-validation on a mutateStrict route (R17)', () => {
   const baseURL = TEST_SERVER_BASE_URL;

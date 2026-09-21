@@ -970,11 +970,9 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 		// that fails only once it runs.
 		return "", nil, []diagnostics.Diagnostic{unresolvedFnNameDiagnostic(file, call, fnKey)}
 	}
-	// `{checkUnknowns: true}` selects the FUSED validator (properties AND undeclared keys in one walk);
-	// `{checkUnionUnknowns: true}` the narrower one that checks keys on union member arms only. Both swap the
-	// OPERATION rather than adding a variant, because a variant is root-scoped and would leave every named nested
-	// type unchecked. Everything downstream (the axis, the option names, the circular fork) is unchanged, so both
-	// families inherit noLiterals / numberMode / rejectCircularRefs for free.
+	// `{checkUnknowns: true}` selects the FUSED validator, `{checkUnionUnknowns: true}` the narrower union-arm one. Both
+	// swap the OPERATION rather than adding a variant, because a variant is root-scoped and would leave every named nested
+	// type unchecked; everything downstream is unchanged, so both inherit noLiterals / numberMode / rejectCircularRefs.
 	checkUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnknowns")
 	checkUnionUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnionUnknowns")
 	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
@@ -1240,10 +1238,10 @@ func extractRejectCircularOption(typeChecker *checker.Checker, call *ast.Node, l
 }
 
 // extractBoolValidateOption reads a literal `<option>: true` from the call-site options object of createValidateFn /
-// createGetValidationErrorsFn. Read in place, NOT through the shared validateOptions bag: that bag mirrors
-// constants.ValidateOptions, whose entries become variant LETTERS on the same family, while these options select a
-// different operation entirely (see validatorFamilyOperation), so putting one in the table would silently give it a
-// variant suffix and no behaviour. A non-literal value or an absent slot yields false.
+// createGetValidationErrorsFn. Read in place, NOT through the shared validateOptions bag: entries there become variant
+// LETTERS on the same family, while these options select a different operation entirely (validatorFamilyOperation), so
+// putting one in the table would silently give it a variant suffix and no behaviour. A non-literal value, or an absent
+// slot, yields false.
 func extractBoolValidateOption(typeChecker *checker.Checker, call *ast.Node, lastIndex, argsCount int, option string) bool {
 	enabled := false
 	eachOptionProperty(typeChecker, call, lastIndex, argsCount, func(name string, initializer *ast.Node) {
@@ -1311,12 +1309,9 @@ func jsonValueStrategyOperation(op operations.Operation, strategy string) (opera
 	return resolved, true
 }
 
-// validatorFamilyOperation maps a plain validator operation to the family the call site's options selected, and returns
-// it unchanged when they selected none. The call site's marker still says 'val' / 'verr', the injected tuple carrying
-// the fnHash, so this swap is the only thing that routes it.
-//
-// `checkUnknowns` wins when both are set: it checks keys at every object-ish node, which is strictly stronger than
-// checking them on union member arms alone.
+// validatorFamilyOperation maps a plain validator operation to the family the call site's options selected. The call
+// site's marker still says 'val' / 'verr', the injected tuple carrying the fnHash, so this swap is the only thing that
+// routes it. `checkUnknowns` wins when both are set: every object-ish node is strictly stronger than union arms alone.
 func validatorFamilyOperation(op operations.Operation, checkUnknowns, checkUnionUnknowns bool) (operations.Operation, bool) {
 	plain, union := "", ""
 	switch op.Name {

@@ -15,16 +15,14 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 /** RunTypes also offers `direct`; mion does not, it costs 3x the memory of `clone` and 2x the time for identical bytes.
  *  Written out rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route. */
 export type ParserStrategy = 'clone' | 'mutate' | 'mutateStrict' | 'compact';
-/** PARAMS ONLY. `mutateStrict` keeps every key the caller sent and then rejects the ones the type does not
- *  declare; a return is written by your own handler, so there is nothing to reject and no way to answer. */
+/** PARAMS ONLY: a return is written by your own handler, so there is no caller key left to reject. */
 export type ReturnParserStrategy = 'clone' | 'mutate' | 'compact';
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
 export interface ParserPair {
   params?: ParserStrategy;
   return?: ReturnParserStrategy;
 }
-/** The `parser` option on the router factory and on route / middleFn options: a string sets both directions,
- *  which is why a bare string cannot be `mutateStrict`. Write `{params: 'mutateStrict'}` instead. */
+/** A bare string sets BOTH directions, so it cannot be `mutateStrict`: write `{params: 'mutateStrict'}`. */
 export type ParserOption = ReturnParserStrategy | ParserPair;
 /** The resolved per-direction pair every executable carries and the methods metadata ships. */
 export interface ResolvedParser {
@@ -36,8 +34,7 @@ export type ParserDirection = keyof ResolvedParser;
 // A route response is always a JSON-safe value the adapter stringifies; `stringifyJson` covers the
 // REQUEST body and the client's own wire.
 
-// NOT the `parser` strategy: these three name how the BODY is framed on the wire. Same word, different concept,
-// which is why the strategy rename left them alone.
+// NOT the `parser` strategy: these name how the BODY is framed on the wire, same word, different concept.
 export const SerializerModes = {
   /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */
   json: 1,

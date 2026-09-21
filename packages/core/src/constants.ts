@@ -72,8 +72,7 @@ export const HandlerType = {
 export const JIT_FUNCTION_IDS = {
   isType: 'Eq2V',
   typeErrors: 'swxg',
-  // One validate pair per parser strategy (VALIDATE_FAMILY_BY_STRATEGY): the union-scoped pair rides with the
-  // stripping decoders, the fused one with mutateStrict, and the plain pair above with mutate.
+  // One validate pair per parser strategy; VALIDATE_FAMILY_BY_STRATEGY says which strategy runs which.
   validateUnionKeys: 'Xhuv',
   validationErrorsUnionKeys: 'OBOg',
   validateStrict: 'fZHy',
@@ -108,13 +107,9 @@ export const DECODE_FAMILY_BY_STRATEGY = {
   compact: {server: 'compactFromJson', client: 'compactFromJson'},
 } as const;
 
-/** The validator a strategy's PARAMS side runs. One per strategy, always exactly one, and never the old pair
- *  of `validate` plus a separate `hasUnknownKeys` call.
- *
- *  `clone` and `compact` rebuild the declared shape as they decode, so a plain object's undeclared keys are
- *  already gone; what they cannot clean is a union, hence the union-scoped pair. `mutate` rebuilds nothing and
- *  is the permissive strategy, so it runs the plain validator. `mutateStrict` rebuilds nothing either and
- *  answers for every key itself, which only the fused validator can do. */
+/** The validator a strategy's PARAMS side runs, always exactly one. `clone` and `compact` rebuild the declared
+ *  shape as they decode, so only a union can still hide a key; `mutate` rebuilds nothing and is the permissive
+ *  strategy; `mutateStrict` rebuilds nothing either and answers for every key, which needs the fused validator. */
 export const VALIDATE_FAMILY_BY_STRATEGY = {
   clone: {isType: 'validateUnionKeys', typeErrors: 'validationErrorsUnionKeys'},
   compact: {isType: 'validateUnionKeys', typeErrors: 'validationErrorsUnionKeys'},
@@ -123,8 +118,7 @@ export const VALIDATE_FAMILY_BY_STRATEGY = {
 } as const;
 /** A RETURN is written by the handler, never by a caller, so every wire compiles the plain pair. */
 export const RETURN_VALIDATE_FAMILY = {isType: 'validate', typeErrors: 'validationErrors'} as const;
-/** JIT_FUNCTION_IDS names the plain pair by mion's own slot (isType / typeErrors) and every other family by
- *  its run-types name, so going from a family name to its id takes this one hop. */
+/** JIT_FUNCTION_IDS names the plain pair by mion's own slot and every other family by its run-types name. */
 export const JIT_ID_BY_VALIDATE_FAMILY = {
   validate: JIT_FUNCTION_IDS.isType,
   validationErrors: JIT_FUNCTION_IDS.typeErrors,

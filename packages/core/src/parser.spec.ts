@@ -5,8 +5,8 @@ import {DEFAULT_PARSER, PARSER_STRATEGIES, isParserStrategy, resolveParser} from
 import type {ParserStrategy} from './types/general.types.ts';
 
 describe('the mion parser strategies', () => {
-  // Every strategy maps onto a RunTypes ENCODER strategy; `mutateStrict` shares `mutate`'s, differing only in
-  // which validator the params side runs, so it is mion's own name and not one RunTypes knows.
+  // `mutateStrict` shares `mutate`'s encoder and differs only in the params validator, so it is mion's own name and
+  // not one RunTypes knows.
   it('names a subset of the RunTypes encoder strategies, once mutateStrict is mapped', () => {
     type Mapped<S> = S extends 'mutateStrict' ? 'mutate' : S;
     type IsSubset = Mapped<ParserStrategy> extends JsonEncoderStrategy ? true : false;

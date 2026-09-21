@@ -66,11 +66,10 @@ var registry = []Operation{
 	{Name: "validateStrict", Doc: "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.", Factory: "createValidateFn", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true},
 	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true},
 
-	// The UNION-SCOPED validators (`{checkUnionUnknowns: true}`): the plain body plus a key check on each union member arm, and
-	// nowhere else. Narrower than the fused pair above on purpose: a stripping decoder already removes a plain object's
-	// undeclared keys, but it cannot remove a key another UNION MEMBER declares, and it removes nothing at all once a member
-	// carries an index signature. This pair covers exactly that gap, so it composes with a stripping decoder without turning
-	// every nested plain object into a strict check. Families rather than variants for the same reason as the fused pair.
+	// The UNION-SCOPED validators (`{checkUnionUnknowns: true}`): narrower than the fused pair above on purpose, since a
+	// stripping decoder already removes a plain object's undeclared keys but cannot remove one a sibling union member
+	// declares, and removes nothing at all once a member carries an index signature. Families rather than variants for the
+	// same reason as the fused pair.
 	{Name: "validateUnionKeys", Doc: "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.", Factory: "createValidateFn", FamilyTag: "vuk", Axis: AxisValidateOptions, Public: true, FnKey: "validateUnionKeys", CircularGuarded: true},
 	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true},
 

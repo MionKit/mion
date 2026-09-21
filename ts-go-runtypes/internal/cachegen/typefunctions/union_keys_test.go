@@ -39,8 +39,7 @@ func oneObjectUnion() protocol.Dump {
 	return unionKeysDump(&reflection.RunType{ID: "oa1"}, &reflection.RunType{ID: "num1"})
 }
 
-// blankFnHash replaces every emitted `<4-char hash>_` prefix with a fixed token, so two FAMILIES' renders of the
-// same type can be compared character by character; only the hash differs when the bodies agree.
+// blankFnHash blanks every emitted `<4-char hash>_` prefix, so two FAMILIES' renders of one type compare byte for byte.
 func blankFnHash(rendered string) string {
 	return fnHashPrefix.ReplaceAllString(rendered, "FN_")
 }
@@ -56,9 +55,8 @@ func renderUnion(t *testing.T, key string, dump protocol.Dump) string {
 	return joinEntries(t, FamilyByKey(key).Collect(dump, RenderOpts{Store: diskcache.New(t.TempDir(), "fp1"), Lookup: lookup}, nil))
 }
 
-// The whole contract in one test: on a qualifying union the union-keys body differs from the plain one, and on
-// every other shape it is IDENTICAL, not merely equivalent. Behavioural equality can hide a check that runs and
-// happens to pass; body equality cannot.
+// On a qualifying union the union-keys body differs from the plain one, and on every other shape it is IDENTICAL, not
+// merely equivalent: behavioural equality can hide a check that runs and happens to pass, body equality cannot.
 func TestUnionKeys_BodyDiffersOnlyWhereTheCheckRuns(t *testing.T) {
 	two := twoObjectUnion()
 	if plain, union := blankFnHash(renderUnion(t, "validate", two)), blankFnHash(renderUnion(t, "validateUnionKeys", two)); plain == union {
@@ -71,8 +69,8 @@ func TestUnionKeys_BodyDiffersOnlyWhereTheCheckRuns(t *testing.T) {
 	}
 }
 
-// The check belongs to the UNION arm. A plain object compiled under this family must come out byte-identical to
-// the plain family's, or the option has quietly become checkUnknowns.
+// The check belongs to the UNION arm: a plain object that does not come out byte-identical to the plain family's body
+// means the option has quietly become checkUnknowns.
 func TestUnionKeys_PlainObjectIsUntouched(t *testing.T) {
 	dump := strictDump()
 	lookup := newFakeLookup()
@@ -89,8 +87,8 @@ func TestUnionKeys_PlainObjectIsUntouched(t *testing.T) {
 	}
 }
 
-// Families, not variants, and being disk-cacheable under their own tag is half the reason (module.go gates the
-// write on an empty variant suffix). vuk.json and veuk.json sit beside val.json for the same type id.
+// Families, not variants, half because only a family is disk-cacheable: module.go gates the write on an empty variant
+// suffix, so vuk.json and veuk.json sit beside val.json for the same type id.
 func TestUnionKeys_DiskCacheRoundTrip(t *testing.T) {
 	for _, family := range []struct{ key, tag string }{
 		{"validateUnionKeys", "vuk"},

@@ -121,8 +121,7 @@ export function addRoutesToCache(newCache: MethodsCache) {
 /** The direction picks the decoder: params are decoded by the server, a return by the client. */
 export function getJitFnHashes(jitHash: string, strategy: ParserStrategy, direction: ParserDirection): JitFunctionsHashes {
   const decodeFamily = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
-  // The validator the strategy compiled. A return always carries the plain pair, so a strategy-driven lookup
-  // there would name an entry the build never emitted.
+  // A return always carries the plain pair; a strategy-driven lookup there would name an entry the build never emitted.
   const validate = direction === 'return' ? RETURN_VALIDATE_FAMILY : VALIDATE_FAMILY_BY_STRATEGY[strategy];
   return {
     isType: `${JIT_ID_BY_VALIDATE_FAMILY[validate.isType]}_${jitHash}`,
