@@ -1,17 +1,10 @@
-// `createStandardSchema<T>()` — adapts RunTypes validation to the Standard
-// Schema v1 interop contract (https://github.com/standard-schema/standard-schema).
-// A thin layer over the existing validators: it carries ONE trailing
-// `InjectTypeFnArgs<T, 'validate', 'validationErrors'>` marker, so the plugin injects an array
-// of two entry tuples (the cheap boolean validator + getValidationErrors) for
-// the same `T`. The produced `validate` is two-tier and synchronous: run the
-// boolean validator first, and only on failure compute + map issues.
-//
-// The returned object is a Standard Schema (structurally assignable to
-// StandardSchemaV1), but its `validate` advertises the richer RTValidationResult
-// — the failure issues are RTValidationIssue, which carry the structured
-// `expected` / `format` and the full path segments alongside the spec
-// `message`/`path`. So generic consumers see a plain Standard Schema while
-// RunTypes-aware consumers get the structured data with no extra call.
+// `createStandardSchema<T>()` — adapts RunTypes validation to the Standard Schema v1 interop contract
+// (https://github.com/standard-schema/standard-schema). A thin layer over the existing validators: ONE
+// trailing marker injects an entry tuple per family for the same `T`, and the produced `validate` is
+// synchronous and two-tier, running the cheap boolean validator first. The returned object is
+// structurally a Standard Schema, but its `validate` advertises the richer RTValidationResult, so a
+// generic consumer sees the plain spec shape while a RunTypes-aware one gets the structured issue
+// data with no extra call.
 
 import {isRunTypeValue} from '../runtypes/rtUtils.ts';
 import {entryTupleAt, resolveEntryTupleFn} from '../runtypes/entryTuple.ts';
@@ -27,24 +20,16 @@ import {buildJsonSchemaConverter} from './jsonSchemaDoc.ts';
 import type {JsonSchemaDocFn} from './jsonSchemaDoc.ts';
 import {jsonSchemaDocFallback} from './createJsonSchemaFn.ts';
 
-/** Failure result whose issues are the richer RTValidationIssue. Assignable to
- *  the spec FailureResult since RTValidationIssue extends StandardSchemaIssue. **/
+/** Assignable to the spec FailureResult, since RTValidationIssue extends StandardSchemaIssue. **/
 export interface RTValidationFailureResult {
   readonly issues: ReadonlyArray<RTValidationIssue>;
 }
 
-/** createStandardSchema's `validate` result: `{value}` on success, the richer
- *  `{issues: RTValidationIssue[]}` on failure. Structurally a Standard Schema
- *  Result<Output>. **/
+/** Structurally a Standard Schema Result<Output>, with the richer issues on the failure side. **/
 export type RTValidationResult<Output> = StandardSchemaSuccessResult<Output> | RTValidationFailureResult;
 
-/** The createStandardSchema return type: a Standard Schema whose `validate`
- *  returns the richer RTValidationResult, carrying the StandardJSONSchemaV1
- *  converter beside it — ONE object satisfying both interfaces. Structurally
- *  assignable to StandardSchemaV1<Input, Output> (the validate return is
- *  assignable to the spec's) and to StandardJSONSchemaV1, so it interops with
- *  any spec consumer while exposing the structured issue data at the type
- *  level. **/
+/** ONE object satisfying both spec interfaces: structurally assignable to StandardSchemaV1 and to
+ *  StandardJSONSchemaV1, while exposing the structured issue data at the type level. **/
 export interface RTStandardSchemaV1<Input = unknown, Output = Input> {
   readonly '~standard': Omit<StandardSchemaProps<Input, Output>, 'validate'> & {
     readonly validate: (value: unknown) => RTValidationResult<Output> | Promise<RTValidationResult<Output>>;
@@ -52,17 +37,13 @@ export interface RTStandardSchemaV1<Input = unknown, Output = Input> {
   };
 }
 
-// Identity fallbacks for the no-plugin case (mirror createValidateFn /
-// createGetValidationErrorsFn): a boolean validator that accepts everything and an
-// error collector that finds nothing.
+// Fallbacks for the no-plugin case, mirroring createValidateFn / createGetValidationErrorsFn.
 const validateFallback = (() => true) as unknown as ValidateFn;
 const errorsFallback: GetValidationErrorsFn<never> = () => [];
 
-/** Returns a Standard Schema v1 object for `T`. `validate` returns `{value}` on
- *  success (the input, narrowed to `DataOnly<T>` — RunTypes validates the
- *  serialisable projection) or the richer `{issues}` on failure. Synchronous,
- *  `vendor: 'mion'`. Accepts either a value-first `RunType` schema or the
- *  type/value reflection form, mirroring `createValidateFn`. **/
+/** Returns a Standard Schema v1 object for `T`, synchronous and `vendor: 'mion'`. On success the input
+ *  is narrowed to `DataOnly<T>`, since RunTypes validates the serialisable projection. Accepts either a
+ *  value-first `RunType` schema or the type/value reflection form, mirroring `createValidateFn`. **/
 export function createStandardSchema<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
@@ -78,18 +59,14 @@ export function createStandardSchema<T>(
   options?: CompTimeFnArgs<ValidateOptions>,
   ids?: InjectTypeFnArgs<T, 'validate', 'validationErrors', 'jsonSchema'>
 ): RTStandardSchemaV1<DataOnly<T>> {
-  // A value-first schema's runtime `.id` overrides the injected type id for both
-  // lookups (correct even for recursive schemas).
+  // A value-first schema's runtime `.id` overrides the injected type id, correct even for recursive schemas.
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
-  // The marker injects `[valTuple, verrTuple, jscTuple]` in the Fn-arg order
-  // 'validate','validationErrors','jsonSchema'.
+  // The marker injects the tuples in the Fn-arg order 'validate', 'validationErrors', 'jsonSchema'.
   const valInjected = entryTupleAt(ids, 0);
   const verrInjected = entryTupleAt(ids, 1);
   const jscInjected = entryTupleAt(ids, 2);
-  // Resolve each under its own family fnName. The circular-reference guard is
-  // compile-time: `{rejectCircularRefs: true}` forked each family's fnHash, so
-  // the armed tuples self-guard (validate -> false on a cycle;
-  // getValidationErrors -> a `{expected:'circular'}` issue).
+  // Resolve each under its own family fnName. The circular-reference guard is compile-time:
+  // `{rejectCircularRefs: true}` forked each family's fnHash, so the armed tuples self-guard.
   const validate = resolveEntryTupleFn<ValidateFn<T>>(
     'createValidateFn',
     validateFallback as ValidateFn<T>,
@@ -106,18 +83,14 @@ export function createStandardSchema<T>(
   const props: RTStandardSchemaV1<DataOnly<T>>['~standard'] = {
     version: 1,
     vendor: 'mion',
-    // The StandardJSONSchemaV1 converter — one document for both sides (the
-    // standard keywords describe the JSON wire; the dialect rows annotate the
-    // JS shape; see jsonSchemaDoc.ts).
+    // One document for both sides (see jsonSchemaDoc.ts).
     jsonSchema: buildJsonSchemaConverter(docFn),
-    // Two-tier: cheap boolean first (zero allocation on the valid path), and
-    // only on failure compute + map the issues.
+    // Cheap boolean first: zero allocation on the valid path.
     validate(value: unknown): RTValidationResult<DataOnly<T>> {
       if (validate(value)) return {value: value as DataOnly<T>};
       return {issues: runTypeErrorsToIssues(getErrors(value))};
     },
-    // `types` is PHANTOM — intentionally never assigned at runtime; the declared
-    // return type carries the input/output types for inference.
+    // `types` is PHANTOM: never assigned at runtime, the declared return type carries it for inference.
   };
   return {'~standard': props};
 }

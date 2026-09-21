@@ -1,34 +1,10 @@
-// `createFriendlyText<T>(map)` — renders `getValidationErrors` output into
-// human-readable messages using a `FriendlyText<T>` map (see docs/AI_ENRICHMENT.md).
-//
-// Pure data over (map, errors): for each error it walks `error.path` into the map,
-// picks a template by the `(format.name, formatPath-tail)` discriminator (`type`
-// for the base type-shape failure), and interpolates `$[…]` placeholders. NO
-// type-id injection and NO rtUtils — error rendering needs only the map. (UI field
-// enumeration, which needs the runtype, is the deferred registry-accessor path.)
-//
-// Aggregation matches the validator: `getValidationErrors` accumulates, so a
-// field can carry several errors and yields ONE message per failed constraint
-// (a list) — or ONE message per field when the node uses the exclusive
-// `rt$default` mode ({rt$default: '…'} instead of per-constraint keys).
-//
-// `createFriendlyTextI18n<T>(source, options)` — the locale-selecting wrapper over
-// the SAME walk (docs/todos → docs/done friendly-type-i18n). The source map IS
-// the source language and the terminal fallback; a translation is another
-// same-tree `FriendlyText<T>` const. Per leaf, an untranslated / @todo-blank
-// template falls through to the source; a plural leaf falls through as a WHOLE
-// unit (its own `other` backstops missing arms first). Plural arms are selected
-// via `Intl.PluralRules` on the violated bound.
-//
-// `$[val]` rendering is TYPE-DRIVEN on the i18n path: the error's format
-// payload says what the bound IS — a number with the `isCurrency` param (the
-// emitter echoes it onto the error) renders via
-// `Intl.NumberFormat(locale, {style: 'currency', currency})` with the
-// app-supplied `currency` option (no option → plain localized number, never a
-// guessed symbol); a date-family format name renders via
-// `Intl.DateTimeFormat(locale)`; everything else stays `String(val)`. There is
-// no per-template format syntax — the type is the single source of truth.
-// Always lenient — a partial translation renders, it never throws.
+// `createFriendlyText<T>(map)` — renders `getValidationErrors` output into human-readable messages
+// against a `FriendlyText<T>` map (see docs/AI_ENRICHMENT.md). Pure data over (map, errors), with NO
+// type-id injection and NO rtUtils: error rendering needs only the map. Aggregation matches the
+// validator, which accumulates, so a field yields ONE message per failed constraint — or one message
+// for the whole field when the node uses the exclusive `rt$default` mode. `createFriendlyTextI18n<T>`
+// is the locale-selecting wrapper over the SAME walk, and a plural leaf falls through to the source
+// as a WHOLE unit. Always lenient: a partial translation renders, it never throws.
 
 import type {RTValidationError, RTValidationErrorPathSegment, TypeFormatError} from '../createRTFunctions.ts';
 import type {FriendlyText, PluralTemplate, TemplateLeaf} from './friendlyText.ts';
@@ -51,14 +27,12 @@ export interface FriendlyRenderer {
   errors(errs: RTValidationError[]): FriendlyMessage[];
 }
 
-// Runtime view of a node — the authored map is a plain object with `rt$label` /
-// `rt$errors` meta keys plus child-field keys (`rt$items` for arrays and rest-tuple
-// elements, `rt$slots` for fixed-tuple positions, `rt$keys` / `rt$values` for
-// maps/sets).
-// Loose runtime view of a node's templates: the precise per-param typing lives
-// on the AUTHORED map (ErrorTemplates<F>); the walk only reads keys.
+// Loose runtime view of a node's templates: the precise per-param typing lives on the AUTHORED map
+// (ErrorTemplates<F>), and the walk only reads keys.
 type ErrorTemplatesRuntime = {[key: string]: TemplateLeaf | undefined};
 
+// Runtime view of a node: `rt$items` holds arrays and rest-tuple elements, `rt$slots` fixed-tuple
+// positions, `rt$keys` / `rt$values` maps and sets.
 type FriendlyNodeRuntime = {
   rt$label?: string;
   rt$errors?: ErrorTemplatesRuntime;
@@ -69,21 +43,16 @@ type FriendlyNodeRuntime = {
   [field: string]: unknown;
 };
 
-// `$[name]` — the closed token set (`label` / `val` / `path` / `index`). The
-// required bracket-close means a literal colon in prose (`ratio 3:1` outside
-// any `$[…]`) is never touched; an unknown token stays verbatim.
+// `$[name]` — the closed token set (`label` / `val` / `path` / `index`). The required bracket-close
+// keeps prose punctuation untouched, and an unknown token stays verbatim.
 const PLACEHOLDER = /\$\[(\w+)\]/g;
 
-// The default locale when none is configured: matches the tsconfig
-// `i18n.sourceLocale` default, so an unconfigured runtime and an unconfigured
-// build agree. Deterministic (never the host locale).
+// Matches the tsconfig `i18n.sourceLocale` default, so an unconfigured runtime and an unconfigured
+// build agree. Deterministic: never the host locale.
 const DEFAULT_LOCALE = 'en';
 
-// Memoized Intl instances (the i18next addCached model): building
-// NumberFormat/PluralRules/… is expensive, so each is built once and reused
-// across renders. Module-scope singletons BESIDE the pure walk — the walk
-// itself caches nothing. Plural rules key on the locale alone; the bound
-// formatters key on `${locale}\0${currency}` / `${locale}\0${style group}`.
+// Building an Intl instance is expensive, so each is built once and reused across renders. Module-scope
+// singletons BESIDE the pure walk, which caches nothing itself.
 const pluralRulesCache = new Map<string, Intl.PluralRules>();
 const boundNumberFormatCache = new Map<string, Intl.NumberFormat>();
 const boundDateFormatCache = new Map<string, Intl.DateTimeFormat>();
@@ -97,9 +66,8 @@ function cachedPluralRules(locale: string): Intl.PluralRules {
   return rules;
 }
 
-/** The `Intl.NumberFormat` for a currency-branded bound: currency style when
- *  the app supplied a code, plain localized decimal otherwise. An invalid code
- *  falls back to the plain decimal formatter — the renderer never throws. */
+/** Currency style when the app supplied a code, plain localized decimal otherwise. An invalid code
+ *  falls back to the plain decimal formatter, so the renderer never throws. */
 function cachedBoundNumberFormat(locale: string, currency: string | undefined): Intl.NumberFormat {
   const key = locale + '\0' + (currency ?? '');
   let format = boundNumberFormatCache.get(key);
@@ -114,9 +82,7 @@ function cachedBoundNumberFormat(locale: string, currency: string | undefined): 
   return format;
 }
 
-// Date-family format names → the Intl.DateTimeFormat options a bound of that
-// format renders with. Keyed by TypeFormatError.name — the type says what the
-// value is, the reader's locale says how to write it.
+// Keyed by TypeFormatError.name: the type says what the value is, the reader's locale says how to write it.
 const DATE_BOUND_OPTIONS: Record<string, Intl.DateTimeFormatOptions> = {
   date: {dateStyle: 'medium'},
   temporalPlainDate: {dateStyle: 'medium'},
@@ -140,12 +106,9 @@ function cachedBoundDateFormat(locale: string, formatName: string): Intl.DateTim
   return format;
 }
 
-/** Select a plural template's arm for the violated bound: the file-locale's
- *  CLDR category via `Intl.PluralRules`, `other` as the in-leaf backstop. A
- *  non-finite bound selects `other` directly (`select(NaN)` throws
- *  RangeError). A blank (`''` @todo) arm falls to `other` too, so a
- *  half-filled plural degrades inside its own leaf before the caller falls
- *  back across maps. */
+/** Selects a plural arm by the file-locale's CLDR category, with `other` as the in-leaf backstop. A
+ *  non-finite bound selects `other` directly, since `select(NaN)` throws RangeError. A blank (`''` @todo)
+ *  arm falls to `other` too, so a half-filled plural degrades inside its own leaf. */
 function selectPlural(leaf: PluralTemplate, bound: string | number | boolean | bigint | undefined, locale: string): string {
   const count = Number(bound);
   if (!Number.isFinite(count)) return leaf.other;
@@ -153,18 +116,15 @@ function selectPlural(leaf: PluralTemplate, bound: string | number | boolean | b
   return leaf[category] || leaf.other;
 }
 
-/** A path segment's dotted-path key: a string field name, an array / tuple
- *  index, or a Map / Set entry's iteration index (its numeric `key`). */
+/** A segment's dotted-path key: a field name, an array / tuple index, or a Map / Set entry's index. */
 function segmentKey(seg: RTValidationErrorPathSegment): string | number {
   if (typeof seg === 'string' || typeof seg === 'number') return seg;
   return seg.key;
 }
 
-/** Descend one segment: string → child field; number → `rt$slots[i]` for a fixed
- *  tuple, else `rt$items` (array / rest-tuple element); Map / Set entry → `rt$keys`
- *  (a `mapKey` failure) or `rt$values` (a `mapValue` / `setKey` failure), routed
- *  by the segment's `failed` role. A fixed tuple has positional `rt$slots`; an
- *  array (and a rest tuple, whose `length` is the broad `number`) has `rt$items`. */
+/** Descends one segment. A fixed tuple has positional `rt$slots`; an array (and a rest tuple, whose
+ *  `length` is the broad `number`) has `rt$items`. A Map / Set entry is routed by its `failed` role:
+ *  `rt$keys` for a `mapKey` failure, `rt$values` for a `mapValue` / `setKey` one. */
 function descend(node: FriendlyNodeRuntime | undefined, seg: RTValidationErrorPathSegment): FriendlyNodeRuntime | undefined {
   if (!node) return undefined;
   if (typeof seg === 'string') return node[seg] as FriendlyNodeRuntime | undefined;
@@ -178,8 +138,7 @@ function nodeAt(root: FriendlyNodeRuntime, path: RTValidationErrorPathSegment[])
   return node;
 }
 
-/** Fallback label when a node has no `rt$label`: the last STRING segment (the
- *  field name) if any, else the last segment stringified. */
+/** Fallback label when a node has no `rt$label`: the last STRING segment, else the last one stringified. */
 function rawLabel(path: RTValidationErrorPathSegment[]): string {
   for (let i = path.length - 1; i >= 0; i--) {
     if (typeof path[i] === 'string') return path[i] as string;
@@ -192,15 +151,14 @@ function pathToString(path: RTValidationErrorPathSegment[]): string {
   return path.map((seg) => String(segmentKey(seg))).join('.');
 }
 
-/** The template key for an error: the format sub-constraint (`formatPath` tail),
- *  else the format name, else `type` for a base type-shape failure. */
+/** The template key: the format sub-constraint, else the format name, else `type` for a type-shape failure. */
 function constraintKey(format: TypeFormatError | undefined): string {
   if (!format) return 'type';
   const tail = format.formatPath[format.formatPath.length - 1];
   return tail !== undefined ? String(tail) : format.name;
 }
 
-/** Keep only primitive constraint values; arrays/objects → undefined. */
+/** Keeps only primitive constraint values. */
 function primitiveVal(val: TypeFormatError['val'] | undefined): string | number | boolean | bigint | undefined {
   const kind = typeof val;
   if (kind === 'string' || kind === 'number' || kind === 'boolean' || kind === 'bigint') {
@@ -209,8 +167,7 @@ function primitiveVal(val: TypeFormatError['val'] | undefined): string | number 
   return undefined;
 }
 
-/** The last numeric path segment (array index or Map / Set entry index), for
- *  `$[index]`. */
+/** The last numeric path segment, for `$[index]`. */
 function numericIndex(path: RTValidationErrorPathSegment[]): number | undefined {
   for (let i = path.length - 1; i >= 0; i--) {
     const key = segmentKey(path[i]);
@@ -221,8 +178,7 @@ function numericIndex(path: RTValidationErrorPathSegment[]): number | undefined 
 
 interface InterpolateCtx {
   label: string;
-  /** The already-rendered `$[val]` text (type-driven on the i18n path);
-   *  undefined when the error carries no bound. */
+  /** The already-rendered `$[val]` text; undefined when the error carries no bound. */
   valText?: string;
   path: string;
   index?: number;
@@ -244,9 +200,8 @@ interface PathGroup {
   errors: RTValidationError[];
 }
 
-/** Grouping signature: the dotted path, but a Map / Set entry also encodes its
- *  `failed` role so a key-failure and a value-failure at the SAME entry index
- *  resolve to their own (`rt$keys` vs `rt$values`) node instead of colliding. */
+/** The dotted path, with a Map / Set entry also encoding its `failed` role so a key-failure and a
+ *  value-failure at the SAME entry index resolve to their own node instead of colliding. */
 function groupSignature(path: RTValidationErrorPathSegment[]): string {
   return path.map((seg) => (typeof seg === 'object' ? `${seg.key} ${seg.failed ?? ''}` : String(seg))).join('.');
 }
@@ -268,31 +223,24 @@ function groupByPath(errs: RTValidationError[]): PathGroup[] {
   return groups;
 }
 
-// One render pass's resolved inputs: the map to read (a translation, or the
-// source itself), the locale whose CLDR rules select plural arms in that map,
-// the terminal-fallback source map (absent on the single-locale path), the
-// source's own plural-rules locale, and — on the i18n path — the type-driven
-// bound rendering flag + the app-supplied currency code. Built fresh per
-// label()/errors() call by the i18n wrapper (the reactive `{value}` seam),
-// once by `createFriendlyText`.
+// One render pass's resolved inputs. `source` is the terminal-fallback map, absent on the
+// single-locale path. Built fresh per label() / errors() call by the i18n wrapper (the reactive
+// `{value}` seam), once by `createFriendlyText`.
 interface RenderState {
   root: FriendlyNodeRuntime;
   rootLocale: string;
   source?: FriendlyNodeRuntime;
   sourceLocale: string;
-  /** True on the `createFriendlyTextI18n` path: `$[val]` renders by the bound's
-   *  type format. Plain `createFriendlyText` stays byte-stable (`String(val)`). */
+  /** True on the i18n path: `$[val]` renders by the bound's type format, where plain
+   *  `createFriendlyText` stays byte-stable (`String(val)`). */
   i18n?: boolean;
-  /** ISO 4217 code for `currency`-branded bounds; absent → plain number. */
+  /** ISO 4217 code for `currency`-branded bounds; absent renders a plain number. */
   currency?: string;
 }
 
-/** Render a violated bound to its `$[val]` text. Plain path: `String(val)`.
- *  i18n path: the error's format payload says what the bound IS — the
- *  `isCurrency` mark (echoed off the number format's param) renders via the
- *  locale's currency/decimal `Intl.NumberFormat`; a date-family bound parses
- *  and renders via `Intl.DateTimeFormat` (an unparseable bound — e.g. a
- *  relative `now-P1D` — stays verbatim); anything else stays `String(val)`. */
+/** Renders a violated bound to its `$[val]` text. On the i18n path the error's format payload says what
+ *  the bound IS, so there is no per-template format syntax; an unparseable date bound (a relative
+ *  `now-P1D`) stays verbatim. */
 function renderBoundText(
   state: RenderState,
   format: TypeFormatError | undefined,
@@ -316,13 +264,10 @@ function renderBoundText(
 const labelFor = (node: FriendlyNodeRuntime | undefined, path: RTValidationErrorPathSegment[]): string =>
   node?.rt$label || rawLabel(path);
 
-// resolveTemplate picks one map-node's template string for a constraint key:
-// `rt$errors[key]` (per-constraint mode), else the node's `rt$errors.rt$default`
-// (the exclusive catch-all mode — the two never coexist, so this single lookup
-// serves both); a plural leaf selects its arm with the MAP's locale (never the
-// other map's — plural leaves are atomic per map). Returns undefined when the
-// node yields nothing renderable (missing node / missing key / blank `''`
-// @todo templates), which is the caller's cross-map fallback signal.
+// resolveTemplate picks one map-node's template for a constraint key. The per-constraint and
+// `rt$default` modes never coexist, so this single lookup serves both, and a plural leaf selects its arm
+// with the MAP's own locale (plural leaves are atomic per map). Undefined — a missing node, a missing
+// key, or a blank `''` @todo template — is the caller's cross-map fallback signal.
 function resolveTemplate(
   node: FriendlyNodeRuntime | undefined,
   key: string,
@@ -334,8 +279,8 @@ function resolveTemplate(
   return leafTemplate(errorTemplates[key], val, mapLocale) ?? leafTemplate(errorTemplates.rt$default, val, mapLocale);
 }
 
-// leafTemplate renders one template leaf to a non-blank string, or undefined —
-// a blank `''` (an unfilled @todo) counts as absent so fallback can proceed.
+// leafTemplate renders one leaf to a non-blank string; a blank `''` (an unfilled @todo) counts as
+// absent so fallback can proceed.
 function leafTemplate(
   leaf: string | PluralTemplate | undefined,
   val: string | number | boolean | bigint | undefined,
@@ -363,13 +308,10 @@ function renderErrors(state: RenderState, errs: RTValidationError[]): FriendlyMe
 
     const index = numericIndex(group.path);
 
-    // rt$default (exclusive catch-all) mode → ONE message for the whole field,
-    // whatever failed. Find the node that actually supplies this group's text
-    // (root/translation first, else source — resolveTemplate's precedence) using the
-    // FIRST error, and if it carries a rt$default template render it ONCE with that
-    // error's bound for $[val]. FT009 makes rt$default mutually exclusive with
-    // per-constraint keys, so otherwise every failed constraint would render
-    // identical text.
+    // rt$default mode → ONE message for the whole field. The node that supplies this group's text is
+    // found with the FIRST error (root/translation first, else source, resolveTemplate's precedence)
+    // and rendered once with that error's bound. FT009 makes rt$default mutually exclusive with
+    // per-constraint keys, so otherwise every failed constraint would render identical text.
     const first = group.errors[0];
     const firstVal = primitiveVal(first.format?.val);
     const rootProvides = resolveTemplate(node, constraintKey(first.format), firstVal, state.rootLocale) !== undefined;
@@ -394,10 +336,8 @@ function renderErrors(state: RenderState, errs: RTValidationError[]): FriendlyMe
     for (const err of group.errors) {
       const key = constraintKey(err.format);
       const val = primitiveVal(err.format?.val);
-      // Leaf-granular fallback: the translation's leaf, else the source's.
-      // Each map selects plural arms with ITS OWN locale's rules, so a
-      // translated plural is atomic (never a target `few` mixed with a source
-      // `other` mid-message).
+      // Leaf-granular fallback: the translation's leaf, else the source's. Each map selects plural arms
+      // with ITS OWN locale's rules, so a translated plural is never mixed with a source arm mid-message.
       const template =
         resolveTemplate(node, key, val, state.rootLocale) ?? resolveTemplate(sourceNode, key, val, state.sourceLocale);
       const message = template
@@ -428,34 +368,24 @@ export function createFriendlyText<T>(map: FriendlyText<T>): FriendlyRenderer {
 
 /** Options for `createFriendlyTextI18n`. */
 export interface FriendlyI18nOptions<T> {
-  /** The active locale: a plain tag, or any `{value}` ref (e.g. a Vue Ref) —
-   *  read structurally on EVERY render, so switching the ref re-renders with
-   *  zero API churn. (The renderer itself is not reactivity-tracked: call it
-   *  inside a `computed()` / re-invoke `errors()` per render.) */
+  /** The active locale: a plain tag, or any `{value}` ref read structurally on EVERY render. The
+   *  renderer itself is not reactivity-tracked: call it inside a `computed()` / re-invoke per render. */
   locale: string | {readonly value: string};
-  /** Committed translation consts by locale tag (`{es: es_friendlyUser}`).
-   *  Values are same-tree `FriendlyText<T>` maps authored in that locale. */
+  /** Committed translation consts by locale tag; each is a same-tree `FriendlyText<T>` map. */
   translations: Partial<Record<string, FriendlyText<T>>>;
-  /** ISO 4217 code (`'EUR'`) for rendering `Currency`-branded bounds — a plain
-   *  string or any `{value}` ref (re-read on EVERY render, like `locale`).
-   *  WHICH currency a value is in is app data, so it is supplied here, never
-   *  in the type. Omitted → a currency bound renders as a plain localized
-   *  number; a symbol is never guessed. */
+  /** ISO 4217 code for `Currency`-branded bounds, a plain string or a `{value}` ref re-read every
+   *  render. WHICH currency a value is in is app data, so it is supplied here, never in the type.
+   *  Omitted, a currency bound renders as a plain localized number; a symbol is never guessed. */
   currency?: string | {readonly value: string};
-  /** The language the SOURCE map is authored in (default 'en') — the
-   *  `Intl.PluralRules` used when a plural leaf renders from the source. */
+  /** The language the SOURCE map is authored in (default 'en'), used to select its plural arms. */
   sourceLocale?: string;
-  /** Reserved: the runtime is ALWAYS lenient (per-leaf fallback to source);
-   *  strictness lives in `mion enrich --i18n --no-emit`. */
+  /** Reserved: the runtime is ALWAYS lenient; strictness lives in `mion enrich --i18n --no-emit`. */
   strict?: boolean;
 }
 
-/** Pick the best translation tag for a requested locale via BCP-47 truncation:
- *  exact tag first, then subtags dropped right-to-left (`pt-BR` → `pt`), then
- *  any available tag whose own truncation shares the base language (`zh-Hant`
- *  matches a `zh-Hans` file when nothing closer exists — naive by design).
- *  Returns undefined when nothing shares the base language (the caller falls
- *  back to the source). */
+/** Picks a translation tag by BCP-47 truncation: the exact tag, then subtags dropped right-to-left
+ *  (`pt-BR` → `pt`), then any available tag sharing the base language (`zh-Hant` matches `zh-Hans`,
+ *  naive by design). Undefined when nothing shares it, and the caller falls back to the source. */
 export function resolveLocale<T>(locale: string, translations: Partial<Record<string, FriendlyText<T>>>): string | undefined {
   if (!locale) return undefined;
   const have = (tag: string) => translations[tag] !== undefined;
@@ -473,15 +403,13 @@ export function resolveLocale<T>(locale: string, translations: Partial<Record<st
   return undefined;
 }
 
-/** The locale-selecting wrapper over the one pure `createFriendlyText` walk. The
- *  `source` map is the source language and the terminal fallback; every leaf
- *  (labels, error templates) falls through to it when the active translation
- *  leaves it blank. Never throws on a partial translation. */
+/** The `source` map is the source language and the terminal fallback: every leaf falls through to it
+ *  when the active translation leaves it blank. Never throws on a partial translation. */
 export function createFriendlyTextI18n<T>(source: FriendlyText<T>, options: FriendlyI18nOptions<T>): FriendlyRenderer {
   const sourceRoot = source as FriendlyNodeRuntime;
   const sourceLocale = options.sourceLocale ?? DEFAULT_LOCALE;
 
-  // Resolved fresh on EVERY render — the reactive `{value}` locale/currency seam.
+  // Resolved fresh on EVERY render: the reactive `{value}` locale / currency seam.
   const state = (): RenderState => {
     const active = typeof options.locale === 'object' ? options.locale.value : options.locale;
     const matched = resolveLocale<T>(active, options.translations);

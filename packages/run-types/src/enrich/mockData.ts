@@ -1,33 +1,21 @@
-// `MockData<T>` — the realistic sample-value enrichment map for a type: per-field
-// pools / ranges / element + length / overrides that feed the existing
-// `createMockDataFn<T>()` generator (see docs/AI_ENRICHMENT.md). The AI supplies
-// realistic values; the mechanical generator stays deterministic.
-//
-// Same construction as `FriendlyNode` (./friendlyType.ts) and `DataOnly<T>`
-// (src/runtypes/dataOnly.ts): depth-bounded tuple decrement, NO `infer` on the
-// hot path (`T[number]` / `T[K]`), scalar-before-object gates, homomorphic child
-// map. The `#region mockdata-extract` block is sliced VERBATIM by
-// test/types/enrichHarness.ts into the instantiation-budget compile test, so
-// it must reference only `lib` types + its own declarations.
+// `MockData<T>` — the per-field pools / ranges / lengths that feed `createMockDataFn<T>()` (see
+// docs/AI_ENRICHMENT.md): the AI supplies realistic values, the generator stays deterministic. Same
+// construction as `FriendlyNode` and `DataOnly<T>` (src/runtypes/dataOnly.ts): depth-bounded tuple
+// decrement, NO `infer` on the hot path, scalar-before-object gates, homomorphic child map. The
+// `#region mockdata-extract` block is sliced VERBATIM by test/types/enrichHarness.ts, so it must
+// reference only `lib` types + its own declarations.
 
 // #region mockdata-extract — MockData machinery; sliced verbatim between these
 // markers by test/types/enrichHarness.ts. Self-contained: `lib` + own decls only.
 
-/** Recursion-budget decrement: `_MockDepth[N]` is `N - 1`. Bounds circular /
- *  mutually-recursive types to a finite instantiation (no TS2589). */
+/** Recursion-budget decrement, bounding circular / mutually-recursive types to a finite instantiation. */
 type _MockDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** Recursive mock-data node — structural per solution A (docs/AI_ENRICHMENT.md):
- *  composite kinds reflect their structure. Numbers → pool + min/max; strings →
- *  pool; Date → pool + min/max; tuples → per-slot homomorphic `rt$slots` (fixed
- *  length, NO `rt$length`); `Map` → `rt$keys`/`rt$values`/`rt$size`; `Set` →
- *  `rt$values`/`rt$size`; arrays → element node (`rt$items`) + `rt$length`; objects →
- *  homomorphic optional child map + `rt$optional` (present-probability for optional
- *  members); other leaves (boolean, bigint, …) → a value pool. `Map`/`Set` gates
- *  run BEFORE the array check, fronted by a cheap `Readonly{Map,Set}<any…>` test
- *  so `infer` stays off the hot path (mirroring `DataOnly`). NOTE: index
- *  signatures + object-member unions are OUT OF SCOPE here — index-sig objects
- *  still fall through to the homomorphic object map as today. */
+/** Recursive mock-data node — structural per solution A (docs/AI_ENRICHMENT.md): composite kinds reflect
+ *  their structure. An object's `rt$optional` is the present-probability for its optional members. The
+ *  `Map` / `Set` gates run BEFORE the array check, fronted by a cheap test so `infer` stays off the hot
+ *  path (mirroring `DataOnly`). Index signatures and object-member unions are OUT OF SCOPE: an index-sig
+ *  object falls through to the object map. */
 export type MockNode<T, Depth extends number = 8> = Depth extends 0
   ? {pool: T[]} // budget spent — keep as a leaf pool
   : // Map BEFORE the array check: cheap `ReadonlyMap<any, any>` gate filters
@@ -68,7 +56,7 @@ export type MockNode<T, Depth extends number = 8> = Depth extends 0
                       ? {[K in keyof T]-?: MockNode<T[K], _MockDepth[Depth]>} & {rt$optional?: number}
                       : {pool: T[]};
 
-/** The mock-data map for `T`, validated against `T` at scan time — every pool /
- *  range value is checked against the field's type + format (the MD003 rule). */
+/** The mock-data map for `T`: every pool / range value is checked against the field's type and format
+ *  at scan time (the MD003 rule). */
 export type MockData<T> = MockNode<T>;
 // #endregion mockdata-extract
