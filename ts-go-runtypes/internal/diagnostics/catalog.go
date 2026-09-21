@@ -203,12 +203,12 @@ type Related struct {
 // classifies impact.
 //
 // The user-facing message is NOT carried on the wire. Per-code message
-// templates live in the JS-side catalog (packages/run-types/src/
-// runtypes/diagnosticCatalog.ts); the Go side only ships positional substitution
+// templates live in the JS-side catalog (packages/devtools/src/core/
+// diagnosticCatalog.ts); the Go side only ships positional substitution
 // values via Args (typically 0-2 strings: a property name, a type
 // argument label, etc.). The Vite plugin resolves Code+Args → final
-// rendered message at format time. This mirrors the runtime alwaysThrow
-// pattern that already resolves error text JS-side from the diag code.
+// rendered message at format time. Runtime alwaysThrow text does NOT work
+// this way: since cache format v10 Go renders it whole at build time.
 // Level rides the wire next to Severity because the fatal-versus-emitted split
 // is what the downgrade and suppression rules key on, and a build-halt decision
 // must not depend on the GENERATED front-end catalog being in sync: a locally
@@ -241,7 +241,7 @@ type Diagnostic struct {
 // substitute against Diagnostic.Args), Detail the optional multi-line
 // explanation + example fix. They are authored in messages.go and folded
 // onto the Definition at init; `miondevx core codegen diag` exports them into the
-// GENERATED front-end dictionary (packages/devtools/src/
+// GENERATED front-end dictionary (packages/devtools/src/core/go-generated/
 // diagnosticCatalog.generated.ts), so the wire keeps carrying only
 // code + args while Go stays the single source of every message.
 //
@@ -416,7 +416,7 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 // FormatDebug renders a Diagnostic in a compact code+args+location form
 // suitable for Go-side debug logs and test assertions. NOT the user-
 // facing message: the JS-side catalog
-// (packages/run-types/src/runtypes/diagnosticCatalog.ts) owns user
+// (packages/devtools/src/core/diagnosticCatalog.ts) owns user
 // wording; the Vite plugin renders the final tsc-style line.
 //
 //	<absPath>(<line>,<col>): <severity> <code>(<arg0>, <arg1>, …)
