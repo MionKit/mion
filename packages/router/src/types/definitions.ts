@@ -12,19 +12,15 @@ import type {RouterOptions} from './general.ts';
 
 // #######  Routes Definitions #######
 // Flat interfaces on purpose: a definition type is instantiated on every route declaration, and a
-// `Pick` over the method interface plus an intersection costs measurably more in the
-// type-instantiation budget than naming the two fields.
-//
-// `RO` is the options literal the author wrote (what `options` holds at runtime) and `O` the router
-// options the helper was created with. `O` rides as a type-only field: nothing sets it at runtime,
-// it exists so `PublicApi` can resolve the effective options (route, then router, then default)
-// the same way the router does, and a client build can read them off the API type.
+// `Pick` plus intersection costs measurably more in the type-instantiation budget.
+// `RO` is the options literal the author wrote, `O` the router options the helper was created with.
+// `O` is type-only, so `PublicApi` can resolve the effective options (route, router, default) the
+// same way the router does and a client build reads them off the API type.
 
 /** The router options a definition was declared under, the widest shape by default. */
 export type DeclaredRouterOptions = Partial<RouterOptions>;
 
 // type-route-def-start
-/** Route definition */
 export interface RouteDef<
   H extends Handler = any,
   RO extends RouteOptions = RouteOptions,
@@ -41,7 +37,7 @@ export interface RouteDef<
 // type-route-def-end
 
 // type-middleFn-def-start
-/** MiddleFn definition, a function that middleFns into the ExecutionChain */
+/** MiddleFn definition: a step that runs in the ExecutionChain around the route. */
 export interface MiddleFnDef<
   H extends Handler = any,
   RO extends MiddleFnOptions = MiddleFnOptions,
@@ -75,10 +71,7 @@ export interface HeadersMiddleFnDef<
 // type-header-middleFn-def-end
 
 // type-raw-middleFn-def-start
-/**
- * Raw middleFn, used only to access raw request/response and modify the call context.
- * Can not declare extra parameters.
- */
+/** Raw middleFn: raw request/response access and call-context changes only, no extra parameters. */
 export interface RawMiddleFnDef<H extends RawMiddleFnHandler = any> {
   type: typeof HandlerType.rawMiddleFn;
   handler: H;

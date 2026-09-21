@@ -34,21 +34,18 @@ import type {PublicApi} from './publicMethods.ts';
 // ####### The typed router factory #######
 // `createMionRouter(opts)` is the ONE way to initialize the router and declare routes / middleFns.
 // The options literal rides BY TYPE (`O`) into every helper, so `ctx.shared` is typed from
-// `contextDataFactory` and the router-wide `encoder` reaches what the build compiles for a route.
+// `contextDataFactory` and the router-wide `serializer` reaches what the build compiles for a route.
+// These interfaces are the ONE place a helper signature is written; lib/handlers.ts holds the bodies
+// and is TYPED BY them. `O` can only reach a declaration through a method of the object the factory
+// returns: TypeScript has no partial type application, so a plain exported function cannot capture it.
 //
-// These interfaces are the ONE place a helper signature is written. lib/handlers.ts holds the
-// bodies and is TYPED BY them, so there is no second signature to keep in step. `O` can only reach
-// a declaration this way: TypeScript has no partial type application, so a plain exported function
-// cannot capture it and every helper has to be a method of the object the factory returns.
-//
-// ⚠️ The trailing marker parameters come from MarkerSlots / HeaderMarkerSlots (encoder.ts), which is
-// where they are written. `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 /
-// CTA004), and it must stay immediately before the first marker slot: the resolver reads the
-// options argument at (first marker index - 1).
+// ⚠️ The trailing marker parameters are written in MarkerSlots / HeaderMarkerSlots (serializer.ts).
+// `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 / CTA004), and it must stay
+// immediately before the first marker slot: the resolver reads the options argument at (first marker index - 1).
 
 /** The options accepted by `createMionRouter`: every router option is optional. */
 export type RouterOptionsInput = Partial<RouterOptions>;
-/** The factory's parameter type: the options literal, with a widened `encoder` rejected. */
+/** The factory's parameter type: the options literal, with a widened `serializer` rejected. */
 export type RouterOptionsArg<O extends RouterOptionsInput> = O & SerializerLiteralGuard<O>;
 
 /** The shared call-context data type the factory's `contextDataFactory` produces, `any` when there is none. */
@@ -59,8 +56,8 @@ export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextData
 /** The CallContext every handler declared through `createMionRouter(opts)` receives: `ctx.shared` is typed from the options. */
 export type RouterCallContext<O extends RouterOptionsInput> = CallContext<ContextDataOf<O>>;
 
-// `RO` is the route's own options literal, defaulting to the no-encoder shape so a route naming no
-// `encoder` resolves its slots from `O`, the factory literal. That is the only place the two levels
+// `RO` is the route's own options literal, defaulting to the no-serializer shape so a route naming no
+// `serializer` resolves its slots from `O`, the factory literal. That is the only place the two levels
 // meet: the slot types take both and fall back route, then router, then the built-in default.
 
 /** The four injection slots of a route / middleFn, read from the handler's params and return. */
@@ -71,8 +68,7 @@ type HeadersRouteSlots<O, H extends HeaderHandler, RO> = MarkerSlots<HeaderHandl
 type HeaderSlots<H extends HeaderHandler> = HeaderMarkerSlots<HeaderHandlerHeaders<H>>;
 
 /** `mion.route` / `mion.query` / `mion.mutation`: declares a route whose handler context is typed from the router options.
- *  `M` is the `isMutation` the helper pins (`query` false, `mutation` true, `route` nothing): the
- *  returned definition's options literal carries it, the same way the helper body writes it. */
+ *  `M` is the `isMutation` the helper pins (`query` false, `mutation` true, `route` nothing), carried on the returned options. */
 export interface RouteHelper<O extends RouterOptionsInput, M extends boolean | undefined = undefined> {
   <H extends Handler<RouterCallContext<O>>, const RO extends RouteOptions = PlainRouteOptions>(
     handler: H,
@@ -103,10 +99,8 @@ export interface MiddleFnHelper<O extends RouterOptionsInput> {
 
 /**
  * `mion.headersFn`: declares a headers middleFn with the context typed from the router options.
- * The handler's 2nd param must be a HeadersSubset<Required, Optional>; the required/optional header
- * names are extracted at build time from its runtype graph. A HeadersSubset return gets its headers
- * written onto the response.
- *
+ * The handler's 2nd param must be a HeadersSubset<Required, Optional>, whose header names are read at
+ * build time from its runtype graph. A HeadersSubset return gets its headers written onto the response.
  * @example
  * ```ts
  * mion.headersFn((ctx, h: HeadersSubset<'authorization'>): void => {
@@ -146,8 +140,7 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   readonly middleFn: MiddleFnHelper<O>;
   readonly headersFn: HeadersFnHelper<O>;
   readonly rawMiddleFn: RawMiddleFnHelper<O>;
-  /** Initializes the router with the factory options and registers the routes. Once per app, and
-   *  synchronous: the compiled type functions were injected at build time, so nothing is loaded here. */
+  /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here. */
   initRoutes<R extends Routes>(routes: R): PublicApi<R>;
 }
 // type-mion-router-end

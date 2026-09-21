@@ -31,12 +31,8 @@ import {getBundleApiMode} from './lib/bundleApiMode.ts';
 import {registerBundledApi, takeBundledApiError} from '#bundled-api';
 import {metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 
-/**
- * Creates the client: the typed `routes` / `middleFns` proxies plus the client itself.
- * Under the build's `bundleApi` option the metadata and compiled functions of every route the
- * program calls are injected at the call sites, so the client never asks the server for them; the
- * lane itself arrives through the module the build writes, not through this call.
- */
+/** Under the build's `bundleApi` option the metadata and compiled functions of every route are injected
+ * at the call sites, so the client never asks the server; that module comes from the build, not this call. */
 export function initClient<RM extends RemoteApi>(
   options: InitClientOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
@@ -51,13 +47,12 @@ export function initClient<RM extends RemoteApi>(
 }
 
 export class MionClient {
-  /** Shared registry for persistent middleFn error handlers */
   readonly handlersRegistry = new HandlersRegistry();
 
-  /** In-memory cache for prefilled middleFn subrequests (keyed by baseURL:middleFnId) */
+  /** prefilled middleFn subrequests, keyed `baseURL:middleFnId` */
   readonly prefilledMiddleFnsCache = new Map<string, SubRequest<any>>();
 
-  /** Tracks in-flight prefill operations to avoid race conditions */
+  /** in-flight prefills, awaited before a request executes */
   private pendingPrefills: Promise<void>[] = [];
 
   private globalAbortController = new AbortController();
@@ -83,7 +78,6 @@ export class MionClient {
     this.globalAbortController = new AbortController();
   }
 
-  /** Composes a single AbortSignal from global, per-request, and timeout signals */
   private composeSignal(signal?: AbortSignal, timeout?: number): AbortSignal {
     const signals: AbortSignal[] = [this.globalSignal];
     if (signal) signals.push(signal);
@@ -92,7 +86,6 @@ export class MionClient {
     return AbortSignal.any(signals);
   }
 
-  /** Executes a single route call, or a batch (its routes + the build-injected batch id), with optional middleFns */
   execute(
     routeSubRequest?: RouteSubRequest<any>,
     batchSubRequests?: RouteSubRequest<any>[],
@@ -115,7 +108,6 @@ export class MionClient {
     // Capture the signal before any async work so abort() during prefill await is respected
     const composedSignal = this.composeSignal(signal, timeout);
 
-    // Wait for any in-flight prefill operations to complete before executing the request
     if (this.pendingPrefills.length > 0) await Promise.allSettled(this.pendingPrefills);
 
     const middleFnSubRequests = middleFnsRecord ? Object.values(middleFnsRecord) : [];
@@ -155,8 +147,7 @@ export class MionClient {
     }
   }
 
-  /** Named record entries keep their names; middleFns that took part in the request but are not in the
-   * record (restored prefills) are added under their id, so their results/errors are never dropped */
+  /** A restored prefill is not in the record, so it is added under its id and its result is never dropped */
   private mergeMiddleFns(
     middleFnsRecord: Record<string, MiddlewareSubRequest<any>> | undefined,
     allMiddleFns: MiddlewareSubRequest<any>[]
@@ -168,7 +159,6 @@ export class MionClient {
     return merged;
   }
 
-  /** Get route IDs from single route or batch routes */
   private getRouteIds(
     routeSubRequest: RouteSubRequest<any> | undefined,
     batchSubRequests: RouteSubRequest<any>[] | undefined
@@ -179,7 +169,6 @@ export class MionClient {
     return routeIds;
   }
 
-  /** Get all middleFns from the request's subRequestList, excluding the route(s) */
   private getAllMiddleFnsFromRequest(
     request: MionClientRequest<any, any>,
     excludedIds: Set<string>
@@ -189,8 +178,7 @@ export class MionClient {
       .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
   }
 
-  /** Process all middleFn responses - call success or error handlers for each middleFn individually.
-   * onError listeners are the typed channel: they fire only for a middleFn's declared (returned) errors,
+  /** onError listeners are the typed channel: they fire only for a middleFn's declared (returned) errors,
    * never for thrown/undeclared ones, which reach the unexpected slot only */
   private processMiddleFnsResponses(
     middleFnSubRequests: MiddlewareSubRequest<any>[],
@@ -207,14 +195,12 @@ export class MionClient {
     }
   }
 
-  /** Build the result 5-tuple [result, error, undeclared, middleFnResults, middleFnErrors] per the dispatch contract:
-   * - slot 1 gets ONLY the route's own declared errors | ValidationError (thrown route errors do not qualify)
-   * - slot 4 gets each middleFn's DECLARED errors | ValidationError, keyed by name - one entry per middleFn,
-   *   so no information is lost when several fail
-   * - slot 2 (undeclared) gets what NOBODY declared: a thrown/undeclared error (route or middleFn), request-scoped
-   *   transport/platform/framework errors, and errors for middleFns that were not part of this request. When
-   *   several exist it holds the first in execution order (middleFns run before the route)
-   * - slot 0 keeps the route result whatever else failed; no error ever crosses into another slot */
+  /** The dispatch contract of [result, error, undeclared, middleFnResults, middleFnErrors]:
+   * - slot 1: ONLY the route's own declared errors | ValidationError (a thrown route error does not qualify)
+   * - slot 4: each middleFn's DECLARED errors | ValidationError by name, one entry each, so several failures are kept
+   * - slot 2: what NOBODY declared (a thrown route or middleFn error, transport/platform/framework, an error for a
+   *   middleFn not part of this request); when several exist, the first in execution order (middleFns before the route)
+   * - slot 0: the route result whatever else failed; no error ever crosses into another slot */
   private buildResult<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
     routeSubRequest: RouteSubRequest<any> | undefined,
     batchSubRequests: Routes | undefined,
@@ -280,8 +266,7 @@ export class MionClient {
       }
     }
     if (errors && undeclaredPart === undefined) {
-      // request-scoped errors (transport, platform, framework) and errors keyed to ids that were
-      // not part of this request (e.g. a required middleFn the caller never sent)
+      // request-scoped errors (transport, platform, framework) and errors keyed to ids not part of this request
       for (const [id, error] of errors) {
         if (!processedIds.has(id)) {
           undeclaredPart = error;
@@ -290,9 +275,8 @@ export class MionClient {
       }
     }
 
-    // Two framework errors the router never saw, taking the first free undeclared slot rather than
-    // rejecting: a bundled payload the build did not write (the call still ran), and a metadata
-    // cache write the browser refused after eviction ran out of things to give up.
+    // Two framework errors the router never saw, taking the first free undeclared slot rather than rejecting
+    // (the call itself ran): a bundled payload the build did not write, and a refused metadata cache write.
     if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
     if (undeclaredPart === undefined) undeclaredPart = metadataCacheHooks()?.takeMetadataCacheError();
 
@@ -320,7 +304,6 @@ export class MionClient {
     return request.removePrefill(subRequest);
   }
 
-  /** Clear all error handlers from the registry and abort in-flight requests */
   destroy(): void {
     this.abort();
     this.handlersRegistry.clearAll();

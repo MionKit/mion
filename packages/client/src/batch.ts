@@ -12,13 +12,8 @@ import type {InjectedApiMetadata} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import type {InputFromRef} from '@mionjs/core';
 
-/**
- * Creates a BatchBuilder that runs several routes in ONE HTTP request.
- *
- * The build reads every `batch([...])` call site, hashes the ordered route ids into a stable id and
- * fills `batchId`; the same id names the batch in the table the build compiled into the server.
- * The request carries only that id, so a batch the build could not read cannot be sent at all.
- */
+/** Runs several routes in ONE HTTP request. The build hashes the ordered route ids into `batchId`, which
+ * names the batch in the table it compiled into the server; the request carries only that id. */
 export function batch<Routes extends RouteSubRequest<any>[]>(
   routes: [...Routes],
   batchId?: InjectBatchId<Routes>
@@ -48,7 +43,6 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
 
   const client = firstSubRequest.client;
 
-  // Validate all subrequests use the same client instance
   for (let i = 1; i < routes.length; i++) {
     const subRequest = routes[i] as MionSubRequest;
     if (subRequest.client !== client) {
@@ -84,23 +78,17 @@ export function batch<Routes extends RouteSubRequest<any>[]>(
 
 const inputFromSymbol = Symbol('InputFromRef');
 
-/**
- * Feeds the output of one route SubRequest into the input of another within a batch. The mapper
- * EXECUTES ON THE SERVER, which only runs functions its own build baked in; the batch table the
- * build compiled into the server carries the mapper's id, so nothing about the mapper travels.
- *
- * The mapper is written inline: `inputFrom(order, (o) => o.userId)`. The build extracts it
- * (PureFunction/InjectPureFnId markers), gives the call site the id of that registration and ships
- * the body to the server bundle through the batches manifest.
- */
+/** Feeds the output of one route SubRequest into the input of another within a batch. The mapper EXECUTES
+ * ON THE SERVER, which only runs functions its own build baked in, so nothing about the mapper travels: the
+ * build extracts the inline mapper, gives the call site its registration id and ships the body in the
+ * batches manifest. */
 export function inputFrom<FromSR extends SubRequest<any>, MappedInput = any>(
   source: FromSR,
   mapper: PureFunction<(value: FromSR['resolvedValue']) => MappedInput>,
   id?: InjectPureFnId<(value: FromSR['resolvedValue']) => MappedInput>
 ): InputFromRef<(value: FromSR['resolvedValue']) => MappedInput> {
-  // The build rewrites this argument to the mapper's generated entry tuple, so what
-  // arrives here is an array, not the function the caller wrote. A string is the
-  // retired name lane and gets its own message; anything missing is a plain mistake.
+  // The build rewrites this argument into the mapper's generated entry tuple, not the function the caller
+  // wrote. A string is the retired name lane and gets its own message.
   if (typeof mapper === 'string')
     throw new Error('inputFrom() takes the mapper itself, written inline, not the name of a server-registered one.');
   if (mapper == null) throw new Error('inputFrom() requires an inline mapper function');

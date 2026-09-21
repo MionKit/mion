@@ -13,7 +13,6 @@ import {HandlerType} from '@mionjs/core'; // do not import type only
 
 /** Contains the handlers for middleFns and routes */
 export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
-  /** router options */
   options: RemoteMethodOpts;
   handler: H;
   /** The caller for this method's kind, resolved when the method is registered. Flat on purpose:
@@ -50,10 +49,8 @@ export interface RawMethod<H extends RawMiddleFnHandler = any> extends RemoteMet
 
 // `serializer` is a BUILD-TIME literal: written inline or as an `as const` preset, or the build reports
 // CTA001 / CTA004. An unset direction falls back to the router-wide value, then to the built-in default.
-// Flat interfaces on purpose: a route declaration instantiates its options type on every call, and a
-// mapped or intersected shape costs measurably more in the type-instantiation budget. Each option type
-// comes in a `Plain` flavour (no `serializer`, the helper default) and a `WithSerializer` one; the public
-// `RouteOptions` & co are the union of both.
+// Flat interfaces on purpose: a mapped or intersected shape costs measurably more in the
+// type-instantiation budget, paid on every route declaration.
 interface RouteOptionsBase {
   description?: string;
   validateParams?: boolean;

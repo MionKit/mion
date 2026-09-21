@@ -37,10 +37,8 @@ export type Result<
 ];
 // type-result-end
 
-/** Extract success type from a MiddleFnSubRequest */
 export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
 
-/** Extract error type from a MiddleFnSubRequest */
 export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
 // type-batch-result-start
@@ -79,9 +77,7 @@ export interface ClientOptions extends CoreRouterOptions {
   basePath: string;
   /** suffix for all routes, i.e: .json */
   suffix: string;
-  /** automatically generate and uuid */
   autoGenerateErrorId: boolean;
-  /**  default fetch options */
   fetchOptions: RequestInit;
   /** enable automatic parameter validation, defaults to true */
   validateParams: boolean;
@@ -103,10 +99,8 @@ export interface ClientOptions extends CoreRouterOptions {
   timeout?: number;
 }
 
-/** The build-injected slot of a dispatch method, at its widest: the marker with the API and the
- *  route id erased. The implementation is one class behind a proxy, not generic over either, so
- *  this is the most it can name; the typed slot each caller sees is on RouteSubRequest and
- *  MiddlewareSubRequest, where the route is still known. */
+/** The build-injected slot at its widest: the API and route id erased, because the implementation is one
+ *  class behind a proxy. The typed slot a caller sees is on RouteSubRequest / MiddlewareSubRequest. */
 export type InjectedApiMetadata = InjectApiMetadata<RemoteApi, string>;
 
 /** The lane a built client runs its metadata on. */
@@ -120,13 +114,9 @@ export type InitClientOptions = Partial<ClientOptions> & {baseURL: string};
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 
-/** Extracts all parameters from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
 export type RouteParamsType<PM extends PublicMethod> = Parameters<ExtractHandler<PM>>;
-/** Extracts a single parameter at a given index from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
 export type RouteParamType<PM extends PublicMethod, Index extends number> = Parameters<ExtractHandler<PM>>[Index];
-/** Extracts the headers parameter (first param) from a PublicHeadersFn handler */
 export type HeadersParamsType<PM extends PublicHeadersFn> = Parameters<ExtractHandler<PM>>[0];
-/** Extracts the success return type from a PublicRoute, PublicMiddleFn, or PublicHeadersFn */
 export type RouteReturnType<PM extends PublicMethod> = HandlerSuccessResponse<ExtractHandler<PM>>;
 
 export type HandlerResponse<PH extends PublicHandler> = Awaited<ReturnType<PH>>;
@@ -138,25 +128,21 @@ export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
 export type RequestErrors = Map<string, RpcError<string>>;
 
-/** Handler function for a specific error type */
 export type ErrorHandler<E extends RpcError<string, any>> = (error: E) => void;
 
-/** Handler function for successful results */
 export type SuccessHandler<S> = (result: S) => void;
 
 /** Utility type to force TypeScript to evaluate/resolve the type */
 type Simplify<T> = T extends any ? T : never;
 
-/** Extracts all RpcError types from a handler's return type as a union */
 export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplify<
   Extract<HandlerResponse<PH>, RpcError<string, any>> | ValidationError
 >;
 
-// The three type parameters of a subrequest: the handler, the route id as a literal (the key path
-// the proxy joins with `/`, so `routes.users.getById(1)` is `RouteSubRequest<H, 'users/getById'>`),
-// and the whole API. The proxy mints the id at runtime; the literal exists so the id survives
-// destructuring and aliasing, and so a build with `bundleApi` reads, at each dispatch point, which
-// route of which API the site calls. The defaults keep every `RouteSubRequest<H>` use compiling.
+// A subrequest takes the handler, the route id as a literal (the key path the proxy joins with `/`) and the
+// whole API. The proxy mints the id at runtime; the literal exists so it survives destructuring and aliasing,
+// and so a `bundleApi` build reads which route of which API each dispatch point calls. Defaults keep
+// every `RouteSubRequest<H>` use compiling.
 
 // type-sub-request-start
 /** Represents a remote method (sub request) */
@@ -174,10 +160,8 @@ export interface SubRequest<PH extends PublicHandler, Id extends string = string
 }
 // type-sub-request-end
 
-/** Unified config object for call() */
 export interface CallSetup<H extends Record<string, MiddlewareSubRequest<any>> = Record<string, never>> {
   middleFns?: H;
-  /** AbortSignal to cancel this specific request */
   signal?: AbortSignal;
   /** Timeout in ms (overrides ClientOptions.timeout) */
   timeout?: number;
@@ -186,7 +170,6 @@ export interface CallSetup<H extends Record<string, MiddlewareSubRequest<any>> =
 /** The API a list of subrequests was created from (one API per client, so the union collapses). */
 export type ApiOf<Routes extends SubRequest<any>[]> = Routes[number] extends RouteSubRequest<any, any, infer RA> ? RA : never;
 
-/** Builder returned by batch() - call .call() to execute */
 export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
   /** Execute the batch */
   call(
@@ -269,10 +252,9 @@ export interface MiddlewareSubRequest<
 }
 // type-middleware-sub-request-end
 
-// The mapped types below tell a route, a middleFn and a group apart by the `type` discriminant every
-// public method carries (a group carries none), never by comparing the whole method structurally: a
-// PublicRoute's options and compiled types are deep conditional types, and comparing them per member
-// was the bulk of the client's type cost.
+// The mapped types below tell a route, a middleFn and a group apart by the `type` discriminant every public
+// method carries (a group carries none), never structurally: a PublicRoute's options and compiled types are
+// deep conditional types, and comparing them per member was the bulk of the client's type cost.
 type RouteLeaf = {type: typeof HandlerType.route; handler: PublicHandler};
 type MiddleFnLeaf = {type: typeof HandlerType.middleFn | typeof HandlerType.headersMiddleFn; handler: PublicHandler};
 type AnyLeaf = {type: number};

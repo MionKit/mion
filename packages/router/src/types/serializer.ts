@@ -89,7 +89,7 @@ type LiteralSerializer<E> = E extends string ? SingleLiteral<E> : {[K in keyof E
 // (`MarkerSlots<...>[0]`) instead of respelling the markers: an alias wrapped AROUND a marker hides it
 // from the mion scanner, a tuple ELEMENT keeps it readable at the call site.
 // Fn keys are MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so order does not matter.
-// 'fmt' and the unknown-key pair are PARAMS-only: the answer side is written by the handler, never a caller.
+// 'formatTransform' and the unknown-key pair are PARAMS-only: the answer side is written by the handler, never a caller.
 
 /** The four injection slots of a route / middleFn call, in declaration order. */
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoSerializerOptions> = [

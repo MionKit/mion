@@ -20,13 +20,9 @@ export async function requestPersistentStorage(): Promise<boolean> {
   }
 }
 
-/** The automatic half, run once after the cache's first successful write.
- *
- *  mion NEVER triggers a browser prompt of any kind. Some browsers show a permission bar when a page
- *  calls `persist()`, and there is no way to know in advance which will, so the only state this asks
- *  from is `granted`: the browser has already decided, and the call cannot prompt. Every other state,
- *  and every browser with no permissions API, is left alone and the cache is simply evictable there.
- *  An app that wants more calls `requestPersistentStorage()` itself. */
+/** The automatic half, run once after the cache's first successful write. mion NEVER triggers a browser
+ *  prompt: `persist()` can show a permission bar and no one can tell in advance which browser will, so this
+ *  asks only from `granted`. Anywhere else the cache is simply evictable, until an app asks for itself. */
 export async function requestPersistenceWhenSilent(): Promise<boolean> {
   const storage = globalThis.navigator?.storage;
   if (!storage?.persist || !storage.persisted) return false;

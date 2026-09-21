@@ -41,11 +41,9 @@ export type PrivateDef = PrivateMiddleFnDef | RawMiddleFnDef;
 
 // ####### Remote Methods Metadata #######
 
-/** Data structure containing all public routes & middleFns.
- * A mapped type that drops private middleFns and rawMiddleFns.
- * Each public method carries its EFFECTIVE options (route literal, then router literal, then the
- * default), the values `initRoutes` returns at runtime and a client build reads off this type.
- */
+/** All public routes & middleFns; private middleFns and rawMiddleFns are dropped.
+ *  Each public method carries its EFFECTIVE options (route, then router, then default), the values
+ *  `initRoutes` returns at runtime and a client build reads off this type. */
 // prettier-ignore
 export type PublicApi<Type extends Routes> = Prettify<{
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
@@ -61,16 +59,15 @@ export type PublicApi<Type extends Routes> = Prettify<{
 }>;
 
 // type-remote-api-start
-/** Same as Public Api but no type mapping, should be easier to use than PublicApi when non strong types are required. */
+/** Same as PublicApi but with no type mapping, for when strong types are not required. */
 export type RemoteApi = {
   [key: string]: PublicRoute<any, any, any> | PublicMiddleFn<any, any, any> | PublicHeadersFn<any, any, any> | RemoteApi;
 };
 // type-remote-api-end
 
-/** The types the server compiled a method's validators and serializers from: the same aliases the
- *  route helpers hand to their markers (HandlerParams / HandlerReturn / HeaderHandlerHeaders /
- *  HandlerIsAsync), so a client build with `bundleApi` reads them off the API type and compiles the
- *  very same functions under the very same ids. Type-only: never set at runtime. */
+/** The types the server compiled a method's validators and serializers from: the same aliases the route
+ *  helpers hand to their markers, so a client build with `bundleApi` compiles the same functions under the
+ *  same ids. Type-only: never set at runtime. */
 export interface MethodTypes {
   /** the params tuple the server validates (a headers middleFn's start after its HeadersSubset) */
   params: unknown;
@@ -78,7 +75,6 @@ export interface MethodTypes {
   return: unknown;
   /** a headers middleFn's HeadersSubset parameter, `never` for every other method */
   headers: unknown;
-  /** whether the server handler answers with a promise */
   isAsync: boolean;
 }
 
@@ -100,7 +96,7 @@ export interface HeadersHandlerMethodTypes<H extends HeaderHandler> {
   isAsync: HandlerIsAsync<H>;
 }
 
-/** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
+/** Public Route: the same handler without the context parameter */
 export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes> extends MethodMetadata {
   type: typeof HandlerType.route;
   middleFnIds: string[];
@@ -112,7 +108,7 @@ export interface PublicRoute<H extends Handler = any, Opts = RemoteMethodOpts, T
   readonly types?: Types;
 }
 
-/** Public MiddleFns, handler type is the same as RemoteMiddleFns but does not include the context  */
+/** Public MiddleFn: the same handler without the context parameter */
 export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes> extends MethodMetadata {
   type: typeof HandlerType.middleFn;
   handler: H;
@@ -122,7 +118,7 @@ export interface PublicMiddleFn<H extends Handler = any, Opts = RemoteMethodOpts
   readonly types?: Types;
 }
 
-/** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
+/** Public HeadersFn: the same handler without the context parameter */
 export interface PublicHeadersFn<H extends Handler = any, Opts = RemoteMethodOpts, Types = MethodTypes> extends MethodMetadata {
   type: typeof HandlerType.headersMiddleFn;
   headerNames: string[];

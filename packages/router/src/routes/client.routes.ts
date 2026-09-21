@@ -36,9 +36,7 @@ export const defaultClientRouteOptions = {
 // Internal mion routes that should not be exposed to clients
 const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 
-/**
- * Returns the metadata for the given method ids.
- * If getAllRemoteMethods is true, all public methods and middleFns are returned.
+/** With getAllRemoteMethods, answers with every public method instead of the given ids.
  * @mion:route
  */
 function mionGetRemoteMethodsDataById(
@@ -73,7 +71,6 @@ function mionGetRemoteMethodsDataById(
   return resp;
 }
 
-/** Middleware wrapper: delegates to mionGetRemoteMethodsDataById when params are provided */
 function mionMethodsMetadata(
   ctx: CallContext,
   methodsIds?: string[],
@@ -99,12 +96,9 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
-/** The metadata middleFn sits in EVERY chain but can only answer when a client actually asked for
- *  metadata. Without this it ran its whole params pipeline (decode, sanitize, validate, spread call)
- *  on every request for a slot that is not there, only to reach its own `return` and hand back
- *  undefined. Skipping is the identical answer: both of its params are optional, so an absent slot
- *  means the handler is called with no arguments and returns undefined either way. A slot that IS
- *  present takes the normal path, validation included. */
+/** The metadata middleFn sits in EVERY chain, so an absent slot skips the whole params pipeline
+ *  (decode, sanitize, validate, call) instead of running it to return undefined. Identical answer:
+ *  both params are optional. A slot that IS present takes the normal path, validation included. */
 const callMiddleFn = callerForType(HandlerType.middleFn);
 function runMethodsMetadataOnDemand(
   context: CallContext,
@@ -124,8 +118,8 @@ export function useOnDemandMetadataCaller(executable: RemoteMethod): void {
 export const mionClientMiddleFns = {
   // Pins the built-in default on BOTH directions: declared at module level, so the build compiles it
   // against the default whatever the router-wide serializer is. It never mutates the cached metadata.
-  // It sits in EVERY chain and takes an unbounded `string[]`, so maxBodySize is a fixed contribution to
-  // each chain's limit: room for the ids a client piggybacks on its first call, not the platform's number.
+  // It sits in EVERY chain with an unbounded `string[]`, so maxBodySize pins a fixed contribution to each
+  // chain's limit: room for the ids a client piggybacks on its first call, not the platform's number.
   [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {
     alwaysRun: true,
     serializer: {params: 'clone', return: 'clone'},
