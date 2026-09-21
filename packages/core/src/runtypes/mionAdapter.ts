@@ -491,10 +491,8 @@ export function getHeadersReflectionFromMarkers(
   const headerNames = getHeaderNamesFromRunType(headersRunType);
   if (!headerNames)
     throw new Error(`RunTypes: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`);
+  // paramsCount is already the body arity: `paramsId` holds HeaderHandlerParams<H>, which starts after the HeadersSubset
   const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
-  // arity comes from the params runtype (R34); display param names are no longer tracked
-  const bodyArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId));
-  reflection.paramsCount = bodyArity;
   reflection.headersParam = {
     headerNames,
     jitHash: headersTypeId,
