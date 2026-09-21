@@ -41,6 +41,7 @@ test('type-only assertions are referenced (no runtime work here)', () => {
   expect(typeof assertionsComposerExactInference).toBe('function');
   expect(typeof assertionsFormatBranding).toBe('function');
   expect(typeof assertionsValueFirstBranding).toBe('function');
+  expect(typeof assertionsEmailPresetRoads).toBe('function');
 });
 
 // Runtime contract: the markers throw at runtime when no id is injected
@@ -266,6 +267,38 @@ function assertionsExactParams(): void {
   // through and silently fails to apply.
   // @ts-expect-error — `optionl` is a typo for `optional`; not a valid modifier.
   RT.propMod({optionl: true}, TF.string({maxLength: 8}));
+}
+
+// The email format has three roads and takes one at a time: a baked pattern, the
+// RFC grammar (`emailRfc`, what the EmailAddress / IdnEmail defaults set) and the
+// localPart/domain split. Mixing the RFC road with the split used to check one
+// and report the other, so the RFC presets pin both split keys shut and a field
+// that wants them uses EmailStrict.
+function assertionsEmailPresetRoads(): void {
+  // Still takes its own bounds and mock samples.
+  const bounded: TF.EmailAddress<{minLength: 10}> = 'joe@example.com' as TF.EmailAddress<{minLength: 10}>;
+  void bounded;
+  TF.emailAddress({minLength: 10});
+  TF.idnEmail({maxLength: 120});
+
+  // @ts-expect-error — `localPart` is the split road; EmailAddress takes the RFC one.
+  type AddressWithLocalPart = TF.EmailAddress<{localPart: {maxLength: 8}}>;
+  // @ts-expect-error — `domain` is the split road too.
+  type IdnWithDomain = TF.IdnEmail<{domain: {maxLength: 253}}>;
+  void (undefined as unknown as [AddressWithLocalPart, IdnWithDomain]);
+
+  // @ts-expect-error — the builders pin the same keys.
+  TF.emailAddress({localPart: {maxLength: 8}});
+  // @ts-expect-error — same on the idn builder.
+  TF.idnEmail({domain: {maxLength: 253}});
+
+  // EmailStrict is the road that owns the split, and it pins the two keys because
+  // they ARE its strictness.
+  const strict: TF.EmailStrict = 'joe@example.com' as TF.EmailStrict;
+  void strict;
+  // @ts-expect-error — `localPart` is EmailStrict's identity, not an override.
+  type StrictRetuned = TF.EmailStrict<{localPart: {maxLength: 8}}>;
+  void (undefined as unknown as StrictRetuned);
 }
 
 function assertionsComposers(): void {

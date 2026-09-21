@@ -523,9 +523,8 @@ export type PresetFormat<Tag extends string, Defaults extends object, P = {}> = 
  *  bound, while swapping its pattern is just `url({pattern})` under a
  *  misleading name — so the pinned key is rejected at the call site instead of
  *  quietly producing a format whose name no longer describes it. **/
-// One mapped pass rather than `Omit<Partial<Params>, Pinned>`, which builds the
-// Partial and then Picks out of it. Same type, measured cheaper, and this rides
-// the generic bound of every preset alias so it is instantiated per call site.
+// This rides the generic bound of every preset alias, so it is instantiated per
+// call site: keep it to one pass over Params.
 export type Override<Params, Pinned extends keyof Params = never> = Omit<Partial<Params>, Pinned>;
 
 /** `T` with its value rewrite set to `P`. The wrapper spelling of the nested
@@ -553,7 +552,9 @@ export type Transform<T extends string, P extends TransformParamsOf<T>> = [Forma
  *  path (`Email`) has one way to fail per param and never sets it. **/
 export type EmailErrorType = 'format' | 'localPart' | 'domain' | 'addressLiteral' | 'length';
 
-// EmailParams — pattern path, or localPart + domain decomposition.
+// EmailParams — pattern path, or localPart + domain decomposition. The RFC
+// presets add `emailRfc`, a third road, and Go FMT002 rejects it alongside either
+// of the other two.
 /** A failing value reports WHICH PART failed in the error's `errorType`, one of
  *  `EmailErrorType` (see it for which path sets which). **/
 export interface EmailParams {
@@ -591,14 +592,18 @@ export type Email<P extends Override<EmailParams> = {}> = PresetFormat<'email', 
  *  a quoted local part (`"joe bloggs"@example.com`) and an address literal
  *  (`joe@[127.0.0.1]`) both pass. One practical narrowing shared with `Email`:
  *  a NAMED domain must be dotted (`joe@tld` is RFC-legal but rejected). **/
-export type EmailAddress<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
+export type EmailAddress<P extends Override<EmailParams, 'pattern' | 'localPart' | 'domain'> = {}> = PresetFormat<
   'email',
   DEFAULT_EMAIL_ADDRESS_PARAMS,
   P
 >;
 /** The same grammar with the local part and domain in any script — what
  *  `format: 'idn-email'` means. **/
-export type IdnEmail<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<'email', DEFAULT_IDN_EMAIL_PARAMS, P>;
+export type IdnEmail<P extends Override<EmailParams, 'pattern' | 'localPart' | 'domain'> = {}> = PresetFormat<
+  'email',
+  DEFAULT_IDN_EMAIL_PARAMS,
+  P
+>;
 export type EmailPunycode<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
   'email',
   DEFAULT_EMAIL_PUNYCODE_PARAMS,
@@ -912,9 +917,17 @@ export const domainStrict = presetFormatBuilder<'domain', DEFAULT_STRICT_DOMAIN_
  *  built-in pattern. **/
 export const email = presetFormatBuilder<'email', DEFAULT_EMAIL_PARAMS, Override<EmailParams>>('email');
 /** Full RFC 5321 address (`EmailAddress`). **/
-export const emailAddress = presetFormatBuilder<'email', DEFAULT_EMAIL_ADDRESS_PARAMS, Override<EmailParams, 'pattern'>>('email');
+export const emailAddress = presetFormatBuilder<
+  'email',
+  DEFAULT_EMAIL_ADDRESS_PARAMS,
+  Override<EmailParams, 'pattern' | 'localPart' | 'domain'>
+>('email');
 /** Internationalized address (`IdnEmail`). **/
-export const idnEmail = presetFormatBuilder<'email', DEFAULT_IDN_EMAIL_PARAMS, Override<EmailParams, 'pattern'>>('email');
+export const idnEmail = presetFormatBuilder<
+  'email',
+  DEFAULT_IDN_EMAIL_PARAMS,
+  Override<EmailParams, 'pattern' | 'localPart' | 'domain'>
+>('email');
 /** Punycode-domain email (`EmailPunycode`). **/
 export const emailPunycode = presetFormatBuilder<'email', DEFAULT_EMAIL_PUNYCODE_PARAMS, Override<EmailParams, 'pattern'>>(
   'email'

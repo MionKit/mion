@@ -11,10 +11,12 @@ import (
 )
 
 // emailEmitter implements the format named "email" — FormatEmail /
-// FormatEmailStrict. Like domain it has two paths (the
-// EmailRunTypeFormat):
+// FormatEmailStrict. Three paths, one per params road (the
+// EmailRunTypeFormat), and ValidateParams rejects any two of them together:
 //
 //   - pattern path: a single baked email regex (FormatEmail).
+//   - RFC path: `emailRfc` runs the isEmailAddress pure fn (EmailAddress /
+//     IdnEmail), described in its own section below.
 //   - decomposition path: split on the LAST '@' into localPart + domain
 //     (FormatEmailStrict); localPart is validated as a sub-StringFormat
 //     and domain as a sub-domain (which may itself decompose).
@@ -29,6 +31,11 @@ func init() {
 func (emailEmitter) Name() string                    { return "email" }
 func (emailEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
+// Both lanes below test decomposition before emailRfc, like domain.go: the
+// decomposition keys are always user-written while emailRfc only ever arrives as
+// a preset default, so the explicit rule wins. ValidateParams rejects the pair,
+// but that is a RuntimeError — the code still ships and a dev server only reports
+// it — so the two lanes have to agree on their own.
 func (emailEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailValidateExprFor(ctx, annotation.Params, vλl)
@@ -88,11 +95,11 @@ func emailRfcErrorsBlock(ctx formats.EmitContext, params map[string]any, vλl, p
 }
 
 func (emailEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
-	if annotation != nil && emailHasRfc(annotation.Params) {
-		return emailRfcErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr)
-	}
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr)
+	}
+	if annotation != nil && emailHasRfc(annotation.Params) {
+		return emailRfcErrorsBlock(ctx, annotation.Params, vλl, pathExpr, errorsArr)
 	}
 	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "email")
 }
@@ -202,6 +209,9 @@ func (emailEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []st
 	_, hasPattern := params["pattern"]
 	if hasPattern && (hasLocalPart || hasDomain) {
 		errs = append(errs, "FormatEmail: cannot combine `pattern` with `localPart`/`domain`")
+	}
+	if emailHasRfc(params) && (hasLocalPart || hasDomain) {
+		errs = append(errs, "FormatEmail: cannot combine `emailRfc` with `localPart`/`domain`")
 	}
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok && value > 254 {
 		errs = append(errs, "FormatEmail: `maxLength` cannot be greater than 254")
