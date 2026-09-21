@@ -1,30 +1,23 @@
-// Bound-aware mock helpers for the date / time / dateTime string formats
-// and the native Date format. A mock value MUST re-pass validate for the
-// same type, which means it must satisfy the format's min/max bounds.
-//
-// The validator compares a value's "key" against the bound's key on a
-// per-kind scale (see internal/cachegen/typefunctions/formats/datetime/{literals,
-// boundcodegen}.go and the dateStrToMs / timeStrToMs / relativeNowKey pure
-// fns in ./../formats/datetime/dateTime-pure-fns.ts):
+// Bound-aware mock helpers for the date / time / dateTime string formats and the native Date format: a mock must
+// re-pass validate, so it must satisfy the format's min/max bounds.
+// The validator compares a value's key against the bound's key on a per-kind scale (see
+// internal/cachegen/typefunctions/formats/datetime/{literals,boundcodegen}.go and the dateStrToMs / timeStrToMs /
+// relativeNowKey fns in ./../formats/datetime/dateTime-pure-fns.ts):
 //   - date  → UTC epoch ms floored to midnight ('epochDate')
 //   - time  → milliseconds-of-day ('timeOfDay')
 //   - dateTime / native Date → UTC epoch ms ('epoch')
-//
-// Mocking is the inverse: resolve [minKey, maxKey] on that scale, pick a
-// random key in range, then FORMAT it back into the layout. Formatting
-// truncates to the layout's grid (e.g. YYYY-MM drops the day); because the
-// bounds are themselves valid, grid-aligned literals (the Go validator
-// rejects anything else with FMT002), truncation is monotonic with a fixed
-// point at each bound, so the formatted value's re-parsed key stays within
-// [minKey, maxKey]. This module therefore MUST mirror the validator's scale
-// math exactly — keep it in sync with literals.go / dateTime-pure-fns.ts.
+// Mocking is the inverse: resolve [minKey, maxKey] on that scale, pick a random key in range, then FORMAT it back
+// into the layout. Formatting truncates to the layout's grid, and because the bounds are themselves valid,
+// grid-aligned literals (the Go validator rejects anything else with FMT002), that truncation is monotonic with a
+// fixed point at each bound, so the re-parsed key stays within [minKey, maxKey].
+// This module MUST therefore mirror the validator's scale math exactly: keep it in sync with literals.go /
+// dateTime-pure-fns.ts.
 
 import type {DateFmt, TimeFmt, DateTimeParams} from '../formats/datetime/stringDateTimeFormats.ts';
 import type {MockRandom} from './mockRandom.ts';
 
-// Fill year for yearless date layouts (MM-DD / DD-MM) — MUST match Go's
-// defaultFillYear (literals.go) and the JS dateStrToMs fill (a leap year so
-// 02-29 is representable).
+// Fill year for yearless date layouts (MM-DD / DD-MM); MUST match Go's defaultFillYear (literals.go) and the JS
+// dateStrToMs fill, a leap year so 02-29 is representable.
 const FILL_YEAR = 2000;
 
 const MS_PER_DAY = 86400000;
@@ -32,17 +25,15 @@ const MS_PER_HOUR = 3600000;
 const MS_PER_MIN = 60000;
 const MS_PER_SEC = 1000;
 
-// Inclusive integer draw that returns `min` WITHOUT drawing when the range
-// collapses — preserving the exact draw sequence (a collapsed date bound must
-// not consume a PRNG step). Uses `float()` (not `int`) for the same reason.
+// Returns `min` WITHOUT drawing when the range collapses, so a collapsed date bound consumes no PRNG step and the
+// draw sequence is preserved; `float()` rather than `int` for the same reason.
 function randInt(min: number, max: number, random: MockRandom): number {
   if (max <= min) return min;
   return min + Math.floor(random.float() * (max - min + 1));
 }
 
 // ─────────────────────── relative now±P resolution ───────────────────────
-// Mirror of relativeNowKey in dateTime-pure-fns.ts. `scale` is one of
-// 'epoch' | 'epochDate' | 'timeOfDay'.
+// Mirror of relativeNowKey in dateTime-pure-fns.ts.
 
 type RelScale = 'epoch' | 'epochDate' | 'timeOfDay';
 
@@ -78,8 +69,7 @@ function parseDuration(tail: string): {
 }
 
 function resolveRelative(spec: string, scale: RelScale, random: MockRandom): number {
-  // Wall clock via `random.now()`: live `Date.now()` natively, a fixed
-  // reference instant under a seed so relative `now±P` bounds stay repeatable.
+  // `random.now()` is live `Date.now()` natively, a fixed instant under a seed, so `now±P` bounds stay repeatable.
   const now = new Date(random.now());
   if (scale === 'timeOfDay') {
     let ms =
@@ -165,9 +155,8 @@ function timeLiteralToMs(value: string, layout: TimeFmt): number {
   const parts = body.split(':');
   if (layout === 'HH:mm') return Number(parts[0]) * MS_PER_HOUR + Number(parts[1]) * MS_PER_MIN;
   if (layout === 'mm:ss') return Number(parts[0]) * MS_PER_MIN + Number(parts[1]) * MS_PER_SEC;
-  // HH:mm:ss, HH:mm:ss[.mmm], ISO — three segments. The seconds segment may
-  // be absent when a dateTime bound's time half uses a coarser layout (e.g.
-  // an 'HH:mm' time joined under a dateTime literal parsed leniently as ISO).
+  // HH:mm:ss, HH:mm:ss[.mmm], ISO: three segments, the seconds one absent when a dateTime bound's time half uses
+  // a coarser layout (an 'HH:mm' time joined under a dateTime literal parsed leniently as ISO).
   const secParts = (parts[2] ?? '').split('.');
   return (
     Number(parts[0]) * MS_PER_HOUR +
@@ -182,8 +171,7 @@ function dateTimeLiteralToMs(value: string, splitChar: string): number {
   const idx = value.indexOf(sep);
   if (idx < 0) return Date.parse(value);
   const dateMs = dateLiteralToMs(value.substring(0, idx), 'YYYY-MM-DD');
-  // Lenient time parse — the time half can be any valid time layout; ISO/TZ
-  // parser handles the superset.
+  // Lenient parse: the time half can be any valid time layout, and the ISO/TZ parser handles the superset.
   const timeMs = timeLiteralToMs(value.substring(idx + sep.length), 'ISO');
   return dateMs + timeMs;
 }
@@ -260,8 +248,7 @@ function formatTime(msOfDay: number, layout: TimeFmt): string {
 
 // ─────────────────────── default (unbounded) ranges ───────────────────────
 
-// Full representable date range as epoch ms (year 1 .. 9999), matching the
-// validator's accepted range so an absent bound spans everything.
+// Year 1 .. 9999, matching the validator's accepted range so an absent bound spans everything.
 const DATE_MIN_MS = Date.UTC(1, 0, 1, 0, 0, 0, 0);
 const DATE_MAX_MS = Date.UTC(9999, 11, 31, 0, 0, 0, 0);
 
@@ -285,9 +272,8 @@ function timeMaxMs(layout: TimeFmt): number {
   }
 }
 
-// timeGridMs is the smallest representable step for a time layout — used as
-// the exclusive-bound nudge so a `gt`/`lt` bound excludes its own
-// grid-aligned value (e.g. `gt: '08:00'` on `HH:mm` starts at 08:01).
+// timeGridMs is the exclusive-bound nudge, so a `gt`/`lt` bound excludes its own grid-aligned value
+// (e.g. `gt: '08:00'` on `HH:mm` starts at 08:01).
 function timeGridMs(layout: TimeFmt): number {
   switch (layout) {
     case 'HH':
@@ -305,11 +291,8 @@ function timeGridMs(layout: TimeFmt): number {
 }
 
 // ─────────────────────── bound set → inclusive range ───────────────────────
-// The four bounds (min/max inclusive, gt/lt exclusive) collapse to one
-// inclusive [lo, hi] key range. min/gt set the lower edge, max/lt the upper;
-// the exclusive twins are nudged inward by one `grid` step (the smallest
-// representable unit on the value's scale) so a strictly-greater/less bound
-// excludes its own key. The tightest edge wins when several are present.
+// The four bounds (min/max inclusive, gt/lt exclusive) collapse to one inclusive [lo, hi] key range: the
+// exclusive twins are nudged inward by one `grid` step so they exclude their own key, and the tightest edge wins.
 
 // MinMax-shaped bound inputs, already string|undefined.
 interface BoundInputs {
@@ -319,9 +302,8 @@ interface BoundInputs {
   lt?: string;
 }
 
-// resolveRange collapses the bound set to [lo, hi] inclusive keys. `resolve`
-// maps a bound string to its key on the scale; defaultLo/defaultHi back the
-// absent edges; grid is one representable step for the exclusive nudge.
+// `resolve` maps a bound string to its key on the scale, defaultLo/defaultHi back the absent edges, and grid is
+// one representable step for the exclusive nudge.
 function resolveRange(
   bounds: BoundInputs,
   resolve: (bound: string) => number,
@@ -335,32 +317,28 @@ function resolveRange(
   if (bounds.gt !== undefined) lo = Math.max(lo, resolve(bounds.gt) + grid);
   if (bounds.max !== undefined) hi = Math.min(hi, resolve(bounds.max));
   if (bounds.lt !== undefined) hi = Math.min(hi, resolve(bounds.lt) - grid);
-  // Guard against an inverted range (a contradictory or relative-clock
-  // bound set) — collapse to the lower edge so randInt stays well-defined.
+  // A contradictory or relative-clock bound set can invert the range; collapse it so randInt stays well-defined.
   if (hi < lo) hi = lo;
   return {lo, hi};
 }
 
 // ───────────────────────────── public builders ─────────────────────────────
 
-// mockBoundedDate returns a date string in `layout` within the bound set
-// (each bound optional, absolute literal or relative now±P).
+// mockBoundedDate: each bound is optional, an absolute literal or a relative now±P.
 export function mockBoundedDate(layout: DateFmt, bounds: BoundInputs, random: MockRandom): string {
   const {lo, hi} = resolveRange(bounds, (b) => resolveDateKey(b, layout, random), DATE_MIN_MS, DATE_MAX_MS, MS_PER_DAY);
   return formatDate(randInt(lo, hi, random), layout);
 }
 
-// mockBoundedTime returns a time string in `layout` within the bound set.
-// The grid step is the layout's smallest representable unit so an exclusive
-// bound excludes its own grid-aligned value.
+// mockBoundedTime uses the layout's smallest representable unit as the grid step, so an exclusive bound excludes
+// its own grid-aligned value.
 export function mockBoundedTime(layout: TimeFmt, bounds: BoundInputs, random: MockRandom): string {
   const grid = timeGridMs(layout);
   const {lo, hi} = resolveRange(bounds, (b) => resolveTimeKey(b, layout, random), 0, timeMaxMs(layout), grid);
   return formatTime(randInt(lo, hi, random), layout);
 }
 
-// mockBoundedDateTime returns a dateTime string honoring the nested layouts,
-// splitChar, and top-level min/max/gt/lt bounds.
+// mockBoundedDateTime honors the nested layouts, splitChar, and top-level min/max/gt/lt bounds.
 export function mockBoundedDateTime(params: Partial<DateTimeParams>, random: MockRandom): string {
   const dateLayout = (params.date?.format ?? 'ISO') as DateFmt;
   const timeLayout = (params.time?.format ?? 'ISO') as TimeFmt;
@@ -377,21 +355,16 @@ export function mockBoundedDateTime(params: Partial<DateTimeParams>, random: Moc
     timeGridMs(timeLayout)
   );
   const pick = randInt(lo, hi, random);
-  // Split the picked instant into a UTC-midnight date part + the remaining
-  // time-of-day, format each in its layout. Truncation to each layout grid is
-  // monotonic with fixed points at the (grid-aligned) bounds, keeping the
-  // re-parsed key within [lo, hi].
+  // Truncation to each layout's grid is monotonic with fixed points at the grid-aligned bounds, so the re-parsed
+  // key stays within [lo, hi].
   const dayMs = Math.floor(pick / MS_PER_DAY) * MS_PER_DAY;
   const timeOfDay = pick - dayMs;
   return `${formatDate(dayMs, dateLayout)}${splitChar}${formatTime(timeOfDay, timeLayout)}`;
 }
 
-// mockBoundedNativeDate returns a Date within the bound set for Date.
-// The scale is full UTC epoch ms; the exclusive grid step is 1 ms (a Date's
-// resolution).
+// mockBoundedNativeDate works on full UTC epoch ms, with a 1 ms exclusive grid step, a Date's resolution.
 export function mockBoundedNativeDate(bounds: BoundInputs, random: MockRandom): Date {
-  // `random.now()` for the default upper bound: live `Date.now()` natively, a
-  // fixed reference instant under a seed.
+  // `random.now()` for the default upper bound: live `Date.now()` natively, a fixed instant under a seed.
   const {lo, hi} = resolveRange(bounds, (b) => resolveEpochKey(b, 'T', random), DATE_MIN_MS, random.now(), 1);
   return new Date(randInt(lo, hi, random));
 }

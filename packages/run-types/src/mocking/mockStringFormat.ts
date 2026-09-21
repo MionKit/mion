@@ -1,10 +1,6 @@
-// Single mock entry point for every string format. Registered once for
-// ReflectionKind.string via `registerMockingFunction`; the mock walker
-// calls it with the FormatAnnotation and the generation's shared MockRandom,
-// and dispatches on the format name. Replaces the old per-format `_mock`
-// classes (the project's class→switch convention). The value-transform
-// (lowercase/trim) is applied by the mock walker AFTER this returns, so these
-// produce the base valid value.
+// Single mock entry point for every string format, registered once for ReflectionKind.string and dispatching on
+// the format name. The value-transform (lowercase/trim) is applied by the mock walker AFTER this returns, so the
+// functions here produce the base valid value.
 
 import {registerMockingFunction} from './mockRegistry.ts';
 import {nativeMockRandom} from './mockRandom.ts';
@@ -32,10 +28,8 @@ import type {
 import type {DateParams, DateTimeParams, TimeParams} from '../formats/datetime/stringDateTimeFormats.ts';
 import {mockBoundedDate, mockBoundedTime, mockBoundedDateTime} from './mockDateTimeBounds.ts';
 
-// mockStringFormat dispatches on the format name. Returns undefined for
-// an unrecognised name so the mock walker falls back to the kind-default
-// (a plain random string). `random` defaults to the shared native instance so
-// a call without one (a custom caller) still works.
+// Returns undefined for an unrecognised name so the walker falls back to the kind-default (a plain random string).
+// `random` defaults to the shared native instance so a call without one still works.
 function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nativeMockRandom, options?: MockOptions): unknown {
   const params = annotation.params ?? {};
   switch (annotation.name) {
@@ -74,12 +68,8 @@ registerMockingFunction(RunTypeKind.string, mockStringFormat);
 
 function mockStringParams(params: StringParams, random: MockRandom): string {
   if (params.allowedValues) return pickSample(params.allowedValues.val, random) ?? '';
-  // Pattern / disallowed-value samples can't be reversed from a regex, so
-  // we draw from the supplied samples. When length bounds are present, keep
-  // only the samples that satisfy them (the pattern formats encode their
-  // mockSamples as a char-set string and length-bound that; the ts-go port
-  // keeps array samples + filters by length — e.g. Alpha<{maxLength:3}>
-  // must not pick a 5-char sample).
+  // A regex can't be reversed, so draw from the supplied samples, keeping only those satisfying the length bounds
+  // (e.g. Alpha<{maxLength:3}> must not pick a 5-char sample).
   const sample = pickSample(
     filterSamplesByLength(
       params.mockSamples ?? patternSampleList(params.pattern) ?? toSampleList(params.disallowedValues?.mockSamples),
@@ -88,11 +78,9 @@ function mockStringParams(params: StringParams, random: MockRandom): string {
     random
   );
   if (sample !== undefined) return sample;
-  // `contentMediaType` needs a floor: a random string is not JSON, and a mock
-  // must satisfy its own validator. The shipped JsonContent aliases carry a
-  // sample pool, so this only catches a hand-written
-  // `String<{contentMediaType: 'application/json'}>` — for which the emptiest
-  // valid document is the honest answer.
+  // `contentMediaType` needs a floor: a random string is not JSON, and a mock must satisfy its own validator.
+  // The shipped JsonContent aliases carry a sample pool, so only a hand-written `String<{contentMediaType: …}>`
+  // reaches here, and the emptiest valid document is the answer.
   if (params.contentMediaType === 'application/json') {
     return params.contentEncoding === 'base64' ? 'e30=' : '{}';
   }
@@ -109,21 +97,16 @@ function mockStringParams(params: StringParams, random: MockRandom): string {
   return randomString(pickMockLength(params, random), random);
 }
 
-// patternSampleList returns a pattern's `mockSamples` as a string[] (the
-// Go scanner emits them as an array even when the source literal was a
-// single char-set string), or undefined when the pattern carries none.
+// patternSampleList returns a pattern's `mockSamples` as a string[]: the Go scanner emits an array even when the
+// source literal was a single char-set string.
 function patternSampleList(pattern: PatternParam | undefined): readonly string[] | undefined {
   const samples = (pattern as {mockSamples?: Samples} | undefined)?.mockSamples;
   return toSampleList(samples);
 }
 
-// filterSamplesByLength drops samples that violate the length bounds
-// (length / minLength / maxLength). Returns the original list when no
-// bound applies. When EVERY sample violates the bounds the result is
-// EMPTY — never the unfiltered list: an out-of-bounds sample would fail
-// the format's own validator (`validate(mock())` must hold), so the
-// caller falls through to its bounded synthesizers or throws a clear
-// error instead of silently emitting an invalid mock.
+// filterSamplesByLength drops samples violating length / minLength / maxLength.
+// When EVERY sample violates them the result is EMPTY, never the unfiltered list: an out-of-bounds sample would
+// fail the format's own validator, so the caller falls through to a bounded synthesizer or throws instead.
 function filterSamplesByLength(samples: readonly string[] | undefined, params: StringParams): readonly string[] | undefined {
   if (!samples || samples.length === 0) return samples;
   if (params.length === undefined && params.minLength === undefined && params.maxLength === undefined) return samples;
@@ -176,32 +159,22 @@ function randomString(length: number, random: MockRandom): string {
 
 // ─────────────────────────────── UUID ───────────────────────────────
 
-// The version-agnostic `'any'` never leaves the generator guessing: a mock only
-// has to produce ONE value the validator accepts, and every v4 UUID is a valid
-// `'any'` UUID. So the generator narrows (always v4) exactly where the validator
-// stays open (any RFC 9562 layout) — the safe direction, since mock ⊆ valid.
-// Only `'7'` needs its own generator, because a v4 would fail a v4-pinned check.
+// A mock only has to produce ONE value the validator accepts, and every v4 UUID is a valid `'any'` UUID, so the
+// generator narrows to v4 where the validator stays open: the safe direction, since mock ⊆ valid.
+// Only `'7'` needs its own generator, because a v4 would fail a v7-pinned check.
 function mockUuid(params: Partial<UUIDParams>, random: MockRandom): string {
   return params.version === '7' ? random.uuidV7() : random.uuidV4();
 }
 
 // ─────────────────────────── Credit card ────────────────────────────
 
-// A card number can be BUILT, unlike a pattern-backed format where the regex
-// cannot be reversed and a declared sample pool is the only option. So the
-// default is a freshly generated number: a real prefix for the network, a
-// length that network issues, random digits in between, and the check digit
-// that makes the Luhn sum come out. Different every run, and it passes the
-// exact validator the format emitted.
-//
-// Nothing about what a card number IS lives here. The network table and the
-// checksum come from the format's own module, so a mock cannot drift into
-// generating cards its own format rejects. This file only picks and shuffles.
+// A card number can be BUILT, unlike a pattern-backed format whose regex cannot be reversed, so the default is a
+// freshly generated number that is different every run and passes the exact validator the format emitted.
+// The network table and the checksum come from the format's own module, so a mock cannot drift into generating
+// cards its own format rejects.
 
-// The well-known sandbox numbers every payment gateway publishes, behind the
-// `testCreditCards` mock option. They are the only numbers a gateway sandbox
-// accepts, so mocked data headed there needs them; everything else is better
-// served by a generated value.
+// The published gateway sandbox numbers, behind the `testCreditCards` mock option: a gateway sandbox accepts
+// nothing else, and everything else is better served by a generated value.
 const TEST_CARD_NUMBERS: Record<CardNetwork, readonly string[]> = {
   visa: ['4111111111111111', '4012888888881881', '4222222222222'],
   mastercard: ['5555555555554444', '5105105105105100', '2223003122003222'],
@@ -223,11 +196,9 @@ function generateCardNumber(network: CardNetwork, random: MockRandom): string {
   return body + luhnCheckDigit(body);
 }
 
-// Always plain digits: a number with no separator is valid whether or not the
-// format declares any, so one generator serves both.
+// Always plain digits: a number with no separator is valid whether or not the format declares any.
 function mockCreditCard(params: CreditCardParams, random: MockRandom, options?: MockOptions): string {
-  // Pinning no network still generates for a real one — a made-up prefix would
-  // be a card number no issuer could have handed out.
+  // Pinning no network still generates for a real one: a made-up prefix is a number no issuer could have handed out.
   const networks = params.networks?.length ? params.networks : CARD_NETWORKS;
   const network = networks[random.int(0, networks.length - 1)];
   if (options?.testCreditCards) {
@@ -237,14 +208,10 @@ function mockCreditCard(params: CreditCardParams, random: MockRandom, options?: 
   return generateCardNumber(network, random);
 }
 
-// negativeForStringFormat — the wrong value for a string format that has a more
-// interesting failure than "this is not a string". Returns undefined for every
-// format without one, so the caller falls back to the generic inverse.
-//
-// For a card number the useful negative is a card number that FAILS: `123` only
-// ever exercises the base string check, while a real number with one digit
-// changed is exactly what the checksum exists to catch. Changing a single digit
-// always breaks the Luhn sum, in a doubled slot or an undoubled one.
+// negativeForStringFormat is the wrong value for a string format with a more interesting failure than "not a
+// string"; undefined for every format without one, so the caller falls back to the generic inverse.
+// For a card number that means a real number with ONE digit changed, which always breaks the Luhn sum, since
+// `123` only exercises the base string check.
 export function negativeForStringFormat(annotation: FormatAnnotation | undefined, value: unknown): unknown {
   if (annotation?.name !== 'creditCard' || typeof value !== 'string') return undefined;
   for (let i = value.length - 1; i >= 0; i--) {
@@ -255,9 +222,8 @@ export function negativeForStringFormat(annotation: FormatAnnotation | undefined
   return 'not-a-card';
 }
 
-// Date / Time / DateTime mocking lives in ./mockDateTimeBounds.ts — it must
-// honor the min/max bounds (absolute or relative now±P) so the mock re-passes
-// validate, which requires mirroring the validator's per-kind key scale.
+// Date / Time / DateTime mocking lives in ./mockDateTimeBounds.ts: honoring the min/max bounds (absolute or
+// relative now±P) so the mock re-passes validate requires mirroring the validator's per-kind key scale.
 
 // ──────────────────────────────── IP ────────────────────────────────
 
@@ -268,9 +234,8 @@ function mockIp(params: Partial<IPParams>, random: MockRandom): string {
 }
 
 function mockIpV4(params: Partial<IPParams>, random: MockRandom): string {
-  // Only reachable with allowLocalHost — the hostname is not an address, so a
-  // format that has not opted in must never see it in its mock pool. It stays
-  // valid with a port: the allowPort parser splits the port off first.
+  // The hostname is not an address, so a format that has not opted in must never see it in its mock pool.
+  // It stays valid with a port: the allowPort parser splits the port off first.
   if (params.allowLocalHost && random.float() > 0.8) {
     return params.allowPort ? `localhost:${randomPort(random)}` : 'localhost';
   }
@@ -279,21 +244,18 @@ function mockIpV4(params: Partial<IPParams>, random: MockRandom): string {
 }
 
 function mockIpV6(params: Partial<IPParams>, random: MockRandom): string {
-  // The loopback ADDRESS needs no opt-in (allowLocalHost covers the hostname
-  // spelling only), so it stays in the pool for every v6 format.
+  // The loopback ADDRESS needs no opt-in (allowLocalHost covers the hostname spelling only).
   if (random.float() > 0.8) {
     const loopback = random.float() > 0.5 ? '0:0:0:0:0:0:0:1' : '::1';
-    // The allowPort v6 parser requires the bracketed `[addr]` (optionally
-    // `[addr]:port`) form — a bare address fails to match.
+    // The allowPort v6 parser requires the bracketed `[addr]` form; a bare address fails to match.
     return params.allowPort ? `[${loopback}]` : loopback;
   }
-  // `Math.floor(x * 0xffff)` (0..0xfffe), preserved exactly via float() — an
-  // `int(0, 0xffff)` would widen the range by one and change no-seed output.
+  // `Math.floor(x * 0xffff)` (0..0xfffe) kept via float(): `int(0, 0xffff)` would widen the range and change output.
   const address = Array.from({length: 8}, () => Math.floor(random.float() * 0xffff).toString(16)).join(':');
   return params.allowPort ? `[${address}]:${randomPort(random)}` : address;
 }
 
-// randomPort returns a valid 0-65535 port for the *WithPort IP formats.
+// randomPort serves the *WithPort IP formats.
 function randomPort(random: MockRandom): number {
   return random.int(0, 65535);
 }
@@ -301,16 +263,12 @@ function randomPort(random: MockRandom): number {
 // ─────────────────────────── Domain / Email ─────────────────────────
 
 function mockDomain(params: DomainParams, random: MockRandom): string {
-  // allowedValues wins outright: the emitted validator only accepts these
-  // exact domains, so any synthesized value would fail its own validate.
-  // Mirrors the plain string-format path (mockStringParams).
+  // allowedValues wins outright: the emitted validator accepts only these exact domains, as in mockStringParams.
   if (params.allowedValues) {
     const allowed = pickSample(params.allowedValues.val, random);
     if (allowed !== undefined) return allowed;
   }
-  // names/tld decomposition (DomainStrict): draw a label + tld from
-  // their sub-pattern samples (we use the names/tld char-sets). The
-  // samples live under `<part>.pattern.mockSamples` (or a bare mockSamples).
+  // names/tld decomposition (DomainStrict): the samples live under `<part>.pattern.mockSamples`, or a bare mockSamples.
   if (params.names || params.tld) {
     const name = pickSample(domainPartSamples(params.names), random) ?? 'example';
     const tld = pickSample(domainPartSamples(params.tld), random) ?? 'com';
@@ -319,27 +277,22 @@ function mockDomain(params: DomainParams, random: MockRandom): string {
   return pickSample(params.mockSamples ?? patternSampleList(asPattern(params.pattern)), random) ?? 'example.com';
 }
 
-// domainPartSamples reads a names/tld sub-format's samples, preferring its
-// own `mockSamples` and falling back to its `pattern.mockSamples`.
+// domainPartSamples prefers a names/tld sub-format's own `mockSamples` over its `pattern.mockSamples`.
 function domainPartSamples(part: {mockSamples?: Samples; pattern?: unknown} | undefined): readonly string[] | undefined {
   if (!part) return undefined;
   return toSampleList(part.mockSamples) ?? patternSampleList(asPattern(part.pattern));
 }
 
-// Named-family draws come from pattern sample pools that predate any
-// schema-sibling length bounds (the JSON Schema door REPLACES the brand's
-// default bounds with the document's) — filter the draw against params
-// minLength / maxLength so validate(mock()) holds. Bounds no pool entry
-// satisfies are an authoring problem the mock must surface, not paper
-// over: loud exhaustion after the standard attempt budget.
+// Named-family draws come from pattern sample pools predating any schema-sibling length bounds (the JSON Schema
+// door REPLACES the brand's default bounds with the document's), so filter the draw so validate(mock()) holds.
+// Bounds no pool entry satisfies are an authoring problem to surface, hence the loud exhaustion after the budget.
 function lengthFiltered(params: object, draw: () => string): string {
   const {minLength, maxLength} = params as {minLength?: number; maxLength?: number};
   if (minLength === undefined && maxLength === undefined) return draw();
   for (let attempt = 0; attempt < 32; attempt++) {
     const candidate = draw();
-    // Code points, matching the emitted validator's bounds (JSON Schema's
-    // rule): a draw carrying an astral character must not be filtered out over
-    // a `.length` the validator never looks at.
+    // Code points, matching the emitted validator's bounds: an astral character must not be filtered out over a
+    // `.length` the validator never looks at.
     const size = [...candidate].length;
     if ((minLength === undefined || size >= minLength) && (maxLength === undefined || size <= maxLength)) {
       return candidate;
@@ -362,15 +315,13 @@ function mockEmail(params: EmailParams, random: MockRandom): string {
 // ──────────────────────────────── URL ───────────────────────────────
 
 function mockUrl(params: UrlParams, random: MockRandom): string {
-  // URL formats bake their scheme set into the pattern, which can't be
-  // reversed — draw from the pattern's mockSamples (http(s)/ftp/ws,
-  // http-only, or file:// per variant). Default only fits the generic URL.
+  // URL formats bake their scheme set into the pattern, which can't be reversed, so draw from its mockSamples.
+  // The default only fits the generic URL.
   return pickSample(params.mockSamples ?? patternSampleList(asPattern(params.pattern)), random) ?? 'https://example.com';
 }
 
-// asPattern coerces a domain/email/url `pattern` param (a `{source, flags}`
-// or `{val: RegExp}` union) to the PatternParam shape patternSampleList
-// reads — only the `mockSamples` field matters for mocking.
+// asPattern coerces a domain/email/url `pattern` param (`{source, flags}` or `{val: RegExp}`) to PatternParam:
+// only the `mockSamples` field matters for mocking.
 function asPattern(pattern: unknown): PatternParam | undefined {
   return pattern as PatternParam | undefined;
 }

@@ -1,14 +1,12 @@
-// Public surface for the mock-value generator — separated from
-// `createRTFunctions.ts` so bundlers can drop the whole mock subtree from
-// bundles that don't reference `createMockDataFn`. Mock has no per-type RT
-// cache; the walker reads `runTypesCache` and generates values at runtime.
+// Public surface for the mock-value generator, kept out of `createRTFunctions.ts` so bundlers can drop the whole
+// mock subtree from bundles that don't reference `createMockDataFn`.
+// Mock has no per-type RT cache: the walker reads `runTypesCache` and generates values at runtime.
 
 import {getRTUtils, isRunTypeValue} from '../runtypes/rtUtils.ts';
 import {entryTupleKey, initFromTuple, isEntryTuple} from '../runtypes/entryTuple.ts';
-// Side-effect imports: register the per-kind format mock fns. They must ride
-// the mock subtree itself — a consumer whose only @mionjs/run-types/formats imports
-// sit in type positions has them elided, and an empty registry silently mocks
-// format-branded nodes as kind-default values that fail their own validators.
+// Side-effect imports registering the per-kind format mock fns; they must ride the mock subtree itself.
+// A consumer whose only @mionjs/run-types/formats imports sit in type positions has them elided, and an empty
+// registry silently mocks format-branded nodes as kind-default values that fail their own validators.
 import './mockStringFormat.ts';
 import './mockNumberFormat.ts';
 import './mockBigIntFormat.ts';
@@ -22,15 +20,11 @@ import {MockRandom, nativeMockRandom} from './mockRandom.ts';
 import {defaultMockOptions} from './constants.mock.ts';
 import type {MockDataNode, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPartial} from './mockTypes.ts';
 
-/** Returns a mock-value generator for `T`. Each call produces a fresh value
- *  that passes `validate<T>`. Options merge: call < factory < defaults. Accepts
- *  either a value-first schema (`createMockDataFn(rt)`) or the value/static form.
+/** Returns a mock-value generator for `T`; each call produces a fresh value that passes `validate<T>`.
+ *  Options merge: call < factory < defaults. Takes a value-first schema (`createMockDataFn(rt)`) or the value/static form.
  *  Throws if the Vite plugin isn't active (no `id` injected).
- *
- *  The options slot is `CompTimeHints`: the build READS a literal
- *  `mock.seed` from it (making generated pattern mockSample pools
- *  reproducible across builds) but never validates it — a dynamic options
- *  bag stays legal and simply keeps the build-time knobs invisible. **/
+ *  The build READS a literal `mock.seed` from the `CompTimeHints` slot (reproducible pattern mockSample pools) but never
+ *  validates it, so a dynamic options bag stays legal and simply keeps the build-time knobs invisible. **/
 export function createMockDataFn<T>(
   runType: RunType<T>,
   options?: CompTimeHints<RunTypeMockOptions<T>>,
@@ -48,8 +42,7 @@ export function createMockDataFn<T>(
 ): MockTypeFn<T> {
   let injectedId: string | undefined = id;
   if (isEntryTuple(id)) {
-    // The plugin injects the runtype's entry-module tuple — register the
-    // type graph and recover the id string.
+    // The plugin injects the runtype's entry-module tuple, not a plain id.
     initFromTuple(id);
     injectedId = entryTupleKey(id);
   }
@@ -70,15 +63,13 @@ export function createMockDataFn<T>(
   return ((callOpts) => {
     const merged = mergeMockOptions(factoryOpts, callOpts as DeepPartial<RunTypeMockOptions<unknown>> | undefined);
     const mockOpts = merged.mock as MockOptions;
-    // One random source per generation, carried on the options bag so it threads
-    // through the whole walk (and the deferred Promise resolver, which closes
-    // over `merged`). A fresh seeded instance each call ⇒ the same seed always
+    // One random source per generation, carried on the options bag so it threads the whole walk (and the deferred
+    // Promise resolver, which closes over `merged`). A fresh seeded instance each call ⇒ the same seed always
     // reproduces the same value; no seed reuses the stateless native instance.
     mockOpts.random = mockOpts.seed === undefined ? nativeMockRandom : new MockRandom(mockOpts.seed);
-    // Steer generation to FIT the binary cold-start estimate — only when
-    // explicitly requested. `undefined` leaves the random generator untouched.
-    // `false` (oversized) starts from the same in-bounds value and inflates ONE
-    // position past the estimate's cap, so the overflow is that position's alone.
+    // Steer generation to FIT the binary cold-start estimate only when asked; `undefined` leaves the generator untouched.
+    // `false` (oversized) starts from the same in-bounds value and inflates ONE position past the estimate's cap,
+    // so the overflow is that position's alone.
     if (mockOpts.respectBinarySize !== undefined) applyInBoundsSizing(mockOpts);
     if (mockOpts.invalid) return mockRunTypeInvalid(runType, merged, []) as T;
     if (mockOpts.respectBinarySize === false) return mockRunTypeOversized(runType, merged, []) as T;
@@ -86,10 +77,8 @@ export function createMockDataFn<T>(
   }) as MockTypeFn<T>;
 }
 
-/** Three-way merge: defaults ← factory opts ← call opts. Shallow merge of
- *  the `mock` slot; nested pool arrays are replaced when supplied. The optional
- *  `data` (`MockData<T>`) enrichment map is taken from call opts, else factory
- *  opts, and seeded as the root `dataNode` cursor the walker descends. **/
+/** Shallow merge of the `mock` slot, so nested pool arrays are replaced when supplied, never merged.
+ *  The `data` (`MockData<T>`) enrichment map seeds the root `dataNode` cursor the walker descends. **/
 function mergeMockOptions(
   factoryOpts: RunTypeMockOptions<unknown> | undefined,
   callOpts: DeepPartial<RunTypeMockOptions<unknown>> | undefined

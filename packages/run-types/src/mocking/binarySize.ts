@@ -1,26 +1,23 @@
-// Shared helpers for the `respectBinarySize` mock option — bound generated
-// values against the binary cold-start size estimate (see createBinaryEncoderFn's
-// `dynamic` strategy and internal/cachegen/typefunctions/binary_size_estimate.go).
+// Helpers for the `respectBinarySize` mock option: bound generated values against the binary cold-start estimate.
+// Estimate side: createBinaryEncoderFn's `dynamic` strategy and internal/cachegen/typefunctions/binary_size_estimate.go.
 
 import type {BinarySizingOptions, MockOptions} from './mockTypes.ts';
 import type {MockRandom} from './mockRandom.ts';
 
-// Mirror internal/constants/constants.go DefaultSize* — only the fallbacks when
-// binarySizingOptions omits a field (callers steering size pass them explicitly).
+// Mirror internal/constants/constants.go DefaultSize*; used only when binarySizingOptions omits the field.
 const DEFAULT_SIZE_BIAS = 0.8;
 const DEFAULT_SIZE_ITEMS = 100;
 const DEFAULT_SIZE_STRING_BYTES = 32;
 const DEFAULT_SIZE_MAX_BYTES = 64 * 1024;
 
-// dataView.ts MAX_VARINT — every serString write reserves MAX_VARINT + charLength*3
-// (worst-case UTF-8), the high-water the bounds below keep under the estimate.
+// dataView.ts MAX_VARINT: every serString write reserves MAX_VARINT + 3*charLength (worst-case UTF-8).
 const MAX_VARINT = 5;
 
 export interface ResolvedSizing {
   bias: number;
   items: number;
   stringBytes: number;
-  /** The cap the estimator clamps every estimate to, so no estimate exceeds it. **/
+  /** The cap the estimator clamps every estimate to. **/
   maxBytes: number;
 }
 
@@ -38,16 +35,12 @@ export function resolveSizing(opts?: BinarySizingOptions): ResolvedSizing {
   };
 }
 
-/** The shortest serString payload (ASCII chars, or a bigint's decimal digits)
- *  whose write reserve `MAX_VARINT + 3*length` exceeds `budgetBytes`. A value of
- *  that length forces a cold buffer seeded at (or under) the budget to grow on
- *  its own, whatever else the value holds. **/
+/** Shortest payload whose serString reserve (MAX_VARINT + 3*length) exceeds `budgetBytes`, so a cold buffer must grow. **/
 export function overBudgetLength(budgetBytes: number): number {
   return Math.max(1, Math.floor((budgetBytes - MAX_VARINT) / 3) + 1);
 }
 
-// ASCII only — one UTF-8 byte per char, so a string's char length IS its byte
-// length (the estimate budgets bytes).
+// ASCII only: one UTF-8 byte per char, so char length equals byte length (the estimate budgets bytes).
 export const ASCII_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
 export function randomAscii(length: number, random: MockRandom): string {
@@ -57,30 +50,23 @@ export function randomAscii(length: number, random: MockRandom): string {
 }
 
 /** Mutate `mock` so plain generation fits the cold-start buffer WITHOUT resizing.
- *  Every bound is derived from the per-write RESERVE high-water (serString reserves
- *  MAX_VARINT + 3*charLength), not the wire size — so a `respectBinarySize:true`
- *  value encodes through a buffer seeded at the estimate and never grows it.
- *  Type-constrained values the mock can't shrink (enum members, regexp / record
- *  keys) are covered on the estimate side (binary_size_estimate.go). **/
+ *  Every bound comes from the per-write RESERVE high-water, not the wire size.
+ *  Values the mock can't shrink (enum members, regexp / record keys) are covered in binary_size_estimate.go. **/
 export function applyInBoundsSizing(mock: MockOptions): void {
   const {bias, items, stringBytes} = resolveSizing(mock.binarySizingOptions);
   mock.maxRandomItemsLength = items;
-  // ASCII: the reserve model and the estimate both assume 1 UTF-8 byte per char,
-  // so char length must equal byte length.
+  // Reserve model and estimate both assume 1 UTF-8 byte per char, so char length must equal byte length.
   mock.stringCharSet = ASCII_CHARS;
   // content = the estimate's per-string content budget (varint(content)+content).
-  // The longest string whose 5+3*L reserve fits it is floor((content+1-MAX_VARINT)/3).
   const content = Math.round(bias * stringBytes);
   mock.maxRandomStringLength = Math.max(1, Math.floor((content + 1 - MAX_VARINT) / 3));
   mock.optionalProbability = bias >= 1 ? 1 : 0;
-  // An unbranded bigint serialises its decimal string (reserve 5+3*digits) against
-  // a fixed 21-byte estimate, so |value| <= 9999 ("-9999" => reserve 5+15=20 <= 21).
-  // Shared with numbers (always 8 bytes, range-independent) — harmless there.
+  // An unbranded bigint serialises its decimal string (reserve 5+3*digits) against a fixed 21-byte estimate, so |value| <= 9999.
+  // Shared with numbers (always 8 bytes, range-independent), harmless there.
   mock.minNumber = -9999;
   mock.maxNumber = 9999;
-  // The encoder writes source then flags as two serString calls; keep a regexp only
-  // when each write's reserve fits the (stringBytes+4) estimate (the `/a/` floor is
-  // backstopped by the estimate's regexp floor of 8).
+  // The encoder writes source then flags as two serString calls, so each write's reserve must fit the stringBytes+4 estimate.
+  // The `/a/` fallback is backstopped by the estimate's regexp floor of 8.
   const est = stringBytes + 4;
   const fits = (re: RegExp): boolean =>
     MAX_VARINT + 3 * re.source.length <= est &&

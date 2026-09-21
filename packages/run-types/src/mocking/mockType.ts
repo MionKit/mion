@@ -1,12 +1,8 @@
-// Runtime mock-value generator. Walks a RunType graph and produces a value
-// that passes `validate<T>` for the same `T`. Direct port of the reference mockType.ts.
-//
-// Unlike other RT families, mocking is NOT compiled per-type — the walker is
-// a runtime interpreter over `runTypesCache`.
-//
-// Termination on cyclic types: `decayOptionsForNesting` divides
-// `optionalProbability` and `maxRandomItemsLength` by the re-entry count, and
-// `mockRunType` bails out with `undefined` past `maxMockRecursion` (default 10).
+// Runtime mock-value generator: walks a RunType graph and produces a value that passes `validate<T>`, a direct
+// port of the reference mockType.ts. Unlike other RT families mocking is NOT compiled per-type, the walker is a
+// runtime interpreter over `runTypesCache`.
+// Cyclic types terminate through `decayOptionsForNesting`, which divides `optionalProbability` and
+// `maxRandomItemsLength` by the re-entry count, and `mockRunType` bailing out past `maxMockRecursion`.
 
 import type {MockDataNode, MockOptions, RunTypeMockOptions} from './mockTypes.ts';
 import type {RunType} from '../runtypes/types.ts';
@@ -22,9 +18,7 @@ import {stringCharSet} from './constants.mock.ts';
 import {mockBoundedNativeDate} from './mockDateTimeBounds.ts';
 import {mockTemporal, isTemporalSubKind, temporalBoundsFromAnnotation} from './mockTemporal.ts';
 
-/** Public entry. Tracks descent via `stack`, applies probability/length decay
- *  based on re-entry count (cycle detector via reference identity — the
- *  runTypes cache shares one object per cyclic ref), then dispatches. **/
+/** Public entry; the cycle detector is reference identity, since the runTypes cache shares one object per cyclic ref. **/
 export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack: RunType[] = []): unknown {
   stack.push(runType);
   try {
@@ -33,10 +27,8 @@ export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack
     if (nestLevel > baseMockOpts.maxMockRecursion) return undefined;
     const decayed = nestLevel > 1 ? decayOptionsForNesting(options, nestLevel) : options;
     let mocked = mockSwitch(runType, decayed, stack);
-    // Apply the format's declared `transform` (trim / case / replace /
-    // stripSeparators) so the mock is the canonical value. The transform is
-    // the `formatTransform` RT fn compiled for this type; noop when the
-    // format declares none.
+    // Apply the format's declared `transform` (trim / case / replace / stripSeparators) so the mock is the
+    // canonical value; it is the `formatTransform` RT fn compiled for this type, noop when none is declared.
     if (runType.formatAnnotation && mocked !== undefined) {
       const transform = lookupFormatTransform(runType.id);
       if (transform) mocked = transform(mocked);
@@ -47,13 +39,9 @@ export function mockRunType(runType: RunType, options: RunTypeMockOptions, stack
   }
 }
 
-// FORMAT_TRANSFORM_FAMILY is the formatTransform family tag ("fmt", mirrors
-// the Go CacheModule tag in internal/constants/constants.go). Compiled
-// entries register under `<fmtFnHash>_<typeId>` where the 3-char fnHash folds
-// the binary version — the runtime can't reconstruct it, so the lookup goes
-// through findRTForType (suffix + familyTag scan) instead of a literal
-// prefix. (The old `'fmt_' + id` key never matched anything — mocks silently
-// skipped declared case transforms.)
+// The formatTransform family tag, mirroring the Go CacheModule tag in internal/constants/constants.go.
+// Compiled entries register under `<fmtFnHash>_<typeId>`, and the 3-char fnHash folds the binary version, which
+// the runtime can't reconstruct: the lookup must go through findRTForType, never a literal `'fmt_' + id` key.
 const FORMAT_TRANSFORM_FAMILY = 'fmt';
 
 /** Resolve the compiled formatTransform fn for a type id, or undefined
@@ -64,8 +52,7 @@ function lookupFormatTransform(id: string): ((value: unknown) => unknown) | unde
   return entry.fn as (value: unknown) => unknown;
 }
 
-/** Count how many times `target` appears in `stack` by reference identity.
- *  Hand-rolled loop avoids `.filter().length` allocation on the hot path. **/
+/** Reference identity; the hand-rolled loop avoids a `.filter().length` allocation on the hot path. **/
 function countOccurrences(stack: RunType[], target: RunType): number {
   let count = 0;
   for (let i = 0; i < stack.length; i++) {
@@ -74,9 +61,8 @@ function countOccurrences(stack: RunType[], target: RunType): number {
   return count;
 }
 
-/** Reduces optional-probability and item-length by nesting depth so cyclic
- *  types bottom out. Returns a shallow copy; inner pools are shared (they
- *  are read-only). Mirrors `getMockOptionsForNestedElements`. **/
+/** Reduces optional-probability and item-length by nesting depth so cyclic types bottom out.
+ *  Returns a shallow copy, sharing the read-only inner pools; mirrors `getMockOptionsForNestedElements`. **/
 function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number): RunTypeMockOptions {
   const mOps = options.mock as MockOptions;
   const maxDepth = mOps.maxMockRecursion;
@@ -89,8 +75,7 @@ function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number):
     maxRandomItemsLength: newMaxLength,
   };
   if (mOps.optionalPropertyProbability) {
-    // the reference source double-divides (clearly a typo); we port the intent:
-    // value / divisor, matching the global `optionalProbability` decay.
+    // The reference source double-divides (a typo); port the intent, matching the global `optionalProbability` decay.
     const entries = Object.entries(mOps.optionalPropertyProbability).map(([key, value]) => {
       const decayed = nestLevel > maxDepth ? 0 : value / divisor;
       return [key, decayed] as const;
@@ -105,21 +90,17 @@ function decayOptionsForNesting(options: RunTypeMockOptions, nestLevel: number):
 }
 
 // ─────────────────────── MockData node threading ───────────────────────
-// The walker carries the "current MockData node" inside the options bag
-// (`options.dataNode`), descended by property name (objects) / `rt$items`
-// (arrays) at each recursion. Everything below is a strict no-op when no
-// data node is present, so behaviour is byte-identical without `data`.
+// The walker carries the current MockData node in `options.dataNode`, descended by property name or `rt$items` at
+// each recursion. Everything below is a strict no-op without a data node, so behaviour is byte-identical.
 
-/** Return a copy of `options` with `dataNode` swapped to `next`. Shares the
- *  `mock` slot (read-only on the walk). Returns `options` untouched when the
- *  node is unchanged so the no-data path allocates nothing extra. **/
+/** Shares the `mock` slot, read-only on the walk, and returns `options` untouched when the node is unchanged,
+ *  so the no-data path allocates nothing extra. **/
 function withDataNode(options: RunTypeMockOptions, next: MockDataNode | undefined): RunTypeMockOptions {
   if (options.dataNode === next) return options;
   return {...options, dataNode: next};
 }
 
-/** Treat a `MockDataNode` value as a child node only when it's a plain object
- *  (pools / ranges are arrays / scalars and never descend). **/
+/** Only a plain object is a child node: pools / ranges are arrays / scalars and never descend. **/
 function asDataNode(value: unknown): MockDataNode | undefined {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value as MockDataNode;
   return undefined;
@@ -137,8 +118,7 @@ function dataPool(node: MockDataNode | undefined): unknown[] | undefined {
   return undefined;
 }
 
-/** Resolve the element count for an array node from `rt$length` (a fixed `n` or
- *  a `[min, max]` range), or undefined to fall through to the global option. **/
+/** Element count from `rt$length` (fixed `n` or `[min, max]`), or undefined to fall through to the global option. **/
 function dataArrayLength(node: MockDataNode | undefined, random: MockRandom): number | undefined {
   const len = node?.rt$length;
   if (typeof len === 'number') return len;
@@ -146,31 +126,23 @@ function dataArrayLength(node: MockDataNode | undefined, random: MockRandom): nu
   return undefined;
 }
 
-// Bounded rejection sampling for constrained structural formats: the
-// admissible set is dense, so a handful of draws converges. A type whose
-// candidates keep failing the constraints is an authoring problem and must
-// surface loudly, not spin.
+// Bounded rejection sampling for constrained structural formats: the admissible set is dense, so a handful of
+// draws converges, and a type whose candidates keep failing is an authoring problem that must surface loudly.
 const STRUCTURAL_MOCK_ATTEMPTS = 32;
 
 /** One `contains` entry as the wire carries it on a node. **/
 type ContainsEntry = {child: RunType; min: number; max: number};
 
-/** Dispatch wrapper: structural-format nodes reject-sample from the base
- *  generator — enrichment pools included — and keep the first candidate
- *  satisfying the constraints, so `validate(mock())` holds. A pool whose
- *  values never satisfy them throws below rather than shipping unsound
- *  mocks. **/
+/** Structural-format nodes reject-sample from the base generator, enrichment pools included, and keep the first
+ *  candidate satisfying the constraints; a pool that never satisfies them throws rather than ship unsound mocks. **/
 function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
-  // Structural format annotations (formattedArray / formattedObject) reject-sample
-  // through the same loop: the array case pre-shapes its draws (length
-  // clamp, unique-aware fill), so this guard mostly polices tuple / record /
-  // bare-object bases where the annotation landed on a non-array node.
+  // The array case pre-shapes its draws (length clamp, unique-aware fill), so this guard mostly polices tuple /
+  // record / bare-object bases where the annotation landed on a non-array node.
   const structural = isStructuralFormat(runType.formatAnnotation) ? runType.formatAnnotation : undefined;
   if (!structural) return mockKindSwitch(runType, options, stack);
   for (let attempt = 0; attempt < STRUCTURAL_MOCK_ATTEMPTS; attempt++) {
-    // Back half of the attempts: shrink collection draws — short (and empty)
-    // arrays dodge contains / minItems constraints that long random
-    // arrays keep failing, turning a ~1e-4 exhaustion flake into never.
+    // Back half of the attempts shrinks collection draws: short and empty arrays dodge contains / minItems
+    // constraints long random arrays keep failing, turning a ~1e-4 exhaustion flake into never.
     const attemptOptions =
       attempt < STRUCTURAL_MOCK_ATTEMPTS / 2
         ? options
@@ -185,26 +157,20 @@ function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunTyp
   );
 }
 
-/** Per-kind dispatch. New kinds land here, NOT in helper files — the whole
- *  switch lives in one place. **/
+/** Per-kind dispatch; new kinds land here, NOT in helper files, so the whole switch lives in one place. **/
 function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
   const mOps = options.mock as MockOptions;
-  // The generation's shared random source (seeded or native), threaded on the
-  // options bag; every draw below goes through it. Falls back to the shared
-  // native instance for a mock path that bypassed createMockDataFn (e.g. a test
-  // calling mockRunType directly).
+  // The generation's shared random source, threaded on the options bag; it falls back to the shared native
+  // instance for a mock path that bypassed createMockDataFn (e.g. a test calling mockRunType directly).
   const random = mOps.random ?? nativeMockRandom;
   const kind = runType.kind as number;
-  // Current MockData node for this runtype (undefined ⇒ no enrichment, the
-  // walker behaves exactly as before). A pool short-circuits the kind default.
+  // Current MockData node for this runtype; a pool short-circuits the kind default.
   const dataNode = options.dataNode;
   const pool = dataPool(dataNode);
   if (pool) return random.pick(pool);
 
-  // TypeFormat brand: the kind's registered mock fn produces a value
-  // satisfying the format (drawing from mockSamples for pattern formats —
-  // a regex can't be reversed). Returns undefined to fall through to the
-  // kind-default (e.g. an unknown format name).
+  // TypeFormat brand: the kind's registered mock fn produces a value satisfying the format, drawing from
+  // mockSamples for pattern formats since a regex can't be reversed. Undefined falls through to the kind-default.
   if (runType.formatAnnotation) {
     const mockFn = getMockingFunction(kind as RunTypeKindValue);
     if (mockFn) {
@@ -257,13 +223,11 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     case RunTypeKind.enumMember:
       throw new Error('Mock enum member is not supported.');
     case RunTypeKind.class: {
-      // Disambiguate via `subKind`. User-defined classes fall through to
-      // the objectLiteral builder (validate matches structurally).
+      // User-defined classes fall through to the objectLiteral builder, since validate matches structurally.
       const subKind = runType.subKind as number | undefined;
       if (subKind === RunTypeSubKind.date) {
-        // Date<{min,max}> brands a Date with bounds; honor them so the
-        // mock re-passes validate. Falls back to the global mock-option range
-        // when the type carries no nativeDate format annotation.
+        // Date<{min,max}> bounds must be honored so the mock re-passes validate; without a nativeDate annotation
+        // the global mock-option range applies.
         const dateParams = runType.formatAnnotation?.name === 'nativeDate' ? runType.formatAnnotation.params : undefined;
         if (
           dateParams &&
@@ -282,21 +246,18 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
             random
           );
         }
-        // Data-node Date min/max override the global range for an unbranded
-        // Date. Skipped above for format-bounded dates so the format's own
-        // bounds (which validate enforces) are never widened out of range.
+        // Data-node Date min/max override the global range for an UNBRANDED Date only, so a format's own bounds,
+        // which validate enforces, are never widened out of range.
         const minDate = dataNode?.min instanceof Date ? dataNode.min : mOps.minDate;
         const maxDate = dataNode?.max instanceof Date ? dataNode.max : mOps.maxDate;
         return random.date(minDate, maxDate);
       }
-      // Map/Set MockData is v1-limited (no `rt$keys`/`rt$values` in the DSL — the
-      // node projects through the object branch). Clear the data node so a
-      // stray parent node never leaks into key/value/element generation.
+      // Map/Set MockData is v1-limited (no `rt$keys` / `rt$values` in the DSL), so clear the data node: a stray
+      // parent node must not leak into key / value / element generation.
       if (subKind === RunTypeSubKind.map) return mockMap(runType, withDataNode(options, undefined), stack);
       if (subKind === RunTypeSubKind.set) return mockSet(runType, withDataNode(options, undefined), stack);
       if (isTemporalSubKind(subKind)) {
-        // FormatTemporalX<{min,max,gt,lt}> brands an orderable Temporal type
-        // with bounds; honor them so the mock re-passes validate.
+        // FormatTemporalX<{min,max,gt,lt}> bounds must be honored so the mock re-passes validate.
         const bounds = temporalBoundsFromAnnotation(runType.formatAnnotation);
         return mockTemporal(subKind as number, bounds, random);
       }
@@ -309,11 +270,9 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     case RunTypeKind.array: {
       const child = runType.child as RunType | undefined;
       if (!child) throw new Error('Cannot mock array: child runtype missing.');
-      // Data-node `rt$length` (fixed or [min,max]) overrides the global length;
-      // `rt$items` is the element node threaded into each child mock.
-      // formattedArray annotation: clamp the draw into the declared bounds and
-      // fill unique-aware, so the mockSwitch rejection loop above converges
-      // instead of re-rolling whole arrays.
+      // Data-node `rt$length` overrides the global length; `rt$items` is the element node threaded into each child.
+      // A formattedArray annotation clamps the draw into the declared bounds and fills unique-aware, so the
+      // mockSwitch rejection loop converges instead of re-rolling whole arrays.
       const annotation = runType.formatAnnotation;
       const arrayParams =
         annotation?.name === 'formattedArray' ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
@@ -322,13 +281,9 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)
       );
       const childOpts = withDataNode(options, asDataNode(dataNode?.rt$items));
-      // Contains entries: splice exactly `min` CHILD MOCKS (they validate
-      // the child by the mock soundness invariant) among fillers the loose
-      // matcher DEFINITIVELY rejects (matches() === false is definitive),
-      // so per-entry counts are exact by construction. Contradictions the
-      // construction can prove (min > max, or a matched item the element
-      // type definitively rejects) throw loudly instead of shipping an
-      // unsound mock.
+      // Contains entries splice exactly `min` CHILD MOCKS (valid by the mock soundness invariant) among fillers
+      // the loose matcher DEFINITIVELY rejects, so per-entry counts are exact by construction.
+      // Provable contradictions (min > max, or a matched item the element type definitively rejects) throw.
       const containsChecks = (runType.contains ?? []) as ContainsEntry[];
       if (containsChecks.length > 0) {
         const matchedByEntry: unknown[][] = [];
@@ -365,9 +320,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
             seen.add(key);
             return true;
           });
-          // Per-entry survivor count by REFERENCE against that entry's own
-          // constructed items — those validate their child by construction,
-          // so the count is exact, never the loose matcher's over-estimate.
+          // Count survivors by REFERENCE against that entry's own constructed items: they validate their child by
+          // construction, so the count is exact, never the loose matcher's over-estimate.
           containsChecks.forEach((entry, index) => {
             const surviving = matchedByEntry[index].filter((item) => unique.includes(item)).length;
             if (surviving < entry.min) {
@@ -409,13 +363,10 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     }
     case RunTypeKind.tuple: {
       const children = (runType.children ?? []) as RunType[];
-      // Per-element options, indexed to each slot: `tupleOptions` for a plain
-      // tuple, `paramsOptions` for a function's parameter tuple. `Parameters<
-      // typeof fn>` (and the `parameters(...)` builder) reflect as a tuple, so a
-      // function's arguments are mocked here — `paramsOptions[i]` steers param i.
+      // Per-element options indexed to each slot: `tupleOptions` for a plain tuple, `paramsOptions` for a
+      // function's parameter tuple, which is what `Parameters<typeof fn>` reflects as, so params are mocked here.
       const perElemOptions = mOps.tupleOptions ?? mOps.paramsOptions;
-      // Tuples share one `rt$items` element node (v1 limitation — the DSL has no
-      // per-slot tuple nodes). Threaded into every member's options.
+      // Tuples share one `rt$items` element node (the DSL has no per-slot tuple nodes), threaded into every member.
       const itemsNode = asDataNode(dataNode?.rt$items);
       const baseOpts = withDataNode(options, itemsNode);
       const params = children.map((member, index) => {
@@ -428,10 +379,9 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         lastMember && isRestTupleMember(lastMember) && Array.isArray(params[params.length - 1])
           ? [...params.slice(0, -1), ...(params[params.length - 1] as unknown[])]
           : params;
-      // formattedArray annotation on a tuple base (a prefixItems schema with
-      // uniqueItems / maxItems): shape the draw — dedupe first, then cap the
-      // length — so the mockSwitch rejection loop converges. A dedupe that
-      // starves a REQUIRED slot just fails validate and re-rolls up there.
+      // A formattedArray annotation on a tuple base (prefixItems with uniqueItems / maxItems) shapes the draw,
+      // dedupe first then cap, so the mockSwitch rejection loop converges.
+      // A dedupe that starves a REQUIRED slot just fails validate and re-rolls up there.
       const annotation = runType.formatAnnotation;
       let shaped = flattened;
       if (annotation?.name === 'formattedArray') {
@@ -449,10 +399,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
           shaped = shaped.slice(0, arrayParams.maxItems);
         }
       }
-      // contains over a TUPLE base has no sound generation story (fixed
-      // slots cannot be spliced): pass only when the bounds are provably
-      // met — min 0 with the loose over-count inside max — else give up
-      // loudly rather than ship a maybe-invalid mock.
+      // contains over a TUPLE base has no sound generation story, since fixed slots cannot be spliced: pass only
+      // when the bounds are provably met (min 0 with the loose over-count inside max), else give up loudly.
       const tupleContains = (runType.contains ?? []) as ContainsEntry[];
       for (const entry of tupleContains) {
         const overCount = shaped.filter((item) => childSchemaMatches(item, entry.child)).length;
@@ -466,10 +414,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     }
     case RunTypeKind.tupleMember:
     case RunTypeKind.parameter: {
-      // Both check `optional` before recursing on `child`. Rest members
-      // arrive either as a RunTypeKind.rest child or as flags: ['rest']
-      // with the ELEMENT type as the direct child (the Go tuple form) —
-      // the latter generates its member array here, mirroring the rest case.
+      // Rest members arrive either as a RunTypeKind.rest child or as flags: ['rest'] with the ELEMENT type as the
+      // direct child (the Go tuple form); the latter generates its member array here, mirroring the rest case.
       const child = runType.child as RunType | undefined;
       if (!child) return undefined;
       if (Array.isArray(runType.flags) && (runType.flags as unknown[]).includes('rest') && child.kind !== RunTypeKind.rest) {
@@ -546,12 +492,9 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     }
     case RunTypeKind.union: {
       const allChildren = (runType.children ?? []) as RunType[];
-      // Pick only among the DataOnly-surviving members so the value passes
-      // validate<T> (the validator drops stripped members like symbol /
-      // function, so a value of a stripped member would be rejected and the
-      // serializers couldn't place it). `notSupported` flags the stripped
-      // members; fall back to the full list when none survive (an all-stripped
-      // union, which throws anyway).
+      // Pick only among the DataOnly-surviving members (flagged by `notSupported`), or the value would fail
+      // validate<T>: the validator drops stripped members like symbol / function.
+      // Falls back to the full list when none survive, an all-stripped union, which throws anyway.
       const survivors = allChildren.filter((member) => !member.notSupported);
       const children = survivors.length > 0 ? survivors : allChildren;
       if (children.length === 0) throw new Error('Cannot mock union with no branches.');
@@ -561,9 +504,8 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       const index = mOps.unionIndex ?? random.int(0, children.length - 1);
       // An explicit unionIndex is the author's pick — no silent fallback.
       if (mOps.unionIndex !== undefined) return mockRunType(children[index], options, stack);
-      // A constrained arm can exhaust its rejection sampling while its
-      // siblings are fine. Fall through to the remaining arms; only an
-      // all-arms failure surfaces.
+      // A constrained arm can exhaust its rejection sampling while its siblings are fine, so fall through to the
+      // remaining arms; only an all-arms failure surfaces.
       let samplingFailure: unknown;
       for (let offset = 0; offset < children.length; offset++) {
         const arm = children[(index + offset) % children.length];
@@ -595,18 +537,15 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
     case RunTypeKind.callSignature:
     case RunTypeKind.method:
     case RunTypeKind.methodSignature:
-      // The mock isn't expected to satisfy `validate<Function>` — function-typed
-      // cases are marked `mockTypeExpect: 'skip'` in the test adapter. With
-      // nonDataTypes on, emit a real function so the mock carries the non-data
-      // value (serializers drop it, validate ignores it).
+      // The mock isn't expected to satisfy `validate<Function>`: those cases are `mockTypeExpect: 'skip'` in the
+      // test adapter. With nonDataTypes on, a real function makes the mock carry the non-data value.
       return mOps.nonDataTypes ? mockNonDataFunction() : undefined;
     default:
       throw new Error(`Cannot mock runType: kind ${kind} is not yet supported by the mock walker.`);
   }
 }
 
-/** Builds a plain object from an objectLiteral / intersection / user-class.
- *  Skips methods; collects index signatures into the same parent. **/
+/** Builds a plain object from an objectLiteral / intersection / user-class, collecting index signatures into it. **/
 function buildObjectLiteral(
   runType: RunType,
   options: RunTypeMockOptions,
@@ -619,8 +558,7 @@ function buildObjectLiteral(
   for (const member of children) {
     const memberKind = member.kind as number;
     if (memberKind === RunTypeKind.method || memberKind === RunTypeKind.methodSignature) {
-      // Methods are non-data — skipped unless nonDataTypes asks for them, in
-      // which case attach a real function under the member name.
+      // Methods are non-data, so they are skipped unless nonDataTypes asks for them.
       const methodName = member.name as string | number | undefined;
       if (mOps.nonDataTypes && methodName !== undefined) parent[methodName] = mockNonDataFunction();
       continue;
@@ -632,18 +570,15 @@ function buildObjectLiteral(
     }
     const name = member.name as string | number | undefined;
     if (name === undefined) continue;
-    // Descend the data node by property name; the property/propertySignature
-    // arm threads these options through to the member's child value.
+    // The property / propertySignature arm threads these options through to the member's child value.
     const memberOpts = withDataNode(options, childDataNodeByName(dataNode, name));
     const value = mockRunType(member, memberOpts, stack);
     parent[name] = value;
   }
-  // formattedObject annotation (minProperties / maxProperties): shape the draw
-  // into the declared key-count bounds — record mocks deal out dozens of
-  // index keys, so pure rejection sampling in mockSwitch cannot converge.
-  // Undeclared (index-signature) keys trim first; top-up draws more index
-  // batches. Shapes the loop cannot fix (a closed literal below its
-  // minProperties) fall back to the rejection loop's loud give-up.
+  // A formattedObject annotation shapes the draw into the declared key-count bounds, because record mocks deal
+  // out dozens of index keys and pure rejection sampling in mockSwitch cannot converge.
+  // Undeclared (index-signature) keys trim first, and the top-up draws more index batches.
+  // Shapes the loop cannot fix (a closed literal below its minProperties) fall back to its loud give-up.
   const annotation = runType.formatAnnotation;
   if (annotation?.name === 'formattedObject') {
     const params = (annotation.params ?? {}) as Record<string, unknown>;
@@ -654,12 +589,10 @@ function buildObjectLiteral(
       const name = member.name as string | number | undefined;
       if (name !== undefined) declared.add(name);
     }
-    // `closed` (additionalProperties: false) names the ONLY admissible keys. An
-    // index signature riding the same object still deals out arbitrary ones, so
-    // trim what the closed set (and its patterns) does not admit — rejection
-    // sampling alone never converges here, it just burns all 32 candidates and
-    // gives up. Runs before AND after the minProperties top-up, since the
-    // top-up draws fresh index batches.
+    // `closed` (additionalProperties: false) names the ONLY admissible keys, but an index signature on the same
+    // object still deals out arbitrary ones, so trim what the closed set and its patterns do not admit: rejection
+    // sampling alone burns all 32 candidates and gives up.
+    // Runs before AND after the minProperties top-up, since the top-up draws fresh index batches.
     const stringList = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
     const closed = Array.isArray(params.closed) ? (params.closed as unknown[]) : undefined;
@@ -695,20 +628,16 @@ function buildObjectLiteral(
       }
     }
   }
-  // patternProperties: values under pattern-matching keys regenerate from
-  // the pattern's own value child (sound by construction); one extra key
-  // per pattern is drawn from the pattern-branded key child so its sample
-  // pool gets exercised. propertyNames: undeclared keys that definitively
-  // fail the child re-key from the child's own mock (a string by
-  // construction), or drop.
+  // patternProperties: values under pattern-matching keys regenerate from the pattern's own value child, sound by
+  // construction, plus one extra key per pattern from the pattern-branded key child so its sample pool is exercised.
+  // propertyNames: undeclared keys that definitively fail the child re-key from the child's own mock, or drop.
   const patternProps = (runType.patternProps ?? []) as {source: string; key?: RunType; value: RunType}[];
   if (patternProps.length > 0) {
     const regexes = patternProps.map((entry) => new RegExp(entry.source));
     for (const key of Object.keys(parent)) {
       const matching = patternProps.filter((_entry, index) => regexes[index].test(key));
-      // One matching pattern: regenerate the value from ITS child (sound by
-      // construction). Overlapping patterns need a value satisfying ALL —
-      // no sound single-child generation, so the key drops instead.
+      // One matching pattern regenerates the value from ITS child, sound by construction.
+      // Overlapping patterns would need a value satisfying ALL of them, so the key drops instead.
       if (matching.length === 1) parent[key] = mockRunType(matching[0].value, options, stack);
       else if (matching.length > 1) delete parent[key];
     }
@@ -728,14 +657,11 @@ function buildObjectLiteral(
       const name = member.name as string | number | undefined;
       if (name !== undefined) declaredNames.add(name);
     }
-    // Undeclared keys re-key unconditionally from a child's own mock —
-    // it satisfies the real validator by the soundness invariant, while
-    // keeping a random key would lean on the loose matcher. Stacked
-    // propertyNames conjoin: the draw comes from the first child and the
-    // remaining children accept it via the loose matcher (over-matching
-    // only costs retries). Declared keys stay (a schema whose declared
-    // names fail propertyNames is contradictory and surfaces through the
-    // rejection loop).
+    // Undeclared keys re-key unconditionally from a child's own mock, which satisfies the real validator by the
+    // soundness invariant, while keeping a random key would lean on the loose matcher.
+    // Stacked propertyNames conjoin: the draw comes from the first child and the rest accept it via the loose matcher.
+    // Declared keys stay: a schema whose declared names fail propertyNames is contradictory and surfaces in the
+    // rejection loop.
     for (const key of Object.keys(parent)) {
       if (declaredNames.has(key)) continue;
       const entryValue = parent[key];
@@ -752,18 +678,13 @@ function buildObjectLiteral(
   return parent;
 }
 
-/** A mock value for a function-typed position when nonDataTypes is on. The
- *  serializers drop it and validate ignores it; it exists only so the mock can
- *  carry the non-data member. **/
+/** A mock value for a function-typed position when nonDataTypes is on, so the mock carries the non-data member. **/
 function mockNonDataFunction(): () => undefined {
   return () => undefined;
 }
 
-/** A mock instance for a non-serialisable native (`ArrayBuffer` /
- *  `SharedArrayBuffer` / `DataView` / typed array) when nonDataTypes is on.
- *  Picks the constructor from the class name, defaulting to a small Uint8Array.
- *  These values are always dropped or rejected by the serializers, so the exact
- *  instance only needs to be of the right family. **/
+/** A mock instance for a non-serialisable native when nonDataTypes is on, picked from the class name and
+ *  defaulting to a small Uint8Array: the serializers always drop or reject it, so only the family matters. **/
 function mockNonSerializableNative(runType: RunType): unknown {
   const className =
     typeof runType.typeName === 'string' ? runType.typeName : typeof runType.name === 'string' ? runType.name : '';
@@ -793,19 +714,15 @@ function isRestTupleMember(member: RunType): boolean {
   return child !== undefined && child.kind === RunTypeKind.rest;
 }
 
-/** Wrap per-element `MockOptions` into the bag shape `mockRunType` expects.
- *  The element options replace the mock bag, so carry the seeded random source
- *  over when they omit it — otherwise a `{seed}` + `tupleOptions`/`paramsOptions`
- *  mock would lose determinism for the overridden slots. **/
+/** The element options REPLACE the mock bag, so carry the seeded random source over when they omit it, or a
+ *  `{seed}` + `tupleOptions` / `paramsOptions` mock loses determinism for the overridden slots. **/
 function mergeChildOptions(options: RunTypeMockOptions, childMock: MockOptions): RunTypeMockOptions {
   const parentMock = options.mock as MockOptions;
   return {...options, mock: {...childMock, random: childMock.random ?? parentMock.random}};
 }
 
-/** A structural annotation's `minItems` / `maxItems` (the collection keywords
- *  the formattedArray / formattedSet / formattedMap families share) clamp a
- *  collection draw into its bounds, so the mockSwitch rejection loop rarely has
- *  to retry. **/
+/** Clamp a collection draw into a structural annotation's `minItems` / `maxItems`, shared by the formattedArray /
+ *  formattedSet / formattedMap families, so the mockSwitch rejection loop rarely retries. **/
 function clampToItemBounds(params: Record<string, unknown> | undefined, length: number): number {
   if (!params) return length;
   if (typeof params.maxItems === 'number' && length > params.maxItems) length = params.maxItems;
@@ -822,20 +739,14 @@ function structuralParamsOf(runType: RunType, name: string): Record<string, unkn
 // How many times a matched draw may be redrawn after collapsing on insert.
 const COLLECTION_DRAW_ATTEMPTS = 32;
 
-/** The `contains` / `uniqueItems` draw BOTH collection mock arms run, so the
- *  Set and Map shapes cannot drift: exactly `min` constructed matches per
- *  `contains` entry (each checked against the collection's own member types by
- *  the caller's `drawMatch`), then fillers the loose matcher DEFINITIVELY
- *  rejects, up to the clamped entry count.
- *
- *  `insertKeyOf` is what the collection itself dedupes on (a Set member, a Map
- *  key) under SameValueZero. Both arms finish by inserting, and a colliding
- *  insert silently drops an entry — which would under-satisfy a `contains` min
- *  and ship a mock the validator rejects, with nothing to catch it (a
- *  contains-only node carries no format annotation, so mockSwitch never
- *  reject-samples it). Every draw is therefore rejected on a key already taken
- *  and redrawn; only an exhausted MATCH redraw throws. `uniqueItems` adds the
- *  by-value dedupe on top, keyed by canonical JSON over the whole entry. **/
+/** The `contains` / `uniqueItems` draw BOTH collection mock arms run, so the Set and Map shapes cannot drift:
+ *  exactly `min` constructed matches per `contains` entry (each checked against the collection's own member types
+ *  by the caller's `drawMatch`), then fillers the loose matcher DEFINITIVELY rejects, up to the clamped count.
+ *  `insertKeyOf` is what the collection dedupes on (a Set member, a Map key) under SameValueZero: a colliding
+ *  insert silently drops an entry, which would under-satisfy a `contains` min and ship a mock the validator
+ *  rejects with nothing to catch it, since a contains-only node carries no annotation for mockSwitch to sample on.
+ *  So every draw on a taken key is rejected and redrawn, and only an exhausted MATCH redraw throws.
+ *  `uniqueItems` adds the by-value dedupe on top, keyed by canonical JSON over the whole entry. **/
 function drawCollectionEntries<T>(spec: {
   length: number;
   containsChecks: ContainsEntry[];
@@ -846,8 +757,8 @@ function drawCollectionEntries<T>(spec: {
   collapseError: string;
 }): T[] {
   const entries: T[] = [];
-  // SameValueZero membership, which IS the Map / Set insert rule; an object key
-  // or member is a fresh reference every draw, so it can never collide here.
+  // SameValueZero membership, which IS the Map / Set insert rule; an object key or member is a fresh reference
+  // every draw, so it can never collide here.
   const takenKeys = new Set<unknown>();
   const seenValues = new Set<string>();
   const keep = (entry: T): boolean => {
@@ -882,12 +793,9 @@ function drawCollectionEntries<T>(spec: {
   return entries;
 }
 
-/** Map mock builder. Key/value types live at `runType.arguments[i].child`
- *  (the wire stores them as KindParameter wrappers). A formattedMap annotation
- *  shapes the draw the way the Set arm does, over the `[key, value]` PAIR that
- *  is a Map's entry: the count is clamped into the bounds, `contains` entries
- *  are satisfied by construction from the TUPLE child, and `uniqueItems` fills
- *  duplicate-aware by the pair's JSON value. **/
+/** Map mock builder; key/value types live at `runType.arguments[i].child`, the wire's KindParameter wrappers.
+ *  A formattedMap annotation shapes the draw the way the Set arm does, over the `[key, value]` PAIR that is a
+ *  Map's entry: `contains` entries are satisfied by construction from the TUPLE child. **/
 function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): Map<unknown, unknown> {
   const mOps = options.mock as MockOptions;
   const random = mOps.random ?? nativeMockRandom;
@@ -901,11 +809,9 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
     length: clampToItemBounds(mapParams, mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength)),
     containsChecks: (runType.contains ?? []) as ContainsEntry[],
     unique: mapParams?.uniqueItems === true,
-    // A Map's contains child is a TUPLE over the `[key, value]` pair. A slot
-    // left `unknown` means "skip this half", so a draw from it that the Map's
-    // own key / value type rejects is REDRAWN from that type and the repaired
-    // pair re-checked against the child; only a pair that still fails is a real
-    // contradiction (`contains: [number, unknown]` on a `Map<string, …>`).
+    // A Map's contains child is a TUPLE over the `[key, value]` pair, and a slot left `unknown` means "skip this
+    // half": a draw the Map's own key / value type rejects is REDRAWN from that type and the repaired pair
+    // re-checked, so only a pair that still fails is a real contradiction.
     drawMatch: (child) => {
       const drawn = mockRunType(child, options, stack);
       const pair: [unknown, unknown] = Array.isArray(drawn) && drawn.length === 2 ? [drawn[0], drawn[1]] : [undefined, undefined];
@@ -929,12 +835,8 @@ function mockMap(runType: RunType, options: RunTypeMockOptions, stack: RunType[]
   return result;
 }
 
-/** Set mock builder. Element type lives at `runType.arguments[0].child`. A
- *  formattedSet annotation (the collection keywords) shapes the draw the way the
- *  array arm does: the count is clamped into the bounds, `contains` entries
- *  are satisfied by construction (exactly `min` child mocks per entry among
- *  fillers the child definitively rejects) and `uniqueItems` fills
- *  duplicate-aware by JSON value, so the rejection loop converges. **/
+/** Set mock builder; the element type lives at `runType.arguments[0].child`.
+ *  A formattedSet annotation shapes the draw the way the array arm does, so the rejection loop converges. **/
 function mockSet(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): Set<unknown> {
   const mOps = options.mock as MockOptions;
   const random = mOps.random ?? nativeMockRandom;

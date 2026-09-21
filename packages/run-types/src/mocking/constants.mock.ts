@@ -1,5 +1,5 @@
-// Default pools and option values. Ported verbatim from the reference
-// mocking/constants.mock.ts — bumping any of these is a deliberate divergence.
+// Default pools and option values, ported verbatim from the reference mocking/constants.mock.ts:
+// bumping any of them is a deliberate divergence.
 
 import type {MockOptions} from './mockTypes.ts';
 
@@ -90,7 +90,6 @@ export const defaultMockOptions: MockOptions = {
   nonDataTypes: false,
   invalid: false,
   invalidLeafProbability: 0.85,
-  // Undefined ⇒ native randomness (the `MockRandom` instance is built per
-  // generation by createMockDataFn; a seeded run sets this via `mock.seed`).
+  // Undefined ⇒ native randomness; createMockDataFn builds the `MockRandom` instance per generation from `mock.seed`.
   seed: undefined,
 };

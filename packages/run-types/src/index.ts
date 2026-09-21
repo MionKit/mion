@@ -32,21 +32,19 @@ export {
   type AnyFn,
 } from './runtypes/types.ts';
 
-// The generic runtime type node + the helper that recovers the source TS type
-// a `RunType<T>` carries (`InferType<typeof schema>`). Both are part of the
-// value-first surface: builders return `RunType<T>`, `InferType` maps back.
+// The value-first surface: builders return `RunType<T>`, `InferType<typeof schema>` maps back to the
+// source TS type it carries.
 export {type RunType} from './runtypes/types.ts';
 export {type DataOnly} from './runtypes/dataOnly.ts';
 export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta.ts';
-// `JSONShape<T>` — the RunTypes JSON wire twin of `DataOnly<T>` (what
-// createJsonEncoderFn writes / createJsonDecoderFn reads). Annotation-grade:
-// never reflect it.
+// `JSONShape<T>` — the JSON wire twin of `DataOnly<T>` (what createJsonEncoderFn writes /
+// createJsonDecoderFn reads). Annotation-grade: never reflect it.
 export {type JSONShape} from './runtypes/jsonShape.ts';
 export {type InferType, type AnyOf} from './builders/static.ts';
 
-// AI enrichment — type-keyed, committed maps validated against `T` at scan time
-// (see docs/AI_ENRICHMENT.md). `FriendlyText<T>` combines labels + error
-// templates; `MockData<T>` carries sample pools/ranges feeding `createMockDataFn`.
+// AI enrichment — type-keyed, committed maps validated against `T` at scan time (see
+// docs/AI_ENRICHMENT.md). `FriendlyText<T>` is labels + error templates; `MockData<T>` is the sample
+// pools/ranges feeding `createMockDataFn`.
 export {
   type FriendlyText,
   type FriendlyNode,
@@ -62,11 +60,10 @@ import type {FriendlyText} from './enrich/friendlyText.ts';
 export type FriendlyType<T> = FriendlyText<T>;
 export {type MockData, type MockNode} from './enrich/mockData.ts';
 // Pure-data runtime: render `getValidationErrors` output into human messages.
-// `createFriendlyTextI18n` is the locale-selecting wrapper over the same walk: the
-// source map is the source language + terminal fallback, translations are
-// same-tree per-locale consts, plurals select via Intl.PluralRules, and
-// `$[val]` renders type-driven (an isCurrency-marked bound via the app-supplied
-// `currency` option, date-family bounds via Intl.DateTimeFormat).
+// `createFriendlyTextI18n` is the locale-selecting wrapper over the same walk — the source map is
+// the source language + terminal fallback, translations are same-tree per-locale consts, plurals
+// select via Intl.PluralRules, and `$[val]` renders type-driven (an isCurrency-marked bound via the
+// app-supplied `currency` option, date-family bounds via Intl.DateTimeFormat).
 export {
   createFriendlyText,
   createFriendlyTextI18n,
@@ -89,10 +86,9 @@ export {
   type FormatNameOf,
   type FormatParamsOf,
   type FormatBrandNameOf,
-  // The named brand carriers. Public because DECLARATION EMIT needs them to be:
-  // a downstream project whose exported type expands a format structurally (a
-  // mion router's public API does) can only be written to a `.d.ts` if the
-  // emitter can name what it is printing.
+  // The named brand carriers, public because DECLARATION EMIT needs them to be: a downstream
+  // exported type that expands a format structurally (a mion router's public API does) can only be
+  // written to a `.d.ts` if the emitter can name what it is printing.
   type FormatBrand,
   type NominalBrand,
 } from './runtypes/typeFormat.ts';
@@ -105,17 +101,15 @@ export type {__rtFormatName, __rtFormatParams} from './runtypes/sentinelKeys.ts'
 // `createGetValidationErrorsFn<T>()` returns); the per-format mode unions it
 // is built from live on the `/formats` subpath next to their params.
 export type {FormatErrorsOf} from './runtypes/formatErrors.ts';
-// Standard insert/select/update model utilities: plain type transforms that keep
-// format fidelity in the derived payload shapes (used by the drizzle-orm packages).
+// Plain type transforms that keep format fidelity in the derived payload shapes (used by the
+// drizzle-orm packages).
 export type {InsertModel, SelectModel, UpdateModel} from './modelTypes.ts';
 export {type FormatAnnotation} from './runtypes/formatAnnotation.ts';
 export {registerFormatPattern, type FormatPattern, type StringPatternArgs} from './runtypes/formatPattern.ts';
-// Reflection-kind enum mirrors (auto-generated from the Go protocol — see
-// runTypeKind.generated.ts). Re-exported so concrete formats under `src/formats/` can
-// declare `readonly kind = RunTypeKind.string`, and so graph consumers can key
-// on kind/subKind (builtin classes project atomically: detect Date via
-// `subKind === RunTypeSubKind.date`, never via `typeName === 'Date'`, which
-// false-positives on user classes named Date).
+// Reflection-kind enum mirrors (auto-generated from the Go protocol). Re-exported so formats under
+// `src/formats/` can declare `readonly kind = RunTypeKind.string` and graph consumers can key on
+// kind/subKind: detect a builtin like Date via `subKind === RunTypeSubKind.date`, never via
+// `typeName === 'Date'`, which false-positives on user classes named Date.
 export {
   RunTypeKind,
   type RunTypeKindName,
@@ -126,9 +120,8 @@ export {
 } from './go-generated/runTypeKind.generated.ts';
 
 export {
-  // createValidateFn / createGetValidationErrorsFn are overloaded: a value-first `RunType`
-  // schema as the first arg (the value a `define` builder returns) is a distinct
-  // overload from the type/value reflection form — both reflect `T`.
+  // createValidateFn / createGetValidationErrorsFn are overloaded: a value-first `RunType` schema as
+  // the first arg is a distinct overload from the type/value reflection form — both reflect `T`.
   createValidateFn,
   type ValidateFn,
   type ValidateOptions,
@@ -192,10 +185,8 @@ export {
   type FromBinaryFn,
 } from './createRTFBinary.ts';
 
-// Per-type custom function overrides — the WRITE side of the createX routing.
-// Registers a custom pure function for one T; every createX<T>() then returns
-// it. Declared after createRTFunctions / createRTFBinary so the Fn aliases they
-// export are initialized first.
+// Per-type custom function overrides — the WRITE side of the createX routing. Declared after
+// createRTFunctions / createRTFBinary so the Fn aliases they export are initialized first.
 export {
   overrideValidate,
   overrideGetValidationErrors,
@@ -238,9 +229,8 @@ export {
   type StandardJSONSchemaConverter,
   type StandardJSONSchemaOptions,
 } from './standard/spec.ts';
-// StandardJSONSchemaV1 — the schema-document half: `createJsonSchemaFn<T>()`
-// returns the per-type JSON Schema document fn, and createStandardSchema's
-// `~standard.jsonSchema` converter serves the same document.
+// The StandardJSONSchemaV1 document half: createStandardSchema's `~standard.jsonSchema` converter
+// serves the same document this per-type fn returns.
 export {createJsonSchemaFn, type JsonSchemaFn} from './standard/createJsonSchemaFn.ts';
 export {
   stripDialect,
@@ -250,12 +240,11 @@ export {
   type JsonSchemaDocFn,
 } from './standard/jsonSchemaDoc.ts';
 
-// Circular-reference guard for the live-object families (validate /
-// getValidationErrors / jsonEncode / binaryEncode). Armed per call with the
-// COMPILE-TIME option `{rejectCircularRefs: true}` (there is no global toggle —
-// it forks the factory's fnHash like any other compile flag). The encoders throw
-// this error on a cycle; validate returns false and getValidationErrors records
-// a `{expected: 'circular'}` issue.
+// Circular-reference guard for the live-object families (validate / getValidationErrors /
+// jsonEncode / binaryEncode). Armed per call with the COMPILE-TIME option
+// `{rejectCircularRefs: true}`; there is no global toggle, it forks the factory's fnHash like any
+// other compile flag. The encoders throw this error on a cycle; validate returns false and
+// getValidationErrors records a `{expected: 'circular'}` issue.
 export {CircularReferenceError, type CircularPath} from './runtypes/circular.ts';
 export {isSerializationError, ParseMismatch, RTParseError} from './runtypes/parseError.ts';
 export type {RTSerializationError} from './runtypes/parseError.ts';
