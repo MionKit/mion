@@ -1,24 +1,10 @@
-// Type-dependency recording: which SOURCE FILES declare the types a call site
-// reflects.
-//
-// A rewritten file's correctness depends on types declared in OTHER files, and
-// no bundler can see those edges — `import type` is erased, a plain import used
-// only in type position is erased, and an ambient `.d.ts` type never had an
-// import edge at all. So the host is never told to re-transform a file whose
-// injected fn just changed shape, and keeps serving a validator for a type that
-// no longer exists.
-//
-// The recording is per NODE and strictly LOCAL: each interned wire id remembers
-// only the files that declare that type itself. Transitivity comes free from
-// the per-file scope map (Cache.fileTypeIDs, walked by the resolver's
-// recordFileIDs), so a file's full dependency set is the union of the local
-// decl files of every id it transitively reaches — see DeclFilesForFiles.
-//
-// ⚠️ Recording is keyed by wire ID, never by walk, and that is load-bearing.
-// assignID short-circuits on a warm pointer/structural cache, so a collector
-// hung off the type WALK would report nothing on exactly the incremental-update
-// path this exists for — and under-reporting here is the stale-validator bug
-// itself, silently. Keying by id makes a cache hit a no-op instead of a gap.
+// Type-dependency recording: which SOURCE FILES declare the types a call site reflects. No bundler can see
+// those edges (`import type` is erased, an ambient `.d.ts` type never had an import edge at all), so without
+// this the host is never told to re-transform a file whose injected fn changed shape and keeps serving a
+// validator for a type that no longer exists. Recording is per NODE and strictly LOCAL; transitivity comes
+// from the per-file scope map (Cache.fileTypeIDs), see DeclFilesForFiles.
+// ⚠️ Keyed by wire ID, never by walk: assignID short-circuits on a warm pointer/structural cache, so a
+// collector hung off the type WALK would report nothing on exactly the incremental-update path this exists for.
 package runtype
 
 import (
@@ -28,11 +14,9 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 )
 
-// recordDeclFiles notes the source files that declare tsType against its wire
-// id. Idempotent and additive: called again for the same id (a structurally
-// equal type declared somewhere else) it UNIONS the new files in rather than
-// replacing them — two files declaring the same shape collapse to one id, and
-// editing either one must invalidate.
+// recordDeclFiles notes the source files that declare tsType against its wire id. Idempotent and additive: a
+// second call for the same id UNIONS the new files in, two files declaring one shape collapsing to one id
+// while editing either must invalidate.
 func (cache *Cache) recordDeclFiles(id string, tsType *checker.Type) {
 	if id == "" || tsType == nil {
 		return
@@ -43,16 +27,14 @@ func (cache *Cache) recordDeclFiles(id string, tsType *checker.Type) {
 	}
 	before := len(seen)
 
-	// The alias symbol first: `type Signup = {...}` is what the user edits, and
-	// its declaration is the alias, not the anonymous object type it names.
+	// The alias symbol first: `type Signup = {...}` is what the user edits, not the object type it names.
 	if alias := checker.Type_alias(tsType); alias != nil {
 		addSymbolFiles(seen, alias.Symbol())
 	}
 	addSymbolFiles(seen, tsType.Symbol())
-	// Members too. An interface can be MERGED across files (a `.d.ts`
-	// augmentation adding a property), in which case the type's own symbol
-	// names only one of them while the added member's declaration names the
-	// other. Missing that file is a stale validator, so walk the properties.
+	// Members too: an interface can be MERGED across files (a `.d.ts` augmentation adding a property), where
+	// the type's own symbol names one file and the added member's declaration the other, and missing that
+	// file is a stale validator.
 	if cache.typeChecker != nil {
 		for _, property := range cache.typeChecker.GetPropertiesOfType(tsType) {
 			addSymbolFiles(seen, property)
@@ -73,8 +55,7 @@ func (cache *Cache) recordDeclFiles(id string, tsType *checker.Type) {
 	cache.declFiles[id] = files
 }
 
-// addSymbolFiles adds the file of every declaration of symbol. All of them, not
-// just the first: declaration merging means one symbol can be declared across
+// addSymbolFiles adds the file of EVERY declaration of symbol: declaration merging spreads one symbol across
 // several files and each is a real dependency.
 func addSymbolFiles(into map[string]struct{}, symbol *ast.Symbol) {
 	if symbol == nil {
@@ -91,14 +72,10 @@ func addSymbolFiles(into map[string]struct{}, symbol *ast.Symbol) {
 	}
 }
 
-// DeclFilesForFiles returns the sorted, deduplicated set of source files that
-// declare any type transitively reached from the call sites in `files` — the
-// per-file type-dependency set a host declares to its bundler.
-//
-// Returns nil when nothing is known, which callers MUST read as "unknown", not
-// as "no dependencies": every host falls back to its coarse invalidation there.
-// Over-invalidating costs milliseconds; under-invalidating ships a validator
-// for a type that no longer exists.
+// DeclFilesForFiles returns the sorted, deduplicated source files declaring any type transitively reached from
+// the call sites in `files`, the type-dependency set a host declares to its bundler. nil means "unknown", NOT
+// "no dependencies": callers MUST fall back to coarse invalidation, since over-invalidating costs milliseconds
+// and under-invalidating ships a validator for a type that no longer exists.
 func (cache *Cache) DeclFilesForFiles(files []string) []string {
 	ids := cache.IDsForUnion(files)
 	if len(ids) == 0 {

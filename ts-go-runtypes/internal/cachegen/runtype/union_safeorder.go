@@ -4,25 +4,15 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// finalizeUnion runs once after a union's children are serialized. It:
-//
-//  1. Buckets children into simple / object-like / any (per
-//     splitUnionItems);
-//  2. Reorders the object-like bucket so superset shapes precede their
-//     subset equivalents (per sortUnreachableTypes) — prevents
-//     unreachable union members at validate time;
-//  3. Records the resulting order on the union's SafeUnionChildren slice;
-//  4. Runs the discriminator pass — populates UnionDiscriminators with
-//     per-member refs to the property selected as the union's
-//     discriminator (named-shared or unique-prop). The slot at index i
-//     is parallel to SafeUnionChildren[i]; non-object members get nil.
-//
-// Children are ref RunTypes (Kind == KindRef) pointing at canonical
-// entries in cache.nodes. SafeUnionChildren shares the same ref
-// pointers; consumers derive per-member position via indexOf.
+// finalizeUnion runs once after a union's children are serialized: it buckets children into simple /
+// object-like / any, reorders the object-like bucket so superset shapes precede their subset equivalents
+// (otherwise a union member is unreachable at validate time), records that order in SafeUnionChildren, and
+// fills UnionDiscriminators with per-member refs to the chosen discriminator property, the slot at index i
+// being parallel to SafeUnionChildren[i] and nil for a non-object member.
+// SafeUnionChildren shares the same ref pointers as Children, which point at canonical entries in cache.nodes.
 func (cache *Cache) finalizeUnion(node *reflection.RunType) {
 	if len(node.Children) <= 1 {
-		// Degenerate union — nothing to reorder, nothing to discriminate.
+		// Degenerate union: nothing to reorder, nothing to discriminate.
 		return
 	}
 
@@ -40,13 +30,8 @@ func (cache *Cache) finalizeUnion(node *reflection.RunType) {
 	cache.markDiscriminators(node, sortedObjects)
 }
 
-// splitUnionItems mirrors splitUnionItems
-// (ref: packages/run-types/src/nodes/collection/unionDiscriminator.ts:36-58):
-// object-like members go to objectRefs, atomics to simpleItems, and the
-// first any/unknown member is held aside for last-position placement.
-// Subsequent any/unknown members are kept in their bucket (duplicates
-// would already have been deduped by the TS checker, but we don't
-// re-emit a separate any node — the reference algorithm drops them silently).
+// splitUnionItems sends object-like members to objectRefs and atomics to simpleItems, holding the FIRST
+// any/unknown member aside for last-position placement and dropping any later ones.
 func (cache *Cache) splitUnionItems(children []*reflection.RunType) (simpleItems, objectRefs []*reflection.RunType, anyItem *reflection.RunType) {
 	for _, ref := range children {
 		canonical := cache.nodes[ref.ID]
@@ -59,7 +44,7 @@ func (cache *Cache) splitUnionItems(children []*reflection.RunType) (simpleItems
 			if anyItem == nil {
 				anyItem = ref
 			}
-			// duplicates dropped per the "Only keep the first" comment
+			// Only the first is kept; later any/unknown members are dropped on purpose.
 		case reflection.KindObjectLiteral, reflection.KindClass:
 			objectRefs = append(objectRefs, ref)
 		default:
@@ -69,18 +54,14 @@ func (cache *Cache) splitUnionItems(children []*reflection.RunType) (simpleItems
 	return
 }
 
-// sortUnreachableTypes is a Go port of sortUnreachableTypes
-// (ref: unionDiscriminator.ts:69-116). Object-like members whose property
-// type-id sets are subset-related to one another get grouped, then the
-// group is sorted descending by property count so the most-specific
-// shape is validated first. Unrelated members keep their declaration
-// order.
+// sortUnreachableTypes groups object-like members whose property type-id sets are subset-related, then sorts
+// each group descending by property count so the most-specific shape validates first.
+// Unrelated members keep their declaration order.
 func (cache *Cache) sortUnreachableTypes(objectRefs []*reflection.RunType) []*reflection.RunType {
 	if len(objectRefs) <= 1 {
 		return objectRefs
 	}
 
-	// Pre-compute the property type-id set for each object member.
 	propSets := make([]map[string]struct{}, len(objectRefs))
 	for i, ref := range objectRefs {
 		propSets[i] = cache.propertyTypeIDSet(ref)
@@ -119,8 +100,7 @@ func (cache *Cache) sortUnreachableTypes(objectRefs []*reflection.RunType) []*re
 			}
 		}
 		if len(groupIdx) > 1 {
-			// Sort descending by property count (more props first).
-			// Stable: when sizes match, original order wins.
+			// Descending by property count, stable: when sizes match the original order wins.
 			for outer := 1; outer < len(groupIdx); outer++ {
 				key := groupIdx[outer]
 				keySize := len(propSets[key])
@@ -139,10 +119,8 @@ func (cache *Cache) sortUnreachableTypes(objectRefs []*reflection.RunType) []*re
 	return result
 }
 
-// propertyTypeIDSet returns the set of property type-ids on an
-// object-like canonical node. The "type-id" of a property is the id of
-// its child type — same value PropertyRunType.getTypeID() returns
-// at the runtype layer.
+// propertyTypeIDSet returns the set of property type-ids on an object-like canonical node, a property's
+// type-id being the id of its child type.
 func (cache *Cache) propertyTypeIDSet(ref *reflection.RunType) map[string]struct{} {
 	out := make(map[string]struct{})
 	canonical := cache.nodes[ref.ID]
@@ -164,8 +142,7 @@ func (cache *Cache) propertyTypeIDSet(ref *reflection.RunType) map[string]struct
 	return out
 }
 
-// discriminatorAssignment describes one (object member, chosen property)
-// pair selected by a discriminator pass. The object's slot in
+// discriminatorAssignment is one (object member, chosen property) pair: the object's slot in
 // node.SafeUnionChildren receives propRef.
 type discriminatorAssignment struct {
 	objectRef *reflection.RunType
@@ -173,13 +150,9 @@ type discriminatorAssignment struct {
 	typeID    string
 }
 
-// markDiscriminators populates the union's UnionDiscriminators slot
-// with per-member refs to the property selected as the discriminator.
-// Mirrors markDiscriminators + getDiscriminatorProperties +
-// getUniqueDiscriminatorProperties (ref: unionDiscriminator.ts:122-251).
-// Tries shared-name first (every member has a property with the same
-// name and distinct type-ids); falls back to unique-prop (each member
-// picks its own property whose type-id is unique across the union).
+// markDiscriminators fills the union's UnionDiscriminators slot with per-member refs to the discriminator
+// property: shared-name first (every member has a property of that name, with distinct type-ids), falling
+// back to unique-prop (each member picks a property whose type-id is unique across the union).
 func (cache *Cache) markDiscriminators(node *reflection.RunType, objectRefs []*reflection.RunType) {
 	if len(objectRefs) < 2 {
 		return
@@ -190,11 +163,8 @@ func (cache *Cache) markDiscriminators(node *reflection.RunType, objectRefs []*r
 	cache.tryMarkUniquePropDiscriminator(node, objectRefs)
 }
 
-// tryMarkSharedNameDiscriminator finds the lowest-cost property name
-// shared across every object member with distinct per-member type-ids.
-// On success, writes one ref per object member into the union's
-// UnionDiscriminators slot (parallel to SafeUnionChildren). Reports
-// true when a qualifying name was found.
+// tryMarkSharedNameDiscriminator finds the lowest-cost property name shared by every object member with
+// distinct per-member type-ids, writing one ref per member into UnionDiscriminators. True when one was found.
 func (cache *Cache) tryMarkSharedNameDiscriminator(node *reflection.RunType, objectRefs []*reflection.RunType) bool {
 	byName := make(map[string][]discriminatorAssignment)
 	for _, ref := range objectRefs {
@@ -262,12 +232,9 @@ func (cache *Cache) tryMarkSharedNameDiscriminator(node *reflection.RunType, obj
 	return true
 }
 
-// tryMarkUniquePropDiscriminator picks one property per object member
-// whose type-id is unique across the union. If multiple unique
-// properties exist on a member, the one with the shortest (least
-// complex) type-id wins. Members that have no unique property leave
-// their slot in UnionDiscriminators nil. Reports true when at least
-// one member was assigned.
+// tryMarkUniquePropDiscriminator picks, per object member, a property whose type-id is unique across the
+// union, the shortest type-id winning among several. A member with no unique property leaves its slot nil;
+// true when at least one member was assigned.
 func (cache *Cache) tryMarkUniquePropDiscriminator(node *reflection.RunType, objectRefs []*reflection.RunType) bool {
 	type propCandidate struct {
 		propRef *reflection.RunType
@@ -341,11 +308,8 @@ func (cache *Cache) tryMarkUniquePropDiscriminator(node *reflection.RunType, obj
 	return true
 }
 
-// assignUnionDiscriminators writes one entry per (objectRef, propRef)
-// pair into node.UnionDiscriminators, slotted at the position of
-// objectRef within node.SafeUnionChildren. Non-object slots (simple /
-// any) remain nil. The slice is allocated to len(SafeUnionChildren)
-// on first call.
+// assignUnionDiscriminators writes each (objectRef, propRef) pair into node.UnionDiscriminators at objectRef's
+// position within node.SafeUnionChildren, leaving the simple / any slots nil.
 func (cache *Cache) assignUnionDiscriminators(node *reflection.RunType, entries []discriminatorAssignment) {
 	if node.UnionDiscriminators == nil {
 		node.UnionDiscriminators = make([]*reflection.RunType, len(node.SafeUnionChildren))
@@ -358,8 +322,7 @@ func (cache *Cache) assignUnionDiscriminators(node *reflection.RunType, entries 
 	}
 }
 
-// indexOfRef returns the position of ref in refs by pointer identity,
-// or -1 if not present.
+// indexOfRef returns the position of ref in refs by POINTER identity, or -1.
 func indexOfRef(refs []*reflection.RunType, ref *reflection.RunType) int {
 	for i, candidate := range refs {
 		if candidate == ref {
