@@ -52,8 +52,7 @@ type SynthConfig<K extends string, TName extends string, Brand> = Brand extends 
       enumValues: undefined;
       notNull: N;
       hasDefault: H;
-      // Fixed, and only safe because THIS dialect reads none of the three: mysql's
-      // `$returningId()` does, so its twin synthesizes them from the slim column.
+      // Fixed, and only safe because THIS dialect reads none of the three: mysql's `$returningId()` does.
       isPrimaryKey: false;
       isAutoincrement: false;
       hasRuntimeDefault: false;
@@ -72,9 +71,8 @@ export type ToDrizzleTable<T extends AnySqliteTable> = SQLiteTableWithColumns<{
   };
 }>;
 
-/** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
- *  TExisting stays `boolean` because nothing in select typing branches on it
- *  and pinning it would cost a type parameter on every declared view. */
+/** TExisting stays `boolean`: nothing in select typing branches on it, and pinning it would cost a
+ *  type parameter on every declared view. */
 export type ToDrizzleView<V extends AnySqliteView> = SQLiteViewWithSelection<
   ViewNameOf<V>,
   boolean,
@@ -85,10 +83,8 @@ export type ToDrizzleView<V extends AnySqliteView> = SQLiteViewWithSelection<
 
 export function toDrizzle<T extends AnySqliteTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnySqliteView>(view: V): ToDrizzleView<V>;
-// An INDEX declared outside any table's extraConfig. drizzle's query side takes
-// its own IndexBuilder (dzSqlite.IndexBuilder) for a hint, and the table's replay
-// takes the recorder, so a schema that does both declares the index once and
-// materializes it here for the query half.
+// An INDEX declared outside any table's extraConfig: drizzle's query side wants its own
+// IndexBuilder for a hint, so a schema that does both declares the index once and materializes it here.
 export function toDrizzle(entry: RtSqliteIndexEntry): dzSqlite.IndexBuilder;
 export function toDrizzle<T extends AnySqliteTable>(
   options?: TableFromTypeOptions<T>,
@@ -98,10 +94,8 @@ export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-    // A standalone ENTRY — an index or a constraint declared outside any
-    // table's extraConfig. drizzle's query side takes one directly
-    // (`.useIndex(idx)` wants its own IndexBuilder), so the entry has to be
-    // materializable on its own, exactly as a table is.
+    // A standalone ENTRY, declared outside any table's extraConfig: `.useIndex(idx)` wants its own
+    // IndexBuilder, so an entry has to be materializable on its own, exactly as a table is.
     if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);

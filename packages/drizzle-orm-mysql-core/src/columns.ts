@@ -5,18 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The mysql column builders of @mionjs/drizzle-orm-mysql-core: drizzle
-// identical names and call params, slim recorder returns. THREE kind
-// interfaces, grouped by drizzle's own method sets:
+// The mysql column builders of @mionjs/drizzle-orm-mysql-core: drizzle-identical names and call
+// params, slim recorder returns. THREE kind interfaces, grouped by drizzle's own method sets:
 //   RtMyColumn           the common chain every mysql builder has
 //   RtMyIntColumn        + autoincrement()      (every numeric kind + serial)
 //   RtMyTimestampColumn  + defaultNow() / onUpdateNow()
-// Coverage is gated by manifests/mysql.manifest.json; the completeness spec
-// diffs the chain methods against drizzle's builder prototypes.
-//
-// Each builder also exports its COLUMN TYPE (Varchar, Int, Timestamp, ...),
-// the pure-types vocabulary: a hand-written row using these names gets exactly
-// the types the builders infer, with zero table machinery.
+// Coverage is gated by manifests/mysql.manifest.json; the completeness spec diffs the chain methods
+// against drizzle's builder prototypes. Each builder also exports its COLUMN TYPE (Varchar, Int,
+// Timestamp, ...), the pure-types vocabulary: a hand-written row using those names gets exactly the
+// types the builders infer, with zero table machinery.
 
 import type {
   BigInt64,
@@ -253,8 +250,7 @@ export interface MySqlDateConfig<TMode extends 'date' | 'string' = 'date' | 'str
 }
 export type MySqlDateDataOf<TMode> = TMode extends 'string' ? StringDate : RTDate;
 export type MySqlDateData<C> = MySqlDateDataOf<C extends {mode: infer TMode} ? TMode : 'date'>;
-/** Column type twin of `date(name?, config?)` (`MySqlDate`: the global-Date
- *  dodge; the index also re-exports it as `Date`). */
+/** Column type twin of `date(name?, config?)`; named MySqlDate to dodge global Date, re-exported as `Date`. */
 export type MySqlDate<
   A extends string | (MySqlDateConfig & MySqlColMods) | undefined = undefined,
   C extends MySqlDateConfig & MySqlColMods = Record<never, never>,
@@ -394,8 +390,7 @@ export function json(...args: unknown[]) {
 export interface MySqlTextConfig<T extends readonly string[] = EnumTuple> {
   enum?: T;
 }
-/** Shared data computation of the four text builders: a narrow enum wins,
- *  else plain Str. */
+/** The one data computation the four text builders and their column types go through. */
 export type TextDataOf<T extends readonly string[]> = EnumOr<T, Str>;
 export type TextData<C> = TextDataOf<C extends {enum: infer E extends readonly string[]} ? E : readonly string[]>;
 /** Column type twin of `longtext(name?, config?)`. */
@@ -452,12 +447,9 @@ export function mediumtext(...args: unknown[]) {
   return myColumn('mediumtext', args);
 }
 
-/** mysqlEnum: a column function directly. Four call shapes, drizzle's own: a
- *  values array or name + values, and the same two taking a TS enum OBJECT
- *  (`enum Role {a = 'a'}` — its members, not a tuple, so the array forms do not
- *  accept it). No column type twin: the second arg is a VALUES list, not a
- *  config object, so the type-road replay cannot spell it — mysqlEnum stays
- *  builders-only for now. */
+/** mysqlEnum: a column function directly, with drizzle's four call shapes (the enum-OBJECT ones take
+ *  members, not a tuple). No column type twin: the second arg is a VALUES list, not a config object,
+ *  so the type road cannot spell it and mysqlEnum stays builders-only. */
 export function mysqlEnum<U extends string, T extends Readonly<[U, ...U[]]>>(
   values: T | Writable<T>
 ): RtMyColumn<T[number], false, false, false>;
@@ -493,13 +485,11 @@ export function real(...args: unknown[]) {
   return myColumn('real', args);
 }
 
-/** drizzle's mysql `serial` is `bigint unsigned auto_increment`, so a serial
- *  column is auto-incrementing before any modifier runs — which is what makes
- *  `serial('id').primaryKey()` come back from `$returningId()`. */
+/** drizzle's mysql `serial` is `bigint unsigned auto_increment`, so it is auto-incrementing before
+ *  any modifier runs, which is what makes `serial('id').primaryKey()` come back from `$returningId()`. */
 type SerialKeyFlags = {primaryKey: false; autoincrement: true; runtimeDefault: false; identity: undefined};
 
-/** Column type twin of `serial(name?)`; intrinsically notNull, defaulted and
- *  auto-incrementing (the last one is what `$returningId()` reads). */
+/** Column type twin of `serial(name?)`; notNull, defaulted and auto-incrementing (`$returningId()` reads the last). */
 export type Serial<
   A extends string | MySqlIntColMods | undefined = undefined,
   C extends MySqlIntColMods = Record<never, never>,
@@ -639,10 +629,7 @@ export interface MySqlVarCharConfig<T extends readonly string[] = EnumTuple, L e
   length: L;
   enum?: T;
 }
-/** Shared data computation of varchar, the anti-drift funnel of BOTH roads: a
- *  narrow enum wins, else length caps the string, else plain Str. The builder
- *  overloads call it with their inferred params; the column type extracts the
- *  same params from its config literal (VarcharData). */
+/** The one varchar data computation BOTH roads go through: the builder overloads and VarcharData. */
 export type VarcharDataOf<T extends readonly string[], L> = string extends T[number]
   ? L extends number
     ? Str<{maxLength: L}>

@@ -26,29 +26,18 @@ import {getRunType} from '@mionjs/run-types';
 import {sqliteColumnHelpers, type SQLiteColumnHelpers} from './columns.ts';
 import type {} from './helpers.ts';
 
-/** A sqlite table: the metadata and nothing wrapped around it.
- *
- *  ONE type for both roads. `sqliteTable('users', {...})` returns it with columns
- *  the builders already branded, and `SqliteTable<'users', {id: Int<'id'>}>`
- *  declares the same thing from the column TYPES; TypedCols passes an
- *  already-branded record straight through, so the two land on one type.
- *
- *  It used to be two (SqliteTable normalizing, SqliteBuilderTable pre-normalized)
- *  to save the builder road a TypedCols pass. That is worth about 5
- *  instantiations a table and it is not worth two shapes: every table in the
- *  codebase reads the same way, and nothing has to know which road declared it. */
+/** A sqlite table: ONE type for both roads, since TypedCols passes an already-branded record through,
+ *  so a sqliteTable() result and a `SqliteTable<'users', {id: Int<'id'>}>` declaration land on one type. */
 export interface SqliteTable<TName extends string, Cols extends object, Extras extends readonly object[] = []>
   extends RtTableMeta<TName, TypedCols<Cols>, Extras>, RtTableBrand<'sqlite'> {}
 
-/** Any sqlite table, whatever its name and columns. What this package's toDrizzle
- *  and tableFromType take, so another dialect's table is a compile error rather
- *  than a missing-function crash at materialization. */
+/** What this package's toDrizzle and tableFromType take, so another dialect's table is a compile
+ *  error rather than a missing-function crash at materialization. */
 export type AnySqliteTable = SqliteTable<string, Record<string, AnyRtColumn>, readonly object[]>;
 /** Any sqlite view, the twin of AnySqliteTable. */
 export type AnySqliteView = import('./views.ts').SqliteSlimView<string, Record<string, AnyRtColumn>>;
 
-// The friendly per-helper entry aliases: each expands to the TableEntry
-// carrier the runtime bridge and the convert program read mechanically.
+// Friendly aliases over the TableEntry carrier the runtime bridge and the convert program read.
 /** `index(name).on(...columns by record key)`. */
 export type IndexEntry<Name extends string, On extends readonly string[]> = TableEntry<'index', [Name], {on: EntryColRefs<On>}>;
 /** `uniqueIndex(name).on(...)`. */
@@ -80,23 +69,17 @@ export type PrimaryKeyEntry<Name extends string, Columns extends readonly string
 >;
 type ForeignTableRefs<Table extends string, Keys extends readonly string[]> = {[I in keyof Keys]: {table: Table; col: Keys[I]}};
 
-// Rebuilt slim tables, one per reflected table id, so repeated calls share one
-// slim table and therefore one materialized drizzle table.
+// One slim table per reflected type id, so repeated calls share one materialized drizzle table.
 const fromTypeTables = new Map<string, object>();
 
-/** Runtime twin of a TYPE-defined table: rebuild the slim table from the
- *  reflected graph, typed as the table type itself — so toDrizzle, the models
- *  and refineTableType treat it exactly like a sqliteTable() result. The
- *  type argument is resolved by the build (@mionjs/devtools must be
- *  active); dynamic callers holding a resolved RunType graph use the
- *  lower-level buildRtTableFromGraph from @mionjs/drizzle-orm instead. A
- *  table whose columns use References needs the referenced tables in
- *  options.tables; runtime-callback markers take theirs from options.runtime.
- *  The no-options form is memoized, one slim table per type id, so repeated
- *  calls share one materialized drizzle table. A call WITH options builds a
- *  fresh one, the way a builder call does: two tables of the same type can
- *  carry different callbacks or different referenced tables, and sharing would
- *  silently hand the second one the first one's. */
+/** Runtime twin of a TYPE-defined table, typed as the table type itself, so toDrizzle, the models
+ *  and refineTableType treat it exactly like a sqliteTable() result.
+ *  The type argument is resolved by the build (@mionjs/devtools must be active); dynamic callers
+ *  holding a resolved RunType graph use buildRtTableFromGraph from @mionjs/drizzle-orm instead.
+ *  Columns using References need the referenced tables in options.tables, runtime-callback markers
+ *  take theirs from options.runtime.
+ *  A call WITH options is not memoized: two tables of the same type can carry different callbacks
+ *  or referenced tables, and sharing would hand the second one the first one's. */
 export function tableFromType<T extends AnySqliteTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): T {
   const runType = getRunType<T>(undefined, id);
   if (options !== undefined) return buildRtTableFromGraph(runType as ReflectedNode, sqliteBuildTable, options, 'sqlite') as T;
@@ -110,17 +93,11 @@ export function tableFromType<T extends AnySqliteTable>(options?: TableFromTypeO
 
 /** The extraConfig view of the table's columns. */
 export type SqliteExtraConfigColumns<Cols> = {[K in keyof Cols]: Cols[K] & RtExtraColumn};
-/** ONE entry in a table's extraConfig: an index, a constraint or a policy from
- *  this package; a REAL drizzle entry passed straight through (what a provider
- *  helper returns — crudPolicy, the supabase roles); or a GROUP of either, which
- *  drizzle flattens one level at build time.
- *
- *  `object`, not a union with SqliteEntryBrand: that brand's only member is optional,
- *  which makes it a WEAK type, and TypeScript rejects an object with nothing in
- *  common with a weak type — so a real drizzle entry could never be passed
- *  without a cast. This module never imports drizzle, so there is no name to
- *  give one. The recorder passes anything it does not recognise straight to
- *  drizzle, so the type says exactly what the runtime does. */
+/** ONE entry in a table's extraConfig: an index or a constraint from this package; a REAL drizzle
+ *  entry passed straight through; or a GROUP of either, which drizzle flattens one level at build time.
+ *  `object`, not a union with SqliteEntryBrand: that brand's only member is optional, which makes it
+ *  a WEAK type, and TypeScript would then reject a real drizzle entry without a cast. The recorder
+ *  passes anything it does not recognise straight to drizzle, so the type matches the runtime. */
 export type SqliteExtraConfigEntry = object;
 
 /** drizzle accepts BOTH shapes from an extraConfig callback: the array form and
@@ -148,9 +125,7 @@ export function sqliteBuildTable(
     : context.ns.sqliteTable(name as never, builders as never);
 }
 
-/** Records the table; returns the slim table typed as SqliteTable (one public
- *  name for both roads), NOT drizzle's own table. The real drizzle table is
- *  built on demand by toDrizzle() from the ./drizzle subpath. */
+/** Records the table and returns the SLIM table, not drizzle's own: toDrizzle() from the ./drizzle subpath builds that. */
 export function sqliteTable<TName extends string, Cols extends Record<string, AnyRtColumn>>(
   name: TName,
   columns: Cols,

@@ -45,10 +45,9 @@ const context: DrizzleContext = {
   sqlNs: dzSql as unknown as DrizzleContext['sqlNs'],
 };
 
-// isPrimaryKey / isAutoincrement / hasRuntimeDefault are NOT decorative here:
-// drizzle's `$returningId()` returns exactly the keys where isPrimaryKey is
-// true and one of the other two is, so hardcoding them made `$returningId()`
-// on a materialized table infer `{}` instead of `{id: number}`.
+// isPrimaryKey / isAutoincrement / hasRuntimeDefault are NOT decorative here: drizzle's
+// `$returningId()` returns exactly the keys where isPrimaryKey and one of the other two are true,
+// so hardcoding them makes it infer `{}` instead of `{id: number}`.
 type SynthConfig<K extends string, TName extends string, Brand, Key extends ColKeyFlags> = Brand extends {
   data: infer Data;
   notNull: infer N extends boolean;
@@ -85,9 +84,8 @@ export type ToDrizzleTable<T extends AnyMysqlTable> = MySqlTableWithColumns<{
   };
 }>;
 
-/** The drizzle-typed view of a slim VIEW. Same synthesis as ToDrizzleTable;
- *  TExisting stays `boolean` because nothing in select typing branches on it
- *  and pinning it would cost a type parameter on every declared view. */
+/** TExisting stays `boolean`: nothing in select typing branches on it, and pinning it would cost a
+ *  type parameter on every declared view. */
 export type ToDrizzleView<V extends AnyMysqlView> = MySqlViewWithSelection<
   ViewNameOf<V>,
   boolean,
@@ -101,20 +99,16 @@ export type ToDrizzleView<V extends AnyMysqlView> = MySqlViewWithSelection<
 export function toDrizzle<T extends AnyMysqlTable>(table: T): ToDrizzleTable<T>;
 export function toDrizzle<V extends AnyMysqlView>(view: V): ToDrizzleView<V>;
 export function toDrizzle(handle: MySqlSchema): dzMy.MySqlSchema;
-// An INDEX declared outside any table's extraConfig. drizzle's query side takes
-// its own IndexBuilder (dzMy.IndexBuilder) for a hint, and the table's replay
-// takes the recorder, so a schema that does both declares the index once and
-// materializes it here for the query half.
+// An INDEX declared outside any table's extraConfig: drizzle's query side wants its own
+// IndexBuilder for a hint, so a schema that does both declares the index once and materializes it here.
 export function toDrizzle(entry: RtMyIndexEntry): dzMy.IndexBuilder;
 export function toDrizzle<T extends AnyMysqlTable>(options?: TableFromTypeOptions<T>, id?: InjectRunTypeId<T>): ToDrizzleTable<T>;
 export function toDrizzle(value?: object, id?: unknown): unknown {
   if (value !== undefined) {
     const attached = (value as Record<symbol, unknown>)[rtValueKey];
     if (attached instanceof RtValueRecorder) return attached.toDrizzleValue(context);
-    // A standalone ENTRY — an index or a constraint declared outside any
-    // table's extraConfig. drizzle's query side takes one directly
-    // (`.useIndex(idx)` wants its own IndexBuilder), so the entry has to be
-    // materializable on its own, exactly as a table is.
+    // A standalone ENTRY, declared outside any table's extraConfig: `.useIndex(idx)` wants its own
+    // IndexBuilder, so an entry has to be materializable on its own, exactly as a table is.
     if (value instanceof RtEntryRecorder) return value.toDrizzleEntry(context);
     if (isRtView(value)) return materializeRtView(value, context);
     if ((value as Record<symbol, unknown>)[rtTableKey] !== undefined) return materializeRtTable(value, context);

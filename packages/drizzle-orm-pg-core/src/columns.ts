@@ -5,23 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg column builders of @mionjs/drizzle-orm-pg-core: drizzle-identical
-// names and call params, slim recorder returns. Every builder records its call
-// (the recorder's init closure forwards the raw args to drizzle's builder of
-// the same name at materialization) and returns one of FOUR kind interfaces,
-// grouped by drizzle's own method sets:
+// The pg column builders of @mionjs/drizzle-orm-pg-core: drizzle-identical names and call params,
+// slim recorder returns. Each records its call and returns one of FOUR kind interfaces, grouped by
+// drizzle's own method sets:
 //   RtPgColumn      the common chain every pg builder has
 //   RtPgDateColumn  + defaultNow()            (date / time / timestamp)
 //   RtPgUuidColumn  + defaultRandom()         (uuid)
-//   RtPgIntColumn   + the identity modifiers  (smallint / integer / bigint)
-// Coverage is gated by manifests/pg.manifest.json (`pnpm miondevx core
-// drizzle-manifest --check`); the completeness spec diffs the chain methods
-// against drizzle's builder prototypes so a drizzle upgrade cannot silently
-// add a modifier we do not record.
-//
-// Each builder also exports its NAMED data type (Varchar, Integer, Timestamp,
-// ...), the pure-types vocabulary: a hand-written row using these names gets
-// exactly the types the builders infer, with zero table machinery.
+//   RtPgIntColumn   + the identity modifiers  (the int and serial families)
+// Coverage is gated by manifests/pg.manifest.json (`pnpm miondevx core drizzle-manifest --check`);
+// the completeness spec diffs the chain methods against drizzle's builder prototypes, so a drizzle
+// upgrade cannot silently add a modifier we do not record. Each builder also exports its NAMED data
+// type (Varchar, Integer, Timestamp, ...), the pure-types vocabulary: a hand-written row using those
+// names gets exactly the types the builders infer, with zero table machinery.
 
 import type {
   BigInt64,
@@ -310,8 +305,7 @@ export interface PgDateConfig<TMode extends 'date' | 'string' = 'date' | 'string
 }
 export type PgDateDataOf<TMode> = TMode extends 'date' ? RTDate : StringDate;
 export type PgDateData<C> = PgDateDataOf<C extends {mode: infer TMode} ? TMode : 'string'>;
-/** Column type twin of `date(name?, config?)` (`PgDate`: the global-Date dodge;
- *  the index also re-exports it as `Date`). */
+/** Column type twin of `date(name?, config?)`; named PgDate to dodge global Date, re-exported as `Date`. */
 export type PgDate<
   A extends string | (PgDateConfig & PgDateColMods) | undefined = undefined,
   C extends PgDateConfig & PgDateColMods = Record<never, never>,
@@ -687,10 +681,7 @@ export interface PgVarcharConfig<T extends readonly string[] = EnumTuple, L exte
   length?: L;
   enum?: T;
 }
-/** Shared data computation of varchar, the anti-drift funnel of BOTH roads: a
- *  narrow enum wins, else length caps the string, else plain Str. The builder
- *  overloads call it with their inferred params; the column type extracts the
- *  same params from its config literal (VarcharData). */
+/** The one varchar data computation BOTH roads go through: the builder overloads and VarcharData. */
 export type VarcharDataOf<T extends readonly string[], L> = string extends T[number]
   ? L extends number
     ? Str<{maxLength: L}>
@@ -744,9 +735,7 @@ export interface CustomTypeParams<T extends CustomTypeValues> {
   toDriver?(value: T['data']): unknown;
   fromDriver?(value: unknown): T['data'];
 }
-/** Drizzle's customType, recorded: the returned factory produces slim columns
- *  whose materializer builds the real custom column. The caller supplies the
- *  model type through T['data'] (formats included, if wanted). */
+/** Drizzle's customType, recorded: the caller supplies the model type through T['data'], formats included. */
 export function customType<T extends CustomTypeValues>(params: CustomTypeParams<T>) {
   const custom = new RtValueRecorder('customType', [params]);
   function factory(): RtPgColumn<T['data'], false, false, false>;
@@ -762,8 +751,7 @@ export function customType<T extends CustomTypeValues>(params: CustomTypeParams<
   return factory;
 }
 
-/** The record handed to a `pgTable` columns callback: every column builder,
- *  importable-free, mirroring drizzle's callback overload. */
+/** The record handed to a `pgTable` columns callback, mirroring drizzle's callback overload. */
 export const pgColumnHelpers = {
   bigint,
   bigserial,
