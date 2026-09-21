@@ -8,9 +8,8 @@
 import type {RTValidationError, DataOnly as RtDataOnly} from '@mionjs/run-types';
 import {SerializablePureFunction} from './pureFunctions.types.ts';
 
-// ########################################## Serializer strategies ##########################################
-// One strategy per direction (params: client encodes, server decodes; return: the reverse), each naming
-// a decoder per side (DECODE_FAMILY_BY_STRATEGY). A BUILD-TIME literal: types derive the marker families from it.
+// ########################################## Parser strategies ##########################################
+// One strategy per direction, naming the families PARSE_MODES compiles. A BUILD-TIME literal.
 
 /** RunTypes also offers `direct`; mion does not, it costs 3x the memory of `clone` and 2x the time for identical bytes.
  *  Written out rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route. */
@@ -29,8 +28,6 @@ export interface ResolvedParser {
   params: ParserStrategy;
   return: ReturnParserStrategy;
 }
-/** The direction names the machine that decodes that wire. */
-export type ParserDirection = keyof ResolvedParser;
 // A route response is always a JSON-safe value the adapter stringifies; `stringifyJson` covers the
 // REQUEST body and the client's own wire.
 
@@ -158,7 +155,6 @@ export type JsonEncodeFn = (value: any) => JSONValue;
 export type JsonDecodeFn = RestoreFromJsonFn;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
-export type HasUnknownKeysFn = (value: any) => boolean;
 /** Format transform function: rewrites the value in place and returns it (identity when noop) */
 export type FormatTransformFn = (value: any) => any;
 

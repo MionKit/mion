@@ -56,7 +56,7 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
     const errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
       ? undefined
       : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
-    // The route's parser strategy already picked the validator, so isType answers for undeclared keys too.
+    // No separate strict pass: whatever key check the route's parser strategy asked for is compiled into isType.
     if (errors?.length) {
       return new RpcError({
         type: 'validation-error',

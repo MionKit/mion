@@ -98,7 +98,7 @@ describe('parser strategies at the router level', () => {
     });
 
     // these two build their own router, so the path from factory literal to compiled functions is one test
-    it('a router-wide compact reaches a route that names no encoder', () => {
+    it('a router-wide compact reaches a route that names no parser', () => {
       const ownRouter = createMionRouter({parser: 'compact'});
       const noLiteral = ownRouter.route((ctx, p: Pet): Pet => p);
       ownRouter.initRoutes({noLiteral});
@@ -440,7 +440,7 @@ describe('parser strategies at the router level', () => {
 
   // A middleFn declaring no `parser` inherits the route's wire like any chain member. Its params and
   // its return value must BOTH survive the round trip; a member dropped from the body is silent data loss.
-  describe('a chain member with no encoder of its own', () => {
+  describe('a chain member with no parser of its own', () => {
     const stamp = compactMion.middleFn((ctx, tag?: string): {tag: string} | null => (tag ? {tag} : null));
     const compactRoute = compactMion.route((ctx, p: Pet): Pet => p);
 
