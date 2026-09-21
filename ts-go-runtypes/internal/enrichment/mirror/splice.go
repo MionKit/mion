@@ -44,13 +44,13 @@ func applySplices(raw []byte, ops []spliceOp) ([]byte, error) {
 
 	// Overlap guard: error on any overlapping pair (touching ranges are fine).
 	if lower, upper, overlap := findSpliceOverlap(sorted); overlap {
-		return nil, fmt.Errorf("gen --update: overlapping splice ops [%d,%d) and [%d,%d) — internal error (all ops: %s)",
+		return nil, fmt.Errorf("mion enrich --update: overlapping splice ops [%d,%d) and [%d,%d) — internal error (all ops: %s)",
 			lower.start, lower.end, upper.start, upper.end, describeSpliceOps(ops))
 	}
 	// Bounds sanity.
 	for _, op := range sorted {
 		if op.start < 0 || op.end > len(raw) || op.start > op.end {
-			return nil, fmt.Errorf("gen --update: splice op out of bounds [%d,%d) over %d bytes — internal error", op.start, op.end, len(raw))
+			return nil, fmt.Errorf("mion enrich --update: splice op out of bounds [%d,%d) over %d bytes — internal error", op.start, op.end, len(raw))
 		}
 	}
 

@@ -287,7 +287,7 @@ func TestFamilyClassifier_Attribution(t *testing.T) {
 // the file an enrichment mirror.
 func TestScanDirtyTags_StringLiteralsNeverFire(t *testing.T) {
 	catalogLike := "export const DIAG = {\n" +
-		"  FT021: {detail: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun gen --prune'},\n" +
+		"  FT021: {detail: 'example:\\n/* " + OrphanTag + " export const gone = {}; */\\nrun mion enrich --prune'},\n" +
 		"  FT022: {detail: \"a /* " + OrphanChildTag + " old: 1, */ example\"},\n" +
 		"  FT020: {detail: `fresh scaffold:\n" + MarkerCommentPrefix + "User#a1 */\n" + TodoLine + "`},\n" +
 		"};\n"
