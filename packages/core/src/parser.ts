@@ -7,8 +7,7 @@
 
 import type {ParserOption, ResolvedParser, ParserStrategy, ReturnParserStrategy} from './types/general.types.ts';
 
-// The `parser` option is a BUILD-TIME literal: at runtime the strategy is read back off the injected families
-// and checked against what was compiled (mionAdapter).
+// The `parser` option is a BUILD-TIME literal; mionAdapter checks it against the strategy the injected families name.
 
 /** Defaults to `clone` both ways: it never mutates the input and drops anything the type does not declare. */
 export const DEFAULT_PARSER = Object.freeze({params: 'clone', return: 'clone'} as const) satisfies ResolvedParser;

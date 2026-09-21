@@ -1,12 +1,8 @@
-// A union carrying a Record member switches the unknown-key families OFF for the whole union: the value
-// might match the record, where every key is declared, and no codec can tell which member it matched.
-// So the stripping decoders stop stripping and `hasUnknownKeys` answers false for every value.
-//
-// That breaks the two-step composition validate-then-pooled-key-check, which the router used to run.
-// Both halves say yes, so an undeclared key reaches the handler. The fused `{checkUnknowns: true}` validator
-// follows the branch that matched and is the only family that answers correctly here.
-//
-// One probe per shape, the same rows through each, so a family that changes its answer names itself.
+// A union carrying a Record member switches the unknown-key families OFF for the whole union: the value might match the
+// record, where every key is declared, and no codec can tell which member it matched, so the stripping decoders stop
+// stripping and `hasUnknownKeys` answers false. That breaks the two-step validate-then-pooled-key-check the router used
+// to run: both halves say yes and an undeclared key reaches the handler. One probe per shape, the same rows through
+// each, so a family that changes its answer names itself.
 
 import {describe, expect, it} from 'vitest';
 import {createHasUnknownKeysFn, createJsonDecoderFn, createJsonEncoderFn, createValidateFn} from '../../src/index.ts';

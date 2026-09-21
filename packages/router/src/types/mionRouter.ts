@@ -56,9 +56,8 @@ export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextData
 /** The CallContext every handler declared through `createMionRouter(opts)` receives: `ctx.shared` is typed from the options. */
 export type RouterCallContext<O extends RouterOptionsInput> = CallContext<ContextDataOf<O>>;
 
-// `RO` is the route's own options literal, defaulting to the no-parser shape so a route naming no
-// `parser` resolves its slots from `O`, the factory literal. That is the only place the two levels
-// meet: the slot types take both and fall back route, then router, then the built-in default.
+// `RO` is the route's own options literal, defaulting to the no-parser shape, so a route naming no `parser` takes its
+// slots from `O`, the factory literal; the slot types fall back route, then router, then the built-in default.
 
 /** The four injection slots of a route / middleFn, read from the handler's params and return. */
 type RouteSlots<O, H extends Handler, RO> = MarkerSlots<HandlerParams<H>, HandlerReturn<H>, RO, O>;

@@ -1,10 +1,8 @@
-// `{checkUnionUnknowns: true}`: the validator rejects a key the UNION MEMBER that matched leaves undeclared,
-// and does nothing anywhere else. Three probes per type, so a family that changes its answer names itself:
-// plain validate, this option, and `{checkUnknowns: true}` (which checks every object-ish node, not just unions).
-//
-// Group A pins the shapes the check runs on, Group B the shapes it must stay inert on (asserted against plain
-// validate's OWN answer, and for three of them against its emitted body byte for byte), Group C where the check
-// sits at depth, Group D why the key families cannot all agree.
+// `{checkUnionUnknowns: true}`: the validator rejects a key the UNION MEMBER that matched leaves undeclared, and does
+// nothing anywhere else. Three probes per type, so a family that changes its answer names itself: plain validate, this
+// option, and `{checkUnknowns: true}`. Group A pins the shapes the check runs on, B the shapes it must stay inert on
+// (against plain validate's own answer, and for three of them against its emitted body byte for byte), C depth, D why
+// the key families cannot all agree.
 
 import {describe, expect, it} from 'vitest';
 import {createHasUnknownKeysFn, createValidateFn, getRunTypeId} from '../../src/index.ts';
@@ -371,8 +369,7 @@ describe('the check stays inert below two key-bearing members', () => {
 
 // ---------------------------------------------------------------- Group B, the stronger form
 
-/** The emitted body of one family's entry for `typeId`, with its own 4-char family hash blanked out so two
- *  families' bodies can be compared character by character. */
+/** One family's emitted body for `typeId`, its 4-char family hash blanked out so two families can be compared byte for byte. */
 function bodyOf(fnKey: string, typeId: string): string {
   const hash = getFnHash(fnKey);
   const entry = (getRTFnCaches().rtFnsCache as Record<string, any>)[`${hash}_${typeId}`];
@@ -457,8 +454,7 @@ describe('where the check sits, and where it stops', () => {
   });
 
   it('C5 a plain object inside a member is not a union node', () => {
-    // The asymmetry that earns two options: checkUnionUnknowns answers "does the member that matched declare
-    // this key", so a key sitting on a nested PLAIN object is none of its business. checkUnknowns reaches it.
+    // checkUnionUnknowns asks only what the MATCHED member declares, so a key on a nested plain object is not its business.
     const probe: Probe = {
       plain: createValidateFn<NestedObjectOrNumbers>(),
       unionKeys: createValidateFn<NestedObjectOrNumbers>(undefined, {checkUnionUnknowns: true}),
@@ -475,11 +471,9 @@ describe('where the check sits, and where it stops', () => {
 // ---------------------------------------------------------------- Group D: why the families disagree
 
 describe('the key families cannot all agree, and this is the line', () => {
-  // hasUnknownKeys, unknownKeyErrors and every stripping codec answer "is any key declared by NO member": they
-  // never validate, so they pool every member's names into one allowlist, and a record member makes that
-  // allowlist everything. checkUnionUnknowns answers "is any key undeclared by the member that MATCHED".
-  // Making the first group answer the second question means validating inside every codec, which is the cost
-  // the split walk exists to avoid.
+  // hasUnknownKeys, unknownKeyErrors and every stripping codec answer "declared by NO member": they never validate, so
+  // they pool every member's names, and a record member makes that pool everything. Asking them the other question, "is
+  // any key undeclared by the member that MATCHED", means validating inside every codec.
   it('the pooled answer admits a sibling key that the matched branch rejects', () => {
     const validate = createValidateFn<Pet>();
     const hasUnknown = createHasUnknownKeysFn<Pet>();

@@ -8,14 +8,13 @@
 import type {DefaultParser, ParserOption, ResolvedParser} from '@mionjs/core';
 import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
-// The families a route compiles come from the `parser` literals: route first, then factory, then
-// the built-in default. A slot resolving to `never` is not compiled.
+// The families a route compiles come from the `parser` literals: route, then factory, then the default.
+// A slot resolving to `never` is not compiled.
 
 type Direction = keyof ResolvedParser;
 /** The `parser` literal an options type carries, `never` when it has none. */
 type ParserOf<Options> = Options extends {parser: infer E} ? E : never;
-/** Non-distributive and filtered through SingleLiteral, so a widened or union `parser` resolves to
- *  `never` and falls through instead of compiling every family its union names. */
+/** A widened or union `parser` resolves to `never` and falls through, instead of compiling every family it names. */
 type DirectionStrategy<E, D extends Direction> = [E] extends [string]
   ? SingleLiteral<E>
   : [E] extends [Record<D, infer S extends string>]
@@ -36,8 +35,7 @@ type EncodeFamily<S> = S extends 'clone'
     : S extends 'compact'
       ? 'compactForJson'
       : never;
-// The server decodes params from ANY caller, so it rebuilds the declared shape unless the strategy
-// exists to pass the object through. The `S extends string` arm leaves a `never` strategy uncompiled.
+// The server decodes params from ANY caller, so it rebuilds the declared shape unless the strategy passes it through.
 type ServerDecodeFamily<S> = S extends 'compact'
   ? 'compactFromJson'
   : S extends 'mutate' | 'mutateStrict'
@@ -61,12 +59,8 @@ type ParamsEncode<RouteOpts, RouterOpts = NoParserOptions> = EncodeFamily<Params
 type ParamsDecode<RouteOpts, RouterOpts = NoParserOptions> = ServerDecodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
 type ReturnEncode<RouteOpts, RouterOpts = NoParserOptions> = EncodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
 type ReturnDecode<RouteOpts, RouterOpts = NoParserOptions> = ClientDecodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-// Mirrored by VALIDATE_FAMILY_BY_STRATEGY in @mionjs/core: every strategy compiles exactly ONE validator on
-// the params side, and never a separate hasUnknownKeys call.
-//
-// `clone` and `compact` rebuild the declared shape while decoding, so a plain object's undeclared keys are
-// already gone; what they cannot clean is a union, whose members share one pooled key list. `mutate` rebuilds
-// nothing and is the permissive strategy. `mutateStrict` rebuilds nothing either and answers for every key.
+// Mirrored by VALIDATE_FAMILY_BY_STRATEGY in @mionjs/core: `clone` / `compact` decode into the declared shape, so only
+// a union can still hide a key; `mutate` is the permissive strategy; `mutateStrict` answers for every key itself.
 type ParamsValidate<S> = S extends 'mutateStrict' ? 'validateStrict' : S extends 'mutate' ? 'validate' : 'validateUnionKeys';
 type ParamsValidationErrors<S> = S extends 'mutateStrict'
   ? 'validationErrorsStrict'
@@ -85,12 +79,10 @@ type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUni
 type LiteralParser<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: SingleLiteral<E[K]>};
 
 // ####### The mion injection slots #######
-// The marker parameters every helper carries, written ONCE. types/mionRouter.ts indexes this tuple
-// (`MarkerSlots<...>[0]`) instead of respelling the markers: an alias wrapped AROUND a marker hides it
-// from the mion scanner, a tuple ELEMENT keeps it readable at the call site.
+// The marker parameters every helper carries, written ONCE. types/mionRouter.ts indexes this tuple instead of
+// respelling the markers: an alias wrapped AROUND a marker hides it from the mion scanner, a tuple ELEMENT does not.
 // Fn keys are MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so order does not matter.
-// 'formatTransform' is PARAMS-only, and so is a strategy-driven validator: a RETURN is written by the handler,
-// never by a caller, so every wire compiles the plain validate pair.
+// 'formatTransform' and the strategy-driven validator are PARAMS-only: a RETURN is written by the handler, never a caller.
 
 /** The four injection slots of a route / middleFn call, in declaration order. */
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoParserOptions> = [

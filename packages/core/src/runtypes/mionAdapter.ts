@@ -216,9 +216,8 @@ function strategyFromFamilies(
         `family, got encode [${encodeFamilies.join(', ')}] decode [${decodeFamilies.join(', ')}]). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  // `mutate` and `mutateStrict` share an encoder, so the encode family alone no longer names the strategy; the
-  // validate family breaks the tie. The direction guard is load-bearing: a RETURN always compiles the plain
-  // validate pair, so without it every mutate return wire would read as mutateStrict.
+  // `mutate` and `mutateStrict` share an encoder, so the validate family breaks the tie. The direction guard is
+  // load-bearing: a RETURN always compiles the plain pair, so without it every mutate return would read as mutateStrict.
   const base = STRATEGY_BY_ENCODE_FAMILY[encodeFamilies[0]];
   const strategy: ParserStrategy =
     base === 'mutate' && direction === 'params' && fns.validateStrict !== undefined ? 'mutateStrict' : base;

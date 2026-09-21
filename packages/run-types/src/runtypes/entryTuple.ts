@@ -383,8 +383,7 @@ const errorShaped = (fnID: string): FamilyMeta => ({fnID, args: errorArgs, defau
 // (Go: constants.JsonCompositeHostTags) EXCEPT the noop fn: a composite's identity is native JSON, so a noop
 // composite tuple must register JSON.stringify (encoder tags) / JSON.parse (decoder tags) — noopIdentity would
 // silently return the raw value / unparsed string.
-// Exported for the coverage test only: a tag missing here degrades its call site to the identity fallback, a
-// validator that answers true for every value, with no diagnostic. Nothing else may read it.
+// Exported for the coverage test only: a missing tag silently falls back to identity, so a validator answers true.
 export const familyMeta: Record<string, FamilyMeta> = {
   val: valueShaped('val', noopTrue),
   verr: errorShaped('verr'),

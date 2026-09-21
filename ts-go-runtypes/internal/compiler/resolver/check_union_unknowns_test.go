@@ -2,8 +2,7 @@ package resolver_test
 
 import "testing"
 
-// `{checkUnionUnknowns: true}` swaps the OPERATION the same way `{checkUnknowns: true}` does, so the call site's
-// marker still says 'val' / 'verr' and this swap is the only thing routing it.
+// `{checkUnionUnknowns: true}` swaps the OPERATION like `{checkUnknowns: true}`: the marker still says 'val' / 'verr'.
 
 func TestCheckUnionUnknowns_RoutesToTheUnionKeysFamily(t *testing.T) {
 	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
@@ -49,8 +48,8 @@ export const isSomething = createValidateFn<Something>(undefined, {checkUnknowns
 	}
 }
 
-// A NAMED union member is dependency-called into its own entry, so the family must render one for it too; a
-// variant would render only the root and the member would lose the check.
+// A NAMED union member is dep-called into its own entry, so the family must render one for it: a variant would render
+// only the root and the member would lose the check.
 func TestCheckUnionUnknowns_RendersEntriesForNamedMembers(t *testing.T) {
 	modules := scanEntryModules(t, `import {createValidateFn} from '@mionjs/run-types';
 interface Cat {kind: 'cat'; meows: boolean}
