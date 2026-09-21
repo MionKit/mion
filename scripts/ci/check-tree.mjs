@@ -101,11 +101,75 @@ export function compiledExecutables() {
     .map(({file}) => file);
 }
 
+// Miniflare names a modules worker `relative(modulesRoot, scriptPath)`, and modulesRoot defaults
+// to process.cwd(). A scriptPath outside the cwd therefore becomes a `..` name, which workerd
+// refuses with `can't use ".." to break out of starting directory`. CI runs vitest from the repo
+// root, where the name is clean, so an unpaired scriptPath stays green there and dies under
+// `pnpm --filter <pkg> test`. An explicit modulesRoot is what makes the worker boot from any dir.
+const MINIFLARE_CALL = 'new Miniflare(';
+const MINIFLARE_SCANNED = ['*.ts', '*.tsx', '*.mts', '*.cts', '*.js', '*.mjs', '*.cjs'];
+
+// Pure over (path, text) so the rule is testable without a checkout.
+export const miniflareCwdOffenders = (entries) =>
+  entries.filter(({text}) => miniflareArguments(text).some((args) => args.includes('scriptPath:') && !args.includes('modulesRoot:'))).map(({file}) => file);
+
+// The argument list of every `new Miniflare(...)`, paren-balanced and stripped of comments and
+// string bodies: the bench call sites pass a whole worker as a template literal full of its own
+// parens, and a commented-out or quoted `modulesRoot:` is not one that reaches miniflare.
+function miniflareArguments(text) {
+  const slices = [];
+  for (let found = text.indexOf(MINIFLARE_CALL); found !== -1; found = text.indexOf(MINIFLARE_CALL, found + 1)) {
+    let code = '';
+    let at = found + MINIFLARE_CALL.length;
+    let depth = 1;
+    while (at < text.length && depth > 0) {
+      const char = text[at];
+      if (char === '/' && (text[at + 1] === '/' || text[at + 1] === '*')) at = skipComment(text, at);
+      else if (char === '"' || char === "'" || char === '`') at = skipQuoted(text, at);
+      else {
+        if (char === '(') depth++;
+        else if (char === ')') depth--;
+        if (depth > 0) code += char;
+        at++;
+      }
+    }
+    slices.push(code);
+  }
+  return slices;
+}
+
+function skipComment(text, at) {
+  if (text[at + 1] === '/') {
+    const end = text.indexOf('\n', at);
+    return end === -1 ? text.length : end + 1;
+  }
+  const end = text.indexOf('*/', at + 2);
+  return end === -1 ? text.length : end + 2;
+}
+
+function skipQuoted(text, at) {
+  const quote = text[at];
+  for (let cursor = at + 1; cursor < text.length; cursor++) {
+    if (text[cursor] === '\\') cursor++;
+    else if (text[cursor] === quote) return cursor + 1;
+  }
+  return text.length;
+}
+
+export function miniflareCwdWorkers() {
+  // Source only: a markdown fence quoting the broken shape is documentation, not a call site.
+  const candidates = grepFiles(['-F', MINIFLARE_CALL, '--', ...MINIFLARE_SCANNED, ':!**/node_modules/**', ':!**/_deps/**']);
+  // A sweep that matched nothing would pass forever; the repo always has miniflare call sites.
+  if (candidates.length === 0) die(`no file constructs a Miniflare, so the ${MINIFLARE_CALL} needle stopped matching`);
+  return miniflareCwdOffenders(candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')})));
+}
+
 export const SWEEPS = [
   {name: 'no file outside docs/todos and docs/done names a spec', run: specReferences, fix: 'put the reasoning in the file that needs it; a spec gets deleted and the reference rots'},
   {name: 'no tracked file outside docs/ names the old repository', run: oldRepoReferences, fix: 'point it at MionKit/mion'},
   {name: 'no tracked source carries a literal NUL byte', run: nulBytes, fix: 'strip the NUL; git treats the file as binary and a rebase cannot merge it'},
   {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
+  {name: 'no miniflare worker depends on the directory it was started from', run: miniflareCwdWorkers, fix: "pass modulesRoot beside scriptPath; without it miniflare names the module relative to process.cwd() and workerd refuses a `..` name"},
 ];
 
 export function main() {

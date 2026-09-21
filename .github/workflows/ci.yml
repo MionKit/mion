@@ -113,7 +113,7 @@ jobs:
       # edits they exist to catch.
       # Plain node, not `pnpm run check:tree`: this job installs nothing, so pnpm is
       # not on PATH. The script only needs git and node, which is the point of it.
-      - name: Whole-tree sweeps (spec references, old repo URL, NUL bytes)
+      - name: Whole-tree sweeps (see SWEEPS in scripts/ci/check-tree.mjs)
         run: node scripts/ci/check-tree.mjs
 
   # ── go-fuzz: Go suite + the count-based JS fuzz lanes ─────────────────────
