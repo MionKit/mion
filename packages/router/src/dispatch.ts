@@ -120,7 +120,12 @@ async function runExecutionChain(
         }
       }
 
-      if (result === undefined) continue;
+      // `undefined` never reaches the body, but validateReturn still has to see it: a handler that
+      // declares a value and answers undefined is exactly the bug the flag is turned on for.
+      if (result === undefined) {
+        if (executable.options.validateReturn && executable.hasReturnData) validateReturnOrThrow(result, executable);
+        continue;
+      }
       // ONE read answers "is this a mion error" for every branch below: the brand is an own property on
       // every TypedError/RpcError/FatalError and on every copy that came off the wire.
       // `null` is a valid answer and reading a property off it throws, so it is excluded first
@@ -295,9 +300,9 @@ function validateReturnOrThrow(result: any, executable: RemoteMethod): void {
   let isValid: boolean;
   try {
     isValid = executable.returnJitFns.isType.fn(result);
-  } catch (e: any) {
-    if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
-    throw e;
+  } catch (err: any) {
+    if (isStackOverflow(err)) throw nestingTooDeep(executable, err);
+    throw err;
   }
   if (isValid) return;
   throw new FatalError({

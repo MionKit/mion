@@ -762,6 +762,42 @@ describe('validateReturn', () => {
     expect(response.hasErrors).toBeFalsy();
     expect(response.body.goodChecked).toEqual({name: 'rex'});
   });
+
+  // `undefined` leaves the chain before the body write, so the check has to happen on that path too.
+  it('catches a handler that declares a value and answers undefined', async () => {
+    const missing = mion.route((): Answer => undefined as unknown as Answer, {validateReturn: true});
+    mion.initRoutes({missing});
+    const request = jsonRequest('missing');
+    const response = await dispatchRoute('/missing', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.missing).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid return value in 'missing', validation failed.`,
+    });
+    expect(response.body.missing).toBeUndefined();
+  });
+
+  // The carve-out: a middleFn declaring no return value contributes nothing, which is not a wrong answer.
+  it('leaves a middleFn that declares no return value alone', async () => {
+    const silent = mion.middleFn((): void => undefined, {validateReturn: true});
+    mion.initRoutes({silent, goodChecked});
+    const request = jsonRequest('goodChecked');
+    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body[MION_ROUTES.thrownErrors]?.silent).toBeUndefined();
+  });
+
+  // A middleFn resolves the flag on its own and its failure takes its own slot, so it needs its own case.
+  it('checks a middleFn return, in the middleFn own slot', async () => {
+    const badMf = mion.middleFn((): Answer => ({name: 42}) as unknown as Answer, {validateReturn: true});
+    mion.initRoutes({badMf, goodChecked});
+    const request = jsonRequest('goodChecked');
+    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.badMf).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid return value in 'badMf', validation failed.`,
+    });
+    expect(response.body.badMf).toBeUndefined();
+  });
 });
 
 describe('sanitizeParams', () => {
