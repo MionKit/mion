@@ -101,11 +101,9 @@ export function compiledExecutables() {
     .map(({file}) => file);
 }
 
-// Miniflare names a modules worker `relative(modulesRoot, scriptPath)`, and modulesRoot defaults
-// to process.cwd(). A scriptPath outside the cwd therefore becomes a `..` name, which workerd
-// refuses with `can't use ".." to break out of starting directory`. CI runs vitest from the repo
-// root, where the name is clean, so an unpaired scriptPath stays green there and dies under
-// `pnpm --filter <pkg> test`. An explicit modulesRoot is what makes the worker boot from any dir.
+// Miniflare names a modules worker `relative(modulesRoot, scriptPath)`, and modulesRoot defaults to cwd.
+// So an unpaired scriptPath is green from the repo root and dies from a package dir, where workerd
+// answers `can't use ".." to break out of starting directory`.
 const MINIFLARE_CALL = 'new Miniflare(';
 const MINIFLARE_SCANNED = ['*.ts', '*.tsx', '*.mts', '*.cts', '*.js', '*.mjs', '*.cjs'];
 
@@ -113,9 +111,8 @@ const MINIFLARE_SCANNED = ['*.ts', '*.tsx', '*.mts', '*.cts', '*.js', '*.mjs', '
 export const miniflareCwdOffenders = (entries) =>
   entries.filter(({text}) => miniflareArguments(text).some((args) => args.includes('scriptPath:') && !args.includes('modulesRoot:'))).map(({file}) => file);
 
-// The argument list of every `new Miniflare(...)`, paren-balanced and stripped of comments and
-// string bodies: the bench call sites pass a whole worker as a template literal full of its own
-// parens, and a commented-out or quoted `modulesRoot:` is not one that reaches miniflare.
+// Paren-balanced and stripped of comments and strings: a bench worker is a template literal full of
+// its own parens, and a quoted or commented-out `modulesRoot:` never reaches miniflare.
 function miniflareArguments(text) {
   const slices = [];
   for (let found = text.indexOf(MINIFLARE_CALL); found !== -1; found = text.indexOf(MINIFLARE_CALL, found + 1)) {
