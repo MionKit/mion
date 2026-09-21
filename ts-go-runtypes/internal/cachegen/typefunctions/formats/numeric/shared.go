@@ -1,8 +1,6 @@
-// Package numeric holds the Go-side emitters for the numeric-format
-// family — numberFormat (FormatNumber<P> + the int8/16/32 defaults) and
-// bigintFormat (FormatBigInt<P> + the 64-bit defaults). Both live here
-// because they share the same param surface (min/max/lt/gt/multipleOf)
-// and the same error/literal helpers. Each format registers via init().
+// Package numeric holds the numberFormat (FormatNumber<P> + the int8/16/32 defaults) and bigintFormat
+// (FormatBigInt<P> + the 64-bit defaults) emitters, together because they share one param surface
+// (min/max/lt/gt/multipleOf) and the same error/literal helpers.
 package numeric
 
 import (
@@ -14,8 +12,6 @@ import (
 )
 
 // 64-bit range bounds for the bigint binary optimization, parsed once.
-// Mirror BIGINT64_MIN/MAX + BIGUINT64_MIN/MAX
-// (bigIntFormat.runtype.ts:27-31).
 var (
 	bigInt64Min  = mustBigInt("-9223372036854775808")
 	bigInt64Max  = mustBigInt("9223372036854775807")
@@ -28,11 +24,9 @@ func mustBigInt(decimal string) *big.Int {
 	return value
 }
 
-// bigIntRawString returns a bigint param's raw decimal digits (trailing
-// `n` stripped), unwrapping the `{val, …}` meta object. Bigint params
-// arrive as strings via tsgo's TypeToString — typically with a trailing
-// `n` (e.g. "9223372036854775807n"); the strip is defensive so both
-// "123n" and "123" work. Full precision is preserved (never via float64).
+// bigIntRawString returns a bigint param's raw decimal digits, unwrapping the `{val, …}` meta object.
+// A param arrives as a string from tsgo's TypeToString, usually with a trailing `n`; the strip is defensive so
+// both "123n" and "123" work. Full precision is preserved, never through float64.
 func bigIntRawString(params map[string]any, key string) (string, bool) {
 	raw, ok := params[key]
 	if !ok {
@@ -40,8 +34,7 @@ func bigIntRawString(params map[string]any, key string) (string, bool) {
 	}
 	switch typed := formats.ParamVal(raw).(type) {
 	case string:
-		// The digits are emitted unquoted as a bigint literal, so anything
-		// but `-?[0-9]+` is refused here (the emitters report FMT002).
+		// The digits are emitted unquoted as a bigint literal, so anything but `-?[0-9]+` is refused (FMT002).
 		digits := strings.TrimSuffix(typed, "n")
 		if !isDecimalInteger(digits) {
 			return "", false
@@ -54,9 +47,7 @@ func bigIntRawString(params map[string]any, key string) (string, bool) {
 	return "", false
 }
 
-// readBigIntParam parses a bigint param into a *big.Int — used ONLY for
-// the 64-bit range decision (bigIntType). Returns (nil, false) when
-// absent or unparseable.
+// readBigIntParam parses a bigint param into a *big.Int, used ONLY for the 64-bit range decision (bigIntType).
 func readBigIntParam(params map[string]any, key string) (*big.Int, bool) {
 	rawString, ok := bigIntRawString(params, key)
 	if !ok {
@@ -69,9 +60,7 @@ func readBigIntParam(params map[string]any, key string) (*big.Int, bool) {
 	return value, true
 }
 
-// bigIntLiteral renders a bigint param as a JS bigint literal (raw
-// decimal + `n`) for emitted source — validate comparisons and error `val`.
-// Keeps full precision; never round-trips through float64.
+// bigIntLiteral renders a bigint param as a JS bigint literal for the emitted source, at full precision.
 func bigIntLiteral(params map[string]any, key string) (string, bool) {
 	rawString, ok := bigIntRawString(params, key)
 	if !ok {
@@ -80,8 +69,7 @@ func bigIntLiteral(params map[string]any, key string) (string, bool) {
 	return rawString + "n", true
 }
 
-// isDecimalInteger reports whether text is `-?[0-9]+` (mirrors
-// typefunctions.IsDecimalInteger; this package sits below it).
+// isDecimalInteger mirrors typefunctions.IsDecimalInteger, copied because this package sits below it.
 func isDecimalInteger(text string) bool {
 	if text == "" || text == "-" {
 		return false
@@ -97,8 +85,7 @@ func isDecimalInteger(text string) bool {
 	return true
 }
 
-// malformedBigIntParams lists the bigint params present on the annotation
-// whose value is not a decimal integer, for the FMT002 diagnostic.
+// malformedBigIntParams lists the present bigint params whose value is not a decimal integer, for FMT002.
 func malformedBigIntParams(params map[string]any) []string {
 	var bad []string
 	for _, key := range []string{"max", "min", "lt", "gt", "multipleOf"} {

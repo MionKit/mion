@@ -9,10 +9,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 )
 
-// formatErrWithType is FormatErrCall for a string format plus an OPTIONAL
-// `errorType`: errorTypeExpr is a JS expression naming the failure mode, or ""
-// to leave the field off. The composite formats (domain / email) use it to say
-// WHICH PART of the value a sub-constraint error belongs to.
+// formatErrWithType is FormatErrCall plus an OPTIONAL `errorType`, "" leaving the field off.
+// The composite formats (domain / email) use it to say WHICH PART of the value a sub-constraint error belongs to.
 func formatErrWithType(pathExpr, errorsArr, fmtName, paramName, paramValLiteral, errorTypeExpr string) string {
 	extra := ""
 	if errorTypeExpr != "" {
@@ -21,12 +19,9 @@ func formatErrWithType(pathExpr, errorsArr, fmtName, paramName, paramValLiteral,
 	return formats.FormatErrCallWith(pathExpr, errorsArr, "string", fmtName, paramName, paramValLiteral, extra)
 }
 
-// regexpEscape mirrors the utils.ts regexpEscape exactly —
-// `val.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')` — escaping the precise
-// set the char-class / value-set regex sources need so a literal char
-// (`.`, `-`, `|`, …) matches verbatim instead of acting as a metachar.
-// NOT regexp.QuoteMeta: that escapes a different set and would diverge
-// from both the reference emitted regex and the JS runtime engine.
+// regexpEscape escapes the precise set the char-class / value-set regex sources need, so a literal char matches
+// verbatim instead of acting as a metachar.
+// NOT regexp.QuoteMeta: it escapes a different set and would diverge from the JS runtime engine.
 func regexpEscape(val string) string {
 	var builder strings.Builder
 	builder.Grow(len(val))
@@ -40,10 +35,8 @@ func regexpEscape(val string) string {
 	return builder.String()
 }
 
-// defaultFormatMessages is the getDefaultMessage table
-// (ref: stringFormat.runtype.ts:15-21): the error `val` used for a complex
-// (pattern / char-class / value-set) param when it carries no custom
-// errorMessage.
+// defaultFormatMessages is the error `val` for a complex (pattern / char-class / value-set) param that carries
+// no custom errorMessage.
 var defaultFormatMessages = map[string]string{
 	"allowedChars":     "Invalid characters",
 	"disallowedChars":  "Invalid characters",
@@ -52,14 +45,9 @@ var defaultFormatMessages = map[string]string{
 	"pattern":          "Invalid pattern",
 }
 
-// messageLiteral resolves the error `val` for a complex param as a
-// quoted JS string literal: the param's custom message when set, else the
-// per-param default. Every format param is part of the structural key now
-// (mockSamples/message included — see typeid/formats.go), so a custom
-// message always yields a distinct cache entry — never a collision. Most
-// params carry it under `errorMessage`; a FormatPattern carries it under
-// `message` (registerFormatPattern's documented "surfaced in errors" field,
-// previously unreachable because it was key-excluded).
+// messageLiteral resolves the error `val` for a complex param: its custom message when set, else the default.
+// Every format param is part of the structural key (typeid/formats.go), so a custom message always yields its
+// own cache entry. Most params carry it under `errorMessage`, a FormatPattern under `message`.
 func messageLiteral(params map[string]any, name string) string {
 	messageKey := "errorMessage"
 	if name == "pattern" {
@@ -73,11 +61,8 @@ func messageLiteral(params map[string]any, name string) string {
 	return jsquote.Double(defaultFormatMessages[name])
 }
 
-// jsParamsLiteral renders a params map as a deterministic JS object
-// literal (keys sorted for stable output). Used by emitters that pass
-// the whole params object to a pure fn at the call site (ip, …).
-// Supported value shapes mirror what the typeid scanner extracts:
-// string, bool, float64 (numbers), nested maps, and []any arrays.
+// jsParamsLiteral renders a params map as a JS object literal, keys sorted so the output is stable.
+// The supported value shapes mirror what the typeid scanner extracts: string, bool, float64, map and []any.
 func jsParamsLiteral(params map[string]any) string {
 	if len(params) == 0 {
 		return "{}"
@@ -91,9 +76,7 @@ func jsParamsLiteral(params map[string]any) string {
 	builder.WriteByte('{')
 	written := 0
 	for _, key := range keys {
-		// The `transform` block is the formatTransform family's business alone:
-		// a pure validator fn never reads it, so shipping it would only add dead
-		// bytes to every `isIPV4(v, {...})` call.
+		// A pure validator fn never reads the `transform` block, so shipping it would only add dead bytes.
 		if key == formats.TransformParamsKey {
 			continue
 		}

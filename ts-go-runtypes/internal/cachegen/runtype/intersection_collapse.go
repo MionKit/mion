@@ -9,19 +9,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// collapseIntersection projects a TS intersection type into a single
-// non-intersection RunType, following the rules in
-// /root/.claude/plans/intersection-zesty-spindle.md.
-//
-// The TypeScript checker eagerly collapses many intersections before we see
-// them (`string & number` → never; `string & "x"` → "x"; same-shape object
-// merges) so the cases reaching this function are typically:
-//
-//   - pure object×object (delegate to projectObjectLiteral — the checker
-//     already merges property lists);
-//   - primitive×brand object (`string & {__brand: "X"}`) — keep primitive,
-//     attach the object literals as decorators;
-//   - more exotic combinations the checker couldn't reduce.
+// collapseIntersection projects a TS intersection into a single non-intersection RunType. The checker eagerly
+// collapses many intersections first (`string & number` → never, `string & "x"` → "x", same-shape object
+// merges), so what reaches here is typically pure object×object (delegated, the checker already merged the
+// property lists), primitive×brand object (`string & {__brand: "X"}`: keep the primitive, attach the object
+// literals as decorators), or a combination the checker could not reduce.
 func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.RunType) {
 	members := tsType.AsUnionOrIntersectionType().Types()
 
@@ -30,8 +22,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		literalMember   *checker.Type
 		objectMembers   []*checker.Type
 		hasNever        bool
-		// hasIncompatiblePrimitives surfaces `string & number`-style cases
-		// that survived past the checker's own collapse.
+		// hasIncompatiblePrimitives surfaces `string & number`-style cases that survived the checker's collapse.
 		hasIncompatiblePrimitives bool
 	)
 
@@ -48,9 +39,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 				literalMember = member
 				continue
 			}
-			// Two literal members — incompatible if the new one differs from
-			// the kept one. Same literal repeated would already have been
-			// deduped by the checker.
+			// Two literal members are incompatible unless equal, and a repeat was already deduped by the checker.
 			if !sameLiteral(literalMember, member, cache.typeChecker) {
 				hasIncompatiblePrimitives = true
 			}
@@ -59,15 +48,13 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 				primitiveMember = member
 				continue
 			}
-			// Two different primitive base members — `string & number`.
+			// Two different primitive bases: `string & number`.
 			if !samePrimitiveBase(primitiveMember, member) {
 				hasIncompatiblePrimitives = true
 			}
 		case memberFlags&checker.TypeFlagsObject != 0,
-			// The bare `object` keyword (TypeFlagsNonPrimitive) — a real base
-			// in `object & {sentinel}` intersections. Without this case the
-			// member is silently DROPPED and the collapse degrades the base to
-			// unknown, deleting the kind check from the generated validator.
+			// The bare `object` keyword is a real base in `object & {sentinel}`: without this case the member is
+			// silently DROPPED, the base degrades to unknown and the generated validator loses its kind check.
 			memberFlags&checker.TypeFlagsNonPrimitive != 0:
 			objectMembers = append(objectMembers, member)
 		}
@@ -78,24 +65,20 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		return
 	}
 
-	// Primitive narrowing: `string & "x"` should already be reduced by the
-	// checker, but if both kinds survive we keep the literal — the literal
-	// only survives the loop above when it's compatible with the primitive.
+	// Primitive narrowing: `string & "x"` is normally reduced by the checker, but if both survive the literal
+	// wins, having reached here only when compatible with the primitive.
 	if literalMember != nil && primitiveMember != nil {
 		if !literalExtendsPrimitive(literalMember, primitiveMember) {
 			node.Kind = reflection.KindNever
 			return
 		}
-		// Drop the primitive — the literal is the narrowed form.
+		// The literal is the narrowed form, so the primitive goes.
 		primitiveMember = nil
 	}
 
-	// Primitive (or literal) × object literals: brand case. Keep the
-	// primitive, attach each object literal as a decorator — unless the
-	// object literal is recognised as a TypeFormat brand, in which case
-	// it is lifted onto node.FormatAnnotation and skipped from the
-	// TypeMeta array. Recognition is structural (presence of the two
-	// sentinel properties); see typeid.FormatAnnotationFromType.
+	// Primitive (or literal) × object literals, the brand case: keep the primitive and attach each object
+	// literal as a decorator, unless it is recognised as a TypeFormat brand, which is lifted onto
+	// node.FormatAnnotation instead of TypeMeta. Recognition is structural, see typeid.FormatAnnotationFromType.
 	primary := primitiveMember
 	if literalMember != nil {
 		primary = literalMember
@@ -108,19 +91,15 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 				annotations = append(annotations, annotation)
 				continue
 			}
-			// Pure `{__rtFormatBrand}` nominal-brand member — TS-only, no runtime
-			// footprint; skip it so it doesn't decorate the node (keeping the wire
-			// output + id identical to the unbranded twin). See IsFormatBrandMember.
+			// A pure `{__rtFormatBrand}` nominal-brand member is TS-only: skipping it keeps the wire output and
+			// the id identical to the unbranded twin. See IsFormatBrandMember.
 			if typeid.IsFormatBrandMember(cache.typeChecker, objectMember) {
 				continue
 			}
 			node.TypeMeta = append(node.TypeMeta, cache.Serialize(objectMember))
 		}
-		// Same-family annotations MERGE (sibling conjunction: a `$ref` to a
-		// branded base ∧ a local constraint keyword). Cross-family stacks and
-		// param contradictions FAIL THE BUILD here — the historical last-wins
-		// silently dropped a declared constraint, which is the one thing the
-		// pipeline promises never to do.
+		// Same-family annotations MERGE (a `$ref` to a branded base ∧ a local constraint keyword). Cross-family
+		// stacks and param contradictions FAIL THE BUILD here: last-wins silently dropped a declared constraint.
 		if merged, ok := typeid.MergeFormatAnnotations(annotations); ok {
 			node.FormatAnnotation = merged
 		} else {
@@ -134,26 +113,18 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		return
 	}
 
-	// Primitive alone (every object member ended up being any/unknown).
+	// Primitive alone: every object member turned out to be any/unknown.
 	if primary != nil {
 		cache.projectPrimitiveInto(primary, node)
 		return
 	}
 
-	// Builtin-class × brand: `FormatDate<P>` lowers to `Date & {brand}`,
-	// which the checker keeps as a real intersection of two object members
-	// (the Date interface + the sentinel-bearing brand object). Neither is
-	// a primitive, so without this branch it would fall through to the
-	// object×object merge below and lose BOTH the Date class identity
-	// (SubKindDate, classType wiring) AND the format brand. Detect a
-	// recognised builtin-class member alongside a brand member, project the
-	// class, and lift the annotation — the same shape a bare `Date` node
-	// gets, plus the FormatAnnotation a string format gets.
+	// Builtin-class × brand: `FormatDate<P>` lowers to `Date & {brand}`, two object members and no primitive,
+	// so without this branch the object×object merge below would lose BOTH the Date class identity
+	// (SubKindDate, classType wiring) AND the format brand.
 	if classMember, annotation, containsSpecs := splitBuiltinClassBrand(cache.typeChecker, objectMembers); classMember != nil && (annotation != nil || len(containsSpecs) > 0) {
-		// Reuse the standalone-Date class projector so SubKind / ClassRef /
-		// classType wiring stay identical, then lift the brand on top. A
-		// `contains` slot on a Set base (FormattedSet) rides the class node
-		// exactly as it rides an array node below.
+		// The standalone class projector keeps SubKind / ClassRef / classType wiring identical, the brand
+		// lifting on top; a `contains` slot on a Set base rides the class node as it rides an array node below.
 		cache.projectClass(classMember, node)
 		node.FormatAnnotation = annotation
 		for _, spec := range containsSpecs {
@@ -162,27 +133,20 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		return
 	}
 
-	// Object × object — surface the merged shape as an objectLiteral.
-	// We DON'T route through projectObjectType because its
-	// IsArrayLikeType / Promise / class branches call GetTypeArguments
-	// unconditionally, which tsgo crashes on for intersection types.
-	// projectMembersInto only calls GetPropertiesOfType + GetIndexInfos
-	// + GetSignaturesOfType, all of which are safe on intersections —
-	// the TS checker has already merged property sets across members.
+	// Object × object surfaces the merged shape as an objectLiteral. NOT through projectObjectType: its
+	// IsArrayLikeType / Promise / class branches call GetTypeArguments unconditionally, which tsgo crashes on
+	// for intersections. projectMembersInto sticks to GetPropertiesOfType / GetIndexInfos /
+	// GetSignaturesOfType, all safe on an intersection whose property sets the checker already merged.
 	if len(objectMembers) > 0 {
-		// Lift structural format brands and sentinel slots first
-		// (`unknown[] & {__rtFormatName?: …}`):
-		// sentinel members become check entries / the FormatAnnotation,
-		// never merged properties (projectMembersInto skips the props by
-		// name as well).
+		// Sentinel members become check entries or the FormatAnnotation, never merged properties
+		// (projectMembersInto skips those props by name as well).
 		var restMembers []*checker.Type
 		var annotations []*reflection.FormatAnnotation
 		var tupleLabels []string
 		var haveTupleLabels bool
 		for _, objectMember := range objectMembers {
-			// Labeled-tuple sentinel (`[A, B] & {__rtLabels?: ['x', 'y']}`):
-			// lift the labels and write them onto the projected tuple members
-			// below — never a property. Twin of the typeid-side label fold.
+			// Labeled-tuple sentinel (`[A, B] & {__rtLabels?: ['x', 'y']}`): the labels are written onto the
+			// projected tuple members below, never as a property. Twin of the typeid-side label fold.
 			if labels, isLabels := typeid.TupleLabelsFromMember(cache.typeChecker, objectMember); isLabels && !haveTupleLabels {
 				tupleLabels, haveTupleLabels = labels, true
 				continue
@@ -201,11 +165,8 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 				}
 				continue
 			}
-			// APPEND, never assign: allOf-stacked propertyNames
-			// arrive as one sentinel member each, and the id fold appends them
-			// all (`pn{…}`, sorted). A bare assignment here enforced
-			// only the LAST lifted child while the id folded every arm —
-			// id ≠ behavior, the one thing the pipeline promises never to do.
+			// APPEND, never assign: allOf-stacked propertyNames arrive one sentinel member each and the id fold
+			// appends them all, so an assignment would enforce only the LAST while the id folded every arm.
 			if childType := typeid.PropNamesChildFromMember(cache.typeChecker, objectMember); childType != nil {
 				node.PropNames = append(node.PropNames, cache.Serialize(childType))
 				continue
@@ -224,8 +185,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		if restCount == 1 {
 			soleRest = restMembers[0]
 		}
-		// Same-family merge + loud cross-family failure as the primitive
-		// branch above — a structural brand must never silently drop.
+		// Same-family merge + loud cross-family failure as in the primitive branch: a brand must never drop.
 		if merged, ok := typeid.MergeFormatAnnotations(annotations); ok {
 			node.FormatAnnotation = merged
 		} else {
@@ -237,37 +197,28 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 				") — merging across format families is not supported yet; spell the constraints in one brand")
 		}
 		if restCount == 0 {
-			// Every member was a sentinel — the base is `unknown` with the
-			// check(s) attached.
+			// Every member was a sentinel, so the base is `unknown` with the checks attached.
 			node.Kind = reflection.KindUnknown
 			return
 		}
 		if restCount == 1 && haveTupleLabels && checker.IsTupleType(soleRest) &&
 			len(tupleLabels) == len(cache.typeChecker.GetTypeArguments(soleRest)) {
-			// Tuple base ∧ labels sentinel — project the tuple with the lifted
-			// labels as the member names, exactly what the type-first labeled
-			// tuple projects (the shared structural id demands byte-identical
-			// nodes). A label list that does not cover every element is a
-			// hand-rolled sentinel, ignored on both sides — it falls to the
-			// single-base branch below, which is why `haveTupleLabels` is in
-			// that guard: without it a labels-ONLY carrier (no other sentinel to
-			// hold the guard open) fell through to the merged-property path and
-			// surfaced the tuple's Array interface as an objectLiteral, while
-			// the id twin was already hashing the plain tuple.
+			// Tuple base ∧ labels sentinel: project the tuple with the lifted labels as member names, exactly
+			// what the type-first labeled tuple projects, the shared structural id demanding byte-identical
+			// nodes. A label list not covering every element is a hand-rolled sentinel, ignored on both sides,
+			// and falls to the single-base branch below. `haveTupleLabels` sits in that guard because without
+			// it a labels-ONLY carrier took the merged-property path and surfaced the tuple's Array interface
+			// as an objectLiteral, while the id twin hashed the plain tuple.
 			cache.projectTuple(soleRest, node, tupleLabels)
 			return
 		}
 		if restCount == 1 &&
 			(haveTupleLabels || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
 				len(node.PatternProps) > 0 || len(node.PropNames) > 0) {
-			// Single base ∧ sentinel(s) — `unknown[] & {sentinel}`,
-			// `Record<string, unknown> & {…}`: project the BASE as itself
-			// (array / record / class / tuple), negations attached. Routing
-			// it through the merged-property path would surface the array's
-			// interface members as an objectLiteral. The bare `object`
-			// keyword is not a TypeFlagsObject type — project it directly
-			// (projectObjectType would misroute it).
-			//
+			// Single base ∧ sentinel(s) (`unknown[] & {sentinel}`, `Record<string, unknown> & {…}`): project the
+			// BASE as itself, negations attached, since the merged-property path would surface the array's
+			// interface members as an objectLiteral. The bare `object` keyword is not a TypeFlagsObject type,
+			// so it is projected directly; projectObjectType would misroute it.
 			if soleRest.Flags()&checker.TypeFlagsNonPrimitive != 0 {
 				node.Kind = reflection.KindObject
 				return
@@ -275,12 +226,9 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			cache.projectObjectType(soleRest, node)
 			return
 		}
-		// Tuple ∩ tuple — merge slot-wise (typeid/tuplemerge.go) into ONE
-		// tuple node whose shape (and id, via the typeid twin) equals the
-		// equivalent hand-written tuple; a genuine conflict projects never
-		// (over-rejects, never a silent noop — the historical behavior
-		// surfaced two tuples as a junk objectLiteral whose validator
-		// passed everything).
+		// Tuple ∩ tuple merges slot-wise (typeid/tuplemerge.go) into ONE tuple whose shape, and id via the
+		// typeid twin, equals the hand-written equivalent. A genuine conflict projects never: over-rejecting,
+		// never the junk objectLiteral whose validator passed everything.
 		if restCount >= 2 && typeid.AllTupleOrArrayTypes(cache.typeChecker, restMembers) {
 			picks, ok := typeid.MergeTupleIntersection(cache.typeChecker, restMembers, func(a, b *checker.Type) bool {
 				return cache.Serialize(a).ID == cache.Serialize(b).ID
@@ -299,25 +247,22 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		return
 	}
 
-	// Fully reduced to any/unknown — pick unknown as a safe fallback.
+	// Fully reduced to any/unknown: unknown is the safe fallback.
 	node.Kind = reflection.KindUnknown
 }
 
-// projectMergedTuple builds the tuple node for a slot-wise tuple ∩ tuple
-// merge — the member construction mirrors serialize.go:projectTuple (same
-// TupleMember wrappers, same unique member-id discipline) so the merged
-// node is indistinguishable from the equivalent hand-written tuple's.
+// projectMergedTuple builds the tuple node for a slot-wise tuple ∩ tuple merge, mirroring projectTuple's
+// TupleMember wrappers and unique member-id discipline so the result is indistinguishable from the
+// equivalent hand-written tuple's node.
 func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *reflection.RunType) {
 	node.Kind = reflection.KindTuple
 	for i, pick := range picks {
 		position := i
-		// Optional slots resolve through serializeOptionalChild, exactly as
-		// projectTuple does — picks carry RAW slot types by contract.
+		// Optional slots resolve through serializeOptionalChild as in projectTuple: picks carry RAW slot types.
 		var elementChild *reflection.RunType
 		switch {
 		case pick.Fold != nil:
-			// A folded slot is already undefined-stripped, so it skips the
-			// optional-child resolution the raw picks need.
+			// A folded slot is already undefined-stripped, so it skips the optional-child resolution.
 			elementChild = cache.serializeFoldedSlot(pick.Fold)
 		case pick.Optional:
 			elementChild = cache.serializeOptionalChild(pick.Type)
@@ -344,14 +289,11 @@ func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *refl
 	}
 }
 
-// serializeFoldedSlot materializes a tuple slot several tuples constrained
-// differently: a plain type, a primitive base wearing the merged format
-// annotation, or a union of arms that each resolved on their own. The
-// structural key is the id side's twin (SlotFold.Structural), so the node
-// dedups against the equivalent hand-written spelling instead of minting a
-// parallel entry. Building a FRESH node is the point — Serialize returns an
-// INTERNED node and attaching the annotation to it would corrupt every other
-// holder of that id.
+// serializeFoldedSlot materializes a tuple slot several tuples constrained differently: a plain type, a
+// primitive base wearing the merged format annotation, or a union of arms that each resolved on their own.
+// The structural key is the id side's twin (SlotFold.Structural), so the node dedups against the equivalent
+// hand-written spelling. Building a FRESH node is the point: Serialize returns an INTERNED node, and attaching
+// the annotation to it would corrupt every other holder of that id.
 func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *reflection.RunType {
 	if len(fold.Arms) == 0 && fold.Annotation == nil {
 		return cache.Serialize(fold.Base)
@@ -365,8 +307,7 @@ func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *reflection.RunTy
 	node := &reflection.RunType{ID: id}
 	if len(fold.Arms) > 0 {
 		node.Kind = reflection.KindUnion
-		// Reserve the slot before projecting arms, exactly as
-		// serializeSyntheticUnion does, so an arm that cycles back sees the id.
+		// Reserve the slot before projecting arms, as serializeSyntheticUnion does, so a cycling arm sees the id.
 		cache.putNode(id, node)
 		for _, arm := range fold.Arms {
 			node.Children = append(node.Children, cache.serializeFoldedSlot(arm))
@@ -383,10 +324,8 @@ func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *reflection.RunTy
 	return reflection.NewRef(id)
 }
 
-// projectPrimitiveInto fills `node` with the kind+literal data for a
-// primitive or literal member. Mirrors the relevant arms of projectType's
-// switch, but writes into an already-allocated node so the caller can keep
-// the original id + add decorators on top.
+// projectPrimitiveInto fills `node` with a primitive or literal member's kind + literal, mirroring the matching
+// arms of projectType but writing into an already-allocated node, so the caller keeps the id and adds decorators.
 func (cache *Cache) projectPrimitiveInto(tsType *checker.Type, node *reflection.RunType) {
 	flags := tsType.Flags()
 	switch {
@@ -418,27 +357,21 @@ func (cache *Cache) projectPrimitiveInto(tsType *checker.Type, node *reflection.
 	}
 }
 
-// builtinClassNames are the lib.d.ts interfaces we treat as classes
-// (mirrors the switch in projectClass / projectObjectType). A member with
-// one of these symbol names is the "base" of a `Builtin & {brand}`
-// intersection — currently only Date carries a format family, but the set
-// matches the class projector so future builtin formats slot in.
+// builtinClassNames are the lib.d.ts interfaces treated as classes (mirrors the projectClass /
+// projectObjectType switch): a member named by one is the base of a `Builtin & {brand}` intersection.
+// The set matches the class projector so a future builtin format slots in.
 var builtinClassNames = map[string]bool{"Date": true, "Map": true, "Set": true, "RegExp": true}
 
-// containsSpec is one `__rtContains` sentinel member read off a builtin-class
-// intersection, before its child is serialized.
+// containsSpec is one `__rtContains` sentinel member read off a builtin-class intersection, before its child is serialized.
 type containsSpec struct {
 	child              *checker.Type
 	minCount, maxCount float64
 }
 
-// splitBuiltinClassBrand inspects the object members of an intersection
-// for the `Builtin & {brand}` shape: exactly one member is a recognised
-// builtin class (by symbol name), at most one carries a TypeFormat brand,
-// and any number carry a `__rtContains` sentinel (a FormattedSet's
-// `contains` slot). Returns the class member, the annotation (nil when the
-// class carries only contains slots) and the contains specs; a nil class
-// member sends the caller to the normal object merge.
+// splitBuiltinClassBrand inspects an intersection's object members for the `Builtin & {brand}` shape: exactly
+// one recognised builtin class (by symbol name), at most one TypeFormat brand, any number of `__rtContains`
+// sentinels. The annotation is nil when the class carries only contains slots, and a nil class member sends
+// the caller to the normal object merge.
 func splitBuiltinClassBrand(typeChecker *checker.Checker, objectMembers []*checker.Type) (*checker.Type, *reflection.FormatAnnotation, []containsSpec) {
 	var classMember *checker.Type
 	var annotation *reflection.FormatAnnotation
@@ -465,11 +398,9 @@ func splitBuiltinClassBrand(typeChecker *checker.Checker, objectMembers []*check
 	return classMember, annotation, containsSpecs
 }
 
-// isBuiltinClassMember reports whether member is a brandable builtin class —
-// a top-level Date/Map/Set/RegExp OR a namespace-qualified Temporal type
-// (FormatTemporalX<P> lowers to `Temporal.X & {brand}`). projectClass and the
-// id computer both already special-case these, so lifting the brand off them
-// produces the correct class node + FormatAnnotation.
+// isBuiltinClassMember reports whether member is a brandable builtin class: a top-level Date/Map/Set/RegExp or
+// a namespace-qualified Temporal type (`FormatTemporalX<P>` lowers to `Temporal.X & {brand}`), both of which
+// projectClass and the id computer already special-case.
 func isBuiltinClassMember(member *checker.Type) bool {
 	if _, ok := typeid.TemporalInfoForType(member); ok {
 		return true
@@ -496,8 +427,7 @@ func isPrimitiveBaseFlags(flags checker.TypeFlags) bool {
 		flags&checker.TypeFlagsESSymbol != 0
 }
 
-// samePrimitiveBase reports whether a and b are the same primitive base
-// (both string, both number, etc). Used to short-circuit `string & string`
+// samePrimitiveBase reports whether a and b are the same primitive base, so `string & string` short-circuits
 // without firing the incompatible-primitive path.
 func samePrimitiveBase(a, b *checker.Type) bool {
 	mask := checker.TypeFlagsString | checker.TypeFlagsNumber | checker.TypeFlagsBoolean |

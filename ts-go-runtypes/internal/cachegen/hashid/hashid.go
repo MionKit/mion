@@ -1,25 +1,13 @@
-// Package hashid produces the short, JavaScript-friendly ids the generated
-// modules are named and keyed by: a string of the requested length whose
-// first character is a letter (so an id is a valid JS identifier when used
-// as a binding name) and whose remaining characters are letters and digits.
-//
-// Every printed character carries fresh information. The input is folded
-// into a 128-bit state (two independent 64-bit lanes over the same bytes,
-// each passed through a standard 64-bit finalizer), and the characters are
-// the base-62 digits of that state, so a longer id is a stronger id up to
-// twenty characters: about 24 bits at 4 characters, 42 at 7, 48 at 8, 64
-// at 11. The earlier single 32-bit lane printed the same four billion
-// values however long the id was.
-//
-// Contracts the rest of the resolver relies on:
-//
-//   - determinism: the same input always prints the same id, at any length
-//   - prefix stability: QuickHash(x, n) is a prefix of QuickHash(x, m) for
-//     n < m, so ids at two lengths stay recognisable next to each other
-//   - fixed length through Dict: every id is exactly the requested length.
-//     Two distinct inputs landing on one hash is a Collision the caller is
-//     told about, never a silently longer id — with the two lanes above
-//     that is a genuinely rare event, so failing costs nothing in practice.
+// Package hashid produces the short, JavaScript-friendly ids the generated modules are named and
+// keyed by: the first character is a letter, so an id is a valid JS identifier as a binding name,
+// the rest are letters and digits. Every printed character carries fresh information, the input
+// being folded into a 128-bit state (two independent 64-bit lanes over the same bytes, each through
+// a standard 64-bit finalizer) whose base-62 digits are the characters, so a longer id is a
+// stronger id up to twenty characters: about 24 bits at 4 characters, 42 at 7, 48 at 8, 64 at 11.
+// Three contracts the rest of the resolver relies on: the same input always prints the same id, at
+// any length; QuickHash(x, n) is a prefix of QuickHash(x, m) for n < m, so ids at two lengths stay
+// recognisable next to each other; and every Dict id is exactly the requested length, two distinct
+// inputs landing on one hash being a Collision the caller is told about, never a silently longer id.
 package hashid
 
 import (
@@ -47,16 +35,12 @@ const (
 )
 
 // QuickHash computes a deterministic short alphanumeric string from input.
-// First character is from `alphaChars` (letters only) so the result is a
-// valid JS identifier prefix.
 func QuickHash(input string, length int) string {
 	return QuickHashSalted("", input, length)
 }
 
-// QuickHashSalted is QuickHash over the byte sequence salt+input without
-// materializing the concatenation: the lanes consume the salt bytes first,
-// so the result is byte-identical to QuickHash(salt+input). Lets
-// Dict.UniqueSalted avoid retaining a salted copy of every id.
+// QuickHashSalted is QuickHash over salt+input without materializing the concatenation, so
+// Dict.UniqueSalted need not retain a salted copy of every id.
 func QuickHashSalted(salt, input string, length int) string {
 	if length < 1 {
 		length = 1
@@ -82,9 +66,8 @@ func feed(laneA, laneB uint64, value byte) (uint64, uint64) {
 	return (laneA ^ uint64(value)) * laneAPrime, laneB*laneBPrime + uint64(value) + 1
 }
 
-// finalize is MurmurHash3's 64-bit finalizer: it spreads every input bit over
-// the whole word, so the base-62 digits taken from the low end are uniform
-// even for short inputs, where a bare rolling product stays small.
+// finalize is MurmurHash3's 64-bit finalizer, spreading every input bit over the whole word, so
+// the base-62 digits taken from the low end are uniform even for a short input.
 func finalize(word uint64) uint64 {
 	word ^= word >> 33
 	word *= 0xff51afd7ed558ccd
@@ -94,9 +77,8 @@ func finalize(word uint64) uint64 {
 	return word
 }
 
-// wordStream hands out the 64-bit words the characters are drawn from: the
-// two finalized lanes first (128 fresh bits, twenty characters), then words
-// derived from those for the rare id longer than that.
+// wordStream hands out the 64-bit words the characters are drawn from: the two finalized lanes
+// first (128 fresh bits, twenty characters), then words derived from those for a longer id.
 type wordStream struct {
 	words []uint64
 }
@@ -114,8 +96,8 @@ func (stream *wordStream) word(index int) uint64 {
 	return stream.words[index]
 }
 
-// charAt prints the character at `position`: the base-62 digits of each word
-// in order, except position 0, which is a letter so the id is an identifier.
+// charAt prints the base-62 digits of each word in order, except position 0, a letter so the id
+// is an identifier.
 func (stream *wordStream) charAt(position int) byte {
 	word := stream.word(position / digitsPerWord)
 	digit := position % digitsPerWord
@@ -133,9 +115,8 @@ func (stream *wordStream) charAt(position int) byte {
 	return hashChars[word%uint64(len(hashChars))]
 }
 
-// Collision reports that two distinct inputs land on the same hash at the
-// requested length. The caller turns it into a user-facing diagnostic, so it
-// carries both sides plus the length that was asked for.
+// Collision reports two distinct inputs landing on the same hash. The caller turns it into a
+// user-facing diagnostic, so it carries both sides plus the length that was asked for.
 type Collision struct {
 	// Hash is the short id both inputs want.
 	Hash string
@@ -151,14 +132,12 @@ func (collision *Collision) Error() string {
 		collision.Owner, collision.ID, collision.Hash, collision.Length)
 }
 
-// Dict is a stateful deduplicator that maps structural ids to short hash
-// ids of exactly the requested length. Two distinct inputs landing on one
-// hash is reported as a *Collision, never resolved by growing the id.
-// NOT safe for concurrent use.
+// Dict maps structural ids to short hash ids of exactly the requested length; two distinct inputs
+// landing on one hash is a *Collision, never resolved by growing the id. NOT safe for concurrent use.
 type Dict struct {
-	// entries: hash → original input id. Used to detect collisions.
+	// entries: hash → original input id, which is how a collision is detected.
 	entries map[string]string
-	// reverse: original input id → assigned hash. Used for idempotence.
+	// reverse: original input id → assigned hash, which is what makes a repeat call idempotent.
 	reverse map[string]string
 }
 
@@ -170,20 +149,16 @@ func New() *Dict {
 	}
 }
 
-// Unique returns a unique hash for `id`. Repeat calls with the same `id`
-// return the same hash. Two distinct ids that hash to the same string at
-// `length` make the second call fail with a *Collision.
+// Unique returns the hash for `id`, the same one on every call. Two distinct ids hashing to one
+// string at `length` make the second call fail with a *Collision.
 func (dict *Dict) Unique(id string, length int) (string, error) {
 	return dict.UniqueSalted("", id, length)
 }
 
-// UniqueSalted is Unique with the hash computed over salt+id while the
-// dictionary stores only the bare `id`. The salt MUST be constant for the
-// lifetime of one Dict (ours is the binary-version prefix) — entries from
-// different salts would otherwise collide on the same key space. Storing
-// the unsalted id halves the retained text per entry: the id string
-// shares its backing bytes with the caller's copy instead of pinning a
-// fresh salted concatenation.
+// UniqueSalted is Unique with the hash computed over salt+id while the dictionary stores the bare
+// `id`. The salt MUST be constant for the lifetime of one Dict (ours is the binary-version
+// prefix), or entries from different salts collide on the same key space. The unsalted id shares
+// its backing bytes with the caller's copy instead of pinning a fresh salted concatenation.
 func (dict *Dict) UniqueSalted(salt, id string, length int) (string, error) {
 	if existing, ok := dict.reverse[id]; ok {
 		return existing, nil
@@ -194,10 +169,8 @@ func (dict *Dict) UniqueSalted(salt, id string, length int) (string, error) {
 	hash := QuickHashSalted(salt, id, length)
 	owner, taken := dict.entries[hash]
 	if taken && owner != id {
-		// A DIFFERENT input already holds this hash. Growing the length here
-		// would hand the two inputs ids of different lengths with nobody told,
-		// so the caller hears about it instead and can raise the length for
-		// the whole run.
+		// Growing the length here would hand the two inputs ids of different lengths with
+		// nobody told, so the caller hears about it and can raise the length for the run.
 		return "", &Collision{Hash: hash, ID: id, Owner: owner, Length: length}
 	}
 	// `taken && owner == id` is an idempotent hit the reverse map somehow

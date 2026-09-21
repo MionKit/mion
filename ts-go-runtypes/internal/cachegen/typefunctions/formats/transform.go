@@ -6,22 +6,13 @@ import (
 	"strings"
 )
 
-// TransformParamsKey is the ONE params key every string-family format reads its
-// value rewrite from (`String<{transform: {trim: true}}>`,
-// `Transform<Email, {lowercase: true}>`). The rewrite is applied only by the
-// formatTransform family (createFormatTransformFn / mion's sanitizeParams),
-// never by validate / parse / encode / decode, so nothing else reads it.
+// TransformParamsKey is the ONE params key every string-family format reads its value rewrite from.
+// Only the formatTransform family (createFormatTransformFn / mion's sanitizeParams) applies it, never validate / parse / encode / decode.
 const TransformParamsKey = "transform"
 
-// stringTransformKeys lists the shared rewrites, in APPLICATION order. Every
-// string-family format accepts these; creditCard adds `stripSeparators`.
-//
-// The replacements run BEFORE trim on purpose: a rewrite is applied on the
-// client and again on the server (mion's sanitize lane), so it must be stable
-// under a second pass. Trimming first is not: removing a leading `-` afterwards
-// can expose a tab or a non-breaking space that only the NEXT pass would trim
-// (found by the transformIdempotence fuzz). Replacing first, then trimming,
-// leaves nothing for a second pass to change.
+// stringTransformKeys lists the shared rewrites in APPLICATION order; every string-family format accepts these, creditCard adds `stripSeparators`.
+// The replacements run BEFORE trim so a second pass changes nothing: a rewrite runs on the client and again on the server.
+// Trimming first is not stable: removing a leading `-` can expose a tab the NEXT pass would trim (found by the transformIdempotence fuzz).
 var stringTransformKeys = []string{"replace", "replaceAll", "trim", "lowercase", "uppercase", "capitalize"}
 
 // ReadTransformParams returns params["transform"] as an object, or nil when
@@ -31,18 +22,14 @@ func ReadTransformParams(params map[string]any) map[string]any {
 	return transform
 }
 
-// EmitStringTransform chains the shared rewrites declared under
-// params["transform"] onto vλl, in order: replace, replaceAll, trim, lowercase,
-// uppercase, capitalize (see stringTransformKeys for why trim comes after the
-// replacements). Returns "" (identity) when none is set. Every string-family
-// FormatTransformer goes through here; creditcard.go prepends its separator strip.
+// EmitStringTransform chains the params["transform"] rewrites onto vλl, "" when none is set (see stringTransformKeys for the order).
+// Every string-family FormatTransformer goes through here; creditcard.go prepends its separator strip.
 func EmitStringTransform(params map[string]any, vλl string) string {
 	return EmitStringTransformAfter(params, vλl, "")
 }
 
-// EmitStringTransformAfter is EmitStringTransform with a format-specific rewrite
-// `prefix` (a JS method chain such as `.replace(/[ -]/g,”)`) applied FIRST, so
-// the shared trim / case steps see its output. Returns "" when nothing applies.
+// EmitStringTransformAfter is EmitStringTransform with a format-specific `prefix` chain applied FIRST, so the shared
+// trim / case steps see its output.
 func EmitStringTransformAfter(params map[string]any, vλl, prefix string) string {
 	transform := ReadTransformParams(params)
 	if transform == nil {
@@ -73,10 +60,8 @@ func EmitStringTransformAfter(params map[string]any, vλl, prefix string) string
 	return expr
 }
 
-// readReplaceParam reads a replace / replaceAll entry ({searchValue,
-// replaceValue}) and returns both as quoted JS string literals. ok is false when
-// the key is absent or malformed, so the emit skips it and ValidateTransformParams
-// reports it.
+// readReplaceParam returns a replace / replaceAll entry's searchValue and replaceValue as quoted JS string literals.
+// On a malformed entry the emit skips it and ValidateTransformParams reports it.
 func readReplaceParam(transform map[string]any, key string) (search, replace string, ok bool) {
 	obj, isObj := transform[key].(map[string]any)
 	if !isObj {
@@ -90,13 +75,8 @@ func readReplaceParam(transform map[string]any, key string) (search, replace str
 	return strconv.Quote(searchValue), strconv.Quote(replaceValue), true
 }
 
-// ValidateTransformParams is the FMT002 shape check for params["transform"]:
-// it must be an object, every key must be a shared rewrite or one of extraKeys,
-// the flags must be booleans, and replace / replaceAll must carry string
-// searchValue AND replaceValue. formatLabel ("FormatEmail") prefixes each
-// message. nil when the key is absent or the object is valid. This is the only
-// guard against a typo inside the block: the TS-side exact-params check is
-// shallow, so `{transform: {trimm: true}}` reaches the build unflagged.
+// ValidateTransformParams is the FMT002 shape check for params["transform"]; formatLabel ("FormatEmail") prefixes each message.
+// The only guard against a typo inside the block: the TS-side exact-params check is shallow, so `{transform: {trimm: true}}` reaches the build unflagged.
 func ValidateTransformParams(params map[string]any, formatLabel string, extraKeys ...string) []string {
 	raw, present := params[TransformParamsKey]
 	if !present {

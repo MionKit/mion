@@ -11,22 +11,16 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/jsquote"
 )
 
-// extractDeps walks factoryFn's body for `<utlName>.<method>(<idArg>)` patterns
-// and collects the pure-fn ids they reach. The recognised methods are
-// discovered via the `CompTimeArgs<string>` brand on their first parameter (see
-// the brand annotations on rtUtils' pure-fn lookup methods in
-// packages/run-types/src/runtypes/rtUtils.ts).
+// extractDeps collects the pure-fn ids `<utlName>.<method>(<idArg>)` calls in factoryFn's body
+// reach. A recognised method is one whose first parameter carries the `CompTimeArgs<string>` brand
+// (the annotations on rtUtils' pure-fn lookup methods, packages/run-types/src/runtypes/rtUtils.ts).
 //
-// It returns three things beside the diagnostics:
+// Beside the diagnostics it returns the sorted, deduped deps; the lowerings, argument spans to
+// replace with a quoted id when the body is stripped, since an imported id means nothing in a
+// module carrying the body alone; and exempt, the lowerings plus branded names from unbuilt
+// packages, which the purity check must not report as captured.
 //
-//   - deps: the sorted, deduped ids, which drive the dependency graph.
-//   - lowerings: the argument spans to replace with a quoted id when the body
-//     is stripped. An id reached by IMPORT has no meaning in the emitted
-//     module, which carries the body alone, so the body must carry the literal.
-//   - exempt: lowerings plus branded names from unbuilt packages, which the purity check must not report as captured.
-//
-// When utlName is empty (factory has no first parameter), returns nothing — the
-// caller is free to register the entry without deps.
+// An empty utlName (the factory has no first parameter) returns nothing.
 func (ctx *resolveCtx) extractDeps(sourceFile *ast.SourceFile, factoryFn *ast.Node, utlName string) ([]string, []textRange, []textRange, []diagnostics.Diagnostic) {
 	if utlName == "" {
 		return nil, nil, nil, nil
@@ -62,11 +56,8 @@ func (ctx *resolveCtx) extractDeps(sourceFile *ast.SourceFile, factoryFn *ast.No
 	return deps, lowerings, exempt, diags
 }
 
-// handleCall checks one CallExpression. When the callee is a property access
-// (`<utlName>.<method>(...)`) AND the called method's first parameter is branded
-// `CompTimeArgs<string>` (the brand-based allowlist for rtUtils pure-fn lookup
-// methods), resolves the first argument to a pure-fn id and records it;
-// otherwise it's a no-op.
+// handleCall records the pure-fn id the first argument of one `<utlName>.<method>(...)` call
+// names, the brand on the method's first parameter being the allowlist.
 func (ctx *resolveCtx) handleCall(
 	sourceFile *ast.SourceFile,
 	call *ast.Node,
@@ -166,10 +157,8 @@ func (ctx *resolveCtx) unbuiltPackageOf(identifier *ast.Node) (string, bool) {
 	return packageName, unbuilt
 }
 
-// calleeFirstParamIsCompTimeArgs reports whether the resolved
-// signature of call has its first parameter branded
-// `CompTimeArgs<string>` (via marker.DetectAny). Brand-driven
-// discovery avoids a hard-coded rtUtils-method allowlist.
+// calleeFirstParamIsCompTimeArgs reports whether the call's resolved signature brands its first
+// parameter `CompTimeArgs<string>`, which is what avoids a hard-coded rtUtils-method allowlist.
 func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
 	signature := checker.Checker_getResolvedSignature(ctx.typeChecker, call, nil, 0)
 	if signature == nil {
@@ -187,11 +176,10 @@ func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
 	if kind, _, matched := marker.DetectAny(ctx.typeChecker, paramType, ctx.markerOpts); matched && kind == marker.KindCompTimeArgs {
 		return true
 	}
-	// CompTimeArgs is the zero-cost identity marker (markers.ts): TS keeps its
-	// alias only sometimes, and what survives is whatever the type it wraps
-	// carries — for a pure-fn lookup that is the PureFnId brand. So a match on
-	// another marker settles nothing, and the annotation NODE is what decides
-	// (the same rule the resolver's scan path applies).
+	// CompTimeArgs is the zero-cost identity marker (markers.ts): TS keeps its alias only
+	// sometimes, and what survives is whatever the wrapped type carries, the PureFnId brand for
+	// a pure-fn lookup. So a match on another marker settles nothing and the annotation NODE
+	// decides, the same rule the resolver's scan path applies.
 	return comptimeargs.IsCompTimeArgsParamNode(ctx.typeChecker, first, ctx.markerOpts)
 }
 
@@ -199,21 +187,20 @@ func (ctx *resolveCtx) calleeFirstParamIsCompTimeArgs(call *ast.Node) bool {
 // says whether that argument must be LOWERED to the quoted id when the body is
 // stripped. Five ways in, in order:
 //
-//  1. A string literal written at the call site. Nothing to lower.
-//  2. A factory-local `const` bound to a string literal. The declaration is
-//     inside the body being emitted, so nothing to lower either.
-//  3. An identifier whose declaration is a `const` in a source file of THIS
-//     program, initialised by a registrar call: the id is that declaration's
-//     own, by the same rule the extractor used on it. This is the
-//     `import {slugify} from './slug'` case, and it lowers.
-//  4. An expression whose TYPE is a string literal, which is how a `.d.ts`
-//     carries an id (`declare const x: PureFnId<'…'>`). It lowers too.
-//  5. An identifier declared in a `.d.ts` WITHOUT a literal type
-//     (`declare const x: PureFnId<string>`, what tsc emits when the build
-//     injected the id): the package's compiled files say which id that name
-//     registers (marker.Options.PureFnBindings). It lowers too.
+//  1. A string literal at the call site. Nothing to lower.
+//  2. A factory-local `const` bound to a string literal: the declaration is inside the body being
+//     emitted, so nothing to lower either.
+//  3. An identifier declared `const` in a source file of THIS program and initialised by a
+//     registrar call (the `import {slugify} from './slug'` case): the id is that declaration's
+//     own, by the rule the extractor used on it. It lowers.
+//  4. An expression whose TYPE is a string literal, which is how a `.d.ts` carries an id
+//     (`declare const x: PureFnId<'…'>`). It lowers.
+//  5. An identifier declared in a `.d.ts` WITHOUT a literal type (`declare const x:
+//     PureFnId<string>`, what tsc emits when the build injected the id): the package's compiled
+//     files say which id that name registers (marker.Options.PureFnBindings). It lowers.
 //
-// An empty id means none of the five applied; the caller reports PFE9013.
+// An empty id means none of the five applied; the caller reports PFE9013, or PFE9016 when the
+// package ships nothing to serve.
 func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) (id string, lower, cycle bool, cycleFile string) {
 	if argNode == nil {
 		return "", false, false, ""
@@ -222,9 +209,8 @@ func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) 
 	if argNode.Kind == ast.KindStringLiteral || argNode.Kind == ast.KindNoSubstitutionTemplateLiteral {
 		return argNode.Text(), false, false, ""
 	}
-	// Factory-local identifier hop: `const FOO = '...'` inside the factory
-	// body. This shadows checker-driven resolution because the inner const
-	// isn't a module-level symbol the checker tracks the same way.
+	// A factory-local `const` shadows checker-driven resolution: the inner const is no
+	// module-level symbol the checker tracks the same way.
 	if argNode.Kind == ast.KindIdentifier {
 		if decl, found := localTable[argNode.Text()]; found {
 			if literal := resolveDeclLocal(ctx.typeChecker, localTable, decl, maxTraceDepth); literal != nil {
@@ -242,8 +228,7 @@ func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) 
 			return id, true, false, ""
 		}
 	}
-	// A `.d.ts`-declared id carries its value in the TYPE, which is also what a
-	// generated constants file exports. Read it off the expression.
+	// A `.d.ts`-declared id carries its value in the TYPE, as does a generated constants file.
 	if id, found := stringLiteralTypeOf(ctx.typeChecker, inner); found {
 		return id, true, false, ""
 	}
@@ -260,22 +245,18 @@ func (ctx *resolveCtx) resolveDepArg(localTable symbolTable, argNode *ast.Node) 
 	return "", false, false, ""
 }
 
-// registrationIDOfBinding resolves an identifier to the `const` declaration it
-// names — through an import alias, so a binding imported from another file of
-// this program resolves to that file's declaration — and returns the id of the
-// registration that declaration initialises. False when the identifier names
-// something else, which keeps an ordinary imported string from passing as an
-// id.
+// registrationIDOfBinding returns the id of the registration the `const` an identifier names
+// initialises, following an import alias so a binding from another file of this program resolves
+// to that file's declaration. False when the identifier names anything else, which keeps an
+// ordinary imported string from passing as an id.
 //
-// The declaring registration is EXTRACTED to answer this, because an id is the
-// hash of a body that only exists once its own dependencies are lowered in.
-// That work is memoised and is the same work the emitted module needs, so the
-// dependency is rendered once however many dependents reach it.
+// The declaring registration is EXTRACTED to answer this, an id being the hash of a body that only
+// exists once its dependencies are lowered in. That work is memoised and is the work the emitted
+// module needs, so a dependency is rendered once however many dependents reach it.
 //
-// cycle is true when the declaration is already being resolved further up the
-// stack. Its id would have to contain itself, so there is nothing to return;
-// cycleFile is the file that declaration lives in, which is the far end of the
-// cycle and the second file the diagnostic names.
+// cycle is true when the declaration is already being resolved further up the stack: its id would
+// have to contain itself. cycleFile is that declaration's file, the far end of the cycle and the
+// second file the diagnostic names.
 func (ctx *resolveCtx) registrationIDOfBinding(identifier *ast.Node) (id string, found, cycle bool, cycleFile string) {
 	symbol := comptimeargs.ResolveImportAlias(ctx.typeChecker, ctx.typeChecker.GetSymbolAtLocation(identifier))
 	comptimeargs.EachConstVariableDeclaration(symbol, func(variableDecl *ast.VariableDeclaration) bool {
@@ -360,11 +341,9 @@ func stringLiteralOfType(tsType *checker.Type) (string, bool) {
 	return "", false
 }
 
-// unwrapExpression peels the wrappers that carry no runtime meaning —
-// parentheses, `as`, `satisfies`, a legacy type assertion and `!` — so the
-// expression underneath is what gets resolved and what gets lowered. Lowering
-// the inner node keeps the replacement span clear of the type-stripping ranges,
-// which start exactly where it ends.
+// unwrapExpression peels the wrappers that carry no runtime meaning, so the expression underneath
+// is what gets resolved and lowered: that keeps the replacement span clear of the type-stripping
+// ranges, which start exactly where it ends.
 func unwrapExpression(node *ast.Node) *ast.Node {
 	for node != nil {
 		switch node.Kind {
@@ -385,8 +364,7 @@ func unwrapExpression(node *ast.Node) *ast.Node {
 	return node
 }
 
-// resolveDeclLocal walks a factory-local `const` chain to the string literal it
-// ends at, or nil when it ends anywhere else.
+// resolveDeclLocal walks a factory-local `const` chain to the string literal it ends at.
 func resolveDeclLocal(typeChecker *checker.Checker, localTable symbolTable, decl *ast.Node, depth int) *ast.Node {
 	if depth <= 0 || decl.Kind != ast.KindVariableDeclaration {
 		return nil
@@ -399,8 +377,7 @@ func resolveDeclLocal(typeChecker *checker.Checker, localTable symbolTable, decl
 	if init.Kind == ast.KindStringLiteral || init.Kind == ast.KindNoSubstitutionTemplateLiteral {
 		return init
 	}
-	// Initializer is another identifier — resolve recursively through the local
-	// table.
+	// Another identifier: resolve through the local table.
 	if init.Kind == ast.KindIdentifier {
 		if next, found := localTable[init.Text()]; found {
 			return resolveDeclLocal(typeChecker, localTable, next, depth-1)
@@ -409,16 +386,12 @@ func resolveDeclLocal(typeChecker *checker.Checker, localTable symbolTable, decl
 	return nil
 }
 
-// buildFactoryLocalTable indexes every `const x = <literal>` declared
-// at any nesting level inside factoryFn's body, mapping name →
-// VariableDeclaration node. `let` and `var` are intentionally skipped —
-// mutable bindings can't be reduced to a literal at scan time.
+// buildFactoryLocalTable indexes every `const` declared at any nesting level inside factoryFn's
+// body. `let` and `var` are skipped: a mutable binding cannot be reduced to a literal at scan time.
 //
-// Why walk past function boundaries? The dep extractor walks the whole
-// factory body looking for utl.<method>(...) calls; if a `const ID =
-// '@acme/app/src/fns#foo'` lives in an outer block but the call lives in a nested
-// arrow, both should resolve to the same value. Pure-fn semantics
-// guarantee no rebinding, so the simple top-down walk is correct.
+// It walks past function boundaries because a `const ID = '…'` in an outer block and a
+// `utl.<method>(ID)` call in a nested arrow must resolve to the same value; pure-fn semantics
+// guarantee no rebinding, so the top-down walk is correct.
 func buildFactoryLocalTable(factoryFn *ast.Node) symbolTable {
 	table := symbolTable{}
 	body := factoryFn.Body()
@@ -451,15 +424,11 @@ func buildFactoryLocalTable(factoryFn *ast.Node) symbolTable {
 	return table
 }
 
-// maxTraceDepth bounds the factory-local identifier-chasing recursion
-// inside deps.resolveDeclLocal so a `const a = b; const b = c; ...`
-// chain (or a self-referential cycle) can't loop forever. Distinct
-// from comptimeargs.DepthCap because the factory-local scope is
-// guaranteed bounded by the factory body's nesting, so a smaller cap
-// is fine here.
+// maxTraceDepth bounds resolveDeclLocal's identifier chasing, so a `const a = b; const b = c`
+// chain or a self-referential cycle cannot loop forever. Smaller than comptimeargs.DepthCap: the
+// factory body's nesting already bounds a factory-local scope.
 const maxTraceDepth = 8
 
-// symbolTable maps identifier name → declaration node within a single
-// scope. Built per-factory by buildFactoryLocalTable for the dep
-// extractor — the file-level trace is now delegated to comptimeargs.
+// symbolTable maps an identifier name to its declaration node within a single scope; the
+// file-level trace is comptimeargs' job.
 type symbolTable map[string]*ast.Node

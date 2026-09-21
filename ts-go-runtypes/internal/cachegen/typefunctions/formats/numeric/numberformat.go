@@ -7,28 +7,18 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// numberFormatEmitter implements the format with name "numberFormat" —
-// FormatNumber<P> in `@mionjs/run-types/formats`. Mirrors
-// NumberRunTypeFormat (ref: packages/type-formats/src/number/numberFormat.runtype.ts).
-//
-// Surface: integer, min / max / lt / gt, multipleOf — emitted in
-// emitIsType order. `float` is a GENERATION/PRESENTATION tag like
-// isCurrency, never a failable constraint: a double column or an IEEE float
-// legally holds whole values (2.0), so validation never rejects them; the
-// tag steers mock generation toward fractional samples and keeps binary
-// packing on the float64 arm. Beyond validate / validationErrors / validateParams it
-// also implements formats.BinaryEncoder / BinaryDecoder: the binary
-// serializer packs an integer into the narrowest of int8/16/32 (signed
-// or unsigned) its min/max allows, falling back to the base float64 arm
-// otherwise (emitToBinary, numberFormat.runtype.ts:133-191).
+// numberFormatEmitter implements the format named "numberFormat", FormatNumber<P> in `@mionjs/run-types/formats`.
+// Surface: integer, min / max / lt / gt, multipleOf.
+// `float` is a generation and presentation tag like isCurrency, never a failable constraint: an IEEE float legally
+// holds whole values (2.0), so validation never rejects them. It steers mock generation toward fractional samples
+// and keeps binary packing on the float64 arm.
+// Its BinaryEncoder / BinaryDecoder pack an integer into the narrowest of int8/16/32 its min/max allows.
 type numberFormatEmitter struct{}
 
-// numberFormatName is the canonical FormatAnnotation.name the JS-side
-// FormatNumber alias brands under (the NumberRunTypeFormat.id).
+// numberFormatName is the canonical FormatAnnotation.name the JS-side FormatNumber alias brands under.
 const numberFormatName = "numberFormat"
 
-// Safe-integer bounds — the getIntegerType defaults when min/max are
-// unset (uses Number.MIN/MAX_SAFE_INTEGER, numberFormat.runtype.ts:288-289).
+// Safe-integer bounds, the integerType defaults when min/max are unset (JS Number.MIN/MAX_SAFE_INTEGER).
 const (
 	minSafeInteger = -9007199254740991
 	maxSafeInteger = 9007199254740991
@@ -46,11 +36,9 @@ func (numberFormatEmitter) Kind() reflection.ReflectionKind {
 	return reflection.KindNumber
 }
 
-// EmitValidateCheck returns the AND of every active number predicate, in
-// emitIsType order (numberFormat.runtype.ts:40-81): integer,
-// max, min, lt, gt, multipleOf. Returns "" when no params constrain the
-// value — the host keeps its base Number.isFinite check. The `float` tag
-// deliberately emits nothing (annotation-only, whole values are legal floats).
+// EmitValidateCheck returns the AND of every active number predicate, in the order integer, max, min, lt, gt,
+// multipleOf. "" leaves the host its base Number.isFinite check.
+// The `float` tag deliberately emits nothing: whole values are legal floats.
 func (numberFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -58,8 +46,7 @@ func (numberFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnota
 	return strings.Join(numberConditions(annotation.Params, vλl), " && ")
 }
 
-// numberConditions returns the validate boolean expressions for a number
-// param map applied to `vλl`.
+// numberConditions returns the validate boolean expressions for a number param map applied to `vλl`.
 func numberConditions(params map[string]any, vλl string) []string {
 	var conditions []string
 	if value, ok := formats.ReadBoolParam(params, "integer"); ok && value {
@@ -83,20 +70,16 @@ func numberConditions(params map[string]any, vλl string) []string {
 	return conditions
 }
 
-// EmitValidationErrorsCheck emits one `if (failed) <push error>` statement per
-// active predicate, in emitIsTypeErrors order
-// (numberFormat.runtype.ts:83-125). integer tags the error `val`
-// with the literal `true`; the range/multipleOf params tag it with the
-// bound. `float` never produces an error (annotation-only).
+// EmitValidationErrorsCheck emits one `if (failed) <push error>` per active predicate, in the same order as
+// EmitValidateCheck; integer tags the error `val` with `true`, the other params with the bound.
+// `float` never produces an error.
 func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
 	params := annotation.Params
-	// isCurrency is PURE PRESENTATION METADATA (no failable constraint): it is
-	// echoed verbatim onto every error this field emits, so the friendly i18n
-	// renderer can render the violated bound as money
-	// (Intl.NumberFormat(locale, {style: 'currency', currency})).
+	// isCurrency is presentation metadata, not a constraint: it rides every error so the friendly i18n renderer
+	// can show the violated bound as money.
 	extra := ""
 	if isCurrency, ok := formats.ReadBoolParam(params, "isCurrency"); ok && isCurrency {
 		extra = ",isCurrency:true"
@@ -126,10 +109,8 @@ func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 	return strings.Join(statements, ";")
 }
 
-// EmitToBinary implements formats.BinaryEncoder — emitToBinary
-// (numberFormat.runtype.ts:133-161). Returns "" (→ base float64 arm) for
-// floats, unconstrained integers, and integer ranges wider than int32;
-// otherwise the narrowest setUint8/16/32 / setInt8/16/32 the range fits.
+// EmitToBinary implements formats.BinaryEncoder: the narrowest setUint8/16/32 / setInt8/16/32 the range fits, or
+// "" for floats, unconstrained integers and ranges wider than int32, which take the base float64 arm.
 func (numberFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -159,10 +140,8 @@ func (numberFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation,
 	}
 }
 
-// EmitFromBinary implements formats.BinaryDecoder — emitFromBinary
-// (numberFormat.runtype.ts:163-191). Byte-symmetric with EmitToBinary;
-// returns the RHS expression the host assigns to `ret`, or "" for the
-// float64 fallback cases.
+// EmitFromBinary implements formats.BinaryDecoder, byte-symmetric with EmitToBinary: the RHS expression the host
+// assigns to `ret`, or "" for the float64 fallback cases.
 func (numberFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotation, des string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -192,10 +171,8 @@ func (numberFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotatio
 	}
 }
 
-// BinarySize implements formats.BinarySizer: the exact wire width the
-// packed integer occupies, from the SAME integerType ladder EmitToBinary
-// uses. Floats, non-integers, unconstrained integers and ranges wider than
-// int32 all ride the base float64 arm — 8 bytes.
+// BinarySize implements formats.BinarySizer off the SAME integerType ladder EmitToBinary uses; everything that
+// takes the base float64 arm is 8 bytes.
 func (numberFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) formats.BinarySizeHint {
 	if annotation == nil {
 		return formats.BinarySizeHint{Fixed: 8}
@@ -219,8 +196,7 @@ func (numberFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) f
 	}
 }
 
-// integerKind enumerates the packed integer encodings, in the
-// switch(true) precedence (unsigned first, narrowest first).
+// integerKind enumerates the packed integer encodings in precedence order: unsigned first, narrowest first.
 type integerKind int
 
 const (
@@ -233,11 +209,8 @@ const (
 	intInt32
 )
 
-// integerType ports getIntegerType (numberFormat.runtype.ts:286-297)
-// + the switch(true) ordering in emitToBinary: it returns the FIRST
-// matching encoding in unsigned-then-signed, narrowest-first order.
-// Defaults min/max to the safe-integer bounds so an unbounded integer
-// (FormatInteger / FormatPositiveInt) lands on float64.
+// integerType returns the FIRST matching encoding in unsigned-then-signed, narrowest-first order.
+// min/max default to the safe-integer bounds, so an unbounded integer lands on float64.
 func integerType(params map[string]any) integerKind {
 	min := float64(minSafeInteger)
 	if value, ok := formats.ReadNumberParam(params, "min"); ok {
@@ -265,12 +238,9 @@ func integerType(params map[string]any) integerKind {
 	}
 }
 
-// ValidateParams ports NumberRunTypeFormat.validateParams
-// (numberFormat.runtype.ts:234-283) to the build-time AOT path. Returns
-// one message per violation (surfaced as CodeFMTInvalidParams). The
-// `[x, y].filter(Boolean)` mutual-exclusivity / range checks are kept
-// spec-faithful: a `0` bound is falsy per the reference and so escapes these
-// checks — replicated here via numberTruthy for byte-for-byte parity.
+// ValidateParams returns one message per violation, surfaced as CodeFMTInvalidParams.
+// A `0` bound is falsy in the JS spelling these checks follow and so escapes them: that is what numberTruthy
+// reproduces.
 func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	const label = "NumberFormat"
 	if annotation == nil {
@@ -285,10 +255,7 @@ func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 		errs = append(errs, label+": cannot specify both `integer` and `float`")
 	}
 
-	// A lower bound is EITHER inclusive (`min`) OR exclusive (`gt`), never
-	// both — they express the same edge two ways, so specifying both is
-	// always redundant (one silently dominates). Same for the upper bound
-	// (`max`/`lt`). Uniform across number / bigint / date families.
+	// An edge given twice is redundant, one silently dominates. Uniform across the number / bigint / date families.
 	if numberTruthy(params, "min")+numberTruthy(params, "gt") > 1 {
 		errs = append(errs, label+": cannot specify more than one of `min` or `gt`")
 	}
@@ -311,25 +278,18 @@ func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 		if multipleOf <= 0 {
 			errs = append(errs, label+": `multipleOf` must be greater than 0")
 		}
-		// A fractional `multipleOf` used to be rejected here over floating-point
-		// precision. JSON Schema allows any positive number (`multipleOf: 0.01`
-		// on a money field is the obvious case) and defines the rule as "division
-		// by this value results in an integer", so multipleOfCondition emits that
-		// division directly rather than a modulo that cannot express it.
-		// `float` is annotation-only (never failable), so it composes freely
-		// with multipleOf; only the contradictory integer+float pair is rejected.
+		// A fractional `multipleOf` is allowed: JSON Schema permits any positive number (`multipleOf: 0.01` on a
+		// money field), which is why multipleOfCondition emits a division rather than a modulo.
+		// `float` is never failable, so it composes freely with multipleOf; only integer+float is rejected.
 	}
 	return errs
 }
 
-// multipleOfCondition emits the "is a multiple of" predicate. An INTEGER divisor
-// keeps the modulo: it is exact on doubles, cheaper than a division, and stays
-// right for magnitudes past 2^53 where a quotient is integral simply because
-// every double that large is. A FRACTIONAL divisor cannot use it — `0.0075 %
-// 0.0001` is 9.99e-5, not 0 — so it takes JSON Schema's own wording, "division
-// by this value results in an integer". That also gives the spec's answer for an
-// overflowing divisor: `1e308 / 0.123456789` is Infinity, which is not an
-// integer, so the value is rejected instead of raising.
+// multipleOfCondition keeps the modulo for an INTEGER divisor: exact on doubles, cheaper, and still right past
+// 2^53 where a quotient is integral only because every double that large is.
+// A FRACTIONAL divisor cannot use it (`0.0075 % 0.0001` is 9.99e-5, not 0) and takes JSON Schema's own wording,
+// "division by this value results in an integer", which also handles an overflowing divisor: `1e308 / 0.123456789`
+// is Infinity, not an integer, so the value is rejected instead of raising.
 func multipleOfCondition(vλl string, value float64) string {
 	literal := formats.FormatNumber(value)
 	if value == float64(int64(value)) {
@@ -338,8 +298,7 @@ func multipleOfCondition(vλl string, value float64) string {
 	return "Number.isInteger(" + vλl + " / " + literal + ")"
 }
 
-// numberTruthy returns 1 when the param is present AND its value is
-// non-zero (the `[…].filter(Boolean)` drops 0), else 0.
+// numberTruthy returns 1 when the param is present AND non-zero, matching the JS `filter(Boolean)` drop of 0.
 func numberTruthy(params map[string]any, key string) int {
 	if value, ok := formats.ReadNumberParam(params, key); ok && value != 0 {
 		return 1

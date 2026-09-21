@@ -5,19 +5,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// nativeDateEmitter implements the format named "nativeDate" —
-// FormatDate<P>, which brands the native JS `Date` object (not a string).
-// It reuses the shared bounds logic: min/max are an absolute literal OR a
-// relative now±P spec, with both date AND time duration components allowed
-// (a Date carries both). Validation is added on top of the base-kind Date
-// check (instanceof + non-NaN); no serialisation work — Date serialises
-// through the existing default serialisers.
-//
-// Kind is KindClass: the scanner lifts the format brand off the
-// `Date & {brand}` intersection (see splitBuiltinClassBrand in
-// internal/cachegen/runtype/intersection_collapse.go) onto a KindClass /
-// SubKindDate node, and the host istype/typeerrors class arm dispatches
-// here via formats.LookupForRunType keyed on (KindClass, "nativeDate").
+// nativeDateEmitter implements the format named "nativeDate", FormatDate<P>, branding the native JS `Date`.
+// Its bounds allow both date AND time duration components, since a Date carries both, and they are added on top
+// of the base-kind Date check (instanceof + non-NaN); Date serialises through the existing default serialisers.
+// Kind is KindClass because splitBuiltinClassBrand (internal/cachegen/runtype/intersection_collapse.go) lifts the
+// brand off the `Date & {brand}` intersection onto a KindClass / SubKindDate node.
 type nativeDateEmitter struct{}
 
 func init() {
@@ -27,9 +19,8 @@ func init() {
 func (nativeDateEmitter) Name() string                    { return "nativeDate" }
 func (nativeDateEmitter) Kind() reflection.ReflectionKind { return reflection.KindClass }
 
-// ValidateParams validates the optional min/max bounds with dateTimeKind
-// (both component groups allowed). The layout key is "T" — only used by
-// the best-effort static ordering parse for absolute dateTime literals.
+// ValidateParams validates the min/max bounds with dateTimeKind; the layout key "T" is only read by the
+// best-effort static ordering parse for absolute dateTime literals.
 func (nativeDateEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -37,11 +28,7 @@ func (nativeDateEmitter) ValidateParams(annotation *reflection.FormatAnnotation)
 	return validateMinMax(annotation.Params, dateTimeKind, "T")
 }
 
-// EmitValidateCheck returns the bound comparison expression. The base-kind
-// Date check (instanceof Date && !isNaN(getTime())) is emitted by the host
-// class arm; this only adds the min/max guard. The value's comparison key
-// is the Date's epoch ms directly (no string parsing), compared against a
-// baked absolute epoch or relativeNowKey for a relative bound.
+// EmitValidateCheck adds only the bound guard: the host class arm emits the base Date check itself.
 func (nativeDateEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -53,13 +40,11 @@ func (nativeDateEmitter) EmitValidationErrorsCheck(annotation *reflection.Format
 	if annotation == nil {
 		return ""
 	}
-	// The value key is the Date's epoch ms directly (no string parsing);
-	// the shared key-based helper emits one error per failed bound.
+	// The value key is the Date's epoch ms directly, so no string parsing is needed.
 	return boundTypeErrorChecksFromKey(ctx, annotation.Params, vλl+".getTime()", pathExpr, errorsArr, "Date", "nativeDate", dateTimeKind, "T")
 }
 
-// nativeDateBoundChecks builds the AND-able min/max/gt/lt expression over a
-// Date value's getTime(). Returns "" when no bound is set.
+// nativeDateBoundChecks builds the AND-able min/max/gt/lt expression over a Date value's getTime().
 func nativeDateBoundChecks(ctx formats.EmitContext, params map[string]any, vλl string) string {
 	return boundValidateChecksFromKey(ctx, params, vλl+".getTime()", dateTimeKind, "T")
 }

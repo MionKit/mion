@@ -5,10 +5,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// scope is one frame in the lexical scope chain. parent is nil at the
-// factory's top frame. names holds every identifier text bound at this
-// frame: function parameters, var/let/const declarations, function
-// declaration names, catch-clause binding, for-in / for-of binding.
+// scope is one frame in the lexical scope chain; parent is nil at the factory's top frame.
 type scope struct {
 	parent *scope
 	names  map[string]bool
@@ -27,19 +24,11 @@ func (s *scope) has(name string) bool {
 	return false
 }
 
-// checkPurity walks factoryNode's body and emits one Diagnostic per
-// pure-function violation. Mirrors the reference eslint rules'
-// `pure-functions.ts` rule with two project-specific deltas
-// (globalThis → forbid; Temporal → allow). Returns the slice; the caller
-// appends to its own diagnostics list.
+// checkPurity walks factoryNode's body and returns one Diagnostic per pure-function violation.
 //
-// The Go port uses a proper lexical scope stack (push/pop per function
-// boundary) rather than the reference flat-scope approximation — more correct
-// for nested functions whose params should only be visible inside them.
-//
-// `exempt` are spans the body no longer contains by the time it ships: the
-// imported ids a tracked lookup names, which are lowered to string literals
-// during stripping. An identifier inside one of them is not a capture.
+// `exempt` are spans the body no longer contains by the time it ships: the imported ids a tracked
+// lookup names, lowered to string literals during stripping, so an identifier inside one is not a
+// capture.
 func checkPurity(sourceFile *ast.SourceFile, factoryNode *ast.Node, exempt []textRange) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic
 	visitForPurity(sourceFile, factoryNode, nil, exempt, &diags)
@@ -56,32 +45,20 @@ func inExemptRange(exempt []textRange, pos int) bool {
 	return false
 }
 
-// visitForPurity is the main recursive walker. When it enters a
-// function-like node it pushes a new scope, populates it, and walks
-// children under that scope; otherwise it inspects the node and
-// descends. Forbidden expressions (this/await/yield/dynamic import)
-// emit a diagnostic at that node's position; identifier references are
-// checked against scope ∪ allowedGlobals, with forbiddenIdentifiers
-// taking precedence.
+// visitForPurity checks an identifier reference against scope ∪ allowedGlobals, forbiddenIdentifiers first.
 func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, exempt []textRange, diags *[]diagnostics.Diagnostic) {
 	if node == nil {
 		return
 	}
 
-	// Skip type-only subtrees outright. Identifiers inside type
-	// references (e.g. `p: MyType`, `x as MyType`, `<T>(...)`) are not
-	// runtime references and must not be flagged — they're stripped
-	// before the body ever reaches `new Function`. We bail before
-	// dispatching on the more specific node kinds so the children
-	// (which can carry more nested TypeReferences) are also skipped.
+	// An identifier inside a type is no runtime reference, and is stripped before the body
+	// reaches `new Function`. Bail before the specific kinds, so nested types are skipped too.
 	if validateOnlyKind(node.Kind) {
 		return
 	}
 
-	// Skip the type-annotation fields on declarations / parameters /
-	// function returns. The parent node still descends into name +
-	// initializer / body via ForEachChild, but we filter the Type field
-	// here by inspecting the parent relationship.
+	// ForEachChild hands out the Type field along with name and initializer, so the annotation
+	// slot is filtered here, off the parent relationship.
 	if node.Parent != nil && validateAnnotationSlot(node) {
 		return
 	}
@@ -94,9 +71,7 @@ func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, 
 		if body != nil {
 			addBodyDeclarations(nested, body)
 		}
-		// Visit children (params + type params + body). isReferenceIdentifier
-		// filters out the binding-name identifiers so we don't double-count
-		// them as references-to-themselves.
+		// isReferenceIdentifier keeps a binding name from counting as a reference to itself.
 		node.ForEachChild(func(child *ast.Node) bool {
 			visitForPurity(sourceFile, child, nested, exempt, diags)
 			return false
@@ -104,9 +79,8 @@ func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, 
 		return
 
 	case ast.KindThisKeyword:
-		// Only flag `this` in expression position. The same Kind appears as a
-		// TypeNode (`this` in type position, e.g. `: this`) — the type
-		// stripper has already removed those, but defensive check is cheap.
+		// The same Kind appears in type position (`: this`), which the type stripper already
+		// removed; the check is cheap, so it stays.
 		if node.Parent != nil && isInTypePosition(node) {
 			return
 		}
@@ -169,9 +143,7 @@ func visitForPurity(sourceFile *ast.SourceFile, node *ast.Node, current *scope, 
 	})
 }
 
-// addParams populates scope with the names declared by fnNode's
-// parameter list. Each parameter may be a plain Identifier or a
-// destructuring pattern; both are recursively unwrapped.
+// addParams populates scope with the names fnNode's parameter list declares, destructuring included.
 func addParams(s *scope, fnNode *ast.Node) {
 	fnLike := fnNode.FunctionLikeData()
 	if fnLike == nil || fnLike.Parameters == nil {
@@ -186,10 +158,8 @@ func addParams(s *scope, fnNode *ast.Node) {
 	}
 }
 
-// addBodyDeclarations walks bodyNode collecting every declared name
-// visible at the function's top scope. Stops at function boundaries —
-// nested function scopes get their own frame when the visitor enters
-// them.
+// addBodyDeclarations collects every name visible at the function's top scope, stopping at a
+// function boundary: a nested function gets its own frame when the visitor enters it.
 func addBodyDeclarations(s *scope, bodyNode *ast.Node) {
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
@@ -201,8 +171,7 @@ func addBodyDeclarations(s *scope, bodyNode *ast.Node) {
 			// Stop — nested fn scope is built when visited.
 			return false
 		case ast.KindFunctionDeclaration:
-			// The declaration's name is visible at this scope; nested fn's
-			// internals get their own scope when visited later.
+			// The declaration's name is visible at this scope, its internals are not.
 			if name := node.Name(); name != nil && name.Kind == ast.KindIdentifier {
 				s.names[name.Text()] = true
 			}
@@ -213,9 +182,7 @@ func addBodyDeclarations(s *scope, bodyNode *ast.Node) {
 				collectBindingNames(varDecl.Name(), s.names)
 			}
 		case ast.KindParameter:
-			// Reachable when descending into a nested function's signature
-			// from the outer scope's perspective — skip; the nested scope
-			// owns its params.
+			// Reached through a nested function's signature; that scope owns its params.
 			return false
 		case ast.KindCatchClause:
 			catch := node.AsCatchClause()
@@ -237,9 +204,7 @@ func addBodyDeclarations(s *scope, bodyNode *ast.Node) {
 	bodyNode.ForEachChild(visit)
 }
 
-// collectBindingNames recursively unwraps Identifier / ObjectBindingPattern
-// / ArrayBindingPattern, adding every leaf identifier name to set.
-// Mirrors the destructuring handling in the reference collectBindingNames.
+// collectBindingNames adds every leaf identifier name of a binding pattern to set.
 func collectBindingNames(node *ast.Node, set map[string]bool) {
 	if node == nil {
 		return
@@ -260,9 +225,7 @@ func collectBindingNames(node *ast.Node, set map[string]bool) {
 	}
 }
 
-// collectForInitializerNames handles `for (X of …)` / `for (X in …)`
-// where X may be a VariableDeclarationList (`const x of …`) or a bare
-// assignment target.
+// collectForInitializerNames handles `for (X of …)` where X is a declaration list or a bare target.
 func collectForInitializerNames(node *ast.Node, set map[string]bool) {
 	if node == nil {
 		return
@@ -283,25 +246,10 @@ func collectForInitializerNames(node *ast.Node, set map[string]bool) {
 	collectBindingNames(node, set)
 }
 
-// isReferenceIdentifier returns true when the Identifier at `node` is a
-// reference (read of an outer name) rather than a binding (declaration
-// or non-computed property key).
-//
-// False for:
-//   - The `.Name()` of any declaration / parameter / function decl /
-//     binding element (those are bindings, not refs).
-//   - The right-hand side of `obj.X` — `X` here is a property name on the
-//     RUNTIME-RESOLVED type of `obj`, not a reference to anything in
-//     local scope.
-//   - The key of a non-computed `{X: …}` property assignment — also a
-//     property name, not a reference.
-//   - Import / export specifier names — bindings, not refs.
-//
-// True for:
-//   - Bare identifier references in expression position.
-//   - The shorthand key of `{x}` — by JS semantics this DOES reference
-//     a binding called `x`.
-//   - The expression inside `[<expr>]: …` computed property names.
+// isReferenceIdentifier reports whether the Identifier reads an outer name, rather than binding one
+// (a declaration's `.Name()`, an import / export specifier) or naming a property (`obj.X`, the key
+// of `{X: …}`). True for the shorthand key of `{x}`, which by JS semantics DOES reference `x`, and
+// for the expression inside a computed `[<expr>]: …` key.
 func isReferenceIdentifier(node *ast.Node) bool {
 	parent := node.Parent
 	if parent == nil {
@@ -309,22 +257,17 @@ func isReferenceIdentifier(node *ast.Node) bool {
 	}
 	switch parent.Kind {
 	case ast.KindPropertyAccessExpression:
-		// `obj.X` — the property name is the .Name() field; the LHS
-		// (Expression field) is the reference.
 		pa := parent.AsPropertyAccessExpression()
 		if pa != nil && pa.Name() == node {
 			return false
 		}
 	case ast.KindPropertyAssignment:
-		// `{X: value}` — the key is the .Name() field; the value
-		// (Initializer) is the reference.
 		pa := parent.AsPropertyAssignment()
 		if pa != nil && pa.Name() == node {
 			return false
 		}
 	case ast.KindShorthandPropertyAssignment:
-		// `{x}` is shorthand for `{x: x}`; the SAME node serves as both
-		// key and value, and IS a reference. Stay true.
+		// `{x}` is `{x: x}`: the SAME node is key and value, and IS a reference. Stay true.
 	case ast.KindVariableDeclaration:
 		vd := parent.AsVariableDeclaration()
 		if vd != nil && vd.Name() == node {
@@ -336,8 +279,7 @@ func isReferenceIdentifier(node *ast.Node) bool {
 			return false
 		}
 	case ast.KindFunctionDeclaration, ast.KindFunctionExpression, ast.KindArrowFunction:
-		// The function's own name binding (function fn() {} / function
-		// fn() {}).
+		// The function's own name binding.
 		if parent.Name() == node {
 			return false
 		}
@@ -346,14 +288,11 @@ func isReferenceIdentifier(node *ast.Node) bool {
 		if be == nil {
 			return false
 		}
-		// `{X: y}` — X is the propertyName (key), y is the name (binding).
-		// `{x}` — x is the name (binding) and propertyName is nil.
-		// In both cases the .Name() field is a binding, not a reference.
+		// In `{X: y}` and in `{x}` alike, the .Name() field is the binding.
 		if be.Name() == node {
 			return false
 		}
-		// The propertyName (when explicit, like `{X: y}`) is a property
-		// key on the source object, not a reference.
+		// An explicit propertyName (`{X: y}`) is a key on the source object.
 		if be.PropertyName != nil && be.PropertyName == node {
 			return false
 		}
@@ -362,15 +301,14 @@ func isReferenceIdentifier(node *ast.Node) bool {
 			return false
 		}
 	case ast.KindImportSpecifier, ast.KindImportClause, ast.KindNamespaceImport, ast.KindExportSpecifier:
-		// Import / export bindings — never references in this rule's sense.
+		// Import / export bindings, never references in this rule's sense.
 		return false
 	}
 	return true
 }
 
-// validateOnlyKind returns true for AST node kinds that exist only as
-// part of a type annotation — their subtrees never produce runtime
-// references and must be skipped by the purity walker.
+// validateOnlyKind reports a node kind that exists only inside a type, so its subtree produces
+// no runtime reference.
 func validateOnlyKind(kind ast.Kind) bool {
 	switch kind {
 	case ast.KindTypeReference,
@@ -391,10 +329,8 @@ func validateOnlyKind(kind ast.Kind) bool {
 	return false
 }
 
-// validateAnnotationSlot reports whether node sits in a field that holds
-// a TypeNode on its parent — e.g. `: Type` on a Parameter / Variable
-// declaration / Function return. Such children are skipped wholesale
-// so identifier references inside the type don't get walked.
+// validateAnnotationSlot reports whether node fills a TypeNode field of its parent (`: Type` on a
+// parameter, a variable declaration, a function return), which is skipped whole.
 func validateAnnotationSlot(node *ast.Node) bool {
 	parent := node.Parent
 	if parent == nil {
@@ -430,15 +366,11 @@ func validateAnnotationSlot(node *ast.Node) bool {
 	return false
 }
 
-// isInTypePosition reports whether node sits inside a TypeNode subtree.
-// We strip TS annotations before extraction, but the parser surface can
-// still produce KindThisKeyword in non-stripped positions for defensive
-// callers; treat any `this` parented by a type node as harmless.
+// isInTypePosition reports whether node sits inside a TypeNode subtree. Annotations are stripped
+// before extraction, but a defensive caller may still hand over a `this` in type position.
 func isInTypePosition(node *ast.Node) bool {
 	for cursor := node.Parent; cursor != nil; cursor = cursor.Parent {
-		// Crude: any TypeNode ancestor short-circuits. TypeNodes' Kind
-		// values are clustered in the AST kind space; here we just look
-		// for the common ones we'd care about.
+		// Crude: only the common TypeNode kinds are listed, any one of them short-circuits.
 		switch cursor.Kind {
 		case ast.KindTypeReference, ast.KindUnionType, ast.KindIntersectionType,
 			ast.KindTypeLiteral, ast.KindFunctionType, ast.KindArrayType,
@@ -448,8 +380,7 @@ func isInTypePosition(node *ast.Node) bool {
 			return true
 		case ast.KindBlock, ast.KindFunctionExpression, ast.KindArrowFunction,
 			ast.KindFunctionDeclaration:
-			// Reached an expression / statement / function boundary —
-			// definitely not in a type position.
+			// An expression / statement / function boundary: not a type position.
 			return false
 		}
 	}

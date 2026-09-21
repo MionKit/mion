@@ -1,20 +1,13 @@
-// formattedSet / formattedMap — the builtin collection classes on the
-// COLLECTION keywords. A Set is an array on the wire and a Map is an array of
-// `[key, value]` pairs, so both count with `minItems` / `maxItems` (read off
-// `.size`) and both take `uniqueItems`, each through its OWN pure fn
-// (`uniqueSetMembers` / `uniqueMapEntries`, both depending on
-// `canonicalJson`): a Set compares its members, while a Map compares the
-// `[key, value]` PAIRS that are its entries, since two object keys equal by
-// content are two entries and so a duplicate pair when their values match too.
-// `contains` is NOT an emitter concern: it rides the node's Contains checks and
-// is spliced by the validate / errors walkers for every base kind.
-//
-// Both bases are KindClass nodes (SubKindSet / SubKindMap), so the two
-// emitters register under KindClass with their own names; the registry keys
-// by (kind, name), which keeps them apart. The brand rides the same
-// StructuralBrand sentinels as formattedArray, lifted onto the class node by
-// the builtin-class branch of the intersection collapse.
 package structural
+
+// formattedSet / formattedMap, the builtin collection classes on the COLLECTION keywords. A Set is an array on
+// the wire and a Map an array of `[key, value]` pairs, so both count off `.size` and both take `uniqueItems`
+// through their OWN pure fn: a Set compares its members, a Map the `[key, value]` PAIRS, since two object keys
+// equal by content are two entries and so a duplicate pair only when their values match too.
+// `contains` is NOT an emitter concern: it rides the node's Contains checks, spliced by the validate / errors
+// walkers for every base kind.
+// Both bases are KindClass nodes, so the two emitters register under KindClass with their own names and the
+// registry's (kind, name) key keeps them apart.
 
 import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefnids"
@@ -36,9 +29,7 @@ type collectionEmitter struct {
 	expected string
 	// publicName is the type-first wrapper a build diagnostic names.
 	publicName string
-	// uniquePureFn is the family's own `uniqueItems` predicate: a Set compares
-	// its members, a Map the `[key, value]` pairs that are its entries, so each
-	// names its own rather than sharing one with a runtime kind test.
+	// uniquePureFn is the family's own `uniqueItems` predicate, rather than one shared behind a runtime kind test.
 	uniquePureFn string
 }
 
@@ -80,8 +71,7 @@ func (emitter collectionEmitter) EmitValidationErrorsCheck(annotation *reflectio
 	return strings.Join(statements, ";")
 }
 
-// ValidateParams surfaces bound contradictions at build time, like the array
-// family does for its item bounds.
+// ValidateParams reports bound contradictions at build time, like the array family does for its item bounds.
 func (emitter collectionEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil

@@ -1,24 +1,17 @@
-// Package jsonsize computes the largest compact-JSON byte size a VALID value of
-// a type can have, at build time, from the reflection graph alone.
-//
-// The number backs the per-route request and response limits of the mion
-// router: a route whose params are fully bounded (every string carries a
-// `length` / `maxLength`, every array a `length` / `maxItems`, every Map / Set
-// a `maxItems`, and every scalar has a fixed longest spelling) gets a limit
-// derived from its types, while a type with any unbounded part reports
-// Bounded=false and the route falls back to the router default.
-//
-// The walk is a sibling of the binary cold-start estimator
-// (cachegen/typefunctions/binary_size_estimate.go) but answers a different
-// question: not "how many bytes will a typical binary encoding take" but "how
-// many bytes can a compact JSON body of this type reach, at most". The body it
-// bounds is the one the compiled encoder writes, not `JSON.stringify` of a raw
-// JS value: the two part ways wherever DataOnly drops a member. So every
-// arm is a worst case: 6 bytes per UTF-16 unit for a string (the `\uXXXX`
-// escape form), 24 for a number (the longest `JSON.stringify` double), every
-// optional member present, the largest union member. The `compact` encoder
-// strategy tuples objects into positional arrays, which is never larger than
-// the keyed form, so the keyed maximum covers it too.
+// Package jsonsize computes, at build time and from the reflection graph alone, the largest
+// compact-JSON byte size a VALID value of a type can have. The number backs the per-route request
+// and response limits of the mion router: a route whose params are fully bounded (every string
+// carries a `length` / `maxLength`, every array a `length` / `maxItems`, every Map / Set a
+// `maxItems`, every scalar has a fixed longest spelling) gets a limit derived from its types, while
+// a type with any unbounded part reports Bounded=false and the route falls back to the router
+// default. A sibling of the binary cold-start estimator
+// (cachegen/typefunctions/binary_size_estimate.go), but asking the maximum rather than the typical
+// size. The body it bounds is the one the compiled encoder writes, not `JSON.stringify` of a raw JS
+// value: the two part ways wherever DataOnly drops a member. So every arm is a worst case: 6 bytes
+// per UTF-16 unit for a string (the `\uXXXX` escape form), 24 for a number (the longest
+// `JSON.stringify` double), every optional member present, the largest union member. The `compact`
+// encoder strategy tuples objects into positional arrays, never larger than the keyed form, so the
+// keyed maximum covers it too.
 package jsonsize
 
 import (
@@ -76,15 +69,11 @@ type Result struct {
 // MaxBytes walks rt and returns its Result. refTable resolves KindRef child
 // sentinels (the session cache, or the dump's node index).
 //
-// This is a per-kind descent, not reflection.WalkGraph: the JSON size of a
-// node is a function of its kind and of the slots that reach the wire (a
-// property's Child, a tuple's Children, a Map's key / value Arguments), so
-// each arm reads exactly those slots and every other slot (Parameters,
-// Return, TypeMeta, the union discriminators, Extends / Implements) is
-// deliberately not sized. The guard against a forgotten slot is
-// TestMaxBytes_VisitsEveryWireSlot, which pins that on a bounded graph the
-// walk reaches every node WalkGraph reaches; a kind with no arm is never
-// claimed bounded (the default arm).
+// This is a per-kind descent, not reflection.WalkGraph: a node's JSON size is a function of its
+// kind and of the slots that reach the wire, so each arm reads exactly those and every other slot
+// (Parameters, Return, TypeMeta, the union discriminators, Extends / Implements) is deliberately
+// not sized. TestMaxBytes_VisitsEveryWireSlot guards a forgotten slot, pinning that on a bounded
+// graph the walk reaches every node WalkGraph reaches; a kind with no arm is never claimed bounded.
 func MaxBytes(rt *reflection.RunType, refTable map[string]*reflection.RunType) Result {
 	walker := newWalker(refTable)
 	if root := walker.deref(rt); root != nil && (root.Kind == reflection.KindUndefined || root.Kind == reflection.KindVoid) {

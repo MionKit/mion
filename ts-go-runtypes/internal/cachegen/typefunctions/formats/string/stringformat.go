@@ -1,7 +1,5 @@
-// Package string holds the Go-side emitters for the string-format
-// family (StringFormat base + UUID / Date / Time / IP / Domain /
-// Email / URL / DefaultStringFormats). Each format ships in its own
-// file and registers via init().
+// Package string holds the emitters for the string-format family: the StringFormat base plus UUID / IP / Domain
+// / Email / URL / creditCard, each in its own file, each registering via init().
 package string
 
 import (
@@ -13,24 +11,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// stringFormatEmitter implements the format with name "stringFormat" —
-// FormatString<P> in `@mionjs/run-types/formats`. Mirrors the reference
-// StringRunTypeFormat (ref: packages/type-formats/src/string/stringFormat.runtype.ts)
-// but extracts literal params from the wire-format FormatAnnotation
-// instead of the deepkit-decoded `{val, mockSamples, …}` wrapper
-// shape.
-//
-// Surface: maxLength, minLength, length, pattern, allowedChars,
-// disallowedChars, allowedValues, disallowedValues — the full
-// StringValidators set, emitted in emitIsType order. The value rewrite
-// under the `transform` key (trim / case / replace) is applied by the
-// separate formatTransform RT-fn, not by validate/validationErrors.
+// stringFormatEmitter implements the format named "stringFormat", FormatString<P> in `@mionjs/run-types/formats`.
+// Surface: maxLength, minLength, length, pattern, allowedChars, disallowedChars, allowedValues, disallowedValues.
+// The value rewrite under the `transform` key is applied by the formatTransform RT-fn alone, never by
+// validate / validationErrors.
 type stringFormatEmitter struct{}
 
-// formatName is the canonical FormatAnnotation.name the JS-side
-// StringRunTypeFormat registers under. Kept as a package-level
-// constant so the test suite can reference it without hardcoding the
-// string.
+// formatName is the canonical FormatAnnotation.name the JS side registers under.
 const formatName = "stringFormat"
 
 func init() {
@@ -45,9 +32,7 @@ func (stringFormatEmitter) Kind() reflection.ReflectionKind {
 	return reflection.KindString
 }
 
-// EmitValidateCheck returns the AND of every active format predicate.
-// Returns "" when no params constrain the value — the host emitter then
-// keeps its base-kind check as the only validator.
+// EmitValidateCheck returns the AND of every active format predicate, "" leaving the host its base-kind check.
 func (stringFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -59,26 +44,15 @@ func (stringFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnota
 	return strings.Join(stringConditions(ctx, params, vλl), " && ")
 }
 
-// stringConditions returns every validate boolean expression for a
-// StringFormat param map applied to `vλl`, in emitIsType order:
-// maxLength, minLength, length, pattern, allowedChars, disallowedChars,
-// allowedValues, disallowedValues (stringFormat.runtype.ts:53-79).
-// Shared by the stringFormat emitter and the domain/email decomposition
-// sub-checks (each name/tld/localPart part is validated as a sub-format
-// over its own variable).
 // contentMediaTypeJSON is the one media type the parse check understands.
-// JSON Schema's `contentMediaType` is open-ended; anything else is accepted and
-// ignored (it describes the payload, it does not constrain the string).
+// JSON Schema's `contentMediaType` is open-ended; anything else is accepted and ignored, since it describes the
+// payload rather than constraining the string.
 const contentMediaTypeJSON = "application/json"
 
-// jsonParseCheck builds the content predicate: JSON.parse on the raw string, or
-// on the base64-decoded bytes when `contentEncoding` says the string is encoded
-// (2020-12: contentMediaType describes the DECODED content). `atob` throws on
-// malformed base64 and the try/catch turns that into `false`, so the decode step
-// doubles as the encoding check. Absorbed from the former standalone
-// `jsonContent` format: contentMediaType is an ordinary string keyword, so it
-// belongs on the string emitter next to minLength rather than in a format of its
-// own.
+// jsonParseCheck builds the content predicate: JSON.parse on the raw string, or on the base64-decoded bytes when
+// `contentEncoding` says so, since per 2020-12 contentMediaType describes the DECODED content.
+// `atob` throws on malformed base64 and the try/catch turns that into `false`, so the decode doubles as the
+// encoding check.
 func jsonParseCheck(params map[string]any, vλl string) string {
 	decoded := vλl
 	if encoding, _ := params["contentEncoding"].(string); encoding == "base64" {
@@ -93,26 +67,23 @@ func wantsJSONContent(params map[string]any) bool {
 	return mediaType == contentMediaTypeJSON
 }
 
+// stringConditions returns every validate boolean expression for a StringFormat param map applied to `vλl`.
+// Shared by the stringFormat emitter and the domain/email decomposition sub-checks, each part being validated as
+// a sub-format over its own variable.
 func stringConditions(ctx formats.EmitContext, params map[string]any, vλl string) []string {
-	// Build-time mockSample validation against the statically checkable
-	// sibling bounds (length + char/value ops); independent of whether a
-	// pattern is present.
+	// Checked against the statically knowable sibling bounds, whether or not a pattern is present.
 	validateSampleBounds(ctx, params)
 	var conditions []string
-	// The content check leads, matching the order the former jsonContent
-	// emitter produced: parse first, then the sibling string keywords.
+	// The content check leads: parse first, then the sibling string keywords.
 	if wantsJSONContent(params) {
 		conditions = append(conditions, jsonParseCheck(params, vλl))
 	}
 	conditions = append(conditions, lengthConditions(params, vλl, ctx)...)
-	// `isRegex` routes to the pure-fn engine: whether a string COMPILES as a
-	// regular expression is not something a pattern can ask.
+	// `isRegex` routes to the pure-fn engine: whether a string COMPILES as a regex is not something a pattern can ask.
 	if isRegex, _ := params["isRegex"].(bool); isRegex {
 		conditions = append(conditions, formats.PureFnAlias(ctx, purefnids.IsEcmaRegex)+"("+vλl+")")
 	}
-	// `pattern` adds a regex test (and triggers build-time mockSample
-	// validation). Backs FormatAlpha / FormatNumeric and any user
-	// FormatString carrying a registerFormatPattern result.
+	// `pattern` backs FormatAlpha / FormatNumeric and any FormatString carrying a registerFormatPattern result.
 	if source, flags, ok := recoverPattern(params); ok {
 		validatePatternSafety(ctx, params, source, flags)
 		validateSamples(ctx, source, flags, recoverSamples(params))
@@ -133,16 +104,10 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 	return conditions
 }
 
-// lengthConditions returns the JS boolean expressions for whichever of
-// maxLength / minLength / length are set. Shared by the stringFormat
-// emitter and the named-pattern (domain/email/url) emitters.
-//
-// The bounds count CODE POINTS (JSON Schema's rule, and what a reader means by
-// "two characters"): '💩💩' is two code points with a `.length` of 4. The count
-// is bracketed by `.length` on both sides — never greater (a code point is one
-// or two units), never less than half (a pair is at most two units) — so a
-// plain `.length` decides everything outside the band [N, 2N] and only a value
-// whose `.length` lands inside it pays for the exact count:
+// lengthConditions returns the JS boolean expressions for whichever of maxLength / minLength / length are set.
+// The bounds count CODE POINTS, which is JSON Schema's rule: '💩💩' is two code points with a `.length` of 4.
+// The count is bracketed by `.length` on both sides, never greater and never less than half, so a plain `.length`
+// decides everything outside the band [N, 2N] and only a value inside it pays for the exact count:
 //
 //	maxLength → `.length <= N` proves it fits, `.length > 2N` proves it doesn't
 //	minLength → `.length < N` proves it misses, `.length >= 2N` proves it doesn't
@@ -168,10 +133,7 @@ func lengthConditions(params map[string]any, vλl string, ctx formats.EmitContex
 	return conditions
 }
 
-// readCharParam reads a `{val: string, ignoreCase?}` param object
-// (allowedChars / disallowedChars). Returns the char-set string, the
-// regex flags ("i" when ignoreCase, else ""), and ok=false when the key
-// is absent or malformed.
+// readCharParam reads a `{val: string, ignoreCase?}` param object, returning the char set and the regex flags.
 func readCharParam(params map[string]any, key string) (val, flags string, ok bool) {
 	obj, isMap := params[key].(map[string]any)
 	if !isMap {
@@ -187,10 +149,8 @@ func readCharParam(params map[string]any, key string) (val, flags string, ok boo
 	return val, flags, true
 }
 
-// readValuesParam reads a `{val: string[], ignoreCase?}` param object
-// (allowedValues / disallowedValues). The `val` tuple arrives as a
-// []any of strings (typeid lowers tuple literals that way). Returns
-// ok=false when absent, malformed, or empty.
+// readValuesParam reads a `{val: string[], ignoreCase?}` param object; typeid lowers the tuple to a []any of
+// strings. An empty list answers ok=false.
 func readValuesParam(params map[string]any, key string) (vals []string, flags string, ok bool) {
 	obj, isMap := params[key].(map[string]any)
 	if !isMap {
@@ -215,23 +175,18 @@ func readValuesParam(params map[string]any, key string) (vals []string, flags st
 	return vals, flags, true
 }
 
-// allowedCharsSource builds the getAllowedCharsRegexp source —
-// `^[<escaped chars>]+$` — so the value must consist entirely of the
-// allowed characters.
+// allowedCharsSource builds `^[<escaped chars>]+$`, so the value must consist entirely of the allowed characters.
 func allowedCharsSource(val string) string {
 	return "^[" + regexpEscape(val) + "]+$"
 }
 
-// disallowedCharsSource builds the getDisallowedCharsRegexp source —
-// an unanchored `[<escaped chars>]` that matches if ANY disallowed char
-// is present (the validate condition negates it).
+// disallowedCharsSource builds an unanchored `[<escaped chars>]`, matching if ANY disallowed char is present,
+// which is why the validate condition negates it.
 func disallowedCharsSource(val string) string {
 	return "[" + regexpEscape(val) + "]"
 }
 
-// valuesSource builds the getAllowed/DisallowedValuesRegexp source —
-// `^(?:<esc v1>|<esc v2>…)$` — an exact-match alternation over the value
-// set. Shared by allowedValues (asserted) and disallowedValues (negated).
+// valuesSource builds `^(?:<esc v1>|<esc v2>…)$`, shared by allowedValues (asserted) and disallowedValues (negated).
 func valuesSource(vals []string) string {
 	escaped := make([]string, len(vals))
 	for i, value := range vals {
@@ -240,13 +195,10 @@ func valuesSource(vals []string) string {
 	return "^(?:" + strings.Join(escaped, "|") + ")$"
 }
 
-// lengthErrorStatements returns the `if (fail) formatErr(...)`
-// statements for whichever length bounds are set. fmtName tags the
-// emitted format error (stringFormat / domain / email / url …).
-// The failure conditions are the negation of lengthConditions, and keep the
-// same `.length` short-circuit: a string can only be too long once `.length`
-// exceeds the bound, so the exact code-point count is asked for solely to
-// confirm it.
+// lengthErrorStatements returns the error statements for `isRegex` and whichever length bounds are set;
+// fmtName tags the emitted format error (stringFormat / domain / email / url …).
+// The failure conditions are the negation of lengthConditions and keep the same `.length` short-circuit, so the
+// exact code-point count is asked for only to confirm a failure.
 func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName, errorTypeExpr string) []string {
 	var statements []string
 	if isRegex, _ := params["isRegex"].(bool); isRegex {
@@ -276,15 +228,8 @@ func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 	return statements
 }
 
-// EmitValidationErrorsCheck emits one `if (failed) er.push(…)` statement
-// per active length predicate. Each pushes a TypeFormatError with
-// the canonical shape:
-//
-//	{name: 'stringFormat', formatPath: [...pth, '<param>'], val: <bound>}
-//
-// Matches the emitIsTypeErrors output (modulo the wrapper-shape
-// param unwrap) so the JS-side runtime sees the same diagnostics
-// regardless of which compiler produced the validator.
+// EmitValidationErrorsCheck emits one `if (failed) er.push(…)` per active predicate, each pushing a
+// TypeFormatError shaped `{name: 'stringFormat', formatPath: [...pth, '<param>'], val: <bound>}`.
 func (stringFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -296,14 +241,11 @@ func (stringFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 	return strings.Join(stringErrorStatements(ctx, params, vλl, pathExpr, errorsArr, formatName, ""), ";")
 }
 
-// stringErrorStatements returns the `if (fail) <push error>` statements
-// for every active StringFormat param, in emitIsTypeErrors order
-// (stringFormat.runtype.ts:80-127). Length params tag the error `val`
-// with the bound; pattern + the four char/value params tag it with the
-// resolved message (custom errorMessage or the default). fmtName tags
-// the emitted format error so domain/email decomposition can reuse this
-// over their own variable + sub-params, and errorTypeExpr (a JS expression,
-// or "") lets them say WHICH PART of the value each error belongs to.
+// stringErrorStatements returns the `if (fail) <push error>` statements for every active StringFormat param.
+// A length param tags the error `val` with the bound; pattern and the four char/value params tag it with the
+// resolved message.
+// fmtName lets the domain/email decomposition reuse this over its own variable and sub-params, and errorTypeExpr
+// (a JS expression, or "") lets it say WHICH PART of the value each error belongs to.
 func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName, errorTypeExpr string) []string {
 	var statements []string
 	if wantsJSONContent(params) {
@@ -340,10 +282,8 @@ func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 	return statements
 }
 
-// EmitFormatTransform implements formats.FormatTransformer — the value
-// rewrite declared under the `transform` key, applied by the formatTransform
-// RT-fn only. The shared chain (trim, replace, replaceAll, lowercase,
-// uppercase, capitalize) lives in formats.EmitStringTransform; "" is identity.
+// EmitFormatTransform implements formats.FormatTransformer over the `transform` key; the shared chain lives in
+// formats.EmitStringTransform and "" is identity.
 func (stringFormatEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -351,11 +291,8 @@ func (stringFormatEmitter) EmitFormatTransform(annotation *reflection.FormatAnno
 	return formats.EmitStringTransform(annotation.Params, vλl)
 }
 
-// ValidateParams ports the StringRunTypeFormat.validateParams
-// (stringFormat.runtype.ts:167-237) to the build-time AOT path: length
-// mutual-exclusivity, bound ordering, value-set caps, single-complex-param,
-// and the disallowed* mockSamples requirement. Returns one message per
-// violation (surfaced as CodeFMTInvalidParams).
+// ValidateParams checks length mutual-exclusivity, bound ordering, the value-set caps, the single-complex-param
+// rule and the disallowed* mockSamples requirement, one message per violation (CodeFMTInvalidParams).
 func (stringFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -396,8 +333,7 @@ func (stringFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 	return errs
 }
 
-// paramHasMockSamples reports whether a complex param object carries a
-// non-empty `mockSamples` (a char-set string or an array of samples).
+// paramHasMockSamples reports a non-empty `mockSamples`, either a char-set string or an array of samples.
 func paramHasMockSamples(params map[string]any, key string) bool {
 	obj, ok := params[key].(map[string]any)
 	if !ok {

@@ -8,9 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// timeEmitter implements the format named "time" — FormatStringTime<P>.
-// The `format` param selects one of eight time-parsing pure fns; min/max
-// bounds compare ms-of-day. Moved here from the string package.
+// timeEmitter implements the format named "time", FormatStringTime<P>: the `format` param selects one of eight
+// time-parsing pure fns, and min/max bounds compare ms-of-day.
 type timeEmitter struct{}
 
 func init() {
@@ -20,8 +19,7 @@ func init() {
 func (timeEmitter) Name() string                    { return "time" }
 func (timeEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// timeFormatPureFn maps a `format` param value to the id of the pure fn that
-// validates it.
+// timeFormatPureFn maps a `format` param value to the id of the pure fn that validates it.
 func timeFormatPureFn(format string) (string, bool) {
 	switch format {
 	case "ISO", "HH:mm:ss[.mmm]TZ":
@@ -44,9 +42,8 @@ func timeFormatPureFn(format string) (string, bool) {
 	return "", false
 }
 
-// ValidateParams checks the `format` layout is supported and validates
-// the optional min/max bounds (absolute literal in the layout, or a
-// relative `now±P…` using only time components).
+// ValidateParams checks the `format` layout is supported and validates the min/max bounds, a relative one using
+// only time components.
 func (timeEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
