@@ -1,49 +1,28 @@
-// DataView-based binary serializer + deserializer ported from the reference
-// implementation. Wire format:
-//   - Little-endian.
-//   - Strings: `[varint length (LEB128), utf8 bytes]`.
-//   - Numbers: float64.
-//   - Enums: `[uint32 typeTag (1=string, 2=number), value]`.
-//   - Optional-property bitmaps: 1 bit per optional prop, 8 per byte.
-//
-// Two ported optimisations:
-//   - String bytes cache — short strings (<64 chars) are UTF-8-encoded once
-//     and blitted on repeat encodes. Bounded with half-LRU eviction.
-//   - Adaptive buffer sizing — pre-allocates from per-key Welford statistics
-//     (running mean + variance), allocating `mean + sizeMultiplier × stddev`
-//     so the headroom tracks the observed payload spread instead of a fixed
-//     multiple of the average. Falls back to `defaultBufferSize` on a cold
-//     cache. Keyed on the caller-supplied `cacheKey`.
-//
-// The serializer also GROWS IN PLACE: write methods reserve capacity via
-// `ensureCapacity`, which copies the written prefix into a larger buffer when a
-// payload exceeds the prediction. An above-average payload therefore costs one
-// buffer copy, never a throw + re-encode-from-scratch.
-//
-// Tune via `setSerializationOptions({...})`. The `sizeHistory` and
-// `stringBytesCache` overrides let tests / multi-tenant consumers scope state.
+// DataView-based binary serializer + deserializer. The wire format is little-endian: a string is a LEB128 varint
+// length plus utf8 bytes, a number float64, an enum a uint32 type tag (1=string, 2=number) plus the value, and
+// optional properties ride a bitmap of one bit each. Two optimisations: short strings (<64 chars) are UTF-8
+// encoded once and blitted on repeat encodes (bounded, half-LRU eviction), and the buffer is pre-allocated from
+// per-key Welford statistics as `mean + sizeMultiplier × stddev`, so the headroom tracks the observed payload
+// spread. The serializer also GROWS IN PLACE through `ensureCapacity`, which copies the written prefix into a
+// larger buffer, so an above-average payload costs one copy rather than a throw and a re-encode from scratch.
+// Tune it all with `setSerializationOptions({...})`.
 
 const STR = 1;
 const NUM = 2;
 const POW_2_32 = 2 ** 32;
 const LE = true;
 
-// String length prefixes use an unsigned LEB128 varint instead of a fixed
-// uint32, so a string of N UTF-8 bytes costs ceil(7-bit groups) length bytes:
-// 1 byte for N < 128 (the common short-string case — names, ids, enum values),
-// 2 for N < 16384, up to 5 at the 2**32 ceiling. This trims 3 bytes off every
-// short string versus the old 4-byte prefix. MAX_VARINT bounds the gap the
-// encode-in-place path leaves before back-shifting the bytes.
+// String length prefixes use an unsigned LEB128 varint instead of a fixed uint32, so a string of N UTF-8 bytes
+// costs 1 length byte for N < 128 (the common short-string case), 2 for N < 16384, up to 5 at the 2**32 ceiling.
+// MAX_VARINT bounds the gap the encode-in-place path leaves before back-shifting the bytes.
 const MAX_VARINT = 5;
 
-/** Ceiling on a wire count whose items occupy ZERO bytes each (an array of
- *  literals, of empty objects), where no byte count can bound the allocation.
- *  Every other item kind is bounded by the bytes left in the buffer. **/
+/** Ceiling on a wire count whose items occupy ZERO bytes each (an array of literals, of empty objects), where no
+ *  byte count can bound the allocation. Every other item kind is bounded by the bytes left in the buffer. **/
 export const MAX_ZERO_BYTE_ITEMS = 1 << 20;
 
-/** Thrown by the deserializer on a malformed buffer: a varint, string or
- *  count that runs past the end, or a count the bytes left cannot hold. The
- *  compiled decoders throw it as-is (no wrapper on the hot path); `parse` is
+/** Thrown by the deserializer on a malformed buffer: a varint, string or count that runs past the end, or a
+ *  count the bytes left cannot hold. Compiled decoders throw it as-is (no wrapper on the hot path); `parse` is
  *  the typed entry point for untrusted input. **/
 export class BinaryDecodeError extends Error {
   constructor(message: string) {
@@ -52,8 +31,8 @@ export class BinaryDecodeError extends Error {
   }
 }
 
-/** The message every decoder throws for a prototype-named wire key, on both
- *  roads (the Go emitter's UnsafeKeyMessage carries the same text). **/
+/** The message every decoder throws for a prototype-named wire key; Go's UnsafeKeyMessage carries the same
+ *  text. **/
 export const UNSAFE_PROPERTY_NAME_MESSAGE = '[mion] Unsafe property name: ';
 
 /** Byte width of the unsigned LEB128 encoding of `n` (n < 2**32). **/
@@ -65,9 +44,8 @@ function varintLen(n: number): number {
   return 5;
 }
 
-/** UTF-8 byte length of `str` WITHOUT encoding it — matches `TextEncoder` output
- *  exactly (a surrogate pair counts as one 4-byte code point). Used by the sizing
- *  serializer so a measure pass needs no allocation. **/
+/** UTF-8 byte length of `str` WITHOUT encoding it — matches `TextEncoder` output exactly (a surrogate pair
+ *  counts as one 4-byte code point). Used by the sizing serializer, so a measure pass needs no allocation. **/
 function utf8ByteLength(str: string): number {
   let bytes = 0;
   for (let i = 0; i < str.length; i++) {
@@ -98,15 +76,10 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder('utf-8', {fatal: true});
 
 // ── Temporal binary packing ──
-//
-// The Temporal types with a fixed, ISO-representable layout are packed as
-// integers instead of the wide toJSON() string (the most space-inefficient
-// binary encoding possible). The value shapes are declared structurally and
-// the runtime constructors reached through a loosely-typed global, so this
-// file stays independent of whether the consuming tsconfig's `lib` declares
-// the Temporal types — real Temporal (native Node 26+ or the test polyfill)
-// backs them at runtime.
-//
+// The Temporal types with a fixed, ISO-representable layout are packed as integers instead of the wide toJSON()
+// string. The value shapes are declared structurally and the runtime constructors reached through a
+// loosely-typed global, so this file stays independent of whether the consuming tsconfig's `lib` declares the
+// Temporal types; real Temporal (native Node 26+ or the test polyfill) backs them at runtime.
 // Layouts (little-endian, encode order == decode order):
 //   Instant         int64 seconds + int32 sub-second nanoseconds (12 B)
 //   PlainTime       u8 hour/minute/second + u16 ms/us/ns (9 B)
@@ -115,9 +88,8 @@ const textDecoder = new TextDecoder('utf-8', {fatal: true});
 //   PlainDateTime   u8 isoDisc, (iso) date + time, (non-iso) string
 //   PlainYearMonth  u8 isoDisc, (iso) i32 year + u8 month, (non-iso) string
 //
-// PlainDate/PlainDateTime/PlainYearMonth carry a 1-byte ISO-calendar
-// discriminator so a non-ISO calendar (Hebrew, Islamic, …) round-trips
-// losslessly via the string fallback without forcing every value onto the
+// PlainDate/PlainDateTime/PlainYearMonth carry a 1-byte ISO-calendar discriminator, so a non-ISO calendar
+// (Hebrew, Islamic, …) round-trips losslessly via the string fallback without forcing every value onto the
 // wide encoding.
 const NANOS_PER_SECOND = 1_000_000_000n;
 const ISO_CALENDAR = 'iso8601';
@@ -152,8 +124,7 @@ interface PlainYearMonthValue extends CalendarValue {
   month: number;
 }
 
-// Temporal constructors used to rebuild values on decode — only the
-// statics/constructors the packer calls.
+// Temporal constructors used to rebuild values on decode — only the ones the packer calls.
 interface TemporalConstructors {
   Instant: {fromEpochNanoseconds(ns: bigint): unknown};
   PlainTime: new (
@@ -182,8 +153,7 @@ interface TemporalConstructors {
   PlainYearMonth: {from(iso: string): unknown; new (year: number, month: number): unknown};
 }
 
-// lazy global accessor — resolved per call so module load order (the test
-// setup installs the polyfill global before any test) never matters
+// Lazy global accessor, resolved per call so module load order (test setup installs the polyfill) never matters
 const temporalRuntime = (): TemporalConstructors => (globalThis as unknown as {Temporal: TemporalConstructors}).Temporal;
 
 /** Tagged ArrayBuffer with the SharedArrayBuffer carve-out. **/
@@ -192,9 +162,8 @@ export type StrictArrayBuffer = ArrayBuffer & {__brand?: 'StrictArrayBuffer'};
 /** Buffer-like input for the deserializer. **/
 export type BinaryInput = StrictArrayBuffer | ArrayBufferView;
 
-/** Per-key Welford accumulator over observed payload sizes. `mean` is the
- *  running average bytes-written; `m2` is the sum of squared deviations from
- *  which sample variance (and thus stddev) is derived. **/
+/** Per-key Welford accumulator over observed payload sizes: `mean` is the running average bytes-written, `m2`
+ *  the sum of squared deviations from which sample variance (and thus stddev) is derived. **/
 export interface SizeStats {
   count: number;
   mean: number;
@@ -203,14 +172,12 @@ export interface SizeStats {
 
 /** Tunable serializer behaviour. **/
 export interface SerializationOptions {
-  /** Cold-start buffer size, used until a key has size history AND no
-   *  compile-time estimate was supplied. Default 16 KiB (`2 ** 14`). The
-   *  `dynamic` binary encoder normally seeds from the per-type estimate
-   *  instead, so this only applies to value-first / plugin-inactive paths. **/
+  /** Cold-start buffer size, used until a key has size history AND no compile-time estimate was supplied.
+   *  Default 16 KiB. The `dynamic` binary encoder normally seeds from the per-type estimate instead, so this
+   *  only applies to value-first / plugin-inactive paths. **/
   defaultBufferSize: number;
-  /** Sigma multiplier for headroom: `allocSize = mean + sizeMultiplier * stddev`.
-   *  Default 2 (≈ covers payloads up to two standard deviations above the mean
-   *  in one shot; larger ones grow in place). **/
+  /** Sigma multiplier for headroom: `allocSize = mean + sizeMultiplier * stddev`. Default 2, which covers
+   *  payloads up to two standard deviations above the mean in one shot; larger ones grow in place. **/
   sizeMultiplier: number;
   /** Strings shorter than this bypass the bytes cache. Default 64. **/
   maxStrCacheLength: number;
@@ -236,8 +203,7 @@ const DEFAULTS: SerializationOptions = {
 
 let opts: SerializationOptions = {...DEFAULTS};
 
-/** Patches the active serialization options. Unspecified fields keep their
- *  current value. **/
+/** Patches the active serialization options; unspecified fields keep their current value. **/
 export function setSerializationOptions(patch: Partial<SerializationOptions>): void {
   opts = {...opts, ...patch};
 }
@@ -250,10 +216,9 @@ export interface DataViewSerializer {
   index: number;
   view: DataView;
   hasEnded: boolean;
-  /** Per-write capacity reserve, used by the Go-emitted body and the serializer's
-   *  own writers as `Ser.ensureCapacity?.(n)`. Present (a grow function) only in
-   *  'dynamic' mode; `undefined` in 'precalculate' / 'initial', so every reserve
-   *  site short-circuits. **/
+  /** Per-write capacity reserve, used by the Go-emitted body and the serializer's own writers as
+   *  `Ser.ensureCapacity?.(n)`. A grow function only in 'dynamic' mode; `undefined` in 'precalculate' /
+   *  'initial', so every reserve site short-circuits. **/
   ensureCapacity?: (this: DataViewSerializer, extraBytes: number) => void;
   reset(): void;
   resize(size: number): void;
@@ -285,9 +250,8 @@ export interface DataViewDeserializer {
   markAsEnded(): void;
   getLength(): number;
   desLength(): number;
-  /** A varint item count, refused before allocation when the bytes left
-   *  cannot hold `count × minBytesPerItem` (or, for zero-byte items, when it
-   *  passes MAX_ZERO_BYTE_ITEMS). **/
+  /** A varint item count, refused before allocation when the bytes left cannot hold `count × minBytesPerItem`
+   *  (or, for zero-byte items, when it passes MAX_ZERO_BYTE_ITEMS). **/
   desCount(minBytesPerItem: number): number;
   /** The uint32 twin of `desCount`, for the index-signature entry count. **/
   desCountU32(minBytesPerItem: number): number;
@@ -302,22 +266,19 @@ export interface DataViewDeserializer {
   desTemporalPlainYearMonth(): unknown;
 }
 
-/** Optional args for `createDataViewSerializer`. `size` is an explicit
- *  override; `relatedKeys` predicts via sum-of-averages; `grow` (default `true`)
- *  arms in-place growth — pass `false` for the fixed-size strategies
- *  ('precalculate' / 'initialSize' / 'intoBuffer') so the serializer never reserves or
- *  reallocates. `buffer` wraps a caller-supplied `ArrayBuffer` (the `intoBuffer` strategy)
- *  instead of allocating one; growth is always off for it (we cannot resize a
- *  caller's buffer without breaking their reference). **/
+/** Optional args for `createDataViewSerializer`. `size` is an explicit override; `relatedKeys` predicts via
+ *  sum-of-averages; `grow` (default `true`) arms in-place growth — pass `false` for the fixed-size strategies
+ *  ('precalculate' / 'initialSize' / 'intoBuffer') so the serializer never reserves or reallocates. `buffer`
+ *  wraps a caller-supplied `ArrayBuffer` (the `intoBuffer` strategy) instead of allocating one; growth is always
+ *  off for it, since resizing a caller's buffer would break their reference. **/
 export interface CreateSerializerOptions {
   size?: number;
   relatedKeys?: string[];
   grow?: boolean;
   buffer?: ArrayBuffer;
-  /** Cold-start buffer size used when the key has NO history yet — the
-   *  compile-time per-type estimate the `dynamic` binary encoder passes,
-   *  replacing the `defaultBufferSize` fallback. History still refines from the
-   *  first real encode (estimate seeds, never overrides). **/
+  /** Cold-start buffer size used when the key has NO history yet — the compile-time per-type estimate the
+   *  `dynamic` binary encoder passes, replacing the `defaultBufferSize` fallback. History still refines from the
+   *  first real encode: the estimate seeds, it never overrides. **/
   coldStartSize?: number;
 }
 
@@ -346,9 +307,8 @@ export function createDataViewDeserializer(cacheKey: string, input: BinaryInput)
   return new DataViewDeserializerImpl(cacheKey, input as StrictArrayBuffer);
 }
 
-/** Sum of historical averages for related keys, or the single key's average,
- *  falling back to `coldStartSize` (the compile-time estimate) then
- *  `defaultBufferSize` on a cold cache. **/
+/** Sum of historical averages for related keys, or the single key's average, falling back to `coldStartSize`
+ *  (the compile-time estimate) then `defaultBufferSize` on a cold cache. **/
 function predictBufferSize(cacheKey: string, relatedKeys?: string[], coldStartSize?: number): number {
   if (relatedKeys && relatedKeys.length) {
     let total = 0;
@@ -358,11 +318,9 @@ function predictBufferSize(cacheKey: string, relatedKeys?: string[], coldStartSi
   return sizeForKey(cacheKey, coldStartSize);
 }
 
-/** Predict from Welford stats: `mean + sizeMultiplier * stddev`. A tight
- *  prediction is safe because the serializer grows in place on a miss — under-
- *  allocation costs one buffer copy, not a throw. Until the key has been
- *  observed, falls back to `coldStartSize` (the compile-time per-type estimate)
- *  when supplied, else the cold-start `defaultBufferSize`. **/
+/** Predict from Welford stats: `mean + sizeMultiplier * stddev`. A tight prediction is safe because the
+ *  serializer grows in place on a miss — under-allocation costs one buffer copy, not a throw. Until the key has
+ *  been observed, falls back to `coldStartSize` when supplied, else the cold-start `defaultBufferSize`. **/
 function sizeForKey(key: string, coldStartSize?: number): number {
   const stats = opts.sizeHistory.get(key);
   if (stats === undefined || stats.count === 0) return coldStartSize ?? opts.defaultBufferSize;
@@ -372,9 +330,8 @@ function sizeForKey(key: string, coldStartSize?: number): number {
   return Math.ceil(stats.mean + opts.sizeMultiplier * stddev);
 }
 
-/** Welford online update of the per-key mean + variance accumulator. Unlike the
- *  previous EMA it keeps an unbiased running mean/variance over ALL observations
- *  (see SizeStats); regime-shift responsiveness is the documented trade-off. **/
+/** Welford online update of the per-key mean + variance accumulator. It keeps an unbiased running mean and
+ *  variance over ALL observations; responsiveness to a regime shift is the documented trade-off. **/
 function recordObservedSize(cacheKey: string, observed: number): void {
   const stats = opts.sizeHistory.get(cacheKey) ?? {count: 0, mean: 0, m2: 0};
   stats.count += 1;
@@ -394,12 +351,10 @@ function evictStringBytesCache(): void {
   }
 }
 
-/** The grow function assigned to a serializer's `ensureCapacity` member in
- *  'dynamic' mode. A single shared reference, so `Ser.ensureCapacity?.(n)` call
- *  sites stay monomorphic. 'precalculate' / 'initial' leave the member `undefined`,
- *  so the same call sites short-circuit (never invoked, the size arg never
- *  evaluated). Grows geometrically but at least to the exact deficit, so a one-off
- *  large payload settles in a single copy; throws only at the `2 ** 32` ceiling. **/
+/** The grow function assigned to a serializer's `ensureCapacity` in 'dynamic' mode. A single shared reference,
+ *  so `Ser.ensureCapacity?.(n)` call sites stay monomorphic; 'precalculate' / 'initial' leave the member
+ *  `undefined`, so those same call sites short-circuit and never evaluate the size argument. Grows
+ *  geometrically but at least to the exact deficit, so a one-off large payload settles in a single copy. **/
 function growEnsureCapacity(this: DataViewSerializer, extraBytes: number): void {
   const required = this.index + extraBytes;
   if (required <= this.buffer.byteLength) return;
@@ -418,15 +373,12 @@ class DataViewSerializerImpl implements DataViewSerializer {
   index: number = 0;
   view: DataView;
   hasEnded: boolean = false;
-  // Per-instance capacity reserve. Set to the shared `growEnsureCapacity` only in
-  // 'dynamic' mode; left `undefined` for 'precalculate' / 'initial' so every
-  // `this.ensureCapacity?.(n)` / `Ser.ensureCapacity?.(n)` reserve short-circuits
-  // (the call is not made and `n` is not evaluated).
+  // Per-instance capacity reserve: the shared `growEnsureCapacity` in 'dynamic' mode, left `undefined` for
+  // 'precalculate' / 'initial' so every `ensureCapacity?.(n)` reserve short-circuits without evaluating `n`.
   ensureCapacity?: (this: DataViewSerializer, extraBytes: number) => void;
   constructor(cacheKey: string, size: number, grow: boolean = true, existingBuffer?: ArrayBuffer) {
     this.cacheKey = cacheKey;
-    // `existingBuffer` is a caller-supplied buffer (the `intoBuffer` strategy) we wrap
-    // instead of allocating; otherwise allocate `size` bytes.
+    // `existingBuffer` is the caller's buffer (the `intoBuffer` strategy), wrapped instead of allocated.
     this.buffer = existingBuffer ?? new ArrayBuffer(size);
     this.view = new DataView(this.buffer);
     this.uint8View = new Uint8Array(this.buffer);
@@ -437,8 +389,7 @@ class DataViewSerializerImpl implements DataViewSerializer {
     this.hasEnded = false;
   }
   resize(size: number): void {
-    // Preserve the already-written prefix (up to the new size) so a grow never
-    // discards work — callers no longer have to re-encode from a clean index.
+    // Preserve the already-written prefix (up to the new size) so a grow never discards work.
     const old = this.uint8View;
     const keep = Math.min(this.index, size);
     this.buffer = new ArrayBuffer(size);
@@ -446,13 +397,10 @@ class DataViewSerializerImpl implements DataViewSerializer {
     this.uint8View = new Uint8Array(this.buffer);
     if (keep > 0) this.uint8View.set(old.subarray(0, keep));
   }
-  /** Reserve room for a string write. Worst-case UTF-8 is 3 bytes per UTF-16
-   *  code unit, plus the max-width varint gap the encode-in-place path leaves
-   *  before the bytes; reserving it up front means `encodeInto` can never
-   *  truncate. When that worst case would top the `2 ** 32` ceiling (only for
-   *  multi-GB strings whose real UTF-8 size may still fit) grow as far as the
-   *  ceiling allows and let the post-encode guard reject a genuinely
-   *  unencodable one. **/
+  /** Reserve room for a string write: worst-case UTF-8 is 3 bytes per UTF-16 code unit, plus the max-width
+   *  varint gap the encode-in-place path leaves, so reserving it up front means `encodeInto` can never truncate.
+   *  When that worst case would top the `2 ** 32` ceiling (only for multi-GB strings whose real UTF-8 size may
+   *  still fit) grow as far as the ceiling allows and let the post-encode guard reject an unencodable one. **/
   private reserveForString(charLength: number): void {
     const worstCase = MAX_VARINT + charLength * 3;
     if (this.index + worstCase < POW_2_32) this.ensureCapacity?.(worstCase);
@@ -466,35 +414,29 @@ class DataViewSerializerImpl implements DataViewSerializer {
     }
     this.uint8View[this.index++] = value;
   }
-  /** Write a length / count / size prefix as an unsigned LEB128 varint. Reserves
-   *  exactly `varintLen(value)` — the width `writeVarint` is about to emit, since
-   *  `value` is known here — rather than the worst-case `MAX_VARINT`. The tight
-   *  reserve still can't overflow (it equals the write) and keeps a cold dynamic
-   *  buffer (seeded at the per-type estimate, which budgets the same varint width)
-   *  from growing on the framing of an in-bounds collection. One byte for values
-   *  < 128 — the common small-collection case — versus the old fixed 4. **/
+  /** Write a length / count / size prefix as an unsigned LEB128 varint. Reserves exactly `varintLen(value)` —
+   *  the width `writeVarint` is about to emit — rather than the worst-case `MAX_VARINT`: the tight reserve
+   *  cannot overflow, since it equals the write, and it keeps a cold dynamic buffer (seeded at the per-type
+   *  estimate, which budgets the same varint width) from growing on the framing of an in-bounds collection. **/
   serLength(value: number): void {
     this.ensureCapacity?.(varintLen(value));
     this.writeVarint(value);
   }
-  /** Encode `str` into the buffer immediately after an OPTIMISTIC 1-byte varint
-   *  slot, then write the actual length prefix. A string whose UTF-8 length is
-   *  < 128 (the common case) needs only that 1 byte, so the bytes already sit in
-   *  the right place and no shift happens. Only a longer string (varint > 1 byte)
-   *  shifts its bytes right to open room for the wider prefix. Returns the UTF-8
-   *  byte count. Callers MUST have reserved `MAX_VARINT + str.length * 3` first. **/
+  /** Encode `str` immediately after an OPTIMISTIC 1-byte varint slot, then write the actual length prefix: a
+   *  UTF-8 length < 128 (the common case) needs only that byte, so the bytes already sit right and nothing
+   *  shifts, and only a longer string shifts its bytes right to open room for the wider prefix. Returns the
+   *  UTF-8 byte count. Callers MUST have reserved `MAX_VARINT + str.length * 3` first. **/
   private encodeStringAtCursor(str: string): number {
     const dataStart = this.index + 1;
     const result = textEncoder.encodeInto(str, this.uint8View.subarray(dataStart));
     const read = result.read ?? 0;
-    // `encodeInto` silently truncates on small destinations; the reservation
-    // above prevents that, so this guard only catches an internal accounting bug.
+    // `encodeInto` silently truncates on small destinations; the reservation above prevents that, so this
+    // guard only catches an internal accounting bug.
     if (read < str.length)
       throw new RangeError(`DataViewSerializer: buffer too small to encode string (wrote ${read}/${str.length} chars).`);
     const written = result.written ?? 0;
     const vlen = varintLen(written);
-    // Wider prefix than the 1-byte slot: shift the bytes right to make room
-    // (copyWithin is memmove-safe for the overlapping right shift).
+    // Wider prefix than the 1-byte slot: shift right to make room (copyWithin is memmove-safe here).
     if (vlen > 1) this.uint8View.copyWithin(this.index + vlen, dataStart, dataStart + written);
     this.writeVarint(written);
     this.index += written;
@@ -514,9 +456,8 @@ class DataViewSerializerImpl implements DataViewSerializer {
     return this.index;
   }
   serString(str: string, skipCache?: boolean): void {
-    // Long strings or explicit bypass: encode straight into the buffer. Reserve
-    // the worst-case UTF-8 size (≤3 bytes per UTF-16 code unit) up front so
-    // `encodeInto` never truncates and we never re-encode on a buffer miss.
+    // Long strings or explicit bypass: encode straight into the buffer, reserving the worst-case UTF-8 size up
+    // front so `encodeInto` never truncates and a buffer miss never forces a re-encode.
     if (str.length >= opts.maxStrCacheLength || skipCache) {
       this.reserveForString(str.length);
       this.encodeStringAtCursor(str);
@@ -524,16 +465,15 @@ class DataViewSerializerImpl implements DataViewSerializer {
     }
     const cached = opts.stringBytesCache.get(str);
     if (cached) {
-      // Known byte length — write the varint prefix then blit the cached bytes
-      // directly after it, no gap and no shift.
+      // Known byte length: write the varint prefix, then blit the cached bytes after it, no gap and no shift.
       this.ensureCapacity?.(varintLen(cached.length) + cached.length);
       this.writeVarint(cached.length);
       this.uint8View.set(cached, this.index);
       this.index += cached.length;
       return;
     }
-    // Cache miss: encode in place, then snapshot the written bytes. The slice
-    // copies (mandatory — the working buffer is overwritten on later writes).
+    // Cache miss: encode in place, then snapshot the bytes. The slice must copy — later writes overwrite the
+    // working buffer.
     this.ensureCapacity?.(MAX_VARINT + str.length * 3);
     const written = this.encodeStringAtCursor(str);
     if (opts.stringBytesCache.size >= opts.maxCacheSize) evictStringBytesCache();
@@ -564,8 +504,8 @@ class DataViewSerializerImpl implements DataViewSerializer {
   }
   serTemporalInstant(value: InstantValue): void {
     this.ensureCapacity?.(12);
-    // BigInt / and % both truncate toward zero, so the (possibly negative)
-    // remainder recombines exactly: seconds * 1e9 + subNs === epochNanoseconds.
+    // BigInt / and % both truncate toward zero, so the (possibly negative) remainder recombines exactly:
+    // seconds * 1e9 + subNs === epochNanoseconds.
     this.view.setBigInt64(this.index, value.epochNanoseconds / NANOS_PER_SECOND, LE);
     this.index += 8;
     this.view.setInt32(this.index, Number(value.epochNanoseconds % NANOS_PER_SECOND), LE);
@@ -624,11 +564,9 @@ class DataViewSerializerImpl implements DataViewSerializer {
   }
 }
 
-// A DataView-shaped sink whose writes are no-ops and whose only read (`getUint8`,
-// used by setBitMask) returns 0. The sizing serializer points its `view` here so
-// the Go-emitted raw writes (`Ser.view.setFloat64(Ser.index, v, 1, (Ser.index +=
-// 8))`, `setUint8(Ser.index++, …)`, …) still advance `index` via their fused
-// argument expressions but touch no buffer.
+// A DataView-shaped sink whose writes are no-ops and whose only read (`getUint8`, used by setBitMask) returns 0.
+// The sizing serializer points its `view` here so the Go-emitted raw writes still advance `index` through their
+// fused argument expressions but touch no buffer.
 const sizingView = {
   setUint8() {},
   setUint16() {},
@@ -644,19 +582,15 @@ const sizingView = {
   },
 } as unknown as DataView;
 
-/** Measure-pass serializer: runs the SAME Go-emitted `toBinary` body as the real
- *  encoder, but every write is a no-op and only `index` advances — so after a run
- *  `getLength()` is EXACTLY the byte count the real encoder would produce (same
- *  code path, same branches, formats, temporal packing, union arms, deps). Used
- *  by `createBinaryEncoderFn(value, {sizing: 'precalculate'})` to size the buffer up
- *  front so no inline write can overflow. Only `serString`/`serLength` need overriding
- *  (they would otherwise touch the buffer); every other framing method is
- *  inherited unchanged, so the size rules can never drift from the encoder. **/
+/** Measure-pass serializer: runs the SAME Go-emitted `toBinary` body as the real encoder, but every write is a
+ *  no-op and only `index` advances, so after a run `getLength()` is EXACTLY the byte count the real encoder
+ *  would produce. Used by `createBinaryEncoderFn(value, {sizing: 'precalculate'})` to size the buffer up front
+ *  so no inline write can overflow. Only `serString` / `serLength` need overriding (they would otherwise touch
+ *  the buffer); every other framing method is inherited, so the size rules can never drift from the encoder. **/
 class SizingSerializerImpl extends DataViewSerializerImpl {
   constructor(cacheKey: string) {
-    // grow=false leaves `ensureCapacity` undefined, so every inherited writer's
-    // `this.ensureCapacity?.(n)` reserve short-circuits — the measure pass never
-    // allocates and only advances `index`.
+    // grow=false leaves `ensureCapacity` undefined, so every inherited writer's reserve short-circuits: the
+    // measure pass never allocates and only advances `index`.
     super(cacheKey, 0, false);
     this.view = sizingView;
   }
@@ -707,16 +641,12 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
   getLength(): number {
     return this.index;
   }
-  /** Read an unsigned LEB128 varint length / count / size prefix. Fast path for
-   *  the common single-byte case (length < 128) — a plain read+compare, matching
-   *  the old fixed `getUint32` cost. The `* 2 ** shift` accumulation (not `<<`)
-   *  keeps the multi-byte case exact up to the 32-bit ceiling.
-   *
-   *  Every byte is bounds-checked: a `Uint8Array` read past the end yields
-   *  `undefined`, which the old loop silently took as a zero, so a truncated
-   *  buffer decoded to garbage instead of failing. A varint wider than
-   *  MAX_VARINT bytes (a value past 2**32, or endless continuation bits) is
-   *  refused for the same reason. **/
+  /** Read an unsigned LEB128 varint length / count / size prefix, with a fast path for the common single-byte
+   *  case (length < 128). The `* 2 ** shift` accumulation (not `<<`) keeps the multi-byte case exact up to the
+   *  32-bit ceiling. Every byte is bounds-checked: a `Uint8Array` read past the end yields `undefined`, which a
+   *  plain loop takes as a zero, so a truncated buffer would decode to garbage instead of failing. A varint
+   *  wider than MAX_VARINT bytes (a value past 2**32, or endless continuation bits) is refused for the same
+   *  reason. **/
   desLength(): number {
     const first = this.uint8View[this.index];
     if (first < 0x80) {
@@ -745,10 +675,9 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     this.index += 4;
     return this.checkCount(count, minBytesPerItem);
   }
-  /** A count the buffer cannot back is refused BEFORE `new Array(count)` or
-   *  the item loop runs: `count × minBytesPerItem` must fit in the bytes left,
-   *  and a zero-byte item (a literal, an empty object) gets a fixed ceiling
-   *  since no byte count can bound it. **/
+  /** A count the buffer cannot back is refused BEFORE `new Array(count)` or the item loop runs: `count ×
+   *  minBytesPerItem` must fit in the bytes left, and a zero-byte item (a literal, an empty object) gets a
+   *  fixed ceiling, since no byte count can bound it. **/
   private checkCount(count: number, minBytesPerItem: number): number {
     const remaining = this.uint8View.length - this.index;
     if (minBytesPerItem > 0 ? count * minBytesPerItem > remaining : count > MAX_ZERO_BYTE_ITEMS) {
@@ -773,12 +702,10 @@ class DataViewDeserializerImpl implements DataViewDeserializer {
     this.index = end;
     return decoded;
   }
-  /** An index-signature key. `__proto__` is never data: writing it on the object
-   *  being built swaps that object's prototype instead of storing a value, so it
-   *  is refused here with the same message the JSON decoders throw and both
-   *  roads behave alike. `prototype` and `constructor` land as plain own keys
-   *  and are carried like any other key. The length check first rules out every
-   *  other key without a string compare. **/
+  /** An index-signature key. `__proto__` is never data — writing it on the object being built swaps that
+   *  object's prototype instead of storing a value — so it is refused here with the same message the JSON
+   *  decoders throw, and both roads behave alike. `prototype` and `constructor` land as plain own keys and are
+   *  carried like any other. The length check first rules out every other key without a string compare. **/
   desSafePropName(): string {
     const key = this.desString();
     if (key.length === 9 && key === '__proto__') throw new BinaryDecodeError(UNSAFE_PROPERTY_NAME_MESSAGE + key);

@@ -5,16 +5,10 @@
  * License: MIT, see LICENSE
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-// ############################################################################
-// WARNING: `rtUtils` is the runtime SERVICE object handed to every emitted
-// factory (`utl`): caches, registries, the class-serializer lookup, the
-// circular-reference guard. It is NOT a bag of helpers. A pure function (one
-// that only looks at its arguments) never belongs here: the emitters inline
-// such logic into the generated code, or it lives in its own module under
-// `pure-fns/` and is reached through `getPureFn`. Adding a helper here bloats
-// the surface every generated module closes over and hides logic the Go
-// emitter should own. Think twice, then put it somewhere else.
-// ############################################################################
+// ⚠️ `rtUtils` is the runtime SERVICE object handed to every emitted factory (`utl`): caches, registries, the
+// class-serializer lookup, the circular-reference guard. It is NOT a bag of helpers — a pure function (one that
+// only looks at its arguments) belongs inline in the generated code, or under `pure-fns/` reached through
+// `getPureFn`. Anything added here bloats the surface every generated module closes over.
 import type {
   CompiledTypeFn,
   TypesFunctionsCache,
@@ -40,17 +34,12 @@ import type {DataOnly} from './dataOnly.ts';
 import type {CompTimeArgs} from '../markers.ts';
 import type {PureFnId} from './pureFn.ts';
 
-/**
- * Shape of rtUtils. Must be defined as a type — `typeof rtUtils` breaks
- * reflection.
- */
+/** Shape of rtUtils. Must be defined as a type — `typeof rtUtils` breaks reflection. */
 export type RTUtils = typeof rtUtils;
 
-/** Runtime guard for the RUN-TYPE overload shared by every `createXxx` factory
- *  (`createValidateFn(rt)`, `createJsonEncoderFn(rt)`,
- *  `createCloneExactShapeFn(rt)`, …): the run-type a builder returns carries
- *  both a string `id` and a `kind`. Plain reflected values (the value/static
- *  form) don't carry `kind`, so they fall through to the plugin-injected id. **/
+/** Runtime guard for the RUN-TYPE overload shared by every `createXxx` factory: the run-type a builder returns
+ *  carries both a string `id` and a `kind`. Plain reflected values (the value/static form) don't carry `kind`,
+ *  so they fall through to the plugin-injected id. **/
 export function isRunTypeValue(val: unknown): val is RunType {
   return typeof val === 'object' && val !== null && typeof (val as RunType).id === 'string' && 'kind' in val;
 }
@@ -59,13 +48,9 @@ const rtFnsCache: TypesFunctionsCache = {};
 const pureFnsCache: PureFunctionsCache = {};
 const runTypesCache: RunTypesCache = {};
 
-// Memo for findRTForType, including negative results (`null` = scanned, no
-// entry — the common case, since most formats declare no transform). Cleared
-// whenever rtFnsCache mutates, so a hit is always as fresh as a scan. Without
-// it the scan runs per format-annotated MOCK NODE: one generated
-// Set<{[k: number]: Map<…, Record<string, Format>>}> value is ~10^5 nodes, and
-// against a long-lived registry the O(cache) scan (which also allocates every
-// key via Object.keys) turned a 35ms fuzz-soak iteration into 300+ seconds.
+// Memo for findRTForType, negative results included (`null` = scanned, no entry). Cleared whenever rtFnsCache
+// mutates, so a hit is always as fresh as a scan. Without it the O(cache) scan runs per format-annotated MOCK
+// NODE (~10^5 for one generated value), which turned a 35ms fuzz-soak iteration into 300+ seconds.
 const findRTForTypeMemo = new Map<string, CompiledTypeFn | null>();
 
 const rtUtils = {
@@ -84,12 +69,10 @@ const rtUtils = {
     materializeRTFn(entry);
     return entry;
   },
-  // Find a family's compiled entry for a TYPE id without knowing the family's
-  // opaque fnHash prefix (cache keys are `<fnHash>_<typeId>`; the 3-char hash
-  // folds the binary version, so the runtime can never hardcode it). Linear
-  // scan gated on the key suffix + the entry's familyTag, memoized per
-  // (familyTag, typeId) — cold path (mock generation), but called once per
-  // format-annotated node of a generated value, so repeats must be O(1).
+  // Find a family's compiled entry for a TYPE id without knowing the family's opaque fnHash prefix (cache keys
+  // are `<fnHash>_<typeId>`, and the hash folds the binary version, so the runtime can never hardcode it). Cold
+  // path (mock generation), but called once per format-annotated node of a generated value, so the repeats must
+  // be O(1) — hence the memo.
   findRTForType(familyTag: string, typeId: string): InitializedTypeFn | undefined {
     const memoKey = familyTag + '\u0000' + typeId;
     const hit = findRTForTypeMemo.get(memoKey);
@@ -151,13 +134,10 @@ const rtUtils = {
   hasPureFn(key: CompTimeArgs<PureFnId>): boolean {
     return !!pureFnsCache[key];
   },
-  // Runtime-key lookup — the UNTRACKED companion to usePureFn/getPureFn/hasPureFn.
-  // The `key` parameter is a plain `string` (NOT `CompTimeArgs<string>`), so the
-  // scanner never demand-checks it: this is the door for a framework dispatching
-  // on a pure-fn id received over the WIRE (e.g. a content hash from a request),
-  // which is inherently non-literal. NOT build-tracked — it drives no PFE9012
-  // "referenced but never registered" nor pure-fn dependency edges; use the
-  // CompTimeArgs forms when you want that tracking.
+  // Runtime-key lookup — the UNTRACKED companion to usePureFn/getPureFn/hasPureFn. The plain `string` param (NOT
+  // `CompTimeArgs<string>`) keeps the scanner from demand-checking it, which is the door for a framework
+  // dispatching on a pure-fn id received over the WIRE. It drives no PFE9012 "referenced but never registered"
+  // and no pure-fn dependency edges; use the CompTimeArgs forms when you want that tracking.
   getPureFnByKey(key: string): PureFunction | undefined {
     const compiled = pureFnsCache[key];
     if (!compiled) return;
@@ -168,9 +148,8 @@ const rtUtils = {
   hasPureFnByKey(key: string): boolean {
     return !!pureFnsCache[key];
   },
-  // Untracked record lookup keyed by a runtime string (see getPureFnByKey). The
-  // registration path reaches for this one: it is handed an id it was called
-  // with, so there is no reference for the build to track and nothing to read.
+  // Untracked record lookup keyed by a runtime string (see getPureFnByKey). The registration path uses this one:
+  // it is handed an id it was called with, so there is no reference for the build to track.
   getCompiledPureFnByKey(key: string): CompiledPureFunction | undefined {
     return pureFnsCache[key];
   },
@@ -194,15 +173,11 @@ const rtUtils = {
   hasRunType(id: string): boolean {
     return !!runTypesCache[id];
   },
-  // "Does the build know this type at all?" — the degrade-vs-throw signal for a
-  // compiled-fn key miss (resolveEntryTupleFn): a known type with no entry for
-  // the requested variant degrades to the family identity; a wholly unknown id
-  // throws. A registered runtype graph answers yes, but the graph is
-  // demand-driven (reflection sites only), so ANY registered fn entry for the
-  // id (cache keys are `<fnHash>_<typeId>`) counts as knowledge too — otherwise
-  // a createX-only type would flip from degrade to throw depending on whether
-  // some unrelated file happens to reflect it. Miss paths only, so the linear
-  // key scan is fine (no memo needed).
+  // "Does the build know this type at all?" — the degrade-vs-throw signal for a compiled-fn key miss
+  // (resolveEntryTupleFn): a known type degrades to the family identity, a wholly unknown id throws. The runtype
+  // graph is demand-driven (reflection sites only), so ANY registered fn entry for the id counts as knowledge
+  // too; otherwise a createX-only type would flip from degrade to throw depending on whether some unrelated file
+  // happens to reflect it. Miss paths only, so the linear key scan needs no memo.
   knowsType(typeId: string): boolean {
     if (runTypesCache[typeId]) return true;
     const suffix = '_' + typeId;
@@ -216,40 +191,30 @@ const rtUtils = {
       throw new Error(message);
     };
   },
-  // Constructs the CircularReferenceError an armed encoder body throws when its
-  // inline guard (findCycle) detects a reference cycle. Kept on rtUtils
-  // so the emitted factory body — rebuilt via `new Function('utl', code)` — can
-  // reach the error class without a module import.
+  // Constructs the CircularReferenceError an armed encoder body throws when its inline guard (findCycle) detects
+  // a cycle. Kept on rtUtils so the body — rebuilt via `new Function('utl', code)` — can reach the class.
   circularError(path: CircularPath): CircularReferenceError {
     return new CircularReferenceError(path);
   },
-  // The mismatch signal an emitted parse body throws. Kept here for the same
-  // reason as circularError: the body is rebuilt via `new Function('utl', code)`
-  // and cannot import a module. `createParseFn` catches it one frame up and
-  // turns it into the RTParseError the caller sees.
+  // The mismatch signal an emitted parse body throws. Kept here for the same reason as circularError: the body
+  // cannot import a module. `createParseFn` catches it one frame up and turns it into the caller's RTParseError.
   parseMismatch(value: unknown, cause?: unknown): ParseMismatch {
     return new ParseMismatch(value, cause);
   },
-  // Custom user-class (de)serializer lookup. Emitted factory bodies for plain
-  // user classes (KindClass + SubKindNone) call this with the class node's
-  // `rt.ID` plus its build-time class name; exact instantiation ids match
-  // first, then the class-name fallback lane (one registration covers every
-  // generic instantiation — generics are erased at runtime). A registered
-  // entry routes (de)serialization through it, otherwise the factory uses its
-  // structural fallback. See classSerializerRegistry.ts.
+  // Custom user-class (de)serializer lookup, called by emitted bodies with the class node's `rt.ID` plus its
+  // build-time class name: exact instantiation ids match first, then the class-name fallback lane (one
+  // registration covers every generic instantiation, since generics are erased at runtime). Without an entry the
+  // factory uses its structural fallback. See classSerializerRegistry.ts.
   getClassSerializer(typeId: string, className?: string): ClassSerializerEntry | undefined {
     return getClassSerializerImpl(typeId, className);
   },
-  // Registry epoch — emitted bodies cache their getClassSerializer(<id>) result
-  // in the closure and re-look-up only when this moves (register/unregister/clear
-  // bump it), so the steady-state hot path is one int compare, not a Map lookup.
+  // Registry epoch — emitted bodies cache their getClassSerializer(<id>) result in the closure and re-look-up
+  // only when this moves, so the steady-state hot path is one int compare, not a Map lookup.
   csEpoch(): number {
     return classSerializerEpochImpl();
   },
-  // Reconstruct a live instance from decoded data. Emitted decode bodies
-  // call this for a registered class member; it prefers the registered
-  // `deserialize`, else auto-instantiates a zero-arg class and sets its
-  // declared properties (surfacing CLS002 when the bare `new cls()` throws).
+  // Reconstruct a live instance from decoded data: prefers the registered `deserialize`, else auto-instantiates
+  // a zero-arg class and sets its declared properties (surfacing CLS002 when the bare `new cls()` throws).
   deserializeClass<T>(entry: ClassSerializerEntry<T>, data: DataOnly<T>, keys: readonly string[]): T {
     return deserializeClassImpl(entry, data, keys);
   },
@@ -268,14 +233,9 @@ export function getRTFnCaches() {
   };
 }
 
-/** Lazily materialize a pure function's `.fn`.
- *
- *  Emit modes (symmetric with materializeRTFn for type fns):
- *  - functions/both: `createPureFn` is the embedded `function(<params>){…}`
- *    closure — invoke it with rtUtils.
- *  - code (default): `createPureFn` is absent (dropped as a trailing hole);
- *    rebuild it from `code` + `paramNames` via `new Function(...)` and cache it
- *    on the entry so the reconstruction runs once. **/
+/** Lazily materialize a pure function's `.fn` (symmetric with materializeRTFn). In `functions`/`both` mode
+ *  `createPureFn` is the embedded closure; in `code` mode (default) it is absent, so it is rebuilt from `code` +
+ *  `paramNames` and cached on the entry so the reconstruction runs once. **/
 function initPureFunction(compiled: CompiledPureFunction): asserts compiled is CompiledPureFunction & {fn: PureFunction} {
   if (compiled.fn) return;
   let factory = compiled.createPureFn;
@@ -286,31 +246,23 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is C
   compiled.fn = factory(rtUtils);
 }
 
-/** Rebuilds a pure-fn factory from its serialized `code` body via
- *  `new Function(...paramNames, code)` — the runtime counterpart of the emitted
- *  `function(<paramNames>){<code>}` literal (`code`-mode reconstruction).
- *  Forces strict mode so the reconstructed body matches the (always-strict) ESM
- *  literal shipped in `functions`/`both` mode. Contrast `buildFactoryFromCode`
- *  (type fns): a pure fn's params are its recorded `paramNames`, not a fixed
- *  `utl`. **/
+/** Rebuilds a pure-fn factory from its serialized `code` body. Forces strict mode so the result matches the
+ *  always-strict ESM literal shipped in `functions`/`both` mode. Contrast `buildFactoryFromCode` (type fns): a
+ *  pure fn's params are its recorded `paramNames`, not a fixed `utl`. **/
 export function buildPureFnFactoryFromCode(paramNames: string[], code: string): PureFunctionFactory {
   // oxlint-disable-next-line typescript/no-implied-eval
   return new Function(...paramNames, `'use strict'; ${code}`) as PureFunctionFactory;
 }
 
-/** Builds a fresh factory closure from a serialized code body via
- *  `new Function('utl', code)`. Forces strict mode. **/
+/** Builds a fresh factory closure from a serialized code body. Forces strict mode. **/
 export function buildFactoryFromCode(code: string): (utl: RTUtils) => (...args: any[]) => any {
   // oxlint-disable-next-line typescript/no-implied-eval
   return new Function('utl', `'use strict'; ${code}`) as (utl: RTUtils) => (...args: any[]) => any;
 }
 
-/** Returns the entry's factory body `code`. Present verbatim in `code`/`both`
- *  emit modes; in `functions` mode (code omitted, live factory shipped) it is
- *  derived from `createRTFn.toString()` — the factory prints as
- *  `function g_<hash>(utl){<body>}`, so the body is the slice between the first
- *  `{` and the last `}`. Memoized onto the entry so the derivation runs once.
- *  Empty string when neither code nor factory exists (never, in practice). **/
+/** Returns the entry's factory body `code`. Present verbatim in `code`/`both` modes; in `functions` mode it is
+ *  derived from `createRTFn.toString()` — the factory prints as `function g_<hash>(utl){<body>}`, so the body is
+ *  the slice between the first `{` and the last `}`. Memoized onto the entry so the derivation runs once. **/
 export function entryCode(entry: CompiledTypeFn): string {
   if (entry.code !== undefined) return entry.code;
   if (entry.createRTFn) {
@@ -324,37 +276,24 @@ export function entryCode(entry: CompiledTypeFn): string {
   return '';
 }
 
-/** Cycle guard. When entry A's createRTFn invokes `getRT('B')` and B's
- *  createRTFn invokes `getRT('A')`, the second call would re-enter
- *  materializeRTFn for A while A is still materializing. The marker
- *  short-circuits that re-entry — getRT still returns A's entry (with
- *  `fn` undefined for now); the inner closure captures the entry reference
- *  and reads `A.fn` later at call time, by which point it's set. **/
+/** Cycle guard: when A's createRTFn invokes `getRT('B')` and B's invokes `getRT('A')`, the second call would
+ *  re-enter materializeRTFn for A while A is still materializing. The marker short-circuits that re-entry —
+ *  getRT still returns A's entry with `fn` undefined, and the inner closure reads `A.fn` later at call time. **/
 const materializing = new Set<string>();
 
-/** Lazily populate an entry's `createRTFn` + `fn`. Cache modules register
- *  entries without eager materialization so cross-cache `getRT()` lookups
- *  inside a closure resolve to entries that already exist.
- *
- *  Emit modes:
- *  - functions/both (`--emit-mode functions|both`): `entry.createRTFn` is
- *    the embedded `function(utl){…}` closure — invoke it.
- *  - code (default): `entry.createRTFn` is undefined; rebuild from `entry.code`
- *    via `new Function('utl', code)`, cache on the entry.
- *
- *  Noop entries skip via the `entry.fn` guard (cache modules pre-populate
- *  `fn` with the family-specific identity at register time).
- *
- *  alwaysThrow entries: `entry.createRTFn` is the throwing closure from
- *  `alwaysThrowFactory(message)`; it ignores `utl` and throws. **/
+/** Lazily populate an entry's `createRTFn` + `fn`. Cache modules register entries without eager materialization
+ *  so cross-cache `getRT()` lookups inside a closure resolve to entries that already exist. In `functions`/`both`
+ *  mode `createRTFn` is the embedded closure; in `code` mode it is rebuilt from `entry.code`. Noop entries skip
+ *  via the `entry.fn` guard (pre-populated with the family identity at register time), and an alwaysThrow
+ *  entry's `createRTFn` is the throwing closure from `alwaysThrowFactory(message)`. **/
 function materializeRTFn(entry: CompiledTypeFn): asserts entry is InitializedTypeFn {
   if (entry.fn) return;
   if (materializing.has(entry.rtFnHash)) return;
   if (!entry.createRTFn && !entry.code) return;
   materializing.add(entry.rtFnHash);
   try {
-    // `functions` mode ships createRTFn directly; otherwise rebuild it from the
-    // code string (entryCode === entry.code here, since createRTFn is absent).
+    // `functions` mode ships createRTFn directly; otherwise rebuild it from the code string (entryCode ===
+    // entry.code here, since createRTFn is absent).
     if (!entry.createRTFn) (entry as Mutable<CompiledTypeFn>).createRTFn = buildFactoryFromCode(entryCode(entry));
     (entry as Mutable<CompiledTypeFn>).fn = (entry as InitializedTypeFn).createRTFn(rtUtils);
   } finally {
