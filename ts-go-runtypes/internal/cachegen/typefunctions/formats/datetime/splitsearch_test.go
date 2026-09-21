@@ -10,17 +10,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// splitsearch_test.go pins the dateTime separator search in BOTH emitted lanes.
-// The validate lane went through splitSearch (case-insensitive for a letter, so
-// RFC 3339's `1963-06-19t08:30:06z` passes) while the error lane spelled out a
-// plain .indexOf("T"), so that value validated true and still drew a splitChar
-// error. Both lanes now call splitSearch, and these tests fail if either stops.
-//
-// The JS behaviour twin is
-// packages/run-types/test/features/datetime-splitchar-lane-disagreement.test.ts.
+// Pins the dateTime separator search in every emitted lane: the error lane once spelled its own
+// .indexOf("T"), so RFC 3339's `1963-06-19t08:30:06z` validated true and still drew a splitChar error.
+// JS twin: packages/run-types/test/features/datetime-splitchar-lane-disagreement.test.ts.
 
-// splitStubCtx is a minimal formats.EmitContext for direct emitter tests: the
-// pure-fn aliases are the readable stand-ins these expectations are written in.
+// splitStubCtx is a minimal formats.EmitContext whose UsePureFn returns the id, the alias these expectations spell.
 type splitStubCtx struct {
 	items    map[string]string
 	counters map[string]int
@@ -72,9 +66,7 @@ func TestSplitSearch_CaseInsensitiveOnlyForALetter(t *testing.T) {
 	}
 }
 
-// TestDateTime_BothLanesUseTheSameSeparatorSearch — THE regression. A value the
-// validate lane accepts must not draw an error from the error lane, so the two
-// have to locate the separator with the same expression.
+// THE regression: a value the validate lane accepts must not draw an error from the error lane.
 func TestDateTime_BothLanesUseTheSameSeparatorSearch(t *testing.T) {
 	for _, splitChar := range []string{"T", "t", " ", "_"} {
 		t.Run(splitChar, func(t *testing.T) {
@@ -99,10 +91,7 @@ func TestDateTime_BothLanesUseTheSameSeparatorSearch(t *testing.T) {
 	}
 }
 
-// TestDateTime_BoundKeyUsesTheSameSeparatorSearch — the third lane. Both the
-// validate and the error check feed the min/max comparison through
-// valueKeyExpr, so a case-sensitive search there rejects a lowercase separator
-// whenever the format declares a bound, however the other two lanes split.
+// The third lane: valueKeyExpr splits too, so a case-sensitive search there rejects a lowercase separator under any bound.
 func TestDateTime_BoundKeyUsesTheSameSeparatorSearch(t *testing.T) {
 	for _, splitChar := range []string{"T", "t", " ", "_"} {
 		t.Run(splitChar, func(t *testing.T) {
@@ -122,9 +111,7 @@ func TestDateTime_BoundKeyUsesTheSameSeparatorSearch(t *testing.T) {
 	}
 }
 
-// TestSplitIndex_MatchesSplitSearch — the build-time twin. A bound literal is
-// parsed in Go and compared against a value split by the emitted JS, so the two
-// must agree on where the separator is.
+// The build-time twin: a bound literal parsed in Go must split where the emitted JS does.
 func TestSplitIndex_MatchesSplitSearch(t *testing.T) {
 	cases := []struct {
 		value     string
@@ -150,8 +137,7 @@ func TestSplitIndex_MatchesSplitSearch(t *testing.T) {
 	}
 }
 
-// A bound literal written with a lowercase separator parses to the same epoch
-// ms as the upper-case spelling, so it is baked rather than rejected.
+// A bound literal written with a lowercase separator is baked, not rejected.
 func TestDateTimeEpochMs_AcceptsALowercaseSeparator(t *testing.T) {
 	upper, ok := dateTimeEpochMs("1963-06-19T08:30:06", "T")
 	if !ok {
@@ -166,8 +152,7 @@ func TestDateTimeEpochMs_AcceptsALowercaseSeparator(t *testing.T) {
 	}
 }
 
-// The default splitChar is 'T', so an annotation with no splitChar param must
-// land on the same case-insensitive search as an explicit one.
+// The default splitChar is 'T', so an annotation with no splitChar param reaches the same case-insensitive search.
 func TestDateTime_DefaultSplitCharSearchesBothCases(t *testing.T) {
 	annotation := dateTimeAnnotation(map[string]any{})
 	errors := dateTimeEmitter{}.EmitValidationErrorsCheck(annotation, "v", "pth", "errs", newSplitStubCtx())

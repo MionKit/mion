@@ -1,15 +1,7 @@
-// Regression for the dateTime splitChar validate/verr disagreement.
-//
-// The invariant: createValidateFn<T>() and createGetValidationErrorsFn<T>() must
-// ALWAYS agree — for every value v, `validate(v) === (getValidationErrors(v).length === 0)`
-// (fuzz oracle O4). It broke for the string `dateTime` format: the validate lane
-// located the date/time separator case-insensitively (`.search(/[Tt]/)`, because
-// RFC 3339 allows `1963-06-19t08:30:06z`), while the error lane used a plain
-// `.indexOf('T')`. So a lowercase separator passed `validate` and still drew a
-// `splitChar` error from `getValidationErrors`.
-//
-// Drives the full vite-plugin pipeline, complementing the Go emitter test in
-// internal/cachegen/typefunctions/formats/datetime/splitsearch_test.go.
+// O4 regression: validate(v) must always equal getValidationErrors(v).length === 0.
+// The dateTime error lane used a plain `.indexOf('T')` while validate searched `/[Tt]/`, so
+// RFC 3339's `1963-06-19t08:30:06z` passed validate and still drew a splitChar error.
+// Go twin: ts-go-runtypes/internal/cachegen/typefunctions/formats/datetime/splitsearch_test.go.
 
 import {describe, test, expect} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
@@ -33,7 +25,6 @@ describe('dateTime splitChar — validate and getValidationErrors agree (O4)', (
     const errors = createGetValidationErrorsFn<Spaced>();
     expect(validate('29-02-2024 23:59')).toBe(true);
     expect(errors('29-02-2024 23:59')).toEqual([]);
-    // A `T` where a space is required still trips splitChar in BOTH lanes.
     expect(validate('29-02-2024T23:59')).toBe(false);
     expect(errors('29-02-2024T23:59')).toEqual([
       {expected: 'string', path: [], format: {name: 'dateTime', formatPath: ['splitChar'], val: ' '}},
@@ -41,14 +32,12 @@ describe('dateTime splitChar — validate and getValidationErrors agree (O4)', (
   });
 
   test('a bound splits the value the same way, so a lowercase separator still compares', () => {
-    // The min/max key splits the value too. It kept its own case-sensitive
-    // search, so a bounded dateTime rejected the lowercase form in BOTH lanes.
+    // The min/max key splits the value too, and kept its own case-sensitive search.
     type Bounded = TF.StringDateTime<{min: '1963-01-01T00:00:00'; max: '1963-12-31T23:59:59'}>;
     const validate = createValidateFn<Bounded>();
     const errors = createGetValidationErrorsFn<Bounded>();
     expect(validate('1963-06-19t08:30:06z')).toBe(true);
     expect(errors('1963-06-19t08:30:06z')).toEqual([]);
-    // A lowercase separator outside the window still trips the bound, not the split char.
     expect(validate('1964-06-19t08:30:06z')).toBe(false);
     expect(errors('1964-06-19t08:30:06z')).toEqual([
       {expected: 'string', path: [], format: {name: 'dateTime', formatPath: ['max'], val: '1963-12-31T23:59:59'}},

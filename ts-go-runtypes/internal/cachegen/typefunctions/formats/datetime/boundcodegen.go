@@ -55,12 +55,7 @@ func boundExpr(ctx formats.EmitContext, params map[string]any, key string, kind 
 	return strconv.FormatInt(int64(keyVal), 10), true
 }
 
-// valueKeyExpr renders the JS expression converting the (validated)
-// value string to the comparison scale. For time → ms-of-day; for date
-// → UTC epoch ms; for dateTime → date epoch ms + time ms-of-day, split on
-// splitChar, mirroring the Go-side dateTimeEpochMs bake (NOT Date.parse,
-// which would interpret a 'T'-joined value in local time and diverge from
-// the UTC-baked absolute bounds).
+// valueKeyExpr mirrors the Go-side dateTimeEpochMs bake, never Date.parse: that reads a 'T'-joined value as local time and would diverge from the UTC-baked bounds.
 func valueKeyExpr(ctx formats.EmitContext, vλl string, kind boundKind, layout string) string {
 	if kind == timeKind {
 		alias := pureFnAlias(ctx, purefnids.TimeStrToMs)
@@ -70,8 +65,7 @@ func valueKeyExpr(ctx formats.EmitContext, vλl string, kind boundKind, layout s
 		alias := pureFnAlias(ctx, purefnids.DateStrToMs)
 		return alias + "(" + vλl + "," + strconv.Quote(layout) + ")"
 	}
-	// dateTime — layout here is the splitChar; nested layouts default to
-	// ISO for the comparison (the static bake uses the same default).
+	// dateTime: layout here is the splitChar, and the static bake defaults the nested layouts to ISO too.
 	dateAlias := pureFnAlias(ctx, purefnids.DateStrToMs)
 	timeAlias := pureFnAlias(ctx, purefnids.TimeStrToMs)
 	return "((dtp) => " + dateAlias + "(" + vλl + ".substring(0,dtp),'ISO') + " +
