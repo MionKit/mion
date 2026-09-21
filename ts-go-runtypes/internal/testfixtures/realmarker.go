@@ -1,8 +1,5 @@
-// Package testfixtures hosts the shared TypeScript fixtures for the Go test
-// suites, plus RealMarkerPackage — the real `@mionjs/run-types` package served
-// as virtual-filesystem overlay entries so tests resolve the marker module
-// exactly the way a consumer install does (package.json exports → dist .d.ts),
-// with no hand-written stand-in to drift.
+// Package testfixtures hosts the shared TypeScript fixtures for the Go test suites, plus RealMarkerPackage: the real
+// `@mionjs/run-types` as virtual-filesystem overlay entries, so tests resolve it as a consumer install does and no stand-in can drift.
 package testfixtures
 
 import (
@@ -19,17 +16,13 @@ import (
 	"sync"
 )
 
-// TemporalDTS is the canonical minimal `Temporal` ambient namespace
-// (temporal.d.ts in this directory), for fixtures that USE Temporal types.
-// The marker package itself degrades gracefully without it (guarded
-// fallbacks in formats/datetime/temporalFormats.ts). Kept as ONE file,
-// embedded, so no test carries its own hand-written mirror.
+// TemporalDTS is the canonical minimal `Temporal` ambient namespace, for fixtures that USE Temporal types; ONE embedded file, so no test mirrors it.
+// The marker package itself degrades gracefully without it (guarded fallbacks in formats/datetime/temporalFormats.ts).
 //
 //go:embed temporal.d.ts
 var TemporalDTS string
 
-// MarkerPackagePrefix is the node_modules-relative directory every
-// RealMarkerPackage key lives under.
+// MarkerPackagePrefix is the directory every RealMarkerPackage key lives under.
 const MarkerPackagePrefix = "node_modules/@mionjs/run-types/"
 
 var (
@@ -45,12 +38,9 @@ var (
 // artifactDirSegment matches anywhere under the dist: a dual ESM/CJS build writes one artifact per output dir.
 const artifactDirSegment = string(filepath.Separator) + constants.PureFnArtifactDir + string(filepath.Separator)
 
-// RealMarkerPackage returns the real `@mionjs/run-types` as a CONSUMER INSTALL, keyed under
-// MarkerPackagePrefix: the published package.json, the dist .d.ts tree (dist/cjs/ too, a node16
-// CommonJS importer resolves `require`) and the pure-fn artifact. No sources and no `source`
-// condition, because the tarball carries neither. Overlay under a test cwd WITHOUT adding program
-// roots; resolution pulls them in through the import. Read once per process; errors when the dist
-// is unbuilt (run `pnpm run check:builds`).
+// RealMarkerPackage returns the real `@mionjs/run-types` as a CONSUMER INSTALL under MarkerPackagePrefix: published package.json, the
+// dist .d.ts tree (dist/cjs/ too, a node16 CommonJS importer resolves `require`) and the pure-fn artifact. No sources and no `source`
+// condition, the tarball carries neither. Overlay under a test cwd WITHOUT program roots; errors when the dist is unbuilt.
 func RealMarkerPackage() (map[string]string, error) {
 	markerOnce.Do(func() { markerFiles, markerErr = readMarkerPackage() })
 	return markerFiles, markerErr
@@ -136,10 +126,8 @@ func dropSourceKeys(node any) any {
 	}
 }
 
-// RealMarkerSources returns the marker package's own `src/**/*.ts` under MarkerPackagePrefix.
-// Layer it OVER RealMarkerPackage for the WORKSPACE shape, where a sibling resolves through the
-// `source` condition and the pure-fn bodies come straight from the sources. Opt-in, because a
-// consumer install has none of it.
+// RealMarkerSources returns the marker package's own `src/**/*.ts` under MarkerPackagePrefix. Layer it OVER RealMarkerPackage for the
+// WORKSPACE shape, where a sibling resolves through the `source` condition; opt-in, because a consumer install has none of it.
 func RealMarkerSources() (map[string]string, error) {
 	markerSrcOnce.Do(func() { markerSrcFiles, markerSrcErr = readMarkerSources() })
 	return markerSrcFiles, markerSrcErr

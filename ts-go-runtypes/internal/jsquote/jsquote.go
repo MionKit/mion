@@ -1,14 +1,6 @@
-// Package jsquote renders Go strings as JS string literals for the
-// emitted cache modules — one canonical implementation, formerly
-// copy-pasted into typefns, purefns and formats/string. NOTE:
-// runtype/module.go keeps its own strconv.Quote-based quoteJS on
-// purpose: it escapes non-printables/unicode differently and the
-// runTypes module bytes depend on that form.
-//
-// Beyond the quote and the backslash, the C0 control bytes (NUL included), DEL
-// and the two Unicode line terminators (U+2028 / U+2029) are written as `\uXXXX`
-// escapes: a committed .js never carries a raw control byte, and a
-// type-derived name or literal can never end a line inside its literal.
+// Package jsquote renders Go strings as JS string literals for the emitted cache modules.
+// runtype/module.go keeps its own strconv.Quote-based quoteJS on purpose: the runTypes module bytes depend on that form.
+// C0 controls (NUL included), DEL and U+2028 / U+2029 become `\uXXXX`, so no emitted .js carries a raw control byte or ends a line inside a literal.
 package jsquote
 
 import (
@@ -16,17 +8,12 @@ import (
 	"strings"
 )
 
-// Single renders s as a single-quoted JS string literal, escaping the
-// characters single-quote JS evaluation cares about. Single quotes
-// keep the surrounding JSON envelope's escape budget small when the
-// output is embedded in a serialized cache.
+// Single renders s as a single-quoted JS string literal; single quotes keep the escape budget small inside a serialized cache.
 func Single(s string) string {
 	return quote(s, '\'')
 }
 
-// Double renders s as a double-quoted JS string literal — used for
-// regex sources passed to `new RegExp(...)`, which are dense with
-// backslashes already (single-quoting them produces escaping noise).
+// Double renders s as a double-quoted JS string literal, for `new RegExp(...)` sources already dense with backslashes.
 func Double(s string) string {
 	return quote(s, '"')
 }

@@ -13,13 +13,9 @@ type runeRange struct {
 	lo, hi rune
 }
 
-// charSet is the set of code points one atom of a pattern can consume:
-// a sorted list of disjoint, merged ranges. The `opaque` name is the
-// escape hatch for an atom this package does not model (a backreference):
-// an opaque set consumes SOMETHING, so it never makes a loop body
-// nullable, but it only ever overlaps another opaque set carrying the
-// same name — an unmodelled atom must not invent an overlap that turns a
-// fine pattern into a build error.
+// charSet is the set of code points one atom can consume, as sorted disjoint ranges. The `opaque` name is the escape hatch for an
+// atom this package does not model (a backreference): it consumes SOMETHING, so it never makes a loop body nullable, and it overlaps
+// only another opaque set of the same name, because an unmodelled atom must not invent an overlap that fails a fine pattern.
 type charSet struct {
 	ranges []runeRange
 	opaque string
@@ -39,8 +35,7 @@ func opaqueSet(name string) *charSet {
 	return &charSet{opaque: name}
 }
 
-// normalize sorts the ranges and merges the ones that touch or overlap,
-// so every later operation can assume a canonical form.
+// normalize sorts and merges the ranges, so every later operation can assume a canonical form.
 func (s *charSet) normalize() {
 	if len(s.ranges) < 2 {
 		return
@@ -83,9 +78,7 @@ func (s *charSet) isEmpty() bool {
 	return s.opaque == "" && len(s.ranges) == 0
 }
 
-// negated returns the complement over the whole code point space. Only
-// meaningful for a concrete set; an opaque atom has no complement, so it
-// negates to itself.
+// negated returns the complement over the whole code point space; an opaque atom has no complement, so it negates to itself.
 func (s *charSet) negated() *charSet {
 	if s.opaque != "" {
 		return s
@@ -106,8 +99,7 @@ func (s *charSet) negated() *charSet {
 	return out
 }
 
-// intersects reports whether some code point satisfies both sets — the
-// one question the ambiguity walk asks of two transitions.
+// intersects reports whether some code point satisfies both sets, the one question the ambiguity walk asks of two transitions.
 func (s *charSet) intersects(other *charSet) bool {
 	if s == nil || other == nil {
 		return false
@@ -131,13 +123,10 @@ func (s *charSet) intersects(other *charSet) bool {
 	return false
 }
 
-// foldRuneLimit caps the ranges case folding walks rune by rune. A wide
-// range (a Unicode category, `.`) already covers both cases of anything
-// inside it, so folding it would add nothing.
+// foldRuneLimit caps the ranges case folding walks rune by rune: a wide range already covers both cases of anything inside it.
 const foldRuneLimit = 1024
 
-// folded returns the set a case-insensitive (`i` flag) pattern really
-// matches: every code point plus its simple case variants.
+// folded returns the set an `i`-flag pattern really matches: every code point plus its simple case variants.
 func (s *charSet) folded() *charSet {
 	if s.opaque != "" {
 		return s
@@ -195,12 +184,9 @@ func lineTerminatorSet() *charSet {
 
 func anyRuneSet() *charSet { return newCharSet(runeRange{0, maxRune}) }
 
-// unicodePropertySet resolves a `\p{...}` body to real code point
-// ranges, so two property escapes intersect exactly instead of by guess.
-// Accepts the general category (`L`, `Nd`), its long alias
-// (`Letter`, `Number`), a `Script=`/`sc=` value, and the binary
-// properties Go's unicode tables carry. Returns nil for a name this
-// build does not know, and the caller falls back to an opaque atom.
+// unicodePropertySet resolves a `\p{...}` body to real code point ranges, so two property escapes intersect exactly instead of by
+// guess. It accepts a general category, its long alias, a `Script=`/`sc=` value and the binary properties Go's tables carry;
+// nil for a name this build does not know, and the caller falls back to an opaque atom.
 func unicodePropertySet(body string) *charSet {
 	name := body
 	if key, value, found := cutProperty(body); found {
@@ -226,8 +212,7 @@ func unicodePropertySet(body string) *charSet {
 	return nil
 }
 
-// canonicalPropertyName maps the long spellings JS accepts onto the
-// short names Go's tables are keyed by.
+// canonicalPropertyName maps the long spellings JS accepts onto the short names Go's tables are keyed by.
 func canonicalPropertyName(name string) string {
 	switch name {
 	case "Letter":

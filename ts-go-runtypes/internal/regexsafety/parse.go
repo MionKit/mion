@@ -2,15 +2,10 @@ package regexsafety
 
 import "strings"
 
-// parse.go turns a JS regex SOURCE into the small tree the safety walk
-// needs. It is not a validator: whether a pattern is legal JS is settled
-// by the real engine (FMT002 owns that verdict), so anything this parser
-// cannot make sense of ends the parse and the safety check stands down
-// rather than guessing.
+// parse.go turns a JS regex SOURCE into the small tree the safety walk needs. It is not a validator: whether a pattern is legal JS
+// is the real engine's verdict (FMT002 owns it), so anything this parser cannot make sense of ends the parse and the check stops.
 
-// node is one element of the parsed pattern. Every node carries the rune
-// offsets it was parsed from, so a finding can quote the offending
-// sub-expression back to the author.
+// node is one element of the parsed pattern; each carries the rune offsets it was parsed from, so a finding can quote it back.
 type node interface {
 	span() (start, end int)
 }
@@ -21,8 +16,7 @@ type baseNode struct {
 
 func (n baseNode) span() (int, int) { return n.start, n.end }
 
-// emptyNode matches the empty string: an empty alternative, and every
-// zero-width construct the walk models as "consumes nothing".
+// emptyNode matches the empty string: an empty alternative, and every zero-width construct the walk models as consuming nothing.
 type emptyNode struct{ baseNode }
 
 // charsNode consumes exactly one code point out of set.
@@ -41,9 +35,8 @@ type altNode struct {
 	options []node
 }
 
-// repeatNode is body repeated min..max times; max == unbounded means no
-// upper limit, which is the only shape that can loop forever and so the
-// only shape the ambiguity walk can find exponential blowup in.
+// repeatNode is body repeated min..max times; max == unbounded is the only shape that can loop forever, and so the only shape the
+// ambiguity walk can find exponential blowup in.
 type repeatNode struct {
 	baseNode
 	body     node
@@ -52,19 +45,15 @@ type repeatNode struct {
 
 const unbounded = -1
 
-// lookNode is a lookahead or lookbehind. The walk treats it as
-// zero-width and checks its body separately, as its own pattern.
+// lookNode is a lookahead or lookbehind; the walk treats it as zero-width and checks its body separately, as its own pattern.
 type lookNode struct {
 	baseNode
 	body node
 }
 
-// anchorNode is `^`, `$`, `\b` or `\B`: matches a POSITION, consumes
-// nothing. `blocking` marks the two that pin an END of the input, `^` and
-// `$` without the `m` flag. Nothing can be consumed before `^` or after
-// `$`, so no loop can turn through one, and saying so is what keeps a
-// branch like `\\$` from looking as though it competes with `\\.` for
-// the same character.
+// anchorNode is `^`, `$`, `\b` or `\B`: it matches a POSITION and consumes nothing. `blocking` marks the two that pin an END of the
+// input, `^` and `$` without the `m` flag: nothing is consumed before `^` or after `$`, so no loop turns through one, which is what
+// keeps a branch like `\$` from looking as though it competes with `\.` for the same character.
 type anchorNode struct {
 	baseNode
 	blocking bool
@@ -80,8 +69,7 @@ type parser struct {
 	backrefs   int
 }
 
-// parsePattern parses source under flags. ok is false when the source
-// uses something this parser does not model, or is not valid at all.
+// parsePattern parses source under flags; false when the source uses something this parser does not model, or is not valid at all.
 func parsePattern(source, flags string) (parsed node, looks []node, ok bool) {
 	p := &parser{
 		src:        []rune(source),
@@ -153,8 +141,7 @@ func (p *parser) parseTerm(looks *[]node) node {
 	if !quantified {
 		return atom
 	}
-	// A quantified zero-width atom loops without consuming; the JS engine
-	// stops after one turn, and so does the walk, so drop the quantifier.
+	// A quantified zero-width atom loops without consuming; the JS engine stops after one turn, so drop the quantifier.
 	switch atom.(type) {
 	case *emptyNode, *lookNode, *anchorNode:
 		return atom
@@ -197,8 +184,7 @@ func (p *parser) parseAtom(looks *[]node) node {
 	}
 }
 
-// charsFrom wraps a set as a node, applying the `i` flag once and in one
-// place so no caller can forget it.
+// charsFrom wraps a set as a node, applying the `i` flag once and in one place so no caller can forget it.
 func (p *parser) charsFrom(start int, set *charSet) node {
 	if set == nil {
 		p.fail()
@@ -267,8 +253,7 @@ func (p *parser) parseEscapeAtom(start int) node {
 	}
 	switch char := p.peek(); {
 	case char == 'b' || char == 'B':
-		// A word boundary sits between two characters, so a loop CAN
-		// turn through one. Zero width, but not blocking.
+		// A word boundary sits between two characters, so a loop CAN turn through one: zero width, but not blocking.
 		p.pos++
 		return &anchorNode{baseNode{start, p.pos}, false}
 	case char == 'k':
@@ -300,10 +285,8 @@ func (p *parser) parseEscapeAtom(start int) node {
 	return p.charsFrom(start, set)
 }
 
-// nextBackref names each backreference apart. Two different
-// backreferences may well match the same text, but nothing here can
-// prove it, and inventing an overlap would fail a build over a pattern
-// that is fine.
+// nextBackref names each backreference apart: two of them may well match the same text, but nothing here can prove it, and an
+// invented overlap would fail a build over a fine pattern.
 func (p *parser) nextBackref() *charSet {
 	p.backrefs++
 	return opaqueSet("backref-" + string(rune('a'+p.backrefs%26)) + itoa(p.backrefs))
@@ -321,10 +304,8 @@ func itoa(value int) string {
 	return string(digits)
 }
 
-// parseClassEscape reads the escape body (the parser sits ON the
-// character after the backslash) and returns the set it stands for. It
-// is shared by the in-class and out-of-class paths, which is why `\b`
-// and the backreferences are handled by the callers instead.
+// parseClassEscape reads the escape body, the parser sitting ON the character after the backslash, and returns the set it stands
+// for. Shared by the in-class and out-of-class paths, which is why `\b` and the backreferences are left to the callers.
 func (p *parser) parseClassEscape() *charSet {
 	char := p.peek()
 	p.pos++
@@ -386,8 +367,7 @@ func (p *parser) parseClassEscape() *charSet {
 		}
 		set := unicodePropertySet(body)
 		if set == nil {
-			// A property this build cannot resolve. Opaque by NAME, so
-			// `\p{L}` still overlaps `\p{L}` and nothing else.
+			// A property this build cannot resolve. Opaque by NAME, so `\p{L}` still overlaps `\p{L}` and nothing else.
 			set = opaqueSet("property-" + body)
 			if char == 'P' {
 				set = opaqueSet("property-not-" + body)
@@ -481,8 +461,7 @@ func (p *parser) parseClass() *charSet {
 			break
 		}
 		if p.peek() == ']' && first {
-			// A leading `]` is a literal only in a legacy pattern; treat
-			// the empty class as unmodelled rather than guess.
+			// A leading `]` is a literal only in a legacy pattern; treat the empty class as unmodelled rather than guess.
 			p.fail()
 			return nil
 		}
@@ -495,8 +474,7 @@ func (p *parser) parseClass() *charSet {
 			out.addSet(lowSet)
 			continue
 		}
-		// A `-` between two single members makes a range; a trailing one
-		// is a literal dash.
+		// A `-` between two single members makes a range; a trailing one is a literal dash.
 		if p.peek() == '-' && p.pos+1 < len(p.src) && p.src[p.pos+1] != ']' {
 			p.pos++
 			highSet, highRune, highSingle := p.parseClassMember()
@@ -526,8 +504,7 @@ func (p *parser) parseClass() *charSet {
 	return out
 }
 
-// parseClassMember reads one member of a class: either a multi-code-point
-// escape (single is false) or one code point (single is true).
+// parseClassMember reads one member of a class: a multi-code-point escape (single false) or one code point (single true).
 func (p *parser) parseClassMember() (set *charSet, value rune, single bool) {
 	if p.peek() != '\\' {
 		char := p.peek()
@@ -554,9 +531,8 @@ func (p *parser) parseClassMember() (set *charSet, value rune, single bool) {
 	return escaped, 0, false
 }
 
-// parseQuantifier reads the quantifier that may follow an atom, laziness
-// included (`*?` backtracks in a different order but explores the same
-// tree, so it is no safer).
+// parseQuantifier reads the quantifier that may follow an atom, laziness included: `*?` backtracks in a different order but
+// explores the same tree, so it is no safer.
 func (p *parser) parseQuantifier() (min, max int, ok bool) {
 	if !p.more() {
 		return 0, 0, false
@@ -582,9 +558,8 @@ func (p *parser) parseQuantifier() (min, max int, ok bool) {
 	return min, max, ok
 }
 
-// parseBracedQuantifier reads `{n}`, `{n,}` or `{n,m}`. Anything else
-// leaves the position untouched: JS reads a stray `{` as a literal, and
-// the atom that produced it already consumed its own text.
+// parseBracedQuantifier reads `{n}`, `{n,}` or `{n,m}`; anything else leaves the position untouched, since JS reads a stray `{` as
+// a literal and the atom that produced it already consumed its own text.
 func (p *parser) parseBracedQuantifier() (min, max int, ok bool) {
 	mark := p.pos
 	p.pos++ // '{'
@@ -628,16 +603,10 @@ func (p *parser) parseDigits() (int, bool) {
 	return value, p.pos > start
 }
 
-// alwaysSatisfiable reports whether a node can be satisfied by consuming
-// nothing, WHEREVER the match has got to. That is stricter than matching
-// the empty string: `$` and a lookaround match nothing, but only in the
-// right place, so neither counts.
-//
-// It is the question behind "can this pattern actually be made to blow
-// up". Exponential backtracking needs the match to FAIL after the
-// ambiguous loop, so the engine goes back and tries the other routes. If
-// everything after the loop can always be satisfied, the first greedy
-// attempt succeeds and the alternatives are never explored.
+// alwaysSatisfiable reports whether a node can be satisfied by consuming nothing, WHEREVER the match has got to. Stricter than
+// matching the empty string: `$` and a lookaround match nothing, but only in the right place, so neither counts.
+// It is the question behind "can this pattern be made to blow up": exponential backtracking needs the match to FAIL after the
+// ambiguous loop, so if everything after the loop is always satisfiable, the first greedy attempt succeeds and nothing is retried.
 func alwaysSatisfiable(n node) bool {
 	switch typed := n.(type) {
 	case *emptyNode:
@@ -664,11 +633,9 @@ func alwaysSatisfiable(n node) bool {
 	return true
 }
 
-// fixedLength returns the one length a node always matches, when it has
-// one. A counted repeat of a FIXED-length body splits its text exactly
-// one way, however many times it turns: `(?:[A-Za-z0-9+/]{4})*` is the
-// base64 format and it is unambiguous. Only a body that can match
-// different lengths gives the engine a choice.
+// fixedLength returns the one length a node always matches, when it has one. A counted repeat of a FIXED-length body splits its
+// text exactly one way however many times it turns (`(?:[A-Za-z0-9+/]{4})*` is base64); only a body that can match different
+// lengths gives the engine a choice.
 func fixedLength(n node) (length int, ok bool) {
 	switch typed := n.(type) {
 	case *emptyNode, *anchorNode, *lookNode:
@@ -710,9 +677,8 @@ func fixedLength(n node) (length int, ok bool) {
 	return 0, false
 }
 
-// matchesEmpty reports whether a node can match the empty string. It is
-// the whole of the nullable-loop rule and it is exact, so it is worth
-// keeping separate from the automaton walk.
+// matchesEmpty reports whether a node can match the empty string: the whole of the nullable-loop rule, and exact, which is why it
+// is kept separate from the automaton walk.
 func matchesEmpty(n node) bool {
 	switch typed := n.(type) {
 	case *emptyNode, *lookNode, *anchorNode:

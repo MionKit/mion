@@ -1,16 +1,9 @@
-// importedits.go — splitting the import block.
-//
-// Drizzle's own suites put the whole boundary in one statement, which is exactly
-// the case to handle. From pg-common.ts, 37 of these 51 names move and 13 stay:
-//
-//	import {alias, bigint, boolean, except, foreignKey, getTableConfig, index, …} from 'drizzle-orm/pg-core';
-//
-// A migrated export moves under the SAME local (the generator guarantees the
-// wrapping package exports it under the same name), so the rewrite is a change of
-// module specifier and nothing else. The one exception is an ALIASED export:
-// `sql` has to exist on both sides at once — drizzle's builds queries, ours
-// records authoring sql — so it stays where it is AND arrives under its alias.
 package drizzlemigrate
+
+// Splits the import block, which drizzle's own suites write as one statement (37 of pg-common.ts's 51
+// names move, 13 stay). A migrated export moves under the SAME local, so the rewrite is a change of
+// module specifier and nothing else. The one exception is an ALIASED export: `sql` has to exist on both
+// sides at once (drizzle's builds queries, ours records authoring sql), so it stays AND arrives aliased.
 
 import (
 	"fmt"
@@ -23,10 +16,8 @@ import (
 // drizzleRootModule is the dialect-agnostic package: where cols() comes from.
 const drizzleRootModule = "@mionjs/drizzle-orm"
 
-// toDrizzleLocal returns the local name toDrizzle is imported under for a
-// dialect, claiming it on first use. With one dialect in the file that is plain
-// `toDrizzle`; a file mixing dialects gets one binding each, since the two
-// materializers are different functions.
+// toDrizzleLocal returns the local toDrizzle is imported under for a dialect, claiming it on first use.
+// A file mixing dialects gets one binding each: the two materializers are different functions.
 func (file *fileRun) toDrizzleLocal(dialect string) string {
 	if local, ok := file.toDrizzleByDialect[dialect]; ok {
 		return local
@@ -50,9 +41,8 @@ func (file *fileRun) toDrizzleLocal(dialect string) string {
 	return local
 }
 
-// colsLocal returns the local name cols() is imported under, claiming it on
-// first use. A slim table's TYPE is its metadata, so reading a column off one
-// goes through the accessor: `index('i').on(cols(users$table).name)`.
+// colsLocal returns the local cols() is imported under, claiming it on first use.
+// A slim table's TYPE is its metadata, so reading a column off one goes through cols().
 func (file *fileRun) colsLocal() string {
 	if file.colsBinding != "" {
 		return file.colsBinding
@@ -70,10 +60,8 @@ func (file *fileRun) ruleForDialect(dialect string) *ModuleRule {
 	return nil
 }
 
-// planImportEdits rewrites every mapped drizzle statement and appends the
-// statements the migrated names now come from.
+// planImportEdits rewrites every mapped drizzle statement and appends the ones migrated names now come from.
 func (file *fileRun) planImportEdits() *Diagnostic {
-	// movedByTarget accumulates the bindings each wrapping package must supply.
 	movedByTarget := map[string][]tsimports.Binding{}
 	var namespaceAdditions []string
 	var removedSpans [][2]int
@@ -97,8 +85,7 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 					stay = append(stay, binding)
 					continue
 				}
-				// A binding used on BOTH sides is imported twice: drizzle's under
-				// its own name, ours under the second local decideBindings chose.
+				// A binding used on BOTH sides is imported twice: drizzle's under its own name, ours under decideBindings' second local.
 				if file.keepDrizzle[key] {
 					stay = append(stay, binding)
 				}
@@ -112,8 +99,7 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 		}
 	}
 
-	// A namespace object needs a whole-module import of the slim package, not a
-	// binding list: `import * as rtDriz from '@mionjs/drizzle-orm-pg-core'`.
+	// A namespace object needs a whole-module import of the slim package, not a binding list.
 	for _, module := range file.imports.Modules() {
 		rule := file.importMap.RuleFor(module)
 		if rule == nil {
@@ -165,8 +151,7 @@ func (file *fileRun) planImportEdits() *Diagnostic {
 	return nil
 }
 
-// replaceImportStatement swaps one statement's text, or removes it (with its
-// trailing newline) when nothing is left on the drizzle side.
+// replaceImportStatement swaps one statement's text, or removes it (with its newline) when nothing stays on drizzle.
 func (file *fileRun) replaceImportStatement(statement *tsimports.Statement, rendered string, removedSpans *[][2]int) {
 	start := tsimports.TokenStart(file.source, statement.Node.Pos())
 	end := statement.Node.End()
@@ -181,9 +166,7 @@ func (file *fileRun) replaceImportStatement(statement *tsimports.Statement, rend
 	file.edits = append(file.edits, edit{start: start, end: end, text: rendered})
 }
 
-// lastSurvivingImportEnd anchors the additions after the last import that
-// SURVIVES this rewrite — inserting at a removed statement's end would land
-// inside its own removal span.
+// lastSurvivingImportEnd skips removed imports: an insert at a removed statement's end would land inside its removal span.
 func (file *fileRun) lastSurvivingImportEnd(removedSpans [][2]int) int {
 	insertAt := 0
 	for _, importEnd := range file.imports.AllImportEnds {

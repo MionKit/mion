@@ -7,86 +7,50 @@ import (
 	"strings"
 )
 
-// FingerprintInputs are the build-option knobs that change emitted JS
-// output, plus the BINARY IDENTITY. constants.Version alone is NOT enough
-// for the binary: it lives inside every typeID hash, so RELEASE builds
-// already land in distinct typeID directories — but two DEV builds share
-// the version while their emitters differ, and the shared fingerprint
-// served stale function bodies (the reason every emitter change used to
-// need a manual `rm -rf node_modules/.cache/mion`). BinaryStamp
-// (the executable's mtime + size) moves on every real rebuild — `go build`
-// leaves an unchanged binary untouched, so a no-op rebuild keeps the
-// cache — and release installs move it once per install, which the
-// version fold already forces anyway.
-//
-// Add a field here whenever a new option starts affecting cache bodies;
-// the resulting fingerprint moves and the previous cache is naturally
-// orphaned.
+// FingerprintInputs are the build-option knobs that change emitted JS output, plus the BINARY IDENTITY.
+// constants.Version alone is not enough: release builds already split by the version-folded typeID directory, but two DEV builds share
+// the version while their emitters differ, and the shared fingerprint served stale bodies. BinaryStamp (the executable's mtime + size)
+// moves on every real rebuild, and `go build` leaves an unchanged binary untouched, so a no-op rebuild keeps its cache.
+// Add a field here whenever a new option starts affecting cache bodies; the fingerprint then moves and orphans the previous cache.
 type FingerprintInputs struct {
-	// BinaryVersion is constants.Version (belt) and BinaryStamp the
-	// executable's mtime+size (suspenders, empty when undeterminable —
-	// e.g. the WASM twin, where no disk cache exists to protect).
+	// BinaryVersion is constants.Version, BinaryStamp the executable's mtime+size, empty when undeterminable (the WASM twin has no disk cache).
 	BinaryVersion string
 	BinaryStamp   string
 	HashLength    int
-	// EmitMode mirrors typefns.RenderOpts.EmitMode ("code" / "functions" /
-	// "both") — each mode renders different code/factory slots, so folding it
-	// into the fingerprint keeps the three modes in distinct cache subdirs and
-	// switching modes never reads a stale entry from another.
+	// EmitMode mirrors typefns.RenderOpts.EmitMode ("code" / "functions" / "both"); each renders different slots, so the three never share entries.
 	EmitMode string
-	// InlineMode mirrors typefns.RenderOpts.InlineMode ("default" /
-	// "allInternal") — the modes emit structurally different bodies AND
-	// different entry sets (allInternal absorbs unnamed compounds into their
-	// parents), so they must never share cache entries.
+	// InlineMode mirrors typefns.RenderOpts.InlineMode; the modes emit different bodies AND different entry sets (allInternal absorbs
+	// unnamed compounds into their parents), so they must never share cache entries.
 	InlineMode string
-	// SizeBias / SizeItems / SizeStringBytes / SizeMaxBytes mirror the
-	// binary cold-start estimate config (RenderOpts.SizeEstimate). They change
-	// the size literal baked into every `tb` entry's argsText, so a change must
-	// re-derive every cached binary entry — fold them in so the cache moves.
+	// SizeBias / SizeItems / SizeStringBytes / SizeMaxBytes mirror RenderOpts.SizeEstimate; they change the size literal baked into
+	// every `tb` entry's argsText, so every cached binary entry has to be re-derived when one moves.
 	SizeBias        float64
 	SizeItems       int
 	SizeStringBytes int
 	SizeMaxBytes    int
-	// PatternSampleCount / PatternSampleRetries drive pattern mockSample
-	// auto-generation. Generated samples land in emitted formatAnnotations
-	// (never in typeIDs — generation is post-intern), so a knob change must
-	// re-derive every cached entry a sample-less pattern reaches.
+	// PatternSampleCount / PatternSampleRetries drive mockSample auto-generation; the samples land in emitted formatAnnotations but
+	// never in typeIDs (generation is post-intern), so only the fingerprint can re-derive the entries a sample-less pattern reaches.
 	PatternSampleCount   int
 	PatternSampleRetries int
-	// JSONMaxBytes is the root-row slot 21 switch: on and off render different
-	// root rows, so the two settings never share cache entries.
+	// JSONMaxBytes is the root-row slot 21 switch: on and off render different root rows, so they never share cache entries.
 	JSONMaxBytes bool
 }
 
-// Fingerprint hashes inputs into a stable 12-hex-char prefix used as the
-// per-build-options cache directory. Short enough to keep paths
-// human-friendly, wide enough that collisions are not a practical
-// concern.
+// Fingerprint hashes inputs into a stable 12-hex-char prefix, the per-build-options cache directory: short enough to keep paths
+// human-friendly, wide enough that collisions are not a practical concern.
+// The version tag below bumps whenever an input is dropped or changes shape, so older binaries' caches land under another prefix.
 //
-// The version tag bumps whenever an input is dropped or changes shape, so
-// caches written by older binaries land under a different prefix: "v1"→"v2"
-// dropped the MarkerName / MarkerModule inputs (marker migration), "v2"→"v3"
-// dropped LiteralHashLength (literal ids merged into the single hash
-// dictionary), "v3"→"v4" replaced the EmitCreateRTFn bool with the EmitMode
-// tri-state string, "v4"→"v5" added InlineMode, "v5"→"v6" redefined what
-// the InlineMode "default" token MEANS (unnamed compounds now inline; the
-// old everything-external layout is gone) — same token, different bytes,
-// so the option-dirs must move. "v6"→"v7" added the binary cold-start
-// size-estimate inputs (and the estimate slot they bake into every `tb`
-// entry), so every prior cache is stale. "v7"→"v8" changed the fn-entry tail
-// encoding: default-valued INTERIOR slots (code=undefined, isNoop=false, the
-// dep-list `[]`s) now render as JS array holes instead of spelled-out
-// literals, so every cached argsText is byte-different. "v8"->"v9" inlines a
-// union encoder's simple leaf-atomic member checks (typeof v === 'string', …)
-// directly into the dispatch instead of a cross-family `val_<member>?.fn(v)`
-// call, so every union-encoder body (and its cross-family edge set) changed.
-// "v9"->"v10" added the pattern mockSample auto-generation knobs
-// (PatternSampleCount / PatternSampleRetries) whose values shape the
-// generated samples baked into emitted formatAnnotations. "v10"->"v11"
-// added the binary identity (BinaryVersion + BinaryStamp) so a rebuilt
-// DEV binary with changed emitters stops serving the previous build's
-// cached function bodies. "v11"->"v12" added the JSONMaxBytes switch
-// (root-row slot 21 on or off).
+// v2 dropped the MarkerName / MarkerModule inputs (marker migration).
+// v3 dropped LiteralHashLength (literal ids merged into the single hash dictionary).
+// v4 replaced the EmitCreateRTFn bool with the EmitMode tri-state string.
+// v5 added InlineMode.
+// v6 redefined what InlineMode "default" MEANS (unnamed compounds now inline): same token, different bytes, so the dirs must move.
+// v7 added the binary cold-start size-estimate inputs and the estimate slot they bake into every `tb` entry.
+// v8 renders default-valued INTERIOR fn-entry slots as JS array holes instead of spelled-out literals, so every argsText differs.
+// v9 inlines a union encoder's simple leaf-atomic member checks into the dispatch instead of a cross-family `val_<member>?.fn(v)` call.
+// v10 added the mockSample auto-generation knobs, whose values shape the samples baked into emitted formatAnnotations.
+// v11 added the binary identity, so a rebuilt DEV binary with changed emitters stops serving the previous build's function bodies.
+// v12 added the JSONMaxBytes switch.
 func Fingerprint(inputs FingerprintInputs) string {
 	var sb strings.Builder
 	sb.WriteString("v12\n")
