@@ -1,17 +1,9 @@
-// Diagnostic rendering: code + args → final user-facing text.
+// Renders a diagnostic code + args into the user-facing text the bundler plugin and the lint plugin print.
 //
-// The Go binary ships only the diagnostic Code (and optional positional
-// Args) over the wire; the message templates live in the GENERATED
-// dictionary (./go-generated/diagnosticCatalog.generated.ts, emitted by
-// `pnpm miondevx core codegen diag` from the authoritative Go catalog in
-// internal/diagnostics/messages.go). This module owns the render step shared by
-// the Vite plugin's diagnostics (`this.warn`/`this.error`) and the lint
-// plugin: resolve `{0}`, `{1}`, … placeholders in the headline template
-// against the args array. The wire stays small; messages can be
-// arbitrarily rich (multi-line, code examples) for free.
-//
-// Wording changes go in internal/diagnostics/messages.go, never here — regenerate
-// with `pnpm miondevx core codegen diag`.
+// The wire carries code + args only, so the templates reach JS through the GENERATED
+// ./go-generated/diagnosticCatalog.generated.ts and messages can be arbitrarily rich for free.
+// Wording changes go in internal/diagnostics/messages.go, never here; regenerate with
+// `pnpm miondevx core codegen diag`.
 
 import {DIAGNOSTIC_CATALOG} from './go-generated/diagnosticCatalog.generated.ts';
 
