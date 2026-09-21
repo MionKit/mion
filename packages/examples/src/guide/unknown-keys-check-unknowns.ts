@@ -3,9 +3,7 @@ import {createGetValidationErrorsFn, createValidateFn} from '@mionjs/run-types';
 type Address = {street: string; city: string};
 type User = {id: number; name: string; address: Address};
 
-// `checkUnknowns` folds the unknown-key check into the validator, so one
-// function answers "matches User, and carries no extra properties". The value
-// is walked once instead of twice, and nested types are covered at every level.
+// one function, one pass: matches User and carries no extra property, at every level
 const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: true});
 
 isUserStrict({id: 1, name: 'Ada', address: {street: 'Main', city: 'Rome'}}); // true
@@ -21,8 +19,7 @@ isUserStrict({
   address: {street: 'Main', city: 'Rome', zip: '00184'},
 }); // false, the extra is nested
 
-// The same option on the error report: each undeclared key adds one entry with
-// `expected: 'never'`, alongside the usual type errors.
+// same option on the error report: one entry per undeclared key, `expected: 'never'`
 const userErrors = createGetValidationErrorsFn<User>(undefined, {
   checkUnknowns: true,
 });
@@ -34,8 +31,7 @@ userErrors({
 });
 // [{path: ['address', 'zip'], expected: 'never'}]
 
-// A union needs its own option. Its members share one list of property names, so a property
-// belonging to another member survives, and a member with an index signature declares them all.
+// a union needs its own option: its members share one list of property names
 type Pet = {kind: 'cat'; meows: boolean} | {kind: 'dog'; barks: number};
 type Something = {a: string} | Record<string, number>;
 
