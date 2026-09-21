@@ -461,11 +461,6 @@ func emitPatternPropCheck(ctx *EmitContext, patternProp *reflection.PatternPropC
 		childRT.Code + ")) return false;}return true;})())"
 }
 
-// Mirrors identityChainMaxKeys in formats/structural/objectformat.go: at or
-// below this many keys an `===` chain beats a Set (pointer compares against
-// internalized strings, no hash, nothing hoisted).
-const unevalIdentityChainMaxKeys = 8
-
 // emitPropNamesCheck: every key validates (as a string) against the child.
 // The child compiles against the KEY, never against `v[key]`, so the whole
 // sweep hoists into the factory prologue — no key array, no per-key callback,
