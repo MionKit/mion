@@ -722,6 +722,50 @@ describe('a declared error in the return union, on a key-checking row', () => {
   });
 });
 
+describe('validateReturn', () => {
+  type Answer = {name: string};
+
+  // A handler that lies about its return type. `as Answer` is what a real bug looks like from the type checker's
+  // side: the value is built somewhere else and only asserted on the way out.
+  const badHandler = (): Answer => ({name: 42}) as unknown as Answer;
+
+  const unchecked = mion.route(badHandler);
+  const checked = mion.route(badHandler, {validateReturn: true});
+  const goodChecked = mion.route((): Answer => ({name: 'rex'}), {validateReturn: true});
+
+  const jsonRequest = (path: string) => ({headers: headersFromRecord({}), body: JSON.stringify({[path]: []})});
+
+  beforeEach(() => resetRouter());
+
+  it('is off by default, so a wrong return still ships', async () => {
+    mion.initRoutes({unchecked});
+    const request = jsonRequest('unchecked');
+    const response = await dispatchRoute('/unchecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.unchecked).toEqual({name: 42});
+  });
+
+  // A bad return is the server's own bug, so it takes the thrown path rather than a typed slot.
+  it('rejects a return the type does not describe', async () => {
+    mion.initRoutes({checked});
+    const request = jsonRequest('checked');
+    const response = await dispatchRoute('/checked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.checked).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid return value in 'checked', validation failed.`,
+    });
+    expect(response.body.checked).toBeUndefined();
+  });
+
+  it('lets a correct return through', async () => {
+    mion.initRoutes({goodChecked});
+    const request = jsonRequest('goodChecked');
+    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.goodChecked).toEqual({name: 'rex'});
+  });
+});
+
 describe('sanitizeParams', () => {
   type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
   const echoEmail = mion.route((ctx, email: CleanEmail): string => email);

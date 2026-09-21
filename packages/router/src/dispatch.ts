@@ -155,6 +155,7 @@ async function runExecutionChain(
         }
         continue;
       }
+      if (executable.options.validateReturn) validateReturnOrThrow(result, executable);
       (response.body as Mutable<AnyObject>)[executable.id] = result;
     } catch (err: any) {
       // All thrown errors are undeclared and fatal
@@ -286,6 +287,27 @@ function nestingTooDeep(executable: RemoteMethod, originalError: Error): RpcErro
     publicMessage: `Invalid params in '${executable.id}', the request is nested too deep.`,
     originalError,
   });
+}
+
+/** Opt-in (`validateReturn`), so only a route that asked for it pays the walk. A handler's answer is a server
+ *  bug when it does not match the declared type, so the error is thrown into the dispatch catch and travels as
+ *  an undeclared fatal rather than a typed slot. */
+function validateReturnOrThrow(result: any, executable: RemoteMethod): void {
+  if (executable.returnJitFns.isType.isNoop) return;
+  let isValid: boolean;
+  try {
+    isValid = executable.returnJitFns.isType.fn(result);
+  } catch (e: any) {
+    if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
+    throw e;
+  }
+  if (isValid) return;
+  throw new FatalError({
+    statusCode: StatusCodes.UNEXPECTED_ERROR,
+    type: 'validation-error',
+    publicMessage: `Invalid return value in '${executable.id}', validation failed.`,
+    errorData: {typeErrors: executable.returnJitFns.typeErrors.fn(result)},
+  }) as ValidationError;
 }
 
 function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
