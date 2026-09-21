@@ -151,6 +151,14 @@
       "rejectCircularRefs": true
     },
     {
+      "name": "validateUnionKeys",
+      "tag": "vuk",
+      "doc": "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.",
+      "factory": "createValidateFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    },
+    {
       "name": "validationErrors",
       "tag": "verr",
       "doc": "Returns the list of reasons a value does not match the type, with the path to each one.",
@@ -162,6 +170,14 @@
       "name": "validationErrorsStrict",
       "tag": "vest",
       "doc": "Returns the reasons a value does not match, including undeclared properties, in a single walk.",
+      "factory": "createGetValidationErrorsFn",
+      "options": "ValidateOptions",
+      "rejectCircularRefs": true
+    },
+    {
+      "name": "validationErrorsUnionKeys",
+      "tag": "veuk",
+      "doc": "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.",
       "factory": "createGetValidationErrorsFn",
       "options": "ValidateOptions",
       "rejectCircularRefs": true

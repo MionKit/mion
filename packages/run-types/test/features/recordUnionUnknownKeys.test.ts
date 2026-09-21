@@ -26,6 +26,7 @@ interface Probe {
   validate: (value: unknown) => boolean;
   hasUnknownKeys: (value: unknown) => boolean;
   strict: (value: unknown) => boolean;
+  unionKeys: (value: unknown) => boolean;
   encodeClone: (value: any) => unknown;
 }
 
@@ -52,6 +53,10 @@ function checkRows(probe: Probe, rows: Row[]): void {
     expect(probe.strict(decoded), `${row.label} validate {checkUnknowns: true}`).toBe(row.strict);
     // The fused validator is never LOOSER than the two-step composition, on any shape.
     if (row.strict) expect(twoStep, `${row.label} strict accepts what the two-step rejects`).toBe(true);
+    // checkUnionUnknowns sits between the two: never looser than validate, never stricter than checkUnknowns.
+    const unionKeys = probe.unionKeys(decoded);
+    if (unionKeys) expect(row.validate, `${row.label} union-keys accepts what validate rejects`).toBe(true);
+    if (row.strict) expect(unionKeys, `${row.label} union-keys rejects what checkUnknowns accepts`).toBe(true);
   }
 }
 
@@ -62,6 +67,7 @@ describe('a union with a Record member', () => {
       validate: createValidateFn<ObjectOrNumbers>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<ObjectOrNumbers>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<ObjectOrNumbers>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<ObjectOrNumbers>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<ObjectOrNumbers>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
@@ -97,6 +103,7 @@ describe('a union with a Record member', () => {
       validate: createValidateFn<ObjectOrStrings>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<ObjectOrStrings>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<ObjectOrStrings>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<ObjectOrStrings>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<ObjectOrStrings>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
@@ -136,6 +143,7 @@ describe('a union with a Record member', () => {
       validate: createValidateFn<SamePropType>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<SamePropType>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<SamePropType>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<SamePropType>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<SamePropType>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
@@ -160,6 +168,7 @@ describe('a union with a Record member', () => {
       validate: createValidateFn<TwoProps>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<TwoProps>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<TwoProps>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<TwoProps>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<TwoProps>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
@@ -191,6 +200,7 @@ describe('a union with a Record member', () => {
       validate: createValidateFn<DiscriminatedOrNumbers>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<DiscriminatedOrNumbers>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<DiscriminatedOrNumbers>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<DiscriminatedOrNumbers>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<DiscriminatedOrNumbers>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
@@ -229,6 +239,7 @@ describe('a union with a Record member', () => {
       validate: createValidateFn<ObjectOrUnknowns>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<ObjectOrUnknowns>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<ObjectOrUnknowns>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<ObjectOrUnknowns>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<ObjectOrUnknowns>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     // Every value is a valid record, so every family accepting everything is the right answer.
@@ -263,6 +274,7 @@ describe('the same shapes without a Record member, where every family agrees', (
       validate: createValidateFn<TwoObjects>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<TwoObjects>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<TwoObjects>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<TwoObjects>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<TwoObjects>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [
@@ -288,6 +300,7 @@ describe('the same shapes without a Record member, where every family agrees', (
       validate: createValidateFn<PlainObject>() as Probe['validate'],
       hasUnknownKeys: createHasUnknownKeysFn<PlainObject>() as Probe['hasUnknownKeys'],
       strict: createValidateFn<PlainObject>(undefined, {checkUnknowns: true}) as Probe['strict'],
+      unionKeys: createValidateFn<PlainObject>(undefined, {checkUnionUnknowns: true}) as Probe['unionKeys'],
       encodeClone: createJsonEncoderFn<PlainObject>(undefined, {strategy: 'clone'}) as Probe['encodeClone'],
     };
     checkRows(probe, [

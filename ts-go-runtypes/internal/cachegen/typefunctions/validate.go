@@ -718,6 +718,8 @@ func emitUnionValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCod
 	// Strip the DataOnly members (symbol / function-like / Promise / non-serializable / never) so `Date | symbol` validates as
 	// `Date`. An all-stripped union keeps its members and falls through to CodeNS below, rendering the alwaysThrow factory.
 	children := dataOnlyUnionMembers(rt, ctx)
+	// The validateUnionKeys families only; see validate_union_keys.go for why the splice lands here and not on the object arm.
+	checkMemberKeys := ctx.ChecksUnionMemberKeys() && unionChecksMemberKeys(children, ctx)
 	var simpleChecks []string
 	var objectChecks []string
 	for _, child := range children {
@@ -736,6 +738,13 @@ func emitUnionValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCod
 		childCode := childRT.Code
 		if gate := looseCheckGate(resolved, ctx, v); gate != "" {
 			childCode = "(" + childCode + " && " + gate + ")"
+		}
+		// LAST in the arm: the key-count compare is only sound once every declared property was verified present, which the
+		// expression to its left just did. The arm may be an inline body or a dep call; the assertion works on either.
+		if checkMemberKeys {
+			if assertion := unionMemberKeyAssertion(resolved, ctx); assertion != "" {
+				childCode = "(" + childCode + " && " + assertion + ")"
+			}
 		}
 		if isObjectLikeKind(resolved.Kind) {
 			objectChecks = append(objectChecks, childCode)
@@ -1022,17 +1031,7 @@ func escapeRegex(s string) string {
 func emitObjectValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface requires a function value (typeof === 'function') with optional extra properties on top, so the
 	// plain object check is suppressed for it.
-	var callSigChild *reflection.RunType
-	for _, child := range rt.Children {
-		resolved := ctx.ResolveRef(child)
-		if resolved == nil {
-			continue
-		}
-		if resolved.Kind == reflection.KindCallSignature {
-			callSigChild = child
-			break
-		}
-	}
+	callSigChild := objectCallSignatureChild(rt, ctx)
 	// A callable interface at a NON-root position is function-like: CodeNS lets the parent handle it like any other
 	// function-valued child (matching the serializers, F2). At the ROOT a function value is valid, so the guard below stands.
 	if callSigChild != nil && !ctx.IsRoot() {

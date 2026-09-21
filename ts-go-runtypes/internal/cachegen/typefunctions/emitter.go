@@ -167,6 +167,19 @@ func (ctx *EmitContext) ChecksUnknownKeys() bool {
 	return ok
 }
 
+// ChecksUnionMemberKeys reports whether the family being rendered asserts, on each union arm, that the member which
+// matched declares every key on the value (the validateUnionKeys / validationErrorsUnionKeys families).
+//
+// Rides the emitter identity like ChecksUnknownKeys, and for the same reason: a union nested under a named type is
+// dep-called into its own entry, which renders with this same emitter and so reaches the same verdict.
+func (ctx *EmitContext) ChecksUnionMemberKeys() bool {
+	if ctx.walker == nil {
+		return false
+	}
+	_, ok := ctx.walker.Emitter.(UnionMemberKeys)
+	return ok
+}
+
 // NumberMode returns the numberMode the current variant root is rendering: "typeof" / "notNaN" / "isFinite"
 // (default). Root-scoped like HasVariantOption, so nested same-kind nodes render with the default check.
 func (ctx *EmitContext) NumberMode() string {
