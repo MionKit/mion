@@ -46,9 +46,8 @@ const updateHeaders: Route = mion.route((context: Context): void => {
 
 const cloudflareRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 
-// The same routes answering with the `mutate` serializer, which restores and transforms in place.
-// Both directions, not just `return`: only a `mutate` params decoder keeps keys the type does not
-// declare, and `getDate` handing its own argument back is what carries them to the wire.
+// Both directions, not just `return`: only a `mutate` params decoder keeps keys the type does not declare.
+// `getDate` hands its own argument back, which is what carries those keys to the wire.
 const mutateRoutes = {
   changeUserName: mion.route((ctx: Context, user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname}), {
     serializer: 'mutate',
@@ -65,7 +64,7 @@ const mutateRoutes = {
 export interface CloudflareSetupOptions {
   /** URL prefix the handler strips before routing. */
   basePath?: string;
-  /** `mutate` answers with the in-place serializer; the default is `clone`. */
+  /** Default is `clone`; `mutate` answers with the in-place serializer. */
   serializer?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }

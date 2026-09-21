@@ -21,17 +21,14 @@ interface WorkerResponse {
   headers: Record<string, string>;
 }
 
-/** The options CloudflareTestServer.setup() accepts, mirroring CloudflareSetupOptions in the fixture.
- *  The fixture rejects an unknown key at runtime, so a drift between the two fails the setup instead of
- *  being ignored. */
+/** Mirrors CloudflareSetupOptions in the fixture, which rejects an unknown key, so drift fails the setup. */
 interface CloudflareSetupOptions {
   basePath?: string;
   serializer?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
-/** Builds the setup argument from a checked object: a hand written literal inside the worker script is
- *  never type checked, which is how a block once configured itself with an option that did not exist. */
+/** A hand written literal inside the worker script is never type checked; this object is. */
 function setupOptions(options: CloudflareSetupOptions = {}): string {
   return JSON.stringify(options);
 }
@@ -176,9 +173,8 @@ describe('cloudflare handler (workerd runtime)', () => {
       await mf?.dispose();
     });
 
-    // Only `mutate` restores the params in place and keeps a key the type does not declare; every other
-    // strategy rebuilds the declared shape. `getDate` hands its own argument back, so the extra key
-    // reaching the wire proves the option applied.
+    // Only `mutate` keeps a key the type does not declare; every other strategy rebuilds the declared shape.
+    // `getDate` hands its own argument back, so the extra key reaching the wire proves the option applied.
     it('should keep an undeclared key the clone serializer would drop', async () => {
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z'), extra: 'kept'}]};
       const result = await callHandler(mf, '/api/getDate', JSON.stringify(requestData));
