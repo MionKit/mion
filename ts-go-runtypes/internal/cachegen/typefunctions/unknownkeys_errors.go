@@ -7,11 +7,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// UnknownKeyErrorsEmitter implements the `unknownKeyErrors` rt
-// function — accumulator that records one RTValidationError of expected
-// `'never'` per unknown key. Ported from the reference emitUnknownKeyErrors.
-//
-// Arg shape mirrors validationErrors: (v, pth=[], er=[]). Returns `er`.
+// UnknownKeyErrorsEmitter implements `unknownKeyErrors`: one RTValidationError of expected `'never'` per unknown key.
+// Arg shape mirrors validationErrors: (v, pth=[], er=[]), returning `er`.
 type UnknownKeyErrorsEmitter struct{}
 
 func (UnknownKeyErrorsEmitter) Args() []ArgSpec {
@@ -89,9 +86,7 @@ func (UnknownKeyErrorsEmitter) Finalize(rawCode string) (string, bool) {
 	return code, false
 }
 
-// callUnknownKeyErr builds the JS call to newRunTypeErr that
-// appends a 'never' error for an unknown key. `extra` is the key
-// variable (since the key is a runtime value, not a static name).
+// callUnknownKeyErr appends a 'never' error for an unknown key; `extra` is the key VARIABLE, the key being a runtime value.
 func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	key := ctx.UsePureFn(purefnids.NewRunTypeErr)
 	pthArg := ctx.ArgName("pλth")
@@ -103,24 +98,16 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
-// emitParentUnknownKeyErrors emits the PARENT-level unknown-key reporting for an
-// object node: collect the undeclared keys, then push one
-// `{path, expected: 'never'}` per key. Returns "" when the node needs none — an
-// index signature makes every matching key declared, and a shape with no declared
-// names has nothing to compare against.
+// emitParentUnknownKeyErrors pushes one `{path, expected: 'never'}` per undeclared key of an object node.
+// Returns "" when the node needs none: an index signature makes every matching key declared, and a shape with no
+// declared names has nothing to compare against.
+// Shared by the standalone `unknownKeyErrors` family and the FUSED `validationErrorsStrict` one, so the two report
+// identical entries for the same value.
 //
-// Shared by the standalone `unknownKeyErrors` family and the FUSED
-// `validationErrorsStrict` family, so the two report identical entries for the
-// same value.
-//
-// ⚠️ CALLERS OWN THE OBJECT GUARD, and they own it for different reasons — do not
-// move it in here. The standalone family has nothing above it asserting shape,
-// so `emitObjectUnknownKeyErrors` wraps this in `unknownKeysObjectGuard`. The
-// fused family is already inside the `else` of `emitObjectValidationErrors`'s own
-// guard, so adding one here would emit it TWICE on every object node of every
-// `{checkUnknowns: true}` validator: once to prove the value is an object, then
-// again to do the thing that only runs because it is. Same reasoning behind the
-// `keepObjectCheck=false` on the validate side (strictObjectKeyAssertion).
+// ⚠️ CALLERS OWN THE OBJECT GUARD, for different reasons, so do not move it in here. The standalone family has nothing
+// above it asserting shape, so emitObjectUnknownKeyErrors wraps this in unknownKeysObjectGuard; the fused family already
+// sits inside emitObjectValidationErrors' own guard, and a second one would emit on every object node of every
+// `{checkUnknowns: true}` validator. Same reasoning as `keepObjectCheck=false` on the validate side.
 // Pinned by TestCheckUnknowns_DoesNotDoubleGuardObjects.
 func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string {
 	if objectHasIndexSignatureChild(rt, ctx) {
@@ -136,8 +123,7 @@ func emitParentUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) string
 		"if (" + unknownVar + ") {for (const " + keyVar + " of " + unknownVar + ") {" + callUnknownKeyErr(ctx, keyVar) + "}}"
 }
 
-// emitObjectUnknownKeyErrors ports
-// InterfaceRunType.emitUnknownKeyErrors (interface.ts:157-172).
+// emitObjectUnknownKeyErrors joins this node's own key report with the descent into its children.
 func emitObjectUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	parentCode := emitParentUnknownKeyErrors(rt, ctx)
 	childrenCode := unknownKeysChildrenCode(rt, ctx)
@@ -145,15 +131,12 @@ func emitObjectUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode
 	if combined == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// Nothing above this point asserts `v` is an object, and both halves of
-	// the body assume it is: the parent scan walks `for (const k in v)` and
-	// the child descent reads `v.address`. See unknownKeysObjectGuard.
+	// Nothing above asserts `v` is an object, and both halves assume it: the scan does `for (const k in v)`, the descent reads `v.address`.
 	body := guardStatement(unknownKeysObjectGuard(ctx.Vλl), combined)
 	return RTCode{Code: body, Type: CodeS}
 }
 
-// emitIndexSignatureUnknownKeyErrors ports
-// IndexSignatureRunType.emitUnknownKeyErrors (indexProperty.ts:122-132).
+// emitIndexSignatureUnknownKeyErrors reports a key the index pattern rejects, then descends into the value.
 func emitIndexSignatureUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -207,16 +190,9 @@ func emitIndexSignatureUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext
 	return RTCode{Code: body, Type: CodeS}
 }
 
-// emitMapUnknownKeyErrors mirrors
-// IterableRunType.emitUnknownKeyErrors (nodes/native/Iterable.ts:105-120).
-// For each entry, sets the key/value accessor and a `{key, failed: 'mapKey'
-// | 'mapValue'}` path segment (where `key` is the entry's iteration index)
-// before recursing into the wrapped child's unknownKeyErrors emit. The
-// child's emit (object/property/etc) emits its own per-error
-// `newRunTypeErr(pth, er, 'never', [...static path..., extra])`.
-//
-// When every wrapped child compiles to a noop (atomic Map<string,
-// number>), the loop body is empty so we elide the iteration entirely.
+// emitMapUnknownKeyErrors recurses per entry under a `{key, failed: 'mapKey' | 'mapValue'}` path segment, where `key` is
+// the entry's iteration index; each child emits its own error.
+// When every wrapped child is a noop (Map<string, number>) the loop body is empty and the iteration is elided.
 func emitMapUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	keyType, valueType := mapKeyValueTypes(rt, ctx)
 	entryVar := ctx.NextLocalVar("entry")
@@ -269,18 +245,14 @@ func emitMapUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	}
 	inner.WriteString(idxVar)
 	inner.WriteString("++;}")
-	// A positive wrap, not `if (!(v instanceof Map)) return;`: this body is
-	// inlined into the parent closure, so a bare return abandons the whole
-	// walk and hands back `undefined` where the contract promises the errors
-	// array.
+	// A positive wrap, not an early return: this body is inlined into the parent closure, so a bare return abandons the
+	// whole walk and hands back `undefined` where the contract promises the errors array.
 	body := guardStatement(v+" instanceof Map", inner.String())
 	return RTCode{Code: body, Type: CodeS}
 }
 
-// emitSetUnknownKeyErrors mirrors the same Iterable.ts emit on the Set
-// side. Path segment is {key:i0, failed:'setKey'} — `key` is the loop
-// index (the item value is data, not a serialisable address), so the
-// failing item is still locatable for an unordered Set.
+// emitSetUnknownKeyErrors is the Set twin: the path segment keys on the loop INDEX, since the item value is data rather
+// than an address, so a failing item stays locatable in an unordered Set.
 func emitSetUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	itemType := setItemType(rt, ctx)
 	if itemType == nil {

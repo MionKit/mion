@@ -4,83 +4,56 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Semantic noop predicates — "would this family's entry for T be the family
-// identity fn?" — decided over the TYPE GRAPH, not the emitted code shape.
+// Semantic noop predicates, "would this family's entry for T be the family identity fn?", decided over the
+// TYPE GRAPH rather than the emitted code shape: Finalize's shape check only sees what the walker INLINED,
+// never through a call boundary (an external dep call, a circular type, a JSON composite binding its
+// primitives). The walker's dispatch gate consults these predicates before emitting a dep call, and the
+// composite collector keys binding elision on the rendered entries' IsNoop flags.
 //
-// Finalize's shape check ("" / "return v") only sees what the walker INLINED;
-// it cannot see through call boundaries. Three boundaries used to leak dead
-// code: external dep-calls (every named type under the default name rule),
-// circular types (always external, so a JSON-compatible circular type emitted
-// a self-recursive traversal that walked the whole value doing nothing), and
-// the JSON composites (bound their primitives unconditionally). The walker's
-// dispatch gate consults these predicates before emitting a dep call, and the
-// composite collector keys binding elision on the rendered entries' IsNoop
-// flags — both collapse those boundaries.
+// SOUNDNESS CONTRACT, one-directional: predicate true ⇒ the family's emitted body for T is the family
+// identity. A false negative only costs bytes, the dep call stays; a false positive silently skips a real
+// transform, which is data corruption. Every arm below therefore MIRRORS its emitter's per-kind dispatch
+// (json_prepare.go / json_restore.go / json_prepare_clone.go / union_flat.go), and answers false when in
+// doubt. The mirror is pinned by the resolver's corpus test (noop_predicate_test.go), which asserts
+// verdict=true ⇒ the gate-disabled fully-inlined compile collapses to a noop body, over every fixture type.
 //
-// SOUNDNESS CONTRACT (one-directional): predicate true ⇒ the family's emitted
-// body for T is the family identity. A false negative only costs bytes (the
-// dep call stays); a false positive silently skips a real transform — data
-// corruption. Every arm below therefore MIRRORS the corresponding emitter's
-// per-kind dispatch (json_prepare.go / json_restore.go / json_prepare_safe.go
-// / union_flat.go); when in doubt an arm returns false. The mirror is pinned
-// mechanically by the resolver-level corpus test (noop_predicate_test.go),
-// which asserts verdict=true ⇒ the gate-disabled fully-inlined compile
-// collapses to a noop body, across every fixture type.
-//
-// Cycles: re-entry on an in-walk id is assumed noop (greatest fixpoint, the
-// isJsonCompatible rule) — a cycle is identity unless some node on it (or off
-// it) demands a transform, and any such node falsifies the walk on its own
-// path. Memoization stores only COMPLETED top-level verdicts (an intermediate
-// node's in-walk value can depend on the cycle-back assumption for an
-// ancestor still on the stack), exactly like FactsTable's other predicates.
+// Cycles: re-entry on an in-walk id is assumed noop (greatest fixpoint, the isJsonCompatible rule), a cycle
+// being identity unless some node demands a transform, which falsifies the walk on its own path. Memoization
+// stores only COMPLETED top-level verdicts, since an intermediate node's in-walk value can depend on the
+// cycle-back assumption for an ancestor still on the stack.
 
-// NoopTypePredicate is the Emitter capability that decides "is this family's
-// entry for T the family identity?" over the TYPE GRAPH. EVERY family
-// implements it — the noop VERDICT on an emitted entry is decided by the
-// predicate, never by inspecting the emitted text (Finalize's shape result
-// survives only as the renderer's protective tripwire: a predicate that
-// claims noop while the compiled body disagrees ships the live body and
-// logs — see renderEntryWithDeps).
+// NoopTypePredicate is the Emitter capability deciding "is this family's entry for T the family identity?"
+// over the TYPE GRAPH. EVERY family implements it: the noop VERDICT is the predicate's, never the emitted
+// text's. Finalize's shape result survives only as the renderer's tripwire, a predicate claiming noop while
+// the compiled body disagrees ships the live body and logs (renderEntryWithDeps).
 //
-// Each predicate mirrors ITS OWN emitter arm-by-arm; where an emitter arm
-// delegates to another family's helpers, the predicate arm delegates to that
-// family's predicate the same way (compactForJson reuses prepareForJsonClone's
-// wholesale — their diverging object arms agree on never-noop; compactFromJson
-// delegates restoreFromJsonMutate's shared arms but answers false at its own object
-// arms, where restoreFromJsonMutate's raw round-trip does NOT hold for the
-// positional rebuild). Where an emitter decides a slot through a helper
-// (isStrippedUnionMember, objectHasIndexSignatureChild, iterableInnerTypes,
-// literalFlavour, …), the predicate calls the SAME helper so that arm cannot
-// drift.
+// Each predicate mirrors ITS OWN emitter arm by arm, and where an emitter arm delegates to another family's
+// helpers the predicate arm delegates to that family's predicate the same way (compactForJson reuses
+// prepareForJsonClone's wholesale, their diverging object arms agreeing on never-noop; compactFromJson
+// delegates restoreFromJsonMutate's shared arms but answers false at its own object arms, where the raw
+// round-trip does NOT hold for the positional rebuild). Where an emitter decides a slot through a helper
+// (isStrippedUnionMember, objectHasIndexSignatureChild, iterableInnerTypes, literalFlavour, …), the predicate
+// calls the SAME helper so that arm cannot drift.
 type NoopTypePredicate interface {
 	IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool
 }
 
-// NoopComposeAround additionally marks the families whose predicate may feed
-// the walker's dispatch-time noop gate: the gate replaces a noop child's dep
-// call with EMPTY code, which is sound only for value-transform semantics
-// ("noop child" = leave the value / error list / byte stream untouched, so
-// emitting nothing composes correctly). Two families must stay OFF the gate:
-// stringifyJson parents concatenate the child call's returned JSON FRAGMENT
-// (composing around with empty code silently drops the property from the
-// output — a substitution gate emitting `JSON.stringify(<accessor>)` would be
-// needed instead), and fromBinary parents advance positionally through the
-// byte stream (skipping a child decode desynchronizes every later read).
+// NoopComposeAround marks the families whose predicate may feed the walker's dispatch-time noop gate, which
+// replaces a noop child's dep call with EMPTY code: sound only where a noop child means leaving the value,
+// error list or byte stream untouched. Two families must stay OFF the gate: a stringifyJson parent
+// concatenates the child call's returned JSON FRAGMENT, so empty code silently drops the property from the
+// output, and a fromBinary parent advances positionally, so a skipped child decode desynchronizes every
+// later read.
 type NoopComposeAround interface {
 	NoopTypePredicate
-	// NoopChildComposesAround is a marker method (empty implementations):
-	// asserting it is the family's claim that empty code is the correct
-	// composition for a noop child.
+	// NoopChildComposesAround is a marker method: implementing it claims empty code composes correctly here.
 	NoopChildComposesAround()
 }
 
-// jsonNoopMode selects between the encode (prepareForJson) and decode
-// (restoreFromJsonMutate) arm tables of the shared JSON-transform predicate. The
-// two sides diverge exactly where the emitters do: Date/Temporal are noop on
-// encode (native toJSON covers them) but rebuild on decode; `undefined` is
-// noop on encode but force-rebinds on decode; unions always emit the
-// guard-chain + mismatch-throw on encode but ride raw on decode when nothing
-// wraps.
+// jsonNoopMode selects the encode (prepareForJson) or decode (restoreFromJsonMutate) arm table of the shared
+// JSON-transform predicate. The two diverge exactly where the emitters do: Date / Temporal are noop on encode
+// (native toJSON) but rebuild on decode, `undefined` is noop on encode but force-rebinds on decode, and a
+// union always emits the guard chain + mismatch throw on encode but rides raw on decode when nothing wraps.
 type jsonNoopMode int
 
 const (
@@ -101,26 +74,20 @@ func isNoopForPrepareJson(rt *reflection.RunType, ctx *EmitContext) bool {
 }
 
 /** isNoopForRestoreJson reports whether the rj (decode) entry for rt is the identity. **/
-// Two halves: the SHAPE half (jsonNoopRecursive in restore mode: does any
-// value need rebuilding) and the KEY-GUARD half (restoreKeyGuardReachable:
-// does the decoder ship a prototype-name refusal loop). A decoder over
-// `Record<string, string>` rebuilds nothing but still refuses `__proto__`
-// as a wire key, so it is a real function, and an entry claiming noop while
-// carrying that guard would be elided by the composite and the guard lost.
-// The shape half alone keeps deciding the flat-union envelope, so the wire
+// Two halves: the SHAPE half (does any value need rebuilding) and the KEY-GUARD half (does the decoder ship
+// the prototype-name refusal loop). A decoder over `Record<string, string>` rebuilds nothing but still
+// refuses `__proto__` as a wire key, and an entry claiming noop while carrying that guard would be elided by
+// the composite and the guard lost. The shape half alone keeps deciding the flat-union envelope, so the wire
 // format does not move.
 func isNoopForRestoreJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	return jsonNoopTopLevel(rt, ctx, noopModeRestore) && !restoreKeyGuardReachable(rt, ctx)
 }
 
-// restoreKeyGuardReachable reports whether the decoders' key loop (the
-// prototype-name refusal in emitIndexSignatureRestoreFromJson, shared by the
-// compact road) is compiled somewhere under rt. It mirrors the decoders'
-// OWN descent to an index signature: object and class members, property
-// children, array elements, tuple slots, Map and Set arguments. It stops at
-// a union: a union that round-trips raw emits no member code at all (its
-// keys reach validate, which refuses them), and one that carries an
-// envelope is already non-noop through the shape half.
+// restoreKeyGuardReachable reports whether the decoders' key loop (the prototype-name refusal in
+// emitIndexSignatureRestoreFromJson, shared by the compact road) is compiled somewhere under rt, mirroring
+// the decoders' OWN descent to an index signature. It stops at a union: one that round-trips raw emits no
+// member code at all (its keys reach validate, which refuses them), and one carrying an envelope is already
+// non-noop through the shape half.
 func restoreKeyGuardReachable(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -190,8 +157,7 @@ func restoreKeyGuardRecursive(rt *reflection.RunType, ctx *EmitContext, visited 
 	return false
 }
 
-// restoreKeyGuardInMembers is the object arm of restoreKeyGuardRecursive:
-// statics and function-like members never compile.
+// restoreKeyGuardInMembers is the object arm: a static or function-like member never compiles.
 func restoreKeyGuardInMembers(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	for _, childRef := range objectMembers(rt) {
 		member := ctx.ResolveRef(childRef)
@@ -205,8 +171,7 @@ func restoreKeyGuardInMembers(rt *reflection.RunType, ctx *EmitContext, visited 
 	return false
 }
 
-// jsonNoopTopLevel is the memo wrapper — same store-completed-walks-only
-// discipline as isJsonCompatible (see the cycle note there).
+// jsonNoopTopLevel is the memo wrapper, storing completed walks only, like isJsonCompatible.
 func jsonNoopTopLevel(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMode) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -245,21 +210,19 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		reflection.KindNull,
 		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
 		reflection.KindObject, reflection.KindEnum:
-		// Atomic JSON-compatible kinds — both emitters' "" arms.
+		// Atomic JSON-compatible kinds: both emitters' "" arms.
 		return true
 
 	case reflection.KindTemplateLiteral, reflection.KindIntersection:
-		// String-flavoured at runtime / defensive-noop arms in both emitters.
+		// String-flavoured at runtime, the defensive-noop arm in both emitters.
 		return true
 
 	case reflection.KindUndefined:
-		// pj: "" (JSON.stringify drops it natively). rj: `v = undefined`
-		// force-rebind — real code.
+		// pj: "", JSON.stringify drops it natively. rj: a `v = undefined` force-rebind, real code.
 		return mode == noopModePrepare
 
 	case reflection.KindLiteral:
-		// Primitive literals are noop in both emitters; bigint / symbol
-		// literals carry value transforms.
+		// bigint / symbol literals carry value transforms, primitive ones do not.
 		return literalFlavour(rt) == litPrimitive
 
 	case reflection.KindArray:
@@ -277,12 +240,9 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		return true
 
 	case reflection.KindTupleMember:
-		// Optional tuple slots are never identity: emitTupleMember{PrepareFor,RestoreFrom}Json
-		// normalize a present-but-undefined slot to `null` (arrays serialize a present
-		// hole as null) even when the child is noop — unlike object properties, whose
-		// absent optional is dropped natively by JSON.stringify. Object properties can
-		// stay noop (emitPropertyPrepareForJson returns "" for a noop child regardless of
-		// optionality); tuple members cannot.
+		// An optional tuple slot is never identity: the emitters normalize a present-but-undefined slot to
+		// `null` even when the child is noop. An optional object property can stay noop instead, JSON.stringify
+		// dropping an absent one natively.
 		if rt.Optional {
 			return false
 		}
@@ -299,18 +259,12 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		if resolved == nil {
 			return true
 		}
-		// Directly DataOnly-stripped values (function-like / symbol / never /
-		// Promise / non-serializable natives) are dropped slots in both
-		// emitters — the same isStrippedUnionMember test strippedPropertyDrop
-		// keys the drop on (the diagnostic-emitting wrapper stays with the
-		// emitters; the predicate shares the pure decision). ONE exception on
-		// the prepare (mutate) side: a stripped value that JSON.stringify would
-		// serialize AS DATA (a Promise / a non-serializable native like a typed
-		// array) is `delete`d from the live object so the mutate output matches
-		// the data-only projection (emitPropertyPrepareForJson → jsonStringifyLeaks).
-		// That delete is real code, so the property is NOT identity on encode.
-		// The restore/compact side reads from already-parsed JSON (the key is
-		// gone) and drops it with empty code, staying noop there.
+		// A DataOnly-stripped value (function-like / symbol / never / Promise / non-serializable native) is a
+		// dropped slot in both emitters, keyed on the same isStrippedUnionMember test strippedPropertyDrop uses.
+		// ONE exception on the prepare (mutate) side: a stripped value JSON.stringify would serialize AS DATA
+		// (a Promise, a typed array) is `delete`d from the live object so the output matches the data-only
+		// projection, and that delete is real code. The restore / compact side reads already-parsed JSON, where
+		// the key is gone, and drops it with empty code.
 		if isStrippedUnionMember(resolved) {
 			if mode == noopModePrepare && jsonStringifyLeaks(resolved) {
 				return false
@@ -323,7 +277,7 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 		if rt.Child == nil {
 			return true
 		}
-		// Symbol-keyed index signatures are skipped slots (skipRT).
+		// A symbol-keyed index signature is a skipped slot.
 		if isSymbolKeyedIndexSig(rt, ctx) {
 			return true
 		}
@@ -334,22 +288,19 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 
 	case reflection.KindClass:
 		if reflection.IsTemporalSubKind(rt.SubKind) {
-			// Encode rides the builtin toJSON(); decode rebuilds via
-			// Temporal.<T>.from(v).
+			// Encode uses the builtin toJSON(), decode rebuilds via Temporal.<T>.from(v).
 			return mode == noopModePrepare
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			// Encode rides Date#toJSON; decode rebuilds via new Date(v).
+			// Encode uses Date#toJSON, decode rebuilds via new Date(v).
 			return mode == noopModePrepare
 		case reflection.SubKindMap, reflection.SubKindSet:
 			// Iterable ↔ array-of-entries transforms on both halves.
 			return false
 		case reflection.SubKindNone:
-			// Named user classes always emit the runtime class-serializer
-			// registry branch (wrapPrepareWithClassSerializer /
-			// wrapRestoreWithClassSerializer) — never identity. Anonymous
-			// classes fall through to the structural object emit.
+			// A named user class always emits the runtime class-serializer registry branch, never identity; an
+			// anonymous one falls through to the structural object emit.
 			if userClassName(rt) != "" {
 				return false
 			}
@@ -361,15 +312,13 @@ func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMo
 	case reflection.KindUnion:
 		return unionJsonNoop(rt, ctx)
 	}
-	// Void (`v = undefined` on both halves), BigInt / Symbol / Regexp
-	// (value transforms), Never / Promise / function kinds (CodeNS), and
-	// any future kind: not noop.
+	// Void (`v = undefined` on both halves), BigInt / Symbol / Regexp (value transforms), Never / Promise /
+	// function kinds (CodeNS), and any future kind: not noop.
 	return false
 }
 
-// jsonNoopObjectChildren mirrors the object emits' member walk — static and
-// function-like members are skipped slots; every surviving property must be
-// noop. Same skip set as objectChildrenCompat (json_compat.go).
+// jsonNoopObjectChildren mirrors the object emits' member walk: a static or function-like member is a
+// skipped slot, every surviving property must be noop. Same skip set as objectChildrenCompat (json_compat.go).
 func jsonNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, mode jsonNoopMode, visited map[string]struct{}) bool {
 	for _, childRef := range children {
 		resolved := ctx.ResolveRef(childRef)
@@ -389,32 +338,21 @@ func jsonNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, mo
 	return true
 }
 
-// unionJsonNoop mirrors the flat-union emitters' shared "" gates
-// (emitUnionPrepareForJsonFlat / emitUnionRestoreFromJsonFlat + the
-// buildFlatLayout bucketing they share, union_flat_layout.go): BOTH halves
-// are identity exactly when the union round-trips raw — after
-// DataOnly-stripping, EVERY member (atomic AND object/record bucket) is
-// JSON-compatible. Mutate then has no transform to apply and emits no
-// envelope (a compatible object member passes through untouched — mutate
-// never strips), and the decoder has nothing to unwrap. A member carrying a
-// transform forces the `[idx, value]` / `[-1, merged]` envelope on encode
-// and the unwrap on decode — real code on both halves. Mirrors
-// union_flat_layout.go's AtomicNeedsTuple = !roundTripsRaw. The degenerate
-// all-dangling / empty layout emits nothing on either half (noop below); the
-// all-stripped case does NOT — see the guard.
+// unionJsonNoop mirrors the flat-union emitters' shared "" gates and the buildFlatLayout bucketing they
+// share (union_flat_layout.go, AtomicNeedsTuple = !roundTripsRaw): BOTH halves are identity exactly when the
+// union round-trips raw, every member JSON-compatible after DataOnly-stripping, so mutate has no transform to
+// apply and no envelope to emit and the decoder nothing to unwrap. A member carrying a transform forces the
+// `[idx, value]` / `[-1, merged]` envelope on encode and the unwrap on decode. The degenerate all-dangling /
+// empty layout emits nothing on either half; the all-stripped case does NOT, see the guard.
 func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
 		children = rt.Children
 	}
-	// All-stripped fallback — mirror dataOnlyUnionMembers (union_strip.go):
-	// when EVERY member projects to `never` (all stripped) the DataOnly union
-	// is `never`, so the emitter KEEPS the original member list, reaches a
-	// stripped member's CodeNS leaf, and renders an alwaysThrow — NOT the
-	// identity (buildFlatLayout buckets the non-serializable members, so the
-	// empty-layout noop arm never fires). An all-dangling / empty union has no
-	// stripped member here (isStrippedUnionMember(nil) is false) and stays noop
-	// via the loop: dangling refs contribute no code on either half.
+	// All-stripped fallback, mirroring dataOnlyUnionMembers (union_strip.go): when EVERY member projects to
+	// `never` the DataOnly union is `never`, so the emitter KEEPS the original member list, reaches a stripped
+	// member's CodeNS leaf and renders an alwaysThrow, not the identity. An all-dangling / empty union has no
+	// stripped member here (isStrippedUnionMember(nil) is false) and stays noop via the loop.
 	strippedCount := 0
 	for _, ref := range children {
 		if isStrippedUnionMember(ctx.ResolveRef(ref)) {
@@ -430,8 +368,8 @@ func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 			// dataOnlyUnionMembers drops stripped members before bucketing.
 			continue
 		}
-		// buildFlatLayout bucketing: object-like members carrying an index
-		// signature fall into the ATOMIC bucket (dynamic keys can't merge).
+		// buildFlatLayout bucketing: an object-like member with an index signature falls into the ATOMIC bucket,
+		// dynamic keys being unmergeable.
 		if isObjectLikeKind(resolved.Kind) && objectHasIndexSignatureChild(resolved, ctx) {
 			if !isJsonCompatible(resolved, ctx) {
 				return false
@@ -445,18 +383,14 @@ func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 				}
 				continue
 			}
-			// A named plain user class routes as an atomic member that forces the
-			// `[idx, value]` envelope (buildFlatLayout.hasClassAtomic ⇒
-			// AtomicNeedsTuple) and reconstructs the instance on decode via the
-			// class-serializer restore wrapper — real code on both halves, never
-			// identity, even though its props are JSON-compatible.
+			// A named plain user class routes as an atomic member forcing the `[idx, value]` envelope
+			// (buildFlatLayout.hasClassAtomic ⇒ AtomicNeedsTuple) and reconstructs the instance on decode, real
+			// code on both halves even though its props are JSON-compatible.
 			if resolved.Kind == reflection.KindClass && userClassName(resolved) != "" {
 				return false
 			}
-			// Object bucket — merges into the [-1, merged] envelope ONLY when it
-			// carries a transform. A fully JSON-compatible object/record member
-			// round-trips raw (roundTripsRaw ⇒ AtomicNeedsTuple false ⇒ identity
-			// on both halves), so it no longer forces non-noop.
+			// Object bucket: merges into the [-1, merged] envelope ONLY when it carries a transform, a fully
+			// JSON-compatible object / record member round-tripping raw instead.
 			if !isJsonCompatible(resolved, ctx) {
 				return false
 			}
@@ -470,16 +404,12 @@ func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 }
 
 /** isNoopForPrepareJsonSafe reports whether the pjs (clone-encode) entry for rt is the identity. **/
-// Mirrors PrepareForJsonCloneEmitter.Emit's noop arms: atomic JSON kinds
-// (incl. undefined — the clone feeds native JSON.stringify), primitive
-// literals, the defensive intersection / template-literal arms, and the
-// extra-proof pass-through gates on arrays and tuples
-// (emitArrayPrepareForJsonClone / emitTuplePrepareForJsonClone — an
-// extra-proof subtree is shared by reference, `return v`). Objects and
-// classes ALWAYS clone (the clone is what strips undeclared keys), so they
-// are never noop here even when JSON-compatible; unions keep their
-// guard-chain + throw like pj. No memo: the arms are O(1) except the
-// already-memoized isExtraProof.
+// Mirrors PrepareForJsonCloneEmitter.Emit's noop arms: atomic JSON kinds (undefined included, the clone feeds
+// native JSON.stringify), primitive literals, the defensive intersection / template-literal arms, and the
+// extra-proof pass-through gates on arrays and tuples, an extra-proof subtree being shared by reference.
+// An object or class ALWAYS clones, the clone being what strips undeclared keys, so it is never noop here
+// even when JSON-compatible; a union keeps its guard chain + throw like pj. No memo: the arms are O(1) apart
+// from the already-memoized isExtraProof.
 func isNoopForPrepareJsonSafe(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -509,20 +439,13 @@ func isNoopForPrepareJsonSafe(rt *reflection.RunType, ctx *EmitContext) bool {
 }
 
 /** isNoopForFormatTransform reports whether the fmt entry for rt is the identity. **/
-// Mirrors FormatTransformEmitter.Emit exactly: the ONLY non-identity leaf is a
-// string whose FormatAnnotation carries a value transform (nodeFormatTransform
-// != ""); objects / user classes / properties / arrays / tuples recurse to
-// reach one; EVERY other kind — unions included — is the emitter's identity
-// default arm (MVP: transforms inside union / Map / Set arms are a follow-up).
-// Unlike the JSON predicates the default arm is therefore TRUE; when an emit
-// arm learns a new transform position, add the mirror arm here — the corpus
-// test (noop_predicate_test.go) pins the unsound direction.
-//
-// fmt is publicly overridable (overrideFormatTransform), so a node carrying
-// Overrides["fmt"] is never identity — the walker dep-calls its cfn redirect.
-// The dispatch gate never consults the predicate for the DIRECT override child
-// (overrideChild skips it), but a deeper descendant's override must falsify
-// the walk here or the gate would elide the subtree that reaches the redirect.
+// Mirrors FormatTransformEmitter.Emit exactly: the ONLY non-identity leaf is a string whose FormatAnnotation
+// carries a value transform, objects / user classes / properties / arrays / tuples recurse to reach one, and
+// every other kind, unions included, is the emitter's identity default arm. Unlike the JSON predicates the
+// default arm is therefore TRUE; when an emit arm learns a new transform position, add the mirror arm here.
+// fmt is publicly overridable, so a node carrying Overrides["fmt"] is never identity, the walker dep-calling
+// its cfn redirect. The dispatch gate skips the predicate for the DIRECT override child, but a deeper
+// descendant's override must falsify the walk here, or the gate would elide the subtree reaching the redirect.
 func isNoopForFormatTransform(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -555,8 +478,7 @@ func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		}
 		visited[rt.ID] = struct{}{}
 	}
-	// An fmt-overridden node redirects to the user's cfn — real code on any
-	// path that reaches it (see the doc comment above).
+	// An fmt-overridden node redirects to the user's cfn, real code on any path reaching it.
 	if overrideHashForTag(rt, "fmt") != "" {
 		return false
 	}
@@ -607,15 +529,13 @@ func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[s
 		}
 		return formatNoopRecursive(rt.Child, ctx, visited)
 	}
-	// Everything else mirrors the emitter's identity default arm (number /
-	// boolean / union / intersection / enum / literal / index signature /
-	// function kinds / …): the MVP emits no transform there.
+	// Everything else mirrors the emitter's identity default arm (number / boolean / union / intersection /
+	// enum / literal / index signature / function kinds / …), which emits no transform.
 	return true
 }
 
-// formatNoopObjectChildren mirrors emitObjectFormat's member walk — static and
-// function-like members are skipped slots; every surviving property must be
-// noop.
+// formatNoopObjectChildren mirrors emitObjectFormat's member walk: a static or function-like member is a
+// skipped slot, every surviving property must be noop.
 func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	for _, childRef := range children {
 		resolved := ctx.ResolveRef(childRef)
@@ -636,17 +556,14 @@ func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, 
 }
 
 /** isNoopForValidate reports whether the val entry for rt is `() => true`. **/
-// Mirrors ValidateEmitter.Emit: only root any/unknown emit the bare `true`
-// (every other kind emits a load-bearing check, and validate variants only
-// reshape bodies that already check something). Applies identically to every
-// ValidateOptions variant — options cannot make any/unknown check more.
+// Mirrors ValidateEmitter.Emit: only a root any / unknown emits the bare `true`, every other kind emitting a
+// load-bearing check. Identical for every ValidateOptions variant: options cannot make any/unknown check more.
 func isNoopForValidate(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
 	}
-	// A contains-bearing unknown is a REAL check (the occurrence count) —
-	// never the trivial `() => true`.
+	// A contains-bearing unknown is a REAL check (the occurrence count), never the trivial `() => true`.
 	if len(rt.Contains) > 0 || len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 {
 		return false
 	}
@@ -670,15 +587,11 @@ func isNoopForValidationErrors(rt *reflection.RunType, ctx *EmitContext) bool {
 
 /** isNoopForStringifyJson reports whether the sj entry for rt is native
  *  JSON.stringify. **/
-// ROOT-ONLY mirror of StringifyJsonEmitter.Emit's delegation arms — the kinds
-// whose whole body is `return JSON.stringify(v)`: any/unknown/object (no
-// schema info), string/template-literal, string-indexed (or index-less)
-// enums, and primitive literals. Number/null roots emit `return String(v)`
-// (String(NaN) is "NaN", native JSON yields "null") and booleans emit the
-// ternary — not the native call, so they stay live. No recursion: every
-// compound sj body builds the JSON text itself (extras stripped, declaration
-// order), which native stringify does not reproduce. sj deliberately does NOT
-// implement NoopComposeAround — see that interface's doc.
+// ROOT-ONLY mirror of StringifyJsonEmitter.Emit's delegation arms, the kinds whose whole body is
+// `return JSON.stringify(v)`. A number / null root emits `return String(v)` instead (String(NaN) is "NaN"
+// where native JSON yields "null") and a boolean the ternary, so both stay live. No recursion: every compound
+// sj body builds the JSON text itself, extras stripped and in declaration order, which native stringify does
+// not reproduce. sj deliberately does NOT implement NoopComposeAround, see that interface's doc.
 func isNoopForStringifyJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -689,8 +602,7 @@ func isNoopForStringifyJson(rt *reflection.RunType, ctx *EmitContext) bool {
 		reflection.KindString, reflection.KindTemplateLiteral:
 		return true
 	case reflection.KindEnum:
-		// Number-indexed enums emit the bare value; string enums (and enums
-		// with no IndexT) delegate to JSON.stringify.
+		// A number-indexed enum emits the bare value; a string enum, or one with no IndexT, delegates.
 		if rt.IndexT != nil {
 			indexResolved := ctx.ResolveRef(rt.IndexT)
 			if indexResolved != nil && indexResolved.Kind == reflection.KindNumber {
@@ -706,12 +618,9 @@ func isNoopForStringifyJson(rt *reflection.RunType, ctx *EmitContext) bool {
 
 /** isNoopForCompactFromJson reports whether the cjr entry for rt is the
  *  identity. **/
-// Mirrors CompactFromJsonEmitter.Emit, which reuses restoreFromJsonMutate's arms
-// EXCEPT at object positions — the positional→keyed rebuild is real work for
-// every object shape restoreFromJsonMutate would let round-trip raw. Atomic and
-// literal arms match rj; undefined/void force-rebind; Date/Temporal/Map/Set/
-// classes rebuild; the union arm IS emitUnionRestoreFromJsonFlat, so its
-// noop condition delegates to the shared restore-side union rule.
+// Mirrors CompactFromJsonEmitter.Emit, which reuses restoreFromJsonMutate's arms EXCEPT at object positions,
+// where the positional-to-keyed rebuild is real work for every object shape rj would let round-trip raw. The
+// union arm IS emitUnionRestoreFromJsonFlat, so its noop condition delegates to the shared restore-side rule.
 func isNoopForCompactFromJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -726,8 +635,7 @@ func isNoopForCompactFromJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	if rt.ID != "" {
 		ctx.walker.factsStore(factNoopCompactFromJson, rt.ID, result)
 	}
-	// The shape verdict above is what compactUnionMemberTransforms reads for
-	// the envelope decision; the key guard (see isNoopForRestoreJson) only
+	// compactUnionMemberTransforms reads the shape verdict above for the envelope decision; the key guard only
 	// decides whether THIS entry is a real function.
 	return result && !restoreKeyGuardReachable(rt, ctx)
 }
@@ -761,9 +669,8 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return literalFlavour(rt) == litPrimitive
 
 	case reflection.KindObjectLiteral, reflection.KindClass:
-		// Every object shape (and every class subkind — Date/Temporal/Map/Set
-		// rebuild, plain classes take the positional rebuild + serializer
-		// wrap) does real decode work under compact.
+		// Every object shape does real decode work under compact, every class subkind too: Date / Temporal /
+		// Map / Set rebuild, a plain class takes the positional rebuild plus the serializer wrap.
 		return false
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
@@ -791,8 +698,7 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return true
 
 	case reflection.KindTupleMember:
-		// Same rule as restoreFromJsonMutate: optional slots normalize (never
-		// identity), required slots follow their child.
+		// Same rule as restoreFromJsonMutate: an optional slot normalizes, a required one follows its child.
 		if rt.Optional {
 			return false
 		}
@@ -808,27 +714,24 @@ func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
 	case reflection.KindUnion:
-		// The compact union arm is the SAFE restore over the compact-widened layout: the shared
-		// flat-union rule (roundTripsRaw ⇒ identity), no member positionalizes
-		// (union_flat_compact.go), AND no member can hide an undeclared key, since the safe restore
-		// rebuilds each object from its declared shape rather than riding the value through.
+		// The compact union arm is the SAFE restore over the compact-widened layout: the shared flat-union rule
+		// (roundTripsRaw ⇒ identity), no member positionalizes (union_flat_compact.go), AND no member can hide
+		// an undeclared key, the safe restore rebuilding each object from its declared shape.
 		return unionJsonNoop(rt, ctx) && !compactUnionNeedsEnvelope(rt, ctx, visited) &&
 			!anyUnionMember(rt, ctx, unionMemberHidesKey)
 	}
-	// undefined/void (force-rebind), bigint/symbol/regexp (value
-	// transforms), never/promise/function kinds (unsupported), and any
-	// future kind: not noop.
+	// undefined / void (force-rebind), bigint / symbol / regexp (value transforms), never / promise / function
+	// kinds (unsupported), and any future kind: not noop.
 	return false
 }
 
 /** isNoopForRestoreJsonSafe reports whether the rjs entry for rt is the
  *  identity. **/
-// Mirrors RestoreFromJsonCloneEmitter.Emit, which reuses restoreFromJsonMutate's arms
-// EXCEPT where it rebuilds — and a rebuild is real work at every object shape rj
-// would let round-trip raw. Unlike cjr this returns ONE verdict with no separate
-// key-guard conjunct: cjr's shape half feeds the compact envelope decision, and
-// rjs has no such second reader. Nothing may ever route this predicate into a
-// wire-shape decision; the wire is pjs's and this must not be able to move it.
+// Mirrors RestoreFromJsonCloneEmitter.Emit, which reuses restoreFromJsonMutate's arms EXCEPT where it
+// rebuilds, and a rebuild is real work at every object shape rj would let round-trip raw. Unlike cjr this
+// returns ONE verdict with no separate key-guard conjunct, cjr's shape half feeding the compact envelope
+// decision while rjs has no second reader. Never route this predicate into a wire-shape decision: the wire
+// is pjs's, and this must not be able to move it.
 func isNoopForRestoreJsonSafe(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -875,10 +778,8 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return literalFlavour(rt) == litPrimitive
 
 	case reflection.KindObjectLiteral, reflection.KindClass:
-		// Every object shape rebuilds (a zero-prop object rebuilds to `{}`, which
-		// is how it strips), every class subkind either rebuilds or is
-		// unsupported, and the delegated index-signature path still ships the
-		// key-refusal loop. Same rule as isNoopForPrepareJsonSafe.
+		// Every object shape rebuilds (a zero-prop object to `{}`, which is how it strips), every class subkind
+		// rebuilds or is unsupported, and the delegated index-signature path still ships the key-refusal loop.
 		return false
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
@@ -895,9 +796,8 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		if rt.Child == nil {
 			return true
 		}
-		// Deliberately NOT isExtraProof, the shortcut prepareForJsonClone takes:
-		// extraProofRecursive answers true for a bigint or symbol literal, both of
-		// which this emitter transforms, and a false positive here is corruption.
+		// Deliberately NOT isExtraProof, the shortcut prepareForJsonClone takes: extraProofRecursive answers true
+		// for a bigint or symbol literal, both of which this emitter transforms, and that would be corruption.
 		return restoreJsonSafeNoopRecursive(rt.Child, ctx, visited)
 
 	case reflection.KindTuple:
@@ -918,8 +818,8 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return restoreJsonSafeNoopRecursive(rt.Child, ctx, visited)
 
 	case reflection.KindIndexSignature:
-		// A symbol-keyed or child-less signature emits nothing. Everything else
-		// ships either the rebuild or rj's key-refusal loop, both real code.
+		// A symbol-keyed or child-less signature emits nothing; everything else ships the rebuild or rj's
+		// key-refusal loop, both real code.
 		if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 			return true
 		}
@@ -929,24 +829,20 @@ func restoreJsonSafeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visi
 		return false
 
 	case reflection.KindUnion:
-		// Mirrors the emit's atomicOnlyJsonIdentity() gate: identity only when no
-		// member carries an object shape to rebuild, none envelopes, and no member
-		// can hide an undeclared key. Miss the last conjunct and this claims noop
-		// while the emit walks, which is the false positive the contract at the top
-		// of this file calls data corruption: the dispatch gate would replace the
-		// child call with empty code and the rebuild would never run.
+		// Mirrors the emit's atomicOnlyJsonIdentity() gate: identity only when no member carries an object shape
+		// to rebuild, none envelopes, and none can hide an undeclared key. Miss the last conjunct and the
+		// dispatch gate replaces the child call with empty code, so the rebuild never runs, the false positive
+		// the contract at the top of this file calls data corruption.
 		return unionJsonNoop(rt, ctx) && !anyUnionMember(rt, ctx, unionMemberEnvelopes) && !anyUnionMember(rt, ctx, unionMemberHidesKey)
 	}
-	// undefined/void (force-rebind), bigint/symbol/regexp (value transforms),
-	// never/promise/function kinds (unsupported): not noop.
+	// undefined / void (force-rebind), bigint / symbol / regexp (value transforms), never / promise / function
+	// kinds (unsupported): not noop.
 	return false
 }
 
-// anyUnionMember reports whether pred holds for a surviving member. Hand-rolled
-// over the members rather than read off buildFlatLayout, which emits drop
-// diagnostics a predicate must not duplicate (the same reason
-// compactUnionNeedsEnvelope avoids it); member stripping mirrors
-// dataOnlyUnionMembers via the same isStrippedUnionMember helper.
+// anyUnionMember reports whether pred holds for a surviving member. Hand-rolled rather than read off
+// buildFlatLayout, which emits drop diagnostics a predicate must not duplicate (the reason
+// compactUnionNeedsEnvelope avoids it too); stripping mirrors dataOnlyUnionMembers via isStrippedUnionMember.
 func anyUnionMember(rt *reflection.RunType, ctx *EmitContext, pred func(*reflection.RunType, *EmitContext) bool) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
@@ -964,22 +860,18 @@ func anyUnionMember(rt *reflection.RunType, ctx *EmitContext, pred func(*reflect
 	return false
 }
 
-// unionMemberHidesKey is the negation of the emit's AtomicsExtraProof conjunct,
-// asked of EVERY member rather than the atomic bucket only, so predicate-true
-// still implies emit-noop, the safe direction.
+// unionMemberHidesKey negates the emit's AtomicsExtraProof conjunct, asked of EVERY member rather than the
+// atomic bucket alone, so predicate-true still implies emit-noop, the safe direction.
 func unionMemberHidesKey(resolved *reflection.RunType, ctx *EmitContext) bool {
 	return !atomicMemberExtraProof(resolved, ctx)
 }
 
 /** isNoopForToBinary reports whether the tb entry for rt writes no bytes. **/
-// Mirrors ToBinaryEmitter.Emit: literals write nothing (the value is restored
-// from the RunType at decode — v1 has no noLiterals), dropped property slots
-// write nothing, and objects/tuples of only such members write nothing —
-// PROVIDED no optional member forces the presence bitmap and no member
-// carries a format annotation (binaryToOverride may write) or an index
-// signature / rest slot (dynamic counts always serialize). Everything else —
-// atoms, arrays (varint length prefix), unions (discriminant), enums,
-// Date/Map/Set/classes — writes bytes.
+// Mirrors ToBinaryEmitter.Emit: a literal writes nothing (the value is restored from the RunType at decode),
+// a dropped property slot writes nothing, and an object or tuple of only such members writes nothing, PROVIDED
+// no optional member forces the presence bitmap and no member carries a format annotation (binaryToOverride
+// may write) or an index signature / rest slot, whose dynamic counts always serialize. Everything else
+// (atoms, arrays with their varint length prefix, unions, enums, Date / Map / Set / classes) writes bytes.
 func isNoopForToBinary(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -1023,7 +915,7 @@ func toBinaryNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Optional {
-			// Presence rides the parent object's bitmap — real bytes.
+			// Presence goes in the parent object's bitmap, real bytes.
 			return false
 		}
 		if rt.Child == nil {
@@ -1040,11 +932,9 @@ func toBinaryNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map
 
 	case reflection.KindClass:
 		if rt.SubKind == reflection.SubKindNone {
-			// Named user classes always emit the runtime class-serializer
-			// registry branch (wrapToBinaryWithClassSerializer) — never
-			// identity, even when every member is a dropped/no-write slot
-			// (`declare class C {p: never}`). Same rule as jsonNoopRecursive's
-			// SubKindNone arm; anonymous classes stay structural.
+			// A named user class always emits the runtime class-serializer registry branch, never identity, even
+			// when every member is a no-write slot (`declare class C {p: never}`); an anonymous one stays
+			// structural.
 			if userClassName(rt) != "" {
 				return false
 			}
@@ -1059,7 +949,7 @@ func toBinaryNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map
 				continue
 			}
 			if resolved.Optional || isRestTupleMember(resolved) {
-				// Optional slots ride the bitmap; rest slots write a count.
+				// An optional slot goes in the bitmap, a rest slot writes a count.
 				return false
 			}
 			if !toBinaryNoopRecursive(resolved, ctx, visited) {
@@ -1077,18 +967,16 @@ func toBinaryNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map
 		}
 		return toBinaryNoopRecursive(rt.Child, ctx, visited)
 	}
-	// Atoms (even undefined/void write a sentinel), any/unknown/object
-	// (serString of the JSON form), arrays (length prefix), unions
-	// (discriminant), enums, index signatures (key count), Date / Temporal /
-	// Map / Set / builtins, and any future kind: bytes are written.
+	// Atoms (undefined / void write a sentinel), any / unknown / object (serString of the JSON form), arrays
+	// (length prefix), unions (discriminant), enums, index signatures (key count), Date / Temporal / Map / Set
+	// / builtins, and any future kind: bytes are written.
 	return false
 }
 
-// toBinaryNoopObjectChildren mirrors emitObjectToBinary's member walk: a
-// call-signature-carrying interface is function-like (never noop here — the
-// emit is CodeNS), an index signature writes the dynamic key count, an
-// optional member forces the presence bitmap, static and function-like slots
-// are skipped, and every surviving member must itself write nothing.
+// toBinaryNoopObjectChildren mirrors emitObjectToBinary's member walk: a call-signature-carrying interface is
+// function-like and never noop (the emit is CodeNS), an index signature writes the dynamic key count, an
+// optional member forces the presence bitmap, static and function-like slots are skipped, and every surviving
+// member must itself write nothing.
 func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	if objectHasCallSignature(rt, ctx) {
 		return false
@@ -1114,21 +1002,16 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 	return true
 }
 
-// unknownKeysNoopSpec parameterises the shared unknown-keys predicate across
-// the five family variants: the families differ in what they DO at a node,
-// and in two spots (reportsPatternKey, mapSetAlwaysNoop) in WHETHER a node
-// emits at all.
+// unknownKeysNoopSpec parameterises the shared unknown-keys predicate across the family variants, which
+// differ in what they DO at a node and, in these two spots, in WHETHER a node emits at all.
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
-	// reportsPatternKey marks the reporting families, which sweep a pattern
-	// key whatever the value type (a key matching no pattern is reported); the
-	// to-undefined families leave such a key alone, so their sweep is driven by
-	// the value type exactly like a plain key's.
+	// reportsPatternKey marks the reporting families, which sweep a pattern key whatever the value type (a key
+	// matching no pattern is reported); the to-undefined families sweep by value type like a plain key.
 	reportsPatternKey bool
-	// mapSetAlwaysNoop: ukuw keeps the Map/Set arm noop on the wire side
-	// (the instanceof check cannot match the still-parsed array); the other
-	// four recurse into the iterable's inner types.
+	// mapSetAlwaysNoop: ukuw keeps the Map/Set arm noop on the wire side, the instanceof check being unable to
+	// match the still-parsed array; the others recurse into the iterable's inner types.
 	mapSetAlwaysNoop bool
 }
 
@@ -1141,11 +1024,10 @@ var (
 
 /** isNoopForUnknownKeys reports whether an unknown-keys family entry for rt
  *  is the family identity. **/
-// Shared mirror of the five emitters' common arms (unknownkeys_arms.go /
-// unknownkeys_shared.go): the only key-carrying position is an object with
-// statically-declared names (the parent allowlist probe) or a
-// template-literal-keyed index signature (the pattern sweep); everything
-// else recurses or no-ops. Per-family divergences ride unknownKeysNoopSpec.
+// Shared mirror of the emitters' common arms (unknownkeys_arms.go / unknownkeys_shared.go): the only
+// key-carrying position is an object with statically-declared names (the parent allowlist probe) or a
+// template-literal-keyed index signature (the pattern sweep), everything else recursing or no-opping.
+// Per-family divergences travel on unknownKeysNoopSpec.
 func isNoopForUnknownKeys(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
@@ -1200,8 +1082,7 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 			}
 			return true
 		}
-		// Date / Temporal / NonSerializable / future subkinds: no keys to
-		// manage — every family's arm returns empty there.
+		// Date / Temporal / NonSerializable / future subkinds: no keys to manage, every family emits nothing.
 		return true
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
@@ -1248,14 +1129,12 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 	case reflection.KindUnion:
 		return unknownKeysNoopUnion(rt, ctx, spec, visited)
 	}
-	// Atoms, never, functions, promises, intersections, template literals:
-	// no keys to manage.
+	// Atoms, never, functions, promises, intersections, template literals: no keys to manage.
 	return true
 }
 
-// unknownKeysNoopObject mirrors the shared object arm: without an index
-// signature ANY named child (function-typed and static names included — the
-// allowlist covers them) triggers the parent probe; with one, the parent
+// unknownKeysNoopObject mirrors the shared object arm: without an index signature ANY named child triggers
+// the parent probe, function-typed and static names included, the allowlist covering them; with one, the
 // probe is suppressed and the children decide.
 func unknownKeysNoopObject(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	hasIndex := objectHasIndexSignatureChild(rt, ctx)
@@ -1286,10 +1165,8 @@ func unknownKeysNoopObject(rt *reflection.RunType, ctx *EmitContext, spec unknow
 	return true
 }
 
-// unknownKeysNoopIndexSignature mirrors the shared index-signature arm: a
-// template-literal key pattern always sweeps for a reporting family (real
-// code, spec.reportsPatternKey); otherwise atomic values have nothing to
-// recurse into and every key is "known".
+// unknownKeysNoopIndexSignature mirrors the shared index-signature arm: a template-literal key pattern always
+// sweeps for a reporting family; otherwise an atomic value has nothing to recurse into and every key is known.
 func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return true
@@ -1312,13 +1189,11 @@ func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spe
 	return unknownKeysNoopRecursive(resolved, ctx, spec, visited)
 }
 
-// unknownKeysNoopUnion mirrors emitUnionUnknownKeysMerged's empty-emit
-// conditions (identical across all five families, the wire flag changes only
-// the body shape): any object-like member carrying an index signature kills the
-// merged allowlist for the whole union; otherwise the union is noop when no
-// object member exposes a named property to merge AND no atomic member holds a
-// keyed shape the descent walks (unionAtomicMemberDescent). Member stripping
-// mirrors dataOnlyUnionMembers via the same isStrippedUnionMember helper.
+// unknownKeysNoopUnion mirrors emitUnionUnknownKeysMerged's empty-emit conditions, identical across the
+// families since the wire flag changes only the body shape: an object-like member carrying an index signature
+// kills the merged allowlist for the whole union, and otherwise the union is noop when no object member
+// exposes a named property to merge AND no atomic member holds a keyed shape the descent walks. Member
+// stripping mirrors dataOnlyUnionMembers via isStrippedUnionMember.
 func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
@@ -1333,15 +1208,13 @@ func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext, spec unknown
 			continue
 		}
 		if isObjectLikeKind(resolved.Kind) && objectHasIndexSignatureChild(resolved, ctx) {
-			// buildFlatLayout's index-sig carve-out — the whole family no-ops.
+			// buildFlatLayout's index-sig carve-out: the whole family no-ops.
 			return true
 		}
 		if resolved.Kind != reflection.KindObjectLiteral && (resolved.Kind != reflection.KindClass || resolved.SubKind != reflection.SubKindNone) {
-			// An ATOMIC member in the flat layout, which is not the same as key-free: an array or
-			// a tuple carries whatever its element type declares, and unionAtomicMemberDescent
-			// walks exactly those. Miss this and the predicate claims noop while the emit walks,
-			// so the dispatch gate replaces the child call with empty code (see the contract at
-			// the top of this file).
+			// An ATOMIC member in the flat layout, which is not the same as key-free: an array or a tuple carries
+			// whatever its element type declares, and unionAtomicMemberDescent walks exactly those. Miss this and
+			// the dispatch gate replaces the child call with empty code while the emit walks.
 			if !atomicMemberExtraProof(resolved, ctx) && !unknownKeysNoopRecursive(resolved, ctx, spec, visited) {
 				atomicsNoop = false
 			}
@@ -1361,15 +1234,12 @@ func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext, spec unknown
 	return (!anyObjectMember || !anyMergedProp) && atomicsNoop
 }
 
-// NoopPredicateAgreement is the corpus-test surface: it returns the emitter
-// predicate's verdict for rt alongside the GROUND-TRUTH noop flag obtained by
-// compiling rt with the dispatch gate disabled and full inlining (allInternal
-// — so nothing externalizes except true cycles, and Finalize's shape check
-// sees the whole body). comparable=false when the emitter has no predicate or
-// doesn't support rt. An unsupported compile reports groundTruth=false (an
-// alwaysThrow entry is not the identity). Callers assert the soundness
-// direction: verdict ⇒ groundTruth. Exported for internal/resolver's
-// noop-predicate corpus test; not part of the render pipeline.
+// NoopPredicateAgreement is the corpus-test surface, not part of the render pipeline: it returns the emitter
+// predicate's verdict for rt beside the GROUND TRUTH from compiling rt with the dispatch gate disabled and
+// allInternal inlining, so nothing externalizes but true cycles and Finalize's shape check sees the whole
+// body. comparable is false when the emitter has no predicate or does not support rt, and an unsupported
+// compile reports groundTruth=false, an alwaysThrow entry not being the identity. Callers assert the
+// soundness direction: verdict ⇒ groundTruth.
 func NoopPredicateAgreement(emitter Emitter, rt *reflection.RunType, refTable map[string]*reflection.RunType, facts *FactsTable) (verdict bool, groundTruth bool, comparable bool) {
 	predicate, hasPredicate := emitter.(NoopTypePredicate)
 	if !hasPredicate || rt == nil || !emitter.Supports(rt) {

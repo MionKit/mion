@@ -6,13 +6,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// UnknownKeysToUndefinedEmitter — INTERNAL-ONLY since the public
-// unknownKeysToUndefined factory/family was removed in favor of
-// cloneExactShape: this emitter now exists solely as the delegate backing
-// StripUnknownKeysWireEmitter (the JSON `strip` decode strategy's
-// pre-pass), which wraps every method below. It mutates the input value by
-// setting every unknown property to undefined (instead of removing it) —
-// the right call on a freshly-parsed, exclusively-owned wire value.
+// UnknownKeysToUndefinedEmitter is INTERNAL-ONLY: the public unknownKeysToUndefined family was removed in favour of
+// cloneExactShape, and this now exists only as the delegate StripUnknownKeysWireEmitter wraps.
+// It sets every unknown property to undefined rather than deleting it, which is the right call on a freshly-parsed,
+// exclusively-owned wire value.
 type UnknownKeysToUndefinedEmitter struct{}
 
 func (UnknownKeysToUndefinedEmitter) Args() []ArgSpec {
@@ -85,10 +82,7 @@ func (UnknownKeysToUndefinedEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// emitObjectUnknownKeysToUndefined ports
-// InterfaceRunType.emitUnknownKeysToUndefined (interface.ts:188-202).
-// Identical to strip except `v[key] = undefined` instead of
-// `delete v[key]`.
+// emitObjectUnknownKeysToUndefined is the strip emit with `v[key] = undefined` in place of `delete v[key]`.
 func emitObjectUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	hasIndex := objectHasIndexSignatureChild(rt, ctx)
 	v := ctx.Vλl
@@ -102,13 +96,7 @@ func emitObjectUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) 
 				"if (" + unknownVar + ") {for (const " + keyVar + " of " + unknownVar + ") {" + v + "[" + keyVar + "] = undefined}}"
 		}
 	}
-	// When the object has both named props AND an index signature,
-	// publish the sibling-named-prop name list against each index
-	// signature child's ID so the index-sig emit can keep those keys
-	// out of the regex-undefine sweep. The context key is derived from
-	// the index sig's own ID — it's the only canonical handle the
-	// index-sig emit has on itself. (We can't store parent-relative
-	// state on the index-sig RunType itself; see CLAUDE.md.)
+	// With named props AND an index signature, the sibling-named-prop list keeps those keys out of the index sweep.
 	if hasIndex {
 		publishSiblingNamedKeysForIndexSig(rt, ctx)
 	}
@@ -117,13 +105,11 @@ func emitObjectUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) 
 	if combined == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// The shape guard every object-node unknown-keys emit runs under: an absent optional tuple slot
-	// (`{list: [string, Self?]}`) hands this node a null, and the key scan would read `v.list` off it.
+	// The shape guard every object-node unknown-keys emit runs under: an absent optional tuple slot hands this node a null.
 	return RTCode{Code: guardStatement(unknownKeysObjectGuard(v), combined), Type: CodeS}
 }
 
-// emitIndexSignatureUnknownKeysToUndefined ports
-// IndexSignatureRunType.emitUnknownKeysToUndefined (indexProperty.ts:144-154).
+// emitIndexSignatureUnknownKeysToUndefined sweeps the index-matched values, skipping sibling named props.
 func emitIndexSignatureUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -141,9 +127,8 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitC
 	if isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// The key pattern only selects the VALUE transform: a key it does not match
-	// is left as is (validation is what refuses it), so an atomic value has
-	// nothing to sweep whatever the key pattern.
+	// The key pattern only selects the VALUE transform (validation is what refuses a non-matching key), so an atomic value
+	// has nothing to sweep whatever the pattern.
 	keyRegexVar := indexSignatureKeyRegexVar(rt, ctx)
 	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return RTCode{Code: "", Type: CodeS}
@@ -156,15 +141,10 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitC
 	if childRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	// When the index sig's parent published a sibling-named-prop set (see
-	// publishSiblingNamedKeysForIndexSig in emitObjectUnknownKeysToUndefined),
-	// the for-in sweep MUST skip those named keys entirely: the parent already
-	// processes each named prop separately, and running the index-VALUE logic on
-	// a named prop both corrupts it (its keys get measured against the index
-	// value's allowlist) and, when the named value is a primitive/string, makes
-	// the inner `for…in` enumerate the string's character indices — which on a
-	// long value overflows the unknown-keys cap and throws. Skip is unconditional
-	// (not gated on the template-literal regex path).
+	// The for-in sweep MUST skip every key of the parent's published sibling-named-prop set: the parent already handles
+	// each named prop, and the index-VALUE logic corrupts it (its keys get measured against the index value's allowlist),
+	// or, on a primitive value, enumerates the string's character indices until the unknown-keys cap throws.
+	// The skip is unconditional, never gated on the template-literal regex path.
 	siblingSkip := ""
 	siblingSet := siblingNamedKeysCtxKey(rt)
 	if ctx.HasContextItem(siblingSet) {
@@ -181,15 +161,9 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitC
 	return RTCode{Code: body, Type: CodeS}
 }
 
-// emitUnionUnknownKeysToUndefined — public uku family's union arm.
-// Operates on runtime-shape input (raw object the user passed to
-// createUnknownKeysToUndefined or to the mutate+strip encoder
-// composition); walks the merged-allowlist via the shared helper.
-//
-// Safe to run the merged-allowlist strip directly on the user value
-// now that the decoder's safe pipeline uses ukuWire (which handles
-// the wire-format wrapper-peel separately) — uku no longer sees
-// wire-shape arrays.
+// emitUnionUnknownKeysToUndefined walks the merged allowlist on RUNTIME-shape input.
+// Running it straight on the user value is safe because the decoder's safe pipeline goes through ukuWire, which peels
+// the wire-format wrapper itself, so uku never sees a wire-shape array.
 func emitUnionUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
 		Snippet: func(_ *EmitContext, accessor, keyVar string) string {

@@ -7,24 +7,12 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// HasUnknownKeysEmitter implements the `hasUnknownKeys` rt function —
-// a boolean predicate that returns true if the value (or any nested
-// child) carries property keys not declared in the schema. Ported from
-// the emitHasUnknownKeys methods on InterfaceRunType, MemberRunType,
-// IterableRunType, etc.
-//
-// Arg shape mirrors the `rtArgsWithOptions` (constants.functions.ts:49):
-// the function takes (v, opts) where opts is a runtime options bag
-// carrying `checkNonRTProps` — when true, the keys-list against which
-// unknown is decided expands from RT children to ALL children (including
-// function-typed / static / non-serialisable ones that the schema lists
-// but the RT skipped). Default false: any key not in the RT-children
-// list is unknown.
+// HasUnknownKeysEmitter implements `hasUnknownKeys`: true when the value or a nested child carries an undeclared key.
+// The emitted fn takes (v, opts), where `opts.checkNonRTProps` widens the known-key list from the RT children to ALL
+// children (the function-typed / static / non-serialisable ones the schema lists but the RT skipped). Default false.
 type HasUnknownKeysEmitter struct{}
 
-// Args mirrors rtArgsWithOptions = {vλl: 'v', θpts: 'opts'}.
-// `opts` defaults to `{}` so callers can invoke `huk(v)` without
-// explicitly passing the options bag.
+// Args gives `opts` a `{}` default so callers can invoke `huk(v)` without the options bag.
 func (HasUnknownKeysEmitter) Args() []ArgSpec {
 	return []ArgSpec{
 		{Key: "vλl", Name: "v", Default: ""},
@@ -40,11 +28,9 @@ func (HasUnknownKeysEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// PropagatesVariant — `runsAfterValidation` is a claim about the VALUE, not
-// about the root call: if `v` passed validate then so did `v.address`, at every
-// depth. So the option rides the whole subtree (see VariantPropagator) and a
-// NAMED nested type gets the same key-count compare an inline one does. Without
-// it the named child dep-calls the plain entry and silently keeps the scan.
+// PropagatesVariant — `runsAfterValidation` is a claim about the VALUE, not the root call: if `v` passed validate so did
+// `v.address`, at every depth. So it rides the whole subtree and a NAMED nested type gets the same key-count compare an
+// inline one does; without it the named child dep-calls the plain entry and silently keeps the scan.
 func (HasUnknownKeysEmitter) PropagatesVariant(options []string) bool {
 	for _, name := range options {
 		if name == "runsAfterValidation" {
@@ -63,21 +49,13 @@ func (HasUnknownKeysEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext
 // contributes nothing to the parent's `||` chain.
 func (HasUnknownKeysEmitter) NoopChildComposesAround() {}
 
-// ReturnName is `v` — does hasUnknownKeys return the value? No:
-// `returnName: rtArgsWithOptions.vλl` (constants.functions.ts:153)
-// means the SOURCE-LEVEL "what's returned by an empty body" is `v`,
-// but the BODY itself returns booleans. The Finalize for this
-// family rewrites an empty body to `return false` — and the noop
-// fast path on the JS side is `() => false`. We honour ReturnName
-// as `v` for the walker's statement-shape return wrap, then
-// Finalize translates `return v` → `return false`.
+// ReturnName is `v` only for the walker's statement-shape return wrap; the body returns booleans, and Finalize
+// rewrites `return v` to `return false`, matching the `() => false` noop on the JS side.
 func (HasUnknownKeysEmitter) ReturnName() string {
 	return "v"
 }
 
-// Emit is the per-kind switch. Phase 0 returns empty body for every
-// supported kind so the cache module renders end-to-end. Phase 1
-// implements the object/interface logic.
+// Emit is the per-kind switch; a supported kind that is not listed emits an empty body Finalize folds to `return false`.
 func (HasUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -107,21 +85,17 @@ func (HasUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 	case reflection.KindUnion:
 		return emitUnionHasUnknownKeys(rt, ctx)
 	}
-	// All atomic / non-composite kinds — noop.
+	// Atomic / non-composite kinds carry no keys.
 	return RTCode{Code: "", Type: CodeS}
 }
 
-// EmitDependencyCall — composite parents may need to invoke a child's
-// hasUnknownKeys factory. The call shape mirrors the reference: pass v + opts
-// through unchanged.
+// EmitDependencyCall passes v and opts through to the child's factory unchanged.
 func (HasUnknownKeysEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	optsArg := ctx.ArgName("θpts")
 	return ctx.emitDepCall(childID, ctx.Vλl+","+optsArg, "")
 }
 
-// Finalize matches the handleFunctionReturn for hasUnknownKeys:
-// empty body → `return false`, noop=true. Other shapes wrap to
-// `return <expr>` per the walker's CodeE → "return <expr>" handling.
+// Finalize folds an empty body to `return false` and reports it as a noop.
 func (HasUnknownKeysEmitter) Finalize(raw string) (string, bool) {
 	code := normaliseWhitespace(raw)
 	trimmed := trimWhitespace(code)
@@ -131,19 +105,8 @@ func (HasUnknownKeysEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// emitObjectHasUnknownKeys ports
-// InterfaceRunType.emitHasUnknownKeys (interface.ts:147-156). Two
-// pieces combined with `||`:
-//
-//  1. Parent check: callCheckUnknownProperties evaluates whether THIS
-//     object has any unknown keys (returns a JS expression). Suppressed
-//     when an index-signature child is present (any key matching the
-//     index pattern is "known").
-//  2. Children check: each non-skip property's own hasUnknownKeys
-//     (recursed via CompileChild). Atomic-typed children contribute
-//     nothing.
-//
-// Phase 1 placeholder — full implementation follows.
+// emitObjectHasUnknownKeys ORs this object's own key check (suppressed when an index-signature child is present) with
+// each non-skipped property's own hasUnknownKeys.
 func emitObjectHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return emitInterfaceHasUnknownKeys(rt, ctx)
 }
@@ -152,17 +115,12 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 	parts, hasIndex := collectObjectHasUnknownKeysChildren(rt, ctx)
 	parentExpr := ""
 	if !hasIndex {
-		// runsAfterValidation variant: the caller asserts the value already
-		// PASSED validate, so (a) every object position is a non-null object
-		// (guards dropped) and (b) on an all-required shape every declared
-		// prop is present — a key-count compare then exactly separates clean
-		// from dirty, replacing the O(props x keys) hUKFA scan (measured 2.6x
-		// on a 7-prop shape, 13x at 30 props, Node 26). Ineligible shapes
-		// (optional props, index sigs, non-RT children) keep the scan,
-		// guardless. The assertion is about the VALUE, so it reaches this node
-		// at every depth: PropagatesVariant renders the whole subtree under the
-		// variant, which is what puts a NAMED nested type on the same footing
-		// as an inline one.
+		// runsAfterValidation: the caller asserts the value PASSED validate, so every object position is a non-null object
+		// (guards dropped) and on an all-required shape every declared prop is present, which is what makes the key-count
+		// compare exact (2.6x on a 7-prop shape, 13x at 30 props, Node 26).
+		// Ineligible shapes (optional props, index sigs, non-RT children) keep the scan, guardless.
+		// The claim is about the VALUE, so PropagatesVariant renders the whole subtree under the variant, which puts a
+		// NAMED nested type on the same footing as an inline one.
 		if ctx.HasVariantOption("runsAfterValidation") {
 			if n, ok := countFastPathN(rt, ctx); ok {
 				parentExpr = emitCountKeys(ctx, ctx.Vλl, n, false)
@@ -170,8 +128,7 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 				parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, false)
 			}
 		} else {
-			// The shape guard now sits around the WHOLE chain below, so the
-			// parent scan no longer carries its own copy.
+			// The shape guard sits around the WHOLE chain below, so the parent scan carries no copy of its own.
 			parentExpr = callCheckUnknownPropertiesForHas(rt, ctx, false, false)
 		}
 	}
@@ -184,19 +141,15 @@ func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCod
 		return RTCode{Code: "", Type: CodeE}
 	}
 	chain := joinOr(expressions)
-	// The `||` chain does NOT short-circuit away the child descent when the
-	// parent scan says false, so `v.address` still gets read — against null
-	// that throws. Under runsAfterValidation the caller has already promised
-	// a validated value, and that variant is guardless by contract.
+	// The `||` chain still reads `v.address` when the parent scan says false, which throws against null.
+	// Under runsAfterValidation the caller promised a validated value, and that variant is guardless by contract.
 	if ctx.HasVariantOption("runsAfterValidation") {
 		return RTCode{Code: chain, Type: CodeE}
 	}
 	return RTCode{Code: "(" + unknownKeysObjectGuard(ctx.Vλl) + " && " + chain + ")", Type: CodeE}
 }
 
-// emitPropertyHasUnknownKeys handles KindProperty / KindPropertySignature.
-// Sets the child accessor (`v.<name>`) and recurses. Optional properties
-// guard the descent with `<accessor> !== undefined ? <childCode> : false`.
+// emitPropertyHasUnknownKeys recurses under `v.<name>`, guarding the descent on presence for an optional property.
 func emitPropertyHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
@@ -231,11 +184,7 @@ func emitPropertyHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode
 	return RTCode{Code: childRT.Code, Type: CodeE}
 }
 
-// emitArrayHasUnknownKeys ports
-// ArrayRunType.emitHasUnknownKeys (array.ts:94-114). Atomic element →
-// noop. Otherwise iterate elements; if any reports true, return true.
-//
-// Returns CodeRB because the body is a `for + return false` block.
+// emitArrayHasUnknownKeys is a noop for an atomic element type; otherwise it returns CodeRB, a `for` + `return false` block.
 func emitArrayHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
@@ -244,7 +193,6 @@ func emitArrayHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	// Reference: `if (this.getMemberType().getFamily() === 'A') return undefined`
 	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -269,8 +217,7 @@ func emitArrayHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// emitTupleHasUnknownKeys mirrors CollectionRunType.emitHasUnknownKeys
-// for tuples — each member's own emit, OR-joined.
+// emitTupleHasUnknownKeys OR-joins each member's own emit.
 func emitTupleHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeE}
@@ -288,13 +235,11 @@ func emitTupleHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if len(parts) == 0 {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	// Member accessors are `v[0]`, `v[1]`, … — unreadable on null/undefined.
+	// Member accessors `v[0]`, `v[1]`, … are unreadable on null/undefined.
 	return RTCode{Code: "(" + unknownKeysArrayGuard(ctx.Vλl) + " && " + joinOr(parts) + ")", Type: CodeE}
 }
 
-// emitTupleMemberHasUnknownKeys: descend into the wrapped child. Rest
-// members iterate from the position; regular members use a single
-// element accessor. Atomic-typed wrapped types contribute nothing.
+// emitTupleMemberHasUnknownKeys descends into the wrapped child, iterating from the position for a rest member.
 func emitTupleMemberHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
@@ -341,19 +286,12 @@ func emitTupleMemberHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTC
 	return RTCode{Code: childRT.Code, Type: CodeE}
 }
 
-// emitIndexSignatureHasUnknownKeys ports
-// IndexSignatureRunType.emitHasUnknownKeys (indexProperty.ts:103-121).
-// When the value type is atomic AND there's no key pattern, every key
-// is "known" — emit nothing. Otherwise iterate `for (const k in v)`,
-// checking the pattern (if any) and recursing into the value.
+// emitIndexSignatureHasUnknownKeys emits nothing when the value type is atomic AND there is no key pattern: every key is "known".
 func emitIndexSignatureHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	// Symbol-keyed sigs are skipped from RT compilation per
-	// IndexSignatureRunType.skipRT (indexProperty.ts:30-36). Empty
-	// CodeE drops the sig from the parent's OR chain; if this is the
-	// root, Finalize collapses the empty body to `return false`.
+	// Symbol-keyed sigs are skipped from RT compilation; empty CodeE drops this sig from the parent's OR chain.
 	if isSymbolKeyedIndexSig(rt, ctx) {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -376,7 +314,7 @@ func emitIndexSignatureHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) 
 			}
 		}
 	}
-	// Atomic value + no key pattern → every key is "known" already.
+	// Atomic value and no key pattern: every key is "known" already.
 	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic && keyRegexVar == "" {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -404,12 +342,8 @@ func emitIndexSignatureHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) 
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// emitUnionHasUnknownKeys — walks the merged-allowlist via the shared
-// helper. Returns CodeRB wrapping the loop in an IIFE that yields
-// `true` on the first undeclared key, `false` otherwise. The legacy
-// per-member dispatch (CompileChild + joinOr) silently mis-reported
-// hits because each member's own emit ran against the entire value
-// regardless of which union arm matched at runtime.
+// emitUnionHasUnknownKeys walks the merged allowlist through the shared helper, yielding true on the first undeclared key.
+// A per-member dispatch cannot do this: each member's own emit runs against the whole value whatever arm matched at runtime.
 func emitUnionHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
 		Snippet: func(_ *EmitContext, _, _ string) string {
@@ -419,19 +353,10 @@ func emitUnionHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	})
 }
 
-// emitNativeIterableHasUnknownKeys mirrors
-// IterableRunType.emitHasUnknownKeys (nodes/native/Iterable.ts:86-103).
-// For each entry in the Map/Set, runs the wrapped child's
-// hasUnknownKeys expression; returns true on the first hit. When every
-// wrapped child compiles to a noop (e.g. Set<string>, Map<string, number>
-// where neither key nor value carries an object with extras), the entire
-// iteration is elided — Finalize folds the empty body into `return false`.
-//
-// Accessors:
-//   - Set: the loop binding `e0` IS the element (no array unwrap)
-//   - Map: `e0` is the `[key, value]` tuple; `e0[0]` is key, `e0[1]` is
-//     value — matches the prepare/restore-side accessor convention used
-//     elsewhere (MapKeyRunType / MapValueRunType useArrayAccessor).
+// emitNativeIterableHasUnknownKeys runs the wrapped child's check per Map/Set entry, returning true on the first hit.
+// When every wrapped child is a noop (Set<string>, Map<string, number>) the whole iteration is elided.
+// Accessors follow the prepare/restore convention: for a Set the loop binding IS the element, for a Map it is the
+// `[key, value]` tuple, so `e0[0]` is the key and `e0[1]` the value.
 func emitNativeIterableHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	ctorName := "Map"
