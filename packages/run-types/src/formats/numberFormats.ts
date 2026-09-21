@@ -1,27 +1,19 @@
-// Number-format TYPE aliases — the public type surface of the number
-// format family (Number + the integer/float/range/int-width
-// defaults). Validation, serialization (incl. the int8/16/32 binary
-// packing) and mocking are emitted/registered elsewhere; this file is
-// type-only + the brand wiring. Mirrors
+// Number-format TYPE aliases; validation, serialization (incl. the int8/16/32 binary packing) and
+// mocking are emitted elsewhere. `TypeFormat` IS imported as a value (not `import type`): the
+// value-level import keeps each brand alias's reflection metadata reachable for tsgo.
 // (ref: packages/type-formats/src/number/{numberFormat.runtype.ts,defaultNumberFormats.ts}).
-//
-// `TypeFormat` IS imported as a value (not `import type`): the value-level
-// import keeps each brand alias's reflection metadata reachable for tsgo.
 
 import {TypeFormat} from '../runtypes/typeFormat.ts';
 import {presetBuilder} from '../runtypes/builderCore.ts';
 
 // ─────────────────────────── NumberFormat ───────────────────────────
 
-// NumberParams — the wire-serialisable params shape for Number.
-// Cross-param invariants (integer⊕float, min⊕gt, max⊕lt, multipleOf rules)
-// are validated build-time in Go. A lower bound is inclusive (`min`) OR
-// exclusive (`gt`), never both; likewise the upper bound (`max`/`lt`).
+// Cross-param invariants (integer⊕float, min⊕gt, max⊕lt, multipleOf rules) are validated build-time
+// in Go: a lower bound is inclusive (`min`) OR exclusive (`gt`), never both, likewise the upper bound.
 export interface NumberParams {
   integer?: boolean;
-  /** Generation/presentation tag, NEVER a failable constraint (a float
-   *  legally holds whole values like 2.0): steers mock generation toward
-   *  fractional samples and keeps binary packing on the float64 arm.
+  /** Generation/presentation tag, NEVER a failable constraint (a float legally holds whole values
+   *  like 2.0): steers mocks toward fractional samples, keeps binary packing on the float64 arm.
    *  Mutually exclusive with `integer`. */
   float?: boolean;
   min?: number;
@@ -37,20 +29,16 @@ export interface NumberParams {
   exclusiveMinimum?: number;
   /** JSON Schema alias of `lt` (exclusive upper bound). Normalised to `lt`. */
   exclusiveMaximum?: number;
-  /** Marks the value as a monetary amount. PURE PRESENTATION METADATA — the
-   *  only number param with no failable constraint: validation, serialization
-   *  and mocking ignore it, and it never becomes an `rt$errors` template key.
-   *  The emitter echoes it onto every error the field produces, so
-   *  `createFriendlyTextI18n` renders a violated bound via
-   *  `Intl.NumberFormat(locale, {style: 'currency', currency})` with the
-   *  app-supplied `currency` renderer option. WHICH currency a value is in is
-   *  runtime data, deliberately never a type param. */
+  /** Marks the value as a monetary amount: PURE PRESENTATION METADATA, the only number param with no
+   *  failable constraint, so validation, serialization and mocking ignore it and it never becomes an
+   *  `rt$errors` template key. The emitter echoes it onto every error the field produces, so
+   *  `createFriendlyTextI18n` renders a violated bound via `Intl.NumberFormat(locale, {style:
+   *  'currency', currency})` with the app-supplied `currency` renderer option. WHICH currency a value
+   *  is in is runtime data, deliberately never a type param. */
   isCurrency?: boolean;
 }
 
-// Number — the branded number alias users annotate with:
-// `Number<{min: 0; max: 100}>`. `BrandName` produces a nominal type
-// when needed (by convention).
+// The branded number alias users annotate with, e.g. `Number<{min: 0; max: 100}>`.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type Number<P extends NumberParams = {}, BrandName extends string = never> = TypeFormat<
   number,
@@ -59,17 +47,13 @@ export type Number<P extends NumberParams = {}, BrandName extends string = never
   BrandName
 >;
 
-// Currency — a number marked as a monetary amount: `Currency` /
-// `Currency<{min: 0}>`. A PARAM PRESET over the plain number format (like
-// Integer / Int8), merging `isCurrency: true` into the user's params — no
-// distinct format name, no special Go functionality; the mark rides the
-// params like everything else in the number family (see NumberParams).
+// A PARAM PRESET over the plain number format (like Integer / Int8), merging `isCurrency: true` into
+// the user's params: no distinct format name, no special Go functionality.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type Currency<P extends NumberParams = {}, BrandName extends string = never> = Number<P & {isCurrency: true}, BrandName>;
 
-// Default number formats — ported from the reference defaultNumberFormats.ts.
-// The fixed-width int formats SET the min/max that drive the binary
-// packing optimization (Int8 → 1 byte, UInt16 → 2 bytes, …).
+// The fixed-width int formats SET the min/max that drive the binary packing optimization
+// (Int8 → 1 byte, UInt16 → 2 bytes, …).
 export type Integer = Number<{integer: true}>;
 export type Float = Number<{float: true}>;
 export type Positive = Number<{min: 0}>;
@@ -85,12 +69,9 @@ export type UInt32 = Number<{integer: true; min: 0; max: 4294967295}>;
 
 // ───────────────────── Predefined number builders ───────────────────
 //
-// Value-first builder per named alias (`TF.int8()` → `RunType<Int8>`, …). Each
-// carries the CONCRETE alias above, so the Go scanner reflects the SAME branded
-// type off the builder's `InjectRunTypeId<…>` brand as the type-first
-// `createValidateFn<Int8>()` surface and the two converge on one structural id. All
-// are fixed presets (no user params) → a single no-arg overload via `presetBuilder`.
-// For ad-hoc constraints use `TF.number({min, max, …})`.
+// Each builder carries the CONCRETE alias above, so the Go scanner reflects the SAME branded type off
+// its `InjectRunTypeId<…>` brand as the type-first `createValidateFn<Int8>()` and the two converge on
+// one structural id. For ad-hoc constraints use `TF.number({min, max, …})`.
 
 /** Integer (`Integer`). **/
 export const integer = presetBuilder<Integer>('number');

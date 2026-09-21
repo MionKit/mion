@@ -1,14 +1,9 @@
-// Centralised regex patterns for the built-in string formats. Each is
-// registered via registerFormatPattern with its `source` (+ optional `flags`)
-// as STRING literals, which (a) validates the mockSamples against the actual JS
-// engine at module load — catching a sample that contradicts its own pattern —
-// and (b) keeps source/flags/mockSamples as literal TYPES on `typeof X_PATTERN`,
-// so the Go scanner recovers them from the RESOLVED TYPE even when a consumer
-// imports the package through its published `.d.ts`.
-//
-// Why not a `/regex/` literal: `typeof /x/` is `RegExp` (no literal regex type),
-// and `.d.ts` emission erases the initializer — so the source/flags would be
-// invisible to any downstream consumer.
+// Centralised regex patterns for the built-in string formats. Each registers its `source` (+ optional
+// `flags`) as STRING literals, which validates the mockSamples against the real JS engine at module
+// load and keeps source/flags/mockSamples as literal TYPES on `typeof X_PATTERN`, so the Go scanner
+// recovers them from the RESOLVED TYPE even through the published `.d.ts`. Not a `/regex/` literal:
+// `typeof /x/` is `RegExp` and `.d.ts` emission erases the initializer, so the source and flags would
+// be invisible to a downstream consumer.
 
 import {registerFormatPattern} from '../../runtypes/formatPattern.ts';
 
@@ -69,27 +64,15 @@ export const URL_FILE_PATTERN = registerFormatPattern({
 });
 
 // ─────────────── RFC named formats (JSON Schema 2020-12 parity) ───────────────
-//
 // One pattern per named `format`, transcribed from the RFC each keyword names.
-//
-// HOSTNAME_PATTERN is RFC 1123, which DOMAIN_PATTERN is not: a domain here
-// wants a dotted name with a TLD, while a hostname may be a single label
-// (`localhost`, `db1`). Keeping both means `format: 'hostname'` can be exact
-// without narrowing what `TF.Domain` means to everyone already using it.
-//
-// STRING_DURATION_PATTERN is RFC 3339 Appendix A, which is NOT the same grammar
-// as the `now±P…` relative bound specs in the date/time params (validated Go-side
-// by parseISODuration in internal/cachegen/typefunctions/formats/datetime/bounds.go).
-// RFC 3339 nests its components — a year may be followed by a month, a month by
-// a day, never skipping — and forbids the week form from combining with
-// anything, so `P1Y2D` and `PT1H2S` are invalid here while staying perfectly
-// good bound specs. Two grammars on purpose: this one is what the keyword
-// means, that one is what our own parameter syntax accepts.
-//
-// URI_PATTERN is RFC 3986 and accepts ANY scheme (`mailto:`, `urn:`, `tel:`),
-// where URL_PATTERN above is deliberately the narrow web-address form
-// (http/ftp/ws only). The IRI twins are the same grammar with RFC 3987's
-// non-ASCII ranges added to each character class.
+// HOSTNAME_PATTERN is RFC 1123, which DOMAIN_PATTERN is not: a domain wants a dotted name with a TLD,
+// a hostname may be a single label (`localhost`, `db1`), so keeping both leaves `TF.Domain` untouched.
+// STRING_DURATION_PATTERN is RFC 3339 Appendix A, NOT the grammar of the `now±P…` relative bound specs
+// (parseISODuration, internal/cachegen/typefunctions/formats/datetime/bounds.go): RFC 3339 nests its
+// components, never skipping, and forbids the week form from combining with anything, so `P1Y2D` and
+// `PT1H2S` are invalid here while staying perfectly good bound specs. Two grammars on purpose.
+// URI_PATTERN is RFC 3986 and accepts ANY scheme (`mailto:`, `urn:`, `tel:`), where URL_PATTERN above
+// is deliberately the narrow web-address form; the IRI twins add RFC 3987's non-ASCII ranges.
 
 export const STRING_DURATION_PATTERN = registerFormatPattern({
   source:
@@ -155,12 +138,11 @@ export const NUMERIC_PATTERN = registerFormatPattern({
   mockSamples: ['123', '007', '42'],
 });
 
-// contentEncoding patterns — anchored RFC 4648 shapes. The alternation groups
-// enforce the padded block lengths, so a plain regex is the exact check. These
-// are the single source of truth for the Base64/Base32/Base16 brands (the
-// schema door references those brands), so `contentEncoding: 'base64'` and
-// `TF.base64()` converge on one id. `flags` is omitted (→ ''); base16 is
-// case-insensitive by CHARACTER CLASS, not an `i` flag, so its source must stay literal.
+// contentEncoding patterns, anchored RFC 4648 shapes: the alternation groups enforce the padded block
+// lengths, so a plain regex is the exact check. They are the single source of truth for the
+// Base64/Base32/Base16 brands the schema door references, so `contentEncoding: 'base64'` and
+// `TF.base64()` converge on one id. base16 is case-insensitive by CHARACTER CLASS, not an `i` flag, so
+// its source must stay literal.
 export const BASE64_PATTERN = registerFormatPattern({
   source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$',
   mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8='],
