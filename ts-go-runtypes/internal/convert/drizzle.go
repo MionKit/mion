@@ -1,29 +1,25 @@
-// drizzle.go — the drizzle-table conversion arm: recognizes table
-// declarations of BOTH authoring roads by the mion drizzle sentinels on their
-// resolved types (never by function name) and rewrites them between the
-// canonical pair spellings:
+package convert
+
+// drizzle.go is the drizzle-table conversion arm: it recognizes table declarations of BOTH authoring
+// roads by the mion drizzle sentinels on their resolved types, never by function name, and rewrites
+// them between the canonical pair spellings:
 //
 //	builders form                              type form
 //	const users = DZ.pgTable('users', {…});    type UsersTable = DZ.PgTable<'users', {…}>;
 //	type UsersTable = typeof users;            const users = DZ.tableFromType<UsersTable>(options?);
 //
-// The emitted const uses the MARKER form (no getRunType call — the devtools
-// transform resolves the type argument); the explicit
-// `tableFromType(getRunType<T>(), options?)` escape hatch is still recognized
-// (pairing ignores the value arguments) and stays as written while already in
-// the target form. References ride the options object
-// (`{tables: {parents: parents}}` — evaluated eagerly, so a backward
-// reference refuses with a reorder message).
-// Both directions preserve the VALUE (the const) and the TYPE name, so every
-// use keeps working; the two halves always print together (canonical pair).
-// The vocabulary is never a Go name table: builder fn names ride the type
-// road's rtColSpec sentinel literals, type names are the first-letter
-// uppercase rule verified against the dialect module's REAL exports, and the
-// modifier vocabulary is whatever the builder's own return type / the mods
-// sentinel carries. Tables using constructs with no type spelling
-// (interpolated sql, $type, non-literal args, out-of-file or backward
-// references) report CNV009 and stay untouched.
-package convert
+// The emitted const uses the MARKER form, the devtools transform resolving the type argument; the
+// explicit `tableFromType(getRunType<T>(), options?)` escape hatch is still recognized, pairing
+// ignoring the value arguments, and stays as written once in the target form. References ride the
+// options object, evaluated eagerly, so a backward reference refuses with a reorder message. Both
+// directions preserve the VALUE and the TYPE name, so every use keeps working, and the two halves
+// always print together.
+//
+// The vocabulary is never a Go name table: builder fn names ride the type road's rtColSpec sentinel
+// literals, type names follow the first-letter uppercase rule verified against the dialect module's
+// REAL exports, and the modifier vocabulary is whatever the builder's return type or the mods
+// sentinel carries. A table using constructs with no type spelling (interpolated sql, $type,
+// non-literal args, out-of-file or backward references) reports CNV009 and stays untouched.
 
 import (
 	"fmt"
@@ -38,20 +34,19 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
-// The sentinel member suffixes (tsgo spells a unique-symbol member as
-// `\xFE@<symbolConstName>@<checkerId>`; stripSentinelId removes the id).
+// The sentinel member suffixes; tsgo spells a unique-symbol member as
+// `\xFE@<symbolConstName>@<checkerId>`, whose id stripSentinelId removes.
 const (
-	// The table type IS its metadata, so this brand is what marks a node as a
-	// table (and carries the dialect that recorded it); name/columns/extras are
-	// the node's own members.
+	// The table type IS its metadata, so this brand marks a node as a table and carries the dialect
+	// that recorded it; name, columns and extras are the node's own members.
 	sentinelTable   = "@rtTableBrand"
 	sentinelColSpec = "@rtColSpecKey"
 	sentinelColMods = "@rtColModsKey"
 	sentinelColumn  = "@rtColumnKey"
 )
 
-// stripSentinelId reduces a late-bound member name to its stable form
-// (mirrors cachegen/runtype stableMemberName, kept local to this package).
+// stripSentinelId reduces a late-bound member name to its stable form, mirroring
+// cachegen/runtype's stableMemberName.
 func stripSentinelId(name string) string {
 	if len(name) < 2 || name[0] != 0xFE || name[1] != '@' {
 		return name
@@ -68,8 +63,8 @@ func stripSentinelId(name string) string {
 	return name[:at]
 }
 
-// typeHasSentinel reports whether the resolved type carries a member whose
-// stable name ends with the given sentinel suffix.
+// typeHasSentinel reports whether the resolved type has a member whose stable name ends with the
+// sentinel suffix.
 func typeHasSentinel(typeChecker *checker.Checker, tsType *checker.Type, suffix string) bool {
 	if tsType == nil {
 		return false
@@ -84,8 +79,8 @@ func typeHasSentinel(typeChecker *checker.Checker, tsType *checker.Type, suffix 
 
 // ── recognition ──────────────────────────────────────────────────────────────
 
-// drizzleTypeAlias recognizes `type N = <ref>` whose declared type carries the
-// table sentinel (the type road's PgTable/MysqlTable/SqliteTable spelling).
+// drizzleTypeAlias recognizes `type N = <ref>` whose declared type carries the table sentinel, the
+// type road's spelling.
 func drizzleTypeAlias(statement *ast.Node, typeChecker *checker.Checker) *declaration {
 	nameNode := statement.Name()
 	if nameNode == nil || hasTypeParameters(statement) {
@@ -104,9 +99,8 @@ func drizzleTypeAlias(statement *ast.Node, typeChecker *checker.Checker) *declar
 	return decl
 }
 
-// drizzleConstForm recognizes `const c = <call>` whose declared type carries
-// the table sentinel — a builders-form table OR the type form's
-// tableFromType handle (told apart later, in pairDrizzleDecls).
+// drizzleConstForm recognizes `const c = <call>` whose declared type carries the table sentinel: a
+// builders-form table or the type form's tableFromType handle, which pairDrizzleDecls tells apart.
 func drizzleConstForm(statement *ast.Node, typeChecker *checker.Checker) *declaration {
 	initializer := constInitializer(statement)
 	if initializer == nil || initializer.Kind != ast.KindCallExpression {
@@ -135,8 +129,8 @@ func drizzleConstForm(statement *ast.Node, typeChecker *checker.Checker) *declar
 	}
 }
 
-// typeofAliasTarget reports whether the statement is `type N = typeof c`,
-// returning the const name — the builders form's type-name half.
+// typeofAliasTarget returns the const name of a `type N = typeof c` statement, the builders form's
+// type-name half.
 func typeofAliasTarget(statement *ast.Node) (string, bool) {
 	alias := statement.AsTypeAliasDeclaration()
 	if alias == nil || alias.Type == nil || alias.Type.Kind != ast.KindTypeQuery {
@@ -149,8 +143,8 @@ func typeofAliasTarget(statement *ast.Node) (string, bool) {
 	return queried.Text(), true
 }
 
-// tableFromTypeTarget reports whether the initializer is the type form's
-// handle call — `<ns>.tableFromType<N>(getRunType<N>())` — returning N.
+// tableFromTypeTarget returns N when the initializer is the type form's handle call,
+// `<ns>.tableFromType<N>(…)`.
 func tableFromTypeTarget(typeChecker *checker.Checker, initializer *ast.Node) (string, bool) {
 	if initializer == nil || initializer.Kind != ast.KindCallExpression {
 		return "", false
@@ -160,8 +154,8 @@ func tableFromTypeTarget(typeChecker *checker.Checker, initializer *ast.Node) (s
 	if callee == nil {
 		return "", false
 	}
-	// Either spelling of the bridge: `DZ.tableFromType<N>(…)` or the named
-	// binding `tableFromType<N>(…)`, under whatever local it was imported as.
+	// Either spelling of the bridge, namespace-qualified or a named binding under whatever local it
+	// was imported as.
 	calleeName := callee
 	if ast.IsPropertyAccessExpression(callee) {
 		calleeName = callee.AsPropertyAccessExpression().Name()
@@ -187,10 +181,9 @@ func tableFromTypeTarget(typeChecker *checker.Checker, initializer *ast.Node) (s
 	return typeRef.TypeName.Text(), true
 }
 
-// pairDrizzleDecls merges the pair halves: a `typeof` alias onto its builders
-// const (name half — the alias's own candidate declaration is consumed), and
-// a tableFromType handle const onto its type declaration (value half). Runs
-// inside recognizeFile, after the statement walk collected every candidate.
+// pairDrizzleDecls merges the pair halves: a `typeof` alias onto its builders const, consuming the
+// alias's own candidate declaration, and a tableFromType handle const onto its type declaration. It
+// runs inside recognizeFile, after the statement walk collected every candidate.
 func pairDrizzleDecls(typeChecker *checker.Checker, decls []*declaration, typeofAliases map[string]*ast.Node, typeofDecls map[string]*declaration) []*declaration {
 	byConstName := map[string]*declaration{}
 	byTypeName := map[string]*declaration{}
@@ -249,13 +242,11 @@ func pairDrizzleDecls(typeChecker *checker.Checker, decls []*declaration, typeof
 
 // ── the shared table spec ────────────────────────────────────────────────────
 
-// drizzleMod is one modifier call: the method name plus its rendered literal
-// arg texts (empty for a flag). A references mod carries its target
-// structurally instead (the two printers spell it differently). A runtime
-// mod ($default/$defaultFn/$onUpdate/$onUpdateFn) carries its callback text
-// VERBATIM in args[0]: the type form spells the bare flag prop and moves the
-// callback into the const's options.runtime; the builders form puts it back
-// on the chain.
+// drizzleMod is one modifier call: the method name plus its rendered literal arg texts, empty for a
+// flag. A references mod carries its target structurally instead, the two printers spelling it
+// differently. A runtime mod carries its callback text VERBATIM in args[0]: the type form spells the
+// bare flag prop and moves the callback into the const's options.runtime, the builders form puts it
+// back on the chain.
 type drizzleMod struct {
 	method      string
 	args        []string
@@ -266,12 +257,11 @@ type drizzleMod struct {
 	isRuntime   bool
 }
 
-// drizzleModNames is every modifier method a column type can carry, across all
-// dialects. A column's props object holds the builder's own config keys AND its
-// modifier calls together (`Varchar<'name', {length: 100; notNull: true}>`), so
-// this list is what tells the two halves apart in both directions. Its twin
-// lives in packages/drizzle-orm/src/typeColumns.ts (colModNames); both are
-// gated against the dialect manifests, here by TestDrizzleModNamesMatchManifests.
+// drizzleModNames is every modifier method a column type can carry, across all dialects. A column's
+// props object holds the builder's own config keys AND its modifier calls together, so this list is
+// what tells the two halves apart in both directions. Its twin is colModNames in
+// packages/drizzle-orm/src/typeColumns.ts; both are gated against the dialect manifests, here by
+// TestDrizzleModNamesMatchManifests.
 var drizzleModNames = map[string]bool{
 	"$default":                     true,
 	"$defaultFn":                   true,
@@ -297,9 +287,8 @@ var drizzleModNames = map[string]bool{
 // rather than one of the builder's own config keys.
 func isDrizzleModName(name string) bool { return drizzleModNames[name] }
 
-// drizzleModValue spells one modifier's recorded value: a call with no
-// arguments is `true`, a call with arguments is the args tuple. Never the bare
-// value, so `default(true)` stays distinguishable from a flag.
+// drizzleModValue spells one modifier's recorded value: `true` for a call with no arguments, the
+// args tuple otherwise. Never the bare value, so `default(true)` stays distinct from a flag.
 func drizzleModValue(mod drizzleMod) string {
 	if mod.isReference {
 		ref := "{table: " + quoteSingle(mod.refTable) + "; column: " + quoteSingle(mod.refColumn) + "}"
@@ -308,16 +297,15 @@ func drizzleModValue(mod drizzleMod) string {
 		}
 		return "[" + ref + "]"
 	}
-	// A runtime mod carries its callback text in args[0]; that moves into the
-	// const's options.runtime, never into the type.
+	// A runtime mod's callback text in args[0] moves into the const's options.runtime, never the type.
 	if mod.isRuntime || len(mod.args) == 0 {
 		return "true"
 	}
 	return "[" + strings.Join(mod.args, ", ") + "]"
 }
 
-// splitObjectText splits `{a: 1, b: {c: 2}}` into its top-level members,
-// quote- and bracket-aware. Returns nil for `{}` or a blank body.
+// splitObjectText splits an object text into its top-level members, quote- and bracket-aware, and
+// returns nil for an empty body.
 func splitObjectText(text string) []string {
 	body := strings.TrimSpace(text)
 	body = strings.TrimSuffix(strings.TrimPrefix(body, "{"), "}")
@@ -357,9 +345,8 @@ func splitObjectText(text string) []string {
 	return members
 }
 
-// drizzleColumnProps spells the ONE object a column type takes: the builder's
-// own config keys as authored, then the modifier calls in chain order. Empty
-// when the column has neither.
+// drizzleColumnProps spells the ONE object a column type takes: the builder's own config keys as
+// authored, then the modifier calls in chain order.
 func drizzleColumnProps(column drizzleColumn) string {
 	members := splitObjectText(column.config)
 	for _, mod := range column.mods {
@@ -371,8 +358,8 @@ func drizzleColumnProps(column drizzleColumn) string {
 	return "{" + strings.Join(members, "; ") + "}"
 }
 
-// drizzleColumn is one column: record key, builder fn, the rendered db-name
-// and config literals ("" when absent), and the modifier chain.
+// drizzleColumn is one column: record key, builder fn, the rendered db-name and config literals,
+// and the modifier chain.
 type drizzleColumn struct {
 	key    string
 	fn     string
@@ -388,23 +375,23 @@ type drizzleEntryChain struct {
 	argsValue []string // builders-mode arg texts (t.a, sql`...`)
 }
 
-// drizzleEntry is one table-level extraConfig entry, both renderings
-// precomputed so each printer just joins.
+// drizzleEntry is one table-level extraConfig entry, both renderings precomputed so each printer
+// only joins them.
 type drizzleEntry struct {
 	fn    string
 	chain []drizzleEntryChain // chain[0] is the BASE call's args (method "")
 }
 
-// drizzleTableSpec is the shared intermediate BOTH printers consume; built
-// from the call AST (builders source) or the reflected graph (type source).
+// drizzleTableSpec is the shared intermediate BOTH printers consume, built from the call AST or the
+// reflected graph depending on the source road.
 type drizzleTableSpec struct {
 	spelling  *drizzleSpelling // how this file names the dialect package
 	tableFn   string           // e.g. "pgTable" (canonical lowerFirst spelling)
 	tableName string
 	columns   []drizzleColumn
 	entries   []drizzleEntry
-	// DB table names this table references (columns + entries, first-seen
-	// order): what the type form's `{tables: {...}}` option must carry.
+	// DB table names this table references, in first-seen order: what the type form's `tables`
+	// option must carry.
 	refTables []string
 }
 
@@ -425,15 +412,11 @@ func drizzleRefuse(decl *declaration, format string, args ...any) *Diagnostic {
 
 // ── how a file spells the dialect package ────────────────────────────────────
 
-// drizzleSpelling is the ONE place that knows how a file names the dialect
-// package's exports, so recognition and printing can never disagree about it. A
-// file written `import * as DZ from '…/pg-core'` spells `DZ.pgTable`; one
-// written `import {pgTable} from '…/pg-core'` spells `pgTable`, under whatever
-// local it bound. A converted file keeps the style it was written in.
-//
-// Names the printed output needs but the file does not import yet are claimed
-// here, collision free, and reported as import needs — drizzle's own `index`
-// and ours cannot share one binding.
+// drizzleSpelling is the ONE place that knows how a file names the dialect package's exports, so
+// recognition and printing cannot disagree: a namespace import spells `DZ.pgTable`, a named one
+// `pgTable` under whatever local it bound, and a converted file keeps the style it was written in.
+// A name the printed output needs but the file has not imported is claimed here, collision free,
+// and reported as an import need, since drizzle's own `index` and ours cannot share one binding.
 type drizzleSpelling struct {
 	namespace string // the namespace local, "" when the file uses named imports
 	module    string // the dialect module specifier
@@ -451,8 +434,8 @@ func (spelling *drizzleSpelling) spellType(exported string) string {
 	return spelling.spell(exported, true)
 }
 
-// spellValue is the text for an export that is CALLED (pgTable, varchar,
-// tableFromType), so a claimed import can never come in as `import type`.
+// spellValue is the text for an export that is CALLED, so a claimed import never comes in as
+// `import type`.
 func (spelling *drizzleSpelling) spellValue(exported string) string {
 	return spelling.spell(exported, false)
 }
@@ -467,9 +450,8 @@ func (spelling *drizzleSpelling) spell(exported string, typeOnly bool) string {
 	local := spelling.scan.LocalFor(spelling.module, exported)
 	if local == "" {
 		base := exported
-		// Step aside from a name the file already uses for something else,
-		// before claim even sees it: binding `Date` here would change what
-		// every `Date` annotation in the file means.
+		// Step aside from a name the file already uses, before claim sees it: binding `Date` here
+		// would change what every `Date` annotation in the file means.
 		if spelling.used[base] {
 			base += "$rt"
 		}
@@ -483,9 +465,8 @@ func (spelling *drizzleSpelling) spell(exported string, typeOnly bool) string {
 	return local
 }
 
-// attach hands the printed declaration's import needs to the planner: keep
-// every binding the output spelled, and add the ones this conversion
-// introduced.
+// attach hands the printed declaration's import needs to the planner: keep every binding the output
+// spelled, add the ones this conversion introduced.
 func (spelling *drizzleSpelling) attach(needs *importNeeds) {
 	if spelling.qualified() {
 		needs.keepLocal(spelling.namespace)
@@ -499,15 +480,13 @@ func (spelling *drizzleSpelling) attach(needs *importNeeds) {
 	}
 }
 
-// drizzleSpellings is the per-file registry: one spelling per dialect module,
-// so every declaration in a file agrees about how that package is named.
+// drizzleSpellings is the per-file registry, one spelling per dialect module, so every declaration
+// in a file agrees on how that package is named.
 type drizzleSpellings struct {
 	scan  *importScan
 	names *nameTable
-	// used is EVERY identifier the file mentions, not just what it declares.
-	// A claimed local must dodge those: drizzle's suites write `new Date(…)`
-	// and annotate with `Date`, and binding our column type as a bare `Date`
-	// silently redefines that name for the whole file.
+	// used is EVERY identifier the file mentions, not just what it declares, and a claimed local
+	// must dodge them: binding a column type as a bare `Date` would redefine that name file-wide.
 	used     map[string]bool
 	byModule map[string]*drizzleSpelling
 }
@@ -516,9 +495,8 @@ func newDrizzleSpellings(scan *importScan, names *nameTable, used map[string]boo
 	return &drizzleSpellings{scan: scan, names: names, used: used, byModule: map[string]*drizzleSpelling{}}
 }
 
-// identifiersIn collects every identifier text in a file, so a claimed import
-// can never shadow a name the file already means something by — including the
-// ambient ones no declaration list mentions (Date, Error, Iterator).
+// identifiersIn collects every identifier text in a file, so a claimed import cannot shadow a name
+// the file already means something by, the ambient ones no declaration list mentions included.
 func identifiersIn(sourceFile *ast.SourceFile) map[string]bool {
 	used := map[string]bool{}
 	root := sourceFile.AsNode()
@@ -540,9 +518,8 @@ func identifiersIn(sourceFile *ast.SourceFile) map[string]bool {
 	return used
 }
 
-// forModule answers how this file spells one dialect module. The style is read
-// off the file's own imports, never off the declaration being converted, so two
-// tables in one file can never be printed in two different styles.
+// forModule answers how this file spells one dialect module. The style comes from the file's own
+// imports, never the declaration being converted, so two tables in one file print alike.
 func (spellings *drizzleSpellings) forModule(module string) *drizzleSpelling {
 	if existing, ok := spellings.byModule[module]; ok {
 		return existing
@@ -555,10 +532,9 @@ func (spellings *drizzleSpellings) forModule(module string) *drizzleSpelling {
 	return spelling
 }
 
-// removableLocals are the dialect-package bindings the file bound BEFORE the
-// conversion. Whichever the printed output no longer spells may go, exactly the
-// way a builders-form import goes when a file switches to the type form; the
-// planner still keeps any binding used outside the rewritten spans.
+// removableLocals are the dialect-package bindings the file bound BEFORE the conversion; whichever
+// the printed output no longer spells may go, and the planner still keeps any binding used outside
+// the rewritten spans.
 func (spellings *drizzleSpellings) removableLocals() map[string]bool {
 	locals := map[string]bool{}
 	if spellings == nil || spellings.scan == nil {
@@ -569,11 +545,9 @@ func (spellings *drizzleSpellings) removableLocals() map[string]bool {
 		if entry == nil {
 			continue
 		}
-		// A dialect package's bindings are all the conversion's to drop. The
-		// root module is registered here too, because a printed reference
-		// spells cols() from it, but only THAT binding is the conversion's:
-		// `sql` and anything else there belong to the file, and the form it was
-		// converted from has no say over them.
+		// A dialect package's bindings are all the conversion's to drop. The root module is
+		// registered too, a printed reference spelling cols() from it, but only THAT binding is the
+		// conversion's: `sql` and anything else there belong to the file.
 		root := module == drizzleRootModule
 		for _, binding := range append(append([]namedBinding{}, entry.Named...), entry.ExtraNamedBindings()...) {
 			if root && binding.Imported != "cols" {
@@ -585,9 +559,8 @@ func (spellings *drizzleSpellings) removableLocals() map[string]bool {
 	return locals
 }
 
-// dialectModuleNode returns a node whose symbol IS the dialect module, which is
-// what the export walk resolves from: the namespace identifier of `DZ.pgTable`,
-// or the module specifier of the import declaration a named binding came from.
+// dialectModuleNode returns a node whose symbol IS the dialect module, what the export walk resolves
+// from: a namespace identifier, or the module specifier a named binding came from.
 func dialectModuleNode(typeChecker *checker.Checker, callee *ast.Node) *ast.Node {
 	nameNode := callee
 	if callee != nil && ast.IsPropertyAccessExpression(callee) {
@@ -611,9 +584,8 @@ func dialectModuleNode(typeChecker *checker.Checker, callee *ast.Node) *ast.Node
 	return nil
 }
 
-// dialectTypeReference is the type-position twin of dialectExportCallee:
-// `DZ.PgTable<…>` or `PgTable<…>` resolved to the EXPORTED type name and the
-// module it came from.
+// dialectTypeReference is the type-position twin of dialectExportCallee, resolving a reference to
+// the EXPORTED type name and the module it came from.
 func dialectTypeReference(typeChecker *checker.Checker, typeName *ast.Node) (exported string, moduleSpec string, nameNode *ast.Node, ok bool) {
 	if typeName == nil {
 		return "", "", nil, false
@@ -635,11 +607,9 @@ func dialectTypeReference(typeChecker *checker.Checker, typeName *ast.Node) (exp
 	return tsimports.ImportedNameOf(typeChecker, typeName), module, typeName, true
 }
 
-// dialectExportCallee decomposes a callee that names a dialect export in either
-// import style — `DZ.pgTable` or `pgTable` — into the EXPORTED name and the
-// module it came from. The module is always resolved through the checker, never
-// assumed from the name, so a shadowing local (`const pgTable =
-// pgTableCreator(…)` in a test body) can never pass as the import it hides.
+// dialectExportCallee decomposes a callee naming a dialect export, in either import style, into the
+// EXPORTED name and its module. The module always resolves through the checker, never from the name,
+// so a shadowing local cannot pass as the import it hides.
 func dialectExportCallee(typeChecker *checker.Checker, callee *ast.Node) (exported string, moduleSpec string, ok bool) {
 	if callee == nil {
 		return "", "", false
@@ -666,9 +636,8 @@ func dialectExportCallee(typeChecker *checker.Checker, callee *ast.Node) (export
 
 // ── literal expression rendering (builders AST → canonical text) ─────────────
 
-// literalExprText renders a literal-only expression canonically (single
-// quotes, `{key: value}` members in source order). Non-literal constructs
-// (identifiers, calls, sql templates, functions) have no type spelling.
+// literalExprText renders a literal-only expression canonically: single quotes, members in source
+// order. A non-literal construct has no type spelling.
 func literalExprText(source string, node *ast.Node) (string, bool) {
 	switch node.Kind {
 	case ast.KindStringLiteral, ast.KindNoSubstitutionTemplateLiteral:
@@ -715,8 +684,8 @@ func literalExprText(source string, node *ast.Node) (string, bool) {
 			}
 			members = append(members, propertyKeyText(nameNode)+": "+value)
 		}
-		// Comma-joined: valid in BOTH positions the canonical text lands in
-		// (a value config object and a type literal argument).
+		// Comma-joined, valid in BOTH positions the canonical text lands in: a value config object
+		// and a type literal argument.
 		return "{" + strings.Join(members, ", ") + "}", true
 	}
 	return "", false
@@ -729,7 +698,7 @@ func propertyKeyText(nameNode *ast.Node) string {
 	return nameNode.Text()
 }
 
-// skipTrivia advances past leading whitespace (Pos() includes trivia).
+// skipTrivia advances past the leading whitespace Pos() includes.
 func skipTrivia(source string, pos int) int {
 	for pos < len(source) && (source[pos] == ' ' || source[pos] == '\t' || source[pos] == '\n' || source[pos] == '\r') {
 		pos++
@@ -739,8 +708,8 @@ func skipTrivia(source string, pos int) int {
 
 // ── builders AST → spec ──────────────────────────────────────────────────────
 
-// namespaceQualifier returns the namespace identifier of `NS.member` (call or
-// type reference head), or nil when the reference is not namespace-qualified.
+// namespaceQualifier returns the namespace identifier of `NS.member`, or nil when the reference is
+// not namespace-qualified.
 func namespaceQualifier(expr *ast.Node) (nsIdent *ast.Node, member string) {
 	if expr == nil {
 		return nil, ""
@@ -754,9 +723,8 @@ func namespaceQualifier(expr *ast.Node) (nsIdent *ast.Node, member string) {
 	return nil, ""
 }
 
-// sqlTemplateText recognizes the slim `sql` tagged template with NO
-// substitutions (verified by package import, never by name alone) and returns
-// its raw text. An interpolated template has no type spelling.
+// sqlTemplateText returns the raw text of the slim `sql` tagged template with NO substitutions,
+// verified by package import rather than by name. An interpolated template has no type spelling.
 func sqlTemplateText(node *ast.Node, typeChecker *checker.Checker) (string, bool) {
 	if node == nil || node.Kind != ast.KindTaggedTemplateExpression {
 		return "", false
@@ -782,10 +750,9 @@ func sqlTemplateText(node *ast.Node, typeChecker *checker.Checker) (string, bool
 	return tagged.Template.Text(), true
 }
 
-// refBaseName is the table const behind a column reference, in either spelling
-// the converter must read: raw drizzle's `other.column`, and the slim road's
-// `cols(other).column` — which is what this program itself prints, since a slim
-// table's TYPE is its metadata and does not name the columns.
+// refBaseName is the table const behind a column reference, in either spelling the converter reads:
+// raw drizzle's `other.column` and the slim road's `cols(other).column`, which is what this program
+// prints, a slim table's TYPE being its metadata and not naming the columns.
 func refBaseName(expr *ast.Node, info *drizzleFileInfo) (string, bool) {
 	if expr == nil {
 		return "", false
@@ -805,9 +772,8 @@ func refBaseName(expr *ast.Node, info *drizzleFileInfo) (string, bool) {
 		return "", false
 	}
 	spelled := info.colsSpelled
-	// A file the converter has not touched yet carries no cols import, so fall
-	// back to the plain name: this only has to recognise a call, and anything
-	// else fails the table lookup that follows.
+	// A file the converter has not touched carries no cols import, so fall back to the plain name:
+	// anything else fails the table lookup that follows.
 	if spelled == "" {
 		spelled = "cols"
 	}
@@ -817,8 +783,7 @@ func refBaseName(expr *ast.Node, info *drizzleFileInfo) (string, bool) {
 	return argument.Text(), true
 }
 
-// exprText renders an identifier or a dotted access, for comparing a callee
-// against the local a module was imported as.
+// exprText renders an identifier or dotted access, for comparing a callee against an import local.
 func exprText(node *ast.Node) string {
 	if node == nil {
 		return ""
@@ -833,8 +798,8 @@ func exprText(node *ast.Node) string {
 	return ""
 }
 
-// referencesTarget parses `() => <table>.<key>` — the lazy reference callback,
-// where <table> is either the const or cols(const).
+// referencesTarget parses the lazy reference callback `() => <table>.<key>`, where <table> is the
+// const or cols(const).
 func referencesTarget(node *ast.Node, info *drizzleFileInfo) (constName string, columnKey string, ok bool) {
 	if node == nil || node.Kind != ast.KindArrowFunction {
 		return "", "", false
@@ -852,9 +817,8 @@ func referencesTarget(node *ast.Node, info *drizzleFileInfo) (constName string, 
 	return base, access.Name().Text(), true
 }
 
-// specFromBuildersAST parses `NS.pgTable('name', {key: NS.fn(...).mod(...)})`.
-// tableNames maps the file's drizzle const names onto their DB table names
-// (references targets resolve through it).
+// specFromBuildersAST parses `NS.pgTable('name', {key: NS.fn(...).mod(...)})`. tableNames maps the
+// file's drizzle const names onto their DB table names, which reference targets resolve through.
 func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleTableSpec, *ast.Node, *Diagnostic) {
 	initializer := constInitializer(decl.Stmt)
 	call := initializer.AsCallExpression()
@@ -907,11 +871,9 @@ func specFromBuildersAST(source string, decl *declaration, typeChecker *checker.
 	return spec, moduleNode, nil
 }
 
-// unspellableTableHead says WHY a recognized table declaration's head has no
-// type spelling. The declaration is known to be a table (its resolved type
-// carries the sentinel), so "not recognized" is never the answer — one of these
-// constructs is, and naming it is the difference between a report someone can
-// act on and a refusal that reads like a bug.
+// unspellableTableHead says WHY a recognized table declaration's head has no type spelling. The
+// declaration IS a table, its resolved type carrying the sentinel, so "not recognized" is never the
+// answer; naming the construct is what makes the report actionable.
 func unspellableTableHead(typeChecker *checker.Checker, initializer *ast.Node) string {
 	callee := initializer.AsCallExpression().Expression
 	if callee != nil && ast.IsPropertyAccessExpression(callee) {
@@ -931,9 +893,7 @@ func unspellableTableHead(typeChecker *checker.Checker, initializer *ast.Node) s
 
 // columnFromChain parses `NS.fn(name?, config?).mod(args)...` into a column.
 func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey string, spec *drizzleTableSpec, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleColumn, *Diagnostic) {
-	// Every refusal names the column: these tables run to seventy columns, and
-	// "a column must be a builder call chain" alone leaves the reader to find
-	// which one.
+	// Every refusal names the column: these tables run to seventy columns.
 	refuse := func(format string, args ...any) *Diagnostic {
 		return drizzleRefuse(decl, "column %q: "+format, append([]any{columnKey}, args...)...)
 	}
@@ -954,16 +914,15 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 				column.name = quoteSingle(args[argIndex].Text())
 				argIndex++
 			} else if argIndex < len(args) && args[argIndex].Kind != ast.KindObjectLiteralExpression {
-				// The db name is a type parameter on the type road, so only a
-				// literal carries over: `serial('id' as string)` widens it to
-				// `string` and has no spelling. Say that, rather than falling
-				// through and complaining about the config argument.
+				// The db name is a type parameter on the type road, so only a literal carries over;
+				// a widened one has no spelling, and saying so beats complaining about the config
+				// argument.
 				return nil, refuse("builder %q: the db name must be a string literal", column.fn)
 			}
 			if argIndex < len(args) {
 				if args[argIndex].Kind == ast.KindArrayLiteralExpression {
-					// mysqlEnum's values array, the one builder whose argument
-					// shape the type road deliberately does not mirror.
+					// mysqlEnum's values array, the one builder whose argument shape the type road
+					// deliberately does not mirror.
 					return nil, refuse("builder %q takes a values array, which has no type spelling — the column types mirror a config object", column.fn)
 				}
 				if args[argIndex].Kind != ast.KindObjectLiteralExpression {
@@ -985,9 +944,8 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 			for left, right := 0, len(mods)-1; left < right; left, right = left+1, right-1 {
 				mods[left], mods[right] = mods[right], mods[left]
 			}
-			// The mods carrier is a keyed object, so the SAME modifier twice
-			// intersects down to one: `.array().array()` would silently lose a
-			// dimension. Say so instead.
+			// The mods carrier is a keyed object, so the SAME modifier twice would intersect down
+			// to one and `.array().array()` would silently lose a dimension.
 			seen := map[string]bool{}
 			for _, mod := range mods {
 				if seen[mod.method] {
@@ -1008,9 +966,9 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 			return nil, refuse("modifier $type has no chain spelling on the type road — author the table as a type and spell it as a prop, {$type: [T]}")
 		}
 		if strings.HasPrefix(method, "$") {
-			// Runtime-callback modifier: the callback moves VERBATIM into the
-			// emitted const's options.runtime; the type carries the bare flag prop
-			// (its existence is verified against the dialect exports at print).
+			// A runtime-callback modifier's callback moves VERBATIM into the emitted const's
+			// options.runtime, and the type carries the bare flag prop, whose existence is verified
+			// against the dialect exports at print.
 			callbackArgs := call.Arguments.Nodes
 			if len(callbackArgs) != 1 {
 				return nil, refuse("modifier %q takes exactly one callback argument", method)
@@ -1065,11 +1023,9 @@ func columnFromChain(source string, decl *declaration, expr *ast.Node, columnKey
 
 // ── extraConfig entries (builders AST → spec) ────────────────────────────────
 
-// entryArgTexts renders one extraConfig argument in BOTH modes: the canonical
-// TYPE spelling ({col: 'a'}, {table: 'p', col: 'id'}, Sql<'...'>, literals)
-// and the canonical BUILDERS spelling (t.a, parents.id, sql`...`). A
-// cross-table reference also lands in spec.refTables (the type form's tables
-// option needs it).
+// entryArgTexts renders one extraConfig argument in BOTH modes, the canonical TYPE spelling and the
+// canonical BUILDERS one. A cross-table reference also lands in spec.refTables, which the type
+// form's tables option needs.
 func entryArgTexts(source string, decl *declaration, node *ast.Node, spec *drizzleTableSpec, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (string, string, *Diagnostic) {
 	if sqlText, ok := sqlTemplateText(node, typeChecker); ok {
 		valueText := ""
@@ -1132,11 +1088,10 @@ func entryArgTexts(source string, decl *declaration, node *ast.Node, spec *drizz
 	return literal, literal, nil
 }
 
-// entriesFromExtraConfigAST parses the table call's third argument — an arrow
-// callback returning an array literal of helper chains.
+// entriesFromExtraConfigAST parses the table call's third argument, an arrow callback returning an
+// array literal of helper chains.
 func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node, spec *drizzleTableSpec, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) ([]drizzleEntry, *Diagnostic) {
-	// The sql spelling is the table call's own concern, not the extras'; the
-	// caller fills it in for the printers.
+	// The sql spelling is the table call's own concern, so the caller fills it in for the printers.
 	scoped := *fileInfo
 	scoped.sqlSpelling = ""
 	fileInfo = &scoped
@@ -1154,11 +1109,9 @@ func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node,
 	for body != nil && body.Kind == ast.KindParenthesizedExpression {
 		body = body.AsParenthesizedExpression().Expression
 	}
-	// BOTH shapes drizzle accepts: the array form, and the older keyed-object
-	// one its own suites still write. drizzle reads only the VALUES of that
-	// object, and so does the recorder, so the keys are labels — the extras
-	// tuple carries the entries and the printed builders form comes back as
-	// the array.
+	// BOTH shapes drizzle accepts: the array form and the older keyed-object one its own suites
+	// still write. drizzle and the recorder read only that object's VALUES, so its keys are labels
+	// and the printed builders form comes back as the array.
 	var elements []*ast.Node
 	switch {
 	case body != nil && body.Kind == ast.KindArrayLiteralExpression:
@@ -1175,8 +1128,8 @@ func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node,
 	}
 	// The caller fills the sql spelling later; here reuse the shared lookup.
 	fileInfo.sqlSpelling = ""
-	// drizzle flattens ONE level (`extraConfig.flat(1)`), so a grouped array is
-	// a legal way to write entries and its own suites use it.
+	// drizzle flattens ONE level (`extraConfig.flat(1)`), so a grouped array is a legal way to write
+	// entries and its own suites use it.
 	var flattened []*ast.Node
 	for _, element := range elements {
 		if element != nil && element.Kind == ast.KindArrayLiteralExpression {
@@ -1196,7 +1149,7 @@ func entriesFromExtraConfigAST(source string, decl *declaration, node *ast.Node,
 	return entries, nil
 }
 
-// entryFromChainAST parses `NS.helper(args).m1(args)...` (outermost-last).
+// entryFromChainAST parses `NS.helper(args).m1(args)...`, outermost-last.
 func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *drizzleTableSpec, paramName string, typeChecker *checker.Checker, fileInfo *drizzleFileInfo) (*drizzleEntry, *Diagnostic) {
 	var chain []drizzleEntryChain
 	current := expr
@@ -1230,7 +1183,7 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *d
 			return nil, argsDiag
 		}
 		if isBase {
-			// The base helper call: reverse the collected chain into call order.
+			// The base helper call, which reverses the collected chain into call order.
 			for left, right := 0, len(chain)-1; left < right; left, right = left+1, right-1 {
 				chain[left], chain[right] = chain[right], chain[left]
 			}
@@ -1246,10 +1199,9 @@ func entryFromChainAST(source string, decl *declaration, expr *ast.Node, spec *d
 
 // ── reflected graph → spec (type form) ───────────────────────────────────────
 
-// specFromGraph reads the table spec off the resolved reflection graph — the
-// same walk the runtime bridge does in JS (fromType.ts), mirrored in Go.
-// fileInfo supplies the slim `sql` binding and the const-by-table-name map
-// (entry column references print as `<const>.<key>`).
+// specFromGraph reads the table spec off the resolved reflection graph, the Go mirror of the
+// runtime bridge's walk in fromType.ts. fileInfo supplies the slim `sql` binding and the
+// const-by-table-name map an entry column reference prints through.
 func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleSpelling, tableFn string, fileInfo *drizzleFileInfo) (*drizzleTableSpec, *Diagnostic) {
 	sqlSpelling := fileInfo.sqlSpelling
 	deref := func(node *reflection.RunType) *reflection.RunType {
@@ -1258,10 +1210,9 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 		}
 		return node
 	}
-	// properties lists a node's property children DEREFERENCED (child slots in
-	// the serialized graph are `{kind:-1, id}` sentinels). Flat: a table type is
-	// one object now (the metadata, which each dialect's interface extends),
-	// where it used to be `Cols & {meta}` and this had to flatten the arms.
+	// properties lists a node's property children DEREFERENCED, child slots in the serialized graph
+	// being `{kind:-1, id}` sentinels. Flat, because a table type is one object: the metadata, which
+	// each dialect's interface extends.
 	var properties func(node *reflection.RunType) []*reflection.RunType
 	properties = func(node *reflection.RunType) []*reflection.RunType {
 		node = deref(node)
@@ -1378,9 +1329,9 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 				column.name = text
 			}
 		}
-		// The authored props object holds BOTH halves. Only the builder's own
-		// keys belong inside the call, and they are picked out BEFORE reading a
-		// value: some modifiers ($type) carry types with no literal value.
+		// The authored props object holds BOTH halves. Only the builder's own keys belong inside the
+		// call, and they are picked out BEFORE reading a value, since a modifier like $type carries
+		// a type with no literal value.
 		if configNode := member(specNode, "config"); configNode != nil && len(configNode.Children) > 0 {
 			var configMembers []string
 			for _, configMember := range properties(configNode) {
@@ -1438,8 +1389,8 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 					return nil, drizzleRefuse(decl, "column %q: the $Type override has no builders spelling — keep this table on the type road", columnMember.Name)
 				}
 				if strings.HasPrefix(modMember.Name, "$") {
-					// Runtime flag prop: the callback text is read off the
-					// paired const's options.runtime afterwards.
+					// A runtime flag prop's callback text is read off the paired const's options.runtime
+					// afterwards.
 					if valueNode.Kind != reflection.KindLiteral {
 						return nil, drizzleRefuse(decl, "column %q: malformed runtime flag %q", columnMember.Name, modMember.Name)
 					}
@@ -1471,8 +1422,8 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 		}
 		spec.columns = append(spec.columns, column)
 	}
-	// Table-level extras: the TableEntry tuple on the meta, rendered in
-	// builders mode ({col} → t.<key>, {table, col} → <const>.<key>).
+	// Table-level extras: the TableEntry tuple on the meta, rendered in builders mode
+	// ({col} → t.<key>, {table, col} → <const>.<key>).
 	var entryValueText func(node *reflection.RunType, where string) (string, *Diagnostic)
 	entryValueText = func(node *reflection.RunType, where string) (string, *Diagnostic) {
 		node = deref(node)
@@ -1502,8 +1453,8 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 				if !known || target.constName == "" {
 					return "", drizzleRefuse(decl, "%s: references table %q is not declared where this table can see it", where, refTableName)
 				}
-				// cols(), same reason as a column's .references(): the type of a
-				// slim table is its metadata and does not name the columns.
+				// cols(), same reason as a column's .references(): a slim table's type is its
+				// metadata and does not name the columns.
 				return colsSpelling(fileInfo) + "(" + target.constName + ")." + key, nil
 			}
 			var members []string
@@ -1601,11 +1552,9 @@ func specFromGraph(resolved *resolvedDecl, decl *declaration, spelling *drizzleS
 
 // ── vocabulary: the dialect module's real exports ────────────────────────────
 
-// drizzleExports enumerates the dialect module's exported names by walking its
-// source statements (following relative re-exports), starting from the
-// module node's symbol — a namespace identifier, or the module specifier of the
-// import declaration a named binding came from. Same walk the manifest
-// generator uses; syntactic so type-only exports count too.
+// drizzleExports enumerates the dialect module's exported names by walking its source statements,
+// following relative re-exports, from the module node's symbol. Same walk the manifest generator
+// uses, and syntactic so type-only exports count too.
 func drizzleExports(prog *program.Program, typeChecker *checker.Checker, moduleNode *ast.Node) (map[string]bool, string) {
 	if moduleNode == nil {
 		return nil, ""
@@ -1634,8 +1583,8 @@ func drizzleExports(prog *program.Program, typeChecker *checker.Checker, moduleN
 	return names, modulePath
 }
 
-// collectModuleExports gathers a module's exported names, recursing through
-// RELATIVE re-exports only (a bare re-export is another package's surface).
+// collectModuleExports gathers a module's exported names, recursing through RELATIVE re-exports
+// only, a bare one being another package's surface.
 func collectModuleExports(prog *program.Program, modulePath string, names map[string]bool, visited map[string]bool) {
 	if modulePath == "" || visited[modulePath] {
 		return
@@ -1645,12 +1594,10 @@ func collectModuleExports(prog *program.Program, modulePath string, names map[st
 	if moduleFile == nil {
 		return
 	}
-	// A relative re-export names a MODULE, and what the program holds is a
-	// file. Source spells it `./columns.ts`, a published .d.ts spells the same
-	// re-export `./columns.js` while the file beside it is `columns.d.ts`, and
-	// a directory import means its index. Try each until one is in the program,
-	// or the walk stops at the entry file and the module looks empty — which is
-	// how every column type went missing against the published packages.
+	// A relative re-export names a MODULE while the program holds FILES: source spells
+	// `./columns.ts`, a published .d.ts spells `./columns.js` beside a `columns.d.ts`, and a
+	// directory import means its index. Try each, or the walk stops at the entry file, the module
+	// looks empty, and every column type loses its spelling against a published package.
 	relativeTarget := func(moduleSpecifier *ast.Node) string {
 		specifierText := moduleSpecifier.Text()
 		if !strings.HasPrefix(specifierText, "./") && !strings.HasPrefix(specifierText, "../") {
@@ -1661,9 +1608,8 @@ func collectModuleExports(prog *program.Program, modulePath string, names map[st
 		if trimmed, isJS := strings.CutSuffix(joined, ".js"); isJS {
 			candidates = append(candidates, trimmed+".d.ts", trimmed+".ts")
 		}
-		// The published .d.ts keeps the SOURCE specifier (`./columns.ts`) while
-		// the file beside it is `columns.d.ts`. That one costs every column type
-		// its spelling, so it is the case to get right.
+		// The published .d.ts keeps the SOURCE specifier while the file beside it is
+		// `columns.d.ts`; getting this case wrong costs every column type its spelling.
 		if trimmed, isTS := strings.CutSuffix(joined, ".ts"); isTS && !strings.HasSuffix(joined, ".d.ts") {
 			candidates = append(candidates, trimmed+".d.ts", trimmed+".js")
 		}
@@ -1710,17 +1656,14 @@ func collectModuleExports(prog *program.Program, modulePath string, names map[st
 			}
 			target := relativeTarget(exportDeclaration.ModuleSpecifier)
 			if exportDeclaration.ExportClause == nil {
-				// Star re-export: only a relative target can be enumerated (a
-				// bare one is another package's whole surface).
+				// Star re-export: only a relative target can be enumerated.
 				if target != "" {
 					collectModuleExports(prog, target, names, visited)
 				}
 				continue
 			}
-			// Named re-exports count regardless of the specifier: the names
-			// are spelled right here (the dialect packages re-export the
-			// shared carriers, Sql and TableEntry, from @mionjs/drizzle-orm
-			// this way).
+			// A named re-export counts whatever its specifier, the names being spelled right here:
+			// the dialect packages re-export the shared carriers this way.
 			for _, specifier := range exportDeclaration.ExportClause.AsNamedExports().Elements.Nodes {
 				if nameNode := specifier.Name(); nameNode != nil {
 					names[nameNode.Text()] = true
@@ -1744,10 +1687,9 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 		if !exports[columnTypeName] {
 			return nil, drizzleRefuse(decl, "builder %q has no column type %q in the dialect module", column.fn, columnTypeName)
 		}
-		// The db name, then the ONE props object holding the builder's own
-		// config keys and its modifier calls. A nameless column drops straight
-		// to the props (the alias reads a string first arg as the db name and
-		// an object one as the props).
+		// The db name, then the ONE props object holding the builder's own config keys and its
+		// modifier calls. A nameless column drops straight to the props, the alias reading a string
+		// first argument as the db name and an object one as the props.
 		var typeArgs []string
 		if column.name != "" {
 			typeArgs = append(typeArgs, column.name)
@@ -1764,11 +1706,9 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	if !exports["tableFromType"] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no tableFromType")
 	}
-	// The options object, canonical layout: `tables` first (References — it is
-	// evaluated EAGERLY at the const, so the referenced table must be declared
-	// earlier in the file; the builders road's `() => parent.id` closure was
-	// lazy and allowed any order), then `runtime` (the $ modifiers' callbacks,
-	// spec column order, chain method order).
+	// The options object, canonical layout: `tables` first, evaluated EAGERLY at the const, so the
+	// referenced table must be declared earlier in the file where the builders road's closure was
+	// lazy; then `runtime`, the $ modifiers' callbacks in spec column and chain method order.
 	var optionParts []string
 	if len(spec.refTables) > 0 {
 		var tableEntries []string
@@ -1781,11 +1721,10 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 			if !isPlainIdentifier(key) {
 				key = quoteSingle(key)
 			}
-			// A table declared LATER in the file cannot be read at the bridge
-			// call, so it rides a thunk — the same laziness drizzle's own
-			// `references: () => cities.id` has. A backward reference stays the
-			// plain value, so files that never needed the thunk keep the
-			// spelling they had.
+			// A table declared LATER in the file cannot be read at the bridge call, so it rides a
+			// thunk, the laziness drizzle's own `references: () => cities.id` has. A backward
+			// reference stays the plain value, so a file that never needed the thunk keeps its
+			// spelling.
 			value := target.constName
 			if target.pos >= decl.Stmt.Pos() {
 				value = "() => " + target.constName
@@ -1849,19 +1788,17 @@ func printDrizzleType(spec *drizzleTableSpec, decl *declaration, typeName, const
 	tableTypeText := spec.spelling.spellType(tableTypeName)
 	bridgeText := spec.spelling.spellValue("tableFromType")
 	spec.spelling.attach(&printed.needs)
-	// NOT attachRootSpelling: the type form spells a reference as
-	// `{table: 'parents'; column: 'id'}` and never calls cols(). Reading a
-	// builders-form input may have claimed the binding while building value
-	// text this direction discards, and importing it here would leave an unused
-	// import that breaks the type form's byte fixpoint.
+	// NOT attachRootSpelling: the type form spells a reference structurally and never calls cols().
+	// Reading a builders-form input may have claimed that binding while building value text this
+	// direction discards, and importing it would leave an unused import, breaking the type form's
+	// byte fixpoint.
 	printed.text = fmt.Sprintf("%stype %s = %s<%s, {\n%s\n}%s>;\n%sconst %s = %s<%s>(%s);",
 		exportPrefix, typeName, tableTypeText, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
 		constPrefix, constName, bridgeText, typeName, optionsText)
 	return printed, nil
 }
 
-// isPlainIdentifier reports whether the text can stand as an unquoted object
-// key.
+// isPlainIdentifier reports whether the text can stand as an unquoted object key.
 func isPlainIdentifier(text string) bool {
 	if text == "" {
 		return false
@@ -1875,9 +1812,8 @@ func isPlainIdentifier(text string) bool {
 	return true
 }
 
-// printDrizzleBuilders renders the canonical builders-form pair from a spec.
-// constByTableName maps DB table names onto the file's drizzle const names
-// (the spelling a printed `.references(() => other.column)` needs).
+// printDrizzleBuilders renders the canonical builders-form pair from a spec. constByTableName maps
+// DB table names onto the file's const names, the spelling a printed `.references()` needs.
 func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, constName string, exports map[string]bool, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
 	if !exports[spec.tableFn] {
 		return nil, drizzleRefuse(decl, "the dialect module exports no table builder %q", spec.tableFn)
@@ -1905,8 +1841,8 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 				if targetConst == "" {
 					return nil, drizzleRefuse(decl, "references table %q is not declared in this file", mod.refTable)
 				}
-				// cols() because a slim table's TYPE is its metadata: the object
-				// carries the columns as properties, the type does not name them.
+				// cols() because a slim table's TYPE is its metadata: the object carries the
+				// columns as properties, the type does not name them.
 				text += ".references(() => " + colsSpelling(fileInfo) + "(" + targetConst + ")." + mod.refColumn
 				if mod.refActions != "" {
 					text += ", " + mod.refActions
@@ -1941,9 +1877,8 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 	printed := &printedDecl{}
 	tableFnText := spec.spelling.spellValue(spec.tableFn)
 	spec.spelling.attach(&printed.needs)
-	// A printed reference spells cols() from the root module, which is a second
-	// spelling with its own import need. Claimed lazily, so attach it only when
-	// something actually claimed it.
+	// A printed reference spells cols() from the root module, a second spelling with its own import
+	// need, claimed lazily, so attach it only when something claimed it.
 	attachRootSpelling(fileInfo, &printed.needs)
 	printed.text = fmt.Sprintf("%sconst %s = %s(%s, {\n%s\n}%s);\n%stype %s = typeof %s;",
 		exportPrefix, constName, tableFnText, quoteSingle(spec.tableName), strings.Join(columns, "\n"), extrasText,
@@ -1951,10 +1886,9 @@ func printDrizzleBuilders(spec *drizzleTableSpec, decl *declaration, typeName, c
 	return printed, nil
 }
 
-// readRuntimeCallbackTexts reads the paired const's options argument
-// (`tableFromType<T>({runtime: {...}})` — the explicit form's options ride
-// after the runType, so the first OBJECT-LITERAL argument is the bag) and
-// returns the verbatim callback texts per column key and method.
+// readRuntimeCallbackTexts returns the verbatim callback texts per column key and method from the
+// paired const's options argument; the explicit form's options ride after the runType, so the first
+// OBJECT-LITERAL argument is the bag.
 func readRuntimeCallbackTexts(source string, decl *declaration) (map[string]map[string]string, *Diagnostic) {
 	texts := map[string]map[string]string{}
 	if decl.AliasStmt == nil {
@@ -2016,9 +1950,9 @@ func readRuntimeCallbackTexts(source string, decl *declaration) (map[string]map[
 	return texts, nil
 }
 
-// fillRuntimeCallbacks pairs the graph's runtime flag props with the
-// options.runtime callback texts, both ways: a flag without a callback and a
-// callback without a flag each refuse naming the column and method.
+// fillRuntimeCallbacks pairs the graph's runtime flag props with the options.runtime callback texts
+// both ways: a flag without a callback and a callback without a flag each refuse, naming the column
+// and method.
 func fillRuntimeCallbacks(spec *drizzleTableSpec, decl *declaration, source string) *Diagnostic {
 	texts, diag := readRuntimeCallbackTexts(source, decl)
 	if diag != nil {
@@ -2052,34 +1986,30 @@ func fillRuntimeCallbacks(spec *drizzleTableSpec, decl *declaration, source stri
 
 // ── the conversion entry (called from ConvertFile) ───────────────────────────
 
-// drizzlePlan is one drizzle declaration's replacement (the main statement
-// span gets the pair text; the paired half's span is deleted).
+// drizzlePlan is one drizzle declaration's replacement: the main statement span takes the pair text
+// and the paired half's span is deleted.
 type drizzlePlan struct {
 	decl    *declaration
 	printed *printedDecl
 }
 
-// drizzleFileInfo carries the per-file lookups the drizzle arm shares across
-// declarations: const↔table-name maps (references), the declaration position
-// per table name (the tables option's declared-earlier check) and the slim
-// sql binding.
+// drizzleFileInfo carries the per-file lookups the drizzle arm shares across declarations: the
+// const↔table-name maps, the declaration position per table name for the declared-earlier check,
+// and the slim sql binding.
 type drizzleFileInfo struct {
 	spellings *drizzleSpellings
-	// names is the file's table; baseTaken the names visible everywhere in the
-	// file (imports and top-level declarations), from which a nested scope's
-	// own table is derived on demand and cached.
+	// names is the file's table and baseTaken the names visible everywhere in it, from which a
+	// nested scope's own table is derived on demand and cached.
 	names       *nameTable
 	baseTaken   map[string]bool
 	scopedNames map[*ast.Node]*nameTable
-	// tables is every drizzle table the file declares, in source order, WITH
-	// the scope it lives in. A flat name map cannot serve this file: drizzle's
-	// suites declare a table called 'cities' at the top level and another
-	// called 'cities' inside a test body, and a reference must reach the one
-	// its own scope can actually see.
+	// tables is every drizzle table the file declares, in source order, WITH its scope. A flat name
+	// map cannot serve a file declaring one 'cities' at the top level and another inside a test
+	// body: a reference must reach the one its own scope can see.
 	tables      []drizzleTableRef
 	sqlSpelling string
-	// how the file already spells cols(), so a reference it printed earlier
-	// parses back. Read from the imports, never claimed here.
+	// how the file already spells cols(), so a reference printed earlier parses back. Read from the
+	// imports, never claimed here.
 	colsSpelled string
 }
 
@@ -2091,8 +2021,8 @@ type drizzleTableRef struct {
 	scope     *ast.Node // nil at the top level
 }
 
-// visibleFrom reports whether a declaration in `from` can name this table:
-// either it is top level, or its block contains the declaration.
+// visibleFrom reports whether a declaration in `from` can name this table: it is top level, or its
+// block contains the declaration.
 func (ref drizzleTableRef) visibleFrom(from *declaration) bool {
 	if ref.scope == nil {
 		return true
@@ -2103,8 +2033,7 @@ func (ref drizzleTableRef) visibleFrom(from *declaration) bool {
 	return ref.scope.Pos() <= from.Stmt.Pos() && from.Stmt.End() <= ref.scope.End()
 }
 
-// lookup returns the INNERMOST visible table matching pick — the nearest
-// enclosing declaration wins, the way name resolution itself works.
+// lookup returns the INNERMOST visible table matching pick, as name resolution itself works.
 func (info *drizzleFileInfo) lookup(from *declaration, pick func(drizzleTableRef) bool) (drizzleTableRef, bool) {
 	var best drizzleTableRef
 	var found bool
@@ -2130,8 +2059,8 @@ func scopeDepth(scope *ast.Node) int {
 	return depth
 }
 
-// tableNameForConst resolves a const name a reference callback spelled
-// (`() => cities.id`) to the DB table it names, in the scope doing the naming.
+// tableNameForConst resolves a const name a reference callback spelled to the DB table it names, in
+// the scope doing the naming.
 func (info *drizzleFileInfo) tableNameForConst(constName string, from *declaration) (string, bool) {
 	ref, found := info.lookup(from, func(ref drizzleTableRef) bool { return ref.constName == constName })
 	if !found {
@@ -2140,17 +2069,17 @@ func (info *drizzleFileInfo) tableNameForConst(constName string, from *declarati
 	return ref.tableName, true
 }
 
-// constForTableName is the reverse: which const holds a DB table, and where it
-// was declared (the type road's tables option is read eagerly unless thunked).
+// constForTableName is the reverse: which const holds a DB table and where it was declared, which
+// the type road's tables option needs because it reads eagerly unless thunked.
 func (info *drizzleFileInfo) constForTableName(tableName string, from *declaration) (drizzleTableRef, bool) {
 	return info.lookup(from, func(ref drizzleTableRef) bool { return ref.tableName == tableName })
 }
 
 const drizzleRootModule = "@mionjs/drizzle-orm"
 
-// attachRootSpelling hands the root module's claimed bindings to the planner,
-// but only when this file claimed any: forModule registers the module, and a
-// registered module's existing bindings come into removableLocals's reach.
+// attachRootSpelling hands the root module's claimed bindings to the planner, only when this file
+// claimed any: forModule registers the module, and a registered module's existing bindings come
+// into removableLocals's reach.
 func attachRootSpelling(info *drizzleFileInfo, needs *importNeeds) {
 	if info == nil || info.spellings == nil {
 		return
@@ -2160,11 +2089,10 @@ func attachRootSpelling(info *drizzleFileInfo, needs *importNeeds) {
 	}
 }
 
-// colsSpelling is how this file names @mionjs/drizzle-orm's cols(), claiming the
-// import if the file does not already have one. Called at the point a reference
-// is PRINTED, never up front: registering a module with the spellings registry
-// puts that module's existing bindings in reach of removableLocals, so a table
-// with no cross-table reference must not touch the root module at all.
+// colsSpelling is how this file names @mionjs/drizzle-orm's cols(), claiming the import when the
+// file has none. Called where a reference is PRINTED, never up front: registering a module puts its
+// existing bindings in reach of removableLocals, so a table with no cross-table reference must not
+// touch the root module at all.
 func colsSpelling(info *drizzleFileInfo) string {
 	return info.spellings.forModule(drizzleRootModule).spellValue("cols")
 }
@@ -2208,8 +2136,8 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *name
 		if tableName == "" {
 			continue
 		}
-		// A standalone type declaration still claims its table name with an
-		// empty const; a printed builders pair binds it to the derived one.
+		// A standalone type declaration still claims its table name with an empty const; a printed
+		// builders pair binds it to the derived one.
 		info.tables = append(info.tables, drizzleTableRef{tableName: tableName, constName: decl.ConstName, pos: decl.Stmt.Pos(), scope: decl.Scope})
 	}
 	if imports != nil {
@@ -2220,12 +2148,10 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *name
 		}
 		if local := imports.LocalFor(drizzleRootModule, "cols"); local != "" {
 			info.colsSpelled = local
-			// Register the root module so a cols binding this program printed
-			// earlier is considered for removal: the type form spells a
-			// reference as `{table: ...; column: ...}` and calls nothing, so
-			// converting back must drop the import again or the type form is
-			// not a byte fixpoint. removableLocals only ever takes `cols` from
-			// this module, never the file's own `sql`.
+			// Register the root module so a cols binding this program printed earlier is considered
+			// for removal: the type form spells a reference structurally and calls nothing, so
+			// converting back must drop the import or the type form is not a byte fixpoint.
+			// removableLocals only ever takes `cols` from this module, never the file's own `sql`.
 			info.spellings.forModule(drizzleRootModule)
 		} else if alias := imports.NamespaceAlias(drizzleRootModule); alias != "" {
 			info.colsSpelled = alias + ".cols"
@@ -2234,9 +2160,8 @@ func buildDrizzleFileInfo(decls []*declaration, imports *importScan, names *name
 	return info
 }
 
-// namesFor is the table a declaration's pair names are claimed against: the
-// file's own for a top-level declaration, a scope-local one (file names plus
-// that block's) for a nested one.
+// namesFor is the table a declaration's pair names are claimed against: the file's own at the top
+// level, a scope-local one, file names plus that block's, for a nested declaration.
 func (info *drizzleFileInfo) namesFor(decl *declaration) *nameTable {
 	if decl.Scope == nil {
 		return info.names
@@ -2249,8 +2174,8 @@ func (info *drizzleFileInfo) namesFor(decl *declaration) *nameTable {
 	return scoped
 }
 
-// declaredNamesIn lists what one block declares directly: enough to keep a
-// claimed pair name from colliding with a sibling in the same scope.
+// declaredNamesIn lists what one block declares directly, enough to keep a claimed pair name from
+// colliding with a sibling in the same scope.
 func declaredNamesIn(scope *ast.Node) map[string]bool {
 	names := map[string]bool{}
 	add := func(nameNode *ast.Node) {
@@ -2273,8 +2198,7 @@ func declaredNamesIn(scope *ast.Node) map[string]bool {
 	return names
 }
 
-// convertDrizzleDecl converts one recognized drizzle declaration to the
-// target form's canonical pair.
+// convertDrizzleDecl converts one recognized drizzle declaration to the target form's pair.
 func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, source string, decl *declaration, opts Options, names *nameTable, fileInfo *drizzleFileInfo) (*printedDecl, *Diagnostic) {
 	if decl.Form == TargetBuilders {
 		// builders → type: the spec lives in the call AST.
@@ -2295,8 +2219,8 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 		}
 		return printDrizzleType(spec, decl, typeName, decl.ConstName, exports, fileInfo)
 	}
-	// type → builders: the spec lives in the reflected graph; the alias and
-	// table type come from the alias declaration's type reference.
+	// type → builders: the spec lives in the reflected graph, and the alias and table type come from
+	// the alias declaration's type reference.
 	aliasDecl := decl.Stmt.AsTypeAliasDeclaration()
 	if aliasDecl == nil || aliasDecl.Type == nil || aliasDecl.Type.Kind != ast.KindTypeReference {
 		return nil, drizzleRefuse(decl, "only a direct dialect table type reference converts")
@@ -2329,8 +2253,8 @@ func convertDrizzleDecl(prog *program.Program, typeChecker *checker.Checker, cac
 		if constName == "" {
 			return nil, drizzleRefuse(decl, "no free const name for the pair")
 		}
-		// The pair binds the derived const to this table name for sibling
-		// references converted in the same run.
+		// The pair binds the derived const to this table name for sibling references converted in
+		// the same run.
 		fileInfo.tables = append(fileInfo.tables, drizzleTableRef{tableName: spec.tableName, constName: constName, pos: decl.Stmt.Pos(), scope: decl.Scope})
 	}
 	return printDrizzleBuilders(spec, decl, decl.Name, constName, exports, fileInfo)

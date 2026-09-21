@@ -1,10 +1,9 @@
-// recognize.go classifies a file's top-level convertible declarations: type
-// aliases, interfaces, and consts whose resolved type is the marker module's
-// `RunType<T>` (detection is
-// by RETURN TYPE, the same rule internal/compiler/builders applies, never by
-// function name). An `InferType<typeof x>` alias is paired with its const so
-// the two convert as one declaration.
 package convert
+
+// recognize.go classifies a file's top-level convertible declarations: type aliases, interfaces and
+// consts whose resolved type is the marker module's `RunType<T>`. Detection is by RETURN TYPE, the
+// rule internal/compiler/builders applies, never by function name. An `InferType<typeof x>` alias is
+// paired with its const so the two convert as one declaration.
 
 import (
 	"sort"
@@ -18,50 +17,42 @@ import (
 
 // declaration is one recognized convertible declaration.
 type declaration struct {
-	// Name is the TYPE name: the alias/interface name, or the paired
-	// InferType alias's name for a const form ("" when a const has no alias).
+	// Name is the TYPE name: the alias / interface name, or the paired InferType alias's name for a
+	// const form ("" when a const has no alias).
 	Name string
-	// ConstName is the runtype const's identifier for const forms, "" for
-	// type-form declarations.
+	// ConstName is the runtype const's identifier for const forms, "" for type forms.
 	ConstName string
 	Form      Target
-	// Exported is the recognized STATEMENT's export modifier (the const's,
-	// for const forms); AliasExported is the TYPE name's — the paired
-	// InferType alias for const forms, the statement itself otherwise. The
-	// two can differ, and the printed type declaration follows the alias.
+	// Exported is the recognized STATEMENT's export modifier, AliasExported the TYPE name's (the
+	// paired InferType alias for a const form). The two can differ, and the printed type declaration
+	// follows the alias.
 	Exported      bool
 	AliasExported bool
 	Generic       bool
-	// Stmt is the statement the conversion replaces; NameNode the identifier
-	// the checker resolves; AliasStmt the paired `type N = InferType<typeof c>`
-	// statement for const forms (nil when absent).
+	// Stmt is the statement the conversion replaces, NameNode the identifier the checker resolves,
+	// AliasStmt the paired `type N = InferType<typeof c>` statement of a const form.
 	Stmt      *ast.Node
 	NameNode  *ast.Node
 	AliasStmt *ast.Node
 	// EscapePair marks the LAZY PAIR spelling: a real type declaration plus a
-	// `const xRT = getRunType<Name>()` handle. The type stays real so a
-	// recursive knot closes lazily (escape type text cannot hold `RT.self()`,
-	// and an `InferType<typeof constRT>` chain would collapse it to `any`).
-	// Stmt is the TYPE statement (NameNode its name — resolution goes through
-	// the declared type), AliasStmt the const statement, ConstNameNode the
-	// const's identifier (the symbol the still-used guard checks).
+	// `const xRT = getRunType<Name>()` handle. The type stays real so a recursive knot closes lazily,
+	// escape type text being unable to hold `RT.self()` and an `InferType<typeof constRT>` chain
+	// collapsing to `any`. Stmt is the TYPE statement and NameNode its name, so resolution goes
+	// through the declared type; AliasStmt is the const statement and ConstNameNode its identifier,
+	// the symbol the still-used guard checks.
 	EscapePair    bool
 	ConstNameNode *ast.Node
-	// Scope is the BLOCK a nested drizzle declaration lives in (nil at the top
-	// level). Pair names are claimed per scope: drizzle's suites declare
-	// `const users` in twenty different test bodies, and one file-wide claim
-	// budget runs out on the ninth.
+	// Scope is the BLOCK a nested drizzle declaration lives in, nil at the top level. Pair names are
+	// claimed per scope, or twenty sibling `const users` bodies exhaust one file-wide claim budget.
 	Scope *ast.Node
-	// Drizzle marks a mion drizzle TABLE declaration (either road), which
-	// converts through the dedicated arm in drizzle.go — never the generic
-	// printers, and never the id oracle (a table's declared-type id moves with
-	// the road by design; the model ids are the invariant, pinned JS-side).
+	// Drizzle marks a mion drizzle TABLE declaration on either road. It converts through drizzle.go,
+	// never the generic printers and never the id oracle: a table's declared-type id moves with the
+	// road by design, the MODEL ids being the invariant, pinned JS-side.
 	Drizzle bool
 }
 
-// recognizeFile walks the file's top-level statements and returns the
-// convertible declarations in source order. Class and enum declarations are
-// runtime code and are never candidates.
+// recognizeFile returns the file's top-level convertible declarations in source order. Class and
+// enum declarations are runtime code and never candidates.
 func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, markerOpts marker.Options) []*declaration {
 	root := sourceFile.AsNode()
 	if root == nil {
@@ -92,9 +83,8 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 				declForStatement = typeFormDeclaration(statement)
 			}
 			decls = append(decls, declForStatement)
-			// A `typeof c` alias may be a drizzle pair's name half; recorded so
-			// pairDrizzleDecls can claim (and consume) it when c is a drizzle
-			// const; otherwise it stays the candidate created above.
+			// A `typeof c` alias may be a drizzle pair's name half, recorded so pairDrizzleDecls can
+			// consume it when c is a drizzle const; otherwise it stays the candidate created above.
 			if constName, ok := typeofAliasTarget(statement); ok {
 				typeofAliases[constName] = statement
 				typeofDecls[constName] = declForStatement
@@ -123,8 +113,7 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 	}
 	decls = pairDrizzleDecls(typeChecker, decls, typeofAliases, typeofDecls)
 	decls = pairEscapeConsts(decls, typeChecker, markerOpts)
-	// Nested scopes carry drizzle tables and nothing else (see
-	// recognizeDrizzleNested), appended in source order so every position
+	// Nested scopes carry drizzle tables and nothing else, appended in source order so every position
 	// comparison downstream still reads the file top to bottom.
 	nested := recognizeDrizzleNested(root, typeChecker)
 	if len(nested) == 0 {
@@ -135,13 +124,11 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, mar
 	return decls
 }
 
-// recognizeDrizzleNested collects the DRIZZLE declarations that live inside a
-// nested scope: a function body, a plain block, the `test(…)` callback drizzle's
-// own suites declare most of their tables in (95 of 113 in pg-common.ts). Only
-// the drizzle arm looks inside a scope. A generic runtype const in a function
-// body cannot be referenced from another file, so the conversion set has
-// nothing to say about it, while a drizzle table there is an ordinary table
-// that has to convert like any other.
+// recognizeDrizzleNested collects the DRIZZLE declarations inside a nested scope: a function body, a
+// block, a `test(…)` callback, where drizzle's own suites declare most of their tables. Only the
+// drizzle arm looks inside a scope: a generic runtype const in a function body cannot be referenced
+// from another file, so the conversion set has nothing to say about it, while a table there is an
+// ordinary table.
 func recognizeDrizzleNested(root *ast.Node, typeChecker *checker.Checker) []*declaration {
 	var decls []*declaration
 	var walk func(node *ast.Node) bool
@@ -163,10 +150,8 @@ func recognizeDrizzleNested(root *ast.Node, typeChecker *checker.Checker) []*dec
 	return decls
 }
 
-// recognizeDrizzleScope recognizes one scope's drizzle declarations and pairs
-// them on that scope's OWN names. Pairing file-wide would cross them: drizzle's
-// suites declare `const users` in twenty different test bodies, and those are
-// twenty different tables.
+// recognizeDrizzleScope recognizes one scope's drizzle declarations and pairs them on that scope's
+// OWN names. Pairing file-wide would cross twenty sibling `const users` tables into one.
 func recognizeDrizzleScope(statements []*ast.Node, typeChecker *checker.Checker) []*declaration {
 	var decls []*declaration
 	typeofAliases := map[string]*ast.Node{}
@@ -199,12 +184,10 @@ func recognizeDrizzleScope(statements []*ast.Node, typeChecker *checker.Checker)
 	return pairDrizzleDecls(typeChecker, decls, typeofAliases, typeofDecls)
 }
 
-// pairEscapeConsts merges `const xRT = getRunType<Name>()` with the same-file
-// type declaration `Name` into ONE builders-form declaration (see EscapePair).
-// The pair IS the builders spelling of that type: a builders run leaves it
-// alone (fixpoint) and a type run collapses it back to the type declaration,
-// through the same alias-drop and const-still-used machinery the
-// `InferType<typeof c>` pairing rides.
+// pairEscapeConsts merges `const xRT = getRunType<Name>()` with the same-file type declaration
+// `Name` into ONE builders-form declaration (see EscapePair). The pair IS the builders spelling of
+// that type: a builders run leaves it alone and a type run collapses it back, through the same
+// alias-drop and const-still-used machinery the `InferType<typeof c>` pairing uses.
 func pairEscapeConsts(decls []*declaration, typeChecker *checker.Checker, markerOpts marker.Options) []*declaration {
 	typeDeclByName := map[string]*declaration{}
 	for _, decl := range decls {
@@ -248,9 +231,8 @@ func pairEscapeConsts(decls []*declaration, typeChecker *checker.Checker, marker
 	return kept
 }
 
-// constNameNode returns the identifier the CONST symbol resolves through: a
-// lazy pair's NameNode is the TYPE's name, so the const identifier rides
-// ConstNameNode; every other const form keeps NameNode.
+// constNameNode returns the identifier the CONST symbol resolves through: a lazy pair keeps it in
+// ConstNameNode, NameNode being the TYPE's name there; every other const form uses NameNode.
 func constNameNode(decl *declaration) *ast.Node {
 	if decl.ConstNameNode != nil {
 		return decl.ConstNameNode
@@ -276,11 +258,9 @@ func constInitializer(statement *ast.Node) *ast.Node {
 	return declarator.Initializer
 }
 
-// getRunTypeEscapeTarget reports whether the initializer is exactly the lazy
-// pair's handle call — the package's `getRunType` with ONE bare-identifier
-// type argument and no value arguments — returning the named type. Any other
-// shape (a value-form call, an inline type argument, a local helper) is not
-// the pair spelling.
+// getRunTypeEscapeTarget returns the named type when the initializer is exactly the lazy pair's
+// handle call: the package's `getRunType` with ONE bare-identifier type argument and no value
+// arguments. Any other shape is not the pair spelling.
 func getRunTypeEscapeTarget(initializer *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options) (string, bool) {
 	if initializer == nil || initializer.Kind != ast.KindCallExpression {
 		return "", false
@@ -320,8 +300,7 @@ func getRunTypeEscapeTarget(initializer *ast.Node, typeChecker *checker.Checker,
 	return typeRef.TypeName.Text(), true
 }
 
-// importedNameOf resolves an identifier to the name it was IMPORTED under,
-// seeing through a local alias. Shared with the drizzle-migrate arm.
+// importedNameOf resolves an identifier to the name it was IMPORTED under, through a local alias.
 func importedNameOf(typeChecker *checker.Checker, nameNode *ast.Node) string {
 	return tsimports.ImportedNameOf(typeChecker, nameNode)
 }
@@ -343,9 +322,8 @@ func typeFormDeclaration(statement *ast.Node) *declaration {
 	return decl
 }
 
-// constFormDeclaration recognizes `const x = <expr>` whose declared type is
-// the marker `RunType<T>`. Only single-declarator statements qualify — a
-// multi-declarator statement mixing runtypes with other values has no clean
+// constFormDeclaration recognizes `const x = <expr>` whose declared type is the marker `RunType<T>`.
+// Only single-declarator statements qualify: a mixed multi-declarator statement has no clean
 // replacement span.
 func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) *declaration {
 	variableStatement := statement.AsVariableStatement()
@@ -376,13 +354,10 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, mar
 	if !builders.IsRunType(declaredType, markerOpts) {
 		return nil
 	}
-	// …and the const must actually be BUILT by one of the two authoring forms.
-	// A `RunType`-typed const whose initializer is a user function
-	// (`const Model = objectOf([...])`, hand-assembled graphs in the mocking
-	// suites) is not in any form the converter can round-trip: reprinting it
-	// from its resolved type replaced the whole graph with the type argument's
-	// spelling, and an untyped `RunType` reprinted as an EMPTY schema. Not a
-	// conversion — data loss.
+	// The const must also be BUILT by one of the two authoring forms. One whose initializer is a user
+	// function assembling a graph by hand cannot round-trip: reprinting it from its resolved type
+	// replaces the graph with the type argument's spelling, and an untyped `RunType` reprints as an
+	// EMPTY schema. That is data loss, not conversion.
 	if !isAuthoredRunTypeInitializer(declarator.Initializer, typeChecker, markerOpts) {
 		return nil
 	}
@@ -395,20 +370,13 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, mar
 	}
 }
 
-// isAuthoredRunTypeInitializer reports whether the initializer is the
-// spelling the converter round-trips: a builder / format call from the
-// value-first surface.
+// isAuthoredRunTypeInitializer reports whether the initializer is the spelling the converter
+// round-trips: a builder / format call from the value-first surface. A RunType-typed const is not
+// enough, since a graph assembled by hand from local helpers loses its data when reprinted.
 //
-// A RunType-typed const is NOT enough on its own. The mocking suites assemble
-// RunType graphs by hand from local helpers (`const Model = objectOf([...])`,
-// where objectOf returns a cast object literal), and reprinting one of those
-// from its resolved type threw the graph away — an untyped `RunType` came back
-// as an EMPTY schema. That is data loss, not conversion.
-//
-// The discriminator is that the callee comes from the PACKAGE: `RT.object(…)`
-// is imported, a local helper is not. Module of
-// origin cannot tell them apart here — the suites and src/ share one
-// package.json, so a locally declared helper reports the marker module too.
+// The discriminator is that the callee is IMPORTED from the package, while a local helper is not.
+// Module of origin cannot tell them apart here: the suites and src/ share one package.json, so a
+// locally declared helper reports the marker module too.
 func isAuthoredRunTypeInitializer(initializer *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options) bool {
 	if initializer == nil || initializer.Kind != ast.KindCallExpression {
 		return false
@@ -427,16 +395,16 @@ func isAuthoredRunTypeInitializer(initializer *ast.Node, typeChecker *checker.Ch
 	return nameNode != nil && ast.IsIdentifier(nameNode) && referencedThroughPackageImport(typeChecker, nameNode)
 }
 
-// inferTypeAliasTarget reports whether a type alias is the paired
-// `type N = InferType<typeof constName>` form, returning the const name.
+// inferTypeAliasTarget returns the const name when a type alias is the paired
+// `type N = InferType<typeof constName>` form.
 func inferTypeAliasTarget(statement *ast.Node) (string, bool) {
 	alias := statement.AsTypeAliasDeclaration()
 	if alias == nil || alias.Type == nil || alias.Type.Kind != ast.KindTypeReference {
 		return "", false
 	}
 	reference := alias.Type.AsTypeReferenceNode()
-	// A qualified TypeName (`TF.String`) panics in Node.Text — only a bare
-	// identifier can be the InferType alias head.
+	// A qualified TypeName (`TF.String`) panics in Node.Text, and only a bare identifier can be the
+	// InferType alias head anyway.
 	if reference == nil || reference.TypeName == nil || !ast.IsIdentifier(reference.TypeName) || reference.TypeName.Text() != "InferType" {
 		return "", false
 	}
@@ -459,8 +427,8 @@ func isExported(statement *ast.Node) bool {
 	return ast.GetCombinedModifierFlags(statement)&ast.ModifierFlagsExport != 0
 }
 
-// hasTypeParameters reports whether a type alias / interface declares type
-// parameters (generic declarations have no conversion spelling).
+// hasTypeParameters reports whether a type alias / interface declares type parameters, which have no
+// conversion spelling.
 func hasTypeParameters(statement *ast.Node) bool {
 	switch {
 	case ast.IsTypeAliasDeclaration(statement):
@@ -473,9 +441,8 @@ func hasTypeParameters(statement *ast.Node) bool {
 	return false
 }
 
-// isRunTypeValue reports whether a value's declared type is the marker
-// module's `RunType<T>` — the by-return-type detection every recognition
-// path shares.
+// isRunTypeValue reports whether a value's declared type is the marker module's `RunType<T>`, the
+// by-return-type detection every recognition path shares.
 func isRunTypeValue(tsType *checker.Type, markerOpts marker.Options) bool {
 	return tsType != nil && builders.IsRunType(tsType, markerOpts)
 }

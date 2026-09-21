@@ -1,16 +1,10 @@
-// Package convert is the format-conversion leaf behind the `mion
-// convert` CLI verb: it rewrites the type declarations of a source file
-// between the three authoring forms (type-first, value-first builders, JSON
-// Schema) over the shared reflection RunType graph. All three input forms
-// already normalize to that graph through the checker; this package adds the
-// output half — one printer per target form — plus declaration recognition
-// and the source edits, so conversion can never change a type's structural id
-// (the id oracle in the convert fuzz lane pins that).
-//
-// Coverage spans the reflected type space — atoms, literals, formats,
-// composites, enums/classes/natives, functions, template literals, brand
-// metadata, circulars and multi-file reference sets. A declaration with no exact
-// spelling reports a CNV diagnostic and stays untouched.
+// Package convert is the format-conversion leaf behind the `mion convert` CLI verb: it rewrites a
+// file's type declarations between the type-first and value-first builder forms over the shared
+// reflection RunType graph. Both input forms already normalize to that graph through the checker;
+// this package adds the output half (one printer per target form), declaration recognition and the
+// source edits, so conversion can never change a type's structural id, pinned by the id oracle in
+// the convert fuzz lane. A declaration with no exact spelling reports a CNV diagnostic and stays
+// untouched.
 package convert
 
 import (
@@ -42,8 +36,8 @@ func ParseTarget(raw string) (Target, error) {
 	return "", fmt.Errorf("unknown --to target %q (expected type | builders)", raw)
 }
 
-// Severity of a conversion diagnostic. Errors leave the declaration
-// untouched and make the CLI exit non-zero; Warnings note a normalization.
+// Severity of a conversion diagnostic. An Error leaves the declaration untouched and exits the CLI
+// non-zero; a Warning notes a normalization.
 type Severity int
 
 const (
@@ -51,8 +45,7 @@ const (
 	SeverityWarning Severity = 2
 )
 
-// Diagnostic codes (CNV family). CLI-local for now — catalog + wire
-// registration rides the lint surfacing (see docs/done/format-conversion-*).
+// Diagnostic codes (CNV family), CLI-local: they are not registered in the catalog or on the wire.
 const (
 	CodeUnsupportedKind    = "CNV001"
 	CodeGenericDecl        = "CNV002"
@@ -61,9 +54,8 @@ const (
 	CodeNameCollision      = "CNV005"
 	CodeTemporalNotLoaded  = "CNV007"
 	CodeUnresolvedTypeName = "CNV008"
-	// A drizzle table declaration using constructs with no type spelling
-	// (interpolated sql, $type, non-literal args, out-of-file or backward
-	// references) — see drizzle.go.
+	// CodeDrizzleUnsupported: a drizzle table using constructs with no type spelling (interpolated
+	// sql, $type, non-literal args, out-of-file or backward references), see drizzle.go.
 	CodeDrizzleUnsupported = "CNV009"
 )
 
@@ -81,23 +73,21 @@ type Options struct {
 	Target Target
 }
 
-// FileResult is the outcome of converting one file. Output is the full new
-// source when Changed; Diags carries the per-declaration findings either way.
+// FileResult is the outcome of converting one file: Output is the full new source when Changed, and
+// Diags carries the per-declaration findings either way.
 type FileResult struct {
 	Path    string       `json:"path"`
 	Output  string       `json:"-"`
 	Changed bool         `json:"changed"`
 	Diags   []Diagnostic `json:"diags,omitempty"`
-	// Converted names the declarations this file actually rewrote, so a run can
-	// report what it covered rather than only what it refused.
+	// Converted names the declarations this file rewrote, so a run reports what it covered and not
+	// only what it refused.
 	Converted []string `json:"converted,omitempty"`
 }
 
-// ConvertFile converts every recognized declaration of one source file to
-// opts.Target and returns the rewritten source. Declarations already in the
-// target form are left byte-identical (idempotence); declarations the
-// converter cannot express are reported and left untouched. set is the
-// run-wide conversion context; nil converts the file as a single-file set.
+// ConvertFile converts every recognized declaration of one file to opts.Target. A declaration
+// already in the target form stays byte-identical (idempotence) and one the converter cannot express
+// is reported and left untouched. A nil set converts the file as a single-file set.
 func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string, opts Options, set *Set) (*FileResult, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
@@ -130,10 +120,9 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		if decl.Form == opts.Target {
 			continue
 		}
-		// Drizzle tables convert through their own arm (drizzle.go): the pair
-		// spelling, the sentinel-driven spec and the CNV009 refusals; they
-		// never enter the generic printers, the id oracle or the const-away
-		// fixpoint (the pair keeps the const alive in both directions).
+		// Drizzle tables convert through their own arm (drizzle.go) and never enter the generic
+		// printers, the id oracle or the const-away fixpoint: the pair keeps the const alive in both
+		// directions.
 		if decl.Drizzle {
 			printed, drizzleDiag := convertDrizzleDecl(prog, typeChecker, cache, source, decl, opts, names, drizzleInfo)
 			if drizzleDiag != nil {
@@ -145,23 +134,16 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 			continue
 		}
 		if decl.Generic {
-			// WARNING, not an error: a generic alias has no runtime shape to
-			// convert, so there is nothing here to fail on — the same reason
-			// recognizeFile skips classes and functions outright. Its
-			// INSTANTIATIONS convert wherever they are reflected. Reporting it
-			// as an error made one type-level helper (`type Thunk<T> = () => T`)
-			// fail an entire file, which is how the suites' own harness files
-			// stopped converting.
+			// WARNING, not an error: a generic alias has no runtime shape to convert and its
+			// INSTANTIATIONS convert wherever they are reflected, so one type-level helper would
+			// otherwise fail a whole file.
 			result.Diags = append(result.Diags, Diagnostic{Code: CodeGenericDecl, Severity: SeverityWarning, File: absPath, Decl: decl.Name,
 				Message: fmt.Sprintf("generic declaration %q is left as written (an unbound type parameter has no runtime shape); its instantiations still convert", decl.Name)})
 			continue
 		}
-		// One walk classifies the declaration's written type references into
-		// the silent-any refusal that owns them: a Temporal-lib hit refuses
-		// the declaration outright with the lib-specific message; otherwise
-		// CNV008 — a written type name resolved to the checker's error type
-		// (`any` never written) — refuses it rather than cement `any` /
-		// `RT.any()` into the rewritten source.
+		// One walk classifies the declaration's written type references into the silent-any refusal
+		// that owns them: a Temporal-lib hit gets the lib-specific message, anything else CNV008,
+		// rather than cement an unwritten `any` / `RT.any()` into the rewritten source.
 		temporalDiags, unresolvedDiags := writtenTypeRefDiags(typeChecker, decl, absPath)
 		if len(temporalDiags) > 0 {
 			result.Diags = append(result.Diags, temporalDiags...)
@@ -187,10 +169,9 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		}
 		planned = append(planned, plannedDecl{decl: decl, printed: printed})
 	}
-	// Marker CALL SITES (callsites.go). Planned BEFORE the const-away fixpoint
-	// so their spans join keptSpans: rewriting `fn(namedRT)` into `fn<Named>()`
-	// removes a use of the const, which is exactly what lets the const convert
-	// away instead of refusing with CNV005.
+	// Marker call sites (callsites.go) are planned BEFORE the const-away fixpoint so their spans join
+	// keptSpans: rewriting `fn(namedRT)` into `fn<Named>()` removes a use of the const, which is what
+	// lets the const convert away instead of refusing with CNV005.
 	var plannedCalls []*callSite
 	var callTexts []*printedDecl
 	for _, site := range recognizeCallSites(sourceFile, typeChecker, cache, markerOpts, set, opts.Target) {
@@ -207,12 +188,10 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		callTexts = append(callTexts, printed)
 	}
 
-	// Const-away safety, AFTER printing: converting to type-form removes the
-	// const binding, so every reference the conversion will NOT rewrite must
-	// keep it — and only the declarations that actually PRINTED get rewritten
-	// (a skipped or refused declaration keeps its original span, references
-	// included). Dropping one const can re-expose uses inside its own kept
-	// span, so filter to a fixpoint.
+	// Const-away safety runs AFTER printing: converting to type-form removes the const binding, so
+	// any reference the conversion will NOT rewrite has to keep it, and only the declarations that
+	// PRINTED are rewritten. Dropping one const can re-expose uses inside its own kept span, hence
+	// the fixpoint.
 	if opts.Target == TargetType {
 		for {
 			var keptSpans [][2]int
@@ -249,16 +228,14 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		needs.merge(callTexts[index].needs)
 		replacements = append(replacements, replacement{start: site.start, end: site.end, text: callTexts[index].text})
 	}
-	// Drizzle pairs: the main statement span gets the whole pair text; the
-	// paired half's statement (typeof alias / tableFromType const) is removed
-	// in BOTH directions, since the pair text re-emits it in canonical order.
+	// Drizzle pairs: the main statement span takes the whole pair text, and the paired half's
+	// statement is removed in BOTH directions because the pair text re-emits it in canonical order.
 	for _, plan := range drizzlePlans {
 		needs.merge(plan.printed.needs)
 		result.Converted = append(result.Converted, declLabel(plan.decl))
 		start := tokenStart(source, plan.decl.Stmt.Pos())
-		// A table declared inside a test body sits under its block's
-		// indentation; the printers emit the pair flush left, so re-indent the
-		// continuation lines to where the statement they replace started.
+		// The printers emit the pair flush left, so a table inside a block needs its continuation
+		// lines re-indented to where the statement it replaces started.
 		replacements = append(replacements, replacement{start: start, end: plan.decl.Stmt.End(), text: indentAfterFirstLine(plan.printed.text, lineIndentAt(source, start))})
 		if plan.decl.AliasStmt != nil {
 			aliasStart, aliasEnd := wholeLineSpan(source, plan.decl.AliasStmt)
@@ -270,9 +247,8 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		needs.merge(plan.printed.needs)
 		result.Converted = append(result.Converted, declLabel(decl))
 		replacements = append(replacements, replacement{start: tokenStart(source, decl.Stmt.Pos()), end: decl.Stmt.End(), text: plan.printed.text})
-		// Converting a const form to type-form replaces the const with a plain
-		// `type Name = …;`, so its InferType alias (now self-referential noise)
-		// is dropped; const → const conversions keep the existing alias as-is.
+		// A const converted to type-form leaves its InferType alias self-referential, so it is
+		// dropped; const → const conversions keep the alias as-is.
 		if opts.Target == TargetType && decl.AliasStmt != nil {
 			aliasStart, aliasEnd := wholeLineSpan(source, decl.AliasStmt)
 			replacements = append(replacements, replacement{start: aliasStart, end: aliasEnd, text: ""})
@@ -283,9 +259,8 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 
 	removable := fileCtx.bindings.removableLocals(set)
-	// The dialect packages are not in the conversion SET (they are a
-	// dependency, not a converted file), so their bindings need marking here or
-	// a builders import would survive a file that no longer calls it.
+	// The dialect packages are a dependency, not part of the conversion SET, so their bindings are
+	// marked here or a builders import would survive a file that no longer calls it.
 	for local := range drizzleInfo.spellings.removableLocals() {
 		removable[local] = true
 	}
@@ -302,16 +277,12 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	return result, nil
 }
 
-// constUsedBeyondConversions reports whether the const's identifier is
-// referenced anywhere the conversion will NOT rewrite — across the whole
-// program, so an in-set sibling file's marker call site
-// (`createValidateFn(userRT)`) keeps the const too. For the CURRENT file the
-// rewritten spans are exactly the declarations that PRINTED successfully
-// (currentFileSpans); for OTHER in-set files the run optimistically counts
-// their convertible candidate declarations (each file's own conversion
-// applies the same safety check to itself). The use positions come from the
-// set's program-wide index (set.constUseIndex — built once per run), so the
-// fixpoint iterations only re-filter positions against spans.
+// constUsedBeyondConversions reports whether the const is referenced anywhere the conversion will
+// NOT rewrite, across the whole program, so an in-set sibling file's marker call site keeps the
+// const too. For the CURRENT file the rewritten spans are the declarations that PRINTED; for OTHER
+// in-set files the run optimistically counts their candidate declarations, each file applying the
+// same check to itself. Use positions come from set.constUseIndex, built once per run, so the
+// fixpoint only re-filters positions against spans.
 func constUsedBeyondConversions(set *Set, decl *declaration, currentFile string, target Target, currentFileSpans [][2]int) bool {
 	if decl.ConstName == "" {
 		return false
@@ -346,10 +317,9 @@ func constUsedBeyondConversions(set *Set, decl *declaration, currentFile string,
 	return false
 }
 
-// DeclarationIDs resolves every recognized (non-generic) declaration of a
-// file and returns its structural id keyed by declaration name — the type
-// name when present, else the const name. This is the id-preservation
-// oracle's read side: conversion must never move any of these ids.
+// DeclarationIDs returns every recognized non-generic declaration's structural id, keyed by type
+// name when present, else const name. The id-preservation oracle's read side: conversion must never
+// move any of these ids.
 func DeclarationIDs(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string) (map[string]string, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
@@ -357,9 +327,8 @@ func DeclarationIDs(prog *program.Program, typeChecker *checker.Checker, cache *
 	}
 	ids := map[string]string{}
 	for _, decl := range recognizeFile(sourceFile, typeChecker, markerOpts) {
-		// A drizzle table's declared-type id MOVES with the authoring road by
-		// design (the invariant is the MODEL ids, pinned by the JS lanes), so
-		// tables are exempt from this oracle.
+		// A drizzle table's declared-type id MOVES with the authoring road by design (the invariant
+		// is the MODEL ids, pinned by the JS lanes), so tables are exempt from this oracle.
 		if decl.Generic || decl.Drizzle {
 			continue
 		}
@@ -383,9 +352,8 @@ type replacement struct {
 func applyReplacements(source string, replacements []replacement) (string, error) {
 	sorted := make([]replacement, len(replacements))
 	copy(sorted, replacements)
-	// Zero-width insertions sort BEFORE a replacement starting at the same
-	// offset (an import block prepended at a declaration's exact start), and
-	// the sort is stable so equal edits keep their plan order.
+	// A zero-width insertion sorts BEFORE a replacement starting at the same offset (an import block
+	// prepended at a declaration's start), and the stable sort keeps equal edits in plan order.
 	sort.SliceStable(sorted, func(a, b int) bool {
 		if sorted[a].start != sorted[b].start {
 			return sorted[a].start < sorted[b].start
@@ -406,9 +374,8 @@ func applyReplacements(source string, replacements []replacement) (string, error
 	return out.String(), nil
 }
 
-// tokenStart returns the byte offset of the first non-trivia character at or
-// after pos — the declaration's real start, leaving leading JSDoc/comments
-// outside the replaced span so they survive conversion.
+// tokenStart returns the byte offset of the first non-trivia character at or after pos, leaving
+// leading JSDoc / comments outside the replaced span so they survive conversion.
 func tokenStart(source string, pos int) int {
 	return tsimports.TokenStart(source, pos)
 }

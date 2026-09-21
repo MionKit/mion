@@ -2,30 +2,16 @@ package diagnostics
 
 import "fmt"
 
-// downgrade.go is the `downgradeErrors` rule: report a named RuntimeError code
-// as a Warning instead, so one known finding stops halting a build while every
-// other one still does.
-//
-// It DOWNGRADES, it never hides. The finding is still printed on every build,
-// which is the difference between "unblock me" and "make this problem
-// invisible", and the reason it is preferred over an ignore list. Compare
-// `@mion-expect-error`, which removes a finding outright but is site-local and
-// self-cleaning.
-//
-// What may be downgraded follows the LEVEL: a LevelRuntimeError can, because
-// output was produced and reporting it while carrying on is a legitimate choice.
-// A LevelError never can, because there is no output to carry on with.
-//
-// Severity on the wire stays whatever the catalog says. Severity is the label
-// form (see the Severity doc) and what acts on a finding is the consumer, so the
-// downgrade is applied by the consumers that decide whether to halt: the bundler
-// plugin, and `mion compile` for its exit code.
+// downgrade.go is the `downgradeErrors` rule: report a named RuntimeError code as a Warning, so one
+// known finding stops halting a build while every other one still does. It DOWNGRADES and never
+// hides, which is why it is preferred over an ignore list; `@mion-expect-error` removes a finding
+// outright but is site-local and self-cleaning. What may be downgraded follows the LEVEL: a
+// LevelRuntimeError can, a LevelError never can, having no output to carry on with. Severity on the
+// wire stays whatever the catalog says, so the downgrade is applied by the consumers that decide
+// whether to halt: the bundler plugin, and `mion compile` for its exit code.
 
-// DowngradeAll is the wildcard shape of `downgradeErrors`: every RuntimeError
-// code is reported as a Warning. It is the blunt instrument, kept for adoption,
-// where a project turning mion on cannot yet list the codes it has not met.
-// Naming codes is what a project should reach for once it knows them. It never
-// reaches a LevelError.
+// DowngradeAll reports every RuntimeError code as a Warning, and never reaches a LevelError. Kept
+// for adoption: a project turning mion on cannot yet list the codes it has not met.
 const DowngradeAll = "*"
 
 // DowngradeSet is a resolved `downgradeErrors` value: either the wildcard or an
@@ -36,15 +22,10 @@ type DowngradeSet struct {
 	codes map[string]bool
 }
 
-// ResolveDowngrade validates a configured value and resolves it into a set.
-//
-// `["*"]` is accepted as the wildcard too, so the tsconfig spelling and the
-// plugin spelling agree. An unknown code is an error, because a typo would
-// otherwise read as a working downgrade that protects nothing. A LevelError code
-// is an error, because those halt regardless (see Suppressible): with no output
-// produced there is nothing to accept. A LevelWarning code is accepted and
-// simply does nothing: a code's level may soften between releases, and that must
-// never break a consumer's build.
+// ResolveDowngrade validates a configured value and resolves it into a set. `["*"]` is the wildcard
+// too, so the tsconfig and plugin spellings agree. An unknown code errors, since a typo would read
+// as a working downgrade; a LevelError code errors, having no output to accept. A LevelWarning code
+// is accepted and does nothing: a level may soften between releases and must not break a build.
 func ResolveDowngrade(values []string) (DowngradeSet, error) {
 	set := DowngradeSet{}
 	for _, value := range values {
@@ -68,11 +49,10 @@ func ResolveDowngrade(values []string) (DowngradeSet, error) {
 	return set, nil
 }
 
-// Downgraded reports whether this diagnostic should be treated as a Warning.
-// Only a LevelRuntimeError is ever downgraded: a LevelError has no output to
-// accept and a LevelWarning is already one. The level is read off the WIRE, the
-// field the catalog stamped on the diagnostic, so a code this build's catalog
-// does not know still answers honestly.
+// Downgraded reports whether this diagnostic should be treated as a Warning. Only a
+// LevelRuntimeError is ever downgraded: a LevelError has no output to accept, a LevelWarning is
+// already one. The level is read off the WIRE, so a code this build's catalog does not know still
+// answers correctly.
 func (set DowngradeSet) Downgraded(diagnostic Diagnostic) bool {
 	if diagnostic.Level != LevelRuntimeError {
 		return false
@@ -80,9 +60,8 @@ func (set DowngradeSet) Downgraded(diagnostic Diagnostic) bool {
 	return set.all || set.codes[diagnostic.Code]
 }
 
-// All reports whether the set is the wildcard. Consumers that gate on
-// something other than a diagnostic — the enrichment build gate also halts on
-// stale mirror FILES, which carry no code — read this.
+// All reports whether the set is the wildcard, for a consumer gating on something that carries no
+// code (the enrichment build gate also halts on stale mirror FILES).
 func (set DowngradeSet) All() bool {
 	return set.all
 }
@@ -92,8 +71,7 @@ func (set DowngradeSet) Empty() bool {
 	return !set.all && len(set.codes) == 0
 }
 
-// DowngradedNote marks a finding that a `downgradeErrors` setting lowered, so
-// it never reads as a warning that was always a warning. Both consumers print
-// it: `mion compile` after FormatDebug, the bundler plugin inside the tsc-shaped
-// line (after the message, so the `$tsc` problem matcher still parses it).
+// DowngradedNote marks a finding `downgradeErrors` lowered, so it never reads as a warning that
+// always was one. `mion compile` prints it after FormatDebug; the bundler plugin puts it after the
+// message, where the `$tsc` problem matcher still parses the line.
 const DowngradedNote = "(downgraded)"

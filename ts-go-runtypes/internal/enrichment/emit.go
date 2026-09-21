@@ -7,9 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// FriendlySkeleton renders ONLY the FriendlyText object-literal skeleton for rt
-// (no `export const … =` wrapper, no trailing `;`) — the value the batch/stdout
-// `gen` mode returns so the test harness compares against a case's initializer.
+// FriendlySkeleton renders ONLY the FriendlyText object literal for rt, with no `export const` wrapper and no trailing `;`.
 func FriendlySkeleton(rt *reflection.RunType, resolve func(id string) *reflection.RunType) string {
 	var b strings.Builder
 	emitFriendlyNode(&b, newWalkCtx(resolve), rt, 0)
@@ -29,10 +27,7 @@ func emitFriendlyNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, 
 		b.WriteString(ctx.bareMeta())
 		return
 	}
-	// Named-type-closure interception (EmitClosure only): a child that is another
-	// named type becomes a const-var reference, or a leaf for an in-progress
-	// back-edge — never an inlined body. The current const's own body returns
-	// namedRefInline so it walks normally.
+	// EmitClosure only: another named type becomes a const-var reference, or a leaf for an in-progress back-edge, never a body.
 	if ctx.namedRef != nil {
 		switch action := ctx.namedRef(rt); action.kind {
 		case namedRefReference:
@@ -43,14 +38,10 @@ func emitFriendlyNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, 
 			return
 		}
 	}
-	// Structural composite kinds (solution A) — emitted BEFORE the object/leaf
-	// arms (most-specific first). Map/Set are KindClass without property
-	// children, so they must be caught here ahead of isObjectLike (false for
-	// them anyway) and the leaf fallthrough.
+	// Structural composites come BEFORE the object / leaf arms: a Map or Set is a KindClass with no property child.
 	if rt.Kind == reflection.KindTuple {
 		ctx.seen[rt] = true
-		// A variadic tuple (`[A, ...B[]]`) has a broad `length`, so the Phase-A
-		// type treats it as an ARRAY (`rt$items`); a fixed tuple gets `rt$slots`.
+		// A variadic tuple has a broad `length`, so the mapped type treats it as an ARRAY; a fixed tuple gets `rt$slots`.
 		if isVariadicTuple(ctx, rt) {
 			b.WriteString("{" + ctx.bareMeta()[1:len(ctx.bareMeta())-1] + ", rt$items: " + ctx.bareMeta() + "}")
 		} else {
@@ -111,10 +102,8 @@ func emitFriendlyNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, 
 	b.WriteString(ctx.bareMeta())
 }
 
-// writeErrorLeafSkeleton emits one `rt$errors` constraint's blank template leaf:
-// a plural OBJECT (one blank arm per source-locale CLDR category) for a
-// count-bearing constraint, a plain blank string otherwise. Generator-owned
-// plurals: the author only ever fills string leaves, never builds the shape.
+// writeErrorLeafSkeleton emits one constraint's blank template leaf: a plural object when count-bearing, else a blank string.
+// Plurals are generator-owned, so the author only ever fills string leaves and never builds the shape.
 func writeErrorLeafSkeleton(b *strings.Builder, ctx *walkCtx, key string) {
 	if !CountBearing(key) {
 		b.WriteString("''")
@@ -160,9 +149,7 @@ func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, dept
 		b.WriteString("{pool: []}")
 		return
 	}
-	// Named-type-closure interception (EmitClosure only): a child that is another
-	// named type becomes a const-var reference, or a leaf for an in-progress
-	// back-edge. The mock broken-cycle leaf is `{}` (matches docs).
+	// EmitClosure only: another named type becomes a const-var reference, or a leaf for an in-progress back-edge.
 	if ctx.namedRef != nil {
 		switch action := ctx.namedRef(rt); action.kind {
 		case namedRefReference:
@@ -173,14 +160,10 @@ func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, dept
 			return
 		}
 	}
-	// Structural composite kinds (solution A) — emitted BEFORE the object/leaf
-	// arms. Tuples get a fixed-length `rt$slots` (no `rt$length`); Map/Set get
-	// `rt$keys`/`rt$values` (the optional `rt$size` is left for the author to add).
+	// Structural composites come BEFORE the object / leaf arms; the optional `rt$size` on a Map or Set is left for the author.
 	if rt.Kind == reflection.KindTuple {
 		ctx.seen[rt] = true
-		// A variadic tuple (`[A, ...B[]]`) has a broad `length`, so the Phase-A
-		// type treats it as an ARRAY (`rt$items`/`rt$length`); a fixed tuple gets
-		// the fixed-length `rt$slots`.
+		// A variadic tuple has a broad `length`, so the mapped type treats it as an ARRAY; a fixed tuple gets `rt$slots`.
 		if isVariadicTuple(ctx, rt) {
 			b.WriteString("{rt$items: {pool: []}, rt$length: [1, 3]}")
 		} else {
@@ -249,8 +232,7 @@ func emitMockObject(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, de
 	b.WriteString("}")
 }
 
-// propKey renders a property's object-literal key: a bare identifier when the
-// name is dot-access safe, else single-quoted.
+// propKey renders a property key bare when the name is dot-access safe, else single-quoted.
 func propKey(prop *reflection.RunType) string {
 	if prop.IsSafeName {
 		return prop.Name

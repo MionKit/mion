@@ -7,18 +7,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// NamedConst is one emitted `export const friendly<Name> / mock<Name>` of a
-// named-type closure. Friendly and Mock are the rendered object-literal bodies
-// (no `export const … =` wrapper); the CLI wraps them with the const + type
-// annotation. Order in a []NamedConst slice is dependency (topological) order —
-// a type's const follows every named type it references.
+// NamedConst is one emitted `export const friendly<Name> / mock<Name>` of a named-type closure, its bodies unwrapped.
+// A []NamedConst is in dependency order: a type's const follows every named type it references.
 type NamedConst struct {
 	// TypeName is the source type name, e.g. "User".
 	TypeName string
-	// DeclFile is the absolute path of the source file the type is DECLARED in
-	// (followed through re-exports to the original). Empty when it could not be
-	// resolved — callers fall back to the root file. Drives the cross-file mirror
-	// split + import emission (see docs/AI_ENRICHMENT.md → Named-type-driven emission).
+	// DeclFile is the file the type is DECLARED in, followed through re-exports; empty means the caller falls back to the root.
+	// It drives the cross-file mirror split and import emission (see docs/AI_ENRICHMENT.md).
 	DeclFile string
 	// FriendlyVar / MockVar are the const identifiers, e.g. "friendlyUser".
 	FriendlyVar string
@@ -26,14 +21,10 @@ type NamedConst struct {
 	// Friendly / Mock are the rendered object-literal bodies.
 	Friendly string
 	Mock     string
-	// TypeID is this named type's structural id (RunType.ID) — the `@rtType` id
-	// the reconcile (gen --update) matches existing↔desired consts by, so a
-	// positional var-name swap (friendlyBox vs friendlyBox2) never mis-pairs.
+	// TypeID is the `@rtType` id reconcile matches existing against desired consts by, so a var-name swap never mis-pairs.
 	TypeID string
-	// ChildIDs maps a dotted field path (e.g. "address.street") to that child
-	// type's structural id — the `@rtIds` map the reconcile uses to recover a
-	// primitive/inline field's identity for rename matching. Empty when the type
-	// has no walkable children.
+	// ChildIDs is the `@rtIds` map, a dotted field path to that child's structural id, which recovers an inline field's
+	// identity for rename matching. Empty when the type has no walkable children.
 	ChildIDs map[string]string
 }
 
@@ -41,27 +32,18 @@ type NamedConst struct {
 type ClosureOptions struct {
 	// TypeName is the root named type, e.g. "User".
 	TypeName string
-	// Resolve looks up a KindRef sentinel's canonical node by id (cache.NodeByID);
-	// REQUIRED — the closure walk follows refs to detect named-type targets.
+	// Resolve looks up a KindRef sentinel by id; REQUIRED, the closure walk follows refs to detect named-type targets.
 	Resolve func(id string) *reflection.RunType
-	// DeclFiles maps a named type's RunType.ID to the absolute path of its
-	// declaration source file. Optional: when nil (or a type is absent) the
-	// emitted NamedConst's DeclFile is left empty and the caller falls back to the
-	// root file. Built by the bridge from the checker symbol declarations.
+	// DeclFiles maps a named type's ID to its declaration file, built by the bridge from the checker symbol declarations.
+	// Optional: a missing entry leaves NamedConst.DeclFile empty and the caller falls back to the root file.
 	DeclFiles map[string]string
-	// FriendlyErrors picks the `rt$errors` mode new nodes scaffold (tsconfig
-	// `friendlyErrors`): "" / "perConstraint" → one key per failable format
-	// param; "default" → the exclusive `{rt$default: ''}` catch-all.
+	// FriendlyErrors is the tsconfig `friendlyErrors` mode; nothing reads it, a scaffold is always one key per failable param.
 	FriendlyErrors string
-	// SourceLocale is the language the FriendlyText source maps are authored in
-	// (tsconfig `i18n.sourceLocale`); it selects the CLDR arm set count-bearing
-	// `rt$errors` constraints scaffold. Empty means the default ('en').
+	// SourceLocale selects the CLDR arm set a count-bearing constraint scaffolds; empty means the default 'en'.
 	SourceLocale string
 }
 
-// emitState tracks a named type through the closure emit: unvisited → inProgress
-// (its body is being emitted; a back-edge here breaks the cycle) → done (its
-// const is emitted; a reference here is safe — declared before use).
+// emitState tracks a named type: a back-edge onto inProgress breaks the cycle, a reference to done is declared-before-use.
 type emitState int
 
 const (
@@ -70,10 +52,7 @@ const (
 	stateDone
 )
 
-// closureEmitter drives the named-type-closure walk: emit every named type
-// reachable from the root in dependency (topological) order, with each named-typed
-// child rendered as a const-var reference (or a broken-cycle leaf for a back-edge)
-// instead of an inlined body.
+// closureEmitter emits every named type reachable from the root in dependency order, each named child a const-var reference.
 type closureEmitter struct {
 	resolve        func(id string) *reflection.RunType
 	declFiles      map[string]string    // ID → absolute declaration source file (optional)
@@ -82,21 +61,12 @@ type closureEmitter struct {
 	names          map[string]string    // ID → sanitized base name (e.g. "User"), unique
 	usedVar        map[string]bool      // taken sanitized base names, for disambiguation
 	sourceLocale   string
-	friendlyErrors string // plural-arm locale for friendly scaffolds
+	friendlyErrors string // never set nor read; the plural-arm locale is sourceLocale
 }
 
-// EmitClosure walks the named-type closure rooted at a NAMED type and emits one
-// NamedConst per reachable named type, in dependency (topological) order. A field
-// whose type is another NAMED type is emitted as a reference to that type's const
-// var (friendly<Name> / mock<Name>); anonymous/inline shapes are inlined into the
-// parent const via the existing emitFriendlyNode/emitMockNode arms. Cycles break
-// at the back-edge: a reference to an in-progress named type becomes a leaf node
-// (friendly `{rt$label: ”}`, mock `{}`), never a const reference, so the emitted
-// const graph never hits a TDZ self-reference.
-//
-// A named root whose fields are all anonymous yields exactly ONE NamedConst whose
-// bodies equal FriendlySkeleton/MockSkeleton's — the single-const path is the
-// degenerate case.
+// EmitClosure emits one NamedConst per named type reachable from root, in dependency order, anonymous shapes inlined.
+// A cycle breaks at the back-edge into a leaf, never a const reference, so the const graph hits no TDZ self-reference.
+// A named root with only anonymous fields yields exactly ONE NamedConst, the degenerate single-const case.
 func EmitClosure(root *reflection.RunType, opts ClosureOptions) []NamedConst {
 	if root == nil {
 		return nil
@@ -109,8 +79,7 @@ func EmitClosure(root *reflection.RunType, opts ClosureOptions) []NamedConst {
 		usedVar:      map[string]bool{},
 		sourceLocale: opts.SourceLocale,
 	}
-	// Seed the root's display name so its const uses the caller-supplied TypeName
-	// even if the projected node's TypeName differs (re-export aliases etc.).
+	// Seed the root's display name, so a projected TypeName differing through a re-export alias does not rename the const.
 	rootName := opts.TypeName
 	if rootName == "" {
 		rootName = root.TypeName
@@ -122,9 +91,7 @@ func EmitClosure(root *reflection.RunType, opts ClosureOptions) []NamedConst {
 	return emitter.consts
 }
 
-// emitNamed emits the const for one named type (if not already emitted), having
-// first emitted every named type it references. Returns the type's base name (the
-// `<Name>` in friendly<Name> / mock<Name>).
+// emitNamed emits one named type's const, every named type it references first, and returns its `<Name>` base name.
 func (emitter *closureEmitter) emitNamed(named *reflection.RunType, displayName string) string {
 	id := named.ID
 	baseName := emitter.baseNameFor(id, displayName)
@@ -155,23 +122,15 @@ func (emitter *closureEmitter) emitNamed(named *reflection.RunType, displayName 
 	return baseName
 }
 
-// renderBody walks the body of one named type with the existing emit arms, but
-// installs the namedRef hook so a named-typed CHILD becomes a const reference (or
-// a broken-cycle leaf) rather than an inlined body. self is the named node whose
-// body we are emitting — it must walk inline (otherwise the body would be a
-// reference to itself).
+// renderBody walks one named type's body with the namedRef hook installed, so a named CHILD becomes a const reference.
+// self is the node being emitted and must walk inline, or the body would be a reference to itself.
 func (emitter *closureEmitter) renderBody(self *reflection.RunType, friendly bool) string {
 	ctx := newWalkCtx(emitter.resolve)
 	ctx.setSourceLocale(emitter.sourceLocale)
-	// The body's ROOT node (self, first encounter) must walk inline — otherwise the
-	// const body would be a reference to itself. enteredBody flips on that first
-	// encounter; a LATER encounter of self is a genuine back-edge (e.g. a
-	// self-recursive `next: Node`) and breaks the cycle to a leaf.
+	// A LATER encounter of self is a genuine back-edge, a self-recursive `next: Node`, and breaks the cycle to a leaf.
 	enteredBody := false
 	ctx.namedRef = func(rt *reflection.RunType) namedRefAction {
-		// rt is already deref'd by the caller (emitFriendlyNode/emitMockNode call
-		// deref before the hook). Compare by ID, not pointer — a back-edge resolves
-		// through NodeByID and the root may be a distinct SerializeTopLevel pointer.
+		// rt is already deref'd by the caller; compare by ID, since the root may be a distinct SerializeTopLevel pointer.
 		if isSelf(rt, self) {
 			if !enteredBody {
 				enteredBody = true
@@ -192,8 +151,7 @@ func (emitter *closureEmitter) renderBody(self *reflection.RunType, friendly boo
 			}
 			return namedRefAction{kind: namedRefReference, varName: prefix + emitter.baseNameFor(rt.ID, rt.TypeName)}
 		default:
-			// Not yet emitted: emit it first (recursively, with its own friendly +
-			// mock consts) so the reference is declared-before-use, then reference.
+			// Emit it first, so the reference is declared-before-use.
 			baseName := emitter.emitNamed(rt, rt.TypeName)
 			prefix := "mock"
 			if friendly {
@@ -211,24 +169,13 @@ func (emitter *closureEmitter) renderBody(self *reflection.RunType, friendly boo
 	return b.String()
 }
 
-// childIDsOf computes the `@rtIds` map for one named type: a dotted-field-path
-// → child-type structural-id entry for every property the const's body owns, at
-// every depth. It descends through INLINE objects/arrays/tuples/maps (whose
-// shapes live in this const's body) but STOPS at a named-type reference (it
-// records the reference's id at its path, but the named type owns its own const
-// + its own @rtIds, so we don't recurse into it). Returns nil when there are no
-// entries (so an emitter with no walkable children omits the marker).
-//
-// self walks inline (it is the body being emitted); a later encounter of self
-// is a back-edge — recorded as a leaf id, not recursed (matches renderBody).
+// childIDsOf computes the `@rtIds` map: every property the const's body owns, at every depth, by dotted path.
+// It descends through inline shapes but STOPS at a named-type reference, which owns its own const and its own @rtIds.
+// Nil with no entries, so a const with no walkable child omits the marker.
 func (emitter *closureEmitter) childIDsOf(self *reflection.RunType) map[string]string {
 	out := map[string]string{}
 	ctx := newWalkCtx(emitter.resolve)
-	// The closure walks the RAW graph, where a parent's Children/Arguments ride as
-	// ref sentinels. propertyChildren / tupleSlots / argumentChild only deref those
-	// when ctx.namedRef is set, so install a no-op inline hook to enable dereffing
-	// (we never actually want a reference action here — this walk records ids, it
-	// does not emit bodies).
+	// The RAW graph's children are ref sentinels, and the accessors only deref when namedRef is set, hence this no-op hook.
 	ctx.namedRef = func(rt *reflection.RunType) namedRefAction { return namedRefAction{kind: namedRefInline} }
 	emitter.collectChildIDs(out, ctx, self, "", true, 0)
 	if len(out) == 0 {
@@ -237,27 +184,19 @@ func (emitter *closureEmitter) childIDsOf(self *reflection.RunType) map[string]s
 	return out
 }
 
-// collectChildIDs is the recursive worker for childIDsOf. isSelfBody is true on
-// the first (root) node so it always descends; a nested encounter of self is a
-// broken back-edge (recorded, not recursed).
+// collectChildIDs is childIDsOf's worker; isSelfBody is true on the root so it always descends, unlike a nested back-edge.
 func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkCtx, rt *reflection.RunType, path string, isSelfBody bool, depth int) {
 	rt = ctx.deref(rt)
 	if rt == nil || depth > maxWalkDepth {
 		return
 	}
-	// Stop at a named-type node below the root: it owns its own const + @rtIds (a
-	// self back-edge stops here too — it is named). The caller already recorded
-	// its id at this path. isSelfBody is true only for this const's own root, so
-	// the root always descends.
+	// A named node below the root owns its own const and @rtIds, and the caller already recorded its id at this path.
 	if !isSelfBody && rt.TypeName != "" {
 		return
 	}
 
-	// No union arm, on purpose: the FriendlyText / MockData DSL has no key
-	// for a union member (packages/run-types/src/enrich/friendlyText.ts,
-	// object-member unions are out of scope), so a union records its own id
-	// at this path and nothing below it. The mirror emitter stops at the same
-	// place; adding a key here would record ids no mirror can name.
+	// No union arm on purpose: the DSL has no key for a union member (packages/run-types/src/enrich/friendlyText.ts),
+	// so a union records its own id and nothing below it; a key here would record ids no mirror can name.
 	switch {
 	case rt.Kind == reflection.KindTuple:
 		for i, slot := range tupleSlots(ctx, rt) {
@@ -280,8 +219,7 @@ func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkC
 	}
 }
 
-// recordChild records childPath → childType.ID, then recurses into it (the
-// recursion itself stops at a named-type child via collectChildIDs's guard).
+// recordChild records childPath against the child's ID, then recurses; collectChildIDs stops the recursion at a named child.
 func (emitter *closureEmitter) recordChild(out map[string]string, ctx *walkCtx, childType *reflection.RunType, childPath string, depth int) {
 	resolved := ctx.deref(childType)
 	if resolved == nil {
@@ -293,7 +231,7 @@ func (emitter *closureEmitter) recordChild(out map[string]string, ctx *walkCtx, 
 	emitter.collectChildIDs(out, ctx, resolved, childPath, false, depth+1)
 }
 
-// joinChildPath appends a segment to a dotted child path (root path is "").
+// joinChildPath appends a segment to a dotted child path, the root path being "".
 func joinChildPath(path, segment string) string {
 	if path == "" {
 		return segment
@@ -301,8 +239,7 @@ func joinChildPath(path, segment string) string {
 	return path + "." + segment
 }
 
-// isSelf reports whether rt is the named type whose body is currently being
-// emitted: same pointer, or (the robust case) same non-empty structural ID.
+// isSelf reports whether rt is the type whose body is being emitted: same pointer, or the same non-empty structural ID.
 func isSelf(rt, self *reflection.RunType) bool {
 	if rt == self {
 		return true
@@ -317,8 +254,7 @@ func (emitter *closureEmitter) stateOf(id string) emitState {
 	return emitter.state[id]
 }
 
-// baseNameFor returns the (memoized, disambiguated) base name for a named type's
-// id, assigning one from displayName on first sight.
+// baseNameFor returns the memoized, disambiguated base name for an id, assigning one from displayName on first sight.
 func (emitter *closureEmitter) baseNameFor(id, displayName string) string {
 	if id != "" {
 		if name, ok := emitter.names[id]; ok {
@@ -332,9 +268,7 @@ func (emitter *closureEmitter) baseNameFor(id, displayName string) string {
 	return name
 }
 
-// uniqueName disambiguates a base name against the names already handed out so
-// two distinct named types (e.g. generic instantiations sharing a TypeName)
-// don't collide on the same const identifier.
+// uniqueName disambiguates against the names already handed out, so two generic instantiations sharing a TypeName differ.
 func (emitter *closureEmitter) uniqueName(name string) string {
 	if name == "" {
 		name = "Type"
@@ -347,9 +281,7 @@ func (emitter *closureEmitter) uniqueName(name string) string {
 	return candidate
 }
 
-// sanitizeIdent turns a type name into a valid JS identifier fragment suitable for
-// `friendly<Name>` / `mock<Name>`: keep ASCII letters/digits/`_`/`$`, drop the
-// rest, upper-case the first rune so the concatenation reads as camelCase.
+// sanitizeIdent turns a type name into a JS identifier fragment, upper-cased first so `friendly<Name>` reads as camelCase.
 func sanitizeIdent(name string) string {
 	var b strings.Builder
 	for _, r := range name {
@@ -371,7 +303,7 @@ func sanitizeIdent(name string) string {
 	return string(runes)
 }
 
-// itoa is a tiny base-10 formatter (avoids pulling strconv for a 1-3 digit suffix).
+// itoa is a tiny base-10 formatter, avoiding strconv for a 1-3 digit suffix.
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

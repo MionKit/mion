@@ -5,30 +5,16 @@ import (
 	"sort"
 )
 
-// spliceOp is one byte-range edit against the ORIGINAL file bytes:
-//
-//   - replace: start < end, text non-empty — swap raw[start:end] for text.
-//   - delete:  start < end, text empty     — drop raw[start:end].
-//   - insert:  start == end                — insert text at the offset.
-//
-// Offsets are raw byte offsets into the original bytes (AST Pos/End are byte
-// offsets), so no char/byte conversion is needed.
+// spliceOp is one edit against the ORIGINAL file bytes: replace or delete when start < end, insert when start == end.
+// Offsets are raw byte offsets, as AST Pos/End are, so no char/byte conversion is needed.
 type spliceOp struct {
 	start int
 	end   int
 	text  string
 }
 
-// applySplices applies ops to raw and returns the rewritten bytes. Ops are
-// sorted strictly DESCENDING by start (tie-break: descending end) and applied
-// back-to-front so each op's offsets stay valid against the still-untouched
-// prefix — every op indexes the ORIGINAL bytes. Touching ranges (one op's end ==
-// the next's start) are NEVER merged; they apply independently. It errors on any
-// pair of OVERLAPPING ranges (a later op's start strictly inside an earlier op's
-// [start,end)) — that signals an emit bug, not a recoverable case.
-//
-// An empty op list returns raw unchanged (the caller detects the no-op by
-// comparing bytes).
+// applySplices returns raw rewritten by ops, every op indexing the ORIGINAL bytes; an empty list returns raw unchanged.
+// Touching ranges are never merged, they apply independently, and an OVERLAPPING pair errors: it signals an emit bug.
 func applySplices(raw []byte, ops []spliceOp) ([]byte, error) {
 	if len(ops) == 0 {
 		return raw, nil
@@ -42,7 +28,7 @@ func applySplices(raw []byte, ops []spliceOp) ([]byte, error) {
 		return sorted[left].end > sorted[right].end
 	})
 
-	// Overlap guard: error on any overlapping pair (touching ranges are fine).
+	// Touching ranges are fine, only an overlap is an error.
 	if lower, upper, overlap := findSpliceOverlap(sorted); overlap {
 		return nil, fmt.Errorf("mion enrich --update: overlapping splice ops [%d,%d) and [%d,%d) — internal error (all ops: %s)",
 			lower.start, lower.end, upper.start, upper.end, describeSpliceOps(ops))
@@ -54,9 +40,7 @@ func applySplices(raw []byte, ops []spliceOp) ([]byte, error) {
 		}
 	}
 
-	// Assemble ascending: with the ops validated non-overlapping, reverse the
-	// descending list to ascending and stitch raw[prev:op.start] + op.text,
-	// advancing prev to op.end. Each op still indexes the ORIGINAL bytes.
+	// Assemble ascending, which is valid because the ops are non-overlapping and each still indexes the ORIGINAL bytes.
 	out := make([]byte, 0, len(raw))
 	prev := 0
 	for i := len(sorted) - 1; i >= 0; i-- {
@@ -69,10 +53,7 @@ func applySplices(raw []byte, ops []spliceOp) ([]byte, error) {
 	return out, nil
 }
 
-// findSpliceOverlap scans a DESCENDING-sorted op list for the first overlapping
-// pair: a lower-start op whose end reaches strictly past the next higher-start
-// op's start. Touching ranges (lower.end == upper.start) are NOT overlaps.
-// Returns the offending (lower, upper) pair and overlap=true on the first hit.
+// findSpliceOverlap returns the first pair in a DESCENDING-sorted list whose ranges overlap; touching ranges do not.
 func findSpliceOverlap(descending []spliceOp) (lower, upper spliceOp, overlap bool) {
 	for i := 0; i+1 < len(descending); i++ {
 		upper = descending[i]   // higher start
@@ -84,8 +65,7 @@ func findSpliceOverlap(descending []spliceOp) (lower, upper spliceOp, overlap bo
 	return spliceOp{}, spliceOp{}, false
 }
 
-// describeSpliceOps renders the op list for error/debug output (ascending by
-// start). Unused in the happy path; kept for diagnostics.
+// describeSpliceOps renders the op list ascending by start, for the error path only.
 func describeSpliceOps(ops []spliceOp) string {
 	sorted := make([]spliceOp, len(ops))
 	copy(sorted, ops)

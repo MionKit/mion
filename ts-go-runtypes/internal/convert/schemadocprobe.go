@@ -1,11 +1,8 @@
-// SchemaDocProbe — renders every resolvable declaration of a file through the
-// runtime schema-document renderer (internal/schemadoc). The convert package
-// hosts it because resolving a file's declarations to reflection nodes needs
-// the recognizer + resolver harness that lives here; the probe itself never
-// prints convert output. The corpus test pins the renderer's spelling for the
-// shared-subset shapes as golden documents, and the seeded fuzz leg pins
-// renderer determinism over the generated atom space.
 package convert
+
+// schemadocprobe.go renders a file's declarations through the runtime schema-document renderer
+// (internal/schemadoc) and never prints convert output. It lives here because resolving declarations
+// to reflection nodes needs this package's recognizer and resolver harness.
 
 import (
 	"fmt"

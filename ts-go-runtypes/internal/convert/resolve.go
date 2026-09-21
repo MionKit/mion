@@ -1,7 +1,7 @@
-// resolve.go turns a recognized declaration into its RunType graph + id via
-// the same projection the resolver uses for marker call sites
-// (runtype.Cache.SerializeTopLevel), entered from the declaration instead.
 package convert
+
+// resolve.go turns a recognized declaration into its RunType graph and id through the projection the
+// resolver uses for marker call sites (runtype.Cache.SerializeTopLevel), entered at the declaration.
 
 import (
 	"fmt"
@@ -11,28 +11,24 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// resolvedDecl pairs a declaration with its projected reflection node.
-// Resolve dereferences the `{kind:-1, id}` sentinels child slots carry
-// (cache.NodeByID), so printers can recurse into composite kinds.
+// resolvedDecl pairs a declaration with its projected reflection node. Resolve dereferences the
+// `{kind:-1, id}` sentinels child slots carry, so printers can recurse into composite kinds.
 type resolvedDecl struct {
 	Decl    *declaration
 	Node    *reflection.RunType
 	Resolve func(id string) *reflection.RunType
 }
 
-// resolveDecl projects the declaration's type. For a type alias / interface
-// the declared type is projected directly; for a const form the type is the
-// `T` of the const's `RunType<T>` — the checker has already computed it from
-// the builder calls / schema literal, which is exactly the shipped input-side
-// convergence this feature builds on.
+// resolveDecl projects the declaration's type: a type alias / interface directly, a const form
+// through the `T` of its `RunType<T>`, which the checker already computed from the builder calls.
 func resolveDecl(typeChecker *checker.Checker, cache *runtype.Cache, decl *declaration) (*resolvedDecl, error) {
 	symbol := typeChecker.GetSymbolAtLocation(decl.NameNode)
 	if symbol == nil {
 		return nil, fmt.Errorf("convert: no symbol for %q", declLabel(decl))
 	}
 	var tsType *checker.Type
-	// A lazy pair resolves like a type form: its NameNode is the real type
-	// declaration's name, and the handle const adds nothing to the graph.
+	// A lazy pair resolves like a type form: its NameNode is the real type declaration's name and the
+	// handle const adds nothing to the graph.
 	if decl.Form == TargetType || decl.EscapePair {
 		tsType = checker.Checker_getDeclaredTypeOfSymbol(typeChecker, symbol)
 	} else {

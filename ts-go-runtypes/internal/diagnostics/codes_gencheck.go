@@ -1,17 +1,13 @@
 package diagnostics
 
-// Mirror↔source linkage codes (GExxx): `mion enrich --no-emit` and the resolver's
-// checkEnrich pass validating that a generated mirror file (of EITHER family;
-// the file's path/annotations say which) still tracks a live source: the
-// breadcrumb resolves (GE002), the source still declares the imported types
-// (GE003), and the file sits at its computed per-family location (GE001,
-// CLI-only: needs the project's genDir config). Detection lives in
-// internal/enrichment/mirror/drift.go.
+// Mirror↔source linkage codes (GExxx): a generated mirror file of either family still tracks a live
+// source, meaning its breadcrumb resolves (GE002), the source still declares the imported types
+// (GE003) and the file sits at its computed per-family location (GE001, CLI-only: it needs the
+// project's genDir config). Detection lives in internal/enrichment/mirror/drift.go.
 //
-// GE000 is LevelError: the mirror could not be read, so there is no output.
-// GE002 / GE003 are LevelRuntimeError: the mirror IS there and is broken, its
-// `import type` naming a file or a type that no longer exists, so the app does
-// not build. GE001 is cosmetic, the mirror still imports and works.
+// GE000 is LevelError: the mirror could not be read, so there is no output. GE002 / GE003 are
+// LevelRuntimeError: the mirror is there and its `import type` names a file or type that no longer
+// exists, so the app does not build. GE001 is cosmetic, the mirror still imports and works.
 const (
 	CodeGenMirrorUnreadable = "GE000"
 	CodeGenMirrorDrift      = "GE001"

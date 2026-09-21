@@ -8,19 +8,12 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 )
 
-// orphanBlockPattern matches both `/* @rtOrphan … */` (whole-const carcass) and
-// `/* @rtOrphanChild … */` (a single dropped field) block comments. The body is
-// non-greedy up to the first ` */`; the carcass's own inner `*/` was
-// comment-sanitized to `* /` when it was written, so the first ` */` is its true
-// terminator.
+// orphanBlockPattern matches both carcass forms, non-greedy up to the first ` */`.
+// A carcass's own inner `*/` was sanitized to `* /` when written, so that first ` */` is its true terminator.
 var orphanBlockPattern = regexp.MustCompile(`(?s)` + OrphanBlockPatternSource)
 
-// friendlyReservedKeys / mockReservedKeys are the META keys each family's nodes
-// carry alongside their field children — never treated as renamable/mergeable
-// fields. Any `rt$`-prefixed key is meta by construction (the prefix is
-// RESERVED — an rt$ property in a source type is refused by gen and flagged
-// FT011/MD011; a plain `$` key is an ordinary field); the mock family
-// additionally reserves the bare leaf keys pool/min/max.
+// friendlyReservedKeys / mockReservedKeys are the META keys a node carries beside its fields, never merged or renamed.
+// Every `rt$` key is meta by construction, the prefix being reserved; the mock family also reserves pool, min and max.
 var friendlyReservedKeys = map[string]bool{
 	"rt$label": true, "rt$errors": true, "rt$items": true,
 	"rt$slots": true, "rt$keys": true, "rt$values": true,
@@ -32,15 +25,9 @@ var mockReservedKeys = map[string]bool{
 	"pool": true, "min": true, "max": true,
 }
 
-// Reconcile parses + indexes the existing mirror bytes (error on syntax error),
-// reconciles them against spec's desired const set (property merge per matched
-// const + append new consts + orphan-const handling + breadcrumb-clause sync),
-// then applies the edits via the descending splicer. It NEVER writes to disk:
-// it returns the new bytes, whether they differ from existing (false on a
-// byte-identical no-op / idempotent re-run), and any error.
-//
-// readSource is injected so the orphan judgement can read the breadcrumb source
-// without the pure package touching the filesystem.
+// Reconcile matches the existing mirror against spec's desired const set and returns the new bytes plus whether they
+// differ, false on an idempotent re-run. It NEVER writes to disk, and readSource is injected so the orphan judgement
+// can read the breadcrumb source without this package touching the filesystem.
 func Reconcile(spec Spec, existing []byte, readSource func(string) (string, error)) ([]byte, bool, error) {
 	index, err := ParseMirror(spec.MirrorPath, existing)
 	if err != nil {
@@ -50,14 +37,9 @@ func Reconcile(spec Spec, existing []byte, readSource func(string) (string, erro
 	var ops []spliceOp
 	var addedConsts []enrichment.NamedConst
 
-	// Const-rename pre-pass: a whole type renamed (User → Account) keeps its
-	// structural id (the id is name-independent) but changes its var name +
-	// annotation. Pair each such existing const with the renamed desired const by
-	// their UNIQUE shared id+form and CARRY it — rewrite var/annotation/marker in
-	// place and merge the body — instead of orphaning the old const and
-	// regenerating an empty new one. Renamed consts are excluded from the merge /
-	// append / orphan passes below (which would otherwise double-process them into
-	// overlapping splices).
+	// A renamed type keeps its name-independent structural id but changes var and annotation, so its const is CARRIED
+	// in place rather than orphaned and regenerated empty.
+	// A renamed const is excluded from the passes below, which would double-process it into overlapping splices.
 	renames := computeConstRenames(index, spec)
 	renamedExisting := map[*constEntry]bool{}
 	renamedDesiredVar := map[string]bool{}
@@ -67,8 +49,7 @@ func Reconcile(spec Spec, existing []byte, readSource func(string) (string, erro
 		renamedDesiredVar[renameDesiredVar(rename)] = true
 	}
 
-	// Property-merge (or queue-as-new / restore-from-carcass) each desired const
-	// not already handled as a rename.
+	// Merge, queue or restore each desired const not already handled as a rename.
 	for _, named := range spec.Consts {
 		if spec.WantFriendly && !renamedDesiredVar[named.FriendlyVar] {
 			reconcileOneConst(&ops, &addedConsts, index, named, true)
@@ -78,37 +59,24 @@ func Reconcile(spec Spec, existing []byte, readSource func(string) (string, erro
 		}
 	}
 
-	// Orphan-const: an existing owned const NOT in the desired set (by name) and
-	// NOT renamed, whose source type is no longer declared → @rtOrphan it
-	// (conservatively; see orphanConsts).
+	// An owned const that is neither desired nor renamed, and whose type is no longer declared, is orphaned.
 	orphanedEntries := orphanConsts(&ops, index, spec, readSource, renamedExisting)
 
-	// Breadcrumb clause sync: recompute the type-name list from the surviving
-	// consts (existing minus orphaned/renamed, plus added/renamed-to) declared in
-	// THIS source file, replacing only the `{ … }` clause and keeping
-	// `from '<src>'` byte-identical.
+	// The type-name list is recomputed from the surviving consts, keeping `from '<src>'` byte-identical.
 	syncBreadcrumbClause(&ops, index, spec, orphanedEntries, renamedExisting)
 
-	// Lazy annotation migration: rewrite a legacy `FriendlyType` wrapper (both the
-	// const annotation + the mion DSL import) to the current `FriendlyText`
-	// spelling, so files authored before the friendly-text rename migrate on the
-	// next `gen --update`. Skips orphaned consts (about to be commented out).
+	// A file authored before the friendly-text rename migrates lazily here, on its next `enrich --update`.
 	migrateLegacyFriendlyWrapper(&ops, index, orphanedEntries)
 
-	// Apply the in-place splices first (all index the ORIGINAL bytes), then append
-	// new consts + any cross-file imports they introduce.
+	// The in-place splices go first, all indexing the ORIGINAL bytes, then the appended consts and their imports.
 	merged, err := applySplices(index.raw, ops)
 	if err != nil {
 		return nil, false, err
 	}
 
-	// REFERENCE FIXUP: a renamed const's declaration was spliced above, but
-	// sibling consts may still REFERENCE the old var (`home: friendlyAddress`
-	// after Address→Location) — the body merge deliberately keeps leaf-in-both
-	// fields byte-identical, so the stale identifier survives the splice pass.
-	// Rewrite it boundary-aware over the merged bytes (post-splice, so it can
-	// never overlap a splice). A carcass's preserved text is rewritten too — a
-	// later restore then references the LIVE const.
+	// A sibling const may still REFERENCE a renamed var, since the body merge keeps a leaf present in both byte-identical.
+	// The rewrite runs POST-splice over the merged bytes, so it can never overlap a splice, and it reaches a carcass's
+	// preserved text too, so a later restore references the LIVE const.
 	for _, rename := range renames {
 		newVar := renameDesiredVar(rename)
 		if rename.existing.varName != newVar {
@@ -124,17 +92,13 @@ func Reconcile(spec Spec, existing []byte, readSource func(string) (string, erro
 	return appended, true, nil
 }
 
-// RenameIdentifierAll rewrites every standalone-identifier occurrence of
-// oldVar in text to newVar — the boundary-aware renamer the reconcile uses for
-// its own rename fixups, exported for the translate driver (which renames
-// sibling const references in an emitted body to their locale-prefixed twins).
+// RenameIdentifierAll is the reconcile's boundary-aware renamer, exported for the translate driver, which renames a
+// body's sibling const references to their locale-prefixed twins.
 func RenameIdentifierAll(text []byte, oldVar, newVar string) []byte {
 	return replaceIdentifierAll(text, oldVar, newVar)
 }
 
-// replaceIdentifierAll rewrites every standalone-identifier occurrence of
-// oldVar in text to newVar (word-boundary on both sides, so `friendlyUser`
-// never matches inside `friendlyUserProfile`).
+// replaceIdentifierAll requires a word boundary on both sides, so `friendlyUser` never matches inside `friendlyUserProfile`.
 func replaceIdentifierAll(text []byte, oldVar, newVar string) []byte {
 	source := string(text)
 	var b strings.Builder
@@ -160,24 +124,16 @@ func replaceIdentifierAll(text []byte, oldVar, newVar string) []byte {
 	}
 }
 
-// reconcileOneConst reconciles ONE friendly-or-mock const: it finds the matching
-// existing const by @rtType id (fallback var name), and either property-merges
-// it (recording splice ops) or, when there is no match, queues it for append.
-// addedConsts dedups so a friendly+mock pair queues a single NamedConst once.
+// reconcileOneConst property-merges ONE const against its existing match, or queues it for append when there is none;
+// addedConsts dedups, so a friendly and mock pair queues its NamedConst once.
 func reconcileOneConst(ops *[]spliceOp, addedConsts *[]enrichment.NamedConst, index *Index, named enrichment.NamedConst, friendly bool) {
 	varName, body, metaKeys := formParts(named, friendly)
 
 	existing := findExistingConst(index, varName)
 	if existing == nil {
-		// Restore-on-reappear: if an @rtOrphan carcass exists for this (id, form),
-		// un-comment it (restoring its preserved value) instead of regenerating. The
-		// inner text was comment-sanitized when orphaned (`*/`→`* /`); reverse it, then
-		// REFRESH its @rtType/@rtIds marker to the desired id — a type orphaned while
-		// its shape (or a child's) churned reappears with a NEW structural id, so the
-		// marker the carcass carried is stale; refreshing it on restore keeps the
-		// reconcile a single-pass fixed point (an unrefreshed marker would otherwise be
-		// corrected by a SECOND --update — an R6 non-convergence). A same-id reappear
-		// leaves the marker unchanged, so the restore stays byte-identical.
+		// A carcass is un-commented rather than regenerated, its comment sanitization reversed.
+		// Its marker is REFRESHED to the desired id, since a type orphaned while its shape churned reappears with a new
+		// one: without that refresh a SECOND --update would correct it, so the reconcile would not converge in one pass.
 		if carcass := findCarcass(index, named, friendly); carcass != nil {
 			restored := refreshRestoredMarker(unsanitizeFromComment(carcass.inner), named)
 			*ops = append(*ops, spliceOp{start: carcass.start, end: carcass.end, text: restored + "\n"})
@@ -187,22 +143,17 @@ func reconcileOneConst(ops *[]spliceOp, addedConsts *[]enrichment.NamedConst, in
 		return
 	}
 	if existing.body == nil {
-		// The existing const's initializer is not an object literal (a function
-		// form, or hand-edited to something exotic) — leave it untouched.
+		// An initializer that is not an object literal, hand-edited to a function say, is left untouched.
 		return
 	}
 
-	// Refresh the @rtType / @rtIds marker when it drifted (a structural-id change
-	// after a field add/remove regenerates the id), so the next reconcile matches
-	// by id again instead of the var-name fallback.
+	// A drifted marker is refreshed, so the next reconcile matches by id again instead of the var-name fallback.
 	refreshMarker(ops, index.raw, existing, named)
 
 	mergeConstBody(ops, index, existing, body, metaKeys, named.ChildIDs, friendly)
 }
 
-// formParts returns the var name, body text, and reserved-key set for one form
-// (friendly or mock) of a desired const — the per-form selection both
-// reconcileOneConst and emitConstRename make before merging.
+// formParts returns one form's var name, body and reserved-key set, the selection both callers make before merging.
 func formParts(named enrichment.NamedConst, friendly bool) (varName, body string, metaKeys map[string]bool) {
 	if friendly {
 		return named.FriendlyVar, named.Friendly, friendlyReservedKeys
@@ -210,11 +161,8 @@ func formParts(named enrichment.NamedConst, friendly bool) (varName, body string
 	return named.MockVar, named.Mock, mockReservedKeys
 }
 
-// mergeConstBody records the property-merge splices for one const: it builds the
-// existing + desired object views and merges them under the given reserved-key
-// set + child-id maps. No-op when the desired body is not an object literal.
-// Assumes existing.body is non-nil (the caller guards it). `friendly` selects
-// the family's merge semantics (see mergeCtx.friendlyFamily).
+// mergeConstBody records one const's property-merge splices; it assumes existing.body is non-nil, which the caller guards,
+// and no-ops when the desired body is not an object literal.
 func mergeConstBody(ops *[]spliceOp, index *Index, existing *constEntry, body string, metaKeys map[string]bool, desiredChild map[string]string, friendly bool) {
 	existingView := newObjectView(string(index.raw), index.sourceFile, existing.body)
 	desiredView := parseDesiredObject(body)
@@ -229,36 +177,29 @@ func mergeConstBody(ops *[]spliceOp, index *Index, existing *constEntry, body st
 	})
 }
 
-// refreshMarker emits a splice to bring the existing const's @rtType/@rtIds
-// marker in line with the desired type id + child-id map, when they differ.
-// When the existing const has a marker block, it is replaced; when it has none
-// (a hand-authored file), a fresh marker is inserted before the const keyword.
-// No op when the marker already matches (idempotent).
+// refreshMarker splices the existing marker in line with the desired ids, or inserts one when a hand-authored const
+// carries none; it no-ops when the marker already matches.
 func refreshMarker(ops *[]spliceOp, raw []byte, existing *constEntry, named enrichment.NamedConst) {
 	desired := MarkerComment(named)
 	if desired == "" {
 		return
 	}
 	if existing.markerStart != existing.markerEnd {
-		// Replace the existing marker block (range already includes its newline).
+		// The marker range already includes its newline.
 		current := string(raw[existing.markerStart:existing.markerEnd])
 		if current == desired {
-			return // identical — no-op
+			return // identical, so no-op
 		}
 		*ops = append(*ops, spliceOp{start: existing.markerStart, end: existing.markerEnd, text: desired})
 		return
 	}
-	// No existing marker — insert one just before the `export`/`const` keyword.
+	// With no existing marker, insert one just before the `export` / `const` keyword.
 	*ops = append(*ops, spliceOp{start: existing.tokenStart, end: existing.tokenStart, text: desired})
 }
 
-// refreshRestoredMarker rewrites the leading @rtType/@rtIds marker of a carcass's
-// restored const text to the desired (id, child-id map) — the in-string analogue
-// of refreshMarker, used on restore where the const is spliced whole (not yet
-// indexed) so refreshMarker's offset-based path cannot run. The marker block is
-// located by markerBlockRange over the leading trivia (bounded to before the
-// `export`/`const` keyword so a body token can't match). A marker-free const, or a
-// desired with no structural id, is returned unchanged.
+// refreshRestoredMarker is refreshMarker's in-string analogue, for a restore where the const is spliced whole and not
+// yet indexed, so the offset-based path cannot run.
+// The search is bounded to before the `export` / `const` keyword, so a body token cannot match.
 func refreshRestoredMarker(inner string, named enrichment.NamedConst) string {
 	desired := MarkerComment(named)
 	if desired == "" {
@@ -272,19 +213,14 @@ func refreshRestoredMarker(inner string, named enrichment.NamedConst) string {
 	}
 	start, end := markerBlockRange(inner, 0, tokenStart)
 	if start == end {
-		return inner // no @rtType marker to refresh (hand-authored, marker-free)
+		return inner // a hand-authored const has no marker to refresh
 	}
 	return inner[:start] + desired + inner[end:]
 }
 
-// findExistingConst returns the existing const with the given var name, or nil.
-// Matching is BY NAME — the emission identity: `friendly<Name>` / `mock<Name>`
-// mirror the source's NAMED types, so two same-shape types A and B (which share a
-// structural id) stay distinct consts. The id is deliberately NOT used to match
-// here (an id match would conflate A and B, and would also match a renamed const
-// that is simultaneously orphaned-by-name → overlapping splices). A const whose
-// name CHANGED (a whole-type rename) is paired separately by computeConstRenames,
-// which uses the shared id purely as the change-detection signal.
+// findExistingConst matches BY NAME, the emission identity, so two same-shape types sharing a structural id stay distinct.
+// An id match would conflate them, and would also match a renamed const that is simultaneously orphaned by name, whose
+// splices then overlap. A const whose name CHANGED is paired separately by computeConstRenames.
 func findExistingConst(index *Index, varName string) *constEntry {
 	if entry, ok := index.byVar[varName]; ok {
 		return entry
@@ -292,15 +228,14 @@ func findExistingConst(index *Index, varName string) *constEntry {
 	return nil
 }
 
-// constRename links an existing const to the desired const it was RENAMED into:
-// same structural id + form, but a new type name (so a new var + annotation).
+// constRename links an existing const to the desired const it was RENAMED into: same form, new type name.
 type constRename struct {
 	existing *constEntry
 	desired  enrichment.NamedConst
 	friendly bool
 }
 
-// renameDesiredVar is the var name the renamed const takes (friendly or mock form).
+// renameDesiredVar is the var name the renamed const takes.
 func renameDesiredVar(rename constRename) string {
 	if rename.friendly {
 		return rename.desired.FriendlyVar
@@ -308,28 +243,15 @@ func renameDesiredVar(rename constRename) string {
 	return rename.desired.MockVar
 }
 
-// constMatchThreshold is the minimum graph-parity score for a rename pairing. A
-// shared whole-graph TypeID (the graph is identical, only the name moved) scores
-// 1.0; below this floor the field-graph overlap is too weak to confidently call
-// it a rename, so the const falls through to the safe orphan + scaffold path.
+// constMatchThreshold is the minimum graph-parity score for a rename pairing; below it the overlap is too weak to call
+// a rename, so the const falls through to the safe orphan and scaffold path.
 const constMatchThreshold = 0.5
 
-// computeConstRenames pairs a DROPPED existing const (its var name no longer in
-// the desired set) with an ADDED desired const (its var name not present in the
-// mirror) when they are the same logical type under a NEW name — so its authored
-// tree carries instead of orphaning.
-//
-// Matching is by GRAPH PARITY, not by whole-graph id alone. A whole type rename
-// keeps its name-independent id, so a pure rename pairs at score 1.0 — but a
-// rename that ALSO reshapes (a field added/dropped/retyped) changes the id, so an
-// id-only matcher would miss it and lose the carry. Instead each (drop, add) pair
-// is scored by how much of its FIELD GRAPH overlaps (constSimilarity), and only
-// STRICT MUTUAL-BEST pairs above the threshold are carried: the add must be the
-// drop's unique best AND the drop the add's unique best. An exact tie at the top
-// (two same-shape types renamed at once — genuinely ambiguous) has no unique best
-// and falls through to the safe orphan + scaffold path: we never GUESS a carry
-// that could mis-attribute an authored value to the wrong renamed type. Consts
-// with no id never pair (no graph to score).
+// computeConstRenames pairs a DROPPED existing const with an ADDED desired one when they are the same logical type
+// under a new name, so its authored tree carries.
+// Matching is by GRAPH PARITY, not id alone: a rename that ALSO reshapes changes the id, and an id-only matcher would
+// lose the carry. Only STRICT MUTUAL-BEST pairs above the threshold are taken, so two same-shape types renamed at once
+// tie, have no unique best, and fall through rather than mis-attributing an authored value to the wrong type.
 func computeConstRenames(index *Index, spec Spec) []constRename {
 	refLinks := buildReferentialLinks(index, spec)
 	var renames []constRename
@@ -369,17 +291,10 @@ func computeConstRenames(index *Index, spec Spec) []constRename {
 	return renames
 }
 
-// buildReferentialLinks maps an old child-type id to the set of new child-type ids
-// a parent field REPOINTED to: for every field path present in both an existing
-// const and its desired counterpart (keyed by the form-independent parent TYPE
-// NAME so a non-renamed parent matches across the pass), when the recorded child id
-// CHANGED, record old→new. That repointing is concrete evidence the old child type
-// became the new one — the only signal that survives a NOMINAL rename (an enum,
-// whose id is name-dependent and whose const carries no field graph to score). A
-// parent that is ITSELF renamed has a different type name on each side, so its key
-// never matches and the link is not recorded (safe: no stable anchor → fall
-// through). Same-id fields (a structural rename keeps its id) are skipped — those
-// already pair via the whole-graph-id fast path.
+// buildReferentialLinks records, per field path present on both sides, that a parent REPOINTED one child id to another.
+// That repointing is evidence the old child type became the new one, the only signal surviving a NOMINAL rename such as
+// an enum's, whose id is name-dependent and whose const has no field graph to score.
+// Keys carry the parent TYPE NAME, so a parent renamed itself has no stable anchor and records no link, which is safe.
 func buildReferentialLinks(index *Index, spec Spec) map[string]map[string]bool {
 	existingFieldChild := map[string]string{}
 	for _, entry := range index.consts {
@@ -409,10 +324,8 @@ func buildReferentialLinks(index *Index, spec Spec) map[string]map[string]bool {
 	return links
 }
 
-// pairRenames selects the strict mutual-best (drop, add) pairs above the match
-// threshold. A pair is a rename iff `add` is the unique highest-scoring add for
-// `drop` AND `drop` is the unique highest-scoring drop for `add` — any tie at
-// either maximum leaves the pair unselected (ambiguous → safe fall-through).
+// pairRenames takes a pair only when each side is the other's unique best above the threshold; any tie at either
+// maximum is ambiguous and leaves the pair unselected.
 func pairRenames(drops []*constEntry, adds []enrichment.NamedConst, friendly bool, refLinks map[string]map[string]bool) []constRename {
 	if len(drops) == 0 || len(adds) == 0 {
 		return nil
@@ -442,8 +355,7 @@ func pairRenames(drops []*constEntry, adds []enrichment.NamedConst, friendly boo
 	return renames
 }
 
-// strictArgmax returns the index of the single greatest value and whether it is a
-// STRICT maximum (no other index ties it). Returns (-1, false) for an empty slice.
+// strictArgmax returns the greatest value's index and whether it is STRICT, no other index tying it.
 func strictArgmax(values []float64) (int, bool) {
 	if len(values) == 0 {
 		return -1, false
@@ -462,21 +374,12 @@ func strictArgmax(values []float64) (int, bool) {
 	return best, true
 }
 
-// constSimilarity scores how likely a dropped existing const was RENAMED into an
-// added desired const, by GRAPH PARITY rather than whole-graph id alone. A shared
-// whole-graph TypeID (the graph is identical, only the name moved) is a perfect
-// 1.0 fast path. A REFERENTIAL link — a parent field that repointed from this
-// drop's id to this add's id (refLinks) — is also a 1.0: it is the only signal
-// that survives a NOMINAL rename (an enum, whose id changes with its name and
-// whose const has no field graph to score). Otherwise the score blends two
-// overlaps of the consts' top-level fields: their NAMES (the human-stable skeleton
-// that survives a reshape) and their name+child-id pairs (precision: a field
-// counts as "the same" only when its child type also matches). The blend keeps a
-// renamed-and-grown type (fields kept, some added) well above the threshold while
-// a coincidental field-name collision between unrelated types (no id agreement)
-// stays below it. Every 1.0 still passes through pairRenames' strict mutual-best,
-// so an ambiguous repoint (the same drop linked to two adds) ties and falls
-// through rather than guessing.
+// constSimilarity scores how likely a drop was RENAMED into an add. A shared whole-graph id is a 1.0 fast path, and so
+// is a referential link, the only signal surviving a nominal rename.
+// Otherwise it blends the overlap of top-level field NAMES, the skeleton that survives a reshape, with the overlap of
+// name plus child-id PAIRS, which only counts a field whose child type also matches: that keeps a renamed-and-grown
+// type above the threshold and a coincidental field-name collision below it.
+// Even a 1.0 goes through pairRenames' strict mutual-best, so an ambiguous repoint ties and falls through.
 func constSimilarity(existing *constEntry, desired enrichment.NamedConst, refLinks map[string]map[string]bool) float64 {
 	if existing.typeID != "" && existing.typeID == desired.TypeID {
 		return 1.0
@@ -491,9 +394,7 @@ func constSimilarity(existing *constEntry, desired enrichment.NamedConst, refLin
 	return 0.5*names + 0.5*pairs
 }
 
-// topLevelNames is the set of top-level (non-dotted) field names from a child-id
-// map. Nested-inline paths (e.g. "profile.email") are a parent field's sub-graph,
-// not a top-level field, so they are excluded.
+// topLevelNames excludes a dotted path: that is a parent field's sub-graph, not a top-level field.
 func topLevelNames(childIDs map[string]string) map[string]bool {
 	out := map[string]bool{}
 	for path := range childIDs {
@@ -504,8 +405,7 @@ func topLevelNames(childIDs map[string]string) map[string]bool {
 	return out
 }
 
-// topLevelPairs is the set of "name#childId" identities for top-level fields — a
-// field matches only when both its name and its child type id agree.
+// topLevelPairs identifies a top-level field by name AND child type id, so it matches only when both agree.
 func topLevelPairs(childIDs map[string]string) map[string]bool {
 	out := map[string]bool{}
 	for path, id := range childIDs {
@@ -516,8 +416,7 @@ func topLevelPairs(childIDs map[string]string) map[string]bool {
 	return out
 }
 
-// diceOverlap is the Sørensen–Dice coefficient over two sets: 2|A∩B| / (|A|+|B|),
-// and 0 when both are empty (an empty graph carries no identity to match on).
+// diceOverlap is the Sørensen-Dice coefficient, 0 when both sets are empty: an empty graph carries no identity to match on.
 func diceOverlap(a, b map[string]bool) float64 {
 	if len(a) == 0 && len(b) == 0 {
 		return 0
@@ -531,7 +430,7 @@ func diceOverlap(a, b map[string]bool) float64 {
 	return 2 * float64(intersection) / float64(len(a)+len(b))
 }
 
-// desiredVarsForForm collects the desired var names of one form (friendly/mock).
+// desiredVarsForForm collects the desired var names of one form.
 func desiredVarsForForm(spec Spec, friendly bool) map[string]bool {
 	out := map[string]bool{}
 	for _, named := range spec.Consts {
@@ -555,13 +454,9 @@ func existingVarsForForm(index *Index, friendly bool) map[string]bool {
 	return out
 }
 
-// emitConstRename carries a renamed const: it rewrites the var identifier, the
-// `Wrapper<Name>` annotation type name and the @rtType marker (name + id), then
-// merges the desired body INTO the existing one. A pure rename leaves the body
-// byte-identical (authored values preserved verbatim); a rename that also changed
-// a field merges that field too. No orphan carcass, no fresh empty twin. The
-// emitted ops cover disjoint regions (marker / var / annotation / body fields), so
-// they never overlap.
+// emitConstRename carries a renamed const, rewriting its var, annotation and marker, then merging the desired body in.
+// A pure rename leaves the body byte-identical, with no carcass and no fresh empty twin.
+// The emitted ops cover disjoint regions, marker, var, annotation and body fields, so they never overlap.
 func emitConstRename(ops *[]spliceOp, index *Index, rename constRename) {
 	existing := rename.existing
 	named := rename.desired
@@ -580,16 +475,10 @@ func emitConstRename(ops *[]spliceOp, index *Index, rename constRename) {
 	}
 }
 
-// migrateLegacyFriendlyWrapper splices a committed mirror's legacy `FriendlyType`
-// annotation wrapper (and the matching `import type { FriendlyText }` DSL import)
-// to the current `FriendlyText` spelling, so a `gen --update` migrates files
-// authored before the friendly-text rename in place. The splices are AST-anchored
-// and disjoint from the rename / marker / body edits (wrapper name vs `<T>` arg vs
-// var name vs import clause never overlap). Orphaned consts are skipped — their
-// whole-statement carcass splice would otherwise overlap the wrapper splice, and
-// a commented-out const's wrapper name is moot. The DSL import is migrated only
-// when at least one surviving const was, so an all-orphaned file leaves its
-// (now unused, already legacy) import untouched.
+// migrateLegacyFriendlyWrapper splices a legacy `FriendlyType` wrapper, and its DSL import name, to `FriendlyText`,
+// so a file authored before the rename migrates in place on `enrich --update`.
+// The splices are AST-anchored and disjoint from the rename, marker and body edits.
+// An orphaned const is skipped, its whole-statement carcass splice would overlap; the import migrates only if a const did.
 func migrateLegacyFriendlyWrapper(ops *[]spliceOp, index *Index, orphaned []*constEntry) {
 	orphanedSet := map[*constEntry]bool{}
 	for _, entry := range orphaned {
@@ -619,11 +508,8 @@ func migrateLegacyFriendlyWrapper(ops *[]spliceOp, index *Index, orphaned []*con
 	}
 }
 
-// queueNewConst records a NamedConst for append exactly once. Identity is the
-// var-name PAIR (friendly + mock): the same NamedConst is reconciled separately for
-// its friendly and mock forms and must not queue twice, but two DIFFERENT named
-// types that happen to share a structural id (TypeID) are distinct consts and must
-// BOTH append — so the dedup keys on the names, never on the shared id.
+// queueNewConst records a NamedConst for append exactly once, keyed on the var-name PAIR: one NamedConst is reconciled
+// per form and must not queue twice, while two named types sharing a structural id are distinct and must BOTH append.
 func queueNewConst(addedConsts *[]enrichment.NamedConst, named enrichment.NamedConst) {
 	for _, existing := range *addedConsts {
 		if existing.FriendlyVar == named.FriendlyVar && existing.MockVar == named.MockVar {
@@ -633,11 +519,8 @@ func queueNewConst(addedConsts *[]enrichment.NamedConst, named enrichment.NamedC
 	*addedConsts = append(*addedConsts, named)
 }
 
-// appendNewConsts appends the const blocks for newly-desired consts (no existing
-// match, no restorable carcass) to the merged bytes, each carrying its
-// @rtType/@rtIds marker, and ensures any cross-file value imports those consts
-// reference are present (added after the existing import block). Returns merged
-// unchanged when there is nothing to add.
+// appendNewConsts appends a block per newly-desired const, each with its marker, and adds any cross-file import they
+// reference; merged comes back unchanged when there is nothing to add.
 func appendNewConsts(merged []byte, spec Spec, index *Index, addedConsts []enrichment.NamedConst) []byte {
 	if len(addedConsts) == 0 {
 		return merged
@@ -668,24 +551,11 @@ func appendNewConsts(merged []byte, spec Spec, index *Index, addedConsts []enric
 	return []byte(builder.String())
 }
 
-// PruneOrphanBlocks removes every `@rtOrphan` / `@rtOrphanChild` block comment
-// from text and returns the cleaned text, the count removed, and the malformed
-// carcass snippets it SKIPPED. A removed block takes its OWN trailing newline
-// with it; a leading-whitespace-only line left dangling (the block sat on its
-// own line, indented) is also cleaned so no blank gap remains. A malformed
-// carcass whose terminator spans a live statement boundary is collected into
-// skipped (left in place) so prune never eats live code — the caller warns.
-// Returns (text, 0, nil, nil) when there is nothing to prune.
-//
-// Carcasses come from Scan.CarcassMatches — the same comment-anchored set the
-// lint scan reports — so prune removes EXACTLY what lint flags: a pattern
-// embedded in an authored string value (an rt$errors template documenting the
-// syntax), in a regex literal, or in a `//` line comment is neither reported
-// nor pruned. On generated mirrors this is identical to the raw pattern (a
-// real carcass always starts a block comment). Text that does not PARSE is
-// refused with an error (nothing removed) — prune is destructive and never
-// rewrites bytes it cannot confidently lex, the same stance ParseMirror takes
-// for the reconcile.
+// PruneOrphanBlocks removes every carcass block and returns the cleaned text, the count removed, and the malformed
+// snippets it SKIPPED. A removed block takes its own trailing newline and its indentation, so no blank gap remains.
+// A malformed carcass whose terminator spans a live statement is left in place, so prune never eats live code.
+// Carcasses come from Scan.CarcassMatches, the same set lint reports, so prune removes EXACTLY what lint flags.
+// Text that does not PARSE is refused: prune is destructive and never rewrites bytes it cannot confidently lex.
 func PruneOrphanBlocks(text string) (string, int, []string, error) {
 	scan := NewScan(text)
 	if scan.parseFailed {
@@ -701,23 +571,19 @@ func PruneOrphanBlocks(text string) (string, int, []string, error) {
 	removed := 0
 	for _, match := range matches {
 		start, end := match[0], match[1]
-		// Malformed-carcass guard: a hand-edited carcass whose ` */` terminator is
-		// missing/misplaced makes the non-greedy match span PAST its own content into
-		// the next live const, swallowing it. Reject (skip) such a block so prune
-		// never eats a live statement; the caller surfaces it and the user fixes the
-		// carcass by hand.
+		// A hand-edited carcass with a missing ` */` makes the match span PAST its content into the next live const,
+		// so skip it rather than eat a live statement; the caller reports it and the user fixes the carcass by hand.
 		if carcassCrossesStatement(text[start:end]) {
 			skipped = append(skipped, text[start:end])
 			continue
 		}
-		// Extend start back over leading spaces/tabs on the block's own line so an
-		// indented orphan line is removed cleanly (no orphaned indentation).
+		// Reach back over the block's own indentation, so an indented orphan line goes cleanly.
 		lineStart := start
 		for lineStart > 0 && (text[lineStart-1] == ' ' || text[lineStart-1] == '\t') {
 			lineStart--
 		}
 		if lineStart == 0 || text[lineStart-1] == '\n' {
-			start = lineStart // the block began the line — drop the indentation too
+			start = lineStart // the block began the line, so drop the indentation too
 		}
 		// Swallow a single trailing newline so the line disappears entirely.
 		if end < len(text) && text[end] == '\n' {
@@ -731,17 +597,11 @@ func PruneOrphanBlocks(text string) (string, int, []string, error) {
 	return builder.String(), removed, skipped, nil
 }
 
-// statementBoundaryPattern matches a newline-anchored `export const`/`export
-// type`/`export interface`/`export class`/`export enum`/`export function`
-// declaration — a top-level statement boundary.
+// statementBoundaryPattern matches a newline-anchored `export` declaration, a top-level statement boundary.
 var statementBoundaryPattern = regexp.MustCompile(`(?m)^\s*export\s+(const|type|interface|class|enum|function|namespace)\s`)
 
-// carcassCrossesStatement reports whether a matched orphan block body spans MORE
-// live statements than it legitimately should: an `@rtOrphan` (whole-const)
-// carcass wraps exactly ONE `export …` declaration (its own preserved const), so
-// >1 means its terminator ate the next live const; an `@rtOrphanChild` (field)
-// carcass wraps NO statement, so any `export …` declaration means it spilled
-// past the field. block is the full `/* @rtOrphan… */` match.
+// carcassCrossesStatement reports a block spanning more live statements than it should: a whole-const carcass wraps
+// exactly ONE declaration, its own, and a field carcass wraps none, so anything above that means its terminator ate code.
 func carcassCrossesStatement(block string) bool {
 	count := len(statementBoundaryPattern.FindAllStringIndex(block, -1))
 	if strings.HasPrefix(block, "/* "+OrphanChildTag) {

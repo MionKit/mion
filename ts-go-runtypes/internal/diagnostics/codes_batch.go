@@ -1,60 +1,46 @@
 package diagnostics
 
-// Request-batch codes (BATxxx). Issued by the request-batch extractor when a
-// `batch([...])` call (recognised by the InjectBatchId brand on its resolved
-// signature) cannot be read statically, or when two batches collide.
+// Request-batch codes (BATxxx), raised when a `batch([...])` call (recognised by the InjectBatchId
+// brand on its resolved signature) cannot be read statically, or when two batches collide.
 //
-// Two levels, split on whether the id is spliced. BAT001 / BAT002 / BAT004 /
-// BAT005 / BAT006 drop the whole site, so no id is injected and `batch()`
-// throws `batch-missing-id` synchronously at call time before any network work:
-// LevelError, there is no output to accept. BAT003 / BAT007 / BAT008 / BAT009
-// all DO inject an id, and the batch then fails against the server (an id that
-// resolves to the wrong plan, a mapper the server cannot register, or an id no
-// table row matches): LevelRuntimeError.
-//
-// BAT008 and BAT009 were warnings. Neither could honestly stay one: both ship a
-// batch call whose every request comes back a 404 `batch-unknown-id`.
+// The levels split on whether the id is spliced. BAT001 / BAT002 / BAT004 / BAT005 / BAT006 drop the
+// whole site, so no id is injected and `batch()` throws `batch-missing-id` before any network work:
+// LevelError. BAT003 / BAT007 / BAT008 / BAT009 DO inject an id and the batch then fails against the
+// server (BAT008 and BAT009 ship a call whose every request comes back a 404 `batch-unknown-id`):
+// LevelRuntimeError.
 const (
-	// CodeBatchElementNotReadable: an element of the `[...]` routes argument is
-	// not a route call the build can trace to the client routes proxy. Args:
-	// [0] the reason (spread element, not a route call, …).
+	// CodeBatchElementNotReadable: an element of the routes argument is not a route call the build
+	// can trace to the client routes proxy. Args: [0] the reason.
 	CodeBatchElementNotReadable = "BAT001"
-	// CodeBatchSourceNotInBatch: an `inputFrom(source, …)` source route is not
-	// in the batch, or sits AFTER the route it feeds (a route can only read the
-	// output of one that ran before it). Args: [0] the source route id, [1] the
-	// target route id.
+	// CodeBatchSourceNotInBatch: an `inputFrom(source, …)` source route is not in the batch, or sits
+	// AFTER the route it feeds (a route only reads the output of one that ran before it). Args:
+	// [0] the source route id, [1] the target route id.
 	CodeBatchSourceNotInBatch = "BAT002"
-	// CodeBatchIdCollision: two different batch definitions (routes or
-	// mappings) hash to the same batch id. Args: [0] the batch id. Related: the
-	// first site.
+	// CodeBatchIdCollision: two different batch definitions hash to the same batch id. Args: [0] the
+	// batch id. Related: the first site.
 	CodeBatchIdCollision = "BAT003"
-	// CodeBatchMapperNotReadable: an `inputFrom(source, mapper | name)` argument
-	// is neither an inline mapper nor a readable name. Args: [0] the reason.
+	// CodeBatchMapperNotReadable: an `inputFrom()` mapper argument is neither an inline mapper nor a
+	// readable name. Args: [0] the reason.
 	CodeBatchMapperNotReadable = "BAT004"
-	// CodeBatchDuplicateRoute: the same route id is listed twice in one batch.
-	// The server keys the request body and the results by route id, so a batch
-	// cannot run one route twice. Reported at the second element. Args: [0] the
-	// route id.
+	// CodeBatchDuplicateRoute: the same route id is listed twice in one batch; the server keys the
+	// body and the results by route id, so one route cannot run twice. Reported at the second
+	// element. Args: [0] the route id.
 	CodeBatchDuplicateRoute = "BAT005"
-	// CodeBatchMappingParamOutOfRange: an `inputFrom()` sits at an argument
-	// position the target route does not declare (its handler takes fewer
-	// parameters). Args: [0] the zero-based argument index, [1] the number of
-	// parameters the route declares, [2] the target route id.
+	// CodeBatchMappingParamOutOfRange: an `inputFrom()` sits at an argument position the target route
+	// does not declare. Args: [0] the zero-based argument index, [1] the parameter count the route
+	// declares, [2] the target route id.
 	CodeBatchMappingParamOutOfRange = "BAT006"
-	// CodeBatchMapperMissing: a batch names an inline `inputFrom()` mapper that
-	// the batch source program produced no pure function for, so the server build
-	// has no body to register. Reported at the batch call. Args: [0] the mapper id.
+	// CodeBatchMapperMissing: a batch names an inline `inputFrom()` mapper the source program
+	// produced no pure function for, so the server has no body to register. Reported at the batch
+	// call. Args: [0] the mapper id.
 	CodeBatchMapperMissing = "BAT007"
-	// CodeBatchOwnBatchIgnored: the build names a separate client project
-	// (`clientTsconfig`), so the batch table is generated from THAT program and
-	// the `batch()` calls in this (server) program never reach it. Reported at
+	// CodeBatchOwnBatchIgnored: the build names a separate client project (`clientTsconfig`), so the
+	// table comes from THAT program and this program's `batch()` calls never reach it. Reported at
 	// each such call. Args: [0] the client tsconfig.
 	CodeBatchOwnBatchIgnored = "BAT008"
-	// CodeBatchNoRouterInit: the batch source holds batches and this program
-	// names `@mionjs/router`, but no module of it calls `createMionRouter`
-	// directly (the router is created behind a wrapper the build cannot see
-	// through, such as one shipped as a declaration file), so the table was
-	// written but nothing imports it. Args: [0] the table module's path.
+	// CodeBatchNoRouterInit: batches exist and this program names `@mionjs/router`, but no module
+	// calls `createMionRouter` directly (it sits behind a wrapper the build cannot see through), so
+	// the table was written and nothing imports it. Args: [0] the table module's path.
 	CodeBatchNoRouterInit = "BAT009"
 )
 

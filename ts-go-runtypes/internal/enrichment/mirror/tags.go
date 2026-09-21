@@ -1,40 +1,26 @@
 package mirror
 
-// Tag literals shared by the emitters (this package WRITES them into mirror
-// files) and every detector that must find them again — the hygiene scan
-// (hygiene.go), the prune regex (reconcile.go), and, via cmd/gen-ts-constants,
-// the JS-side lint pre-filter in @mionjs/devtools. Deriving every emit and
-// every match from these constants is what makes emitter/detector drift
-// impossible; never inline a tag string elsewhere.
+// Tag literals shared by the emitters that WRITE them and every detector that must find them again, the JS-side lint
+// pre-filter included (via cmd/gen-ts-constants). Never inline a tag string elsewhere, or emitter and detector can drift.
 const (
-	// RtTypeTag / RtIdsTag lead a live const's reconcile marker
-	// (`/** @rtType <Name>#<id> @rtIds {field: id, …} */`). Legitimate on
-	// every generated const — the hygiene scan must NEVER flag them.
+	// RtTypeTag / RtIdsTag lead a live const's reconcile marker, legitimate on every generated const: hygiene never flags them.
 	RtTypeTag = "@rtType"
 	RtIdsTag  = "@rtIds"
-	// TodoTag flags a freshly-scaffolded const that still needs real data.
-	// DELIBERATELY outside the @rt namespace — see todoComment in helpers.go.
+	// TodoTag flags a freshly-scaffolded const that still needs real data, DELIBERATELY outside the @rt namespace.
 	TodoTag = "@todo"
-	// OrphanTag wraps a whole-const carcass (`/* @rtOrphan … */`) whose
-	// source type disappeared; OrphanChildTag wraps a single dropped field
-	// (`/* @rtOrphanChild … */`). Both are removed only by `gen --prune`.
+	// OrphanTag wraps a whole-const carcass whose source type disappeared, OrphanChildTag one dropped field.
+	// Both are removed only by `enrich --prune`.
 	OrphanTag      = "@rtOrphan"
 	OrphanChildTag = OrphanTag + "Child"
 )
 
-// TodoLine is the exact scaffold line ConstBlock stamps on a new const
-// (without its trailing newline).
+// TodoLine is the exact scaffold line ConstBlock stamps on a new const, without its trailing newline.
 const TodoLine = "// " + TodoTag + ": generated skeleton — fill in real data, then delete this line"
 
-// MarkerCommentPrefix opens every reconcile marker MarkerComment emits
-// (`/** @rtType <Name>#<id> … */`). The enrichment-file guard keys on this
-// EMIT form rather than the bare tag, so source files that merely mention
-// "@rtType" in a string or comment never read as mirrors.
+// MarkerCommentPrefix opens every reconcile marker MarkerComment emits.
+// The enrichment-file guard keys on this EMIT form, so a source merely mentioning "@rtType" never reads as a mirror.
 const MarkerCommentPrefix = "/** " + RtTypeTag + " "
 
-// OrphanBlockPatternSource is the regex body matching both orphan-block forms
-// (`/* @rtOrphan … */` and `/* @rtOrphanChild … */`, non-greedy to the first
-// ` */`). Kept free of the `(?s)` prefix so the SAME source compiles on both
-// halves: Go prepends `(?s)` (reconcile.go), JS constructs it with the `s`
-// flag (@mionjs/devtools lint entry, synced via `miondevx core codegen constants`).
+// OrphanBlockPatternSource matches both orphan-block forms, non-greedy to the first ` */`.
+// It carries no `(?s)` prefix so the SAME source compiles on both halves: Go prepends it, JS passes the `s` flag.
 const OrphanBlockPatternSource = `/\* ` + OrphanTag + `(?:Child)? .*? \*/`

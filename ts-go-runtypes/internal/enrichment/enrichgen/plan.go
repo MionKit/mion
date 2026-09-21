@@ -11,16 +11,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment/mirror"
 )
 
-// Plan resolves typeName in absPath, emits the enrichment closure, and builds the
-// per-family mirror.Spec set for it — the shared heart of the enrich lane. It is
-// disk-free: no migration, no writes. The caller runs mirror.Scaffold /
-// mirror.Reconcile over the returned specs (the CLI writes the result to disk,
-// the daemon returns it on the wire), so the two paths compute identical mirrors.
-//
-// declFiles is the unique, first-appearance-ordered set of source files the
-// closure spans — the CLI migrates each pre-split legacy mirror before writing
-// (a disk pre-step the daemon skips). out mirrors the CLI --out override: when
-// non-empty every const collapses into one combined single-file spec.
+// Plan resolves typeName in absPath and builds its per-family mirror.Spec set; the caller runs Scaffold / Reconcile over them.
+// Disk-free, so CLI and daemon compute identical mirrors: the CLI writes the result, the daemon returns it on the wire.
+// declFiles is the files the closure spans, first appearance first; the CLI migrates each legacy mirror before writing.
+// A non-empty out is the CLI --out override: every const collapses into one combined single-file spec.
 func Plan(
 	prog *program.Program,
 	chk *checker.Checker,
@@ -33,15 +27,12 @@ func Plan(
 	if err != nil {
 		return nil, nil, err
 	}
-	// A written type name that failed to resolve checked as the checker's error
-	// type (`any` never written) — a mirror scaffolded from it would silently
-	// miss the degraded members, so refuse up front (the resolver's MKR013 twin).
+	// A name that failed to resolve checked as `any`, and a mirror scaffolded from it would silently miss the degraded members.
 	if unresolved := enrichment.UnresolvedNameRefs(prog, chk, absPath, typeName); len(unresolved) > 0 {
 		return nil, nil, fmt.Errorf("%s: type reference %s did not resolve and checked as 'any' — fix the name or include the missing declaration in the tsconfig before enriching",
 			typeName, strings.Join(unresolved, ", "))
 	}
-	// The rt$ prefix is RESERVED for enrichment meta keys — a colliding property
-	// makes the scaffold unrepresentable, so refuse up front.
+	// rt$ is RESERVED for enrichment meta keys, so a colliding property makes the scaffold unrepresentable.
 	if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
 		return nil, nil, fmt.Errorf("%s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment",
 			typeName, strings.Join(collisions, ", "))
@@ -58,20 +49,10 @@ func Plan(
 	return specs, declFiles, nil
 }
 
-// PlanMany is the demand-scoped multi-type planner behind the OpEnrich daemon op
-// when NO explicit type name is given: the plugin cannot map a demanded type NAME
-// to the file that declares it (a RunType has no decl-file field), so the daemon
-// hands PlanMany every EXPORTED-and-demanded type name a source file declares and
-// PlanMany merges their enrichment closures into ONE per-family spec set for that
-// file — exactly what a single combined `enrich --update` over those types would
-// produce.
-//
-// Unlike Plan (single type, errors on an unresolvable name — the CLI/parity
-// contract), PlanMany SKIPS a type that no longer resolves or collides with the
-// reserved rt$ prefix: a transient half-typed edit must not abort a whole file's
-// sync, and the scan would not have demanded a type it cannot resolve. Consts are
-// deduplicated by FriendlyVar so two demanded roots sharing a named sub-type emit
-// that sub-type once (the same dedupe the translate lane does).
+// PlanMany merges the closures of several type names into ONE per-family spec set, what a combined `enrich --update` produces.
+// It backs OpEnrich when no explicit type name is given, over every exported-and-demanded name a source file declares.
+// Unlike Plan it SKIPS an unresolvable or rt$-colliding type: a transient half-typed edit must not abort a whole file's sync.
+// Consts are deduplicated by FriendlyVar, so two roots sharing a named sub-type emit it once.
 func PlanMany(
 	prog *program.Program,
 	chk *checker.Checker,
@@ -89,8 +70,7 @@ func PlanMany(
 		if err != nil {
 			continue
 		}
-		// Same unresolved-name posture as the other skips: a degraded type must
-		// not sync a wrong mirror, and must not abort the file's other types.
+		// A degraded type must not sync a wrong mirror, nor abort the file's other types.
 		if unresolved := enrichment.UnresolvedNameRefs(prog, chk, absPath, typeName); len(unresolved) > 0 {
 			continue
 		}
@@ -104,7 +84,7 @@ func PlanMany(
 			SourceLocale: cfg.SourceLocale,
 		}) {
 			if seenVar[named.FriendlyVar] {
-				continue // two roots reached the same named type — one const app-wide
+				continue // two roots reached the same named type, one const app-wide
 			}
 			seenVar[named.FriendlyVar] = true
 			closure = append(closure, named)
@@ -113,10 +93,7 @@ func PlanMany(
 	return specsFromClosure(cfg, closure, absPath, out, wantFriendly, wantMock)
 }
 
-// specsFromClosure is the shared tail of Plan / PlanMany: group a topologically
-// ordered closure by decl file, build the per-var → decl-file map (so a referrer
-// in mirror file A can emit a cross-file value import for a var homed in mirror
-// file B), and expand each group into its per-family mirror.Specs.
+// specsFromClosure is the tail of Plan / PlanMany; the per-var decl-file map lets a referrer import a var homed elsewhere.
 func specsFromClosure(cfg Config, closure []enrichment.NamedConst, absPath, out string, wantFriendly, wantMock bool) (specs []mirror.Spec, declFiles []string) {
 	groups := GroupByDeclFile(closure, absPath, out != "")
 
@@ -137,13 +114,9 @@ func specsFromClosure(cfg Config, closure []enrichment.NamedConst, absPath, out 
 	return specs, declFiles
 }
 
-// BuildSpecs builds the mirror.Spec set for one source-file group: one spec PER
-// WANTED FAMILY (friendly / mock), each targeting its own family-segment mirror
-// file with a family-matched MirrorPathFor (so cross-file value imports resolve
-// to sibling files of the SAME family). The out override collapses everything
-// into one combined single-file spec (the legacy shape, kept for the explicit
-// escape hatch). Unlike the old cmd groupSpecs, this performs NO legacy-mirror
-// migration — that disk pre-step is the CLI's alone.
+// BuildSpecs builds one spec PER wanted family for a source-file group, each with a family-matched MirrorPathFor.
+// That keeps a cross-file value import on a sibling of the SAME family; the out override collapses it into one file.
+// No legacy-mirror migration happens here, that disk pre-step is the CLI's alone.
 func BuildSpecs(cfg Config, group DeclFileGroup, varDeclFile map[string]string, out string, wantFriendly, wantMock bool) []mirror.Spec {
 	if out != "" {
 		return []mirror.Spec{{
@@ -174,8 +147,7 @@ func BuildSpecs(cfg Config, group DeclFileGroup, varDeclFile map[string]string, 
 	return specs
 }
 
-// WantedFamilies lists the family segments an enrich invocation targets, friendly
-// first (matching the historical const order in the combined file).
+// WantedFamilies lists the families an enrich invocation targets, friendly first, matching the combined file's const order.
 func WantedFamilies(wantFriendly, wantMock bool) []string {
 	var families []string
 	if wantFriendly {
@@ -187,19 +159,15 @@ func WantedFamilies(wantFriendly, wantMock bool) []string {
 	return families
 }
 
-// DeclFileGroup is one mirror file's worth of consts: every NamedConst whose type
-// is declared in DeclFile, in topological (declared-before-use) order.
+// DeclFileGroup is one mirror file's worth of consts, in topological (declared-before-use) order.
 type DeclFileGroup struct {
 	DeclFile string
 	Consts   []enrichment.NamedConst
 }
 
-// GroupByDeclFile buckets a topologically-ordered closure by each const's
-// declaration file (falling back to fallbackFile when DeclFile is empty),
-// preserving the closure's order within each bucket. forceSingle collapses every
-// const into one group keyed by fallbackFile (the --out single-file override).
-// Group order follows first appearance, so dependency order is preserved when a
-// referenced type's file is emitted before its referrer's.
+// GroupByDeclFile buckets a topologically-ordered closure by declaration file, keeping the closure's order inside a bucket.
+// forceSingle collapses everything into one group keyed by fallbackFile, the --out override.
+// Group order follows first appearance, which keeps a referenced type's file ahead of its referrer's.
 func GroupByDeclFile(closure []enrichment.NamedConst, fallbackFile string, forceSingle bool) []DeclFileGroup {
 	indexByFile := map[string]int{}
 	var groups []DeclFileGroup

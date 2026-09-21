@@ -5,11 +5,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/schemadoc"
 )
 
-// Thin aliases over the shared schema vocabulary (internal/schemadoc): the
-// format-family roster and the pure keyword-rendering helpers moved there so
-// the runtime document renderer (the `jsc` cache family) and the type/builders
-// printers read ONE vocabulary and can never drift. Call sites keep their
-// historical names; the schemadoc names are the canonical ones.
+// Thin aliases over internal/schemadoc, which holds THE format-family roster and keyword-rendering
+// helpers so the runtime document renderer and the type/builders printers cannot drift. Call sites
+// keep their historical names; the schemadoc names are the canonical ones.
 
 type formatFamily = schemadoc.FormatFamily
 
