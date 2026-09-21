@@ -5,34 +5,25 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Slim VIEW core, the read-only sibling of table.ts. Covers drizzle's
-// manual-column view form only: `pgView(name, columns).as(sql`...`)` and
-// `.existing()`, plus the pre-terminal chain each dialect exposes (with /
-// using / tablespace / withNoData on pg, algorithm / sqlSecurity /
-// withCheckOption on mysql, none on sqlite).
-//
-// Drizzle's OTHER form, `pgView(name).as(qb => qb.select().from(users))`,
-// deliberately stays on drizzle: its columns come from drizzle's select
-// typing, which is the exact generic chain the slim design removes. Declare
-// those with drizzle over toDrizzle() tables (packages/drizzle-orm/CLAUDE.md).
-//
-// A view is select-only: InferSelectModel accepts one, InferInsertModel and
-// InferUpdateModel do not.
+// Slim VIEW core, the read-only sibling of table.ts. Covers drizzle's manual-column view form only
+// (`pgView(name, columns).as(sql)` / `.existing()`, plus each dialect's pre-terminal chain); the
+// `pgView(name).as(qb => ...)` form's columns come from drizzle's select typing, the exact generic
+// chain the slim design removes, so those stay declared with drizzle over toDrizzle() tables
+// (packages/drizzle-orm/CLAUDE.md). A view is select-only: InferSelectViewModel accepts one,
+// InferInsertModel and InferUpdateModel do not.
 
 import type {AnyRtColumn, DrizzleContext} from './recorder.ts';
 import {mapReplayArgs, RtColumnRecorder, rtViewBrand, rtViewKey} from './recorder.ts';
 import {setViewMaterializer} from './table.ts';
 
-/** A slim view's TYPE: the metadata, the same shape RtTableMeta takes and for
- *  the same reasons (see table.ts). Its own brand rather than the table's, so a
- *  view and a table stay distinguishable where toDrizzle overloads on them. */
+/** A slim view's TYPE: the metadata, same shape and reasons as RtTableMeta (see table.ts). Its own
+ *  brand rather than the table's, so a view and a table stay distinguishable where toDrizzle overloads. */
 export interface RtViewMeta<TName extends string, Cols> {
   name: TName;
   columns: Cols;
 }
 export type AnyRtView = RtViewMeta<string, Record<string, AnyRtColumn>>;
-/** The view's brand, the twin of RtTableBrand (see table.ts for why it lives
- *  here rather than on RtViewMeta). */
+/** The twin of RtTableBrand (see table.ts for why it lives here rather than on RtViewMeta). */
 export interface RtViewBrand<Dialect extends string> {
   readonly [rtViewBrand]?: Dialect;
 }
@@ -40,10 +31,8 @@ export interface RtViewBrand<Dialect extends string> {
 export type ViewNameOf<V extends AnyRtView> = V['name'];
 export type ViewColsOf<V extends AnyRtView> = V['columns'];
 
-/** Builds the dialect's drizzle view builder at materialization: called with
- *  the context, the view name and the materialized column builders. What it
- *  returns is drizzle's ManualViewBuilder, which the chain and the terminal
- *  call then run against. */
+/** Builds the dialect's drizzle view builder at materialization; returns drizzle's
+ *  ManualViewBuilder, which the chain and the terminal call then run against. */
 export type BuildViewFn = (context: DrizzleContext, name: string, columnBuilders: Record<string, unknown>) => unknown;
 
 interface RecordedViewCall {
@@ -62,11 +51,9 @@ interface RtViewRuntime {
   drizzle?: unknown;
 }
 
-/** The recorder a dialect's view factory returns: records the chain, and
- *  produces the slim view object on `as` / `existing`. Every chain method any
- *  dialect exposes lives here; which of them a view TYPE offers is decided by
- *  the dialect's view interfaces, so an inapplicable one is unreachable from
- *  typed code (the same split the column kind interfaces use). */
+/** The recorder a dialect's view factory returns. Every chain method any dialect exposes lives here;
+ *  which ones a view TYPE offers is decided by the dialect's view interfaces, so an inapplicable one
+ *  is unreachable from typed code (the same split the column kind interfaces use). */
 export class RtViewBuilder {
   private chain: RecordedViewCall[] = [];
   constructor(
@@ -74,9 +61,8 @@ export class RtViewBuilder {
     private columns: Record<string, unknown>,
     private buildView: BuildViewFn
   ) {
-    // Checked here, not at .as()/.existing(): a shared column builder is a
-    // mistake at the call that reuses it, exactly as on the table road. The
-    // columns are only CLAIMED on finalize, when the view object exists.
+    // Checked here, not at .as()/.existing(): a shared column builder is a mistake at the call that
+    // reuses it. The columns are only CLAIMED on finalize, when the view object exists.
     for (const [key, column] of Object.entries(columns)) {
       if ((column as RtColumnRecorder).table !== undefined) throw sharedColumnError(key, name);
     }
@@ -107,7 +93,6 @@ export class RtViewBuilder {
     return this.record('withCheckOption', withCheckOption === undefined ? [] : [withCheckOption]);
   }
 
-  /** `.as(sql`...`)`: the view's query, as a recorded sql template. */
   as(query: unknown): never {
     return createRtView(this.name, this.columns, this.buildView, this.chain, {method: 'as', args: [query]});
   }
@@ -123,9 +108,8 @@ function sharedColumnError(key: string, name: string): Error {
   );
 }
 
-/** Assemble the slim view object. Mirrors createRtTable: every column recorder
- *  learns its key and its owning view, which is what reference resolution
- *  traverses when a view column is used somewhere else. */
+/** Assemble the slim view object. Mirrors createRtTable: every column recorder learns its key and
+ *  its owning view, which is what reference resolution traverses. */
 function createRtView(
   name: string,
   columns: Record<string, unknown>,
@@ -145,9 +129,7 @@ function createRtView(
   return view as never;
 }
 
-/** Materialize (once) the real drizzle view: build every column, run the
- *  dialect's view factory, replay the chain, then the terminal call. Memoized
- *  on the view, exactly like materializeRtTable. */
+/** Materialize the real drizzle view; memoized on the view, exactly like materializeRtTable. */
 export function materializeRtView(view: object, context: DrizzleContext): unknown {
   const runtime = (view as Record<symbol, RtViewRuntime | undefined>)[rtViewKey];
   if (!runtime) throw new Error('@mionjs/drizzle-orm: toDrizzle() called on a value that is not a slim view');
@@ -162,8 +144,7 @@ export function materializeRtView(view: object, context: DrizzleContext): unknow
   return runtime.drizzle;
 }
 
-/** Whether a value is a slim view (used by toDrizzle's dispatch and by the
- *  shared column resolution in table.ts). */
+/** Whether a value is a slim view (used by the dialect packages' toDrizzle dispatch). */
 export function isRtView(value: object): boolean {
   return typeof (value as Record<symbol, unknown>)[rtViewKey] === 'object';
 }

@@ -5,16 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The runtime bridge of the pure-types road: rebuild a slim table (column
-// recorders + createRtTable) from the REFLECTED graph of a type-defined table
-// (PgTable<'users', {...}>). The graph carries everything the builders would
-// have recorded — builder fn, db column name, config and modifier calls ride
-// the rtColSpec/rtColMods sentinels as literal types — so the rebuilt table
-// materializes into exactly the drizzle table the builder road produces.
-//
-// This module imports NOTHING from @mionjs/run-types at runtime: the
-// dialects' tableFromType resolves the graph (via its injected type argument)
-// and the walker reads the plain node objects structurally, so
+// The runtime bridge of the pure-types road: rebuild a slim table from the REFLECTED graph of a
+// type-defined table (PgTable<'users', {...}>). The graph carries everything the builders would have
+// recorded (builder fn, db column name, config and modifier calls ride the rtColSpec/rtColMods
+// sentinels as literal types), so the rebuilt table materializes into exactly the drizzle table the
+// builder road produces. This module imports NOTHING from @mionjs/run-types at runtime: the dialects'
+// tableFromType resolves the graph and the walker reads the plain node objects structurally, so
 // @mionjs/drizzle-orm itself stays core-free.
 
 import {isColModName} from './typeColumns.ts';
@@ -23,14 +19,9 @@ import type {AnyRtColumn, ColDataOf, RtSql} from './recorder.ts';
 import type {AnyRtTable, BuildTableFn, ColsOf} from './table.ts';
 import {createRtTable} from './table.ts';
 
-/** Per-column runtime callbacks a type cannot carry ($default/$defaultFn and
- *  $onUpdate/$onUpdateFn, drizzle's alias pairs). Each key must match the
- *  same-named $ marker on the column type; the bridge throws on a mismatch in
- *  either direction.
- *
- *  A callback may return an sql value instead of the column's data, which is
- *  what drizzle's own `$onUpdate: () => sql`now()`` does and what the builders
- *  road has always accepted. */
+/** Per-column runtime callbacks a type cannot carry. Each key must match the same-named $ marker on
+ *  the column type; the bridge throws on a mismatch in either direction. A callback may return an sql
+ *  value instead of the column's data, as drizzle's own `$onUpdate: () => sql`now()`` does. */
 export type RuntimeCallbacks<T extends AnyRtTable> = {
   [K in keyof ColsOf<T>]?: {
     $default?: () => ColDataOf<ColsOf<T>[K]> | RtSql;
@@ -40,25 +31,20 @@ export type RuntimeCallbacks<T extends AnyRtTable> = {
   };
 };
 
-/** Runtime inputs a type-defined table cannot carry in the type: the tables
- *  its References modifiers point at (keyed by DB table name) and the
- *  runtime-callback modifiers. Every member stays optional: a plain
- *  tableFromType<T>() call with no options is the common case. */
+/** Runtime inputs a type-defined table cannot carry in the type: the tables its References modifiers
+ *  point at (keyed by DB table name) and the runtime-callback modifiers. Every member stays optional,
+ *  a plain tableFromType<T>() call with no options being the common case. */
 export interface TableFromTypeOptions<T extends AnyRtTable = AnyRtTable> {
   tables?: Record<string, TableDep>;
   runtime?: RuntimeCallbacks<T>;
 }
 
-/** A referenced table, or a thunk returning it. The thunk is what makes a
- *  FORWARD reference spellable: drizzle's own `references: () => cities.id` is
- *  lazy, so its schemas routinely point at a table declared further down the
- *  file, and a bare value in the options object would read it before its
- *  declaration. */
+/** A referenced table, or a thunk returning it. The thunk is what makes a FORWARD reference
+ *  spellable: drizzle's references are lazy, so schemas routinely point at a table declared further
+ *  down the file, where a bare value in the options object would read it before its declaration. */
 export type TableDep = object | (() => object);
 
-/** Minimal structural view of a reflected RunType node (the walker's whole
- *  vocabulary). Kind values mirror runTypeKind.generated.ts in
- *  @mionjs/run-types — wire-stable by contract, pinned by fromType.spec.ts. */
+/** Minimal structural view of a reflected RunType node, the walker's whole vocabulary. */
 export interface ReflectedNode {
   id: string;
   kind?: unknown;
@@ -67,9 +53,9 @@ export interface ReflectedNode {
   child?: ReflectedNode;
   children?: ReflectedNode[];
 }
-/** The kind discriminators the walker dispatches on. Local on purpose (no
- *  runtime @mionjs/run-types import in this package); values are wire-stable
- *  and fromType.spec.ts pins them against RunTypeKind. */
+/** The kind discriminators the walker dispatches on. Local on purpose (no runtime @mionjs/run-types
+ *  import here); they mirror runTypeKind.generated.ts, wire-stable by contract and pinned against
+ *  RunTypeKind by fromType.spec.ts. */
 export const reflectedKinds = {
   undefined: 11,
   literal: 13,
@@ -81,9 +67,7 @@ const KIND_LITERAL = reflectedKinds.literal;
 const KIND_TUPLE = reflectedKinds.tuple;
 const KIND_OBJECT_LITERAL = reflectedKinds.objectLiteral;
 
-/** A node's property members. Flat: a table type is one object now (the meta,
- *  which each dialect's interface extends), where it used to be `Cols & {meta}`
- *  and this had to flatten the arms. */
+/** A node's property members, flat: a table type is ONE object, the meta each dialect's interface extends. */
 function membersOf(node: ReflectedNode | undefined): ReflectedNode[] {
   return node?.children ?? [];
 }
@@ -102,10 +86,8 @@ function fail(detail: string): never {
   throw new Error(`@mionjs/drizzle-orm tableFromType: ${detail}`);
 }
 
-/** Reconstruct the JS value of a literal type tree (string/number/boolean
- *  literals, undefined, literal objects, tuples). An Sql<'text'> carrier
- *  becomes a recorded sql template, so replayed args hold real sql values.
- *  Anything else is not representable in a column spec and fails loudly. */
+/** Reconstruct the JS value of a literal type tree. An Sql<'text'> carrier becomes a recorded sql
+ *  template, so replayed args hold real sql values; anything else fails loudly. */
 function literalValueOf(node: ReflectedNode, where: string): unknown {
   if (node.kind === KIND_LITERAL) return node.literal;
   if (node.kind === KIND_UNDEFINED) return undefined;
@@ -150,10 +132,8 @@ function readColumnSpec(columnNode: ReflectedNode, key: string): ColumnSpec {
   if (typeof fn !== 'string') fail(`column "${key}" spec has no builder fn literal`);
   const nameValue = literalValueOf(plainMember(spec, 'name')?.child ?? {id: '', kind: KIND_UNDEFINED}, `${key}.name`);
   if (nameValue !== undefined && typeof nameValue !== 'string') fail(`column "${key}" spec name is not a string`);
-  // The authored object holds BOTH halves. Only the builder's own keys go
-  // inside the call; the modifier keys are replayed by applyMods, and they are
-  // skipped BEFORE reading a value, since some of them ($type) carry types
-  // that have no literal value at all.
+  // The authored object holds BOTH halves; the modifier keys are replayed by applyMods, and are
+  // skipped BEFORE reading a value, since some ($type) carry types with no literal value at all.
   const configNode = plainMember(spec, 'config')?.child;
   let config: Record<string, unknown> | undefined;
   if (configNode !== undefined && configNode.kind !== KIND_UNDEFINED) {
@@ -169,26 +149,21 @@ function readColumnSpec(columnNode: ReflectedNode, key: string): ColumnSpec {
   return {fn, name: nameValue, config};
 }
 
-/** Unwrap one options.tables entry: a table, or a thunk returning one. Called
- *  at the moment the reference is USED, never at the bridge call, so a thunk
- *  pointing at a table declared later in the file resolves fine. */
+/** Unwrap one options.tables entry. Called when the reference is USED, never at the bridge call, so
+ *  a thunk pointing at a table declared later in the file resolves fine. */
 function tableDep(options: TableFromTypeOptions | undefined, name: string): object | undefined {
   const dep = options?.tables?.[name];
   return typeof dep === 'function' ? (dep as () => object)() : dep;
 }
 
-/** The runtime-callback modifiers: the type carries only the $ marker flag,
- *  the callback itself rides options.runtime. */
+/** The runtime-callback modifiers: the type carries only the $ marker flag, the callback itself
+ *  rides options.runtime. */
 const runtimeModMethods = new Set(['$default', '$defaultFn', '$onUpdate', '$onUpdateFn']);
 
-/** Replay one column's modifier calls onto its recorder: `true` = no-arg flag,
- *  a tuple = the call args. Non-modifier keys are the builder's own config and
- *  are skipped here. Order is the authored object's member order.
- *  References resolves its target through options.tables lazily (the
- *  referenced table may still be materializing), validated eagerly here. A
- *  $ runtime marker replays the matching options.runtime callback (missing
- *  callback = throw) and records the pair in consumedRuntime so the caller
- *  can flag callbacks without a marker. */
+/** Replay one column's modifier calls onto its recorder: `true` = no-arg flag, a tuple = the call
+ *  args, in the authored object's member order. References resolves its target through options.tables
+ *  lazily (the referenced table may still be materializing) but validates it eagerly here. A $ runtime
+ *  marker records the pair in consumedRuntime, so the caller can flag callbacks without a marker. */
 function applyMods(
   recorder: RtColumnRecorder,
   columnNode: ReflectedNode,
@@ -202,8 +177,7 @@ function applyMods(
   for (const modMember of modsMember.child.children ?? []) {
     const method = modMember.name;
     if (typeof method !== 'string' || modMember.child === undefined) fail(`column "${key}" has a malformed modifier`);
-    // The builder's own config keys ride the same object; readColumnSpec
-    // already passed them into the call.
+    // The builder's own config keys ride the same object; readColumnSpec already passed them in.
     if (!isColModName(method)) continue;
     if (method === '$type') continue;
     if (runtimeModMethods.has(method)) {
@@ -226,8 +200,7 @@ function applyMods(
           `column "${key}" references table "${ref.table}" — pass it via tableFromType options: {tables: {${ref.table}: ...}}`
         );
       }
-      // Resolved inside the callback, so a thunk is read when the reference is
-      // used rather than when the bridge is called.
+      // Resolved inside the callback, so a thunk is read when the reference is used, not here.
       recorder.references(() => (tableDep(options, ref.table) as Record<string, AnyRtColumn>)[ref.column], actions);
       continue;
     }
@@ -241,9 +214,8 @@ function applyMods(
   }
 }
 
-/** Every options.runtime callback must have been consumed by a matching $
- *  marker on the same column — an unmatched callback would silently never run
- *  (and the value-free model types would disagree about HasDefault). */
+/** An options.runtime callback with no matching $ marker on the same column would silently never run,
+ *  and the model types would disagree about HasDefault. */
 function checkRuntimeLeftovers(options: TableFromTypeOptions | undefined, consumedRuntime: Set<string>): void {
   for (const [key, callbacks] of Object.entries(options?.runtime ?? {})) {
     for (const [method, callback] of Object.entries(callbacks ?? {})) {
@@ -293,10 +265,9 @@ function readEntries(meta: ReflectedNode, tableName: string): EntrySpec[] {
   return entries;
 }
 
-/** Deep-swap the reserved ref shapes for live column objects: `{col}` → this
- *  table's column (from the extraConfig self record), `{table, col}` → an
- *  options.tables column. Everything else passes through (sql recorders
- *  included). */
+/** Deep-swap the reserved ref shapes for live column objects: `{col}` is this table's column (from
+ *  the extraConfig self record), `{table, col}` an options.tables column. Everything else, sql
+ *  recorders included, passes through. */
 function resolveEntryRefs(
   value: unknown,
   self: Record<string, unknown>,
@@ -323,16 +294,12 @@ function resolveEntryRefs(
   return mapped;
 }
 
-/** Rebuild the slim table from a reflected type-road table graph. The result
- *  is a normal slim table: hand it to materializeRtTable (which is what the
- *  dialect tableFromType wrappers do).
- *
- *  The graph IS the metadata — the table type is the meta, so name, columns and
- *  extras are the root's own members and the rtTableBrand sentinel is what says
- *  a table is what was reflected. `expectedDialect` is the dialect of the
- *  buildTable closure passed in: when both it and the reflected tag are known
- *  they must agree, or the rebuilt table would replay a pg call through mysql's
- *  namespace. Dynamic callers holding only a resolved graph may omit it. */
+/** Rebuild the slim table from a reflected type-road table graph; the result is a normal slim table,
+ *  handed to materializeRtTable by the dialect tableFromType wrappers.
+ *  The graph IS the metadata: name, columns and extras are the root's own members, and the
+ *  rtTableBrand sentinel is what says a table was reflected. `expectedDialect` is the dialect of the
+ *  buildTable closure passed in, and must agree with the reflected tag when both are known, or the
+ *  rebuilt table would replay a pg call through mysql's namespace. Dynamic callers may omit it. */
 export function buildRtTableFromGraph(
   graph: ReflectedNode,
   buildTable: BuildTableFn,
