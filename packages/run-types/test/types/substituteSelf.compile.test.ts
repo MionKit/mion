@@ -48,8 +48,13 @@
 // builtins schemas carry most.
 //
 // The residual risk is the depth cap, and it is the reverse of the old one: a
-// `Self` nested deeper than 24 would be left alone rather than substituted.
-// Walk battery below pins both directions.
+// `Self` nested 24 or more levels under a probed node is left alone rather than
+// substituted. The walk battery pins both columns of the rule and the depth-cap
+// battery pins the cap itself, including that residual.
+//
+// Answering the cap `true` instead was measured and is not an option: every
+// class-carrying node then reaches the rebuild, and the resolver grows past
+// 10 GB and is killed before this file can run.
 
 import {describe, it, expect} from 'vitest';
 import {measureSubstituteSelf} from './substituteSelfHarness.ts';
@@ -64,6 +69,21 @@ function check(snippet: string, budget: number): number {
     `net instantiations (${r.netInstantiations}) exceeded budget (${budget}) — possible SubstituteSelf cost regression`
   ).toBeLessThanOrEqual(budget);
   return r.netInstantiations;
+}
+
+/** `{a0: {a1: … {a<levels-1>: leaf}}}` — one plain object per level, so the
+ *  nesting depth and the walk's depth counter are the same number. **/
+function nest(levels: number, leaf: string): string {
+  let out = leaf;
+  for (let i = levels - 1; i >= 0; i--) out = `{a${i}: ${out}}`;
+  return out;
+}
+
+/** The index chain that reads `nest(levels, …)` back down to its leaf. **/
+function pathTo(levels: number): string {
+  let out = '';
+  for (let i = 0; i < levels; i++) out += `['a${i}']`;
+  return out;
 }
 
 /** Battery variant: asserts the snippet type-checks, with NO budget. Walking a
@@ -207,6 +227,66 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       // Deeper than the OLD cap of 12 and still found — the cap is 24 now.
       type _10 = Expect<Equal<ContainsSelf<{a:{b:{c:{d:{e:{f:{g:{h:{i:{j:{k:{l:{m: Self}}}}}}}}}}}}}>, true>>;
       `
+    );
+  });
+
+  // ── The depth-cap battery: where the walk stops, and what that costs ──
+  //
+  // The cap is the whole reason a class is left intact: a schema body is a
+  // finite tree and bottoms out, a class's members loop and never do, so 24
+  // levels without bottoming out means "not a schema body, leave it alone".
+  // That answer is `false`, and for the nodes it is aimed at it is the TRUE
+  // answer, not a guess — a class, a builtin and an already-resolved
+  // `Recursive<…>` all hold no `Self` at all.
+  //
+  // The cost is a plain object nest that really does hold a `Self` past the
+  // cap. It is pinned here rather than fixed: answering `true` sends every
+  // class-carrying node to the rebuild, and the resolver grows past 10 GB and
+  // is killed. Raising 24 only moves these two cases, it removes neither.
+
+  it('the cap falls at exactly 24 levels', () => {
+    checkTypesOnly(
+      `
+      type _01 = Expect<Equal<ContainsSelf<${nest(23, 'Self')}>, true>>;
+      type _02 = Expect<Equal<ContainsSelf<${nest(24, 'Self')}>, false>>;
+      `
+    );
+  });
+
+  it("a Self past the cap is left un-substituted (the cap's price)", () => {
+    check(
+      `
+      type Body = ${nest(24, 'Self')};
+      type Out = Recursive<Body>;
+      type _01 = Expect<Equal<Out, Body>>;              // returned verbatim
+      type _02 = Expect<Equal<Out${pathTo(24)}, Self>>; // the Self is still there
+      `,
+      1933
+    );
+  });
+
+  // 14441 against the 1933 above: the same nest costs 7x once the walk finds
+  // the `Self` and rebuilds all 23 levels instead of giving up at the cap.
+  it('one level shallower still ties the knot', () => {
+    check(
+      `
+      type Out = Recursive<${nest(23, 'Self')}>;
+      type _01 = Expect<Equal<Out${pathTo(23)}, Out>>;
+      `,
+      14441
+    );
+  });
+
+  it('a circular schema nested inside another one is left intact', () => {
+    check(
+      `
+      type Inner = Recursive<{v: string; next?: Self}>;
+      type Outer = Recursive<{child: Inner; next?: Self}>;
+      type _01 = Expect<Equal<Outer['child'], Inner>>;
+      type _02 = Expect<Equal<Outer['next'], Outer | undefined>>;
+      type _03 = Expect<Equal<NonNullable<Outer['child']['next']>['v'], string>>;
+      `,
+      2969
     );
   });
 });
