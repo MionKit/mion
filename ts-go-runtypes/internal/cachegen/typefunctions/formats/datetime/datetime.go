@@ -22,21 +22,14 @@ func init() {
 func (dateTimeEmitter) Name() string                    { return "dateTime" }
 func (dateTimeEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// foldedSeparator returns the two spellings of a separator that has a case
-// distinction. RFC 3339 allows `1963-06-19t08:30:06z` as readily as the
-// upper-case spelling, so a letter separator must match either way; anything
-// else reads the same in both cases and keeps an exact search.
+// foldedSeparator folds the two spellings of a letter separator: RFC 3339 allows `1963-06-19t08:30:06z` too.
 func foldedSeparator(splitChar string) (upper, lower string, folded bool) {
 	upper = strings.ToUpper(splitChar)
 	lower = strings.ToLower(splitChar)
 	return upper, lower, upper != lower
 }
 
-// splitSearch emits the JS expression locating the date/time separator.
-// EVERY lane that splits a dateTime goes through this or its build-time twin
-// splitIndex: the validate check, the error check and the bound key. Two of
-// them once spelled their own indexOf, so a lowercase separator passed one and
-// failed the others.
+// splitSearch emits the separator search every lane must use, or a lowercase separator passes one lane and fails another.
 func splitSearch(vλl, splitChar string) string {
 	upper, lower, folded := foldedSeparator(splitChar)
 	if !folded {
@@ -45,9 +38,7 @@ func splitSearch(vλl, splitChar string) string {
 	return vλl + ".search(/[" + upper + lower + "]/)"
 }
 
-// splitIndex is splitSearch's build-time twin: the same separator rule applied
-// in Go, so a static bound literal splits exactly where the emitted code does.
-// width is the byte length of the spelling that matched.
+// splitIndex is splitSearch's build-time twin, so a static bound literal splits where the emitted code does.
 func splitIndex(value, splitChar string) (index, width int) {
 	upper, lower, folded := foldedSeparator(splitChar)
 	if !folded {

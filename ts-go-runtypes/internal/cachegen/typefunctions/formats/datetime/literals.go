@@ -311,10 +311,7 @@ func parseSecondsWithMs(seg string) (float64, bool) {
 	return float64(secs*1000 + ms), true
 }
 
-// dateTimeEpochMs validates a full datetime literal and returns UTC epoch
-// ms. Split on `splitChar` (default 'T'); the static guard parses both
-// halves as ISO (nested-layout-aware comparison is the emitter's job —
-// this is a best-effort build-time ordering check).
+// dateTimeEpochMs parses both halves as ISO whatever the nested layout: a best-effort build-time ordering check.
 func dateTimeEpochMs(value, splitChar string) (float64, bool) {
 	sep := splitChar
 	if sep == "" {
