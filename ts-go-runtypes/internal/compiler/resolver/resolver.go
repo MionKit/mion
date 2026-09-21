@@ -1,31 +1,6 @@
-// Package resolver is the session orchestrator. It owns a tsgo Program +
-// checker pool and dispatches incoming protocol ops across the cache
-// generators under internal/cachegen/:
-//
-//   - runtype: resolves call-site type queries, deduplicates serialized
-//     RunType records, and emits the runTypes cache module.
-//   - typefunctions: precompiles the per-family functions (validate,
-//     JSON/binary codecs, mock data, …) for cached RunTypes the emitter
-//     supports.
-//   - purefunctions + purefnindex: extract `registerPureFnFactory(...)`
-//     bodies into the pureFns cache module, from the program for a consumer's
-//     own and from an installed package's files (the marker package's
-//     included) for the ones a body imports.
-//   - operations, diskcache, hashid: shared op plumbing, the incremental
-//     on-disk artifact cache, and the short structural-hash ids.
-//
-// The package's own files, by role:
-//
-//   - dispatch.go — per-op handlers, the entry point for every protocol op.
-//   - scan.go / scan_parallel.go — marker scanning, serial and pooled.
-//   - scope.go — per-file scope projection (which entries a file demands).
-//   - generate.go / render.go — cache-module generation, rendering, and
-//     wire-shape conversions.
-//   - overrides.go — tsconfig/flag option resolution.
-//   - relimports.go — relative-import paths from a site file to its modules.
-//   - enrichcheck.go / enrich_op.go — the enrichment plan/check leaf and its op.
-//   - missingtypeargs.go, temporal_guard.go, nonenumerable_lint.go,
-//     unresolved_import_guard.go — the build-diagnostic guards.
+// Package resolver is the session orchestrator: it owns a tsgo Program + checker pool and
+// dispatches incoming protocol ops across the cache generators under internal/cachegen/
+// (runtype, typefunctions, purefunctions + purefnindex, operations, diskcache, hashid).
 package resolver
 
 import (
@@ -54,219 +29,108 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Options controls the resolver's hash budget and the marker-detection
-// parameters threaded through to scanFiles.
+// Options is the resolver session's spawn-time configuration.
 type Options struct {
 	HashLength int
-	// Marker selects which type alias the scanner treats as the
-	// transformer's id-injection sentinel. Zero values default to
-	// `InjectRunTypeId` from `mion`.
+	// Marker selects the id-injection sentinel alias; zero values default to `InjectRunTypeId` from `mion`.
 	Marker marker.Options
-	// Cwd is the working directory used when SetSources builds an inferred
-	// Program. Required for server-mode resolvers; ignored when a Program
-	// is supplied to New(). When unset, SetSources falls back to the
-	// existing Program's GetCurrentDirectory.
+	// Cwd is where SetSources builds an inferred Program; ignored when New() gets a Program, unset falls back to its cwd.
 	Cwd string
-	// TsconfigPath is the project tsconfig (relative to Cwd, or absolute) whose
-	// FULL parsed options SetSources adopts in every inferred Program, so
-	// daemon rebuilds type-check exactly like the build. Main resolves it once
-	// at process entry (explicit --tsconfig, else DiscoverTsconfig's tsc-style
-	// upward walk) — the daemon receives the already-resolved path; empty means
-	// no config exists anywhere (the inferred-defaults posture). Ignored when a
-	// Program is supplied to New().
+	// TsconfigPath: every inferred Program adopts its FULL parsed options, so daemon rebuilds type-check like the build.
+	// Already resolved by main (relative to Cwd, or absolute); empty means no config exists anywhere.
 	TsconfigPath string
-	// TsconfigGenDir is the tsconfig `genDir` value (absolute; empty when the
-	// tsconfig sets none). resolveOutDir prefers it over the inferred
-	// <srcDir>/.mion default, so every lane (bundler plugin, --compile,
-	// enrich CLI) agrees on the output root; an explicit per-request outDir
-	// (the plugin's own genDir option) still wins.
+	// TsconfigGenDir is the tsconfig `genDir` (absolute, empty when unset), preferred over the inferred <srcDir>/.mion.
+	// An explicit per-request outDir still wins.
 	TsconfigGenDir string
-	// ClientTsconfig names the tsconfig of a SEPARATE client project whose
-	// `batch([...])` calls and inline `inputFrom()` mappers this (server)
-	// session generates the batch transport from (`<outDir>/rpc/`). Absolute.
-	// Empty means the batch source is the session's own program: a fullstack
-	// app, or one package holding both halves, needs nothing. The client
-	// program is built lazily on the first generate and rebuilt when one of
-	// its stamped source files changes.
+	// ClientTsconfig is the SEPARATE client project this server session generates the batch transport from (`<outDir>/rpc/`).
+	// Empty means the batch source is this program; the client program is built lazily and rebuilt when a stamped file changes.
 	ClientTsconfig string
-	// ApiTsconfig names the tsconfig of the SEPARATE project that declares the
-	// mion API this (client) session's dispatch sites call. Under BundleApi the
-	// apimeta lane resolves every route's params and return in a peer program
-	// built over it and assigns their ids from that checker, so a different
-	// `lib`, `strictNullChecks` or path mapping on the API side cannot change
-	// an id. Absolute. Empty means the API is declared in this program.
+	// ApiTsconfig is the SEPARATE project declaring the API this client's dispatch sites call; empty means this program.
+	// Under BundleApi ids come from that peer program's checker, so a different `lib` or `strictNullChecks` cannot change one.
 	ApiTsconfig string
-	// BundleApi switches the client-side apimeta lane on: the metadata and
-	// compiled functions of every route the program calls are emitted under
-	// <outDir>/api/ and injected at the dispatch sites; the mode literal is
-	// injected at initClient. Off (the zero value) skips the lane entirely.
+	// BundleApi turns the client apimeta lane on: each called route's metadata and compiled fns go under <outDir>/api/,
+	// injected at the dispatch sites, with the mode literal injected at initClient. The zero value skips the lane.
 	BundleApi constants.BundleApiMode
-	// GenDir is the EXPLICIT output-root override (the serve --gen-dir flag —
-	// the host plugin's own genDir option, forwarded at spawn). resolveOutDir
-	// prefers it over TsconfigGenDir. Session config, not wire config: EVERY op
-	// that needs the output root reads it through resolveOutDir, never a
-	// request field.
+	// GenDir is the EXPLICIT output-root override (serve --gen-dir), preferred over TsconfigGenDir.
+	// Session config, never a wire field: every op reads the output root through resolveOutDir.
 	GenDir string
-	// TransformRelative makes OpTransform rewrite the injected import block's
-	// `rtmod:` specifiers to paths relative to the resolved output root (the
-	// files-mode lane: the generated modules exist on disk under
-	// <outDir>/types). False leaves the virtual `rtmod:` specifiers intact for
-	// a host that resolves them itself.
-	//
-	// A SESSION knob, not a per-request one: every consumer is
-	// session-homogeneous. The bundler plugin always relativizes; batchcompile's
-	// pass-1 transform, the transform-wire bench and the inline test lane always
-	// want the virtual form. It cannot be inferred from GenDir resolving
-	// non-empty (resolveOutDir always resolves to something), nor from "this
-	// session ran OpGenerate" — batchcompile generates AND virtual-transforms in
-	// the same session.
+	// TransformRelative rewrites the injected `rtmod:` specifiers to paths relative to the resolved output root
+	// (the files-mode lane); false leaves them virtual for a host that resolves them itself.
+	// A SESSION knob: it cannot be inferred from GenDir (resolveOutDir always resolves) nor from "ran OpGenerate",
+	// since batchcompile generates AND virtual-transforms in the same session.
 	TransformRelative bool
-	// OmitSourcesContent drops the ORIGINAL source out of each 'go'-mode
-	// TransformResult.Map.sourcesContent (the heaviest single wire item — the
-	// whole source a second time). The bundler composes chained maps and fills
-	// original content downstream, so it rarely needs our copy. Off by default;
-	// mirrors the immutable plugin option `sourcesContent: false`, which is why
-	// it is spawn config rather than a request field. A pure WIRE trim — it
-	// changes no artifact, and transforms are never disk-cached, so it is not a
-	// fingerprint input.
+	// OmitSourcesContent drops the original source from each 'go'-mode TransformResult.Map.sourcesContent,
+	// the heaviest wire item.
+	// Spawn config (it mirrors the immutable plugin option) and a pure wire trim: no artifact changes, not a fingerprint input.
 	OmitSourcesContent bool
-	// TsconfigDowngradeErrors is the tsconfig plugin's downgradeErrors (nil when
-	// unset); OpGenerate echoes it on Response.DowngradeErrors so the
-	// dependency-free host can honor a tsconfig-only setting. The resolver never
-	// acts on it: downgrading is halt policy, applied by whoever decides whether
-	// to halt. Suppression (`@mion-expect-error`) IS applied here, because that
-	// one is a fact about the source rather than a policy.
+	// TsconfigDowngradeErrors is echoed on Response.DowngradeErrors so a dependency-free host can honor a
+	// tsconfig-only setting. The resolver never acts on it: downgrading is halt policy.
+	// `@mion-expect-error` IS applied here, being a fact about the source rather than a policy.
 	TsconfigDowngradeErrors []string
-	// SingleThreaded forces single-checker mode on Programs built by
-	// SetSources. Mirrors program.Options.SingleThreaded. Also forces the
-	// serial scan path (a one-checker pool has nothing to fan out over).
+	// SingleThreaded mirrors program.Options.SingleThreaded, and also forces the serial scan path.
 	SingleThreaded bool
-	// DisableParallelScan forces the serial marker-scan path. The zero
-	// value means parallel-on (same default-true idiom as SingleThreaded):
-	// scanFiles requests whose files span more than one pool checker group
-	// run the checker-bound analysis concurrently across the pool, then
-	// commit serially in request order. The serial path remains the
-	// automatic fallback for single-group requests, single files, and
-	// file-resolve errors.
+	// DisableParallelScan forces the serial marker scan; the zero value is parallel-on (same idiom as SingleThreaded).
+	// Parallel runs the checker-bound analysis across pool checker groups and commits serially in request order;
+	// single-group requests, single files and file-resolve errors fall back to serial.
 	DisableParallelScan bool
-	// DisableParallelRender forces the sequential family-render loop. The
-	// zero value means parallel-on: the requested non-validate cache
-	// families render concurrently (each against sharded per-dispatch
-	// memos, merged at the join), validate always renders last and
-	// serially. SingleThreaded implies serial here too.
+	// DisableParallelRender forces the sequential family-render loop; the zero value renders non-validate families
+	// concurrently against sharded per-dispatch memos merged at the join. validate always renders last and serially,
+	// and SingleThreaded implies serial here too.
 	DisableParallelRender bool
-	// CacheDir is the EXPLICIT cache-location override (the internal
-	// MION_CACHE_DIR control — tests + direct-binary power users). When
-	// non-empty, the resolver persists per-(typeID, fnTag) RT artifacts
-	// under it regardless of the project's incremental setting. When empty,
-	// the location follows CacheFollowsIncremental (below). The disk layer
-	// fingerprints non-version build options (hash lengths, marker settings)
-	// into a subdirectory so distinct configurations don't share cache
-	// entries; binary version is folded into the typeID hash so cross-version
-	// files never collide.
+	// CacheDir is the EXPLICIT cache-location override (MION_CACHE_DIR), used whatever the project's incremental setting.
+	// Build options fingerprint into a subdirectory so distinct configurations never share entries (the binary version
+	// folds into the typeID hash instead); empty follows CacheFollowsIncremental.
 	CacheDir string
-	// CacheFollowsIncremental, when true and CacheDir is empty, turns the RT
-	// disk cache on IFF the loaded Program enables TypeScript's incremental /
-	// composite compilation — at the canonical
-	// <Cwd>/node_modules/.cache/mion location. This is the normal
-	// (plugin) flow: the cache follows tsc's own on/off switch. When false
-	// and CacheDir is empty, caching is off (the in-memory walker runs every
-	// time — the inline / server test default). Ignored when CacheDir is set.
+	// CacheFollowsIncremental ties the RT disk cache to tsc's own incremental/composite switch, at
+	// <Cwd>/node_modules/.cache/mion. The normal plugin flow; false means no cache. Ignored when CacheDir is set.
 	CacheFollowsIncremental bool
-	// EmitMode selects what every typefns module renderer ships in its
-	// code/factory slots: EmitCode (default) ships only the body `code`
-	// string (the runtime rebuilds the factory via `new Function('utl',
-	// code)` on first lookup); EmitFunctions ships only the live
-	// `function g_<hash>(utl){…}` factory (code derived lazily if read);
-	// EmitBoth ships both, for secure runtimes (Cloudflare WorkerD,
-	// sandboxed iframes, browser CSP without `unsafe-eval`) that disallow
-	// dynamic-code construction yet read `.code`. The vitest configs set
-	// EmitBoth so the suite covers both the inline-factory path (via
-	// createValidateFn<T>) and the new-Function path (via
-	// deserializeValidate<T>) on every case.
+	// EmitMode selects what a typefns module ships in its code/factory slots; EmitBoth is for runtimes that ban
+	// dynamic-code construction yet read `.code` (WorkerD, sandboxed iframes, CSP without `unsafe-eval`).
+	// The vitest configs set EmitBoth so the suite covers the inline-factory and the new-Function path on every case.
 	EmitMode constants.EmitMode
-	// InlineMode selects the child-inlining policy (constants.InlineMode,
-	// --inline-mode): default inlines unnamed non-circular compounds and
-	// keeps named types external; allInternal inlines everything except
-	// circular types.
+	// InlineMode (--inline-mode): default inlines unnamed non-circular compounds; allInternal inlines all but circular types.
 	InlineMode constants.InlineMode
-	// ModuleMode selects how cache entries group into virtual modules:
-	// constants.ModuleModeDefault (or empty — runtype bundle + per-entry fn
-	// modules), ModuleModeAllSingle (per-family bundles, fewest modules), or
-	// ModuleModeAllModules (per-node runtype modules too — the pre-bundle
-	// layout). Validated at the CLI boundary; unknown values behave as
-	// default.
+	// ModuleMode selects how cache entries group into virtual modules; validated at the CLI boundary, unknown values
+	// behave as default.
 	ModuleMode string
-	// SizeBias / SizeItems / SizeStringBytes / SizeMaxBytes parameterise the
-	// compile-time binary buffer-size estimate baked into every `tb` entry —
-	// the seed the runtime `dynamic` strategy uses as its cold-start buffer
-	// size. Zero-value fields fall back to the constants.DefaultSize* defaults
-	// (SizeEstimateConfig.normalized), except SizeBias whose 0 is a valid
-	// "tightest" setting; the CLI/plugin path passes the DefaultSize* values.
-	// All four fold into the disk fingerprint.
+	// SizeBias / SizeItems / SizeStringBytes / SizeMaxBytes seed the binary buffer-size estimate baked into every `tb`
+	// entry, which the runtime `dynamic` strategy uses as its cold-start buffer size. Zero falls back to
+	// constants.DefaultSize*, except SizeBias whose 0 is a valid "tightest" setting; all four fold into the fingerprint.
 	SizeBias        float64
 	SizeItems       int
 	SizeStringBytes int
 	SizeMaxBytes    int
-	// JSEngine is the JS engine format-pattern checks run on (the sidecar
-	// under node/bun natively, the host itself under WASM) — the validation
-	// authority for pattern mockSamples. Nil or failing means patterns are
-	// unverifiable and fail closed with the FMT004 missing-runtime error.
-	// Not a disk-fingerprint input (it changes only which diagnostics
-	// surface, never the emitted artifacts).
+	// JSEngine runs the format-pattern checks (the sidecar under node/bun, the host itself under WASM) and is the
+	// validation authority for pattern mockSamples; nil or failing fails closed with FMT004.
+	// Not a disk-fingerprint input: it changes which diagnostics surface, never the emitted artifacts.
 	JSEngine jsengine.Engine
-	// PatternSampleCount / PatternSampleRetries drive mockSample
-	// auto-generation for format patterns that declare none: the enrichment
-	// pass asks JSEngine for PatternSampleCount deterministic samples per
-	// sample-less pattern (0 disables generation — such patterns then fail
-	// with FMT005), retrying each draw up to PatternSampleRetries times
-	// (whole budget = count × retries). Generation is post-intern, so
-	// typeIDs never depend on either knob; the emitted annotation content
-	// does, so BOTH are disk-fingerprint inputs.
+	// PatternSampleCount / PatternSampleRetries drive mockSample generation for patterns that declare none: count
+	// samples per pattern, retried up to retries times each (0 count disables generation, such patterns then fail FMT005).
+	// Post-intern, so typeIDs never depend on them; the emitted annotation does, so BOTH are disk-fingerprint inputs.
 	PatternSampleCount   int
 	PatternSampleRetries int
-	// JSONMaxBytes emits, on every reflection ROOT row whose type is fully
-	// bounded, the largest compact-JSON byte size a valid value can have
-	// (row slot 21): what a framework derives per-route request and response
-	// limits from. On by default; a project that does not want type-derived
-	// limits turns it off (tsconfig `jsonMaxBytes: false`, `--json-max-bytes=false`)
-	// and the slot is never computed nor emitted. A disk-fingerprint input:
-	// it changes the emitted root rows.
+	// JSONMaxBytes emits, on every fully bounded reflection ROOT row, the largest compact-JSON byte size a valid value
+	// can have (row slot 21), which is what a framework derives per-route limits from. On by default; off means the slot
+	// is never computed. A disk-fingerprint input: it changes the emitted root rows.
 	JSONMaxBytes bool
-	// PureFnReportWire enables the structured build report (pure fns + batches):
-	// OpGenerate and OpScanFiles populate Response.PureFnSites and
-	// Response.BatchSites (whole program on generate, the rescanned files' delta
-	// on scan). Off by default, so the normal rewrite pipeline pays nothing. Not
-	// a disk-fingerprint input (report-only; it never changes the emitted
-	// artifacts). Batch-id injection is NOT gated by it: the id is spliced
-	// whether or not the report is on.
+	// PureFnReportWire populates Response.PureFnSites / BatchSites (whole program on generate, the rescanned files'
+	// delta on scan); off by default, so the normal rewrite pipeline pays nothing.
+	// Report-only, not a disk-fingerprint input; batch-id injection is NOT gated by it.
 	PureFnReportWire bool
-	// PureFnReportFile, when true, additionally WRITES the whole-program reports
-	// as JSON files during OpGenerate. The locations are HARDCODED at
-	// `<outDir>/types/pure-fns-report.json` and `<outDir>/types/batches-report.json`
-	// (inside the generated cache dir, so they follow types/'s .gitignore +
-	// regenerate lifecycle; still DATA, never part of the module manifest nor
-	// resolvable as an rtmod:/ specifier) — not configurable, matching every
-	// other path under the output root.
+	// PureFnReportFile also WRITES the reports during OpGenerate, to `<outDir>/types/pure-fns-report.json` and
+	// `<outDir>/types/batches-report.json`: hardcoded like every path under the output root, and DATA only, never part
+	// of the module manifest nor resolvable as an rtmod:/ specifier.
 	PureFnReportFile bool
-	// ValidateDefaults carries project-wide defaults for the per-call-site
-	// ValidateOptions bag (validate / validationErrors). The scanner merges it
-	// per field into every call site (site value wins per field). NOT a
-	// disk-fingerprint input: it forks each entry's fnHash variant exactly like
-	// a per-site option, so distinct defaults key distinct cache entries on
-	// their own.
+	// ValidateDefaults seeds the per-call-site ValidateOptions bag, merged per field with the site value winning.
+	// NOT a disk-fingerprint input: it forks each entry's fnHash like a per-site option, so distinct defaults key
+	// distinct cache entries on their own.
 	ValidateDefaults ValidateDefaults
-	// ParseDefaults carries the project-wide default for createParseFn's
-	// strategy. Merged per site the same way, site-wins.
+	// ParseDefaults is the project-wide default for createParseFn's strategy, merged per site the same way, site-wins.
 	ParseDefaults ParseDefaults
-	// Enrichment session config for OpEnrich — spawn-time, never wire fields
-	// (the wire carries only the target Files; the session carries the config).
-	// EnrichFriendly / EnrichMock select the families to maintain; both false
-	// means both (the CLI default). EnrichI18n turns per-locale translation-mirror
-	// sync on (scaffold + sync only, never translated content); EnrichLocales /
-	// EnrichSourceLocale configure it — serve seeds them from the tsconfig plugin
-	// i18n block (project mode) with the --enrich-locales / --enrich-source-locale
-	// flags as explicit overrides.
+	// Enrichment session config for OpEnrich: spawn-time only, the wire carries just the target Files.
+	// EnrichFriendly / EnrichMock select the families to maintain; both false means both (the CLI default).
+	// EnrichI18n syncs per-locale translation mirrors (scaffold and sync only, never translated content); serve seeds
+	// EnrichLocales / EnrichSourceLocale from the tsconfig plugin i18n block, with the matching flags as overrides.
 	EnrichFriendly     bool
 	EnrichMock         bool
 	EnrichI18n         bool
@@ -274,30 +138,23 @@ type Options struct {
 	EnrichSourceLocale string
 }
 
-// ValidateDefaults is the project-wide default subset of ValidateOptions a
-// build may set through the `validate` plugin / tsconfig object. An empty
-// field means "unset" — the call site's own value, else the built-in default,
-// applies.
+// ValidateDefaults is the project-wide subset of ValidateOptions a build may set through the `validate`
+// plugin / tsconfig object; an empty field means unset, so the call site's value or the built-in default applies.
 type ValidateDefaults struct {
 	// NumberMode defaults ValidateOptions.numberMode ("" = unset → isFinite).
 	NumberMode string
 }
 
-// ParseDefaults is the project-wide default a build may set through the `parse`
-// plugin / tsconfig object. An empty field means "unset" — the call site's own
-// value, else the built-in default, applies.
+// ParseDefaults is the project-wide default a build may set through the `parse` plugin / tsconfig object;
+// an empty field means unset, so the call site's value or the built-in default applies.
 type ParseDefaults struct {
 	// Strategy defaults ParseOptions.strategy ("" = unset → preserve).
 	Strategy string
 }
 
-// Session owns a Program and answers type queries against it. The serializer
-// cache is shared across queries so type ids stay stable in a single dump.
-//
-// Program-less resolvers (built via NewServer) are valid: they accept the
-// setSources op to install a Program, then serve scanFiles / dump as normal.
-// Subsequent setSources calls swap the Program in place — the structural
-// type cache survives across swaps so dedup IDs stay stable.
+// Session owns a Program and answers type queries against it; one shared serializer cache, which survives a
+// Program swap, is what keeps dedup ids stable. A Program-less session (NewServer) is valid: setSources
+// installs one, and later calls swap it in place.
 type Session struct {
 	Program      *program.Program
 	cache        *runtype.Cache
@@ -306,164 +163,102 @@ type Session struct {
 	sites        []protocol.Site
 	marker       marker.Options
 	opts         Options
-	// inferredConfig caches the project tsconfig parsed from opts.TsconfigPath —
-	// the FULL frozen CompilerOptions, adopted wholesale by every setSources-built
-	// Program so daemon rebuilds type-check exactly like the build. Parsed ONCE
-	// (cwd + tsconfig path are fixed per session); nil with the done flag set
-	// means "no tsconfig named" (the inferred-defaults fallback). A FAILED parse
-	// leaves the done flag unset: the op errors (strict like tsc, CFG001) and the
-	// next setSources re-parses, so a fixed config heals without a respawn.
-	// Session-lifetime, not reset on a Program swap.
+	// inferredConfig is the project tsconfig parsed ONCE per session; nil with the done flag set means none was named.
+	// A FAILED parse leaves the done flag unset: the op errors (strict like tsc, CFG001) and the next setSources
+	// re-parses, so a fixed config heals without a respawn. Session-lifetime, not reset on a Program swap.
 	inferredConfig     *program.InferredConfig
 	inferredConfigDone bool
-	// configDeclarationRoots is the config's declaration-file (`.d.ts`) subset,
-	// computed once beside inferredConfig. Every setSources-built Program unions
-	// it into its roots so ambient declarations the project includes — which
-	// nothing imports, so module resolution never reaches them — resolve exactly
-	// as they do in the build lane instead of silently checking as `any`.
+	// configDeclarationRoots is the config's `.d.ts` subset, unioned into every setSources-built Program's roots so
+	// ambient declarations nothing imports resolve as in the build lane instead of silently checking as `any`.
 	configDeclarationRoots []string
-	// pureFnKeys is the set of pure-fn ids the resolver has observed so
-	// far. An id is the hash of the body that ships, so an edited body
-	// arrives as a NEW id and a set is all the change signal needs to be.
-	// Used by dispatchScanFiles to emit `AddedPureFns` on the wire — the
-	// Vite plugin reads that signal in handleHotUpdate to decide whether
-	// the pureFns cache module needs invalidating after a user-file change.
+	// pureFnKeys is every pure-fn id seen so far; an id hashes the body that ships, so an edited body arrives as a
+	// NEW id and a set is all the change signal needs to be. dispatchScanFiles emits the delta as `AddedPureFns`,
+	// which the Vite plugin reads in handleHotUpdate to decide whether the pureFns cache module needs invalidating.
 	pureFnKeys map[string]bool
-	// scannedFiles tracks every file the resolver has scanned via
-	// dispatchScanFiles, regardless of whether the scan found any
-	// markers. Used by scanAllProgramFiles to avoid double-scanning
-	// (which would duplicate site entries on resolver.sites). Cleared
-	// alongside the cache + sites on Rebind / Clear.
+	// scannedFiles lets scanAllProgramFiles skip a file already scanned, which would duplicate entries on sess.sites.
+	// Cleared alongside the cache + sites on Rebind / Clear.
 	scannedFiles map[string]struct{}
-	// pureFnFileCache memoizes per-file pure-fn extraction for the
-	// lifetime of the current Program (files are immutable within one
-	// Program). The OpDump path used to re-extract EVERY program file on
-	// EVERY dump; with the cache only never-seen files pay the AST walk.
-	// Dropped on SetProgram / Reset together with the Program.
+	// pureFnFileCache memoizes per-file pure-fn extraction for the current Program, whose files are immutable, so
+	// only never-seen files pay the AST walk on a dump. Dropped on SetProgram / Reset with the Program.
 	pureFnFileCache *purefunctions.FileCache
-	// pureFnIndex reads the pure fns installed packages ship (built files, or
-	// sources for the marker package), for the dep walker (a .d.ts binding → id)
-	// and the serve step. Lives for the session and is rebound to each Program's
-	// FS and checker: an installed package does not change under a running
-	// session, and a per-request program swap must not re-extract it.
+	// pureFnIndex reads the pure fns installed packages ship (built files, or sources for the marker package), for the
+	// dep walker and the serve step. Session-lived, rebound per Program: a swap must not re-extract it.
 	pureFnIndex *purefnindex.Store
 	// Only a package's OWN build may produce its built-in pure-fn bodies, so this is what decides
 	// whether collectProgramPureFns applies its built-in filter. Memoised with the Program.
 	ownPackageName string
 	ownPackageRoot string
 	ownPackageDone bool
-	// batchFileCache is the request-batch twin of pureFnFileCache: per-file
-	// `batch([...])` extraction memoised for the current Program, dropped
-	// alongside it.
+	// batchFileCache is the `batch([...])` twin of pureFnFileCache, memoised for the current Program and dropped with it.
 	batchFileCache *requestbatch.FileCache
-	// routerInitFileCache memoises per-file `createMionRouter` detection for
-	// the current Program (the modules the batch import is appended to),
-	// dropped alongside it.
+	// routerInitFileCache memoises per-file `createMionRouter` detection: the modules the batch import is appended to.
 	routerInitFileCache *routerinit.FileCache
-	// batchPeer is the SEPARATE program the batch transport is generated from
-	// when Options.ClientTsconfig names one; its session stays nil while
-	// unbuilt, and when the batch source is this session's own program. See
-	// rpcgen.go, and peerProgram for the lifecycle both peers share.
+	// batchPeer is the SEPARATE program the batch transport is generated from when Options.ClientTsconfig names one;
+	// its session stays nil while unbuilt and when the batch source is this program. See rpcgen.go and peerProgram.
 	batchPeer peerProgram
-	// apiPeer is the SEPARATE program a CLIENT build resolves its API's routes
-	// in when Options.ApiTsconfig names one (the bundleApi lane); same
+	// apiPeer is the SEPARATE program a CLIENT build resolves its API's routes in (the bundleApi lane); same
 	// lifecycle as batchPeer. See apigen.go.
 	apiPeer peerProgram
-	// apiFileCache memoises per-file dispatch-site extraction (the bundleApi
-	// lane) for the current Program, dropped alongside it.
+	// apiFileCache memoises per-file dispatch-site extraction (the bundleApi lane), dropped with the Program.
 	apiFileCache *apimeta.FileCache
-	// apiInitFileCache memoises which files call `initClient`, the modules the
-	// lane import is appended to.
+	// apiInitFileCache memoises which files call `initClient`, the modules the lane import is appended to.
 	apiInitFileCache *apimeta.InitFileCache
-	// hasBatchesMemo caches whether the batch source holds at least one
-	// batch call, the transform's switch for appending the batch import. nil
-	// until computed; reset with the Program (own-program case) and whenever
-	// the batch source is rebuilt. importsRouterMemo caches whether any own
-	// source file names `@mionjs/router` (see rpcgen.go); reset with the
-	// Program.
+	// hasBatchesMemo is the transform's switch for appending the batch import; reset with the Program (own-program
+	// case) and whenever the batch source is rebuilt.
+	// importsRouterMemo caches whether any own source file names `@mionjs/router` (see rpcgen.go); reset with the Program.
 	hasBatchesMemo    *bool
 	importsRouterMemo *bool
-	// verdictsByChecker memoizes marker.DetectAny by parameter type
-	// pointer, one memo per pool checker. The scanner runs DetectAny for
-	// every parameter of every resolved call signature — five spec checks
-	// each with a brand-property checker lookup — and the same param
-	// types repeat across call sites constantly. Pure function of
-	// (checker, type, opts). Keyed per checker because each pool checker
-	// materializes its own *checker.Type universe (upstream contract:
-	// types from different checkers must never mix); the whole map dies
-	// with the Program (SetProgram / Reset).
+	// verdictsByChecker memoizes marker.DetectAny, a pure function of (checker, type, opts), by parameter type pointer;
+	// the scanner runs it for every parameter of every resolved signature and the same param types repeat constantly.
+	// Keyed per pool checker: upstream contract, types from different checkers must never mix. Dies with the Program.
 	verdictsByChecker map[*checker.Checker]map[*checker.Type]markerVerdict
-	// rtStore is the on-disk RT artifact cache shared by every
-	// renderXxxModule call. nil when CacheDir was empty — the renderer
-	// treats nil as "no cache wired", so test paths that build a
-	// resolver without a CacheDir keep the original semantics.
+	// rtStore is the on-disk RT artifact cache shared by every renderXxxModule call; nil means no cache wired, which
+	// is what a resolver built without a CacheDir gets.
 	rtStore *diskcache.Store
-	// patternSeedBasis tracks, per (nodeID, pattern source), the mock.seed
-	// basis under which the enrichment pass generated that pattern's
-	// mockSamples pool — so a basis change mid-session (a seeded mock site
-	// scanned later) regenerates OUR pool without ever touching declared
-	// samples. Lazily built by enrichPatternSamples.
+	// patternSeedBasis records, per (nodeID, pattern source), the mock.seed basis its generated mockSamples pool was
+	// built under, so a basis change mid-session regenerates OUR pool and never touches declared samples.
 	patternSeedBasis map[string]string
 
-	// idOrigins maps a cache id to the FIRST call site that resolved it — the
-	// site whose declared mockSamples pool the shared entry kept, and the site
-	// that took the short id. Read only when a later site disagrees with it, to
-	// name both ends of the conflict in FMT006 and MKR014.
+	// idOrigins maps a cache id to the FIRST call site that resolved it (the site whose declared mockSamples pool the
+	// shared entry kept, and the site that took the short id), read when a later site disagrees to name both ends of
+	// the conflict in FMT006 and MKR014.
 	idOrigins map[string]diagnostics.Site
-	// patternGenFailures records, per (pattern source \x00 flags), why the
-	// enrichment pass could not generate a pool — read at emit time by the
-	// pattern emitter's FMT005 lane (threaded via RenderOpts), which has
-	// the demanding call sites for anchoring. Lazily built alongside.
+	// patternGenFailures records, per (pattern source \x00 flags), why the enrichment pass could not generate a pool;
+	// read at emit time by the pattern emitter's FMT005 lane, which has the demanding call sites for anchoring.
 	patternGenFailures map[string]formats.PatternGenFailure
-	// overridesBuilt guards the one-time, whole-program `overrideX<T>(pureFn)`
-	// collection pass (ensureOverrides) for the current Program. The pass must
-	// run before any AssignID so every id folds the override suffix; reset on
-	// SetProgram / Reset so a Program swap rebuilds the map.
+	// overridesBuilt guards the one-time whole-program `overrideX<T>(pureFn)` pass (ensureOverrides), which must run
+	// before any AssignID so every id folds the override suffix; reset on SetProgram / Reset.
 	overridesBuilt bool
-	// overrideEntries holds the cfn pure-fn entries the override pass extracted
-	// (one per distinct override body, keyed by the body's own id), merged into
-	// the pure-fn module emission so the type-fn redirects resolve their dep.
+	// overrideEntries holds the cfn pure-fn entries the override pass extracted, one per distinct override body,
+	// merged into the pure-fn module emission so the type-fn redirects resolve their dep.
 	overrideEntries []purefunctions.Entry
-	// overrideDiagnostics holds OVR0xx diagnostics from the override pass
-	// (OVR001 duplicate-override, OVR010 validate cross-family), surfaced on
-	// every scan response for the current Program.
+	// overrideDiagnostics holds the override pass's OVR0xx diagnostics (OVR001 duplicate-override, OVR010 validate
+	// cross-family), surfaced on every scan response for the current Program.
 	overrideDiagnostics []diagnostics.Diagnostic
-	// overrideArgSpansByFile records, per source file, the byte spans of each
-	// override call's inline pure-fn argument. The transform rewrites these to
-	// `null` (the body lives only in the cfn module) — emitted as per-file
-	// Replacements scoped to the requested files, like pure-fn factory nullings.
+	// overrideArgSpansByFile records the byte spans of each override call's inline pure-fn argument, which the
+	// transform rewrites to `null` because the body lives only in the cfn module; emitted as per-file Replacements.
 	overrideArgSpansByFile map[string][]overrideArgSpan
-	// unresolvedSpecifiersByFile memoizes, per source file, the module
-	// specifiers whose import bindings fail alias resolution. Computed
-	// LAZILY — only when a marker site's type argument resolved to `any`
-	// (the silent-degradation signature, see MKR007). Mutex-guarded: the
-	// parallel scan path can hit it from several checker groups. Dies with
-	// the Program.
+	// unresolvedSpecifiersByFile memoizes, per source file, the module specifiers whose import bindings fail alias
+	// resolution. Computed LAZILY, only when a marker site's type argument resolved to `any` (MKR007).
+	// Mutex-guarded: the parallel scan path can hit it from several checker groups. Dies with the Program.
 	unresolvedSpecifiersByFile map[string][]string
 	unresolvedSpecifiersMutex  sync.Mutex
-	// programScanDiagnostics accumulates the marker diagnostics
-	// (MKR/CTA/TMP/PFN…) produced by scanAllProgramFiles — the eager
-	// whole-program scan OpGenerate/OpDump run. Those responses surface it;
-	// without this the eager pass (the only scan most files ever get) would
-	// silently drop every marker diagnostic. Files are never re-scanned, so
-	// each diagnostic is recorded once. Dies with the Program.
+	// programScanDiagnostics keeps the marker diagnostics (MKR/CTA/TMP/PFN…) scanAllProgramFiles produced, which the
+	// OpGenerate/OpDump responses surface; without it that eager pass, the only scan most files ever get, would drop
+	// them silently. Files are never re-scanned, so each is recorded once. Dies with the Program.
 	programScanDiagnostics []diagnostics.Diagnostic
 }
 
-// markerVerdict is one memoized marker.DetectAny result. typeArg is the
-// brand's first type argument when matched (nil otherwise).
+// markerVerdict is one memoized marker.DetectAny result; typeArg is the brand's first type argument, nil when unmatched.
 type markerVerdict struct {
 	kind    marker.Kind
 	typeArg *checker.Type
 	matched bool
 }
 
-// verdictsFor returns (creating on first use) the marker-verdict memo for
-// scanChecker — see the verdictsByChecker field doc. Callers resolve the
-// memo once per scan pass, not per call, so the outer map lookup never
-// sits on the hot path. NOT safe for concurrent use: parallel scans must
-// pre-create every group's memo on the dispatch goroutine before fanning
-// out.
+// verdictsFor returns the marker-verdict memo for scanChecker, creating it on first use; callers resolve it once
+// per scan pass, not per call. NOT safe for concurrent use: a parallel scan pre-creates every group's memo on the
+// dispatch goroutine before fanning out.
 func (sess *Session) verdictsFor(scanChecker *checker.Checker) map[*checker.Type]markerVerdict {
 	if sess.verdictsByChecker == nil {
 		sess.verdictsByChecker = map[*checker.Checker]map[*checker.Type]markerVerdict{}
@@ -476,11 +271,7 @@ func (sess *Session) verdictsFor(scanChecker *checker.Checker) map[*checker.Type
 	return verdicts
 }
 
-// cacheLocation resolves the RT disk-cache base directory for opts given the
-// loaded Program's incremental setting. An explicit CacheDir override always
-// wins; otherwise the cache follows tsc's incremental switch (on at the
-// canonical node_modules/.cache/mion when the project is incremental /
-// composite, off otherwise). Empty result means caching is disabled.
+// cacheLocation resolves the RT disk-cache base directory for opts; an empty result means caching is disabled.
 func cacheLocation(opts Options, incremental bool) string {
 	if opts.CacheDir != "" {
 		return opts.CacheDir
@@ -491,10 +282,8 @@ func cacheLocation(opts Options, incremental bool) string {
 	return ""
 }
 
-// newRTStore builds the on-disk store for opts, returning nil when caching is
-// disabled. incremental is the loaded Program's IsIncremental() (false in
-// server mode, where no Program exists yet). Centralised so New / NewServer
-// share the same fingerprinting rules.
+// newRTStore builds the on-disk store for opts, nil when caching is disabled; centralised so New and NewServer
+// fingerprint identically. incremental is the loaded Program's IsIncremental(), false in server mode.
 func newRTStore(opts Options, incremental bool) *diskcache.Store {
 	baseDir := cacheLocation(opts, incremental)
 	if baseDir == "" {
@@ -517,12 +306,9 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 	return diskcache.New(baseDir, fp)
 }
 
-// binaryStamp identifies THIS build of the resolver executable (mtime +
-// size), so a rebuilt dev binary — same constants.Version, different
-// emitters — moves the disk-cache fingerprint instead of serving the
-// previous build's cached function bodies. `go build` leaves an unchanged
-// binary untouched, so no-op rebuilds keep the cache. Empty when the
-// executable cannot be resolved (the WASM twin — no disk cache there).
+// binaryStamp identifies THIS build of the resolver executable (mtime + size), so a rebuilt dev binary of the same
+// constants.Version moves the disk-cache fingerprint instead of serving the previous build's function bodies.
+// `go build` leaves an unchanged binary untouched, so no-op rebuilds keep the cache; empty when unresolvable (WASM).
 func binaryStamp() string {
 	executablePath, err := os.Executable()
 	if err != nil {
@@ -535,8 +321,7 @@ func binaryStamp() string {
 	return strconv.FormatInt(info.ModTime().UnixNano(), 10) + "-" + strconv.FormatInt(info.Size(), 10)
 }
 
-// New builds a Session against prog. Defaults to hashid's default length when
-// HashLength is zero.
+// New builds a Session against prog, defaulting to hashid's own length when HashLength is zero.
 func New(prog *program.Program, opts Options) (*Session, error) {
 	if prog == nil || prog.TS == nil {
 		return nil, errors.New("resolver.New: program is nil")
@@ -547,8 +332,8 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 		return nil, errors.New("resolver.New: no checker available")
 	}
 	markerOpts := marker.WithDefaults(opts.Marker)
-	// Read package.json for the marker module-of-origin gate through the program's
-	// (possibly overlay/virtual) filesystem, not os.ReadFile — see marker.Options.FS.
+	// The marker module-of-origin gate must read package.json through the program's (possibly virtual)
+	// filesystem, never os.ReadFile — see marker.Options.FS.
 	markerOpts.FS = prog.FS
 	markerOpts.Cwd = prog.Cwd
 	pureFnIndex := purefnindex.NewStore(prog.FS)
@@ -579,9 +364,8 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	return sess, nil
 }
 
-// NewServer builds a Session with no Program. Callers (the `serve --sources ops`
-// CLI path) install one later via the setSources op. The cache is created
-// up front with a nil checker; Rebind is called on first SetProgram.
+// NewServer builds a Session with no Program: the `serve --sources ops` path installs one later via setSources,
+// and the cache, created here with a nil checker, is rebound on the first SetProgram.
 func NewServer(opts Options) *Session {
 	return &Session{
 		cache: runtype.NewCache(nil, runtype.Options{
@@ -597,16 +381,13 @@ func NewServer(opts Options) *Session {
 		apiInitFileCache:    apimeta.NewInitFileCache(),
 		routerInitFileCache: routerinit.NewFileCache(),
 		verdictsByChecker:   map[*checker.Checker]map[*checker.Type]markerVerdict{},
-		// Server mode has no Program yet (installed later via setSources, always
-		// an inferred/non-incremental project), so caching is override-only.
+		// No Program yet, and setSources always builds an inferred non-incremental one, so caching is override-only.
 		rtStore: newRTStore(opts, false),
 	}
 }
 
-// SetProgram swaps the underlying Program. Releases the previous checker,
-// leases a new one from prog, rebinds the cache, and resets the sites slice
-// (positions are tied to the old source text). The cache's structural dedup
-// table survives the swap so equivalent types reuse their ids.
+// SetProgram swaps the underlying Program and drops the sites, whose positions are tied to the old source text.
+// The cache's structural dedup table survives the swap, so equivalent types reuse their ids.
 func (sess *Session) SetProgram(prog *program.Program) error {
 	if prog == nil || prog.TS == nil {
 		return errors.New("resolver.SetProgram: program is nil")
@@ -620,8 +401,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 		sess.releaseLease()
 	}
 	sess.Program = prog
-	// Keep the marker's package.json FS in sync with the current program's overlay
-	// (setSources installs a fresh program + FS each call).
+	// setSources installs a fresh program + FS each call, so the marker's package.json reads must follow it.
 	sess.marker.FS = prog.FS
 	sess.marker.Cwd = prog.Cwd
 	if sess.pureFnIndex == nil {
@@ -654,10 +434,8 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	return nil
 }
 
-// bindPureFnIndex hands the index the session's own program and resolver, so a
-// package whose sources the program already holds (the marker package under the
-// `source` condition) is extracted by the SAME memo as the program's own
-// registrations: one resolver, ids that cannot disagree.
+// bindPureFnIndex hands the index the session's own program and memo, so a package whose sources the program
+// already holds (the marker package under the `source` condition) is extracted once: ids that cannot disagree.
 func (sess *Session) bindPureFnIndex() {
 	sess.pureFnIndex.Bind(sess.Program.FS, purefnindex.Host{
 		Program:        sess.Program,
@@ -679,17 +457,9 @@ func (sess *Session) ownPackage() (string, string) {
 	return sess.ownPackageName, sess.ownPackageRoot
 }
 
-// Reset wipes ALL user-supplied resolver state: every interned Type, the
-// sites list, the Program, the checker lease, and (because the overlay
-// lives inside the Program) the in-memory source map. Equivalent to
-// throwing the Session away and replacing it with a fresh NewServer —
-// except the goroutine / connection stays open. After reset, the resolver
-// requires a new setSources before scanFiles will work.
-//
-// Lib files (lib.d.ts, bundled tsgo declarations) live behind the
-// cachedvfs layer in program.New / program.NewInferred — they are byte-
-// cached at the FS level and are NOT re-read from disk on the next
-// setSources. Only the user's overlay + parsed-AST state is discarded here.
+// Reset wipes ALL user-supplied state (interned types, sites, Program, checker lease, and the in-memory source map
+// that lives inside the Program): a fresh NewServer without closing the goroutine / connection, and scanFiles needs
+// a new setSources afterwards. Lib files stay byte-cached behind cachedvfs and are NOT re-read on the next setSources.
 func (sess *Session) Reset() {
 	if sess.releaseLease != nil {
 		sess.releaseLease()
@@ -729,21 +499,15 @@ func (sess *Session) Close() {
 
 func (sess *Session) Cache() *runtype.Cache { return sess.cache }
 
-// Checker returns the bound type checker. Used by the out-of-band enrichment
-// bridge (internal/enrichment) to resolve a named type declaration to its
-// *checker.Type before projecting it through the cache. The hot scan/render
-// path keeps using the unexported field directly.
+// Checker returns the bound type checker, for the out-of-band enrichment bridge (internal/enrichment) to resolve a
+// named type declaration before projecting it through the cache; the hot scan/render path uses the field directly.
 func (sess *Session) Checker() *checker.Checker { return sess.checker }
 
-// MarkerOptions returns the session's marker detection options — the accepted
-// marker package set (tsconfig `markers` / --marker-packages /
-// --no-marker-package-check) plus the program's filesystem. Exposed so the
-// out-of-band CLI verbs (convert, enrich --check) gate on the SAME configured
-// packages the in-session scan does, instead of re-deriving the default.
+// MarkerOptions returns the session's marker detection options (the accepted marker package set plus the program's
+// filesystem), so the out-of-band CLI verbs gate on the SAME configured packages the in-session scan does.
 func (sess *Session) MarkerOptions() marker.Options { return sess.marker }
 
-// Sites returns the running list of resolved call-site ids. Callers (CLI,
-// plugin) read this at end-of-build to write out the manifest.
+// Sites returns the resolved call-site ids; the CLI and plugin read them at end-of-build to write the manifest.
 func (sess *Session) Sites() []protocol.Site {
 	return append([]protocol.Site(nil), sess.sites...)
 }
