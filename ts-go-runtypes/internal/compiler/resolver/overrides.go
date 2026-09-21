@@ -15,32 +15,25 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// overrideCalleePrefix is the cheap pre-filter for the override-collection pass:
-// every public `overrideX<T>(pureFn, id)` factory is named `override…`, so a
-// call whose callee identifier lacks this prefix is skipped before the (heavy)
-// signature resolution. The brands remain the correctness contract — the prefix
-// only short-circuits the common non-override call.
+// overrideCalleePrefix skips the common non-override call before the heavy signature resolution; the
+// marker brands stay the correctness contract.
 const overrideCalleePrefix = "override"
 
-// maxOverrideFoldIterations bounds the base-key fixpoint (item 3). Override
-// nesting (a target that structurally contains another overridden type) is
-// shallow in practice; the cap matches the cross-family edge fixpoint. If a
-// build ever nests deeper, the deepest override simply may not apply (the
-// structural body is emitted) — never incorrect.
+// maxOverrideFoldIterations bounds the base-key fixpoint (a target structurally containing another
+// overridden type), matching the cross-family edge fixpoint. Nesting deeper than this only means the
+// deepest override does not apply and the structural body is emitted, never an incorrect id.
 const maxOverrideFoldIterations = 8
 
-// overrideSite is the resolved shape of one overrideX<T>(pureFn, id) call: the
-// overridden type, the family op key the trailing InjectTypeFnArgs<T, opName>
-// names, and the inline pure-fn argument node.
+// overrideSite is one resolved overrideX<T>(pureFn, id) call; opName is the family op the trailing
+// InjectTypeFnArgs<T, opName> names.
 type overrideSite struct {
 	typeArgument *checker.Type
 	opName       string
 	fnArg        *ast.Node
 }
 
-// rawOverride is one discovered override declaration, captured before base keys
-// are folded to a fixpoint. cfnID is the cfn's pure-fn id, the value that rides
-// the `|cfn:<family>:<id>` suffix.
+// rawOverride is one discovered override declaration, captured before base keys are folded to a fixpoint;
+// cfnID is the cfn's pure-fn id, the value that rides the `|cfn:<family>:<id>` suffix.
 type rawOverride struct {
 	typeArg *checker.Type
 	opName  string
@@ -48,25 +41,17 @@ type rawOverride struct {
 	site    diagnostics.Site
 }
 
-// overrideArgSpan is the byte range of an override call's inline pure-fn
-// argument, used to rewrite it to `null` (its body lives only in the cfn module).
+// overrideArgSpan is the byte range rewritten to `null`: the argument's body lives only in the cfn module.
 type overrideArgSpan struct {
 	start int
 	end   int
 }
 
-// ensureOverrides runs the one-time, whole-program override-collection pass for
-// the current Program. It finds every `overrideX<T>(pureFn)` call, extracts the
-// cfn (pure-fn body), resolves T's base structural key, and installs the
-// override map on the cache so all subsequent id assignments fold the
-// `|cfn:<family>:<hash>` suffix. MUST run before any AssignID — hence it is
-// called at the top of dispatchScanFiles. Idempotent per Program (guarded by
-// overridesBuilt, reset on SetProgram / Reset).
-//
-// The pass walks every program source file regardless of which files the
-// triggering scan requested: an override declared in one file shifts the ids of
-// types used in any other, so the map must be complete before the first id is
-// minted.
+// ensureOverrides runs the one-time, whole-program override-collection pass, installing the override map
+// on the cache so all subsequent id assignments fold the `|cfn:<family>:<hash>` suffix. MUST run before
+// any AssignID, hence the call at the top of dispatchScanFiles; idempotent per Program. It walks every
+// program source file whichever files the triggering scan requested: an override declared in one file
+// shifts the ids of types used in any other, so the map must be complete before the first id is minted.
 func (sess *Session) ensureOverrides() {
 	if sess.overridesBuilt {
 		return
@@ -77,10 +62,8 @@ func (sess *Session) ensureOverrides() {
 	}
 	state := sess.scanStateFor(sess.checker)
 
-	// Phase 1 — collect every override declaration once. cfn extraction is
-	// independent of the override map, so it runs here (not per fixpoint
-	// iteration). Deterministic file + source order keeps OVR001's "first wins"
-	// stable and the cfn entry list reproducible.
+	// Phase 1: cfn extraction is independent of the override map, so it runs here, not per fixpoint
+	// iteration. File + source order keeps OVR001's "first wins" stable and the entry list reproducible.
 	var raws []rawOverride
 	var entries []purefunctions.Entry
 	seen := map[string]struct{}{}
@@ -119,22 +102,18 @@ func (sess *Session) ensureOverrides() {
 		return
 	}
 
-	// Phase 2 — fold the override map to a fixpoint. A target whose base key
-	// contains another overridden type needs the inner fold applied first; each
-	// iteration recomputes base keys against the previous map until the keys
-	// stabilize (bounded — see maxOverrideFoldIterations).
+	// Phase 2: a target whose base key contains another overridden type needs the inner fold applied first,
+	// so each iteration recomputes base keys against the previous map until they stabilize.
 	overrides, baseKeys := sess.foldOverrideMap(raws)
 
-	// Phase 3 — diagnostics on the FINAL, stable base keys: strict OVR001 (any
-	// second override of a (type, family) pair) + OVR010 (validate cross-family).
+	// Phase 3 runs on the FINAL, stable base keys.
 	sess.overrideDiagnostics = overrideDiagnostics(raws, baseKeys)
 
 	sess.cache.SetOverrides(overrides)
 }
 
-// overrideIDs is the set of pure-fn ids the override pass extracted. An
-// override's id is shaped like any other pure fn's, so this set is what tells a
-// redirect's target apart from an ordinary soft dep.
+// overrideIDs is the set of pure-fn ids the override pass extracted; an override's id is shaped like any
+// other pure fn's, so this set is what tells a redirect's target apart from an ordinary soft dep.
 func (sess *Session) overrideIDs() map[string]bool {
 	out := make(map[string]bool, len(sess.overrideEntries))
 	for _, entry := range sess.overrideEntries {
@@ -143,10 +122,8 @@ func (sess *Session) overrideIDs() map[string]bool {
 	return out
 }
 
-// foldOverrideMap iterates the base-key computation to a fixpoint and returns the
-// final override map plus the final base key of each raw (parallel to raws). The
-// first raw (source order) wins a (baseKey, opName) pair; conflicts are reported
-// separately by overrideDiagnostics.
+// foldOverrideMap iterates the base-key computation to a fixpoint, returning the map plus each raw's final
+// base key; the first raw in source order wins a (baseKey, opName) pair, conflicts go to overrideDiagnostics.
 func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]string, []string) {
 	prev := map[string]map[string]string{}
 	baseKeys := make([]string, len(raws))
@@ -173,8 +150,7 @@ func (sess *Session) foldOverrideMap(raws []rawOverride) (map[string]map[string]
 	return prev, baseKeys
 }
 
-// overrideMapsEqual reports whether two override maps carry identical
-// (baseKey → opName → hash) content — the fixpoint convergence test.
+// overrideMapsEqual is the fixpoint convergence test over (baseKey → opName → hash) content.
 func overrideMapsEqual(a, b map[string]map[string]string) bool {
 	if len(a) != len(b) {
 		return false
@@ -193,10 +169,9 @@ func overrideMapsEqual(a, b map[string]map[string]string) bool {
 	return true
 }
 
-// overrideDiagnostics derives OVR001 / OVR010 from the raws + their final base
-// keys. OVR001 is STRICT: any second override of the same (type, family) is an
-// error regardless of body (you can't have two overrides for one function and
-// type). OVR010 warns once per distinct validate override (its cross-family reach).
+// overrideDiagnostics derives OVR001 / OVR010 from the raws and their final base keys. OVR001 is STRICT:
+// any second override of the same (type, family) is an error whatever its body. OVR010 warns once per
+// distinct validate override, for its cross-family reach.
 func overrideDiagnostics(raws []rawOverride, baseKeys []string) []diagnostics.Diagnostic {
 	var diags []diagnostics.Diagnostic
 	firstIndex := map[string]int{} // "<baseKey>|<opName>" → index of the winning raw
@@ -210,9 +185,8 @@ func overrideDiagnostics(raws []rawOverride, baseKeys []string) []diagnostics.Di
 			continue
 		}
 		firstIndex[key] = i
-		// validate is a shared cross-family dependency: JSON / binary union
-		// decoders call val_<member> to narrow. Overriding it reaches past
-		// createValidateFn<T>(), so flag the site (Warning — the build proceeds).
+		// validate is a shared cross-family dependency (union decoders call val_<member> to narrow), so
+		// overriding it reaches past createValidateFn<T>(); a Warning, the build proceeds.
 		if raw.opName == "validate" {
 			diags = append(diags, diagnostics.New(diagnostics.CodeOverrideValidateCrossFamily, raw.site))
 		}
@@ -220,11 +194,9 @@ func overrideDiagnostics(raws []rawOverride, baseKeys []string) []diagnostics.Di
 	return diags
 }
 
-// collectOverrideReplacements returns the `null` replacements for every override
-// call's inline pure-fn argument in the requested files (the body now lives only
-// in the cfn module). Scoped per file like the pure-fn factory nullings — the
-// span map is whole-program, but only spans whose file is in this request are
-// emitted. Sorted (file, start) for deterministic output.
+// collectOverrideReplacements returns the `null` replacements for every override call's inline pure-fn
+// argument in the requested files, the body now living only in the cfn module. The span map is
+// whole-program, so only spans whose file is in this request are emitted, sorted (file, start).
 func (sess *Session) collectOverrideReplacements(files []string) []protocol.Replacement {
 	if len(sess.overrideArgSpansByFile) == 0 {
 		return nil
@@ -259,11 +231,9 @@ func (sess *Session) collectOverrideReplacements(files []string) []protocol.Repl
 	return replacements
 }
 
-// detectOverrideSite reports whether call is an `overrideX<T>(pureFn, id)` site
-// and returns its resolved shape. Recognition is shape-based: a trailing
-// InjectTypeFnArgs<T, opName> slot AND a PureFunction-branded argument — a combo
-// no createX factory carries — gated by the cheap `override` callee-name
-// pre-filter. A single-family marker is required (overrides never multiplex).
+// detectOverrideSite recognizes an `overrideX<T>(pureFn, id)` site by shape: a trailing
+// InjectTypeFnArgs<T, opName> slot AND a PureFunction-branded argument, a combination no createX factory
+// carries. A single-family marker is required, overrides never multiplex.
 func (state scanState) detectOverrideSite(call *ast.Node) (overrideSite, bool) {
 	callExpression := call.AsCallExpression()
 	if callExpression == nil || callExpression.Expression == nil {
@@ -302,9 +272,8 @@ func (state scanState) detectOverrideSite(call *ast.Node) (overrideSite, bool) {
 			}
 			typeArgument = typeArg
 			if fnKeys, fnOK := marker.FnKeysForInjectTypeFnArgs(state.scanChecker, paramType, state.sess.marker); fnOK && len(fnKeys) == 1 {
-				// The override table is keyed by the operation NAME, never the marker
-				// token: the name is the hash-side identity, so renaming the public
-				// vocabulary can never move an overridden type's structural id.
+				// Keyed by the operation NAME, never the marker token: the name is the hash-side
+				// identity, so renaming the public vocabulary cannot move a structural id.
 				if op, known := operations.ByFnKey(fnKeys[0]); known {
 					opName = op.Name
 				}

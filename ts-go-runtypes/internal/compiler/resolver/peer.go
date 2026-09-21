@@ -9,23 +9,19 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 )
 
-// peerProgram is a SEPARATE project a session reads through: the batch source
-// (`clientTsconfig`, the server build reading its client's batches) or the API
-// source (`apiTsconfig`, a client build reading its API's routes). The peer
-// session only resolves types and extracts sites: no output root, no disk
-// cache, no reports of its own. It survives SetProgram / Reset (it is another
-// project); its stamps (mtime + size of every source file it was built from)
-// decide when it is rebuilt.
+// peerProgram is a SEPARATE project a session reads through: the batch source (`clientTsconfig`, a server
+// build reading its client's batches) or the API source (`apiTsconfig`, a client build reading its API's
+// routes). The peer session only resolves types and extracts sites: no output root, no disk cache, no
+// reports of its own. It survives SetProgram / Reset, being another project, and its stamps say when it
+// is rebuilt.
 type peerProgram struct {
 	session  *Session
 	tsconfig string
 	stamps   map[string]string
 }
 
-// open returns the peer session over tsconfig (absolute), reusing the current
-// one while none of its stamped files changed. label names the option in
-// errors; check, when non-nil, validates the freshly built session (the batch
-// source checks that the client package resolves).
+// open returns the peer session over tsconfig (absolute), reusing the current one while no stamped file
+// changed; label names the option in errors, check validates a freshly built session.
 func (peer *peerProgram) open(parent *Session, tsconfig, label string, check func(*Session, string) error) (*Session, error) {
 	if peer.session != nil && peer.tsconfig == tsconfig && !peer.stale() {
 		return peer.session, nil
@@ -73,9 +69,7 @@ func (peer *peerProgram) close() {
 	peer.stamps = nil
 }
 
-// stale reports whether any stamped file changed or went away since the peer
-// was built, or whether its tsconfig now matches a source file the session
-// never saw (a new file under its include).
+// stale reports a stamped file changed or went away, or a source file the peer never saw now matching its tsconfig.
 func (peer *peerProgram) stale() bool {
 	for path, stamp := range peer.stamps {
 		if fileStamp(path) != stamp {
@@ -97,8 +91,7 @@ func (peer *peerProgram) stale() bool {
 	return false
 }
 
-// stampProgramFiles records mtime + size for every non-declaration source
-// file of prog plus its tsconfig, the set a later generate compares against.
+// stampProgramFiles records mtime + size per non-declaration source file plus the tsconfig, the set a later generate compares.
 func stampProgramFiles(prog *program.Program, tsconfig string) map[string]string {
 	stamps := map[string]string{tsconfig: fileStamp(tsconfig)}
 	for _, sourceFile := range prog.TS.SourceFiles() {

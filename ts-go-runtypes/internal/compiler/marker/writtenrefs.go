@@ -9,28 +9,21 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 )
 
-// writtenRefNodeBudget bounds one EachWrittenTypeRef walk. A declaration
-// closure is small; the budget only matters for degenerate generated code.
+// writtenRefNodeBudget bounds one EachWrittenTypeRef walk; it only matters for generated code.
 const writtenRefNodeBudget = 4096
 
-// bundledLibPrefix is the bundled default-lib directory: a reference into
-// `lib.*.d.ts` is never followed (the lib is not the user's to fix, and its
-// bodies are huge).
+// bundledLibPrefix is the bundled default-lib directory; a reference into `lib.*.d.ts` is never
+// followed (not the user's to fix, and the bodies are huge).
 var bundledLibPrefix = tspath.NormalizePath(bundled.LibPath())
 
-// EachWrittenTypeRef visits every TypeReference node written under root,
-// then follows each reference into the interface, class or type-alias
-// declaration it names and visits that declaration's written syntax too,
-// each declaration once. `via` is the chain of declaration names the walk
-// went through to reach the reference (empty for one written under root).
+// EachWrittenTypeRef visits every TypeReference written under root, then follows each one into the
+// interface, class or type-alias declaration it names and visits that declaration's syntax too, each
+// declaration once. `via` is the chain of declaration names the walk came through.
 //
-// This is the syntax-side twin of reflection.WalkGraph: a refusal gate that
-// looks at a declaration's OWN syntax only ("does this declaration write a
-// name that failed to resolve?") is blind to the same failure one
-// declaration deeper (`interface Payload {user: User}` over a broken `User`),
-// and both convert and enrich had exactly that gap. Declarations in the
-// bundled default lib and under node_modules are not followed: they are not
-// the user's to fix, so a gate has nothing to tell them about.
+// It is the syntax-side twin of reflection.WalkGraph: a gate reading a declaration's OWN syntax only
+// is blind to the same failure one declaration deeper (`interface Payload {user: User}` over a
+// broken `User`), and both convert and enrich had exactly that gap. The bundled default lib and
+// node_modules are not followed: they are not the user's to fix.
 func EachWrittenTypeRef(typeChecker *checker.Checker, root *ast.Node, visit func(reference *ast.Node, via []string)) {
 	if typeChecker == nil || root == nil {
 		return

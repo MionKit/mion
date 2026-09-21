@@ -7,26 +7,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// detectAnyFromUnresolvedImport guards the silent-degradation failure mode a
-// module-resolution skew produces: an import the bundler resolves fine at
-// runtime fails in the SCAN program (extensionless NodeNext import, missing
-// dependency, undeclared `paths` alias), so the marker's `T` checks as `any`
-// — the emitted validator is the always-true identity, the mock is
-// `undefined`, encoders pass values through — with zero signal. Sibling of
-// the TMP001 walk in detectWrittenTypeRefGuards (the lib-not-loaded flavor of
-// the same trap).
-//
-// Detection requires BOTH signals so a deliberately-`any` marker stays legal:
-// the site's resolved type argument is `any`, AND the site's source file
-// carries at least one import whose bindings do not resolve. The import walk
-// runs on the CHECKER THE SCAN ALREADY HOLDS (alias-symbol resolution only) —
-// never a program-level semantic-diagnostics pass, which acquires additional
-// pool checkers and can starve the pool mid-scan. Lazy (only for any-typed
-// sites) and memoized per file on the Session.
-//
-// A written `any`/`unknown` KEYWORD type argument is always skipped — that
-// spelling is unambiguous intent even in a file with an unrelated failing
-// import.
+// detectAnyFromUnresolvedImport guards the silent degradation a module-resolution skew produces: an
+// import the bundler resolves at runtime fails in the SCAN program (extensionless NodeNext import,
+// missing dependency, undeclared `paths` alias), so `T` checks as `any` and the emitted validator is
+// the always-true identity, with zero signal. BOTH signals are required so a deliberately-`any` marker
+// stays legal. The import walk runs on the CHECKER THE SCAN ALREADY HOLDS, never a program-level
+// semantic-diagnostics pass, which acquires additional pool checkers and can starve the pool mid-scan.
+// A written `any` / `unknown` KEYWORD type argument is unambiguous intent and always skipped.
 func (state scanState) detectAnyFromUnresolvedImport(file string, call *ast.Node, typeArgument *checker.Type) []diagnostics.Diagnostic {
 	if typeArgument == nil || checker.Type_flags(typeArgument)&checker.TypeFlagsAny == 0 {
 		return nil
@@ -49,9 +36,7 @@ func (state scanState) detectAnyFromUnresolvedImport(file string, call *ast.Node
 	)}
 }
 
-// hasExplicitBroadKeywordTypeArg reports whether the call spells a broad
-// keyword (`any` / `unknown`) directly in its type-argument list —
-// `createValidateFn<any>()` is deliberate and never diagnosed.
+// hasExplicitBroadKeywordTypeArg reports a broad keyword written directly in the call's type-argument list.
 func hasExplicitBroadKeywordTypeArg(call *ast.Node) bool {
 	callExpression := call.AsCallExpression()
 	if callExpression == nil || callExpression.TypeArguments == nil {
@@ -65,12 +50,9 @@ func hasExplicitBroadKeywordTypeArg(call *ast.Node) bool {
 	return false
 }
 
-// unresolvedImportSpecifiers returns (memoized per file, mutex-guarded — the
-// parallel scan hits this from several checker groups) the module specifiers
-// whose import BINDINGS fail alias resolution on the scan checker, in
-// statement order. Bare side-effect imports (`import './x'`) are skipped: no
-// binding means no type can flow from them, so they can never be the source
-// of an any-degraded marker T.
+// unresolvedImportSpecifiers returns the specifiers whose import BINDINGS fail alias resolution, in
+// statement order, memoized per file and mutex-guarded: the parallel scan hits it from several checker
+// groups. Bare side-effect imports bind nothing, so no type can flow from them and they are skipped.
 func (state scanState) unresolvedImportSpecifiers(sourceFile *ast.SourceFile) []string {
 	sess := state.sess
 	fileName := sourceFile.FileName()
@@ -94,10 +76,8 @@ func (state scanState) unresolvedImportSpecifiers(sourceFile *ast.SourceFile) []
 	return specifiers
 }
 
-// collectUnresolvedImportSpecifiers walks the file's import declarations and
-// reports each specifier with at least one binding whose alias symbol does
-// not resolve to a target (Checker_getImmediateAliasedSymbol returns nil —
-// the checker had no module to look the export up in).
+// collectUnresolvedImportSpecifiers reports each specifier with a binding whose alias symbol does not
+// resolve: the checker had no module to look that export up in.
 func collectUnresolvedImportSpecifiers(scanChecker *checker.Checker, sourceFile *ast.SourceFile) []string {
 	locals := ast.GetLocals(sourceFile.AsNode())
 	if locals == nil {
@@ -130,9 +110,7 @@ func collectUnresolvedImportSpecifiers(scanChecker *checker.Checker, sourceFile 
 	return specifiers
 }
 
-// importBindingNames lists the LOCAL names an import clause binds: the
-// default import, a namespace import, and every named-import element (its
-// `as` alias when present — that is the local symbol's name).
+// importBindingNames lists the LOCAL names an import clause binds; a named import's `as` alias is that local name.
 func importBindingNames(clause *ast.ImportClause) []string {
 	if clause == nil {
 		return nil

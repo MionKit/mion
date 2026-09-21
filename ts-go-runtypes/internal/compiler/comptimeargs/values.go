@@ -1,14 +1,9 @@
-// Comptime literal VALUE primitives — the extraction side of the package
-// contract. CheckLiteral and friends VALIDATE that an AST expression is
-// compile-time literal; the helpers here READ such expressions into Go
-// values. Both sides share the same wrapper unwrap (UnwrapWrappers), the
-// same const-declaration walk (EachConstVariableDeclaration) and the same
-// DepthCap, so a ref-resolution policy change (e.g. allowing cross-module
-// const chains) lands in THIS package for every consumer: the
-// CompTimeArgs / CompTimeFnArgs validation, the resolver's options and
-// strategy extraction, the typeid format-param recovery, and the purefns
-// dependency tracing.
 package comptimeargs
+
+// The extraction side of the package contract: CheckLiteral and friends VALIDATE that an AST
+// expression is compile-time literal, the helpers here READ such an expression into a Go value.
+// Both sides share UnwrapWrappers, EachConstVariableDeclaration and DepthCap, so a ref-resolution
+// policy change lands in THIS package for every consumer at once.
 
 import (
 	"strings"
@@ -17,13 +12,10 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 )
 
-// ResolveImportAlias follows import-alias symbols to the original
-// declaration's symbol, so an imported const resolves to the declaration
-// that carries the initializer rather than the import specifier. Bounded
-// against pathological alias chains. This is the cross-module hop: the
-// same-module-only tracers (resolveConstInitializer) deliberately do NOT
-// apply it, the recovery tracers (TraceRegexpLiteral, typeid's pattern
-// recovery) deliberately DO.
+// ResolveImportAlias follows import-alias symbols to the original declaration's symbol, so an
+// imported const resolves to the declaration carrying the initializer. This is THE cross-module hop:
+// the same-module-only tracers (resolveConstInitializer) deliberately do NOT apply it, the recovery
+// tracers (TraceRegexpLiteral, typeid's pattern recovery) deliberately DO.
 func ResolveImportAlias(typeChecker *checker.Checker, symbol *ast.Symbol) *ast.Symbol {
 	for i := 0; i < DepthCap && symbol != nil && symbol.Flags&ast.SymbolFlagsAlias != 0; i++ {
 		next := checker.Checker_getImmediateAliasedSymbol(typeChecker, symbol)
@@ -35,18 +27,11 @@ func ResolveImportAlias(typeChecker *checker.Checker, symbol *ast.Symbol) *ast.S
 	return symbol
 }
 
-// ResolveSpreadContainer follows wrappers, `const` bindings, and import
-// aliases to resolve the operand of a spread (`...operand`) to its underlying
-// object- or array-literal node. Cross-module is intentional: the
-// split-and-merge use case is strongest when the spread fragment is an
-// imported shared `const`, so the trace follows import aliases the same way
-// TraceRegexpLiteral does (the same-module-only resolveConstInitializer
-// deliberately does NOT). Returns (nil, false) when the operand isn't
-// statically a literal container — a dynamic value (call result, ternary), a
-// `let` / `var`, or a `const` without a literal-container initializer.
-// Bounded by DepthCap. Shared by the Part A validator (checkObjectLiteral /
-// checkArrayLiteral) and the resolver's option-bag merge so both agree on
-// exactly which spreads resolve.
+// ResolveSpreadContainer resolves a spread's operand to its underlying object- or array-literal
+// node, following wrappers, `const` bindings and import aliases. Cross-module is intentional: the
+// split-and-merge use case is strongest when the fragment is an imported shared `const`. (nil,
+// false) when the operand is not statically a literal container. Shared by checkObjectLiteral /
+// checkArrayLiteral and the resolver's option-bag merge, so both agree on which spreads resolve.
 func ResolveSpreadContainer(typeChecker *checker.Checker, node *ast.Node) (*ast.Node, bool) {
 	return resolveSpreadContainer(typeChecker, node, 0)
 }
@@ -83,10 +68,8 @@ func resolveSpreadContainer(typeChecker *checker.Checker, node *ast.Node, depth 
 	return nil, false
 }
 
-// StringLiteralValue returns the value of a string-literal expression
-// (UnwrapWrappers applied first), or ("", false) for anything else. No
-// const tracing — use ResolveLiteralString when identifier chains must
-// be followed.
+// StringLiteralValue returns the value of a string-literal expression. No const tracing — use
+// ResolveLiteralString when identifier chains must be followed.
 func StringLiteralValue(node *ast.Node) (string, bool) {
 	unwrapped := UnwrapWrappers(node)
 	if unwrapped == nil {
@@ -99,9 +82,8 @@ func StringLiteralValue(node *ast.Node) (string, bool) {
 	return "", false
 }
 
-// StringArrayLiteralValue resolves an array-literal of string literals to
-// a []any of their values. Non-string elements are skipped; nil for
-// anything that isn't an array literal.
+// StringArrayLiteralValue reads an array-literal of string literals; non-string elements are
+// skipped, and anything that is not an array literal answers nil.
 func StringArrayLiteralValue(node *ast.Node) []any {
 	unwrapped := UnwrapWrappers(node)
 	if unwrapped == nil || unwrapped.Kind != ast.KindArrayLiteralExpression {
@@ -120,11 +102,9 @@ func StringArrayLiteralValue(node *ast.Node) []any {
 	return out
 }
 
-// TraceRegexpLiteral recovers (source, flags) from a regex literal in
-// expression position — written directly, or reached through a `const`
-// identifier chain. Import aliases ARE followed: a regex's source only
-// exists in source text (its TYPE erases to `RegExp`), so the trace must
-// cross module boundaries to find the declaring const.
+// TraceRegexpLiteral recovers (source, flags) from a regex literal written directly or reached
+// through a `const` identifier chain. Import aliases ARE followed: a regex's source only exists in
+// source text (its TYPE erases to `RegExp`), so the trace must cross module boundaries.
 func TraceRegexpLiteral(typeChecker *checker.Checker, node *ast.Node) (source, flags string, ok bool) {
 	return traceRegexpLiteral(typeChecker, node, 0)
 }
@@ -166,8 +146,8 @@ func traceRegexpLiteral(typeChecker *checker.Checker, node *ast.Node, depth int)
 	return "", "", false
 }
 
-// SplitRegexpLiteralText splits "/abc/i" into source ("abc") and flags
-// ("i"). Text without a leading slash is returned as-is with no flags.
+// SplitRegexpLiteralText splits "/abc/i" into source ("abc") and flags ("i"); text without a
+// leading slash comes back as-is with no flags.
 func SplitRegexpLiteralText(text string) (source, flags string) {
 	if !strings.HasPrefix(text, "/") {
 		return text, ""

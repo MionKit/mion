@@ -11,53 +11,33 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Parallel marker scan — the two-phase split of dispatchScanFilesSerial.
-//
-// Phase 1 fans the checker-bound analysis (analyzeCall: signature
-// resolution, marker detection, comptime/purity checks, diagnostics) out
-// across the Program's checker pool: the request's files are partitioned
-// by the pool's own file→checker association and each group runs on its
-// assigned checker in its own goroutine. A single checker is never shared
-// between goroutines — concurrency comes from N checkers, which is tsgo's
-// own supported parallel-check mode.
-//
-// Phase 2 replays the captured results on the dispatch goroutine in exact
-// request order: cache projection (AssignIDUnder, under each type's
-// owning checker), Site assembly, per-file scope recording. Because the
-// commit order equals the serial path's order, hash-dict interning — and
-// therefore every wire id — is identical to a serial scan of the same
-// request. The only tolerated divergence is the member ORDER inside a
-// projected union node (Distributed() order is per-checker type-creation
-// history), which is behaviorally equivalent and already varies across
-// sessions today.
+// Parallel marker scan, the two-phase split of dispatchScanFilesSerial. Phase 1 fans the checker-bound
+// analysis across the Program's checker pool, one goroutine per checker group: a single checker is NEVER
+// shared between goroutines, concurrency comes from N checkers, which is tsgo's own supported parallel-check
+// mode. Phase 2 replays the captured results on the dispatch goroutine in exact request order, so hash-dict
+// interning, and therefore every wire id, is identical to a serial scan of the same request. The only
+// tolerated divergence is the member ORDER inside a projected union node (Distributed() order is per-checker
+// type-creation history), which is behaviorally equivalent and already varies across sessions today.
 
-// scanGroup is one checker's slice of a parallel scan: the pool checker
-// assigned to these files and the request indices it owns.
+// scanGroup is one checker's slice of a parallel scan.
 type scanGroup struct {
 	scanChecker *checker.Checker
-	// leader is the group's first file — it anchors the exclusive
-	// checker lease the group goroutine takes for the whole pass.
+	// leader is the group's first file; it anchors the exclusive checker lease taken for the whole pass.
 	leader *ast.SourceFile
-	// fileIndexes are indices into the request's files slice, in
-	// request order.
+	// fileIndexes are indices into the request's files slice, in request order.
 	fileIndexes []int
 }
 
-// analyzedCall is one analyzeCall result captured during phase 1 and
-// replayed in order by the serial commit phase. pendings carries every marker
-// slot the call injects (0 for a diagnostics-only call, 1 for the common
-// single-marker case, N for multi-slot injection).
+// analyzedCall is one analyzeCall result captured in phase 1 and replayed in order by the serial commit
+// phase; pendings holds every marker slot the call injects, none for a diagnostics-only call.
 type analyzedCall struct {
 	pendings    []pendingCall
 	diagnostics []diagnostics.Diagnostic
 }
 
-// planScanGroups resolves every requested file up front and partitions
-// the request by the pool's own file→checker association.
-// GetTypeCheckerForFile is a lock-free association lookup in our pool
-// configuration (non-exclusive, noop release), so planning is cheap.
-// Group order is first-appearance order over the request — deterministic
-// for a given Program + request.
+// planScanGroups partitions the request by the pool's own file→checker association; GetTypeCheckerForFile is
+// a lock-free lookup in our pool configuration (non-exclusive, noop release), so planning is cheap. Group
+// order is first-appearance order over the request, deterministic for a given Program + request.
 func (sess *Session) planScanGroups(files []string) ([]*ast.SourceFile, []scanGroup, error) {
 	sourceFiles := make([]*ast.SourceFile, len(files))
 	var groups []scanGroup
@@ -84,26 +64,22 @@ func (sess *Session) planScanGroups(files []string) ([]*ast.SourceFile, []scanGr
 	return sourceFiles, groups, nil
 }
 
-// dispatchScanFilesParallel is the parallel counterpart of
-// dispatchScanFilesSerial. It degrades to the serial loop whenever the
-// request can't honestly be parallelized — a file fails to resolve
-// (serial reproduces the established partial-scan + error semantics) or
-// every file lands on one checker.
+// dispatchScanFilesParallel degrades to dispatchScanFilesSerial whenever the request can't honestly be
+// parallelized: a file fails to resolve (serial reproduces the partial-scan + error semantics) or every
+// file lands on one checker.
 func (sess *Session) dispatchScanFilesParallel(files []string) ([]protocol.Site, []diagnostics.Diagnostic, error) {
 	sourceFiles, groups, err := sess.planScanGroups(files)
 	if err != nil || len(groups) < 2 {
 		return sess.dispatchScanFilesSerial(files)
 	}
-	// Build every group's scanState on this goroutine: verdictsFor mutates
-	// the resolver-level memo registry, which must never happen
-	// concurrently. Each goroutine then only writes its own inner memo.
+	// Build every scanState here: verdictsFor mutates the resolver-level memo registry, which must never
+	// happen concurrently. Each goroutine then only writes its own inner memo.
 	states := make([]scanState, len(groups))
 	for groupIndex, group := range groups {
 		states[groupIndex] = sess.scanStateFor(group.scanChecker)
 	}
-	// Per-file result slots and per-group error slots: every goroutine
-	// writes only the indices it owns, so the fan-out shares no mutable
-	// state beyond pre-sized slices.
+	// Every goroutine writes only the indices it owns, so the fan-out shares no mutable state beyond these
+	// pre-sized slices.
 	analyzed := make([][]analyzedCall, len(files))
 	groupErrors := make([]error, len(groups))
 	var waitGroup sync.WaitGroup
@@ -116,10 +92,8 @@ func (sess *Session) dispatchScanFilesParallel(files []string) ([]protocol.Site,
 					groupErrors[groupIndex] = fmt.Errorf("parallel scan (checker group %d): %v", groupIndex, recovered)
 				}
 			}()
-			// Exclusive lease on this group's checker for the whole pass.
-			// Mutual exclusion between groups already comes from the
-			// partition itself; the lease is defense-in-depth against any
-			// other in-process pool user.
+			// Mutual exclusion between groups already comes from the partition itself; this lease is
+			// defense-in-depth against any other in-process pool user.
 			_, release := sess.Program.TS.GetTypeCheckerForFileExclusive(context.Background(), group.leader)
 			defer release()
 			state := states[groupIndex]
@@ -138,16 +112,14 @@ func (sess *Session) dispatchScanFilesParallel(files []string) ([]protocol.Site,
 		}()
 	}
 	waitGroup.Wait()
-	// First error in group order wins — deterministic regardless of which
-	// goroutine failed first in wall-clock time.
+	// First error in group order wins, never whichever goroutine failed first in wall-clock time.
 	for _, groupError := range groupErrors {
 		if groupError != nil {
 			return nil, nil, groupError
 		}
 	}
-	// Phase 2: serial commit in request order. Mirrors the serial loop's
-	// per-file body exactly so site order, diagnostic order, cache intern
-	// order, and the per-file bookkeeping all match.
+	// Phase 2 mirrors the serial loop's per-file body exactly, so site, diagnostic, cache intern and
+	// per-file bookkeeping order all match.
 	var sites []protocol.Site
 	var diagnostics []diagnostics.Diagnostic
 	for fileIndex, file := range files {

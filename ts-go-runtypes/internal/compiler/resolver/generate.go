@@ -13,22 +13,16 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
-// typesSubdir is the child of the RunTypes output root that holds the
-// generated cache modules (the gitignored half). The committed enrichment
-// half lives under a sibling `enriched/` dir handled by the enrich path.
+// typesSubdir holds the generated cache modules, the gitignored half; the committed enrichment half is
+// the sibling `enriched/` dir the enrich path handles.
 const typesSubdir = "types"
 
-// moduleFileExt is the on-disk extension for a generated entry module. The
-// module basename (the cache key, e.g. `val_Foo1234`, `fns/val`, `pf/rt/foo`)
-// becomes <typesDir>/<basename>.js — slashed basenames nest into subdirs.
+// moduleFileExt turns a module basename (the cache key) into <typesDir>/<basename>.js; a slashed
+// basename nests into subdirs.
 const moduleFileExt = ".js"
 
-// outputDirAllowedMembers are the mion-owned top-level entries an output root
-// may contain for us to treat it as ours: the generated `types/` half, the
-// committed `enriched/` half, the self-documenting README, the VCS-hygiene
-// markers, and the `rpc/` half the batch transport regenerates on every
-// generate (see rpcgen.go). Their CONTENTS are never inspected — only the
-// output root's own top level is checked.
+// outputDirAllowedMembers are the mion-owned top-level entries an output root may contain for us to
+// treat it as ours. Their CONTENTS are never inspected, only the output root's own top level.
 var outputDirAllowedMembers = map[string]bool{
 	typesSubdir:            true, // "types"
 	"enriched":             true,
@@ -39,36 +33,26 @@ var outputDirAllowedMembers = map[string]bool{
 	constants.ApiModuleDir: true, // "api": what a bundleApi client build bundles (see apigen.go)
 }
 
-// pureFnReportFileName is the default basename of the pure-fn build report,
-// written INSIDE the generated `types/` dir (alongside the pure-fn cache
-// modules) when the report's file output is enabled and no explicit path was
-// configured. Living under types/ means it inherits that dir's `.gitignore`
-// (`*`) exactly like every generated cache module — regenerated each build,
-// never committed. It is still pure DATA, not a module: pruneStaleModules only
-// touches `*.js`, the manifest is built from the module set (never this file),
-// and no `.json` basename is ever an rtmod:/ specifier — so it never enters the
-// manifest nor gets GC'd. The output-dir guard only inspects the output root's
-// top level (types/ CONTENTS are never checked), so a report file here needs no
-// allow-list entry.
+// pureFnReportFileName is the default basename of the pure-fn build report, written INSIDE the generated
+// `types/` dir so it inherits that dir's `.gitignore` and is regenerated each build, never committed. It
+// is still DATA, not a module: pruneStaleModules only touches `*.js`, the manifest is built from the
+// module set, and no `.json` basename is ever an rtmod:/ specifier, so it is neither listed nor GC'd. The
+// output-dir guard inspects only the output root's top level, so it needs no allow-list entry.
 const pureFnReportFileName = "pure-fns-report.json"
 
 // batchReportFileName is the request-batch twin of pureFnReportFileName: the
 // whole-program `batch([...])` report, same lifecycle, same dir.
 const batchReportFileName = "batches-report.json"
 
-// outputDirSubdirs are the allowed members that must be real directories. A
-// regular file named `types`/`enriched` is foreign: it would slip past the
-// name-only allow-list and only fail later at MkdirAll with an opaque OS
-// error, so the guard rejects it up front.
+// outputDirSubdirs are the allowed members that must be real directories: a regular file by one of those
+// names would slip past the name-only allow-list and fail later at MkdirAll with an opaque OS error.
 var outputDirSubdirs = map[string]bool{
 	typesSubdir: true, // "types"
 	"enriched":  true,
 }
 
-// systemNoiseEntries are OS / desktop-environment cruft (macOS Finder, Windows
-// Explorer, KDE) that any "is this directory clean?" check must ignore — a stray
-// one must never crash the build. These mirror the entries shared .gitignore
-// files carry; the macOS AppleDouble `._<name>` siblings are matched by prefix.
+// systemNoiseEntries are OS / desktop-environment cruft the "is this directory clean?" check must ignore:
+// a stray one must never crash the build. The macOS AppleDouble `._<name>` siblings are matched by prefix.
 var systemNoiseEntries = map[string]bool{
 	".DS_Store":               true,
 	".AppleDouble":            true,
@@ -84,8 +68,7 @@ var systemNoiseEntries = map[string]bool{
 	".directory":              true,
 }
 
-// isIgnorableOutputEntry reports whether a top-level output-dir entry is a
-// RunTypes-owned member or harmless OS noise, so it never trips the guard.
+// isIgnorableOutputEntry reports a RunTypes-owned member or harmless OS noise, which never trips the guard.
 func isIgnorableOutputEntry(name string) bool {
 	if outputDirAllowedMembers[name] || systemNoiseEntries[name] {
 		return true
@@ -93,14 +76,10 @@ func isIgnorableOutputEntry(name string) bool {
 	return strings.HasPrefix(name, "._") // macOS AppleDouble resource-fork sibling
 }
 
-// ensureOutDirAvailable refuses to generate into a directory that holds anything
-// beyond the RunTypes output shape. The rule is a strict top-level check: a
-// missing or empty dir, or one whose entries are only types/ / enriched/ (+ the
-// VCS markers), is ours — adopt it (a previous run produces exactly that shape,
-// so no per-run marker is needed). ANY extraneous file or folder means the
-// configured (or inferred) outDir collides with a pre-existing directory we must
-// not touch, so we abort. Files-mode has no virtual fallback, so this is a hard
-// stop the caller surfaces and crashes on.
+// ensureOutDirAvailable refuses to generate into a directory holding anything beyond the RunTypes output
+// shape. A previous run produces exactly that shape, so such a dir is adopted and no per-run marker is
+// needed; ANY extraneous entry means the configured outDir collides with a pre-existing directory we must
+// not touch. Files-mode has no virtual fallback, so this is a hard stop the caller crashes on.
 func ensureOutDirAvailable(outDir string) error {
 	entries, err := os.ReadDir(outDir)
 	if err != nil {
@@ -118,9 +97,8 @@ func ensureOutDirAvailable(outDir string) error {
 				"Point the plugin's `genDir` (or the CLI) at a dedicated folder used only for RunTypes output; the default <srcDir>/%s is a dot-folder, so tsconfig `include` globs skip it and it never collides with a hand-authored source dir.",
 				outDir, name, outputDirName)
 		}
-		// `types`/`enriched` count as ours only as directories; a regular file
-		// by that name is foreign and would otherwise fail later at MkdirAll
-		// with an opaque "not a directory" error.
+		// `types`/`enriched` count as ours only as directories; a plain file by that name would otherwise
+		// fail later at MkdirAll with an opaque "not a directory" error.
 		if outputDirSubdirs[name] && !entry.IsDir() {
 			return fmt.Errorf("refusing to generate RunTypes output into %s: %q exists but is not a directory. "+
 				"RunTypes manages `%s/` as a generated output subdirectory, so a plain file by that name means `genDir` points at a pre-existing directory. "+
@@ -131,10 +109,8 @@ func ensureOutDirAvailable(outDir string) error {
 	return nil
 }
 
-// generateToDisk materializes every entry-module source under
-// <outDir>/types/, prunes generated files no longer in the set, and returns
-// the sorted manifest of live basenames. It is the filesystem analogue of
-// shipping Response.EntryModules over the wire.
+// generateToDisk is the filesystem analogue of shipping Response.EntryModules over the wire: it writes
+// every entry module under <outDir>/types/, prunes what left the set, and returns the sorted manifest.
 func generateToDisk(outDir string, modules map[string]string) ([]string, error) {
 	if err := ensureOutDirAvailable(outDir); err != nil {
 		return nil, err
@@ -146,9 +122,7 @@ func generateToDisk(outDir string, modules map[string]string) ([]string, error) 
 	if err := EnsureOutputHygiene(outDir, typesDir); err != nil {
 		return nil, err
 	}
-	// Rewrite the inter-module rtmod: imports baked into each module to
-	// paths relative to that module, so the on-disk files resolve natively in
-	// any bundler (the wire sources still use virtual specifiers).
+	// The on-disk files must resolve natively in any bundler; the wire sources keep the virtual specifiers.
 	onDisk := make(map[string]string, len(modules))
 	for basename, source := range modules {
 		onDisk[basename] = relativizeModuleImports(basename, source)
@@ -167,12 +141,9 @@ func generateToDisk(outDir string, modules map[string]string) ([]string, error) 
 	return manifest, nil
 }
 
-// EnsureOutputHygiene self-documents the output root on every generate lane
-// (bundler plugin AND the --compile CLI, since both funnel through
-// generateToDisk): each folder carries a README saying what it is, the
-// regenerated types/ half is gitignored, and the committed enriched/ half
-// exists. Write-if-absent so a watched file is never churned and a user's
-// edit never clobbered.
+// EnsureOutputHygiene self-documents the output root on every generate lane, the bundler plugin and the
+// --compile CLI alike: a README per folder, the regenerated types/ half gitignored, the committed
+// enriched/ half present. Write-if-absent, so a watched file is never churned nor a user's edit clobbered.
 func EnsureOutputHygiene(outDir, typesDir string) error {
 	enrichedDir := filepath.Join(outDir, "enriched")
 	if err := os.MkdirAll(enrichedDir, 0o755); err != nil {
@@ -221,11 +192,9 @@ func EnsureOutputHygiene(outDir, typesDir string) error {
 			"Committed; safe to keep in version control.\n")
 }
 
-// unwritableOutDirError wraps a write failure in the output tree with an
-// actionable message. Files-mode has NO virtual-module fallback — a writable
-// project dir is required at build time — so a permission / read-only-FS
-// failure here is fatal and the user needs to know exactly why and how to fix
-// it (point `outDir` at a writable path, or build where the tree is writable).
+// unwritableOutDirError wraps a write failure with an actionable message: files-mode has NO
+// virtual-module fallback, so a permission or read-only-FS failure here is fatal and the user has to be
+// told how to fix it.
 func unwritableOutDirError(typesDir string, err error) error {
 	lower := strings.ToLower(err.Error())
 	if errors.Is(err, fs.ErrPermission) || strings.Contains(lower, "read-only") || strings.Contains(lower, "permission denied") {
@@ -234,12 +203,9 @@ func unwritableOutDirError(typesDir string, err error) error {
 	return fmt.Errorf("writing generated RunTypes modules under %s: %w", typesDir, err)
 }
 
-// pureFnReportPath is the HARDCODED location of the pure-fn report JSON:
-// `<outDir>/types/pure-fns-report.json`, inside the generated cache dir so it
-// follows the same gitignore + regenerate-every-build lifecycle as the pure-fn
-// cache modules. Deliberately NOT configurable — like every location under the
-// output root (types/, enriched/, …), the report path is convention, not a
-// knob; only `genDir` itself (the root) is settable.
+// pureFnReportPath puts the report inside the generated cache dir, so it follows the same gitignore and
+// regenerate-every-build lifecycle as the cache modules. Deliberately NOT configurable: like every
+// location under the output root it is convention, and only `genDir` itself is settable.
 func pureFnReportPath(outDir string) string {
 	return filepath.Join(outDir, typesSubdir, pureFnReportFileName)
 }
@@ -305,14 +271,10 @@ func batchReportPath(outDir string) string {
 	return filepath.Join(outDir, typesSubdir, batchReportFileName)
 }
 
-// writeJSONReport marshals a build report (a slice of records; a nil slice is
-// written as `[]`) to indented JSON at path, write-only-on-change (so a dev
-// watcher isn't retriggered when the report is byte-identical). An empty report
-// still writes `[]` so a stale file from a prior build never misleads a consumer
-// into thinking nothing changed. Fatal on write error — files-mode has no
-// fallback and a report the consumer's build depends on must not silently go
-// missing. types/ already exists (generateToDisk created it before this runs),
-// so no directory setup is needed. `label` names the report in errors.
+// writeJSONReport writes a build report as indented JSON, only when the bytes changed, so a dev watcher
+// is not retriggered. An empty report still writes `[]`, or a stale file from a prior build would mislead
+// a consumer. Fatal on a write error: a report the consumer's build depends on must not silently go
+// missing. types/ already exists, generateToDisk created it. `label` names the report in errors.
 func writeJSONReport[Record any](path, label string, report []Record) error {
 	if report == nil {
 		report = []Record{}
@@ -331,9 +293,8 @@ func writeJSONReport[Record any](path, label string, report []Record) error {
 	return nil
 }
 
-// workingDir is the resolver's configured cwd — the base every relative file
-// path and outDir resolves against — falling back to the Program's current
-// directory.
+// workingDir is the base every relative file path and outDir resolves against, the Program's current
+// directory when no cwd was configured.
 func (sess *Session) workingDir() string {
 	if sess.opts.Cwd != "" {
 		return sess.opts.Cwd
@@ -344,9 +305,8 @@ func (sess *Session) workingDir() string {
 	return ""
 }
 
-// absPath resolves p against the resolver's working dir when relative, so the
-// generate/transform relative-path math (filepath.Rel) sees consistent bases
-// regardless of whether the caller passed absolute or cwd-relative paths.
+// absPath resolves p against the working dir, so the generate/transform relative-path math sees
+// consistent bases whether the caller passed absolute or cwd-relative paths.
 func (sess *Session) absPath(p string) string {
 	if p == "" || filepath.IsAbs(p) {
 		return p
@@ -354,24 +314,15 @@ func (sess *Session) absPath(p string) string {
 	return filepath.Join(sess.workingDir(), p)
 }
 
-// outputDirName is the project-folder name the files-mode output lands under
-// when no explicit outDir is configured: <srcDir>/.mion/{types,enriched}.
-// A dot-folder on purpose: tsconfig `include` globs skip dot-dirs, so neither
-// the regenerated cache nor a fresh enrichment scaffold enters the user's
-// program by accident (an authored mirror still does, through the import the
-// user writes), it cannot collide with a hand-authored `runtypes/` source dir
-// (the marker package itself ships one), and it is the same `.mion/` folder
-// mion's Vite preset already uses for its mapper artifacts at the project root.
-// The enrichment package carries the same default (enrichgen.DefaultGenDirName);
+// outputDirName is where files-mode output lands with no explicit outDir: <srcDir>/.mion/. A dot-folder
+// on purpose, since tsconfig `include` globs skip dot-dirs, so neither the regenerated cache nor a fresh
+// enrichment scaffold enters the user's program by accident, and it cannot collide with a hand-authored
+// `runtypes/` source dir. The enrichment package carries the same default (enrichgen.DefaultGenDirName);
 // the two must move together.
 const outputDirName = ".mion"
 
-// resolveOutDir resolves the session's absolute output root. Precedence: the
-// spawn-time Options.GenDir override (the serve --gen-dir flag), else the
-// tsconfig genDir, else the inferred <srcDir>/.mion — so a consumer that
-// can't parse tsconfig (the dependency-free plugin) gets a sensible default it
-// can adopt from the OpGenerate echo, and every op on one session (generate,
-// transform, enrich) agrees on the same root by construction.
+// resolveOutDir resolves the session's absolute output root, so a consumer that cannot parse tsconfig
+// gets a default it can adopt from the OpGenerate echo and every op on one session agrees on the root.
 func (sess *Session) resolveOutDir() string {
 	if sess.opts.GenDir != "" {
 		return sess.absPath(sess.opts.GenDir)
@@ -382,22 +333,16 @@ func (sess *Session) resolveOutDir() string {
 	return filepath.Join(sess.inferSrcDir(), outputDirName)
 }
 
-// inferSrcDir picks the project's source root — the base for the default
-// files-mode output dir. Preference order mirrors how a human reads a
-// tsconfig: an explicit rootDir wins; else the common-ancestor directory of
-// the program's own root files (the matched include set, node_modules
-// excluded); else baseUrl; else the working dir.
+// inferSrcDir picks the project's source root, the base for the default output dir; the preference order
+// mirrors how a human reads a tsconfig.
 func (sess *Session) inferSrcDir() string {
 	cwd := sess.workingDir()
 	if sess.Program == nil || sess.Program.TS == nil {
 		return cwd
 	}
 	options := sess.Program.TS.Options()
-	// rootDir wins only when it sits at or below the working dir. A rootDir
-	// ABOVE cwd (e.g. tsconfig.test.json's `rootDir: "../.."`, set wide to
-	// type-check sibling packages) is an emit-root signal, not a source-root
-	// one — honoring it would drop the output tree outside the project. In
-	// that case fall through to the common-ancestor of the actual files.
+	// rootDir wins only at or below the working dir: one set wide to type-check sibling packages is an
+	// emit-root signal, not a source-root one, and honoring it would drop the output outside the project.
 	if options != nil && options.RootDir != "" {
 		if rootDir := sess.absPath(options.RootDir); isWithin(cwd, rootDir) {
 			return rootDir
@@ -412,8 +357,7 @@ func (sess *Session) inferSrcDir() string {
 	return cwd
 }
 
-// isWithin reports whether target is base itself or a descendant of it. Both
-// are compared as forward-slash paths so the prefix test is separator-safe.
+// isWithin compares as forward-slash paths, so the prefix test is separator-safe.
 func isWithin(base, target string) bool {
 	if base == "" {
 		return false
@@ -423,10 +367,8 @@ func isWithin(base, target string) bool {
 	return target == base || strings.HasPrefix(target, base+"/")
 }
 
-// projectRootFiles is the program's own root file set (the tsconfig-matched
-// include list, or the inferred program's explicit file names), with
-// node_modules-resolved entries dropped so a dependency .d.ts can't drag the
-// common-ancestor up to a shared parent.
+// projectRootFiles is the program's own root file set, node_modules entries dropped so a dependency
+// .d.ts cannot drag the common ancestor up to a shared parent.
 func (sess *Session) projectRootFiles() []string {
 	if sess.Program == nil || sess.Program.TS == nil {
 		return nil
@@ -445,10 +387,8 @@ func (sess *Session) projectRootFiles() []string {
 	return files
 }
 
-// commonDir returns the deepest directory that contains every path's parent
-// directory, or "" when the paths share no meaningful common root (spread
-// across the filesystem). Operates on forward-slash segments — tsgo paths are
-// already normalized that way.
+// commonDir returns the deepest directory containing every path's parent, or "" when they share no
+// meaningful root. It works on forward-slash segments, which is how tsgo paths already arrive.
 func commonDir(paths []string) string {
 	var segmented [][]string
 	for _, p := range paths {
@@ -470,20 +410,16 @@ func commonDir(paths []string) string {
 		}
 		common = common[:matched]
 	}
-	// A lone leading "" means the paths only share the filesystem root — not a
-	// useful source dir, so let the caller fall through to baseUrl/cwd.
+	// A lone leading "" means the paths share only the filesystem root: let the caller fall through.
 	if len(common) <= 1 {
 		return ""
 	}
 	return strings.Join(common, "/")
 }
 
-// materializeModules writes each entry-module source to
-// typesDir/<basename>.js, creating parent dirs for slashed basenames. It is
-// write-only-on-change: a file whose on-disk bytes already equal the new
-// source is left untouched, so a dev file-watcher is not retriggered for
-// content-addressed modules that did not change. Returns the basenames it
-// actually (re)wrote, sorted.
+// materializeModules writes each entry module to typesDir/<basename>.js, creating parent dirs for a
+// slashed basename. Write-only-on-change, so a dev file-watcher is not retriggered for a module whose
+// content-addressed bytes did not change; it returns the basenames it actually rewrote, sorted.
 func materializeModules(typesDir string, modules map[string]string) ([]string, error) {
 	written := make([]string, 0)
 	for basename, source := range modules {
@@ -503,10 +439,8 @@ func materializeModules(typesDir string, modules map[string]string) ([]string, e
 	return written, nil
 }
 
-// pruneStaleModules deletes any *.js under typesDir whose basename is not in
-// the live module set — the GC that keeps the generated tree equal to the
-// current build's output when a type (and its call sites) goes away. A
-// missing typesDir is a no-op.
+// pruneStaleModules deletes any *.js whose basename left the live set: the GC that keeps the generated
+// tree equal to the current build's output when a type and its call sites go away.
 func pruneStaleModules(typesDir string, live map[string]string) error {
 	if _, err := os.Stat(typesDir); os.IsNotExist(err) {
 		return nil
