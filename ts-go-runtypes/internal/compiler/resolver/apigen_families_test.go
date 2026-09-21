@@ -53,12 +53,12 @@ func TestApiGen_ParseModesMatchTheTsTable(t *testing.T) {
 // params slot only: the answer side is written by the handler, never by a caller.
 func TestApiGen_MarkerKeysAreParamsOnlyForFormatTransform(t *testing.T) {
 	row := parseMode("clone")
-	if keys := row.markerKeys(true); len(keys) != 5 || keys[2] != "formatTransform" {
+	if keys := row.paramsMarkerKeys(); len(keys) != 5 || keys[2] != "formatTransform" {
 		t.Errorf("params marker keys = %v, want the formatTransform slot at index 2", keys)
 	}
-	for _, key := range parseMode("clone").markerKeys(false) {
+	for _, key := range row.returnMarkerKeys() {
 		if key == "formatTransform" {
-			t.Errorf("the return marker must not name formatTransform: %v", parseMode("clone").markerKeys(false))
+			t.Errorf("the return marker must not name formatTransform: %v", row.returnMarkerKeys())
 		}
 	}
 }
