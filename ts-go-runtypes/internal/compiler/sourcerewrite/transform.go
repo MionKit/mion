@@ -1,7 +1,7 @@
 // Package sourcerewrite owns the per-file rewrite + source-map generation
 // compiler-side. It is the Go half of a Go ⇄ JS twin: it reproduces, BYTE-FOR-BYTE,
 // the output of the JS pipeline in packages/devtools/src/core/apply-edits.ts
-// (buildInsertion, buildImportBlock, makeByteToChar, the apply loop) and
+// (buildGroupInsertion, buildImportBlock, makeByteToChar, the apply loop) and
 // edit-buffer.ts (EditBuffer + Mappings + VLQ encoder), so the two wire modes
 // (transformMode 'go' — the daemon returns {code, map} — and 'edits' — the plugin
 // applies the edit list) are identical by construction and the bundler's
@@ -39,7 +39,7 @@ import (
 )
 
 // Apply rewrites `source` per the resolver's sites + replacements: call-site
-// bindings (buildInsertion), pure-fn replacements, and the single deduped import
+// bindings (buildGroupInsertion), pure-fn replacements, and the single deduped import
 // block at offset 0 (buildImportBlock) — then generates a v3 source map.
 // Returns (rewrittenCode, map). When there are no sites AND no replacements it
 // returns (source, nil) — matching rewrite.ts. `file` is recorded as sources[0].

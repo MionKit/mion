@@ -2,7 +2,7 @@
 // rewrite and generating a source map in Go, ComputeEdits returns the raw edit
 // list (import block + point/span edits) for the FE to apply with its own
 // EditBuffer (packages/devtools/src/core/edit-buffer.ts). Both modes share
-// the SAME buildInsertion / buildImportBlock / makeByteToChar, so the two
+// the SAME buildGroupInsertion / buildImportBlock / makeByteToChar, so the two
 // cannot drift: the FE applier calls prepend/appendLeft/update in the identical
 // sequence Apply does, producing byte-identical code + map by construction.
 //

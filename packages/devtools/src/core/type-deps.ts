@@ -1,15 +1,8 @@
-// The type-dependency index: which site files reflect a type declared in which
-// source file, and therefore which site files must be re-transformed when that
-// source file changes.
-//
-// Every host funnels through the plugin's `transform` hook (the Next broker
-// included — it calls the same hook over its socket), so recording there gives
-// every bundler one index built the same way.
-//
-// Paths are normalised to absolute, forward-slashed form so a lookup matches
-// whichever shape the host hands us: the resolver reports absolute program
-// paths, Vite reports absolute ids, and the plugin's own bookkeeping is
-// cwd-relative.
+// The type-dependency index: which site files reflect a type declared in which source file, and so
+// must be re-transformed when it changes. Every host funnels through the plugin's `transform` hook,
+// the Next broker included (it calls the same hook over its socket), so every bundler gets one index
+// built the same way. Paths are normalised to absolute forward-slashed form because the shapes differ:
+// the resolver reports absolute program paths, Vite absolute ids, the plugin's bookkeeping is relative.
 import path from 'node:path';
 
 export interface TypeDepsIndex {
@@ -33,11 +26,9 @@ export function depKey(file: string, cwd: string): string {
 }
 
 export function createTypeDepsIndex(cwd: string): TypeDepsIndex {
-  // siteFile -> the type files it depends on. Empty set = transformed, but the
-  // resolver reported nothing (see `unknownSiteFiles`).
+  // siteFile -> its type files; an empty set means transformed but nothing reported (`unknownSiteFiles`).
   const forward = new Map<string, Set<string>>();
-  // typeFile -> the site files depending on it. Derived from `forward`; kept
-  // alongside it so a change lookup is O(1) instead of a scan per edit.
+  // typeFile -> its site files; kept alongside `forward` so a change lookup is O(1), not a scan per edit.
   const reverse = new Map<string, Set<string>>();
 
   function unlink(siteKey: string): void {
@@ -54,9 +45,7 @@ export function createTypeDepsIndex(cwd: string): TypeDepsIndex {
   return {
     record(siteFile, deps) {
       const siteKey = depKey(siteFile, cwd);
-      // Re-recording REPLACES: a type the file no longer reflects must stop
-      // invalidating it, or an edit to a since-removed dependency re-transforms
-      // the file forever.
+      // Re-recording REPLACES, or an edit to a since-removed dependency re-transforms the file forever.
       unlink(siteKey);
       const next = new Set<string>();
       for (const dep of deps ?? []) next.add(depKey(dep, cwd));
