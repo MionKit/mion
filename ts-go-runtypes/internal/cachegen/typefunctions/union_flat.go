@@ -7,45 +7,16 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// union_flat.go owns the three KindUnion emits used by the JSON-
-// serialiser family. The wire shape differs from the legacy non-flat
-// family only at unions:
-//
-//   - Atomic union members keep the original `[memberIndex, value]`
-//     envelope. Wrap-or-not is all-or-nothing across the atomic branch
-//     (see FlatLayout.AtomicNeedsTuple) so the decoder always knows
-//     the wire shape at compile time.
-//   - Object/class union members are MERGED into one envelope:
-//     `[-1, mergedObject]`. The merged object carries the union of
-//     every object member's properties; each property is encoded if
-//     its key is defined on `v` at encode time. Decode mirrors the
-//     encode: walk the merged set, decode every defined key.
-//
-// The optimisation avoids the per-object `validate` walk on encode for
-// the common "discriminated bag of N large classes" shape — instead of
-// running N property-set checks to pick a member index, the emitter
-// runs the per-property transforms directly and uses the `-1` sentinel
-// at decode time to skip dispatch entirely.
-//
-// Conflict resolution: when two object members carry a property with
-// the same name but different child type IDs, the merged prop's value
-// branches at runtime via a nested `[subIdx, value]` inline-union —
-// same shape as the regular non-flat union, but scoped to that one
-// property.
-//
-// Object members that carry an index signature can't be safely merged
-// (dynamic keys would collide with the merged-set discriminator), so
-// they fall back into the atomic bucket and get their original
-// per-member `[memberIndex, value]` dispatch.
-//
-// Structural decisions (bucketing, merged-prop list, wrap flags) live
-// in buildFlatLayout (union_flat_layout.go); this file holds the
-// codegen for the three encode/decode families.
+// union_flat.go holds the three KindUnion emits of the JSON-serialiser family; the layout they iterate is
+// built by buildFlatLayout (union_flat_layout.go). Wire shape: atomic members keep `[memberIndex, value]`,
+// object/class members are MERGED into one `[-1, mergedObject]` envelope carrying the union of their
+// properties, each encoded when its key is defined. The merge avoids the per-object `validate` walk on
+// encode for a discriminated bag of N large classes; the `-1` sentinel skips dispatch on decode. When two
+// object members declare the same name with different child type IDs, that prop branches through a nested
+// `[subIdx, value]` inline-union.
 
-// flatUnionEncodeErrorVar registers the canonical encode-error context
-// item once per emit pass and returns its name. Shared across all
-// three emit families so the renderer collapses to a single
-// declaration.
+// flatUnionEncodeErrorVar registers the canonical encode-error context item once per emit pass, shared
+// across all three emit families so the renderer collapses to a single declaration.
 func flatUnionEncodeErrorVar(ctx *EmitContext) string {
 	name := "fuEncErr"
 	if !ctx.HasContextItem(name) {
@@ -74,9 +45,8 @@ func flatUnionDecodeBinaryErrorVar(ctx *EmitContext) string {
 	return name
 }
 
-// unionDecodeThrow is the cold-branch throw of a union decoder: the hoisted
-// message plus the index / discriminator that matched no member, concatenated
-// only when the throw fires.
+// unionDecodeThrow is the cold-branch throw of a union decoder; the message and the index that matched no
+// member are concatenated only when the throw fires.
 func unionDecodeThrow(errVar, indexVar string) string {
 	return " else { throw new Error(" + errVar + " + " + indexVar + ") }"
 }
@@ -91,13 +61,10 @@ func flatUnionEncodeBinaryErrorVar(ctx *EmitContext) string {
 	return name
 }
 
-// discCandidateGuard returns the JS boolean expression that selects `cand` by
-// the union discriminant value — e.g. `d === "t3"` or `(d === "ta" || d ===
-// "tb")` when two members fold into one candidate. Used by the merged-prop
-// sub-dispatch in place of the per-value `validate` check when the layout has a
-// usable discriminant (mp.hasDiscDispatch): the discriminant survives a
-// round-trip, so the chosen sub-index is byte-stable even for a value whose
-// prop normalises to a shape that would re-classify under the validate path.
+// discCandidateGuard returns the JS boolean that selects `cand` by the union discriminant value.
+// It replaces the per-value `validate` check when the layout has a usable discriminant (mp.hasDiscDispatch):
+// the discriminant survives a round-trip, so the sub-index is byte-stable even for a value whose prop
+// normalises to a shape that would re-classify under the validate path.
 func discCandidateGuard(discAccessor string, cand FlatPropCandidate) string {
 	if len(cand.DiscValues) == 0 {
 		return ""
@@ -112,15 +79,11 @@ func discCandidateGuard(discAccessor string, cand FlatPropCandidate) string {
 	return "(" + strings.Join(parts, " || ") + ")"
 }
 
-// mergedPropSurvivingGuard returns a JS boolean expression true iff
-// `accessor`'s value matches one of the merged prop's SURVIVING
-// candidates — i.e. the value belongs to a union member where this prop
-// was NOT DataOnly-stripped. Used only when mp.HasStrippedCandidate: a
-// value from a stripped member still carries the key with a foreign type
-// (e.g. `Uint8Array` where a sibling member declares `Date`), so the
-// encode applies the surviving codec ONLY when this guard holds and DROPS
-// the key otherwise (G3 / G4). Mirrors the per-candidate validate the
-// multi-candidate dispatch already uses.
+// mergedPropSurvivingGuard returns a JS boolean true iff `accessor`'s value matches one of the merged
+// prop's SURVIVING candidates, i.e. belongs to a member where this prop was NOT DataOnly-stripped.
+// Used only when mp.HasStrippedCandidate: a value from a stripped member still carries the key with a
+// foreign type, so the encode applies the surviving codec only under this guard and DROPS the key
+// otherwise (G3 / G4).
 func mergedPropSurvivingGuard(mp FlatMergedProp, accessor string, ctx *EmitContext) string {
 	var checks []string
 	for _, cand := range mp.Candidates {
@@ -142,32 +105,25 @@ func mergedPropSurvivingGuard(mp FlatMergedProp, accessor string, ctx *EmitConte
 
 // --- prepareForJson encode ---------------------------------------------------
 
-// emitUnionPrepareForJsonFlat — the encode-side of the flat-union wire
-// shape. Mutates v: object members get every defined property
-// transformed and then v = [-1, v]; atomic members run their original
-// prepare and (when layout.AtomicNeedsTuple) wrap as [memberIndex, v].
-// Wrap is all-or-nothing across atomic members AND mandatory when an
-// object branch exists (the [-1, …] envelope coexists with the atomic
-// envelope, so the decoder must unconditionally unwrap).
+// emitUnionPrepareForJsonFlat is the encode side of the flat-union wire shape, mutating v: object members
+// get every defined property transformed then `v = [-1, v]`, atomic members run their prepare and wrap as
+// `[memberIndex, v]` when layout.AtomicNeedsTuple.
+// The wrap is all-or-nothing, so the decoder either unwraps unconditionally or is identity.
 func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// Round-trips raw — every member is JSON-compatible, so mutate has no
-	// transform to apply and needs no envelope: identity. Broader than
-	// atomicOnlyJsonIdentity (covers object/record members too — mutate never
-	// strips, so a compatible object member also passes through untouched).
+	// Round-trips raw: no transform to apply, no envelope, identity. Broader than atomicOnlyJsonIdentity,
+	// since mutate never strips, so a JSON-compatible object member also passes through untouched.
 	if !layout.AtomicNeedsTuple {
 		return RTCode{Code: "", Type: CodeS}
 	}
 
 	var clauses []string
 
-	// Atomic clauses. Class members dispatch by instance identity first, then
-	// non-class atomics, then a class structural fallback (atomicEncodeDispatch).
-	// A class member's arm appears twice (identity + structural) selecting the
-	// same OriginalIndex, so compile each member's body exactly once.
+	// A class member's arm appears twice (identity + structural) selecting the same OriginalIndex, so
+	// compile each member's body exactly once (atomicEncodeDispatch).
 	prologue, arms := layout.atomicEncodeDispatch(v, ctx)
 	bodyByIndex := make(map[int]string, len(layout.AtomicMembers))
 	for _, m := range layout.AtomicMembers {
@@ -192,7 +148,6 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 		clauses = append(clauses, clause)
 	}
 
-	// Object branch — merged-property encode wrapped in `[-1, v]`.
 	if len(layout.ObjectMembers) > 0 {
 		discAccessor := layout.discAccessor(v)
 		var propParts []string
@@ -205,9 +160,7 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 			if propCode == "" {
 				continue
 			}
-			// Required props (every member declares them non-optionally)
-			// skip the `=== undefined` guard since the value is known to
-			// be present once the outer object-type gate passes.
+			// A Required prop is present once the outer object-type gate passes, so it skips the guard.
 			if mp.Required {
 				propParts = append(propParts, propCode)
 			} else {
@@ -218,9 +171,8 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 		if body != "" {
 			body += ";"
 		}
-		// Wrap only when the union carries a transform somewhere. When it
-		// round-trips raw (AtomicNeedsTuple false) the mutate early-out above
-		// already returned identity, so this branch runs only with the wrap.
+		// Wrap only when the union carries a transform somewhere; a round-trips-raw union already returned
+		// identity at the early-out above, so this branch only ever runs with the wrap.
 		if layout.AtomicNeedsTuple {
 			body += v + " = [-1, " + v + "]"
 		}
@@ -236,20 +188,13 @@ func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v str
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeS}
 }
 
-// emitMergedPropPrepare returns the inline JS body that transforms a
-// single merged property's value. Single-candidate props delegate to
-// the candidate's prepareForJson; multi-candidate props use the
-// all-or-nothing wrap rule (FlatMergedProp.NeedsSubWrap) — either
-// every candidate is noop on both halves (collapse to no transform;
-// the value round-trips identity-style via JSON's natural typing) or
-// every candidate emits its transform + `[subIdx, value]` wrap so the
-// decoder can unconditionally unwrap.
-// Returns ("", true) when no transform is required.
-//
-// When mp.HasStrippedCandidate, the transform is wrapped so the surviving
-// codec runs only for values matching a surviving candidate; a value from
-// a stripped member (carrying the key with a foreign type) is `delete`d
-// instead, matching its DataOnly projection (G3 / G4).
+// emitMergedPropPrepare returns the inline JS body that transforms one merged property's value, or
+// ("", true) when no transform is required.
+// Multi-candidate props follow the all-or-nothing wrap rule (FlatMergedProp.NeedsSubWrap): either every
+// candidate is noop on both halves and the value round-trips through JSON's natural typing, or every
+// candidate emits its transform plus the `[subIdx, value]` wrap the decoder unconditionally unwraps.
+// Under mp.HasStrippedCandidate the surviving codec runs only for a matching value; a value from a
+// stripped member is `delete`d instead, matching its DataOnly projection (G3 / G4).
 func emitMergedPropPrepare(mp FlatMergedProp, accessor, discAccessor string, ctx *EmitContext) (string, bool) {
 	base, ok := mergedPropPrepareBody(mp, accessor, discAccessor, ctx)
 	if !ok {
@@ -273,13 +218,11 @@ func mergedPropPrepareBody(mp FlatMergedProp, accessor, discAccessor string, ctx
 		return strings.TrimSpace(jc.Code), true
 	}
 	if !mp.NeedsSubWrap {
-		// Every candidate is noop on both halves — JSON round-trips the
-		// value identity-style, no per-property dispatch or wrap needed.
+		// Every candidate is noop on both halves: JSON round-trips the value, no dispatch and no wrap.
 		return "", true
 	}
-	// Multi-candidate with at least one non-noop — wrap every candidate.
-	// With a usable discriminant, gate each arm by the discriminant value
-	// (stable across round-trip) instead of re-validating the prop value.
+	// With a usable discriminant, gate each arm by the discriminant value, stable across a round-trip,
+	// instead of re-validating the prop value.
 	useDisc := discAccessor != "" && mp.hasDiscDispatch()
 	var arms []string
 	for i, cand := range mp.Candidates {
@@ -321,13 +264,10 @@ func mergedPropPrepareBody(mp FlatMergedProp, accessor, discAccessor string, ctx
 
 // --- restoreFromJsonMutate decode --------------------------------------------------
 
-// emitUnionRestoreFromJsonFlat — the decode-side of the flat-union wire
-// shape. Under the all-or-nothing wrap rule
-// (FlatLayout.AtomicNeedsTuple): either every encoded value is wrapped
-// (`[-1, …]` for object branch, `[idx, …]` for atomic) or the whole
-// union round-trips raw and the decoder is identity. No shape gate —
-// the compile-time decision tells the decoder exactly which shape to
-// expect.
+// emitUnionRestoreFromJsonFlat is the decode side of the flat-union wire shape. Under the all-or-nothing
+// wrap rule (FlatLayout.AtomicNeedsTuple) either every encoded value is wrapped (`[-1, …]` object,
+// `[idx, …]` atomic) or the whole union round-trips raw and the decoder is identity, so the compile-time
+// decision alone tells the decoder which shape to expect.
 func emitUnionRestoreFromJsonFlat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	return emitUnionRestoreFromJsonFlatLayout(rt, ctx, v, buildFlatLayout(rt, ctx))
 }
@@ -339,9 +279,7 @@ func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext
 		return RTCode{Code: "", Type: CodeS}
 	}
 	if !layout.AtomicNeedsTuple {
-		// Whole union round-trips raw (roundTripsRaw): every member, atomic
-		// AND object/record, is JSON-compatible, so nothing was enveloped on
-		// encode and there is nothing to unwrap or reconstruct: identity.
+		// Nothing was enveloped on encode, so there is nothing to unwrap or reconstruct: identity.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	return emitEnvelopedUnionRestore(ctx, v, layout, emitMergedPropsInPlace)
@@ -352,10 +290,8 @@ func emitUnionRestoreFromJsonFlatLayout(rt *reflection.RunType, ctx *EmitContext
 // the object from them (emitMergedPropsRebuild).
 type unionObjectArm func(ctx *EmitContext, v string, layout FlatLayout) (string, bool)
 
-// emitMergedPropsInPlace walks the merged props and restores each defined key
-// where it sits. Required props (every member declares them non-optionally)
-// skip the `=== undefined` guard, matching the encoder's symmetric
-// optimisation in emitUnionPrepareForJsonFlat.
+// emitMergedPropsInPlace restores each defined merged prop where it sits; Required props skip the
+// `=== undefined` guard, matching the encoder in emitUnionPrepareForJsonFlat.
 func emitMergedPropsInPlace(ctx *EmitContext, v string, layout FlatLayout) (string, bool) {
 	var propParts []string
 	for _, mp := range layout.MergedProps {
@@ -376,15 +312,12 @@ func emitMergedPropsInPlace(ctx *EmitContext, v string, layout FlatLayout) (stri
 	return strings.Join(propParts, ";"), true
 }
 
-// emitEnvelopedUnionRestore decodes the `[idx, value]` wire: the object branch
-// under idx -1, then one arm per atomic member, since every encoded value is
-// wrapped under the all-or-nothing rule. The wire is untrusted, so the shape
-// is checked before the unwrap (reflection.MustValidateJson) and `null[0]`
-// never throws a raw TypeError out of the decoder. A value that is not a
-// two-slot array is refused with the same typed `[mion]` error as an index
-// that names no member: a bare value is never this union's wire form, and
-// leaving it in place would let validate accept it through a member it never
-// encoded as.
+// emitEnvelopedUnionRestore decodes the `[idx, value]` wire: the object branch under idx -1, then one arm
+// per atomic member. The wire is untrusted, so the shape is checked before the unwrap
+// (reflection.MustValidateJson lists KindUnion for that reason) and `null[0]` never
+// throws a raw TypeError out of the decoder. A value that is not a two-slot array is refused with the same
+// typed `[mion]` error as an unknown index: leaving it in place would let validate accept it through a
+// member it never encoded as.
 func emitEnvelopedUnionRestore(ctx *EmitContext, v string, layout FlatLayout, objectArm unionObjectArm) RTCode {
 	decVar := ctx.NextLocalVar("dec")
 	var arms []string
@@ -420,11 +353,9 @@ func emitEnvelopedUnionRestore(ctx *EmitContext, v string, layout FlatLayout, ob
 	return RTCode{Code: body, Type: CodeS}
 }
 
-// emitMergedPropRestore — decode-side mirror of emitMergedPropPrepare.
-// Same all-or-nothing rule via FlatMergedProp.NeedsSubWrap: either
-// every candidate is noop (no transform on decode, the value round-
-// trips identity) or every candidate emits the `[subIdx, value]`
-// decode dispatch. Single-candidate props delegate directly.
+// emitMergedPropRestore is the decode-side mirror of emitMergedPropPrepare, under the same all-or-nothing
+// rule (FlatMergedProp.NeedsSubWrap): either every candidate is noop and the value round-trips, or every
+// candidate emits the `[subIdx, value]` decode dispatch.
 func emitMergedPropRestore(mp FlatMergedProp, accessor string, ctx *EmitContext) (string, bool) {
 	if len(mp.Candidates) == 1 {
 		ctx.SetChildAccessor(accessor)
@@ -436,11 +367,9 @@ func emitMergedPropRestore(mp FlatMergedProp, accessor string, ctx *EmitContext)
 		return strings.TrimSpace(jc.Code), true
 	}
 	if !mp.NeedsSubWrap {
-		// Encoder didn't emit a wrap (all candidates noop) — nothing to
-		// undo on decode.
+		// The encoder emitted no wrap (all candidates noop), so there is nothing to undo on decode.
 		return "", true
 	}
-	// Multi-candidate — decode the per-prop `[subIdx, value]` envelope.
 	subDecVar := ctx.NextLocalVar("sub")
 	var arms []string
 	for i, cand := range mp.Candidates {
@@ -472,29 +401,24 @@ func emitMergedPropRestore(mp FlatMergedProp, accessor string, ctx *EmitContext)
 
 // --- stringifyJson encode (single-pass string) ------------------------------
 
-// emitUnionStringifyJsonFlat — single-pass stringification of the
-// flat-union wire shape. Mirrors emitUnionPrepareForJsonFlat structurally,
-// but each branch BUILDS the JSON string for the envelope rather than
-// mutating `v`. The wrap-or-not decision is all-or-nothing across the
-// atomic branch (see FlatLayout.AtomicNeedsTuple) so the decoder always
-// knows whether to unwrap.
+// emitUnionStringifyJsonFlat is the single-pass stringification of the flat-union wire shape: mirrors
+// emitUnionPrepareForJsonFlat structurally, but each branch BUILDS the JSON string for the envelope
+// instead of mutating `v`. The wrap decision is all-or-nothing (FlatLayout.AtomicNeedsTuple), so the
+// decoder always knows whether to unwrap.
 func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// All members JSON-identity — stringify the value directly, no per-member
-	// dispatch (see atomicOnlyJsonIdentity).
+	// All members JSON-identity: stringify the value directly, no per-member dispatch.
 	if layout.atomicOnlyJsonIdentity() {
 		return RTCode{Code: "return JSON.stringify(" + v + ");", Type: CodeRB}
 	}
 
 	var clauses []string
 
-	// Class members dispatch by instance identity first, then non-class atomics,
-	// then a class structural fallback (atomicEncodeDispatch); each member's
-	// JSON fragment is built once. A member whose stringify is empty contributes
-	// no arm (skipped), same as before.
+	// Each member's JSON fragment is built once even though a class member takes two arms
+	// (atomicEncodeDispatch); a member whose stringify is empty contributes no arm.
 	prologue, arms := layout.atomicEncodeDispatch(v, ctx)
 	emitByIndex := make(map[int]string, len(layout.AtomicMembers))
 	for _, m := range layout.AtomicMembers {
@@ -524,32 +448,12 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 	}
 
 	if len(layout.ObjectMembers) > 0 {
-		// Build the merged-object stringify with direct string concat
-		// instead of `[parts].filter(Boolean).join(',')` — the filter
-		// approach allocates two arrays + a string per call. With Fix 3
-		// (required vs optional split) the common discriminated-union
-		// case where every member shares the same property set collapses
-		// to flat concat, matching the shape the non-flat per-member
-		// factory produces.
-		//
-		// Strategy:
-		//   - Required props (every member has them, none declared
-		//     optional) emit `,"name":<propJson>` unconditionally. The
-		//     first required prop becomes the comma anchor; subsequent
-		//     required props always lead with `,`.
-		//   - Optional props (any member missing the prop, or any
-		//     declaration is `?:`) emit
-		//     `(accessor === undefined ? '' : ',"name":<propJson>')` —
-		//     always with a leading comma in the populated branch.
-		//   - When there is at least one required prop, the leading `,`
-		//     from the FIRST emitted fragment is harmless: the first
-		//     fragment was emitted without a leading comma so the
-		//     concat is `'{' + '"r1":...' + ',"r2":...' + ...`.
-		//   - When there are NO required props (all optional), fall
-		//     back to a slice(1) trick — prepend `,` unconditionally
-		//     in every conditional branch and strip the leading comma
-		//     from the resulting string. Still avoids the filter+join
-		//     allocations.
+		// The merged object is stringified with direct string concat, never `[parts].filter(Boolean).join(',')`,
+		// which allocates two arrays and a string per call. Splitting required from optional props lets the
+		// common discriminated union (every member sharing one property set) collapse to a flat concat.
+		// The first required prop is the comma anchor and emits without a leading comma; every other
+		// fragment leads with `,`. With no required prop at all, each branch prepends `,` and the
+		// concatenated string drops it with slice(1).
 		hasRequired := false
 		for _, mp := range layout.MergedProps {
 			if mp.Required {
@@ -557,7 +461,6 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 				break
 			}
 		}
-		// Collect propJson per merged prop. Skipping empty noop props.
 		discAccessor := layout.discAccessor(v)
 		var compiledProps []stringifyMergedProp
 		for _, mp := range layout.MergedProps {
@@ -581,8 +484,6 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 		} else if len(compiledProps) == 0 {
 			objExpr = "'{}'"
 		} else if hasRequired {
-			// At least one required → flat concat anchored by the first
-			// required prop's unconditional emit.
 			var parts []string
 			firstRequiredSeen := false
 			for _, cp := range compiledProps {
@@ -595,21 +496,13 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 						parts = append(parts, "','+"+prefix+"+"+cp.propJson)
 					}
 				} else {
-					// Optional prop — conditional with leading comma. The
-					// populated branch always leads with `,`, valid whether or
-					// not a required prop has anchored the concat yet (a leading
-					// `,` from the first fragment is harmless once a required
-					// prop emits without one). dropCond folds in the stripped-
-					// sibling guard so a foreign-typed value also emits ''.
+					// dropCond folds in the stripped-sibling guard, so a foreign-typed value also emits ''.
 					parts = append(parts, "("+cp.dropCond+" ? '' : ','+"+prefix+"+"+cp.propJson+")")
 				}
 			}
 			objExpr = "'{'+" + strings.Join(parts, "+") + "+'}'"
 		} else {
-			// All optional — use the slice trick. Each part either emits
-			// `,"name":<propJson>` or `''`. Final concat strips the
-			// leading comma via slice(1). Allocates one string for the
-			// concat + one for slice(1) (V8 cons-string). No arrays.
+			// All optional: one string for the concat plus one for slice(1) (a V8 cons-string), no arrays.
 			var parts []string
 			for _, cp := range compiledProps {
 				prefix := "'" + jsonPropPrefix(cp.mp.Name, cp.mp.IsSafeName) + "'"
@@ -617,10 +510,8 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 			}
 			objExpr = "'{'+(" + strings.Join(parts, "+") + ").slice(1)+'}'"
 		}
-		// Wrap in the `[-1, …]` envelope only when the union carries a
-		// transform somewhere; a round-trips-raw union (AtomicNeedsTuple false)
-		// emits the bare object JSON so it decodes identity. The per-prop
-		// stringify still strips undeclared keys either way.
+		// Wrap in `[-1, …]` only when the union carries a transform somewhere; a round-trips-raw union emits
+		// the bare object JSON so it decodes identity. The per-prop stringify strips undeclared keys either way.
 		result := objExpr
 		if layout.AtomicNeedsTuple {
 			result = "'[-1,' + " + objExpr + " + ']'"
@@ -637,10 +528,9 @@ func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v stri
 	return RTCode{Code: prologue + strings.Join(clauses, ""), Type: CodeRB}
 }
 
-// stringifyMergedProp is one merged prop's compiled JSON fragment. dropCond is
-// the `=== undefined` test extended (for a prop with a stripped sibling) so a
-// value from the stripped member, present but of a foreign type, also emits no
-// fragment (the key is dropped, G3 / G4).
+// stringifyMergedProp is one merged prop's compiled JSON fragment; dropCond is the `=== undefined` test,
+// extended for a prop with a stripped sibling so a present but foreign-typed value also emits no fragment
+// (the key is dropped, G3 / G4).
 type stringifyMergedProp struct {
 	mp       FlatMergedProp
 	accessor string
@@ -648,14 +538,11 @@ type stringifyMergedProp struct {
 	dropCond string
 }
 
-// emitMergedObjectOpenStringify is the object clause of a carve-out union: a
-// member carrying an index signature declares every key from the union's point
-// of view (FlatLayout.hasIndexSignatureMember), so the object member keeps
-// every key exactly as the decoders keep it. A member whose props need no
-// transform is native JSON.stringify of the whole value; otherwise every own
-// key is written in place, and only a declared prop with a transform or a
-// stripped sibling takes its own arm. A key native JSON would omit (a function,
-// a symbol, an undefined) is omitted here too.
+// emitMergedObjectOpenStringify is the object clause of a union with an index-signature member, which
+// declares every key for the whole union (FlatLayout.hasIndexSignatureMember), so the object member keeps
+// every key exactly as the decoders keep it. Props needing no transform are native JSON.stringify of the
+// whole value; otherwise every own key is written in place and only a declared prop with a transform or a
+// stripped sibling takes its own arm. A key native JSON would omit is omitted here too.
 func emitMergedObjectOpenStringify(v string, props []stringifyMergedProp, ctx *EmitContext) string {
 	var transformed []stringifyMergedProp
 	for _, prop := range props {
@@ -681,18 +568,11 @@ func emitMergedObjectOpenStringify(v string, props []stringifyMergedProp, ctx *E
 	return ctx.CreateFnInContext(body.String(), CodeRB, params, params)
 }
 
-// emitMergedPropStringify returns a JS expression that evaluates to the
-// JSON fragment for the merged prop's value. Single-candidate uses the
-// candidate's stringifyJson directly. Multi-candidate follows the same
-// all-or-nothing rule as the outer union (FlatMergedProp.NeedsSubWrap):
-//
-//   - If every candidate is noop on both halves of the round-trip, the
-//     decoder's matching emitMergedPropRestore emits no transform, so
-//     this side emits the shared candidate code directly — no
-//     `[subIdx, value]` wrap. JSON's natural typing recovers the value.
-//   - If any candidate is non-noop, every candidate emits its transform
-//     wrapped with `[subIdx, value]` so the decoder can unconditionally
-//     unwrap.
+// emitMergedPropStringify returns the JS expression evaluating to the JSON fragment for a merged prop's
+// value. Multi-candidate props follow the same all-or-nothing rule as the outer union
+// (FlatMergedProp.NeedsSubWrap): every candidate noop means no `[subIdx, value]` wrap, since
+// emitMergedPropRestore emits no transform either and JSON's natural typing recovers the value; one
+// non-noop candidate means every candidate wraps so the decoder can unwrap unconditionally.
 func emitMergedPropStringify(mp FlatMergedProp, accessor, discAccessor string, ctx *EmitContext) (string, bool) {
 	if len(mp.Candidates) == 1 {
 		ctx.SetChildAccessor(accessor)
@@ -706,7 +586,6 @@ func emitMergedPropStringify(mp FlatMergedProp, accessor, discAccessor string, c
 		}
 		return jc.Code, true
 	}
-	// Compile every candidate up front.
 	type compiled struct {
 		code       string
 		resolved   *reflection.RunType
@@ -733,11 +612,8 @@ func emitMergedPropStringify(mp FlatMergedProp, accessor, discAccessor string, c
 		return "", true
 	}
 	if !mp.NeedsSubWrap {
-		// Decoder won't emit any sub-dispatch (all candidates noop on
-		// both halves) — emit a single dispatch that returns one of the
-		// candidate codes without the [subIdx, value] wrap. Multiple
-		// candidates means multiple validate arms still, but they all
-		// resolve to JSON.parse-recoverable forms.
+		// The decoder emits no sub-dispatch, so return one of the candidate codes without the
+		// `[subIdx, value]` wrap; the validate arms remain, but every arm is JSON.parse-recoverable.
 		errVar := flatUnionEncodeErrorVar(ctx)
 		arms := make([]string, 0, len(candidates))
 		for _, cand := range candidates {
@@ -748,10 +624,8 @@ func emitMergedPropStringify(mp FlatMergedProp, accessor, discAccessor string, c
 			}
 			arms = append(arms, "if ("+guard+") return "+cand.code+";")
 		}
-		// Optimisation: when every candidate emits the SAME childCode
-		// (e.g. literal `'a' | 'b' | 'c'` where every candidate is
-		// `JSON.stringify(accessor)`) the dispatch arms all return the
-		// same thing — collapse to that shared code.
+		// Every candidate emitting the SAME code (e.g. `'a' | 'b' | 'c'`) makes every arm return the same
+		// thing, so collapse to that shared code.
 		allSame := true
 		for i := 1; i < len(candidates); i++ {
 			if candidates[i].code != candidates[0].code {
@@ -762,16 +636,14 @@ func emitMergedPropStringify(mp FlatMergedProp, accessor, discAccessor string, c
 		if allSame {
 			return candidates[0].code, true
 		}
-		// Dispatch arms hoist into a context fn (created once per
-		// materialization); errVar resolves through the closure — it is
-		// itself a context line.
+		// Dispatch arms hoist into a context fn, created once per materialization; errVar resolves through
+		// the closure, being itself a context line.
 		params := ctx.CtxFnParams(accessor)
 		call := ctx.CreateFnInContext(strings.Join(arms, " ")+" throw new Error("+errVar+");", CodeRB, params, params)
 		return call, true
 	}
-	// Multi-candidate with at least one non-noop — wrap every arm. With a
-	// usable discriminant, gate each arm by the discriminant value (stable
-	// across round-trip) instead of re-validating the prop value.
+	// With a usable discriminant, gate each wrapped arm by the discriminant value, stable across a
+	// round-trip, instead of re-validating the prop value.
 	useDisc := discAccessor != "" && mp.hasDiscDispatch()
 	errVar := flatUnionEncodeErrorVar(ctx)
 	arms := make([]string, 0, len(candidates))
