@@ -1862,6 +1862,7 @@ export const STRING_FORMAT = {
       'TF.StringDateTime (format `dateTime`) with the default ISO layout: ISO date, `T` split char, ISO tz-aware time.',
     validateNotes: [
       'Both halves must be individually valid and joined by `T`; `2024-02-29T12:30:45Z` passes.',
+      'A lowercase separator (`1963-06-19t08:30:06z`) passes too, per RFC 3339; both validate and getValidationErrors accept it.',
       'A space separator (`2024-02-29 12:30:45Z`) fails on the split char (formatPathTail `splitChar`).',
       'A non-leap date (`2023-02-29`), an out-of-range hour (`25:30:45`), and `not-a-datetime` are all rejected.',
     ],
@@ -1896,7 +1897,7 @@ export const STRING_FORMAT = {
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDateTime()),
     mockType: () => createMockDataFn<TF.StringDateTime>(),
     getSamples: () => ({
-      valid: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00'],
+      valid: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00', '1963-06-19t08:30:06z'],
       invalid: ['2024-02-29 12:30:45Z', '2023-02-29T12:30:45Z', '2024-02-29T25:30:45Z', 'not-a-datetime'],
     }),
     expectedFormatErrors: () => [{name: 'dateTime', formatPathTail: 'splitChar'}, null, null, null],
