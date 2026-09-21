@@ -261,7 +261,7 @@ Shared options (same meaning under every command):
     --version           print version (binary + pinned tsgo revision) and exit
 
 The on-disk RT artifact cache (per-(typeID, fnTag) files under
-<cwd>/node_modules/.cache/ts-runtypes/<optsFingerprint>/...) follows TypeScript's
+<cwd>/node_modules/.cache/mion/<optsFingerprint>/...) follows TypeScript's
 own incremental switch: it is enabled when the loaded tsconfig sets
 "incremental" or "composite", and disabled otherwise. The internal MION_CACHE_DIR
 environment variable overrides this for tests and direct-binary use: set it to a
