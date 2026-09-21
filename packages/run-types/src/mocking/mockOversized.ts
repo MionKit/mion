@@ -1,23 +1,13 @@
-// The `respectBinarySize: false` generator — make a value that EXCEEDS the
-// binary cold-start estimate so a `dynamic` buffer must grow. The size
-// counterpart of mockInvalid.ts: generate an in-bounds mock (the caller already
-// applied applyInBoundsSizing), co-walk the RunType alongside it, and inflate ONE
-// unbounded position past the WHOLE estimate.
-//
-// Only an UNBOUNDED position can grow while staying valid — a `string` / `array`
-// / `bigint` with no length-bounding format. A formatted node (maxLength /
-// maxItems / fixed bigint width / uuid …) can't exceed its bound without becoming
-// invalid, so it is never a target.
-//
-// The inflated position must overflow the estimate ON ITS OWN: the estimate sums
-// every position's budget, and the rest of the value can land anywhere under
-// theirs (an empty array, a one-char string), so overshooting one position's
-// budget proves nothing. The generator never sees the estimate, but it knows the
-// cap the estimator clamps every estimate to (`sizeMaxBytes`), so a `string` /
-// `bigint` is inflated until its write reserve exceeds that cap — guaranteed
-// growth for every seed and every estimate the config can produce. An
-// array-count overshoot stays best-effort (an array of zero-byte elements may
-// not grow), which the caller's size oracle confirms.
+// The `respectBinarySize: false` generator: make a value that EXCEEDS the binary cold-start estimate so a `dynamic`
+// buffer must grow. The size counterpart of mockInvalid.ts: generate an in-bounds mock (the caller already applied
+// applyInBoundsSizing), co-walk the RunType alongside it, and inflate ONE unbounded position past the WHOLE estimate.
+// Only an UNBOUNDED position can grow while staying valid (a `string` / `array` / `bigint` with no length-bounding
+// format); a formatted node can't exceed its bound without becoming invalid, so it is never a target.
+// The inflated position must overflow the estimate ON ITS OWN, since the estimate sums every position's budget and
+// the rest of the value can land anywhere under theirs. The generator never sees the estimate but knows the cap it
+// clamps to (`sizeMaxBytes`), so a `string` / `bigint` is inflated until its write reserve exceeds that cap:
+// guaranteed growth for every seed. An array-count overshoot stays best-effort (zero-byte elements may not grow),
+// which the caller's size oracle confirms.
 
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {RunType} from '../runtypes/types.ts';
@@ -65,8 +55,7 @@ function isStructuralObject(kind: number): boolean {
 }
 
 // Co-walk node + value; `set` replaces the value at this position in its parent.
-// Descends arrays / tuples / plain objects; union / Map / Set / record internals
-// are not descended (their element node isn't 1:1 with the value position).
+// Union / Map / Set / record internals are not descended: their element node isn't 1:1 with the value position.
 function collect(node: RunType | undefined, value: unknown, set: (v: unknown) => void, out: Target[]): void {
   const kind = inflatableKind(node);
   if (kind) out.push({kind, node: node as RunType, set});
@@ -86,8 +75,7 @@ function collect(node: RunType | undefined, value: unknown, set: (v: unknown) =>
   }
 }
 
-// A bigint serialises its decimal string (serString(v.toString(), true)), so its
-// reserve is the same MAX_VARINT + 3*digits — `digits` past the cap grows.
+// A bigint serialises its decimal string, so its reserve is the same MAX_VARINT + 3*digits: `digits` past the cap grows.
 function bigOverBudget(digits: number, random: MockRandom): bigint {
   let text = '9'; // leading non-zero
   for (let i = 1; i < digits; i++) text += random.int(0, 9);
@@ -112,9 +100,8 @@ function inflate(target: Target, mock: MockOptions, options: RunTypeMockOptions,
   }
 }
 
-/** Generate an in-bounds mock (options already steered by applyInBoundsSizing),
- *  then inflate ONE unbounded position past the estimate's cap. Returns the
- *  plain in-bounds value when the type has no inflatable position. **/
+/** Generate an in-bounds mock (options already steered by applyInBoundsSizing), then inflate ONE unbounded position
+ *  past the estimate's cap. Returns the plain in-bounds value when the type has no inflatable position. **/
 export function mockRunTypeOversized(runType: RunType, options: RunTypeMockOptions, stack: RunType[] = []): unknown {
   const mock = options.mock as MockOptions;
   const random = mock.random ?? nativeMockRandom;

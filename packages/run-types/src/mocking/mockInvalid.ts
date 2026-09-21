@@ -1,24 +1,11 @@
-// Negative ("invalid") mock generation — the `invalid` mock option. Generates a
-// normal valid mock, then walks the RunType graph alongside that value and
-// replaces ONE position with a value the type rejects: the inverse of what the
-// mock would produce there (a number for a string, a value outside a union, a
-// non-string for a regexp / formatted string, an object where a primitive is
-// required, …).
-//
-// `invalidLeafProbability` biases the DEPTH at which the break lands. Every
-// position is a candidate — the root, any intermediate object / array on any
-// branch, and every leaf — each tagged with its depth (root = 0, deeper = more).
-// The probability slides the corruption along that root→leaf axis: `1` corrupts a
-// (deep) leaf, `0` replaces the whole root, and values in between spread the break
-// across all depths (a mid value can land on an intermediate node, e.g. replace a
-// whole nested object with a non-object). This is the fix for the old behaviour,
-// which only ever hit a leaf OR the root and never a node in between.
-//
-// Type-accurate by construction (it reads each node's kind / literal / union
-// members), so the corrupted position fails `validate<T>` without needing to run
-// the validator. The only positions it cannot make invalid are `any` / `unknown`
-// (nothing fails them); those are dropped from the candidate set so the break
-// always lands on a position that can actually be made invalid.
+// Negative ("invalid") mock generation, the `invalid` mock option: generate a normal valid mock, then walk the
+// RunType graph alongside that value and replace ONE position with a value the type rejects.
+// `invalidLeafProbability` biases the DEPTH at which the break lands, every position being a candidate (the root,
+// any intermediate object / array, every leaf) tagged with its depth: `1` corrupts a deep leaf, `0` replaces the
+// whole root, and values in between spread the break across all depths.
+// Type-accurate by construction, reading each node's kind / literal / union members, so the corrupted position
+// fails `validate<T>` without running the validator. Only `any` / `unknown` cannot be made invalid, so those
+// positions are dropped from the candidate set.
 
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import type {RunType} from '../runtypes/types.ts';
@@ -32,11 +19,9 @@ const K = RunTypeKind;
 
 const kindOf = (node: RunType): number => node.kind as number;
 
-// A corruptible position in the mocked value. `parent`/`key` are undefined for
-// the root (it has no container to mutate — corrupting it replaces the value
-// wholesale). `depth` is the value-nesting level (root = 0), used to bias WHERE
-// the break lands. `isLeaf` is true for a non-descended position (a primitive, or
-// an opaque native like Date / Map / Set / RegExp / typed array).
+// A corruptible position in the mocked value. `parent` / `key` are undefined for the root, which has no container
+// to mutate, so corrupting it replaces the value wholesale. `depth` is the value-nesting level (root = 0).
+// `isLeaf` is true for a non-descended position: a primitive, or an opaque native (Date / Map / Set / RegExp / typed array).
 export interface Target {
   parent: Record<string | number, unknown> | undefined;
   key: string | number | undefined;
@@ -46,8 +31,7 @@ export interface Target {
   isLeaf: boolean;
 }
 
-// Containers we recurse into. Date / typed arrays / Map / Set / RegExp are opaque
-// leaves (corrupted whole, never descended); plain objects and arrays descend.
+// Date / typed arrays / Map / Set / RegExp are opaque leaves, corrupted whole and never descended.
 function isContainer(value: unknown): value is Record<string, unknown> | unknown[] {
   if (typeof value !== 'object' || value === null) return false;
   if (Array.isArray(value)) return true;
@@ -60,8 +44,7 @@ function isContainer(value: unknown): value is Record<string, unknown> | unknown
   );
 }
 
-// Does `node` accept a value of `candidate`'s runtime shape? Used both to pick the
-// in-play arm of a union (for descent) and to find a type no union member accepts.
+// Used both to pick the in-play arm of a union (for descent) and to find a type no union member accepts.
 function kindMatchesValue(node: RunType, candidate: unknown): boolean {
   switch (kindOf(node)) {
     case K.string:
@@ -97,16 +80,14 @@ function kindMatchesValue(node: RunType, candidate: unknown): boolean {
   }
 }
 
-// Resolve a union to the member matching `value` (best effort) so descent finds
-// the right children; pass other kinds through unchanged.
+// Best effort: resolving the union member matching `value` is what makes descent find the right children.
 function memberForValue(node: RunType | undefined, value: unknown): RunType | undefined {
   if (!node || kindOf(node) !== K.union) return node;
   const members = (node.children ?? []).filter((member) => !member.notSupported);
   return members.find((member) => kindMatchesValue(member, value)) ?? members[0] ?? node;
 }
 
-// The node describing `obj[key]`, walking object / intersection members (and
-// falling back to an index signature). Undefined when not found.
+// The node describing `obj[key]`, falling back to an index signature.
 function propChildNode(node: RunType | undefined, key: string | number): RunType | undefined {
   const children = node?.children ?? [];
   for (const member of children) {
@@ -130,8 +111,7 @@ function elemNodeAt(node: RunType | undefined, i: number): RunType | undefined {
   return node.child;
 }
 
-// A runtime-type inverse used when no graph node is available: a value whose
-// typeof differs from `value`'s.
+// A runtime-type inverse for when no graph node is available: a value whose typeof differs from `value`'s.
 function typeofInverse(value: unknown): unknown {
   if (typeof value === 'string') return 123;
   if (typeof value === 'number' || typeof value === 'bigint') return 'not-a-number';
@@ -141,12 +121,10 @@ function typeofInverse(value: unknown): unknown {
   return 'not-an-object';
 }
 
-// Candidate values spanning the runtime types; negativeForUnion returns the first
-// one no member of the union accepts.
+// Candidate values spanning the runtime types; negativeForUnion returns the first one no member accepts.
 const UNION_CANDIDATES: readonly unknown[] = ['rt-invalid', 1234.5, true, {rtInvalid: true}, [], null];
 
-// A value outside the whole union (rejected by every member). Falls back to a
-// runtime-type inverse for a union that somehow accepts all candidate shapes.
+// A value rejected by every union member; falls back to a runtime-type inverse when all candidates are accepted.
 function negativeForUnion(members: RunType[], value: unknown): unknown {
   const live = members.filter((member) => !member.notSupported);
   for (const candidate of UNION_CANDIDATES) {
@@ -161,25 +139,18 @@ function literalInverse(lit: unknown): unknown {
   return 'not-the-literal';
 }
 
-// negativeFor produces a value that should FAIL validation for `node` — the
-// per-kind switch. Falls back to a runtime-type inverse for kinds with no
-// specific rule (or a missing node).
+// negativeFor produces a value that should FAIL validation for `node`, falling back to a runtime-type inverse
+// for a missing node or a kind with no specific rule.
 export function negativeFor(node: RunType | undefined, value: unknown, random: MockRandom = nativeMockRandom): unknown {
   if (!node) return typeofInverse(value);
   const kind = kindOf(node);
   if (kind === K.union) return negativeForUnion(node.children ?? [], value);
   switch (kind) {
     case K.string: {
-      // A string FORMAT with its own idea of what "wrong" looks like gets to say
-      // so. A credit card whose checksum fails exercises the validator far harder
-      // than `123`, which only proves it rejects a number.
-      //
-      // Coin-flipped rather than always taken: both values are invalid, and a
-      // caller that only ever saw one of them would be testing half the rejection
-      // path. Over a run the mock produces both.
-      //
-      // Only the string kind: the three below share the RETURN VALUE, not the
-      // reasoning — none of them carries a string-format annotation.
+      // A string FORMAT knows a harder wrong value: a credit card failing its checksum tests more than `123`,
+      // which only proves a number is rejected. Coin-flipped, not always taken, so a run produces both.
+      // Only the string kind: the three cases below share the RETURN VALUE, not the reasoning, and carry no
+      // string-format annotation.
       if (random.float() < 0.5) {
         const formatNegative = negativeForStringFormat(node.formatAnnotation, value);
         if (formatNegative !== undefined) return formatNegative;
@@ -220,11 +191,9 @@ export function negativeFor(node: RunType | undefined, value: unknown, random: M
   }
 }
 
-// Co-walk `value` with its node, recording EVERY position (the root, every
-// intermediate container, and every leaf) as a corruption target tagged with its
-// depth. Each target keeps its ORIGINAL node (which may be a union) so negativeFor
-// can pick a value outside it. Containers are descended with their union-resolved
-// node so children map to the in-play arm.
+// Co-walk `value` with its node, recording EVERY position as a corruption target tagged with its depth.
+// Each target keeps its ORIGINAL node, which may be a union, so negativeFor can pick a value outside it.
+// Containers are descended with their union-resolved node so children map to the in-play arm.
 function collect(
   value: unknown,
   node: RunType | undefined,
@@ -248,42 +217,34 @@ function collect(
   }
 }
 
-// collectInvalidTargets walks the mocked value and returns every position that
-// could be corrupted, rooted at depth 0. Exposed for tests that assert the
-// selection distribution over depths (see mockInvalidDistribution.test.ts).
+// collectInvalidTargets returns every corruptible position, rooted at depth 0.
+// Exported for the tests asserting the selection distribution over depths (mockInvalidDistribution.test.ts).
 export function collectInvalidTargets(root: unknown, rootNode: RunType | undefined): Target[] {
   const out: Target[] = [];
   collect(root, rootNode, undefined, undefined, 0, out);
   return out;
 }
 
-// A position is corruptible unless its node is `any` / `unknown` — nothing fails
-// those, so negativeFor would return the value unchanged and the "invalid" mock
-// would actually validate. A missing node falls back to a runtime-type inverse,
-// which always corrupts, so it counts as corruptible.
+// `any` / `unknown` are not corruptible: negativeFor returns the value unchanged, so the "invalid" mock would validate.
+// A missing node falls back to a runtime-type inverse, which always corrupts, so it counts as corruptible.
 function canCorrupt(target: Target): boolean {
   if (!target.node) return true;
   const kind = kindOf(target.node);
   return kind !== K.any && kind !== K.unknown;
 }
 
-// The per-level selection weight at normalized depth `nd` (0 = root, 1 = deepest)
-// for probability `p`: a linear interpolation between "favour the root" (p→0) and
-// "favour the leaves" (p→1). At p = 0.5 every depth is equally likely.
+// Per-level selection weight at normalized depth `nd` (0 = root, 1 = deepest): a linear interpolation between
+// favouring the root (p→0) and favouring the leaves (p→1). At p = 0.5 every depth is equally likely.
 function levelWeight(nd: number, p: number): number {
   return (1 - p) * (1 - nd) + p * nd;
 }
 
-// chooseInvalidTarget picks ONE position to corrupt from `targets`, biased by
-// depth via `invalidLeafProbability` (p). It does NOT mutate — it only selects,
-// so tests can sample the distribution. Selection:
+// chooseInvalidTarget picks ONE position to corrupt, biased by depth via `invalidLeafProbability` (p).
+// It does NOT mutate, only selects, so tests can sample the distribution.
 //   • p >= 1  → a uniformly random leaf (the root and intermediate nodes survive);
 //   • p <= 0  → the root (the whole value is replaced);
-//   • 0 < p < 1 → every corruptible position is in play, weighted by depth so the
-//     break slides from the root (low p) to the leaves (high p) and can land on
-//     any intermediate node in between. Each depth LEVEL is weighted by
-//     `levelWeight`, then a position is drawn uniformly within the chosen level,
-//     so the depth distribution is independent of a level's branching factor.
+//   • 0 < p < 1 → every corruptible position is in play: each depth LEVEL is weighted by `levelWeight`, then a
+//     position is drawn uniformly within it, so the depth distribution ignores a level's branching factor.
 // Returns undefined only when nothing is corruptible (e.g. an `any` root).
 export function chooseInvalidTarget(
   targets: Target[],
@@ -307,8 +268,7 @@ export function chooseInvalidTarget(
   const countAtDepth = new Map<number, number>();
   for (const target of corruptible) countAtDepth.set(target.depth, (countAtDepth.get(target.depth) ?? 0) + 1);
 
-  // Weight each target by its level weight spread evenly across that level, so the
-  // total weight of a level is `levelWeight` regardless of how many nodes it holds.
+  // Spread a level's weight evenly across its targets, so a level totals `levelWeight` however many nodes it holds.
   const weights = corruptible.map(
     (target) => levelWeight(target.depth / maxDepth, invalidLeafProbability) / (countAtDepth.get(target.depth) as number)
   );
@@ -321,12 +281,9 @@ export function chooseInvalidTarget(
   return corruptible[corruptible.length - 1];
 }
 
-// injectInvalid corrupts ONE position of `root` so the value fails validation:
-// it collects every corruptible position, picks one biased by
-// `invalidLeafProbability` (see chooseInvalidTarget), and replaces it with a
-// type-aware wrong value. Corrupting the root replaces the whole value (returned);
-// corrupting any other position mutates its parent in place. When nothing is
-// corruptible it falls back to replacing the root wholesale.
+// injectInvalid corrupts ONE position of `root` so the value fails validation.
+// Corrupting the root replaces the whole value (returned); any other position mutates its parent in place.
+// When nothing is corruptible it falls back to replacing the root wholesale.
 function injectInvalid(
   root: unknown,
   rootNode: RunType | undefined,
@@ -340,8 +297,7 @@ function injectInvalid(
   return root;
 }
 
-// mockRunTypeInvalid is the `invalid` counterpart of mockRunType: a fresh valid
-// mock with one type-aware position corrupted (see injectInvalid).
+// mockRunTypeInvalid is the `invalid` counterpart of mockRunType: a fresh valid mock with one position corrupted.
 export function mockRunTypeInvalid(runType: RunType, options: RunTypeMockOptions, stack: RunType[] = []): unknown {
   const base = mockRunType(runType, options, stack);
   const mockOptions = options.mock as MockOptions;

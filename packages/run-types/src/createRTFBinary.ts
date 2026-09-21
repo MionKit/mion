@@ -1,8 +1,7 @@
-// Binary I/O public surface — separated from `createRTFunctions.ts` so
-// bundlers can leave the binary subtree (encoder, decoder, DataView helper
-// classes) out of bundles that never touch `createBinaryEncoderFn` /
-// `createBinaryDecoderFn`. Entries arrive as per-entry virtual-module tuples
-// injected at each call site (see runtypes/entryTuple.ts).
+// Binary I/O public surface — separated from `createRTFunctions.ts` so bundlers can leave the binary
+// subtree (encoder, decoder, DataView helpers) out of bundles that never touch
+// `createBinaryEncoderFn` / `createBinaryDecoderFn`. Entries arrive as per-entry virtual-module
+// tuples injected at each call site (see runtypes/entryTuple.ts).
 
 import {isRunTypeValue} from './runtypes/rtUtils.ts';
 import {
@@ -37,11 +36,10 @@ export type ToBinaryFn = (value: unknown, Ser: DataViewSerializer) => DataViewSe
  *  returns the decoded value. `ret` is a placeholder the RT body writes into. **/
 export type FromBinaryFn<T = unknown> = (ret: unknown, Des: DataViewDeserializer) => T;
 
-// Encoder returned by `createBinaryEncoderFn<T>()`. The exact signature depends on
-// the `sizeStrategy` (see the per-strategy overloads): all return a `Uint8Array` VIEW of the
-// written bytes — zero-copy, with `byteLength` the exact byte count (`.slice()`
-// for an owned copy). For the `intoBuffer` strategy the view aliases the caller's
-// buffer; consume it before the next encode overwrites those bytes.
+// Encoder returned by `createBinaryEncoderFn<T>()`. Whatever the `sizeStrategy`, all return a
+// zero-copy `Uint8Array` VIEW of the written bytes, `byteLength` the exact byte count (`.slice()`
+// for an owned copy). For `intoBuffer` the view aliases the caller's buffer; consume it before the
+// next encode overwrites those bytes.
 
 /** `dynamic` / `precalculate` encoder — sizes the buffer itself. **/
 export type BinaryEncoderFn = (value: unknown) => Uint8Array;
@@ -50,12 +48,10 @@ export type BinaryEncoderSizeFn = (value: unknown, size: number) => Uint8Array;
 /** `intoBuffer` encoder — caller supplies the buffer to write into each call. **/
 export type BinaryEncoderIntoFn = (value: unknown, into: ArrayBuffer) => Uint8Array;
 
-/** Options narrowed to a specific `sizeStrategy` literal. These drive the
- *  per-strategy overloads of `createBinaryEncoderFn`: overload resolution matches
- *  on the OPTIONS argument, so the returned signature specialises whether `T` is
- *  inferred (from a schema or value) OR supplied explicitly as
- *  `createBinaryEncoderFn<T>()` — an explicit type argument would otherwise defeat
- *  inference of a return-shaping type parameter. **/
+/** Options narrowed to a specific `sizeStrategy` literal, driving the per-strategy overloads of
+ *  `createBinaryEncoderFn`: overload resolution matches on the OPTIONS argument, so the returned
+ *  signature specialises whether `T` is inferred or supplied explicitly — an explicit type argument
+ *  would otherwise defeat inference of a return-shaping type parameter. **/
 type InitialSizeOptions = BinaryEncoderOptions & {sizeStrategy: 'initialSize'};
 type IntoBufferOptions = BinaryEncoderOptions & {sizeStrategy: 'intoBuffer'};
 
@@ -110,11 +106,10 @@ function fixedBufferTooSmall(capacity: number): RangeError {
   );
 }
 
-// Run a fixed-capacity (non-growing) encode and convert any overflow into a clear
-// RangeError. A throwing inline DataView write is caught here; a silent Uint8Array
-// OOB write still advances `index` past the buffer, so the post-encode length check
-// catches that too. No history is recorded (the caller owns sizing). Returns the
-// zero-copy view of the written bytes.
+// Fixed-capacity (non-growing) encode, turning any overflow into a clear RangeError. A throwing
+// inline DataView write is caught here; a silent Uint8Array OOB write still advances `index` past
+// the buffer, which the post-encode length check catches. No history is recorded, the caller owns
+// sizing.
 function encodeFixed(encodeFn: ToBinaryFn, value: unknown, ser: DataViewSerializer, capacity: number): Uint8Array {
   try {
     encodeFn(value, ser);
@@ -126,11 +121,9 @@ function encodeFixed(encodeFn: ToBinaryFn, value: unknown, ser: DataViewSerializ
   return ser.getBufferView();
 }
 
-// binarySizingKey derives the adaptive-sizing bucket from the schema id or the
-// injected tuple's `<fnHash>_<typeId>` key — the bare type id, so every
-// encoder/decoder for the same `T` shares size history (the pre-migration
-// default). Falls back to 'unknown' when the plugin is inactive (the resolve
-// call right after throws anyway).
+// The adaptive-sizing bucket: the bare type id, so every encoder/decoder for the same `T` shares
+// size history. Falls back to 'unknown' when the plugin is inactive (the resolve call right after
+// throws anyway).
 function binarySizingKey(runTypeId: string | undefined, injected: unknown): string {
   if (runTypeId !== undefined) return runTypeId;
   if (isEntryTuple(injected)) return entryTupleKey(injected).slice(FN_HASH_LEN + 1);
@@ -182,9 +175,8 @@ export function createBinaryEncoderFn<T>(
 ): BinaryEncoderFn | BinaryEncoderSizeFn | BinaryEncoderIntoFn {
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
   const cacheKey = options?.cacheKey ?? binarySizingKey(runTypeId, id);
-  // `rejectCircularRefs` is compile-time (the plugin baked it into `id`'s fnHash,
-  // arming the encoder body's inline guard); the runtime resolves the injected
-  // tuple. `cacheKey` / `sizeStrategy` below stay runtime.
+  // `rejectCircularRefs` is compile-time: the plugin baked it into `id`'s fnHash, arming the
+  // encoder body's inline guard. `cacheKey` / `sizeStrategy` below stay runtime.
   const encodeFn = resolveEntryTupleFn<ToBinaryFn>('createBinaryEncoderFn', noopToBinaryFn, runTypeId, id);
   const sizeStrategy = options?.sizeStrategy ?? 'dynamic';
 
@@ -221,18 +213,13 @@ export function createBinaryEncoderFn<T>(
     return fn;
   }
 
-  // 'dynamic' (default): predict from per-key Welford history, seeded on a cold
-  // cache by the compile-time per-type estimate the `tb` tuple carries (a tight
-  // per-type size instead of the flat `defaultBufferSize` fallback — critical
-  // for short-lived/serverless where history never warms). Every write reserves
-  // via `Ser.ensureCapacity?.(n)`, so the buffer still grows in place if a
-  // payload outruns the estimate.
-  // Read from the TUPLE, not from the registered entry's `binarySizeEstimate`.
-  // The entry now carries the same value (for consumers reaching it via getRT),
-  // but going through it here would cost a cache lookup on every factory
-  // creation AND would lose the estimate for an entry restored from a
-  // serialized cache, where a host that copies fields explicitly may not have
-  // carried it. The tuple is the authoritative local source.
+  // 'dynamic' (default): predict from per-key Welford history, seeded on a cold cache by the
+  // compile-time per-type estimate instead of the flat `defaultBufferSize` — critical for
+  // short-lived/serverless, where history never warms. Every write reserves via
+  // `Ser.ensureCapacity?.(n)`, so the buffer still grows in place if a payload outruns the estimate.
+  // Read the estimate from the TUPLE, the authoritative local source, not from the registered
+  // entry's `binarySizeEstimate`: that would cost a cache lookup per factory creation and would lose
+  // the estimate for an entry restored from a serialized cache whose host copied fields explicitly.
   const coldStartSize = binarySizeEstimateFromTuple(id);
   const fn: BinaryEncoderFn = (value) => {
     const ser = createDataViewSerializer(cacheKey, {grow: true, coldStartSize});
@@ -291,35 +278,31 @@ export function createBinaryDecoderFn<T>(
     runTypeId,
     id
   );
-  // A decoded value is reconstructed from bytes, so it only ever holds
-  // serialisable data — the return is the data-only projection `DataOnly<T>`
-  // (identity on clean DTOs). The runtime value is unchanged; the single cast
-  // is the type boundary bridging the `=> T` decodeFn to the projected return.
+  // A decoded value is reconstructed from bytes, so it only ever holds serialisable data — hence the
+  // `DataOnly<T>` projection (identity on clean DTOs). The runtime value is unchanged; the cast is
+  // the type boundary between the `=> T` decodeFn and the projected return.
   return ((input) => {
     let des: DataViewDeserializer;
     if (input && typeof (input as DataViewDeserializer).desString === 'function') {
       des = input as DataViewDeserializer; // already a deserializer
     } else {
-      // buffer / typed-array view — incl. the encoder's Uint8Array output.
       des = createDataViewDeserializer(cacheKey, input as BinaryInput);
     }
     let value: T;
     try {
       value = decodeFn(undefined, des);
     } catch (err) {
-      // A fixed-width read (a number, an enum tag, a bitmap byte, a packed
-      // Temporal field) past the end throws the DataView's own RangeError;
-      // it surfaces as the one typed error so a short buffer always fails
-      // the same way. A try/catch costs nothing on the path that returns.
+      // A fixed-width read past the end throws the DataView's own RangeError; remap it so a short
+      // buffer always fails as the one typed error. A try/catch costs nothing on the path that
+      // returns.
       if (err instanceof RangeError) {
         throw new BinaryDecodeError(`read at byte ${des.index} runs past the ${des.view.byteLength}-byte buffer`);
       }
       throw err;
     }
-    // The index only ever grows, so one compare after the walk catches every
-    // silent overrun: arms that consume bytes without reading them (a null or
-    // undefined sentinel, an optional-property bitmap) cannot be bounds-checked
-    // by the reader, and a truncated buffer must never decode to a value.
+    // The index only ever grows, so one compare after the walk catches every silent overrun: arms
+    // that consume bytes without reading them (a null/undefined sentinel, an optional-property
+    // bitmap) cannot be bounds-checked by the reader, and a truncated buffer must never decode.
     if (des.index > des.view.byteLength) {
       throw new BinaryDecodeError(`decode consumed ${des.index} bytes of a ${des.view.byteLength}-byte buffer`);
     }

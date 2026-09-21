@@ -1,38 +1,21 @@
-// Mock builders for the 8 builtin Temporal types. Each produces a random
-// VALID instance of its type so the mock walker's output re-passes validate
-// (which is just `v instanceof Temporal.X`). Dispatched from mockType.ts's
-// KindClass arm keyed on the Temporal SubKinds.
-//
-// When the type carries a FormatTemporalX<{min,max,gt,lt}> brand, the mock
-// MUST also satisfy those bounds (the emitter validates them with
-// `Temporal.X.compare(v, bound)`). The orderable types (Instant,
-// ZonedDateTime, PlainDate, PlainTime, PlainDateTime, PlainYearMonth) carry
-// a `BoundAdapter` that maps an instance to/from a single comparable key —
-// nanoseconds since the epoch for the instant-like types, a month index for
-// PlainYearMonth — so the bound set collapses to one [lo, hi] key range, a
-// random key is drawn in range, and the instance rebuilt. `gt`/`lt` are the
-// exclusive twins of `min`/`max`: their edge is nudged inward by one grid
-// step (1 ns, or one day for the date-only PlainDate, or one month for
-// PlainYearMonth) so the generated value is strictly past the bound.
-// PlainMonthDay and Duration have no ordering (no FormatTemporalX), so they
-// ignore bounds.
-//
-// `Temporal` is read off globalThis at call time (native on Node 26+, the
-// polyfill in tests) — never imported, so production bundles don't pull a
-// polyfill. A guarded accessor gives a clear error if Temporal is absent.
-//
-// v1 keeps mocks in the ISO calendar + UTC time zone (the common case);
-// calendar/time-zone variety is out of scope (documented in the spec).
+// Mock builders for the 8 builtin Temporal types, dispatched from mockType.ts's KindClass arm: each produces a
+// random VALID instance so the walker's output re-passes validate.
+// A FormatTemporalX<{min,max,gt,lt}> brand must also be satisfied, so the orderable types carry a `BoundAdapter`
+// mapping an instance to and from one comparable key (epoch nanoseconds, a month index for PlainYearMonth): the
+// bound set collapses to one [lo, hi] key range, a key is drawn in range and the instance rebuilt.
+// `gt` / `lt` are the exclusive twins of `min` / `max`, nudged inward by one grid step (1 ns, one day for the
+// date-only PlainDate, one month for PlainYearMonth), so the value is strictly past the bound.
+// PlainMonthDay and Duration have no ordering (no FormatTemporalX), so they ignore bounds.
+// `Temporal` is read off globalThis at call time and never imported, so production bundles don't pull a polyfill.
+// v1 keeps mocks in the ISO calendar + UTC time zone; calendar / time-zone variety is out of scope.
 
 import {RunTypeSubKind} from '../go-generated/runTypeKind.generated.ts';
 import type {MockRandom} from './mockRandom.ts';
 
-// Minimal structural views of the global Temporal namespace — just the
-// constructors + statics the builders call. Avoids a hard dependency on the
-// Temporal lib types (which the repo's tsconfig lib predates).
+// Minimal structural views of the global Temporal namespace, avoiding a hard dependency on the Temporal lib types,
+// which the repo's tsconfig lib predates.
 
-// A Temporal instance that can be offset by a Duration (every orderable
-// type supports add/subtract) — used to evaluate relative `now±P` bounds.
+// A Temporal instance that can be offset by a Duration, used to evaluate relative `now±P` bounds.
 interface Shiftable {
   add(duration: unknown): unknown;
   subtract(duration: unknown): unknown;
@@ -70,8 +53,7 @@ function temporal(): TemporalLike {
 
 const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
 
-// Random calendar parts in safe ranges (day ≤ 28 to avoid month-length edge
-// cases — every month has 28 days).
+// Day ≤ 28 avoids month-length edge cases: every month has 28 days.
 function randomDateParts(random: MockRandom): {year: number; month: number; day: number} {
   return {year: random.int(1970, 2099), month: random.int(1, 12), day: random.int(1, 28)};
 }
@@ -131,15 +113,12 @@ export interface TemporalBounds {
   lt?: string;
 }
 
-// Nanoseconds per day — the PlainDate grid (a date-only type steps by whole
-// days, so an exclusive `gt`/`lt` excludes the bound date itself).
+// Nanoseconds per day, the PlainDate grid: a date-only type steps by whole days, so `gt`/`lt` excludes the bound date.
 const NS_PER_DAY = 86_400_000_000_000n;
 
-// A BoundAdapter maps an orderable Temporal type to a single comparable key
-// (bigint) and back, plus the grid step for exclusive-bound nudging and the
-// `now` / `from(literal)` constructors used to resolve relative + absolute
-// bounds. The instant-like keys are epoch nanoseconds via the UTC zone;
-// PlainYearMonth uses a month index.
+// A BoundAdapter maps an orderable Temporal type to one comparable bigint key and back, plus the grid step for
+// exclusive-bound nudging and the `now` / `from(literal)` constructors resolving relative + absolute bounds.
+// Instant-like keys are epoch nanoseconds via the UTC zone; PlainYearMonth uses a month index.
 interface BoundAdapter {
   grid: bigint;
   now(): unknown;
@@ -151,9 +130,8 @@ interface BoundAdapter {
 
 const REF_DATE = '1970-01-01'; // anchor for PlainTime ↔ epoch-ns
 
-// instantFromNs / nsOf bridge any instant-like instance through a UTC
-// ZonedDateTime so a single ns scale serves Instant / ZonedDateTime /
-// PlainDate / PlainTime / PlainDateTime.
+// instantFromNs / nsOf bridge any instant-like instance through a UTC ZonedDateTime, so one ns scale serves
+// Instant / ZonedDateTime / PlainDate / PlainTime / PlainDateTime.
 function instantFromNs(ns: bigint): {toZonedDateTimeISO(tz: string): unknown} {
   return temporal().Instant.fromEpochNanoseconds(ns) as {toZonedDateTimeISO(tz: string): unknown};
 }
@@ -226,16 +204,14 @@ function boundAdapter(subKind: number, random: MockRandom): BoundAdapter | undef
   }
 }
 
-// shift offsets a Temporal instance by a relative `now±P…` duration tail
-// (e.g. '-P1Y' / '+PT1H'), mirroring the emitter's add/subtract.
+// shift offsets an instance by a relative `now±P…` duration tail (e.g. '-P1Y'), mirroring the emitter's add/subtract.
 function shift(instance: unknown, sign: number, durationStr: string): unknown {
   const duration = temporal().Duration.from(durationStr);
   const shiftable = instance as Shiftable;
   return sign < 0 ? shiftable.subtract(duration) : shiftable.add(duration);
 }
 
-// boundKey resolves one bound string (absolute literal or relative now±P) to
-// the adapter's comparable key.
+// boundKey resolves one bound string (absolute literal or relative now±P) to the adapter's comparable key.
 function boundKey(adapter: BoundAdapter, bound: string): bigint {
   if (bound.startsWith('now')) {
     const rest = bound.slice(3);
@@ -246,8 +222,7 @@ function boundKey(adapter: BoundAdapter, bound: string): bigint {
   return adapter.key(adapter.fromLiteral(bound));
 }
 
-// randomBigIntBelow returns a uniform-ish bigint in [0, n) for n > 0, drawing
-// 30 random bits at a time (mocking needs spread, not cryptographic quality).
+// randomBigIntBelow draws 30 bits at a time for a bigint in [0, n): mocking needs spread, not cryptographic quality.
 function randomBigIntBelow(n: bigint, random: MockRandom): bigint {
   if (n <= 1n) return 0n;
   const bits = n.toString(2).length;
@@ -268,9 +243,7 @@ function randBigInt(lo: bigint, hi: bigint, random: MockRandom): bigint {
   return lo + randomBigIntBelow(hi - lo + 1n, random);
 }
 
-// mockBoundedTemporal returns a value of the orderable Temporal type for
-// `adapter` satisfying the bound set, or the adapter's unbounded fallback
-// when no bound is set.
+// mockBoundedTemporal satisfies the bound set, or returns the adapter's unbounded fallback when no bound is set.
 function mockBoundedTemporal(adapter: BoundAdapter, bounds: TemporalBounds, random: MockRandom): unknown {
   let lo: bigint | undefined;
   let hi: bigint | undefined;
@@ -285,8 +258,7 @@ function mockBoundedTemporal(adapter: BoundAdapter, bounds: TemporalBounds, rand
   if (bounds.max !== undefined) lower(boundKey(adapter, bounds.max));
   if (bounds.lt !== undefined) lower(boundKey(adapter, bounds.lt) - adapter.grid);
   if (lo === undefined && hi === undefined) return adapter.fallback();
-  // Back the absent edge off the present one by ~50 years (in the adapter's
-  // grid) so an open-ended bound still yields varied values.
+  // Back the absent edge off the present one by ~50 years so an open-ended bound still yields varied values.
   const spread = adapter.grid * 18_250n;
   if (lo === undefined) lo = (hi as bigint) - spread;
   if (hi === undefined) hi = lo + spread;
@@ -294,9 +266,8 @@ function mockBoundedTemporal(adapter: BoundAdapter, bounds: TemporalBounds, rand
   return adapter.fromKey(randBigInt(lo, hi, random));
 }
 
-// mockTemporal returns a random valid instance for a Temporal SubKind
-// (honoring FormatTemporalX bounds when present), or undefined when the
-// subKind isn't a Temporal type (caller falls through).
+// mockTemporal honors FormatTemporalX bounds when present, and returns undefined for a non-Temporal subKind so
+// the caller falls through.
 export function mockTemporal(subKind: number, bounds: TemporalBounds | undefined, random: MockRandom): unknown {
   if (bounds) {
     const adapter = boundAdapter(subKind, random);
@@ -324,9 +295,7 @@ export function mockTemporal(subKind: number, bounds: TemporalBounds | undefined
   }
 }
 
-// temporalBoundsFromAnnotation extracts the {min,max,gt,lt} bound set from a
-// FormatTemporalX brand's params, or undefined when no bound is set (or the
-// annotation isn't a Temporal format).
+// temporalBoundsFromAnnotation returns undefined when no bound is set, or the annotation isn't a Temporal format.
 export function temporalBoundsFromAnnotation(
   annotation: {name?: string; params?: Record<string, unknown>} | undefined
 ): TemporalBounds | undefined {

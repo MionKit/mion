@@ -1,16 +1,8 @@
-// Runtime "does this candidate match the child schema?" test used by the
-// mock walker's rejection sampling (mockType.ts) for the contains /
-// patternProperties / propertyNames checks. The generated VALIDATORS never
-// use this — the checks are compiled there; this mirror exists only because
-// mocking is a runtime interpreter, so it needs a runtime answer to the same
-// question.
-//
-// Bias: where a named format's exact acceptance is expensive to reproduce,
-// the tests here are deliberately LOOSE (over-match). An over-match only
-// costs a wasted retry; an under-match would let a candidate through that
-// the real validator rejects, failing the `validate(mock())` soundness gate.
-// Anything this walker cannot honestly test THROWS with the escape hatch
-// named — never a silent guess.
+// Runtime "does this candidate match the child schema?" test for the mock walker's rejection sampling
+// (mockType.ts: contains / patternProperties / propertyNames); the generated VALIDATORS never use it.
+// Where a format's exact acceptance is expensive to reproduce the tests here are deliberately LOOSE: an over-match
+// costs a retry, an under-match would let through a candidate the real validator rejects, failing `validate(mock())`.
+// Anything this walker cannot honestly test THROWS with the escape hatch named, never a silent guess.
 
 import type {RunType} from '../runtypes/types.ts';
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
@@ -78,9 +70,8 @@ function matches(value: unknown, node: RunType, depth: number): boolean {
       const fixed = restMember === undefined ? members : members.slice(0, -1);
       const required = fixed.filter((member) => !member.optional).length;
       if (value.length < required) return false;
-      // An OPEN tuple ([A, B, ...rest]) accepts any longer array — only a
-      // closed tuple bounds the length. Under-matching here would let the
-      // sampler keep candidates the real validator rejects.
+      // An OPEN tuple ([A, B, ...rest]) accepts any longer array; only a closed tuple bounds the length.
+      // Under-matching here would let the sampler keep candidates the real validator rejects.
       if (restMember === undefined && value.length > fixed.length) return false;
       return value.every((item, i) => {
         if (i < fixed.length) return fixed[i] ? matches(item, memberChild(fixed[i]), depth + 1) : false;
@@ -120,11 +111,8 @@ function memberChild(member: RunType): RunType {
   return (member.child as RunType | undefined) ?? member;
 }
 
-// Contains assertions, per the loose bias: items are counted through
-// matches(), which may over-count — over-counting can flip a verdict either
-// way here, but a wrong `true` only costs the sampler a retry, keeping the
-// caller sound (candidates the real validator rejects never slip through as
-// "not matching the child").
+// Per the loose bias: matches() may over-count items, which can flip a verdict either way here.
+// A wrong `true` only costs the sampler a retry, so the caller stays sound.
 function containsSatisfied(items: readonly unknown[], node: RunType, depth: number): boolean {
   const entries = node.contains;
   if (!entries || entries.length === 0) return true;
@@ -137,9 +125,7 @@ function containsSatisfied(items: readonly unknown[], node: RunType, depth: numb
   return true;
 }
 
-// patternProperties / propertyNames, per the loose bias: pattern-matching
-// keys probe their value child through matches(); every key probes the
-// propertyNames child. Over-matching only costs sampler retries.
+// Per the loose bias: over-matching a key's value child or the propertyNames child only costs sampler retries.
 function patternKeysSatisfied(record: Record<string, unknown>, node: RunType, depth: number): boolean {
   const patternProps = node.patternProps;
   if (patternProps && patternProps.length > 0) {
@@ -160,10 +146,8 @@ function patternKeysSatisfied(record: Record<string, unknown>, node: RunType, de
   return true;
 }
 
-// The element type of a rest tuple member (`...E[]` → E) across the wire
-// spellings: a RunTypeKind.rest node, a tupleMember wrapping one, or a
-// tupleMember carrying flags: ['rest'] with the element as its direct child
-// (the Go serializer's tuple form). Undefined for non-rest members.
+// Element type of a rest tuple member (`...E[]` → E) across its wire spellings: a RunTypeKind.rest node,
+// a tupleMember wrapping one, or a tupleMember with flags: ['rest'] and the element as direct child (Go's tuple form).
 function restElement(member: RunType): RunType | undefined {
   if ((member.kind as number) === RunTypeKind.rest) return member.child as RunType | undefined;
   if (Array.isArray(member.flags) && (member.flags as unknown[]).includes('rest')) return member.child as RunType | undefined;
@@ -216,19 +200,15 @@ function formatMatches(value: string, annotation: FormatAnnotation | undefined):
   const name = annotation.name;
   const params = annotation.params ?? {};
   if (name === 'stringFormat') return stringParamsMatch(value, params);
-  // A registered `pattern` makes the params the ORACLE, not a narrowing extra:
-  // every pattern-bearing named family (url / domain / email) compiles to
-  // `namedPatternValidate` over exactly these params, so testing them is exact.
-  // The loose name test below would then be a DIFFERENT, stricter question and
-  // could under-match — `new URL()` rejects the relative references
-  // UriReference / IriReference deliberately accept, and the loose `domain`
-  // test demands a dot that the single-label HOSTNAME_PATTERN does not.
+  // A registered `pattern` makes the params the ORACLE: every pattern-bearing named family (url / domain / email)
+  // compiles to `namedPatternValidate` over exactly these params, so testing them is exact.
+  // The loose name test is a stricter question and could under-match: `new URL()` rejects the relative references
+  // UriReference / IriReference accept, and loose `domain` demands a dot the single-label HOSTNAME_PATTERN does not.
   if (params.pattern) return stringParamsMatch(value, params);
   const named = NAMED_STRING_FORMATS[name];
   if (!named) throw childMatchError(`no runtime test for string format '${name}'`);
-  // Pattern-less named formats (ip / uuid / idn-hostname / the RFC email pair)
-  // carry their check in the emitter, not in params; the loose test over-matches
-  // them, which is the safe direction.
+  // Pattern-less named formats (ip / uuid / idn-hostname / the RFC email pair) carry their check in the emitter, not in params.
+  // The loose test over-matches them, the safe direction.
   return named(value);
 }
 
@@ -236,8 +216,7 @@ function stringParamsMatch(value: string, params: Record<string, unknown>): bool
   for (const [key, param] of Object.entries(params)) {
     switch (key) {
       case 'contentMediaType': {
-        // Parse the DECODED content when an encoding is declared — testing the
-        // raw string would under-match, which is the unsound direction.
+        // Parse the DECODED content: testing the raw string would under-match, the unsound direction.
         if (param !== 'application/json') break;
         try {
           JSON.parse(params.contentEncoding === 'base64' ? atob(value) : value);
@@ -246,8 +225,7 @@ function stringParamsMatch(value: string, params: Record<string, unknown>): bool
         }
         break;
       }
-      // `contentEncoding` alone constrains nothing here: the encodings ride a
-      // registered RFC 4648 pattern, so the `pattern` arm already tested it.
+      // `contentEncoding` constrains nothing here: its registered RFC 4648 pattern was tested by the `pattern` arm.
       case 'contentEncoding':
         break;
       case 'minLength':
@@ -274,10 +252,8 @@ function stringParamsMatch(value: string, params: Record<string, unknown>): bool
       case 'disallowedValues':
         if (Array.isArray(param) && param.includes(value)) return false;
         break;
-      // `idna: 'ascii'` adds nothing over the ASCII pattern that rides with it
-      // (domain.go only emits an idna check when the params allow unicode), so
-      // the pattern arm has already tested it. Any other setting is a check
-      // this walker cannot reproduce.
+      // `idna: 'ascii'` adds nothing over the ASCII pattern beside it (domain.go emits an idna check only when params allow unicode).
+      // Any other setting is a check this walker cannot reproduce.
       case 'idna':
         if (param !== 'ascii') throw childMatchError(`no runtime test for idna '${String(param)}'`);
         break;
@@ -360,10 +336,8 @@ function childMatchError(reason: string): Error {
   );
 }
 
-/** True for the rejection-sampling give-up errors (the cannot-test throws
- *  above). The union mock walker uses this to fall through to a sibling arm —
- *  a constrained arm can be unmockable while its siblings are fine, and only
- *  an ALL-arms failure should surface. **/
+/** True for the cannot-test throws above; the union mock walker falls through to a sibling arm on one.
+ *  A constrained arm can be unmockable while its siblings are fine, so only an ALL-arms failure surfaces. **/
 export function isMockSamplingError(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith('Cannot mock a constrained child');
 }

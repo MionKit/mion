@@ -1,83 +1,59 @@
-// Marker primitives — the type-level brands the Go binary scanner recognizes
-// at call sites:
-//   • `InjectRunTypeId<T>` — the only *injectable* marker. The trailing
-//     `id?: InjectRunTypeId<T>` parameter is filled in at build time by
-//     `@mionjs/devtools` with an opaque reflection handle for `T`.
-//   • `CompTimeArgs<T>` — brands an argument as "must be a literal at the
-//     call site, or a module-scope `const` whose initializer is itself
-//     entirely literal". Static check only, no injection.
-//   • `PureFunction<F>` — brands a function-typed argument as "literal AND
-//     passes purity rules". Static check only.
-//
-// Wrappers around `getRunTypeId` / `getRunType` are supported — declare the same
-// trailing `id?: InjectRunTypeId<T>` parameter on the wrapper and the transformer
-// injects at its call sites identically. Inside the wrapper body resolve the
-// handle by FORWARDING it to a public resolver as the trailing argument
-// (`getRunType<T>(undefined, id)` / `getRunTypeId<T>(undefined, id)`); such a
-// forwarded call is a pass-through the build leaves untouched. Do NOT hand the
-// handle to the low-level `getRTUtils().getRunType()` — that takes a string id
-// and returns undefined for the injected handle.
+// Marker primitives — the type-level brands the Go binary scanner recognizes at call sites. The
+// `Inject*` ones are filled in at build time by `@mionjs/devtools`; `CompTimeArgs` / `PureFunction`
+// are static checks only. A wrapper around `getRunTypeId` / `getRunType` declaring the same trailing
+// `id?: InjectRunTypeId<T>` parameter gets injection at ITS call sites, and must resolve the handle
+// by FORWARDING it as the trailing argument (`getRunType<T>(undefined, id)`), which the build leaves
+// untouched. Do NOT hand the handle to `getRTUtils().getRunType()` — that takes a string id and
+// returns undefined for it.
 
 import {entryTupleKey, initFromTuple, isEntryTuple} from './runtypes/entryTuple.ts';
 import type {RunType} from './runtypes/types.ts';
 
 /**
- * Sentinel marker. `T` is a phantom type parameter used only by the checker /
- * transformer. The declared type is a branded `string` so a wrapper's
- * `id?: InjectRunTypeId<T>` parameter reads as a string and the brand keeps
- * stringly-typed APIs from accidentally satisfying the marker. At RUNTIME the
- * build injects an OPAQUE handle (an entry-module tuple that also carries `T`'s
- * type graph for lazy registration), NOT a bare hash string — resolve it by
- * forwarding it to `getRunType` / `getRunTypeId` (see the wrapper note above),
- * never by indexing `getRTUtils().getRunType()` with it directly.
+ * Sentinel marker; `T` is phantom, read only by the checker / transformer. Branded `string` so a
+ * wrapper's `id?` parameter reads as a string and stringly-typed APIs cannot satisfy the marker by
+ * accident. At RUNTIME the injected value is an OPAQUE entry-module tuple carrying `T`'s type graph
+ * for lazy registration, NOT a bare hash string — resolve it by forwarding it to `getRunType` /
+ * `getRunTypeId` (see the wrapper note above), never by indexing `getRTUtils().getRunType()`.
  */
 export type InjectRunTypeId<T> = string & {
   readonly __rtInjectRunTypeIdBrand?: T;
 };
 
 /**
- * Trailing-slot injection marker for the `createX` factories. Like
- * `InjectRunTypeId<T>` the transformer fills the `id?` parameter at build time,
- * but `InjectTypeFnArgs` carries one or more `Fn` type arguments naming the
- * function families (`'validate'`, `'validationErrors'`, `'jsonEncoder'`, …) the site needs for
- * `T`. The Go backend emits only the demanded function caches and the runtime
- * resolves the precise factories without recomputing a key.
+ * Trailing-slot injection marker for the `createX` factories. Like `InjectRunTypeId<T>` the
+ * transformer fills the `id?` parameter at build time, but `InjectTypeFnArgs` also names, through
+ * its `Fn` type arguments, the function families (`'validate'`, `'validationErrors'`,
+ * `'jsonEncoder'`, …) the site needs for `T`. The Go backend emits only the demanded function
+ * caches and the runtime resolves the precise factories without recomputing a key.
  *
- * SINGLE function (the common case) — `InjectTypeFnArgs<T, 'validate'>`: the injected
- * value is the family's entry-module tuple, resolved by the one `createX`.
+ * SINGLE function (the common case) — `InjectTypeFnArgs<T, 'validate'>`: the injected value is the
+ * family's entry-module tuple, resolved by the one `createX`.
  *
- * `Fn` also names the JSON value-level families (the `prepareForJson` / `restoreFromJson`
- * Mutate and Clone pairs, where Clone rebuilds the declared shape, plus `'stringifyJson'`,
- * `'stripUnknownKeysWire'` and `'compactForJson'`/`'compactFromJson'`). ONE marker can carry
- * several at once, recovered with `getRTFunction<'prepareForJsonClone'>(fns?.[i])` keyed by
- * the SAME fnKey; a single one is simpler through its own `createPrepareForJsonFn`.
+ * `Fn` also names the JSON value-level families (the `prepareForJson` / `restoreFromJson` Mutate and
+ * Clone pairs, where Clone rebuilds the declared shape, plus `'stringifyJson'`,
+ * `'stripUnknownKeysWire'` and `'compactForJson'`/`'compactFromJson'`). ONE marker can carry several
+ * at once, recovered with `getRTFunction<'prepareForJsonClone'>(fns?.[i])` keyed by the SAME fnKey;
+ * a single one is simpler through its own `createPrepareForJsonFn`.
  *
- * MULTIPLE functions — `InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>`:
- * the site needs several compiled fns for the same `T` (a framework wrapper such
- * as mion's `route()` asks for the validator, JSON decoder and JSON encoder in
- * one marker). The injected value is an ARRAY of entry-module tuples, ONE per
- * named family in declaration order, and the wrapper destructures it
- * positionally (`fns?.[0]`, `fns?.[1]`, …), forwarding each element to its
- * factory. This keeps a single trailing marker (one injection slot) rather than
- * several markers.
+ * MULTIPLE functions — `InjectTypeFnArgs<T, 'validationErrors', 'jsonDecoder', 'jsonEncoder'>`, as a
+ * framework wrapper such as mion's `route()` asks for: the injected value is an ARRAY of
+ * entry-module tuples, ONE per named family in declaration order, and the wrapper destructures it
+ * positionally (`fns?.[0]`, `fns?.[1]`, …), forwarding each element to its factory. Keeps a single
+ * injection slot rather than several markers.
  *
- * ANY number of families is accepted, in declaration order — there is no fixed
- * three-key limit. A TypeScript type alias cannot declare a variadic type
- * parameter list, so the arity is a generous fixed count (`F1` … `F12`) that
- * comfortably exceeds the number of distinct public families; combined with the
- * duplicate-key rule below, that is effectively unbounded (a marker can never
- * meaningfully name more families than exist). Add another optional parameter
- * here if the family set ever grows past the cap.
+ * ANY number of families is accepted, in declaration order — there is no fixed three-key limit. A
+ * TypeScript type alias cannot declare a variadic type parameter list, so the arity is a fixed
+ * `F1` … `F12` that comfortably exceeds the number of distinct public families; add another optional
+ * parameter here if the family set ever grows past the cap.
  *
- * DUPLICATE families are a build error. Naming the same family twice
- * (`InjectTypeFnArgs<T, 'validationErrors', 'validationErrors'>`) is almost always a copy-paste slip —
- * the second entry would inject a redundant identical tuple — so the Go scanner
- * rejects it with `MKR006` (Error) at the call site. Use each family at most
- * once per marker.
+ * DUPLICATE families are a build error: the second entry would inject a redundant identical tuple,
+ * so the Go scanner rejects `InjectTypeFnArgs<T, 'validationErrors', 'validationErrors'>` with
+ * `MKR006` (Error) at the call site. Use each family at most once per marker.
  *
- * MULTIPLE MARKER PARAMETERS (multi-slot) — a signature may declare SEVERAL
- * injection-marker parameters, and each injects at its own index. A framework
- * wrapper can carry one marker per side, resolving a DIFFERENT `T` for each:
+ * MULTIPLE MARKER PARAMETERS (multi-slot) — a signature may declare SEVERAL injection-marker
+ * parameters, each injecting at its own index, so a framework wrapper can carry one marker per side
+ * and resolve a DIFFERENT `T` for each:
  *
  *   function route<H extends Handler>(
  *     handler: H,
@@ -87,18 +63,15 @@ export type InjectRunTypeId<T> = string & {
  *     meta?: InjectRunTypeId<Params<H>>,
  *   ) { … }
  *
- * The build fills every marker slot in one positional insertion, padding
- * non-marker optional gaps (`opts`) with `undefined`. A marker parameter the
- * caller supplies explicitly (a forwarded handle) is a pass-through, left
- * untouched. Mix `InjectTypeFnArgs` and `InjectRunTypeId` freely — this is how a
- * wrapper reads a type's runtype graph (via the reflection marker) alongside its
- * compiled functions without an extra call.
+ * The build fills every marker slot in one positional insertion, padding non-marker optional gaps
+ * (`opts`) with `undefined`. A marker parameter the caller supplies explicitly (a forwarded handle)
+ * is a pass-through, left untouched. Mix `InjectTypeFnArgs` and `InjectRunTypeId` freely — that is
+ * how a wrapper reads a type's runtype graph alongside its compiled functions without an extra call.
  *
- * The declared type mirrors `InjectRunTypeId`'s `string & {brand}` shape (rather
- * than a tuple type) so the Go marker scanner resolves the alias + its type
- * arguments the same way it does for `InjectRunTypeId` — a tuple-intersection
- * alias does not reliably preserve `T`/`Fn` on the resolved type. `T` and the
- * `Fn` keys are phantom; the runtime value is the injected (array of) tuples.
+ * The declared type mirrors `InjectRunTypeId`'s `string & {brand}` shape rather than a tuple type so
+ * the Go marker scanner resolves the alias + its type arguments identically — a tuple-intersection
+ * alias does not reliably preserve `T`/`Fn` on the resolved type. `T` and the `Fn` keys are phantom;
+ * the runtime value is the injected (array of) tuples.
  */
 export type InjectTypeFnArgs<
   T,
@@ -119,42 +92,33 @@ export type InjectTypeFnArgs<
   readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12];
 };
 
-// NOTE: `any` is intentionally PERMITTED — there is no type-level `any` guard.
-// `getRunTypeId<any>()` resolves a normal id; the runtime fn is a noop validator
-// (accepts everything) and a best-effort serializer that emits a build-time
-// diagnostic — the same treatment every other best-effort case gets. A
-// type-level rejection would contradict that runtime behaviour, and can't be
-// enforced anyway: the brand above is phantom (optional) and `any` is
-// universally assignable, so it could never fire at a call site.
+// NOTE: `any` is intentionally PERMITTED — `getRunTypeId<any>()` resolves a normal id whose runtime
+// fn is a noop validator and a best-effort serializer with a build-time diagnostic, so a type-level
+// rejection would contradict that. It could not fire anyway: the brand above is phantom (optional)
+// and `any` is universally assignable.
 
 /**
- * Type-id marker. Returns the stable structural id of `T`. One function, two
- * call shapes — the optional value-first parameter mirrors every `createX`
- * factory:
+ * Type-id marker. Returns the stable structural id of `T`. Three call shapes, the optional
+ * value-first parameter mirroring every `createX` factory:
  *
  *   - STATIC — bring the type, no value: `getRunTypeId<User>()`.
- *   - REFLECTION — let `T` be inferred from a runtime value:
- *     `getRunTypeId(user)`. The value is read only for its type; at runtime it
- *     is ignored, so nothing leaks into the output.
- *   - RUN-TYPE — pass the run-type a builder returned, get the id of the type
- *     it MODELS: `getRunTypeId(object({…}))`. `T` is the UNWRAPPED modeled
- *     type; without this overload `getRunTypeId(runType)` infers
- *     `T = RunType<…>` and returns the id of the `RunType` wrapper interface
- *     instead of the type the run-type describes. Mirrors `createMockDataFn`.
+ *   - REFLECTION — let `T` be inferred from a runtime value: `getRunTypeId(user)`. The value is read
+ *     only for its type; at runtime it is ignored, so nothing leaks into the output.
+ *   - RUN-TYPE — pass the run-type a builder returned, get the id of the type it MODELS:
+ *     `getRunTypeId(object({…}))`. `T` is the UNWRAPPED modeled type; without this overload
+ *     `getRunTypeId(runType)` infers `T = RunType<…>` and returns the id of the `RunType` wrapper
+ *     interface instead. Mirrors `createMockDataFn`.
  *
- * Throws if the transformer is not active — the id can only be computed at
- * build time. The plugin injects the runtype's entry-module tuple at the
- * trailing `id` slot; the call registers the type (and its transitive children)
- * into rtUtils and returns the id string, so the public contract — "returns the
- * type id" — is unchanged.
+ * Throws if the transformer is not active — the id can only be computed at build time. The plugin
+ * injects the runtype's entry-module tuple at the trailing `id` slot; the call registers the type
+ * (and its transitive children) into rtUtils and returns the id string.
  *
- * `T = any` is allowed (explicit `getRunTypeId<any>()`, or inferred from
- * `JSON.parse` / untyped library returns / `as any`): it resolves a normal id
- * whose runtime fn is a noop validator / best-effort serializer (with a
- * build-time diagnostic).
+ * `T = any` is allowed (explicit, or inferred from `JSON.parse` / untyped library returns /
+ * `as any`): it resolves a normal id whose runtime fn is a noop validator / best-effort serializer,
+ * with a build-time diagnostic.
  */
-// Run-type overload first so `getRunTypeId(runType)` binds `T` from
-// `RunType<T>` rather than matching `(_value?: T)` with `T = RunType<T>`.
+// Run-type overload first so `getRunTypeId(runType)` binds `T` from `RunType<T>` rather than
+// matching `(_value?: T)` with `T = RunType<T>`.
 export function getRunTypeId<T>(runType: RunType<T>, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 export function getRunTypeId<T>(_value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 export function getRunTypeId<T>(_valueOrSchema?: T | RunType<T>, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
@@ -169,148 +133,126 @@ export function getRunTypeId<T>(_valueOrSchema?: T | RunType<T>, id?: InjectRunT
 }
 
 /**
- * Compile-time-args marker. Brands a parameter so the Go scanner enforces
- * that the matching argument is *fully literal* — at the call site or via a
- * module-scope `const` whose initializer is itself entirely literal. Spread of
- * a `const`-bound literal fragment IS allowed (`{...base, k: v}` /
- * `[...members, x]`, including an imported fragment), so shared config / schema
- * can be split into a `const` and merged at the call site. No calls, no
- * property access, no template substitution, no ternary; a spread whose operand
- * is dynamic or a shape mismatch (an object spread of an array, …) is still
+ * Compile-time-args marker. Brands a parameter so the Go scanner enforces that the matching argument
+ * is *fully literal* — at the call site or via a module-scope `const` whose initializer is itself
+ * entirely literal. Spread of a `const`-bound literal fragment IS allowed (`{...base, k: v}` /
+ * `[...members, x]`, imported fragments included), so shared config / schema can be split into a
+ * `const` and merged at the call site. No calls, no property access, no template substitution, no
+ * ternary; a dynamic spread operand or a shape mismatch (an object spread of an array, …) is
  * rejected. Violations produce `CTA0xx` diagnostics.
  *
- * It is the IDENTITY `T` (the value flows through unwrapped, and the marker
- * adds zero type-check cost). It deliberately carries NO phantom brand
- * property: intersecting one onto a TUPLE parameter — the old
- * `T & {__rtCompTimeArgsBrand?: never}` used by `tuple`/`union`/`func` —
- * cost ~700 TS instantiations per call (the array-literal-vs-tuple-intersection
- * check). The Go scanner therefore detects this marker SYNTACTICALLY, off the
- * parameter's `CompTimeArgs<…>` type annotation, instead of off a brand property
- * on the resolved type.
+ * It is the IDENTITY `T`, with NO phantom brand property: intersecting one onto a TUPLE parameter
+ * (the old `T & {__rtCompTimeArgsBrand?: never}` used by `tuple`/`union`/`func`) cost ~700 TS
+ * instantiations per call. The Go scanner therefore detects this marker SYNTACTICALLY, off the
+ * parameter's `CompTimeArgs<…>` type annotation, not off a brand property on the resolved type.
  */
 export type CompTimeArgs<T> = T;
 
 /**
- * Compile-time fn-args marker. Like `CompTimeArgs<T>` it brands a parameter so
- * the Go scanner enforces the argument is *fully literal* (`CTA0xx`), but it
- * ALSO marks this as the parameter whose literal value selects the `createX`
+ * Compile-time fn-args marker. Like `CompTimeArgs<T>` it enforces a *fully literal* argument
+ * (`CTA0xx`), but it ALSO marks this as the parameter whose literal value selects the `createX`
  * function variant — the `ValidateOptions` bag for `createValidateFn` /
- * `createGetValidationErrorsFn`, the strategy for `createJsonEncoderFn` /
- * `createJsonDecoderFn`. The scanner reads it to compute the injected fn hash
- * (see `InjectTypeFnArgs`). A `{...preset, …}` spread is merged in source order
- * (last write wins), so a shared options preset selects the same variant as the
- * fully-inlined options. Phantom intersection; the value flows through
- * unwrapped.
+ * `createGetValidationErrorsFn`, the strategy for `createJsonEncoderFn` / `createJsonDecoderFn`. The
+ * scanner reads it to compute the injected fn hash (see `InjectTypeFnArgs`). A `{...preset, …}`
+ * spread is merged in source order (last write wins), so a shared options preset selects the same
+ * variant as fully-inlined options. Phantom intersection; the value flows through unwrapped.
  */
 export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
 
 /**
- * Compile-time HINTS marker — the LENIENT sibling of `CompTimeArgs<T>`,
- * reusable by any function whose options carry build-readable knobs. It
- * marks a parameter the build READS best-effort but never validates: when
- * the argument is an object literal (or a `const` preset / spread chain the
- * scanner can resolve), statically readable values inside it are honored at
- * build time; anything dynamic stays perfectly legal and is simply
- * invisible to the build. No `CTA0xx` enforcement, no fn-variant selection,
- * nothing folds into any cache id.
+ * Compile-time HINTS marker — the LENIENT sibling of `CompTimeArgs<T>`, for any function whose
+ * options carry build-readable knobs. The build READS the parameter best-effort but never validates
+ * it: statically readable values inside an object literal (or a `const` preset / spread chain the
+ * scanner can resolve) are honored at build time, anything dynamic stays legal and is invisible to
+ * the build. No `CTA0xx` enforcement, no fn-variant selection, nothing folds into any cache id.
  *
- * Current reader: `createMockDataFn`'s options — a literal `mock.seed`
- * makes the generated pattern mockSample pools reproducible across builds
- * (the same seed also drives the runtime pick, since factory options merge
- * into every call); without one, sample-less pattern pools are drawn fresh
- * on every build.
+ * Current reader: `createMockDataFn`'s options — a literal `mock.seed` makes the generated pattern
+ * mockSample pools reproducible across builds (the same seed also drives the runtime pick, since
+ * factory options merge into every call); without one, sample-less pattern pools are drawn fresh on
+ * every build.
  *
- * Like `CompTimeArgs<T>` it is the IDENTITY `T` — no phantom brand property
- * (see the instantiation-cost note above) — and the Go scanner detects it
- * SYNTACTICALLY off the parameter's `CompTimeHints<…>` type annotation.
+ * Like `CompTimeArgs<T>` it is the IDENTITY `T` — no phantom brand property (see the
+ * instantiation-cost note above) — and the Go scanner detects it SYNTACTICALLY off the parameter's
+ * `CompTimeHints<…>` type annotation.
  */
 export type CompTimeHints<T> = T;
 
 /**
- * Pure-function marker — the DIRECT form. Brands a function-typed parameter as
- * the pure function ITSELF: the matching argument must be an inline arrow /
- * function expression that passes the purity rules (no `this`, no `await` /
- * `yield`, no dynamic `import`, no eval/Function, no outer-scope captures, no
- * forbidden hosts). The compiler WRAPS it into the zero-arg factory the runtime
- * cache stores (`() => fn`), so the author just writes the callback — this is
- * what lets a wrapper expose a single-callback API like `inputFrom(t => t.id)`.
+ * Pure-function marker — the DIRECT form. The matching argument must be an inline arrow / function
+ * expression that passes the purity rules (no `this`, no `await` / `yield`, no dynamic `import`, no
+ * eval/Function, no outer-scope captures, no forbidden hosts). The compiler WRAPS it into the
+ * zero-arg factory the runtime cache stores (`() => fn`), so the author writes just the callback,
+ * which is what lets a wrapper expose a single-callback API like `inputFrom(t => t.id)`.
  *
- * Use `PureFunctionFactory<F>` instead when the argument is a FACTORY that needs
- * one-time setup (compile a regex once) or `utl` composition.
+ * Use `PureFunctionFactory<F>` instead when the argument is a FACTORY needing one-time setup
+ * (compile a regex once) or `utl` composition.
  *
- * Strictly stronger than `CompTimeArgs<F>` when F is a function. Inline-shape
- * violations → `PFN001`; purity violations → `PFE9006`–`PFE9011`.
+ * Strictly stronger than `CompTimeArgs<F>` when F is a function. Inline-shape violations → `PFN001`;
+ * purity violations → `PFE9006`–`PFE9011`.
  */
 export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
 
 /**
- * Pure-function-FACTORY marker — the FACTORY form. Brands a function-typed
- * parameter as a factory `(utl) => fn` that RETURNS the pure function. Same
- * inline + purity rules as `PureFunction<F>` (the whole factory is checked), but
- * the compiler emits it as-is instead of wrapping — so the factory body can do
- * one-time setup (a `const RE = /…/` compiled once) and compose other pure fns
- * via `utl.usePureFn(otherId)` (tracked as a dependency).
+ * Pure-function-FACTORY marker — the argument is a factory `(utl) => fn` RETURNING the pure function.
+ * Same inline + purity rules as `PureFunction<F>` (the whole factory is checked), but the compiler
+ * emits it as-is instead of wrapping, so the factory body can do one-time setup (a `const RE = /…/`
+ * compiled once) and compose other pure fns via `utl.usePureFn(otherId)` (tracked as a dependency).
  *
- * Pair with `registerPureFnFactory`; use the plain `PureFunction<F>` marker
- * (and `registerPureFn`) when the argument is the callback itself.
+ * Pair with `registerPureFnFactory`; use `PureFunction<F>` (and `registerPureFn`) when the argument
+ * is the callback itself.
  */
 export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
 
 /**
- * Pure-fn id injection marker. Like `InjectRunTypeId<T>` it is a pure INJECTION
- * marker (no literal double-duty): absent at author time, the build fills the
- * trailing `id?` parameter with the registration's id, which is where it lives —
- * its package, its file, and the name it is bound to
- * (`@acme/text/src/slug#slugify`). A registration bound to no name is identified
- * by a hash of its body instead, so two structurally identical callbacks
- * collapse to one entry. Because the marker lives in the callee signature it
- * propagates through wrappers — a library can offer its own
- * `registerXPureFn<F>(fn: PureFunction<F>, id?: InjectPureFnId<F>)` and the
- * build injects at ITS call sites with zero scanner diagnostics.
+ * Pure-fn id injection marker. A pure INJECTION marker like `InjectRunTypeId<T>` (no literal
+ * double-duty): absent at author time, the build fills the trailing `id?` parameter with the
+ * registration's id, which is where it lives — its package, its file and the name it is bound to
+ * (`@acme/text/src/slug#slugify`). A registration bound to no name is identified by a hash of its
+ * body instead, so two structurally identical callbacks collapse to one entry. Living in the callee
+ * signature, it propagates through wrappers: a library can offer its own
+ * `registerXPureFn<F>(fn: PureFunction<F>, id?: InjectPureFnId<F>)` and the build injects at ITS
+ * call sites with zero scanner diagnostics.
  *
- * `F` is a phantom type parameter used only to link the marker to the sibling
- * `PureFunction<F>` argument; the runtime value is the injected string. Mirrors
- * `InjectRunTypeId`'s `string & {brand}` shape so the Go marker scanner resolves
- * the alias identically.
+ * `F` is phantom, linking the marker to the sibling `PureFunction<F>` argument; the runtime value is
+ * the injected string. Mirrors `InjectRunTypeId`'s `string & {brand}` shape so the Go marker scanner
+ * resolves the alias identically.
  */
 export type InjectPureFnId<F> = string & {
   readonly __rtInjectPureFnIdBrand?: F;
 };
 
 /**
- * Request-batch id injection marker. A framework builder that runs several routes in
- * one request declares it as its trailing parameter
- * (`batch<Routes>(routes: [...Routes], batchId?: InjectBatchId<Routes>)`): absent at
- * author time, the build reads the ordered route ids out of the array argument, hashes
- * them into a stable id, and fills the slot with that string. The server carries the
- * same id in its compiled batch table, so the wire needs nothing but the id.
+ * Request-batch id injection marker, declared as the trailing parameter of a builder that runs
+ * several routes in one request (`batch<Routes>(routes: [...Routes], batchId?: InjectBatchId<Routes>)`):
+ * the build reads the ordered route ids out of the array argument, hashes them into a stable id and
+ * fills the slot with it. The server carries the same id in its compiled batch table, so the wire
+ * needs nothing but the id.
  *
- * `Routes` is a phantom type parameter linking the marker to the routes argument; the
- * runtime value is the injected string. Same `string & {brand}` shape as
- * `InjectRunTypeId` so the Go marker scanner resolves the alias identically.
+ * `Routes` is phantom, linking the marker to the routes argument; the runtime value is the injected
+ * string. Same `string & {brand}` shape as `InjectRunTypeId` so the Go marker scanner resolves the
+ * alias identically.
  */
 export type InjectBatchId<Routes> = string & {
   readonly __rtInjectBatchIdBrand?: Routes;
 };
 
 /**
- * API metadata injection marker for a mion client built with `bundleApi`. It does ONE thing: a
- * client dispatch point (`routes.x(...).call()`, `middleFns.y(...).prefill()`, `typeErrors()`,
- * `batch([...]).call()`) declares it as its trailing parameter, typed with the API and the id of
- * the route it calls (`call(setup?, apiMetadata?: InjectApiMetadata<Api, Id>)`). Absent at author
- * time, the build resolves that route (plus every middleFn in its chain) out of the API type,
- * compiles the same validators and serializers the server holds, and fills the slot with an import
- * of the generated module carrying them. Without the build option nothing is injected and the
- * client fetches its metadata from the server as before.
+ * API metadata injection marker for a mion client built with `bundleApi`. A client dispatch point
+ * (`routes.x(...).call()`, `middleFns.y(...).prefill()`, `typeErrors()`, `batch([...]).call()`)
+ * declares it as its trailing parameter, typed with the API and the id of the route it calls
+ * (`call(setup?, apiMetadata?: InjectApiMetadata<Api, Id>)`). The build resolves that route (plus
+ * every middleFn in its chain) out of the API type, compiles the same validators and serializers the
+ * server holds, and fills the slot with an import of the generated module carrying them. Without the
+ * build option nothing is injected and the client fetches its metadata from the server as before.
  *
  * The LANE itself (`bundled` or `mixed`) is a build option, not a call-site fact, so it does not
  * ride this marker: the build writes a module that sets it and imports that module into every file
  * calling `initClient`, the way the batch transport reaches a server.
  *
- * `Api` and `Id` are phantom type parameters read by the build; the runtime value is what the
- * build injected, which here is the generated module's export (an object holding the method rows),
- * NOT a string like `InjectRunTypeId`. The type is the brand alone so it stays honest about that:
- * the scanner matches a marker by its name, module and brand property, never by what it wraps.
+ * `Api` and `Id` are phantom, read by the build; the injected runtime value is the generated
+ * module's export (an object holding the method rows), NOT a string like `InjectRunTypeId`, and the
+ * type is the brand alone to stay honest about that — the scanner matches a marker by its name,
+ * module and brand property, never by what it wraps.
  */
 export type InjectApiMetadata<Api, Id extends string> = {
   readonly __rtInjectApiMetadataBrand?: [Api, Id];
