@@ -1,7 +1,8 @@
+package testfixtures
+
 // realdrizzle.go — the REAL @mionjs drizzle packages plus the marker package's SOURCES as virtual node_modules paths.
 // Models the WORKSPACE, not an install: a program using it must pass Conditions: ["source"] (also why the marker rides along as
 // src, its dist .d.ts overlay would not resolve under that condition). RealMarkerPackage is the published-tarball shape.
-package testfixtures
 
 import (
 	"fmt"
