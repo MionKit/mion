@@ -285,8 +285,10 @@ because a bare string sets BOTH directions, so `parser: 'mutateStrict'` has to b
 
 `core/src/constants.ts` holds ONE constant, `PARSE_MODES`: a row per strategy listing its encode,
 decode, validate and validationErrors families by the marker token a route asks for. The same row
-serves both wires. Four maps keyed four different ways (`ENCODE_FAMILY_BY_STRATEGY`,
-`VALIDATE_FAMILY_BY_STRATEGY` and friends) went through a two-table stage and ended here.
+serves both wires. Three maps keyed three different ways (`ENCODE_FAMILY_BY_STRATEGY`,
+`DECODE_FAMILY_BY_STRATEGY`, `STRATEGY_BY_ENCODE_FAMILY`) went through a two-table stage and ended here.
+The exports that served them, `DECODE_SIDE_BY_DIRECTION`, `DecodeSide`, `EncodeFamily`, `DecodeFamily`
+and `ParserDirection`, went with them.
 
 What keeps `mutateStrict` off the return wire is the `ReturnParserStrategy` type, written out
 literally rather than `Exclude`d: the distributive conditional cost ten extra type instantiations per
@@ -315,15 +317,17 @@ Two behaviour changes come with the single table, each with its own test:
 mismatch throws, so it travels as an undeclared fatal rather than a typed slot, which is right: a
 handler answering the wrong shape is a server bug, not data. Default stays `false`.
 
+`undefined` leaves the chain before that write, so the check runs on that path too, gated on
+`hasReturnData`: a handler declaring a value and answering `undefined` is the bug the flag is turned on
+for, while a middleFn declaring no return value is still allowed to contribute nothing.
+
 ### The discriminator
 
 `mutate` and `mutateStrict` share `prepareForJsonMutate`, so the encode family alone stopped naming the
-strategy. The validate family breaks the tie, in `strategyFromFamilies`:
-
-`strategyFromFamilies` matches a WHOLE row instead: the one `PARSE_MODES` row whose encoder, decoder
-and validator are all present in the injected payload. Nothing else matches, so a payload from a
-different build fails closed there rather than at call time. `direction` survives only to name the
-wire in that error message.
+strategy. `strategyFromFamilies` matches a WHOLE row instead: the one `PARSE_MODES` row whose encoder,
+decoder and validator are all present in the injected payload. Nothing else matches, so a payload from
+a different build fails closed there rather than at call time. `direction` is gone as an argument
+altogether: the `label` each call site passes already names the wire.
 
 ### `strictTypes` is gone
 
@@ -388,6 +392,7 @@ keep it, but that is a different family and not what a route runs.
   and clone, which is the cost the split walk exists to avoid.
 - **Proving at build time that two members cannot describe the same value.** A type-overlap check is a
   new compiler capability, and the validator gives the right answer without it.
-- **Validating return values**, on the server or in the client. The encoder leak above is a known limit.
+- **Validating a return value in the client.** The server side ships here, behind `validateReturn`; the
+  client still trusts its own server's answer, and the encoder leak above is a known limit.
 - **A `checkUnionUnknowns` arm for the parse families.** The direction of travel is one unified parse
   function per route side instead of decode plus validate, and it would need the same gap filled.
