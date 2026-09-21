@@ -73,7 +73,7 @@ func (sess *Session) scanAllProgramFiles() {
 // dispatchScanFiles walks every CallExpression in each requested file and returns one Site per call whose resolved
 // signature has a trailing `InjectRunTypeId<T>` parameter with T concretely bound. Sites come back flat across
 // files, each tagged with .File. Per file, recordFileIDs then notes the reached wire ids in the cache's per-file
-// scope map, which drives the projection scopedDump makes for IncludeRunTypes / IncludeCacheSources.
+// scope map, which drives the projection scopedDump makes for IncludeRunTypes.
 //
 // # BOUNDED-SCOPE INVARIANT
 //

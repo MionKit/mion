@@ -1,31 +1,23 @@
-// Package constants defines values shared across the Go internal packages —
-// and, via the `cmd/gen-ts-constants` codegen tool, mirrored to the TS side.
-//
-// Single source of truth: any cross-cutting constant (emit module settings,
-// reserved identifiers, wire markers, …) lives here and is regenerated into
-// the JS workspace so the two halves never drift.
+// Package constants is the single source of truth for the values shared across the Go internal packages: any
+// cross-cutting constant (emit module settings, reserved identifiers, wire markers, …) lives here, and
+// `cmd/gen-ts-constants` regenerates the ones the JS workspace needs so the two halves cannot drift.
 package constants
 
 // CacheModuleSettings configures one emitted JS cache module.
 type CacheModuleSettings struct {
 	Name      string // function/export identifier (e.g. "runTypesModule")
 	VarPrefix string // identifier prefix for emitted `export const <prefix><hash>`
-	Tag       string // short family tag for emitted inner-fn name + fnID (e.g. "verr" → inner "verr_<hash>", fnID "verr")
+	Tag       string // short family tag: emitted inner-fn name and the demand's FamilyTag (e.g. "verr" → inner "verr_<hash>")
 }
 
-// CacheModuleGroup mirrors the RTFunctionsGroup pattern: a map of named
-// entries, each carrying its own settings. Future emit modules add an entry
-// here so each can have its own variable prefix without touching the renderer.
+// CacheModuleGroup maps each named cache module to its settings, so a future emit module is an entry here rather
+// than a change to the renderer.
 type CacheModuleGroup map[string]CacheModuleSettings
 
 // CacheModules is the registry of every emitted cache-module shape.
 //
-// `VarPrefix` is retained as the prefix the renderer uses for inner
-// closure names inside the body of an validate validator (the
-// printClosure convention — outer "get_<fnName>" wraps inner "<fnName>"
-// at rtFnCompiler.ts:732). After the move to the splice-based emitter
-// the prefix is NOT used to key cache entries any more: every cache is
-// now `{ [rawId]: value }`, keyed by the canonical hash id directly.
+// `VarPrefix` is retained for the TS mirror only: the renderer names factories `g_<fnHash>_<id>` and no cache is
+// keyed by the prefix — every cache is `{ [rawId]: value }`, keyed by the canonical hash id directly.
 var CacheModules = CacheModuleGroup{
 	"runTypes": {
 		Name:      "runTypesModule",
@@ -162,16 +154,14 @@ var CacheModules = CacheModuleGroup{
 
 // JSON composite family tags — one per (jsonEncoder|jsonDecoder, strategy).
 //
-// A composite entry wraps the underlying primitives (pj/pjs/sj/uku/rj/ukuw)
-// with native JSON and is keyed by the strategy's composite fnHash. It does NOT
-// get a CacheModules entry: composites emit no type-walking factory and ride the
-// prepareForJson / restoreFromJsonMutate module bodies (already loaded into rtUtils),
-// so there is no virtual module / VarPrefix to mirror. Each strategy DOES need
-// its own short tag so the on-disk cache basename (`<typehash>/<tag>.json`) is
-// distinct — two strategies of one type must not collide on a single `je.json`.
+// A composite entry wraps the primitives JsonStrategyFamilies lists with native JSON and is keyed by the
+// strategy's composite fnHash. It gets NO CacheModules entry: composites emit no type-walking factory and ride
+// the prepareForJson / restoreFromJsonMutate module bodies, so there is no virtual module or VarPrefix to mirror.
+// Each strategy still needs its own short tag so the on-disk cache basename (`<typehash>/<tag>.json`) stays
+// distinct: two strategies of one type must not collide on a single `je.json`.
 //
-// jsonCompositeTags maps "op|strategy" → tag. JsonCompositeByTag reverses it so
-// the composite emitter recovers (operation, strategy) from a demand's tag.
+// jsonCompositeTags maps "op|strategy" → tag; JsonCompositeByTag reverses it so the composite emitter recovers
+// (operation, strategy) from a demand's tag.
 var jsonCompositeTags = map[string]string{
 	"jsonEncoder|clone":    "jeCL",
 	"jsonEncoder|mutate":   "jeMU",
@@ -182,9 +172,8 @@ var jsonCompositeTags = map[string]string{
 	"jsonDecoder|compact":  "jdCO",
 }
 
-// JsonComposite identifies one JSON composite family: the operation name
-// (jsonEncoder / jsonDecoder) and its strategy. Recovered from a family Tag via
-// JsonCompositeByTag so the composite emitter knows which fixed body to emit.
+// JsonComposite identifies one JSON composite family: the operation name (jsonEncoder / jsonDecoder) and its
+// strategy, recovered from a family Tag so the composite emitter knows which fixed body to emit.
 type JsonComposite struct {
 	OpName   string
 	Strategy string
@@ -199,8 +188,7 @@ var jsonCompositeByTag = func() map[string]JsonComposite {
 	return out
 }()
 
-// splitPipe splits "op|strategy" into its two halves. Local helper to avoid a
-// strings import in this file's var initialiser.
+// splitPipe splits "op|strategy" into its two halves; local, to keep a strings import out of this file's var initialiser.
 func splitPipe(key string) [2]string {
 	for i := 0; i < len(key); i++ {
 		if key[i] == '|' {
@@ -210,9 +198,8 @@ func splitPipe(key string) [2]string {
 	return [2]string{key, ""}
 }
 
-// JsonCompositeTag returns the per-strategy family Tag for a JSON composite
-// operation + strategy (used as the on-disk cache basename and the demand's
-// FamilyTag).
+// JsonCompositeTag returns the per-strategy family Tag for a JSON composite operation + strategy, which is also
+// the on-disk cache basename and the demand's FamilyTag.
 func JsonCompositeTag(opName, strategy string) (string, bool) {
 	tag, ok := jsonCompositeTags[opName+"|"+strategy]
 	return tag, ok
@@ -225,26 +212,19 @@ func JsonCompositeByTag(tag string) (JsonComposite, bool) {
 	return composite, ok
 }
 
-// ValidateOption describes one entry in the `ValidateOptions` bag — the
-// call-site options that parameterise the generated validate / validationErrors
-// validator without affecting the structural type id. Each entry pairs
-// the option's JS-side property name with a single-letter token used to
-// build the variant cache-key suffix (`itNL_<id>`, `valNA_<id>`,
-// `itNLA_<id>`, …). The same table drives the Go scanner's option
-// extraction, the emitter's variant fan-out, and (via gen-ts-constants)
-// the JS runtime's cache-key construction.
+// ValidateOption is one entry of the `ValidateOptions` bag: the call-site options that parameterise the generated
+// validate / validationErrors validator without affecting the structural type id. Each pairs the option's JS-side
+// property name with the single letter that builds the variant suffix of the canonical key the fnHash is derived
+// from. One table drives both the scanner's option extraction and the emitter's variant fan-out.
 type ValidateOption struct {
 	Name   string // JS property name, e.g. "noLiterals"
 	Letter string // single uppercase letter appended to the variant suffix, e.g. "L"
 }
 
-// numberMode (the `ValidateOptions.numberMode` string enum) selects the
-// emitted base `number` kind check so validators can align with other
-// libraries' number semantics. Its value is NOT a boolean, so it can't be a
-// plain registry entry: the two non-default values ride as INTERNAL canonical
-// option names (numberModeTypeofName / numberModeNotNaNName) appended to the
-// registry below, and the default isFinite adds no variant name at all —
-// keeping existing `val_<id>` / `valNL_<id>` keys byte-stable.
+// numberMode (the `ValidateOptions.numberMode` string enum) selects the emitted base `number` check so validators
+// can align with other libraries' number semantics. Its value is not a boolean, so it cannot be a plain registry
+// entry: the two non-default values ride as INTERNAL canonical option names appended to the registry below, and
+// the default isFinite adds no variant name at all, keeping existing keys byte-stable.
 const (
 	NumberModeOption   = "numberMode" // the JS property name on ValidateOptions
 	NumberModeIsFinite = "isFinite"   // default — Number.isFinite(v)
@@ -273,22 +253,17 @@ const (
 	numberModeNotNaNName = "numberNotNaN"
 )
 
-// ValidateOptions is the ordered registry of supported `ValidateOptions`
-// keys. Order is load-bearing: the variant suffix concatenates letters
-// in this order so existing variant keys stay stable as new options
-// append to the tail (declaration-order, not alphabetic).
+// ValidateOptions is the ordered registry of supported `ValidateOptions` keys. Order is load-bearing: the variant
+// suffix concatenates letters in this order (declaration order, not alphabetic), so existing variant keys stay
+// stable as new options append to the tail.
 //
 // To add a new boolean option:
-//  1. Append an entry here — the scanner's extraction is table-driven
-//     off this registry, so the option is read automatically.
-//  2. Add the field to `ValidateOptions` in
-//     packages/run-types/src/createRTFunctions.ts.
-//  3. Teach the emitters to honour it (plus any per-option scanner
-//     semantics, e.g. a noop-option diagnostic in analyzeCall).
-//  4. Regenerate the TS mirror (`pnpm miondevx core codegen constants`).
+//  1. Append an entry here — the scanner's extraction is table-driven off this registry.
+//  2. Add the field to `ValidateOptions` in packages/run-types/src/createRTFunctions.ts.
+//  3. Teach the emitters to honour it, plus any per-option scanner semantics (a noop-option diagnostic in analyzeCall).
 //
-// A string-enum option (see numberMode above) instead maps each non-default
-// value to a canonical name here and is read by a dedicated scanner arm.
+// A string-enum option (see numberMode above) instead maps each non-default value to a canonical name here and is
+// read by a dedicated scanner arm.
 var ValidateOptions = []ValidateOption{
 	{Name: "noLiterals", Letter: "L"},
 	{Name: "noIsArrayCheck", Letter: "A"},
@@ -296,9 +271,8 @@ var ValidateOptions = []ValidateOption{
 	{Name: numberModeNotNaNName, Letter: "M"},
 }
 
-// NumberModeOptionName maps a numberMode value to its canonical variant
-// option name (a ValidateOptions member), or "" for the default isFinite and
-// for any unset / unrecognized value (both fall back to the default check).
+// NumberModeOptionName maps a numberMode value to its canonical variant option name (a ValidateOptions member),
+// or "" for the default isFinite and for any unset / unrecognized value, which fall back to the default check.
 func NumberModeOptionName(mode string) string {
 	switch mode {
 	case NumberModeTypeof:
@@ -310,9 +284,8 @@ func NumberModeOptionName(mode string) string {
 	}
 }
 
-// NumberModeFromOptions returns the numberMode implied by an enabled
-// option-name set (queried through has) — the inverse of NumberModeOptionName.
-// Defaults to isFinite when neither variant name is present.
+// NumberModeFromOptions returns the numberMode implied by an enabled option-name set (queried through has), the
+// inverse of NumberModeOptionName; isFinite when neither variant name is present.
 func NumberModeFromOptions(has func(string) bool) string {
 	switch {
 	case has(numberModeTypeofName):
@@ -324,15 +297,10 @@ func NumberModeFromOptions(has func(string) bool) string {
 	}
 }
 
-// ValidateVariantSuffix returns the canonical variant suffix for a sorted
-// list of option NAMES (subset of `ValidateOptions[*].Name`). Empty input
-// → empty suffix (the plain key). Unknown names are silently skipped —
-// callers (scanner / emitter) should validate ahead of time.
-//
-// The suffix shape is `N` + concatenated letters in `ValidateOptions`
-// declaration order. Example: `["noLiterals", "noIsArrayCheck"]` →
-// `"NLA"`. The leading `N` ("No") disambiguates the variant prefix
-// from a plain `<tag>_<id>` key.
+// ValidateVariantSuffix returns the canonical variant suffix for a sorted list of option NAMES (a subset of
+// `ValidateOptions[*].Name`): `N` ("No") plus the letters in `ValidateOptions` declaration order, so
+// `["noLiterals", "noIsArrayCheck"]` → `"NLA"`. Empty input gives an empty suffix (the plain key). Unknown names
+// are silently skipped, so the scanner / emitter must validate ahead of time.
 func ValidateVariantSuffix(names []string) string {
 	if len(names) == 0 {
 		return ""
@@ -355,33 +323,25 @@ func ValidateVariantSuffix(names []string) string {
 	return suffix
 }
 
-// HasUnknownKeysOptions is the ordered registry of supported
-// `HasUnknownKeysOptions` keys — the compile-time options bag of
-// `createHasUnknownKeysFn<T>(val?, options?, id?)`. Same contract as
-// ValidateOptions above: declaration order is load-bearing for the variant
-// suffix, and the same scanner/emitter/gen-ts mirror steps apply when adding
-// an option (see the ValidateOptions comment).
+// HasUnknownKeysOptions is the ordered registry of supported `HasUnknownKeysOptions` keys, the compile-time
+// options bag of `createHasUnknownKeysFn<T>(val?, options?, id?)`. Same contract as ValidateOptions above:
+// declaration order is load-bearing for the variant suffix, and the same steps apply when adding an option.
 //
-// `runsAfterValidation` declares the caller's precondition that the value
-// already PASSED this type's validate — every required prop is present — which
-// makes the emitter's key-count fast path sound (`cnt(v) !== N` exactly
-// separates clean from dirty) and lets it drop the per-object typeof guards.
-// Calling the variant on non-validated input is undefined behavior.
+// `runsAfterValidation` declares the caller's precondition that the value already PASSED this type's validate,
+// every required prop present, which makes the emitter's key-count fast path sound (`cnt(v) !== N` exactly
+// separates clean from dirty) and lets it drop the per-object typeof guards. Calling the variant on non-validated
+// input is undefined behavior.
 //
-// Unlike every ValidateOptions entry, this one describes the VALUE rather than
-// the root call, so it PROPAGATES: the emitter renders the whole subtree under
-// the variant (typefunctions.VariantPropagator) instead of dep-calling plain
-// child entries, which is what gets a named nested type the same fast path an
-// inline one has.
+// Unlike every ValidateOptions entry this one describes the VALUE rather than the root call, so it PROPAGATES:
+// the emitter renders the whole subtree under the variant (typefunctions.VariantPropagator) instead of dep-calling
+// plain child entries, which is what gets a named nested type the same fast path an inline one has.
 var HasUnknownKeysOptions = []ValidateOption{
 	{Name: "runsAfterValidation", Letter: "V"},
 }
 
-// HasUnknownKeysVariantSuffix returns the canonical variant suffix for a list
-// of hasUnknownKeys option NAMES (subset of `HasUnknownKeysOptions[*].Name`).
-// Mirrors ValidateVariantSuffix's shape with its own lead letter: `O`
-// ("options") + the letters of the present options in declaration order —
-// `["runsAfterValidation"]` → `"OV"`. Empty input → empty suffix (plain key).
+// HasUnknownKeysVariantSuffix returns the canonical variant suffix for a list of hasUnknownKeys option NAMES (a
+// subset of `HasUnknownKeysOptions[*].Name`), mirroring ValidateVariantSuffix with its own lead letter: `O`
+// ("options") plus the present letters in declaration order, so `["runsAfterValidation"]` → `"OV"`.
 func HasUnknownKeysVariantSuffix(names []string) string {
 	if len(names) == 0 {
 		return ""
@@ -404,20 +364,14 @@ func HasUnknownKeysVariantSuffix(names []string) string {
 	return suffix
 }
 
-// JsonStrategyFamilies maps a JSON "op|strategy" key to the cache family tags it
-// composes. Keyed by op|strategy (not the bare strategy token) because the
-// encoder and decoder can share a strategy NAME — `compact` is both a
-// jsonEncoder and a jsonDecoder strategy but composes different primitives
-// (cj vs cjr). Shared by the scanner (emit) and the emitter (demand); both
-// readers hold the operation, so they pass the op-qualified key. Go-only (not
-// mirrored to TS — gen-ts-constants emits only CacheModules).
+// JsonStrategyFamilies maps a JSON "op|strategy" key to the cache family tags it composes. Op-qualified rather
+// than keyed by the bare strategy token because encoder and decoder share strategy NAMES: `compact` is both, and
+// composes different primitives (cj vs cjr). Shared by the scanner (emit) and the emitter (demand), both of which
+// hold the operation. Go-only, not mirrored to TS.
 var JsonStrategyFamilies = map[string][]string{
 	"jsonEncoder|direct": {"sj"},
-	// `clone` is shape-derived (prepareForJsonClone builds a new value from the
-	// declared shape), so it strips undeclared keys by construction — no separate
-	// strip pass / strip variant is needed. (Was {"pjsp"} when `clone` preserved
-	// extras; the preserve variant and the `stripClone`/`stripMutate` strategies
-	// were removed.)
+	// `clone` is shape-derived (prepareForJsonClone builds a new value from the declared shape), so it strips
+	// undeclared keys by construction: no separate strip pass or strip variant is needed.
 	"jsonEncoder|clone":  {"pjs"},
 	"jsonEncoder|mutate": {"pj"},
 	// `compact` emits declared object props as a positional array (no key names);
@@ -428,33 +382,27 @@ var JsonStrategyFamilies = map[string][]string{
 	"jsonDecoder|compact":  {"cjr"},
 }
 
-// Per-entry virtual module settings (mirrored to TS via gen-ts-constants).
-// Every cache entry — runtype node, type-fn factory, JSON composite, pure fn —
-// is served as its own ES module `<EntryModulePrefix><basename><EntryModuleSuffix>`
-// exporting one tuple under its binding name (entrymod.ExportName —
-// `<EntryBindingPrefix><identifier-escaped basename>`). The SAME name binds
-// the entry everywhere: the export, every import clause, and the call-site
-// binding the rewrite injects. See internal/compiler/entrymodules.
+// Per-entry virtual module settings (mirrored to TS via gen-ts-constants). Every cache entry — runtype node,
+// type-fn factory, JSON composite, pure fn — is served as its own ES module
+// `<EntryModulePrefix><basename><EntryModuleSuffix>` exporting one tuple under its binding name
+// (entrymod.ExportName, `<EntryBindingPrefix><identifier-escaped basename>`). The SAME name binds the entry
+// everywhere: the export, every import clause, and the call-site binding the rewrite injects.
+// See internal/compiler/entrymodules.
 const (
-	// EntryModulePrefix is the INTERNAL render-time specifier scheme every
-	// entry module is named under (`rtmod:/<basename>.js`). It never reaches
-	// a bundler or disk: the resolver relativizes every occurrence to a real
-	// relative path (post-render for inter-module imports, post-Apply for the
-	// imports injected into user files). A scheme rather than a path keeps
-	// rendered module text location-independent and the golden corpus stable.
+	// EntryModulePrefix is the INTERNAL render-time specifier scheme every entry module is named under
+	// (`rtmod:/<basename>.js`). It never reaches a bundler or disk: the resolver relativizes every occurrence to
+	// a real relative path (post-render for inter-module imports, post-Apply for imports injected into user
+	// files). A scheme rather than a path keeps rendered module text location-independent and the corpus stable.
 	EntryModulePrefix = "rtmod:/"
-	// EntryModuleSuffix terminates every entry-module specifier; the .js
-	// extension keeps downstream tooling (and import-analysis fast paths)
-	// treating the virtual id as plain JS.
+	// EntryModuleSuffix terminates every entry-module specifier; the .js extension keeps downstream tooling (and
+	// import-analysis fast paths) treating the virtual id as plain JS.
 	EntryModuleSuffix = ".js"
-	// EntryBindingPrefix prefixes every entry's binding name — the module's
-	// export AND the import binding the rewrite injects into user files
-	// (`<prefix><sanitized basename>`); the leading double-underscore keeps
-	// collisions with user identifiers implausible.
+	// EntryBindingPrefix prefixes every entry's binding name, the module's export AND the import binding the
+	// rewrite injects into user files; the leading double-underscore keeps collisions with user identifiers
+	// implausible.
 	EntryBindingPrefix = "__rt_"
-	// PureFnModuleDir is the basename directory prefix for pure-fn entry
-	// modules (`pf/<ns>/<fn>`), keeping them visually distinct from the hash-
-	// keyed runtype / type-fn modules.
+	// PureFnModuleDir is the basename directory prefix for pure-fn entry modules (`pf/<ns>/<fn>`), keeping them
+	// distinct from the hash-keyed runtype / type-fn modules.
 	PureFnModuleDir = "pf"
 	// PureFnHashPrefix joins a pure-fn id's owning package to its body hash: `@acme/text#pf_9Zt1bRm4cVaPqL`.
 	// One spelling on both sides: the build writes it into every id, a consumer's compiler splits ids on it.
@@ -467,98 +415,76 @@ const (
 	// PureFnArtifactIndexFile lists every shipped id with its binding name and source file: a `.d.ts` import
 	// carries a name, never an id, and is resolved through it.
 	PureFnArtifactIndexFile = "index.json"
-	// RpcModuleDir is the folder under the output root that holds the batch
-	// transport: `rpc/batches.generated.js` (the batch table the server
-	// registers) plus `rpc/pf/<ns>/<fn>.js` (the inline inputFrom mappers it
-	// imports). Generated by the SERVER build from the batch source program
-	// (its own, or the `clientTsconfig` one), so the server owns every file it
-	// loads and never reads a client tree.
+	// RpcModuleDir holds the batch transport under the output root: `rpc/batches.generated.js` (the batch table
+	// the server registers) plus `rpc/pf/<ns>/<fn>.js` (the inline inputFrom mappers it imports). Generated by
+	// the SERVER build from the batch source program (its own, or the `clientTsconfig` one), so the server owns
+	// every file it loads and never reads a client tree.
 	RpcModuleDir = "rpc"
-	// ApiModuleDir is the folder under the output root that holds what a mion
-	// CLIENT build bundles under `bundleApi`: one module per route or middleFn
-	// the program calls (`api/m/<id>.js`, its metadata plus the compiled
-	// function tuples it imports from the client mirror under `api/types/`),
-	// one module per dispatch site
-	// shape (`api/s/<id>.js`, the route with its middleFn chain, or the union a
-	// batch runs) and `api/manifest.json`, the id table `mion api-check`
-	// compares against the server's.
+	// ApiModuleDir holds what a mion CLIENT build bundles under `bundleApi`: one module per route or middleFn the
+	// program calls (`api/m/<id>.js`, its metadata plus the compiled function tuples it imports from the client
+	// mirror under `api/types/`), one module per dispatch-site shape (`api/s/<id>.js`, the route with its
+	// middleFn chain, or the union a batch runs) and `api/manifest.json`, the id table `mion api-check` compares
+	// against the server's.
 	ApiModuleDir = "api"
-	// ApiManifestFile is the id manifest's name under ApiModuleDir, written by
-	// BOTH builds: the server's from its initRoutes call, the client's from the
-	// routes it bundled.
+	// ApiManifestFile is the id manifest's name under ApiModuleDir, written by BOTH builds: the server's from its
+	// initRoutes call, the client's from the routes it bundled.
 	ApiManifestFile = "manifest.json"
-	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under
-	// ApiModuleDir to put
-	// the client on the lane it compiled for: it calls `setBundleApiMode` and
-	// is imported for its side effect into every file calling `initClient`,
-	// the way the batch table reaches a server. The lane is a build option, so
-	// the build is the one place it is set.
+	// ApiLaneFile is the BASENAME of the module a CLIENT build writes under ApiModuleDir to put the client on the
+	// lane it compiled for: it calls `setBundleApiMode` and is imported for its side effect into every file
+	// calling `initClient`, the way the batch table reaches a server. The lane is a build option, so the build is
+	// the one place it is set.
 	ApiLaneFile = "lane"
-	// ApiModulePrefix is the render-time specifier scheme for a bundled API
-	// module (`rtapi:/s/<id>.js`), the sibling of EntryModulePrefix: the
-	// transform imports it at a dispatch site, and the same relativizers that
-	// turn `rtmod:/` into a path under <outDir>/types turn this one into a
-	// path under <outDir>/api.
+	// ApiModulePrefix is the render-time specifier scheme for a bundled API module (`rtapi:/s/<id>.js`), the
+	// sibling of EntryModulePrefix: the transform imports it at a dispatch site, and the relativizers that turn
+	// `rtmod:/` into a path under <outDir>/types turn this one into a path under <outDir>/api.
 	ApiModulePrefix = "rtapi:/"
 	// BatchesModuleFile is the batch table module's name under RpcModuleDir.
 	BatchesModuleFile = "batches.generated.js"
-	// RpcModulePrefix is the render-time specifier scheme for the batch
-	// transport module (`rtrpc:/batches.generated.js`), the sibling of
-	// EntryModulePrefix: the transform appends `import 'rtrpc:/…'` to every
-	// module that creates the router, and the same relativizers that turn
-	// `rtmod:/` into a path under <outDir>/types turn this one into a path
+	// RpcModulePrefix is the render-time specifier scheme for the batch transport module
+	// (`rtrpc:/batches.generated.js`): the transform appends `import 'rtrpc:/…'` to every module that creates the
+	// router, and the relativizers that turn `rtmod:/` into a path under <outDir>/types turn this one into a path
 	// under <outDir>/rpc.
 	RpcModulePrefix = "rtrpc:/"
-	// RunTypesBundleBasename names the SINGLE runtype data module
-	// (`rtmod:/runtypes.js`): every reflection-demanded node lives there
-	// as one tuple row, deduplicated app-wide, with per-root facade modules
-	// aliasing into it. Unlike every other entry module it is NOT
-	// content-addressed — the Vite plugin invalidates it when a scan reports
-	// addedRunTypes. The name can't collide with hash-keyed basenames (hash
-	// ids are short) or pure-fn basenames (always under PureFnModuleDir).
+	// RunTypesBundleBasename names the SINGLE runtype data module (`rtmod:/runtypes.js`): every
+	// reflection-demanded node lives there as one tuple row, deduplicated app-wide, with per-root facade modules
+	// aliasing into it. Unlike every other entry module it is NOT content-addressed, so a host invalidates it
+	// when a scan reports addedRunTypes. The name cannot collide with hash-keyed basenames (hash ids are short)
+	// or pure-fn basenames (always under PureFnModuleDir).
 	RunTypesBundleBasename = "runtypes"
-	// FnsBundleDir is the basename directory prefix for per-family fn-entry
-	// bundle modules in allSingle module mode (`fns/<familyTag>`): every
-	// entry of one family rides the family's bundle as a NAMED export
+	// FnsBundleDir is the basename directory prefix for per-family fn-entry bundle modules in allSingle mode
+	// (`fns/<familyTag>`): every entry of a family rides the family's bundle as a NAMED export
 	// (`export const <BindingName(key)>=[…]`) instead of its own module.
 	FnsBundleDir = "fns"
 )
 
-// ModuleMode selects how cache entries are grouped into virtual modules.
-// Mirrored to TS so the Vite plugin option validates against the same set.
+// ModuleMode selects how cache entries are grouped into virtual modules. Mirrored to TS so the plugin option
+// validates against the same set.
 const (
-	// ModuleModeDefault — runtype nodes ride THE single data bundle (+ per-root
-	// facade modules); every fn-family / composite / pure-fn entry is its own
-	// per-entry module. Today's behavior.
+	// ModuleModeDefault — runtype nodes ride THE single data bundle (plus per-root facade modules); every
+	// fn-family / composite / pure-fn entry is its own per-entry module.
 	ModuleModeDefault = "default"
-	// ModuleModeAllSingle — bundle EVERYTHING: fn families render one bundle
-	// module per family tag (`fns/<tag>`), pure fns one `pf` bundle, and the
-	// reflection facades fold into the runtypes bundle as named exports.
-	// Fewest modules; family bundles are mutable (invalidate on Added* flags).
+	// ModuleModeAllSingle — bundle EVERYTHING: one bundle module per family tag (`fns/<tag>`), one `pf` bundle
+	// for pure fns, and the reflection facades folded into the runtypes bundle as named exports. Fewest modules;
+	// family bundles are mutable, so they invalidate on the Added* flags.
 	ModuleModeAllSingle = "allSingle"
-	// ModuleModeAllModules — split EVERYTHING: fn entries per-entry (as
-	// default) AND runtype nodes as individual per-node modules (the
-	// pre-bundle layout). Escape hatch; measured slower on dense reflection
-	// graphs.
+	// ModuleModeAllModules — split EVERYTHING: fn entries per-entry as in default, AND runtype nodes as
+	// individual per-node modules. Escape hatch; measured slower on dense reflection graphs.
 	ModuleModeAllModules = "allModules"
 )
 
-// BundleApiMode is the client build's `bundleApi` option: whether the metadata
-// and compiled functions of the routes a mion client calls are bundled into the
-// client at build time. The --bundle-api CLI flag, the tsconfig plugin key and
-// the devtools option validate against this set; the value itself is injected
-// at the client's initClient site so the runtime picks the matching lane.
+// BundleApiMode is the client build's `bundleApi` option: whether the metadata and compiled functions of the
+// routes a mion client calls are bundled in at build time. The --bundle-api CLI flag, the tsconfig plugin key and
+// the devtools option validate against this set; the value is injected at the client's initClient site so the
+// runtime picks the matching lane.
 type BundleApiMode string
 
 const (
-	// BundleApiOff (the default) bundles nothing: the client fetches its
-	// metadata from the server on first use.
+	// BundleApiOff (the default) bundles nothing: the client fetches its metadata from the server on first use.
 	BundleApiOff BundleApiMode = ""
-	// BundleApiBundled bundles every route the program calls; the client never
-	// asks the server for metadata and refuses a route it did not bundle.
+	// BundleApiBundled bundles every route the program calls; the client never asks the server for metadata and
+	// refuses a route it did not bundle.
 	BundleApiBundled BundleApiMode = "bundled"
-	// BundleApiMixed bundles the same set, and the client still fetches the
-	// routes the bundle lacks.
+	// BundleApiMixed bundles the same set, and the client still fetches the routes the bundle lacks.
 	BundleApiMixed BundleApiMode = "mixed"
 )
 
@@ -571,30 +497,26 @@ func (mode BundleApiMode) Valid() bool {
 	return mode == BundleApiOff || mode.Enabled()
 }
 
-// EmitMode selects what each compiled fn entry ships in its code/factory
-// slots — the --emit-mode CLI flag and the Vite plugin's `emitMode` option
-// validate against this set. NOT mirrored to TS (the plugin hard-codes the
-// three string literals on its option type); the runtime only reads what the
-// slots carry, never the mode itself.
+// EmitMode selects what each compiled fn entry ships in its code/factory slots; the --emit-mode CLI flag and the
+// plugin's `emitMode` option validate against this set. NOT mirrored to TS (the plugin hard-codes the three
+// string literals on its option type); the runtime reads only what the slots carry, never the mode itself.
 type EmitMode string
 
 const (
-	// EmitCode (the default) ships only the body `code` string in the code
-	// slot; the createRTFn slot is the `u` placeholder and the runtime rebuilds
-	// the factory via `new Function('utl', code)` on first lookup.
+	// EmitCode (the default) ships only the body `code` string; the createRTFn slot is the `u` placeholder and
+	// the runtime rebuilds the factory via `new Function('utl', code)` on first lookup.
 	EmitCode EmitMode = "code"
-	// EmitFunctions ships only the live `function g_<hash>(utl){…}` factory; the
-	// code slot is `undefined`. The runtime uses the factory directly and
-	// derives the code string lazily (from `createRTFn.toString()`) only if a
-	// consumer ever reads it. Smallest factory-bearing output (no body twice).
+	// EmitFunctions ships only the live `function g_<hash>(utl){…}` factory, with an `undefined` code slot: the
+	// runtime uses the factory directly and derives the code string from `createRTFn.toString()` only if a
+	// consumer reads it. Smallest factory-bearing output, since the body never ships twice.
 	EmitFunctions EmitMode = "functions"
-	// EmitBoth ships the code string AND the live factory (the body twice) —
-	// for runtimes that disallow `new Function` (CSP) yet still read `.code`.
+	// EmitBoth ships the code string AND the live factory (the body twice), for runtimes that disallow
+	// `new Function` (CSP) yet still read `.code`.
 	EmitBoth EmitMode = "both"
 )
 
-// EmitsCode reports whether the code-string slot is populated. The zero value
-// ("") behaves as EmitCode so a RenderOpts{} default emits the code string.
+// EmitsCode reports whether the code-string slot is populated; the zero value ("") behaves as EmitCode, so a
+// RenderOpts{} default emits the code string.
 func (mode EmitMode) EmitsCode() bool {
 	return mode == EmitCode || mode == EmitBoth || mode == ""
 }
@@ -604,81 +526,67 @@ func (mode EmitMode) EmitsFactory() bool {
 	return mode == EmitFunctions || mode == EmitBoth
 }
 
-// Valid reports whether mode is one of the three known values (used to
-// validate the --emit-mode flag).
+// Valid reports whether mode is one of the three known values, for the --emit-mode flag.
 func (mode EmitMode) Valid() bool {
 	return mode == EmitCode || mode == EmitFunctions || mode == EmitBoth
 }
 
-// InlineMode selects the child-inlining policy DefaultIsRTInlined applies to
-// compound nodes (mirrored as the binary's --inline-mode flag and the Vite
-// plugin's inlineMode option; values validated Go-side, NOT mirrored to TS).
+// InlineMode selects the child-inlining policy DefaultIsRTInlined applies to compound nodes; exposed as the
+// --inline-mode flag and the plugin's inlineMode option, validated Go-side and NOT mirrored to TS.
 type InlineMode string
 
 const (
-	// InlineModeDefault — the name rule: UNNAMED compounds (arrays, tuples,
-	// object literals, unions, classes) inline into their parents
-	// (statement bodies hoist to context fns at expression slots); NAMED
-	// types (alias or interface) and circular types stay external as
-	// dedupe-worthy shared entries. Date/Temporal builtins always inline
-	// (atomic single-expression emits). The zero value behaves identically.
+	// InlineModeDefault — the name rule: UNNAMED compounds (arrays, tuples, object literals, unions, classes)
+	// inline into their parents, with statement bodies hoisted to context fns at expression slots, while NAMED
+	// types (alias or interface) and circular types stay external as dedupe-worthy shared entries. Date/Temporal
+	// builtins always inline (atomic single-expression emits). The zero value behaves identically.
 	InlineModeDefault InlineMode = "default"
-	// InlineModeAllInternal — as the name says: EVERYTHING except circular
-	// types inlines, names ignored. One function per call-site type per
-	// family. Supersedes the old DEBUG_RT=INLINED env override.
+	// InlineModeAllInternal — EVERYTHING except circular types inlines, names ignored: one function per
+	// call-site type per family.
 	InlineModeAllInternal InlineMode = "allInternal"
 )
 
 // AllInternal reports whether the name-blind everything-inlines mode is on.
 func (mode InlineMode) AllInternal() bool { return mode == InlineModeAllInternal }
 
-// Valid reports whether mode is a recognised value ("" counts as default so
-// zero-valued RenderOpts behave like production defaults).
+// Valid reports whether mode is a recognised value; "" counts as default, so a zero-valued RenderOpts behaves
+// like production.
 func (mode InlineMode) Valid() bool {
 	return mode == InlineModeDefault || mode == InlineModeAllInternal || mode == ""
 }
 
-// Binary size-estimate defaults. The compiler walks each binary-encoder type
-// at build time and bakes a buffer-size estimate into the `tb` entry; the
-// runtime `dynamic` strategy uses it as the cold-start buffer size (instead of
-// the flat defaultBufferSize fallback) until per-key history warms up. Each default is
-// overridable via a CLI flag / Vite plugin option; all four fold into the disk
-// fingerprint so a config change re-derives every estimate.
+// Binary size-estimate defaults. The compiler walks each binary-encoder type at build time and bakes a
+// buffer-size estimate into the `tb` entry, which the runtime `dynamic` strategy uses as the cold-start buffer
+// size (instead of the flat defaultBufferSize fallback) until per-key history warms up. Each is overridable by a
+// CLI flag / plugin option, and all four fold into the disk fingerprint so a config change re-derives every estimate.
 const (
-	// DefaultSizeBias weights the estimate between a type's minimum and
-	// (capped) maximum footprint: estimate = min + bias·(cappedMax − min).
-	// 0 = tightest (most grows), 1 = most generous (most slack). 0.8 leans
-	// generous so a cold encode rarely has to grow.
+	// DefaultSizeBias weights the estimate between a type's minimum and (capped) maximum footprint:
+	// estimate = min + bias·(cappedMax − min), 0 tightest (most grows) and 1 most generous (most slack).
+	// 0.8 leans generous so a cold encode rarely has to grow.
 	DefaultSizeBias = 0.8
-	// DefaultSizeItems is the assumed element count for an unbounded
-	// collection (array / Map / Set / index signature) — a typical paginated
-	// page.
+	// DefaultSizeItems is the assumed element count for an unbounded collection (array / Map / Set / index
+	// signature), a typical paginated page.
 	DefaultSizeItems = 100
-	// DefaultSizeStringBytes is the assumed UTF-8 byte length of an
-	// unbounded string (no maxLength format bound).
+	// DefaultSizeStringBytes is the assumed UTF-8 byte length of an unbounded string (no maxLength format bound).
 	DefaultSizeStringBytes = 32
-	// DefaultSizeMaxBytes caps any single type's estimate so a huge declared
-	// bound (e.g. maxLength<10_000_000>) never seeds a multi-MB cold buffer.
+	// DefaultSizeMaxBytes caps a single type's estimate, so a huge declared bound (maxLength<10_000_000>) never
+	// seeds a multi-MB cold buffer.
 	DefaultSizeMaxBytes = 64 * 1024
 )
 
-// Pattern mockSample auto-generation defaults. A format pattern with no
-// declared mockSamples gets them generated at build time by the JS engine
-// (deterministic per pattern); both knobs are overridable via a CLI flag /
-// plugin option and fold into the disk fingerprint.
+// Pattern mockSample auto-generation defaults. A format pattern with no declared mockSamples gets them generated
+// at build time by the JS engine, deterministic per pattern; both knobs are overridable by a CLI flag / plugin
+// option and fold into the disk fingerprint.
 const (
-	// DefaultPatternSampleCount is how many samples generation aims for per
-	// pattern (0 disables generation entirely).
+	// DefaultPatternSampleCount is how many samples generation aims for per pattern (0 disables it entirely).
 	DefaultPatternSampleCount = 100
-	// DefaultPatternSampleRetries is the per-sample draw multiplier: the
-	// whole generation budget is count × retries draws, and only a budget
-	// that yields zero surviving values fails the build.
+	// DefaultPatternSampleRetries is the per-sample draw multiplier: the budget is count × retries draws, and
+	// only a budget yielding zero surviving values fails the build.
 	DefaultPatternSampleRetries = 10
 )
 
-// Tuple slot-0 kind discriminators for entry-module tuples. Type-fn entries
-// carry their QUOTED family tag in slot 0 instead of a number, so the runtime
-// discriminates with `typeof t[0] === 'string'`.
+// Tuple slot-0 kind discriminators for entry-module tuples. Type-fn entries carry their QUOTED family tag in
+// slot 0 instead of a number, so the runtime discriminates with `typeof t[0] === 'string'`.
 const (
 	TupleKindRunType       = 0
 	TupleKindPureFn        = 2
@@ -687,11 +595,9 @@ const (
 	TupleKindRunTypeFacade = 5
 )
 
-// JsonCompositeHostTags maps each JSON-composite family tag to the family
-// whose runtime entry metadata (fnID / args / defaultParamValues) the
-// composite borrows: encoder strategies registered through the prepareForJson
-// consumer pre-migration, decoder strategies through restoreFromJsonMutate. The
-// TS-side familyMeta table mirrors this mapping by hand (see rtUtils.ts).
+// JsonCompositeHostTags maps each JSON-composite family tag to the family whose runtime entry metadata (fnID /
+// args / defaultParamValues) the composite borrows: encoder strategies borrow prepareForJson, decoder strategies
+// restoreFromJsonMutate. The TS-side familyMeta table (entryTuple.ts) mirrors this mapping by hand.
 var JsonCompositeHostTags = func() map[string]string {
 	out := make(map[string]string, len(jsonCompositeTags))
 	for key, tag := range jsonCompositeTags {
@@ -709,23 +615,17 @@ var JsonCompositeHostTags = func() map[string]string {
 //
 //	-ldflags "-X github.com/mionkit/mion/ts-go-runtypes/internal/constants.Version=<v>"
 //
-// Embedded into the typeID hashing input (see internal/cachegen/runtype.assignID)
-// so the same structural type gets a different short hash across binary versions —
-// any on-disk cache keyed by typeID is automatically version-isolated, no per-
-// version directory needed.
-//
-// Defaults to "dev" for local builds; the publish script overrides it from the
-// root package.json version.
+// It is embedded into the typeID hashing input (internal/cachegen/runtype.assignID), so the same structural type
+// hashes differently across binary versions and any on-disk cache keyed by typeID is version-isolated without a
+// per-version directory. Defaults to "dev" locally; the publish script overrides it from the root package.json.
 var Version = "dev"
 
-// TsgoVersion records the pinned tsgolint / typescript-go revision the binary
-// was built against, injected at build time via
+// TsgoVersion records the pinned tsgolint / typescript-go revision the binary was built against, injected at
+// build time via
 //
 //	-ldflags "-X github.com/mionkit/mion/ts-go-runtypes/internal/constants.TsgoVersion=<rev>"
 //
-// Unlike Version it is PURE METADATA — it is never folded into the typeID hash
-// (the bundled checker revision must not perturb cache keys). Surfaced by the
-// binary's --version flag and recorded in the launcher package's package.json
-// "tsgo" field, so the TypeScript baseline stays discoverable without leaking
-// into the semver contract. Defaults to "dev" for local builds.
+// Unlike Version it is PURE METADATA, never folded into the typeID hash: the bundled checker revision must not
+// perturb cache keys. Reported by the binary's --version flag and recorded in the launcher package.json's "tsgo"
+// field, so the TypeScript baseline stays discoverable without entering the semver contract. "dev" locally.
 var TsgoVersion = "dev"

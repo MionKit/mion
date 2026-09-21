@@ -10,28 +10,20 @@ import (
 	"syscall/js"
 )
 
-// HookGlobalName is the synchronous host callback the playground installs
-// (the sidecar bundle's hook build): request-line JSON in, response-line
-// JSON out — the exact stdio sidecar contract, minus the process. When
-// present, BOTH ops route through it, so the browser generates the same
-// deterministic samples as a native build (same wire jobs, same seeds).
+// HookGlobalName is the synchronous host callback the playground installs: request-line JSON in, response-line JSON out,
+// the exact stdio sidecar contract minus the process. When present BOTH ops route through it, so the browser generates the
+// same deterministic samples as a native build.
 const HookGlobalName = "__tsRunTypesJsEngine"
 
-// hostEngine answers pattern jobs through the WASM host — the host IS a
-// JS engine, so there is no subprocess and no sidecar bundle involved.
-// Single-threaded by construction (the WASM twin runs SingleThreaded),
-// so no locking is needed.
+// hostEngine answers pattern jobs through the WASM host itself: no subprocess, no sidecar bundle.
+// Single-threaded by construction (the WASM twin runs SingleThreaded), so nothing locks.
 type hostEngine struct {
 	nextID int
-	// sessionKey mirrors sidecarEngine.sessionKey: the per-session random
-	// run key unpinned generation mixes in (fresh per page load / module
-	// instantiation).
+	// sessionKey mirrors sidecarEngine.sessionKey: the random run key unpinned generation mixes in, fresh per module instantiation.
 	sessionKey uint32
 }
 
-// NewHostEngine returns the WASM engine: the host hook when installed,
-// direct host RegExp otherwise (validation only — generation needs the
-// hook's randexp).
+// NewHostEngine returns the WASM engine: the host hook when installed, else direct host RegExp (validation only, generation needs randexp).
 func NewHostEngine() Engine {
 	return &hostEngine{sessionKey: newSessionKey()}
 }
@@ -42,11 +34,9 @@ func (engine *hostEngine) TestPattern(source, flags string, samples []string) (T
 		if err == nil {
 			return TestResult{CompileError: result.CompileError, TimedOut: result.TimedOut, Offenders: result.Offenders}, nil
 		}
-		// A broken hook must never make validation worse than having no
-		// hook at all — fall through to the direct RegExp path.
+		// A broken hook must never make validation worse than having no hook at all.
 	}
-	// Strip g/y: `.test` advances lastIndex on global/sticky regexes — the
-	// same statefulness guard the sidecar and registerFormatPattern apply.
+	// Strip g/y: `.test` advances lastIndex on global/sticky regexes, the guard the sidecar and registerFormatPattern also apply.
 	stripped := strings.Map(func(r rune) rune {
 		if r == 'g' || r == 'y' {
 			return -1
@@ -73,14 +63,12 @@ func (engine *hostEngine) GeneratePattern(req GenerateRequest) (GenerateResult, 
 	}
 	result, err := engine.callHook(hook, generateJobFor(req, resolveRunKey(req, engine.sessionKey)))
 	if err != nil {
-		// Degrade like an ungeneratable pattern (declare mockSamples), not
-		// like a missing runtime — the host itself is alive and validating.
+		// Degrade like an ungeneratable pattern, not like a missing runtime: the host itself is alive and validating.
 		return GenerateResult{GenerateError: "host hook failed: " + err.Error()}, nil
 	}
 	return GenerateResult{CompileError: result.CompileError, GenerateError: result.GenerateError, TimedOut: result.TimedOut, Values: result.Values}, nil
 }
 
-// engineHook returns the installed host hook, if any.
 func engineHook() (js.Value, bool) {
 	hook := js.Global().Get(HookGlobalName)
 	if hook.Type() == js.TypeFunction {
@@ -89,8 +77,7 @@ func engineHook() (js.Value, bool) {
 	return js.Value{}, false
 }
 
-// callHook drives one job through the host hook. A throwing hook
-// surfaces as an error (syscall/js panics are recovered), never a crash.
+// callHook drives one job through the host hook; a throwing hook surfaces as an error, never a crash.
 func (engine *hostEngine) callHook(hook js.Value, job sidecarJob) (result sidecarResult, err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -123,8 +110,7 @@ func (engine *hostEngine) callHook(hook js.Value, job sidecarJob) (result sideca
 	return response.Results[0], nil
 }
 
-// compileHostRegExp constructs the host RegExp, converting the thrown
-// SyntaxError (a syscall/js panic) into a CompileError message.
+// compileHostRegExp constructs the host RegExp, turning the thrown SyntaxError (a syscall/js panic) into a CompileError message.
 func compileHostRegExp(source, flags string) (regExp js.Value, compileError string) {
 	defer func() {
 		if recovered := recover(); recovered != nil {

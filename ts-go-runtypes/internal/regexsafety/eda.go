@@ -1,20 +1,12 @@
 package regexsafety
 
-// eda.go answers one question about an automaton: is there a state the
-// machine can return to, having read the same text, along two DIFFERENT
-// routes? That is exactly what makes a backtracking engine take
-// exponential time, because on a string that ends up not matching it
-// tries every one of those routes.
-//
-// The walk runs on the product of the automaton with itself: a state of
-// the product is a PAIR of states, one per route, and a step moves both
-// routes on the same character. A pair where the two halves have drifted
-// apart, sitting on a cycle that passes back through a pair where they
-// agree, is the proof.
+// eda.go answers one question about an automaton: is there a state it can return to, having read the same text, along two DIFFERENT
+// routes? That is what makes a backtracking engine exponential, because on a failing string it tries every one of those routes.
+// The walk runs on the product of the automaton with itself, a PAIR of states stepping on the same character: a pair whose halves
+// have drifted apart, sitting on a cycle back through a pair where they agree, is the proof.
 
 const (
-	// edaStateLimit and edaSCCLimit keep the walk's cost bounded: the
-	// product of a loop with n states has n*n pairs.
+	// edaStateLimit and edaSCCLimit keep the walk's cost bounded: the product of a loop with n states has n*n pairs.
 	edaStateLimit = 1500
 	edaSCCLimit   = 320
 	// edaWorkBudget caps the total pair-transition comparisons.
@@ -29,9 +21,7 @@ type flatMove struct {
 	to     int
 	origin int
 	index  int
-	// dup marks a move whose epsilon prologue itself has two or more
-	// distinct routes. `(a+)+` is exactly this: one character step, two
-	// ways of getting to it, and that alone is the blowup.
+	// dup marks a move whose epsilon prologue itself has two or more distinct routes; `(a+)+` is one step reached two ways, the blowup.
 	dup bool
 }
 
@@ -39,9 +29,8 @@ func sameTransition(left, right flatMove) bool {
 	return left.origin == right.origin && left.index == right.index
 }
 
-// flatten folds every epsilon prologue into the character moves that
-// follow it, counting how many distinct epsilon routes reach each one.
-// Returns false when the automaton is too large to walk.
+// flatten folds every epsilon prologue into the character moves that follow it, counting the distinct epsilon routes reaching each
+// one; false when the automaton is too large to walk.
 func flatten(auto *nfa) ([][]flatMove, bool) {
 	if auto.overflow || len(auto.states) > edaStateLimit {
 		return nil, false
@@ -51,8 +40,7 @@ func flatten(auto *nfa) ([][]flatMove, bool) {
 		return nil, false
 	}
 	flat := make([][]flatMove, len(auto.states))
-	// routes[state] counts the distinct epsilon routes from the current
-	// source, capped at 2: the walk only needs "one" versus "more".
+	// routes[state] counts distinct epsilon routes from the current source, capped at 2: the walk needs only "one" versus "more".
 	routes := make([]int, len(auto.states))
 	touched := make([]int, 0, len(auto.states))
 	for source := range auto.states {
@@ -90,9 +78,8 @@ func flatten(auto *nfa) ([][]flatMove, bool) {
 	return flat, true
 }
 
-// findExponential reports the state a doubled route closes on, and the
-// sub-expression it belongs to. ok is false when nothing was found or
-// the automaton was too large to judge.
+// findExponential reports the sub-expression of the state a doubled route closes on; false when nothing was found or the automaton
+// was too large to judge.
 func findExponential(auto *nfa, harmless map[[2]int]bool) (span [2]int, ok bool) {
 	flat, walkable := flatten(auto)
 	if !walkable {
@@ -120,10 +107,8 @@ func findExponential(auto *nfa, harmless map[[2]int]bool) (span [2]int, ok bool)
 	return span, false
 }
 
-// scanComponent runs the paired walk inside one loop of the automaton.
-// Both routes have to stay inside the loop: a cycle in the product needs
-// a cycle in each half, and every state of a cycle lives in one
-// strongly connected component.
+// scanComponent runs the paired walk inside one loop of the automaton. Both routes stay inside it: a cycle in the product needs a
+// cycle in each half, and every state of a cycle lives in one strongly connected component.
 func scanComponent(component []int, flat [][]flatMove, harmless map[[2]int]bool, auto *nfa, budget *int) (diagonal int, found bool) {
 	size := len(component)
 	position := make(map[int]int, size)
@@ -170,8 +155,7 @@ func scanComponent(component []int, flat [][]flatMove, harmless map[[2]int]bool,
 			if pair/size != pair%size {
 				continue
 			}
-			// A loop nothing can reject after is ambiguous for no one:
-			// keep looking rather than report it.
+			// A loop nothing can reject after is ambiguous for no one: keep looking rather than report it.
 			if harmless[auto.states[component[pair/size]].span] {
 				continue
 			}
@@ -192,9 +176,7 @@ func scanComponent(component []int, flat [][]flatMove, harmless map[[2]int]bool,
 	return 0, false
 }
 
-// stronglyConnected returns Tarjan's strongly connected components of a
-// directed graph given as adjacency lists. Iterative on purpose: the
-// recursion depth would otherwise follow the pattern's length.
+// stronglyConnected is Tarjan's over adjacency lists, iterative on purpose: the recursion depth would follow the pattern's length.
 func stronglyConnected(adjacency [][]int) [][]int {
 	count := len(adjacency)
 	index := make([]int, count)

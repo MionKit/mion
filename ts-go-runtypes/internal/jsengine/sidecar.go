@@ -21,33 +21,24 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/envcompat"
 )
 
-// The committed sidecar bundle, generated from the private
-// @mionjs/go-be-sidecar workspace package by
-// `pnpm miondevx core codegen sidecar` (drift-gated in CI).
+// The committed sidecar bundle, generated from the private @mionjs/go-be-sidecar package by `pnpm miondevx core codegen sidecar` (drift-gated in CI).
 //
 //go:embed sidecar.bundle.mjs
 var sidecarBundle string
 
-// EnvRuntime overrides the JS runtime path when no --js-runtime flag is
-// given. Registered in scripts/lib/env.mjs.
+// EnvRuntime overrides the JS runtime path when no --js-runtime flag is given; registered in scripts/lib/env.mjs.
 const EnvRuntime = "MION_JS_RUNTIME"
 
-// defaultRoundTripTimeout bounds one sidecar request; a hang kills the
-// child and marks the engine dead.
+// defaultRoundTripTimeout bounds one sidecar request; a hang kills the child and marks the engine dead.
 const defaultRoundTripTimeout = 5 * time.Second
 
-// sidecarEngine drives ONE session-long sidecar child over
-// newline-delimited JSON (the same framing the resolver itself speaks to
-// the bundler plugin): lazily spawned on first use, mutex-serialized
-// round-trips, verdicts memoized so watch-mode rebuilds re-ask nothing.
-// Any spawn/timeout/protocol failure is sticky — later calls fail fast
-// and the caller degrades to the missing-runtime diagnostic.
+// sidecarEngine drives ONE session-long child over newline-delimited JSON, spawned on first use, round-trips serialized by the
+// mutex, verdicts memoized so watch-mode rebuilds re-ask nothing. Any spawn, timeout or protocol failure is sticky: later calls
+// fail fast and the caller degrades to the missing-runtime diagnostic.
 type sidecarEngine struct {
 	explicitRuntime string
 	timeout         time.Duration
-	// sessionKey is the per-session random run key unpinned GeneratePattern
-	// requests mix into their seed — rolled once at construction, so pools
-	// stay stable across a session's dispatches and re-roll per build.
+	// sessionKey is rolled once at construction, so unpinned pools stay stable across a session's dispatches and re-roll per build.
 	sessionKey uint32
 
 	mu         sync.Mutex
@@ -61,17 +52,14 @@ type sidecarEngine struct {
 	memo       map[string]memoEntry
 }
 
-// memoEntry caches one job's raw wire result (wire shapes live in
-// wire.go, shared with the WASM transport).
+// memoEntry caches one job's raw wire result (wire shapes live in wire.go, shared with the WASM transport).
 type memoEntry struct {
 	result sidecarResult
 	err    error
 }
 
-// NewSidecar returns the native engine. runtimePath is the --js-runtime
-// value ("" = resolve via MION_JS_RUNTIME, then node, then bun in PATH).
-// Construction never fails: a missing runtime surfaces as an error from
-// TestPattern so pattern-free projects never notice.
+// NewSidecar returns the native engine; runtimePath is the --js-runtime value, "" to resolve it (see resolveRuntime).
+// Construction never fails: a missing runtime surfaces as an error from TestPattern, so pattern-free projects never notice.
 func NewSidecar(runtimePath string) Engine {
 	return &sidecarEngine{explicitRuntime: runtimePath, timeout: defaultRoundTripTimeout, sessionKey: newSessionKey(), memo: make(map[string]memoEntry)}
 }
@@ -89,8 +77,6 @@ func (engine *sidecarEngine) GeneratePattern(req GenerateRequest) (GenerateResul
 	return GenerateResult{CompileError: entry.result.CompileError, GenerateError: entry.result.GenerateError, TimedOut: entry.result.TimedOut, Values: entry.result.Values}, entry.err
 }
 
-// memoizedRoundTrip answers a job from the memo, round-tripping through
-// the child only on the first ask for its key.
 func (engine *sidecarEngine) memoizedRoundTrip(key string, job sidecarJob) memoEntry {
 	engine.mu.Lock()
 	defer engine.mu.Unlock()
@@ -99,18 +85,14 @@ func (engine *sidecarEngine) memoizedRoundTrip(key string, job sidecarJob) memoE
 	}
 	result, err := engine.roundTrip(job)
 	entry := memoEntry{result: result, err: err}
-	// A timed-out verdict describes the host's load at that moment, not the
-	// pattern: never memoize it, so the next ask (a watch-mode rebuild on a
-	// quieter machine) evaluates the pattern afresh instead of replaying the
-	// spike for the rest of the session.
+	// A timed-out verdict describes the host's load at that moment, not the pattern, so the next ask must evaluate it afresh.
 	if result.TimedOut == "" {
 		engine.memo[key] = entry
 	}
 	return entry
 }
 
-// roundTrip sends one single-job request (assigning its wire ID) and
-// reads its response line. Caller holds engine.mu.
+// roundTrip sends one single-job request and reads its response line. Caller holds engine.mu.
 func (engine *sidecarEngine) roundTrip(job sidecarJob) (sidecarResult, error) {
 	if engine.dead != nil {
 		return sidecarResult{}, engine.dead
@@ -151,8 +133,7 @@ func (engine *sidecarEngine) roundTrip(job sidecarJob) (sidecarResult, error) {
 	return result, nil
 }
 
-// readLine reads one response line under the round-trip timeout. On
-// timeout the child is killed so the pending read unblocks and exits.
+// readLine reads one response line under the round-trip timeout; on timeout the child is killed so the pending read unblocks.
 func (engine *sidecarEngine) readLine() ([]byte, error) {
 	type lineRead struct {
 		line []byte
@@ -174,8 +155,7 @@ func (engine *sidecarEngine) readLine() ([]byte, error) {
 	}
 }
 
-// fail marks the engine dead (sticky), tears the child down, and returns
-// the error for the caller to propagate. Caller holds engine.mu.
+// fail marks the engine dead (sticky) and tears the child down. Caller holds engine.mu.
 func (engine *sidecarEngine) fail(err error) error {
 	engine.dead = err
 	if engine.child != nil {
@@ -192,8 +172,7 @@ func (engine *sidecarEngine) fail(err error) error {
 	return err
 }
 
-// start resolves the runtime, materializes the embedded bundle, and
-// spawns the session-long child. Caller holds engine.mu.
+// start spawns the session-long child. Caller holds engine.mu.
 func (engine *sidecarEngine) start() error {
 	engine.started = true
 	runtimePath, err := resolveRuntime(engine.explicitRuntime)
@@ -224,11 +203,8 @@ func (engine *sidecarEngine) start() error {
 	return nil
 }
 
-// resolveRuntime picks the JS runtime: explicit --js-runtime flag, then
-// the MION_JS_RUNTIME env override, then node, then bun from PATH. An
-// explicit or env path is trusted as given — a bad one fails at spawn
-// with a clear message rather than silently running something else
-// (the MION_BIN doctrine).
+// resolveRuntime picks the JS runtime: --js-runtime, then MION_JS_RUNTIME, then node, then bun from PATH.
+// An explicit or env path is trusted as given, so a bad one fails at spawn instead of silently running something else (the MION_BIN doctrine).
 func resolveRuntime(explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
@@ -245,10 +221,8 @@ func resolveRuntime(explicit string) (string, error) {
 	return "", errors.New("no JS runtime found (looked for node, then bun, in PATH) — install one, or point --js-runtime / " + EnvRuntime + " at any node-compatible runtime")
 }
 
-// materializeBundle writes the embedded sidecar to a content-hash-named
-// file under the OS temp dir (reused across runs and processes) and
-// returns its path. Atomic same-directory rename so concurrent resolvers
-// never see a partial file.
+// materializeBundle writes the embedded sidecar to a content-hash-named file under the OS temp dir, reused across runs and processes.
+// The same-directory rename is atomic, so concurrent resolvers never see a partial file.
 func materializeBundle() (string, error) {
 	sum := sha256.Sum256([]byte(sidecarBundle))
 	path := filepath.Join(os.TempDir(), "ts-runtypes-sidecar-"+hex.EncodeToString(sum[:8])+".mjs")

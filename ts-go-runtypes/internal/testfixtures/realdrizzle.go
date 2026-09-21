@@ -1,9 +1,6 @@
-// realdrizzle.go — the REAL @mionjs drizzle packages (package.json + src trees) plus the marker
-// package's SOURCES, keyed as virtual node_modules paths, for suites exercising the drizzle
-// conversion arm. Models the WORKSPACE, not an install: mounted at their `source` condition, so
-// programs using this fixture must pass Conditions: ["source"] (also why the marker rides along
-// as src — under that condition its dist .d.ts overlay would not resolve). A published tarball
-// carries neither; RealMarkerPackage is that shape, under the same "real files, never copies" rule.
+// realdrizzle.go — the REAL @mionjs drizzle packages plus the marker package's SOURCES as virtual node_modules paths.
+// Models the WORKSPACE, not an install: a program using it must pass Conditions: ["source"] (also why the marker rides along as
+// src, its dist .d.ts overlay would not resolve under that condition). RealMarkerPackage is the published-tarball shape.
 package testfixtures
 
 import (
@@ -22,10 +19,7 @@ var (
 	drizzleErr   error
 )
 
-// RealDrizzlePackages returns @mionjs/run-types, @mionjs/drizzle-orm and the
-// @mionjs/drizzle-orm-<dialect>-core packages (pg, mysql, sqlite) as virtual
-// node_modules entries (package.json + src/**/*.ts, test files skipped).
-// Memoized per process.
+// RealDrizzlePackages returns the marker and drizzle packages as virtual node_modules entries, tests skipped; memoized per process.
 func RealDrizzlePackages() (map[string]string, error) {
 	drizzleOnce.Do(func() { drizzleFiles, drizzleErr = readDrizzlePackages() })
 	return drizzleFiles, drizzleErr

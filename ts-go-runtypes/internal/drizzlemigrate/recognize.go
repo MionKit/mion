@@ -1,21 +1,10 @@
-// recognize.go — which declarations become a recorder/drizzle pair, and why.
-//
-// A declaration qualifies when the HEAD of its initializer chain is a migrated
-// authoring call. The head is found by walking the chain inwards, so
-// `pgTable(…).enableRLS()`, `pgSchema('s').table(…)` and
-// `mySchema.table(…)` all resolve to the same question: what does the innermost
-// identifier bind?
-//
-// Everything is keyed by SYMBOL, never by name, because drizzle's own suites
-// shadow the imports on purpose:
-//
-//	const pgTable = pgTableCreator((name) => `prefixed_${name}`);
-//	const users = pgTable('users', { id: serial('id').primaryKey() });
-//
-// Here the second `pgTable` is the local creator, not the import. Resolving the
-// symbol gets that right; matching the text would split the creator itself and
-// then miss the table.
 package drizzlemigrate
+
+// Which declarations become a recorder/drizzle pair: one qualifies when the HEAD of its initializer
+// chain is a migrated authoring call, found by walking the chain inwards, so `pgTable(…).enableRLS()`,
+// `pgSchema('s').table(…)` and `mySchema.table(…)` ask one question. Everything is keyed by SYMBOL,
+// never by name, because drizzle's suites shadow the imports on purpose (`const pgTable =
+// pgTableCreator(fn)`): matching the text would split the creator itself and then miss the table.
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
@@ -23,10 +12,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/tsimports"
 )
 
-// declKinds maps a migrated authoring function onto the binding suffix its
-// declaration gets. Only functions that declare a HANDLE are here: a column
-// builder, a constraint or `sql` produces a value that only ever lives inside
-// one of these, so a declaration headed by one is left alone.
+// declKinds maps a migrated authoring function onto the binding suffix its declaration gets. Only
+// functions that declare a HANDLE are here; anything else produces a value that lives inside one.
 var declKinds = map[string]string{
 	"pgTable":            "table",
 	"mysqlTable":         "table",
@@ -43,27 +30,17 @@ var declKinds = map[string]string{
 	"pgSequence":         "sequence",
 	"pgRole":             "role",
 	"pgPolicy":           "policy",
-	// An INDEX is the one entry drizzle's QUERY side takes directly: mysql's
-	// `.useIndex(idx)` wants drizzle's own IndexBuilder while the table's
-	// extraConfig wants the recorder. Splitting it gives the file both, the same
-	// way splitting a table does — and without it every index-hint test has to be
-	// skipped.
+	// An INDEX is the one entry drizzle's QUERY side takes directly: mysql's `.useIndex(idx)` wants
+	// drizzle's own IndexBuilder while extraConfig wants the recorder, so splitting gives the file both.
 	"index":       "index",
 	"uniqueIndex": "index",
 }
 
-// notDeclarable are the migrated exports that produce a value which only ever
-// lives INSIDE one of the declarations above — a constraint handed to an
-// extraConfig callback, a column builder, `sql`. A declaration headed by one is
-// left exactly as written.
-//
-// Together with declKinds and tableCreators this classifies EVERY migrated
-// export, which is what TestEveryMigratedExportIsClassified holds the arm to: a
-// drizzle upgrade that adds an export lands here as an unclassified name and
-// fails that test, rather than silently doing nothing. Which bucket a new
-// export belongs in is a judgement (an index splits so `.useIndex(idx)` can
-// reach drizzle's builder; a foreign key never needs to), so it stays written
-// down rather than derived from the manifests' `handles`.
+// notDeclarable are the migrated exports producing a value that only lives INSIDE one of the
+// declarations above, so a declaration headed by one is left exactly as written. With declKinds and
+// tableCreators this classifies EVERY migrated export, which TestEveryMigratedExportIsClassified holds
+// the arm to: an export a drizzle upgrade adds fails that test rather than silently doing nothing.
+// Which bucket a new export belongs in is a judgement, so it stays written down rather than derived.
 var notDeclarable = map[string]string{
 	"check":         "a constraint, only valid inside an extraConfig callback",
 	"foreignKey":    "a constraint, only valid inside an extraConfig callback",
@@ -74,17 +51,14 @@ var notDeclarable = map[string]string{
 	"tableFromType": "the type road's bridge; a migrated schema never calls it",
 }
 
-// tableCreators build a table FACTORY, not a table: `const t = pgTableCreator(fn)`
-// binds a function whose calls declare recorder tables. The creator declaration
-// is never split (toDrizzle takes a table, not a factory); its calls are.
+// tableCreators build a table FACTORY, not a table. The creator declaration is never split (toDrizzle
+// takes a table, not a factory); its calls are.
 var tableCreators = map[string]bool{"pgTableCreator": true, "mysqlTableCreator": true, "sqliteTableCreator": true}
 
-// handleMethods are the methods a recorder handle exposes that produce another
-// declarable handle (`mySchema.table('users', …)`), with the kind each yields.
+// handleMethods are the handle methods producing another declarable handle, with the kind each yields.
 var handleMethods = map[string]string{"table": "table", "view": "view", "materializedView": "view"}
 
-// chainLink is one call in an initializer's chain: the method or function name
-// invoked and how many arguments it took.
+// chainLink is one call in an initializer's chain: the name invoked and how many arguments it took.
 type chainLink struct {
 	name string
 	argc int
@@ -94,15 +68,12 @@ type chainLink struct {
 // calls applied to it, innermost first.
 type callChain struct {
 	head *ast.Node
-	// headIsCallee marks that the innermost call's callee IS head (a function
-	// call), as opposed to head being a value the chain reads from
-	// (`mySchema.table(…)`).
+	// headIsCallee marks that the innermost call's callee IS head, not a value the chain reads from.
 	headIsCallee bool
 	links        []chainLink
 }
 
-// decompose walks an initializer inwards. Returns nil for any shape that is not
-// an identifier with calls applied — a literal, an object, a `new`, an await.
+// decompose walks an initializer inwards; nil for a shape that is not an identifier with calls applied.
 func decompose(initializer *ast.Node) *callChain {
 	chain := &callChain{}
 	node := initializer
@@ -159,8 +130,7 @@ const (
 	originNamespace        // a migrated export reached through `import * as X`
 )
 
-// headOrigin classifies a chain's head. fn is the migrated export name for an
-// import origin, empty otherwise.
+// headOrigin classifies a chain's head; fn is the migrated export name for an import origin, else empty.
 func (file *fileRun) headOrigin(chain *callChain) (origin, string, string) {
 	symbol := file.checker.GetSymbolAtLocation(chain.head)
 	if symbol != nil {
@@ -179,9 +149,7 @@ func (file *fileRun) headOrigin(chain *callChain) (origin, string, string) {
 	if rule == nil {
 		return originNone, "", ""
 	}
-	// A NAMESPACE head reads its function off the chain instead of from its own
-	// name: `Driz.pgTable(...)` is the same declaration as `pgTable(...)`, just
-	// spelled through the module object.
+	// A NAMESPACE head reads its function off the chain: `Driz.pgTable(...)` declares what `pgTable(...)` does.
 	if tsimports.IsNamespaceImport(file.checker, chain.head) {
 		if len(chain.links) == 0 || !rule.Migrates(chain.links[0].name) {
 			return originNone, "", ""
@@ -195,16 +163,14 @@ func (file *fileRun) headOrigin(chain *callChain) (origin, string, string) {
 	return originImport, imported, rule.Dialect
 }
 
-// classify decides what one variable declaration becomes. It returns the kind
-// and the arity of the call that named the handle (the view-arity rule reads
-// it), or a diagnostic when the shape is recognisably ours but unsupported.
+// classify returns the kind and the arity of the call that named the handle (the view-arity rule reads
+// the arity), or a diagnostic when the shape is recognisably ours but unsupported.
 func (file *fileRun) classify(chain *callChain, decl *ast.Node) (kind string, argc int, creator bool, diag *Diagnostic) {
 	source, fn, _ := file.headOrigin(chain)
 	if source == originNone {
 		return "", 0, false, nil
 	}
-	// A method later in the chain wins: `pgSchema('s').table('t', {…})` declares
-	// a table even though its head declares a schema.
+	// A method later in the chain wins: `pgSchema('s').table('t', {…})` declares a table, not a schema.
 	for index := len(chain.links) - 1; index >= 0; index-- {
 		link := chain.links[index]
 		if index == 0 && chain.headIsCallee {
@@ -215,8 +181,7 @@ func (file *fileRun) classify(chain *callChain, decl *ast.Node) (kind string, ar
 		}
 	}
 	if source == originNamespace {
-		// `Driz.pgTable('users', …)`: the chain's first link IS the call, so the
-		// method scan above must not read it as a handle method.
+		// The chain's first link IS the call, so the method scan above must not read it as a handle method.
 		handleKind, ok := declKinds[fn]
 		if !ok {
 			return "", 0, false, nil
@@ -238,8 +203,7 @@ func (file *fileRun) classify(chain *callChain, decl *ast.Node) (kind string, ar
 		return "", 0, false, nil
 	}
 	if tableCreators[fn] {
-		// Only the bare factory binding registers; anything applied to it
-		// (`pgTableCreator(fn)('users', …)`) is a table we cannot name cleanly.
+		// Only the bare factory binding registers: `pgTableCreator(fn)('users', …)` is a table we cannot name.
 		if len(chain.links) != 1 {
 			return "", 0, false, file.refuse(CodeUnsupportedHead, decl,
 				"a table factory used inline has no name to split; bind `"+fn+"(...)` to a const first")
@@ -248,9 +212,7 @@ func (file *fileRun) classify(chain *callChain, decl *ast.Node) (kind string, ar
 	}
 	handleKind, ok := declKinds[fn]
 	if !ok {
-		// A migrated helper (column builder, constraint, `sql`) bound to a
-		// const. It stays as written: the binding already holds a recorder and
-		// is only ever read inside one of the handles above.
+		// A migrated helper bound to a const stays as written: the binding already holds a recorder.
 		return "", 0, false, nil
 	}
 	return handleKind, chain.links[0].argc, false, nil
@@ -262,19 +224,16 @@ type splitDecl struct {
 	recorder string
 	kind     string
 	dialect  string
-	// nameNode is the declared identifier (edit A renames it); stmt is the whole
-	// variable statement (edit B inserts the drizzle half after it).
+	// nameNode is renamed by edit A; edit B inserts the drizzle half after stmt, the variable statement.
 	nameNode *ast.Node
 	stmt     *ast.Node
-	// initStart/initEnd bound the initializer, the region where references flip
-	// to their recorder binding.
+	// initStart/initEnd bound the initializer, where references flip to their recorder binding.
 	initStart int
 	initEnd   int
 }
 
-// singleDeclarationStatement returns the variable statement a declaration is the
-// ONLY declarator of, or nil. A multi-declarator statement has no clean place to
-// insert the drizzle half, and drizzle's suites never write one.
+// singleDeclarationStatement returns the variable statement a declaration is the ONLY declarator of.
+// A multi-declarator one has no clean place for the drizzle half, and drizzle's suites never write one.
 func singleDeclarationStatement(decl *ast.Node) *ast.Node {
 	list := decl.Parent
 	if list == nil || !ast.IsVariableDeclarationList(list) {
@@ -291,9 +250,8 @@ func singleDeclarationStatement(decl *ast.Node) *ast.Node {
 	return statement
 }
 
-// eachVariableDeclaration visits every variable declaration in the file, in
-// source order — top level AND inside test bodies, which is where 66 of
-// pg-common.ts's 81 tables live.
+// eachVariableDeclaration visits every variable declaration in source order, top level AND inside test
+// bodies, which is where 66 of pg-common.ts's 81 tables live.
 func eachVariableDeclaration(sourceFile *ast.SourceFile, visit func(decl *ast.Node)) {
 	var walk func(node *ast.Node) bool
 	walk = func(node *ast.Node) bool {
@@ -309,12 +267,9 @@ func eachVariableDeclaration(sourceFile *ast.SourceFile, visit func(decl *ast.No
 	sourceFile.AsNode().ForEachChild(walk)
 }
 
-// isBarrierCall reports whether a call stops the recorder rewrite from reaching
-// into its arguments: a call to an identifier that is NOT one of our migrated
-// helpers. `eq(users.cityId, 1)` inside a view's sql is the case that matters —
-// drizzle's operator needs drizzle's column, so the reference must stay drizzle.
-// Method calls (a property-access callee) are transparent: those are the
-// recorder's own modifier chains.
+// isBarrierCall reports whether a call stops the recorder rewrite reaching into its arguments: a call
+// to an identifier that is NOT one of our migrated helpers, so `eq(users.cityId, 1)` inside a view's
+// sql keeps drizzle's column. Method calls are transparent: those are the recorder's modifier chains.
 func (file *fileRun) isBarrierCall(node *ast.Node) bool {
 	if !ast.IsCallExpression(node) {
 		return false
@@ -325,21 +280,18 @@ func (file *fileRun) isBarrierCall(node *ast.Node) bool {
 	}
 	module := tsimports.ModuleOfImport(file.checker, callee)
 	if module == "" {
-		// A local function (a test helper, a table factory) is transparent: it
-		// has no opinion about which half its arguments should bind.
+		// A local function is transparent: it has no opinion about which half its arguments bind.
 		return false
 	}
 	rule := file.importMap.RuleFor(module)
 	if rule == nil {
-		// An import from a module we do not map (drizzle-orm/neon's crudPolicy,
-		// a driver) — treat as drizzle's, so its arguments stay drizzle.
+		// A module we do not map (a driver, drizzle-orm/neon) is drizzle's, so its arguments stay drizzle.
 		return true
 	}
 	return !rule.Migrates(tsimports.ImportedNameOf(file.checker, callee))
 }
 
-// isPropertyName reports whether an identifier is the member half of a property
-// access (`users.id`), which never binds anything.
+// isPropertyName reports whether an identifier is the member half of a property access, which binds nothing.
 func isPropertyName(node *ast.Node) bool {
 	parent := node.Parent
 	if parent == nil {
@@ -363,8 +315,7 @@ func declaredSymbol(typeChecker *checker.Checker, decl *ast.Node) *ast.Symbol {
 	return typeChecker.GetSymbolAtLocation(name)
 }
 
-// IsClassified reports whether an export name has a decision recorded in this
-// file. Exported for the arm's own vocabulary gate.
+// IsClassified reports whether an export name has a decision here; exported for the vocabulary gate.
 func IsClassified(name string) bool {
 	if _, ok := declKinds[name]; ok {
 		return true

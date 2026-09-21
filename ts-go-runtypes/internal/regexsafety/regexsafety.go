@@ -1,26 +1,10 @@
-// Package regexsafety answers one build-time question about a user's
-// `pattern` format param: can this regular expression be made to take
-// exponential time?
-//
-// A pattern format ends up as a `new RegExp(...)` inside the generated
-// validator and runs on every value that validator sees. JavaScript
-// matches with a backtracking engine, so a pattern like `(a+)+$` tries
-// every way of splitting the input before it gives up, and a few dozen
-// characters are enough to hang the process. A type author who ships one
-// has shipped a denial-of-service hole, and no amount of input validation
-// downstream helps, because the validator IS the thing that hangs.
-//
-// The check is static and pure Go, so it runs once per pattern on every
-// host. That matters: the other guard, the sample time budget in the
-// pattern sidecar, needs the host to be able to interrupt a running
-// match, and only V8 can. Under bun it never fires.
-//
-// The check is deliberately one-sided. It reports a pattern only when it
-// can point at two different routes through one loop, which is the thing
-// that actually causes the blowup. Constructs it cannot model (a
-// backreference, a Unicode property this build does not know) are kept
-// distinct rather than assumed to overlap, so an unmodelled pattern comes
-// back clean instead of failing someone's build on a guess.
+// Package regexsafety answers one build-time question about a user's `pattern` format param: can this regular expression be made to
+// take exponential time? The pattern becomes a `new RegExp(...)` inside the generated validator, JavaScript backtracks, and a pattern
+// like `(a+)+$` hangs the process on a few dozen characters. Downstream input validation cannot help, the validator IS what hangs.
+// The check is static and pure Go so it runs on every host: the other guard, the sidecar's sample time budget, needs a host that can
+// interrupt a running match, and only V8 can, so under bun it never fires.
+// It is deliberately one-sided, reporting only when it can point at two routes through one loop. A construct it cannot model (a
+// backreference, an unknown Unicode property) is kept distinct rather than assumed to overlap, so it never fails a build on a guess.
 package regexsafety
 
 import "strings"
@@ -29,25 +13,20 @@ import "strings"
 type Finding struct {
 	// Reason is the user-facing phrase naming the shape that was found.
 	Reason string
-	// Excerpt is the sub-expression the finding is about, quoted from
-	// the pattern source.
+	// Excerpt is the sub-expression the finding is about, quoted from the pattern source.
 	Excerpt string
 }
 
-// excerptLimit keeps a finding's quoted sub-expression readable: the URI
-// and IRI patterns are kilobytes long.
+// excerptLimit keeps a finding's quoted sub-expression readable: the URI and IRI patterns are kilobytes long.
 const excerptLimit = 60
 
-// Check reports whether source can be made to backtrack exponentially.
-// ok is true when a finding was made; a pattern this package cannot
-// parse or is too large to walk comes back with ok false, and the real
-// regex engine keeps its own say over whether the pattern is even valid.
+// Check reports whether source can be made to backtrack exponentially; a pattern this package cannot parse or is too large to walk
+// comes back false, and the real regex engine keeps its own say over whether the pattern is even valid.
 func Check(source, flags string) (finding Finding, ok bool) {
 	if source == "" {
 		return finding, false
 	}
-	// The `v` flag turns `[...]` into set notation with nesting and
-	// difference operators, which this parser does not model.
+	// The `v` flag turns `[...]` into set notation with nesting and difference operators, which this parser does not model.
 	if strings.ContainsRune(flags, 'v') {
 		return finding, false
 	}
@@ -56,14 +35,10 @@ func Check(source, flags string) (finding Finding, ok bool) {
 		return finding, false
 	}
 	runes := []rune(source)
-	// Loops nothing can ever reject after are set aside first: their
-	// ambiguity is real but unreachable, because the first greedy attempt
-	// already succeeds. Reporting those is how a check earns a reputation
-	// for crying wolf.
+	// A loop nothing can reject after has real but unreachable ambiguity, the first greedy attempt already succeeds; reporting those
+	// is how a check earns a reputation for crying wolf.
 	harmless := harmlessLoops(root)
-	// The exact rule next: a loop whose body can match nothing turns
-	// forever on the spot, and naming it that way is clearer than
-	// pointing at a route through an automaton.
+	// A loop whose body can match nothing turns forever on the spot, and saying so beats pointing at a route through an automaton.
 	if span, found := findEmptyLoop(root, harmless); found {
 		return Finding{
 			Reason:  "a repeated group that can match the empty string, so the match can loop without consuming input",
@@ -79,11 +54,8 @@ func Check(source, flags string) (finding Finding, ok bool) {
 			}, true
 		}
 	}
-	// Second pass, for the counted repeat. `^(.*?,){11}P` cannot loop
-	// forever, so the walk above rightly finds nothing, and it is still
-	// the textbook slow pattern: each of the eleven turns can split the
-	// same text more than one way, and the work grows with the eleventh
-	// power of the input.
+	// Second pass, for the counted repeat: `^(.*?,){11}P` cannot loop forever, so the walk above rightly finds nothing, yet each of
+	// the eleven turns can split the same text more than one way and the work grows with the eleventh power of the input.
 	for _, tree := range trees {
 		if span, found := findExponential(buildNFAWith(tree, countedRepeatFloor), harmless); found {
 			return Finding{
@@ -95,10 +67,8 @@ func Check(source, flags string) (finding Finding, ok bool) {
 	return finding, false
 }
 
-// countedRepeatFloor is how many turns a counted repeat needs before its
-// body's ambiguity is worth reporting. Repeating an ambiguous body n
-// times costs the nth power of the input, so a couple of turns is a
-// rounding error and a dozen is a denial of service.
+// countedRepeatFloor is how many turns a counted repeat needs before its body's ambiguity is worth reporting: the cost is the nth
+// power of the input, so a couple of turns is a rounding error and a dozen is a denial of service.
 const countedRepeatFloor = 4
 
 func lookBodies(looks []node) []node {
@@ -111,8 +81,7 @@ func lookBodies(looks []node) []node {
 	return bodies
 }
 
-// findEmptyLoop returns the span of an unbounded repeat whose body
-// matches the empty string, skipping the ones nothing can reject after.
+// findEmptyLoop returns the span of an unbounded repeat whose body matches the empty string, skipping the harmless ones.
 func findEmptyLoop(n node, harmless map[[2]int]bool) (span [2]int, found bool) {
 	switch typed := n.(type) {
 	case *concatNode:
@@ -141,20 +110,16 @@ func findEmptyLoop(n node, harmless map[[2]int]bool) (span [2]int, found bool) {
 	return span, false
 }
 
-// harmlessLoops collects the unbounded repeats that nothing after them
-// can ever reject. Such a loop may well be ambiguous, but the engine
-// never has a reason to explore the other routes: the first attempt runs
-// to a match. The `\/\*(?:[^*]+|\*(?!\/))*(\*\/)?` comment scanners
-// that turn up all over real code are this shape, and reporting them
-// would be the false positive that makes a check like this unusable.
+// harmlessLoops collects the unbounded repeats nothing after them can ever reject: ambiguous or not, the engine never explores the
+// other routes, because the first attempt runs to a match. The `\/\*(?:[^*]+|\*(?!\/))*(\*\/)?` comment scanners all over real
+// code are this shape, and reporting them is the false positive that makes a check like this unusable.
 func harmlessLoops(root node) map[[2]int]bool {
 	out := map[[2]int]bool{}
 	collectHarmless(root, nil, out)
 	return out
 }
 
-// collectHarmless walks the tree carrying `after`: everything the match
-// still has to satisfy once this node is done, outermost last.
+// collectHarmless walks the tree carrying `after`: everything the match still has to satisfy once this node is done, outermost last.
 func collectHarmless(n node, after []node, out map[[2]int]bool) {
 	switch typed := n.(type) {
 	case *concatNode:
@@ -169,8 +134,7 @@ func collectHarmless(n node, after []node, out map[[2]int]bool) {
 			collectHarmless(option, after, out)
 		}
 	case *lookNode:
-		// A lookaround is checked as its own pattern, and nothing inside
-		// it is followed by what comes after it.
+		// A lookaround is checked as its own pattern: nothing inside it is followed by what comes after it.
 		collectHarmless(typed.body, nil, out)
 	case *repeatNode:
 		_, bodyIsFixedLength := fixedLength(typed.body)

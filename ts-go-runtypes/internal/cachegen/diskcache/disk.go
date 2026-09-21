@@ -8,36 +8,24 @@ import (
 	"path/filepath"
 )
 
-// HashLookup is the two-way mapping the disk layer needs to verify a
-// cached entry's child refs across builds. Implemented by
-// runtype.Cache; defined here so typefns can depend on the contract
-// without pulling in the runtype package.
+// HashLookup is the two-way mapping needed to verify a cached entry's child refs across builds. Implemented by runtype.Cache,
+// declared here so typefns can depend on the contract without pulling in the runtype package.
 type HashLookup interface {
-	// StructuralForHash returns the structural id behind a short hash,
-	// or "" when the hash is not interned in the current build.
+	// StructuralForHash returns the structural id behind a short hash, or "" when this build has not interned it.
 	StructuralForHash(hash string) string
-	// HashForStructural returns the current short hash for a
-	// structural id, or "" when the structural id is not interned in
-	// the current build.
+	// HashForStructural returns the current short hash for a structural id, or "" when this build has not interned it.
 	HashForStructural(structural string) string
 }
 
-// Store reads/writes per-(typeID, fnTag) RT cache files under a single
-// build-options-fingerprinted directory. Construct one per resolver
-// session; nil-safe — methods on a nil receiver no-op (so the renderer
-// can treat "no cache wired" and "cache miss" with the same code path).
+// Store reads and writes the cache files under one build-options-fingerprinted directory; construct one per resolver session.
+// Methods on a nil receiver no-op, so the renderer treats "no cache wired" and "cache miss" with one code path.
 type Store struct {
-	// root is the base directory for this fingerprint, e.g.
-	// <projectRoot>/node_modules/.cache/mion/<optsFingerprint>.
-	// All reads / writes are under here.
+	// root is this fingerprint's base directory; every read and write stays under it.
 	root string
 }
 
-// New returns a Store rooted at <baseDir>/<fingerprint>. baseDir is
-// typically <projectRoot>/node_modules/.cache/mion; passing
-// "" returns nil (no caching). The directory is created lazily on the
-// first write — read-only sessions never touch the filesystem if the
-// cache is cold.
+// New returns a Store rooted at <baseDir>/<fingerprint>, or nil for an empty argument (no caching).
+// The directory is created lazily on the first write, so a cold read-only session never touches the filesystem.
 func New(baseDir string, fingerprint string) *Store {
 	if baseDir == "" || fingerprint == "" {
 		return nil
@@ -45,11 +33,8 @@ func New(baseDir string, fingerprint string) *Store {
 	return &Store{root: filepath.Join(baseDir, fingerprint)}
 }
 
-// ReadRT loads the cached entry for (typeID, fnTag). Returns (nil,
-// false, nil) for a miss (file absent, malformed, wrong format, or
-// stale header). Real I/O errors other than ENOENT are surfaced so a
-// broken cache directory fails loudly rather than silently disabling
-// itself.
+// ReadRT loads the cached entry for (typeID, fnTag); a file that is absent, malformed, of another format or stale-headered is a miss.
+// I/O errors other than ENOENT are surfaced, so a broken cache directory fails loudly instead of silently disabling itself.
 func (s *Store) ReadRT(typeID, fnTag string) (*RTEntry, bool, error) {
 	if s == nil || typeID == "" || fnTag == "" {
 		return nil, false, nil
@@ -64,9 +49,7 @@ func (s *Store) ReadRT(typeID, fnTag string) (*RTEntry, bool, error) {
 	}
 	var entry RTEntry
 	if err := json.Unmarshal(raw, &entry); err != nil {
-		// Malformed file → treat as miss. The writer's temp-and-rename
-		// makes a partial file unlikely, but any leftover from a crashed
-		// older binary shouldn't bring the build down.
+		// A leftover from a crashed older binary must not bring the build down.
 		return nil, false, nil
 	}
 	if entry.Format != FormatVersion {
@@ -75,10 +58,8 @@ func (s *Store) ReadRT(typeID, fnTag string) (*RTEntry, bool, error) {
 	return &entry, true, nil
 }
 
-// WriteRT serialises entry to <root>/<typeID>/<fnTag>.json atomically:
-// write to a sibling tempfile, fsync, rename into place. The rename
-// is atomic on POSIX so a concurrent reader either sees the previous
-// file or the new one, never a torn write.
+// WriteRT serialises entry to <root>/<typeID>/<fnTag>.json through a sibling tempfile and a rename, which is atomic on POSIX,
+// so a concurrent reader sees either the previous file or the new one, never a torn write.
 func (s *Store) WriteRT(typeID, fnTag string, entry RTEntry) error {
 	if s == nil || typeID == "" || fnTag == "" {
 		return nil
@@ -116,9 +97,7 @@ func (s *Store) WriteRT(typeID, fnTag string, entry RTEntry) error {
 	return nil
 }
 
-// entryPath builds the on-disk path for a given (typeID, fnTag) pair.
-// Kept private — every cross-package caller goes through ReadRT /
-// WriteRT so the layout stays a disk-package internal detail.
+// entryPath stays private: every cross-package caller goes through ReadRT / WriteRT, so the layout is this package's detail.
 func (s *Store) entryPath(typeID, fnTag string) string {
 	return filepath.Join(s.root, typeID, fnTag+".json")
 }

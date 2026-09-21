@@ -8,18 +8,15 @@ import (
 	"time"
 )
 
-// Wire shapes for the sidecar's newline-delimited JSON protocol, shared
-// by the native subprocess transport (sidecar.go) and the WASM host hook
-// transport (wasm.go) so the two can never drift. Field names follow the
-// JSON tags per house style.
+// Wire shapes for the sidecar's newline-delimited JSON protocol, shared by the native subprocess transport (sidecar.go)
+// and the WASM host hook transport (wasm.go), so the two can never drift.
 type sidecarJob struct {
 	ID      int      `json:"id"`
 	Op      string   `json:"op"`
 	Source  string   `json:"source"`
 	Flags   string   `json:"flags"`
 	Samples []string `json:"samples"`
-	// generate-op fields; omitted on validate jobs so their wire shape
-	// stays byte-identical to the pre-generate protocol.
+	// generate-op fields, omitted on validate jobs so their wire shape stays byte-identical to the pre-generate protocol.
 	Count       int    `json:"count,omitempty"`
 	Seed        uint32 `json:"seed,omitempty"`
 	MaxAttempts int    `json:"maxAttempts,omitempty"`
@@ -43,12 +40,8 @@ type sidecarResponse struct {
 	Error   string          `json:"error"`
 }
 
-// generateSeed derives the per-pattern PRNG seed the sidecar's seeded
-// stream starts from: FNV-1a/32 over runKey\x00source\x00flags\x00count.
-// The pattern content keeps distinct patterns on distinct streams; the run
-// key decides reproducibility — a key pinned from a literal mock.seed makes
-// the pool identical on every machine and build, while an engine's random
-// per-session key re-rolls pools on every fresh build.
+// generateSeed is FNV-1a/32 over runKey\x00source\x00flags\x00count: the pattern content keeps distinct patterns on distinct streams,
+// and the run key decides reproducibility (a pinned mock.seed key repeats, the random per-session key re-rolls).
 func generateSeed(runKey uint32, source, flags string, count int) uint32 {
 	hash := fnv.New32a()
 	hash.Write([]byte(strconv.FormatUint(uint64(runKey), 10)))
@@ -61,10 +54,8 @@ func generateSeed(runKey uint32, source, flags string, count int) uint32 {
 	return hash.Sum32()
 }
 
-// SeedKeyFromStrings folds a sorted, deduplicated list of literal seed
-// texts (the mock.seed hints of every call site demanding a node) into the
-// run key GeneratePattern pins. One site, one seed → stable key; several
-// distinct seeds sharing a node mix into one still-deterministic key.
+// SeedKeyFromStrings folds the sorted, deduplicated mock.seed texts of every call site demanding a node into the run key
+// GeneratePattern pins; several distinct seeds sharing one node mix into a single still-deterministic key.
 func SeedKeyFromStrings(seeds []string) uint32 {
 	hash := fnv.New32a()
 	for _, seed := range seeds {
@@ -74,10 +65,8 @@ func SeedKeyFromStrings(seeds []string) uint32 {
 	return hash.Sum32()
 }
 
-// newSessionKey rolls the engine's per-session random run key — the
-// "no seed anywhere" default that makes unpinned pools differ on every
-// fresh build. crypto/rand works native and under js/wasm
-// (crypto.getRandomValues); the clock fallback covers exotic hosts.
+// newSessionKey rolls the per-session random run key, the "no seed anywhere" default that makes unpinned pools differ per build.
+// crypto/rand works native and under js/wasm (crypto.getRandomValues); the clock fallback covers exotic hosts.
 func newSessionKey() uint32 {
 	var buf [4]byte
 	if _, err := cryptorand.Read(buf[:]); err == nil {
@@ -86,9 +75,7 @@ func newSessionKey() uint32 {
 	return uint32(time.Now().UnixNano())
 }
 
-// generateBudget clamps the knobs and returns the effective (count,
-// maxAttempts) pair: the whole retry budget is count × retries draws,
-// floored so even degenerate configs allow one draw per wanted sample.
+// generateBudget floors the knobs at one, so even a degenerate config allows one draw per wanted sample (budget = count × retries).
 func generateBudget(count, retries int) (int, int) {
 	if count < 1 {
 		count = 1
@@ -99,9 +86,7 @@ func generateBudget(count, retries int) (int, int) {
 	return count, count * retries
 }
 
-// generateJobFor builds the one true generate-op wire job (ID assigned by
-// the transport) for a request under the resolved run key: both transports
-// call this, so seed and budget can never be computed two different ways.
+// generateJobFor is the one generate-op job builder both transports call, so seed and budget can never be computed two different ways.
 func generateJobFor(req GenerateRequest, runKey uint32) sidecarJob {
 	count, maxAttempts := generateBudget(req.Count, req.Retries)
 	return sidecarJob{
@@ -116,8 +101,6 @@ func generateJobFor(req GenerateRequest, runKey uint32) sidecarJob {
 	}
 }
 
-// resolveRunKey picks the run key for a request: the pinned SeedKey when
-// present, else the engine's per-session random key.
 func resolveRunKey(req GenerateRequest, sessionKey uint32) uint32 {
 	if req.SeedKey != nil {
 		return *req.SeedKey

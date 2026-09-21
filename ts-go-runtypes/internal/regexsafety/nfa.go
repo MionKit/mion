@@ -1,11 +1,8 @@
 package regexsafety
 
-// nfa.go builds the automaton the ambiguity walk runs on: a Thompson
-// construction with epsilon transitions kept, because the blowup this
-// package hunts for lives in the epsilon paths. `(a+)+` and `a+` accept
-// the same language and differ only in how many ways the automaton can
-// spell one string, so an automaton with its epsilon steps closed away
-// cannot tell them apart.
+// nfa.go builds the automaton the ambiguity walk runs on: a Thompson construction with its epsilon transitions KEPT, because the
+// blowup lives in the epsilon paths. `(a+)+` and `a+` accept the same language and differ only in how many ways the automaton can
+// spell one string, which an epsilon-closed automaton cannot tell apart.
 
 type nfaMove struct {
 	set *charSet
@@ -15,8 +12,7 @@ type nfaMove struct {
 type nfaState struct {
 	eps   []int
 	moves []nfaMove
-	// span is the sub-expression this state was built from, innermost
-	// first, so a finding can quote the loop it is about.
+	// span is the sub-expression this state was built from, innermost first, so a finding can quote the loop it is about.
 	span [2]int
 }
 
@@ -27,21 +23,15 @@ type nfa struct {
 	overflow bool
 }
 
-// nfaStateLimit caps construction. A pattern past it gets the exact
-// nullable-loop rule only: no diagnostic is invented from a walk that
-// did not run.
+// nfaStateLimit caps construction; past it only the nullable-loop rule applies, so no diagnostic is invented from a walk that did not run.
 const nfaStateLimit = 4000
 
 type nfaBuilder struct {
 	auto *nfa
 	span [2]int
-	// loopBoundedFrom, when non-zero, models every bounded repeat of at
-	// least that many turns as an OPEN loop. A bounded repeat cannot blow
-	// up exponentially, which is why the normal build spells it out, but
-	// `^(.*?,){11}P` shows that repeating an ambiguous body eleven times
-	// is its own kind of catastrophe: the work grows with the eleventh
-	// power of the input. Modelling it as a loop is how the same walk
-	// finds it.
+	// loopBoundedFrom, when non-zero, models every bounded repeat of at least that many turns as an OPEN loop. A bounded repeat cannot
+	// blow up exponentially, hence the spelled-out normal build, but `^(.*?,){11}P` costs the eleventh power of the input, and modelling
+	// it as a loop is how the same walk finds it.
 	loopBoundedFrom int
 }
 
@@ -60,8 +50,7 @@ func buildNFAWith(root node, loopBoundedFrom int) *nfa {
 func (b *nfaBuilder) newState() int {
 	if len(b.auto.states) >= nfaStateLimit {
 		b.auto.overflow = true
-		// Keep building into one shared state: the caller checks
-		// overflow and throws the automaton away.
+		// Keep building into one shared state: the caller checks overflow and throws the automaton away.
 		if len(b.auto.states) > 0 {
 			return len(b.auto.states) - 1
 		}
@@ -89,18 +78,13 @@ func (b *nfaBuilder) build(n node) (start, end int) {
 	}
 	switch typed := n.(type) {
 	case *emptyNode, *lookNode:
-		// Zero width: consumes nothing, so it is a plain epsilon step.
-		// A lookaround's own body is checked separately, as its own
-		// pattern, by Check.
+		// Zero width, so a plain epsilon step; a lookaround's own body is checked separately, as its own pattern, by Check.
 		return b.buildSkip()
 	case *anchorNode:
 		state := b.newState()
 		exit := b.newState()
-		// A blocking anchor pins an end of the input, so nothing follows
-		// it here: leaving the two states unjoined is what stops a route
-		// through `^` or `$` from being walked as part of a loop. The
-		// walk reads every state, reachable from the start or not, so
-		// cutting the pattern in two costs it nothing.
+		// A blocking anchor pins an end of the input, so leaving the two states unjoined stops a route through `^` or `$` being walked
+		// as part of a loop. The walk reads every state, reachable or not, so cutting the pattern in two costs it nothing.
 		if !typed.blocking {
 			b.addEps(state, exit)
 		}
@@ -154,9 +138,8 @@ func (b *nfaBuilder) buildRepeat(repeat *repeatNode) (start, end int) {
 		b.addEps(bodyEnd, exit)
 		return bodyStart, exit
 	}
-	// The mandatory copies are spelled out: an exact count is what makes
-	// `%[0-9A-Fa-f]{2}` unambiguous, and collapsing it would invent an
-	// ambiguity the pattern does not have.
+	// The mandatory copies are spelled out: the exact count is what makes `%[0-9A-Fa-f]{2}` unambiguous, and collapsing it would
+	// invent an ambiguity the pattern does not have.
 	copies := repeat.min
 	limit := exactCopyLimit
 	if repeat.max == unbounded {
@@ -188,15 +171,11 @@ func (b *nfaBuilder) buildRepeat(repeat *repeatNode) (start, end int) {
 	case repeat.max == unbounded:
 		tailStart, tailEnd = b.buildLoop(repeat.body)
 	case optional <= boundedExpandLimit:
-		// A bounded repeat is spelled out as NESTED optionals, `(X(X)?)?`
-		// rather than `X?X?`, so that one X still has exactly one way to
-		// match. Getting this right is what keeps the domain and hostname
-		// patterns, whose labels are `{0,61}`, out of the report.
+		// NESTED optionals, `(X(X)?)?` rather than `X?X?`, so one X still has exactly one way to match; this is what keeps the domain
+		// and hostname patterns, whose labels are `{0,61}`, out of the report.
 		tailStart, tailEnd = b.buildNestedOptional(repeat.body, optional)
 	default:
-		// A very wide bound is modelled as an open loop. It over-states
-		// what the pattern accepts, and a loop is the shape a wide bound
-		// backtracks like anyway.
+		// A very wide bound becomes an open loop: it over-states what the pattern accepts, and is the shape a wide bound backtracks like.
 		tailStart, tailEnd = b.buildLoop(repeat.body)
 	}
 	if start < 0 {
@@ -243,21 +222,16 @@ func (b *nfaBuilder) buildNestedOptional(body node, count int) (start, end int) 
 }
 
 const (
-	// exactCopyLimit caps how many times an exact `X{n}` is spelled out,
-	// and boundedExpandLimit how many optional copies a `{n,m}` becomes.
-	// A pattern is free to ask for thousands, and past these the walk
-	// falls back to a loop.
+	// exactCopyLimit caps how often an exact `X{n}` is spelled out and boundedExpandLimit how many optional copies a `{n,m}` becomes;
+	// a pattern may ask for thousands, and past these the walk falls back to a loop.
 	exactCopyLimit     = 64
 	boundedExpandLimit = 64
-	// openMinCopies is how much of `X{n,}`'s minimum is spelled out
-	// before the open tail takes over. The minimum changes no verdict.
+	// openMinCopies is how much of `X{n,}`'s minimum is spelled out before the open tail takes over; the minimum changes no verdict.
 	openMinCopies = 2
 )
 
-// epsilonOrder returns the states in an order where every epsilon
-// transition points forward, and false when the epsilon graph has a
-// cycle. A cycle means a loop that can turn without consuming anything,
-// which the nullable-loop rule reports on its own.
+// epsilonOrder orders the states so every epsilon transition points forward, false when the epsilon graph has a cycle:
+// a cycle is a loop that can turn without consuming anything, which the nullable-loop rule reports on its own.
 func (a *nfa) epsilonOrder() ([]int, bool) {
 	const (
 		unseen = iota
@@ -266,8 +240,7 @@ func (a *nfa) epsilonOrder() ([]int, bool) {
 	)
 	state := make([]int8, len(a.states))
 	order := make([]int, 0, len(a.states))
-	// Iterative depth-first search: the recursion depth on a long
-	// pattern would otherwise track the pattern's length.
+	// Iterative depth-first search: the recursion depth would otherwise track the pattern's length.
 	type frame struct {
 		state int
 		next  int

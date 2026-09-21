@@ -1,22 +1,7 @@
-// Package srcscan is the ONE comment lexer for TypeScript source, shared by
-// every pass that needs to know where the real comments of a file are.
-//
-// Comments are derived from a tsgo PARSE rather than a hand-rolled lexer. The
-// parser is the oracle for where the string, template-literal and regex TOKENS
-// sit; comments are then found by a single linear pass over everything those
-// tokens do not cover. That construction is what makes the spans exact where a
-// text-only lexer cannot be:
-//
-//   - a comment inside a template interpolation (`${/* … */ name}`) IS a
-//     comment, because the interpolation is code between two template-literal
-//     tokens, never inside one;
-//   - `/*` bytes inside a regex literal are NOT a comment start, because the
-//     regex is one opaque token. Text-only lexing cannot know that without
-//     parsing (the classic slash ambiguity), and a phantom comment there is
-//     exactly the false positive that makes a probe "match" across live code.
-//
-// Two callers today: the enrichment hygiene probes (internal/enrichment/mirror)
-// and the `@mion-expect-error` directive scan (internal/compiler/resolver).
+// Package srcscan is the ONE comment lexer for TypeScript source: a comment is whatever a tsgo PARSE leaves uncovered by a string,
+// template-literal or regex TOKEN. That is why `${/* … */ name}` IS a comment and `/*` inside a regex literal is NOT; a text-only lexer
+// cannot tell (the slash ambiguity), and a phantom comment there is the false positive that makes a probe match across live code.
+// Callers: the enrichment hygiene probes (internal/enrichment/mirror) and the `@mion-expect-error` scan (internal/compiler/resolver).
 package srcscan
 
 import (
@@ -26,21 +11,16 @@ import (
 	"github.com/microsoft/typescript-go/shim/scanner"
 )
 
-// Span is a half-open [Start, End) byte range covering one `//` line comment
-// (through end of line, newline excluded) or one `/* … */` block comment
-// (delimiters included). Spans are in text order and never overlap.
+// Span is a half-open [Start, End) byte range over one comment: a `//` line without its newline, a `/* … */` with its delimiters.
+// Spans are in text order and never overlap.
 type Span struct {
 	Start int
 	End   int
 }
 
-// LiteralTokenRanges walks the AST collecting the byte range of every token
-// whose TEXT is opaque data — string literals, the literal parts of template
-// expressions (head/middle/tail; the `${…}` interpolations between them are
-// code and deliberately NOT covered), regex literals, and JSX text. Ranges are
-// [tokenStart, end) including the delimiters, sorted by start. JSDoc nodes are
-// not visited (plain ForEachChild), so a type annotation inside a doc comment
-// never claims a range — comments win by starting earlier anyway.
+// LiteralTokenRanges collects the byte range of every token whose TEXT is opaque data; the `${…}` interpolations between template parts
+// are code and deliberately NOT covered. Ranges include the delimiters and are sorted by start.
+// JSDoc nodes are not visited, so a type annotation inside a doc comment never claims a range.
 func LiteralTokenRanges(sourceFile *ast.SourceFile) [][2]int {
 	if sourceFile == nil {
 		return nil
@@ -73,12 +53,8 @@ func LiteralTokenRanges(sourceFile *ast.SourceFile) [][2]int {
 	return ranges
 }
 
-// Comments is the linear pass: it walks text once, skipping the opaque literal
-// ranges, and records every `//` line comment (through end of line) and
-// `/* … */` block comment (including delimiters; an unterminated block runs to
-// EOF). With literals removed by the oracle, any remaining `//` or `/*` outside
-// a comment IS a comment start — TypeScript has no other production for those
-// byte pairs.
+// Comments walks text once, skipping the opaque literal ranges: with the literals gone, any `//` or `/*` left IS a comment start,
+// TypeScript has no other production for those byte pairs. An unterminated block comment runs to EOF.
 func Comments(text string, literals [][2]int) []Span {
 	var spans []Span
 	i, n, nextLiteral := 0, len(text), 0

@@ -6,7 +6,7 @@ import (
 )
 
 // recordFileIDs notes every wire id reachable from `sites` against `file`; that per-file map is what
-// makes IncludeRunTypes / IncludeCacheSources mean "scanned files" (see scopedDump).
+// makes IncludeRunTypes mean "scanned files" (see scopedDump).
 func (sess *Session) recordFileIDs(file string, sites []protocol.Site) {
 	if file == "" || len(sites) == 0 {
 		return

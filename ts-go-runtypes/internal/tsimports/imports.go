@@ -1,19 +1,8 @@
-// Package tsimports is the import-block inventory shared by the source-rewriting
-// arms of the CLI: `convert` (between the authoring forms) and `drizzlemigrate`
-// (drizzle onto the slim @mionjs/drizzle-orm-* packages).
-//
-// It answers the questions both arms ask of a file's imports — which local binds
-// which exported name from which module, does a namespace alias already exist,
-// is this identifier still referenced outside the spans we are about to replace —
-// and renders statements back. It deliberately stops there: WHICH bindings a
-// rewrite needs, and where the new statements go, is each arm's own planning, and
-// the two genuinely differ (convert folds four @mionjs/run-types* modules into one
-// canonical block; drizzlemigrate splits one drizzle statement in two by an
-// export's migration status).
-//
-// The managed-module set is a predicate the caller supplies. It used to be four
-// package-level vars pinned to @mionjs/run-types*, which is what kept this code
-// from serving anything but convert.
+// Package tsimports is the import-block inventory shared by the CLI's source-rewriting arms, `convert` and `drizzlemigrate`. It
+// answers what both ask of a file's imports (which local binds which exported name from which module, whether a namespace alias
+// exists, whether an identifier is still referenced outside the spans about to be replaced) and renders statements back. It stops
+// there on purpose: which bindings a rewrite needs and where the new statements go is each arm's own planning, and the two genuinely
+// differ. The managed-module set is a predicate the caller supplies, so nothing here is pinned to one package.
 package tsimports
 
 import (
@@ -25,8 +14,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 )
 
-// Binding is one named import: the exported name, its local alias, and whether
-// it is a type-only specifier.
+// Binding is one named import: the exported name, its local alias, and whether it is a type-only specifier.
 type Binding struct {
 	Imported string
 	Local    string
@@ -37,44 +25,30 @@ type Binding struct {
 type Statement struct {
 	Node   *ast.Node
 	Module string
-	// Namespace is the `* as X` alias, and NamespaceTypeOnly records that the
-	// statement wrote `import type * as X`. A type-only namespace exists for the
-	// type checker only, so adopting it to spell a VALUE (`TF.string()`) emits
-	// code that throws `TF is not defined` at runtime — which is what the
-	// converted suites hit on a file that imported the formats namespace
-	// type-only.
+	// Namespace is the `* as X` alias, NamespaceTypeOnly that the statement wrote `import type * as X`. A type-only namespace exists
+	// for the type checker only, so adopting it to spell a VALUE (`TF.string()`) emits code throwing `TF is not defined` at runtime.
 	Namespace         string
 	NamespaceTypeOnly bool
 	Named             []Binding
-	// Managed marks a module whose bindings the caller's role table owns;
-	// Rewritable marks a statement whose SHAPE may be rewritten at all (named
-	// imports only — no default, no namespace). Unmanaged-but-rewritable is the
-	// normal case for a foreign module: bindings may be added or dropped.
+	// Managed marks a module whose bindings the caller's role table owns; Rewritable marks a statement whose SHAPE may be rewritten
+	// at all (named imports only). Unmanaged-but-rewritable is the normal foreign module: bindings may be added or dropped.
 	Managed    bool
 	Rewritable bool
-	// Extras are later import statements from the SAME module. A managed
-	// named-only extra folds into the canonical managed block (bindings carried
-	// forward, statement removed) — the block render itself emits namespace +
-	// named as two statements, so its own output MUST re-fold or the layout
-	// drifts. Every other shape merges read-only: bindings count as present but
-	// the statement is never touched.
+	// Extras are later import statements from the SAME module. A managed named-only extra folds into the canonical block, which
+	// itself renders namespace and named as two statements, so its own output MUST re-fold or the layout drifts.
+	// Every other shape merges read-only: its bindings count as present but the statement is never touched.
 	Extras []*Statement
 }
 
-// Foldable reports whether this extra statement may be folded into the caller's
-// canonical managed block: a managed named-only statement (a namespace extra
-// would need a second namespace slot the render does not have).
+// Foldable reports whether this extra may fold into the caller's canonical managed block; a namespace extra would need a second
+// namespace slot the render does not have.
 func (extra *Statement) Foldable() bool {
 	if !extra.Managed || !extra.Rewritable {
 		return false
 	}
-	// A VALUE namespace statement stays where it is (the block adopts its alias
-	// and re-renders it). A TYPE-ONLY one must fold: it binds nothing at
-	// runtime, so leaving it alone while the printers spell values through its
-	// alias emits `TF is not defined`. Folding re-renders it through Render,
-	// which always writes a value import — the upgrade. Claiming a second alias
-	// instead would work too, but the claim depends on which legs the file has
-	// been through, and two chains landing on the same form would disagree on it.
+	// A VALUE namespace statement stays where it is, the block adopts its alias. A TYPE-ONLY one must fold: it binds nothing at
+	// runtime, so values spelled through its alias throw, and Render always writes a value import. Claiming a second alias instead
+	// would depend on which legs the file has been through, so two chains landing on the same form would disagree.
 	return extra.Namespace == "" || extra.NamespaceTypeOnly
 }
 
@@ -92,9 +66,8 @@ func (entry *Statement) AllStatements() []*Statement {
 	return append([]*Statement{entry}, entry.Extras...)
 }
 
-// Scan is the file's import inventory. AllImportEnds records every import
-// statement's end offset (managed or not) so additions can anchor after the last
-// import that SURVIVES the edit.
+// Scan is the file's import inventory; AllImportEnds records every statement's end offset, managed or not, so an addition can
+// anchor after the last import that SURVIVES the edit.
 type Scan struct {
 	ByModule      map[string]*Statement
 	LastImportEnd int
@@ -148,8 +121,7 @@ func (scan *Scan) LocalNames() []string {
 	return locals
 }
 
-// Modules lists the scanned module specifiers, sorted, so callers iterate
-// deterministically.
+// Modules lists the scanned module specifiers sorted, so callers iterate deterministically.
 func (scan *Scan) Modules() []string {
 	modules := make([]string, 0, len(scan.ByModule))
 	for module := range scan.ByModule {
@@ -159,9 +131,8 @@ func (scan *Scan) Modules() []string {
 	return modules
 }
 
-// ScanFile inventories a file's imports. isManaged marks the modules whose
-// bindings the caller owns; pass nil when no module is managed (every statement
-// is then foreign-but-rewritable, which is what drizzlemigrate wants).
+// ScanFile inventories a file's imports; isManaged marks the modules whose bindings the caller owns, and nil leaves every statement
+// foreign-but-rewritable, which is what drizzlemigrate wants.
 func ScanFile(sourceFile *ast.SourceFile, isManaged func(module string) bool) *Scan {
 	scan := &Scan{ByModule: map[string]*Statement{}}
 	root := sourceFile.AsNode()
@@ -190,7 +161,7 @@ func ScanFile(sourceFile *ast.SourceFile, isManaged func(module string) bool) *S
 		} else {
 			importClause := clause.AsImportClause()
 			if importClause.Name() != nil {
-				// A default import — never rewritten.
+				// A default import is never rewritten.
 				entry.Managed = false
 				entry.Rewritable = false
 			}
@@ -219,8 +190,7 @@ func ScanFile(sourceFile *ast.SourceFile, isManaged func(module string) bool) *S
 				}
 			}
 		}
-		// The FIRST statement per module is the primary; later statements merge
-		// as extras (foldable or read-only per their own shape).
+		// The FIRST statement per module is the primary; later ones merge as extras, foldable or read-only per their own shape.
 		if existing := scan.ByModule[module]; existing != nil {
 			existing.Extras = append(existing.Extras, entry)
 			continue
@@ -232,11 +202,8 @@ func ScanFile(sourceFile *ast.SourceFile, isManaged func(module string) bool) *S
 
 // Render renders one import statement; "" when it has no bindings left.
 func Render(module, namespace string, named []Binding) string {
-	// Namespace and named bindings render as SEPARATE statements — TS has no
-	// combined form, and the historical namespace-wins render silently DROPPED
-	// user named bindings (their locals are referenced by user code a managed
-	// namespace does not cover), leaving the output path-dependent and, for a
-	// used binding, broken.
+	// Namespace and named bindings render as SEPARATE statements: TS has no combined form, and letting the namespace win would drop
+	// user named bindings whose locals code outside the managed namespace still references.
 	var statements []string
 	if namespace != "" {
 		statements = append(statements, fmt.Sprintf("import * as %s from '%s';", namespace, module))
@@ -261,10 +228,8 @@ func Render(module, namespace string, named []Binding) string {
 	return strings.Join(statements, "\n")
 }
 
-// IdentifierUsedOutside reports whether local is referenced anywhere outside the
-// scanned import statements and the given spans — i.e. whether the binding is
-// still needed by code the rewrite did not touch. Spans are [start, end) byte
-// offsets of the replacements the caller is about to apply.
+// IdentifierUsedOutside reports whether local is still needed by code the rewrite did not touch: referenced outside the scanned
+// import statements and the given spans, which are the [start, end) byte offsets the caller is about to replace.
 func IdentifierUsedOutside(sourceFile *ast.SourceFile, local string, scan *Scan, spans [][2]int) bool {
 	if local == "" {
 		return false
@@ -304,9 +269,8 @@ func IdentifierUsedOutside(sourceFile *ast.SourceFile, local string, scan *Scan,
 	return used
 }
 
-// TokenStart returns the byte offset of the first non-trivia character at or
-// after pos — a statement's real start, leaving leading JSDoc/comments outside
-// the replaced span so they survive the rewrite.
+// TokenStart returns the byte offset of the first non-trivia character at or after pos, a statement's real start, so leading JSDoc
+// and comments stay outside the replaced span and survive the rewrite.
 func TokenStart(source string, pos int) int {
 	offset := pos
 	for offset < len(source) {
@@ -332,10 +296,8 @@ func TokenStart(source string, pos int) int {
 	return offset
 }
 
-// ImportedNameOf resolves the EXPORTED name behind a callee identifier: the
-// member name for a namespace access, the import specifier's property name for
-// a renamed named import (`uuid as pgUuid` answers "uuid"), the identifier's own
-// text otherwise. Both rewriting arms need it to see past a local alias.
+// ImportedNameOf resolves the EXPORTED name behind a callee identifier, so both rewriting arms see past a local alias:
+// the member name for a namespace access, the specifier's property name for a rename (`uuid as pgUuid` answers "uuid").
 func ImportedNameOf(typeChecker *checker.Checker, nameNode *ast.Node) string {
 	if nameNode.Parent != nil && ast.IsPropertyAccessExpression(nameNode.Parent) &&
 		nameNode.Parent.AsPropertyAccessExpression().Name() == nameNode {
@@ -354,10 +316,8 @@ func ImportedNameOf(typeChecker *checker.Checker, nameNode *ast.Node) string {
 	return nameNode.Text()
 }
 
-// IsNamespaceImport reports whether an identifier binds a whole module
-// (`import * as pg from 'drizzle-orm/pg-core'`) rather than one of its exports.
-// The two spellings need different rewrites: a named binding moves modules, a
-// namespace member is reached through its object.
+// IsNamespaceImport reports whether an identifier binds a whole module rather than one of its exports; the two need different
+// rewrites, a named binding moves modules while a namespace member is reached through its object.
 func IsNamespaceImport(typeChecker *checker.Checker, nameNode *ast.Node) bool {
 	symbol := typeChecker.GetSymbolAtLocation(nameNode)
 	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
@@ -367,11 +327,8 @@ func IsNamespaceImport(typeChecker *checker.Checker, nameNode *ast.Node) bool {
 	return declaration != nil && ast.IsNamespaceImport(declaration)
 }
 
-// ModuleOfImport returns the module specifier an identifier's binding was
-// imported from, or "" when it is not an import at all (a local, a parameter, a
-// shadowing declaration). This is what makes recognition shadowing-safe: a test
-// body's `const pgTable = pgTableCreator(...)` answers "", not the dialect
-// module its outer import came from.
+// ModuleOfImport returns the module specifier an identifier's binding was imported from, or "" when it is not an import at all.
+// That is what makes recognition shadowing-safe: a body's `const pgTable = pgTableCreator(...)` answers "", not the outer module.
 func ModuleOfImport(typeChecker *checker.Checker, nameNode *ast.Node) string {
 	symbol := typeChecker.GetSymbolAtLocation(nameNode)
 	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {

@@ -1,26 +1,16 @@
-// The runtime JSON-Schema document renderer: walks a reflection.RunType graph
-// and renders ONE self-contained document as JS object-literal source — the
-// body the `jsc` cache family emits (`() => ({…})`), later served through the
-// StandardJSONSchemaV1 converter. Emits the textual dialect
-// (wire-first standard keywords + the jsType /
-// rtFormat extension rows), pinned by the corpus golden in internal/convert.
-//
-// The document is descriptive, one-way
-// output, so an unspellable corner DEGRADES: it renders its closest honest
-// under-constraint
-// (usually `{}` — "any value") and records a Warning instead of failing the
-// build. Notable spellings:
-//
-//   - references: no declaration table. Cycles close via
-//     `$defs` — a back-edge to the ROOT renders `{$ref: '#'}`,
-//     any other back-edge renders `{$ref: '#/$defs/<id>'}` and the
-//     cycling node's body is appended to the root's `$defs`;
-//   - user classes render STRUCTURALLY (their wire shape — the nominal
-//     identity is a validator concern, not a document one);
-//   - enums render as their value list (`{enum: […]}`);
-//   - method / call-signature members DROP (they are not data and never reach
-//     the wire — the same projection DataOnly applies).
 package schemadoc
+
+// The runtime JSON-Schema document renderer: walks a reflection.RunType graph and renders ONE
+// self-contained document as JS object-literal source, the body the `jsc` cache family emits, served
+// through the StandardJSONSchemaV1 converter and pinned by the corpus golden in internal/convert. The
+// document is descriptive, one-way output, so an unspellable corner DEGRADES to its closest honest
+// under-constraint (usually `{}`) with a Warning instead of failing the build. Notable spellings:
+//
+//   - references: no declaration table. A back-edge to the ROOT renders `{$ref: '#'}`, any other renders
+//     `{$ref: '#/$defs/<id>'}` and the cycling node's body is appended to the root's `$defs`;
+//   - user classes render STRUCTURALLY (nominal identity is a validator concern, not a document one);
+//   - enums render as their value list;
+//   - method / call-signature members DROP, the same projection DataOnly applies.
 
 import (
 	"fmt"
@@ -36,27 +26,22 @@ type Warning struct {
 	Message string
 }
 
-// Document is a rendered schema document: JS object-literal source plus the
-// degradation warnings collected on the walk.
+// Document is a rendered schema document: JS object-literal source plus the warnings from the walk.
 type Document struct {
 	Source   string
 	Warnings []Warning
 }
 
-// UnionWireLayout is the renderer's structural view of a union's WIRE layout —
-// a projection of the JSON serializer's FlatLayout (cachegen/typefunctions,
-// union_flat_layout.go), provided by the caller so the document describes the
-// exact envelope the encoder writes and the decoder reads. When Wraps is
-// false the union travels raw and the natural spelling (enum / anyOf / oneOf)
-// is the wire truth.
+// UnionWireLayout is the renderer's view of a union's WIRE layout, a projection of the JSON serializer's
+// FlatLayout (cachegen/typefunctions, union_flat_layout.go) provided by the caller so the document
+// describes the exact envelope the encoder writes. Wraps false means the union travels raw, and the
+// natural spelling (enum / anyOf / oneOf) is the wire truth.
 type UnionWireLayout struct {
-	// Wraps mirrors FlatLayout.AtomicNeedsTuple: the union travels as
-	// `[index, value]` envelopes (object members merged under index -1).
+	// Wraps mirrors FlatLayout.AtomicNeedsTuple: members travel as `[index, value]`, objects under -1.
 	Wraps bool
 	// Atomics carries the per-member-dispatch members with their wire index.
 	Atomics []UnionWireAtomic
-	// HasMergedObjects is true when the union has mergeable object members —
-	// the `[-1, mergedObject]` arm exists.
+	// HasMergedObjects is true when the union has mergeable object members, so the `[-1, …]` arm exists.
 	HasMergedObjects bool
 	// MergedProps is the merged-object property list, first-appearance order.
 	MergedProps []UnionWireProp
@@ -68,36 +53,30 @@ type UnionWireAtomic struct {
 	Index int
 }
 
-// UnionWireProp is one merged-object property. Candidates keeps the
-// serializer's sub-index positions (a stripped candidate stays as nil so the
-// surviving indices do not shift).
+// UnionWireProp is one merged-object property. Candidates keeps the serializer's sub-index positions:
+// a stripped candidate stays nil so the surviving indices do not shift.
 type UnionWireProp struct {
 	Name       string
 	IsSafeName bool
-	// Required mirrors the layout: declared non-optionally by EVERY object
-	// member, so the key is always present on the wire.
+	// Required mirrors the layout: declared non-optionally by EVERY object member, so the key always travels.
 	Required bool
-	// NeedsSubWrap: a conflicting prop's value travels as its own nested
-	// `[subIndex, value]` envelope selecting the candidate.
+	// NeedsSubWrap: a conflicting prop's value travels as its own `[subIndex, value]` envelope.
 	NeedsSubWrap bool
 	Candidates   []*reflection.RunType
 }
 
-// UnionLayoutFn supplies the wire layout for a union node, or nil when the
-// caller has no layout to offer (the renderer then spells the union in its
-// natural form — correct for raw unions and for the convert-parity path).
+// UnionLayoutFn supplies the wire layout for a union node, nil when the caller has none: the renderer
+// then spells the union in its natural form, correct for raw unions and the convert-parity path.
 type UnionLayoutFn func(union *reflection.RunType) *UnionWireLayout
 
-// RenderDocument renders the JSON-Schema document for root. deref resolves
-// `{kind: ref, id}` sentinels to their canonical nodes (pass the identity
-// function when the graph is already fully wired).
+// RenderDocument renders the JSON-Schema document for root; deref resolves `{kind: ref, id}` sentinels
+// to their canonical nodes (identity when the graph is already fully wired).
 func RenderDocument(root *reflection.RunType, deref func(*reflection.RunType) *reflection.RunType) Document {
 	return RenderDocumentWire(root, deref, nil)
 }
 
-// RenderDocumentWire is RenderDocument with a union wire-layout provider: the
-// jsc cache emitter passes a projection of the REAL FlatLayout so wrapped
-// unions render their `[index, value]` envelope instead of the natural form.
+// RenderDocumentWire is RenderDocument with a union wire-layout provider: the jsc cache emitter passes
+// a projection of the REAL FlatLayout so wrapped unions render their envelope, not the natural form.
 func RenderDocumentWire(root *reflection.RunType, deref func(*reflection.RunType) *reflection.RunType, layoutFor UnionLayoutFn) Document {
 	renderState := &docRenderer{deref: deref, layoutFor: layoutFor, walking: map[string]bool{}, defs: map[string]*reflection.RunType{}}
 	resolvedRoot := renderState.resolve(root)
@@ -105,8 +84,7 @@ func RenderDocumentWire(root *reflection.RunType, deref func(*reflection.RunType
 		renderState.rootID = resolvedRoot.ID
 	}
 	body := renderState.expr(root)
-	// Cycles registered defs; each def body may register more. The walk is
-	// bounded: a def is rendered once, and the graph's node set is finite.
+	// A def body may register more defs; bounded because each renders once and the node set is finite.
 	rendered := map[string]string{}
 	for {
 		pendingIDs := make([]string, 0, len(renderState.defs))
@@ -192,8 +170,7 @@ func (r *docRenderer) expr(node *reflection.RunType) string {
 	return r.exprCore(node)
 }
 
-// metaText renders a `base & {…}` metadata intersection as the tsMeta dialect
-// keyword — the printer's spelling, without the portable gate.
+// metaText renders a metadata intersection as the tsMeta keyword: the printer's spelling, no portable gate.
 func (r *docRenderer) metaText(node *reflection.RunType) string {
 	baseNode := *node
 	baseNode.TypeMeta = nil
@@ -302,8 +279,7 @@ func (r *docRenderer) exprCore(node *reflection.RunType) string {
 	return r.degrade("%s has no document spelling; rendered as {}", KindLabel(node.Kind))
 }
 
-// classText renders class kinds: the natives keep their dialect spellings
-// (printer parity), a user class renders structurally.
+// classText renders class kinds: natives keep their dialect spellings (printer parity), a user class structural.
 func (r *docRenderer) classText(node *reflection.RunType) string {
 	switch node.SubKind {
 	case reflection.SubKindDate:
@@ -337,8 +313,7 @@ func (r *docRenderer) classText(node *reflection.RunType) string {
 		}
 		return fmt.Sprintf("{type: 'string', %sjsType: %s}", wire, QuoteSingle(info.DialectName()))
 	}
-	// A user class: the document describes its WIRE shape, which is the
-	// structural member set (the class serializer rebuilds the instance).
+	// A user class's WIRE shape is its structural member set; the class serializer rebuilds the instance.
 	return r.objectText(node)
 }
 
@@ -358,13 +333,10 @@ func (r *docRenderer) enumText(node *reflection.RunType) string {
 	return fmt.Sprintf("{enum: [%s]}", strings.Join(SortArms(parts), ", "))
 }
 
-// unionText renders a union. The WIRE decides the spelling: when the caller
-// supplied a layout and the union wraps (the serializer's flat-union envelope,
-// union_flat_layout.go), the document describes the envelope — `[index,
-// value]` tuples, object members merged under index -1 — because that IS what
-// travels and what the decoder reads. A raw union (every member JSON-natural)
-// and the layout-less path (convert parity) keep the natural vocabulary:
-// oneOf (exclusive brand), a plain-literal enum list, or anyOf.
+// unionText lets the WIRE decide the spelling: with a layout whose union wraps, the document describes
+// the serializer's envelope (`[index, value]` tuples, object members merged under -1), because that IS
+// what travels and what the decoder reads. A raw union and the layout-less convert-parity path keep the
+// natural vocabulary: oneOf (exclusive brand), a plain-literal enum list, or anyOf.
 func (r *docRenderer) unionText(node *reflection.RunType) string {
 	if r.layoutFor != nil {
 		if wire := r.layoutFor(node); wire != nil && wire.Wraps {
@@ -374,8 +346,7 @@ func (r *docRenderer) unionText(node *reflection.RunType) string {
 	return r.unionNaturalText(node)
 }
 
-// unionEnvelopeText renders the flat-union wire envelope. Arm order is wire
-// order (atomic members by index, the merged-object arm last) — meaningful,
+// unionEnvelopeText renders the flat-union wire envelope. Arm order is wire order, which is meaningful,
 // so deliberately NOT text-sorted like natural anyOf arms.
 func (r *docRenderer) unionEnvelopeText(wire *UnionWireLayout) string {
 	envelope := func(indexText, payload string) string {
@@ -411,10 +382,8 @@ func (r *docRenderer) unionEnvelopeText(wire *UnionWireLayout) string {
 	return fmt.Sprintf("{anyOf: [%s], jsType: 'union'}", strings.Join(arms, ", "))
 }
 
-// mergedPropText renders one merged-object property's wire: the single
-// candidate's document, an anyOf across candidates, or — for a sub-wrapped
-// conflict prop — the nested `[subIndex, value]` envelopes. Candidate slice
-// positions ARE the sub-indexes (stripped candidates hold their slot as nil).
+// mergedPropText renders one merged-object property's wire: one candidate, an anyOf across them, or the
+// nested `[subIndex, value]` envelopes. Candidate slice positions ARE the sub-indexes, stripped ones nil.
 func (r *docRenderer) mergedPropText(prop UnionWireProp, envelope func(string, string) string) string {
 	var arms []string
 	for subIndex, candidate := range prop.Candidates {
@@ -473,9 +442,8 @@ func (r *docRenderer) unionNaturalText(node *reflection.RunType) string {
 	return fmt.Sprintf("{anyOf: [%s]}", strings.Join(SortArms(arms), ", "))
 }
 
-// objectText renders an object shape (or a user class's structural wire).
-// Method / call-signature members drop (not data); symbol-keyed members drop
-// (never on the wire); non-string index signatures ride tsIndexes.
+// objectText renders an object shape (or a user class's structural wire). Method / call-signature and
+// symbol-keyed members drop, never reaching the wire; non-string index signatures ride tsIndexes.
 func (r *docRenderer) objectText(node *reflection.RunType) string {
 	defaulted := DefaultedStructuralParams(StructuralAnnotationParams(node))
 	type indexPair struct{ key, value *reflection.RunType }
@@ -561,11 +529,9 @@ func (r *docRenderer) objectText(node *reflection.RunType) string {
 	return out + additionalText + r.structuralBag(node, tsIndexesText) + RTFormatParamsSuffix(defaulted) + "}"
 }
 
-// collectionBag renders the structural parts a bounded Map / Set
-// (formattedMap / formattedSet, the collection keywords) carries on its OUTER
-// array, after the jsType key, exactly as the KindArray branch renders them.
-// A Set's spelling already prints `uniqueItems: true`, so that key is dropped
-// for it rather than printed twice.
+// collectionBag renders the structural parts a bounded Map / Set carries on its OUTER array, after the
+// jsType key, exactly as the KindArray branch renders them. A Set already prints `uniqueItems: true`,
+// so that key is dropped rather than printed twice.
 func (r *docRenderer) collectionBag(node *reflection.RunType, isSet bool) string {
 	if !HasStructuralPayload(node) {
 		return ""
@@ -584,8 +550,7 @@ func (r *docRenderer) collectionBag(node *reflection.RunType, isSet bool) string
 	return out + RTFormatParamsSuffix(DefaultedStructuralParams(params))
 }
 
-// structuralBag renders the leading-comma bag of tsIndexes + structural parts
-// the object spelling appends.
+// structuralBag renders the leading-comma bag of tsIndexes + structural parts the object spelling appends.
 func (r *docRenderer) structuralBag(node *reflection.RunType, tsIndexesText string) string {
 	schemaBag := ""
 	if HasStructuralPayload(node) {
@@ -600,8 +565,8 @@ func (r *docRenderer) structuralBag(node *reflection.RunType, tsIndexesText stri
 	return schemaBag
 }
 
-// structuralParts mirrors the printer's schema-target structural rendering
-// with degrade semantics: unrenderable corners drop with a warning.
+// structuralParts mirrors the printer's schema-target structural rendering, but degrades: an
+// unrenderable corner drops with a warning.
 func (r *docRenderer) structuralParts(node *reflection.RunType, params map[string]any) []string {
 	var parts []string
 	keys := make([]string, 0, len(params))
@@ -650,9 +615,8 @@ func (r *docRenderer) structuralParts(node *reflection.RunType, params map[strin
 	return parts
 }
 
-// closedParts renders `additionalProperties: false` when the closed list is
-// exactly the declared member set; anything else degrades (the document says
-// less, never something wrong).
+// closedParts renders `additionalProperties: false` only when the closed list is exactly the declared
+// member set; anything else degrades, so the document says less, never something wrong.
 func (r *docRenderer) closedParts(node *reflection.RunType, params map[string]any, parts []string) []string {
 	closedValue, hasClosed := params["closed"]
 	_, hasClosedPatterns := params["closedPatterns"]
@@ -685,7 +649,7 @@ func (r *docRenderer) closedParts(node *reflection.RunType, params map[string]an
 	return append(parts, "additionalProperties: false")
 }
 
-// tupleText renders a tuple as prefixItems / minItems / items (+ tsLabels).
+// tupleText renders a tuple as prefixItems / minItems / items, plus tsLabels when every slot is named.
 func (r *docRenderer) tupleText(node *reflection.RunType) string {
 	var required, optional []*reflection.RunType
 	var rest *reflection.RunType
@@ -749,9 +713,8 @@ func (r *docRenderer) tupleText(node *reflection.RunType) string {
 	return out + "}"
 }
 
-// templateText renders a template literal: pattern + the tsTemplate dialect,
-// degrading to the anchored pattern alone (or a bare string) when a
-// placeholder has no schema spelling.
+// templateText renders a template literal as pattern + tsTemplate, degrading to the anchored pattern
+// alone when a placeholder has no schema spelling.
 func (r *docRenderer) templateText(node *reflection.RunType) string {
 	texts, placeholders, ok := TemplateParts(node)
 	if !ok {
@@ -765,8 +728,7 @@ func (r *docRenderer) templateText(node *reflection.RunType) string {
 	for _, placeholder := range placeholders {
 		placeholderText, placeholderOK := TemplateSpanSchemaText(placeholder)
 		if !placeholderOK {
-			// The anchored pattern still describes the string honestly; only
-			// the exact-recovery dialect is lost.
+			// The anchored pattern still describes the string honestly; only exact recovery is lost.
 			r.warn("a template-literal placeholder has no schema spelling; the document keeps the pattern only")
 			return fmt.Sprintf("{type: 'string', pattern: %s}", QuoteSingle(TemplateWirePattern(texts)))
 		}
@@ -776,8 +738,7 @@ func (r *docRenderer) templateText(node *reflection.RunType) string {
 		QuoteSingle(TemplateWirePattern(texts)), strings.Join(quotedTexts, ", "), strings.Join(placeholderTexts, ", "))
 }
 
-// functionText renders a signature as the tsFunction dialect (printer
-// vocabulary); parameter defaults / optionals / rests degrade.
+// functionText renders a signature as the tsFunction dialect; defaulted / optional / rest params degrade.
 func (r *docRenderer) functionText(node *reflection.RunType) string {
 	var prefixParts []string
 	var labels []string
@@ -816,8 +777,7 @@ func (r *docRenderer) functionText(node *reflection.RunType) string {
 	return fmt.Sprintf("{tsFunction: {params: %s, return: %s}}", paramsText, returnText)
 }
 
-// nativeArguments derefs the KindParameter wrappers a Map/Set node carries in
-// its Arguments slot, returning the parameter child types in order.
+// nativeArguments derefs the KindParameter wrappers in a Map/Set node's Arguments slot, in order.
 func (r *docRenderer) nativeArguments(node *reflection.RunType) []*reflection.RunType {
 	var out []*reflection.RunType
 	for _, argumentRef := range node.Arguments {
@@ -834,9 +794,8 @@ func (r *docRenderer) nativeArguments(node *reflection.RunType) []*reflection.Ru
 	return out
 }
 
-// isSymbolKeyedMemberName mirrors convert's isSymbolKeyedName: the resolver
-// spells symbol-keyed members as `@@name` or with the internal 0xFE prefix
-// (cachegen/runtype/serialize.go stableMemberName).
+// isSymbolKeyedMemberName mirrors convert's isSymbolKeyedName: the resolver spells symbol-keyed members
+// as `@@name` or with the internal 0xFE prefix (cachegen/runtype/serialize.go stableMemberName).
 func isSymbolKeyedMemberName(name string) bool {
 	if strings.HasPrefix(name, "@@") {
 		return true

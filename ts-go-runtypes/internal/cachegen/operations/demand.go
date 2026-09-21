@@ -2,37 +2,21 @@ package operations
 
 import "github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 
-// Demand is one cache entry a createX call site requires: the family + variant
-// to render, plus the fnHash that entry is keyed by. FamilyTag/VariantSuffix/
-// Options drive the emitter's rendering; FnHash names the entry once the
-// hashed-id migration lands. Kept as its own type (not protocol.SiteDemand) so
-// this package stays free of a protocol dependency; the scanner converts.
+// Demand is one cache entry a createX call site requires: the family and variant to render, plus the fnHash the entry is keyed by.
+// Its own type rather than protocol.SiteDemand, so this package stays free of a protocol dependency; the scanner converts.
 type Demand struct {
 	FamilyTag     string
 	VariantSuffix string
 	Options       []string
 	FnHash        string
-	// RejectCircular marks the demand for a CircularGuarded family's armed
-	// variant (the `{rejectCircularRefs: true}` fork). The emitter renders the
-	// inline circular guard for exactly these entries. It rides on the root /
-	// composite demand only — never on the JSON primitives a composite wraps,
-	// which stay plain (the guard is at the composite level).
+	// RejectCircular marks a CircularGuarded family's armed variant (`{rejectCircularRefs: true}`), the entries the emitter renders the
+	// inline guard for. It rides on the root / composite demand only, never on the JSON primitives a composite wraps.
 	RejectCircular bool
 }
 
-// DemandFor returns the cache-entry demands for a createX call site identified
-// by its InjectTypeFnArgs Fn token, refined by the call-site options / strategy:
-//
-//   - AxisValidateOptions: one entry, the requested variant of the family (it/te).
-//   - AxisJsonStrategy:  the composite entry (the per-strategy jsonEncoder /
-//     jsonDecoder family, keyed by the strategy's composite fnHash) PLUS one
-//     entry per composed primitive family (constants.JsonStrategyFamilies). The
-//     composite body looks up those primitives by their fnHash, so both must be
-//     demanded. Empty strategy defaults to the operation's DefaultStrategy.
-//   - AxisNone:          one plain entry.
-//
-// Reflection-only sites (unknown fnKey) yield nil. This is the forward
-// (structured) replacement for the old constants.DemandsForFnId reverse-parse.
+// DemandFor returns the cache-entry demands for a createX call site's InjectTypeFnArgs Fn token; a reflection-only site (unknown
+// fnKey) yields nil. A JSON-strategy site demands the composite entry AND one entry per composed primitive family, because the
+// composite body looks those primitives up by their fnHash.
 func DemandFor(fnKey string, optionNames []string, strategy string, rejectCircular bool) []Demand {
 	op, ok := byFnKey[fnKey]
 	if !ok {
@@ -41,13 +25,10 @@ func DemandFor(fnKey string, optionNames []string, strategy string, rejectCircul
 	return DemandForOp(op, optionNames, strategy, rejectCircular)
 }
 
-// DemandForOp is DemandFor for a caller that already holds the Operation. The
-// scanner swaps the operation mid-resolution (checkUnknowns picks the fused
-// validator, a parse strategy picks its family), so it would otherwise have to
-// re-derive a marker token just to look the same operation back up.
+// DemandForOp is DemandFor for a caller that already holds the Operation; the scanner swaps the operation mid-resolution, so it
+// would otherwise have to re-derive a marker token just to look the same operation back up.
 func DemandForOp(op Operation, optionNames []string, strategy string, rejectCircular bool) []Demand {
-	// rejectCircular only forks a CircularGuarded op; normalise away otherwise so
-	// non-guarded families never carry a spurious armed flag.
+	// Normalise away rejectCircular off a non-guarded op, or its family carries a spurious armed flag.
 	armed := rejectCircular && op.CircularGuarded
 	switch op.Axis {
 	case AxisValidateOptions:
@@ -70,9 +51,7 @@ func DemandForOp(op Operation, optionNames []string, strategy string, rejectCirc
 			strategy = op.DefaultStrategy
 		}
 		var demands []Demand
-		// The composite entry itself — routes to the composite emitter via its
-		// per-strategy family tag and is keyed by the composite fnHash. The
-		// circular guard rides HERE (the composite level), not on the primitives.
+		// The circular guard rides HERE, at the composite level, not on the primitives.
 		if compositeTag, ok := constants.JsonCompositeTag(op.Name, strategy); ok {
 			demands = append(demands, Demand{
 				FamilyTag:      compositeTag,
@@ -80,7 +59,7 @@ func DemandForOp(op Operation, optionNames []string, strategy string, rejectCirc
 				RejectCircular: armed,
 			})
 		}
-		// The primitive families the composite body references — always plain.
+		// The primitive families the composite body references, always plain.
 		for _, tag := range constants.JsonStrategyFamilies[op.Name+"|"+strategy] {
 			primitive, ok := byFamilyT[tag]
 			if !ok {
