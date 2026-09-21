@@ -9,25 +9,20 @@
 
 import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, ResolvedSerializer} from './general.types.ts';
 
-/**
- * Shared interface for PublicMethod that can be used between client and server without handler dependencies
- * Serializable version of MethodMetadata in @/router/types/remoteMethods
- */
+/** Shared between client and server, with no dependency on the handler itself. */
 export interface MethodMetadata {
   /** Method type identifier */
   type: number;
   /** Unique identifier for the method (usually the full route path) */
   id: string;
-  /** whether method is async or might return a promise.
-   * If return type is not know method is considered async  */
+  /** whether method is async or might return a promise; an unknown return type counts as async */
   isAsync: boolean;
   /** true if method returns data (not void or undefined) */
   hasReturnData: boolean;
   /** Number of public method parameters (arity), derived from the params tuple runtype */
   paramsCount?: number;
-  /** Parameter names from the params tuple's member labels ('' for an unlabelled member: a plain
-   *  string, never a union, so the value rides the metadata wire untagged). Sourced from reflection,
-   *  never from parsing handler.toString(), so they survive minification. Rides the client
+  /** Parameter names from the params tuple's member labels, '' for an unlabelled member. Sourced from
+   *  reflection, never from parsing handler.toString(), so they survive minification. Rides the client
    *  methods-metadata payload so a client can name the parameter that failed. */
   paramNames?: string[];
   /** JIT hash of the method parameters */
@@ -57,30 +52,21 @@ export interface RemoteMethodOpts {
   serializer?: ResolvedSerializer;
   /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
   isMutation?: boolean | undefined;
-  /**
-   * Per-route strictTypes override (resolved to the effective value: route option ?? router option),
-   * so it also rides the methods metadata to the client. When true, objects carrying unknown/extra
-   * properties are rejected via the compiled hasUnknownKeys/unknownKeyErrors fns — enforced on the
-   * server at dispatch and, since R17, client-side in the local pre-validation lane.
-   */
+  /** Per-route strictTypes, already resolved (route option ?? router option), so it also rides the methods
+   *  metadata to the client. When true, objects carrying extra properties are rejected through the compiled
+   *  hasUnknownKeys/unknownKeyErrors fns, on the server at dispatch and client-side in local pre-validation. */
   strictTypes?: boolean;
-  /**
-   * Per-route sanitizeParams override (resolved to the effective value: route option ?? router option),
-   * so it also rides the methods metadata to the client. When true, the rewrites the params types
-   * declare under a format's `transform` key (trim / case / replace / stripSeparators) are applied to
-   * the params after decode and BEFORE validation, on the server at dispatch and, when the client's own
-   * `sanitizeParams` option is on, client-side before local pre-validation and serialization. Params
-   * only: headers and return values are never sanitized. Runs even when `validateParams` is off.
-   */
+  /** Per-route sanitizeParams, already resolved (route option ?? router option), so it also rides the methods
+   *  metadata to the client. When true, the rewrites the params types declare under a format's `transform` key
+   *  are applied after decode and BEFORE validation, on the server at dispatch and, when the client's own
+   *  `sanitizeParams` is on, before its local pre-validation and serialization. Params only: headers and return
+   *  values are never sanitized. Runs even when `validateParams` is off. */
   sanitizeParams?: boolean;
-  /**
-   * Largest request body this route accepts, in bytes. On a route it is the RESOLVED limit of the
-   * whole chain (route option, else the sum derived from every member's params types times the
-   * router's `maxBodySizeFactor`, else the platform adapter's `maxBodySize`), what the adapters stop
-   * the read at and the router checks before parsing. On a middleFn it is the member's own declared contribution
-   * to that sum, for a middleFn whose params type has no maximum. Rides the methods metadata so a
-   * client can refuse an oversize call before sending it.
-   */
+  /** Largest request body this route accepts, in bytes. On a route the RESOLVED limit of the whole chain
+   *  (route option, else every member's params types summed times the router's `maxBodySizeFactor`, else the
+   *  adapter's `maxBodySize`): where adapters stop the read and the router checks before parsing. On a middleFn
+   *  whose params type has no maximum, its own declared contribution to that sum. Rides the methods metadata so
+   *  a client can refuse an oversize call before sending it. */
   maxBodySize?: number;
 }
 

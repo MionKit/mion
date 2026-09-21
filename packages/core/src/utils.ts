@@ -5,29 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-/** Stores singleton state on globalThis so it survives dual module loading (e.g. CJS + ESM copies).
- *  noExternal remains the primary mechanism — this is defense-in-depth and a code-level signal that
- *  the binding is intended to be a process-wide singleton. */
+/** Stores singleton state on globalThis so it survives dual module loading (CJS + ESM copies).
+ *  Defense in depth: noExternal is the primary mechanism, this marks the binding as process-wide. */
 export function getOrCreateGlobal<T>(key: string, factory: () => T): T {
   const sym = Symbol.for(key);
   return ((globalThis as any)[sym] ??= factory()) as T;
 }
 
-/** Generates a random UUID V7 (RFC 9562),
- * uses crypto.randomUUID() (v4) as random source as it's a native C++ binding that batches entropy,
- * might be faster than allocating typed arrays via crypto.getRandomValues */
+/** Random UUID V7 (RFC 9562). Randomness comes from crypto.randomUUID(), a native binding that
+ *  batches entropy, so it may beat allocating typed arrays through crypto.getRandomValues. */
 export function randomUUID_V7(): string {
   const uuid = crypto.randomUUID();
   const tHex = Date.now().toString(16).padStart(12, '0');
   return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
 }
 
-/**
- * Browser-safe function to access environment variables.
- * Returns undefined when running in browser environments where process is not available.
- * @param key - The environment variable key to retrieve
- * @returns The environment variable value or undefined if not available/in browser
- */
+/** Browser-safe: returns undefined where `process` is not available. */
 export function getENV(key: string): string | undefined {
   if (typeof process !== 'undefined' && process.env) {
     return process.env[key];
@@ -42,10 +35,9 @@ export function toBase64Url(str: string): string {
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/** The names a ROUTE may not have. A route id is an object key on both ends of the wire and a
- *  method name on the client's proxy, so all three collide with something every object already
- *  answers. Wider than the resolver's `reflection.UnsafePropertyNames`, which governs DATA keys,
- *  where only `__proto__` is a hazard. */
+/** The names a ROUTE may not have: a route id is an object key on both ends of the wire and a method name on the
+ *  client's proxy. Wider than the resolver's `reflection.UnsafePropertyNames`, which governs DATA keys, where only
+ *  `__proto__` is a hazard. */
 export const UNSAFE_PROPERTY_NAMES = ['__proto__', 'prototype', 'constructor'] as const;
 
 export function isUnsafePropertyName(name: string): boolean {

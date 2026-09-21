@@ -8,8 +8,7 @@
 import {DEFAULT_MAX_BODY_SIZE} from '@mionjs/core';
 import {CloudflareHandlerOptions} from './types.ts';
 
-/** Cloudflare's own request ceiling on the Free and Pro plans, 100 MB, which no option can raise.
- *  Override `maxBodySizeCap` on a Business (200 MB) or Enterprise (500 MB) zone. */
+/** Cloudflare's 100 MB ceiling on Free and Pro; override `maxBodySizeCap` on Business (200 MB) or Enterprise (500 MB). */
 export const CLOUDFLARE_MAX_BODY_SIZE_CAP = 100_000_000;
 
 export const DEFAULT_CLOUDFLARE_OPTIONS: CloudflareHandlerOptions = {

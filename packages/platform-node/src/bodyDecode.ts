@@ -5,22 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/**
- * The request body as one string, holding as little of it at once as possible.
- *
- * The shape this replaced kept three copies live at the moment of dispatch: the chunk array, the
- * `Buffer.concat` copy, and the decoded string. At 4 MB, times the requests in flight, that is
- * most of what the server holds. Here the chunks are released as soon as they are joined, and a
- * single chunk (the common case) is decoded without a copy at all.
- *
- * It decodes ONCE over the whole body rather than chunk by chunk. That is not a detail: a socket
- * read can end in the middle of a multi-byte character, and decoding each chunk on its own turns
- * that one character into two replacement characters. Same reason `decodeOnce` exists in
- * @mionjs/router's bodyReader, which the fetch-style adapters use.
- *
- * Its own module so it can be tested directly: an HTTP test cannot force where the socket reads
- * land, so it would pass against a per-chunk decode and prove nothing.
- */
+/** Decodes the whole body ONCE: a socket read can end mid-character, and a per-chunk decode turns that character into two
+ *  replacement characters (same reason as `decodeOnce` in @mionjs/router's bodyReader). Chunks are released as they are
+ *  joined, so no more of the body is held than needed. Its own module because an HTTP test cannot force where reads land. */
 export function decodeBody(chunks: Buffer[], size: number): string {
   if (chunks.length === 0) return '';
   if (chunks.length === 1) {

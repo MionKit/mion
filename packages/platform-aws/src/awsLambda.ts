@@ -41,7 +41,6 @@ export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
   return lambdaOptions;
 }
 
-/** Creates an AWS Lambda handler with optional platform config */
 export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
   setAwsLambdaOpts(options);
   return awsLambdaHandler;
@@ -57,11 +56,9 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
   const respHeaders = headersFromRecord(rawRespHeaders, true);
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
-  // Reconstruct query string from AWS parsed query parameters
   const urlQuery = buildQueryString(rawRequest.queryStringParameters);
   try {
-    // the body arrives whole with the event, so the context is built with it in one lookup and
-    // the router checks the size before parsing
+    // the body arrives whole with the event, so there is nothing to read: the router checks its size before parsing
     const queryBody = decodeQueryBody(urlQuery, rawBody || undefined);
     if (queryBody) {
       rawBody = queryBody.rawBody;
@@ -85,19 +82,14 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
 
 // ############# PRIVATE METHODS #############
 
-/** API Gateway and Lambda Function URLs base64-encode the body (`isBase64Encoded: true`) for binary
- *  media types and some proxy setups. The router only ever sees text, so the body is decoded here
- *  and the router's `maxBodySize` check measures the decoded text, not the base64 wire form. A
- *  body that is not base64 decodes to garbage and fails the router's JSON parse like any other bad
- *  body: `Buffer.from(..., 'base64')` never throws. */
+/** Decoded here so `maxBodySize` measures the text, not the base64 wire form; a non-base64 body just fails the JSON parse. */
 function decodeEventBody(rawRequest: APIGatewayEvent): string {
   const body = rawRequest.body || '';
   if (!body || !rawRequest.isBase64Encoded) return body;
   return Buffer.from(body, 'base64').toString();
 }
 
-/** One pass into one string: the filter/map/join chain built three arrays and two closures per
- *  invocation. Same output, `undefined` values skipped and both parts still percent-encoded. */
+/** One pass into one string: the filter/map/join it replaced built three arrays and two closures per call. */
 function buildQueryString(params: APIGatewayEvent['queryStringParameters']): string | undefined {
   if (!params) return undefined;
   let query = '';
@@ -115,8 +107,7 @@ function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayPro
   const singleHeaders: Record<string, string> = {};
   const multiHeaders: Record<string, string[]> = {};
   let multiHeaderCount = 0;
-  // iterate the entries directly: Array.from materialized a second array on top of the Map the
-  // iterator already builds, plus a closure per response
+  // entries() directly: Array.from built a second array on top of the Map the iterator already makes
   for (const [name, value] of headers.entries()) {
     if (Array.isArray(value)) {
       multiHeaders[name] = value;

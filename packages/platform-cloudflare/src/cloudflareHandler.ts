@@ -46,30 +46,22 @@ export function setCloudflareHandlerOpts(options?: Partial<CloudflareHandlerOpti
   return cloudflareOptions;
 }
 
-/** Main handler for Web standard Request -> Response */
 async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: CloudflareExecutionContext): Promise<Response> {
   const reqUrl = req.url;
   const urlObj = new URL(reqUrl);
   let path = urlObj.pathname;
-  // Strip basePath prefix to get the mion route path
   if (cloudflareOptions.basePath && path.startsWith(cloudflareOptions.basePath)) {
     path = path.slice(cloudflareOptions.basePath.length) || '/';
   }
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
   const responseHeaders = new Headers(defaultHeaders);
 
-  // Build platform context for route handlers to access env/ctx
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;
 
-  // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
-  // outside any mion envelope, and the router's own limit needs the size before parsing.
+  // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
-    // the route is resolved BEFORE the body is read, the context only after it: one lookup gives
-    // the chain and the request limit, the body is read against that limit as it arrives (a stream
-    // past it is cancelled mid-flight), and building the context after the read keeps a big body
-    // from outliving the cheap half of the garbage collector; the router checks the size once more
-    // before parsing
+    // route resolved BEFORE the body: the chain gives the limit the read is cancelled at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
     let rawBody: any;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
@@ -105,7 +97,6 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
   }
 }
 
-/** Creates a Cloudflare Workers fetch handler */
 export function createCloudflareHandler<Env = unknown>(options?: Partial<CloudflareHandlerOptions>) {
   setCloudflareHandlerOpts(options);
   return {

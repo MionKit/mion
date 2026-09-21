@@ -19,13 +19,9 @@ export class HeadersSubset<Required extends string, Optional extends string = ne
 // type-headers-subset-end
 
 // ############# HeadersSubset -> mion class serializer #############
-// Registered here, alongside the class, so JSON decoders rebuild a real instance
-// (`instanceof HeadersSubset` holds after a round trip — the router's dispatch relies on
-// that check). The constructor takes the headers map, so `deserialize` is required: the
-// automatic zero-arg `new HeadersSubset()` is unavailable and would surface CLS002.
-//
-// ⚠️ mion keys the registry by the class-NAME lane, so ONE registration covers EVERY
-// generic instantiation the program uses, not just the <string, string> projection.
+// Registered alongside the class so decoders rebuild a real instance: dispatch tests `instanceof HeadersSubset`.
+// `deserialize` is required because the constructor takes the headers map, so the zero-arg default raises CLS002.
+// ⚠️ The registry is keyed by class NAME, so ONE registration covers EVERY generic instantiation.
 registerClassSerializer<HeadersSubset<string, string>>(HeadersSubset, {
   deserialize: (data: DataOnly<HeadersSubset<string, string>>) => new HeadersSubset(data.headers),
 });

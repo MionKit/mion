@@ -9,16 +9,10 @@ import {MionHeaders, headersFromRecord} from '@mionjs/router';
 import {IncomingMessage, ServerResponse} from 'http';
 
 export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHeaders {
-  // node's HTTP parser already lower-cased these, and Express hands node's own object straight
-  // through, so re-walking and re-lowering every header per request bought nothing. Same call the
-  // node adapter makes. NOT safe on API Gateway, which preserves header case.
+  // node already lower-cased these and express passes its object straight through; NOT safe on API Gateway, which keeps case
   return headersFromRecord(rawRequest.headers as Record<string, string>, true);
 }
 
-/**
- * Reusable class for managing HTTP response headers with ServerResponse integration
- * Provides a MionHeaders interface that wraps Node.js ServerResponse header methods
- */
 class ServerResponseHeadersImpl implements MionHeaders {
   constructor(private resp: ServerResponse) {}
 

@@ -12,10 +12,6 @@ export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHea
   return headersFromRecord(rawRequest.headers as any, true);
 }
 
-/**
- * Reusable class for managing HTTP response headers with ServerResponse integration
- * Provides a MionHeaders interface that wraps Node.js ServerResponse header methods
- */
 class ServerResponseHeadersImpl implements MionHeaders {
   constructor(private resp: ServerResponse) {}
 

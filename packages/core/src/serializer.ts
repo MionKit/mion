@@ -7,8 +7,8 @@
 
 import type {SerializerOption, ResolvedSerializer, SerializerStrategy} from './types/general.types.ts';
 
-// The `serializer` option is a BUILD-TIME literal, so the runtime only reads a resolved pair back and
-// checks it against what was compiled (mionAdapter reads the strategy off the injected families).
+// The `serializer` option is a BUILD-TIME literal: at runtime the strategy is read back off the injected families
+// and checked against what was compiled (mionAdapter).
 
 /** Defaults to `clone` both ways: it never mutates the input and drops anything the type does not declare. */
 export const DEFAULT_SERIALIZER = Object.freeze({params: 'clone', return: 'clone'} as const) satisfies ResolvedSerializer;

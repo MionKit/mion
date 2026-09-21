@@ -43,14 +43,11 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
     ...httpOptions,
     ...options,
   };
-  // Pre-build default headers array once
   defaultHeaders = [['server', '@mionjs'], ...Object.entries(httpOptions.defaultResponseHeaders)];
   return httpOptions;
 }
 
-/** Dispatches one web Request through the router. Exported so the same handler mion serves can be
- *  mounted in a host that owns the socket: your own `Bun.serve({fetch: bunRequestHandler})`, or a
- *  vite dev server in middleware mode (see `asMiddleware`). */
+/** Exported so a host that owns the socket can mount it: your own `Bun.serve({fetch})`, or vite in middleware mode. */
 export async function bunRequestHandler(req: Request): Promise<Response> {
   const reqUrl = req.url;
   const pathStart = reqUrl.indexOf('/', 8);
@@ -59,13 +56,9 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
   const responseHeaders = new Headers(defaultHeaders);
 
-  // The body is read as TEXT and parsed by the router: `req.json()` would throw a raw SyntaxError
-  // outside any mion envelope, and the router's own limit needs the size before parsing.
+  // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
-    // the route is resolved BEFORE the body is read, the context only after it: one lookup gives
-    // the chain and the request limit, the body is read against that limit (bun buffers it
-    // natively), and building the context after the read keeps a big body from outliving the cheap
-    // half of the garbage collector; the router checks the size once more before parsing
+    // route resolved BEFORE the body: the chain gives the limit bun's native read stops at, and a late context stays GC-cheap
     const chain = resolveExecutionChain(path, urlQuery, req);
     let rawBody: any;
     let reqBodyType: SerializerCode = SerializerModes.stringifyJson;
@@ -75,8 +68,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
         rawBody = await readRequestBody(req, chain.maxBodySize, BodyReadStrategy.buffered);
       } catch (err) {
         const refusal = toRpcError(err);
-        // a body refused mid-flight leaves unread chunks on the socket: close it with the answer so
-        // they are never parsed as the next request of a kept-alive connection
+        // unread chunks stay on the socket: close it, or they are parsed as the next request of a kept-alive connection
         if (refusal.type === 'request-payload-too-large') responseHeaders.set('connection', 'close');
         // the route resolved, so the refusal still runs the chain's alwaysRun members
         const refused = await dispatchPlatformError(chain, path, urlQuery, refusal, req.headers, responseHeaders, req, undefined);
@@ -120,11 +112,7 @@ function serializablePlatformConfig(): Record<string, unknown> {
   return serializableConfig;
 }
 
-/** Starts the bun server. With `asMiddleware` it registers everything and returns UNDEFINED instead:
- *  in that mode there is no server to hand back — the host owns the socket and mounts
- *  `bunRequestHandler` itself. Typed through overloads so the ordinary call keeps returning a
- *  `Server` (setting the flag through `setBunHttpOpts` instead of the argument is the plugin's own
- *  path, where the return value is discarded). */
+/** `asMiddleware` returns UNDEFINED, the host owns the socket; the overloads keep the ordinary call returning a `Server`. */
 export async function startBunServer(options: Partial<BunHttpOptions> & {asMiddleware: true}): Promise<undefined>;
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>>;
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any> | undefined> {
@@ -134,8 +122,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
   const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
   const url = `http://localhost${port}`;
-  // The host owns the socket: no Bun.serve(), and NO shutdown handlers — theirs calls
-  // process.exit(0), which in middleware mode would kill the host on a signal it already handles.
+  // no Bun.serve() and NO shutdown handlers: ours calls process.exit(0) and would kill the host on a signal it handles
   if (httpOptions.asMiddleware) {
     if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
     setPlatformConfig(serializablePlatformConfig());
@@ -147,9 +134,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
   const server = Bun.serve({
     port: httpOptions.port,
     ...httpOptions.options,
-    // after the user's own serve options, so they cannot silently switch the limit off. Bun has ONE
-    // native, server-wide read limit, so it is sized to the largest limit any route resolves to; the
-    // router then applies each route's own number before parsing.
+    // after the user's own options so they cannot switch it off; bun's ONE native limit is sized to the largest route's
     maxRequestBodySize: getMaxRouteBodySize(),
     fetch: bunRequestHandler,
     error: bunErrorHandler,
@@ -164,14 +149,14 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
   process.on('SIGINT', shutdownHandler);
   process.on('SIGTERM', shutdownHandler);
 
-  // Hint to Bun's GC after initialization to clean up any temporary allocations
+  // hint to Bun's GC: release the allocations initialization left behind
   if (typeof Bun !== 'undefined' && Bun.gc) {
     Bun.gc(false);
   }
   return server;
 }
 
-// only called whe there is an htt error or weird unhandled route errors
+// only called when there is an http error or weird unhandled route errors
 function fatalFail(err: RpcError<string>, responseHeaders: any): Response {
   const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
   return reply(routeResponse, responseHeaders);

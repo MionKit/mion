@@ -28,76 +28,42 @@ import type {
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from './utils.ts';
 
-// Null-prototype on purpose: the id comes off the wire (a body names its methods), so a plain
-// object would answer `constructor` / `toString` / `__proto__` with an inherited value. Every lookup
-// below is an own-key lookup for the same reason.
+// Null-prototype on purpose: the id comes off the wire, so a plain object would answer `constructor` /
+// `toString` / `__proto__` with an inherited value. Every lookup below is an own-key lookup for the same reason.
 const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => Object.create(null) as MethodsCache);
 
-// Cache for JitCompiledFunctions objects keyed by jitHash
 const jitFunctionsCache = getOrCreateGlobal('mion.routerUtils.jitFunctionsCache', () => new Map<string, JitCompiledFunctions>());
 const headerJitFunctionsCache = getOrCreateGlobal(
   'mion.routerUtils.headerJitFunctionsCache',
   () => new Map<string, Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>>()
 );
 
-/**
- * Utilities for accessing and modifying the router cache.
- * The router cache stores method metadata for routes registered via addRoutesToCache() or virtual modules.
- */
+/** The router cache: method metadata for routes registered via addRoutesToCache() or virtual modules. */
 export const routesCache = {
-  /**
-   * Get method metadata from the router cache by id.
-   * @param id - The method id
-   * @returns The method metadata or undefined if not found
-   */
   getMetadata(id: string): MethodWithOptions | undefined {
     // a plain read is an own-key read on a null-prototype table
     return methodsCache[id] as MethodWithOptions | undefined;
   },
 
-  /**
-   * Set method metadata in the router cache
-   * @param id - The method id
-   * @param methodData - The method metadata
-   */
   setMetadata(id: string, methodData: MethodWithOptions): void {
     methodsCache[id] = methodData as any;
   },
 
-  /**
-   * Check if the router cache contains a method by id.
-   * @param id - The method id
-   * @returns True if the method exists in the cache
-   */
   hasMetadata(id: string): boolean {
     return methodsCache[id] !== undefined;
   },
 
-  /**
-   * Remove a method from the router cache, materialized jit fns included.
-   * The client uses it to drop metadata a stored cache restored from an older server build.
-   * @param id - The method id
-   */
+  /** Removes a method, materialized jit fns included: the client drops metadata restored from an older server build. */
   removeMetadata(id: string): void {
     delete methodsCache[id];
   },
 
-  /**
-   * Get the raw router cache object.
-   * Use with caution - prefer using get/set/has methods.
-   * @returns The router cache object
-   */
+  /** The raw cache object; prefer the get/set/has methods. */
   getCache(): MethodsCache {
     return methodsCache;
   },
 
-  /**
-   * Get method metadata with JIT functions restored from the router cache by id.
-   * This augments the MethodWithOptions with paramsJitFns and returnJitFns.
-   * JIT functions are cached in the entry after first access for performance.
-   * @param id - The method id
-   * @returns The method metadata with JIT functions or undefined if not found
-   */
+  /** Metadata plus its restored JIT functions; the augmented entry is written back to the cache on first access. */
   getMethodJitFns(id: string): MethodWithOptsAndJitFns | undefined {
     const cached = methodsCache[id] as any;
     if (cached && cached.paramsJitFns && cached.returnJitFns) return cached as MethodWithOptsAndJitFns;
@@ -127,37 +93,23 @@ export const routesCache = {
     return result as MethodWithOptsAndJitFns;
   },
 
-  /**
-   * Get method metadata with JIT functions restored from the router cache by id.
-   * @param id
-   * @returns
-   */
+  /** getMethodJitFns, but throws instead of returning undefined. */
   useMethodJitFns(id: string): MethodWithOptsAndJitFns {
     const MethodWithOptsAndJitFns = this.getMethodJitFns(id);
     if (!MethodWithOptsAndJitFns) throw new Error(`Metadata for remote method ${id} not found`);
     return MethodWithOptsAndJitFns;
   },
 
-  /**
-   * Set method metadata with JIT functions in the router cache.
-   * This stores the complete MethodWithOptsAndJitFns object directly.
-   * @param id - The method id
-   * @param MethodWithOptsAndJitFns - The method metadata with JIT functions
-   */
   setMethodJitFns(id: string, MethodWithOptsAndJitFns: MethodWithOptsAndJitFns): void {
     methodsCache[id] = MethodWithOptsAndJitFns as any;
   },
 };
 
-/**
- * Adds new routes to the router cache.
- * This is the public API for registering routes - called by virtual modules or directly.
- * @param newCache
- */
+/** The public API for registering routes, called by virtual modules or directly. Existing entries are kept. */
 export function addRoutesToCache(newCache: MethodsCache) {
   for (const key of Object.keys(newCache)) {
     if (!Object.hasOwn(methodsCache, key)) {
-      // Clone the cache entry to avoid mutating the original
+      // cloned so the caller's object is never mutated
       methodsCache[key] = {...newCache[key]} as MethodWithOptions;
     }
   }
@@ -190,7 +142,7 @@ export function getJitFunctionsFromHash(
   strategy: SerializerStrategy,
   direction: SerializerDirection
 ): JitCompiledFunctions {
-  // Empty hash means no JIT functions were generated (optimization for no params or void return)
+  // no JIT functions were generated for this type (no params, or a void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
 
   const cacheKey = `${strategy}:${direction}:${jitHash}`;
@@ -224,17 +176,12 @@ export function getJitFunctionsFromHash(
   if (formatTransformJit && !formatTransformJit.isNoop)
     jitFns.formatTransform = formatTransformJit as JitCompiledFunctions['formatTransform'];
 
-  // Cache for future calls
   jitFunctionsCache.set(cacheKey, jitFns);
   return jitFns;
 }
 
-/**
- * Helper function to get header JIT functions from a JIT hash
- * Results are cached to avoid creating duplicate objects.
- */
+/** Header validation fns for a jit hash; cached so the same hash never builds a second object. */
 export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
-  // Check cache first
   const cached = headerJitFunctionsCache.get(jitHash);
   if (cached) return cached;
 
@@ -245,17 +192,14 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
     typeErrors: utl.getRT(hashes.typeErrors),
   } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 
-  // Cache for future calls
   headerJitFunctionsCache.set(jitHash, jitFns);
   return jitFns;
 }
 
 /** True when every compiled function this method points at is already in the cache.
- *
- *  A stored client cache can lose a function without losing the method that names it: an eviction
- *  that made room, a write the browser aborted half way, an older server build. getJitFunctionsFromHash
- *  only finds out at call time, and then it throws. This checks presence instead, which costs a lookup
- *  and never materializes any code, so a restore can refuse the method and refetch it. */
+ *  A stored client cache can lose a function without losing the method that names it, and
+ *  getJitFunctionsFromHash only finds out at call time, where it throws. This checks presence instead,
+ *  materializing no code, so a restore can refuse the method and refetch it. */
 export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   const utl = getRTUtils();
   const serializer = metadata.options.serializer ?? DEFAULT_SERIALIZER;
@@ -266,32 +210,17 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
       utl.hasRTFn(hashes.isType) && utl.hasRTFn(hashes.typeErrors) && utl.hasRTFn(hashes.encode) && utl.hasRTFn(hashes.decode)
     );
   };
-  // Exactly what getJitFunctionsFromHash refuses to build, no more: the header sets are deliberately
-  // left out, because getHeaderJitFunctionsFromHash returns them empty instead of throwing (a client
-  // is never sent them, it only reads headersParam to tell a headers middleFn apart).
+  // Exactly what getJitFunctionsFromHash refuses to build, no more: header sets are left out because
+  // getHeaderJitFunctionsFromHash returns them empty instead of throwing.
   if (!hasFullSet(metadata.paramsJitHash, serializer.params, 'params')) return false;
   return hasFullSet(metadata.returnJitHash, serializer.return, 'return');
 }
 
-/**
- * Get the router id for Routes or MiddleFns
- * @param itemPointer - The pointer to the item within the Routes object
- * i.e:
- * const routes = {
- *   auth: () => {},
- *   users: {
- *    getUser: () => {}
- *   }
- *   login: () => {}
- * }
- *
- * then the pointer for getUser is => ['users', 'getUser']
- */
+/** The router id of a Route or MiddleFn: its pointer inside the Routes object, e.g. ['users', 'getUser']. */
 export function getRouterItemId(itemPointer: string[]) {
   return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
 }
 
-/** Gets a route path from a route pointer */
 export function getRoutePath(pathPointer: string[], routerOptions: CoreRouterOptions) {
   const pathId = getRouterItemId(pathPointer);
   const basePath = routerOptions.basePath.startsWith(ROUTE_PATH_ROOT)
@@ -316,7 +245,7 @@ const noopJitFns: JitCompiledFunctions = {
     json: {strategy: 'mutate', encode: fakeJitFn(JIT_FUNCTION_IDS.prepareForJsonMutate), decode: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJsonMutate)},
 } as any;
 
-/** Creates a fake JIT function with isNoop=true for handlers with no params or void return */
+/** isNoop stand-in for handlers with no params or a void return. */
 function fakeJitFn(fnID: string): MionTypeFn<any> {
   return {
     typeName: 'mionNoopJit',
