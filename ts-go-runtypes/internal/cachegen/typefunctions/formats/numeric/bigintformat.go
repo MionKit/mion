@@ -8,22 +8,14 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// bigintFormatEmitter implements the format with name "bigintFormat" —
-// FormatBigInt<P> in `@mionjs/run-types/formats`. Mirrors
-// BigIntRunTypeFormat (ref: packages/type-formats/src/bigint/bigIntFormat.runtype.ts).
-//
-// Surface: min / max / lt / gt, multipleOf — emitted in spec order with
-// bigint literals (`100n`). Beyond validate / validationErrors / validateParams it
-// implements formats.BinaryEncoder / BinaryDecoder: when min AND max both
-// fit signed (Int64) or unsigned (UInt64) 64-bit, the value packs into 8
-// bytes via setBigInt64 / setBigUint64; otherwise it falls back to the
-// base string serialization (emitToBinary, bigIntFormat.runtype.ts:123-153).
-// There is deliberately NO float64 path and NO sub-8-byte path — the spec has
-// neither (verified against packages/core/src/binary).
+// bigintFormatEmitter implements the format named "bigintFormat", FormatBigInt<P> in `@mionjs/run-types/formats`.
+// Surface: min / max / lt / gt, multipleOf, emitted with bigint literals (`100n`).
+// Its BinaryEncoder / BinaryDecoder pack the value into 8 bytes when min AND max both fit signed or unsigned
+// 64-bit, and fall back to the base string serialization otherwise.
+// There is deliberately NO float64 path and NO sub-8-byte path.
 type bigintFormatEmitter struct{}
 
-// bigintFormatName is the canonical FormatAnnotation.name the JS-side
-// FormatBigInt alias brands under (the BigIntRunTypeFormat.id).
+// bigintFormatName is the canonical FormatAnnotation.name the JS-side FormatBigInt alias brands under.
 const bigintFormatName = "bigintFormat"
 
 func init() {
@@ -38,10 +30,8 @@ func (bigintFormatEmitter) Kind() reflection.ReflectionKind {
 	return reflection.KindBigInt
 }
 
-// EmitValidateCheck returns the AND of every active bigint predicate, in
-// emitIsType order (bigIntFormat.runtype.ts:46-79): max, min, lt,
-// gt, multipleOf — each with a `…n` literal. Returns "" when no params
-// constrain the value (host keeps its base `typeof v === 'bigint'`).
+// EmitValidateCheck returns the AND of every active bigint predicate, in the order max, min, lt, gt, multipleOf.
+// "" leaves the host its base `typeof v === 'bigint'`.
 func (bigintFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -50,8 +40,7 @@ func (bigintFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnota
 	return strings.Join(bigintConditions(annotation.Params, vλl), " && ")
 }
 
-// bigintConditions returns the validate boolean expressions for a bigint
-// param map applied to `vλl`.
+// bigintConditions returns the validate boolean expressions for a bigint param map applied to `vλl`.
 func bigintConditions(params map[string]any, vλl string) []string {
 	var conditions []string
 	if literal, ok := bigIntLiteral(params, "max"); ok {
@@ -72,10 +61,8 @@ func bigintConditions(params map[string]any, vλl string) []string {
 	return conditions
 }
 
-// EmitValidationErrorsCheck emits one `if (failed) <push error>` statement per
-// active predicate, in emitIsTypeErrors order
-// (bigIntFormat.runtype.ts:81-115). The error `val` carries the bigint
-// literal (`…n`).
+// EmitValidationErrorsCheck emits one `if (failed) <push error>` per active predicate, in the same order as
+// EmitValidateCheck; the error `val` carries the bigint literal.
 func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -106,9 +93,7 @@ func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 	return strings.Join(statements, ";")
 }
 
-// EmitToBinary implements formats.BinaryEncoder — emitToBinary
-// (bigIntFormat.runtype.ts:123-137). UInt64 takes precedence over Int64
-// when both fit (the reference ordering); "" otherwise → base string arm.
+// EmitToBinary implements formats.BinaryEncoder; UInt64 takes precedence over Int64 when both fit.
 func (bigintFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -123,8 +108,7 @@ func (bigintFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation,
 	return ""
 }
 
-// EmitFromBinary implements formats.BinaryDecoder — emitFromBinary
-// (bigIntFormat.runtype.ts:139-153). Byte-symmetric with EmitToBinary.
+// EmitFromBinary implements formats.BinaryDecoder, byte-symmetric with EmitToBinary.
 func (bigintFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotation, des string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
@@ -139,11 +123,8 @@ func (bigintFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotatio
 	return ""
 }
 
-// BinarySize implements formats.BinarySizer: a bigint that fits signed or
-// unsigned 64-bit packs into 8 bytes (the SAME bigIntType check
-// EmitToBinary uses). Otherwise it falls back to the base string arm, whose
-// width is value-dependent — no fixed hint (the estimator uses its
-// unbounded-bigint default).
+// BinarySize implements formats.BinarySizer off the SAME bigIntType check EmitToBinary uses.
+// The base string arm's width is value-dependent, so it gets no fixed hint.
 func (bigintFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) formats.BinarySizeHint {
 	if annotation == nil {
 		return formats.BinarySizeHint{}
@@ -155,9 +136,7 @@ func (bigintFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) f
 	return formats.BinarySizeHint{}
 }
 
-// bigIntType ports getBigIntType (bigIntFormat.runtype.ts:222-232):
-// both min AND max must be set for either flag to be true. Returns
-// (isBigInt64, isBigUint64).
+// bigIntType reports whether the bounds fit 64-bit; both min AND max must be set for either flag to be true.
 func bigIntType(params map[string]any) (isBigInt64, isBigUint64 bool) {
 	min, hasMin := readBigIntParam(params, "min")
 	max, hasMax := readBigIntParam(params, "max")
@@ -169,13 +148,9 @@ func bigIntType(params map[string]any) (isBigInt64, isBigUint64 bool) {
 	return isBigInt64, isBigUint64
 }
 
-// ValidateParams ports BigIntRunTypeFormat.validateParams
-// (bigIntFormat.runtype.ts:189-219): mutual-exclusivity of {min,gt} and
-// {max,lt} (a lower/upper edge is inclusive OR exclusive, never both),
-// min>max, gt>=lt, multipleOf>0. No integer/float distinction. The
-// `[x,y].filter(Boolean)` / `x && y` checks are kept spec-faithful: a `0n`
-// bound is falsy per the reference and so escapes these checks — replicated via
-// bigTruthy + the explicit non-zero guards.
+// ValidateParams enforces that {min,gt} and {max,lt} are mutually exclusive, min<=max, gt<lt and multipleOf>0.
+// A `0n` bound is falsy in the JS spelling these checks follow and so escapes them: that is what bigTruthy and
+// the explicit non-zero guards reproduce.
 func (bigintFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -207,8 +182,7 @@ func (bigintFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 	return errs
 }
 
-// bigTruthy returns 1 when the bigint param is present AND non-zero
-// (the `[…].filter(Boolean)` drops 0n), else 0.
+// bigTruthy returns 1 when the bigint param is present AND non-zero, matching the JS `filter(Boolean)` drop of 0n.
 func bigTruthy(params map[string]any, key string) int {
 	if value, ok := readBigIntParam(params, key); ok && value.Sign() != 0 {
 		return 1
@@ -216,9 +190,8 @@ func bigTruthy(params map[string]any, key string) int {
 	return 0
 }
 
-// reportMalformedBigIntParams: a bigint param that is not a decimal integer
-// is dropped from the emitted checks (bigIntRawString refuses it) and the
-// build says so, instead of silently weakening the validator.
+// reportMalformedBigIntParams: bigIntRawString drops a non-decimal-integer param from the emitted checks, so the
+// build reports it instead of silently weakening the validator.
 func reportMalformedBigIntParams(params map[string]any, ctx formats.EmitContext) {
 	if ctx == nil {
 		return

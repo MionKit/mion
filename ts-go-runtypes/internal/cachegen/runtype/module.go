@@ -14,15 +14,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// renderFactoryArgs builds the positional-arg slice for one `rt(…)` call.
-// Absent slots render as "" (an empty arg) so the comma-join leaves a JS
-// array HOLE in the row literal — a hole reads back as undefined under the
-// runtime's index-only access, exactly like the old `u` alias did, but
-// costs zero bytes. Trailing holes are trimmed off. The first two args
-// (`id`, `kind`) are always present.
-// jsonMaxBytes is the compact-JSON maximum of a reflection ROOT (slot 21, see
-// cachegen/jsonsize); 0 renders a hole, which is what every non-root and every
-// unbounded root gets, so those rows are unchanged.
+// renderFactoryArgs builds the positional-arg slice for one `rt(…)` call. An absent slot renders as "", so the
+// comma-join leaves a JS array HOLE that reads back as undefined under the runtime's index-only access at zero
+// bytes. Trailing holes are trimmed; the first two args (`id`, `kind`) are always present.
+// jsonMaxBytes is the compact-JSON maximum of a reflection ROOT (slot 21, see cachegen/jsonsize); every non-root
+// and every unbounded root passes 0, which renders a hole.
 func renderFactoryArgs(runType *reflection.RunType, jsonMaxBytes int) []string {
 	jsonMaxArg := ""
 	if jsonMaxBytes > 0 {
@@ -55,8 +51,7 @@ func renderFactoryArgs(runType *reflection.RunType, jsonMaxBytes int) []string {
 	return trimTrailingUndefined(args)
 }
 
-// subKindArg renders a SubKind value or a hole ("") when zero. Zero is the
-// "not applicable" sentinel — only nodes that need a SubKind get one.
+// subKindArg renders a SubKind value or a hole ("") when zero, zero being the "not applicable" sentinel.
 func subKindArg(value reflection.ReflectionSubKind) string {
 	if value == reflection.SubKindNone {
 		return ""
@@ -64,8 +59,7 @@ func subKindArg(value reflection.ReflectionSubKind) string {
 	return strconv.Itoa(int(value))
 }
 
-// stringArg returns the JS source for a string field — a hole ("") when
-// empty, otherwise a single-quoted JS string literal (see quoteJS).
+// stringArg returns a hole ("") for an empty string field, otherwise a single-quoted JS string literal (quoteJS).
 func stringArg(value string) string {
 	if value == "" {
 		return ""
@@ -73,10 +67,8 @@ func stringArg(value string) string {
 	return quoteJS(value)
 }
 
-// boolArg returns `"!0"` (the 2-char form of `true`) when set, otherwise a
-// hole (""). False is treated as "absent" to keep the call site compact; the
-// own-key still exists on the cache entry because the skeleton's factory
-// pre-declares it.
+// boolArg returns `"!0"` (the 2-char form of `true`) or a hole (""). False counts as absent to keep the call
+// site compact; the own-key still exists on the cache entry because the skeleton's factory pre-declares it.
 func boolArg(value bool) string {
 	if value {
 		return "!0"
@@ -84,9 +76,8 @@ func boolArg(value bool) string {
 	return ""
 }
 
-// intPtrArg renders a *int as its decimal integer or a hole ("") when nil.
-// The pointer indirection matters — `Position == 0` is a meaningful value and
-// must round-trip as `"0"`, not a hole.
+// intPtrArg renders a *int as decimal or a hole ("") when nil: `Position == 0` is meaningful and must
+// round-trip as `"0"`, not as a hole.
 func intPtrArg(value *int) string {
 	if value == nil {
 		return ""
@@ -94,9 +85,8 @@ func intPtrArg(value *int) string {
 	return strconv.Itoa(*value)
 }
 
-// literalArg renders the `literal` slot. Footer-special literals (bigint,
-// symbol, regexp) are emitted by writeFooter, so the factory arg stays a hole
-// ("") for those — the footer assignment then patches the literal in place.
+// literalArg renders the `literal` slot; a footer-special literal (bigint, symbol) stays a hole ("") here and
+// the footer assignment patches it in place.
 func literalArg(runType *reflection.RunType) string {
 	if runType.Literal == nil {
 		return ""
@@ -139,9 +129,8 @@ func valuesArg(values []any) string {
 	return mustJSLiteral(values)
 }
 
-// trimTrailingUndefined drops trailing hole entries ("") from the arg slice
-// so `rt(…)` calls stay compact. The first two slots (id, kind) are always
-// emitted; the minimum slice length is therefore 2.
+// trimTrailingUndefined drops trailing holes ("") so `rt(…)` calls stay compact; id and kind are always
+// emitted, so the minimum length is 2.
 func trimTrailingUndefined(args []string) []string {
 	end := len(args)
 	for end > 2 && args[end-1] == "" {
@@ -150,17 +139,13 @@ func trimTrailingUndefined(args []string) []string {
 	return args[:end]
 }
 
-// cacheRef turns a hash id into the function-call expression the
-// generated code uses to look up a cached RunType, e.g. `c('Lrjx')`.
-// `c` is a short alias for `rtUtils.useRunType` declared inside the
-// skeleton's `initCache(rtUtils)` body — both the `rt(...)` factory
-// and the footer ref-assignment lines close over it.
+// cacheRef turns a hash id into the generated lookup expression, e.g. `c('Lrjx')`: `c` is the skeleton's alias
+// for `rtUtils.useRunType`, declared in its `initCache(rtUtils)` body and closed over by factory and footer alike.
 func cacheRef(id string) string {
 	return "c(" + quoteJS(id) + ")"
 }
 
-// isFooterLiteral reports whether runType.Literal needs special construction
-// in the footer (bigint / symbol) rather than inline JSON.
+// isFooterLiteral reports whether runType.Literal needs footer construction (bigint / symbol) rather than inline JSON.
 func isFooterLiteral(runType *reflection.RunType) bool {
 	if runType.Literal == nil {
 		return false
@@ -173,12 +158,10 @@ func isFooterLiteral(runType *reflection.RunType) bool {
 	return false
 }
 
-// writeFooter fills runType's reference-bearing fields and runtime-special
-// values into the module-local `cache` table via `c('<id>')` registry lookups.
-// Used ONLY by the allModules per-node layout (CollectEntriesPerNode) — the
-// default data bundle carries ref relations as row INDICES in its parallel
-// `rels` array (renderRelations) and keeps just the expression-specials in a
-// residual footer (writeBundleSpecials).
+// writeFooter fills runType's reference-bearing fields and runtime-special values into the module-local `cache`
+// table via `c('<id>')` registry lookups. Used ONLY by the allModules per-node layout (CollectEntriesPerNode):
+// the default data bundle carries ref relations as row INDICES in its parallel `rels` array (renderRelations)
+// and keeps just the expression-specials in a residual footer (writeBundleSpecials).
 func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 	name := cacheRef(runType.ID)
 	if runType.Child != nil {
@@ -199,18 +182,15 @@ func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 	if len(runType.Children) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.children = [%s];\n", name, joinRefs(runType.Children)))
 	}
-	// safeUnionChildren — same ref objects as Children, reordered so
-	// superset shapes precede their subset equivalents.
+	// safeUnionChildren: the same ref objects as Children, reordered so superset shapes precede their subsets.
 	if len(runType.SafeUnionChildren) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.safeUnionChildren = [%s];\n", name, joinRefs(runType.SafeUnionChildren)))
 	}
-	// unionDiscriminators — parallel to safeUnionChildren; entry i is a
-	// ref to the discriminator property within safeUnionChildren[i].
+	// unionDiscriminators: parallel to safeUnionChildren, entry i refs the discriminator inside safeUnionChildren[i].
 	if len(runType.UnionDiscriminators) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.unionDiscriminators = [%s];\n", name, joinRefs(runType.UnionDiscriminators)))
 	}
-	// decorators — surviving object-literal types from a collapsed
-	// `primitive & {brand}` intersection.
+	// The object-literal types surviving a collapsed `primitive & {brand}` intersection.
 	if len(runType.TypeMeta) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.typeMeta = [%s];\n", name, joinRefs(runType.TypeMeta)))
 	}
@@ -241,27 +221,18 @@ func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 	if len(runType.Extends) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.extends = [%s];\n", name, joinRefs(runType.Extends)))
 	}
-	// Only the narrow half — this footer already wrote the slot specials
-	// (formatAnnotation / contains / patternProps / propNames) above;
-	// the historical full writeBundleSpecials call emitted them twice.
+	// Only the narrow half: the slot specials were written above, and the full call would emit them twice.
 	writeExpressionSpecials(buffer, name, runType)
 }
 
-// relationSlots is the wire order of the ref-bearing RunType fields inside a
-// bundle `rels` row. MUST stay in lockstep with RUN_TYPE_REL_KEYS /
-// RUN_TYPE_REL_ARRAY in packages/run-types/src/runtypes/entryTuple.ts.
-// child/children lead because they are by far the most common (every property,
-// array, object, tuple, union), keeping the common relRow one or two slots
-// long. Single-ref slots (child/index/return/indexType) hold one target; array
-// slots hold a JS array of targets — the runtime mirror carries the same split.
-
-// renderRelations builds the index-based relation row for one bundle node:
-// every ref target renders as its ROW INDEX (a bare integer), an inline JS
-// literal for a non-ref child, or the quoted id for a ref absent from the
-// bundle (runtime falls back to a registry lookup). Trailing holes are trimmed;
-// returns "" for a leaf with no relations so the caller emits a bundle-level
-// hole. classType / formatAnnotation / footer literals are NOT here — they are
-// JS expressions handled by the residual footer (writeBundleSpecials).
+// renderRelations builds the index-based relation row for one bundle node: every ref target renders as its ROW
+// INDEX (a bare integer), an inline JS literal for a non-ref child, or the quoted id for a ref absent from the
+// bundle (the runtime falls back to a registry lookup). Trailing holes are trimmed; "" means a leaf with no
+// relations, so the caller emits a bundle-level hole. The slot order below MUST stay in lockstep with
+// RUN_TYPE_REL_KEYS / RUN_TYPE_REL_IS_ARRAY in packages/run-types/src/runtypes/entryTuple.ts; child/children
+// lead because they are by far the most common, keeping the usual row one or two slots long.
+// classType / formatAnnotation / footer literals are NOT here: they are JS expressions the residual footer
+// writes (writeBundleSpecials).
 func renderRelations(runType *reflection.RunType, indexOf map[string]int) string {
 	slots := []string{
 		relRef(runType.Child, indexOf),                // 0 child
@@ -286,12 +257,9 @@ func renderRelations(runType *reflection.RunType, indexOf map[string]int) string
 	return "[" + strings.Join(slots, ",") + "]"
 }
 
-// relRef renders a single relation target: the row index of a ref target (a
-// bare integer), the quoted id for a ref whose target is NOT a bundle row (the
-// runtime resolves it via useRunType, matching the old footer's `c('<id>')`
-// miss behavior), an inline JS literal for a non-ref child, or "" (a hole) when
-// nil. The inline case round-trips the RunType through JSON exactly as the old
-// derefExpr did.
+// relRef renders one relation target: the row index of a bundle ref (a bare integer), the quoted id for a ref
+// whose target is NOT a bundle row (the runtime resolves it via useRunType), an inline JS literal for a non-ref
+// child, or "" (a hole) when nil.
 func relRef(child *reflection.RunType, indexOf map[string]int) string {
 	if child == nil {
 		return ""
@@ -313,9 +281,8 @@ func relRef(child *reflection.RunType, indexOf map[string]int) string {
 	return mustJSLiteral(generic)
 }
 
-// relRefs renders an array relation slot as `[<ref0>,<ref1>,…]`, or "" (a hole)
-// when empty. Each element uses relRef, so a row index, inline literal, or
-// quoted id can mix in the same array.
+// relRefs renders an array relation slot as `[<ref0>,<ref1>,…]`, or "" when empty; elements go through relRef,
+// so row indices, inline literals and quoted ids can mix in one array.
 func relRefs(children []*reflection.RunType, indexOf map[string]int) string {
 	if len(children) == 0 {
 		return ""
@@ -336,8 +303,8 @@ func trimTrailingHoles(slots []string) []string {
 	return slots[:end]
 }
 
-// hasBundleSpecials reports whether a node needs any residual footer line — a
-// runtime-special value that is a JS EXPRESSION rather than index-able data.
+// hasBundleSpecials reports whether a node needs a residual footer line: a runtime-special value that is a JS
+// EXPRESSION rather than index-able data.
 func hasBundleSpecials(runType *reflection.RunType) bool {
 	return runType.FormatAnnotation != nil ||
 		(runType.ClassRef != nil && runType.ClassRef.Builtin != "") ||
@@ -347,22 +314,17 @@ func hasBundleSpecials(runType *reflection.RunType) bool {
 		len(runType.PropNames) > 0
 }
 
-// writeBundleSpecials writes the residual footer lines for the runtime-special
-// fields that can't ride the index-based `rels` array because they are JS
-// EXPRESSIONS, not data: the builtin classType (globalThis.<Builtin>, possibly
-// namespace-qualified like Temporal.PlainDate), the footer-only bigint/symbol
-// literal, and the formatAnnotation object. Emitted through `c('<id>')` (a self
-// lookup only — no cross-row refs), so the bundle's residual ini carries only
-// these rare lines and is a hole for the common object/array/union node.
+// writeBundleSpecials writes the residual footer lines for the runtime-special fields that can't ride the
+// index-based `rels` array because they are JS EXPRESSIONS, not data: the builtin classType (possibly
+// namespace-qualified, like Temporal.PlainDate), the footer-only bigint/symbol literal, and formatAnnotation.
+// Only self lookups (`c('<id>')`), so the residual stays a hole for the common object/array/union node.
 func writeBundleSpecials(buffer *strings.Builder, runType *reflection.RunType) {
 	name := cacheRef(runType.ID)
 	if runType.FormatAnnotation != nil {
 		writeFormatAnnotation(buffer, name, runType)
 	}
-	// contains / patternProps / propNames — structured entries, not bare
-	// refs, so they ride the residual footer in the bundle layout too. The
-	// child derefs go through the registry (`c('<id>')`), which resolves
-	// bundle rows as well — rows register before the residual footer runs.
+	// Structured entries, not bare refs, so they ride the residual footer in the bundle layout too. Their child
+	// derefs go through the registry, which resolves bundle rows as well: rows register before this footer runs.
 	if len(runType.Contains) > 0 {
 		writeContains(buffer, name, runType)
 	}
@@ -375,17 +337,13 @@ func writeBundleSpecials(buffer *strings.Builder, runType *reflection.RunType) {
 	writeExpressionSpecials(buffer, name, runType)
 }
 
-// writeExpressionSpecials writes the residual lines BOTH layouts need exactly
-// once: the builtin classType and the footer-only bigint/symbol literal.
-// writeFooter (per-node layout) emits the slot
-// specials itself and calls only this narrow half.
+// writeExpressionSpecials writes the residual lines BOTH layouts need exactly once: the builtin classType and
+// the footer-only bigint/symbol literal. writeFooter emits the slot specials itself and calls only this half.
 func writeExpressionSpecials(buffer *strings.Builder, name string, runType *reflection.RunType) {
-	// classType — built-in constructors looked up on globalThis so the
-	// generated module needs zero runtime imports.
+	// Built-in constructors are looked up on globalThis, so the generated module needs zero runtime imports.
 	if runType.ClassRef != nil && runType.ClassRef.Builtin != "" {
 		buffer.WriteString(fmt.Sprintf("%s.classType = globalThis.%s;\n", name, runType.ClassRef.Builtin))
 	}
-	// Footer-only literals (bigint / symbol).
 	if isFooterLiteral(runType) {
 		buffer.WriteString(fmt.Sprintf("%s.literal = %s;\n", name, footerLiteralExpr(runType)))
 	}
@@ -400,8 +358,7 @@ func joinQuoted(values []string) string {
 	return strings.Join(quoted, ", ")
 }
 
-// writeContains emits the `<ref>.contains = [{child, min, max}, …];` line.
-// Runtime consumers: the mock walker's contains construction and the
+// writeContains emits the `<ref>.contains = [{child, min, max}, …];` line, read by the mock walker and by the
 // negation matcher's occurrence counting.
 func writeContains(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	entries := make([]string, 0, len(runType.Contains))
@@ -414,8 +371,8 @@ func writeContains(buffer *strings.Builder, name string, runType *reflection.Run
 	buffer.WriteString(fmt.Sprintf("%s.contains = [%s];\n", name, strings.Join(entries, ", ")))
 }
 
-// writePatternProps / writePropNames — the patternProperties / propertyNames
-// runtime mirrors (key mocking + negation matching).
+// writePatternProps / writePropNames: the patternProperties / propertyNames runtime mirrors, used for key
+// mocking and negation matching.
 func writePatternProps(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	entries := make([]string, 0, len(runType.PatternProps))
 	for _, patternProp := range runType.PatternProps {
@@ -433,12 +390,9 @@ func writePropNames(buffer *strings.Builder, name string, runType *reflection.Ru
 	buffer.WriteString(fmt.Sprintf("%s.propNames = [%s];\n", name, strings.Join(entries, ", ")))
 }
 
-// writeFormatAnnotation emits the `<ref>.formatAnnotation = {…};` line. The
-// annotation is a name + params for a TypeFormat brand, emitted as a JSON
-// object literal (valid JS); the runtime reads it for mock generation
-// (mockSamples) and format-formatter lookup. Params is already
-// JSON-serialisable (strings / numbers / bools / nested maps / arrays /
-// RegexpParam → {source,flags}).
+// writeFormatAnnotation emits the `<ref>.formatAnnotation = {…};` line, a TypeFormat brand's name + params as a
+// JSON object literal (valid JS), read by the runtime for mock generation and format-formatter lookup.
+// Params is already JSON-serialisable (RegexpParam included, as {source,flags}).
 func writeFormatAnnotation(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	if encoded, err := json.Marshal(runType.FormatAnnotation); err == nil {
 		buffer.WriteString(fmt.Sprintf("%s.formatAnnotation = %s;\n", name, string(encoded)))
@@ -464,10 +418,9 @@ func footerLiteralExpr(runType *reflection.RunType) string {
 	return mustJSLiteral(runType.Literal)
 }
 
-// derefExpr renders a single child slot for the allModules per-node footer.
-// Refs become `c('<id>')` cache lookups; inline (non-ref) Types are
-// round-tripped through JSON to land in the any-tree shape mustJSLiteral
-// understands. (The data bundle uses renderRelations / relRef instead.)
+// derefExpr renders a single child slot for the per-node footer: refs become `c('<id>')` lookups, inline
+// (non-ref) Types round-trip through JSON into the any-tree shape mustJSLiteral understands.
+// The data bundle uses renderRelations / relRef instead.
 func derefExpr(runType *reflection.RunType) string {
 	if runType == nil {
 		return "undefined"
@@ -494,10 +447,8 @@ func joinRefs(runTypes []*reflection.RunType) string {
 	return strings.Join(parts, ", ")
 }
 
-// quoteJS renders a Go string as a JS source-level **single-quoted** string
-// literal. See the original docstring on the legacy emitter for the
-// wire-size rationale (resolver protocol JSON-encodes the body, so every
-// `"` costs an extra byte).
+// quoteJS renders a Go string as a SINGLE-quoted JS string literal: the resolver protocol JSON-encodes the
+// body, so every `"` would cost an extra escape byte on the wire.
 func quoteJS(value string) string {
 	quoted := strconv.Quote(value)
 	inner := quoted[1 : len(quoted)-1]
@@ -506,8 +457,7 @@ func quoteJS(value string) string {
 	return "'" + inner + "'"
 }
 
-// mustJSLiteral renders an arbitrary value as a JS source-level literal.
-// Same wire-efficiency motivation as `quoteJS`.
+// mustJSLiteral renders an arbitrary value as a JS source-level literal, on quoteJS's wire-size motivation.
 func mustJSLiteral(value any) string {
 	var builder strings.Builder
 	writeJSLiteral(&builder, value)

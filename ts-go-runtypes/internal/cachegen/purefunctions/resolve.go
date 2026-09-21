@@ -7,16 +7,12 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// An id is the hash of the body that SHIPS, and that body carries its
-// dependencies' ids in place of the bindings they were written with. So
-// resolving one registration can require resolving another, in a file the walk
-// has not reached yet, and the work that answers "what is this id" is the very
-// work that produces the code the cache stores.
+// An id is the hash of the body that SHIPS, and that body carries its dependencies' ids, so
+// resolving one registration can require resolving another in a file the walk has not reached, and
+// the work that answers "what is this id" is the work that produces the code the cache stores.
 //
-// resolveCtx is what keeps that from being paid twice. One entry per
-// registration per Program, finished and memoised the first time anybody asks
-// for it: the file walk, a dependent lowering it into its own body, or a batch
-// asking for one mapper's id.
+// resolveCtx keeps that from being paid twice: one entry per registration per Program, memoised the
+// first time anybody asks, be it the file walk, a dependent lowering it, or a batch.
 type resolveCtx struct {
 	typeChecker *checker.Checker
 	markerOpts  marker.Options
@@ -41,15 +37,13 @@ func newResolveCtx(typeChecker *checker.Checker, markerOpts marker.Options) *res
 	}
 }
 
-// entryFor returns the finished entry for one registration, computing it at
-// most once. cycle is true when the call is already being resolved further up
-// the stack: its id would have to contain itself, which has no answer, so the
-// caller reports PFE9015 rather than recursing forever.
+// entryFor returns the finished entry for one registration, computing it at most once. cycle is
+// true when the call is already being resolved further up the stack: its id would have to contain
+// itself, so the caller reports PFE9015 rather than recursing forever.
 //
-// The call NODE is the key, not its position: a call and the member call
-// wrapping it (`inputFrom(…).asArg()`) start at the same offset, so a position
-// would make the inner one collide with the outer one's result. Nodes are built
-// once per Program, which is exactly the memo's lifetime.
+// The call NODE is the key, not its position: a call and the member call wrapping it
+// (`inputFrom(…).asArg()`) start at the same offset. Nodes live exactly as long as the memo, one
+// per Program.
 func (ctx *resolveCtx) entryFor(sourceFile *ast.SourceFile, call *ast.Node) (*Entry, []diagnostics.Diagnostic, bool) {
 	key := call
 	if memo, found := ctx.resolved[key]; found {

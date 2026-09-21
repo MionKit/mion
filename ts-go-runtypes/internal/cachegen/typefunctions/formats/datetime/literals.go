@@ -6,20 +6,16 @@ import (
 	"time"
 )
 
-// literals.go validates an ABSOLUTE min/max bound against the field's
-// own layout and produces a numeric COMPARISON KEY on the same scale the
-// JS runtime pure fns use, so a Go-baked absolute bound and a
-// JS-computed relative (`now±P…`) bound compare against the same value.
+// literals.go validates an ABSOLUTE min/max bound against the field's own layout and produces a numeric
+// COMPARISON KEY on the scale the JS runtime pure fns use, so a Go-baked absolute bound and a JS-computed
+// relative (`now±P…`) bound compare against the same value.
 //
 // Scales (must match dateTime-pure-fns.ts exactly):
 //   - date / dateTime / native Date → epoch milliseconds (UTC).
 //   - time                          → milliseconds-of-day.
 //
-// Canonical fills for partial layouts (documented + mirrored in JS):
-//   - missing year (MM-DD / DD-MM) → 2000
-//   - missing day  (YYYY-MM)       → 1
-// Go uses time.Date(...).UnixMilli() which is proleptic-Gregorian, the
-// same calendar JS Date.UTC uses, so the epoch math is identical.
+// Canonical fills for partial layouts, mirrored in JS: missing year (MM-DD / DD-MM) → 2000, missing day
+// (YYYY-MM) → 1. Go's time.Date(...).UnixMilli() is proleptic-Gregorian like JS Date.UTC, so the math matches.
 
 const defaultFillYear = 2000
 
@@ -48,8 +44,7 @@ func isValidLiteral(value string, kind boundKind, layout string) bool {
 	return ok
 }
 
-// comparableLiteral parses an absolute literal and returns its
-// comparison key (epoch ms for date/dateTime, ms-of-day for time).
+// comparableLiteral parses an absolute literal into its comparison key: epoch ms, or ms-of-day for time.
 func comparableLiteral(value string, kind boundKind, layout string) (float64, bool) {
 	switch kind {
 	case dateKind:
@@ -80,8 +75,7 @@ func dateLayoutOrder(layout string) ([]string, bool) {
 	return nil, false
 }
 
-// dateEpochMs parses a date literal and returns its UTC epoch ms,
-// applying range + leap-year validation (mirrors isDateString).
+// dateEpochMs parses a date literal to UTC epoch ms, with the range + leap-year validation isDateString mirrors.
 func dateEpochMs(value, layout string) (float64, bool) {
 	order, ok := dateLayoutOrder(layout)
 	if !ok {
@@ -124,8 +118,8 @@ func dateEpochMs(value, layout string) (float64, bool) {
 	return epochMs(year, month, day, 0), true
 }
 
-// validDayForMonth applies month-length + leap-year rules. When the year
-// is absent (MM-DD), Feb 29 is allowed (can't disprove without a year).
+// validDayForMonth applies month-length + leap-year rules; without a year (MM-DD) Feb 29 is allowed, since
+// nothing disproves it.
 func validDayForMonth(year int, haveYear bool, month, day int) bool {
 	switch month {
 	case 2:
@@ -143,15 +137,14 @@ func validDayForMonth(year int, haveYear bool, month, day int) bool {
 	return true
 }
 
-// epochMs builds a UTC epoch-ms value from calendar fields + an intra-day
-// ms offset. time.Date with time.UTC is proleptic Gregorian, matching JS
-// Date.UTC.
+// epochMs builds a UTC epoch-ms value from calendar fields plus an intra-day offset.
+// time.Date with time.UTC is proleptic Gregorian, matching JS Date.UTC.
 func epochMs(year, month, day, intraDayMs int) float64 {
 	base := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).UnixMilli()
 	return float64(base + int64(intraDayMs))
 }
 
-// timeOfDayMs parses a time literal in `layout` → ms-of-day.
+// timeOfDayMs parses a time literal in `layout` to ms-of-day.
 func timeOfDayMs(value, layout string) (float64, bool) {
 	switch layout {
 	case "ISO", "HH:mm:ss[.mmm]TZ":
@@ -174,9 +167,8 @@ func timeOfDayMs(value, layout string) (float64, bool) {
 	return 0, false
 }
 
-// isoTimeMs parses HH:mm:ss[.mmm] with an optional Z/±HH:mm tz (when
-// withTZ). The tz offset is validated but NOT folded into the key —
-// comparison is wall-clock (documented; the JS side does the same).
+// isoTimeMs parses HH:mm:ss[.mmm], with an optional Z/±HH:mm tz when withTZ.
+// The tz offset is validated but NOT folded into the key: comparison is wall-clock, as on the JS side.
 func isoTimeMs(value string, withTZ bool) (float64, bool) {
 	body := value
 	if withTZ {
@@ -332,12 +324,8 @@ func dateTimeEpochMs(value, splitChar string) (float64, bool) {
 	return dateMs + timeMs, true
 }
 
-// lenientTimeMs tries each time layout for the time half of a dateTime
-// literal — the static bound check doesn't know the nested `time.format`
-// (only splitChar reaches comparableLiteral), so a valid value in ANY
-// recognised time layout is accepted. Codegen still validates against the
-// declared nested layout at runtime; this is only the build-time ordering
-// guard.
+// lenientTimeMs accepts the time half in ANY recognised layout: only splitChar reaches comparableLiteral, so the
+// static bound check cannot know the nested `time.format`. Codegen still checks the declared layout at runtime.
 func lenientTimeMs(value string) (float64, bool) {
 	for _, layout := range []string{"HH:mm:ss[.mmm]TZ", "HH:mm:ss[.mmm]", "HH:mm:ss", "HH:mm", "mm:ss", "HH"} {
 		if ms, ok := timeOfDayMs(value, layout); ok {

@@ -1,13 +1,7 @@
-// Package formats is the Go-side registry of TypeFormat emitters. Each
-// concrete format ("stringFormat", "uuid", "email", …) registers an
-// Emitter via Register from its own init(). The host rt-fn emitters
-// (istype, typeerrors, …) call Lookup at compile time and splice the
-// per-format JS into their own output.
-//
-// Sibling of the JS-side runtime registry (packages/run-types/src/
-// runtypes/formatRegistry.ts) — the two are kept in lock-step by
-// convention: every format ships a Go file under this subtree AND a
-// JS format type under `@mionjs/run-types/formats`. Names must match.
+// Package formats is the Go-side registry of TypeFormat emitters: each format registers an Emitter from
+// its own init(), and the host rt-fn emitters call Lookup at compile time to splice the per-format JS in.
+// Kept in lock-step with the JS side by convention: every format ships a Go file under this subtree AND a
+// JS format type under `@mionjs/run-types/formats`, under the same name.
 package formats
 
 import (
@@ -23,170 +17,107 @@ import (
 type PatternGenFailure struct {
 	// Reason is the engine's own explanation; "" means no failure recorded.
 	Reason string
-	// TimedOut marks a draw whose self-check ran out of the sidecar's match
-	// budget, retry included. That verdict belongs to the build host's load
-	// as much as to the pattern, so the emitter raises the transient FMT007
-	// for it instead of FMT005, and the entry stays out of the disk cache.
+	// TimedOut marks a draw that ran out of the sidecar's match budget, retry included.
+	// That verdict is the build host's load as much as the pattern, so the emitter raises the transient
+	// FMT007 instead of FMT005 and the entry stays out of the disk cache.
 	TimedOut bool
 }
 
-// EmitContext is the narrow surface format emitters use to declare
-// dependencies on pure-fn bodies and hoist `const` declarations into
-// the RT factory prologue. Subset of the typefns EmitContext;
-// typefns.EmitContext satisfies this interface by structural typing
-// so the host emitters pass their own ctx through unchanged. Defined
-// here (not in typefns) to keep the format-emitter packages free of
-// cross-package cycles.
+// EmitContext is the subset of typefns.EmitContext format emitters need, satisfied by it structurally so
+// host emitters pass their own ctx through unchanged. Defined here, not in typefns, to avoid an import cycle.
 type EmitContext interface {
-	// AddPureFnDependency records a (namespace, fnName, filePath)
-	// triple the emitted body will reach via
-	// `utl.getPureFn('<ns>::<fnName>')`. The resolver threads the
-	// path through to the JS-side cache so the pure fn body lives at
-	// the right import location.
+	// AddPureFnDependency records the pure-fn id the emitted body will reach via `utl.getPureFn('<id>')`.
 	AddPureFnDependency(id string)
 
-	// UsePureFn is the single choke point for referencing a pure fn from
-	// an emitted body: it records the dependency, hoists the deduped
-	// `const <alias> = utl.getPureFn('<ns>::<fnName>')` prologue line, and
-	// returns the alias the body calls. PureFnAlias is a thin wrapper over
-	// it (rtFormats namespace). Prefer this over the three-step
-	// AddPureFnDependency + HasContextItem + SetContextItem dance.
+	// UsePureFn is the single choke point for referencing a pure fn: it records the dependency, hoists the
+	// deduped `const <alias> = utl.getPureFn('<id>')` prologue line and returns the alias the body calls.
+	// Prefer it over the three-step AddPureFnDependency + HasContextItem + SetContextItem dance.
 	UsePureFn(id string) string
 
-	// HasContextItem reports whether a hoisted-declaration key has
-	// already been set in the current factory's prologue. Used to
-	// dedupe pure-fn alias declarations when multiple emit sites in
-	// the same factory reference the same pure fn.
+	// HasContextItem reports whether a hoisted-declaration key is already set in the current factory's prologue.
 	HasContextItem(key string) bool
 
-	// SetContextItem hoists `value` (a JS statement) into the
-	// factory's prologue under the supplied key. The renderer emits
-	// `value` once per factory, regardless of how many emit sites
-	// reference it.
+	// SetContextItem hoists `value` (a JS statement) into the factory's prologue, emitted once per factory
+	// however many emit sites reference it.
 	SetContextItem(key, value string)
 
-	// EmitDiagnostic records a build-time diagnostic against every call
-	// site referencing the current root RunType. Used by format
-	// emitters to surface e.g. a mockSample that doesn't match its own
-	// pattern. Deduped per-code per-walk by the walker.
+	// EmitDiagnostic records a build-time diagnostic against every call site referencing the current root
+	// RunType, deduped per-code per-walk by the walker.
 	EmitDiagnostic(code string, args ...string)
 
-	// JSEngine returns the JS engine pattern checks run on (the sidecar
-	// under node/bun natively, the host itself under WASM) — the
-	// validation authority, since samples exist to satisfy the JS runtime
-	// validator. May be nil (tests, engine not configured): callers treat
-	// nil like an engine error and emit the missing-runtime diagnostic.
+	// JSEngine returns the JS engine pattern checks run on (the sidecar under node/bun, the host under WASM),
+	// the validation authority since samples exist to satisfy the JS runtime validator.
+	// May be nil (tests, engine not configured): callers treat nil like an engine error and emit the missing-runtime diagnostic.
 	JSEngine() jsengine.Engine
 
-	// PatternSampleCount / PatternGenFailure mirror the resolver's pattern
-	// mockSample auto-generation state, so the pattern emitter can tell
-	// "generation disabled" (count 0) from "generation failed" when a
-	// sample-less pattern reaches emit time — PatternGenFailure returns
-	// the record the resolver's enrichment pass left for (source, flags),
-	// or the zero value (empty Reason) when none.
+	// PatternSampleCount / PatternGenFailure mirror the resolver's mockSample auto-generation state, so the
+	// pattern emitter can tell "generation disabled" (count 0) from "generation failed" for a sample-less pattern.
 	PatternSampleCount() int
 	PatternGenFailure(source, flags string) PatternGenFailure
 
-	// NextLocalVar returns a fresh, collision-free local identifier with
-	// the given prefix — used to hoist a `const re_N = new RegExp(...)`
+	// NextLocalVar returns a fresh, collision-free local identifier, for hoisting a `const re_N = new RegExp(...)`
 	// into the factory prologue (mirrors the template-literal emitter).
 	NextLocalVar(prefix string) string
 }
 
-// Emitter is the per-format hook surface. A format implements as many
-// of the optional methods as make sense (`""` from a method means "no
-// format-specific behaviour — fall back to the base-kind emit"). Name
-// + Kind are mandatory: they form the registry key.
+// Emitter is the per-format hook surface; `""` from any emit method means "fall back to the base-kind emit".
+// Name + Kind are mandatory: they form the registry key.
 type Emitter interface {
-	// Name returns the canonical format name. Matches the
-	// FormatAnnotation.Name on RunTypes that should dispatch here.
+	// Name returns the canonical format name, matching FormatAnnotation.Name on RunTypes that dispatch here.
 	Name() string
 
-	// Kind returns the base ReflectionKind this format wraps. KindString
-	// for FormatString / FormatUUID / FormatEmail; KindNumber for the
-	// number-format family; etc. Used as a sanity guard — Lookup
-	// rejects entries whose Kind doesn't match the host RunType.
+	// Kind returns the base ReflectionKind this format wraps; Lookup rejects entries whose Kind doesn't match
+	// the host RunType.
 	Kind() reflection.ReflectionKind
 
-	// EmitValidateCheck returns a JS expression (no `return`) evaluating
-	// to true when `vλl` satisfies the format constraints in
-	// annotation.Params. ctx lets the emitter declare pure-fn
-	// dependencies + hoist alias declarations into the factory's
-	// prologue. Empty return means "no additional check beyond the
-	// base-kind validator".
+	// EmitValidateCheck returns a JS expression (no `return`) that is true when `vλl` satisfies annotation.Params.
 	EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx EmitContext) string
 
-	// EmitValidationErrorsCheck returns a JS statement that, when executed,
-	// pushes a TypeFormatError onto the errors array (named
-	// errorsArr) for `vλl` at `pathExpr` if the value fails this
-	// format. Empty return means "no format-specific error — the
-	// caller's base-kind error path is sufficient".
+	// EmitValidationErrorsCheck returns a JS statement pushing a TypeFormatError onto errorsArr for `vλl` at
+	// `pathExpr` when the value fails this format.
 	EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx EmitContext) string
 }
 
-// ParamValidator is an OPTIONAL Emitter capability: formats that have
-// build-time param invariants (mutual exclusivity, ranges, required
-// mockSamples, enum membership) implement it. Replaces the JS-side
-// `validateParams` throw — we run it AOT in Go and the host emits a
-// CodeFMTInvalidParams diagnostic per returned message. Returns nil when
-// the params are valid.
+// ParamValidator is an OPTIONAL Emitter capability for formats with build-time param invariants.
+// It runs AOT in place of the JS-side `validateParams` throw; the host emits one CodeFMTInvalidParams
+// diagnostic per returned message.
 type ParamValidator interface {
 	ValidateParams(annotation *reflection.FormatAnnotation) []string
 }
 
-// FormatTransformer is an OPTIONAL Emitter capability: formats that
-// rewrite the value as part of the formatTransform RT-fn (the string-family
-// formats, reading the `transform` params block) implement it. Formats with
-// no transform (uuid/date/time/…) simply don't, and the format emitter
-// treats them as identity. Kept off the mandatory Emitter surface so
-// adding a transform to one format doesn't force a no-op method onto
-// every other.
+// FormatTransformer is an OPTIONAL Emitter capability for formats that rewrite the value in the
+// formatTransform RT-fn; a format that doesn't implement it is treated as identity.
+// Kept off the mandatory Emitter surface so adding a transform to one format forces no no-op method on the rest.
 type FormatTransformer interface {
-	// EmitFormatTransform returns a JS EXPRESSION that transforms `vλl`
-	// (e.g. `v.trim().toLowerCase()`), or "" when this format's params
-	// specify no transform (identity). The format emitter wraps a
-	// non-empty result as `vλl = <expr>`.
+	// EmitFormatTransform returns a JS EXPRESSION transforming `vλl`, or "" for identity.
+	// The format emitter wraps a non-empty result as `vλl = <expr>`.
 	EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, ctx EmitContext) string
 }
 
-// BinaryEncoder is an OPTIONAL Emitter capability: formats that pack the
-// value into fewer (or different) bytes than the base-kind binary
-// serializer — the numeric int8/16/32 ladder, the bigint 64-bit path —
-// implement it. Mirrors the emitToBinary override. Returns a JS
-// STATEMENT that writes `vλl` into the serializer named `ser` (advancing
-// `ser.index`), or "" to fall back to the host's base-kind binary arm
-// (`{code: undefined}` → run-types default). The host splices the
-// non-empty result in place of the base KindNumber / KindBigInt arm.
+// BinaryEncoder is an OPTIONAL Emitter capability for formats that pack into fewer bytes than the base-kind
+// serializer (the numeric int8/16/32 ladder, the bigint 64-bit path), mirroring the emitToBinary override.
+// Returns a JS STATEMENT writing `vλl` into the serializer `ser` and advancing `ser.index`, or "" to fall
+// back to the host's base KindNumber / KindBigInt arm.
 type BinaryEncoder interface {
 	EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, ctx EmitContext) string
 }
 
-// BinaryDecoder is the read-side sibling of BinaryEncoder (the
-// emitFromBinary override). Returns a JS EXPRESSION that reads the next
-// value from the deserializer named `des` (advancing `des.index`); the
-// host wraps it as `ret = <expr>`. Returns "" to fall back to the
-// base-kind decode arm. MUST stay byte-symmetric with the same format's
-// EmitToBinary — the round-trip is the only test of either half.
+// BinaryDecoder is the read-side sibling of BinaryEncoder (the emitFromBinary override): a JS EXPRESSION
+// reading the next value from `des` and advancing `des.index`, wrapped by the host as `ret = <expr>`, or "".
+// MUST stay byte-symmetric with the same format's EmitToBinary; the round-trip is the only test of either half.
 type BinaryDecoder interface {
 	EmitFromBinary(annotation *reflection.FormatAnnotation, des string, ctx EmitContext) string
 }
 
-// BinarySizeHint reports a format's on-wire byte footprint to the
-// compile-time buffer-size estimator. A zero value means "no hint — the
-// estimator falls back to the base-kind width".
+// BinarySizeHint reports a format's on-wire byte footprint; the zero value falls back to the base-kind width.
 type BinarySizeHint struct {
-	// Fixed is the exact wire width in bytes when the format packs to a
-	// constant size (the numeric int8/16/32 ladder, the 64-bit bigint
-	// path). Zero means "not fixed".
+	// Fixed is the exact wire width in bytes, zero when the format does not pack to a constant size.
 	Fixed int
 }
 
-// BinarySizer is an OPTIONAL Emitter capability mirroring BinaryEncoder: a
-// format that packs into a known wire width reports it here so the
-// compile-time estimator can seed the `dynamic` cold-start buffer from the
-// SAME min/max logic EmitToBinary uses — single source of truth, can't
-// drift. A format with no fixed width simply doesn't implement it (the
-// estimator then uses the base-kind width).
+// BinarySizer is an OPTIONAL Emitter capability mirroring BinaryEncoder, so the compile-time estimator seeds
+// the `dynamic` cold-start buffer from the SAME min/max logic EmitToBinary uses and the two cannot drift.
+// A format with no fixed width doesn't implement it and the estimator uses the base-kind width.
 type BinarySizer interface {
 	BinarySize(annotation *reflection.FormatAnnotation) BinarySizeHint
 }
@@ -201,11 +132,8 @@ type registryKey struct {
 	name string
 }
 
-// Register adds an Emitter to the global table. Intended for use from a
-// per-format file's init(): `func init() { formats.Register(stringFormat{}) }`.
-// Re-registering the same (kind, name) pair panics — drift between two
-// emitters claiming the same format is always a bug, never a fallback
-// case worth tolerating silently.
+// Register adds an Emitter to the global table, called from a per-format file's init().
+// Re-registering the same (kind, name) pair panics: two emitters claiming one format is always a bug.
 func Register(emitter Emitter) {
 	key := registryKey{kind: emitter.Kind(), name: emitter.Name()}
 	registryMu.Lock()
@@ -216,12 +144,8 @@ func Register(emitter Emitter) {
 	registry[key] = emitter
 }
 
-// Lookup returns the Emitter registered for (kind, name), or (nil,
-// false) when no concrete emitter exists. A missing entry is NOT an
-// error — host emitters fall back to the kind-default validation. This
-// is the same forward-compat lever that lets Phase 0 ship with an
-// empty registry and gracefully no-op for any FormatAnnotation it
-// encounters.
+// Lookup returns the Emitter registered for (kind, name).
+// A missing entry is NOT an error: host emitters fall back to the kind-default validation.
 func Lookup(kind reflection.ReflectionKind, name string) (Emitter, bool) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -229,9 +153,7 @@ func Lookup(kind reflection.ReflectionKind, name string) (Emitter, bool) {
 	return emitter, ok
 }
 
-// LookupForRunType is a convenience wrapper around Lookup keyed off the
-// RunType's Kind + FormatAnnotation.Name. Returns (nil, false) when rt
-// has no FormatAnnotation set.
+// LookupForRunType wraps Lookup, keyed off the RunType's Kind + FormatAnnotation.Name.
 func LookupForRunType(rt *reflection.RunType) (Emitter, bool) {
 	if rt == nil || rt.FormatAnnotation == nil {
 		return nil, false
@@ -239,11 +161,8 @@ func LookupForRunType(rt *reflection.RunType) (Emitter, bool) {
 	return Lookup(rt.Kind, rt.FormatAnnotation.Name)
 }
 
-// Registered returns every registered format Emitter, sorted by base Kind
-// then canonical Name so enumeration is deterministic. Used by codegen
-// (cmd/gen-type-formats emits the TS metadata table off this) and any
-// tooling that needs the full format list; never on a hot path. The slice is
-// a fresh snapshot — mutating it does not touch the registry.
+// Registered returns a fresh snapshot of every registered Emitter, sorted by Kind then Name so enumeration
+// is deterministic; cmd/gen-type-formats emits the TS metadata table off it. Never on a hot path.
 func Registered() []Emitter {
 	registryMu.RLock()
 	defer registryMu.RUnlock()

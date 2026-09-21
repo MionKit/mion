@@ -1,46 +1,34 @@
-// Tuple ∩ tuple intersection merge — the collapse's answer to
-// `[string, ...unknown[]] & [unknown?, number?, ...unknown[]]` (the shape
-// JSON Schema's `allOf` over prefixItems produces, with `true` padding
-// translating to unknown slots). Without this the object-merge path
-// surfaced two tuples as a junk objectLiteral whose validator was a NOOP —
-// the one forbidden outcome.
-//
-// The merge is deliberately BOUNDED: a slot pair resolves when either side
-// is unknown/any (pick the other) or both sides are the same type (by the
-// caller's id-equality on the undefined-STRIPPED slot types); the picks
-// carry the RAW slot types so each caller runs its own optional-child
-// resolution, exactly like the plain tuple projections — the merged id
-// CONVERGES with the equivalent hand-written tuple by construction.
-//
-// Sides that genuinely disagree get ONE more chance: when every contender is
-// the same primitive base wearing a format brand, the slot FOLDS into that
-// base plus the merged annotation (`minimum: 3 ∧ minimum: 5` is
-// `minimum: 5`). The fold verdict is computed here, in the shared package, so
-// both collapse halves reach it identically — a slot one half folds and the
-// other rejects would part a cache entry from its id.
-//
-// Anything outside that — slots with no common base, impossible
-// length windows, variadic spreads — reports ok=false and the callers
-// project KindNever: the validator rejects everything, which can
-// over-reject but can never silently under-validate. Labels are dropped on
-// merge (schema tuples carry none; a labeled hand-written merge is out of
-// the convergence contract — logged decision).
 package typeid
+
+// Tuple ∩ tuple intersection merge — the collapse's answer to
+// `[string, ...unknown[]] & [unknown?, number?, ...unknown[]]` (the shape JSON Schema's `allOf` over
+// prefixItems produces, with `true` padding translating to unknown slots). Without it the object-merge path
+// surfaced two tuples as a junk objectLiteral whose validator was a NOOP — the one forbidden outcome.
+//
+// The merge is deliberately BOUNDED: a slot pair resolves when either side is unknown/any (pick the other)
+// or both sides are the same type (by the caller's id-equality on the undefined-STRIPPED slot types). The
+// picks carry the RAW slot types so each caller runs its own optional-child resolution, exactly like the
+// plain tuple projections, and the merged id CONVERGES with the equivalent hand-written tuple.
+// Sides that genuinely disagree get ONE more chance: when every contender is the same primitive base
+// wearing a format brand, the slot FOLDS into that base plus the merged annotation
+// (`minimum: 3 ∧ minimum: 5` is `minimum: 5`). The fold verdict is computed here, in the shared package, so
+// both collapse halves reach it identically — a slot one half folds and the other rejects would part a
+// cache entry from its id.
+// Anything outside that (slots with no common base, impossible length windows, variadic spreads) reports
+// ok=false and the callers project KindNever: the validator over-rejects, but can never silently
+// under-validate. Labels are dropped on merge — schema tuples carry none, and a labeled hand-written merge
+// is out of the convergence contract.
 
 import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// TupleMergePick is one resolved slot of an intersected tuple set. Type is
-// the RAW slot type (undefined kept on optional slots) — callers must
-// apply the same optional-child resolution the plain tuple formulas use
-// (optionalChildID / serializeOptionalChild). Rest marks the single
-// trailing open-tail slot, when the merge stays open.
-//
-// Fold, when set, REPLACES Type: the slot is the fold's base wearing the
-// merged annotation, already undefined-stripped, so callers materialize it
-// directly instead of running the optional-child resolution.
+// TupleMergePick is one resolved slot of an intersected tuple set. Type is the RAW slot type (undefined
+// kept on optional slots), so callers must apply the same optional-child resolution the plain tuple
+// formulas use (optionalChildID / serializeOptionalChild). Rest marks the single trailing open-tail slot,
+// when the merge stays open. Fold, when set, REPLACES Type: the slot is the fold's base wearing the merged
+// annotation, already undefined-stripped, so callers materialize it directly.
 type TupleMergePick struct {
 	Type     *checker.Type
 	Fold     *SlotFold
@@ -48,22 +36,18 @@ type TupleMergePick struct {
 	Rest     bool
 }
 
-// SlotFold is a slot several tuples constrain differently, resolved. Three
-// forms, and exactly one is in play:
-//
-//	Base alone            — a plain type, materialized as itself
-//	Base + Annotation     — that base wearing the merged format annotation
-//	Arms                  — a union, each arm resolved on its own
+// SlotFold is a slot several tuples constrain differently, resolved. Exactly one form is in play: Base
+// alone (a plain type), Base + Annotation (that base wearing the merged format annotation), or Arms (a
+// union, each arm resolved on its own).
 type SlotFold struct {
 	Base       *checker.Type
 	Annotation *reflection.FormatAnnotation
 	Arms       []*SlotFold
 }
 
-// Structural is the fold's structural key. Each form reuses the formula the
-// collapse already uses for its shape (a single base wearing format sentinels,
-// a synthetic union), so a folded slot's id is byte-equal to the equivalent
-// hand-written spelling's.
+// Structural is the fold's structural key. Each form reuses the formula the collapse already uses for its
+// shape (a single base wearing format sentinels, a synthetic union), so a folded slot's id is byte-equal
+// to the equivalent hand-written spelling's.
 func (fold *SlotFold) Structural(computer *Computer) string {
 	if len(fold.Arms) > 0 {
 		ids := make([]string, 0, len(fold.Arms))
@@ -78,14 +62,11 @@ func (fold *SlotFold) Structural(computer *Computer) string {
 	return computer.Compute(fold.Base) + FormatAnnotationStructuralKey(fold.Annotation)
 }
 
-// foldSlotTypes is the bounded second chance for contending slot types. It
-// conjoins them arm by arm: same-base arms merge their format annotations
-// (`minimum: 3 ∧ minimum: 5` is `minimum: 5`), identical arms survive as
-// themselves, and a pair nothing here can express is DROPPED — dropping a union
-// arm narrows the slot, so the failure direction stays over-rejection.
-//
-// The whole path is new ground: every slot that reaches it previously reported
-// a conflict and projected `never`, so no id that resolves today can move.
+// foldSlotTypes is the bounded second chance for contending slot types. It conjoins them arm by arm:
+// same-base arms merge their format annotations (`minimum: 3 ∧ minimum: 5` is `minimum: 5`), identical
+// arms survive as themselves, and a pair nothing here can express is DROPPED — dropping a union arm
+// narrows the slot, so the failure direction stays over-rejection. Every slot that reaches this path
+// previously reported a conflict and projected `never`, so no id that resolves today can move.
 func foldSlotTypes(typeChecker *checker.Checker, contenders [][]*checker.Type, equalTypes func(a, b *checker.Type) bool) (*SlotFold, bool) {
 	if len(contenders) < 2 {
 		return nil, false
@@ -144,16 +125,12 @@ func armsOf(members []*checker.Type) []*SlotFold {
 	return arms
 }
 
-// armMembersOf flattens one slot contender into the arms the fold pairs up: a
-// union's members, an OPAQUE optional's already-resolved member list (the
-// stripped view of `T | null | undefined`, which has no single checker type),
-// or the type itself.
-//
-// Flattening is recursive but stops at `boolean`, which the checker reports
-// two different ways: a raw union splits it into its literals, the
-// optional-child resolution hands it back whole. Pairing those at different
-// granularity would prune the boolean arm out of existence, so
-// normalizeBooleanArms squares the two up before any pairing happens.
+// armMembersOf flattens one slot contender into the arms the fold pairs up: a union's members, an OPAQUE
+// optional's already-resolved member list (the stripped view of `T | null | undefined`, which has no
+// single checker type), or the type itself. Flattening is recursive but stops at `boolean`, which the
+// checker reports two ways (a raw union splits it into its literals, the optional-child resolution hands
+// it back whole); pairing those at different granularity would prune the boolean arm out of existence, so
+// normalizeBooleanArms squares them up before any pairing.
 func armMembersOf(slot tupleSlot) []*checker.Type {
 	source := slot.members
 	if slot.stripped != nil {
@@ -184,10 +161,9 @@ func isBooleanUnion(tsType *checker.Type) bool {
 		tsType.Flags()&checker.TypeFlagsBoolean != 0
 }
 
-// normalizeBooleanArms rewrites a contender's `true`-and-`false` pair into the
-// whole `boolean` another contender already spelled that way, so every side
-// pairs at the same granularity. With no side spelling it whole there is
-// nothing to square up and the literals stay as they are.
+// normalizeBooleanArms rewrites a contender's `true`-and-`false` pair into the whole `boolean` another
+// contender already spelled that way, so every side pairs at the same granularity. With no side spelling
+// it whole there is nothing to square up and the literals stay as they are.
 func normalizeBooleanArms(arms []*checker.Type, booleanType *checker.Type) []*checker.Type {
 	if booleanType == nil {
 		return arms
@@ -217,9 +193,8 @@ func normalizeBooleanArms(arms []*checker.Type, booleanType *checker.Type) []*ch
 	return normalized
 }
 
-// foldArmPair conjoins one accumulated arm with one incoming arm. isFold marks
-// a pair that genuinely merged (as opposed to two identical arms passing
-// through), which is what tells the caller the fold did any work at all.
+// foldArmPair conjoins one accumulated arm with one incoming arm. isFold marks a pair that genuinely
+// merged (rather than two identical arms passing through), which tells the caller the fold did any work.
 func foldArmPair(
 	typeChecker *checker.Checker,
 	left *SlotFold,
@@ -278,10 +253,9 @@ func containsFold(folds []*SlotFold, candidate *SlotFold, equalTypes func(a, b *
 	return false
 }
 
-// slotParts splits a slot type into its primitive/literal base and whatever
-// format annotations ride on it. Anything else in the intersection (a real
-// object member, another sentinel) makes the slot unfoldable — those carry
-// semantics no annotation merge can express.
+// slotParts splits a slot type into its primitive/literal base and whatever format annotations ride on it.
+// Anything else in the intersection (a real object member, another sentinel) makes the slot unfoldable:
+// those carry semantics no annotation merge can express.
 func slotParts(typeChecker *checker.Checker, tsType *checker.Type) (*checker.Type, []*reflection.FormatAnnotation, bool) {
 	if tsType == nil {
 		return nil, nil, false
@@ -320,19 +294,17 @@ func slotParts(typeChecker *checker.Checker, tsType *checker.Type) (*checker.Typ
 	return base, annotations, true
 }
 
-// isFoldableBaseFlags reports the primitive and literal bases a folded slot
-// may sit on. Twin of the collapse's isPrimitiveBaseFlags / isLiteralFlags
-// pair, kept here so the fold verdict needs nothing from package runtype.
+// isFoldableBaseFlags reports the primitive and literal bases a folded slot may sit on. Twin of the
+// collapse's isPrimitiveBaseFlags / isLiteralFlags pair, kept here so the fold needs nothing from runtype.
 func isFoldableBaseFlags(flags checker.TypeFlags) bool {
 	return flags&(checker.TypeFlagsString|checker.TypeFlagsNumber|checker.TypeFlagsBoolean|
 		checker.TypeFlagsBigInt|checker.TypeFlagsESSymbol|checker.TypeFlagsStringLiteral|
 		checker.TypeFlagsNumberLiteral|checker.TypeFlagsBooleanLiteral|checker.TypeFlagsBigIntLiteral) != 0
 }
 
-// tupleSlot pairs a slot's raw type with its undefined-stripped view.
-// stripped == nil marks an OPAQUE optional (`T | null | undefined` — no
-// single checker type expresses the strip); members then carries the resolved
-// arm list, which is all the annotation fold needs.
+// tupleSlot pairs a slot's raw type with its undefined-stripped view. stripped == nil marks an OPAQUE
+// optional (`T | null | undefined` — no single checker type expresses the strip); members then carries the
+// resolved arm list, which is all the annotation fold needs.
 type tupleSlot struct {
 	raw      *checker.Type
 	stripped *checker.Type
@@ -345,14 +317,11 @@ type tupleShape struct {
 	required int
 }
 
-// AllTupleOrArrayTypes is the gate both collapse halves use before attempting
-// the merge. It covers `tuple ∩ array` too — the shape JSON
-// Schema produces whenever a `prefixItems` in one applicator meets an `items`
-// in another (`[number?, ...unknown[]] & number[]`). A plain array reads as a
-// tuple with NO fixed slots and an open tail of its element type, so the same
-// slot-wise merge covers it. At least one member must be a real tuple:
-// array ∩ array is already handled upstream (single-base + sentinels) and
-// re-routing it here would change ids for no gain.
+// AllTupleOrArrayTypes is the gate both collapse halves use before attempting the merge. It covers
+// `tuple ∩ array` too — the shape JSON Schema produces whenever a `prefixItems` in one applicator meets an
+// `items` in another — since a plain array reads as a tuple with NO fixed slots and an open tail of its
+// element type. At least one member must be a real tuple: array ∩ array is already handled upstream
+// (single-base + sentinels) and re-routing it here would change ids for no gain.
 func AllTupleOrArrayTypes(typeChecker *checker.Checker, members []*checker.Type) bool {
 	if len(members) == 0 {
 		return false
@@ -372,10 +341,9 @@ func AllTupleOrArrayTypes(typeChecker *checker.Checker, members []*checker.Type)
 	return tuples > 0
 }
 
-// arrayElementType returns the element type of a plain (non-tuple) array
-// reference, or nil. The Reference gate mirrors serialize.go / typeid.go: an
-// array-LIKE mapped hybrid passes IsArrayLikeType with no reference target and
-// would segfault GetTypeArguments.
+// arrayElementType returns the element type of a plain (non-tuple) array reference, or nil. The Reference
+// gate mirrors serialize.go / typeid.go: an array-LIKE mapped hybrid passes IsArrayLikeType with no
+// reference target and would segfault GetTypeArguments.
 func arrayElementType(typeChecker *checker.Checker, tsType *checker.Type) *checker.Type {
 	if tsType == nil || checker.IsTupleType(tsType) {
 		return nil
@@ -390,9 +358,8 @@ func arrayElementType(typeChecker *checker.Checker, tsType *checker.Type) *check
 	return typeArguments[0]
 }
 
-// MergeTupleIntersection resolves an intersection of tuple types into one
-// slot list. equalTypes is the caller's structural identity (id equality on
-// its own side of the pipeline), so both halves stay twins by construction.
+// MergeTupleIntersection resolves an intersection of tuple types into one slot list. equalTypes is the
+// caller's structural identity (id equality on its own side), so both halves stay twins by construction.
 func MergeTupleIntersection(
 	typeChecker *checker.Checker,
 	tuples []*checker.Type,
@@ -471,24 +438,21 @@ func MergeTupleIntersection(
 				winner = contribution
 				continue
 			}
-			// Contenders that disagree keep accumulating: the fold below needs
-			// EVERY one of them, so a third shape's constraint can never be
-			// dropped by settling the first disagreement early. An OPAQUE
-			// optional on either side counts as a disagreement too — there is no
-			// single type to compare, but its arms fold like any other union's.
+			// Contenders that disagree keep accumulating: the fold below needs EVERY one of them, so a third
+			// shape's constraint can never be dropped by settling the first disagreement early. An OPAQUE optional
+			// on either side counts as a disagreement too — no single type to compare, but its arms fold like any
+			// other union's.
 			if winner.stripped == nil || contribution.stripped == nil ||
 				(winner.stripped != contribution.stripped && !equalTypes(winner.stripped, contribution.stripped)) {
 				contended = true
 			}
 		}
 		optional := i >= minRequired
-		// The never check comes FIRST: `T ∧ never` is never whatever the other
-		// contenders say, so a contended slot with a never contribution is not
-		// a fold candidate at all.
+		// The never check comes FIRST: `T ∧ never` is never whatever the other contenders say, so a contended
+		// slot with a never contribution is not a fold candidate at all.
 		if neverType != nil {
-			// A REQUIRED never slot means no array length satisfies the
-			// intersection — the whole merge is never (semantically exact,
-			// not just bounded).
+			// A REQUIRED never slot means no array length satisfies the intersection — the whole merge is never
+			// (semantically exact, not just bounded).
 			if !optional {
 				return nil, false
 			}
@@ -496,8 +460,8 @@ func MergeTupleIntersection(
 			continue
 		}
 		if contended {
-			// Contending constraints on one position: foldable when they are the
-			// same base wearing format brands, a genuine conflict otherwise.
+			// Contending constraints on one position: foldable when they are the same base wearing format brands,
+			// a genuine conflict otherwise.
 			fold, ok := foldSlotTypes(typeChecker, contenders, equalTypes)
 			if !ok {
 				return nil, false
@@ -513,9 +477,8 @@ func MergeTupleIntersection(
 		}
 		pickType := winner.raw
 		if !optional {
-			// A merged-REQUIRED slot must not leak the optionality-encoding
-			// `undefined` from an optional-sourced winner; the stripped view
-			// is the honest required type. Opaque strip → bounded give-up.
+			// A merged-REQUIRED slot must not leak the optionality-encoding `undefined` from an optional-sourced
+			// winner; the stripped view is the honest required type. Opaque strip → bounded give-up.
 			if winner.stripped == nil {
 				return nil, false
 			}
@@ -605,10 +568,9 @@ func readTupleShape(typeChecker *checker.Checker, tupleType *checker.Type) (tupl
 		raw := typeArguments[i]
 		slot := tupleSlot{raw: raw, stripped: raw}
 		if optional && raw != nil {
-			// Optional slots type as `T | undefined`; the STRIPPED view is
-			// what merging compares — via the same resolution the plain
-			// tuple formulas apply (a bare `unknown?` slot stays unknown, a
-			// null-preserving union has no single stripped type → opaque).
+			// Optional slots type as `T | undefined`; the STRIPPED view is what merging compares, via the same
+			// resolution the plain tuple formulas apply (a bare `unknown?` slot stays unknown, a null-preserving
+			// union has no single stripped type → opaque).
 			child := ResolveOptionalChild(typeChecker, raw)
 			if child.Members != nil {
 				slot.stripped = nil

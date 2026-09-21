@@ -9,38 +9,24 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// CollectEntries builds one entrymodules.Entry per extracted pure fn. The tuple
-// args mirror the pre-migration `factory(<key>, <bodyHash>, <paramNames>,
-// <code>, <pureFnDependencies>, <createPureFn>)` call interior.
+// CollectEntries builds one entrymodules.Entry per extracted pure fn. The `code` and
+// `createPureFn` slots vary by emit mode, as typefunctions/module.go's codeArg / createRTFnArg do:
+//   - EmitCode (default): the `code` STRING, createPureFn dropped. The runtime rebuilds the
+//     factory from `code` + `paramNames` via `new Function(...paramNames, code)` on first lookup.
+//   - EmitFunctions: `code` dropped, the live `function(<params>){<code>}` literal shipped.
+//   - EmitBoth: the body twice, for a runtime that disallows `new Function` (CSP) yet reads `.code`.
 //
-// The `code` (slot 3, relative to the key) and `createPureFn` (slot 5) slots
-// vary by emit mode, mirroring the type-fn precedent (typefunctions/module.go's
-// codeArg/createRTFnArg):
-//   - EmitCode (default): the `code` STRING, createPureFn dropped (a trailing
-//     hole). The runtime rebuilds the factory from `code` + `paramNames` via
-//     `new Function(...paramNames, code)` on first lookup (initPureFunction).
-//   - EmitFunctions: `code` dropped (an in-place hole), the live
-//     `function(<params>){<code>}` literal shipped. The runtime uses it directly.
-//   - EmitBoth: both — the body twice — for runtimes that disallow `new Function`
-//     (CSP) yet still read `.code`. This was the unconditional pre-option behavior.
+// The per-entry module is the canonical runtime home of every pure-fn body: the registration call
+// site is separately rewritten so its factory argument becomes the imported entry binding (see
+// Replacements), and the runtime registers the tuple there.
 //
-// The createPureFn argument is an inline `function(<params>){…}` literal whose
-// body is the same `code` string templated in directly. The per-entry module is
-// the canonical runtime home of every pure-fn body — the Vite plugin separately
-// rewrites the user's `registerPureFnFactory(pureFnId, factory)` call so the
-// factory argument becomes the imported entry binding (see Replacements), and the
-// runtime registers the tuple at that call site.
-//
-// Deps carry the entry's pure-fn dependencies (the `utl.usePureFn(<key>)`
-// lookups its body reaches) so importing one pure fn transitively loads the
+// Deps carry the entry's pure-fn dependencies, so importing one pure fn transitively loads the
 // pure fns it calls.
 func CollectEntries(entries []Entry, emitMode constants.EmitMode) entrymodules.Graph {
 	graph := make(entrymodules.Graph, len(entries))
 	for _, entry := range entries {
-		// Gate the code / createPureFn slots on the emit mode. An empty string is
-		// a JS array hole; a trailing hole is trimmed (the common code-mode entry
-		// ends at pureFnDependencies), while an interior hole (functions mode's
-		// dropped `code`) stays in place because a later slot is populated.
+		// An empty string is a JS array hole: a trailing one is trimmed, while an interior
+		// one (functions mode's dropped `code`) stays, a later slot being populated.
 		codeArg := ""
 		if emitMode.EmitsCode() {
 			codeArg = jsquote.Single(entry.Code)
@@ -69,9 +55,7 @@ func CollectEntries(entries []Entry, emitMode constants.EmitMode) entrymodules.G
 	return graph
 }
 
-// trimTrailingHoles drops the trailing run of empty-string (JS array hole) args
-// so a mode that omits the last slot (code mode's dropped createPureFn) shortens
-// the tuple instead of ending on a hole. Interior holes are preserved.
+// trimTrailingHoles shortens the tuple instead of ending it on a hole; interior holes are kept.
 func trimTrailingHoles(args []string) []string {
 	end := len(args)
 	for end > 0 && args[end-1] == "" {
@@ -80,17 +64,12 @@ func trimTrailingHoles(args []string) []string {
 	return args[:end]
 }
 
-// Report builds the structured pure-fn build report — one protocol.PureFnSite
-// per entry — that host tooling consumes to relocate pure-fn bodies across
-// bundles (mion's cross-bundle transport). Each record is SELF-CONTAINED (Code
-// + ParamNames inline) so a consumer never reads the generated module files;
-// that is what keeps the report shape identical across every moduleMode. The
-// `Module` field carries the per-record layout: the per-entry `pf/<ns>/<fn>`
-// basename by default, or the single `pf` bundle basename when `bundled`
-// (allSingle module mode) — mirroring how Replacements picks the import target.
-// Code honors emitMode exactly as CollectEntries does (empty when the mode ships
-// no body string). Entries arrive already deduped + sorted by Key from the
-// extractor, so the report is deterministic.
+// Report builds the pure-fn build report host tooling consumes to relocate pure-fn bodies across
+// bundles (mion's cross-bundle transport). Each record is SELF-CONTAINED, Code and ParamNames
+// inline, so a consumer never reads the generated module files and the report shape is identical
+// across every moduleMode. `Module` carries the per-record layout the way Replacements picks its
+// import target, and Code honors emitMode exactly as CollectEntries does. Entries arrive deduped
+// and sorted by Key, so the report is deterministic.
 func Report(entries []Entry, emitMode constants.EmitMode, bundled bool) []protocol.PureFnSite {
 	out := make([]protocol.PureFnSite, 0, len(entries))
 	for _, entry := range entries {
@@ -120,22 +99,16 @@ func Report(entries []Entry, emitMode constants.EmitMode, bundled bool) []protoc
 	return out
 }
 
-// Replacements builds the wire-shaped byte-range rewrites every successfully
-// extracted registration needs: the factory argument of
-// `registerPureFnFactory(factory, id?)` is swapped for the pure fn's
-// entry-module import binding, and the empty trailing `id?` slot is filled with
-// the computed id. The Go transform applies these during OpTransform (adding
-// the matching import via ImportFrom), so the user's source ends up as
-// `registerPureFnFactory(__rt_pf$2F…, '@acme/text/src/slug#slugify')` and the
-// runtime registers the tuple at the call site — the body itself lives only in
-// the entry module.
+// Replacements builds the byte-range rewrites every extracted registration needs: the factory
+// argument is swapped for the pure fn's entry-module import binding, and the empty trailing `id?`
+// slot is filled with the computed id. The Go transform applies these during OpTransform (adding
+// the matching import via ImportFrom), so the runtime registers the tuple at the call site while
+// the body lives only in the entry module.
 //
-// Entries without FactoryArgStart/End populated (e.g. a synthetic
-// Entry built by a test) are skipped — only real extraction
-// results carry the byte offsets needed to rewrite source.
-// Text doubles as the export name in BOTH layouts (see entrymodules.ExportName);
-// bundled selects allSingle module mode, where ImportFrom targets the `pf`
-// bundle instead of the per-entry module.
+// An Entry without FactoryArgStart/End (a synthetic one built by a test) is skipped: only a real
+// extraction result carries the offsets to rewrite source with. Text doubles as the export name in
+// BOTH layouts (see entrymodules.ExportName); bundled selects allSingle module mode, where
+// ImportFrom targets the `pf` bundle instead of the per-entry module.
 func Replacements(entries []Entry, bundled bool) []protocol.Replacement {
 	var out []protocol.Replacement
 	for _, entry := range entries {
@@ -154,10 +127,8 @@ func Replacements(entries []Entry, bundled bool) []protocol.Replacement {
 			replacement.ImportFrom = entrymodules.ImportSpecifier(constants.PureFnModuleDir)
 		}
 		out = append(out, replacement)
-		// Splice the id into the empty trailing `id?` slot (a point insertion at
-		// the call's closing `)`). No ImportFrom — the injected value is a
-		// plain string literal, not an entry binding. Empty when the call
-		// already wrote its id.
+		// A point insertion at the call's closing `)`. No ImportFrom: the injected value is
+		// a plain string literal, not an entry binding.
 		if entry.IDInjectText != "" {
 			out = append(out, protocol.Replacement{
 				File:  entry.FilePath,
@@ -170,12 +141,10 @@ func Replacements(entries []Entry, bundled bool) []protocol.Replacement {
 	return out
 }
 
-// createPureFnJS templates the type-stripped factory body into a
-// `function(<params>){<code>}` expression using the AUTHOR's parameter
-// names — the body references the factory's own rtUtils binding (e.g.
-// `jUtils.getPureFn(…)`), so the literal must redeclare exactly those
-// params for the closure to resolve. The runtime invokes it with the
-// rtUtils singleton as the single argument (initPureFunction).
+// createPureFnJS templates the type-stripped factory body into a `function(<params>){<code>}`
+// expression using the AUTHOR's parameter names: the body references the factory's own rtUtils
+// binding (`jUtils.getPureFn(…)`), so the literal must redeclare exactly those params for the
+// closure to resolve. The runtime invokes it with the rtUtils singleton as the single argument.
 func createPureFnJS(code string, paramNames []string) string {
 	params := strings.Join(paramNames, ",")
 	var b strings.Builder
@@ -188,9 +157,8 @@ func createPureFnJS(code string, paramNames []string) string {
 	return b.String()
 }
 
-// depKeysJS renders a `["a::b","c::d"]` JS array literal of quoted dep
-// keys. Empty/nil slices become `[]` so consumers can always treat the
-// field as iterable.
+// depKeysJS renders a JS array literal of quoted dep keys; an empty slice becomes `[]`, so a
+// consumer can always treat the field as iterable.
 func depKeysJS(keys []string) string {
 	if len(keys) == 0 {
 		return "[]"

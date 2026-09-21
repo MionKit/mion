@@ -39,10 +39,10 @@ const (
 
 	CodeMissingPureFnDep    = "PFE9012"
 	CodePurityDepNotLiteral = "PFE9013"
-	// CodePureFnIdMismatch: the registration passes an explicit id that is not
-	// the one its location produces. No entry is built, so nothing is emitted
-	// for it and the call site keeps its own text. LevelError: there is nothing
-	// to accept, and accepting it would split one function across two keys.
+	// CodePureFnIdMismatch: the registration passes an explicit id that is not the one
+	// the body it registers hashes to. No entry is built, so nothing is emitted for it
+	// and the call site keeps its own text. LevelError: there is nothing to accept, and
+	// accepting it would split one function across two keys.
 	CodePureFnIdMismatch = "PFE9014"
 	// CodePureFnDependencyCycle: two pure functions reach each other through
 	// `utl.getPureFn`. An id is the hash of the body that ships, and that body

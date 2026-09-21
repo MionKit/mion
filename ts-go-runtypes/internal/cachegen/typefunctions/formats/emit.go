@@ -2,33 +2,16 @@ package formats
 
 import "strconv"
 
-// FormatErrCall emits a statement that pushes the canonical nested
-// RTValidationError — `{expected, path, format: {name, formatPath, val}}` —
-// onto the errors array. This is the shape the base validationErrors path
-// (newRunTypeErr) and consumers expect; a bare `{name, formatPath, val}`
-// push would not conform to RTValidationError and is invisible to consumers
-// reading `.path`/`.format`.
-//
-// Emitted INLINE as a small object-literal push rather than through a pure fn:
-// the whole statement is a handful of bytes with no shared logic to factor out,
-// so a `utl.getPureFn('formatErr')` indirection would cost more than
-// it saves. (Built-in pure fns ARE now delivered on demand — the former
-// `formatErr` built-in was deleted as dead once this inline push replaced
-// it — so the choice is size, not a delivery constraint.)
-//
-// paramValLiteral is the already-rendered JS value — a quoted string for
-// the string formats; an unquoted number, the literal `true`, or a `…n`
-// bigint literal for the numeric ones. pathExpr is the runtime path arg
-// (`pth`); path is copied (`[...pth]`) so each pushed error owns its
-// array. formatPath is `[paramName]`.
+// FormatErrCall pushes the canonical nested RTValidationError `{expected, path, format: {name, formatPath, val}}`.
+// A bare `{name, formatPath, val}` push is invisible to consumers reading `.path` / `.format`.
+// Inlined rather than routed through a pure fn: a handful of bytes with no shared logic to factor out.
+// paramValLiteral is the already-rendered JS value; path is copied (`[...pth]`) so each pushed error owns its array.
 func FormatErrCall(pathExpr, errorsArr, expected, fmtName, paramName, paramValLiteral string) string {
 	return FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramValLiteral, "")
 }
 
-// FormatErrCallWith is FormatErrCall plus extra properties spliced verbatim
-// into the emitted format object literal (e.g. ",isCurrency:true" — pure
-// presentation metadata a format echoes onto its errors for the friendly
-// renderer). extraFormatProps must be "" or start with a comma.
+// FormatErrCallWith is FormatErrCall plus properties spliced verbatim into the format object literal (e.g. ",isCurrency:true").
+// extraFormatProps must be "" or start with a comma.
 func FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramValLiteral, extraFormatProps string) string {
 	path := pathExpr
 	if path == "" {
@@ -38,17 +21,9 @@ func FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramV
 		"format:{name:'" + fmtName + "',formatPath:['" + paramName + "'],val:" + paramValLiteral + extraFormatProps + "}})"
 }
 
-// FormatErrorTypeProp renders the optional `errorType` property for FormatErrCallWith's
-// extraFormatProps: WHICH way the format failed, for a format with more than one
-// way to fail. Any emitter can attach it; a format whose constraint either holds
-// or does not (a pattern, a length bound) has nothing to say here and omits it.
-//
-// typeExpr is a JS EXPRESSION, so a format that only knows the mode at runtime
-// can pass the call or local that yields it rather than a baked-in literal.
-//
-// THE ROSTER — every mode is a stable string, mirrored by the `*ErrorType`
-// unions next to each format's params in packages/run-types/src/formats/string
-// and by `FormatErrorsOf<T>` on the JS side; add a mode in all three places.
+// FormatErrorTypeProp renders the optional `errorType` property: WHICH way the format failed, for a format with more than one way.
+// typeExpr is a JS EXPRESSION, so a format that only knows the mode at runtime can pass the call that yields it.
+// Every mode is mirrored by the `*ErrorType` unions in packages/run-types/src/formats/string and by `FormatErrorsOf<T>`; add a mode in all three.
 //
 //	creditCard  'format' | 'checksum' | 'network'      (network only with `networks`)
 //	email       RFC path (`emailRfc`): 'format' | 'localPart' | 'domain' |
@@ -59,23 +34,13 @@ func FormatErrCallWith(pathExpr, errorsArr, expected, fmtName, paramName, paramV
 //	            decomposition path (`names` / `tld`): 'label' | 'tld'.
 //	ip          'address' | 'port', ONLY with `allowPort`.
 //
-// Deliberately WITHOUT one, and why:
-//
-//	url, uuid, the plain-pattern email / domain presets, stringFormat, and every
-//	numeric, datetime and structural format push ONE error per violated param,
-//	and the formatPath tail already names it. There is no second mode to name.
-//	ip without allowPort has exactly one way to fail; a filler value would be
-//	worse than nothing.
-//	Whole-value bounds on a composite format (a domain's maxParts, a root
-//	maxLength) also name themselves through formatPath: errorType names a PART
-//	or a RULE, never a bound.
+// Every other format omits it: it pushes ONE error per violated param and the formatPath tail already names it.
+// errorType names a PART or a RULE, never a bound: a whole-value bound (a domain's maxParts) names itself through formatPath.
 func FormatErrorTypeProp(typeExpr string) string {
 	return ",errorType:" + typeExpr
 }
 
-// FormatNumber stringifies a float64 in the same way JSON does
-// (`1` vs `1.0` both → "1"). Used in the emitted JS source so the
-// validator's bound matches what tsgo saw at type-resolution time.
+// FormatNumber stringifies a float64 the way JSON does (`1.0` → "1"), so the emitted bound matches what tsgo saw.
 func FormatNumber(value float64) string {
 	if value == float64(int64(value)) {
 		return strconv.FormatInt(int64(value), 10)
@@ -83,11 +48,8 @@ func FormatNumber(value float64) string {
 	return strconv.FormatFloat(value, 'g', -1, 64)
 }
 
-// PureFnAlias is the format emitters' wrapper over ctx.UsePureFn: it registers
-// the dependency, hoists the deduped `const <alias> = utl.getPureFn('<id>')`
-// prologue line, and returns the alias the emitted body uses. `id` is a
-// generated purefnids constant. Transitive deps the pure fn calls internally
-// are picked up by the extractor, not declared here.
+// PureFnAlias wraps ctx.UsePureFn for the format emitters; `id` is a generated purefnids constant.
+// Transitive deps the pure fn calls internally are picked up by the extractor, not declared here.
 func PureFnAlias(ctx EmitContext, id string) string {
 	return ctx.UsePureFn(id)
 }

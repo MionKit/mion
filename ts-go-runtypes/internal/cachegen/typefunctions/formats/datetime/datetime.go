@@ -8,11 +8,8 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// dateTimeEmitter implements the format named "dateTime" —
-// FormatStringDateTime<P>. Composes the date + time validators (split on
-// `splitChar`, default 'T') and adds optional top-level min/max bounds
-// (a dateTime bound may use both date and time duration components).
-// Moved here from the string package.
+// dateTimeEmitter implements the format named "dateTime", FormatStringDateTime<P>: it composes the date + time
+// validators around `splitChar` (default 'T') and adds top-level bounds, which may use both component groups.
 type dateTimeEmitter struct{}
 
 func init() {
@@ -98,10 +95,8 @@ func nestedFormat(params map[string]any, key, fallback string) string {
 	return fallback
 }
 
-// ValidateParams checks the nested date/time layouts resolve and
-// validates the optional top-level min/max bounds (dateTimeKind: both
-// component groups allowed). The splitChar is the layout key for the
-// best-effort static bound parse.
+// ValidateParams checks the nested date/time layouts resolve and validates the top-level bounds.
+// The splitChar is the layout key for the best-effort static bound parse.
 func (dateTimeEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -123,8 +118,7 @@ func (dateTimeEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation
 	}
 	dateAlias := pureFnAlias(ctx, dateFn)
 	timeAlias := pureFnAlias(ctx, timeFn)
-	// IIFE: bind the split position once, bail on -1, then AND the two
-	// sub-validators over the substrings.
+	// IIFE so the split position is computed once for both substring validators.
 	structural := "((dtp) => dtp !== -1 && " +
 		dateAlias + "(" + vλl + ".substring(0,dtp)) && " +
 		timeAlias + "(" + vλl + ".substring(dtp+1)))(" + splitSearch(vλl, splitChar) + ")"

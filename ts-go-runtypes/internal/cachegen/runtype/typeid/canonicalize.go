@@ -1,57 +1,39 @@
 package typeid
 
-// Canonical (entry-point-independent) ids for cyclic type clusters.
-//
-// A raw walk's cycle tokens anchor wherever the walk happened to close a
-// cycle: entering `Record<string, N0[]>` through the checker-interned
-// `Array<N0>` closes at the ARRAY, while the jsonSchema-authored twin (a
-// fresh array node per schema literal) closes at the object knot — two
-// honest spellings of one bisimulation class, hence two ids. This file
+// Canonical (entry-point-independent) ids for cyclic type clusters. A raw walk's cycle tokens anchor
+// wherever the walk happened to close the cycle — entering `Record<string, N0[]>` through the
+// checker-interned `Array<N0>` closes at the ARRAY, the jsonSchema-authored twin (a fresh array node per
+// schema literal) closes at the object knot — so one bisimulation class ends up with two ids. This file
 // replaces every raw cyclic unroll with a canonical one:
 //
-//  1. TEMPLATES — each cluster member is re-dispatched with in-cluster
-//     children resolved to slot placeholders (`Compute`'s templating check),
-//     non-cluster children to their real final ids. Order-sensitive-by-
-//     content composites (unions, brand sets, call-signature groups) are
-//     emitted as UNORDERED RUNS and sorted only at emission, because checker
-//     member order is declaration-position-tiebroken and therefore not
-//     canonical across cloned anonymous members.
-//  2. REFINEMENT — partition members by normalized template, then refine by
-//     successor blocks using EXACT per-round ordinals (hashes could silently
-//     merge non-bisimilar nodes). Monotone: round k+1 refines round k (equal
-//     at k+1 forces equal templates and targets equal under k), so the
-//     partition stabilizes within |cluster| rounds. Blocks = bisimulation
-//     classes. Labels derive from structure alone, so bisimilar clusters
-//     discovered by SEPARATE walks reach identical fixpoints — the property
-//     that makes independently computed twins converge.
-//  3. EMISSION — each block's id is a deterministic unroll of the quotient
-//     rooted at that block: an on-stack target renders as the bare token
-//     `$<kind>_<relDepth>` (relDepth in the EMISSION stack — walk-order
-//     independent by construction), an off-stack target re-expands (bounded
-//     exactly like the raw unroll it replaces), runs sort after resolution.
-//     Emission is a function of (block, stack) only, so the representative
+//  1. TEMPLATES — each cluster member is re-dispatched with in-cluster children resolved to slot
+//     placeholders, non-cluster children to their real final ids. Composites sorted by CONTENT (unions,
+//     brand sets, call-signature groups) are emitted as UNORDERED RUNS and sorted only at emission,
+//     because checker member order is declaration-position-tiebroken and so not canonical across cloned
+//     anonymous members.
+//  2. REFINEMENT — partition members by normalized template, then refine by successor blocks using EXACT
+//     per-round ordinals (hashes could silently merge non-bisimilar nodes). Monotone, so the partition
+//     stabilizes within |cluster| rounds, and labels derive from structure alone, so bisimilar clusters
+//     found by SEPARATE walks reach identical fixpoints — the property that converges independent twins.
+//  3. EMISSION — each block's id is a deterministic unroll of the quotient rooted at that block: an
+//     on-stack target renders as the bare token `$<kind>_<relDepth>` (relDepth in the EMISSION stack, so
+//     walk-order independent), an off-stack target re-expands (bounded exactly like the raw unroll it
+//     replaces), runs sort after resolution. A function of (block, stack) only, so the representative
 //     choice cannot matter.
-//  4. OVERRIDES — refinement and the PURE emission are suffix-free; a
-//     block's `overrideX` families are looked up by its pure emission (the
-//     entry-point-independent replacement for the old raw base key), and the
-//     FINAL emission appends `OverrideStructuralKey(families)` at each
-//     block expansion site. Fold and stamp passes both route through cold
-//     BaseStructuralKey walks, so producer and consumer stay consistent.
-//  5. ALIAS — for every block, its COMPOSITION SPELLING (template with slots
-//     substituted by full final ids) is registered on the Computer: that is
-//     byte-for-byte what an acyclic parent pointing into the cluster
-//     composes as its dispatch base, so an entry container that sits OUTSIDE
-//     the pointer-SCC (the interned `Array<N0>` above) remaps to the block's
-//     canonical id at its own cacheable pop. Without this the motivating
-//     Record case still diverges: rooted emission fixes the knot, the alias
-//     map fixes the container.
+//  4. OVERRIDES — refinement and the PURE emission are suffix-free; a block's `overrideX` families are
+//     looked up by its pure emission, and the FINAL emission appends `OverrideStructuralKey(families)` at
+//     each block expansion site. Fold and stamp passes both route through cold BaseStructuralKey walks,
+//     so producer and consumer stay consistent.
+//  5. ALIAS — every block registers its COMPOSITION SPELLING (template with slots substituted by full
+//     final ids) on the Computer: that is byte-for-byte what an acyclic parent pointing into the cluster
+//     composes as its dispatch base, so an entry container OUTSIDE the pointer-SCC remaps to the block's
+//     canonical id at its own cacheable pop. Without it the motivating Record case still diverges: rooted
+//     emission fixes the knot, the alias map fixes the container.
 //
-// Known narrower residual (diverges today too, unreachable by the fuzz
-// lane's two-sided fixtures): a later walk's cluster that pointer-references
-// a member of a PREVIOUSLY closed, bisimilar-overlapping cluster embeds that
-// member's finished id as an opaque leaf, so rotated hand-written partial
-// duplications of one cycle can still spell differently. A session-level
-// block registry would close it; deliberately not built here.
+// Known narrower residual (diverges today too, unreachable by the fuzz lane's two-sided fixtures): a later
+// walk's cluster that pointer-references a member of a PREVIOUSLY closed, bisimilar-overlapping cluster
+// embeds that member's finished id as an opaque leaf, so rotated hand-written partial duplications of one
+// cycle can still spell differently. A session-level block registry would close it; deliberately not built.
 
 import (
 	"sort"
@@ -62,10 +44,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Template control bytes — valid only INSIDE template strings, never in final
-// ids. User-provided bytes (literal values, member names, labels, enum
-// discriminators, class names) are escaped in template mode by Computer.lit,
-// so a literal type like "\x00S0\x00" cannot spoof a slot.
+// Template control bytes — valid only INSIDE template strings, never in final ids. User-provided bytes
+// (literal values, member names, labels, enum discriminators, class names) are escaped in template mode by
+// Computer.lit, so a literal type like "\x00S0\x00" cannot spoof a slot.
 const (
 	slotByte     = "\x00" // \x00<decimal slot index>\x00
 	runOpenByte  = "\x01" // unordered run: \x01 member \x02 member … \x03
@@ -78,15 +59,13 @@ func slotMark(index int) string {
 	return slotByte + strconv.Itoa(index) + slotByte
 }
 
-// clusterState marks a template-extraction re-walk: Compute resolves any
-// child in slotOf to a placeholder instead of text.
+// clusterState marks a template-extraction re-walk: Compute resolves any child in slotOf to a placeholder.
 type clusterState struct {
 	slotOf map[*checker.Type]int
 }
 
-// aliasEntry carries a canonical block's two spellings: `final` (override
-// suffixes folded — what the pointer cache and parents compose) and `pure`
-// (suffix-free — the override map's key space).
+// aliasEntry carries a canonical block's two spellings: `final` (override suffixes folded — what the
+// pointer cache and parents compose) and `pure` (suffix-free — the override map's key space).
 type aliasEntry struct {
 	final string
 	pure  string
@@ -97,9 +76,8 @@ type canonResult struct {
 	pure  string
 }
 
-// lit escapes user-provided bytes when (and only when) a template extraction
-// is active, so template control bytes stay unforgeable. Identity on every
-// ordinary walk — acyclic ids keep their exact bytes.
+// lit escapes user-provided bytes when (and only when) a template extraction is active, so template control
+// bytes stay unforgeable. Identity on every ordinary walk — acyclic ids keep their exact bytes.
 func (computer *Computer) lit(s string) string {
 	if computer.templating == nil {
 		return s
@@ -125,13 +103,11 @@ func (computer *Computer) lit(s string) string {
 	return b.String()
 }
 
-// sortedJoin composes a content-sorted composite (union members, intersection
-// brand sets, object members, call-signature groups). Ordinary walks sort and
-// join immediately — byte-identical to the historical spelling. Template
-// walks defer: member order from the checker is declaration-position-
-// tiebroken (not canonical across cloned anonymous members) and members may
-// contain slot placeholders whose bytes are walk-order-dependent, so the run
-// is kept unordered until emission resolves and sorts it.
+// sortedJoin composes a content-sorted composite (union members, intersection brand sets, object members,
+// call-signature groups). Ordinary walks sort and join immediately — byte-identical to the historical
+// spelling. Template walks defer: checker member order is declaration-position-tiebroken (not canonical
+// across cloned anonymous members) and members may hold slot placeholders whose bytes are
+// walk-order-dependent, so the run stays unordered until emission resolves and sorts it.
 func (computer *Computer) sortedJoin(ids []string) string {
 	if computer.templating != nil {
 		return runOpenByte + strings.Join(ids, runSepByte) + runCloseByte
@@ -140,12 +116,10 @@ func (computer *Computer) sortedJoin(ids []string) string {
 	return strings.Join(ids, ",")
 }
 
-// canonicalizeCluster computes canonical ids for the SCC cluster rooted at
-// root (members = the pointers popped uncacheable since the root was pushed,
-// i.e. pending[mark:], plus root itself), caches every member's final id, and
-// registers the blocks' composition spellings in the alias map. rawBase is
-// the root's discarded raw unroll, returned only on a depth-cap abort (the
-// cache layer discards and diagnoses that walk anyway).
+// canonicalizeCluster computes canonical ids for the SCC cluster rooted at root (members = pending[mark:],
+// the pointers popped uncacheable since the root was pushed, plus root itself), caches every member's final
+// id, and registers the blocks' composition spellings in the alias map. rawBase is the root's discarded raw
+// unroll, returned only on a depth-cap abort (the cache layer discards and diagnoses that walk anyway).
 func (computer *Computer) canonicalizeCluster(root *checker.Type, mark int, rawBase string) canonResult {
 	segment := computer.pending[mark:]
 	computer.pending = computer.pending[:mark]
@@ -162,9 +136,8 @@ func (computer *Computer) canonicalizeCluster(root *checker.Type, mark int, rawB
 		add(tsType)
 	}
 
-	// Template extraction. The member frame is pushed for defense: a checker
-	// query minting a FRESH pointer mid-template just computes normally (and a
-	// pathological fresh spiral hits the existing depth backstop).
+	// Template extraction. The member frame is pushed for defense: a checker query minting a FRESH pointer
+	// mid-template just computes normally, and a pathological fresh spiral hits the depth backstop.
 	templates := make([]string, len(members))
 	kinds := make([]reflection.ReflectionKind, len(members))
 	saved := computer.templating
@@ -253,11 +226,9 @@ func (computer *Computer) canonicalizeCluster(root *checker.Type, mark int, rawB
 		return canonResult{final: rawBase, pure: rawBase}
 	}
 
-	// Commit member ids and the blocks' composition spellings (see the file
-	// header: the alias map is what converges entry containers OUTSIDE the
-	// pointer-SCC). First writer wins on an alias key — bisimilar clusters
-	// register byte-identical entries, so overwriting is a no-op by
-	// construction and skipping it keeps the map insert-only.
+	// Commit member ids and the blocks' composition spellings (the alias map is what converges entry
+	// containers OUTSIDE the pointer-SCC). First writer wins on an alias key — bisimilar clusters register
+	// byte-identical entries, so overwriting is a no-op and skipping it keeps the map insert-only.
 	for i, member := range members {
 		computer.cache[member] = finalOf[blocks[i]]
 	}
@@ -273,12 +244,10 @@ func (computer *Computer) canonicalizeCluster(root *checker.Type, mark int, rawB
 	return canonResult{final: finalOf[blocks[0]], pure: pureOf[blocks[0]]}
 }
 
-// resolveTemplate walks a template string, replacing slot placeholders via
-// resolveSlot and resolving unordered runs (members resolved recursively,
-// then sorted, then comma-joined). keepControl keeps the run framing and
-// escape sequences intact — refinement labels stay in template space, while
-// emission (keepControl=false) unescapes user bytes and joins runs with `,`
-// so the output is a plain structural id.
+// resolveTemplate walks a template string, replacing slot placeholders via resolveSlot and resolving
+// unordered runs (members resolved recursively, then sorted, then comma-joined). keepControl keeps the run
+// framing and escape sequences intact so refinement labels stay in template space; emission
+// (keepControl=false) unescapes user bytes and joins runs with `,` to give a plain structural id.
 func (computer *Computer) resolveTemplate(template string, resolveSlot func(slot int) string, keepControl bool) string {
 	var b strings.Builder
 	b.Grow(len(template))
@@ -336,9 +305,8 @@ func (computer *Computer) resolveTemplate(template string, resolveSlot func(slot
 	return b.String()
 }
 
-// resolveRun parses one unordered run starting just past its opening byte,
-// resolving each member fragment recursively (members may nest runs). Returns
-// the resolved members and the index just past the closing byte.
+// resolveRun parses one unordered run starting just past its opening byte, resolving each member fragment
+// recursively (members may nest runs). Returns the resolved members and the index past the closing byte.
 func (computer *Computer) resolveRun(template string, start int, resolveSlot func(slot int) string, keepControl bool) ([]string, int) {
 	var memberStrings []string
 	var current strings.Builder
@@ -393,9 +361,9 @@ func (computer *Computer) resolveRun(template string, start int, resolveSlot fun
 	return memberStrings, i
 }
 
-// assignOrdinals maps each label to its rank among the sorted distinct labels
-// — canonical given canonical labels, and collision-free by construction
-// (unlike hashing, which could silently merge non-bisimilar nodes).
+// assignOrdinals maps each label to its rank among the sorted distinct labels — canonical given canonical
+// labels, and collision-free by construction (unlike hashing, which could silently merge non-bisimilar
+// nodes).
 func assignOrdinals(labels []string) []int {
 	distinct := make([]string, len(labels))
 	copy(distinct, labels)
@@ -422,9 +390,8 @@ func compact(sorted []string) []string {
 	return out
 }
 
-// samePartition reports whether two ordinal assignments induce the same
-// grouping (ordinal VALUES may permute between rounds while the partition is
-// already stable — compare group structure, not labels).
+// samePartition reports whether two ordinal assignments induce the same grouping: ordinal VALUES may
+// permute between rounds while the partition is already stable, so compare group structure, not labels.
 func samePartition(a, b []int) bool {
 	firstA := make(map[int]int)
 	firstB := make(map[int]int)

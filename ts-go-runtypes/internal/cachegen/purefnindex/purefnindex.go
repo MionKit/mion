@@ -5,11 +5,10 @@
 // shape in artifact.go), read wherever it sits under the package root and never a bundle. The index is decoded
 // on first touch (a `.d.ts` import carries a NAME, never an id) and a module opened only for a demanded id, so
 // memory follows what the consumer uses. Source second: with no artifact, rows are extracted from the shipped
-// TypeScript by the same extractor a build runs, the package scanned for a registrar call. The marker package
-// is on the artifact lane like any other. An id says nothing about where
-// its body lives, so a demanded id is MATCHED against what came back, never decoded. The resolver is the
-// session's whenever its program already holds the files (in-repo, the `source` condition puts the marker
-// sources there): one resolver and one memo mean the ids here cannot disagree with the program's own
+// TypeScript by the same extractor a build runs, the package scanned for a registrar call. An id says nothing
+// about where its body lives, so a demanded id is MATCHED against what came back, never decoded. The resolver
+// is the session's whenever its program already holds the files (in-repo, the `source` condition puts the
+// marker sources there): one resolver and one memo mean the ids here cannot disagree with the program's own
 // extraction, and only a package the program does not hold pays for a side Program. Everything goes through
 // the program FS, so an overlay-only package behaves like an installed one.
 package purefnindex
