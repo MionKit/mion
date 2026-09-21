@@ -11,36 +11,23 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// maxVarintBytes mirrors dataView.ts MAX_VARINT — the length prefix every
-// serString write reserves (worst case MAX_VARINT + 3*charLength). The estimate
-// budgets that reserve where a value is type-constrained (enum / index-sig keys).
+// maxVarintBytes mirrors dataView.ts MAX_VARINT: every serString write reserves MAX_VARINT + 3*charLength,
+// and the estimate budgets that reserve where a value is type-constrained (enum / index-sig keys).
 const maxVarintBytes = 5
 
-// Compile-time buffer-size estimator for createBinaryEncoderFn. It walks a type
-// graph and returns an estimated on-wire byte count, baked into the `tb` entry
-// and used at runtime as the `dynamic` strategy's cold-start buffer size (in
-// place of the flat defaultBufferSize fallback) until per-key history warms up.
-//
-// The walk mirrors the binary_to.go byte accounting — float64 numbers = 8
-// bytes, packed numeric/bigint widths via the format BinarySizer (the SAME
-// min/max logic EmitToBinary uses, so the two can't drift), 1-byte
-// bool/null/void, varint framing, optional-property bitmaps, union
-// discriminators, temporal layouts — and anchors unbounded variable parts
-// (strings, collections) on the config defaults, interpolating min↔max by Bias.
-//
-// The result need NOT be exact: it is only a SEED. If it under-shoots, the
-// dynamic serializer grows in place on the first encode; if it over-shoots,
-// one cold buffer is a little large. So the walk favours a generous estimate
-// (Bias defaults to 0.8) and is capped per subtree at cfg.MaxBytes.
+// Compile-time buffer-size estimator for createBinaryEncoderFn: baked into the `tb` entry and used as the
+// `dynamic` strategy's cold-start buffer size (in place of the flat defaultBufferSize) until per-key
+// history warms up. The walk mirrors binary_to.go's byte accounting, taking packed widths from the SAME
+// format BinarySizer EmitToBinary uses so the two can't drift, and anchors the unbounded parts (strings,
+// collections) on the config defaults, interpolating min↔max by Bias. The result is only a SEED:
+// under-shooting grows the buffer on the first encode, over-shooting costs one large cold buffer, so the
+// walk favours a generous estimate and is capped per subtree at cfg.MaxBytes.
 
-// sizeEstimateDepthCap bounds recursion through ID-less inline nodes. ID-bearing
-// nodes (the common case — cache children are KindRef sentinels resolving to
-// canonical, interned types) are memoized instead, so the walk is O(distinct
-// types); this cap only backstops the rare un-interned inline subtree.
+// sizeEstimateDepthCap bounds recursion through ID-less inline nodes; ID-bearing nodes (the common case)
+// are memoized instead, so the cap only backstops the rare un-interned inline subtree.
 const sizeEstimateDepthCap = 8
 
-// binaryToFamilyTag is the family tag of createBinaryEncoderFn's cache entries —
-// the only family carrying a cold-start size estimate. Mirrors
+// binaryToFamilyTag is the tag of the only family carrying a cold-start size estimate; it mirrors
 // constants.CacheModules["toBinary"].Tag (guarded below).
 const binaryToFamilyTag = "tb"
 
@@ -50,9 +37,8 @@ func init() {
 	}
 }
 
-// binaryColdStartEstimate returns the cold-start buffer estimate to bake into a
-// tb (binary-encoder) entry. It is 0 — meaning "no estimate slot" — for any
-// other family, an option variant, or a nil type.
+// binaryColdStartEstimate returns the estimate to bake into a tb entry, and 0 ("no estimate slot") for
+// any other family, an option variant, or a nil type.
 func binaryColdStartEstimate(settings constants.CacheModuleSettings, variantSuffix string, runType *reflection.RunType, refTable map[string]*reflection.RunType, cfg SizeEstimateConfig) int {
 	if settings.Tag != binaryToFamilyTag || variantSuffix != "" || runType == nil {
 		return 0
@@ -60,11 +46,9 @@ func binaryColdStartEstimate(settings constants.CacheModuleSettings, variantSuff
 	return EstimateBinarySize(runType, refTable, cfg)
 }
 
-// SizeEstimateConfig parameterises EstimateBinarySize. Invalid Items /
-// StringBytes / MaxBytes fall back to the constants.DefaultSize* values; Bias is
-// only clamped to [0,1] (0 is a valid "tightest" setting, so it is never bumped
-// to the default — a zero-value config therefore estimates tightest, while the
-// production CLI/plugin path passes constants.DefaultSizeBias).
+// SizeEstimateConfig parameterises EstimateBinarySize. Invalid Items / StringBytes / MaxBytes fall back to
+// constants.DefaultSize*; Bias is only clamped to [0,1], since 0 is a valid "tightest" setting, so a
+// zero-value config estimates tightest while the CLI / plugin path passes constants.DefaultSizeBias.
 type SizeEstimateConfig struct {
 	Bias        float64
 	Items       int
@@ -90,9 +74,8 @@ func (cfg SizeEstimateConfig) normalized() SizeEstimateConfig {
 	return cfg
 }
 
-// EstimateBinarySize returns the cold-start buffer estimate for rt's binary
-// encoding. refTable resolves KindRef child sentinels (the full session cache,
-// as renderEntryWithDeps holds). The result is clamped to [1, cfg.MaxBytes].
+// EstimateBinarySize returns the cold-start buffer estimate for rt's binary encoding; refTable resolves
+// KindRef child sentinels (the full session cache renderEntryWithDeps holds). Clamped to [1, cfg.MaxBytes].
 func EstimateBinarySize(rt *reflection.RunType, refTable map[string]*reflection.RunType, cfg SizeEstimateConfig) int {
 	est := &sizeEstimator{
 		refTable: refTable,
@@ -121,8 +104,7 @@ func (e *sizeEstimator) deref(rt *reflection.RunType) *reflection.RunType {
 	return rt
 }
 
-// estimate resolves refs, memoizes per type id, breaks cycles, clamps each
-// subtree to cfg.MaxBytes, and dispatches to estimateRaw.
+// estimate resolves refs, memoizes per type id, breaks cycles and clamps each subtree to cfg.MaxBytes.
 func (e *sizeEstimator) estimate(rt *reflection.RunType, depth int) int {
 	rt = e.deref(rt)
 	if rt == nil || depth > sizeEstimateDepthCap {
@@ -194,10 +176,9 @@ func (e *sizeEstimator) numberBytes(rt *reflection.RunType) int {
 	return 8
 }
 
-// bigintBytes — 8 when a 64-bit format packs it, else the decimal-string arm,
-// whose reserve is MAX_VARINT + 3*digits. An unbranded bigint is mock-bounded to
-// |value|<=9999 (5 chars); a non-packing BRAND is mocked within its own [min,max]
-// (ignoring that bound), so budget the longest decimal the brand can emit.
+// bigintBytes — 8 when a 64-bit format packs it, else the decimal-string arm, reserving MAX_VARINT +
+// 3*digits. An unbranded bigint is mock-bounded to |value|<=9999; a non-packing BRAND is mocked within its
+// own [min,max], so budget the longest decimal that brand can emit.
 func (e *sizeEstimator) bigintBytes(rt *reflection.RunType) int {
 	if w := formatFixedWidth(rt); w > 0 {
 		return w
@@ -212,11 +193,9 @@ func (e *sizeEstimator) bigintBytes(rt *reflection.RunType) int {
 	return 21 // floor: the unbranded 20-digit assumption (varint(20)+20)
 }
 
-// brandedBigintMaxDigits returns the longest decimal string mockBigIntParams can
-// emit for a non-packing bigint brand: the max char length over its bound params
-// (min / max / gt / lt), floored at the default range's "-99999" (6). Param values
-// arrive as decimal strings, so their length IS the digit count (over-counts a
-// brand wider than the mock's ±MAX_SAFE clamp, which is sound).
+// brandedBigintMaxDigits returns the longest decimal mockBigIntParams can emit for a non-packing bigint
+// brand: the max char length over min / max / gt / lt, floored at the default range's "-99999" (6). Param
+// values arrive as decimal strings, so their length IS the digit count; over-counting is sound.
 func brandedBigintMaxDigits(params map[string]any) int {
 	digits := 6 // mockBigIntParams default range -99999..99999
 	for _, key := range []string{"min", "max", "gt", "lt"} {
@@ -238,11 +217,9 @@ func bigintParamDigitLen(value any) int {
 	return len([]rune(strings.TrimSuffix(fmt.Sprint(value), "n")))
 }
 
-// templateLiteralBytes — the whole rendered template is ONE serString (reserve
-// MAX_VARINT + 3*L). The static texts are a floor the mock can't shrink, and each
-// placeholder adds its mock fragment, so budget the rendered length: static UTF-16
-// units + the per-${string} content budget (>= the mock's bound) + a digit budget
-// for numeric placeholders + literal lengths.
+// templateLiteralBytes — the whole rendered template is ONE serString (reserve MAX_VARINT + 3*L). The
+// static texts are a floor the mock can't shrink, so budget static UTF-16 units + the per-${string}
+// content budget (>= the mock's bound) + a digit budget for numeric placeholders + literal lengths.
 func (e *sizeEstimator) templateLiteralBytes(rt *reflection.RunType) int {
 	envelope, ok := rt.Literal.(map[string]any)
 	if !ok {
@@ -283,8 +260,7 @@ func (e *sizeEstimator) templateLiteralBytes(rt *reflection.RunType) int {
 	return 8
 }
 
-// spanKind reads a template-literal placeholder's kind (serialised as int, or
-// float64 / int64 after a JSON round-trip).
+// spanKind reads a placeholder's kind, serialised as int or as float64 / int64 after a JSON round-trip.
 func spanKind(span map[string]any) int {
 	switch v := span["kind"].(type) {
 	case int:
@@ -297,10 +273,8 @@ func spanKind(span map[string]any) int {
 	return -1
 }
 
-// formatFixedWidth returns the format's fixed wire width via formats.BinarySizer,
-// or 0 when the type carries no format or the format reports no fixed width. The
-// SAME width EmitToBinary packs to — shared by the estimator (here) and the
-// encoder's per-write reserve (binary_to.go) so the two can't drift.
+// formatFixedWidth returns the format's fixed wire width via formats.BinarySizer, else 0. The SAME width
+// EmitToBinary packs to, shared with the encoder's per-write reserve (binary_to.go) so the two can't drift.
 func formatFixedWidth(rt *reflection.RunType) int {
 	if rt == nil || rt.FormatAnnotation == nil {
 		return 0
@@ -316,9 +290,8 @@ func formatFixedWidth(rt *reflection.RunType) int {
 	return sizer.BinarySize(rt.FormatAnnotation).Fixed
 }
 
-// stringBytes — varint length prefix + interpolated content bytes. A fixed- or
-// max-length format bound tightens the content estimate; otherwise it anchors
-// on cfg.StringBytes.
+// stringBytes — varint length prefix + interpolated content; a fixed- or max-length format bound tightens
+// the content estimate, otherwise it anchors on cfg.StringBytes.
 func (e *sizeEstimator) stringBytes(rt *reflection.RunType) int {
 	min, max := e.stringContentBounds(rt)
 	content := e.interpolate(min, max)
@@ -329,10 +302,9 @@ func (e *sizeEstimator) stringBytes(rt *reflection.RunType) int {
 	return est
 }
 
-// enumBytes — serEnum reserves 8 for a numeric member (4-byte tag + uint32) and
-// 4 + serString(member) for a string member, whose reserve high-water is
-// 4 + (MAX_VARINT + 3*codeUnits). The member is type-constrained (mockData can't
-// shrink it), so budget the largest member; a number-only / empty enum stays 8.
+// enumBytes — serEnum reserves 8 for a numeric member (4-byte tag + uint32), and for a string member
+// 4 + (MAX_VARINT + 3*codeUnits). The member is type-constrained, so budget the largest one; a
+// number-only or empty enum stays 8.
 func (e *sizeEstimator) enumBytes(rt *reflection.RunType) int {
 	estimate := 8
 	for _, value := range rt.Values {
@@ -347,8 +319,7 @@ func (e *sizeEstimator) enumBytes(rt *reflection.RunType) int {
 	return estimate
 }
 
-// utf16Len counts UTF-16 code units (what serString reserves 3 bytes per), not
-// runes or UTF-8 bytes — sound for astral members (2 units each).
+// utf16Len counts UTF-16 code units, what serString reserves 3 bytes per, not runes or UTF-8 bytes.
 func utf16Len(s string) int {
 	return len(utf16.Encode([]rune(s)))
 }
@@ -380,9 +351,8 @@ func (e *sizeEstimator) stringContentBounds(rt *reflection.RunType) (int, int) {
 	return minLen, maxLen
 }
 
-// collectionBytes — varint count prefix + count·element, for arrays (reused
-// for tuple rest, and for Map / Set, whose bounds ride the same `maxItems`).
-// count is cfg.Items, tightened by a length / maxItems bound.
+// collectionBytes — varint count prefix + count·element, for arrays, tuple rest and Map / Set (whose
+// bounds use the same `maxItems`); count is cfg.Items, tightened by a length / maxItems bound.
 func (e *sizeEstimator) collectionBytes(rt *reflection.RunType, elementBytes int) int {
 	count := e.cfg.Items
 	if rt != nil && rt.FormatAnnotation != nil {
@@ -399,9 +369,8 @@ func (e *sizeEstimator) collectionBytes(rt *reflection.RunType, elementBytes int
 	return varintByteLen(count) + count*elementBytes
 }
 
-// objectBytes — required fields in full + optional fields weighted by Bias +
-// the optional-presence bitmap (ceil(N/8) bytes). Index signatures add their
-// own count-prefixed key/value loop.
+// objectBytes — required fields in full + optional fields weighted by Bias + the optional-presence bitmap
+// (ceil(N/8) bytes); index signatures add their own count-prefixed key/value loop.
 func (e *sizeEstimator) objectBytes(rt *reflection.RunType, depth int) int {
 	total := 0
 	optionalCount := 0
@@ -437,9 +406,8 @@ func (e *sizeEstimator) indexSigBytes(rt *reflection.RunType, depth int) int {
 	keyBytes := e.cfg.StringBytes
 	if rt.Index != nil {
 		keyBytes = e.estimate(rt.Index, depth+1)
-		// A string index key is synthesized as `key{i}` (i up to Items-1) — a
-		// length floor mockData can't shrink. Budget its serString reserve so the
-		// seed covers the longest key the encoder writes.
+		// A string index key is synthesized as `key{i}` (i up to Items-1), a floor mockData can't
+		// shrink, so budget its serString reserve for the longest key the encoder writes.
 		if key := e.deref(rt.Index); key != nil && (key.Kind == reflection.KindString || key.Kind == reflection.KindTemplateLiteral) {
 			maxKeyLen := 3 + len(strconv.Itoa(max(0, e.cfg.Items-1))) // len("key" + (Items-1))
 			if floor := maxVarintBytes + 3*maxKeyLen; floor > keyBytes {
@@ -451,8 +419,8 @@ func (e *sizeEstimator) indexSigBytes(rt *reflection.RunType, depth int) int {
 	return 4 + e.cfg.Items*(keyBytes+valBytes)
 }
 
-// tupleBytes — required members in full, optional members Bias-weighted plus the
-// optional bitmap, a rest member as a count-prefixed collection.
+// tupleBytes — required members in full, optional members Bias-weighted plus the optional bitmap, a rest
+// member as a count-prefixed collection.
 func (e *sizeEstimator) tupleBytes(rt *reflection.RunType, depth int) int {
 	total := 0
 	optionalCount := 0
@@ -481,9 +449,8 @@ func (e *sizeEstimator) tupleBytes(rt *reflection.RunType, depth int) int {
 	return total
 }
 
-// unionBytes — the discriminator (1 byte, 2 above 255 members) plus the LARGEST
-// member's footprint (the mock can pick any member, so the seed must cover the
-// biggest), plus the object-branch framing (see below).
+// unionBytes — the discriminator (1 byte, 2 above 255 members) plus the LARGEST member's footprint (any
+// member can be encoded, so the seed must cover the biggest), plus the object-branch framing below.
 func (e *sizeEstimator) unionBytes(rt *reflection.RunType, depth int) int {
 	members := rt.Children
 	if len(members) == 0 {
@@ -505,13 +472,10 @@ func (e *sizeEstimator) unionBytes(rt *reflection.RunType, depth int) int {
 			mergedProps += e.dataPropCount(resolved)
 		}
 	}
-	// Object members ride a flat "object branch" (union_flat_binary.go): a
-	// sub-discriminator (1 byte when more than one object member, to pick which)
-	// plus a MERGED presence bitmap over the non-universal props. The exact
-	// merged-layout accounting (which props are discriminants vs merged-optional)
-	// is complex, so OVER-estimate soundly: a 1-byte framing slack + a bitmap
-	// upper bound of ceil(allProps/8). A seed may over-shoot; under-shooting would
-	// grow the cold buffer on an in-bounds value.
+	// Object members share a flat object branch (union_flat_binary.go): a sub-discriminator (1 byte when
+	// more than one object member) plus a MERGED presence bitmap over the non-universal props. Exact
+	// merged-layout accounting is complex, so over-estimate: 1 byte of framing slack + a bitmap upper
+	// bound of ceil(allProps/8). Over-shooting only costs buffer; under-shooting grows it on a valid value.
 	overhead := 0
 	if objectMembers > 0 {
 		overhead = 1 + (mergedProps+7)/8
@@ -522,8 +486,7 @@ func (e *sizeEstimator) unionBytes(rt *reflection.RunType, depth int) int {
 	return discriminator + maxBytes + overhead
 }
 
-// isUnionObjectMember reports whether a union member is encoded through the flat
-// union's merged object branch (structural objects + intersections).
+// isUnionObjectMember reports whether a union member is encoded through the flat union's object branch.
 func isUnionObjectMember(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
@@ -537,8 +500,7 @@ func isUnionObjectMember(rt *reflection.RunType) bool {
 	return false
 }
 
-// dataPropCount — the object's data properties (any non-static property), the
-// upper bound on how many can land in the merged union bitmap.
+// dataPropCount — the non-static properties, the upper bound on how many land in the merged union bitmap.
 func (e *sizeEstimator) dataPropCount(rt *reflection.RunType) int {
 	count := 0
 	for _, child := range rt.Children {
@@ -553,10 +515,8 @@ func (e *sizeEstimator) dataPropCount(rt *reflection.RunType) int {
 	return count
 }
 
-// classBytes — the builtin classes pack to fixed layouts (Date, the compact
-// Temporal types); Map/Set are count-prefixed element loops; everything else
-// (user classes via a registered serializer, string-fallback Temporal) anchors
-// on a string-ish default.
+// classBytes — Date and the compact Temporal types pack to fixed layouts, Map / Set are count-prefixed
+// element loops, everything else anchors on a string-ish default.
 func (e *sizeEstimator) classBytes(rt *reflection.RunType, depth int) int {
 	switch rt.SubKind {
 	case reflection.SubKindDate:
@@ -583,13 +543,9 @@ func (e *sizeEstimator) classBytes(rt *reflection.RunType, depth int) int {
 	case reflection.SubKindNonSerializable:
 		return 0
 	default:
-		// A plain user class takes EITHER road at runtime, and which one is not
-		// knowable at build time: the emitted body is `if (cs_<name>) { <the
-		// serializer's blob> } else { <structural, member by member> }`. The
-		// estimate is an upper bound on the buffer, so it has to cover both —
-		// taking only the blob under-estimates an UNREGISTERED class by however
-		// much its own members weigh, and the encoder then grows the buffer on
-		// an in-bounds value.
+		// A plain user class takes EITHER road at runtime: `if (cs_<id>) { <serializer blob> } else
+		// { <structural, member by member> }`. The seed is an upper bound, so it covers both; the blob
+		// alone would under-estimate an UNREGISTERED class by whatever its members weigh.
 		body := e.cfg.StringBytes // registered: the serializer's opaque output
 		registered := varintByteLen(body) + body
 		structural := e.objectBytes(rt, depth)
@@ -600,12 +556,10 @@ func (e *sizeEstimator) classBytes(rt *reflection.RunType, depth int) int {
 	}
 }
 
-// mapElement / setElement resolve the element types a Map / Set carries on its
-// SubKind-tagged children, defaulting to a string-ish estimate when absent.
+// mapElement / setElement resolve the element types a Map / Set carries, defaulting to a string estimate.
 func (e *sizeEstimator) mapElement(rt *reflection.RunType, depth int) (key, val int) {
 	key, val = e.cfg.StringBytes, e.cfg.StringBytes
-	// Map key/value parameters live on Arguments (appendMapArguments in
-	// serialize.go), NOT Children.
+	// Map key/value parameters live on Arguments (appendMapArguments in serialize.go), NOT Children.
 	for _, child := range rt.Arguments {
 		member := e.deref(child)
 		if member == nil {
@@ -646,8 +600,7 @@ func (e *sizeEstimator) interpolate(min, max int) int {
 	return min + int(e.cfg.Bias*float64(max-min)+0.5)
 }
 
-// varintByteLen is the Go mirror of dataView.ts's varintLen — the unsigned
-// LEB128 width of n (n < 2**32).
+// varintByteLen is the Go mirror of dataView.ts's varintLen: the unsigned LEB128 width of n (n < 2**32).
 func varintByteLen(n int) int {
 	switch {
 	case n < 0x80:

@@ -5,18 +5,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// minWireBytes is the LOWER BOUND on the bytes one value of rt occupies on the
-// binary wire. The decoder uses it to bound a count before it allocates or
-// loops: an array of N items needs at least N × min bytes behind the count,
-// so a count that claims more items than the remaining bytes can hold is a
-// malformed wire and is refused before `new Array(N)` runs (the five-byte body
-// that used to exhaust the heap).
+// minWireBytes is the LOWER BOUND on the bytes one value of rt occupies on the binary wire. The decoder
+// bounds a count with it before allocating: N items need at least N × min bytes behind the count, so a
+// count the remaining bytes cannot back is refused before `new Array(N)` runs.
 //
-// Only ever an UNDER-estimate: a wrong low answer costs a weaker bound, a wrong
-// high answer would refuse valid wires. Anything unsure (a recursive ref, a
-// class with a registered serializer that writes a string instead of the
-// structural layout, an unsupported kind) reports 0, which the reader turns
-// into its fixed ceiling for zero-byte items.
+// Only ever an UNDER-estimate: a low answer costs a weaker bound, a high one would refuse valid wires.
+// Anything unsure (a recursive ref, a class whose registered serializer writes a string instead of the
+// structural layout, an unsupported kind) reports 0, which the reader turns into its fixed ceiling.
 func minWireBytes(rt *reflection.RunType, ctx *EmitContext) int {
 	return minWireBytesSeen(rt, ctx, map[string]bool{})
 }
@@ -137,11 +132,9 @@ func minObjectBytes(rt *reflection.RunType, ctx *EmitContext, seen map[string]bo
 	return total
 }
 
-// indexSignatureWritesCount mirrors emitIndexSignatureToBinary's early
-// returns: a symbol-keyed or function-valued index signature is not on the
-// wire at all, so a value of `Record<string, () => void>` occupies ZERO bytes
-// and a count bound that assumed the four-byte slot would refuse a valid Set
-// or array of them.
+// indexSignatureWritesCount mirrors emitIndexSignatureToBinary's early returns: a symbol-keyed or
+// function-valued index signature is not on the wire at all, so `Record<string, () => void>` occupies
+// ZERO bytes and a bound assuming the four-byte slot would refuse a valid array of them.
 func indexSignatureWritesCount(rt *reflection.RunType, ctx *EmitContext) bool {
 	resolved := ctx.ResolveRef(rt)
 	if resolved == nil || resolved.Child == nil {
@@ -190,13 +183,9 @@ func minClassBytes(rt *reflection.RunType, ctx *EmitContext, seen map[string]boo
 	case reflection.SubKindMap, reflection.SubKindSet:
 		return 1
 	case reflection.SubKindNone:
-		// Either road can be taken at runtime, and which one is not knowable
-		// here: a REGISTERED serializer swaps the structural layout for one
-		// JSON string (length-prefixed, so at least one byte), an UNREGISTERED
-		// class writes the structural sum. The bound must therefore be the
-		// SMALLER of the two — and the structural sum is ZERO for a class with
-		// no data members, where a flat `1` makes the decoder refuse a
-		// collection of them on its own valid wire.
+		// Either road can be taken at runtime: a REGISTERED serializer writes one length-prefixed JSON
+		// string (at least one byte), an UNREGISTERED class the structural sum. The bound is the SMALLER
+		// of the two, and the structural sum is ZERO for a class with no data members.
 		if structural := minObjectBytes(rt, ctx, seen); structural < 1 {
 			return structural
 		}

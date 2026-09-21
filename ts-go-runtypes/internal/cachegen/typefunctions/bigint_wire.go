@@ -1,14 +1,10 @@
 package typefunctions
 
-// The bigint wire form is a plain decimal string (an optional minus, then
-// digits). Everything type-derived that becomes a bigint literal in emitted
-// code, and everything wire-derived that becomes a bigint at runtime, is held
-// to that exact shape here.
+// The bigint wire form is a plain decimal string, `-?[0-9]+`; every bigint literal emitted and every
+// bigint restored at runtime is held to that exact shape here.
 
-// IsDecimalInteger reports whether text is `-?[0-9]+`: the only spelling a
-// bigint literal or param may take in emitted code (a bigint literal is the
-// one type-derived value emitted unquoted, so its shape is asserted, never
-// trusted).
+// IsDecimalInteger reports whether text is `-?[0-9]+`, the only spelling a bigint literal or param may
+// take in emitted code (a bigint literal is emitted unquoted, so its shape is asserted, never trusted).
 func IsDecimalInteger(text string) bool {
 	if text == "" {
 		return false
@@ -28,11 +24,9 @@ func IsDecimalInteger(text string) bool {
 	return true
 }
 
-// bigintWireRegexVar hoists the bigint wire-form check into the closure
-// prologue once and returns its name. The encoders write a plain decimal
-// string; `BigInt()` itself also accepts ”, whitespace, hex and binary
-// spellings (`BigInt(”)` is `0n`), so the decoders convert only the exact
-// wire form and leave anything else in place for validate to refuse.
+// bigintWireRegexVar hoists the bigint wire-form check into the closure prologue once and returns its name.
+// `BigInt()` also accepts ”, whitespace, hex and binary (`BigInt(”)` is `0n`), so the decoders convert
+// only the exact wire form and leave anything else in place for validate to refuse.
 func bigintWireRegexVar(ctx *EmitContext) string {
 	const name = "reBigWire"
 	if !ctx.HasContextItem(name) {

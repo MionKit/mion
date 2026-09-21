@@ -259,12 +259,10 @@ type RunType struct {
 	FormatAnnotation *FormatAnnotation `json:"formatAnnotation,omitempty"`
 
 	// SchemaChecks — the sentinel-lifted JSON Schema constraint checks
-	// (Negations / Contains / PatternProps / PropNames / OneOf /
-	// Unevaluated). Embedded WITHOUT a field name so encoding/json promotes
-	// the fields flat onto the wire and Go call sites keep reading
-	// `node.Negations` etc. — the grouping is declaration-level only, the
-	// JSON bytes are unchanged. Shared contract + per-field docs live on
-	// the SchemaChecks type below.
+	// (Contains / PatternProps / PropNames). Embedded WITHOUT a field name so
+	// encoding/json promotes the fields flat onto the wire and Go call sites keep
+	// reading `node.Contains` etc: the grouping is declaration-level only, the JSON
+	// bytes are unchanged. Per-field docs live on the SchemaChecks type below.
 	SchemaChecks
 
 	// Overrides — populated when a user registers a custom function for this

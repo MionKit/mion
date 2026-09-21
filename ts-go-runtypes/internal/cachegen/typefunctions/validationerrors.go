@@ -11,26 +11,12 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// ValidationErrorsEmitter implements the `validationErrors` rt function — produces
-// a validator that accumulates RTValidationError entries into the third arg
-// `er` instead of returning a boolean. The factory shape it emits:
-//
-//	export function g_verr_<hash>(utl){
-//	  'use strict';
-//	  const nRT = utl.getPureFn('@mionjs/run-types/src/runtypes/pure-fns-utils#newRunTypeErr');
-//	  return function verr_<hash>(v,pth=[],er=[]){ <body>; return er }
-//	}
-//
-// Mirrors `ValidateEmitter` (istype.go) but with the three-arg shape and
-// a finalize that always returns `er`. Each arm of the kind switch
-// mirrors the corresponding `emitTypeErrors` method under
-// (ref: packages/run-types/src/nodes/**).
+// ValidationErrorsEmitter implements the `validationErrors` rt function: it accumulates RTValidationError entries into the
+// third arg `er` instead of returning a boolean, and finalizes by returning `er`.
+// Mirrors ValidateEmitter in validate.go; each arm of the kind switch mirrors the reference's `emitTypeErrors` for that node.
 type ValidationErrorsEmitter struct{}
 
-// Args returns the three parameters the inner validationErrors function takes.
-// Mirrors `rtErrorArgs` (ref: packages/run-types/src/constants.functions.ts:47):
-// vλl=v (current value), pλth=pth (path accumulator, default []),
-// εrr=er (error accumulator, default []).
+// Args returns the three parameters: v (current value), pth (path accumulator, default []), er (error accumulator, default []).
 func (ValidationErrorsEmitter) Args() []ArgSpec {
 	return []ArgSpec{
 		{Key: "vλl", Name: "v", Default: ""},
@@ -39,67 +25,44 @@ func (ValidationErrorsEmitter) Args() []ArgSpec {
 	}
 }
 
-// EmitCircularGuard renders the inline circular-reference guard for the armed
-// validationErrors variant: a detected cycle records a `{expected:'circular'}`
-// entry at the current path (prefixed by the incoming `pth`) and returns early —
-// descending into the base body would recurse forever on the cyclic value.
-// Mirrors the old runtime guard's short-circuit in entryTuple.ts.
+// EmitCircularGuard renders the inline cycle guard: a detected cycle records a `{expected:'circular'}` entry at the current
+// path (prefixed by the incoming `pth`) and returns early, since descending would recurse forever on the cyclic value.
 func (ValidationErrorsEmitter) EmitCircularGuard(fcpAlias, skeletonConst string) string {
 	return "const cyR=" + fcpAlias + "(v," + skeletonConst + ");" +
 		"if(cyR){er.push({path:pth.length?pth.concat(cyR):cyR,expected:'circular'});return er;}"
 }
 
-// Supports — the shared validate/validationErrors kind set
-// (validationSupports in validate.go).
+// Supports — the shared validate / validationErrors kind set (validationSupports in validate.go).
 func (ValidationErrorsEmitter) Supports(rt *reflection.RunType) bool {
 	return validationSupports(rt)
 }
 
-// IsRTInlined delegates to DefaultIsRTInlined — same heuristics as
-// validate (the predicate is shared across all rt fns via
-// BaseRunType.isRTInlined).
+// IsRTInlined delegates to DefaultIsRTInlined: the reference shares the predicate across every rt fn.
 func (ValidationErrorsEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// IsNoopType — the verr entry is the error-list passthrough exactly for
-// any/unknown roots (see isNoopForValidationErrors).
+// IsNoopType — the verr entry is the error-list passthrough exactly for any/unknown roots.
 func (ValidationErrorsEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForValidationErrors(rt, ctx)
 }
 
-// NoopChildComposesAround — a child that never records an error contributes
-// nothing; empty code composes correctly.
+// NoopChildComposesAround — a child that never records an error contributes nothing, so empty code composes correctly.
 func (ValidationErrorsEmitter) NoopChildComposesAround() {}
 
-// ReturnName is `er` — validationErrors accumulates errors into the third
-// arg and returns it. Differs from validate which returns the first arg
-// (`v`). See Walker.returnName for how this is consumed.
+// ReturnName is `er`: this family accumulates into the third arg and returns it, where validate returns the first arg (`v`).
 func (ValidationErrorsEmitter) ReturnName() string {
 	return "er"
 }
 
-// Emit dispatches the per-kind switch. Each arm emits CodeS
-// statements that either check the value and append errors via
-// callRTErr on mismatch, or recurse into children with the path
-// segment threaded through via SetChildPathLiteral. Mirrors the
-// emitTypeErrors per-node implementations.
-//
-// Unsupported kinds emit CodeNS — the walker latches the signal and
-// the renderer drops the factory entirely. Same contract as
-// ValidateEmitter.
+// Emit dispatches the per-kind switch; each arm emits CodeS statements that append errors via callRTErr or recurse into
+// children with the path segment threaded through SetChildPathLiteral.
+// An unsupported kind emits CodeNS, the walker latches the signal and the renderer drops the factory, as in ValidateEmitter.
 func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expectedCType CodeType) RTCode {
 	base := e.emitKindDefault(rt, ctx, expectedCType)
-	// Format annotations append a format-specific error-push statement
-	// after the base-kind check. Only spliced when (a) a format emitter
-	// is registered, (b) the emitter's check returns a non-empty
-	// statement, (c) the base output is a statement body (CodeS). The
-	// format check runs only when the base predicate's type-mismatch
-	// branch did NOT fire — we guard with the base's positive
-	// predicate so format errors only surface for values of the right
-	// underlying kind. `pth` is the runtime path argument the
-	// validationErrors validator receives; format errors push relative to
-	// that, mirroring the getCallJitFormatErr behaviour.
+	// A format check is appended after the base-kind check and runs only behind the base's POSITIVE predicate, so format errors
+	// surface only for values of the right underlying kind.
+	// `pth` is the runtime path argument this validator receives; format errors push relative to it.
 	if base.Type == CodeS && rt != nil && rt.FormatAnnotation != nil {
 		if emitter, ok := formats.LookupForRunType(rt); ok {
 			check := emitter.EmitValidationErrorsCheck(rt.FormatAnnotation, ctx.Vλl, "pth", "er", ctx)
@@ -114,9 +77,8 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 			}
 		}
 	}
-	// patternProperties / propertyNames: per-key probes with a scratch
-	// error array (er/pth shadowed in an IIFE); one canonical error per
-	// violated entry, gated on the base-kind guard like every splice here.
+	// patternProperties / propertyNames: per-key probes with a scratch error array (er / pth shadowed in an IIFE), one canonical
+	// error per violated entry, gated on the base-kind guard like every splice here.
 	if base.Type == CodeS && rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0) {
 		appendCheck := func(check string) {
 			check = wrapFormatCheckPath(ctx, check)
@@ -173,10 +135,8 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 			}
 		}
 	}
-	// Contains: count the items whose child verr body pushes ZERO errors
-	// (the same scratch-array probe the negation splice uses) and push one
-	// canonical error per violated bound. Gated on the base-kind guard so a
-	// non-array value reports only the base error.
+	// Contains: count the items whose child verr body pushes ZERO errors and push one canonical error per violated bound.
+	// Gated on the base-kind guard so a non-array value reports only the base error.
 	if base.Type == CodeS && rt != nil && len(rt.Contains) > 0 {
 		for _, containsCheck := range rt.Contains {
 			if ctx.ResolveRef(containsCheck.Child) == nil {
@@ -223,14 +183,9 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 	return base
 }
 
-// wrapFormatCheckPath wraps a format-error check so the runtime `pth` carries
-// this node's static access-path segments while the check runs. Format errors
-// snapshot the path as `[...pth]` (see formats.FormatErrCall), so without this
-// a format failure at a property / array element / map-or-set entry would
-// report `path: []` — the field is lost. Mirrors the push/splice envelope in
-// EmitDependencyCall: push the segments before the check, splice them off
-// after. An empty access-path (a root-position format, e.g. createValidateFn
-// <TF.Email>()) leaves the check unchanged, so root format errors stay `[]`.
+// wrapFormatCheckPath pushes this node's static access-path segments onto the runtime `pth` around the check, then splices
+// them off. Format errors snapshot the path as `[...pth]` (formats.FormatErrCall), so without this a failure at a property,
+// array element or map entry would report `path: []`. An empty access path (a root-position format) is left unchanged.
 func wrapFormatCheckPath(ctx *EmitContext, check string) string {
 	pathLen := ctx.AccessPathLength("")
 	if pathLen == 0 {
@@ -242,11 +197,8 @@ func wrapFormatCheckPath(ctx *EmitContext, check string) string {
 	return pthArg + ".push(" + pushArgs + ");" + check + ";" + pthArg + ".splice(-" + strconv.Itoa(pathLen) + ")"
 }
 
-// baseKindGuard returns a JS expression that's true when vλl matches
-// the base kind, used as the gate around format-specific error checks
-// so they don't run on type-mismatched values. Returns "" when no
-// guard applies (no format emitter should ever land on an unkinded
-// node, but keep this defensive).
+// baseKindGuard returns an expression that is true when vλl matches the base kind, gating format-specific error checks so
+// they don't run on type-mismatched values. Returns "" when no guard applies, which no format emitter should ever hit.
 func baseKindGuard(rt *reflection.RunType, vλl, numberMode string) string {
 	if rt == nil {
 		return ""
@@ -260,9 +212,7 @@ func baseKindGuard(rt *reflection.RunType, vλl, numberMode string) string {
 		return "typeof " + vλl + " === 'bigint'"
 	case reflection.KindClass:
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
-			// A Temporal compare() throws on a non-Temporal value — gate the
-			// bound check on instanceof so a wrong-type value yields a clean
-			// base-kind error instead of throwing.
+			// A Temporal compare() throws on a non-Temporal value: gate on instanceof so a wrong-type value yields a clean base-kind error.
 			return vλl + " instanceof " + info.Builtin
 		}
 		// The Map / Set structural formats read `.size`: guard on the collection
@@ -273,13 +223,10 @@ func baseKindGuard(rt *reflection.RunType, vλl, numberMode string) string {
 		if rt.SubKind == reflection.SubKindSet {
 			return vλl + " instanceof Set"
 		}
-		// Native Date format (KindClass + SubKindDate): guard the min/max
-		// bound check so it only runs on a valid Date — `.getTime()` on a
-		// non-Date would throw instead of pushing a clean error.
+		// Native Date format: guard the min/max bound check so it runs only on a valid Date — `.getTime()` on a non-Date would throw.
 		return vλl + " instanceof Date && !isNaN(" + vλl + ".getTime())"
 	case reflection.KindArray, reflection.KindTuple:
-		// Structural array formats read `.length` — guard so a wrong-kind
-		// value (null!) reports only the base error instead of throwing.
+		// Structural array formats read `.length` — guard so a wrong-kind value (null!) reports only the base error instead of throwing.
 		return "Array.isArray(" + vλl + ")"
 	case reflection.KindObjectLiteral, reflection.KindObject:
 		// Structural object formats read Object.keys — same throw guard.
@@ -296,31 +243,26 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 	switch rt.Kind {
 
 	case reflection.KindString:
-		// (ref: nodes/atomic/string.ts:emitTypeErrors)
 		return RTCode{
 			Code: "if (typeof " + v + " !== 'string') " + callRTErr(ctx, "string", ""),
 			Type: CodeS,
 		}
 
 	case reflection.KindNumber:
-		// (ref: nodes/atomic/number.ts:emitTypeErrors). Default Number.isFinite
-		// rejects NaN / Infinity / -Infinity along with non-numbers; the
-		// numberMode ValidateOption swaps in the looser typeof / notNaN base
-		// check (kept in lockstep with the validate emitter via numberBaseCheck).
+		// Default Number.isFinite rejects NaN / Infinity / -Infinity along with non-numbers; the numberMode ValidateOption swaps in
+		// the looser typeof / notNaN base check, kept in lockstep with the validate emitter via numberBaseCheck.
 		return RTCode{
 			Code: "if (!(" + numberBaseCheck(ctx.NumberMode(), v) + ")) " + callRTErr(ctx, "number", ""),
 			Type: CodeS,
 		}
 
 	case reflection.KindBoolean:
-		// (ref: nodes/atomic/boolean.ts:emitTypeErrors)
 		return RTCode{
 			Code: "if (typeof " + v + " !== 'boolean') " + callRTErr(ctx, "boolean", ""),
 			Type: CodeS,
 		}
 
 	case reflection.KindBigInt:
-		// (ref: nodes/atomic/bigInt.ts:emitTypeErrors)
 		return RTCode{
 			Code: "if (typeof " + v + " !== 'bigint') " + callRTErr(ctx, "bigint", ""),
 			Type: CodeS,
@@ -331,58 +273,48 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindNull:
-		// (ref: nodes/atomic/null.ts:emitTypeErrors)
 		return RTCode{
 			Code: "if (" + v + " !== null) " + callRTErr(ctx, "null", ""),
 			Type: CodeS,
 		}
 
 	case reflection.KindUndefined:
-		// (ref: nodes/atomic/undefined.ts:emitTypeErrors). Uses
-		// typeof to allow `var v` references that haven't been
-		// assigned yet (matches the `typeof === 'undefined'` text).
+		// `typeof` so a `var v` reference that has not been assigned yet still passes.
 		return RTCode{
 			Code: "if (typeof " + v + " !== 'undefined') " + callRTErr(ctx, "undefined", ""),
 			Type: CodeS,
 		}
 
 	case reflection.KindVoid:
-		// (ref: nodes/atomic/void.ts:emitTypeErrors) — void accepts
-		// only undefined; null is rejected (matches validate).
+		// void accepts only undefined; null is rejected (matches validate).
 		return RTCode{
 			Code: "if (" + v + " !== undefined) " + callRTErr(ctx, "void", ""),
 			Type: CodeS,
 		}
 
 	case reflection.KindAny, reflection.KindUnknown:
-		// (ref: nodes/atomic/any.ts:emitTypeErrors) returns a noop.
-		// Finalize collapses empty bodies to `return er` and flags
-		// the factory as a noop so the renderer skips emitting it;
-		// consumers fall through to `() => []` on the JS side.
+		// The reference returns a noop here: Finalize collapses the empty body to `return er` and flags the factory as a noop, so
+		// the renderer skips it and consumers fall through to `() => []`.
 		if ctx.IsRoot() {
 			ctx.EmitDiagnosticSlot(SlotRootAnyUnknown)
 		}
 		return RTCode{Code: "", Type: CodeS}
 
 	case reflection.KindNever:
-		// (ref: nodes/atomic/never.ts:emitTypeErrors) — every value is
-		// an error against `never`. No type check, just record the
-		// error unconditionally.
+		// Every value is an error against `never`: no type check, just record unconditionally.
 		return RTCode{
 			Code: callRTErr(ctx, "never", "") + ";",
 			Type: CodeS,
 		}
 
 	case reflection.KindObject:
-		// (ref: nodes/atomic/object.ts) — strict TS `object` type:
-		// non-null and not a primitive. Same gate as validate.
+		// Strict TS `object` type: non-null and not a primitive. Same gate as validate.
 		return RTCode{
 			Code: "if (!(typeof " + v + " === 'object' && " + v + " !== null)) " + callRTErr(ctx, "objectLiteral", ""),
 			Type: CodeS,
 		}
 
 	case reflection.KindRegexp:
-		// (ref: nodes/atomic/regexp.ts:emitTypeErrors)
 		return RTCode{
 			Code: "if (!(" + v + " instanceof RegExp)) " + callRTErr(ctx, "regexp", ""),
 			Type: CodeS,
@@ -392,8 +324,6 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		return emitLiteralValidationErrors(rt, ctx)
 
 	case reflection.KindEnum:
-		// (ref: nodes/atomic/enum.ts:emitTypeErrors) — OR-chain of
-		// `v === val` checks; record an error if NONE match.
 		if len(rt.Values) == 0 {
 			return RTCode{
 				Code: callRTErr(ctx, "enum", "") + ";",
@@ -415,24 +345,21 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 
 	case reflection.KindClass:
 		if rt.SubKind == reflection.SubKindDate {
-			// (ref: nodes/atomic/date.ts:emitTypeErrors) — Date instance
-			// AND a valid date (rejects `new Date('not a date')`).
+			// Date instance AND a valid date (rejects `new Date('not a date')`).
 			return RTCode{
 				Code: "if (!(" + v + " instanceof Date) || isNaN(" + v + ".getTime())) " + callRTErr(ctx, "date", ""),
 				Type: CodeS,
 			}
 		}
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
-			// Temporal types: instanceof is sufficient (no invalid state).
-			// The expected-name carries the qualified type for clear errors.
+			// Temporal types have no invalid state, so instanceof suffices; the expected-name carries the qualified type.
 			return RTCode{
 				Code: "if (!(" + v + " instanceof " + info.Builtin + ")) " + callRTErr(ctx, info.Builtin, ""),
 				Type: CodeS,
 			}
 		}
 		if rt.SubKind == reflection.SubKindNone {
-			// Non-Date user classes — same emit as KindObjectLiteral
-			// per the class.ts node (extends InterfaceRunType).
+			// Non-Date user classes share the KindObjectLiteral emit (class extends interface in the reference).
 			return emitObjectValidationErrors(rt, ctx, v)
 		}
 		if rt.SubKind == reflection.SubKindMap {
@@ -442,17 +369,14 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 			return emitSetValidationErrors(rt, ctx, v)
 		}
 		if rt.SubKind == reflection.SubKindNonSerializable {
-			// (ref: nodes/native/nonSerializable.ts:21-22) —
-			// `emitTypeErrors(): RTCode { throw new Error('RT
-			// compilation disabled for Non Serializable types.'); }`.
+			// The reference throws from emitTypeErrors; CodeNS makes the renderer emit a throw-factory instead.
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		// Future subkinds — silent skip.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindPromise:
-		// (ref: nodes/native/promise.ts) — thenable check, wrapped T
-		// not validated synchronously.
+		// Thenable check; the wrapped T is not validated synchronously.
 		return RTCode{
 			Code: "if (!(typeof " + v + " === 'object' && " + v + " !== null && typeof " + v + ".then === 'function')) " + callRTErr(ctx, "promise", ""),
 			Type: CodeS,
@@ -469,9 +393,7 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
-		// (ref: nodes/function/function.ts:emitTypeErrors) — `typeof v
-		// === 'function'`. Children (params, return) aren't validated
-		// here; treat the whole shape as opaque-callable.
+		// Children (params, return) aren't validated here; the whole shape is treated as opaque-callable.
 		return RTCode{
 			Code: "if (typeof " + v + " !== 'function') " + callRTErr(ctx, rtTypeNameForKind(rt.Kind), ""),
 			Type: CodeS,
@@ -490,30 +412,13 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		return emitTemplateLiteralValidationErrors(rt, ctx, v)
 
 	case reflection.KindArray:
-		// (ref: nodes/member/array.ts:emitTypeErrors). Allocates a loop
-		// counter, sets the child accessor (`v[i0]`) so the element's
-		// CompileChild adopts the subscript, sets the path literal (the
-		// counter var name) so element errors carry [..., i0] in their
-		// access-path, then composes:
-		//
-		//   if (!Array.isArray(v)) {
-		//     <callRTErr 'array'>
-		//   } else {
-		//     for (let i0 = 0; i0 < v.length; i0++) {
-		//       <childCode>
-		//     }
-		//   }
-		//
-		// Two collapse paths: child empty + noIsArrayCheck
-		// → "" (whole check evaporates); child empty + no noIsArrayCheck
-		// → bare `if (!Array.isArray(v)) <err>;` (array-only check).
+		// The child path literal is the loop counter var, so element errors carry [..., i0] in their access path.
+		// Two collapse paths: an empty child with noIsArrayCheck evaporates, an empty child without it leaves the array guard alone.
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
 		}
-		// Non-serializable element (symbol / function) → the child compile
-		// below returns CodeNS (leaf = the element), propagated upward by the
-		// `childRT.Type == CodeNS` check → alwaysThrow at root, absorb at a
-		// property. (T3; matches istype.go's array arm.)
+		// A non-serializable element (symbol / function) comes back CodeNS with the element as the leaf: alwaysThrow at the root,
+		// absorbed at a property (T3, matching validate.go's array arm).
 		noIsArrayCheck := ctx.HasVariantOption("noIsArrayCheck")
 		iVar := ctx.NextLocalVar("i")
 		ctx.SetChildAccessor(v + "[" + iVar + "]")
@@ -524,8 +429,7 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 		if childRT.Type == CodeNS {
 			return RTCode{Code: "", Type: CodeNS}
 		}
-		// If the child contributes no body (e.g. KindAny element),
-		// reduce to the bare array guard or a noop.
+		// A child with no body (a KindAny element) reduces to the bare array guard or a noop.
 		if childRT.Code == "" {
 			if noIsArrayCheck {
 				return RTCode{Code: "", Type: CodeS}
@@ -547,20 +451,13 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *Emit
 	return RTCode{Code: "", Type: CodeNS}
 }
 
-// EmitDependencyCall returns the JS expression that invokes a
-// pre-rendered child validationErrors entry. Wraps the call with a
-// `pth.push(...) ; <call> ; pth.splice(-N)` envelope when the current
-// static-path segments are non-empty so the child's errors carry the
-// right access-path prefix. Mirrors the `BaseFnCompiler.callDependency`
-// branch at rtFnCompiler.ts:388-397.
+// EmitDependencyCall returns the call into a pre-rendered child validationErrors entry, wrapped in a
+// `pth.push(...) ; <call> ; pth.splice(-N)` envelope so the child's errors carry the right access-path prefix.
 func (ValidationErrorsEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitPathTrackedDepCall(childID)
 }
 
-// Finalize wraps the raw body. Empty body → noop ("return er", true);
-// otherwise the walker has already appended `return er` via the
-// statement-shape handling in handleCodeInterpolation, so we just
-// normalise whitespace and return.
+// Finalize marks an empty body as the noop `return er`; otherwise the walker has already appended `return er`.
 func (ValidationErrorsEmitter) Finalize(rawCode string) (string, bool) {
 	code := normaliseWhitespace(rawCode)
 	trimmed := strings.TrimSpace(code)
@@ -570,27 +467,13 @@ func (ValidationErrorsEmitter) Finalize(rawCode string) (string, bool) {
 	return code, false
 }
 
-// callRTErr builds the JS call to newRunTypeErr that appends one
-// RTValidationError entry to the `er` array. Mirrors
-// RTErrorsFnCompiler.callRTErr / callRTErrWithPath
-// (rtFnCompiler.ts:610-629).
-//
-// Args at the call site:
-//   - pth (runtime path array)
-//   - er  (error accumulator)
-//   - expected (kindname string literal)
-//   - accessPath? (static path segments collected from the walker stack)
-//
-// `extra` adds a trailing segment to the static path (used for
-// "unknown key" / "map key" markers that aren't part of the runtime
-// path but should appear in the error). Empty `extra` → no trailing
-// segment, AccessPathLiteral handles the empty-array short-circuit.
+// callRTErr builds the newRunTypeErr call that appends one RTValidationError entry to the `er` array.
+// Args: pth (runtime path), er (accumulator), expected (kindname literal), and the static access path when non-empty.
+// `extra` adds a trailing segment to the static path, for "unknown key" / "map key" markers that are not part of the runtime path.
 func callRTErr(ctx *EmitContext, expected string, extra string) string {
-	// UsePureFn records the dep, hoists the deduped
-	// `const nRT = utl.getPureFn('<id>')` prologue line, and returns the alias.
-	// rtUtils.getPureFn takes the pure fn's id; the literal is fully spelled out
-	// because the body is also evaluated through `new Function('utl', code)`
-	// where module-level consts are not in scope.
+	// UsePureFn records the dep, hoists the deduped `const nRT = utl.getPureFn('<id>')` prologue line and returns the alias.
+	// The id literal is fully spelled out because the body is also evaluated through `new Function('utl', code)`, where
+	// module-level consts are not in scope.
 	key := ctx.UsePureFn(purefnids.NewRunTypeErr)
 	pthArg := ctx.ArgName("pλth")
 	errArg := ctx.ArgName("εrr")
@@ -601,15 +484,9 @@ func callRTErr(ctx *EmitContext, expected string, extra string) string {
 	return key + "(" + strings.Join(args, ",") + ")"
 }
 
-// emitLiteralValidationErrors mirrors compileValidationErrorsLiteral
-// (nodes/atomic/literal.ts:107). Reuses emitLiteral's branching for
-// the bigint / symbol / regexp / primitive cases — emitLiteral returns
-// a JS boolean expression (the validate check); we wrap it in
-// `if (!(<expr>)) <error>`. With the noLiterals ValidateOptions variant,
-// the predicate switches to the base-kind check (e.g. `typeof v ===
-// 'string'`) and the error label downgrades to the base kind too —
-// matches the `it` variant's behaviour so the user sees the same
-// notion of "expected" between the two factories.
+// emitLiteralValidationErrors wraps emitLiteral's boolean expression in `if (!(<expr>)) <error>`.
+// Under the noLiterals variant both the predicate and the `expected` label drop to the base kind, so the user sees the same
+// notion of "expected" from this factory and from validate.
 func emitLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	noLiterals := ctx.HasVariantOption("noLiterals")
 	var validateExpr RTCode
@@ -618,10 +495,8 @@ func emitLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContext) RTCod
 	} else {
 		validateExpr = emitLiteral(rt, ctx.Vλl)
 	}
-	// Propagate CodeNS (unsupported leaf) — `emitLiteralBaseKind`
-	// returns this for the symbol-literal arm so the renderer can
-	// emit an alwaysThrow factory at the root, matching the plain
-	// KindSymbol behaviour.
+	// emitLiteralBaseKind returns CodeNS for the symbol-literal arm, so the renderer emits an alwaysThrow factory at the root,
+	// matching the plain KindSymbol behaviour.
 	if validateExpr.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
@@ -638,10 +513,8 @@ func emitLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContext) RTCod
 	}
 }
 
-// literalBaseKindLabel returns the `expected` label that pairs with
-// the `noLiterals` variant body for a literal RunType — picks the
-// base atomic kind's name (`'string'`, `'number'`, …) so the
-// validationErrors output reads consistently with the validated shape.
+// literalBaseKindLabel returns the `expected` label that pairs with the `noLiterals` body: the base atomic kind's name, so
+// the reported type reads consistently with the shape that was validated.
 func literalBaseKindLabel(rt *reflection.RunType) string {
 	flagSet := make(map[string]bool, len(rt.Flags))
 	for _, flag := range rt.Flags {
@@ -664,28 +537,13 @@ func literalBaseKindLabel(rt *reflection.RunType) string {
 	return "literal"
 }
 
-// emitObjectValidationErrors mirrors
-// nodes/collection/interface.ts:emitTypeErrors. Builds the canonical
-// object-shape statement: a `typeof === 'object' && !== null` guard
-// (or `typeof === 'function'` for callable interfaces) that emits an
-// error on mismatch, otherwise runs each child's emitTypeErrors
-// statement.
-//
-// Children are filtered the same way getRTChildren filters
-// (matching emitObjectValidate in istype.go): static + method-shaped
-// kinds dropped; PropertySignature wrapping a function-typed value
-// also dropped via its own empty emit.
-//
-// When every contributing child is optional (or there are no
-// contributing children), the object guard is augmented with the
-// `allOptionalCode` clause — `(!Array.isArray(v) &&
-// Object.prototype.toString.call(v) === '[object Object]')` — so
-// arrays / Date / Map / Set are explicitly rejected at the top level
-// rather than slipping through the bare `typeof === 'object'` check.
-// Mirrors interface.ts:allOptionalCode. Suppressed for callable
-// shapes (the value is a Function, not an Object).
+// emitObjectValidationErrors builds the object-shape statement: a `typeof === 'object' && !== null` guard (or
+// `typeof === 'function'` for a callable interface) that records one error on mismatch, else each child's own error statements.
+// Children are filtered as in emitObjectValidate: static and method-shaped kinds dropped, a function-typed property dropped
+// through its own empty emit.
+// When nothing contributing is required, the guard gains the `[object Object]` brand clause so arrays / Date / Map / Set are
+// rejected rather than slipping through the bare `typeof === 'object'`. Suppressed for callable shapes (a Function, not an Object).
 func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	// Detect a CallSignature child for the callable-interface case.
 	var callSigChild *reflection.RunType
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
@@ -698,23 +556,16 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		}
 	}
 
-	// A callable interface at a NON-root position is function-like (dropped at a
-	// property, alwaysThrow at a propagating slot) — return CodeNS so the parent
-	// handles it like any other function-valued child (matching validate +
-	// serializers, F2). At the ROOT the typeof-function guard below applies.
+	// A callable interface at a NON-root position is function-like: CodeNS lets the parent handle it like any other
+	// function-valued child (matching validate and the serializers, F2). At the ROOT the typeof-function guard below applies.
 	if callSigChild != nil && !ctx.IsRoot() {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 
-	// Publish sibling-named-prop set for any index-signature child
-	// (see emitObjectValidate for the rationale).
+	// Publish the sibling-named-prop set for any index-signature child (see emitObjectValidate).
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
 	publishSiblingPatternsForIndexSig(rt, ctx)
 
-	// Compile per-child error-accumulation code, filtering the same
-	// way emitObjectValidate does, AND track whether all contributing
-	// children are optional (or an index signature is present) so we can
-	// add the allOptionalCode guard.
 	var childrenParts []string
 	allOptional := true
 	hasContributingChild := false
@@ -734,9 +585,7 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 			hasIndexSig = true
 		}
 		if isFunctionLikeKind(resolved.Kind) {
-			// Method / MethodSignature / CallSignature on the shape —
-			// skip from the children body (callable case is handled by
-			// the typeof === 'function' guard below).
+			// Method-shaped members on the shape are skipped; the callable case is covered by the typeof guard below.
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
@@ -764,18 +613,9 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	} else {
 		objectCheck = "typeof " + v + " === 'object' && " + v + " !== null"
 	}
-	// allOptionalCode guard — same shape (and same condition) as
-	// emitObjectValidate. Without it, `{}` validators would accept `[]`,
-	// `new Date()`, `new Map()`, etc. since those all pass `typeof ===
-	// 'object' && !== null`. The `hasIndexSig` term is essential for
-	// parity with validate: a `Record<K, V>` (or any index-signature
-	// object) walks own keys with a for-in loop, which enumerates NOTHING
-	// on an empty array / Map / Set / Date, so the per-key value check is
-	// vacuously satisfied and the bare `typeof === 'object'` lets those
-	// non-plain objects slip through with zero errors — while validate
-	// (which carries the same guard) returns false. Dropping the term
-	// breaks the createValidateFn/createGetValidationErrorsFn agreement
-	// invariant (guarded by fuzz oracle O4).
+	// Same guard, same condition as emitObjectValidate: without it a `{}` validator accepts `[]`, `new Date()` or `new Map()`,
+	// and an index-signature object accepts them too (a for-in enumerates nothing, so the per-key check is vacuous).
+	// The two families must answer alike or the createValidateFn / createGetValidationErrorsFn agreement breaks (fuzz oracle O4).
 	if callSigChild == nil && objectNeedsBrandGuard(hasContributingChild, allOptional, hasIndexSig, hasArrayProofRequiredProp) {
 		objectCheck = objectCheck + " && !Array.isArray(" + v + ") && Object.prototype.toString.call(" + v + ") === '[object Object]'"
 	}
@@ -788,32 +628,17 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 		expected = "function"
 	}
 
-	// Fused (`checkUnknowns`) family only: report this object's undeclared keys
-	// as `{path, expected: 'never'}` entries, from the SAME helper the standalone
-	// unknownKeyErrors family uses so both produce identical entries. It runs
-	// AFTER the per-property errors, inside the `else`, where the value is known
-	// to be a non-null object.
-	//
-	// This is where the fused error ORDER diverges from the two-call form: today
-	// `verr(v).concat(uke(v))` groups every type error ahead of every unknown-key
-	// error, but a single walk cannot produce that grouping — the entries
-	// interleave per node in walk order, matching every other error family.
-	// Empty string for the plain validationErrors family, so it is unchanged.
-	// WHETHER to emit is emitsUnknownKeyCheck's call, the same one
-	// emitObjectValidate makes, so the two can never disagree about a node.
+	// Fused (`checkUnknowns`) family only: undeclared keys reported as `{path, expected: 'never'}` from the SAME helper the
+	// standalone unknownKeyErrors family uses, so both produce identical entries. It runs AFTER the per-property errors, inside
+	// the `else`, where the value is known to be a non-null object.
+	// This is where the fused error ORDER diverges from `verr(v).concat(uke(v))`: one walk interleaves the entries per node,
+	// matching every other error family. WHETHER to emit is emitsUnknownKeyCheck's call, the same one emitObjectValidate makes.
 	unknownKeyErrors := ""
 	if emitsUnknownKeyCheck(rt, ctx, callSigChild) {
-		// Arrays excluded HERE and nowhere else in this family, because of one
-		// asymmetry with the validator. emitObjectValidate builds an `&&` chain,
-		// so a failed property check short-circuits and its key check never runs
-		// on an array — an array has no `name`, so the chain is already false.
-		// This family reports everything instead of stopping at the first
-		// failure, so it reaches the key scan on a value the type does not admit
-		// at all, and would list an array's indices as undeclared keys.
-		//
-		// The shapes where an array is NOT stopped by a property check
-		// (all-optional, index signature, empty) carry the `[object Object]`
-		// brand guard in objectCheck above, so they never get here either.
+		// Arrays excluded HERE and nowhere else in this family. emitObjectValidate's `&&` chain short-circuits on a failed property
+		// check, so it never reaches the key scan on an array; this family reports everything instead of stopping at the first
+		// failure, and would list an array's indices as undeclared keys.
+		// The shapes where no property check stops an array carry the `[object Object]` brand guard in objectCheck above.
 		if keyErrors := emitParentUnknownKeyErrors(rt, ctx); keyErrors != "" {
 			unknownKeyErrors = guardStatement("!Array.isArray("+v+")", keyErrors)
 		}
@@ -833,11 +658,8 @@ func emitObjectValidationErrors(rt *reflection.RunType, ctx *EmitContext, v stri
 	}
 }
 
-// emitPropertyValidationErrors handles KindProperty / KindPropertySignature.
-// Sets the child accessor + child path literal (the property name as a
-// JS string literal) before recursing, then wraps the child code in
-// an optional guard if the property is optional. Mirrors
-// nodes/member/property.ts:emitTypeErrors.
+// emitPropertyValidationErrors handles KindProperty / KindPropertySignature, setting the accessor and the property name as
+// the child path literal before recursing, then wrapping an optional property in a presence guard.
 func emitPropertyValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -847,8 +669,7 @@ func emitPropertyValidationErrors(rt *reflection.RunType, ctx *EmitContext, v st
 		return RTCode{Code: "", Type: CodeS}
 	}
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
-		// Directly DataOnly-stripped value — drop the property, matching
-		// `DataOnly<{a: symbol}>` = `{}`.
+		// Directly DataOnly-stripped value — drop the property, matching `DataOnly<{a: symbol}>` = `{}`.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)
@@ -858,21 +679,16 @@ func emitPropertyValidationErrors(rt *reflection.RunType, ctx *EmitContext, v st
 	ctx.SetChildAccessor("")
 	ctx.SetChildPathLiteral("")
 	if childRT.Type == CodeNS {
-		// Stripped leaf in a propagating slot (symbol[], …) fails the object;
-		// any other unsupported kind is absorbed (F3). See propertyChildFailed.
+		// A stripped leaf in a propagating slot (symbol[], …) fails the object; any other unsupported kind is absorbed (F3).
 		if propertyChildFailed(ctx) {
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// Presence twin of emitPropertyValidate's: a REQUIRED member whose type
-	// imposes no VALUE check (`unknown` / `any`) still imposes presence, so a
-	// missing key has to REPORT, not pass. Without it validate rejects `{}`
-	// against `{foo: unknown}` while validationErrors returns no errors — and the
-	// two factories must never disagree about a value. The label is the child's
-	// own kind, exactly as a failing typed member reports its expected type; the
-	// property name rides the trailing path segment, since the child frame that
-	// would normally carry it is never pushed.
+	// Presence twin of emitPropertyValidate's: a REQUIRED member whose type imposes no VALUE check (`unknown` / `any`) must
+	// still REPORT a missing key, or validate rejects `{}` against `{foo: unknown}` while this family returns no errors.
+	// The label is the child's own kind, and the property name rides the trailing path segment, since the child frame that
+	// would carry it is never pushed.
 	if childRT.Code == "" || isNoopForValidationErrors(rt.Child, ctx) {
 		if rt.Optional {
 			return RTCode{Code: "", Type: CodeS}
@@ -895,12 +711,8 @@ func emitPropertyValidationErrors(rt *reflection.RunType, ctx *EmitContext, v st
 	return childRT
 }
 
-// emitIndexSignatureValidationErrors handles KindIndexSignature. Loops
-// `for (const k in v)` and runs each value's validationErrors with the key
-// var as the path segment. Template-literal key constraints emit a
-// per-key regex.test that records a 'never' error for keys that don't
-// match the pattern. Mirrors
-// nodes/member/indexProperty.ts:emitTypeErrors.
+// emitIndexSignatureValidationErrors runs each value's errors inside `for (const k in v)` with the key var as the path
+// segment. A template-literal key constraint emits a per-key regex.test that records a 'never' error for a non-matching key.
 func emitIndexSignatureValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -915,8 +727,7 @@ func emitIndexSignatureValidationErrors(rt *reflection.RunType, ctx *EmitContext
 	if isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// Template-literal key regex (`{[k: `api/${string}`]: T}`) lifted
-	// into the closure prologue, same shape as the validate emit.
+	// Template-literal key regex lifted into the closure prologue, same shape as the validate emit.
 	keyRegexVar := ""
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
@@ -958,8 +769,6 @@ func emitIndexSignatureValidationErrors(rt *reflection.RunType, ctx *EmitContext
 		body.WriteString(" ")
 	}
 	if keyRegexVar != "" {
-		// Template-literal key failure → 'never' error at path
-		// [..., keyVar]. Mirrors callRTErrWithPath('never', keyVar).
 		// `extra=keyVar` appends the key as the trailing path segment.
 		body.WriteString("if (!")
 		body.WriteString(keyRegexVar)
@@ -978,11 +787,8 @@ func emitIndexSignatureValidationErrors(rt *reflection.RunType, ctx *EmitContext
 	return RTCode{Code: body.String(), Type: CodeS}
 }
 
-// rtTypeNameForKind returns the kindname used for the
-// `expected` field on a RTValidationError record. Mirrors module.go's
-// rtTypeName function but for the no-RunType callers — function-
-// flavoured kinds map to their concrete name (function / method /
-// methodSignature / callSignature).
+// rtTypeNameForKind returns the kindname used for the `expected` field of an RTValidationError, for the callers that hold
+// no RunType: a function-flavoured kind maps to its concrete name.
 func rtTypeNameForKind(kind reflection.ReflectionKind) string {
 	switch kind {
 	case reflection.KindFunction:
@@ -997,19 +803,9 @@ func rtTypeNameForKind(kind reflection.ReflectionKind) string {
 	return ""
 }
 
-// emitTupleValidationErrors mirrors
-// nodes/collection/tuple.ts:emitTypeErrors. Body shape (CodeS):
-//
-//	if (!Array.isArray(v) [|| v.length > N]) {
-//	  <callRTErr 'tuple'>
-//	} else {
-//	  <member0Code>; <member1Code>; …
-//	}
-//
-// Empty tuple gets the `Array.isArray && length === 0` shape (an
-// empty array is the only valid value). Rest-bearing tuples skip the
-// upper-length-bound check; rest-member emit handles the per-element
-// loop and accumulates errors with the loop counter as the path.
+// emitTupleValidationErrors records one 'tuple' error on a shape mismatch, else runs each member's own error code.
+// An empty tuple accepts only the empty array; a rest-bearing tuple skips the upper-length bound, and the rest member's own
+// emit loops the elements with the loop counter as the path.
 func emitTupleValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		// Empty tuple — only the empty array passes.
@@ -1018,7 +814,6 @@ func emitTupleValidationErrors(rt *reflection.RunType, ctx *EmitContext, v strin
 			Type: CodeS,
 		}
 	}
-	// Build the per-member body.
 	var bodyParts []string
 	for _, child := range rt.Children {
 		childRT := ctx.CompileChild(child, CodeS)
@@ -1047,23 +842,9 @@ func emitTupleValidationErrors(rt *reflection.RunType, ctx *EmitContext, v strin
 	}
 }
 
-// emitMapValidationErrors mirrors nodes/native/map emitTypeErrors.
-// Body shape (CodeS):
-//
-//	if (!(v instanceof Map)) {
-//	  <callRTErr 'map'>
-//	} else {
-//	  for (const entry0 of v.entries()) {
-//	    const k0 = entry0[0]; const val0 = entry0[1];
-//	    <keyCode using k0 as v, path += {key:i0, failed:'mapKey'}>
-//	    <valCode using val0 as v, path += {key:i0, failed:'mapValue'}>
-//	  }
-//	}
-//
-// Path segments are JS object literals whose `key` is the entry's
-// iteration index — the only pointer that survives non-PropertyKey Map
-// keys (object/symbol/null), and the value Standard Schema's getDotPath
-// can read — plus a `failed` marker for which side of the entry failed.
+// emitMapValidationErrors records one 'map' error on a mismatch, else walks `v.entries()` checking each key and value.
+// A path segment is `{key: <iteration index>, failed: 'mapKey'|'mapValue'}`: the index is the only pointer that survives a
+// non-PropertyKey Map key (object / symbol / null) and the one value Standard Schema's getDotPath can read.
 func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	keyType, valueType := mapKeyValueTypes(rt, ctx)
 	entryVar := ctx.NextLocalVar("entry")
@@ -1093,13 +874,8 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 		}
 		if keyRT.Code != "" {
 			inner.WriteString(keyRT.Code)
-			// Dep-call envelope keys end with `(pth.push(...), <call>,
-			// pth.splice(-1))` — a parenthesised comma expression with
-			// no trailing semicolon. Without an explicit separator, the
-			// next `const val0 = ...` lexes as `(expr)const` which is
-			// a JS syntax error. Append `;` defensively for any non-
-			// terminator-ending key code; identical to the
-			// "emit each child on its own statement" convention.
+			// A dep-call envelope ends in `(pth.push(...), <call>, pth.splice(-1))`, a parenthesised comma expression with no trailing
+			// semicolon, so the next `const val0 = …` would lex as `(expr)const`. Append `;` for any non-terminator-ending key code.
 			if last := keyRT.Code[len(keyRT.Code)-1]; last != ';' && last != '}' {
 				inner.WriteString(";")
 			}
@@ -1122,9 +898,7 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 		}
 		if valRT.Code != "" {
 			inner.WriteString(valRT.Code)
-			// Same statement-separator concern as the key half: keep a
-			// trailing `;` between a `(...)` comma-expression and the
-			// loop's `i0++`.
+			// Same statement-separator concern as the key half, this time before the loop's `i0++`.
 			if last := valRT.Code[len(valRT.Code)-1]; last != ';' && last != '}' {
 				inner.WriteString(";")
 			}
@@ -1139,11 +913,7 @@ func emitMapValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	}
 }
 
-// emitTemplateLiteralValidationErrors mirrors
-// nodes/collection/templateLiteral.ts:emitTypeErrors. Reuses
-// emitTemplateLiteralValidate to get the boolean expression
-// (`typeof v === 'string' && reTL.test(v)`), wraps in
-// `if (!<expr>) callRTErr('templateLiteral')`.
+// emitTemplateLiteralValidationErrors wraps emitTemplateLiteralValidate's boolean expression in an error push.
 func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	validateExpr := emitTemplateLiteralValidate(rt, ctx, v)
 	if validateExpr.Code == "" {
@@ -1155,41 +925,18 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 	}
 }
 
-// emitUnionValidationErrors mirrors
-// nodes/collection/union.ts:emitTypeErrors. The validator delegates
-// to the validate boolean check — `if (!val_<hash>.fn(v)) <err>`.
-// Per-arm error breakdown is explicitly NOT a feature of
-// validationErrors (a union failure is one error, not N).
-//
-// The delegate is resolved under THIS WALKER'S VARIANT, not the plain one: a
-// `{noLiterals: true}` / `{numberMode: …}` error function must ask the validator
-// the caller actually holds, or it reports `{expected:'union'}` for a value its
-// own createValidateFn accepts. Walker-scoped is the right scope — the options
-// are in force over everything this walker inlines, and a union the walker does
-// NOT inline is dep-called as a plain child entry whose own body resolves the
-// plain hash.
-//
-// The cross-fn lookup happens at runtime via the shared rtUtils
-// cache. We register a closure-prologue context item but DO NOT add
-// the validate hash to walker.RTDependencies — the dangling-dep
-// cascade in module.go operates per-fn (entries map only carries
-// validationErrors entries), so a validationErrors entry can't satisfy an
-// validate dep ref. registerRTLookup records it as a CROSS-family edge instead,
-// and the resolver's cross-family fixpoint (dispatch.go) renders the named
-// entry — variant included, which is why a variant delegate needs no demand
-// plumbing of its own here.
+// emitUnionValidationErrors delegates to the union's boolean validator: a union failure is ONE error, never a per-arm breakdown.
+// The delegate is resolved under THIS WALKER'S VARIANT, not the plain one: a `{noLiterals}` / `{numberMode}` error function
+// must ask the validator the caller actually holds, or it reports `{expected:'union'}` for a value its own createValidateFn
+// accepts. Walker-scoped is the right scope; a union the walker does NOT inline is dep-called and resolves the plain hash.
+// registerRTLookup records a CROSS-family edge rather than a walker.RTDependencies entry, because the dangling-dep cascade
+// in module.go is per-fn and a validationErrors entry cannot satisfy a validate dep ref. The resolver's cross-family fixpoint
+// (dispatch.go) renders the named entry, variant included, so a variant delegate needs no demand plumbing here.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	// A union reports through the VALIDATOR of the family being rendered, not
-	// always the plain one. Under {checkUnknowns: true} the plain validator
-	// accepts a value carrying an undeclared key, so delegating to it made the
-	// strict error function report NOTHING for a value its own validator
-	// rejects — a caller that asked "why was this rejected?" got an empty list.
-	// Pointing at validateStrict makes the two agree by construction, since the
-	// report now asks the very function that made the decision.
-	//
-	// Both halves compose: CrossFamilyVariantHash then keys that operation under
-	// the walker's own variant, so a strict site carrying `noLiterals` reaches
-	// the validateStrict entry compiled with `noLiterals`, not either default.
+	// Under {checkUnknowns: true} the plain validator accepts a value carrying an undeclared key, so delegating to it made the
+	// strict error function report NOTHING for a value its own validator rejects. Pointing at validateStrict makes the two agree
+	// by construction. CrossFamilyVariantHash then keys the operation under the walker's own variant, so a strict site carrying
+	// `noLiterals` reaches the validateStrict entry compiled with `noLiterals`, not either default.
 	checkOp := "validate"
 	if ctx.ChecksUnknownKeys() {
 		checkOp = "validateStrict"
@@ -1202,11 +949,9 @@ func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v strin
 	}
 }
 
-// emitSetValidationErrors mirrors nodes/native/set emitTypeErrors.
-// Same pattern as Map but with a single item type and `.values()`
-// iteration. Path segment for an item error: {key:i0, failed:'setKey'}
-// — `key` is the iteration index (a Set item value is data, not an
-// address); `failed:'setKey'` parallels Map's key/value markers.
+// emitSetValidationErrors mirrors the Map emit with a single item type and `.values()` iteration.
+// An item's path segment is {key: <iteration index>, failed: 'setKey'}: a Set item is data, not an address, and the marker
+// parallels Map's key/value ones.
 func emitSetValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	itemType := setItemType(rt, ctx)
 	itemVar := ctx.NextLocalVar("item")
@@ -1221,9 +966,6 @@ func emitSetValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	inner.WriteString(".values()) {")
 	if itemType != nil {
 		ctx.SetChildAccessor(itemVar)
-		// {key:i0, failed:'setKey'} — the iteration index locates the
-		// failing item; the value itself is data, not a serialisable
-		// address (object/null items have no PropertyKey form).
 		ctx.SetChildPathLiteral("{key:" + idxVar + ",failed:'setKey'}")
 		itemRT := ctx.CompileChild(itemType, CodeS)
 		ctx.SetChildAccessor("")
@@ -1233,10 +975,8 @@ func emitSetValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 		}
 		if itemRT.Code != "" {
 			inner.WriteString(itemRT.Code)
-			// Same statement-separator concern as the Map emitter: a
-			// dep-call envelope `(pth.push(...), <call>, pth.splice(-1))`
-			// has no trailing `;`, so the following `i0++` would lex as
-			// `(expr)i0++` — a JS syntax error. Defensive semicolon.
+			// Same statement-separator concern as the Map emitter: a dep-call envelope has no trailing `;`, so the following `i0++`
+			// would lex as `(expr)i0++`.
 			if last := itemRT.Code[len(itemRT.Code)-1]; last != ';' && last != '}' {
 				inner.WriteString(";")
 			}
@@ -1251,31 +991,24 @@ func emitSetValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string)
 	}
 }
 
-// emitTupleMemberValidationErrors mirrors
-// nodes/member/tupleMember.ts:emitTypeErrors. Sets the element
-// accessor (`v[i]`) + path literal (the position index) before
-// recursing into the wrapped child. Rest members produce a for-loop
-// in their own emit; optional members get the undefined-guard wrap.
+// emitTupleMemberValidationErrors sets the element accessor (`v[i]`) and the position as the path literal before recursing.
+// A rest member produces a for-loop in its own emit; an optional member gets the undefined-guard wrap.
 func emitTupleMemberValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	resolved := ctx.ResolveRef(rt.Child)
 	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
-		// Non-serializable element — `if (v[i] !== undefined)
-		// callRTErrWithPath('undefined', i)`. The slot must be
-		// undefined.
+		// Non-serializable element — the slot must be undefined.
 		idxLit := positionStr(rt)
 		accessor := v + "[" + idxLit + "]"
-		// Use the extra path literal to thread the index through the
-		// access path (callRTErr second arg).
+		// The extra path literal threads the index through the access path.
 		return RTCode{
 			Code: "if (" + accessor + " !== undefined) " + callRTErr(ctx, "undefined", idxLit),
 			Type: CodeS,
 		}
 	}
 	if isRestTupleMember(rt) {
-		// Rest member — for-loop iterating from position to v.length.
 		iVar := ctx.NextLocalVar("i")
 		ctx.SetChildAccessor(v + "[" + iVar + "]")
 		ctx.SetChildPathLiteral(iVar)
@@ -1293,7 +1026,6 @@ func emitTupleMemberValidationErrors(rt *reflection.RunType, ctx *EmitContext, v
 			Type: CodeS,
 		}
 	}
-	// Regular (possibly optional) member.
 	idxLit := positionStr(rt)
 	accessor := v + "[" + idxLit + "]"
 	ctx.SetChildAccessor(accessor)

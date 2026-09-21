@@ -8,23 +8,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// FromBinaryEmitter implements the `fromBinary` rt function —
-// reconstructs a runtime value from bytes in a DataViewDeserializer
-// instance. Paired with ToBinaryEmitter for the round-trip
+// FromBinaryEmitter implements the `fromBinary` rt function: rebuilds a value from the bytes in a
+// DataViewDeserializer, paired with ToBinaryEmitter for the round-trip
 // `fromBinary(toBinary(v, ser).getBuffer(), des) ⟶ v`.
 //
-// Mirrors the mega-switch at
-// (ref: packages/run-types/src/rtCompilers/binary/fromBinary.ts).
-//
-// Args mirror `rtBinaryDeserializerArgs = {vλl: 'ret', dεs:
-// 'Des'}` (constants.functions.ts:54). The first arg `ret` starts
-// `undefined` at call time — the body assigns the decoded value to it
-// and returns it. The second arg `Des` is the deserializer instance.
-//
-// The walker's "first arg is the base value accessor" contract means
-// `ret` is what every Emit's body references via ctx.Vλl. For compound
-// kinds we initialize `ret` to a new container (e.g. `ret = {}`) before
-// populating children.
+// The first arg `ret` starts `undefined`; the body assigns the decoded value to it and returns it, and by
+// the walker's "first arg is the base value accessor" contract it is what every Emit references via
+// ctx.Vλl. A compound kind initialises `ret` to a new container before populating children.
 type FromBinaryEmitter struct{}
 
 func (FromBinaryEmitter) Args() []ArgSpec {
@@ -35,8 +25,6 @@ func (FromBinaryEmitter) Args() []ArgSpec {
 }
 
 func (FromBinaryEmitter) Supports(rt *reflection.RunType) bool {
-	// Mirror ToBinaryEmitter.Supports — every kind the encode side
-	// handles has a decode arm.
 	return ToBinaryEmitter{}.Supports(rt)
 }
 
@@ -44,16 +32,13 @@ func (FromBinaryEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// ReturnName is `ret` — the decoded value.
 func (FromBinaryEmitter) ReturnName() string {
 	return "ret"
 }
 
-// binaryFromOverride returns a format-specific binary-decode EXPRESSION
-// (RHS of `ret = …`) when rt carries a FormatAnnotation whose emitter
-// implements formats.BinaryDecoder and yields a non-empty body, else "".
-// Empty = keep the host's base-kind arm. Byte-symmetric counterpart to
-// binaryToOverride.
+// binaryFromOverride returns a format-specific binary-decode EXPRESSION (RHS of `ret = …`) when rt's
+// format emitter implements formats.BinaryDecoder, else "" to keep the host's base-kind arm.
+// Byte-symmetric counterpart to binaryToOverride.
 func binaryFromOverride(rt *reflection.RunType, des string, ctx *EmitContext) string {
 	if rt == nil || rt.FormatAnnotation == nil {
 		return ""
@@ -79,29 +64,20 @@ func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeTy
 
 	// ###################### ATOMIC TYPES ######################
 	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject:
-		// ref:binary/fromBinary.ts — `ret = JSON.parse(desString())`.
 		return RTCode{Code: ret + " = JSON.parse(" + des + ".desString())", Type: CodeS}
 
 	case reflection.KindNull:
-		// Encoder wrote a 0 byte sentinel; decoder consumes it and
-		// returns null. Comma-expression folds the `index++` advance
-		// into the assignment RHS — the reference uses the same trick
-		// (ref: binary/fromBinary.ts:55) to keep the emit as a single
-		// expression-shaped statement instead of two consecutive
-		// statements.
+		// The encoder wrote a 0 sentinel byte; the comma expression folds consuming it into the
+		// assignment RHS, keeping the emit one statement.
 		return RTCode{Code: ret + " = (" + des + ".index++, null)", Type: CodeS}
 
 	case reflection.KindBoolean:
 		return RTCode{Code: ret + " = !!" + des + ".view.getUint8(" + des + ".index++)", Type: CodeS}
 
 	case reflection.KindNumber:
-		// Comma-expression trick — `getFloat64` is variadic-tolerant; the
-		// 3rd positional slot is ignored at runtime but its side-effect
-		// (`index += 8`) still runs as part of the call's argument
-		// evaluation. Mirrors the binary/fromBinary.ts:59 emit.
-		// Equivalent to `ret = getFloat64(des.index, 1); des.index += 8`
-		// but one statement instead of two. A numberFormat brand may
-		// decode 1/2/4 bytes instead — byte-symmetric with its encode.
+		// `getFloat64` ignores a 3rd argument at runtime but still evaluates it, so `index += 8` rides
+		// there and the read stays one statement. A numberFormat brand may decode 1/2/4 bytes instead,
+		// byte-symmetric with its encode.
 		expr := des + ".view.getFloat64(" + des + ".index, 1, (" + des + ".index += 8))"
 		if override := binaryFromOverride(rt, des, ctx); override != "" {
 			expr = override
@@ -112,20 +88,18 @@ func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeTy
 		return RTCode{Code: ret + " = " + des + ".desString()", Type: CodeS}
 
 	case reflection.KindBigInt:
-		// A bigintFormat brand whose min/max fit 64-bit decodes 8 bytes
-		// via getBigInt64/getBigUint64 — byte-symmetric with its encode.
-		// Empty override = keep the string base arm.
+		// A bigintFormat brand whose min/max fit 64-bit decodes 8 bytes, byte-symmetric with its encode;
+		// an empty override keeps the string base arm.
 		if override := binaryFromOverride(rt, des, ctx); override != "" {
 			return RTCode{Code: ret + " = " + override, Type: CodeS}
 		}
-		// Only the exact wire form converts; a corrupted string stays a string
-		// for validate to refuse (`BigInt('')` would be `0n`).
+		// Only the exact wire form converts; anything else stays a string for validate to refuse
+		// (`BigInt('')` would be `0n`).
 		re := bigintWireRegexVar(ctx)
 		return RTCode{Code: ret + " = " + des + ".desString();if (" + re + ".test(" + ret + ")) " + ret + " = BigInt(" + ret + ")", Type: CodeS}
 
 	case reflection.KindUndefined, reflection.KindVoid:
-		// Same comma-expression pattern as KindNull —
-		// binary/fromBinary.ts:69.
+		// Same comma expression as KindNull: consume the sentinel byte inside the assignment.
 		return RTCode{Code: ret + " = (" + des + ".index++, undefined)", Type: CodeS}
 
 	case reflection.KindSymbol:
@@ -172,10 +146,8 @@ func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeTy
 
 	case reflection.KindClass:
 		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
-			// Byte-symmetric with binary_to: numeric-unpack the fixed-layout
-			// types, fall back to Temporal.<T>.from(string) for the rest
-			// (temporalFromBinary returns "" for ZonedDateTime, Duration,
-			// PlainMonthDay).
+			// Byte-symmetric with binary_to: numeric-unpack the fixed-layout types, and
+			// Temporal.<T>.from(string) for ZonedDateTime, Duration and PlainMonthDay.
 			if unpacked := temporalFromBinary(rt.SubKind, ret, des); unpacked != "" {
 				return RTCode{Code: unpacked, Type: CodeS}
 			}
@@ -183,9 +155,7 @@ func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeTy
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			// Same comma-expression trick as KindNumber: the 3rd arg slot
-			// of getFloat64 carries the `index += 8` side-effect while
-			// the read result is wrapped in `new Date(…)`.
+			// Same as KindNumber: getFloat64's 3rd argument slot carries the `index += 8`.
 			return RTCode{Code: ret + " = new Date(" + des + ".view.getFloat64(" + des + ".index, 1, (" + des + ".index += 8)))", Type: CodeS}
 		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableFromBinary(rt, ctx, ret, des)
@@ -206,12 +176,8 @@ func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeTy
 	return RTCode{Code: "", Type: CodeNS}
 }
 
-// EmitDependencyCall passes the value slot + deserializer through. The
-// inner function returns the decoded value; the caller assigns it back
-// onto its accessor.
-//
-// Shape: `<accessor> = <hash>.fn(<accessor>, Des)` so the child's
-// reassignment of `ret` propagates back to the parent's frame.
+// EmitDependencyCall emits `<accessor> = <hash>.fn(<accessor>, Des)`, so the child's reassignment of
+// `ret` propagates back into the parent's frame.
 func (FromBinaryEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	des := ctx.ArgName("dεs")
 	return ctx.emitDepCall(childID, ctx.Vλl+", "+des, ctx.Vλl)
@@ -226,24 +192,17 @@ func (FromBinaryEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// IsNoopType — fromBinary is never the family identity for a real node:
-// even literal roots ASSIGN the value (`ret = <literal>`), undefined consumes
-// its sentinel byte, and every atom reads bytes. Also deliberately NOT
-// NoopComposeAround — parents advance positionally through the byte stream,
-// so skipping a child decode would desynchronize every later read.
+// IsNoopType — fromBinary is never a noop: even a literal root ASSIGNS the value and undefined consumes
+// its sentinel byte. Deliberately NOT NoopComposeAround either: parents advance positionally through the
+// byte stream, so skipping a child decode desynchronizes every later read.
 func (FromBinaryEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return false
 }
 
 func emitLiteralFromBinary(rt *reflection.RunType, ret, des string) RTCode {
 	_ = des
-	// The reference binary/fromBinary.ts treats literals as compile-time noops
-	// because the RT body that REFERENCES the literal already has the
-	// value statically. For us, the RT body is shared across consumers
-	// and the decoded value must be a usable object — so we restore the
-	// literal value at the accessor. Encoder writes no bytes (the
-	// discriminator from the surrounding union arm is the only signal);
-	// decoder assigns the literal value.
+	// The encoder writes no bytes (the surrounding union arm's discriminator is the only signal), so the
+	// literal value is restored at the accessor here; the shared RT body has no static copy of it.
 	flagSet := make(map[string]bool, len(rt.Flags))
 	for _, flag := range rt.Flags {
 		flagSet[flag] = true
@@ -279,8 +238,7 @@ func emitArrayFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des stri
 	if childRT.Type == CodeNS {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	// The count is bounded by the bytes left before anything is allocated:
-	// desCount refuses a count the buffer cannot back (see minWireBytes).
+	// desCount refuses a count the remaining bytes cannot back, before anything is allocated (minWireBytes).
 	readLen := "const " + lenVar + " = " + des + ".desCount(" + strconv.Itoa(minWireBytes(rt.Child, ctx)) + ")"
 	body := readLen + ";" + ret + " = new Array(" + lenVar + ")"
 	if childRT.Code != "" {
@@ -289,10 +247,9 @@ func emitArrayFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des stri
 	return RTCode{Code: body, Type: CodeS}
 }
 
-// emitIndexSignatureFromBinary decodes the `[uint32 count, (key, value)*]` wire.
-// `resetRet` writes the `ret = {}` initialiser; emitObjectFromBinary passes false
-// because it has already initialised `ret` and populated the named props (so the
-// index sig must NOT wipe them — it reads only the dynamic keys the encoder wrote).
+// emitIndexSignatureFromBinary decodes the `[uint32 count, (key, value)*]` wire. `resetRet` writes the
+// `ret = {}` initialiser; emitObjectFromBinary passes false because it has already populated the named
+// props, which the index sig must NOT wipe: it reads only the dynamic keys the encoder wrote.
 func emitIndexSignatureFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string, resetRet bool) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -331,8 +288,8 @@ func emitIndexSignatureFromBinary(rt *reflection.RunType, ctx *EmitContext, ret,
 	if resetRet {
 		prefix = ret + " = {};"
 	}
-	// Each entry needs at least its key (4 bytes numeric, 1 byte string) plus
-	// the value's floor; desCountU32 refuses a count the buffer cannot back.
+	// Each entry needs at least its key (4 bytes numeric, 1 byte string) plus the value's floor;
+	// desCountU32 refuses a count the buffer cannot back.
 	minEntry := 1 + minWireBytes(rt.Child, ctx)
 	if numericKey {
 		minEntry = 4 + minWireBytes(rt.Child, ctx)
@@ -352,7 +309,6 @@ func emitPropertyFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des s
 		return RTCode{Code: "", Type: CodeS}
 	}
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
-		// Directly DataOnly-stripped value — drop the property.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(ret, rt.Name, rt.IsSafeName)
@@ -379,16 +335,13 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	// The shared partition keeps decode in lockstep with encode (the wire
-	// bitmap depends on the same required/optional split on both sides).
-	// The index signature is decoded AFTER the named props (it reads only
-	// the dynamic keys the encoder wrote, keeping `ret`). Before, an index
-	// signature took over the whole object and lost the named props (F1).
+	// The shared partition keeps decode in lockstep with encode: the wire bitmap depends on both sides
+	// making the same required/optional split. The index signature is decoded AFTER the named props, which
+	// it keeps; an index signature taking over the whole object loses them (F1).
 	required, optional, indexSigs := partitionBinaryObjectProps(rt, ctx)
 
-	// `ret = {};` — explicit `;` because addFullStop in walker.go would
-	// treat the trailing `}` of `{}` as already-terminated and skip the
-	// separator, producing `ret = {} return ret` (syntax error).
+	// The explicit `;` is required: addFullStop in walker.go reads the trailing `}` of `{}` as already
+	// terminated and skips the separator, producing `ret = {} return ret`.
 	parts := []string{ret + " = {};"}
 
 	for _, child := range required {
@@ -421,8 +374,7 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 				if propertyChildFailed(ctx) {
 					return RTCode{Code: "", Type: CodeNS}
 				}
-				// Absorbed unknown kind — keep the optional bit (mirrors the
-				// encode side) but read no value, dropping the property.
+				// Absorbed unknown kind: keep the optional bit (mirroring encode) but read no value.
 				innerRT = RTCode{Code: "", Type: CodeS}
 			}
 			bitCheck := bitCheckExpr(des, bitmapVar, i)
@@ -431,9 +383,8 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 		}
 	}
 
-	// Index signatures for the remaining (dynamic) keys, in the encoder's
-	// member order. `ret` already holds the named props, so don't
-	// re-initialise it (resetRet=false).
+	// The remaining dynamic keys, in the encoder's member order; `ret` already holds the named props, so
+	// it must not be re-initialised.
 	for _, indexSig := range indexSigs {
 		idxRT := emitIndexSignatureFromBinary(indexSig, ctx, ret, des, false)
 		if idxRT.Type == CodeNS {
@@ -449,9 +400,8 @@ func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des str
 
 func emitTupleFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
 	if len(rt.Children) == 0 {
-		// An empty tuple occupies zero bytes but still decodes to a value:
-		// leaving the slot untouched handed back `undefined` for every `[]`
-		// inside an array or a Set.
+		// An empty tuple occupies zero bytes but still decodes to a value; leaving the slot untouched
+		// hands back `undefined` for every `[]` inside an array or a Set.
 		return RTCode{Code: ret + " = [];", Type: CodeS}
 	}
 	var required, optional, rest []*reflection.RunType
@@ -526,10 +476,8 @@ func emitTupleMemberFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, de
 	if resolved := ctx.ResolveRef(rt.Child); resolved == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// Function-typed tuple slots fall through to CompileChild — the
-	// function arm returns CodeNS and the renderer emits alwaysThrow.
+	// Function-typed slots fall through to CompileChild: CodeNS, and the renderer emits alwaysThrow.
 	if isRestTupleMember(rt) {
-		// Rest tuple member: read varint length, then loop.
 		lenVar := ctx.NextLocalVar("rln")
 		iVar := ctx.NextLocalVar("i")
 		ctx.SetChildAccessor(ret + "[" + iVar + "]")
@@ -569,8 +517,6 @@ func emitNativeIterableFromBinary(rt *reflection.RunType, ctx *EmitContext, ret,
 	iVar := ctx.NextLocalVar("i")
 
 	if isMap {
-		// Read each pair as [key, value] into a temp array then construct
-		// the Map from the array.
 		arrVar := ctx.NextLocalVar("mar")
 		keyTmp := ctx.NextLocalVar("mk")
 		valTmp := ctx.NextLocalVar("mv")

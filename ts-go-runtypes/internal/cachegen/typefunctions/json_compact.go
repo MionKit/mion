@@ -7,43 +7,20 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// CompactForJsonEmitter — the encode walk of the `compact` JSON strategy.
-//
-// Structurally a sibling of PrepareForJsonCloneEmitter (non-mutating, strips
-// undeclared keys by construction), differing in ONE arm: an object literal /
-// plain class instance is emitted as a POSITIONAL ARRAY of its declared
-// properties (no key names on the wire) instead of a keyed object literal. Every
-// other arm (atomics, bigint/Date/Temporal/RegExp, arrays, TS tuples, Map/Set,
-// unions, pure index signatures) is reused verbatim from the prepareForJsonClone
-// helpers — recursion routes back through THIS emitter via ctx.CompileChild
-// (the walker dispatches children against the active family's emitter), so a
-// nested object inside an array / tuple / union member also becomes a positional
-// array. Pairs with CompactFromJsonEmitter, which rebuilds the keyed object from
-// positions.
-//
-// Wire shape of an object `{a, b?, c}` with declared canonical order a,b,c:
-//
-//	[v.a, (v.b === undefined ? null : v.b), v.c]
-//
-// Optionals ride a `null` placeholder (same convention TS tuple optionals
-// already use — see emitTuplePrepareForJsonClone); the decoder maps `null` back
-// to absent.
-//
-// Any object carrying an index signature (a record, OR a fixed object that also
-// has dynamic keys) is NOT tupled — it serializes as a keyed object via the
-// shared clone emit. A record has no fixed positions to tuple, and a mixed
-// declared-props-plus-index-signature object would only elide the declared-prop
-// NAMES, a small and unpredictable fraction of a payload dominated by dynamic
-// keys. So the positional form applies ONLY to fixed-shape objects with no index
-// signature; a nested fixed object inside a record still goes positional.
+// CompactForJsonEmitter is the encode walk of the `compact` JSON strategy, a sibling of PrepareForJsonCloneEmitter that
+// differs in ONE arm: an object literal or plain class instance becomes a POSITIONAL ARRAY of its declared properties,
+// no key names on the wire. Every other arm is reused from the prepareForJsonClone helpers, and recursion routes back
+// through THIS emitter via ctx.CompileChild, so a nested object inside an array, tuple or union member goes positional
+// too. Pairs with CompactFromJsonEmitter, which rebuilds the keyed object from positions.
+// Wire shape of `{a, b?, c}` in canonical order: `[v.a, (v.b === undefined ? null : v.b), v.c]`, the same `null`
+// placeholder TS tuple optionals already use (emitTuplePrepareForJsonClone); the decoder maps `null` back to absent.
 type CompactForJsonEmitter struct{}
 
 func (CompactForJsonEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-// Supports mirrors the prepareForJson supported surface — compact handles the
-// same kinds, only the object wire shape differs.
+// Supports mirrors the prepareForJson surface: compact handles the same kinds, only the object wire shape differs.
 func (CompactForJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
@@ -52,24 +29,15 @@ func (CompactForJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// EmitDependencyCall — same value-expression dep call as prepareForJsonClone (the
-// compact encode never mutates the input). The walker namespaces childID into
-// the `cj` family, so a nested object's dep call resolves the child's compact
-// entry, not its clone entry.
+// EmitDependencyCall is prepareForJsonClone's value-expression dep call, the compact encode never mutating its input.
+// The walker namespaces childID into the `cj` family, so a nested dep call resolves the child's compact entry.
 func (CompactForJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
 
-// Finalize — identity bodies collapse to `return v` + isNoop=true, exactly like
-// prepareForJsonClone. For a primitive root (nothing to positionalize) the walk
-// produces no code, so the compact composite elides to `JSON.stringify(v)`.
-//
-// Note: compact deliberately does NOT implement NoopTypePredicate (IsNoopType).
-// prepareForJsonClone is noop for an extra-proof `{a: string}`, but compact turns
-// that into `[v.a]` — NOT identity — so reusing its predicate would be unsound.
-// Leaving it unimplemented makes every object live (a false negative only costs
-// bytes, never correctness), and the Finalize empty-body path still marks a
-// truly identity (atomic-root) walk as noop.
+// Finalize collapses an identity body to `return v` + isNoop=true, like prepareForJsonClone.
+// A primitive root has nothing to positionalize, so the walk produces no code and the composite elides to
+// `JSON.stringify(v)`.
 func (CompactForJsonEmitter) Finalize(raw string) (string, bool) {
 	code := normaliseWhitespace(raw)
 	if code == "" || code == "return v" {
@@ -80,21 +48,16 @@ func (CompactForJsonEmitter) Finalize(raw string) (string, bool) {
 
 func (CompactForJsonEmitter) ReturnName() string { return "v" }
 
-// IsNoopType delegates to prepareForJsonClone's predicate: cj reuses pjs's
-// emit for every arm except objects, and BOTH treat objects as never-noop
-// (pjs always clones, cj always builds the positional array) — so the
-// delegation is exact.
+// IsNoopType delegates to prepareForJsonClone's predicate: cj reuses pjs's emit for every arm except objects, and BOTH
+// treat objects as never-noop, so the delegation is exact.
 func (CompactForJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForPrepareJsonSafe(rt, ctx)
 }
 
-// NoopChildComposesAround — cj shares pjs's composition rule (an elided
-// child slot is shared by reference), so empty code composes correctly.
+// NoopChildComposesAround — cj shares pjs's rule, an elided child slot is shared by reference.
 func (CompactForJsonEmitter) NoopChildComposesAround() {}
 
-// Emit mirrors PrepareForJsonCloneEmitter.Emit; only the object-literal and
-// plain-class (SubKindNone) arms diverge to the positional form. Everything else
-// delegates to the shared prepareForJsonClone helpers.
+// Emit mirrors PrepareForJsonCloneEmitter.Emit; only the object-literal and plain-class arms go positional.
 func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -118,8 +81,7 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindRegexp:
-		// Unsupported — a RegExp is a pattern the receiver would run, not data;
-		// it is dropped from the wire like a function (DataOnly strips it).
+		// Unsupported: a RegExp is a pattern the receiver would run, not data, so it is dropped like a function.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindVoid:
@@ -159,14 +121,11 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUnion:
-		// Reuse the keyed flat-union encode: atomic members ride
-		// `[memberIndex, value]`, object members merge into `[-1, keyedObject]`.
-		// The merged object stays keyed (a union has no single positional shape);
-		// nested objects inside members still become positional via CompileChild.
-		// The layout is compact-widened: a union the keyed strategies pass
-		// through raw keeps the envelope when a member positionalizes, or the
-		// identity decoder would hand those nested arrays back as-is
-		// (union_flat_compact.go).
+		// Reuse the keyed flat-union encode (atomics ride `[memberIndex, value]`, objects merge into `[-1, keyedObject]`):
+		// the merged object stays keyed, a union having no single positional shape, while
+		// nested objects inside members still go positional via CompileChild.
+		// The layout is compact-widened so a union the keyed strategies pass through raw keeps its envelope once a member
+		// positionalizes; without it the identity decoder would hand those nested arrays back as-is (union_flat_compact.go).
 		return emitUnionPrepareForJsonCloneLayout(rt, ctx, v, buildCompactFlatLayout(rt, ctx))
 
 	case reflection.KindIntersection:
@@ -190,8 +149,7 @@ func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Co
 	return RTCode{Code: "", Type: CodeNS}
 }
 
-// compactDeclaredSlot is one declared object property that occupies a positional
-// slot in the compact wire (in canonical child order).
+// compactDeclaredSlot is one declared object property occupying a positional slot, in canonical child order.
 type compactDeclaredSlot struct {
 	name          string
 	isSafeName    bool
@@ -200,12 +158,9 @@ type compactDeclaredSlot struct {
 	childRef      *reflection.RunType // the property's value-type ref (.Child)
 }
 
-// objectHasIndexSignature reports whether the object carries any index
-// signature. Such objects serialize as a keyed object (not a positional array):
-// a record has no fixed positions to tuple, and a mixed declared-props-plus-
-// index-signature object would only save the declared-prop NAMES, a small and
-// unpredictable fraction of a payload dominated by dynamic keys. So the
-// positional form applies ONLY to fixed-shape objects with no index signature.
+// objectHasIndexSignature reports whether the object carries any index signature, in which case it stays KEYED: a record
+// has no fixed positions to tuple, and a mixed declared-props-plus-index-signature object would only save the declared
+// NAMES, an unpredictable fraction of a payload dominated by dynamic keys. Positional is for fixed-shape objects only.
 func objectHasIndexSignature(rt *reflection.RunType, ctx *EmitContext) bool {
 	for _, child := range objectMembers(rt) {
 		if resolved := ctx.ResolveRef(child); resolved != nil && resolved.Kind == reflection.KindIndexSignature {
@@ -215,14 +170,10 @@ func objectHasIndexSignature(rt *reflection.RunType, ctx *EmitContext) bool {
 	return false
 }
 
-// collectCompactDeclaredSlots applies the SAME structural drop filters as the
-// keyed object emitters (static fields, methods/functions, directly-stripped
-// values) and returns the surviving declared properties in canonical child
-// order. Shared by the compact ENCODE and DECODE emitters so the positional
-// index of each property is identical on both sides — the single source of slot
-// order. Only ever called for objects WITHOUT an index signature (the caller
-// pre-routes index-sig objects to the keyed path), so an index-signature child
-// is skipped defensively. Emits the same drop diagnostics the keyed emitters do.
+// collectCompactDeclaredSlots applies the SAME structural drop filters and drop diagnostics as the keyed object
+// emitters and returns the survivors in canonical child order. It is THE source of slot order, shared by the compact
+// ENCODE and DECODE emitters so each property's position is identical on both sides.
+// Callers pre-route index-signature objects to the keyed path, so such a child is skipped defensively.
 func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []compactDeclaredSlot {
 	var slots []compactDeclaredSlot
 	for _, child := range rt.Children {
@@ -265,24 +216,18 @@ func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []com
 	return slots
 }
 
-// emitObjectCompactForJson — the positional-array object encode. Declared
-// properties occupy positions 0..N-1 in canonical order; an absent optional
-// holds the `null` placeholder so later positions stay aligned. An object that
-// carries ANY index signature (a record, or a declared-props-plus-extras shape)
-// is NOT tupled — it serializes as a keyed object via the shared clone emit, so
-// records and dynamic-key maps stay keyed exactly like every other strategy.
+// emitObjectCompactForJson is the positional-array object encode: declared properties take positions 0..N-1 in canonical
+// order and an absent optional holds the `null` placeholder, so later positions stay aligned.
 func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 
-	// Index signature present → keyed object (reuse clone's keyed emit). Checked
-	// BEFORE slot collection so drop diagnostics aren't emitted twice.
+	// Checked BEFORE slot collection so drop diagnostics are not emitted twice.
 	if objectHasIndexSignature(rt, ctx) {
 		return emitObjectPrepareForJsonClone(rt, ctx, v)
 	}
 
-	// Positional expressions for each declared property.
 	slots := collectCompactDeclaredSlots(rt, ctx)
 	parts := make([]string, 0, len(slots))
 	for _, slot := range slots {
@@ -292,21 +237,15 @@ func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string
 			if propertyChildFailed(ctx) {
 				return RTCode{Code: "", Type: CodeNS}
 			}
-			// Absorbed (a future kind with no emit — never produced by a real
-			// scan today). The decode side makes the identical decision, so the
-			// remaining positions stay in lockstep.
+			// Absorbed (a future kind with no emit): the decode side decides identically, so positions stay in lockstep.
 			continue
 		}
 		if slot.nonEnumerable {
-			// A guarded (lib-global-inherited / `@nonEnumerable`) property holds
-			// its value only when it is an OWN-ENUMERABLE property of v
-			// (`JSON.stringify` semantics); otherwise the null placeholder, which
-			// the decoder maps back to absent — same positional alignment as an
-			// absent optional.
+			// A guarded (lib-global-inherited / `@nonEnumerable`) property holds its value only when it is own-enumerable on
+			// v (`JSON.stringify` semantics), else the null placeholder the decoder maps back to absent.
 			expr = "(!" + propertyIsEnumerableGuard(v, slot.name) + " ? null : " + expr + ")"
 		} else if slot.optional {
-			// Absent optional → null placeholder so later positions stay aligned;
-			// the decoder maps null back to absent (compactFromJson).
+			// Absent optional takes the null placeholder compactFromJson maps back to absent, keeping positions aligned.
 			expr = "(" + accessor + " === undefined ? null : " + expr + ")"
 		}
 		parts = append(parts, expr)
@@ -315,15 +254,9 @@ func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string
 	return RTCode{Code: "[" + strings.Join(parts, ",") + "]", Type: CodeE}
 }
 
-// emitNativeIterableCompactForJson is the compact-strategy Map/Set encode. It
-// mirrors emitNativeIterablePrepareForJsonClone EXCEPT the JSON-compatible fast
-// path: clone may shortcut to `Array.from(v)` when every inner type is
-// JSON-compatible (keyed object elements survive unchanged, which the clone
-// decoder expects), but compact POSITIONALIZES nested object elements, so it
-// must run the per-element transform whenever it is not identity. The
-// `allIdentity` gate keeps the cheap `Array.from(v)` only when compact changes
-// nothing — symmetric with emitNativeIterableRestoreFromJson, which already
-// gates its loop on the per-element restore code being non-empty.
+// emitNativeIterableCompactForJson mirrors emitNativeIterablePrepareForJsonClone EXCEPT its JSON-compatible fast path:
+// clone may shortcut to `Array.from(v)` on JSON-compatible inner types, but compact POSITIONALIZES nested object
+// elements, so the `allIdentity` gate keeps that shortcut only when compact changes nothing.
 func emitNativeIterableCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	innerTypes := iterableInnerTypes(rt, ctx)
