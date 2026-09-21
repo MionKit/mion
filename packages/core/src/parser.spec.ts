@@ -16,8 +16,9 @@ describe('the mion parser strategies', () => {
     expect(isParserStrategy('direct')).toBe(false);
   });
 
-  it('lists exactly the strategies the type names', () => {
-    expect([...PARSER_STRATEGIES].sort()).toEqual(['clone', 'compact', 'mutate', 'mutateStrict']);
+  // PARSE_MODES is the source of truth: a strategy added to the table and not to the list would compile.
+  it('lists exactly the strategies the table names', () => {
+    expect([...PARSER_STRATEGIES].sort()).toEqual(Object.keys(PARSE_MODES).sort());
     for (const strategy of PARSER_STRATEGIES) expect(isParserStrategy(strategy)).toBe(true);
   });
 
@@ -39,6 +40,17 @@ describe('the mion parser strategies', () => {
     type ReturnHasNoStrict = 'mutateStrict' extends ReturnParserStrategy ? false : true;
     const paramsOnly: ReturnHasNoStrict = true;
     expect(paramsOnly).toBe(true);
+  });
+
+  // The type stops a TypeScript caller; a JavaScript one, or an `as never` cast, reaches the runtime list instead.
+  it('refuses mutateStrict on the return wire at runtime too', () => {
+    expect(() => resolveParser({return: 'mutateStrict'} as never, undefined)).toThrow(
+      /invalid parser strategy 'mutateStrict' for route return/
+    );
+    expect(() => resolveParser('mutateStrict' as never, undefined)).toThrow(
+      /invalid parser strategy 'mutateStrict' for route return/
+    );
+    expect(resolveParser({params: 'mutateStrict'}, undefined)).toEqual({params: 'mutateStrict', return: 'clone'});
   });
 
   // Two strategies must never name the same families, or the runtime could not tell which row the build picked.

@@ -124,18 +124,18 @@ export function getRawMethodReflection(
 
 /** Checks each direction's compiled strategy against the resolved one: they differ only when the
  *  build saw a different literal than the runtime value. */
-export function assertCompiledParser(methodId: string, encoder: ResolvedParser, reflection: MethodReflect): void {
+export function assertCompiledParser(methodId: string, parser: ResolvedParser, reflection: MethodReflect): void {
   const sides = [
     ['params', reflection.paramsJitHash, reflection.paramsJitFns],
     ['return', reflection.returnJitHash, reflection.returnJitFns],
   ] as const;
   for (const [direction, hash, fns] of sides) {
     if (hash === EMPTY_HASH) continue;
-    const wanted = encoder[direction];
+    const wanted = parser[direction];
     if (fns.json.strategy !== wanted)
       throw new Error(
-        `mion: ${direction} encoder of "${methodId}" is '${encoder[direction]}' at runtime but the build compiled ` +
-          `'${fns.json.strategy}'. Write the encoder option inline on the route (or as an \`as const\` preset) and the ` +
+        `mion: ${direction} parser of "${methodId}" is '${wanted}' at runtime but the build compiled ` +
+          `'${fns.json.strategy}'. Write the parser option inline on the route (or as an \`as const\` preset) and the ` +
           `router-wide default as a literal on createMionRouter, so the build sees the same value the runtime reads.`
       );
   }

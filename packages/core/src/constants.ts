@@ -69,13 +69,9 @@ export const HandlerType = {
   rawMiddleFn: 4,
 } as const;
 
-// ###################### What each parser strategy compiles ######################
 // A row IS the marker's slot list, named by the MARKER token InjectTypeFnArgs asks for, not the compiled tag.
-// Adding a strategy is one row here and one row in the Go mirror (resolver/apigen.go).
+// Adding a strategy is one row here and one in the Go mirror (resolver/apigen.go).
 // The validator follows the decoder: `clone` and `compact` rebuild the declared shape, so only a union can hide a key.
-// `mutate` rebuilds nothing and is the permissive strategy.
-// `mutateStrict` rebuilds nothing either and answers for every key, which needs the fused validator.
-// `mutateStrict` has a row like any other; ReturnParserStrategy leaves it out, a return has no caller to answer for.
 
 /** The families each strategy compiles, the same row on both wires. */
 export const PARSE_MODES = {
@@ -108,13 +104,6 @@ export const PARSE_MODES = {
 
 export type ParseModes = typeof PARSE_MODES;
 export type ParseModeRow = ParseModes[keyof ParseModes];
-
-/** Params are decoded by the server and a return by the client, so the direction names the machine. */
-export const DECODE_SIDE_BY_DIRECTION = {params: 'server', return: 'client'} as const;
-export type DecodeSide = (typeof DECODE_SIDE_BY_DIRECTION)[keyof typeof DECODE_SIDE_BY_DIRECTION];
-export type EncodeFamily = ParseModeRow['encode'];
-export type DecodeFamily = ParseModeRow['decode'];
-export type ValidateFamily = ParseModeRow['validate'];
 
 /** Used when no params exist or the return type is void: no JIT functions are generated. */
 export const EMPTY_HASH = '';

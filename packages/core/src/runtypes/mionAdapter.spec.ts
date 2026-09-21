@@ -273,8 +273,7 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     const fns = buildJitFnsFromMarker([tuple('vuk'), tuple('veuk'), tuple('pjs'), tuple('rjs')], 'x', 'clone');
     expect(fns.isType).toBeDefined();
     expect(fns.typeErrors).toBeDefined();
-    // The strategy is read back off the encode family, which only works once the
-    // tag has been translated to the key ENCODE_FAMILY_BY_STRATEGY speaks.
+    // The strategy comes back only once each tag is translated to the key PARSE_MODES names.
     expect(fns.json.strategy).toBe('clone');
   });
 
@@ -295,6 +294,10 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr')).toThrow(
       /needs validationErrors beside validate/
     );
+    // BOTH validator pairs over the shared mutate JSON pair: two rows match, which is skew just as much as none
+    expect(() =>
+      buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('vst'), tuple('vest'), tuple('pj'), tuple('rj')], 'x', 'twoRows')
+    ).toThrow(/matches 2 parser strategies.*matched \[mutate, mutateStrict\]/);
   });
 
   // `mutate` and `mutateStrict` share an encoder AND a decoder, so only the validate family tells their rows apart.

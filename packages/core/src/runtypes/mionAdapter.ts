@@ -37,13 +37,11 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 export const MION_FN_KEYS = [
   'validate',
   'validationErrors',
-  // One validate pair per parser strategy; a route requests exactly one of the three (VALIDATE_FAMILY_BY_STRATEGY).
+  // One validate pair per parser strategy; PARSE_MODES picks which pair a route requests.
   'validateUnionKeys',
   'validationErrorsUnionKeys',
   'validateStrict',
   'validationErrorsStrict',
-  'hasUnknownKeys',
-  'unknownKeyErrors',
   'formatTransform',
   'prepareForJsonClone',
   'prepareForJsonMutate',
@@ -185,15 +183,10 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
   return fabricateEntry(fn, fnID, label, rtFnHash);
 }
 
-type CompiledJsonFamilies = {
-  strategy: ParserStrategy;
-  row: ParseModeRow;
-};
-
 // No row matches a payload from a different build, so version skew fails closed here rather than at call time.
 // `mutate` and `mutateStrict` share an encoder and a decoder, so only the whole row tells their validators apart.
 /** The strategy a fn set was compiled for: the ONE PARSE_MODES row whose encoder, decoder and validator are present. */
-function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: string): CompiledJsonFamilies {
+function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: string): ParserStrategy {
   const matched = (Object.keys(PARSE_MODES) as ParserStrategy[]).filter((strategy) => {
     const row: ParseModeRow = PARSE_MODES[strategy];
     return fns[row.encode] !== undefined && fns[row.decode] !== undefined && fns[row.validate] !== undefined;
@@ -204,7 +197,7 @@ function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: s
         `(got [${Object.keys(fns).join(', ')}]${matched.length ? `, matched [${matched.join(', ')}]` : ''}). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  return {strategy: matched[0], row: PARSE_MODES[matched[0]]};
+  return matched[0];
 }
 
 /** Builds mion JitCompiledFunctions from one injected marker payload: the validators and ONE json
@@ -218,7 +211,8 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
   const fns = byFnKey(injected);
   // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
   // skew — falling back would silently DISABLE validation/serialization for this method.
-  const {strategy, row} = strategyFromFamilies(fns, label);
+  const strategy = strategyFromFamilies(fns, label);
+  const row: ParseModeRow = PARSE_MODES[strategy];
   if (fns[row.validationErrors] === undefined)
     throw new Error(
       `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ${strategy} ` +

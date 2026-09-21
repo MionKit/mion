@@ -13,46 +13,57 @@ import type {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 type Direction = keyof ResolvedParser;
 /** The `parser` literal an options type carries, `never` when it has none. */
-type ParserOf<Options> = Options extends {parser: infer E} ? E : never;
+type ParserOf<Options> = Options extends {parser: infer Parser} ? Parser : never;
 /** A widened or union `parser` resolves to `never` and falls through, instead of compiling every family it names. */
-type DirectionStrategy<E, D extends Direction> = [E] extends [string]
-  ? SingleLiteral<E>
-  : [E] extends [Record<D, infer S extends string>]
-    ? SingleLiteral<S>
+type DirectionStrategy<Parser, Dir extends Direction> = [Parser] extends [string]
+  ? SingleLiteral<Parser>
+  : [Parser] extends [Record<Dir, infer Strategy extends string>]
+    ? SingleLiteral<Strategy>
     : never;
 /** `Strategy` unless it resolved to `never` (the options named no parser for this direction). */
 type FallbackTo<Strategy, Else> = [Strategy] extends [never] ? Else : Strategy;
 /** The strategy of one direction: the route literal, then the factory literal, then the default. */
-type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = FallbackTo<
-  DirectionStrategy<ParserOf<RouteOpts>, D>,
-  FallbackTo<DirectionStrategy<ParserOf<RouterOpts>, D>, DefaultParser[D]>
+type ResolveStrategy<RouteOpts, RouterOpts, Dir extends Direction> = FallbackTo<
+  DirectionStrategy<ParserOf<RouteOpts>, Dir>,
+  FallbackTo<DirectionStrategy<ParserOf<RouterOpts>, Dir>, DefaultParser[Dir]>
 >;
 // The type twin of PARSE_MODES in @mionjs/core, indexed so a new strategy is a row in core and nothing here.
 // The `extends keyof` guard is what a deferred strategy needs: ParamsStrategy resolves through conditionals,
 // so it cannot satisfy the index constraint on its own.
-type ModeFamily<S, K extends keyof ParseModeRow> = S extends keyof ParseModes ? ParseModes[S][K] : never;
-
-/** Options naming no `parser`, the default for a helper called outside the factory. */
-type NoParserOptions = Record<never, never>;
+type ModeFamily<Strategy, Family extends keyof ParseModeRow> = Strategy extends keyof ParseModes
+  ? ParseModes[Strategy][Family]
+  : never;
 
 /** The params-side strategy literal a route resolves to, also read by the resolved-options view of the API type. */
-export type ParamsStrategy<RouteOpts, RouterOpts = NoParserOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
+export type ParamsStrategy<RouteOpts, RouterOpts> = ResolveStrategy<RouteOpts, RouterOpts, 'params'>;
 /** The return-side strategy literal a route resolves to. */
-export type ReturnStrategy<RouteOpts, RouterOpts = NoParserOptions> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
+export type ReturnStrategy<RouteOpts, RouterOpts> = ResolveStrategy<RouteOpts, RouterOpts, 'return'>;
 
 // The slots of each marker side that vary with the strategy, read by MarkerSlots below.
-type ParamsFn<RouteOpts, RouterOpts, K extends keyof ParseModeRow> = ModeFamily<ParamsStrategy<RouteOpts, RouterOpts>, K>;
-type ReturnFn<RouteOpts, RouterOpts, K extends keyof ParseModeRow> = ModeFamily<ReturnStrategy<RouteOpts, RouterOpts>, K>;
+type ParamsFn<RouteOpts, RouterOpts, Family extends keyof ParseModeRow> = ModeFamily<
+  ParamsStrategy<RouteOpts, RouterOpts>,
+  Family
+>;
+type ReturnFn<RouteOpts, RouterOpts, Family extends keyof ParseModeRow> = ModeFamily<
+  ReturnStrategy<RouteOpts, RouterOpts>,
+  Family
+>;
 
 /** Intersected onto the factory options so a widened `parser` (plain string, union) is a type error. */
-export type ParserLiteralGuard<Options> = Options extends {parser: infer E}
-  ? E extends ParserOption
-    ? {parser: LiteralParser<E>}
+export type ParserLiteralGuard<Options> = Options extends {parser: infer Parser}
+  ? Parser extends ParserOption
+    ? {parser: LiteralParser<Parser>}
     : never
   : unknown;
-type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
-type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUnion<S> extends true ? never : S) : never;
-type LiteralParser<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: SingleLiteral<E[K]>};
+type IsUnion<Candidate, All = Candidate> = Candidate extends unknown ? ([All] extends [Candidate] ? false : true) : never;
+type SingleLiteral<Strategy> = [Strategy] extends [string]
+  ? string extends Strategy
+    ? never
+    : IsUnion<Strategy> extends true
+      ? never
+      : Strategy
+  : never;
+type LiteralParser<Parser> = Parser extends string ? SingleLiteral<Parser> : {[Key in keyof Parser]: SingleLiteral<Parser[Key]>};
 
 // ####### The mion injection slots #######
 // The marker parameters every helper carries, written ONCE. types/mionRouter.ts indexes this tuple instead of
@@ -61,7 +72,7 @@ type LiteralParser<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: S
 // 'formatTransform' and the strategy-driven validator are PARAMS-only: a RETURN is written by the handler, never a caller.
 
 /** The four injection slots of a route / middleFn call, in declaration order. */
-export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoParserOptions> = [
+export type MarkerSlots<Params, Return, RouteOpts, RouterOpts> = [
   paramsFns: InjectTypeFnArgs<
     Params,
     ParamsFn<RouteOpts, RouterOpts, 'validate'>,
