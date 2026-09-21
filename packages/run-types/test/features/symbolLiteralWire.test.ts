@@ -1,7 +1,6 @@
-// A symbol literal is not data. The only value a decoder could hand back is a fresh `Symbol(...)`,
-// never the symbol the literal type names, so every encoder and decoder refuses it exactly as it
-// refuses the bare `symbol` kind: dropped at a property, alwaysThrow at a root. The validator keeps
-// its in-memory description check, because nothing crosses the wire there.
+// A symbol literal is not data: a decoder can only hand back a fresh `Symbol(...)`, never the symbol
+// the type names. Every encoder and decoder refuses it like the bare `symbol` kind (dropped at a
+// property, alwaysThrow at a root); the validator keeps its in-memory description check.
 
 import {describe, test, expect} from 'vitest';
 import {
@@ -72,9 +71,7 @@ describe('symbol literal at a property', () => {
     }
   });
 
-  // DataOnly<HasSymLiteral> is `{name: string}`, so the decoder's own return type has
-  // no `tag` on it. Reading one is a compile error, which is the point: the type and
-  // the runtime now say the same thing.
+  // DataOnly<HasSymLiteral> has no `tag`, so reading it is a compile error: type and runtime agree.
   test('a decoded object has no tag at all', () => {
     const decoded = createJsonDecoderFn<HasSymLiteral>()(createJsonEncoderFn<HasSymLiteral>()({tag: sym, name: 'a'}) as string);
     expect(decoded).toEqual({name: 'a'});

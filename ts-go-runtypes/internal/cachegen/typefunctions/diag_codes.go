@@ -34,8 +34,7 @@ func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
 	case reflection.KindSymbol:
 		return m.symbol
 	case reflection.KindLiteral:
-		// A symbol-flavored literal is refused on every road for the same reason
-		// as the bare kind, so it takes the same per-family root code.
+		// A symbol-flavored literal is refused like the bare kind, so it takes the same root code.
 		for _, flag := range leaf.Flags {
 			if flag == "symbol" {
 				return m.symbol

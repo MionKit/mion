@@ -123,8 +123,7 @@ func flaggedDumps() map[string]protocol.Dump {
 	return dumps
 }
 
-// symbolLiteralDump is the shape the resolver emits for `typeof sym` where
-// `const sym = Symbol('x')`.
+// symbolLiteralDump is the shape the resolver emits for `typeof sym` where `const sym = Symbol('x')`.
 func symbolLiteralDump() protocol.Dump {
 	return protocol.Dump{RunTypes: []*reflection.RunType{
 		{ID: "lsym", Kind: reflection.KindLiteral, Literal: map[string]any{"symbol": "x"}, Flags: []string{"symbol"}},
@@ -184,8 +183,7 @@ func TestMustValidateJson_UnionEnvelopeIsLeftForValidateWhenNotAnArray(t *testin
 	}
 }
 
-// A symbol literal has no wire form at all: a rebuilt Symbol() is never the
-// symbol the literal type names, so no decoder converts one.
+// A rebuilt Symbol() is never the symbol the literal type names, so no decoder converts one.
 func TestMustValidateJson_SymbolLiteralHasNoWireForm(t *testing.T) {
 	if reflection.MustValidateJson(symbolLiteralDump().RunTypes[0]) {
 		t.Error("a symbol literal converts nothing, so it must not be flagged")
