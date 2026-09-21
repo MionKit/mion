@@ -5,12 +5,12 @@ status: ready
 created: 2026-09-21
 ---
 
-# Two dead fragments in the Go typefunctions package
+# Three dead fragments in the Go typefunctions package
 
 ## Intent
 
 A repo-wide comment pass read every comment in
-`ts-go-runtypes/internal/cachegen/typefunctions/` against the code under it. Two pieces of that code
+`ts-go-runtypes/internal/cachegen/typefunctions/` against the code under it. Three pieces of that code
 turned out to do nothing.
 
 ### A constant nothing reads
@@ -43,12 +43,35 @@ if body == "" {
 
 The branch assigns `body` the value it already has.
 
+### A field nothing reads
+
+[codetype.go](../../ts-go-runtypes/internal/cachegen/typefunctions/codetype.go):
+
+```go
+ErrorMessage string
+...
+func RTThrow(message string) RTCode {
+    return RTCode{Code: "", Type: CodeNS, ErrorMessage: message}
+}
+```
+
+`ErrorMessage` is written by `RTThrow` and read nowhere. The runtime throw text a consumer sees comes
+from `buildAlwaysThrowMessage`, not from this field.
+
+Its doc used to describe a mechanism that does not exist: it said the walker latches the value onto a
+`Walker.ThrowMessage` field and that `module.go` emits a `function(utl){ throw ... }` factory from it.
+There is no `Walker.ThrowMessage` anywhere. That wording has been corrected already; the field is what
+is left.
+
 ## What to settle
 
 For each, work out whether it is a leftover or an unfinished intent, then remove it or finish it.
 
 - The constant: if `unevaluatedProperties` support is planned, say so in the spec that plans it, not
   in a constant nobody reads. Otherwise delete the constant and its comment.
+- The field: read every `RTThrow` call site first. If the messages those callers pass were meant to
+  reach the emitted output, the wiring is missing and that is a behaviour gap, not dead code. If
+  `buildAlwaysThrowMessage` fully replaced it, drop the field and simplify `RTThrow`.
 - The branch: read the surrounding emit to see what the author meant to guard. An empty `innerRT.Code`
   probably needs a real fallback (a `CodeNS` sentinel, a skip, or an explicit empty statement), or
   nothing at all. Decide which, then either write the real guard or delete the three lines.
