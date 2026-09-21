@@ -195,8 +195,7 @@ describe('mionAdapter: reflection from injected markers', () => {
     expect(reflection.hasReturnData).toBe(false);
   });
 
-  // R34 — param arity is authoritative from the params tuple runtype. Display names are no
-  // longer tracked (the handler-source parsing was removed); only the count matters downstream.
+  // Param arity comes from the params tuple runtype, never from parsing the handler source.
   it('takes the param COUNT (arity) from the params tuple runtype', () => {
     // savePet has 2 params (pet, notes?); the runtype arity is 2 regardless of handler source.
     expect(getParamCountFromRunType(resolveInjectedRunType(savePet.rtFns.paramsId))).toBe(2);

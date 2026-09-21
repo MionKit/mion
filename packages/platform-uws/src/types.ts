@@ -10,18 +10,13 @@ import type {AppOptions} from '@mionjs/bin-uws';
 // type-uws-http-options-start
 export interface UwsHttpOptions {
   port: number;
-  /**
-   * TLS options passed to uWebSockets.js' SSLApp (key_file_name, cert_file_name, ...).
-   * When set the server terminates TLS itself; when omitted it serves plain HTTP.
-   */
+  /** TLS options for uWebSockets.js' SSLApp: set means the server terminates TLS itself, omitted means plain HTTP. */
   ssl?: AppOptions;
   /** Set of default response header to add to every response*/
   defaultResponseHeaders: Record<string, string>;
-  /** The request limit a route takes when its own option is unset and its types cannot say (128 KB by
-   *  default). A route's `maxBodySize` option always wins over it. */
+  /** Bytes a route takes when its own `maxBodySize` and its types say nothing (128 KB). */
   maxBodySize: number;
-  /** The platform's own request ceiling in bytes, which no other option can raise; unset because this
-   *  platform has none. The router never resolves a limit above it when set. */
+  /** The platform's request ceiling in bytes that no option can raise; unset here, this platform has none. */
   maxBodySizeCap?: number;
 }
 // type-uws-http-options-end

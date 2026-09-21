@@ -76,9 +76,7 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
         ? createHttps(httpOptions.options, httpRequestHandler)
         : createHttp(httpOptions.options, httpRequestHandler);
 
-    // The host owns the socket: no listen(), and NO shutdown handlers — theirs calls
-    // process.exit(0), which in middleware mode would kill the host (a vite dev server, an
-    // express app) on the first Ctrl-C it was already handling itself.
+    // no listen() and NO shutdown handlers: ours calls process.exit(0) and would kill the host on the Ctrl-C it handles
     if (httpOptions.asMiddleware) {
       if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
       setPlatformConfig(serializablePlatformConfig());
@@ -108,7 +106,7 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
 
 // ############# PRIVATE METHODS #############
 
-// exported as can be used in some server to proxy node requests
+// exported so a host server can proxy node requests into mion
 export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
   let replied = false;
   const nodeUrl = httpReq.url || '/';
@@ -122,12 +120,8 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   const reqHeaders = headersFromIncomingMessage(httpReq);
   const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
 
-  // The route is resolved BEFORE the body, the context only after it: one lookup gives the chain
-  // and the request limit the route settled at registration, so the read below stops at the route's
-  // own number, while the context (and the body hanging off it) stays young enough for the cheap
-  // half of the garbage collector. A throw here (a throwing pathTransform) has no chain to run, so
-  // it is answered bare, before a byte is buffered, with the stream destroyed. A body past the
-  // limit does have one, and goes through dispatchRefusal below.
+  // route resolved BEFORE the body: the read below stops at the chain's limit, and a late context stays GC-cheap.
+  // A throw here (a throwing pathTransform) has no chain to run, so it is answered bare with the stream destroyed.
   let chain: MethodsExecutionChain;
   try {
     chain = resolveExecutionChain(path, urlQuery, httpReq);
@@ -137,12 +131,10 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     httpReq.destroy();
     return;
   }
-  // read once per request rather than per chunk: the route's own number, or the adapter's option
-  // for a route whose types could not say
+  // read once per request rather than per chunk
   const maxBodySize = chain.maxBodySize;
 
-  // Too large is decided BEFORE a byte is buffered: on the declared content-length when there is
-  // one, and on the running size before each chunk is kept.
+  // too large is decided BEFORE a byte is buffered: on the declared content-length, then on the running size per chunk
   const declaredLength = Number(httpReq.headers['content-length']);
   if (declaredLength > maxBodySize) {
     replied = true;
@@ -150,10 +142,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     return;
   }
 
-  /** A body this adapter refused. The route chain, so the chain still runs its `alwaysRun`
-   *  members over the refusal (a rate limiter, an access log) and writes the answer. The request
-   *  stream is destroyed after the reply, so the client cannot keep sending into a response that
-   *  already went out. */
+  /** A refused body still runs the chain's `alwaysRun` members, then the stream is destroyed so the client cannot keep sending. */
   async function dispatchRefusal() {
     bodyChunks.length = 0;
     try {
@@ -176,8 +165,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
   }
 
   async function dispatch(reqRawBody: any, reqBodyType: SerializerCode, readQueryBody: boolean) {
-    // Everything below is inside the guard: this runs from a listener, so a throw here would be an
-    // unhandled rejection, which takes the whole process down under node's default.
+    // runs from a listener: an unhandled rejection here takes the whole process down under node's default
     try {
       const queryBody = readQueryBody ? decodeQueryBody(urlQuery, reqRawBody || undefined) : undefined;
       if (queryBody) {
@@ -207,9 +195,8 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
     fatalFail(httpResponse, respHeaders, error);
   });
 
-  // A not-found chain (an unknown path or batch id) has no route to feed: dispatch right away with
-  // no body and no data listener. Node discards whatever the client still sends once the response
-  // ends, so a kept-alive connection stays usable and nothing is ever buffered.
+  // a not-found chain (an unknown path or batch id) has no route to feed: no body, no data listener.
+  // Node discards whatever the client still sends once the response ends, so a kept-alive connection stays usable.
   if (!chain.readsBody) {
     void dispatch('', SerializerModes.stringifyJson, false);
     return;
@@ -254,8 +241,7 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
   httpResp.statusCode = mionResp.statusCode;
   const bodyType = mionResp.serializer;
   switch (bodyType) {
-    // Buffer.byteLength counts the same bytes end() is about to write, without building a copy of
-    // the whole response first. node encodes the string straight into its own write buffer.
+    // Buffer.byteLength counts the bytes end() is about to write, without a copy of the whole response first
     case SerializerModes.json: {
       const jsonString = JSON.stringify(mionResp.body);
       httpResp.setHeader('content-length', Buffer.byteLength(jsonString, 'utf8'));

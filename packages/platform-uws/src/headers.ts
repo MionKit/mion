@@ -8,8 +8,7 @@
 import {MionHeaders, headersFromRecord} from '@mionjs/router';
 import type {HttpRequest} from '@mionjs/bin-uws';
 
-/** uWS request headers are only readable synchronously inside the handler, so snapshot them into a
- *  record up front. uWS already lower-cases header names; repeated headers join with ', '. */
+/** uWS headers are readable only synchronously inside the handler, so snapshot them; uWS already lower-cases the names. */
 export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
   const record: Record<string, string> = {};
   req.forEach((name, value) => {
@@ -18,11 +17,7 @@ export function headersFromUwsRequest(req: HttpRequest): MionHeaders {
   return headersFromRecord(record, true);
 }
 
-/**
- * uWS response headers are write-only and must all be written before the body, so this
- * implementation buffers them in a record (lowercase-keyed, per the MionHeaders case-insensitivity
- * contract) and the adapter flushes them inside the corked reply.
- */
+/** uWS headers are write-only and must precede the body, so they are buffered lowercase-keyed and flushed in the corked reply. */
 class BufferedHeadersImpl implements MionHeaders {
   /** Readable by `forEachHeader` below, which is the only thing in the module allowed to touch it. */
   readonly record: Record<string, string> = {};
@@ -56,15 +51,12 @@ class BufferedHeadersImpl implements MionHeaders {
 
 export function bufferedResponseHeaders(initialHeaders: Record<string, string> | null): MionHeaders {
   const headers = new BufferedHeadersImpl();
-  // `for...in` over the record: no entries array and no closure, and the write order is unchanged,
-  // which matters here because `server` is set AFTER the defaults and must stay unoverridable.
+  // `for...in` keeps the write order, which matters because `server` is set AFTER the defaults and must stay unoverridable
   if (initialHeaders) for (const name in initialHeaders) headers.set(name, initialHeaders[name]);
   return headers;
 }
 
-/** Walks response headers without materializing a pair array per header. Used inside the corked
- *  reply, where every allocation is on the latency path. Falls back to `entries()` for any other
- *  MionHeaders implementation, so the caller never has to care which one it holds. */
+/** Walks headers with no pair array per header, for the corked reply; falls back to `entries()` for any other MionHeaders. */
 export function forEachHeader(headers: MionHeaders, visit: (name: string, value: string) => void): void {
   if (headers instanceof BufferedHeadersImpl) {
     const record = headers.record;

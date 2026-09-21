@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of an kind.
  * ######## */
 
-// Throughput of the cloudflare handler under workerd (Miniflare, in process): the prebuilt test
-// server bundle answers real requests, so a body-reading change shows up as requests per second on
-// the runtime it ships to. Run with:
+// Throughput of the cloudflare handler under workerd (Miniflare, in process), against the prebuilt
+// test-server bundle the project's globalSetup rebuilds. Run with:
 //   pnpm exec vitest bench --project platform-cloudflare cloudflareHandler
-// The bundle is rebuilt by the project's globalSetup, the same as for the workers specs.
 
 import {bench, describe, afterAll} from 'vitest';
 import {Miniflare} from 'miniflare';

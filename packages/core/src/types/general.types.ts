@@ -47,7 +47,7 @@ export type SerializerCode = (typeof SerializerModes)[SerializerMode];
 // ########################################## Options ##########################################
 
 export type CoreRouterOptions = {
-  /** automatically generate and uuid */
+  /** generate an id for every error */
   autoGenerateErrorId: boolean;
   /** basePath for all routes */
   basePath: string;
@@ -57,11 +57,9 @@ export type CoreRouterOptions = {
 
 // ##########################################  Errors ##########################################
 
-/** Base parameters for TypedError */
 export interface TypedErrorParams<ErrType extends StrNumber> {
   /** Error type, can be used as discriminator in union types switch, etc*/
   type: ErrType;
-  /** the error message */
   message?: string;
   /** original error used to create the TypedError */
   originalError?: Error;
@@ -71,14 +69,10 @@ export interface TypedErrorParams<ErrType extends StrNumber> {
 export interface RpcErrorParams<ErrType extends StrNumber, ErrData = any> {
   /** Error type, can be used as discriminator in union types switch, etc*/
   type: ErrType;
-  /** id of the error. */
   id?: number | string;
   /** the message that will be returned in the response */
   publicMessage?: string;
-  /**
-   * the error message, it is private and wont be returned in the response.
-   * If not defined, it is assigned from originalError.message or publicMessage.
-   */
+  /** private message, never returned in the response; falls back to originalError.message or publicMessage. */
   message?: string;
   /** options data related to the error, ie validation data */
   errorData?: ErrData;
@@ -104,9 +98,7 @@ export interface PublicRpcError<ErrType extends StrNumber, ErrData = any> extend
   readonly 'mion@isΣrrθr': true;
   type: ErrType;
   errorData?: ErrData;
-  /**
-   * When a RpcError gets sent to client only publicMessage is set.
-   * */
+  /** When an RpcError is sent to a client, only publicMessage is set. */
   publicMessage: string;
 }
 
@@ -114,30 +106,22 @@ export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
   | RpcErrorWithPublic<ErrType, ErrData>
   | RpcErrorWithPrivate<ErrType, ErrData>;
 
-/** A validation error from `createGetValidationErrorsFn`, mion's public error-data shape (rides
- *  `ValidationErrorData.typeErrors` and the client error unions). Aliases @mionjs/run-types's
- *  `RTValidationError` (the type the validators actually produce): `{path, expected, format?}`.
- *  mion never constructs these, only forwards them, so the alias is exact and lossless. */
+/** mion's public error-data shape, carried by `ValidationErrorData.typeErrors` and the client error unions.
+ *  Aliases @mionjs/run-types's `RTValidationError`, the type the validators produce; mion only forwards them. */
 export type RunTypeError = RTValidationError;
 
 // ########################################### JIT FUNCTIONS ###########################################
 
-/** mion's JIT function vocabulary IS RunTypes' compiled-fn model — `CompiledFnData` is the
- *  closure-free wire form (what router ships to client) and `CompiledTypeFn` adds the restored
- *  `createRTFn`/`fn`. The client rebuilds a fn with `buildFactoryFromCode(code)` and registers it
- *  back via `getRTUtils().addToRTCache(...)`. mion's former CompiledFnData/CompiledTypeFn
- *  mirrors were deleted. */
+/** mion's JIT function vocabulary IS RunTypes' compiled-fn model: `CompiledFnData` is the closure-free wire
+ *  form the router ships to the client and `CompiledTypeFn` adds the restored `createRTFn`/`fn`. The client
+ *  rebuilds a fn with `buildFactoryFromCode(code)` and registers it back through `getRTUtils().addToRTCache`. */
 import type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn} from '@mionjs/run-types';
 export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
 
-/** A compiled type fn as mion consumes it. NOT a mirror — a narrowing of RunTypes' own types:
- *  - `createRTFn`/`fn` are guaranteed by `InitializedTypeFn`, which is what `getRTUtils().getRT()`
- *    already returns (it runs `materializeRTFn` before handing the entry back).
- *  - `code` is guaranteed because mion restricts `emitMode` to 'code' | 'both' and the vite plugin
- *    throws on 'functions' — the one mode where RunTypes deliberately omits it. Without that
- *    restriction `code` would be optional and every consumer would need a fallback.
- *  TypeScript cannot see the plugin-level guarantee, so the construction sites assert it; the
- *  assertion is only sound because of the emitMode restriction above. */
+/** A compiled type fn as mion consumes it: a narrowing of RunTypes' own types, not a mirror.
+ *  `createRTFn`/`fn` are guaranteed by `InitializedTypeFn`, what `getRTUtils().getRT()` already returns.
+ *  `code` is guaranteed only because mion restricts `emitMode` to 'code' | 'both' and the vite plugin throws
+ *  on 'functions', the one mode where RunTypes omits it; that is what makes the construction sites' assert sound. */
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
 /** The JSON pair compiled for ONE strategy and ONE direction. */
@@ -183,12 +167,10 @@ export type FormatTransformFn = (value: any) => any;
 
 // ############################# JIT CACHES ###################################
 
-// jit and pure functions data, does not contain createRTFn or fn
-// this is used to serialize over the network, but requires using new Function() to restore functionality
+// The wire form: no createRTFn or fn, so restoring one needs new Function().
 export type FnsDataCache = Record<string, CompiledFnData>;
-/** Pure function data, keyed by pure-fn id. Entries are `SerializablePureFunction`, not bare
- *  `PureFunctionData`: an entry that reaches the wire MUST carry `code`, because rebuilding it
- *  client-side is `new Function(...paramNames, code)` and nothing else. */
+/** Keyed by pure-fn id. Entries are `SerializablePureFunction`, not bare `PureFunctionData`: an entry that
+ *  reaches the wire MUST carry `code`, since rebuilding it client-side is `new Function(...paramNames, code)`. */
 export type PureFnsDataCache = Record<string, SerializablePureFunction>;
 
 // ########################################## other #########################################
@@ -205,11 +187,9 @@ export type Prettify<T> = {
   [P in keyof T]: T[P];
 } & {};
 
-// StrNumber is already defined at the top of the file
 export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
 
-/** Data-only projection of T (strips methods, keeps serializable properties). Aliases
- *  @mionjs/run-types's DataOnly — the exact type mion's decoders return — so mion's public
- *  DataOnly matches decoder output. (mion's former hand-rolled mirror was removed.) */
+/** Data-only projection of T (strips methods, keeps serializable properties). Aliases @mionjs/run-types's
+ *  DataOnly, the exact type mion's decoders return, so the public DataOnly matches decoder output. */
 export type DataOnly<T> = RtDataOnly<T>;

@@ -12,8 +12,7 @@ export const DEFAULT_BUN_HTTP_OPTIONS: BunHttpOptions = {
   port: 80,
   options: {},
   defaultResponseHeaders: {},
-  /** What a route takes when its own `maxBodySize` option is unset and its types cannot say: the
-   *  shared 128 KB default, far under every platform's own ceiling */
+  /** What a route takes when its own `maxBodySize` and its types say nothing: the shared 128 KB default */
   maxBodySize: DEFAULT_MAX_BODY_SIZE,
   asMiddleware: false,
 };

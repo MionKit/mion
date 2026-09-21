@@ -27,15 +27,14 @@ import type {
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 
 // ############# mion <-> mion adapter #############
-// the helpers createMionRouter returns (mion.route() / mion.middleFn()) declare trailing mion injection markers;
-// the @mionjs/devtools vite plugin fills them at build time. This module turns
-// those injected payloads into the JitCompiledFunctions/reflection shapes the router
-// already consumes, so dispatch and serialization code stay untouched.
+// The helpers createMionRouter returns declare trailing mion injection markers that the @mionjs/devtools vite
+// plugin fills at build time. This module turns those payloads into the JitCompiledFunctions / reflection
+// shapes the router already consumes, so dispatch and serialization code stay untouched.
 
-/** The VOCABULARY of fn keys a route marker may name; the helpers compute which ones each call
- *  requests from its `encoder`. Order is irrelevant: the payload is projected by fn key.
- *  ⚠️ Markers must be spelled InjectTypeFnArgs<T, 'validate', 'validationErrors', …> in the helper
- *  signatures: a local alias over the marker is NOT recognized by the scanner (verified 2026-07-11). */
+/** The VOCABULARY of fn keys a route marker may name; the helpers pick which ones each call requests from its
+ *  `encoder`. Order is irrelevant, the payload is projected by fn key.
+ *  ⚠️ Helper signatures must spell the marker out as InjectTypeFnArgs<T, 'validate', …>: the scanner does not
+ *  recognize a local alias over it (verified 2026-07-11). */
 export const MION_FN_KEYS = [
   'validate',
   'validationErrors',
@@ -50,19 +49,17 @@ export const MION_FN_KEYS = [
   'compactFromJson',
 ] as const satisfies readonly FnHashKey[];
 
-/** Projects the injected payload onto the fn keys a marker names. A compiled entry carries the
- *  SHORT family tag at slot 0 (`pjs`, `cjr`, `sj`, …, the tag `CompiledFnData.familyTag` holds)
- *  while a marker names the readable key (`prepareForJsonClone`), so the tag is translated back
- *  through the generated map and everything downstream speaks one vocabulary. No positional
- *  contract is needed: the array is only as long as the families the strategy demanded. */
+/** Projects the injected payload onto the fn keys a marker names. A compiled entry carries the SHORT family tag
+ *  at slot 0 (`CompiledFnData.familyTag`) while a marker names the readable key, so the tag is translated back
+ *  through the generated map. No positional contract: the array is only as long as the families the strategy asked for. */
 function byFnKey(injected: unknown[]): Partial<Record<FnHashKey, unknown>> {
   const out: Record<string, unknown> = {};
   for (const tuple of injected) {
     if (!Array.isArray(tuple)) continue;
     const tag = tuple[0];
     if (typeof tag !== 'string') continue;
-    // An unmapped tag is a composite (jeCL, jdST, …) or build skew; key it as-is so the
-    // fail-closed checks below still see it and report the payload they actually got.
+    // An unmapped tag is a composite (jeCL, jdST, …) or build skew; keyed as-is so the fail-closed
+    // checks below report the payload they actually got.
     out[FAMILY_TAG_TO_FN_KEY[tag as keyof typeof FAMILY_TAG_TO_FN_KEY] ?? tag] = tuple;
   }
   return out as Partial<Record<FnHashKey, unknown>>;
@@ -74,8 +71,8 @@ export interface RtMarkerPayload {
   returnFns?: unknown;
   paramsId?: string;
   returnId?: string;
-  /** build time: the id of a `true`/`false` literal saying whether the handler answers with a
-   *  promise. `returnId` is the AWAITED type, so it cannot answer this. */
+  /** Id of a build-time `true`/`false` literal: whether the handler answers with a promise.
+   *  `returnId` is the AWAITED type, so it cannot answer this. */
   isAsyncId?: string;
   /** headers middleFns only: fns + id for the handler's HeadersSubset param */
   headersFns?: unknown;
@@ -92,9 +89,8 @@ export interface RtHeadersReflection {
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
 export interface RtMethodReflection {
   paramsCount: number;
-  /** Parameter names from reflection; '' for an unlabelled tuple member (a plain string, so the
-   *  value rides the metadata wire untagged). Rides the client methods-metadata payload so a client
-   *  can name the parameter that failed. */
+  /** Parameter names from reflection, '' for an unlabelled tuple member. Rides the client
+   *  methods-metadata payload so a client can name the parameter that failed. */
   paramNames: string[];
   paramsJitFns: JitCompiledFunctions;
   returnJitFns: JitCompiledFunctions;
@@ -117,11 +113,8 @@ const noUnknownKeyErrors = () => [];
 
 // ############# serialized cache restore (client metadata lane) #############
 
-/**
- * Registers serialized fn caches + pure fns (from server methods-metadata payloads) into
- * the mion runtime cache. Fns materialize lazily from their code strings on first
- * lookup; entries already present (e.g. build-injected) are never overwritten.
- */
+/** Registers serialized fn caches + pure fns (from server methods-metadata payloads) into the mion runtime
+ *  cache. Fns materialize lazily from their code strings; entries already present are never overwritten. */
 export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pureFnDeps: PureFnsDataCache): void {
   const utl = getRTUtils();
   for (const [rtFnHash, data] of Object.entries(deps)) {
@@ -137,18 +130,16 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
       code: data.code,
       rtDependencies: data.rtDependencies,
       pureFnDependencies: data.pureFnDependencies,
-      // alwaysThrow entries carry no code — only a throwing factory built from the build-time
-      // diagnostic. Rebuild it, or materializeRTFn bails (no code, no factory) and the call
-      // site gets a bare "fn is not a function" instead of the real message.
+      // alwaysThrow entries carry no code, only a throwing factory built from the build-time diagnostic.
+      // Without rebuilding it materializeRTFn bails and the call site gets "fn is not a function" instead.
       alwaysThrowMessage: data.alwaysThrowMessage,
       createRTFn: data.alwaysThrowMessage !== undefined ? utl.alwaysThrowFactory(data.alwaysThrowMessage) : undefined,
     } as never);
   }
   for (const [id, pureFnData] of Object.entries(pureFnDeps)) {
     if (utl.hasPureFnByKey(id)) continue;
-    // paramNames are the AUTHOR's own factory parameter names, recorded verbatim at build
-    // time. Hardcoding 'utl' here would bind the single parameter under the wrong name and
-    // any factory written as e.g. `(rtu) => ...` would ReferenceError on first call.
+    // paramNames are the AUTHOR's own factory parameter names, recorded verbatim at build time:
+    // hardcoding 'utl' would make any factory written as `(rtu) => ...` ReferenceError on first call.
     utl.addPureFn(id, {
       ...pureFnData,
       createPureFn: buildPureFnFactoryFromCode(pureFnData.paramNames, pureFnData.code),
@@ -158,10 +149,8 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
 
 // resetJitFnCaches moved to @mionjs/core/testing: a shipped client must not carry a cache reset.
 
-/** Reads the compiled pure fn an id names, for wire serialization.
- *
- *  The UNTRACKED lookup, not `getCompiledPureFn`: that one takes a branded id the build must be
- *  able to read at the call site, and the id here comes off a compiled entry at runtime. */
+/** Reads the compiled pure fn an id names, for wire serialization. The UNTRACKED lookup, not
+ *  `getCompiledPureFn`, which needs a branded id readable at build time; this id comes off a compiled entry. */
 export function resolveCompiledPureFn(id: string): CompiledPureFunction | undefined {
   return getRTUtils().getCompiledPureFnByKey(id);
 }
@@ -263,11 +252,9 @@ export function buildJitFnsFromMarker(
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
     typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],
-    // The strictTypes pair is absent whenever the marker did not ask for it: on the answer side,
-    // which nothing reads, and on a `clone` or `compact` params wire, whose decoder rebuilds the
-    // declared shape so no key the caller wrote survives. Left OFF the set rather than stood in
-    // for, so both readers take their own `!hasUnknownKeys` early return instead of calling a
-    // function that always answers false.
+    // The strictTypes pair is absent whenever the marker did not ask for it: on the answer side, and on a
+    // `clone` or `compact` params wire, whose decoder rebuilds the declared shape so no caller key survives.
+    // Left OFF the set rather than stubbed, so readers take their `!hasUnknownKeys` early return.
     ...unknownKeysEntries(fns, hashes, label),
     json: {
       strategy,
@@ -310,20 +297,15 @@ export function resolveInjectedRunType(idHandle: unknown): RunType<unknown> {
 
 // ############# param arity (from the params tuple runtype) #############
 
-/**
- * R34 — the param arity comes from the params tuple runtype (HandlerParams<H> / HeaderHandlerParams<H>
- * are always tuples), which is build-time-known and transpile-stable. It is the ONLY param info mion
- * keeps: the client gates pre-validation + param serialization on arity > 0. Display param names were
- * dropped (they were unused, and the old handler.toString() parsing degraded under minified bundles).
- */
+/** Arity comes from the params tuple runtype (HandlerParams<H> / HeaderHandlerParams<H> are always tuples),
+ *  which is build-time-known and transpile-stable. The client gates pre-validation and param serialization on arity > 0. */
 export function getParamCountFromRunType(paramsRunType: RunType<unknown>): number {
   return getParamsFromRunType(paramsRunType).length;
 }
 
-/** Handler parameters read straight from the params tuple runtype. Tuple member LABELS survive
- *  into the run-type graph, so names come from reflection — never from parsing handler.toString(),
- *  which is unreliable under minified bundles. `name` is undefined for an unlabelled tuple
- *  member (e.g. `[string, number]` rather than `[pet: Pet, notes?: string]`). */
+/** Handler parameters read from the params tuple runtype: member LABELS survive into the run-type graph, so
+ *  names never come from parsing handler.toString(), which is unreliable under minified bundles.
+ *  `name` is undefined for an unlabelled member (`[string, number]` rather than `[pet: Pet, notes?: string]`). */
 export function getParamsFromRunType(paramsRunType: RunType<unknown>): {name?: string; optional?: boolean}[] {
   const root = paramsRunType as RtNodeLike;
   if (root.kind !== RunTypeKind.tuple) return [];
@@ -360,10 +342,7 @@ function resolveIsAsync(isAsyncId: string | undefined, handler: AnyFn): boolean 
   return isAsyncHandler(handler);
 }
 
-/**
- * Builds the full mion method reflection from the marker payload stashed on a route/middleFn definition.
- * This replaces the old runtime reflectFunction(handler) + JIT compilation pipeline.
- */
+/** Builds the full mion method reflection from the marker payload stashed on a route/middleFn definition. */
 export function getReflectionFromMarkers(
   rtFns: RtMarkerPayload | undefined,
   handler: AnyFn,
@@ -393,11 +372,10 @@ export function getReflectionFromMarkers(
     hasReturnData: runTypeHasData(returnRunType),
     isAsync: resolveIsAsync(rtFns.isAsyncId, handler),
   };
-  // the size maxima ride the reflection ROOT rows the markers already inject, so this is one
-  // property read per direction and no walk at runtime
+  // the size maxima sit on the reflection ROOT rows the markers already inject: one property read, no walk
   if (typeof paramsRunType?.jsonMaxBytes === 'number') reflection.paramsJsonMaxBytes = paramsRunType.jsonMaxBytes;
-  // any handler returning a HeadersSubset (directly or in a union) sets response headers:
-  // expose the declared names + validation fns so dispatch can apply/validate them
+  // any handler returning a HeadersSubset (directly or in a union) sets response headers, so the declared
+  // names + validation fns are exposed for dispatch to apply and validate
   const returnHeaderNames = getHeaderNamesFromRunType(returnRunType);
   if (returnHeaderNames) {
     reflection.headersReturn = {
@@ -421,12 +399,8 @@ interface RtNodeLike {
   children?: RtNodeLike[];
 }
 
-/**
- * Extracts the declared header names from a HeadersSubset<Required, Optional> runtype:
- * class node -> 'headers' property -> object literal props (one per header name).
- * Unions are searched for a HeadersSubset member (e.g. `HeadersSubset<'x'> | RpcError<...>`).
- * Returns undefined when the type contains no HeadersSubset class.
- */
+/** The declared header names of a HeadersSubset<Required, Optional> runtype: class node -> 'headers' property ->
+ *  one object prop per header name. A union is searched for a HeadersSubset member; undefined when there is none. */
 export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] | undefined {
   const root = runType as RtNodeLike;
   if (root.kind === RunTypeKind.union) {

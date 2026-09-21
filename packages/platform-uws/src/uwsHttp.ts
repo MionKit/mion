@@ -32,10 +32,9 @@ import {bufferedResponseHeaders, headersFromUwsRequest, forEachHeader} from './h
 
 let httpOptions: Readonly<UwsHttpOptions> = {...DEFAULT_UWS_HTTP_OPTIONS};
 
-// The most bytes one uWS socket read can deliver: uSockets' LIBUS_RECV_BUFFER_LENGTH (512 KiB) at
-// the uwsTag pinned in packages/bin-uws. A body LARGER than this cannot have arrived in a single read,
-// which is what makes the zero-copy branch in uwsRequestHandler safe (see the comment there); a
-// detachment tripwire guards the assumption at runtime. Re-verify against uSockets on a tag bump.
+// The most bytes one uWS socket read can deliver: uSockets' LIBUS_RECV_BUFFER_LENGTH (512 KiB) at the tag pinned in
+// packages/bin-uws. A LARGER body cannot be single-read, which is what makes the zero-copy branch below safe (a
+// detachment tripwire guards it at runtime). Re-verify against uSockets on a tag bump.
 const UWS_MAX_SINGLE_READ = 524288;
 
 /** The running server: the uWS app plus the socket handle listen() produced. */
@@ -53,9 +52,8 @@ export function resetUwsHttpOpts() {
 }
 
 export function setUwsHttpOpts(options?: Partial<UwsHttpOptions>) {
-  // Middleware mode cannot exist on this platform: uWS is its own C++ event loop and owns its
-  // listen socket, so its handlers cannot mount on a host node http server (a vite dev server,
-  // express). The vite plugin discovers this setter generically, so refuse the flag loudly here.
+  // uWS is its own C++ event loop and owns its listen socket, so it cannot mount on a host node server.
+  // The vite plugin discovers this setter generically, so the flag is refused loudly here.
   if ((options as {asMiddleware?: boolean} | undefined)?.asMiddleware) {
     throw new Error(
       '@mionjs/platform-uws does not support middleware mode: uWebSockets.js owns its own listen ' +
@@ -126,18 +124,14 @@ export async function startUwsServer(options?: Partial<UwsHttpOptions>): Promise
 
 // ############# PRIVATE METHODS #############
 
-// uWS refreshes a socket's idle timeout only from inside a body-data callback, and runs that
-// callback only when a data handler is registered. A request answered before its body finished
-// arriving still has that body coming: with no reader the socket is closed mid-upload once the idle
-// timeout elapses, so register a reader that drops every chunk.
+// uWS refreshes a socket's idle timeout only from inside a body-data callback, and runs it only when a reader is registered.
+// Without one, a request answered before its body finished arriving is closed mid-upload, so drop every chunk instead.
 function drainRequestBody(res: HttpResponse) {
   res.onData(() => {});
 }
 
-// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see
-// setUwsHttpOpts). uWS contract: `req` is only valid synchronously inside this call, so everything
-// the async dispatch needs is snapshotted before the first await; `res` stays valid until the
-// response ends or onAborted fires.
+// exported for tests and for mounting on a hand-built uWS app; NOT a middleware handler (see setUwsHttpOpts).
+// uWS contract: `req` is valid only synchronously here, so the async dispatch snapshots it before the first await.
 export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const state = {replied: false, aborted: false};
   // Everything read from `req` happens HERE, synchronously.
@@ -149,17 +143,13 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   const respHeaders = bufferedResponseHeaders(httpOptions.defaultResponseHeaders);
   respHeaders.set('server', '@mionjs');
 
-  // Must be registered before any async work: after the client disconnects, touching `res`
-  // without this flag set would crash the process (uWS frees the response).
+  // must be registered before any async work: after a disconnect uWS frees the response, and touching it would crash
   res.onAborted(() => {
     state.aborted = true;
   });
 
-  // The route is resolved BEFORE the body, synchronously, the context only once the body is in
-  // hand: one lookup gives the chain and the request limit the route settled at registration, so
-  // the native read below stops at the route's own number, while the context (and the body hanging
-  // off it) stays short-lived, which is what keeps the garbage collector cheap on a big body. The
-  // raw request object is built once, the one a pathTransform reads and the one the handlers see.
+  // route resolved BEFORE the body, synchronously: the native read stops at the chain's limit, and a late context stays GC-cheap.
+  // The raw request object is built once: the one a pathTransform reads and the one the handlers see.
   const rawRequest = {path, urlQuery, headers: reqHeaders};
   let chain: MethodsExecutionChain;
   try {
@@ -205,12 +195,8 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       });
   };
 
-  // collectBody assembles the whole request body natively (it rides uWS' onDataV2, which knows the
-  // remaining length and can preallocate) and calls back ONCE — with null when the body exceeds
-  // maxSize, which is exactly the maxBodySize contract. The size is the route's own chain limit
-  // (the adapter's option for a route whose types could not say).
-  // A not-found chain (an unknown path or batch id) has no route to feed: the body is consumed
-  // as it arrives and dropped, never assembled.
+  // collectBody assembles the body natively (uWS' onDataV2 preallocates) and calls back ONCE, with null past maxSize,
+  // which is exactly the maxBodySize contract. A not-found chain has no route to feed: its body is dropped as it arrives.
   if (!chain.readsBody) {
     drainRequestBody(res);
     dispatchBody('', false);
@@ -227,21 +213,16 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
       return;
     }
 
-    // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test):
-    // a body that arrived in ONE socket read is handed as a zero-copy window into uWS' receive
-    // buffer and DETACHED when this callback returns. Buffer.from over an ArrayBuffer is only a
-    // view, so the ONE copy is the native UTF-8 decode into the string, done synchronously here
-    // while the window is still valid. A body that took several reads was assembled in C++ and its
-    // memory OWNERSHIP-TRANSFERRED to JS, so it can be decoded from a microtask.
+    // collectBody has two paths (verified in the pinned tag's HttpResponseWrapper.h and by test): a single-read body is a
+    // zero-copy window into uWS' receive buffer, DETACHED when this callback returns, so it must be decoded synchronously
+    // here; a multi-read body was assembled in C++ and OWNERSHIP-TRANSFERRED to JS, so it can be decoded from a microtask.
     if (fullBody.byteLength <= UWS_MAX_SINGLE_READ) {
       // a body-less request (every GET) skips the view and the decode altogether
       dispatchBody(fullBody.byteLength === 0 ? '' : Buffer.from(fullBody).toString(), true);
       return;
     }
-    // Bigger than one read can deliver → guaranteed the ownership-transferred path: use the buffer
-    // as-is. The microtask runs after the moment uWS would have detached it (it never does on this
-    // path), so the zero-length check is a tripwire for an upstream behavior change — fail loudly
-    // instead of parsing a neutered buffer.
+    // bigger than one read can deliver → guaranteed the ownership-transferred path, so the buffer survives the microtask.
+    // The zero-length check is a tripwire for an upstream change: fail loudly instead of parsing a neutered buffer.
     queueMicrotask(() => {
       if (state.replied) return;
       if (fullBody.byteLength === 0) {
@@ -259,17 +240,9 @@ export function uwsRequestHandler(res: HttpResponse, req: HttpRequest): void {
   });
 }
 
-/** Decodes an ownership-transferred body buffer and hands its bytes straight back.
- *
- *  uWS malloc'd this one in C++ and gave JS ownership of it (the single-read path is a window into
- *  uWS' own receive buffer instead, which uWS detaches itself and which must never come through
- *  here). So these bytes are ours to return, and returning them now rather than at the next
- *  collection is worth a whole body per request in flight.
- *
- *  `transfer(0)` and not `transfer()`: measured on node 26, `transfer()` moves the bytes to a new
- *  buffer that is merely unreachable and frees nothing, while `transfer(0)` releases the backing
- *  store there and then. Wrapped because a future uWS could hand back a buffer that cannot be
- *  transferred; that is a reason to keep the old behaviour, not to fail the request. */
+/** Frees an ownership-transferred body buffer right after decoding it; the single-read window must never come through here.
+ *  `transfer(0)` and not `transfer()`: measured on node 26, only `transfer(0)` releases the backing store there and then.
+ *  Guarded because a future uWS could hand back a buffer that cannot be transferred, which must not fail the request. */
 function releaseAfterDecode(fullBody: ArrayBuffer): string {
   const text = Buffer.from(fullBody).toString();
   try {
@@ -280,9 +253,7 @@ function releaseAfterDecode(fullBody: ArrayBuffer): string {
   return text;
 }
 
-/** `transfer` is ES2024 and this package compiles against an ES2023 lib, so the method is declared
- *  here rather than taken from the ambient ArrayBuffer. Optional for the same reason the call above
- *  is guarded: a runtime without it must keep working. */
+/** `transfer` is ES2024 and this package compiles against an ES2023 lib; optional because a runtime without it must work. */
 type ReleasableBuffer = ArrayBuffer & {transfer?: (newByteLength?: number) => ArrayBuffer};
 
 // only called when there is an http error or weird unhandled route errors
@@ -315,8 +286,7 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
   // The client is gone and uWS freed the response — touching it would crash.
   if (state.aborted) return;
 
-  // An unknown serializer becomes a fatal-error response BEFORE corking — uWS ignores a second
-  // writeStatus inside the same cork, so the swap can't happen mid-write.
+  // an unknown serializer swaps in the fatal response BEFORE corking: uWS ignores a second writeStatus inside one cork
   const bodyType = mionResp.serializer;
   if (bodyType !== SerializerModes.json) {
     const error = new FatalError({
@@ -327,18 +297,14 @@ function reply(res: HttpResponse, state: {aborted: boolean}, mionResp: MionRespo
     mionResp = getRouterFatalErrorResponse(error, mionResp.headers);
   }
 
-  // Serialized BEFORE the cork: uWS warns that a cork buffer must not be held across event loop
-  // iterations, and holding it through the processor time of serializing a large body is the same
-  // mistake in smaller form. The cork should span the writes it exists to batch, nothing else.
+  // serialized BEFORE the cork: uWS warns a cork buffer must not be held across event loop iterations
   const payload = JSON.stringify(mionResp.body);
 
-  // cork batches status + headers + body into one syscall; headers are write-only in uWS and
-  // must all precede end(). content-length is skipped: uWS derives and writes its own from the
-  // end() payload, and a duplicate header corrupts the response.
+  // cork batches status + headers + body into one syscall; headers are write-only in uWS and must all precede end().
+  // content-length is skipped: uWS writes its own from the end() payload, and a duplicate header corrupts the response.
   res.cork(() => {
     res.writeStatus(statusLine(mionResp.statusCode));
-    // uWS writes header values unchecked (node and the fetch Headers throw on them), so a CR or LF
-    // in a value a handler echoed from the request would be header injection here: dropped.
+    // uWS writes header values unchecked, so a CR or LF a handler echoed from the request would be header injection: dropped
     forEachHeader(mionResp.headers, (name, value) => {
       if (name !== 'content-length' && isHeaderSafe(name) && isHeaderSafe(value)) res.writeHeader(name, value);
     });
