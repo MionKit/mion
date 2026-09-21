@@ -9,13 +9,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// overrideOpKeyForTag maps a simple (non-composite) family tag to the operation
-// NAME RunType.Overrides is keyed by ("val" → "validate", "tb" → "toBinary", …).
-// The NAME, not the marker token: the name is the hash-side identity, so the
-// public marker vocabulary can be renamed without moving an overridden type.
-// Returns "" for tags with no public operation (the internal primitives,
-// which are never user-overridable) so the override check is skipped for them.
-// Composite JSON tags resolve their op key in json_composite.go.
+// overrideOpKeyForTag maps a simple (non-composite) family tag to the operation NAME RunType.Overrides is
+// keyed by ("val" → "validate", "tb" → "toBinary", …). The NAME, not the marker token: the name is the
+// hash-side identity, so the public marker vocabulary can be renamed without moving an overridden type.
+// Returns "" for a tag with no public operation (an internal primitive, never user-overridable), which skips
+// the override check. Composite JSON tags resolve their op key in json_composite.go.
 func overrideOpKeyForTag(tag string) string {
 	op, ok := operations.ByFamilyTag(tag)
 	if !ok || !op.Public {
@@ -24,14 +22,10 @@ func overrideOpKeyForTag(tag string) string {
 	return op.Name
 }
 
-// primitiveCompositeOpKey maps a JSON-composite PRIMITIVE family tag to the
-// composite operation op key that owns it. When a type's composite op is
-// overridden, the redirect references no primitives, so the primitive entry for
-// that type is dead — and for a type the structural emitter can't handle (the
-// escape-valve case), emitting it would alwaysThrow on the very type the user
-// overrode to avoid. Returns "" for non-primitive tags. The set is closed (the
-// operation registry's collision guard pins it): pj/pjs/sj feed the encoder,
-// rj/ukuw feed the decoder.
+// primitiveCompositeOpKey maps a JSON-composite PRIMITIVE family tag to the composite operation op key that
+// owns it. An overridden composite redirect references no primitives, so that type's primitive entry is dead,
+// and for a type the structural emitter cannot handle it would alwaysThrow on the very type the user
+// overrode to avoid. The set is closed (the operation registry's collision guard pins it).
 func primitiveCompositeOpKey(tag string) string {
 	switch tag {
 	case "pj", "pjs", "sj":
@@ -42,9 +36,8 @@ func primitiveCompositeOpKey(tag string) string {
 	return ""
 }
 
-// compositeOverriddenForPrimitive reports whether the runtype's JSON composite
-// op that OWNS this primitive family is overridden — in which case the primitive
-// entry must be skipped entirely (the composite redirect names no primitives).
+// compositeOverriddenForPrimitive reports whether the JSON composite op OWNING this primitive family is
+// overridden, in which case the primitive entry is skipped: the composite redirect names no primitives.
 func compositeOverriddenForPrimitive(runType *reflection.RunType, primitiveTag string) bool {
 	if runType == nil || len(runType.Overrides) == 0 {
 		return false
@@ -53,8 +46,7 @@ func compositeOverriddenForPrimitive(runType *reflection.RunType, primitiveTag s
 	return opKey != "" && runType.Overrides[opKey] != ""
 }
 
-// overrideHashForTag returns the cfn body hash an override registered for this
-// (family tag, type), or "" when the type carries no override for that family.
+// overrideHashForTag returns the cfn body hash an override registered for this (family tag, type).
 func overrideHashForTag(runType *reflection.RunType, tag string) string {
 	if runType == nil || len(runType.Overrides) == 0 {
 		return ""
@@ -66,16 +58,12 @@ func overrideHashForTag(runType *reflection.RunType, tag string) string {
 	return runType.Overrides[opKey]
 }
 
-// buildRedirectEntry renders the cfn-redirect entry for an overridden
-// (family, type): a KindTypeFn entry whose factory returns the user's custom
-// pure function instead of the Go-emitted structural body. The body is a
-// one-liner — `return utl.usePureFn('<the override's id>')` — and that module rides
-// SoftDeps so initFromTuple registers it before the redirect materializes.
-// usePureFn (not getPureFn) throws on a missing module, so an emitter bug fails
-// loudly rather than silently degrading to the family identity.
-//
-// Mirrors collectJsonCompositeEntry's arg assembly; the redirect is never
-// disk-cached (it is trivial to re-derive and the cfn key is content-addressed).
+// buildRedirectEntry renders the cfn-redirect entry for an overridden (family, type): a KindTypeFn entry
+// whose factory returns the user's custom pure function instead of the Go-emitted structural body. That
+// module rides SoftDeps so initFromTuple registers it before the redirect materializes, and usePureFn (not
+// getPureFn) throws on a missing module, so an emitter bug fails loudly instead of degrading to the family
+// identity. Mirrors collectJsonCompositeEntry's arg assembly; the redirect is never disk-cached, being
+// trivial to re-derive under a content-addressed cfn key.
 func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType, cfnKey string, opts RenderOpts) *entrymodules.Entry {
 	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + ")"
 	codeArg := "undefined"
@@ -105,15 +93,11 @@ func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType
 	}
 }
 
-// AssertOverrideCfn verifies the invariant every cfn redirect relies on: the
-// override module it forwards to via `utl.usePureFn` actually rendered. A miss
-// is an emitter bug — the unguarded usePureFn would throw at runtime — so it
-// surfaces as an OVR002 Error at collect time. Mirrors AssertCompositeSoftDeps.
-// Deterministic order via sorted keys.
-//
-// `overrideIDs` is the set of ids the override pass extracted. An override's id
-// looks like any other pure fn's, so membership in that set is what tells the
-// two apart; there is no prefix to scan for.
+// AssertOverrideCfn verifies the invariant every cfn redirect relies on: the override module it forwards to
+// via `utl.usePureFn` actually rendered. A miss is an emitter bug (the unguarded usePureFn would throw at
+// runtime), so it surfaces as an OVR002 Error at collect time, in sorted-key order. Mirrors
+// AssertCompositeSoftDeps. An override's id looks like any other pure fn's, so membership in overrideIDs is
+// the only thing telling the two apart; there is no prefix to scan for.
 func AssertOverrideCfn(graph entrymodules.Graph, overrideIDs map[string]bool, diagSink *[]diagnostics.Diagnostic) {
 	if diagSink == nil || len(overrideIDs) == 0 {
 		return

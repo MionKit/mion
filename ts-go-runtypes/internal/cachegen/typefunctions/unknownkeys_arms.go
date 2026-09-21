@@ -7,12 +7,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Recursion arms shared by the StripUnknownKeys and UnknownKeysToUndefined
-// families. Their property / array / tupleMember / native-iterable handling is
-// byte-identical: both just recurse into children and emit no per-key snippet
-// at these positions (that's the index-signature arm's job). The
-// UnknownKeyErrors family threads path-literals and keeps its own copies; the
-// uku tuple arm is a documented no-op and stays in its own file.
+// Recursion arms shared by the strip, unknownKeysToUndefined and unknownKeyErrors families: at a property, array,
+// tupleMember or native-iterable position they only recurse into children, the per-key snippet being the
+// index-signature arm's job. `trackPath` is the one difference, set by the error family for its per-error address.
 
 func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bool) RTCode {
 	if rt.Child == nil {
@@ -48,8 +45,6 @@ func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// Wrap optional properties in a defined-check so the recursion only
-	// runs on present values (matches the per-property strip semantics).
 	if rt.Optional {
 		return RTCode{Code: "if (" + propertyPresenceTest(rt, v, accessor) + ") {" + childRT.Code + "}", Type: CodeS}
 	}
@@ -84,8 +79,7 @@ func emitArrayUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bo
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// `v.length` throws on null/undefined and walks a string's characters,
-	// so the element descent runs only over a real array.
+	// `v.length` throws on null/undefined and walks a string's characters, so the descent runs only over a real array.
 	body := guardStatement(unknownKeysArrayGuard(v),
 		"for (let "+iVar+" = 0; "+iVar+" < "+v+".length; "+iVar+"++) {"+childRT.Code+"}")
 	return RTCode{Code: body, Type: CodeS}
@@ -146,11 +140,9 @@ func emitTupleMemberUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackP
 	return childRT
 }
 
-// emitNativeIterableUnknownKeys walks a Map's entries or a Set's items and
-// applies the child sweep to each. `wire` selects the shape guard: a live
-// instance (`instanceof Map / Set`) or the JSON wire form, where a Map is an
-// array of `[key, value]` pairs and a Set an array of items, so the same
-// `for…of` and the same `e[0]` / `e[1]` accessors read both.
+// emitNativeIterableUnknownKeys applies the child sweep to each Map entry or Set item.
+// `wire` selects the shape guard: a live instance, or the JSON wire form, where a Map is an array of `[key, value]`
+// pairs and a Set an array of items, so the same `for…of` and `e[0]` / `e[1]` accessors read both.
 func emitNativeIterableUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string, wire bool) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	ctorName := "Map"

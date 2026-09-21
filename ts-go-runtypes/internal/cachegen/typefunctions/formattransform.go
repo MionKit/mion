@@ -7,34 +7,21 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// FormatTransformEmitter implements the `format` rt function — the value-transform
-// family behind createFormatTransformFn<T>. It walks the type and applies a
-// format's value mutation wherever a TypeFormat brand specifies one
-// (string transforms like trim / lowercase / uppercase / capitalize;
-// domain / ip / url lowercasing), rebuilding the surrounding value in
-// place. IDENTITY is the default for every non-transforming kind, so a
-// type with no transforming format compiles to a noop (`return v`).
-//
-// Structurally a sibling of PrepareForJsonEmitter (single `v` arg,
-// identity noop, collection recursion) but much simpler: the only
-// non-identity leaf is a format-branded string, and there are no
-// unsupported kinds — a value the transform doesn't touch passes through.
-//
-// MVP scope: string-format transforms at any position + object / array /
-// tuple recursion to reach them. Union / Map / Set / Date / etc. pass
-// through unchanged (transforms inside a union arm are a follow-up).
+// FormatTransformEmitter implements the value-transform family behind createFormatTransformFn<T>: it applies
+// a format's value mutation wherever a TypeFormat brand specifies one (trim / lowercase / uppercase /
+// capitalize, domain / ip / url lowercasing), in place. IDENTITY is the default for every non-transforming
+// kind, and there are no unsupported kinds, so a type with no transforming format compiles to `return v`.
+// Scope: string-format transforms at any position, plus object / array / tuple recursion to reach them.
+// A union arm, Map, Set or Date passes through unchanged.
 type FormatTransformEmitter struct{}
 
-// Args mirrors validate / prepareForJson — single value arg, mutated and
-// returned.
+// Args mirrors validate / prepareForJson: a single value arg, mutated and returned.
 func (FormatTransformEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-// Supports is true for (almost) every kind: identity is always a valid
-// transform, so the renderer emits a — usually noop — entry per runtype.
-// That keeps createFormatTransformFn<T> resolving to a real fn and parent dep-calls
-// hitting a live factory, exactly like the JSON-transform families.
+// Supports is true for (almost) every kind, identity being a valid transform, so createFormatTransformFn<T>
+// still resolves to a real fn and a parent dep-call still hits a live factory.
 func (FormatTransformEmitter) Supports(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
@@ -45,11 +32,9 @@ func (FormatTransformEmitter) Supports(rt *reflection.RunType) bool {
 	return true
 }
 
-// AnyFormatTransformSupported reports whether at least one runtype in the slice
-// carries a VALUE-TRANSFORMING format. Unlike Supports (true for
-// everything, since identity is valid), this gates the resolver's
-// AddedFormatTransform HMR signal so the format cache is only invalidated for
-// schemas that actually use a transform.
+// AnyFormatTransformSupported reports whether at least one runtype in the slice carries a VALUE-TRANSFORMING
+// format. Unlike Supports, it gates the resolver's AddedFormatTransform HMR signal, so the format cache is
+// invalidated only for schemas that really use a transform.
 func AnyFormatTransformSupported(runTypes []*reflection.RunType) bool {
 	for _, rt := range runTypes {
 		if nodeFormatTransform(rt, "v") != "" {
@@ -59,19 +44,14 @@ func AnyFormatTransformSupported(runTypes []*reflection.RunType) bool {
 	return false
 }
 
-// IsRTInlined delegates to the shared heuristic — same as every other
-// rt fn.
 func (FormatTransformEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// IsNoopType implements the walker's dispatch-time noop gate: identity is
-// this family's default, so without it every NAMED compound child was
-// dep-called into an entry that itself rendered as the noop short-form —
-// `v.inner = <fmtHash>_<id>.fn(v.inner)` chains doing nothing. The predicate
-// (noop_types.go isNoopForFormatTransform) proves "no value-transforming
-// format and no fmt override reachable", letting parents compose around such
-// children and collapse to the short form themselves.
+// IsNoopType implements the walker's dispatch-time noop gate: identity being this family's default, without
+// it every NAMED compound child was dep-called into an entry that itself rendered as the noop short-form,
+// chaining `v.inner = <fmtHash>_<id>.fn(v.inner)` calls that do nothing. isNoopForFormatTransform proves no
+// value-transforming format and no fmt override is reachable, so parents compose around such a child.
 func (FormatTransformEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForFormatTransform(rt, ctx)
 }
@@ -79,14 +59,12 @@ func (FormatTransformEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContex
 // NoopChildComposesAround — a subtree with no transform mutates nothing; empty code composes correctly.
 func (FormatTransformEmitter) NoopChildComposesAround() {}
 
-// ReturnName is `v` — format mutates the input value (or rebinds via
-// `v = …` at a transforming leaf) and returns it.
+// ReturnName is `v`: format mutates the input value, or rebinds it at a transforming leaf, and returns it.
 func (FormatTransformEmitter) ReturnName() string {
 	return "v"
 }
 
-// Emit dispatches the per-kind switch. Only format-branded strings
-// transform; collections recurse to reach them; everything else is
+// Emit — only format-branded strings transform, collections recurse to reach them, and everything else is
 // identity (empty CodeS, collapsed to `return v` by Finalize).
 func (FormatTransformEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
@@ -104,8 +82,7 @@ func (FormatTransformEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 		return emitObjectFormat(rt, ctx, v)
 
 	case reflection.KindClass:
-		// User classes recurse like objects; Date / Map / Set / native
-		// classes carry no string-format children to transform.
+		// Date / Map / Set / native classes carry no string-format children to transform.
 		if rt.SubKind == reflection.SubKindNone {
 			return emitObjectFormat(rt, ctx, v)
 		}
@@ -123,16 +100,12 @@ func (FormatTransformEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ C
 	case reflection.KindTupleMember:
 		return emitTupleMemberFormat(rt, ctx, v)
 	}
-	// Every other kind (number / boolean / union / intersection / Map /
-	// Set / Date / function / …) is identity for the MVP.
+	// Every other kind (number / boolean / union / intersection / Map / Set / Date / function / …) is identity.
 	return RTCode{Code: "", Type: CodeS}
 }
 
-// nodeFormatTransform returns the JS transform expression for rt's
-// format applied to `v` (e.g. `v.trim().toLowerCase()`), or "" when rt
-// carries no format or its format specifies no transform (uuid / date /
-// length-only stringFormat / …). Dispatches through the optional
-// formats.FormatTransformer capability.
+// nodeFormatTransform returns rt's transform expression applied to `v` (`v.trim().toLowerCase()`), through
+// the optional formats.FormatTransformer capability, or "" when the format specifies no transform.
 func nodeFormatTransform(rt *reflection.RunType, v string) string {
 	if rt == nil || rt.FormatAnnotation == nil {
 		return ""
@@ -145,14 +118,12 @@ func nodeFormatTransform(rt *reflection.RunType, v string) string {
 	if !ok {
 		return ""
 	}
-	// The string-format / domain / ip / url transformers don't read the
-	// EmitContext (their transform depends only on params), so a nil ctx
-	// is safe here and at the AnyFormatTransformSupported scan site.
+	// A nil ctx is safe here and at the AnyFormatTransformSupported scan site: these transformers depend only
+	// on their params, never on the EmitContext.
 	return transformer.EmitFormatTransform(rt.FormatAnnotation, v, nil)
 }
 
-// emitObjectFormat recurses each non-function, non-static child property
-// and joins the transform statements. Empty when nothing transforms.
+// emitObjectFormat joins the transform statements of each non-function, non-static child property.
 func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode {
 	var parts []string
 	for _, child := range objectMembers(rt) {
@@ -171,8 +142,7 @@ func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode
 	return RTCode{Code: strings.Join(parts, ";"), Type: CodeS}
 }
 
-// emitPropertyFormat sets the property accessor, recurses, and wraps the
-// undefined-guard for optional properties.
+// emitPropertyFormat sets the property accessor, recurses, and guards an optional property on undefined.
 func emitPropertyFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -194,8 +164,7 @@ func emitPropertyFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCo
 	return childRT
 }
 
-// emitArrayFormat loops the element accessor `v[i]` and applies the
-// element transform. Empty child code collapses the loop to a noop.
+// emitArrayFormat loops `v[i]` and applies the element transform; empty child code collapses the loop away.
 func emitArrayFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -226,8 +195,7 @@ func emitTupleFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode 
 	return RTCode{Code: strings.Join(parts, ";"), Type: CodeS}
 }
 
-// emitTupleMemberFormat sets the positional accessor `v[i]` (or a rest
-// loop) and applies the member transform.
+// emitTupleMemberFormat sets the positional accessor `v[i]`, or a rest loop, and applies the transform.
 func emitTupleMemberFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -259,16 +227,14 @@ func emitTupleMemberFormat(rt *reflection.RunType, ctx *EmitContext, v string) R
 	return childRT
 }
 
-// EmitDependencyCall mirrors PrepareForJsonEmitter — the inner factory
-// mutates / rebinds its local `v`, so the caller captures the return:
-// `<vλl> = <childHash>.fn(<vλl>)`. Self-recursive calls drop `.fn`.
+// EmitDependencyCall mirrors PrepareForJsonEmitter: the inner factory rebinds its local `v`, so the caller
+// captures the return. Self-recursive calls drop `.fn`.
 func (FormatTransformEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
 
-// Finalize collapses an empty / identity body to `return v` + isNoop —
-// the renderer then emits the short-form noop init line whose JS-side
-// identity fn is `(v) => v`.
+// Finalize collapses an identity body to `return v` + isNoop, so the renderer emits the short-form noop init
+// line whose JS-side identity fn is `(v) => v`.
 func (FormatTransformEmitter) Finalize(raw string) (string, bool) {
 	code := normaliseWhitespace(raw)
 	if code == "" || code == "return v" {

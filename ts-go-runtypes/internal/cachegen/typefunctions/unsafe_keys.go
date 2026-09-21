@@ -13,11 +13,9 @@ import (
 // reader's desSafePropName carries the same text).
 const UnsafeKeyMessage = "[mion] Unsafe property name: "
 
-// unsafeKeyCheck renders the JS condition that is true for a wire key no
-// decoder, validator or rebuilding encoder accepts. The key's length is
-// checked first, so every key of another length costs one integer compare and
-// no string compare. The names are grouped by length so the shape follows the
-// name set whatever it holds.
+// unsafeKeyCheck renders the JS condition true for a wire key no decoder, validator or rebuilding encoder
+// accepts. Grouped by length, and the length is compared first, so a key of another length costs one integer
+// compare and no string compare.
 func unsafeKeyCheck(keyVar string) string {
 	byLen := map[int][]string{}
 	var lens []int
@@ -44,11 +42,9 @@ func unsafeKeyThrow(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") throw new Error(" + quoteJS(UnsafeKeyMessage) + " + " + keyVar + ");"
 }
 
-// unsafeKeySkip: the rebuild rule — an encoder or clone that writes wire keys
-// onto a fresh object leaves the key out. The in-place encoders (mutate,
-// stringify, binary) carry no guard on purpose: they never write a key onto an
-// object, and the receiving decoder refuses the key, so a compare per key
-// there would buy nothing.
+// unsafeKeySkip: the rebuild rule, an encoder or clone writing wire keys onto a fresh object leaves it out.
+// The in-place encoders (mutate, stringify, binary) carry no guard on purpose: they never write a key onto an
+// object, and the receiving decoder refuses it, so a compare per key would buy nothing.
 func unsafeKeySkip(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") continue;"
 }

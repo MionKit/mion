@@ -5,16 +5,13 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// leafKindToRootCode maps an unsupported root leaf kind to a per-family
-// root-error code via the supplied family-specific map. Returns "" for
-// kinds not in the map — the renderer falls back to silent skip (no
-// alwaysThrow factory) so unknown future kinds don't surface diagnostics
-// without a registered code.
+// rootCodeMap maps an unsupported root leaf kind to one family's root-error code. A kind left "" falls back
+// to the renderer's silent skip, so an unknown future kind raises no diagnostic without a registered code.
 type rootCodeMap struct {
 	never           string // KindNever
 	nonSerializable string // KindPromise + KindRegexp + KindClass.SubKindNonSerializable
 	function        string // KindFunction / KindMethod / KindMethodSignature / KindCallSignature
-	symbol          string // KindSymbol — see docs FAQ for why this is unsupported
+	symbol          string // KindSymbol
 }
 
 func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
@@ -48,12 +45,8 @@ func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
 	return ""
 }
 
-// Per-emitter DiagCodeFor implementations. Each emitter declares a flat
-// map from slot to its family's diag code; the shared dispatch helper on
-// EmitContext looks the active emitter up via type assertion at throw /
-// silent-skip sites. Concentrated in one file so adding a new family
-// (or a new slot) is one edit per emitter, not a hunt-and-peck across
-// the emit files.
+// Per-emitter DiagCodeFor implementations, one flat slot-to-code map each, concentrated in this file so
+// adding a family or a slot is one edit per emitter rather than a hunt across the emit files.
 
 var prepareForJsonCodes = map[DiagSlot]string{
 	SlotNeverRoot:                  diagnostics.CodePJNeverRoot,
@@ -135,19 +128,12 @@ func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-// The `compact` strategy's encode/decode walks REUSE prepareForJsonClone /
-// restoreFromJsonMutate arm-by-arm (only the object arm diverges to a positional
-// array — see json_compact.go / json_compact_restore.go), so they DELEGATE
-// their diagnostic codes the same way: cj → pjs, cjr → rj. Without these the
-// compact emitters implement neither DiagCodeProvider nor LeafDiagCodeProvider,
-// and an unserializable leaf (function / symbol / …) at a PROPAGATING position
-// (tuple slot, array element, record value, callable object) would SILENTLY
-// SKIP the primitive entry (empty argsText) instead of rendering an alwaysThrow
-// like every sibling strategy — leaving the compact composite binding a
-// never-rendered primitive (JCP001). The unserializable-leaf reason is
-// wire-shape-independent ("Type `Function` can never be encoded to JSON" holds for compact
-// too), so the shared PJS*/RJ* wording is exactly right — compact now matches
-// clone (PJS003) and preserve/strip (RJ003) byte-for-byte.
+// The `compact` walks reuse prepareForJsonClone / restoreFromJsonMutate arm by arm, so they delegate their
+// diagnostic codes the same way: cj → pjs, cjr → rj. Without these the compact emitters implement neither
+// provider, and an unserializable leaf at a PROPAGATING position (tuple slot, array element, record value,
+// callable object) would SILENTLY SKIP the primitive entry instead of rendering an alwaysThrow, leaving the
+// compact composite binding a never-rendered primitive (JCP001). The wording carries over unchanged, the
+// reason being wire-shape independent: "Type `Function` can never be encoded to JSON" holds for compact too.
 func (CompactForJsonEmitter) DiagCodeFor(slot DiagSlot) string {
 	return prepareForJsonCloneCodes[slot]
 }
@@ -164,9 +150,8 @@ func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-// restoreFromJsonClone changes no leaf's serializability (a rebuild or a guard
-// around one of restoreFromJsonMutate's arms never makes a leaf unserializable), so
-// it delegates its diagnostic codes the same way compactFromJson does.
+// restoreFromJsonClone changes no leaf's serializability, a rebuild or a guard around one of
+// restoreFromJsonMutate's arms never making a leaf unserializable, so it delegates like compactFromJson.
 func (RestoreFromJsonCloneEmitter) DiagCodeFor(slot DiagSlot) string {
 	return restoreFromJsonCodes[slot]
 }
@@ -268,9 +253,9 @@ var validateCodes = map[DiagSlot]string{
 func (ValidateEmitter) DiagCodeFor(slot DiagSlot) string { return validateCodes[slot] }
 
 var validateRootCodes = rootCodeMap{
-	never:           "", // validate validates Never as "no inhabitants" — handled by existing never arm, not unsupported
+	never:           "", // validate has its own never arm, "no inhabitants", so it is not unsupported
 	nonSerializable: diagnostics.CodeVLNonSerializableRoot,
-	function:        "", // validate validates function-kinds as `typeof === 'function'` — supported
+	function:        "", // validate supports function kinds as `typeof === 'function'`
 	symbol:          diagnostics.CodeVLSymbolRoot,
 }
 
@@ -318,11 +303,9 @@ var cloneExactShapeCodes = map[DiagSlot]string{
 
 func (CloneExactShapeEmitter) DiagCodeFor(slot DiagSlot) string { return cloneExactShapeCodes[slot] }
 
-// DiagCodeForLeaf — root/propagating unsupported kinds. Two ces-specific
-// arms beyond the shared rootCodeMap treatment: a UNION with object members
-// (no runtime arm discrimination in v1 — a clone that silently kept unknown
-// keys would be a security bug, so the build fails instead), and callable
-// interfaces routed through the function code by callableLeafSubstitute.
+// DiagCodeForLeaf — two ces-specific arms beyond the shared rootCodeMap: a UNION, which has no runtime arm
+// discrimination, so the build fails rather than ship a clone that silently kept unknown keys, and a callable
+// interface, routed through the function code by callableLeafSubstitute.
 func (CloneExactShapeEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	if leaf != nil && leaf.Kind == reflection.KindUnion {
 		return diagnostics.CodeCESUnionRoot
