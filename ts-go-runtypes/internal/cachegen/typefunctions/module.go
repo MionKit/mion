@@ -57,7 +57,7 @@ type RenderOpts struct {
 	// runtype.Cache here (which satisfies diskcache.HashLookup).
 	Lookup diskcache.HashLookup
 	// DiagSink is the destination for compile-time diagnostics emitted
-	// by the walker at RTThrow / silent-skip sites. Nil disables
+	// by the walker at root-throw / silent-skip sites. Nil disables
 	// diagnostic emission entirely — keeps tests that don't care about
 	// the per-call-site fan-out quiet.
 	DiagSink *[]diagnostics.Diagnostic
@@ -93,7 +93,7 @@ type RenderOpts struct {
 	// family tag) to the marker call sites that REACH it, the type named at
 	// the call plus everything under it. EmitDiagnostic uses this to fan out
 	// one Diagnostic per call site so the user gets actionable file:line:col
-	// coordinates — without it, a RTThrow would record a diagnostic with
+	// coordinates — without it, a root-throw would record a diagnostic with
 	// empty Site and the warning would be useless in the editor.
 	ProvenanceSites map[string][]diagnostics.Site
 	// RootedSites is the same map narrowed to the sites where the id is the

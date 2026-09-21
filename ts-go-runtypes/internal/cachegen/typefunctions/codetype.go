@@ -62,31 +62,10 @@ const (
 // (the reference uses `undefined` for the same state — both halves treat
 // empty snippets as a noop the orchestrator can drop).
 //
-// ErrorMessage rides along the CodeNS sentinel to flip the renderer's
-// "silent skip" into "emit a throwing factory". The per-runtype
-// throws inside emitPrepareForJson / emitRestoreFromJson (never,
-// Promise, NonSerializableRunType, the `Arrays can not have non
-// serializable types` check in array.ts) propagate as JS exceptions out
-// of createRTFunction; our equivalent lands the message here, the
-// walker latches it onto Walker.ThrowMessage on the first encounter,
-// and module.go emits a `function(utl){ throw new Error(<msg>) }`
-// factory so the throw surfaces when the entry is first resolved (its
-// createX factory or getRTFunction call), matching the "throws at RT
-// compile" semantic.
+// An unsupported leaf carries no throw text of its own: the message a
+// CodeNS entry throws is rendered once at the root by module.go from the
+// leaf's diag code (buildAlwaysThrowMessage).
 type RTCode struct {
-	Code         string
-	Type         CodeType
-	ErrorMessage string
-}
-
-// RTThrow returns a CodeNS RTCode carrying a message. Renderer emits
-// a throw-factory whose body raises `new Error(message)` when invoked,
-// so the throw surfaces when the entry is first resolved (a `createX<T>()`
-// factory or `getRTFunction<'…'>()`, which triggers the entry's first getRT
-// lookup → materialize → createRTFn(utl) → throw). Mirrors the per-runtype throws in
-// nodes/atomic/never.ts, nodes/native/promise.ts,
-// nodes/native/nonSerializable.ts, and the explicit
-// checkNonSkipTypes() in nodes/member/array.ts.
-func RTThrow(message string) RTCode {
-	return RTCode{Code: "", Type: CodeNS, ErrorMessage: message}
+	Code string
+	Type CodeType
 }

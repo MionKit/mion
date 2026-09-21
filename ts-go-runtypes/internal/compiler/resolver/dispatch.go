@@ -808,7 +808,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			metrics.PrepMs = elapsedMs(prepStart)
 		}
 		// rtDiagnostics is the sink the walker appends to at every
-		// RTThrow / silent-skip site reached during the entry collection
+		// root-throw / silent-skip site reached during the entry collection
 		// below. Single sink covers every collect in this dispatch so a
 		// single shared throw-site emits one diag per call site. The
 		// render opts (provenance line/col conversion + full ref table)

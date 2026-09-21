@@ -565,21 +565,6 @@ func (ctx *EmitContext) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return ""
 }
 
-// RTThrowDiag combines a RTThrow (factory-body runtime throw) with an
-// EmitDiagnostic call. The runtime throw still fires when the user calls
-// createXxx<T>(); the diagnostic surfaces the same problem at build
-// time so the user can fix it before the factory is materialised.
-// Use this in place of bare RTThrow for any throw whose user-facing
-// cause is a fixable type-level problem (Never at root, function in
-// array, etc.) — i.e. all of them. `inlineMsg` is the legacy runtime
-// throw message embedded in the JS factory body; the build-time
-// Diagnostic carries only the code+args and resolves text via the
-// JS-side catalog.
-func (ctx *EmitContext) RTThrowDiag(code string, inlineMsg string, args ...string) RTCode {
-	ctx.walker.EmitDiagnostic(code, args...)
-	return RTThrow(inlineMsg)
-}
-
 // EmitDiagnosticSlot is the slot-keyed sibling of EmitDiagnostic for
 // silent-skip sites. Resolves the code via the active emitter's
 // DiagCodeFor; no-op when the slot isn't registered.
