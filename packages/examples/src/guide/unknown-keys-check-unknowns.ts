@@ -34,4 +34,22 @@ userErrors({
 });
 // [{path: ['address', 'zip'], expected: 'never'}]
 
-export {isUserStrict, userErrors};
+// A union needs its own option. Its members share one list of property names, so a property
+// belonging to another member survives, and a member with an index signature declares them all.
+type Pet = {kind: 'cat'; meows: boolean} | {kind: 'dog'; barks: number};
+type Something = {a: string} | Record<string, number>;
+
+const isPetUnionStrict = createValidateFn<Pet>(undefined, {
+  checkUnionUnknowns: true,
+});
+isPetUnionStrict({kind: 'cat', meows: true}); // true
+isPetUnionStrict({kind: 'cat', meows: true, barks: 3}); // false, barks belongs to Dog
+
+const isSomething = createValidateFn<Something>(undefined, {
+  checkUnionUnknowns: true,
+});
+isSomething({a: 'x'}); // true
+isSomething({p: 1, q: 2}); // true, it is a record
+isSomething({a: 'x', evil: 'garbage'}); // false, it matches neither member
+
+export {isUserStrict, userErrors, isPetUnionStrict, isSomething};

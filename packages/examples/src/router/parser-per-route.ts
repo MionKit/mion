@@ -27,6 +27,11 @@ export const routes = {
     parser: {return: 'mutate'},
   }),
 
+  // refuse a request carrying a property Measurement does not declare
+  echoStrict: mion.route((ctx, data: Measurement): Measurement => data, {
+    parser: {params: 'mutateStrict'},
+  }),
+
   // the shared preset
   echoPreset: mion.route(
     (ctx, data: Measurement): Measurement => data,
