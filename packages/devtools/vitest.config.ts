@@ -22,8 +22,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.spec.ts'],
-    // Vitest's 10 s default has no headroom here: these hooks start real vite dev servers
-    // and builds. sfcTransform's own guarded hook measures 10.4 s inside the mion-drizzle batch.
+    // Vitest's 10 s default is not enough: hooks start real vite servers, sfcTransform's own guarded hook takes 10.4 s in a batch.
     testTimeout: 60000,
     hookTimeout: 60000,
     // teardown-only: removes the .mion genDir the runtypes transform writes during the run
