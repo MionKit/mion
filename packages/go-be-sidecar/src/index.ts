@@ -1,20 +1,13 @@
-// Stdio shell: one JSON request per line on stdin, one JSON response line
-// on stdout — the same newline-delimited framing the resolver itself
-// speaks to the bundler plugin. Exits on stdin EOF, so the child can
-// never outlive the Go process that spawned it. All request handling
-// lives in handleRequestLine (shared with the WASM host hook).
+// Stdio shell: one JSON request line in, one JSON response line out. Exits on stdin EOF, so the
+// child can never outlive the Go process that spawned it. Request handling lives in
+// handleRequestLine, shared with the WASM host hook.
 import {createInterface} from 'node:readline';
 import {createContext, Script} from 'node:vm';
 import {handleRequestLine, MATCH_TIMED_OUT, setPatternMatcher} from './jobs.ts';
 
-// Bound every match so a catastrophically backtracking pattern answers with a
-// verdict instead of wedging this process (see setPatternMatcher in jobs.ts;
-// the budgets, and the quiet retry after a first timeout, live there too).
-// V8 checks for interrupts inside regex execution, so a vm timeout stops a
-// runaway match with no worker and no second process. JavaScriptCore does not,
-// so under bun the script runs to completion and the guard never fires — that
-// host is left exactly as it was, still bounded by the resolver's own
-// round-trip timeout.
+// Bound every match so a backtracking pattern cannot wedge this process (budgets live in jobs.ts).
+// V8 checks interrupts inside regex, so a vm timeout suffices; JavaScriptCore does not, so under
+// bun the guard never fires and only the resolver's round-trip timeout bounds a match.
 
 interface MatchScope {
   tester: RegExp | null;

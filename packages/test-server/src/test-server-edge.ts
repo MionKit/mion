@@ -26,9 +26,8 @@ const getSharedData = () => ({auth: {me: null as any}});
 
 // ############# Routes #############
 
-// Declares the routes; setup() creates the router that actually initializes them, once per setup()
-// call (resetRouter() clears the once-guard in between). The serializer is a build-time literal, so
-// the `mutate` variant is a second route set rather than a runtime option.
+// setup() creates the router that initializes these, once per call (resetRouter clears the once-guard).
+// The serializer is a build-time literal, so the `mutate` variant is a second route set, not an option.
 const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
@@ -70,7 +69,7 @@ export interface EdgeSetupOptions {
 
 const EDGE_SETUP_KEYS = ['serializer', 'defaultResponseHeaders'] as const satisfies readonly (keyof EdgeSetupOptions)[];
 
-/** Sets up the vercel handler inside the edge runtime. Returns the handler object. */
+/** Sets up the vercel handler inside the edge runtime. */
 export async function setup(options?: EdgeSetupOptions) {
   assertKnownSetupOptions(options, EDGE_SETUP_KEYS, 'EdgeTestServer.setup');
   resetVercelHandlerOpts();
@@ -83,12 +82,11 @@ export async function setup(options?: EdgeSetupOptions) {
   const handler = createVercelHandler({
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });
-  // Expose handler globally so EdgeVM evaluate() calls can access it
+  // EdgeVM evaluate() calls reach it through the global
   (globalThis as any).handler = handler;
   return handler;
 }
 
-/** Resets all state (router + vercel handler options) */
 export function resetServer() {
   resetVercelHandlerOpts();
   resetRouter();

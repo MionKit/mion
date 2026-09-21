@@ -5,20 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The Cloudflare STORAGE worker: mion routes whose data comes from a real D1
-// database and a real Durable Object, both queried through one slim sqlite table.
-//
-// Why a second cloudflare bundle rather than routes added to the first: that one
-// is a SERVICE WORKER (`addEventListener('fetch')`), and a service worker cannot
-// export a class, so it cannot host a Durable Object at all. This one is a
-// modules worker, which is also what a consumer writes today.
-//
-// What it is here to prove, end to end on workerd:
-//   - a table declared with @mionjs/drizzle-orm-sqlite-core, refined, and handed
-//     to BOTH Cloudflare drivers through toDrizzle()
-//   - mion validating the refined bounds BEFORE the handler runs
-//   - a Date surviving the wire in both directions, from an integer timestamp
-//     column, with no hand-written serialization anywhere
+// The Cloudflare STORAGE worker: on workerd, one refined @mionjs/drizzle-orm-sqlite-core table
+// reaching BOTH a real D1 database and a real Durable Object, with mion validating the refined
+// bounds before the handler and a Date surviving the wire from an integer timestamp column.
+// A second bundle because the other cloudflare worker is a SERVICE worker, and a service worker
+// cannot export a class, so it cannot host a Durable Object; this one is a modules worker.
 import {DurableObject} from 'cloudflare:workers';
 import {eq} from 'drizzle-orm';
 import {drizzle as d1Drizzle} from 'drizzle-orm/d1';
@@ -39,8 +30,7 @@ import type {InferInsertModel, InferSelectModel} from '@mionjs/drizzle-orm';
 const notesTable = sqliteTable('notes', {
   id: integer('id').primaryKey({autoIncrement: true}),
   title: text('title', {length: 120}).notNull(),
-  // An integer timestamp: its model is a Date, which is the interesting half of
-  // the round trip.
+  // Its model is a Date, the interesting half of the round trip.
   createdAt: integer('created_at', {mode: 'timestamp'}).notNull(),
 });
 const apiNotes = refineTableType(notesTable, {title: {minLength: 3}});
@@ -49,16 +39,13 @@ const notesDb = toDrizzle(apiNotes);
 export type Note = InferSelectModel<typeof apiNotes>;
 export type NewNote = InferInsertModel<typeof apiNotes>;
 
-// The one schema both drivers create. sqlite spells it the same either side, so
-// the two storage backends really are running the same table.
+// One schema for both drivers: sqlite spells it the same either side, so both run the same table.
 const CREATE_NOTES =
   'CREATE TABLE IF NOT EXISTS notes (id integer PRIMARY KEY AUTOINCREMENT, title text NOT NULL, created_at integer NOT NULL)';
 
 // ############# The Durable Object #############
 
-/** Holds its own SQLite storage and its own drizzle db, and exposes the two
- *  operations the routes need as RPC methods. This is drizzle-orm/durable-sqlite
- *  used the way its docs describe: `drizzle(ctx.storage)` inside the object. */
+/** drizzle-orm/durable-sqlite used the way its docs describe: `drizzle(ctx.storage)` inside the object. */
 export class NotesDurableObject extends DurableObject {
   private readonly db: DrizzleSqliteDODatabase;
 
@@ -92,9 +79,7 @@ type Context = CallContext<SharedData>;
 const getSharedData = (): SharedData => ({d1: null, notes: null});
 const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-/** A raw middleFn is how a route reaches the platform's own context: the
- *  cloudflare adapter passes `{env, ctx}` as the raw response, so this is where
- *  the bindings become a drizzle db the typed routes below can use. */
+/** A raw middleFn is how a route reaches the bindings: the cloudflare adapter passes `{env, ctx}` as the raw response. */
 const withStorage = mion.rawMiddleFn(async (ctx: Context, _request: unknown, platform: {env: StorageEnv}): Promise<void> => {
   const db = d1Drizzle(platform.env.DB, {logger: false});
   await db.run(CREATE_NOTES as never);
