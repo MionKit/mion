@@ -22,17 +22,51 @@ func init() {
 func (dateTimeEmitter) Name() string                    { return "dateTime" }
 func (dateTimeEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-// splitSearch locates the date/time separator. A LETTER separator is matched
-// case-insensitively: RFC 3339 allows `1963-06-19t08:30:06z` as readily as the
-// upper-case spelling, and a plain indexOf would miss it. Anything else keeps
-// the exact single-character search.
+// foldedSeparator returns the two spellings of a separator that has a case
+// distinction. RFC 3339 allows `1963-06-19t08:30:06z` as readily as the
+// upper-case spelling, so a letter separator must match either way; anything
+// else reads the same in both cases and keeps an exact search.
+func foldedSeparator(splitChar string) (upper, lower string, folded bool) {
+	upper = strings.ToUpper(splitChar)
+	lower = strings.ToLower(splitChar)
+	return upper, lower, upper != lower
+}
+
+// splitSearch emits the JS expression locating the date/time separator.
+// EVERY lane that splits a dateTime goes through this or its build-time twin
+// splitIndex: the validate check, the error check and the bound key. Two of
+// them once spelled their own indexOf, so a lowercase separator passed one and
+// failed the others.
 func splitSearch(vλl, splitChar string) string {
-	lower := strings.ToLower(splitChar)
-	upper := strings.ToUpper(splitChar)
-	if lower == upper {
+	upper, lower, folded := foldedSeparator(splitChar)
+	if !folded {
 		return vλl + ".indexOf(" + strconv.Quote(splitChar) + ")"
 	}
 	return vλl + ".search(/[" + upper + lower + "]/)"
+}
+
+// splitIndex is splitSearch's build-time twin: the same separator rule applied
+// in Go, so a static bound literal splits exactly where the emitted code does.
+// width is the byte length of the spelling that matched.
+func splitIndex(value, splitChar string) (index, width int) {
+	upper, lower, folded := foldedSeparator(splitChar)
+	if !folded {
+		at := strings.Index(value, splitChar)
+		if at < 0 {
+			return -1, 0
+		}
+		return at, len(splitChar)
+	}
+	upperAt := strings.Index(value, upper)
+	lowerAt := strings.Index(value, lower)
+	switch {
+	case upperAt < 0 && lowerAt < 0:
+		return -1, 0
+	case lowerAt < 0 || (upperAt >= 0 && upperAt < lowerAt):
+		return upperAt, len(upper)
+	default:
+		return lowerAt, len(lower)
+	}
 }
 
 // dateTimeParts resolves the date pure-fn, time pure-fn, and split char.
@@ -123,7 +157,7 @@ func (dateTimeEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAn
 	errFor := func(paramName string) string {
 		return formats.FormatErrCall(pathExpr, errorsArr, "string", "dateTime", paramName, split)
 	}
-	stmt := "const dtSplit=" + vλl + ".indexOf(" + split + ");" +
+	stmt := "const dtSplit=" + splitSearch(vλl, splitChar) + ";" +
 		"if (dtSplit===-1) " + errFor("splitChar") + ";" +
 		"else {" +
 		"if (!(" + dateAlias + "(" + vλl + ".substring(0,dtSplit)))) " + errFor("date") + ";" +

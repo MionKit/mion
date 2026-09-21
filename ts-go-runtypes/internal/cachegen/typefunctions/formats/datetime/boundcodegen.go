@@ -74,9 +74,8 @@ func valueKeyExpr(ctx formats.EmitContext, vλl string, kind boundKind, layout s
 	// ISO for the comparison (the static bake uses the same default).
 	dateAlias := pureFnAlias(ctx, purefnids.DateStrToMs)
 	timeAlias := pureFnAlias(ctx, purefnids.TimeStrToMs)
-	split := strconv.Quote(layout)
 	return "((dtp) => " + dateAlias + "(" + vλl + ".substring(0,dtp),'ISO') + " +
-		timeAlias + "(" + vλl + ".substring(dtp+1),'ISO'))(" + vλl + ".indexOf(" + split + "))"
+		timeAlias + "(" + vλl + ".substring(dtp+1),'ISO'))(" + splitSearch(vλl, layout) + ")"
 }
 
 // boundOps is the ordered set of bound params and the operator the value

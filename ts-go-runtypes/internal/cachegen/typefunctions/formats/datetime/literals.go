@@ -320,7 +320,7 @@ func dateTimeEpochMs(value, splitChar string) (float64, bool) {
 	if sep == "" {
 		sep = "T"
 	}
-	idx := strings.Index(value, sep)
+	idx, width := splitIndex(value, sep)
 	if idx < 0 {
 		return 0, false
 	}
@@ -328,7 +328,7 @@ func dateTimeEpochMs(value, splitChar string) (float64, bool) {
 	if !ok {
 		return 0, false
 	}
-	timeMs, ok := lenientTimeMs(value[idx+len(sep):])
+	timeMs, ok := lenientTimeMs(value[idx+width:])
 	if !ok {
 		return 0, false
 	}
