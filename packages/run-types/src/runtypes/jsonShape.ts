@@ -15,63 +15,18 @@ import type {DataOnlyNativeExtra} from './dataOnly.ts';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/** `JSONShape<T>` — the RunTypes JSON WIRE shape of `T`: the value
- *  `JSON.parse(createJsonEncoderFn<T>()(v))` produces and
- *  `createJsonDecoderFn<T>()` reads back. It is `DataOnly<T>`'s wire twin:
- *  where `DataOnly` keeps `Date` /
- *  `bigint` / `Map` verbatim (the validator checks the JS value), `JSONShape`
- *  maps every JS-only leaf to its JSON encoding, mirroring the Go serializer
- *  emitters (internal/cachegen/typefunctions/json_prepare.go /
- *  json_restore.go) leaf-for-leaf:
- *   - `Date` / Temporal (via the `DataOnlyNativeExtra` augmentation) → their
- *     ISO / canonical string (`toJSON()`, revived by `new Date(v)` /
- *     `Temporal.*.from(v)`);
- *   - `bigint` → its decimal-digit string (`v.toString()` / `BigInt(v)`), a
- *     bigint literal keeping the exact digits (`5n` → `"5"`);
- *   - `Map<K, V>` → `[K, V][]` entries (materialised for `new Map(v)`),
- *     `Set<V>` → `V[]`;
- *   - `undefined` / `void` leaves → `null` (the wire spelling in array and
- *     object slots — see json_stringify.go);
- *   - non-data members (symbols, functions, thenables, the non-serialisable
- *     buffers) → dropped, exactly as `DataOnly` drops them;
- *   - format / structural brands are META, not data: a branded primitive
- *     widens to its base (`Email` → `string`), sentinel-symbol keys never
- *     reach the wire.
- *
- *  UNIONS ride the serializer's FLAT-UNION envelope (union_flat.go): when any
- *  member is not JSON-natural (not `string | number | boolean | null |
- *  undefined`), the wire wraps as `[memberIndex, memberWire]` — spelled here
- *  as `[number, <union of member wires>]`, since TS cannot pin the runtime
- *  member ordering — and object members travel inside the same envelope as
- *  the `[-1, mergedObject]` arm, approximated by the union of the object
- *  members' own wire shapes. A union of JSON-natural members round-trips RAW
- *  (no envelope), `undefined` members spelling themselves (they surface as
- *  absent/optional slots; a declared `undefined` LEAF is `null` on the wire).
- *
- *  ⚠️ This is the RUNTYPES wire — what `createJsonEncoderFn` writes and
- *  `createJsonDecoderFn` reads — NOT the shape of arbitrary third-party JSON:
- *  a plain client does not wrap unions in envelopes. Use it to type stored /
- *  transported wire documents on the RunTypes side of the pipe.
- *
- *  ⚠️ NEVER REFLECT this type: `createValidateFn<JSONShape<T>>()` would
- *  validate the wire spelling with every brand deleted. Like
- *  `StripRunTypeMeta`, it is an annotation-grade projection.
- *
- *  Documented residuals (best-effort corners, all safe-side):
- *   - the envelope's `number` index is not pinned per member, and the
- *     `[-1, merged]` object arm is spelled as the plain union of object-member
- *     wires rather than the merged property bag;
- *   - the raw-vs-envelope predicate mirrors the Go rule's common shape
- *     ("every member JSON-natural"); the record-union optimisation and the
- *     index-signature fallback are not modelled;
- *   - a ROOT-level `undefined` is returned as `undefined` by the encoder
- *     (top-level `undefined` is not a JSON document) but spelled `null` here;
- *   - object-based sentinel carriers recurse structurally (their symbol keys
- *     drop). **/
+/** `JSONShape<T>` — the RunTypes JSON WIRE shape of `T`: what `createJsonEncoderFn<T>()` writes and
+ *  `createJsonDecoderFn<T>()` reads back. `DataOnly`'s wire twin: every JS-only leaf maps to its JSON
+ *  encoding, mirroring the Go emitters (internal/cachegen/typefunctions/json_prepare.go / json_restore.go)
+ *  leaf for leaf, unions included (union_flat.go).
+ *  ⚠️ NOT the shape of arbitrary third-party JSON: a plain client does not wrap unions in envelopes.
+ *  ⚠️ NEVER REFLECT it: `createValidateFn<JSONShape<T>>()` would validate the wire spelling with every brand deleted.
+ *  Best-effort, safe-side corners: the envelope's index is not pinned per member; the `[-1, merged]` object arm is
+ *  spelled as the plain union of object-member wires; the raw-vs-envelope predicate models neither the record-union
+ *  optimisation nor the index-signature fallback; and a ROOT-level `undefined`, which the encoder returns as
+ *  `undefined`, is spelled `null` here. **/
 
-/** Sentinel keys — the full set from sentinelKeys.ts; symbol-keyed, so the
- *  object map's symbol filter drops them and the primitive arms use them to
- *  detect a branded base. **/
+/** The full set from sentinelKeys.ts: the object map's symbol filter drops them, the primitive arms use them to detect a branded base. **/
 type JSONShapeSentinelKeys =
   | typeof __rtFormatName
   | typeof __rtFormatParams
@@ -91,45 +46,29 @@ type JSONShapeStripped =
   | SharedArrayBuffer
   | ArrayBufferView;
 
-/** Native classes whose wire form is their canonical STRING: `Date` and the
- *  Temporal classes folded in through the same `DataOnlyNativeExtra`
- *  augmentation `DataOnly` uses. (`RegExp` is not data and never rides the
- *  wire; `DataOnly` strips it first.) **/
+/** Natives whose wire form is their canonical STRING; Temporal rides the same `DataOnlyNativeExtra` augmentation `DataOnly` uses. **/
 type JSONShapeStringNative = Date | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
 /** Recursion budget — same discipline as `DataOnly` / `StripRunTypeMeta`. **/
 type _JSONShapeDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** True when `T` is a union (2+ constituents). Boolean itself is `true |
- *  false` and deliberately reads as a union — its members are JSON-natural,
- *  so the union arm keeps it raw. **/
+/** True for a union; boolean is `true | false` and deliberately reads as one, its members being JSON-natural, so it stays raw. **/
 type JSONShapeIsUnion<T> = [T] extends [never] ? false : true extends JSONShapeUnionProbe<T, T> ? true : false;
 type JSONShapeUnionProbe<T, U> = T extends unknown ? ([U] extends [T] ? false : true) : never;
 
-/** "Every member round-trips raw" — the type-level shape of the Go layout's
- *  AtomicNeedsTuple rule (union_flat_layout.go): JSON-natural members
- *  (strings — branded included, they are still strings on the wire — numbers,
- *  booleans, null, undefined) need no envelope. Anything else (Date, bigint,
- *  Map/Set, objects, arrays) forces the all-or-nothing wrap. **/
+/** The type-level twin of the Go layout's AtomicNeedsTuple rule (union_flat_layout.go): anything not JSON-natural forces the all-or-nothing wrap. **/
 type JSONShapeUnionIsRaw<T> = [Exclude<T, string | number | boolean | null | undefined>] extends [never] ? true : false;
 
-/** The wire of one RAW union member: primitives keep themselves (branded ones
- *  widen through the node arm), a declared `undefined` member stays spelled —
- *  it surfaces as an absent optional slot, which reads back as `undefined`. **/
+/** A declared `undefined` member stays spelled: it surfaces as an absent optional slot, which reads back as `undefined`. **/
 type JSONShapeRawMember<T, Depth extends number> = T extends undefined ? undefined : JSONShapeNode<T, Depth>;
 
-/** An ARRAY / TUPLE slot's wire: same as the value's, except a slot that can
- *  hold `undefined` spells it `null` — the tuple emitter replaces undefined
- *  slots with null so the array survives JSON without losing length
- *  (json_prepare.go, emitTupleMemberPrepareForJson). Object properties keep
- *  `undefined` instead: an absent key reads back as undefined. **/
+/** An undefined-capable slot spells `null`, because the tuple emitter replaces it so the array keeps its length (json_prepare.go, emitTupleMemberPrepareForJson). **/
+// Object properties keep `undefined` instead: an absent key reads back as undefined.
 type JSONShapeArraySlot<V, Depth extends number> = undefined extends V
   ? JSONShape<Exclude<V, undefined>, _JSONShapeDepth[Depth]> | null
   : JSONShape<V, _JSONShapeDepth[Depth]>;
 
-/** The union arm: raw members distribute; anything else rides the flat-union
- *  envelope `[number, memberWire]` (object members' `[-1, merged]` arm is
- *  approximated by the plain union of their wire shapes). **/
+/** The object members' `[-1, merged]` envelope arm is approximated by the plain union of their wire shapes. **/
 type JSONShapeUnion<T, Depth extends number> =
   JSONShapeUnionIsRaw<T> extends true
     ? T extends unknown
@@ -192,8 +131,7 @@ type JSONShapeLadder<T, Depth extends number> =
           ? object extends T
             ? T // broad object / {} — keep
             : {
-                // plain object / class / sentinel carrier — symbol keys (all
-                // sentinels included) drop, `?` / `readonly` survive the map
+                // Symbol keys (all sentinels included) drop; `?` / `readonly` survive the map
                 [K in keyof T as K extends symbol
                   ? never
                   : [JSONShape<T[K], _JSONShapeDepth[Depth]>] extends [never]
