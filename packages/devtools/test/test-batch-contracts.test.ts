@@ -1,4 +1,4 @@
-// Contract tests for the `test:ci` batches.
+// Contract tests for the `test:ci` batches and for the per-project timeouts they run under.
 //
 // `pnpm run test:ci` is the OOM fallback CLAUDE.md points contributors at, and its
 // batch list used to be typed by hand into package.json with nothing tying it to
@@ -89,5 +89,78 @@ describe('the wiring still points at the batch script', () => {
 
   it('miondevx dispatches core test-batches', () => {
     expect(read('scripts/miondevx.mjs')).toContain("if (sub === 'test-batches')");
+  });
+});
+
+// Hook and test timeouts. Vitest defaults both to 10 s, which a project that compiles
+// TypeScript, runs a real bundler build or spawns the resolver from a hook cannot hold
+// under batch contention: type-budget's modelPipeline hook measures 4.6 s alone and 10.6 s
+// inside the mion-rest batch, where it failed a run that changed nothing near it. Those
+// projects declare their own timeouts, and every project is classified here so a new one
+// cannot arrive on the default unnoticed.
+const HEAVY_TIMEOUT_FLOOR = 30_000;
+
+/** Projects whose tests or hooks compile, build or spawn the resolver. **/
+const HEAVY_PROJECTS = ['runtypes', 'playground', 'type-budget', 'devtools-core', 'devtools', 'drizzle-pg'] as const;
+
+/** The rest: their hooks only build fixtures in memory or start an in-process server, and
+ *  the few that do more carry their own inline timeout on the hook itself. **/
+const LIGHT_PROJECTS = [
+  '@mionjs/go-be-sidecar',
+  'mock-format-isolation',
+  'core',
+  'router',
+  'client',
+  'client-bundled',
+  'client-mixed',
+  'platform-aws',
+  'platform-gcloud',
+  'platform-node',
+  'platform-vercel',
+  'platform-uws',
+  'platform-cloudflare',
+  'bin-uws',
+  'drizzle-root',
+  'drizzle-mysql',
+  'drizzle-sqlite',
+] as const;
+
+/** A timeout a project config declares for itself, or undefined when it takes vitest's default. **/
+const declaredTimeout = (text: string, key: 'testTimeout' | 'hookTimeout'): number | undefined => {
+  const match = new RegExp(`${key}:\\s*([0-9_]+)`).exec(text);
+  return match ? Number(match[1].replace(/_/g, '')) : undefined;
+};
+
+/** Every project name mapped to the config text that declares it. **/
+const projectConfigs = (): Map<string, string> => {
+  const byName = new Map<string, string>();
+  for (const path of projectConfigPaths(read('vitest.config.ts')) as string[]) {
+    const text = read(path);
+    byName.set(projectName(text) as string, text);
+  }
+  return byName;
+};
+
+describe('the compile and resolver projects raise their own timeouts', () => {
+  it('gives every heavy project both a testTimeout and a hookTimeout above the floor', () => {
+    const configs = projectConfigs();
+    for (const project of HEAVY_PROJECTS) {
+      const text = configs.get(project);
+      expect(text, `${project} is no longer a vitest project`).toBeTruthy();
+      for (const key of ['testTimeout', 'hookTimeout'] as const) {
+        const value = declaredTimeout(text as string, key);
+        expect(value, `${project} declares no ${key}, so it runs on vitest's 10s default`).toBeDefined();
+        expect(value, `${project}'s ${key} is below the floor`).toBeGreaterThanOrEqual(HEAVY_TIMEOUT_FLOOR);
+      }
+    }
+  });
+
+  // THE regression: a project that compiles or spawns lands on the 10s default, passes alone
+  // and fails only when its batch competes for the CPU.
+  it('classifies every project the root config declares, exactly once', () => {
+    const classified = [...HEAVY_PROJECTS, ...LIGHT_PROJECTS];
+    const declared = [...projectConfigs().keys()];
+    expect([...new Set(classified)]).toHaveLength(classified.length);
+    expect(classified.slice().sort()).toEqual(declared.slice().sort());
   });
 });
