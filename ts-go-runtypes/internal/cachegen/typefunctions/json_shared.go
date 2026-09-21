@@ -4,32 +4,12 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// jsonWireSupports is the ONE supported-kind set for every JSON-wire
-// family — prepareForJson, restoreFromJsonMutate, stringifyJson, and the
-// compact / prepare-safe / compact-restore variants that already
-// delegated. The families share the set by definition (they are stages
-// of the same wire format), so a kind gaining JSON support lands here
-// once and covers all of them.
-//
-// Per-kind notes (family-specific behavior lives in each family's Emit):
-//   - KindNever / KindPromise / SubKindNonSerializable are SUPPORTED so
-//     the renderer compiles the entry and each family's Emit surfaces
-//     its own runtime-throwing factory (ref: nodes/atomic/never.ts,
-//     nodes/native/promise.ts).
-//   - KindArray gates on a non-nil child — a malformed KindArray with
-//     Child=nil would reach Emit and panic.
-//   - KindUnion gates on members; the families encode/decode the
-//     `[memberIndex, transformedValue]` envelope per-member (see
-//     json_prepare.go / json_restore.go union arms).
-//   - KindIntersection is resolved by tsgo at the checker layer
-//     (`A & B` → merged object literal); supported as a defensive noop
-//     in case a resolution path produces an unresolved intersection.
-//   - KindTemplateLiteral is string-flavoured at runtime — noop.
-//   - Function-ish kinds emit a noop body at top level; object-property
-//     children of these kinds are filtered out by the object emits.
-//   - KindClass: Date is atomic (its own toJSON); user classes
-//     (SubKindNone) use the object emit; Map/Set materialise into
-//     JSON-encodable arrays; Temporal types are atomic leaves.
+// jsonWireSupports is the ONE supported-kind set for every JSON-wire family (prepare, restore,
+// stringify and the compact / safe variants), so a kind gaining JSON support lands here once.
+// KindNever / KindPromise / SubKindNonSerializable are SUPPORTED so each family's Emit can surface
+// its own runtime-throwing factory; KindArray gates on a non-nil child, which Emit would panic on.
+// KindIntersection is resolved by tsgo at the checker layer; supported as a defensive noop in case
+// a resolution path produces an unresolved intersection.
 func jsonWireSupports(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
@@ -80,13 +60,9 @@ func jsonWireSupports(rt *reflection.RunType) bool {
 	return false
 }
 
-// emitElementLoop compiles child under the subscript accessor `v[i]`
-// and wraps its statement-shaped code in a `for` loop from start to
-// v.length — the shared in-place traversal the mutating JSON families
-// (prepare / restore / compact-restore) use for arrays and rest tuple
-// tails. Empty child code collapses the loop to a noop; a CodeNS child
-// propagates so the walker latches the unsupported leaf and the
-// renderer emits alwaysThrow keyed off the child's kind.
+// emitElementLoop is the shared in-place element walk the mutating JSON families (prepare /
+// restore / compact-restore) use for arrays and rest tuple tails. Empty child code collapses the
+// loop to a noop; a CodeNS child propagates so the walker latches the unsupported leaf.
 func emitElementLoop(child *reflection.RunType, ctx *EmitContext, v, start string) RTCode {
 	iVar := ctx.NextLocalVar("i")
 	ctx.SetChildAccessor(v + "[" + iVar + "]")
@@ -98,11 +74,10 @@ func emitElementLoop(child *reflection.RunType, ctx *EmitContext, v, start strin
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	// Guarded by Array.isArray: the loop bound is the VALUE's own `.length`, so
-	// a wire object such as `{"length": 1e9}` at an array position would
-	// otherwise drive a billion iterations (and, on the restoring families,
-	// a billion property writes) before validate ever saw it. A non-array is
-	// left untouched for the check that follows to refuse.
+	// Guarded by Array.isArray: the loop bound is the VALUE's own `.length`, so a wire object such
+	// as `{"length": 1e9}` would otherwise drive a billion iterations (and, on the restoring
+	// families, a billion property writes) before validate ever saw it. A non-array is left
+	// untouched for the check that follows to refuse.
 	body := "if (Array.isArray(" + v + ")) {for (let " + iVar + " = " + start + "; " + iVar + " < " + v + ".length; " + iVar + "++) {" + childRT.Code + "}}"
 	return RTCode{Code: body, Type: CodeS}
 }

@@ -8,71 +8,44 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// StringifyJsonEmitter implements the `stringifyJson` rt function —
-// the single-pass JSON serialiser that builds the output string
-// directly from the TYPE rather than mutating `v` in place and
-// delegating to JSON.stringify. Extras are stripped by construction:
-// the emit walks declared members only, so unknown keys never reach
-// the output regardless of what's on `v`.
-//
-// Paired with RestoreFromJsonEmitter — round-trip
-// `restoreFromJsonMutate(JSON.parse(stringifyJson(v)))` must deep-equal v
-// for every valid sample. Output is observably equivalent to
-// `JSON.stringify(prepareForJson(v))` modulo property order (the spec
-// sorts optional members first; we keep declaration order) and the
-// no-mutation contract on `v`.
-//
-// Mirrors the per-kind switch in
-// (ref: packages/run-types/src/rtCompilers/json/stringifyJson.ts)
-// (`createStringifyCompiler`).
+// StringifyJsonEmitter implements the `stringifyJson` rt function: the single-pass JSON serialiser
+// that builds the output string straight from the TYPE instead of mutating `v` and delegating to
+// JSON.stringify. It walks declared members only, so unknown keys never reach the output.
+// Paired with RestoreFromJsonEmitter — the round-trip
+// `restoreFromJsonMutate(JSON.parse(stringifyJson(v)))` must deep-equal v. Output is observably
+// `JSON.stringify(prepareForJson(v))` but for property order (optional members sort first here) and
+// the no-mutation contract on `v`.
 type StringifyJsonEmitter struct{}
 
-// Args — same single-arg shape as prepareForJson; the value to
-// stringify enters via `v`.
 func (StringifyJsonEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-// Supports gates the renderer's top-level loop. Mirrors the
-// stringifyJson which supports every reflection kind (some via
-// emit-time throws — see Emit below). Function-shaped kinds at root
-// throw at emit; function-shaped as object-property children get
-// dropped at the parent loop.
+// Supports keeps the function-shaped kinds: at root they emit the unsupported throw, as an object
+// property child they are dropped by the parent loop.
 func (StringifyJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
 
-// IsRTInlined delegates to DefaultIsRTInlined — same heuristics as
-// prepareForJson.
 func (StringifyJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
 
-// IsNoopType — root-only: the delegation arms whose whole body is native
-// JSON.stringify (see isNoopForStringifyJson). Deliberately NOT
-// NoopComposeAround: sj parents concatenate the child call's JSON fragment,
-// so the gate's empty-code composition would drop properties from the
-// output.
+// IsNoopType — root-only, the arms whose whole body is native JSON.stringify. Deliberately NOT
+// NoopComposeAround: an sj parent concatenates the child call's JSON fragment, so composing empty
+// code would drop properties from the output.
 func (StringifyJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForStringifyJson(rt, ctx)
 }
 
-// ReturnName is `v` — but the emit body returns a JSON string built
-// from `v`, not `v` itself. The arg name is kept for parity with the
-// other families.
+// ReturnName is `v` for parity with the other families, though the body returns a JSON string.
 func (StringifyJsonEmitter) ReturnName() string {
 	return "v"
 }
 
-// Emit dispatches the per-kind switch. Each arm mirrors the body of
-// the `createStringifyCompiler` switch
-// (rtCompilers/json/stringifyJson.ts:41).
-//
-// Convention: every arm returns a JS expression (CodeE) that
-// evaluates to a JSON-encoded string fragment. Root-frame arms
-// produce a complete JSON document; nested arms produce a fragment
-// the parent emit concatenates with `+`. `IsRoot()` distinguishes
-// the two (mirrors `comp.getNestLevel(runType) === 0`).
+// Emit dispatches the per-kind switch; every arm returns a CodeE expression evaluating to a
+// JSON-encoded string fragment. A root-frame arm produces a complete JSON document, a nested one a
+// fragment the parent concatenates with `+`; `IsRoot()` is what tells them apart.
 func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -81,31 +54,24 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 	switch rt.Kind {
 
 	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject:
-		// (ref: stringifyJson.ts:44-46, 100-101) — delegate to
-		// JSON.stringify when the type carries no schema info.
+		// The type carries no schema info.
 		return RTCode{Code: "JSON.stringify(" + v + ")", Type: CodeE}
 
 	case reflection.KindString, reflection.KindTemplateLiteral:
-		// (ref: stringifyJson.ts:105-112) — string + template-literal
-		// runtime values are plain strings.
+		// A template-literal runtime value is a plain string.
 		return RTCode{Code: "JSON.stringify(" + v + ")", Type: CodeE}
 
 	case reflection.KindBigInt:
-		// (ref: stringifyJson.ts:47-48) — manually-quoted decimal
-		// string; matches `JSON.stringify(v.toString())` byte-for-byte
-		// but skips one function call.
+		// Quoted by hand: byte-for-byte `JSON.stringify(v.toString())` minus one call.
 		return RTCode{Code: "'\"'+" + v + ".toString()+'\"'", Type: CodeE}
 
 	case reflection.KindBoolean:
-		// (ref: stringifyJson.ts:49-50).
 		return RTCode{Code: "(" + v + " ? 'true' : 'false')", Type: CodeE}
 
 	case reflection.KindEnum:
-		// (ref: stringifyJson.ts:51-53) — number-indexed enums emit the
-		// bare value (already a valid JSON number literal at any
-		// position); string enums quote via JSON.stringify. The
-		// serializer populates RunType.IndexT for every enum so we can
-		// branch on the underlying numeric/string kind here.
+		// A number-indexed enum emits the bare value, already a valid JSON number literal at any
+		// position; a string enum quotes through JSON.stringify. The serializer populates IndexT
+		// for every enum, which is what the branch reads.
 		if rt.IndexT != nil {
 			indexResolved := ctx.ResolveRef(rt.IndexT)
 			if indexResolved != nil && indexResolved.Kind == reflection.KindNumber {
@@ -118,29 +84,21 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 		return emitLiteralStringifyJson(rt, ctx, v)
 
 	case reflection.KindNever:
-		// (ref: stringifyJson.ts:90-91) — `Never type cannot be stringified.`
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindNumber:
-		// (ref: stringifyJson.ts:92-99) — at root, `String(v)` wraps
-		// the value into a JS string so the RT fn returns a
-		// JSON-parseable result. At non-root, the bare `v` works
-		// because the parent concatenates with `+` (auto-stringifies)
-		// AND a number coerces correctly under `Array.join(',')`.
+		// At root `String(v)` makes the rt fn return a JSON-parseable string. Nested, the bare `v`
+		// works: the parent concatenates with `+` and a number coerces correctly under `join(',')`.
 		if ctx.IsRoot() {
 			return RTCode{Code: "String(" + v + ")", Type: CodeE}
 		}
 		return RTCode{Code: v, Type: CodeE}
 
 	case reflection.KindNull:
-		// At root, `String(null)` is the JSON document `"null"`. At
-		// non-root, emit the CONSTANT `'null'` string rather than the
-		// bare value: a bare `null` is fine under `+` concatenation
-		// (object / tuple slots) but `Array.prototype.join(',')` coerces
-		// null to the empty string, so the array / set push+join path
-		// would render `[null,null]` as `[,]` (invalid JSON). The `'null'`
-		// literal is correct in every parent context (a `null`-typed slot
-		// only ever holds null).
+		// Nested, emit the CONSTANT `'null'` rather than the bare value: a bare `null` is fine
+		// under `+` concatenation but `join(',')` coerces it to the empty string, so the array /
+		// Set path would render `[null,null]` as `[,]` (invalid JSON). The literal is correct in
+		// every parent context, since a `null`-typed slot only ever holds null.
 		if ctx.IsRoot() {
 			return RTCode{Code: "String(" + v + ")", Type: CodeE}
 		}
@@ -156,12 +114,9 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindUndefined:
-		// (ref: stringifyJson.ts:113-118) — at root, emit `undefined`
-		// so the RT fn returns the JS value undefined (top-level
-		// undefined is not a valid JSON document). In an array
-		// position, emit `'null'` so the slot is JSON-valid. Inside
-		// an object, emit `null` (still JSON-valid; the property
-		// emit logic handles the optional case separately).
+		// At root the rt fn returns the JS value undefined, top-level undefined not being a valid
+		// JSON document; in an array position `'null'` keeps the slot JSON-valid, and inside an
+		// object `null` does, the property emit handling the optional case separately.
 		if ctx.IsRoot() {
 			return RTCode{Code: "undefined", Type: CodeE}
 		}
@@ -171,11 +126,8 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 		return RTCode{Code: "null", Type: CodeE}
 
 	case reflection.KindVoid:
-		// (ref: stringifyJson.ts:120-121) — void normalises to `undefined`,
-		// so it needs the SAME three-way branch as KindUndefined above: at
-		// root emit `undefined`; in an array / Set parent emit the constant
-		// `'null'` (a bare `undefined` would coerce to '' under `.join(',')`
-		// and corrupt the array, e.g. `[,]`); else emit `null`.
+		// void normalises to `undefined`, so it takes the SAME three-way branch as KindUndefined:
+		// a bare `undefined` under an array / Set parent would coerce to '' in `.join(',')`.
 		if ctx.IsRoot() {
 			return RTCode{Code: "undefined", Type: CodeE}
 		}
@@ -197,8 +149,7 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 		}
 		switch rt.SubKind {
 		case reflection.SubKindDate:
-			// (ref: stringifyJson.ts:405-406) — manually quoted to skip
-			// one JSON.stringify call.
+			// Quoted by hand to skip one JSON.stringify call.
 			return RTCode{Code: "'\"'+" + v + ".toJSON()+'\"'", Type: CodeE}
 		case reflection.SubKindNone:
 			structural := emitObjectStringifyJson(rt, ctx, v)
@@ -211,7 +162,6 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindPromise:
-		// (ref: stringifyJson.ts:250-252).
 		return RTCode{Code: "", Type: CodeNS}
 
 	case reflection.KindProperty, reflection.KindPropertySignature:
@@ -227,45 +177,29 @@ func (StringifyJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ Cod
 		return emitTupleMemberStringifyJson(rt, ctx, v)
 
 	case reflection.KindUnion:
-		// Emits JSON for the flat-union wire shape directly (see
-		// union_flat.go).
+		// JSON for the flat-union wire shape, emitted directly (union_flat.go).
 		return emitUnionStringifyJsonFlat(rt, ctx, v)
 
 	case reflection.KindFunction, reflection.KindMethod,
 		reflection.KindMethodSignature, reflection.KindCallSignature:
-		// (ref: stringifyJson.ts:183-187) — function-shaped at root
-		// throws; param-shaped is handled by function-param emit
-		// (not reachable as a top-level RT fn).
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	return RTCode{Code: "", Type: CodeNS}
 }
 
-// EmitDependencyCall mirrors PrepareForJsonEmitter's. stringifyJson
-// is a pure read of `v` so the dep-call shape is a plain call —
-// `<childHash>.fn(<v>)` returns the child's JSON-string contribution;
-// the parent embeds that string into the surrounding JSON shape.
-// Self-recursive calls drop the `.fn` indirection.
+// EmitDependencyCall is a plain `<childHash>.fn(<v>)` call, stringifyJson being a pure read of `v`:
+// it returns the child's JSON-string contribution, which the parent embeds in the surrounding
+// shape. Self-recursive calls drop the `.fn` indirection.
 func (StringifyJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
 
-// Finalize wraps the emitted body in `return …` for expression
-// bodies. CodeRB bodies already contain their own `return` statements
-// (multi-line for-loop bodies that build a result via local vars).
-//
-// Atomic-noop kinds collapse to a JSON.stringify(v) noop — there's
-// no "true identity" for stringifyJson because the input is a value
-// and the output is a string; the family noop (entryTuple.ts
-// noopStringify) runs JSON.stringify at call time. Root arms that
-// delegate to JSON.stringify outright (string / template literal /
-// any / unknown / object / primitive literals / string enums) arrive
-// here as exactly `return JSON.stringify(v)` after the walker's root
-// CodeE wrap — byte-for-byte the family noop, so flag them too (the
-// same exact-match rule tb/fb apply to `return Ser` / `return ret`).
-// Number/null roots emit `return String(v)` — NOT equivalent
-// (String(NaN) is "NaN", JSON.stringify(NaN) is "null") — and stay
-// full bodies.
+// Finalize collapses an atomic-noop kind to a `JSON.stringify(v)` noop: stringifyJson has no "true
+// identity", the input being a value and the output a string, so the family noop runs
+// JSON.stringify at call time. A root arm that delegates to JSON.stringify outright arrives here as
+// exactly `return JSON.stringify(v)`, byte-for-byte that noop, so it is flagged too. A number /
+// null root emits `return String(v)`, NOT the same (String(NaN) is "NaN", JSON.stringify(NaN) is
+// "null"), and stays a full body.
 func (StringifyJsonEmitter) Finalize(raw string) (string, bool) {
 	code := normaliseWhitespace(raw)
 	if code == "" || code == "return JSON.stringify(v)" {
@@ -274,9 +208,7 @@ func (StringifyJsonEmitter) Finalize(raw string) (string, bool) {
 	return code, false
 }
 
-// emitLiteralStringifyJson — (ref: stringifyJson.ts:56-89) defers
-// literal kinds to their underlying primitive emit. We replicate
-// the dispatch inline based on the literal's Flags / shape.
+// emitLiteralStringifyJson defers a literal to its underlying primitive emit.
 func emitLiteralStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	switch literalFlavour(rt) {
 	case litBigInt:
@@ -285,15 +217,10 @@ func emitLiteralStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string
 		// Unsupported — symmetric with emitLiteralPrepareForJson's symbol arm.
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	// Primitive literal (number / string / boolean / null) — defer
-	// to JSON.stringify, which handles each shape correctly. This
-	// matches the `JSON.stringify(${comp.vλl})` default branch.
+	// A primitive literal (number / string / boolean / null) defers to JSON.stringify.
 	return RTCode{Code: "JSON.stringify(" + v + ")", Type: CodeE}
 }
 
-// emitArrayStringifyJson — (ref: stringifyJson.ts:125-144). Builds
-// the JSON array by mapping each element through the child emit and
-// joining with ','.
 func emitArrayStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "'[]'", Type: CodeE}
@@ -316,36 +243,21 @@ func emitArrayStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) 
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// emitObjectStringifyJson — (ref: stringifyJson.ts:367-401)
-// (compileStringifyInterface / compileInterfaceIntoArray /
-// compileStringifyClass). Two paths matching the perf split:
-//
-//  1. **At least one required child** — static `+` concat with
-//     the optional-first sort + `skipCommas=true` on the last
-//     iteration. Fast — pure string concatenation, no array
-//     allocation, no runtime filtering. The optional-first sort
-//     guarantees the last child is required (always emits a
-//     non-empty fragment), so the trailing-comma logic stays
-//     static.
-//
-//  2. **All children optional** — fallback array-join path mirroring
-//     `compileInterfaceIntoArray`. Each prop's emit
-//     conditionally contributes (empty string when undefined); the
-//     parent runs `[...emits].filter(Boolean).join(',')` to drop
-//     gaps and rejoin. Slower (extra array + filter), but correct
-//     when every child could be absent at runtime.
-//
-// Property declaration order within each "optional" group is
-// preserved (stable sort).
+// emitObjectStringifyJson has two paths, split on cost.
+// At least one required child: static `+` concat, no array and no runtime filtering. The
+// optional-first sort makes the last child a required one, which always emits a non-empty
+// fragment, so `skipCommas` on the last iteration keeps the trailing-comma logic static.
+// All children optional: an array-join fallback, since every fragment can be empty at runtime;
+// `[…].filter(Boolean).join(',')` drops the gaps, at the cost of an extra array and filter.
+// The sort is stable, so declaration order holds within each group.
 func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface is function-like (DataOnly = never); treat it like a
 	// bare function (alwaysThrow at root, dropped at a property), not an object.
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
-	// Publish the named-property set so the index signature's for-in loop skips
-	// declared keys (each named prop is emitted with its own type), instead of
-	// stringifying them again under the index value's transform (G1).
+	// Publish the named-property set so the index signature's for-in loop skips declared keys,
+	// which are emitted with their own type rather than the index value's (G1).
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
 	// sigs is one pending slot for ALL the live index signatures, in the first
 	// one's position: the object runs ONE key sweep (emitIndexSignaturesStringifyJson).
@@ -370,11 +282,9 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
-		// The key sweep may produce an empty fragment when the object has no
-		// own keys, so it is "optional-equivalent" for both the sort and the
-		// all-optional check (getJsonStringifySortedChildren +
-		// compileInterfaceIntoArray do the same).
-		// By id, not pointer: a patternProperties entry is a synthetic member built
+		// The key sweep produces an empty fragment when the object has no own keys, so it counts
+		// as optional for both the sort and the all-optional check.
+		// Matched by id, not pointer: a patternProperties entry is a synthetic member built
 		// afresh by every objectMembers call.
 		if resolved.Kind == reflection.KindIndexSignature {
 			if len(sigs) > 0 && resolved.ID == sigs[0].ID {
@@ -396,14 +306,9 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 	if len(pending) == 0 {
 		return RTCode{Code: "'{}'", Type: CodeE}
 	}
-	// Stable sort, optional-first. Preserves declaration order
-	// within each group. For the "at least one required" path the
-	// sort guarantees the last iteration lands on a required
-	// child — required children always emit a non-empty fragment,
-	// so the `skipCommas=true` set on the final iteration cleanly
-	// strips the trailing comma. For the "all optional" path the
-	// sort has no effect (every child is optional) — the
-	// filter-and-join wrap handles correctness regardless of order.
+	// Stable optional-first sort, so the last iteration lands on a required child, whose fragment
+	// is never empty and can carry `skipCommas`. With every child optional the sort does nothing;
+	// the filter-and-join wrap is correct whatever the order.
 	for i := 1; i < len(pending); i++ {
 		for j := i; j > 0; j-- {
 			if pending[j-1].optional || !pending[j].optional {
@@ -414,20 +319,14 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 	}
 
 	if allOptional {
-		// Array-join fallback — compileInterfaceIntoArray. We
-		// run each prop emit with skipCommas=true (no per-prop
-		// trailing comma) so the prop returns a bare value fragment
-		// or empty string. The outer wrap filters the empties out
-		// and rejoins with `,`.
+		// Array-join fallback: each prop emits with skipCommas, so it returns a bare fragment or
+		// the empty string, and the outer wrap filters the empties out and rejoins with `,`.
 		parts := make([]string, 0, len(pending))
 		for _, p := range pending {
-			// Re-establish skipCommas INSIDE the loop, per iteration: a
-			// nested-object value child runs its own prop loop and clears
-			// sjSkipCommas at its end, so a single set-before-loop would let
-			// a later sibling capture the stale `false` and bake a trailing
-			// comma into its fragment (invalid JSON after filter+join).
-			// Mirrors the per-iteration set in the at-least-one-required
-			// path below.
+			// Re-set skipCommas per iteration: a nested-object value child runs its own prop loop
+			// and clears sjSkipCommas at its end, so a single set-before-loop would let a later
+			// sibling capture the stale `false` and bake in a trailing comma (invalid JSON after
+			// filter + join).
 			setSkipCommas(ctx, true)
 			childRT := compile(p)
 			if childRT.Type == CodeNS {
@@ -443,18 +342,13 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 		if len(parts) == 0 {
 			return RTCode{Code: "'{}'", Type: CodeE}
 		}
-		// `[a, b, ...].filter(Boolean).join(',')` — Boolean coerces
-		// '' to false and any non-empty string to true, so empty
-		// entries drop out. Equivalent to the `ns.push` + final
-		// `ns.join(',')` shape (one allocation + one walk), inlined
-		// without the IIFE so the caller still sees a CodeE result.
+		// `filter(Boolean)` drops the empty fragments; inlined without an IIFE so the caller still
+		// sees a CodeE result.
 		return RTCode{Code: "'{'+[" + strings.Join(parts, ",") + "].filter(Boolean).join(',')+'}'", Type: CodeE}
 	}
 
-	// At-least-one-required path: static `+` concat. skipCommas set
-	// on the last iteration so the trailing required prop omits the
-	// comma; preceding props (required and optional alike) include
-	// it.
+	// At-least-one-required path: skipCommas on the last iteration, so the trailing required prop
+	// omits the comma every preceding prop carries.
 	parts := make([]string, 0, len(pending))
 	for i, p := range pending {
 		isLast := i == len(pending)-1
@@ -476,14 +370,9 @@ func emitObjectStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string)
 	return RTCode{Code: "'{'+" + strings.Join(parts, "+") + "+'}'", Type: CodeE}
 }
 
-// emitPropertyStringifyJson — (ref: stringifyJson.ts:199-216).
-// Renders one property as `'"name":' + childCode + ','` (or without
-// the trailing comma when the parent flagged skipCommas).
-//
-// Optional properties: when `v.name` is undefined, the entire
-// fragment collapses to the empty string so the JSON object doesn't
-// carry a `"name":undefined` slot (invalid JSON) or a dangling
-// comma.
+// emitPropertyStringifyJson renders one property as `'"name":' + childCode + ','`, dropping the
+// comma when the parent flagged skipCommas. An undefined optional collapses the whole fragment to
+// the empty string, so the object carries neither a `"name":undefined` slot nor a dangling comma.
 func emitPropertyStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
@@ -497,12 +386,10 @@ func emitPropertyStringifyJson(rt *reflection.RunType, ctx *EmitContext, v strin
 		return RTCode{Code: "", Type: CodeE}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)
-	// Capture the parent's skipCommas BEFORE compiling the value child: an
-	// INLINED nested object inside that compile runs its own prop loop and
-	// sets/clears the walker-level flag, so a post-compile read would see
-	// the nested loop's leftovers (trailing-comma corruption — invalid
-	// JSON). The flag is an argument from the immediate parent to THIS
-	// emit; nothing inside the child can legitimately change it.
+	// Capture the parent's skipCommas BEFORE compiling the value child: an INLINED nested object
+	// runs its own prop loop and sets / clears the walker-level flag, so a post-compile read would
+	// see the nested loop's leftovers and corrupt the trailing comma. The flag is an argument from
+	// the immediate parent to THIS emit; nothing inside the child may change it.
 	skipCommas := getSkipCommas(ctx)
 	ctx.SetChildAccessor(accessor)
 	childRT := ctx.CompileChild(rt.Child, CodeE)
@@ -518,83 +405,46 @@ func emitPropertyStringifyJson(rt *reflection.RunType, ctx *EmitContext, v strin
 	if childRT.Code == "" {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	// `"name":` prefix as a JS string literal — double-quoted so the
-	// emitted JSON output uses double quotes around the property
-	// name (the JSON spec requires them).
+	// Double-quoted inside the JS literal, as JSON requires around a property name.
 	propPrefix := "'" + jsonPropPrefix(rt.Name, rt.IsSafeName) + "'"
 	sepCode := "','"
 	if skipCommas {
 		sepCode = "''"
 	}
 	if isEnumerabilityGuarded(rt) {
-		// A guarded (lib-global-inherited / `@nonEnumerable`) property is
-		// written only when it is an OWN-ENUMERABLE property of v —
-		// `JSON.stringify` semantics — so a value carrying it non-enumerably
-		// (a vanilla error's name/message/stack) omits the key.
+		// A guarded (lib-global-inherited / `@nonEnumerable`) property is written only when it is
+		// OWN-ENUMERABLE on v, as `JSON.stringify` does, so a value carrying it non-enumerably
+		// (a vanilla error's name / message / stack) omits the key.
 		return RTCode{Code: "(!" + propertyIsEnumerableGuard(v, rt.Name) + " ? '' : " + propPrefix + "+" + childRT.Code + "+" + sepCode + ")", Type: CodeE}
 	}
 	if rt.Optional {
-		// `accessor === undefined ? '' : propPrefix + childCode + sep`
 		return RTCode{Code: "(" + accessor + " === undefined ? '' : " + propPrefix + "+" + childRT.Code + "+" + sepCode + ")", Type: CodeE}
 	}
 	return RTCode{Code: propPrefix + "+" + childRT.Code + "+" + sepCode, Type: CodeE}
 }
 
-// jsonPropPrefix renders the JS string literal contents (without the
-// outer single quotes — the caller wraps them) for one property's
-// `"name":` prefix.
-//
-// Critical detail: the prefix needs to survive TWO levels of
-// interpretation — JS parsing of the source literal AND the eventual
-// JSON.parse over the emitted output. A property name like
-// `weird name \n?` (with a literal newline char) must end up in the
-// JSON output as `"weird name \n?"` (with the JSON escape sequence,
-// NOT a literal newline — JSON.parse rejects literal control chars
-// inside string literals).
-//
-// Approach:
-//  1. JSON-marshal the name to get a valid JSON string literal —
-//     `json.Marshal("weird name \n?")` → `"weird name \n?"` (with
-//     backslash + n as text).
-//  2. JS-escape the result for embedding in a single-quoted JS
-//     literal — backslashes and single quotes get escaped.
-//  3. Append the `:` separator inside the same JS literal.
-//
-// When JS evaluates the emitted literal, the result is the
-// JSON-encoded property prefix (`"weird name \n?":` as a text
-// string). Concatenated into the JSON output, it produces valid
-// JSON; JSON.parse then interprets `\n` as a newline char in the
-// returned object's key.
+// jsonPropPrefix renders the JS string literal contents (the caller wraps the single quotes) for
+// one property's `"name":` prefix. The prefix must survive TWO levels of interpretation, JS parsing
+// of the source literal and the eventual JSON.parse over the output: a name holding a literal
+// newline has to reach the output as the escape `\n`, which JSON.parse rejects as a raw control
+// char. Hence JSON-marshal the name first, then JS-escape that result for a single-quoted literal.
 func jsonPropPrefix(name string, isSafeName bool) string {
 	if isSafeName {
-		// Identifier-safe name: emit `"<name>":` directly. No
-		// escaping needed — safe names contain only ASCII identifier
-		// chars.
+		// A safe name holds only ASCII identifier chars, so it needs no escaping.
 		return `"` + name + `":`
 	}
-	// JSON-encode the name first to produce a valid JSON string
-	// literal. Result is bytes like `"weird name \n?"` where the
-	// backslash and `n` are SEPARATE characters in the byte stream.
+	// The encoded bytes look like `"weird name \n?"`, backslash and `n` SEPARATE in the stream.
 	jsonEncoded, err := json.Marshal(name)
 	if err != nil {
-		// json.Marshal on a string can't fail under normal
-		// circumstances; fall back to the unsafe-escape path on
-		// error.
+		// json.Marshal on a string cannot fail normally; fall back to the unsafe-escape path.
 		jsonEncoded = []byte(`"` + name + `"`)
 	}
-	// Embed inside a single-quoted JS literal — escape backslashes
-	// and single quotes so JS evaluates the literal to the original
-	// JSON-encoded bytes verbatim.
+	// Escaped so JS evaluates the literal back to the JSON-encoded bytes verbatim.
 	return jsEscapeForSingleQuote(string(jsonEncoded)) + ":"
 }
 
-// jsEscapeForSingleQuote escapes only the two characters that JS's
-// single-quoted-string parser would interpret: backslash and
-// single-quote. Mirrors the canonical approach for embedding
-// JSON-encoded text inside a JS source literal — JS evaluates the
-// literal to recover the original byte sequence, which is then a
-// valid JSON fragment ready for concatenation into a larger JSON
-// output.
+// jsEscapeForSingleQuote escapes only the two characters JS's single-quoted-string parser
+// interprets, backslash and single quote, so evaluating the literal recovers the original bytes.
 func jsEscapeForSingleQuote(s string) string {
 	var b strings.Builder
 	b.Grow(len(s) + 4)
@@ -623,15 +473,13 @@ func emitIndexSignatureStringifyJson(rt *reflection.RunType, ctx *EmitContext, v
 	return emitIndexSignaturesStringifyJson([]*reflection.RunType{rt}, ctx, v)
 }
 
-// emitIndexSignaturesStringifyJson is the ONE key sweep an object runs for all
-// its index signatures: a key is written once, by the first signature whose
-// pattern matches it (an unpatterned signature matches every key), or the way
-// native JSON writes it when no pattern does (omitted when native JSON would
-// omit it), an index signature being open and a non-matching key validation's
-// to refuse. One sweep per signature wrote a key once per signature admitting
-// it: twice for the string and number halves of a split key, and twice for
-// every key under a plain signature beside a pattern one. A signature whose
-// value writes nothing (an `undefined` value) omits the keys it matches.
+// emitIndexSignaturesStringifyJson is the ONE key sweep an object runs for all its index
+// signatures: a key is written once, by the first signature whose pattern matches it (an
+// unpatterned signature matches every key), or the way native JSON writes it when no pattern does,
+// an index signature being open and a non-matching key validation's to refuse. One sweep PER
+// signature wrote a key once per signature admitting it: twice for the string and number halves of
+// a split key, and twice for every key under a plain signature beside a pattern one. A signature
+// whose value writes nothing (an `undefined` value) omits the keys it matches.
 func emitIndexSignaturesStringifyJson(sigs []*reflection.RunType, ctx *EmitContext, v string) RTCode {
 	keyVar := ctx.NextLocalVar("k")
 	// Same capture-on-entry rule as emitPropertyStringifyJson, see there.
@@ -673,9 +521,7 @@ func emitIndexSignaturesStringifyJson(sigs []*reflection.RunType, ctx *EmitConte
 		text := ctx.NextLocalVar("s")
 		arms.WriteString("const " + text + " = JSON.stringify(" + accessor + "); if (" + text + " !== undefined) " + arr + ".push(JSON.stringify(" + keyVar + ") + ':' + " + text + ");")
 	}
-	// The trailing `,` matches the parent's skipCommas flag (same rule as
-	// emitPropertyStringifyJson): the outer wrap of an all-optional object
-	// filters the fragments and joins them itself.
+	// The trailing `,` follows the parent's skipCommas flag, as in emitPropertyStringifyJson.
 	trailingSep := "+','"
 	if skipCommas {
 		trailingSep = ""
@@ -687,8 +533,6 @@ func emitIndexSignaturesStringifyJson(sigs []*reflection.RunType, ctx *EmitConte
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// emitTupleStringifyJson — (ref: stringifyJson.ts:269-279).
-// `'[' + slotEmits.join('+') + ']'`. Empty tuple → `'[]'`.
 func emitTupleStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "'[]'", Type: CodeE}
@@ -709,13 +553,8 @@ func emitTupleStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) 
 	return RTCode{Code: "'['+" + strings.Join(parts, "+") + "+']'", Type: CodeE}
 }
 
-// emitTupleMemberStringifyJson — (ref: stringifyJson.ts:239-249) for
-// non-rest slots, (ref: stringifyJson.ts:217-238) (the KindRest case)
-// for rest slots. Each non-rest slot emits its child code prefixed by
-// a separator (`,` unless the slot is at index 0). Optional slots
-// emit `'null'` when undefined. Rest slots emit a for-loop that
-// builds a `,`-joined string of the trailing items, prefixed by the
-// separator and an early-return for the empty-trailing case.
+// emitTupleMemberStringifyJson prefixes each non-rest slot with a `,` separator unless it sits at
+// index 0, and emits `'null'` for an undefined optional slot.
 func emitTupleMemberStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if isRestTupleMember(rt) {
 		return emitTupleRestStringifyJson(rt, ctx, v)
@@ -737,10 +576,8 @@ func emitTupleMemberStringifyJson(rt *reflection.RunType, ctx *EmitContext, v st
 		}
 		return RTCode{Code: sep + "'null'", Type: CodeE}
 	}
-	// Function-typed tuple slots fall through to CompileChild — the
-	// function arm returns CodeNS and the renderer surfaces an
-	// alwaysThrow. Emitting bare `'null'` (the previous silent path)
-	// produced a lossy stringifier.
+	// Function-typed tuple slots fall through to CompileChild and latch as unsupported: a bare
+	// `'null'` would produce a lossy stringifier.
 	idxLit := positionStr(rt)
 	accessor := v + "[" + idxLit + "]"
 	ctx.SetChildAccessor(accessor)
@@ -764,12 +601,8 @@ func emitTupleMemberStringifyJson(rt *reflection.RunType, ctx *EmitContext, v st
 	return RTCode{Code: sep + childCode, Type: CodeE}
 }
 
-// emitTupleRestStringifyJson handles the trailing `...rest: T[]` slot
-// of a tuple — (ref: stringifyJson.ts:217-238) (the KindRest case).
-// Emits a for-loop that walks v from the rest's start index, builds
-// per-item JSON fragments, and joins with `,`. Early-returns the
-// empty string when there are no trailing items. Prefixed with `,`
-// when the rest slot is not at position 0.
+// emitTupleRestStringifyJson walks v from the trailing `...rest: T[]` slot's start index, joining
+// the per-item fragments with `,` and returning the empty string when there is no trailing item.
 func emitTupleRestStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	startPos := positionStr(rt)
 	isFirst := positionInt(rt) == 0
@@ -784,8 +617,7 @@ func emitTupleRestStringifyJson(rt *reflection.RunType, ctx *EmitContext, v stri
 	if resolved := ctx.ResolveRef(rt.Child); resolved == nil {
 		return RTCode{Code: sep + "''", Type: CodeE}
 	}
-	// Function-typed rest element falls through to CompileChild — the
-	// function arm returns CodeNS and the renderer emits alwaysThrow.
+	// A function-typed rest element falls through to CompileChild and latches as unsupported.
 	iVar := ctx.NextLocalVar("i")
 	arrName := ctx.NextLocalVar("res")
 	itemName := ctx.NextLocalVar("its")
@@ -805,10 +637,8 @@ func emitTupleRestStringifyJson(rt *reflection.RunType, ctx *EmitContext, v stri
 	return RTCode{Code: body, Type: CodeRB}
 }
 
-// emitNativeIterableStringifyJson handles Map / Set —
-// (ref: stringifyJson.ts:407-414) + createStringifyIterable lines 446-473.
-// Both iterate `for (const entry of v)`, building per-entry fragments
-// joined as a JSON array.
+// emitNativeIterableStringifyJson builds per-entry fragments for a Map / Set, joined as a JSON
+// array.
 func emitNativeIterableStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	isMap := rt.SubKind == reflection.SubKindMap
 	innerTypes := iterableInnerTypes(rt, ctx)
@@ -833,9 +663,7 @@ func emitNativeIterableStringifyJson(rt *reflection.RunType, ctx *EmitContext, v
 		}
 	}
 	if len(childParts) == 0 {
-		// Fall back to JSON.stringify(Array.from(v)) — gives the
-		// same `[[k,v],…]` / `[item,…]` shape produced when
-		// every element is a JSON-noop type.
+		// Same `[[k,v],…]` / `[item,…]` shape, for when every element is a JSON-noop type.
 		return RTCode{Code: "JSON.stringify(Array.from(" + v + "))", Type: CodeE}
 	}
 	jsonItems := ctx.NextLocalVar("ls")
@@ -856,14 +684,10 @@ func emitNativeIterableStringifyJson(rt *reflection.RunType, ctx *EmitContext, v
 
 // --- Helpers ----------------------------------------------------------
 
-// parentIsArrayLike — true when the closest stack frame above us is an
-// array / tuple / native iterable (Map / Set). Used by the undefined +
-// void emit to choose between `'null'` (a JSON literal that survives the
-// `[...].join(',')` the array + Set wires use — a bare `null`/`undefined`
-// would coerce to ” there and corrupt the array) and `null` (object
-// property — the property emit's optional-guard handles wrapping, and
-// object / Map-entry wires concatenate with `+`, which stringifies null
-// correctly). Map / Set parents are KindClass with the Map/Set subkind.
+// parentIsArrayLike reports whether the closest frame above is an array / tuple / Map / Set. The
+// undefined and void emits use it to pick `'null'`, the JSON literal that survives the
+// `[…].join(',')` those wires use (a bare null / undefined coerces to the empty string there),
+// over `null`, which the object and Map-entry wires concatenate with `+` correctly.
 func parentIsArrayLike(ctx *EmitContext) bool {
 	if ctx.walker == nil || len(ctx.walker.Stack) < 2 {
 		return false
@@ -881,12 +705,9 @@ func parentIsArrayLike(ctx *EmitContext) bool {
 	return false
 }
 
-// skipCommas flag plumbing — set on the parent frame so the child
-// property emit can consume it before the parent's loop body
-// continues. Lives as a plain walker bit (sjSkipCommas): it used to be
-// stashed in ContextItems, whose values are emitted verbatim as
-// prologue lines — the stored ""/"1" leaked stray `;` statements into
-// every sj factory that also had real context items.
+// skipCommas is set on the parent frame for the child property emit to consume. It lives as a
+// plain walker bit, NOT in ContextItems, whose values are emitted verbatim as prologue lines and
+// leaked stray `;` statements into every sj factory that also had real context items.
 func setSkipCommas(ctx *EmitContext, value bool) {
 	ctx.walker.sjSkipCommas = value
 }
@@ -899,9 +720,8 @@ func getSkipCommas(ctx *EmitContext) bool {
 	return ctx.walker.sjSkipCommas
 }
 
-// positionInt — typed integer view of TupleMember.Position. Returns 0
-// when Position is nil (defensive — every tuple member should carry
-// a position from the serializer).
+// positionInt is the integer view of TupleMember.Position, 0 when nil (defensive: the serializer
+// gives every tuple member a position).
 func positionInt(rt *reflection.RunType) int {
 	if rt == nil || rt.Position == nil {
 		return 0
