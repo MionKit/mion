@@ -457,8 +457,9 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
 	paramsStrategy, returnStrategy := parserStrategies(method.Options)
-	paramsKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", "formatTransform", encodeFamily(paramsStrategy), serverDecodeFamily(paramsStrategy)}
-	returnKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", encodeFamily(returnStrategy), clientDecodeFamily(returnStrategy)}
+	paramsValidate, paramsErrors := paramsValidateFamilies(paramsStrategy)
+	paramsKeys := []string{paramsValidate, paramsErrors, "formatTransform", encodeFamily(paramsStrategy), serverDecodeFamily(paramsStrategy)}
+	returnKeys := []string{"validate", "validationErrors", encodeFamily(returnStrategy), clientDecodeFamily(returnStrategy)}
 	entry.paramsFns = apiFnSite(entry.paramsId, paramsKeys)
 	entry.returnFns = apiFnSite(entry.returnId, returnKeys)
 	entry.paramsRef = protocol.Site{ID: entry.paramsId}
@@ -519,12 +520,27 @@ func parserStrategies(options map[string]any) (params, ret string) {
 // strategyFromFamilies throw on the bundled lane.
 func encodeFamily(strategy string) string {
 	switch strategy {
-	case "mutate":
+	case "mutate", "mutateStrict":
 		return "prepareForJsonMutate"
 	case "compact":
 		return "compactForJson"
 	default:
 		return "prepareForJsonClone"
+	}
+}
+
+// paramsValidateFamilies mirrors VALIDATE_FAMILY_BY_STRATEGY in core's constants.ts: exactly ONE validator per
+// strategy on the params side, never a separate hasUnknownKeys call. A RETURN is written by the handler rather
+// than a caller, so every return wire keeps the plain pair.
+func paramsValidateFamilies(strategy string) (validate, errors string) {
+	switch strategy {
+	case "mutateStrict":
+		return "validateStrict", "validationErrorsStrict"
+	case "mutate":
+		return "validate", "validationErrors"
+	default:
+		// clone / compact: their decoders already rebuild the declared shape, so only a union can still hide a key.
+		return "validateUnionKeys", "validationErrorsUnionKeys"
 	}
 }
 
@@ -534,7 +550,7 @@ func serverDecodeFamily(strategy string) string {
 	switch strategy {
 	case "compact":
 		return "compactFromJson"
-	case "mutate":
+	case "mutate", "mutateStrict":
 		return "restoreFromJsonMutate"
 	default:
 		return "restoreFromJsonClone"

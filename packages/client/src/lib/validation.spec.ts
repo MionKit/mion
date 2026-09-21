@@ -10,15 +10,12 @@ import {initClient} from '../client.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 
-// R17 — client-side strictTypes pre-validation. On master strictness was baked into the
-// server-compiled isType so extra-key payloads failed fast client-side; under mion
-// strictness rides the separate hasUnknownKeys/unknownKeyErrors fns. The effective strictTypes
-// flag (route ?? router) ships in the methods metadata, and the client now runs huk/uke locally
-// when it is set. `createUserStrict` in the test server is declared with {strictTypes: true} on the
-// `mutate` params wire: only a wire that restores in place compiles the pair, since `clone` and
-// `compact` rebuild the params from the declared type and drop the extra key first.
+// R17 — the client's local pre-validation, on a route whose parser strategy is `mutateStrict`. The strategy
+// rides the methods metadata, so the client rebuilds the SAME validator the server compiled and an extra-key
+// payload fails before the request leaves. `clone` and `compact` would rebuild the params from the declared
+// type instead, dropping the extra key before anything could report it.
 
-describe('client strictTypes local pre-validation (R17)', () => {
+describe('client local pre-validation on a mutateStrict route (R17)', () => {
   const baseURL = TEST_SERVER_BASE_URL;
   type MyApi = TestServerApi;
   const validUser = {name: 'John', surname: 'Doe'};

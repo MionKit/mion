@@ -170,7 +170,7 @@ var messagesByCode = map[string]message{
 	},
 	"MET006": {
 		Headline: "Option `{0}` of `{1}` is not a literal on the API type, so the bundled metadata leaves it unset.",
-		Detail:   "The bundled metadata copies each method's options off the API type, where they\nare the literals the route and the router were declared with. A value computed\nat runtime (a variable, a call) has no literal to copy, and the client then runs\nthat method with the option unset, which can differ from the server.\n\nFix: write the option as a literal at the route or the router:\n-  mion.route(handler, {strictTypes: isProd})\n+  mion.route(handler, {strictTypes: true})",
+		Detail:   "The bundled metadata copies each method's options off the API type, where they\nare the literals the route and the router were declared with. A value computed\nat runtime (a variable, a call) has no literal to copy, and the client then runs\nthat method with the option unset, which can differ from the server.\n\nFix: write the option as a literal at the route or the router:\n-  mion.route(handler, {sanitizeParams: isProd})\n+  mion.route(handler, {sanitizeParams: true})",
 	},
 	"MRT001": {
 		Headline: "mion `{0}` handler has no return type annotation; write the type the handler answers with.",

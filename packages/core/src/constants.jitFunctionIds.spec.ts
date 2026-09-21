@@ -17,6 +17,10 @@ import {JIT_FUNCTION_IDS} from './constants.ts';
 const FAMILY_BY_ID: Record<keyof typeof JIT_FUNCTION_IDS, FnHashKey> = {
   isType: 'validate',
   typeErrors: 'validationErrors',
+  validateUnionKeys: 'validateUnionKeys',
+  validationErrorsUnionKeys: 'validationErrorsUnionKeys',
+  validateStrict: 'validateStrict',
+  validationErrorsStrict: 'validationErrorsStrict',
   hasUnknownKeys: 'hasUnknownKeys',
   unknownKeyErrors: 'unknownKeyErrors',
   formatTransform: 'formatTransform',

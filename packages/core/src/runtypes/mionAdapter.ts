@@ -12,7 +12,14 @@ import type {GetValidationErrorsFn, InjectRunTypeId, RunType, ValidateFn} from '
 import type {FnHashKey} from '@mionjs/run-types/runtime';
 import {buildPureFnFactoryFromCode} from '@mionjs/run-types/runtime';
 import {getJitFnHashes} from '../routerUtils.ts';
-import {DECODE_FAMILY_BY_STRATEGY, DECODE_SIDE_BY_DIRECTION, STRATEGY_BY_ENCODE_FAMILY, type DecodeFamily} from '../constants.ts';
+import {
+  DECODE_FAMILY_BY_STRATEGY,
+  DECODE_SIDE_BY_DIRECTION,
+  RETURN_VALIDATE_FAMILY,
+  STRATEGY_BY_ENCODE_FAMILY,
+  VALIDATE_FAMILY_BY_STRATEGY,
+  type DecodeFamily,
+} from '../constants.ts';
 import type {
   AnyFn,
   MionTypeFn,
@@ -38,6 +45,11 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 export const MION_FN_KEYS = [
   'validate',
   'validationErrors',
+  // One validate pair per parser strategy; a route requests exactly one of the three (VALIDATE_FAMILY_BY_STRATEGY).
+  'validateUnionKeys',
+  'validationErrorsUnionKeys',
+  'validateStrict',
+  'validationErrorsStrict',
   'hasUnknownKeys',
   'unknownKeyErrors',
   'formatTransform',
@@ -107,9 +119,7 @@ export interface RtMethodReflection {
 
 const identity = (value: unknown) => value;
 const alwaysTrue = (() => true) as unknown as ValidateFn;
-const alwaysFalse = () => false;
 const noErrors: GetValidationErrorsFn = () => [];
-const noUnknownKeyErrors = () => [];
 
 // ############# serialized cache restore (client metadata lane) #############
 
@@ -206,7 +216,12 @@ function strategyFromFamilies(
         `family, got encode [${encodeFamilies.join(', ')}] decode [${decodeFamilies.join(', ')}]). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
-  const strategy = STRATEGY_BY_ENCODE_FAMILY[encodeFamilies[0]];
+  // `mutate` and `mutateStrict` share an encoder, so the encode family alone no longer names the strategy; the
+  // validate family breaks the tie. The direction guard is load-bearing: a RETURN always compiles the plain
+  // validate pair, so without it every mutate return wire would read as mutateStrict.
+  const base = STRATEGY_BY_ENCODE_FAMILY[encodeFamilies[0]];
+  const strategy: ParserStrategy =
+    base === 'mutate' && direction === 'params' && fns.validateStrict !== undefined ? 'mutateStrict' : base;
   const expected = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
   if (expected !== decodeFamilies[0])
     throw new Error(
@@ -232,14 +247,16 @@ export function buildJitFnsFromMarker(
   const fns = byFnKey(injected);
   // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
   // skew — falling back would silently DISABLE validation/serialization for this method.
-  if (fns.validate === undefined || fns.validationErrors === undefined)
-    throw new Error(
-      `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
-        `validate/validationErrors are required). Rebuild with a matching @mionjs/devtools + RunTypes version.`
-    );
   const {strategy, encodeFamily, decodeFamily} = strategyFromFamilies(fns, label, direction);
-  const isType = getRTFunction<'validate'>(fns.validate, alwaysTrue);
-  const typeErrors = getRTFunction<'validationErrors'>(fns.validationErrors, noErrors);
+  const validateFamily = direction === 'return' ? RETURN_VALIDATE_FAMILY : VALIDATE_FAMILY_BY_STRATEGY[strategy];
+  if (fns[validateFamily.isType] === undefined || fns[validateFamily.typeErrors] === undefined)
+    throw new Error(
+      `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; the ${strategy} ` +
+        `${direction} wire needs ${validateFamily.isType}/${validateFamily.typeErrors}). ` +
+        `Rebuild with a matching @mionjs/devtools + RunTypes version.`
+    );
+  const isType = getRTFunction<'validate'>(fns[validateFamily.isType], alwaysTrue);
+  const typeErrors = getRTFunction<'validationErrors'>(fns[validateFamily.typeErrors], noErrors);
   const encode = getRTFunction<'prepareForJsonMutate'>(fns[encodeFamily], identity as JsonEncodeFn);
   const decode = getRTFunction<'restoreFromJsonMutate'>(fns[decodeFamily], identity as never);
   // formatTransform (sanitizeParams) follows the same rule: a real, non-noop entry or nothing
@@ -252,10 +269,6 @@ export function buildJitFnsFromMarker(
   return {
     isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
     typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],
-    // The strictTypes pair is absent whenever the marker did not ask for it: on the answer side, and on a
-    // `clone` or `compact` params wire, whose decoder rebuilds the declared shape so no caller key survives.
-    // Left OFF the set rather than stubbed, so readers take their `!hasUnknownKeys` early return.
-    ...unknownKeysEntries(fns, hashes, label),
     json: {
       strategy,
       encode: resolveFn(encode as AnyFn, encodeFamily, label, hashes.encode),
@@ -263,21 +276,6 @@ export function buildJitFnsFromMarker(
     },
     ...(formatTransformEntry && !formatTransformEntry.isNoop ? {formatTransform: formatTransformEntry} : {}),
   } as JitCompiledFunctions;
-}
-
-/** The strictTypes pair of a fn set, or nothing when the marker requested neither. */
-function unknownKeysEntries(
-  fns: Partial<Record<FnHashKey, unknown>>,
-  hashes: JitFunctionsHashes,
-  label: string
-): Pick<JitCompiledFunctions, 'hasUnknownKeys' | 'unknownKeyErrors'> {
-  if (fns.hasUnknownKeys === undefined && fns.unknownKeyErrors === undefined) return {};
-  const hasUnknownKeys = getRTFunction<'hasUnknownKeys'>(fns.hasUnknownKeys, alwaysFalse);
-  const unknownKeyErrors = getRTFunction<'unknownKeyErrors'>(fns.unknownKeyErrors, noUnknownKeyErrors);
-  return {
-    hasUnknownKeys: resolveFn(hasUnknownKeys as AnyFn, 'hasUnknownKeys', label, hashes.hasUnknownKeys ?? ''),
-    unknownKeyErrors: resolveFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
-  };
 }
 
 /** Registers the injected InjectRunTypeId handle and returns its stable type id string. */

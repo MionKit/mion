@@ -7,9 +7,12 @@
 
 import {
   DECODE_FAMILY_BY_STRATEGY,
+  RETURN_VALIDATE_FAMILY,
+  VALIDATE_FAMILY_BY_STRATEGY,
   DECODE_SIDE_BY_DIRECTION,
   ENCODE_FAMILY_BY_STRATEGY,
   JIT_FUNCTION_IDS,
+  JIT_ID_BY_VALIDATE_FAMILY,
   PATH_SEPARATOR,
   ROUTER_ITEM_SEPARATOR_CHAR,
   ROUTE_PATH_ROOT,
@@ -118,13 +121,14 @@ export function addRoutesToCache(newCache: MethodsCache) {
 /** The direction picks the decoder: params are decoded by the server, a return by the client. */
 export function getJitFnHashes(jitHash: string, strategy: ParserStrategy, direction: ParserDirection): JitFunctionsHashes {
   const decodeFamily = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
+  // The validator the strategy compiled. A return always carries the plain pair, so a strategy-driven lookup
+  // there would name an entry the build never emitted.
+  const validate = direction === 'return' ? RETURN_VALIDATE_FAMILY : VALIDATE_FAMILY_BY_STRATEGY[strategy];
   return {
-    isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
-    typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
+    isType: `${JIT_ID_BY_VALIDATE_FAMILY[validate.isType]}_${jitHash}`,
+    typeErrors: `${JIT_ID_BY_VALIDATE_FAMILY[validate.typeErrors]}_${jitHash}`,
     encode: `${JIT_FUNCTION_IDS[ENCODE_FAMILY_BY_STRATEGY[strategy]]}_${jitHash}`,
     decode: `${JIT_FUNCTION_IDS[decodeFamily]}_${jitHash}`,
-    hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
-    unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
     // Named for every hash: the entry only exists when a params marker demanded it (the return
     // markers never do), so the deps lane ships it exactly when it is real.
     formatTransform: `${JIT_FUNCTION_IDS.formatTransform}_${jitHash}`,
@@ -162,11 +166,6 @@ export function getJitFunctionsFromHash(
     typeErrors,
     json: {strategy, encode, decode},
   } as JitCompiledFunctions;
-  // strictTypes fns are optional: only present when the type has object members
-  const hasUnknownKeysJit = utl.getRT(hashes.hasUnknownKeys!);
-  const unknownKeyErrorsJit = utl.getRT(hashes.unknownKeyErrors!);
-  if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit as JitCompiledFunctions['hasUnknownKeys'];
-  if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit as JitCompiledFunctions['unknownKeyErrors'];
   // sanitizeParams: exposed only as a LIVE entry, a noop transform has nothing to apply
   const formatTransformJit = utl.getRT(hashes.formatTransform!);
   if (formatTransformJit && !formatTransformJit.isNoop)

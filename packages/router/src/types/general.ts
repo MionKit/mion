@@ -35,8 +35,6 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  A BUILD-TIME literal, so a widened value is a type error; a route's own `parser` overrides it.
    *  @default {params: 'clone', return: 'clone'} */
   parser?: ParserOption;
-  /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
-  strictTypes?: boolean;
   /** Applies the rewrites the params types declare under a format's `transform` key, after decode and
    *  before validation. Params only, never headers or return values. Default off, overridable per-route. */
   sanitizeParams?: boolean;

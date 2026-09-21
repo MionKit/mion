@@ -190,7 +190,6 @@ describe('PublicApi resolved options', () => {
     resetRouter();
     const compact = createMionRouter({
       parser: 'compact',
-      strictTypes: true,
       contextDataFactory: getSharedData,
       getPublicRoutesData: true,
     });
@@ -198,7 +197,6 @@ describe('PublicApi resolved options', () => {
       q: compact.query((ctx, n: number): string => `${n}`, {sanitizeParams: true, description: 'd'}),
       m: compact.mutation((ctx, n: number): string => `${n}`, {
         parser: {return: 'mutate'},
-        strictTypes: false,
         maxBodySize: 4096,
       }),
       r: compact.route((ctx): number => 1),
@@ -213,7 +211,6 @@ describe('PublicApi resolved options', () => {
       description: 'd';
       parser: {params: 'compact'; return: 'compact'};
       isMutation: false;
-      strictTypes: true;
       sanitizeParams: true;
       maxBodySize: undefined;
     }>();
@@ -223,7 +220,6 @@ describe('PublicApi resolved options', () => {
     expectTypeOf<Api['r']['options']['maxBodySize']>().toEqualTypeOf<undefined>();
     expectTypeOf<Api['m']['options']['parser']>().toEqualTypeOf<{params: 'compact'; return: 'mutate'}>();
     expectTypeOf<Api['m']['options']['isMutation']>().toEqualTypeOf<true>();
-    expectTypeOf<Api['m']['options']['strictTypes']>().toEqualTypeOf<false>();
     expectTypeOf<Api['r']['options']['isMutation']>().toEqualTypeOf<undefined>();
     expectTypeOf<Api['r']['options']['sanitizeParams']>().toEqualTypeOf<undefined>();
     expectTypeOf<Api['mf']['options']>().toEqualTypeOf<{
@@ -232,7 +228,6 @@ describe('PublicApi resolved options', () => {
       validateReturn: true;
       description: undefined;
       parser: {params: 'compact'; return: 'compact'};
-      strictTypes: true;
       sanitizeParams: undefined;
       maxBodySize: undefined;
     }>();
@@ -255,7 +250,6 @@ describe('PublicApi resolved options', () => {
       description: 'd',
       parser: {params: 'compact', return: 'compact'},
       isMutation: false,
-      strictTypes: true,
       sanitizeParams: true,
     });
     expect(api.m.options).toEqual({
@@ -264,7 +258,6 @@ describe('PublicApi resolved options', () => {
       validateReturn: false,
       parser: {params: 'compact', return: 'mutate'},
       isMutation: true,
-      strictTypes: false,
       maxBodySize: 4096,
     });
     expect(api.mf.options).toEqual({
@@ -272,7 +265,6 @@ describe('PublicApi resolved options', () => {
       validateParams: true,
       validateReturn: true,
       parser: {params: 'compact', return: 'compact'},
-      strictTypes: true,
     });
     // the API type also names the exact types the server compiled each method from
     expectTypeOf<NonNullable<Api['q']['types']>>().toEqualTypeOf<{

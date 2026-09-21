@@ -23,7 +23,7 @@ interface EdgeResponse {
 
 /** Mirrors EdgeSetupOptions in the fixture, which rejects an unknown key, so drift fails the setup. */
 interface EdgeSetupOptions {
-  serializer?: 'mutate' | 'clone';
+  parser?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
@@ -71,7 +71,7 @@ async function callHandler(vm: EdgeVM, path: string, body: string, method = 'POS
 describe('vercel handler (edge runtime)', () => {
   let vm: EdgeVM;
 
-  describe('with the default clone serializer', () => {
+  describe('with the default clone parser', () => {
     beforeAll(async () => {
       vm = createEdgeVM();
       await vm.evaluate(setupCall());
@@ -131,15 +131,15 @@ describe('vercel handler (edge runtime)', () => {
     });
   });
 
-  describe('with the mutate serializer', () => {
+  describe('with the mutate parser', () => {
     beforeAll(async () => {
       vm = createEdgeVM();
-      await vm.evaluate(setupCall({serializer: 'mutate'}));
+      await vm.evaluate(setupCall({parser: 'mutate'}));
     });
 
     // Only `mutate` keeps a key the type does not declare; every other strategy rebuilds the declared shape.
     // `getDate` hands its own argument back, so the extra key reaching the wire proves the option applied.
-    it('should keep an undeclared key the clone serializer would drop', async () => {
+    it('should keep an undeclared key the clone parser would drop', async () => {
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z'), extra: 'kept'}]};
       const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
       const parsedResponse = JSON.parse(result.body);

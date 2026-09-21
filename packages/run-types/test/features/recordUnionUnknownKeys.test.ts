@@ -2,7 +2,7 @@
 // might match the record, where every key is declared, and no codec can tell which member it matched.
 // So the stripping decoders stop stripping and `hasUnknownKeys` answers false for every value.
 //
-// That breaks the composition the router runs for `strictTypes`: validate first, then the pooled key check.
+// That breaks the two-step composition validate-then-pooled-key-check, which the router used to run.
 // Both halves say yes, so an undeclared key reaches the handler. The fused `{checkUnknowns: true}` validator
 // follows the branch that matched and is the only family that answers correctly here.
 //
@@ -37,7 +37,7 @@ interface Row {
   /** What the stripping decoder returns; equal to `value` when nothing was stripped. */
   decoded: Record<string, unknown>;
   validate: boolean;
-  /** `validate && !hasUnknownKeys`, the two-step answer the router runs for `strictTypes`. */
+  /** `validate && !hasUnknownKeys`, the two-step answer. */
   twoStep: boolean;
   /** `createValidateFn({checkUnknowns: true})`, the fused answer. */
   strict: boolean;

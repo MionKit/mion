@@ -14,18 +14,22 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 /** RunTypes also offers `direct`; mion does not, it costs 3x the memory of `clone` and 2x the time for identical bytes.
  *  Written out rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route. */
-export type ParserStrategy = 'clone' | 'mutate' | 'compact';
+export type ParserStrategy = 'clone' | 'mutate' | 'mutateStrict' | 'compact';
+/** PARAMS ONLY. `mutateStrict` keeps every key the caller sent and then rejects the ones the type does not
+ *  declare; a return is written by your own handler, so there is nothing to reject and no way to answer. */
+export type ReturnParserStrategy = 'clone' | 'mutate' | 'compact';
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
 export interface ParserPair {
   params?: ParserStrategy;
-  return?: ParserStrategy;
+  return?: ReturnParserStrategy;
 }
-/** The `parser` option on the router factory and on route / middleFn options: a string sets both directions. */
-export type ParserOption = ParserStrategy | ParserPair;
+/** The `parser` option on the router factory and on route / middleFn options: a string sets both directions,
+ *  which is why a bare string cannot be `mutateStrict`. Write `{params: 'mutateStrict'}` instead. */
+export type ParserOption = ReturnParserStrategy | ParserPair;
 /** The resolved per-direction pair every executable carries and the methods metadata ships. */
 export interface ResolvedParser {
   params: ParserStrategy;
-  return: ParserStrategy;
+  return: ReturnParserStrategy;
 }
 /** The direction names the machine that decodes that wire. */
 export type ParserDirection = keyof ResolvedParser;
@@ -135,10 +139,6 @@ export interface JitJsonFunctions {
 export interface JitCompiledFunctions {
   isType: MionTypeFn<IsTypeFn>;
   typeErrors: MionTypeFn<TypeErrorsFn>;
-  /** strictTypes support: true when the value carries properties not present in the type */
-  hasUnknownKeys?: MionTypeFn<HasUnknownKeysFn>;
-  /** strictTypes support: RunTypeError entries for every unknown property found */
-  unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
   /** sanitizeParams support: applies the rewrites declared under a format's `transform` key
    *  (trim / case / replace / stripSeparators) in place. Only present on a PARAMS fn set whose
    *  type declares a transform; never on a return fn set. */
@@ -151,8 +151,6 @@ export interface JitFunctionsHashes {
   typeErrors: string;
   encode: string;
   decode: string;
-  hasUnknownKeys?: string;
-  unknownKeyErrors?: string;
   formatTransform?: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;

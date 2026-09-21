@@ -5,9 +5,11 @@ import {DEFAULT_PARSER, PARSER_STRATEGIES, isParserStrategy, resolveParser} from
 import type {ParserStrategy} from './types/general.types.ts';
 
 describe('the mion parser strategies', () => {
-  // ParserStrategy is written out rather than `Exclude`d from the union: the conditional would cost every route.
-  it('names a subset of the RunTypes encoder strategies', () => {
-    type IsSubset = ParserStrategy extends JsonEncoderStrategy ? true : false;
+  // Every strategy maps onto a RunTypes ENCODER strategy; `mutateStrict` shares `mutate`'s, differing only in
+  // which validator the params side runs, so it is mion's own name and not one RunTypes knows.
+  it('names a subset of the RunTypes encoder strategies, once mutateStrict is mapped', () => {
+    type Mapped<S> = S extends 'mutateStrict' ? 'mutate' : S;
+    type IsSubset = Mapped<ParserStrategy> extends JsonEncoderStrategy ? true : false;
     const subset: IsSubset = true;
     expect(subset).toBe(true);
     // the one RunTypes offers and mion does not
@@ -15,7 +17,7 @@ describe('the mion parser strategies', () => {
   });
 
   it('lists exactly the strategies the type names', () => {
-    expect([...PARSER_STRATEGIES].sort()).toEqual(['clone', 'compact', 'mutate']);
+    expect([...PARSER_STRATEGIES].sort()).toEqual(['clone', 'compact', 'mutate', 'mutateStrict']);
     for (const strategy of PARSER_STRATEGIES) expect(isParserStrategy(strategy)).toBe(true);
   });
 
@@ -27,7 +29,7 @@ describe('the mion parser strategies', () => {
 
   it('refuses a strategy mion does not have, naming the ones it does', () => {
     expect(() => resolveParser('direct' as never, undefined)).toThrow(/invalid parser strategy 'direct'/);
-    expect(() => resolveParser('direct' as never, undefined)).toThrow(/clone, mutate, compact/);
+    expect(() => resolveParser('direct' as never, undefined)).toThrow(/clone, mutate, mutateStrict, compact/);
   });
 
   // The server decodes params from any caller, the client a return its own server wrote.

@@ -72,8 +72,15 @@ export const HandlerType = {
 export const JIT_FUNCTION_IDS = {
   isType: 'Eq2V',
   typeErrors: 'swxg',
-  hasUnknownKeys: 'GsPX', // strictTypes
-  unknownKeyErrors: 'r8yS', // strictTypes
+  // One validate pair per parser strategy (VALIDATE_FAMILY_BY_STRATEGY): the union-scoped pair rides with the
+  // stripping decoders, the fused one with mutateStrict, and the plain pair above with mutate.
+  validateUnionKeys: 'Xhuv',
+  validationErrorsUnionKeys: 'OBOg',
+  validateStrict: 'fZHy',
+  validationErrorsStrict: 'OB5g',
+  // Standalone public APIs; no parser strategy requests them.
+  hasUnknownKeys: 'GsPX',
+  unknownKeyErrors: 'r8yS',
   formatTransform: 'mzca', // sanitizeParams
   // the JSON families, one encoder and one decoder per strategy (see ENCODE_FAMILY_BY_STRATEGY)
   prepareForJsonClone: 'A0Qb',
@@ -88,6 +95,8 @@ export const JIT_FUNCTION_IDS = {
 export const ENCODE_FAMILY_BY_STRATEGY = {
   clone: 'prepareForJsonClone',
   mutate: 'prepareForJsonMutate',
+  // Same encoder as `mutate`: the two differ only in which validator the params side runs.
+  mutateStrict: 'prepareForJsonMutate',
   compact: 'compactForJson',
 } as const;
 /** One decoder per SIDE: the server decodes params from any caller, so it rebuilds the declared shape.
@@ -95,7 +104,34 @@ export const ENCODE_FAMILY_BY_STRATEGY = {
 export const DECODE_FAMILY_BY_STRATEGY = {
   clone: {server: 'restoreFromJsonClone', client: 'restoreFromJsonClone'},
   mutate: {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
+  mutateStrict: {server: 'restoreFromJsonMutate', client: 'restoreFromJsonClone'},
   compact: {server: 'compactFromJson', client: 'compactFromJson'},
+} as const;
+
+/** The validator a strategy's PARAMS side runs. One per strategy, always exactly one, and never the old pair
+ *  of `validate` plus a separate `hasUnknownKeys` call.
+ *
+ *  `clone` and `compact` rebuild the declared shape as they decode, so a plain object's undeclared keys are
+ *  already gone; what they cannot clean is a union, hence the union-scoped pair. `mutate` rebuilds nothing and
+ *  is the permissive strategy, so it runs the plain validator. `mutateStrict` rebuilds nothing either and
+ *  answers for every key itself, which only the fused validator can do. */
+export const VALIDATE_FAMILY_BY_STRATEGY = {
+  clone: {isType: 'validateUnionKeys', typeErrors: 'validationErrorsUnionKeys'},
+  compact: {isType: 'validateUnionKeys', typeErrors: 'validationErrorsUnionKeys'},
+  mutate: {isType: 'validate', typeErrors: 'validationErrors'},
+  mutateStrict: {isType: 'validateStrict', typeErrors: 'validationErrorsStrict'},
+} as const;
+/** A RETURN is written by the handler, never by a caller, so every wire compiles the plain pair. */
+export const RETURN_VALIDATE_FAMILY = {isType: 'validate', typeErrors: 'validationErrors'} as const;
+/** JIT_FUNCTION_IDS names the plain pair by mion's own slot (isType / typeErrors) and every other family by
+ *  its run-types name, so going from a family name to its id takes this one hop. */
+export const JIT_ID_BY_VALIDATE_FAMILY = {
+  validate: JIT_FUNCTION_IDS.isType,
+  validationErrors: JIT_FUNCTION_IDS.typeErrors,
+  validateUnionKeys: JIT_FUNCTION_IDS.validateUnionKeys,
+  validationErrorsUnionKeys: JIT_FUNCTION_IDS.validationErrorsUnionKeys,
+  validateStrict: JIT_FUNCTION_IDS.validateStrict,
+  validationErrorsStrict: JIT_FUNCTION_IDS.validationErrorsStrict,
 } as const;
 /** Reverse of ENCODE_FAMILY_BY_STRATEGY: what strategy an injected encode family tells. */
 export const STRATEGY_BY_ENCODE_FAMILY = {

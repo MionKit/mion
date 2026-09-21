@@ -31,7 +31,7 @@ type ResolveStrategy<RouteOpts, RouterOpts, D extends Direction> = FallbackTo<
 // Mirrored by ENCODE_FAMILY_BY_STRATEGY / DECODE_FAMILY_BY_STRATEGY in @mionjs/core.
 type EncodeFamily<S> = S extends 'clone'
   ? 'prepareForJsonClone'
-  : S extends 'mutate'
+  : S extends 'mutate' | 'mutateStrict'
     ? 'prepareForJsonMutate'
     : S extends 'compact'
       ? 'compactForJson'
@@ -40,7 +40,7 @@ type EncodeFamily<S> = S extends 'clone'
 // exists to pass the object through. The `S extends string` arm leaves a `never` strategy uncompiled.
 type ServerDecodeFamily<S> = S extends 'compact'
   ? 'compactFromJson'
-  : S extends 'mutate'
+  : S extends 'mutate' | 'mutateStrict'
     ? 'restoreFromJsonMutate'
     : S extends string
       ? 'restoreFromJsonClone'
@@ -61,18 +61,18 @@ type ParamsEncode<RouteOpts, RouterOpts = NoParserOptions> = EncodeFamily<Params
 type ParamsDecode<RouteOpts, RouterOpts = NoParserOptions> = ServerDecodeFamily<ParamsStrategy<RouteOpts, RouterOpts>>;
 type ReturnEncode<RouteOpts, RouterOpts = NoParserOptions> = EncodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
 type ReturnDecode<RouteOpts, RouterOpts = NoParserOptions> = ClientDecodeFamily<ReturnStrategy<RouteOpts, RouterOpts>>;
-/** `mutate` alone keeps undeclared keys: every other params decoder rebuilds the declared shape, so the
- *  key is gone before the check runs. Spelled as the strategy, not via ServerDecodeFamily, which costs an
- *  instantiation per route. */
-type UnknownKeys<Strategy, Key> = Strategy extends 'mutate' ? Key : never;
-type ParamsHasUnknownKeys<RouteOpts, RouterOpts = NoParserOptions> = UnknownKeys<
-  ParamsStrategy<RouteOpts, RouterOpts>,
-  'hasUnknownKeys'
->;
-type ParamsUnknownKeyErrors<RouteOpts, RouterOpts = NoParserOptions> = UnknownKeys<
-  ParamsStrategy<RouteOpts, RouterOpts>,
-  'unknownKeyErrors'
->;
+// Mirrored by VALIDATE_FAMILY_BY_STRATEGY in @mionjs/core: every strategy compiles exactly ONE validator on
+// the params side, and never a separate hasUnknownKeys call.
+//
+// `clone` and `compact` rebuild the declared shape while decoding, so a plain object's undeclared keys are
+// already gone; what they cannot clean is a union, whose members share one pooled key list. `mutate` rebuilds
+// nothing and is the permissive strategy. `mutateStrict` rebuilds nothing either and answers for every key.
+type ParamsValidate<S> = S extends 'mutateStrict' ? 'validateStrict' : S extends 'mutate' ? 'validate' : 'validateUnionKeys';
+type ParamsValidationErrors<S> = S extends 'mutateStrict'
+  ? 'validationErrorsStrict'
+  : S extends 'mutate'
+    ? 'validationErrors'
+    : 'validationErrorsUnionKeys';
 
 /** Intersected onto the factory options so a widened `parser` (plain string, union) is a type error. */
 export type ParserLiteralGuard<Options> = Options extends {parser: infer E}
@@ -89,16 +89,15 @@ type LiteralParser<E> = E extends string ? SingleLiteral<E> : {[K in keyof E]: S
 // (`MarkerSlots<...>[0]`) instead of respelling the markers: an alias wrapped AROUND a marker hides it
 // from the mion scanner, a tuple ELEMENT keeps it readable at the call site.
 // Fn keys are MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so order does not matter.
-// 'formatTransform' and the unknown-key pair are PARAMS-only: the answer side is written by the handler, never a caller.
+// 'formatTransform' is PARAMS-only, and so is a strategy-driven validator: a RETURN is written by the handler,
+// never by a caller, so every wire compiles the plain validate pair.
 
 /** The four injection slots of a route / middleFn call, in declaration order. */
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts = NoParserOptions> = [
   paramsFns: InjectTypeFnArgs<
     Params,
-    'validate',
-    'validationErrors',
-    ParamsHasUnknownKeys<RouteOpts, RouterOpts>,
-    ParamsUnknownKeyErrors<RouteOpts, RouterOpts>,
+    ParamsValidate<ParamsStrategy<RouteOpts, RouterOpts>>,
+    ParamsValidationErrors<ParamsStrategy<RouteOpts, RouterOpts>>,
     'formatTransform',
     ParamsEncode<RouteOpts, RouterOpts>,
     ParamsDecode<RouteOpts, RouterOpts>

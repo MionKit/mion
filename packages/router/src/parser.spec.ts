@@ -17,7 +17,7 @@ import {
 } from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
-import {MION_ROUTES, SerializerModes, type ParserOption} from '@mionjs/core';
+import {JIT_FUNCTION_IDS, MION_ROUTES, SerializerModes, type ParserOption} from '@mionjs/core';
 import type {RemoteMethod} from './types/remoteMethods.ts';
 
 interface Pet {
@@ -141,58 +141,50 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // The pair follows the SERVER's params decoder: only `mutate` restores in place and keeps every key,
-  // every other decoder rebuilds the declared shape. The answer side never compiles it: nothing reads it.
-  describe('the unknown-key pair follows the wire', () => {
+  // Every strategy compiles exactly ONE validator on the params side, and the answer side always the plain
+  // pair. The stripping strategies take the union-scoped one: their decoder already rebuilt the declared
+  // shape, so the only key it could not drop is one another union member declares.
+  describe('the validate family follows the wire', () => {
     const cloneRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'clone'});
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
     const mutateRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'mutate'});
+    const strictRoute = mion.route((ctx, p: Pet): Pet => p, {parser: {params: 'mutateStrict'}});
     const compactRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'compact'});
     const mutateParamsOnly = mion.route((ctx, p: Pet): Pet => p, {parser: {params: 'mutate', return: 'compact'}});
     const cloneParamsOnly = mion.route((ctx, p: Pet): Pet => p, {parser: {params: 'clone', return: 'mutate'}});
     const compactGuard = compactMion.middleFn((ctx, p: Pet): Pet => p);
 
-    it('a wire that restores in place compiles the pair', () => {
-      mion.initRoutes({mutateRoute, mutateParamsOnly});
-      for (const id of ['mutateRoute', 'mutateParamsOnly']) {
-        const fns = getRouteExecutable(id)!.paramsJitFns;
-        expect([id, !!fns.hasUnknownKeys]).toEqual([id, true]);
-        expect([id, !!fns.unknownKeyErrors]).toEqual([id, true]);
-      }
-    });
+    const familyOf = (fns: {isType: {rtFnHash: string}}) => fns.isType.rtFnHash.split('_')[0];
 
-    it('a rebuilding wire compiles neither, the default one included', () => {
-      mion.initRoutes({cloneRoute, defaultRoute, compactRoute});
-      for (const id of ['cloneRoute', 'defaultRoute', 'compactRoute']) {
-        const fns = getRouteExecutable(id)!.paramsJitFns;
-        expect([id, fns.hasUnknownKeys]).toEqual([id, undefined]);
-        expect([id, fns.unknownKeyErrors]).toEqual([id, undefined]);
+    it('each strategy compiles its own params validator', () => {
+      mion.initRoutes({cloneRoute, defaultRoute, mutateRoute, strictRoute, compactRoute});
+      const expected: Record<string, string> = {
+        cloneRoute: JIT_FUNCTION_IDS.validateUnionKeys,
+        defaultRoute: JIT_FUNCTION_IDS.validateUnionKeys,
+        compactRoute: JIT_FUNCTION_IDS.validateUnionKeys,
+        mutateRoute: JIT_FUNCTION_IDS.isType,
+        strictRoute: JIT_FUNCTION_IDS.validateStrict,
+      };
+      for (const [id, family] of Object.entries(expected)) {
+        expect([id, familyOf(getRouteExecutable(id)!.paramsJitFns)]).toEqual([id, family]);
       }
     });
 
     it('only the params direction decides', () => {
       mion.initRoutes({mutateParamsOnly, cloneParamsOnly});
-      const kept = getRouteExecutable('mutateParamsOnly')!.paramsJitFns;
-      expect(!!kept.hasUnknownKeys).toBe(true);
-      expect(!!kept.unknownKeyErrors).toBe(true);
-      const dropped = getRouteExecutable('cloneParamsOnly')!.paramsJitFns;
-      expect(dropped.hasUnknownKeys).toBeUndefined();
-      expect(dropped.unknownKeyErrors).toBeUndefined();
+      expect(familyOf(getRouteExecutable('mutateParamsOnly')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.isType);
+      expect(familyOf(getRouteExecutable('cloneParamsOnly')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validateUnionKeys);
     });
 
     it('a middleFn follows its router-wide wire too', () => {
       compactMion.initRoutes({compactGuard});
-      const fns = getMiddleFnExecutable('compactGuard')!.paramsJitFns;
-      expect(fns.hasUnknownKeys).toBeUndefined();
-      expect(fns.unknownKeyErrors).toBeUndefined();
+      expect(familyOf(getMiddleFnExecutable('compactGuard')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validateUnionKeys);
     });
 
-    it('no wire compiles the pair for the answer side', () => {
-      mion.initRoutes({cloneRoute, mutateRoute, mutateParamsOnly, compactRoute});
-      for (const id of ['cloneRoute', 'mutateRoute', 'mutateParamsOnly', 'compactRoute']) {
-        const fns = getRouteExecutable(id)!.returnJitFns;
-        expect([id, fns.hasUnknownKeys]).toEqual([id, undefined]);
-        expect([id, fns.unknownKeyErrors]).toEqual([id, undefined]);
+    it('the answer side always compiles the plain pair', () => {
+      mion.initRoutes({cloneRoute, mutateRoute, strictRoute, mutateParamsOnly, compactRoute});
+      for (const id of ['cloneRoute', 'mutateRoute', 'strictRoute', 'mutateParamsOnly', 'compactRoute']) {
+        expect([id, familyOf(getRouteExecutable(id)!.returnJitFns)]).toEqual([id, JIT_FUNCTION_IDS.isType]);
       }
     });
   });
@@ -409,7 +401,7 @@ describe('parser strategies at the router level', () => {
 
     it('clone drops an undeclared key hiding inside a union member', async () => {
       // A union of an array and a number carries no object member of its own, and validation does not
-      // cover it: undeclared keys on an object literal pass unless strictTypes is on, only the decoder drops them.
+      // cover it: on a plain object literal only the decoder drops an undeclared key, no validator refuses it.
       const unionIn = mion.route((ctx, p: {a: string}[] | number): string => {
         seen.union = p;
         return typeof p === 'number' ? 'num' : String(p.length);
@@ -538,7 +530,7 @@ describe('parser strategies at the router level', () => {
 
     it('names the strategies that do exist', () => {
       const badRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'binary' as unknown as 'compact'});
-      expect(() => mion.initRoutes({badRoute})).toThrow(/clone, mutate, compact/);
+      expect(() => mion.initRoutes({badRoute})).toThrow(/clone, mutate, mutateStrict, compact/);
     });
   });
 });

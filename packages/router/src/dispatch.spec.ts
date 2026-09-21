@@ -611,7 +611,7 @@ describe('Query body decoding (data in URL query)', () => {
   });
 });
 
-describe('StrictTypes validation', () => {
+describe('undeclared params keys, per parser strategy', () => {
   type SimpleUser = {
     name: string;
     surname: string;
@@ -621,11 +621,13 @@ describe('StrictTypes validation', () => {
     return {name: 'LOREM', surname: user.surname};
   });
 
-  // `mutate` and `direct` hand the handler what arrived, undeclared keys included, so they are
-  // the only strategies where the unknown-key check can still fire. `clone` and `compact` rebuild
-  // the params from the declared shape on arrival, which drops the key before validation sees it.
+  // `mutate` hands the handler what arrived, undeclared keys included: the permissive strategy, by design.
   const keepsExtras = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
     parser: {params: 'mutate'},
+  });
+  // `mutateStrict` keeps them too, and then rejects the request for carrying them.
+  const rejectsExtras = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+    parser: {params: 'mutateStrict'},
   });
 
   const getDefaultRequest = (path: string, params?): {headers: MionHeaders; body: string} => ({
@@ -635,30 +637,27 @@ describe('StrictTypes validation', () => {
 
   beforeEach(() => resetRouter());
 
-  it('should reject extra properties with strictTypes enabled globally', async () => {
-    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({keepsExtras});
+  it('mutateStrict rejects a key the type does not declare', async () => {
+    mion.initRoutes({rejectsExtras});
 
-    for (const id of ['keepsExtras'] as const) {
-      const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
-      const response = await dispatchRoute(`/${id}`, request.body, request.headers, headersFromRecord({}), request, {});
-      const error = response.body[MION_ROUTES.thrownErrors]?.[id];
-      expect(error).toMatchObject({
-        type: 'validation-error',
-        publicMessage: `Invalid params in '${id}', validation failed.`,
-      });
-    }
+    const request = getDefaultRequest('rejectsExtras', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+    const response = await dispatchRoute('/rejectsExtras', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.rejectsExtras).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid params in 'rejectsExtras', validation failed.`,
+    });
   });
 
-  it('a stripping strategy drops the extra key before strictTypes can see it', async () => {
-    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({changeUserName});
+  it('mutate keeps the key and hands it to the handler', async () => {
+    mion.initRoutes({keepsExtras});
 
-    const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
-    const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+    const request = getDefaultRequest('keepsExtras', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+    const response = await dispatchRoute('/keepsExtras', request.body, request.headers, headersFromRecord({}), request, {});
     expect(response.hasErrors).toBeFalsy();
-    expect(response.body.changeUserName).toEqual({name: 'LOREM', surname: 'Tungsten'});
+    expect(response.body.keepsExtras).toEqual({name: 'LOREM', surname: 'Tungsten'});
   });
 
-  it('should accept extra properties without strictTypes', async () => {
+  it('a stripping strategy drops the key while decoding, so nothing is left to reject', async () => {
     mion.initRoutes({changeUserName});
 
     const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
@@ -667,36 +666,25 @@ describe('StrictTypes validation', () => {
     expect(response.body.changeUserName).toEqual({name: 'LOREM', surname: 'Tungsten'});
   });
 
-  it('should support per-route strictTypes override', async () => {
-    const strictRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
-      strictTypes: true,
-      parser: {params: 'mutate'},
-    });
-    const normalRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'NORMAL', surname: user.surname}));
-    mion.initRoutes({strictRoute, normalRoute});
+  it('two routes on one router each keep their own strategy', async () => {
+    mion.initRoutes({keepsExtras, rejectsExtras});
+    const payload = [{name: 'Leo', surname: 'Tungsten', extra: 'value'}];
 
-    // strictRoute rejects extra props
-    const req1 = getDefaultRequest('strictRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
-    const res1 = await dispatchRoute('/strictRoute', req1.body, req1.headers, headersFromRecord({}), req1, {});
-    expect(res1.body[MION_ROUTES.thrownErrors]?.strictRoute).toMatchObject({type: 'validation-error'});
+    const strictReq = getDefaultRequest('rejectsExtras', payload);
+    const strictRes = await dispatchRoute(
+      '/rejectsExtras',
+      strictReq.body,
+      strictReq.headers,
+      headersFromRecord({}),
+      strictReq,
+      {}
+    );
+    expect(strictRes.body[MION_ROUTES.thrownErrors]?.rejectsExtras).toMatchObject({type: 'validation-error'});
 
-    // normalRoute accepts extra props
-    const req2 = getDefaultRequest('normalRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
-    const res2 = await dispatchRoute('/normalRoute', req2.body, req2.headers, headersFromRecord({}), req2, {});
-    expect(res2.hasErrors).toBeFalsy();
-    expect(res2.body.normalRoute).toEqual({name: 'NORMAL', surname: 'Tungsten'});
-  });
-
-  it('per-route strictTypes=false should override global strictTypes=true', async () => {
-    const relaxedRoute = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'RELAXED', surname: user.surname}), {
-      strictTypes: false,
-    });
-    createMionRouter({contextDataFactory: getSharedData, strictTypes: true}).initRoutes({relaxedRoute});
-
-    const request = getDefaultRequest('relaxedRoute', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
-    const response = await dispatchRoute('/relaxedRoute', request.body, request.headers, headersFromRecord({}), request, {});
-    expect(response.hasErrors).toBeFalsy();
-    expect(response.body.relaxedRoute).toEqual({name: 'RELAXED', surname: 'Tungsten'});
+    const looseReq = getDefaultRequest('keepsExtras', payload);
+    const looseRes = await dispatchRoute('/keepsExtras', looseReq.body, looseReq.headers, headersFromRecord({}), looseReq, {});
+    expect(looseRes.hasErrors).toBeFalsy();
+    expect(looseRes.body.keepsExtras).toEqual({name: 'LOREM', surname: 'Tungsten'});
   });
 });
 

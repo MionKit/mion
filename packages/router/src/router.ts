@@ -489,14 +489,7 @@ export function getExecutableFromMiddleFn(
   let executable: MixedMiddleFn;
   {
     const parser = resolveParser(middleFn.options?.parser, routerOptions.parser, middleFnId);
-    const reflectionData = getHandlerReflection(
-      middleFn,
-      middleFnId,
-      routerOptions,
-      middleFn.options ?? {},
-      isHeader,
-      middleFn.options?.strictTypes
-    );
+    const reflectionData = getHandlerReflection(middleFn, middleFnId, routerOptions, middleFn.options ?? {}, isHeader);
     assertCompiledParser(middleFnId, parser, reflectionData);
     const middleFnType = isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn;
     executable = {
@@ -516,7 +509,6 @@ export function getExecutableFromMiddleFn(
         validateReturn: middleFn.options?.validateReturn ?? false,
         description: middleFn.options?.description,
         parser,
-        strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: middleFn.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
     };
@@ -567,14 +559,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
   let executable: RouteMethod;
   {
     const parser = resolveParser(route.options?.parser, routerOptions.parser, routeId);
-    const reflectionData = getHandlerReflection(
-      route,
-      routeId,
-      routerOptions,
-      route.options ?? {},
-      false,
-      route.options?.strictTypes
-    );
+    const reflectionData = getHandlerReflection(route, routeId, routerOptions, route.options ?? {}, false);
     assertCompiledParser(routeId, parser, reflectionData);
     executable = {
       id: routeId,
@@ -593,7 +578,6 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         description: route.options?.description,
         parser,
         isMutation: route.options?.isMutation,
-        strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
     };

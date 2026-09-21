@@ -55,8 +55,8 @@ const apiClientDTS = `declare module '@mionjs/client' {
 // takes: a headers middleFn, a plain middleFn, two routes in a group and one
 // at the root.
 const apiTypeTS = `type Headers = {headers: {authorization: string}};
-type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; strictTypes: undefined; sanitizeParams: undefined};
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 export type Api = {
   auth: {type: 3; handler: (h: Headers) => Promise<void>; options: MfOpts; types?: {params: []; return: void; headers: Headers; isAsync: false}};
   users: {
@@ -383,7 +383,7 @@ export const b = routes.sum(1, 2).call();
 // and for the inline "server build" session of the manifest tests.
 const apiServerRouterDTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
     [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
@@ -436,7 +436,7 @@ func writeFile(t *testing.T, path, content string) {
 // apiPeerClientTS is the client whose API declaration (numbers only) differs
 // from the server project's (a boolean too), with the same route ids.
 const apiPeerClientTS = `import {initClient} from '@mionjs/client';
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 type Api = {
   users: {getById: {type: 1; handler: (id: number) => Promise<{id: number; name: string}>; options: RouteOpts; types?: {params: [id: number]; return: {id: number; name: string}; headers: never; isAsync: false}}};
   sum: {type: 1; handler: (a: number, b: number) => Promise<number>; options: RouteOpts; types?: {params: [a: number, b: number]; return: number; headers: never; isAsync: false}};
@@ -545,9 +545,10 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	if got := strings.Join(getById.MiddleFnIds, ","); got != "auth,users/audit" {
 		t.Errorf("getById chain: %s", got)
 	}
-	// clone both ways: the clone prepare writes the declared shape, the strip restore
-	// rebuilds it on arrival. The manifest names families by their MARKER token.
-	if got := strings.Join(getById.Families, ","); got != "validate,validationErrors,hasUnknownKeys,unknownKeyErrors,formatTransform,prepareForJsonClone,restoreFromJsonClone,validate,validationErrors,hasUnknownKeys,unknownKeyErrors,prepareForJsonClone,restoreFromJsonClone" {
+	// clone both ways: the clone prepare writes the declared shape, the strip restore rebuilds it on arrival.
+	// Its params take the union-scoped validator (a rebuilt shape can still carry another union member's key);
+	// the answer side keeps the plain pair. The manifest names families by their MARKER token.
+	if got := strings.Join(getById.Families, ","); got != "validateUnionKeys,validationErrorsUnionKeys,formatTransform,prepareForJsonClone,restoreFromJsonClone,validate,validationErrors,prepareForJsonClone,restoreFromJsonClone" {
 		t.Errorf("getById families: %s", got)
 	}
 	if getById.Options["validateParams"] != true {

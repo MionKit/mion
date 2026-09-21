@@ -271,7 +271,7 @@ describe('every unknown-key family agrees', () => {
   // Following the unknown-key check with a plain validate is NOT the same as the fused strict
   // validator, on this shape. The two-step accepts, because each step passes on its own question;
   // the fused one refuses, because it asks whether a member matches strictly and none does. The
-  // router composes the two-step form for `strictTypes`, so the two roads answer differently here.
+  // two-step form composes them in the other order, so the two roads answer differently here.
   it('checking unknown keys then validating is not the same as the fused strict validator', () => {
     const parse = () => JSON.parse('{"a":"x","evil":1}') as CountsOrInner;
     const validate = createValidateFn<CountsOrInner>();
