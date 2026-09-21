@@ -1,25 +1,15 @@
 package reflection
 
-// EachRefSlot calls visit for every non-nil ref-carrying child slot of
-// runType, single slots first, then the slice slots in canonical order,
-// then the schema-check slots (SchemaChecks.eachRefSlot below).
-// This is THE one enumeration of RunType's child-bearing slots: the
-// family populator (PopulateFamily), the runtype module dep collector
-// (collectRefDeps) and the resolver's per-file scope walk all iterate
-// through it, so a slot added to RunType is wired into every walker by
-// extending this list alone — a slot added to SchemaChecks by extending
-// eachRefSlot alone.
+// EachRefSlot calls visit for every non-nil ref-carrying child slot of runType: single slots, then the slice
+// slots in canonical order, then the schema-check slots (SchemaChecks.eachRefSlot below). THE one enumeration
+// of RunType's child-bearing slots, so a new slot is wired into every walker by extending this list alone.
 //
-// Slot notes (why some seemingly-redundant slots are enumerated):
-//   - Extends — interface parents. Properties are already flattened into
-//     Children by the TS checker, but the parent refs are only reachable
-//     through this slot.
-//   - TypeMeta — surviving object-literal types from a collapsed
-//     `primitive & {brand}` intersection, reachable only from the branded
-//     primitive node.
-//   - SafeUnionChildren / UnionDiscriminators — the same ref objects as
-//     Children in today's passes; enumerated so a future pass that
-//     surfaces extra nodes here is still covered.
+// Slots that look redundant but are not:
+//   - Extends — interface parents; the properties are flattened into Children, the parent refs reach only here.
+//   - TypeMeta — object-literal types surviving a collapsed `primitive & {brand}` intersection, reachable only
+//     from the branded primitive node.
+//   - SafeUnionChildren / UnionDiscriminators — already reachable through Children in today's passes;
+//     enumerated so a future pass that surfaces extra nodes here is still covered.
 func (runType *RunType) EachRefSlot(visit func(*RunType)) {
 	for _, slot := range []*RunType{runType.Child, runType.Index, runType.Return, runType.IndexT} {
 		if slot != nil {
@@ -47,22 +37,15 @@ func (runType *RunType) EachRefSlot(visit func(*RunType)) {
 	runType.SchemaChecks.eachRefSlot(visit)
 }
 
-// eachRefSlot visits every child-bearing slot of the sentinel-lifted schema
-// checks; the entries are full nodes exactly like any other child slot, and
-// each is reachable only from the check-bearing node (like TypeMeta from a
-// branded one). Called from EachRefSlot only — the one-enumeration contract
-// extends through here, so a slot added to SchemaChecks is wired into every
-// walker by extending this method alone.
+// eachRefSlot visits every child-bearing slot of the sentinel-lifted schema checks; the entries are full nodes,
+// each reachable only from the check-bearing node. Called from EachRefSlot only, so the one-enumeration
+// contract extends through here: a slot added to SchemaChecks is wired in by extending this method alone.
 func (checks *SchemaChecks) eachRefSlot(visit func(*RunType)) {
-	// Contains — the `__rtContains` children; each
-	// entry's child is a full node slot exactly like any other child slot.
 	for _, containsCheck := range checks.Contains {
 		if containsCheck != nil && containsCheck.Child != nil {
 			visit(containsCheck.Child)
 		}
 	}
-	// PatternProps / PropNames — the `__rtPatternProps` / `__rtPropNames`
-	// children (patternProperties / propertyNames).
 	for _, patternProp := range checks.PatternProps {
 		if patternProp == nil {
 			continue

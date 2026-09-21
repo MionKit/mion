@@ -12,21 +12,14 @@ const (
 	WalkStop
 )
 
-// WalkGraph visits every node reachable from root, once each. A KindRef slot
-// is resolved through refTable before it is visited (an unresolvable ref is
-// skipped), a node is never visited twice (cycle guard on id; an id-less node
-// is visited every time it is reached), and descent goes through EachRefSlot,
-// so a slot added to RunType reaches every pass built on this walk without a
-// change here.
+// WalkGraph visits every node reachable from root once: a KindRef slot is resolved through refTable first (an
+// unresolvable ref is skipped), an id-bearing node is visited once and an id-less one every time it is reached,
+// and descent goes through EachRefSlot, so a slot added to RunType reaches every pass built on this walk.
 //
-// This is THE walk for a standalone pass that asks a whole-type question (a
-// build rule, a "does this graph contain X" predicate). A hand-rolled
-// `for _, child := range node.Children` reaches only one of the child slots
-// and is exactly the shape that produced the nested-node bugs; the emit
-// walker in cachegen/typefunctions is the one other descent, and it too
-// covers every slot its emitters can render. The kind-aware noop and
-// compat predicates in cachegen/typefunctions are NOT candidates: each
-// mirrors its emitter's own kind arms and must stay per-kind.
+// THE walk for a standalone pass asking a whole-type question. A hand-rolled
+// `for _, child := range node.Children` reaches one child slot only and is the shape that produced the
+// nested-node bugs. The kind-aware noop and compat predicates in cachegen/typefunctions are NOT candidates:
+// each mirrors its own emitter's kind arms and must stay per-kind.
 func WalkGraph(root *RunType, refTable map[string]*RunType, visit func(node *RunType) WalkAction) {
 	visited := map[string]bool{}
 	stopped := false
@@ -63,8 +56,7 @@ func WalkGraph(root *RunType, refTable map[string]*RunType, visit func(node *Run
 	walk(root)
 }
 
-// ResolveRef returns the node a KindRef slot points at (nil when the ref table
-// has no such id), or the node itself when it is not a ref.
+// ResolveRef returns the node a KindRef slot points at (nil when refTable has no such id), or node itself.
 func ResolveRef(node *RunType, refTable map[string]*RunType) *RunType {
 	if node == nil || node.Kind != KindRef {
 		return node
