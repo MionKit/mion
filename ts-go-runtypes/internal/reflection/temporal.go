@@ -2,15 +2,12 @@ package reflection
 
 import "sort"
 
-// temporal.go is the single source of truth for the builtin Temporal types.
-// Every scanner / id / emitter site consults this table instead of
-// hard-coding type-name switches, so adding or changing a Temporal type is a
-// one-line edit here. Detection is namespace-qualified (the type's symbol
-// parent must be the `Temporal` namespace) — see TemporalInfoForSymbol — so a
-// user type literally named `PlainDate` never collides with the builtin.
+// temporal.go is the single source of truth for the builtin Temporal types: every scanner / id / emitter site
+// consults this table instead of hard-coding type-name switches, so adding one is a one-line edit here.
+// Detection is namespace-qualified (see typeid.TemporalInfoForType), so a user type named `PlainDate` never
+// collides with the builtin.
 
-// TemporalNamespace is the namespace symbol name a builtin Temporal type's
-// declaration sits under.
+// TemporalNamespace is the namespace symbol name a builtin Temporal type's declaration sits under.
 const TemporalNamespace = "Temporal"
 
 // TemporalInfo describes one builtin Temporal type.
@@ -19,43 +16,32 @@ type TemporalInfo struct {
 	Name string
 	// SubKind is the reflection sub-kind stamped on the RunType.
 	SubKind ReflectionSubKind
-	// Builtin is the ClassRef.Builtin value — the qualified constructor path
-	// the cache footer wires as `globalThis.<Builtin>`, e.g.
-	// "Temporal.PlainDate".
+	// Builtin is the ClassRef.Builtin value, the qualified constructor path the cache footer wires as
+	// `globalThis.<Builtin>`, e.g. "Temporal.PlainDate".
 	Builtin string
-	// HasCompare reports whether the type ships a static `compare(a, b)`
-	// (every Temporal type except PlainMonthDay). Drives whether min/max
-	// bound support is possible for the Temporal format family.
+	// HasCompare reports whether the type ships a static `compare(a, b)` (all but PlainMonthDay), which is
+	// what makes min/max bound support possible at all.
 	HasCompare bool
-	// IsDuration flags Temporal.Duration — a length, not a point in time:
-	// no ordering against "now", no min/max bound semantics.
+	// IsDuration flags Temporal.Duration, a length rather than a point in time: no ordering against "now".
 	IsDuration bool
 
 	// ── FormatTemporalX<{min,max}> family metadata ──
 
-	// Orderable reports whether the type supports min/max bound constraints —
-	// every type with a static `compare` except Duration (a length, not an
-	// instant). PlainMonthDay is excluded (no compare).
+	// Orderable reports whether min/max bound constraints are supported: a static `compare` and not Duration.
 	Orderable bool
-	// FormatName is the FormatAnnotation.Name the FormatTemporalX<P> brand
-	// carries (and the emitter registers under), e.g. "temporalPlainDate".
-	// Empty for non-orderable types.
+	// FormatName is the FormatAnnotation.Name the FormatTemporalX<P> brand carries and the emitter registers
+	// under, e.g. "temporalPlainDate". Empty for non-orderable types.
 	FormatName string
-	// NowExpr is the JS expression yielding the current instant AS this type,
-	// for evaluating relative `now±P` bounds — e.g.
-	// "Temporal.Now.plainDateISO()". Empty for non-orderable types.
+	// NowExpr yields the current instant AS this type, for relative `now±P` bounds. Empty when non-orderable.
 	NowExpr string
-	// RelComponentKind restricts which ISO-8601 duration components a relative
-	// bound may use, mirroring the string date/time rule: "date" → Y/M/W/D,
-	// "time" → T-section H/M/S, "dateTime" → both. (A Temporal.Duration with
-	// an out-of-kind component throws in `.add()` at runtime — e.g. an Instant
-	// can't add calendar units — so we reject those at build time.) Empty for
-	// non-orderable types.
+	// RelComponentKind restricts which ISO-8601 duration components a relative bound may use, mirroring the
+	// string date/time rule: "date" → Y/M/W/D, "time" → T-section H/M/S, "dateTime" → both. An out-of-kind
+	// component throws in `.add()` at runtime (an Instant cannot add calendar units), so it is refused at
+	// build time. Empty for non-orderable types.
 	RelComponentKind string
 }
 
-// temporalTypes is the registry, keyed by bare type name. Order is the
-// canonical declaration order used by tests + docs.
+// temporalTypes is the registry, keyed by bare type name, in the canonical order tests and docs use.
 var temporalTypes = map[string]TemporalInfo{
 	"Instant": {Name: "Instant", SubKind: SubKindTemporalInstant, Builtin: "Temporal.Instant", HasCompare: true,
 		Orderable: true, FormatName: "temporalInstant", NowExpr: "Temporal.Now.instant()", RelComponentKind: "time"},
@@ -82,17 +68,16 @@ var temporalBySubKind = func() map[ReflectionSubKind]TemporalInfo {
 	return out
 }()
 
-// TemporalInfoByName returns the registry entry for a bare Temporal type
-// name (caller must have already confirmed the namespace), or ok=false.
+// TemporalInfoByName returns the registry entry for a bare Temporal type name, the caller having already
+// confirmed the namespace, or ok=false.
 func TemporalInfoByName(name string) (TemporalInfo, bool) {
 	info, ok := temporalTypes[name]
 	return info, ok
 }
 
-// TemporalInfoByFormatName returns the registry entry whose FormatName matches
-// (`temporalPlainDate`), for callers holding a format annotation rather than a
-// SubKind. ok=false for a non-temporal name, and for the two types with no
-// orderable format family (PlainMonthDay, Duration), which carry no FormatName.
+// TemporalInfoByFormatName returns the registry entry whose FormatName matches, for callers holding a format
+// annotation rather than a SubKind. ok=false for a non-temporal name and for PlainMonthDay / Duration, which
+// carry no FormatName.
 func TemporalInfoByFormatName(formatName string) (TemporalInfo, bool) {
 	if formatName == "" {
 		return TemporalInfo{}, false
@@ -105,26 +90,21 @@ func TemporalInfoByFormatName(formatName string) (TemporalInfo, bool) {
 	return TemporalInfo{}, false
 }
 
-// TemporalInfoBySubKind returns the registry entry for a SubKind, or
-// ok=false when the SubKind isn't a Temporal type.
+// TemporalInfoBySubKind returns the registry entry for a SubKind, or ok=false when it isn't a Temporal type.
 func TemporalInfoBySubKind(subKind ReflectionSubKind) (TemporalInfo, bool) {
 	info, ok := temporalBySubKind[subKind]
 	return info, ok
 }
 
-// WireFormat / WirePattern describe what this temporal type looks like AS JSON,
-// which is what its `toJSON()` emits. Exactly one of the two is set.
+// WireFormat is this type's registered 2020-12 `format`, and WirePattern its regex; exactly one is set.
 //
-// Only three land on a registered 2020-12 `format`. The other five carry a
-// pattern instead, and that is not a shortcut: ZonedDateTime.toJSON() produces
-// RFC 9557 (`2020-01-01T00:00:00+01:00[Europe/Madrid]`), which a `date-time`
-// checker REJECTS, and PlainTime / PlainDateTime / PlainYearMonth /
-// PlainMonthDay carry no offset where the registered formats require one.
-// Claiming a format for those would make a validator reject valid data.
+// Only three types land on a registered format, and the pattern for the other five is not a shortcut:
+// ZonedDateTime.toJSON() produces RFC 9557 (`2020-01-01T00:00:00+01:00[Europe/Madrid]`), which a `date-time`
+// checker REJECTS, and PlainTime / PlainDateTime / PlainYearMonth / PlainMonthDay carry no offset where the
+// registered formats require one. Claiming a format for those would make a validator reject valid data.
 //
-// These live in the registry rather than in the converter so validate,
-// serialize and convert can never disagree about what a temporal value looks
-// like on the wire.
+// Both live in the registry rather than in the converter so validate, serialize and convert can never disagree
+// about what a temporal value looks like on the wire.
 func (info TemporalInfo) WireFormat() string {
 	switch info.Name {
 	case "Instant":
@@ -137,9 +117,7 @@ func (info TemporalInfo) WireFormat() string {
 	return ""
 }
 
-// WirePattern is the anchored regular expression matching this type's
-// `toJSON()` output, for the five with no honest registered format. Empty when
-// WireFormat covers it.
+// WirePattern is the anchored regex matching this type's `toJSON()` output. Empty when WireFormat covers it.
 func (info TemporalInfo) WirePattern() string {
 	switch info.Name {
 	case "ZonedDateTime":
@@ -158,16 +136,11 @@ func (info TemporalInfo) WirePattern() string {
 	return ""
 }
 
-// DialectName is the name the json-schema dialect spells this temporal type
-// with: the QUALIFIED JavaScript global (`Temporal.Instant`), the same way the
-// Date / Map / Set / RegExp rows spell theirs. `jsType` names a JavaScript
-// type, and that is the name JavaScript gives it.
-//
-// This is what `Builtin` already holds, so it is a rename rather than a second
-// table. (An earlier pass used the reflected format name to keep the characters
-// `Temporal.` out of the published `.d.ts`; the D1 guard now strips string
-// literals before it scans, which is the precise rule — a quoted name cannot
-// force a lib, only a type reference can.)
+// DialectName is the name the json-schema dialect spells this temporal type with: the QUALIFIED JavaScript
+// global (`Temporal.Instant`), the same way the Date / Map / Set / RegExp rows spell theirs. It is what
+// `Builtin` already holds, so it is a rename rather than a second table. (An earlier pass used the reflected
+// format name to keep the characters `Temporal.` out of the published `.d.ts`; the D1 guard now strips string
+// literals before it scans, since a quoted name cannot force a lib, only a type reference can.)
 func (info TemporalInfo) DialectName() string {
 	return info.Builtin
 }
@@ -178,9 +151,7 @@ func IsTemporalSubKind(subKind ReflectionSubKind) bool {
 	return ok
 }
 
-// OrderableTemporalInfos returns every Temporal type that supports min/max
-// bounds, sorted by SubKind. Used by the format emitter to register one
-// emitter per orderable type.
+// OrderableTemporalInfos returns every Temporal type that supports min/max bounds, sorted by SubKind.
 func OrderableTemporalInfos() []TemporalInfo {
 	out := make([]TemporalInfo, 0, len(temporalTypes))
 	for _, info := range temporalTypes {
