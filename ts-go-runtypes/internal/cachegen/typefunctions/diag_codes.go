@@ -34,11 +34,8 @@ func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
 	case reflection.KindSymbol:
 		return m.symbol
 	case reflection.KindLiteral:
-		// A symbol-flavored literal under the `noLiterals` ValidateOptions
-		// variant degrades to the bare-symbol validator — same misleading
-		// shape as plain `createValidateFn<symbol>()`, so we route to the
-		// symbol root code and let the alwaysThrow path emit the same
-		// diagnostic. See istype.go's emitLiteralBaseKind symbol arm.
+		// A symbol-flavored literal is refused on every road for the same reason
+		// as the bare kind, so it takes the same per-family root code.
 		for _, flag := range leaf.Flags {
 			if flag == "symbol" {
 				return m.symbol

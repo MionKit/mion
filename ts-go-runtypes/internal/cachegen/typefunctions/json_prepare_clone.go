@@ -210,7 +210,8 @@ func emitLiteralPrepareForJsonClone(rt *reflection.RunType, v string) RTCode {
 	case litBigInt:
 		return RTCode{Code: v + ".toString()", Type: CodeE}
 	case litSymbol:
-		return RTCode{Code: "'Symbol:' + (" + v + ".description || '')", Type: CodeE}
+		// Unsupported — symmetric with emitLiteralPrepareForJson's symbol arm.
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	return RTCode{Code: "", Type: CodeS}
 }

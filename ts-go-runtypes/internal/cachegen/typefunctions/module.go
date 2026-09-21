@@ -1042,6 +1042,10 @@ func leafKindLabel(leaf *reflection.RunType) string {
 		return "Never"
 	case reflection.KindSymbol:
 		return "Symbol"
+	case reflection.KindLiteral:
+		if literalFlavour(leaf) == litSymbol {
+			return "Symbol"
+		}
 	case reflection.KindPromise:
 		return "Promise"
 	case reflection.KindRegexp:

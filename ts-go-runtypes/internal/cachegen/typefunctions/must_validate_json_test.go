@@ -107,7 +107,6 @@ func flaggedDumps() map[string]protocol.Dump {
 		"big":  {RunTypes: []*reflection.RunType{{ID: "big", Kind: reflection.KindBigInt}}},
 		"dat":  {RunTypes: []*reflection.RunType{mkDate()}},
 		"lbig": {RunTypes: []*reflection.RunType{{ID: "lbig", Kind: reflection.KindLiteral, Literal: "12", Flags: []string{"bigint"}}}},
-		"lsym": {RunTypes: []*reflection.RunType{{ID: "lsym", Kind: reflection.KindLiteral, Literal: "@@x", Flags: []string{"symbol"}}}},
 		"col":  mkIterable(reflection.SubKindSet, mkStr()),
 	}
 	mapDump := mkIterable(reflection.SubKindMap, mkStr())
@@ -122,6 +121,14 @@ func flaggedDumps() map[string]protocol.Dump {
 	union := unionDump(mkDate(), mkStr())
 	dumps["uni"] = union
 	return dumps
+}
+
+// symbolLiteralDump is the shape the resolver emits for `typeof sym` where
+// `const sym = Symbol('x')`.
+func symbolLiteralDump() protocol.Dump {
+	return protocol.Dump{RunTypes: []*reflection.RunType{
+		{ID: "lsym", Kind: reflection.KindLiteral, Literal: map[string]any{"symbol": "x"}, Flags: []string{"symbol"}},
+	}}
 }
 
 func TestMustValidateJson_FlagsEveryTransformingKind(t *testing.T) {
@@ -157,6 +164,7 @@ func TestMustValidateJson_ATransformOnlyAppearsUnderAFlaggedKind(t *testing.T) {
 		objWithProp(mkStr(), true),
 		{RunTypes: []*reflection.RunType{mkStr(), {ID: "arr", Kind: reflection.KindArray, Child: makeRef("str")}}},
 		unionDump(mkStr(), &reflection.RunType{ID: "num", Kind: reflection.KindNumber}),
+		symbolLiteralDump(),
 	}
 	for _, dump := range unflagged {
 		for _, fam := range jsonDecodeFamilies {
@@ -176,10 +184,16 @@ func TestMustValidateJson_UnionEnvelopeIsLeftForValidateWhenNotAnArray(t *testin
 	}
 }
 
-func TestMustValidateJson_SymbolLiteralOnlyFromItsWireForm(t *testing.T) {
-	dump := flaggedDumps()["lsym"]
-	body := renderModule(t, dump, "restoreFromJsonMutate")
-	if !strings.Contains(body, "typeof v === 'string' && v.startsWith('Symbol:') ? Symbol(v.substring(7)) : v") {
-		t.Errorf("a symbol literal must be rebuilt only from its 'Symbol:' wire form; got:\n%s", body)
+// A symbol literal has no wire form at all: a rebuilt Symbol() is never the
+// symbol the literal type names, so no decoder converts one.
+func TestMustValidateJson_SymbolLiteralHasNoWireForm(t *testing.T) {
+	if reflection.MustValidateJson(symbolLiteralDump().RunTypes[0]) {
+		t.Error("a symbol literal converts nothing, so it must not be flagged")
+	}
+	for _, fam := range jsonDecodeFamilies {
+		body := renderModule(t, symbolLiteralDump(), fam)
+		if strings.Contains(body, "Symbol:") || strings.Contains(body, "Symbol(") {
+			t.Errorf("[%s] a symbol literal must emit no rebuild; got:\n%s", fam, body)
+		}
 	}
 }

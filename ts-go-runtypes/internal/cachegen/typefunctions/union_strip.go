@@ -36,6 +36,10 @@ func isStrippedUnionMember(resolved *reflection.RunType) bool {
 	switch resolved.Kind {
 	case reflection.KindSymbol, reflection.KindNever, reflection.KindPromise, reflection.KindRegexp:
 		return true
+	case reflection.KindLiteral:
+		// A unique symbol is assignable to `symbol`, so DataOnly strips a symbol
+		// literal exactly as it strips the bare kind.
+		return literalFlavour(resolved) == litSymbol
 	case reflection.KindClass:
 		return resolved.SubKind == reflection.SubKindNonSerializable
 	}
@@ -115,6 +119,11 @@ func strippedMemberLabel(resolved *reflection.RunType) string {
 	switch resolved.Kind {
 	case reflection.KindSymbol:
 		return "symbol"
+	case reflection.KindLiteral:
+		if literalFlavour(resolved) == litSymbol {
+			return "symbol"
+		}
+		return "value"
 	case reflection.KindNever:
 		return "never"
 	case reflection.KindPromise:

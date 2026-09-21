@@ -234,7 +234,9 @@ func emitLiteralPrepareForJson(rt *reflection.RunType, v string) RTCode {
 	case litBigInt:
 		return RTCode{Code: v + " = " + v + ".toString()", Type: CodeE}
 	case litSymbol:
-		return RTCode{Code: v + " = 'Symbol:' + (" + v + ".description || '')", Type: CodeE}
+		// Unsupported for the same reason as the bare kind: a rebuilt Symbol() is
+		// never the symbol the literal type names.
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	// Primitive literal (number / string / boolean / null) — noop.
 	return RTCode{Code: "", Type: CodeS}

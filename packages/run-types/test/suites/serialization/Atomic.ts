@@ -694,4 +694,63 @@ export const ATOMIC = {
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(true)),
     getTestData: () => ({values: [true]}),
   },
+  literal_symbol: {
+    title: 'symbol literal',
+    description:
+      'A symbol literal is refused at a root exactly like a bare `symbol`: the only value a decoder could build is a fresh `Symbol()`, never the symbol the type names.',
+    serializeNotes:
+      'This used to encode as `Symbol:` plus the description and decode into a new symbol, so the round trip returned a value the validator accepted but `===` did not match.',
+    mutateEncoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error PJ005
+      return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'mutate'});
+    },
+    cloneEncoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error PJS005
+      return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'clone'});
+    },
+    directEncoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error SJ005
+      return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'direct'});
+    },
+    compactEncoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error PJS005
+      return createJsonEncoderFn<typeof sym>(undefined, {strategy: 'compact'});
+    },
+    stripDecoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error RJ005
+      return createJsonDecoderFn<typeof sym>();
+    },
+    preserveDecoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error RJ005
+      return createJsonDecoderFn<typeof sym>(undefined, {strategy: 'preserve'});
+    },
+    compactDecoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error RJ005
+      return createJsonDecoderFn<typeof sym>(undefined, {strategy: 'compact'});
+    },
+    binaryEncoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error TB006
+      return createBinaryEncoderFn<typeof sym>();
+    },
+    binaryDecoder: () => {
+      const sym = Symbol('hello');
+      // @mion-downgrade-error FB006
+      return createBinaryDecoderFn<typeof sym>();
+    },
+    // No value-first builder names a unique symbol; `RT.symbol()` is the bare kind.
+    schemaEncoder: 'not-supported',
+    schemaDecoder: 'not-supported',
+    schemaBinaryEncoder: 'not-supported',
+    schemaBinaryDecoder: 'not-supported',
+    factoryThrows: true,
+    getTestData: () => ({values: []}),
+  },
 } as const satisfies Record<string, SerializationCase>;

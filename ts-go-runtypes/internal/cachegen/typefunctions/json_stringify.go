@@ -282,7 +282,8 @@ func emitLiteralStringifyJson(rt *reflection.RunType, ctx *EmitContext, v string
 	case litBigInt:
 		return RTCode{Code: "'\"'+" + v + ".toString()+'\"'", Type: CodeE}
 	case litSymbol:
-		return RTCode{Code: "JSON.stringify('Symbol:'+(" + v + ".description||''))", Type: CodeE}
+		// Unsupported — symmetric with emitLiteralPrepareForJson's symbol arm.
+		return RTCode{Code: "", Type: CodeNS}
 	}
 	// Primitive literal (number / string / boolean / null) — defer
 	// to JSON.stringify, which handles each shape correctly. This
