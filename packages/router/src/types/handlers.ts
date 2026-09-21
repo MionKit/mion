@@ -26,11 +26,7 @@ export type HeaderHandler<
   ExpectedHeaders extends HeadersSubset<any> = any,
   Params extends any[] = any[],
   Ret = any,
-> = (
-  context: Context,
-  headers: ExpectedHeaders,
-  ...parameters: Params
-) => Ret | Promise<Ret>;
+> = (context: Context, headers: ExpectedHeaders, ...parameters: Params) => Ret | Promise<Ret>;
 
 /** Handler to use with raw middleFns to get access to raw request and response */
 export type RawMiddleFnHandler<

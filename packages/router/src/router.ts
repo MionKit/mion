@@ -340,23 +340,17 @@ function recursiveFlatRoutes(
       if (middleFnNames.has(routeEntry.id))
         throw new Error(`Invalid middleFn: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`);
       middleFnNames.add(routeEntry.id);
-    }
-
-    else if (isRoute(item)) {
+    } else if (isRoute(item)) {
       routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
       if (routeNames.has(routeEntry.id))
         throw new Error(`Invalid route: ${joinPath(...newPointer)}. Naming collision, duplicated route`);
       routeNames.add(routeEntry.id);
-    }
-
-    else if (isRoutes(item)) {
+    } else if (isRoutes(item)) {
       routeEntry = {
         pathPointer: newPointer,
         routes: item,
       };
-    }
-
-    else {
+    } else {
       const itemType = typeof item;
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. Type <${itemType}> is not a valid route.`);
     }
