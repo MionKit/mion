@@ -15,7 +15,6 @@ import type {MionClient} from './client.ts';
 import {TypedEvent} from './lib/typedEvent.ts';
 import {isInputFromRef} from './batch.ts';
 
-/** Implementation of both RouteSubRequest and MiddleFnSubRequest interfaces */
 export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
   implements RouteSubRequest<any>, MiddlewareSubRequest<any>
 {
@@ -47,8 +46,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     });
   }
 
-  /** Prefills MiddleFn's parameters and returns TypedEvent for event handler registration.
-   *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
   prefill(apiMetadata?: InjectedApiMetadata): TypedEvent<S, E> {
     this.client.useBundledApi(apiMetadata);
     this.client.prefill(this as MiddlewareSubRequest<any>).catch((errors: RequestErrors) => {
@@ -68,7 +66,6 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     return this.events().onError(errorType, handler);
   }
 
-  /** Removes a previously registered error handler */
   offError<T extends E['type']>(errorType: T): TypedEvent<S, E> {
     return this.events().offError(errorType);
   }
@@ -78,19 +75,16 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     return this.events().onSuccess(handler);
   }
 
-  /** Removes a previously registered success handler */
   offSuccess(): TypedEvent<S, E> {
     return this.events().offSuccess();
   }
 
-  /** Removes prefilled value and clears any registered error handlers for this middleFn */
   removePrefill(): Promise<void> {
     this.client.handlersRegistry.clearHandlers(this.id);
     return this.client.removePrefill(this as MiddlewareSubRequest<any>);
   }
 
-  /** Calls a remote route with optional setup (middleFns, signal, timeout).
-   *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
   call(setup?: CallSetup<any>, apiMetadata?: InjectedApiMetadata): Promise<any> {
     this.client.useBundledApi(apiMetadata);
     return this.client.execute(
@@ -103,8 +97,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     );
   }
 
-  /** Validates parameters and returns type errors.
-   *  `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
+  /** `apiMetadata` is filled by the build under `bundleApi`, never by hand. */
   typeErrors(apiMetadata?: InjectedApiMetadata): Promise<RunTypeError[]> {
     this.client.useBundledApi(apiMetadata);
     return this.client

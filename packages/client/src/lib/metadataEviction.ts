@@ -44,11 +44,8 @@ function methodRootHashes(metadata: MethodWithOptions): string[] {
   return roots;
 }
 
-/** The compiled functions no stored method can reach any more.
- *
- *  Hashes are content addresses, so an entry is never stale, only unreachable: a deploy rewrites a
- *  method's row with new hashes and the old ones are left behind with nothing pointing at them.
- *  This walks from the methods outwards and returns what the walk never touched. */
+/** The compiled functions no stored method can reach any more. Hashes are content addresses, so an entry is
+ *  never stale, only unreachable: a deploy rewrites a method's row and leaves the old hashes behind. */
 export function findOrphans(graph: CacheGraph): MetadataRecordKey[] {
   const reachedDeps = new Set<string>();
   const reachedPureFns = new Set<string>();

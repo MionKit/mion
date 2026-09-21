@@ -11,7 +11,6 @@ import type {RunTypeError} from '@mionjs/core';
 import {RequestErrors, SubRequest} from '../types.ts';
 import type {MionClientRequest} from '../request.ts';
 
-/** Validate subRequests locally using existing RemoteApi metadata */
 export function validateSubRequests(
   subRequestIds: string[],
   req: MionClientRequest<any, any>,
@@ -31,11 +30,9 @@ export function validateSubRequests(
   return;
 }
 
-/** Validate subRequest locally using existing RemoteApi metadata */
 export function validateSubRequest(id: string, subRequest: SubRequest<any>, errors: RequestErrors): void {
   if (subRequest?.error || subRequest?.isResolved) return;
-  // Skip validation for subrequests with inputFrom mappings: params contain null placeholders
-  // that the server's mapping step fills after the source route executes
+  // inputFrom params hold null placeholders the server fills after the source route runs
   if (subRequest?.mappings && subRequest.mappings.length > 0) return;
 
   const params = subRequest?.params || [];
@@ -59,10 +56,8 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
     let errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
       ? undefined
       : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
-    // R17: mirror the server's strictTypes gate client-side so extra-key payloads fail fast.
-    // On master strictness was baked into the server-compiled isType; mion enforces it
-    // via the separate hasUnknownKeys/unknownKeyErrors fns, so the client must run them itself
-    // when the (effective, server-resolved) strictTypes flag rides the methods metadata.
+    // Mirror the server's strictTypes gate so extra-key payloads fail fast: strictness is not baked into
+    // isType, it rides the separate hasUnknownKeys/unknownKeyErrors fns, which the client must run itself.
     if (!errors?.length && method.options?.strictTypes && paramsJit.hasUnknownKeys && paramsJit.unknownKeyErrors) {
       if (paramsJit.hasUnknownKeys.fn(params)) errors = paramsJit.unknownKeyErrors.fn(params) as RunTypeError[];
     }

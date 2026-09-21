@@ -21,10 +21,8 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   basePath: '',
   /** Suffix for all routes, i.e: .json */
   suffix: '',
-  /** Enables automatic parameter validation */
   validateParams: true,
   sanitizeParams: true,
-  /** Set true to automatically generate and id for every error */
   autoGenerateErrorId: false,
   /** Default first-call mode: fetch the metadata first, then encode with the route's own strategy */
   serializer: 'stringifyJson',
@@ -37,15 +35,12 @@ export const MAX_GET_URL_LENGTH = 4096;
 
 export const STORAGE_KEY = 'mion:client';
 
-/** How much of the browser's space the metadata cache will use for one server before it starts
- *  dropping its oldest entries. Well under what a browser normally grants, so the cache stays a
- *  good neighbour to whatever else the page stores. */
+/** What one server's metadata cache may hold before it drops its oldest entries; well under what a browser grants. */
 export const METADATA_CACHE_MAX_BYTES = 8 * 1024 * 1024;
 
-/** How many times a refused write may drop another batch of old entries and try again before the
- *  failure is reported to the app. */
+/** How many times a refused write may drop more old entries and retry before the app is told. */
 export const METADATA_CACHE_EVICTION_ROUNDS = 5;
 
-/** Key for request-scoped client errors (transport, platform, framework) in the RequestErrors map.
- * Deliberately NOT a route or middleFn id so these errors can never land in a subrequest's slot. */
+/** Key for request-scoped client errors (transport, platform, framework); deliberately NOT a route or
+ * middleFn id, so they can never land in a subrequest's slot. */
 export const CLIENT_REQUEST_ERROR_ID = 'mion-client-request';

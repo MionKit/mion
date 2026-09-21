@@ -15,9 +15,7 @@ import {MayReturnError} from './publicMethods.ts';
 // type-handler-start
 /** Route or MiddleFn Handler  */
 export type Handler<Context extends CallContext = any, Params extends any[] = any[], Ret = any> = (
-  /** Call Context */
   context: Context,
-  /** Remote Call parameters */
   ...parameters: Params
 ) => Ret | Promise<Ret>;
 // type-handler-end
@@ -29,11 +27,8 @@ export type HeaderHandler<
   Params extends any[] = any[],
   Ret = any,
 > = (
-  /** Call Context */
   context: Context,
-  /** Remote Call Headers */
   headers: ExpectedHeaders,
-  /** Remote Call parameters */
   ...parameters: Params
 ) => Ret | Promise<Ret>;
 
@@ -55,14 +50,11 @@ export type AnyHandler<Context extends CallContext = any, Params extends any[] =
 /** The handler's public params tuple: everything after the leading CallContext param. Keeps tuple labels (= param names). */
 export type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
 
-/** The handler's resolved (awaited) return type. */
 export type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
-/** Whether the handler answers with a promise, decided by the type checker at the call site.
- *  `HandlerReturn` above awaits the return type, so by the time anything is resolved the promise is
- *  gone and no runtime check can tell an async handler from a sync one that returns a promise. This
- *  is injected as its own runtype id; it resolves to one of exactly two literal types across the
- *  whole program, so it interns nothing per route. */
+/** Whether the handler answers with a promise, decided by the type checker: `HandlerReturn` awaits the
+ *  return type, so no runtime check can tell an async handler from a sync one returning a promise.
+ *  Injected as its own runtype id, which resolves to one of two literal types, so it interns nothing per route. */
 export type HandlerIsAsync<H extends AnyHandler> = true extends IsPromiseArm<ReturnType<H>> ? true : false;
 
 /** Distributes over a union, so ONE promise arm is enough. Written over a naked type parameter on
@@ -70,8 +62,6 @@ export type HandlerIsAsync<H extends AnyHandler> = true extends IsPromiseArm<Ret
  *  `string | Promise<string>`, which would let dispatch skip an await it needed. */
 type IsPromiseArm<T> = T extends PromiseLike<any> ? true : false;
 
-/** The HeadersSubset param (2nd param) of a headers middleFn handler. */
 export type HeaderHandlerHeaders<H extends HeaderHandler> = Parameters<H> extends [any, infer HS, ...any[]] ? HS : never;
 
-/** The body params of a headers middleFn handler: everything after CallContext + HeadersSubset. */
 export type HeaderHandlerParams<H extends HeaderHandler> = Parameters<H> extends [any, any, ...infer P] ? P : [];

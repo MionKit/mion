@@ -25,7 +25,7 @@ export interface MetadataRecord {
   ts: number;
 }
 
-/** Address of a single record within one baseURL. `[baseURL, kind, id]` identifies a record. */
+/** Address of a record within one baseURL: its kind and its id. */
 export type MetadataRecordKey = [MetadataKind, string];
 
 /** Everything the metadata cache asks of its storage.

@@ -17,17 +17,13 @@ import {recordUndeclaredError} from '../lib/dispatchError.ts';
 
 // ############# PUBLIC METHODS #############
 
-/**
- * Deserializes the request body and stores it in the request body property.
- * This method is called before any other middleFn or route handler.
- * Registered through `rawMiddleFn`: it runs before the response contract exists,
- * so it throws rather than answering with a declared error.
+/** Runs before any other middleFn or route handler. Registered through `rawMiddleFn`: it runs before the
+ * response contract exists, so it throws rather than answering with a declared error.
  * @mion:rawMiddleFn
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
-  // a request that already failed never parses: a not-found chain has no route to feed and the
-  // adapter skipped the read, and a caller that handed a body anyway (aws, gcloud, a direct
-  // dispatchRoute) gets the same answer
+  // a request that already failed never parses: a not-found chain has no route to feed and the adapter
+  // skipped the read; a caller that handed a body anyway (aws, gcloud, dispatchRoute) gets the same answer
   if (!context.readsBody || context.response.hasErrors || !context.request.rawBody) return;
   rejectOversizedBody(context.request.rawBody, context.maxBodySize);
   let parsedBody: any;
@@ -52,8 +48,7 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
       throw new Error(`Invalid body type ${context.request.bodyType}`);
   }
   if (Array.isArray(parsedBody)) {
-    // when the body is an array we assume it's a single route call and we have to reconstruct the body
-    // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
+    // an array body is a single route call, rebuilt as a body: /route1 [p1, p2] => {route1: [p1, p2]}
     // the chain already knows which member is the route, so this costs no second router lookup
     const {methods, routeIndex} = context.executionChain;
     parsedBody = {[methods[routeIndex].id]: parsedBody};
@@ -66,22 +61,19 @@ export function deserializeRequestBody(context: CallContext): MayReturnError {
       publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
     });
   (context.request as Mutable<MionRequest>).body = parsedBody;
-  // Nothing reads the raw body after this. An empty string rather than undefined: `rawBody` is a
-  // non-optional public field, so clearing it this way frees the body without making every
-  // consumer's read a maybe.
+  // Nothing reads the raw body after this. An empty string rather than undefined, because `rawBody` is a
+  // non-optional public field: it frees the body without making every consumer's read a maybe.
   if (getRouterOptions().releaseRawBody) (context.request as Mutable<MionRequest>).rawBody = '';
 }
 
-/** The router-level check of the request limit the context carries for this request (the
- *  chain's own number, capped by the platform's). The node / uws adapters already stopped the
- *  read at the same number; this is what holds on a platform that hands the body over whole. A
- *  string body is measured in UTF-16 code units, which is never more than its byte length, so the
+/** The router-level check of the limit the context carries (the chain's number, capped by the platform's).
+ *  The node / uws adapters stopped the read at the same number; this is what holds on a platform that hands
+ *  the body over whole. A string is measured in UTF-16 code units, never more than its byte length, so the
  *  byte-exact adapter limit always fires first. */
 function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void {
-  // A pre-parsed object body has no wire size here, and it is never refused for being unmeasurable:
-  // `dispatchRoute`, a batch and a test all pass object bodies that never crossed a wire. The
-  // adapter that hands a parsed body over is the only layer that still has the wire size, so it
-  // owns the check (gcloud measures the declared content-length before the chain runs).
+  // A pre-parsed object body has no wire size here and is never refused for being unmeasurable:
+  // `dispatchRoute`, a batch and a test all pass bodies that never crossed a wire. The adapter handing a
+  // parsed body over still has the wire size, so it owns the check (gcloud measures content-length first).
   if (typeof rawBody !== 'string' || rawBody.length <= maxBodySize) return;
   throw new FatalError({
     statusCode: StatusCodes.PAYLOAD_TOO_LARGE,
@@ -90,11 +82,8 @@ function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void
   });
 }
 
-/**
- * Serializes the response body and stores it in the response rawBody property.
- * This method is called after any other middleFn or route handler.
- * Registered through `rawMiddleFn`: it IS the layer that writes the answer, so it
- * has no declared error to return and throws instead.
+/** Runs after any other middleFn or route handler. Registered through `rawMiddleFn`: it IS the layer that
+ * writes the answer, so it has no declared error to return and throws instead.
  * @mion:rawMiddleFn
  */
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
@@ -107,11 +96,10 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
   prepareBodyForJson(context, context.executionChain.methods, respBody);
 }
 
-/** True when a slot holds an error the route's return type does not declare (a batch mapping step
- *  answers the target's slot with its own typed error). The route's encoder is built for its success
- *  value and would turn such an error into nonsense, so it rides as native JSON, which is what the
- *  client looks for: it reads the error brand off the raw value before decoding. A DECLARED error is
- *  part of the return union, so its own encoder keeps it. */
+/** True when a slot holds an error the route's return type does not declare (a batch mapping step answers
+ *  the target's slot with its own typed error). The route's encoder is built for the success value and would
+ *  turn such an error into nonsense, so it rides as native JSON: the client reads the error brand off the raw
+ *  value before decoding. A DECLARED error is part of the return union, so its own encoder keeps it. */
 function isUndeclaredError(method: RemoteMethod, value: unknown): boolean {
   return isRpcError(value) && !method.returnJitFns.isType.fn(value);
 }

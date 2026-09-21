@@ -19,18 +19,13 @@ import {isBundledMethod, resetBundledMethods, setBundledMethod} from './methods.
 // Re-exported from the light half, which request.ts imports without the marker reflection this module needs.
 export {setBundleApiMode, getBundleApiMode, bundledMetadataMissingError} from './bundleApiMode.ts';
 
-// The bundled-API lane (the build's `bundleApi` option). A build with it on compiles, for every
-// route the program calls, the same validators and serializers the server holds, and injects at
-// each dispatch point (`.call()`, `.prefill()`, `.typeErrors()`, a batch's `.call()`) a module
-// carrying that route plus the middleFns of its chain: metadata rows and the very marker payload
-// a server helper receives (live function tuples, nothing to evaluate). This registers such a
-// payload into the routes cache through the same reflection the router runs at initRoutes, so a
-// bundled method looks exactly like a fetched one to the rest of the client, hash for hash.
+// The bundled-API lane (the build's `bundleApi` option): the build compiles the same validators and
+// serializers the server holds and injects, at each dispatch point, a module carrying the route plus its
+// chain's middleFns, as metadata rows and live marker payloads. Registering one goes through the same
+// reflection the router runs at initRoutes, so a bundled method looks exactly like a fetched one.
 
-/** One method of a bundled payload: the members of the server's own `MethodWithOptions` that the
- *  build can answer from the API type, plus the marker payload. Everything else `MethodWithOptions`
- *  carries (the jit hashes, the arity, the header names) comes from the reflection at registration,
- *  so the build never writes it and this never names it. */
+/** One method of a bundled payload: the `MethodWithOptions` members the build can answer from the API type,
+ *  plus the marker payload. The rest (jit hashes, arity, header names) comes from the reflection instead. */
 export interface BundledMethod extends Pick<
   MethodWithOptions,
   'id' | 'pointer' | 'nestLevel' | 'type' | 'isAsync' | 'options' | 'middleFnIds'
@@ -46,11 +41,9 @@ export interface BundledApiPayload {
 /** A payload the build did not write, held until a call can report it once. */
 let pendingPayloadError: RpcError<string> | undefined;
 
-/** Registers a bundled payload, once per method id. Idempotent and cheap on repeat: a dispatch point
- *  passes the same module on every call. The declared type is what the build writes; the guard is
- *  still run because a `<genDir>/api/` tree from another @mionjs/devtools version can disagree, and
- *  a payload it did not write is recorded rather than thrown: `call()` never throws, so it rides
- *  the undeclared slot of the result instead. */
+/** Registers a bundled payload, once per method id; a dispatch point passes the same module on every call.
+ *  The guard runs despite the declared type because a `<genDir>/api/` tree from another @mionjs/devtools
+ *  version can disagree; a payload it did not write is recorded, never thrown, since `call()` never throws. */
 export function registerBundledApi(payload: InjectedApiMetadata): void {
   if (!isBundledApiPayload(payload)) {
     pendingPayloadError = new RpcError({

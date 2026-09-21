@@ -10,35 +10,26 @@ import type {CallContext} from '../types/context.ts';
 import {RpcError, FatalError, MION_ROUTES, StatusCodes} from '@mionjs/core';
 import {route, rawMiddleFn} from '../lib/handlers.ts';
 
-// mion's own routes, registered by initRouter for every app. They are DECLARED here at module
-// level rather than through the router factory, because a marker call site inside the generic
-// `createMionRouter` would carry an unresolved type parameter and `initRouter` takes the widened
-// options type: either way the build compiles them against the built-in default encoder. So each
-// one PINS that default. Without the pin a router-wide `encoder` is the pair the runtime resolves,
-// it disagrees with what the build compiled, and the router refuses to start.
+// mion's own routes, registered by initRouter for every app. Declared at module level rather than
+// through the router factory: a marker call site inside the generic `createMionRouter` would carry an
+// unresolved type parameter and `initRouter` takes the widened options type, so either way the build
+// compiles them against the built-in default serializer. So each one PINS that default: without the
+// pin the runtime resolves the router-wide `serializer`, it disagrees with what the build compiled,
+// and the router refuses to start.
 const DEFAULT_WIRE = {serializer: {params: 'clone', return: 'clone'}} as const;
 
 export const mionErrorsRoutes = {
-  /**
-   * !IMPORTANT!
-   * This is declared as route mostly to reuse existing router serialization/deserialization functionality.
-   * But "@thrownErrors" is expected to be a field in response body that contain all thrown errors from other executables.
-   * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
-   * this also prevents users to register a route with the same name.
-   */
+  /** A route only to reuse the router's (de)serialization: "@thrownErrors" is a response body field holding
+   *  every thrown error, none strongly typed, all carried as RpcError<string>. Registering it also stops a
+   *  user route taking the same name. */
   [MION_ROUTES.thrownErrors]: route((ctx: CallContext): Record<string, RpcError<string>> => {
     return ctx.request.thrownErrors || {};
   }, DEFAULT_WIRE),
-  /**
-   * Platform error route for strongly typing platform/adapter errors.
-   * Platform errors are raised by an adapter rather than a handler: before the router sees the
-   * request (an HTTP server error, a connection issue), or after the route resolved (a body the
-   * adapter refused, which then runs the chain's alwaysRun members).
-   * This route is used for serialization/deserialization of platform errors.
-   * This also prevents users to register a route with the same name.
-   */
+  /** Strongly types the errors an adapter raises rather than a handler: before the router sees the request
+   *  (an HTTP server error, a connection issue), or after the route resolved (a body the adapter refused,
+   *  which then runs the chain's alwaysRun members). Registering it also stops a user route taking the name. */
   [MION_ROUTES.platformError]: route((_ctx: CallContext): RpcError<string> => {
-    // Platform errors are passed through context, this route is for type serialization
+    // The real platform error rides on the context; this value only gives the route its type
     return new RpcError({
       publicMessage: 'Platform error',
       type: 'platform-error',
@@ -46,15 +37,11 @@ export const mionErrorsRoutes = {
   }, DEFAULT_WIRE),
 } as const satisfies Routes;
 
-/**
- * The first member of each of mion's two not-found chains. It throws, so the dispatcher's own rule
- * skips every later member that does not declare `alwaysRun`: a request that arrived already failed
- * never reaches a session loader or an authorization step.
- *
- * Raw middleFns rather than routes: nobody declared this request, so there is no params or return
- * contract to compile, and the error belongs in the undeclared `@thrownErrors` slot, keyed by the
- * member's own id. The batch id is the only untrusted input and it is never echoed.
- */
+/** The first member of each of mion's two not-found chains. It throws, so the dispatcher skips every later
+ *  member that does not declare `alwaysRun`: a failed request never reaches a session loader or an auth step.
+ *  Raw middleFns rather than routes: nobody declared this request, so there is no params or return contract
+ *  to compile, and the error belongs in the undeclared `@thrownErrors` slot. The batch id is the only
+ *  untrusted input and it is never echoed. */
 export const notFoundMiddleFn = rawMiddleFn((): void => {
   throw new FatalError({
     statusCode: StatusCodes.NOT_FOUND,

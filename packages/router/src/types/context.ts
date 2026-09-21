@@ -16,26 +16,20 @@ import type {MethodsExecutionChain} from './remoteMethods.ts';
 export interface CallContext<ContextData extends Record<string, any> = any> {
   /** Route's path after internal transformation */
   readonly path: string;
-  /** Router's own request object */
   readonly request: MionRequest;
-  /** Router's own response object */
   readonly response: MionResponse;
-  /** context data between handlers (route/middleFns) and that is not returned in the response. */
+  /** Data shared between handlers (route/middleFns), never returned in the response. */
   shared: ContextData;
-  /** The execution chain of the current route */
   readonly executionChain: MethodsExecutionChain;
   /** The request limit this request was read against: the chain's number capped by the platform's */
   readonly maxBodySize: number;
-  /** False when the path or batch id resolved to a not-found chain: the adapter skips the body
-   *  read and the router never parses it, while the global middleFns that declare `alwaysRun`
-   *  still run */
+  /** False on a not-found chain: the body is never read or parsed, `alwaysRun` middleFns still run */
   readonly readsBody: boolean;
   /** Query string from URL, used by the batch endpoint (`id=<batchId>`) and by query routes */
   readonly urlQuery?: string;
   /** Id of the batch a batch request is running */
   readonly batchId?: string;
-  /** Route ids a batch request is running, in call order. Exposed for consumers (logging,
-   *  metrics, middleFns that branch on the batch). */
+  /** Route ids a batch request is running, in call order. Exposed for consumers (logging, metrics). */
   readonly batchRouteIds?: string[];
 }
 // type-call-context-end
@@ -44,32 +38,20 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
 
 /** Request body as the adapter hands it over: a JSON string, or an object a host already parsed */
 export type RawRequestBody = string | AnyObject;
-/** Response body can be a string or an object (for pre-serialized responses) */
+/** The object form is a pre-serialized response */
 export type RawResponseBody = string | AnyObject;
 
 // type-mion-request-start
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
-  /** parsed headers */
   readonly headers: Readonly<Omit<MionHeaders, 'append' | 'set' | 'delete'>>;
-  /** Raw request body, a string for json or a javascript object in the case of pre-parsed body */
   readonly rawBody: RawRequestBody;
   readonly bodyType: SerializerCode;
-  /** parsed request body */
+  /** The parsed request body */
   readonly body: Readonly<AnyObject>;
-  /**
-   * Unexpected or thrown errors that are not part of the route/handler return type.
-   * This includes:
-   * - Validation errors (params, headers)
-   * - Deserialization/serialization errors
-   * - Errors thrown by user code (not returned)
-   * - Route not found errors
-   * - Any other errors thrown during execution
-   *
-   * These errors are serialized separately from the route response and sent to the client
-   * in the thrownErrors middleFn response, allowing them to be properly deserialized
-   * without being part of the route's type signature.
-   */
+  /** Errors outside the route's return type: validation, (de)serialization, thrown by user code, route not found.
+   *  Sent apart from the route response, in the thrownErrors middleFn slot, so the client decodes them
+   *  without them being part of the route's type signature. */
   readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;
 }
 // type-mion-request-end
@@ -77,28 +59,21 @@ export interface MionRequest {
 // type-mion-response-start
 /** Router's own response object, do not confuse with the underlying raw response */
 export interface MionResponse {
-  /** response http status code */
   readonly statusCode: number;
-  /** response headers */
   readonly headers: Readonly<MionHeaders>;
-  /** Raw response body, a string for json. */
   readonly rawBody: RawResponseBody;
   readonly serializer: SerializerCode;
-  /** the router response data, body should not be modified manually so marked as Read Only */
+  /** The router response data, never to be modified by hand */
   readonly body: Readonly<ResponseBody>;
   /** true once something ended the execution chain: a thrown error or a returned FatalError */
   readonly hasErrors: boolean;
-  /** The error that ended the execution chain (thrown, or a returned FatalError), the first one wins.
-   *  Undefined while nothing halted. One place for an `alwaysRun` middleFn (a logger) to look. */
+  /** The error that ended the chain (thrown or a returned FatalError), first one wins. An `alwaysRun` logger reads it here. */
   readonly fatalError?: RpcError<string>;
 }
 // type-mion-response-end
 
-/**
- * Similar to Fetch API Headers.
- * @see https://developer.mozilla.org/en-US/docs/Web/API/Headers
- * Headers names must be case insensitive.
- */
+/** Header names must be case insensitive.
+ *  @see https://developer.mozilla.org/en-US/docs/Web/API/Headers */
 // type-mion-headers-start
 export interface MionHeaders {
   append(name: string, value: string): void;
@@ -112,7 +87,7 @@ export interface MionHeaders {
 }
 // type-mion-headers-end
 
-/** Function used to create the context data object on each route call  */
+/** Creates the context data object on each route call */
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;
 
 // type-response-body-start

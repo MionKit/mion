@@ -96,17 +96,15 @@ export function extractAndProcessMetadata(routeKey: MetadataRouteKey, parsedBody
   }
 }
 
-/** Processes metadata from an optimistic response and caches it.
- *  Runs on the response path, so it fills the in-memory caches now and leaves the store for later:
- *  the caller is a sync deserializer whose every throw becomes a parse error. */
+/** Fills the in-memory caches now and leaves the store for later: the caller is a sync deserializer on the
+ *  response path, where every throw becomes a parse error. */
 function processMethodsMetadata(serializableMethodsData: SerializableMethodsData, options: ClientOptions): void {
   addToCaches(serializableMethodsData);
   queuePersist(serializableMethodsData, options);
 }
 
-/** The server is the trusted party (its code runs here by design), but a name that reaches an object
- *  key on restore is checked all the same: `__proto__` as a namespace would land the next write on
- *  Object.prototype, page-wide. A refused entry is skipped with a warning, never stored. */
+/** A name that reaches an object key on restore is checked even though the server is trusted: `__proto__` as
+ *  a namespace would land the next write on Object.prototype, page-wide. A refused entry is only warned about. */
 function isStorableName(name: string): boolean {
   return !isUnsafePropertyName(name) && !name.includes(':');
 }
@@ -209,11 +207,9 @@ function recordBytes(record: MetadataRecord): number {
   return record.json.length + record.id.length;
 }
 
-/** Writes the records, making room for them as many times as it takes.
- *
- *  The new data always wins: the size cap trims before the write, and a browser that refuses anyway
- *  (its own limit is tighter than ours) gets another batch of the oldest rows dropped and the write
- *  tried again. Only an empty store that still cannot take the write is reported. */
+/** Writes the records, making room as many times as it takes: the new data always wins. The size cap trims
+ *  first, and a browser that refuses anyway gets more old rows dropped and the write retried. Only an empty
+ *  store that still cannot take the write is reported. */
 async function writeRecords(state: CacheState, records: MetadataRecord[]): Promise<void> {
   const store = await getMetadataStore(state.storageEngine);
   const incoming = records.reduce((total, record) => total + recordBytes(record), 0);
@@ -234,8 +230,7 @@ async function writeRecords(state: CacheState, records: MetadataRecord[]): Promi
       return;
     } catch (error) {
       if (round >= METADATA_CACHE_EVICTION_ROUNDS) return reportCacheError(error);
-      // give up a chunk of the oldest and go again. Nothing freed means there is nothing left to
-      // give up, so the store simply cannot take this write: tell the app rather than degrade quietly.
+      // nothing freed means nothing is left to give up, so the store cannot take this write: tell the app
       const freed = await evictOldest(state, store, Math.max(state.bytes / 4, incoming));
       if (!freed) return reportCacheError(error);
     }
@@ -337,8 +332,7 @@ async function hydrate(state: CacheState): Promise<void> {
       deps[record.id] = parsed;
       state.graph.deps[record.id] = parsed;
     } else if (record.kind === 'p') {
-      // the factory is rebuilt from `code`, so an entry without one restores to nothing callable.
-      // Refuse it here rather than let it into the cache; the server will be asked for it again.
+      // the factory is rebuilt from `code`, so an entry without one restores to nothing callable
       if (typeof parsed?.code !== 'string') {
         console.warn(`Ignoring cached pure function ${record.id}: it carries no code`);
         continue;
@@ -353,9 +347,8 @@ async function hydrate(state: CacheState): Promise<void> {
 
   addSerializedJitCaches(deps, pureFnDeps);
 
-  // A method whose compiled functions are gone would throw at call time, not here: an eviction, a
-  // write the browser aborted, or a server build that moved on can leave one behind. Refuse it and
-  // let the server be asked again.
+  // A method whose compiled functions are gone (eviction, an aborted write, a newer server build) would
+  // throw at call time, not here: refuse it and let the server be asked again.
   const restorable: MethodsCache = {};
   const unusable: MetadataRecordKey[] = [];
   for (const [id, metadata] of Object.entries(methods)) {

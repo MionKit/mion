@@ -13,13 +13,10 @@ import {hasMethod, useMethodFns} from './methods.ts';
 import {hasHeadersSubsetParam} from './headers.ts';
 import {ClientOptions} from '../types.ts';
 
-/** Result of serializing a request body */
 export type SerializedBody = string;
 
-/** Content-type header value for the serialized body */
 export type ContentType = 'application/json; charset=utf-8';
 
-/** Result of serializing a request body with its content type */
 export interface SerializedRequest {
   body: SerializedBody;
   contentType: ContentType;
@@ -27,7 +24,6 @@ export interface SerializedRequest {
 
 // ################################## SERIALIZE ##################################
 
-/** Serializes the request body and returns it with the appropriate content type */
 export function serializeRequestBody(req: MionClientRequest<any, any>): SerializedRequest {
   const serializerMode = getSerializerMode(req);
   switch (serializerMode) {
@@ -111,11 +107,10 @@ function stringifyHandlerParams(method: MethodWithJitFns, params: any[], validat
   }
 }
 
-/** The plain wire forms the server's JSON decoders accept, applied recursively (JSON.stringify calls
- *  a replacer again on whatever it returned). Date and Temporal need no arm, their own toJSON writes
- *  the text their decoders rebuild from. A union member's `[index, value]` envelope is deliberately
- *  not written: the index needs the metadata, and every transforming decoder guards its wire shape,
- *  so the server refuses the bare value instead of misreading it and the client retries. */
+/** The plain wire forms the server's JSON decoders accept, applied recursively. Date and Temporal need no
+ *  arm, their own toJSON writes the text their decoders rebuild from. A union member's `[index, value]`
+ *  envelope is deliberately not written: the index needs the metadata, and every transforming decoder guards
+ *  its wire shape, so the server refuses the bare value instead of misreading it and the client retries. */
 export function wireFormReplacer(this: unknown, key: string, value: unknown): unknown {
   if (value instanceof Map) return [...value];
   if (value instanceof Set) return [...value];
@@ -125,7 +120,6 @@ export function wireFormReplacer(this: unknown, key: string, value: unknown): un
 
 // ################################## DE-SERIALIZE ##################################
 
-/** Deserializes the response body from a fetch Response object. Handles routes metadata if present in json responses. */
 export async function deserializeResponseBody(response: Response, options: ClientOptions): Promise<ResponseBody> {
   let parsedBody: any;
   const contentType = response.headers.get('content-type')?.toLowerCase();
@@ -142,7 +136,6 @@ export async function deserializeResponseBody(response: Response, options: Clien
   return parsedBody;
 }
 
-/** Deserializes JSON response body, Also handles routes metadata if present */
 async function deserializeJsonResponseBody(response: Response, options: ClientOptions) {
   try {
     const parsedBody = await response.json();
@@ -153,10 +146,9 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
       cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
       cache.extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
     }
-    // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
+    // kept out of the body, so the wire's returned-vs-thrown split survives
     const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
     if (platformError) return {[MION_ROUTES.platformError]: platformError};
-    // Deserialize the body using jit functions
     const deserializedBody: ResponseBody = {};
     Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
       const method = useMethodFns(methodId);
@@ -172,9 +164,8 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
   }
 }
 
-/** Extracts thrown (unexpected) errors from [MION_ROUTES.thrownErrors] WITHOUT flattening them into the
- * body, so the wire's returned-vs-thrown split survives for error classification. Thrown errors are not
- * strongly typed and deserialize as RpcError<string>. Returns a platformError as a special case. */
+/** Takes [MION_ROUTES.thrownErrors] out WITHOUT flattening it into the body, so the returned-vs-thrown split
+ * survives for error classification. Thrown errors are not strongly typed and deserialize as RpcError<string>. */
 function extractThrownErrors(parsedBody: any): {
   platformError?: RpcError<string>;
   thrownErrors?: Record<string, RpcError<string>>;
@@ -195,8 +186,8 @@ function extractThrownErrors(parsedBody: any): {
   return {thrownErrors};
 }
 
-/** The request wire, decided by the server's resolved `serializer` and never by a client option:
- *  `optimistic` until the metadata is known, then the JSON string the encoders write. */
+/** How this call goes out: `optimistic` only while the `optimistic` option is set and a route's metadata
+ *  is still missing, otherwise the JSON string the encoders write. The WIRE itself is the server's choice. */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   if (req.options.serializer === 'optimistic') {
     const subRequestIds = Object.keys(req.subRequestList);
@@ -207,7 +198,6 @@ function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
   return 'stringifyJson';
 }
 
-/** Returns params array without the HeadersSubset (first param) */
 function getParamsWithoutHeadersSubset(params: any[]): any[] {
   if (!params || params.length === 0) return [];
   return params.slice(1);

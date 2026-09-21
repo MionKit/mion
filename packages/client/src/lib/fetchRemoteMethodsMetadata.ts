@@ -11,8 +11,7 @@ import {hydrateMetadataCache} from './clientMethodsMetadata.ts';
 import {deserializeResponseBody} from './serializer.ts';
 import {hasMethod} from './methods.ts';
 
-/** Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata.
- *  Fetched lane only: a bundled client refuses a method its bundle lacks before the lane loads. */
+/** Fetched lane only: a bundled client refuses a method its bundle lacks before the lane loads. */
 export async function fetchRemoteMethodsMetadata(
   methodIds: string[],
   options: ClientOptions,
@@ -39,7 +38,7 @@ export async function fetchRemoteMethodsMetadata(
     const stillMissing = missingAfterLocal.filter((id) => !hasMethod(id));
     if (stillMissing.length) throw new Error(`Failed to fetch metadata for: ${stillMissing.join(', ')}`);
   } catch (error: any) {
-    // Preserve abort/timeout DOMException so the caller's onError can classify it correctly
+    // Preserve the abort/timeout DOMException so the caller's onError can classify it
     if (signal?.aborted) throw error;
     throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
   }

@@ -31,7 +31,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   readonly path: string;
   readonly requestId: string;
   readonly subRequestList: {[key: string]: SubRequest<any>} = {};
-  /** ids in the RequestErrors map whose error is thrown/undeclared (unexpected) rather than a declared response */
+  /** ids whose error is thrown/undeclared rather than a declared response */
   readonly thrownErrorIds = new Set<string>();
   response: Response | undefined;
   /** bounds the stale-metadata relearn below to one attempt per request */
@@ -42,7 +42,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     private readonly prefilledMiddleFnsCache: PrefilledMiddleFnsCache,
     public readonly route?: RR,
     public readonly middleFns?: MiddleFnRequestsList,
-    /** Array of batch subrequests when executing a batch */
     public readonly batchSubRequests?: RouteSubRequest<any>[],
     /** Build-injected id of the batch; the only thing the batch wire carries besides the body */
     public readonly batchId?: string,
@@ -62,7 +61,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     if (middleFns) middleFns.forEach((middleFn) => this.addSubRequest(middleFn));
   }
 
-  /** Calls a remote route */
   async call(): Promise<ResponseBody> {
     if (this.signal?.aborted) {
       const errors: RequestErrors = new Map();
@@ -82,9 +80,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     let isOptimistic = false;
 
     try {
-      // an id this page never heard of may still be in the store: one indexed read settles it, while
-      // guessing wrong costs the optimistic round trip AND its retry. Hydration runs once per baseURL
-      // and never rejects, so a missing or blocked store just leaves this false.
+      // One indexed read settles an id this page never heard of; guessing wrong costs a round trip AND its retry.
+      // Hydration runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
       if (!allCached && !bundled) {
         const lane = await loadMetadataFromServer();
         await lane.hydrateMetadataCache(this.options);
@@ -98,17 +95,14 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         }
         allCached = subRequestIds.every((id) => hasMethod(id));
       }
-      // the optimistic first request sends plain wire forms every server decoder accepts; what a
-      // decoder cannot read errors, and the retry below sends the real encoder
+      // Optimistic sends plain wire forms; what a decoder cannot read errors, and the retry sends the real encoder.
       isOptimistic = !allCached && !skipOptimistic && !bundled;
       if (isOptimistic) {
         (this.options as any).serializer = 'optimistic';
-        // The route's chain is unknown until the metadata arrives, but its scope is not: a middleFn runs
-        // for its own group and the groups below, so the route pointer alone says which prefills belong.
-        // Leaving a required one out costs the retry; the server ignores any key not in the chain.
+        // The chain is unknown until the metadata arrives, but a middleFn's scope is its pointer, so the
+        // route pointer alone says which prefills belong; missing one costs the retry, an extra one is ignored.
         this.restoreScopedPrefilledMiddleFns();
-        // Only the ids the client still lacks: asking for one it holds would store the server's copy
-        // of a BUNDLED method, and a later stale-metadata purge would drop the build's entry for good.
+        // Only ids the client lacks: storing the server's copy over a BUNDLED method lets a later purge drop it for good.
         const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
         this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
       } else {
@@ -131,7 +125,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         serialized = serializeRequestBody(this);
       } catch (serializeError) {
         if (isOptimistic) {
-          // JSON.stringify failed → fall back to standard, will fetch metadata
+          // JSON.stringify failed, fall back to standard and fetch the metadata.
           delete this.subRequestList[MION_ROUTES.methodsMetadata];
           return this.makeCall(originalSerializer, true);
         }
@@ -156,8 +150,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
 
     try {
-      // If the signal already aborted while fetch was in flight, don't try to read a possibly
-      // truncated response body — surface the abort directly.
+      // A body read after an in-flight abort may be truncated, so report the abort instead.
       if (this.signal?.aborted) {
         this.onError(this.signal.reason, 'Request aborted', errors);
         return Promise.reject(errors);
@@ -165,11 +158,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       const deserialized = await deserializeResponseBody(this.response, this.options);
       if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
-      // Never retry an aborted request — the user explicitly canceled it.
       if (!this.signal?.aborted && this.shouldRetryWithProperSerialization(deserialized)) {
         if (isOptimistic) return this.retryWithProperSerialization(originalSerializer);
-        // Metadata from the store can predate the server's current build and nothing else would correct
-        // it: drop those ids from memory and from the store, and retry optimistic to relearn them.
+        // Stored metadata can predate the server's current build and nothing else would correct it.
         const cache = metadataCacheHooks();
         if (cache && !this.purgedStaleMetadata && subRequestIds.some((id) => cache.wasHydratedFromCache(id, this.options))) {
           this.purgedStaleMetadata = true;
@@ -198,7 +189,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     await lane.fetchRemoteMethodsMetadata(methodIds, this.options, signal);
   }
 
-  /** Checks if the response contains errors that require retry with proper JIT serialization */
   private shouldRetryWithProperSerialization(deserialized: ResponseBody): boolean {
     const thrownErrors = (deserialized[MION_ROUTES.thrownErrors] ?? {}) as Record<string, RpcError<string>>;
     const isRetryError = (value: any): boolean =>
@@ -207,7 +197,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return Object.values(deserialized).some(isRetryError) || Object.values(thrownErrors).some(isRetryError);
   }
 
-  /** Retries the request with proper JIT serialization after metadata has been cached */
   private async retryWithProperSerialization(originalSerializer: SerializerMode): Promise<ResponseBody> {
     delete this.subRequestList[MION_ROUTES.methodsMetadata];
     this.thrownErrorIds.clear();
@@ -219,7 +208,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return this.makeCall(originalSerializer);
   }
 
-  /** Validate params */
   async validateParams(subReqList?: SubRequest<any>[]): Promise<RunTypeError[]> {
     if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
     const errors: RequestErrors = new Map();
@@ -237,7 +225,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
   }
 
-  /** Prefills and stores SubRequest */
   async prefill(subReqList?: SubRequest<any>[]): Promise<void> {
     if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
     const errors: RequestErrors = new Map();
@@ -261,7 +248,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
   }
 
-  /** Removes Prefills and stores SubRequest */
   async removePrefill(subRequests?: SubRequest<any>[]): Promise<void> {
     if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
     this.removePrefilledMiddleFns();
@@ -272,8 +258,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     this.subRequestList[subRequest.id] = subRequest;
   }
 
-  /** Checks for platform-level errors. A platform error is request-scoped and unexpected: it is recorded
-   * ONCE under CLIENT_REQUEST_ERROR_ID instead of being fanned out to every subrequest. Returns true if found */
+  /** A platform error is request-scoped: recorded once under CLIENT_REQUEST_ERROR_ID, not per subrequest */
   private handlePlatformError(deserialized: ResponseBody, errors: RequestErrors): boolean {
     if (!(MION_ROUTES.platformError in deserialized)) return false;
     const platformError = deserialized[MION_ROUTES.platformError];
@@ -282,16 +267,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return true;
   }
 
-  /** Records a thrown, transport or platform error as undeclared in the errors map */
   private setUndeclaredError(id: string, error: RpcError<string>, errors: RequestErrors): void {
     errors.set(id, error);
     this.thrownErrorIds.add(id);
   }
 
-  /** Resolves sub request values from the deserialized response body and collects errors, preserving
-   * the wire's returned-vs-thrown split: body entries are declared responses, [MION_ROUTES.thrownErrors]
-   * entries are unexpected (except 'validation-error', which is thrown server-side but is by design part
-   * of every handler's expected union) */
+  /** Keeps the wire's split: body entries are declared responses, [MION_ROUTES.thrownErrors] ones unexpected.
+   * 'validation-error' is thrown server-side but is by design part of every handler's expected union. */
   private resolveSubRequests(deserialized: ResponseBody, errors: RequestErrors, skipId?: string): void {
     const thrownErrors = (deserialized[MION_ROUTES.thrownErrors] ?? {}) as Record<string, RpcError<string>>;
     Object.entries(thrownErrors).forEach(([id, thrownError]) => {
@@ -324,9 +306,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   }
 
   private onError(error: any, stageMessage: string, errors: RequestErrors): void {
-    // Detect abort/timeout via signal.reason FIRST. We must do this before the isRpcError early return
-    // because errors that surface from later stages (deserialization, retry, etc.) may already be
-    // wrapped as RpcError but the user-facing reason is still abort/timeout.
+    // Check signal.reason before the isRpcError return: a later stage may have wrapped the abort as an RpcError.
     const reason = this.signal?.aborted ? this.signal.reason : undefined;
     if (reason instanceof DOMException) {
       if (reason.name === 'TimeoutError') {
@@ -376,7 +356,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return respBody[id];
   }
 
-  /** The ids of the route(s) this request calls: the single route, or every route of the batch */
   private getRouteIds(): string[] {
     if (this.batchSubRequests && this.batchSubRequests.length > 0) return this.batchSubRequests.map((sr) => sr.id);
     return [this.requestId];
@@ -409,8 +388,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return this.route ? [this.route.pointer] : [];
   }
 
-  /** Restores the prefilled middleFns whose scope holds a route of this request (optimistic flow: the
-   * chain is not cached yet, but a middleFn's group is part of its pointer) */
+  /** Optimistic flow: the chain is not cached yet, but a middleFn's group is part of its pointer */
   private restoreScopedPrefilledMiddleFns(): void {
     const routeIds = new Set(this.getRouteIds());
     const routePointers = this.getRoutePointers();
@@ -423,8 +401,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
   }
 
-  /** Adds a fresh clone of the prefilled middleFn to the request, unless the request already carries
-   * that id or nothing was prefilled under it. */
   private restorePrefilledMiddleFn(id: string): void {
     if (this.subRequestList[id]) return;
     const cachedSubRequest = this.prefilledMiddleFnsCache.get(this.getPrefilledMiddleFnCacheKey(id));
@@ -465,7 +441,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     });
   }
 
-  /** Returns true if the route is a query (isMutation === false) and not a batch */
   private isQueryRoute(): boolean {
     if (this.batchSubRequests) return false;
     const meta = getMethod(this.requestId);
@@ -478,8 +453,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   }
 }
 
-/** A middleFn runs for every route of its own group and of the groups nested in it: its scope is its
- * pointer minus the last segment, and a route is in scope when its pointer starts with that group. */
+/** A middleFn's scope is its pointer minus the last segment; a route is in scope when its pointer starts with it */
 export function isMiddleFnInScope(middleFnPointer: string[], routePointer: string[]): boolean {
   const groupDepth = middleFnPointer.length - 1;
   if (groupDepth >= routePointer.length) return false;
@@ -487,15 +461,8 @@ export function isMiddleFnInScope(middleFnPointer: string[], routePointer: strin
   return true;
 }
 
-/**
- * Builds the RequestInit options for the fetch call, choosing between GET and POST:
- * - GET (query): Used for non-mutation routes (isMutation === false) with JSON serialization,
- *   where the base64url-encoded body fits within the URL length limit. The serialized data is
- *   sent as a `?data=` query parameter, with no request body.
- * - POST (mutation/route call): Used for all other cases: mutations, optimistic requests,
- *   batch calls, non-JSON serializers, or when the GET URL would exceed MAX_GET_URL_LENGTH.
- *   The serialized data is sent in the request body with the appropriate Content-Type header.
- */
+/** GET with the body as `?data=<base64url>` for a JSON query whose URL fits MAX_GET_URL_LENGTH.
+ * POST for everything else: mutations, optimistic requests, batches, and a URL over the limit. */
 function buildFetchOptions(
   url: URL,
   serialized: ReturnType<typeof serializeRequestBody>,
@@ -531,7 +498,6 @@ function buildFetchOptions(
   };
 }
 
-/** Extracts headers from HeadersSubset params in headersFn methods */
 function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string, string> {
   const headers: Record<string, string> = {};
   const subRequestIds = Object.keys(req.subRequestList);
@@ -546,7 +512,6 @@ function extractRequestHeaders(req: MionClientRequest<any, any>): Record<string,
   return headers;
 }
 
-/** Extracts headers from a HeadersSubset parameter */
 function extractHeadersFromParams(params: any[]): Record<string, string> {
   if (!params || params.length === 0) {
     throw new RpcError({
@@ -571,7 +536,6 @@ function extractHeadersFromParams(params: any[]): Record<string, string> {
   });
 }
 
-/** Reconstructs a HeadersSubset from HTTP response headers for methods that return HeadersSubset */
 function reconstructHeadersSubsetFromResponse(
   methodId: string,
   responseHeaders: Headers
