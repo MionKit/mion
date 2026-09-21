@@ -50,16 +50,14 @@ describe('LintSession worker request shape', () => {
     projects.push(project);
     const session = new LintSession();
     const posted: Record<string, unknown>[] = [];
-    // Intercept the request before it reaches the worker. Swallowing it leaves
-    // the 1ms budget to expire at once, so no resolver ever spawns. Node's own
-    // Worker bootstrap writes on a port too, hence the seq filter.
+    // Swallowing the request lets the 1ms budget expire at once, so no resolver spawns.
+    // Node's own Worker bootstrap writes on a port too, hence the seq filter.
     const spy = vi.spyOn(MessagePort.prototype, 'postMessage').mockImplementation((message: unknown) => {
       const request = message as Record<string, unknown>;
       if (typeof request?.['seq'] === 'number') posted.push(request);
     });
     try {
-      // markers is set on purpose: it is a rule-thread pre-filter knob, and the
-      // resolver reads marker packages from the tsconfig, so it must not ride here.
+      // markers is set on purpose: the resolver reads marker packages from the tsconfig, not the request.
       session.lintFileSync(`${project.dir}/a.ts`, 'export const a = 1;', {
         timeoutMs: 1,
         tsconfig: 'tsconfig.json',
