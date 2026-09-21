@@ -5,8 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// JIT_FUNCTION_IDS is written out because calling getFnHash shipped the whole Go-generated hash
-// table to every browser; this is the guarantee the literal gives up.
+// JIT_FUNCTION_IDS is generated from the Go registry, because calling getFnHash would pull FN_HASHES, the
+// whole variant table, into every browser bundle. These tests are the JS-side cross-check that the narrow
+// table and the resolver a consumer would otherwise call still answer the same thing.
 
 import {describe, expect, it} from 'vitest';
 import {getFnHash} from '@mionjs/run-types/runtime';
@@ -14,8 +15,8 @@ import type {FnHashKey} from '@mionjs/run-types/runtime';
 import {JIT_FUNCTION_IDS, PARAMS_PARSING, RETURN_PARSING} from './constants.ts';
 
 describe('JIT_FUNCTION_IDS', () => {
-  // The keys ARE the run-types family names, so there is no mapping table to keep in step: a key that is not
-  // a family makes getFnHash throw, and a drifted value fails here.
+  // The keys ARE the run-types family names, so there is nothing to map: a key that is not a family makes
+  // getFnHash throw.
   it.each(Object.keys(JIT_FUNCTION_IDS))('%s still matches getFnHash', (family) => {
     expect(JIT_FUNCTION_IDS[family as keyof typeof JIT_FUNCTION_IDS]).toBe(getFnHash(family as FnHashKey));
   });
