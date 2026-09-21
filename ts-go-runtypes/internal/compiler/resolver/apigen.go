@@ -457,8 +457,8 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
 	paramsStrategy, returnStrategy := parserStrategies(method.Options)
-	paramsKeys := parseMode(paramsStrategy).markerKeys(true)
-	returnKeys := parseMode(returnStrategy).markerKeys(false)
+	paramsKeys := parseMode(paramsStrategy).paramsMarkerKeys()
+	returnKeys := parseMode(returnStrategy).returnMarkerKeys()
 	entry.paramsFns = apiFnSite(entry.paramsId, paramsKeys)
 	entry.returnFns = apiFnSite(entry.returnId, returnKeys)
 	entry.paramsRef = protocol.Site{ID: entry.paramsId}
@@ -541,12 +541,14 @@ func parseMode(strategy string) parseModeRow {
 	return parseModes["clone"]
 }
 
-// markerKeys renders a row as the marker's slot list. `formatTransform` (sanitizeParams) is params-only: the
-// answer side is written by the handler, never by a caller.
-func (row parseModeRow) markerKeys(isParams bool) []string {
-	if isParams {
-		return []string{row.validate, row.validationErrors, "formatTransform", row.encode, row.decode}
-	}
+// paramsMarkerKeys renders a row as the PARAMS marker's slot list. `formatTransform` (sanitizeParams) is
+// params-only: the answer side is written by the handler, never by a caller.
+func (row parseModeRow) paramsMarkerKeys() []string {
+	return []string{row.validate, row.validationErrors, "formatTransform", row.encode, row.decode}
+}
+
+// returnMarkerKeys renders a row as the RETURN marker's slot list.
+func (row parseModeRow) returnMarkerKeys() []string {
 	return []string{row.validate, row.validationErrors, row.encode, row.decode}
 }
 

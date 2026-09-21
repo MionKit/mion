@@ -66,13 +66,7 @@ func unionMemberBearsKeys(resolved *reflection.RunType) bool {
 // undeclared, or "" when the member takes no assertion; callers must already have established that the union qualifies.
 // Empty for an index-signature member above all, which declares every key matching its pattern.
 func unionMemberKeyAssertion(resolved *reflection.RunType, ctx *EmitContext) string {
-	switch resolved.Kind {
-	case reflection.KindObjectLiteral:
-	case reflection.KindClass:
-		if resolved.SubKind != reflection.SubKindNone {
-			return ""
-		}
-	default:
+	if !unionMemberBearsKeys(resolved) || resolved.Kind == reflection.KindIndexSignature {
 		return ""
 	}
 	if !nodeTakesUnknownKeyCheck(resolved, ctx, objectCallSignatureChild(resolved, ctx)) {

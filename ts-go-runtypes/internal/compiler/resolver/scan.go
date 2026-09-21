@@ -1313,19 +1313,19 @@ func jsonValueStrategyOperation(op operations.Operation, strategy string) (opera
 // site's marker still says 'val' / 'verr', the injected tuple carrying the fnHash, so this swap is the only thing that
 // routes it. `checkUnknowns` wins when both are set: every object-ish node is strictly stronger than union arms alone.
 func validatorFamilyOperation(op operations.Operation, checkUnknowns, checkUnionUnknowns bool) (operations.Operation, bool) {
-	plain, union := "", ""
+	strict, union := "", ""
 	switch op.Name {
 	case "validate":
-		plain, union = "validateStrict", "validateUnionKeys"
+		strict, union = "validateStrict", "validateUnionKeys"
 	case "validationErrors":
-		plain, union = "validationErrorsStrict", "validationErrorsUnionKeys"
+		strict, union = "validationErrorsStrict", "validationErrorsUnionKeys"
 	default:
 		return op, false
 	}
 	selected := ""
 	switch {
 	case checkUnknowns:
-		selected = plain
+		selected = strict
 	case checkUnionUnknowns:
 		selected = union
 	default:
