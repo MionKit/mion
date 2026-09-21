@@ -1,14 +1,8 @@
-// Standard Schema v1 interface — copied from `@standard-schema/spec` (MIT) to
-// preserve this package's zero-runtime-dependency posture. The upstream package
-// declares these under a `StandardSchemaV1` namespace; we flatten them to
-// top-level type aliases (the repo's eslint forbids `namespace` in `.ts`). The
-// SHAPES are byte-identical, so an object produced here is structurally
-// assignable to a consumer's `StandardSchemaV1` from the real spec package.
-//
-// Standard Schema is a validation-only interop contract: a "standard schema" is
-// any object exposing a readonly `"~standard"` property. It is consumed by
-// tRPC, TanStack Form/Router, React Hook Form, Hono, and others. See
-// https://github.com/standard-schema/standard-schema.
+// Standard Schema v1 interface — copied from `@standard-schema/spec` (MIT) to keep this package free of
+// runtime dependencies, with the upstream `StandardSchemaV1` namespace flattened to top-level aliases
+// (the repo's eslint forbids `namespace` in `.ts`). The SHAPES are byte-identical, so an object produced
+// here is structurally assignable to a consumer's `StandardSchemaV1` from the real spec package.
+// See https://github.com/standard-schema/standard-schema.
 
 /** The Standard Schema interface. */
 export interface StandardSchemaV1<Input = unknown, Output = Input> {
@@ -73,11 +67,9 @@ export type StandardSchemaInferInput<Schema extends StandardSchemaV1> = NonNulla
 /** Infers the output type of a Standard Schema. */
 export type StandardSchemaInferOutput<Schema extends StandardSchemaV1> = NonNullable<Schema['~standard']['types']>['output'];
 
-// Standard JSON Schema v1 — the companion interface for schema-to-JSON-Schema
-// conversion (upstream: StandardJSONSchemaV1 in `@standard-schema/spec`,
-// flattened here like the validation interfaces above). A single object may
-// satisfy BOTH interfaces by carrying `validate` and `jsonSchema` side by side
-// under one `~standard`, which is exactly what `createStandardSchema` returns.
+// Standard JSON Schema v1 — the companion conversion interface, flattened like the ones above. A single
+// object may satisfy BOTH by carrying `validate` and `jsonSchema` under one `~standard`, which is what
+// `createStandardSchema` returns.
 
 /** The Standard JSON Schema interface. */
 export interface StandardJSONSchemaV1<Input = unknown, Output = Input> {
@@ -105,10 +97,8 @@ export interface StandardJSONSchemaConverter {
   readonly output: (options?: StandardJSONSchemaOptions) => Record<string, unknown>;
 }
 
-/** The conversion options. `target` names the JSON Schema dialect to emit
- *  (only `'draft-2020-12'` is supported); `libraryOptions` carries
- *  vendor-specific flags — mion reads `{portable: true}` to strip its
- *  dialect keywords from the returned document. */
+/** The conversion options. Only `'draft-2020-12'` is supported, and of the vendor-specific
+ *  `libraryOptions` mion reads `{portable: true}`, which strips its dialect keywords. */
 export interface StandardJSONSchemaOptions {
   readonly target?: string;
   readonly libraryOptions?: Record<string, unknown> | undefined;

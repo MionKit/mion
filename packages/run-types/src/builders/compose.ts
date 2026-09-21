@@ -1,37 +1,13 @@
-// Composer builders — `array` / `tuple` / `union` / `intersection` / `record` /
-// `map` / `set` / `promise` / `circular` / `self` / `func` / `templateLiteral`, plus the
-// `object` assembler and the `propMod` / `optional` property modifiers. Each
-// takes child `RunType` schemas and returns the generic `RunType<…>` for the
-// COMPOSED type, via the same trailing-`InjectRunTypeId` marker every builder
-// uses: the Go scanner reflects the whole composed type off the brand (collapsing
-// intersections, distributing unions, …) and the runtime returns that reflected
-// node. Nested child builders are skipped by the scanner — they exist only to
-// drive TS inference for the brand (see atomic.ts `builderResult`).
-//
-// Minimal `infer` (per CLAUDE.md): `array`/`record` read their single child's `T`
-// directly; `tuple` maps the child tuple with a homomorphic mapped type
-// (`MapTuple`); `union` / `intersection` brand a DIRECT `A | B | …` / `A & B & …`
-// via fixed-arity overloads (plain generic inference, NO `infer`) for the common
-// arities, falling back to `UnionOf<T>` (distributive) / `IntersectionOf<T>` (the
-// one recursive `infer` exception, see static.ts) only past 8 members. (`union` is
-// array-form throughout; `intersection` is positional for 1–8 and array-form for
-// 9+, since a positional builder can't carry a trailing injected id past a JS rest
-// param.) The type-level helpers (`MapTuple`, `UnionOf`, `IntersectionOf`,
-// `AssembleTemplate`, `ObjectType`, …) all live in static.ts; this file is
-// runtime-only.
-//
-// Child schema params are branded `CompTimeArgs<…>`: the children ride the
-// carrier only and are DISCARDED at runtime (the injected marker returns the
-// reflected node), so the scanner enforces each child be a static builder call /
-// array of builder calls / module-scope `const` bound to one — a dynamic schema
-// (`cond ? a : b`, a `.map(...)`, a spread) raises a `CTA0xx` diagnostic instead
-// of silently freezing whatever type it happened to resolve to. The grouped
-// `tuple` / `func` capture each group with `const T` (not a
-// `readonly [...T]` spread): intersecting a spread target with the
-// `CompTimeArgs` brand collapses the tuple to an array, so `const` + `MapTuple`'s
-// `-readonly` is the combination that keeps precise per-slot inference. `union`'s
-// fixed-arity overloads take explicit member tuples (`[RunType<A>, RunType<B>]`),
-// and its variable-arity fallback keeps the `[...T]` spread for `UnionOf<T>`.
+// Composer builders — each takes child `RunType` schemas and returns the `RunType<…>` of the
+// COMPOSED type: the Go scanner reflects the whole composed type off the trailing
+// `InjectRunTypeId` brand, so the children ride the carrier only and are DISCARDED at runtime.
+// They are branded `CompTimeArgs<…>`, so the scanner requires each child be a static builder call
+// (or a `const` bound to one) and a dynamic schema (`cond ? a : b`, a `.map(...)`, a spread)
+// raises a `CTA0xx` diagnostic instead of silently freezing whatever type it resolved to. The
+// grouped `tuple` / `func` capture each group with `const T`, never a `readonly [...T]` spread:
+// intersecting a spread target with the `CompTimeArgs` brand collapses the tuple to an array, so
+// `const` + `MapTuple`'s `-readonly` is what keeps per-slot inference. Minimal `infer` per
+// CLAUDE.md; the type-level helpers all live in static.ts, so this file is runtime-only.
 
 import {builderResult} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';
@@ -47,23 +23,18 @@ import type {
   FormattedMapFrom,
 } from '../formats/structural.ts';
 
-// A trailing structural-format-params bag is a PLAIN object with none of the
-// runtime RunType markers (`kind` on a reflected node, `type` on a builder
-// carrier, `__rtType` on the phantom) — that's what tells it apart from a
-// child schema in a slot that also accepts one (`record`'s key/value), and
-// from an injected id (a string or an entry-module tuple / Array).
+// A trailing params bag is a PLAIN object: no RunType marker (`kind` / `type` / `__rtType`),
+// which is what tells it apart from a child schema in a slot that also accepts one
+// (`record`'s key/value), and from an injected id (a string or an entry-module Array).
 function isRunTypeLike(arg: unknown): boolean {
   return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && ('kind' in arg || 'type' in arg || '__rtType' in arg);
 }
 function isFormatParams(arg: unknown): boolean {
   return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && !isRunTypeLike(arg);
 }
-// A slot carrier from `slot(label, value)` — probed structurally so the
-// labeled forms unwrap elements at runtime.
 function isSlotCarrier(arg: unknown): arg is {__slotLabel: string; __slotValue: RunType} {
   return typeof arg === 'object' && arg !== null && typeof (arg as {__slotLabel?: unknown}).__slotLabel === 'string';
 }
-// Unwraps a slot carrier to its child RunType; bare RunTypes pass through.
 function slotChild(arg: RunType | {__slotLabel: string; __slotValue: RunType}): RunType {
   return isSlotCarrier(arg) ? arg.__slotValue : (arg as RunType);
 }
@@ -85,12 +56,8 @@ import type {
   FuncFromParams,
 } from './static.ts';
 
-/** An array builder. `array(string())` → `RunType<string[]>`; with a trailing
- *  structural-format params bag, `array(number(), {uniqueItems: true, maxItems: 3})`
- *  → `RunType<FormattedArray<number[], …>>`, the value-first spelling of the
- *  JSON Schema collection keywords (`minItems`/`maxItems`/`uniqueItems`/
- *  `contains` + `minContains`/`maxContains`), the same bag `set` and `map`
- *  take. **/
+/** The trailing params bag is the value-first spelling of the JSON Schema collection keywords
+ *  (`minItems` / `maxItems` / `uniqueItems` / `contains` + `minContains` / `maxContains`), the same bag `set` and `map` take. **/
 export function array<T>(item: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<T[]>): RunType<T[]>;
 export function array<T, const P extends FormattedCollectionParamsValueFirst>(
   item: CompTimeArgs<RunType<T>>,
@@ -109,15 +76,10 @@ export function array(
   return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
 
-/** One labeled tuple slot / named function parameter, for the labeled forms
- *  of `tuple(...)` and `func(...)`: `slot('x', number())` names its slot `x`.
- *  Labels are part of a type's structural identity (a labeled tuple is a
- *  different type from its unlabeled twin), which is why they ride an explicit
- *  per-slot carrier — a slot-name-keyed spelling cannot work, as the type system
- *  never observes object key order (see static.ts, SlotCarrier). The group keys
- *  those builders DO take (`required` / `optional` / `rest`, `params` / `ret`)
- *  are a fixed set read by name, so no order rides them. A bare `slot(...)` is
- *  only meaningful inside `tuple(...)` / `func(...)`. **/
+/** One labeled tuple slot / named function parameter, only meaningful inside `tuple(...)` / `func(...)`.
+ *  Labels are part of a type's structural identity, and they ride a per-slot carrier because a
+ *  slot-name-keyed spelling cannot work: the type system never observes object key order (see static.ts,
+ *  SlotCarrier). The group keys those builders take are a fixed set read by name, so no order rides them. **/
 export function slot<const Label extends string, Value>(
   label: CompTimeArgs<Label>,
   value: CompTimeArgs<RunType<Value>>
@@ -125,36 +87,13 @@ export function slot<const Label extends string, Value>(
   return {__slotLabel: label, __slotValue: value};
 }
 
-/** A tuple builder. The three slot GROUPS are named and every key is optional.
- *  Groups of PLAIN RunTypes author UNLABELED tuples:
- *   - Fixed:    `tuple({required: [string(), number()]})` → `RunType<[string, number]>`.
- *   - Optional: `tuple({required: [number()], optional: [bigint(), boolean()]})` →
- *               `RunType<[number, bigint?, boolean?]>` — the `optional` group holds
- *               the trailing optional elements; `Partial<MapTuple<O>>` makes each
- *               slot `?`. A separate group (not inline `optional()` in one list) so
- *               the brand needs no recursive `infer`.
- *   - Rest:     `tuple({required: [number()], rest: string()})` →
- *               `RunType<[number, ...string[]]>`.
- *   - Optional + rest: `tuple({required: [number()], optional: [bigint()], rest: string()})` →
- *               `RunType<[number, bigint?, ...string[]]>`.
- *   - Empty:    `tuple({})` → `RunType<[]>`.
- *  Groups of `slot(label, value)` carriers author LABELED tuples under the same
- *  keys, converging with the type-first labeled tuple on one structural id (the
- *  `__rtLabels` sentinel; static.ts). TS labels all slots or none, so slots and
- *  plain RunTypes never mix — the rest element is a slot too, carrying any rest
- *  label:
- *   - `tuple({required: [slot('x', number()), slot('y', number())]})` → `RunType<[x: number, y: number]>`.
- *   - `tuple({required: [slot('x', number())], optional: [slot('y', number())]})` → `RunType<[x: number, y?: number]>`.
- *   - `tuple({required: [slot('x', number())], rest: slot('items', string())})` →
- *     `RunType<[x: number, ...items: string[]]>`.
- *  The keys name the GROUPS, never the slots — a slot-name-keyed object
- *  (`{x: number()}`) cannot work, as the type system never observes object key
- *  order (see `slot`); order rides the array INSIDE each group. Each group is
- *  captured as a tuple via `const T` (length/order preserved) — the
- *  `CompTimeArgs` brand rules out the `readonly [...T]` spread, which would
- *  collapse it to an array; `MapTuple` / `SlotValues` recover element types. The
- *  scanner reflects the whole tuple type off the brand, so the children ride the
- *  carrier only. **/
+/** A tuple builder. The three slot GROUPS (`required` / `optional` / `rest`) are named and every
+ *  key is optional; the trailing optional elements are their own group, not an inline `optional()`
+ *  in one list, so the brand needs no recursive `infer`. Groups of PLAIN RunTypes author UNLABELED
+ *  tuples, groups of `slot(label, value)` carriers author LABELED ones under the same keys (the
+ *  `__rtLabels` sentinel; static.ts) — TS labels all slots or none, so slots and plain RunTypes
+ *  never mix and the rest element is a slot too. The keys name the GROUPS, never the slots: a
+ *  slot-name-keyed object cannot work (see `slot`), so order rides the array INSIDE each group. **/
 export function tuple<const T extends readonly RunType[] = [], const O extends readonly RunType[] = [], RestValue = never>(
   parts: CompTimeArgs<{readonly required?: T; readonly optional?: O; readonly rest?: RunType<RestValue>}>,
   id?: InjectRunTypeId<TupleFromGroups<T, O, RestValue>>
@@ -180,10 +119,8 @@ export function tuple(
   },
   id?: InjectRunTypeId<unknown>
 ): RunType {
-  // The groups are read by NAME, so there is no trailing-slot probing: the id
-  // always lands in the one unfilled slot the overloads declare. Slot carriers
-  // unwrap to their child RunTypes; the labels live on the brand only (the
-  // scanner reflects the whole type off it).
+  // The groups are read by NAME, so there is no trailing-slot probing: the id always lands in
+  // the one unfilled slot the overloads declare. The labels live on the brand only.
   return builderResult(id, {
     type: 'tuple',
     children: (parts.required ?? []).map(slotChild),
@@ -192,17 +129,11 @@ export function tuple(
   });
 }
 
-/** A union builder — `union([string(), number()])` → `RunType<string | number>`.
- *
- *  The brand must be a DIRECT union of the member types (`A | B | …`), NOT
- *  `MapTuple<T>[number]`: mapping the whole tuple before indexing it materialises
- *  a mapped type the union never needs. The fixed-arity overloads below brand the
- *  direct union with plain generic inference for up to 8 members; beyond that the
- *  trailing array overload falls back to `UnionOf<T>`, which distributes
- *  `InferType` over `T[number]`. The cutoff is 8 (was 4): the 8-arm union is a
- *  measured outlier (`UNION.large_union_eight_arms`) where the direct
- *  `A | … | H` brand still wins, and overload resolution stops at the first
- *  matching arity, so narrower unions never pay for the wider overloads. **/
+/** A union builder. The brand must be a DIRECT union of the member types, NOT `MapTuple<T>[number]`:
+ *  mapping the whole tuple before indexing it materialises a mapped type the union never needs. The
+ *  cutoff for the fixed-arity overloads is 8, a measured outlier (`UNION.large_union_eight_arms`) where
+ *  the direct brand still wins; overload resolution stops at the first matching arity, so narrower
+ *  unions never pay for the wider overloads. **/
 export function union<A, B>(
   members: CompTimeArgs<readonly [RunType<A>, RunType<B>]>,
   id?: InjectRunTypeId<A | B>
@@ -233,10 +164,8 @@ export function union<A, B, C, D, E, F, G, H>(
   >,
   id?: InjectRunTypeId<A | B | C | D | E | F | G | H>
 ): RunType<A | B | C | D | E | F | G | H>;
-// Variable-arity fallback (9+ members) — `UnionOf<T>`. Captures the member tuple
-// with `const T` (not a `readonly [...T]` spread, which the CompTimeArgs brand
-// collapses to an array — losing the per-member precision UnionOf distributes
-// over).
+// Variable-arity fallback (9+ members). `const T` (not a `readonly [...T]` spread, which the
+// CompTimeArgs brand collapses to an array) keeps the per-member precision UnionOf distributes over.
 export function union<const T extends readonly RunType[]>(
   members: CompTimeArgs<T>,
   id?: InjectRunTypeId<UnionOf<T>>
@@ -245,23 +174,14 @@ export function union(members: readonly RunType[], id?: InjectRunTypeId<unknown>
   return builderResult(id, {type: 'union', children: members});
 }
 
-/** The at-least-one combinator builder — JSON Schema `anyOf` name parity.
- *  A union already IS at-least-one, so this is the union builder itself:
- *  same brand, same id, same generated validator. **/
+/** JSON Schema `anyOf` name parity. A union already IS at-least-one, so this IS the union builder. **/
 export const anyOf = union;
 
-/** An intersection builder, two call shapes:
- *   - Positional (1–4 members): `intersection(a, b, …)` → `RunType<A & B & …>`.
- *     Omitted slots default to `unknown` and vanish (`X & unknown = X`); the plugin
- *     pads the unused slots with `undefined` so the injected id lands on the trailing
- *     `InjectRunTypeId` parameter.
- *   - Array (5+ members): `intersection([a, b, …])` → `RunType<IntersectionOf<T>>`.
- *     A positional builder + a TRAILING injected id can't go variadic (JS rest
- *     params must be last), so wider intersections use the array form — the same
- *     array+`infer` pattern as `union` / `tuple`. The recursive `infer`
- *     (`IntersectionOf`) runs ONLY here. The positional cutoff matches `union` (4):
- *     real intersections are 2–3 types, and `IntersectionOf`'s shallow tuple
- *     recursion at 5+ is cheap (see the `union` note). **/
+/** An intersection builder, two call shapes. Positional (1–4 members): omitted slots default to
+ *  `unknown` and vanish (`X & unknown = X`), and the plugin pads them with `undefined` so the
+ *  injected id lands on the trailing `InjectRunTypeId` parameter. Array (5+): a positional builder
+ *  plus a TRAILING injected id can't go variadic (JS rest params must be last), so wider
+ *  intersections take an array — the one place the recursive `infer` of `IntersectionOf` runs. **/
 export function intersection<A, B = unknown, C = unknown, D = unknown>(
   a: CompTimeArgs<RunType<A>>,
   b?: CompTimeArgs<RunType<B>>,
@@ -280,25 +200,20 @@ export function intersection(
   arg4?: RunType,
   arg5?: InjectRunTypeId<unknown>
 ): RunType {
-  // Array form (5+ / variadic path): members in arg1, the injected id in arg2.
+  // Array form: members in arg1, the injected id in arg2.
   if (Array.isArray(arg1)) {
     return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, {type: 'intersection', children: arg1});
   }
-  // Positional form (1–4): members a–d (unused slots are `undefined`), the injected
-  // id padded to the trailing slot (arg5).
+  // Positional form: unused member slots are `undefined`, the injected id is padded to arg5.
   return builderResult(arg5, {
     type: 'intersection',
     children: [arg1, arg2, arg3, arg4] as readonly RunType[],
   });
 }
 
-/** A record / index-signature builder. Two forms:
- *   - Value-only: `record(number())` → `RunType<Record<string, number>>`
- *     (`{[k: string]: number}`) — the key defaults to `string`.
- *   - Key + value: `record(templateLiteral(['api/', string()]), number())` → a
- *     `Record` whose key is the template-literal pattern the key schema carries.
- *     The key schema's type `K` (any `string | number` subtype, incl. a
- *     template-literal pattern) becomes the index-signature key. **/
+/** A record / index-signature builder. With one schema the key defaults to `string`; with two, the
+ *  key schema's type `K` (any `string | number` subtype, a template-literal pattern included) becomes
+ *  the index-signature key. **/
 export function record<V>(
   valueSchema: CompTimeArgs<RunType<V>>,
   id?: InjectRunTypeId<Record<string, V>>
@@ -341,17 +256,11 @@ export function record(
   return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
 
-/** A `Map` builder — `map(string(), number())` → `RunType<Map<string, number>>`.
- *  Both the key and value schemas are validated per entry. A trailing params
- *  bag is the collection bag, `map(k, v, {maxItems: 10})` →
- *  `RunType<FormattedMap<Map<K, V>, …>>`, the value-first twin of `FormattedMap`.
- *  A Map's entry is its `[key, value]` pair, so `contains` takes a TUPLE schema,
- *  `map(string(), number(), {contains: tuple({required: [literal('ada'), unknown()]})})`,
- *  and `uniqueItems` compares pairs by value.
- *
- *  Two overloads, like `array`: a single signature with an optional bag was
- *  measured and rejected (test/types/builderCost.compile.test.ts), the bare
- *  call must keep its plain id at its plain type cost. **/
+/** A `Map` builder; key and value schemas are both validated per entry. A Map's entry is its
+ *  `[key, value]` pair, so the trailing collection bag's `contains` takes a TUPLE schema and its
+ *  `uniqueItems` compares pairs by value. Two overloads, like `array`: a single signature with an
+ *  optional bag was measured and rejected (test/types/builderCost.compile.test.ts) — the bare call
+ *  must keep its plain id at its plain type cost. **/
 export function map<K, V>(
   keySchema: CompTimeArgs<RunType<K>>,
   valueSchema: CompTimeArgs<RunType<V>>,
@@ -374,10 +283,7 @@ export function map(
   return builderResult(arg3 as InjectRunTypeId<unknown> | undefined, base);
 }
 
-/** A `Set` builder — `set(string())` → `RunType<Set<string>>`. Each member is
- *  validated against the value schema. A trailing params bag is the collection
- *  bag, `set(string(), {maxItems: 5, uniqueItems: true})` →
- *  `RunType<FormattedSet<Set<string>, …>>`, the value-first twin of `FormattedSet`. **/
+/** A `Set` builder — each member is validated against the value schema; the trailing bag is the collection bag. **/
 export function set<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRunTypeId<Set<V>>): RunType<Set<V>>;
 export function set<V, const P extends FormattedCollectionParamsValueFirst>(
   valueSchema: CompTimeArgs<RunType<V>>,
@@ -394,24 +300,15 @@ export function set(
   return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
 
-/** The self-reference placeholder for `circular(…)` — marks where a recursive
- *  type points back to itself. Only meaningful inside a `circular(...)` body. **/
+/** The self-reference placeholder, only meaningful inside a `circular(...)` body. **/
 export function self(id?: InjectRunTypeId<Self>): RunType<Self> {
   return builderResult(id, {type: 'self'});
 }
 
-/** A self-referential (recursive) schema with NO hand-written type. The body is
- *  passed DIRECTLY (no enclosing function) and points back to itself with the
- *  `self()` marker — a compile-time placeholder, so RunTypes needs no runtime
- *  closure to capture the self-reference the way runtime schema libraries do:
- *
- *    const Node = circular(object({value: number(), next: optional(self())}));
- *    type Node = InferType<typeof Node>;   // {value: number; next?: Node}
- *
- *  Brands the resolved `Recursive<Body>`, so the scanner reflects an ordinary
- *  recursive type and converges with the type-first form (structural cycle token).
- *  Mutual recursion: each type's OWN back-edge uses `self()`; cross-references to
- *  another already-declared run-type are plain const references. **/
+/** A recursive schema with NO hand-written type: the body is passed DIRECTLY (no enclosing closure)
+ *  and points back to itself with the compile-time `self()` marker. Brands the resolved
+ *  `Recursive<Body>`, so the scanner reflects an ordinary recursive type. Under mutual recursion only
+ *  a type's OWN back-edge uses `self()`; another already-declared run-type is a plain const reference. **/
 export function circular<Body>(
   body: CompTimeArgs<RunType<Body>>,
   id?: InjectRunTypeId<Recursive<Body>>
@@ -419,36 +316,18 @@ export function circular<Body>(
   return builderResult(id, {type: 'circular', child: body});
 }
 
-/** A `Promise` builder — `promise(string())` → `RunType<Promise<string>>`.
- *  Validates the thenable shape (the resolved value type is not checked at
- *  runtime — a pending promise's value isn't available synchronously). **/
+/** Validates the thenable shape only: a pending promise's value isn't available synchronously. **/
 export function promise<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRunTypeId<Promise<V>>): RunType<Promise<V>> {
   return builderResult(id, {type: 'promise', child: valueSchema});
 }
 
-/** A function builder. The `params` group takes three forms, `ret` names the
- *  return (defaulting to `void`), and both keys are optional:
- *   - Array: `func({params: [string(), number()], ret: boolean()})` →
- *            `RunType<(a: string, b: number) => boolean>` — each element is a
- *            positional param RunType, mapped via `MapTuple` (rest-tuple form, so
- *            `(...args: [string, number])` ≡ `(a: string, b: number)`).
- *   - Slots: `func({params: [slot('event', string()), slot('retries', number())], ret: boolean()})` →
- *            `RunType<(event: string, retries: number) => boolean>` — each slot
- *            names its parameter, so the value-first id converges with the
- *            written call signature's (parameter names fold into the structural
- *            id). All-required params only; optional/rest params ride the
- *            tuple form.
- *   - Tuple: `func({params: tuple({required: [number()], optional: [string()]}), ret: date()})` →
- *            `RunType<(a: number, b?: string) => Date>` — a single params-TUPLE
- *            RunType, so optional/rest params ride the `tuple()` builder
- *            (labels included when the tuple uses its slot form).
- *  `func()` and `func({})` → `RunType<() => void>`; an empty or omitted `params`
- *  group brands a bare `() => InferType<R>` (see `FuncFromParams`, static.ts).
- *  Function values aren't serialisable, so the validator a function lowers to
- *  depends on POSITION: a function-typed object property is skipped entirely, a
- *  function at a tuple slot must be `undefined`, and a top-level function passes
- *  a `typeof === 'function'` gate. The builder exists so those shapes can be
- *  authored value-first. **/
+/** A function builder; `ret` defaults to `void` and both keys are optional. The `params` group takes
+ *  three forms: an ARRAY of positional param RunTypes, an array of `slot(name, …)` carriers (parameter
+ *  names fold into the structural id; all-required only), or a single params-TUPLE RunType, which is how
+ *  optional / rest params are authored. An empty or omitted `params` brands a bare `() => InferType<R>`
+ *  (see `FuncFromParams`, static.ts). Function values aren't serialisable, so the validator depends on
+ *  POSITION: an object property is skipped, a tuple slot must be `undefined`, a top-level function passes
+ *  a `typeof === 'function'` gate. **/
 export function func<const P extends readonly RunType[] = [], R extends RunType = RunType<void>>(
   parts?: CompTimeArgs<{readonly params?: P; readonly ret?: R}>,
   id?: InjectRunTypeId<FuncFromParams<P, InferType<R>>>
@@ -468,27 +347,17 @@ export function func(
   },
   id?: InjectRunTypeId<unknown>
 ): RunType {
-  // An ARRAY `params` is the array/slots form (positional param RunTypes, slot
-  // carriers unwrapped); a RunType OBJECT is the tuple form (a single
-  // params-tuple RunType whose carried T is the param tuple — lets optional/rest
-  // params be authored via tuple()). The carrier `parameters` is not walked for
-  // root function schemas.
+  // An ARRAY `params` is the array/slots form; a RunType OBJECT is the tuple form (its carried T
+  // is the param tuple). The carrier `parameters` is not walked for root function schemas.
   const params = parts?.params;
   const parameters = Array.isArray(params) ? params.map(slotChild) : (params ?? []);
   return builderResult(id, {type: 'function', parameters, return: parts?.ret});
 }
 
-/** A callable-interface builder — a value that is BOTH callable AND carries data
- *  properties, e.g. `{(a: number, b: boolean): string; extra: string}`. It mixes a
- *  call-signature schema (`func(...)`) with an interface's data properties
- *  (`object({...})`): `callable(func({params: [number(), boolean()], ret: string()}), object({extra: string()}))`.
- *
- *  The result's InferType is `Fn & Props` — TS can't express a single object literal
- *  carrying a call signature AND mapped props in one type, so the mix is an
- *  intersection; but the Go scanner projects it as an object literal carrying the
- *  call signature + members, and the structural id embeds the call signature, so it
- *  converges with the type-first callable interface `{(): r; props}`. The function
- *  half is `notSupported` for validation (functions aren't validated) — the emitted
+/** A callable-interface builder — a value that is BOTH callable AND carries data properties,
+ *  `{(a: number): string; extra: string}`. The InferType is `Fn & Props` because TS can't express a
+ *  call signature and mapped props in one object literal, but the scanner projects it as one, so it
+ *  converges with the type-first callable interface. The function half isn't validated: the emitted
  *  validator checks `typeof === 'function'` PLUS the declared data properties. **/
 export function callable<Fn, Props>(
   fn: CompTimeArgs<RunType<Fn>>,
@@ -498,17 +367,10 @@ export function callable<Fn, Props>(
   return builderResult(id, {type: 'intersection', children: [fn, iface]});
 }
 
-/** A template-literal builder — value-first authoring of a TS template-literal
- *  type from a parts array mixing string segments and `RunType` placeholders:
- *  `templateLiteral(['api/user/', number()])` → `` RunType<`api/user/${number}`> ``;
- *  `templateLiteral([string(), '/', number()])` → `` RunType<`${string}/${number}`> ``;
- *  `templateLiteral([union([literal('a'), literal('b')]), '-', number()])` →
- *  `` RunType<`${'a' | 'b'}-${number}`> ``. Because the result is a real
- *  template-literal TYPE it nests anywhere (object property, union member) and
- *  converges with the type-first `` createValidateFn<`…`>() `` through the existing
- *  reflection — no Go-side change. The `const` type parameter captures
- *  string-literal segments (`'api/user/'` stays a literal, not `string`); the
- *  parts ride the carrier only. **/
+/** Builds a TS template-literal type from a parts array mixing string segments and `RunType`
+ *  placeholders: `templateLiteral(['api/user/', number()])` → `` RunType<`api/user/${number}`> ``.
+ *  The result is a real template-literal TYPE, so it nests anywhere; the `const` type parameter is
+ *  what keeps a segment a string literal instead of `string`. **/
 export function templateLiteral<const P extends readonly TemplatePart[]>(
   parts: CompTimeArgs<P>,
   id?: InjectRunTypeId<AssembleTemplate<P>>
@@ -518,17 +380,11 @@ export function templateLiteral<const P extends readonly TemplatePart[]>(
 
 // ─────────────────── Object assembler + property modifiers ───────────
 //
-// `object(...)` composes leaf builders / composers into an object run-type;
-// `propMod` / `optional` wrap a field with a property MODIFIER (optional /
-// readonly) that `object`'s mapped type (`ObjectType<C>`, static.ts) applies. The
-// modifiers are a property-POSITION concern, NOT part of a field's identity, so
-// they ride a DISTINCT carrier (no brand intersection, which would corrupt the
-// `__rtFormatName` / `__rtFormatParams` sentinels); `object` unwraps it.
+// The modifiers `propMod` / `optional` carry are a property-POSITION concern, NOT part of a field's
+// identity, so they ride a DISTINCT carrier `object` unwraps: a brand intersection would corrupt the
+// `__rtFormatName` / `__rtFormatParams` sentinels. `object`'s mapped type (`ObjectType<C>`) applies them.
 
-/** Applies property modifiers to a field for use inside `object(...)`:
- *  `propMod({optional: true}, string({maxLength: 5}))`, `propMod({readonly:
- *  true}, number())`, or both. A bare `propMod(...)` is only meaningful as a
- *  field inside `object(...)`. **/
+/** Applies property modifiers to a field; only meaningful as a field inside `object(...)`. **/
 export function propMod<const M extends PropModifiers, const F>(
   modifiers: CompTimeArgs<ExactParams<M, PropModifiers>>,
   field: CompTimeArgs<F>
@@ -536,26 +392,15 @@ export function propMod<const M extends PropModifiers, const F>(
   return {__propMod: modifiers, __field: field};
 }
 
-/** Shortcut for `propMod({optional: true}, field)` — marks a field optional
- *  (`key?:`) inside `object(...)`. The common modifier gets a terse spelling;
- *  reach for `propMod` for `readonly` or combinations. **/
+/** Shortcut for the common modifier; use `propMod` for `readonly` or combinations. **/
 export function optional<const F>(field: CompTimeArgs<F>): PropModCarrier<{optional: true}, F> {
   return propMod({optional: true}, field);
 }
 
-/** Assembles an object run-type from named field builders, building the object
- *  type via `ObjectType<C>`: a bare field is a required + mutable property; a
- *  `propMod({optional?, readonly?}, field)` wrapper places the key (`key?:` /
- *  `readonly key:`). Strips the `const`-capture `readonly` from un-modified keys
- *  and unwraps each field's `RunType<…>` to its type via `FieldOf`/`InferType`, so
- *  leaf builders AND composers (`array`/`tuple`/`union`/`record`/nested `object`)
- *  nest freely.
- *
- *  Like every builder, `object` returns the generic `RunType<ObjectType<C>>`:
- *  `typeof object({...})` is the run-type node, `InferType<typeof …>` recovers the
- *  object type, and the value drops straight into `createValidateFn(...)` or nests
- *  inside another composer. The nested field builders are skipped by the scanner —
- *  the enclosing `object` marker reflects the whole shape. **/
+/** Assembles an object run-type from named field builders via `ObjectType<C>`: a bare field is a
+ *  required + mutable property, a `propMod(...)` wrapper places the key (`key?:` / `readonly key:`).
+ *  Strips the `const`-capture `readonly` from un-modified keys. The nested field builders are skipped
+ *  by the scanner — the enclosing `object` marker reflects the whole shape. **/
 export function object<const C extends Record<string, unknown>>(
   config: CompTimeArgs<C>,
   id?: InjectRunTypeId<ObjectType<C>>
