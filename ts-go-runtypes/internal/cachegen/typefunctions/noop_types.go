@@ -1018,8 +1018,7 @@ func toBinaryNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map
 	switch rt.Kind {
 
 	case reflection.KindLiteral:
-		// emitLiteralToBinary writes nothing for every flavour in v1, except the
-		// symbol one, which is unsupported rather than free.
+		// emitLiteralToBinary writes nothing for every flavour in v1; the symbol one is unsupported, not free.
 		return literalFlavour(rt) != litSymbol
 
 	case reflection.KindProperty, reflection.KindPropertySignature:

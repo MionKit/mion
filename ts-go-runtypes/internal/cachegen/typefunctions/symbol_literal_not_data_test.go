@@ -9,15 +9,11 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// A symbol literal is no more data than the bare kind: the value a decoder
-// could build is a fresh Symbol(), never the symbol the literal type names, so
-// the round trip returns something else while the description check still
-// passes it. Every serialization family refuses it exactly as it refuses
-// `symbol` — dropped at a property with the …015 Warning, alwaysThrow at a
-// root — while validate keeps the description check it had.
+// A symbol literal is no more data than the bare kind: a decoder can only build a fresh Symbol(), never
+// the symbol the type names. Every serialization family refuses it like `symbol` (dropped at a property
+// with a Warning, alwaysThrow at a root); validate keeps the description check it had.
 
-// mkSymLit is the shape the resolver emits for `typeof sym` where
-// `const sym = Symbol('hello')` (serialize.go's UniqueESSymbol arm).
+// mkSymLit is the resolver's shape for `typeof sym` (serialize.go's UniqueESSymbol arm).
 func mkSymLit() *reflection.RunType {
 	return &reflection.RunType{
 		ID:      "lsym",
@@ -54,8 +50,7 @@ func TestSymbolLiteral_RootFailsEverySerializationFamily(t *testing.T) {
 	}
 }
 
-// Nothing is written and nothing is parsed: the old `'Symbol:' + description`
-// encoding and its `Symbol(v.substring(7))` rebuild are both gone.
+// The old `'Symbol:' + description` encoding and its `Symbol(v.substring(7))` rebuild are both gone.
 func TestSymbolLiteral_NoWireFormIsEmitted(t *testing.T) {
 	for _, fam := range symLitSerdeFamilies {
 		dump := objWithProp(mkSymLit(), false)
@@ -104,8 +99,7 @@ func TestSymbolLiteral_UnionMemberDrops(t *testing.T) {
 	}
 }
 
-// The wire refusal does not reach the validators: an in-memory value is still
-// checkable by description, and the build stays clean for them.
+// An in-memory value is still checkable by description, so the validators refuse nothing.
 func TestSymbolLiteral_ValidateKeepsTheDescriptionCheck(t *testing.T) {
 	for _, fam := range []string{"validate", "validationErrors"} {
 		dump := protocol.Dump{RunTypes: []*reflection.RunType{mkSymLit()}}

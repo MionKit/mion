@@ -396,8 +396,7 @@ func (ToBinaryEmitter) Finalize(raw string) (string, bool) {
 func emitLiteralToBinary(rt *reflection.RunType, v string, ser string) RTCode {
 	_ = v
 	_ = ser
-	// A symbol literal has no decode side, so writing nothing here would let the
-	// value through as unsupported-but-silent. Refuse it like the bare kind.
+	// A symbol literal has no decode side, so writing nothing would let it through silently.
 	if literalFlavour(rt) == litSymbol {
 		return RTCode{Code: "", Type: CodeNS}
 	}

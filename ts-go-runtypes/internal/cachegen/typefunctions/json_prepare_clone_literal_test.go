@@ -140,8 +140,7 @@ func TestPrepareForJsonClone_ArrayOfBigintLiteralUnion(t *testing.T) {
 	}
 }
 
-// A symbol literal is refused on every JSON road, so an array of one has no
-// element that can be encoded and the whole entry is unsupported.
+// A symbol literal is refused on every JSON road, so an array of one has no encodable element.
 func TestPrepareForJsonClone_ArrayOfSymbolLiteral(t *testing.T) {
 	_, refTable := literalSafeTypes()
 	walker := NewWalker(refTable["arrSym"], "pjs_arrSym", PrepareForJsonCloneEmitter{})

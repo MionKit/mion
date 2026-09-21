@@ -199,7 +199,7 @@ func emitLiteralRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v stri
 	case litBigInt:
 		return RTCode{Code: bigintRestoreCode(v, ctx), Type: CodeE}
 	case litSymbol:
-		// Unsupported — nothing is encoded, so there is no wire form to restore.
+		// Nothing is encoded, so there is no wire form to restore.
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	// Primitive literal — noop.
