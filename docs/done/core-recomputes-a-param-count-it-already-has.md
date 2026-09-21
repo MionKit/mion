@@ -1,16 +1,16 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-21
 ---
 
-# The headers reflection recomputes a param count it was just handed
+# The headers reflection recomputed a param count it was just handed
 
-## Intent
+## What shipped
 
 In [packages/core/src/runtypes/mionAdapter.ts](../../packages/core/src/runtypes/mionAdapter.ts),
-`getHeadersReflectionFromMarkers` does this:
+`getHeadersReflectionFromMarkers` used to do this:
 
 ```ts
 const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
@@ -18,40 +18,46 @@ const bodyArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId
 reflection.paramsCount = bodyArity;
 ```
 
-`getReflectionFromMarkers` already set `paramsCount` from the same source, and the two spellings are
-the same computation:
+The two lines are gone. What remains is the shared call plus a one-line comment saying why no
+second count is needed:
 
 ```ts
-export function getParamCountFromRunType(paramsRunType: RunType<unknown>): number {
-  return getParamsFromRunType(paramsRunType).length;
-}
+// paramsCount is already the body arity: `paramsId` holds HeaderHandlerParams<H>, which starts after the HeadersSubset
+const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
 ```
 
-Inside `getReflectionFromMarkers` it is `getParamsFromRunType(paramsRunType).length`, over
-`resolveInjectedRunType(rtFns.paramsId)`, the same input. So the reassignment always writes back the
-value that is already there, and it costs a second walk of the params tuple on every headers
-middleFn.
+## Why the two cannot diverge
 
-## What to settle
+- Both read the SAME input, `resolveInjectedRunType(rtFns.paramsId)`. `resolveInjectedRunType` is a
+  cache lookup by injected id, so a second call cannot answer differently.
+- Both run the SAME computation. `getParamCountFromRunType(x)` is `getParamsFromRunType(x).length`,
+  and `getReflectionFromMarkers` sets `paramsCount` to `getParamsFromRunType(paramsRunType).length`
+  over that same node.
+- "Body arity" was never a different number. For a headers middleFn the router's `paramsId` slot
+  holds `HeaderHandlerParams<H>` (`packages/router/src/types/handlers.ts`), which already drops the
+  context and the HeadersSubset, so `paramsCount` IS the body arity on both paths.
+- Ordering is not a factor: `getReflectionFromMarkers` runs first and throws when `paramsId` is
+  missing, so the deleted lines could only ever see the id it already resolved.
 
-Confirm the two really cannot diverge, then delete the two lines. The reason to check rather than
-just delete: a headers middleFn takes the HeadersSubset as its second parameter, so it is worth
-proving that `rtFns.paramsId` means the same thing in both calls and that nothing downstream wants a
-"body arity" that differs from the full param count.
+`getParamCountFromRunType` itself stays: it is part of the `@mionjs/core` public surface and is
+still covered by its own test.
 
-If they CAN diverge, the code is right and the fix is the opposite one: give the second computation
-a name and a one-line comment saying what makes it different.
+## Tests
 
-## Evidence to produce
+`packages/core/src/runtypes/mionAdapter.spec.ts` gained a `fakeHeadersFn` marker wrapper (the
+plugin fills the header slots the way `mion.headersFn` does) and a
+`mionAdapter: headers middleFn reflection` block pinning:
 
-- A test in `packages/core/src/runtypes/mionAdapter.spec.ts` asserting `paramsCount` for a headers
-  middleFn, so the behaviour is pinned whichever way this goes.
-- `pnpm test` green for `@mionjs/core` and `@mionjs/router`.
+- `paramsCount` is 2 for `(ctx, headers: HeadersSubset<'authorization', 'x-trace'>, pet, notes?)`
+  and 0 for a handler with headers only, with `paramNames` matching. This is the value that rides
+  the client's methods-metadata payload, so it is public behaviour.
+- `getHeadersReflectionFromMarkers` returns the same `paramsCount` as
+  `getReflectionFromMarkers` and as `getParamCountFromRunType(resolveInjectedRunType(paramsId))`,
+  so a future divergence fails here.
+- `headersParam` still carries the declared header names and a working validator.
 
-## Watch out
-
-- `paramsCount` rides the client's methods-metadata payload, so a change in its value is observable
-  by `@mionjs/client`, not just internal. That is why this wants a test rather than a blind delete.
+Green: `@mionjs/core` (94 tests), `@mionjs/router` (448 tests), plus the full JS suite, lint and
+format.
 
 ## Origin
 
