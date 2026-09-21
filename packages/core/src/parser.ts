@@ -7,14 +7,13 @@
 
 import type {ParserOption, ResolvedParser, ParserStrategy, ReturnParserStrategy} from './types/general.types.ts';
 
-// The `parser` option is a BUILD-TIME literal; assertCompiledParser (router/lib/reflection.ts) refuses a runtime
-// value the build did not compile.
+// `parser` is a BUILD-TIME literal; assertCompiledParser (router/lib/reflection.ts) refuses one the build never compiled.
 
 /** Defaults to `clone` both ways: it never mutates the input and drops anything the type does not declare. */
 export const DEFAULT_PARSER = Object.freeze({params: 'clone', return: 'clone'} as const) satisfies ResolvedParser;
 export type DefaultParser = typeof DEFAULT_PARSER;
 
-// Two written-out lists, each checked against its own type; parser.spec.ts pins both against PARSE_MODES.
+// Two written-out lists, each checked against its own type; parser.spec.ts pins PARSER_STRATEGIES against PARSE_MODES.
 export const PARSER_STRATEGIES = ['clone', 'mutate', 'mutateStrict', 'compact'] as const satisfies readonly ParserStrategy[];
 /** What a RETURN direction accepts: `mutateStrict` has no meaning on the way out. */
 const RETURN_PARSER_STRATEGIES = ['clone', 'mutate', 'compact'] as const satisfies readonly ReturnParserStrategy[];

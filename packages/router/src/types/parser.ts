@@ -69,7 +69,7 @@ type LiteralParser<Parser> = Parser extends string ? SingleLiteral<Parser> : {[K
 // The marker parameters every helper carries, written ONCE. types/mionRouter.ts indexes this tuple instead of
 // respelling the markers: an alias wrapped AROUND a marker hides it from the mion scanner, a tuple ELEMENT does not.
 // Fn keys are MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so order does not matter.
-// 'formatTransform' and the strategy-driven validator are PARAMS-only: a RETURN is written by the handler, never a caller.
+// 'formatTransform' is PARAMS-only: a RETURN is written by the handler, never a caller.
 
 /** The four injection slots of a route / middleFn call, in declaration order. */
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts> = [

@@ -31,7 +31,7 @@ import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 // shapes the router already consumes, so dispatch and serialization code stay untouched.
 
 /** The VOCABULARY of fn keys a route marker may name; the helpers pick which ones each call requests from its
- *  `encoder`. Order is irrelevant, the payload is projected by fn key.
+ *  `parser`. Order is irrelevant, the payload is projected by fn key.
  *  ⚠️ Helper signatures must spell the marker out as InjectTypeFnArgs<T, 'validate', …>: the scanner does not
  *  recognize a local alias over it (verified 2026-07-11). */
 export const MION_FN_KEYS = [

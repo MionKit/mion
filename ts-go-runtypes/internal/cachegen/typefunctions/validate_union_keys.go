@@ -63,8 +63,8 @@ func unionMemberBearsKeys(resolved *reflection.RunType) bool {
 }
 
 // unionMemberKeyAssertion returns the expression asserting the value at ctx.Vλl carries no key this member leaves
-// undeclared, or "" when the member takes no assertion; callers must already have established that the union qualifies.
-// Empty for an index-signature member above all, which declares every key matching its pattern.
+// undeclared, "" for a member taking no assertion: an index-signature one declares every key matching its pattern.
+// Callers must already have established that the union qualifies.
 func unionMemberKeyAssertion(resolved *reflection.RunType, ctx *EmitContext) string {
 	if !unionMemberBearsKeys(resolved) || resolved.Kind == reflection.KindIndexSignature {
 		return ""

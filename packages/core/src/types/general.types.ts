@@ -14,7 +14,7 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 /** RunTypes also offers `direct`; mion does not, it costs 3x the memory of `clone` and 2x the time for identical bytes.
  *  Written out rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route. */
 export type ParserStrategy = 'clone' | 'mutate' | 'mutateStrict' | 'compact';
-/** PARAMS ONLY: a return is written by your own handler, so there is no caller key left to reject. */
+/** `mutateStrict` is PARAMS ONLY: a return is written by your own handler, so there is no caller key left to reject. */
 export type ReturnParserStrategy = 'clone' | 'mutate' | 'compact';
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
 export interface ParserPair {
