@@ -21,7 +21,6 @@ import type {
   JitFunctionsHashes,
   JsonEncodeFn,
   ParserStrategy,
-  ParserDirection,
   PureFnsDataCache,
 } from '../types/general.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
@@ -193,21 +192,16 @@ type CompiledJsonFamilies = {
 
 // No row matches a payload from a different build, so version skew fails closed here rather than at call time.
 // `mutate` and `mutateStrict` share an encoder and a decoder, so only the whole row tells their validators apart.
-// `direction` only names the wire in the error, so a skew report points at the marker that carried the payload.
 /** The strategy a fn set was compiled for: the ONE PARSE_MODES row whose encoder, decoder and validator are present. */
-function strategyFromFamilies(
-  fns: Partial<Record<FnHashKey, unknown>>,
-  label: string,
-  direction: ParserDirection
-): CompiledJsonFamilies {
+function strategyFromFamilies(fns: Partial<Record<FnHashKey, unknown>>, label: string): CompiledJsonFamilies {
   const matched = (Object.keys(PARSE_MODES) as ParserStrategy[]).filter((strategy) => {
     const row: ParseModeRow = PARSE_MODES[strategy];
     return fns[row.encode] !== undefined && fns[row.decode] !== undefined && fns[row.validate] !== undefined;
   });
   if (matched.length !== 1)
     throw new Error(
-      `RunTypes: the compiled-fn payload for '${label}' matches ${matched.length} parser strategies on the ` +
-        `${direction} wire (got [${Object.keys(fns).join(', ')}]${matched.length ? `, matched [${matched.join(', ')}]` : ''}). ` +
+      `RunTypes: the compiled-fn payload for '${label}' matches ${matched.length} parser strategies ` +
+        `(got [${Object.keys(fns).join(', ')}]${matched.length ? `, matched [${matched.join(', ')}]` : ''}). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
   return {strategy: matched[0], row: PARSE_MODES[matched[0]]};
@@ -215,12 +209,7 @@ function strategyFromFamilies(
 
 /** Builds mion JitCompiledFunctions from one injected marker payload: the validators and ONE json
  *  pair. Throws when the marker was never injected. */
-export function buildJitFnsFromMarker(
-  injected: unknown,
-  typeId: string,
-  label: string,
-  direction: ParserDirection
-): JitCompiledFunctions {
+export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: string): JitCompiledFunctions {
   if (!isInjectedFnsArray(injected))
     throw new Error(
       `RunTypes: no compiled type functions injected for '${label}'. ` +
@@ -229,11 +218,11 @@ export function buildJitFnsFromMarker(
   const fns = byFnKey(injected);
   // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
   // skew — falling back would silently DISABLE validation/serialization for this method.
-  const {strategy, row} = strategyFromFamilies(fns, label, direction);
+  const {strategy, row} = strategyFromFamilies(fns, label);
   if (fns[row.validationErrors] === undefined)
     throw new Error(
-      `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; the ${strategy} ` +
-        `${direction} wire needs ${row.validationErrors} beside ${row.validate}). ` +
+      `RunTypes: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ${strategy} ` +
+        `needs ${row.validationErrors} beside ${row.validate}). ` +
         `Rebuild with a matching @mionjs/devtools + RunTypes version.`
     );
   const isType = getRTFunction<'validate'>(fns[row.validate], alwaysTrue);
@@ -339,8 +328,8 @@ export function getReflectionFromMarkers(
   const paramsRunType = resolveInjectedRunType(rtFns.paramsId);
   const params = getParamsFromRunType(paramsRunType);
   const paramsArity = params.length;
-  const paramsJitFns = buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`, 'params');
-  const returnJitFns = buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`, 'return');
+  const paramsJitFns = buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`);
+  const returnJitFns = buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`);
   const reflection: RtMethodReflection = {
     paramsCount: paramsArity,
     paramNames: params.map((param) => param.name ?? ''),

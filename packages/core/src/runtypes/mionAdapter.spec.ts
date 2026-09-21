@@ -214,7 +214,7 @@ describe('mionAdapter: reflection from injected markers', () => {
 
   it('throws a clear error when markers were not injected', () => {
     expect(() => getReflectionFromMarkers(undefined, () => 1, 'nope')).toThrow(/no injected type information/);
-    expect(() => buildJitFnsFromMarker(undefined, 'x', 'nope', 'params')).toThrow(/vite plugin/);
+    expect(() => buildJitFnsFromMarker(undefined, 'x', 'nope')).toThrow(/vite plugin/);
   });
 });
 
@@ -270,7 +270,7 @@ describe('mionAdapter: json strategy per compiled family set', () => {
   // still resolve every function, and the readable key is what the rest of mion sees.
   it('translates the short family tag a compiled entry carries into the readable fn key', () => {
     // A `clone` params wire compiles the union-scoped validator pair (vuk / veuk).
-    const fns = buildJitFnsFromMarker([tuple('vuk'), tuple('veuk'), tuple('pjs'), tuple('rjs')], 'x', 'clone', 'params');
+    const fns = buildJitFnsFromMarker([tuple('vuk'), tuple('veuk'), tuple('pjs'), tuple('rjs')], 'x', 'clone');
     expect(fns.isType).toBeDefined();
     expect(fns.typeErrors).toBeDefined();
     // The strategy is read back off the encode family, which only works once the
@@ -282,19 +282,17 @@ describe('mionAdapter: json strategy per compiled family set', () => {
   it('fails closed unless the payload matches exactly one parsing row', () => {
     const okValidators = [tuple('vuk'), tuple('veuk')];
     // no encoder at all
-    expect(() => buildJitFnsFromMarker([...okValidators, tuple('rj')], 'x', 'noEncode', 'params')).toThrow(
-      /matches 0 parser strategies/
-    );
+    expect(() => buildJitFnsFromMarker([...okValidators, tuple('rj')], 'x', 'noEncode')).toThrow(/matches 0 parser strategies/);
     // a clone validator with a compact JSON pair: no row names that combination
-    expect(() => buildJitFnsFromMarker([...okValidators, tuple('cj'), tuple('rj')], 'x', 'mismatch', 'params')).toThrow(
+    expect(() => buildJitFnsFromMarker([...okValidators, tuple('cj'), tuple('rj')], 'x', 'mismatch')).toThrow(
       /matches 0 parser strategies/
     );
     // the clone JSON pair under the plain validator: clone compiles the union-scoped one, so no row names it
-    expect(() =>
-      buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pjs'), tuple('rjs')], 'x', 'wrongValidator', 'return')
-    ).toThrow(/matches 0 parser strategies/);
+    expect(() => buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pjs'), tuple('rjs')], 'x', 'wrongValidator')).toThrow(
+      /matches 0 parser strategies/
+    );
     // the row matched, but its error twin never shipped
-    expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr', 'params')).toThrow(
+    expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr')).toThrow(
       /needs validationErrors beside validate/
     );
   });
@@ -302,13 +300,13 @@ describe('mionAdapter: json strategy per compiled family set', () => {
   // `mutate` and `mutateStrict` share an encoder AND a decoder, so only the validate family tells their rows apart.
   // One table serves both wires, so a return payload matches the same row a params one does.
   it('tells mutate from mutateStrict by the validate family', () => {
-    const plain = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'mutate', 'params');
+    const plain = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'mutate');
     expect(plain.json.strategy).toBe('mutate');
 
-    const strict = buildJitFnsFromMarker([tuple('vst'), tuple('vest'), tuple('pj'), tuple('rj')], 'x', 'strict', 'params');
+    const strict = buildJitFnsFromMarker([tuple('vst'), tuple('vest'), tuple('pj'), tuple('rj')], 'x', 'strict');
     expect(strict.json.strategy).toBe('mutateStrict');
 
-    const answer = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'answer', 'return');
+    const answer = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'answer');
     expect(answer.json.strategy).toBe('mutate');
   });
 });
