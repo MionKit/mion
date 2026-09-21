@@ -28,7 +28,7 @@ type AnyHandler = (ctx: any, ...params: any[]) => any;
 type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
 type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
-// `mutate` on both directions: the params decoder keeps undeclared keys, the return decoder does not.
+// `mutate` on both directions: one PARSE_MODES row, so both wires keep undeclared keys.
 function fakeRoute<H extends AnyHandler>(
   handler: H,
   paramsFns?: InjectTypeFnArgs<
@@ -39,7 +39,7 @@ function fakeRoute<H extends AnyHandler>(
     'prepareForJsonMutate',
     'restoreFromJsonMutate'
   >,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone'>,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -57,14 +57,20 @@ function fakeCompactRoute<H extends AnyHandler>(
     'compactForJson',
     'compactFromJson'
   >,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'compactForJson', 'compactFromJson'>,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'validateUnionKeys',
+    'validationErrorsUnionKeys',
+    'compactForJson',
+    'compactFromJson'
+  >,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
   return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
 }
 
-// `clone` params, `direct` return.
+// `clone` params, `mutate` return.
 function fakeCloneRoute<H extends AnyHandler>(
   handler: H,
   paramsFns?: InjectTypeFnArgs<
@@ -75,7 +81,7 @@ function fakeCloneRoute<H extends AnyHandler>(
     'prepareForJsonClone',
     'restoreFromJsonClone'
   >,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone'>,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate'>,
   paramsId?: InjectRunTypeId<HandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
@@ -98,7 +104,7 @@ function fakeHeadersFn<H extends AnyHeaderHandler>(
     'prepareForJsonMutate',
     'restoreFromJsonMutate'
   >,
-  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonClone'>,
+  returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'validate', 'validationErrors', 'prepareForJsonMutate', 'restoreFromJsonMutate'>,
   headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
   paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
   returnId?: InjectRunTypeId<HandlerReturn<H>>
@@ -186,7 +192,7 @@ describe('mionAdapter: reflection from injected markers', () => {
     // so this verifies the derived `<fnHash>_<typeId>` keys resolve to real emitted entries.
     // A version bump re-hashes typeIds but getFnHash tracks it — no manual refresh needed.
     const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-    const hashes = getJitFnHashes(reflection.paramsJitHash, 'mutate', 'params');
+    const hashes = getJitFnHashes(reflection.paramsJitHash, 'mutate');
     const utl = getRTUtils();
     for (const key of ['isType', 'typeErrors', 'encode', 'decode'] as const) {
       const compiled = utl.getRT(hashes[key]);
@@ -240,18 +246,15 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(input[0].born).toBeInstanceOf(Date); // clone never mutates the input
   });
 
-  // `mutate` keeps undeclared keys where the SERVER decodes them (params) and drops them where the CLIENT does.
-  it('mutate names a different decoder on each side', () => {
-    const reflection = getReflectionFromMarkers(clone.rtFns, clone.handler, 'clone');
-    expect(getJitFnHashes(reflection.returnJitHash, 'mutate', 'return').decode).toBe(
-      reflection.returnJitFns.json.decode.rtFnHash
-    );
-    expect(getJitFnHashes('x', 'mutate', 'params').decode).not.toBe(getJitFnHashes('x', 'mutate', 'return').decode);
+  // One PARSE_MODES row serves both wires, so a strategy names the same decoder wherever it is used.
+  it('names one decoder per strategy, whichever wire asks', () => {
+    expect(getJitFnHashes('x', 'mutate').decode).toBe(getJitFnHashes('x', 'mutate').decode);
+    expect(getJitFnHashes('x', 'mutate').decode).not.toBe(getJitFnHashes('x', 'clone').decode);
   });
 
   it('names the strategy families in the hashes so the deps lane ships exactly them', () => {
     const reflection = getReflectionFromMarkers(compact.rtFns, compact.handler, 'compact');
-    const hashes = getJitFnHashes(reflection.returnJitHash, 'compact', 'return');
+    const hashes = getJitFnHashes(reflection.returnJitHash, 'compact');
     expect(hashes.encode).toBe(reflection.returnJitFns.json.encode.rtFnHash);
     expect(hashes.decode).toBe(reflection.returnJitFns.json.decode.rtFnHash);
   });
@@ -275,8 +278,8 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(fns.json.strategy).toBe('clone');
   });
 
-  // A payload must match exactly ONE row of its direction's table. Anything else is build skew, and matching the
-  // whole row is what catches a decoder that belongs to another strategy or to the other side of the wire.
+  // A payload must match exactly ONE PARSE_MODES row. Anything else is build skew, and matching the whole row
+  // is what catches a validator or a decoder that belongs to another strategy.
   it('fails closed unless the payload matches exactly one parsing row', () => {
     const okValidators = [tuple('vuk'), tuple('veuk')];
     // no encoder at all
@@ -287,9 +290,9 @@ describe('mionAdapter: json strategy per compiled family set', () => {
     expect(() => buildJitFnsFromMarker([...okValidators, tuple('cj'), tuple('rj')], 'x', 'mismatch', 'params')).toThrow(
       /matches 0 parser strategies/
     );
-    // the server's `mutate` decoder on the RETURN wire, where the client's rebuilding one belongs
+    // the clone JSON pair under the plain validator: clone compiles the union-scoped one, so no row names it
     expect(() =>
-      buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'wrongSide', 'return')
+      buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pjs'), tuple('rjs')], 'x', 'wrongValidator', 'return')
     ).toThrow(/matches 0 parser strategies/);
     // the row matched, but its error twin never shipped
     expect(() => buildJitFnsFromMarker([tuple('val'), tuple('pj'), tuple('rj')], 'x', 'noVerr', 'params')).toThrow(
@@ -298,15 +301,15 @@ describe('mionAdapter: json strategy per compiled family set', () => {
   });
 
   // `mutate` and `mutateStrict` share an encoder AND a decoder, so the validator is the only thing telling their
-  // rows apart. The direction matters as much: RETURN_PARSING has no mutateStrict row at all.
-  it('tells mutate from mutateStrict by the validate family, on the params wire only', () => {
+  // rows apart. One table now serves both wires, so a return payload matches the same row a params one does.
+  it('tells mutate from mutateStrict by the validate family', () => {
     const plain = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'mutate', 'params');
     expect(plain.json.strategy).toBe('mutate');
 
     const strict = buildJitFnsFromMarker([tuple('vst'), tuple('vest'), tuple('pj'), tuple('rj')], 'x', 'strict', 'params');
     expect(strict.json.strategy).toBe('mutateStrict');
 
-    const answer = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rjs')], 'x', 'answer', 'return');
+    const answer = buildJitFnsFromMarker([tuple('val'), tuple('verr'), tuple('pj'), tuple('rj')], 'x', 'answer', 'return');
     expect(answer.json.strategy).toBe('mutate');
   });
 });
@@ -415,7 +418,7 @@ describe('mionAdapter: formatTransform (sanitizeParams) fn', () => {
 
   it('names the fmt hash so the deps lane can ship it', () => {
     const clean = getReflectionFromMarkers(cleanRoute.rtFns, cleanRoute.handler, 'cleanRoute');
-    const hashes = getJitFnHashes(clean.paramsJitHash, 'mutate', 'params');
+    const hashes = getJitFnHashes(clean.paramsJitHash, 'mutate');
     expect(hashes.formatTransform).toBe(clean.paramsJitFns.formatTransform!.rtFnHash);
   });
 });

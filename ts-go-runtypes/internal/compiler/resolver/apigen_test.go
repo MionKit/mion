@@ -546,9 +546,9 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 		t.Errorf("getById chain: %s", got)
 	}
 	// clone both ways: the clone prepare writes the declared shape, the strip restore rebuilds it on arrival.
-	// Its params take the union-scoped validator (a rebuilt shape can still carry another union member's key);
-	// the answer side keeps the plain pair. The manifest names families by their MARKER token.
-	if got := strings.Join(getById.Families, ","); got != "validateUnionKeys,validationErrorsUnionKeys,formatTransform,prepareForJsonClone,restoreFromJsonClone,validate,validationErrors,prepareForJsonClone,restoreFromJsonClone" {
+	// One PARSE_MODES row serves both wires, so both take the union-scoped validator; only `formatTransform`
+	// stays params-only. The manifest names families by their MARKER token.
+	if got := strings.Join(getById.Families, ","); got != "validateUnionKeys,validationErrorsUnionKeys,formatTransform,prepareForJsonClone,restoreFromJsonClone,validateUnionKeys,validationErrorsUnionKeys,prepareForJsonClone,restoreFromJsonClone" {
 		t.Errorf("getById families: %s", got)
 	}
 	if getById.Options["validateParams"] != true {

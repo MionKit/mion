@@ -141,7 +141,7 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // ONE validator per strategy on the params side, the plain pair on the answer side. The stripping strategies take the
+  // ONE validator per strategy, the same row whichever wire asks for it. The stripping strategies take the
   // union-scoped one: their decoder already rebuilt the declared shape, so only a sibling member's key can survive.
   describe('the validate family follows the wire', () => {
     const cloneRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'clone'});
@@ -180,10 +180,18 @@ describe('parser strategies at the router level', () => {
       expect(familyOf(getMiddleFnExecutable('compactGuard')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validateUnionKeys);
     });
 
-    it('the answer side always compiles the plain pair', () => {
+    it('the answer side compiles the row its own strategy names', () => {
       mion.initRoutes({cloneRoute, mutateRoute, strictRoute, mutateParamsOnly, compactRoute});
-      for (const id of ['cloneRoute', 'mutateRoute', 'strictRoute', 'mutateParamsOnly', 'compactRoute']) {
-        expect([id, familyOf(getRouteExecutable(id)!.returnJitFns)]).toEqual([id, JIT_FUNCTION_IDS.validate]);
+      // strictRoute names only params, so its return falls back to the default `clone`
+      const expected: Record<string, string> = {
+        cloneRoute: JIT_FUNCTION_IDS.validateUnionKeys,
+        compactRoute: JIT_FUNCTION_IDS.validateUnionKeys,
+        strictRoute: JIT_FUNCTION_IDS.validateUnionKeys,
+        mutateParamsOnly: JIT_FUNCTION_IDS.validateUnionKeys,
+        mutateRoute: JIT_FUNCTION_IDS.validate,
+      };
+      for (const [id, family] of Object.entries(expected)) {
+        expect([id, familyOf(getRouteExecutable(id)!.returnJitFns)]).toEqual([id, family]);
       }
     });
   });
@@ -272,9 +280,8 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // On the way IN the caller need not be a mion client, so only the decoder stands between what it sends and the
-  // handler. A return is decoded by the CLIENT, whose decoder is not the server's: `mutate` sends its undeclared keys
-  // and the client still drops them.
+  // A return is decoded by the CLIENT, with the same PARSE_MODES row the server encoded with: `clone` rebuilds
+  // the declared shape at both ends, `mutate` rebuilds at neither, so its undeclared keys reach the caller.
   describe('what arrives at the caller', () => {
     interface Slice {
       name: string;
@@ -296,23 +303,23 @@ describe('parser strategies at the router level', () => {
       expect(Object.keys(await decodedReturn('cloneOut'))).toEqual(['name']);
     });
 
-    it('mutate sends the undeclared ones, and the caller still gets only the declared property', async () => {
+    // `mutate` rebuilds nothing at either end, so an undeclared key the handler set travels all the way
+    // to the caller. `clone` above is the strategy that drops it.
+    it('mutate sends the undeclared ones, and the caller gets them too', async () => {
       mion.initRoutes({mutateOut});
       const response = await dispatchJson('mutateOut', []);
-      // on the wire: mutate is the strategy that passes the object through
       expect(response.body.mutateOut).toMatchObject({secret: 'do not send'});
-      // at the caller: the client's decoder rebuilds the declared shape
-      expect(Object.keys(await decodedReturn('mutateOut'))).toEqual(['name']);
+      expect(Object.keys(await decodedReturn('mutateOut')).sort()).toEqual(['name', 'notes', 'secret']);
     });
 
-    // A cache key is `<familyPrefix>_<typeId>`, so the prefix says which decoder was compiled; on a
-    // `mutate` route the two sides still differ.
-    it('so the two sides of mutate compile different decode families', () => {
+    // A cache key is `<familyPrefix>_<typeId>`, so the prefix says which decoder was compiled. One PARSE_MODES
+    // row serves both wires, so a strategy names one decoder wherever it is used.
+    it('so both sides of mutate compile the same decode family', () => {
       const bothWays = mion.route((ctx, slice: Slice): Slice => slice, {parser: 'mutate'});
       mion.initRoutes({bothWays});
       const exec = getRouteExecutable('bothWays')!;
       const family = (hash: string) => hash.split('_')[0];
-      expect(family(exec.paramsJitFns.json.decode.rtFnHash)).not.toBe(family(exec.returnJitFns.json.decode.rtFnHash));
+      expect(family(exec.paramsJitFns.json.decode.rtFnHash)).toBe(family(exec.returnJitFns.json.decode.rtFnHash));
     });
   });
 

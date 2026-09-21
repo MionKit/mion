@@ -16,7 +16,7 @@ import {findOrphans, type CacheGraph} from './metadataEviction.ts';
 
 /** The hash a method's params validator is stored under, derived the way core derives it. */
 function paramsIsTypeHash(jitHash: string): string {
-  return getJitFnHashes(jitHash, DEFAULT_PARSER.params, 'params').isType;
+  return getJitFnHashes(jitHash, DEFAULT_PARSER.params).isType;
 }
 
 function method(id: string, paramsJitHash: string): MethodWithOptions {

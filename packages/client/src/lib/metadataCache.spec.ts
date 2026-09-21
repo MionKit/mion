@@ -48,7 +48,7 @@ function payload(methodId: string, jitHash: string) {
     paramNames: [],
     options: {},
   };
-  const hashes = getJitFnHashes(jitHash, DEFAULT_PARSER.params, 'params');
+  const hashes = getJitFnHashes(jitHash, DEFAULT_PARSER.params);
   const deps: Record<string, unknown> = {};
   for (const rtFnHash of [hashes.isType, hashes.typeErrors, hashes.encode, hashes.decode]) {
     deps[rtFnHash] = {code: 'return () => true', typeName: 'x', fnID: 'x', rtFnHash};
@@ -58,7 +58,7 @@ function payload(methodId: string, jitHash: string) {
 
 /** The hash the params validator of this method is stored under. */
 function paramsIsTypeHash(jitHash: string): string {
-  return getJitFnHashes(jitHash, DEFAULT_PARSER.params, 'params').isType;
+  return getJitFnHashes(jitHash, DEFAULT_PARSER.params).isType;
 }
 
 /** Wraps a store, so a test can watch or break one method without losing the others.

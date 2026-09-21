@@ -20,27 +20,23 @@ export interface CacheGraph {
   pureFns: Record<string, PureFunctionData>;
 }
 
-/** Every compiled function hash the method itself names, across both directions and both header sets. */
+/** Every compiled function hash the method itself names, across both wires and both header sets. */
 function methodRootHashes(metadata: MethodWithOptions): string[] {
   const parser = metadata.options?.parser ?? DEFAULT_PARSER;
   const roots: string[] = [];
   // a root is anything the method COULD reach, and a hash the method never uses is simply absent
   // from the store, which costs nothing here
-  const addSet = (
-    jitHash: string,
-    strategy: Parameters<typeof getJitFnHashes>[1],
-    direction: Parameters<typeof getJitFnHashes>[2]
-  ) => {
+  const addSet = (jitHash: string, strategy: Parameters<typeof getJitFnHashes>[1]) => {
     if (!jitHash || jitHash === EMPTY_HASH) return;
     // the optional hashes are absent on the returned shape, so only the real strings become roots
-    for (const hash of Object.values(getJitFnHashes(jitHash, strategy, direction)) as (string | undefined)[]) {
+    for (const hash of Object.values(getJitFnHashes(jitHash, strategy)) as (string | undefined)[]) {
       if (typeof hash === 'string') roots.push(hash);
     }
   };
-  addSet(metadata.paramsJitHash, parser.params, 'params');
-  addSet(metadata.returnJitHash, parser.return, 'return');
-  if (metadata.headersParam) addSet(metadata.headersParam.jitHash, 'mutate', 'params');
-  if (metadata.headersReturn) addSet(metadata.headersReturn.jitHash, 'mutate', 'return');
+  addSet(metadata.paramsJitHash, parser.params);
+  addSet(metadata.returnJitHash, parser.return);
+  if (metadata.headersParam) addSet(metadata.headersParam.jitHash, 'mutate');
+  if (metadata.headersReturn) addSet(metadata.headersReturn.jitHash, 'mutate');
   return roots;
 }
 

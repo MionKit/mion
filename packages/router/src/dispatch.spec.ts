@@ -11,7 +11,7 @@ import {dispatchRoute} from './dispatch.ts';
 import type {Email, Transform} from '@mionjs/run-types/formats';
 import {CallContext, MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
-import {HeadersSubset, RpcError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
+import {HeadersSubset, RpcError, TypedError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
 import {headersFromRecord} from './lib/headers.ts';
 import {decodeQueryBody} from './lib/queryBody.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
@@ -685,6 +685,40 @@ describe('undeclared params keys, per parser strategy', () => {
     const looseRes = await dispatchRoute('/keepsExtras', looseReq.body, looseReq.headers, headersFromRecord({}), looseReq, {});
     expect(looseRes.hasErrors).toBeFalsy();
     expect(looseRes.body.keepsExtras).toEqual({name: 'LOREM', surname: 'Tungsten'});
+  });
+});
+
+// The clone and compact rows validate with `validateUnionKeys`, and serializer.routes reads that validator to tell
+// a DECLARED error in the return union from an undeclared one. A key-count check on the error arm would flip a
+// declared error to undeclared and frame it as raw JSON, so pin both answers.
+describe('a declared error in the return union, on a key-checking row', () => {
+  type Ok = {name: string};
+  type Answer = Ok | TypedError<'nope'>;
+
+  const declared = mion.route((): Answer => new TypedError({message: 'no', type: 'nope'}), {
+    parser: 'clone',
+  });
+  const ok = mion.route((): Answer => ({name: 'rex'}), {parser: 'clone'});
+
+  const jsonRequest = (path: string) => ({headers: headersFromRecord({}), body: JSON.stringify({[path]: []})});
+
+  beforeEach(() => resetRouter());
+
+  it('stays declared: it keeps its own slot rather than the thrown one', async () => {
+    mion.initRoutes({declared});
+    const request = jsonRequest('declared');
+    const response = await dispatchRoute('/declared', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.declared).toBeUndefined();
+    // a union rides as [memberIndex, value], so the payload is the second slot
+    expect(response.body.declared[1]).toMatchObject({type: 'nope'});
+  });
+
+  it('still answers the success member normally', async () => {
+    mion.initRoutes({ok});
+    const request = jsonRequest('ok');
+    const response = await dispatchRoute('/ok', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.ok[1]).toEqual({name: 'rex'});
   });
 });
 
