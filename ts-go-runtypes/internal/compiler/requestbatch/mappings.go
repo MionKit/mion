@@ -11,12 +11,10 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 )
 
-// asArgMethod is the method an `inputFrom(...)` reference exposes to pass
-// itself as a plain route argument (`inputFrom(user, 'toId').asArg()`).
+// asArgMethod passes an `inputFrom(...)` reference as a plain route argument.
 const asArgMethod = "asArg"
 
-// mapperSourceParamIndex is the slot every mapper factory reads its source
-// route from: `inputFrom(source, …)`.
+// mapperSourceParamIndex is the slot every mapper factory reads its source route from.
 const mapperSourceParamIndex = 0
 
 // Mapper rejection reasons, surfaced as BAT004's `{0}` argument.
@@ -25,9 +23,8 @@ const (
 	reasonMapperReassigned  = "mapping binding is reassigned after its initializer"
 )
 
-// resolveMappings reads every `inputFrom()` reference passed as a top-level
-// argument of any batched route call. routeCalls[i] is the call behind
-// routeIds[i]. Mappings come back sorted by (ToId, ParamIndex).
+// resolveMappings reads every `inputFrom()` reference passed as a top-level argument of a batched route
+// call; routeCalls[i] is the call behind routeIds[i], and mappings come back sorted by (ToId, ParamIndex).
 func (scope *fileScope) resolveMappings(routeIds []string, routeCalls []*ast.Node) ([]Mapping, []diagnostics.Diagnostic) {
 	var mappings []Mapping
 	var diags []diagnostics.Diagnostic
@@ -50,8 +47,7 @@ func (scope *fileScope) resolveMappings(routeIds []string, routeCalls []*ast.Nod
 			if !ok {
 				continue
 			}
-			// A spread before the mapping shifts every later argument by an
-			// unknowable amount, so the position the server would feed is unknown.
+			// A spread before the mapping shifts every later argument, so the position the server feeds is unknown.
 			if spreadSeen {
 				diags = append(diags, scope.diag(diagnostics.CodeBatchMapperNotReadable, arg, reasonMapperAfterSpread))
 				continue
@@ -67,12 +63,9 @@ func (scope *fileScope) resolveMappings(routeIds []string, routeCalls []*ast.Nod
 	return mappings, diags
 }
 
-// resolveMapperRef finds the branded mapper-factory call behind a route
-// argument: `inputFrom(...)`, `<ref>.asArg()` where ref is the factory call
-// or an identifier bound to it, or an identifier bound (const / let) to
-// either, through wrappers. ok is false for any other argument (a plain value
-// the server never maps); a non-empty reason marks a reference that IS a
-// mapping but cannot be read (a reassigned `let`), the BAT004 argument.
+// resolveMapperRef finds the branded mapper-factory call behind a route argument, through `.asArg()`,
+// bindings and wrappers. ok is false for a plain value the server never maps; a non-empty reason marks a
+// reference that IS a mapping but cannot be read, the BAT004 argument.
 func (scope *fileScope) resolveMapperRef(node *ast.Node, depth int) (mapperCall *ast.Node, ok bool, reason string) {
 	if depth > comptimeargs.DepthCap {
 		return nil, false, ""
@@ -97,8 +90,7 @@ func (scope *fileScope) resolveMapperRef(node *ast.Node, depth int) (mapperCall 
 	case ast.KindIdentifier:
 		initializer, bindReason := scope.bindingInitializer(unwrapped)
 		if bindReason == reasonReassigned {
-			// Only a binding whose initializer IS a mapping is a mapping the
-			// build misread; any other reassigned let is a plain argument.
+			// Only a binding whose initializer IS a mapping was misread; any other reassigned let is a plain argument.
 			if scope.initialMapperRef(unwrapped, depth) {
 				return nil, false, reasonMapperReassigned
 			}
@@ -112,8 +104,7 @@ func (scope *fileScope) resolveMapperRef(node *ast.Node, depth int) (mapperCall 
 	return nil, false, ""
 }
 
-// initialMapperRef reports whether the identifier's declared initializer (read
-// without the reassignment guard) resolves to a mapper reference.
+// initialMapperRef resolves the identifier's declared initializer without the reassignment guard.
 func (scope *fileScope) initialMapperRef(identifier *ast.Node, depth int) bool {
 	symbol := comptimeargs.ResolveImportAlias(scope.typeChecker, scope.typeChecker.GetSymbolAtLocation(identifier))
 	if symbol == nil {
@@ -128,12 +119,8 @@ func (scope *fileScope) initialMapperRef(identifier *ast.Node, depth int) bool {
 	return false
 }
 
-// isMapperFactoryCall reports whether call targets a branded mapper factory: a
-// function whose OVERLOAD SET carries the pure-fn brand pair
-// (`PureFunction<F>` followed by `InjectPureFnId<F>`) on at least one
-// signature. The overload set rather than the resolved signature, so a wrapper
-// that declares several shapes of the same factory is recognised on any of
-// them.
+// isMapperFactoryCall reports whether call targets a branded mapper factory, the pure-fn brand pair on at
+// least one signature of its OVERLOAD SET, so a wrapper declaring several shapes is recognised on any.
 func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, call, nil, 0)
 	if signature == nil {
@@ -163,13 +150,9 @@ func (scope *fileScope) isMapperFactoryCall(call *ast.Node) bool {
 	return false
 }
 
-// readMapping reads one branded mapper-factory call into a Mapping for the
-// route at targetIndex (behind targetCall). The source (slot 0) resolves
-// through the route resolver; the mapper key is the mapper's own pure-fn id,
-// the same one injected at that call. The source must sit before the target
-// (BAT002) and the argument position must be one the target route declares
-// (BAT006); both are reported at `written`, the argument as it appears in the
-// batched call, since that is where the fix goes.
+// readMapping reads one branded mapper-factory call into a Mapping for the route at targetIndex. The source
+// must sit before the target (BAT002) and the argument position must be one the target route declares
+// (BAT006); both report at `written`, the argument in the batched call, since that is where the fix goes.
 func (scope *fileScope) readMapping(mapperCall, written *ast.Node, routeIds []string, targetCall *ast.Node, targetIndex, paramIndex int) (Mapping, []diagnostics.Diagnostic) {
 	callExpr := mapperCall.AsCallExpression()
 	var args []*ast.Node
@@ -198,12 +181,9 @@ func (scope *fileScope) readMapping(mapperCall, written *ast.Node, routeIds []st
 	return Mapping{FromId: fromId, ToId: toId, ParamIndex: paramIndex, MapperKey: mapperKey}, nil
 }
 
-// parameterCount is the number of parameters the route call's resolved
-// signature declares, the handler's own list: the client proxy types a route
-// as `(...params: Parameters<Handler>) => RouteSubRequest`, so the tuple
-// behind that rest parameter is expanded (fixed elements, optional ones
-// included). bounded is false when the handler itself takes a rest parameter
-// (or the signature could not be resolved), where every position is legal.
+// parameterCount is the handler's own parameter list: the client proxy types a route as
+// `(...params: Parameters<Handler>) => RouteSubRequest`, so the tuple behind that rest parameter is
+// expanded. bounded is false when the handler itself takes a rest parameter, where every position is legal.
 func (scope *fileScope) parameterCount(routeCall *ast.Node) (count int, bounded bool) {
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, routeCall, nil, 0)
 	if signature == nil {
@@ -222,9 +202,7 @@ func (scope *fileScope) parameterCount(routeCall *ast.Node) (count int, bounded 
 	return fixed + tuple.FixedLength(), checker.TupleType_combinedFlags(tuple)&checker.ElementFlagsVariable == 0
 }
 
-// mapperKey derives the pure-fn id of a mapper-factory call's mapper: the id
-// the build injects at that very call, so the batch plan and the registration
-// can never disagree.
+// mapperKey is the id the build injects at that very call, so the batch plan and the registration cannot disagree.
 func (scope *fileScope) mapperKey(mapperCall *ast.Node, args []*ast.Node) (string, diagnostics.Diagnostic, bool) {
 	signature := checker.Checker_getResolvedSignature(scope.typeChecker, mapperCall, nil, 0)
 	_, _, fnParamIndex, _ := purefunctions.PureFnBrandPair(scope.typeChecker, scope.markerOpts, signature)
@@ -247,8 +225,7 @@ func indexOf(values []string, want string) int {
 	return -1
 }
 
-// sortMappings puts mappings in their canonical (ToId, ParamIndex, FromId)
-// order so two sites with the same links compare equal field by field.
+// sortMappings is the canonical order in which two sites with the same links compare equal field by field.
 func sortMappings(mappings []Mapping) {
 	sort.SliceStable(mappings, func(i, j int) bool {
 		a, b := mappings[i], mappings[j]

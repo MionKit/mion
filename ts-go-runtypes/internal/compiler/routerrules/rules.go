@@ -8,21 +8,17 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// RpcErrorName is the class every declared handler error must derive from: it
-// is what carries the mion brand the dispatcher routes on. TypedError is its
-// base and carries the brand at run time, but it has no publicMessage, no
-// errorData and no status code, so it is not an answer a client can use.
+// RpcErrorName is the class every declared handler error must derive from, carrying the mion brand the
+// dispatcher routes on. Its base TypedError carries the brand too but has no publicMessage, no errorData
+// and no status code, so it is not an answer a client can use.
 const RpcErrorName = "RpcError"
 
-// errorBaseName is the global class an arm has to derive from before the rule
-// has anything to say about it: a plain string or object union member is not
-// an error and is left alone.
+// errorBaseName is the global class an arm must derive from for the rule to say anything about it.
 const errorBaseName = "Error"
 
-// checkAnnotations is `strong-typed-routes`: mion compiles the handler's
-// DECLARED types, so an inferred return type or an unannotated parameter leaves
-// the build nothing to compile against. This reads the AST, never the checker's
-// inference — what matters is whether the annotation was WRITTEN.
+// checkAnnotations is `strong-typed-routes`: mion compiles the handler's DECLARED types, so an inferred
+// return type leaves the build nothing to compile. It reads the AST, never inference: what matters is
+// whether the annotation was WRITTEN.
 func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagnostic {
 	fnLike := discovered.fn.FunctionLikeData()
 	if fnLike == nil {
@@ -47,9 +43,8 @@ func (scope *fileScope) checkAnnotations(discovered handler) []diagnostics.Diagn
 	return found
 }
 
-// returnTypeSite is where a missing return type is reported: the parameter list
-// closes right before where the annotation belongs, so pointing at the last
-// parameter (or the function itself) puts the squiggle next to the gap.
+// returnTypeSite puts the squiggle next to the gap: the parameter list closes right where the annotation
+// belongs.
 func returnTypeSite(fn *ast.Node) *ast.Node {
 	fnLike := fn.FunctionLikeData()
 	if fnLike != nil && fnLike.Parameters != nil && len(fnLike.Parameters.Nodes) > 0 {
@@ -67,16 +62,11 @@ func parameterName(paramNode *ast.Node) string {
 	return "<destructured>"
 }
 
-// checkThrows is `no-throw-in-handlers`: a thrown error leaves the handler's
-// signature, so it lands in the undeclared `@thrownErrors` slot and the client
-// only ever sees its public message. A returned one stays in the signature and
-// reaches the client typed.
-//
-// The walk mirrors purity.go: it descends into nested callbacks (a throw inside
-// a `.map()` still escapes the handler) but stops at a `try` block that has a
-// `catch`, because such a throw never reaches the router. What is thrown is
-// never classified — a class extending Error, a bare string and a rethrown
-// `unknown` are the same mistake.
+// checkThrows is `no-throw-in-handlers`: a thrown error leaves the handler's signature for the undeclared
+// `@thrownErrors` slot, where the client sees only its public message, while a returned one reaches the
+// client typed. The walk mirrors purity.go: it descends into nested callbacks, a throw inside a `.map()`
+// still escaping, and never classifies what is thrown, a class, a bare string and a rethrown `unknown`
+// being the same mistake.
 func (scope *fileScope) checkThrows(discovered handler) []diagnostics.Diagnostic {
 	body := discovered.fn.Body()
 	if body == nil {
@@ -93,8 +83,7 @@ func (scope *fileScope) checkThrows(discovered handler) []diagnostics.Diagnostic
 			found = append(found, scope.diag(diagnostics.CodeRouteThrowInHandler, discovered.at(node), discovered.label))
 			return false
 		case ast.KindTryStatement:
-			// A caught throw never leaves the handler, so only the catch and
-			// finally clauses are walked when the try has a handler.
+			// A caught throw never leaves the handler, so a try with a catch is walked through those clauses only.
 			tryStatement := node.AsTryStatement()
 			if tryStatement.CatchClause != nil {
 				tryStatement.CatchClause.ForEachChild(visit)
@@ -104,8 +93,7 @@ func (scope *fileScope) checkThrows(discovered handler) []diagnostics.Diagnostic
 				return false
 			}
 		case ast.KindClassDeclaration, ast.KindClassExpression:
-			// A class declared inside the handler has its own methods; a throw
-			// in one of them escapes that method, not this handler.
+			// A throw in a class method declared here escapes that method, not this handler.
 			return false
 		}
 		node.ForEachChild(visit)
@@ -115,14 +103,10 @@ func (scope *fileScope) checkThrows(discovered handler) []diagnostics.Diagnostic
 	return found
 }
 
-// checkReturnedErrorType is `returned-error-type`: the dispatcher routes a
-// returned error by its mion brand. An RpcError, or any subclass such as
-// FatalError, lands in its own typed slot. Any other error carries no usable
-// brand, so the request is failed and the error is dropped in the undeclared
-// `@thrownErrors` slot instead — the declared return type stops being true.
-//
-// Only a WRITTEN return type is read: without one, MRT001 already fires and an
-// inferred type would report the same handler twice.
+// checkReturnedErrorType is `returned-error-type`: the dispatcher routes a returned error by its mion
+// brand, so an RpcError or a subclass lands in its own typed slot while any other error is dropped into the
+// undeclared `@thrownErrors` slot and the declared return type stops being true. Only a WRITTEN return type
+// is read: without one MRT001 already fires, and an inferred type would report the same handler twice.
 func (scope *fileScope) checkReturnedErrorType(discovered handler) []diagnostics.Diagnostic {
 	fnLike := discovered.fn.FunctionLikeData()
 	if fnLike == nil || fnLike.Type == nil {
@@ -165,20 +149,16 @@ func (scope *fileScope) derivesFromError(arm *checker.Type) bool {
 	return scope.derivesFrom(arm, func(symbol *ast.Symbol) bool { return symbol.Name == errorBaseName })
 }
 
-// derivesFromRpcError walks the same chain for RpcError declared by
-// `@mionjs/core`, so a user class of the same name from elsewhere never passes.
+// derivesFromRpcError requires RpcError declared by `@mionjs/core`, so a same-named user class never passes.
 func (scope *fileScope) derivesFromRpcError(arm *checker.Type) bool {
 	return scope.derivesFrom(arm, func(symbol *ast.Symbol) bool {
 		return symbol.Name == RpcErrorName && marker.DeclaredInModule(symbol, CoreModule, scope.markerOpts.FS)
 	})
 }
 
-// derivesFrom is the shared base-class walk, over SYMBOLS rather than types:
-// the arm's own class counts, then every base class in turn. The DECLARED type
-// of each symbol is what carries the base list, so a generic class reached as
-// `RpcError<'not-found'>` walks the same chain as a plain one — asking a type
-// reference for its base types answers nothing. Depth is bounded so a malformed
-// graph cannot spin.
+// derivesFrom walks over SYMBOLS rather than types, the arm's own class counting first: a symbol's DECLARED
+// type is what carries the base list, so a generic class reached as `RpcError<'not-found'>` walks the same
+// chain as a plain one, where asking a type reference for its base types answers nothing. Depth is bounded.
 func (scope *fileScope) derivesFrom(arm *checker.Type, match func(*ast.Symbol) bool) bool {
 	seen := map[*ast.Symbol]bool{}
 	var walk func(symbol *ast.Symbol, depth int) bool
@@ -204,17 +184,10 @@ func (scope *fileScope) derivesFrom(arm *checker.Type, match func(*ast.Symbol) b
 	return walk(checker.Type_symbol(arm), 0)
 }
 
-// checkUnsafePropertyNames is `no-unsafe-property-names`: a property named
-// `__proto__` can never be data. Writing that key on a plain object swaps its
-// prototype instead of adding a key, so the member is dropped from every
-// compiled function. TypeScript ACCEPTS the declaration, so this rule is the
-// only thing that says so. `prototype` and `constructor` are ordinary names and
-// are left alone.
-//
-// UPN001 already reports the drop, but only while RENDERING a type function, so
-// only for a type a marker actually reaches. This reports the DECLARATION, in
-// any interface, type literal or class of the file, so the problem shows up as
-// it is written and for types no route reaches yet.
+// checkUnsafePropertyNames is `no-unsafe-property-names`: writing `__proto__` on a plain object swaps its
+// prototype instead of adding a key, so the member is dropped from every compiled function, and TypeScript
+// ACCEPTS the declaration. UPN001 reports the drop only while RENDERING a type function, so only for a type
+// a marker reaches; this reports the DECLARATION anywhere in the file, for types no route reaches yet.
 func (scope *fileScope) checkUnsafePropertyNames() []diagnostics.Diagnostic {
 	var found []diagnostics.Diagnostic
 	var visit ast.Visitor
@@ -236,8 +209,7 @@ func (scope *fileScope) checkUnsafePropertyNames() []diagnostics.Diagnostic {
 	return found
 }
 
-// declaredMemberName is the WRITTEN name of a member: an identifier, a string
-// literal key, or empty for a computed one (which no static rule can read).
+// declaredMemberName is the WRITTEN name of a member, empty for a computed one no static rule can read.
 func declaredMemberName(node *ast.Node) string {
 	name := node.Name()
 	if name == nil {

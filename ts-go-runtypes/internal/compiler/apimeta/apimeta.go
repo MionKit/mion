@@ -1,26 +1,7 @@
-// Package apimeta extracts the dispatch points of a mion client built with
-// `bundleApi`, the client half of the RPC layer's build-time lanes (the batch
-// lane, internal/compiler/requestbatch, is the server half). A dispatch point
-// is a call whose resolved signature carries the InjectApiMetadata<Api, Id>
-// marker as its trailing parameter: `routes.users.getById(1).call()`,
-// `middleFns.auth(h).prefill()`, `.typeErrors()`, a batch's `.call()`, or,
-// without an Id, `initClient()` itself (the anchor the mode literal lands in).
-//
-// The site says WHAT to bundle: the route ids the marker's Id type argument
-// names (a literal, a union of literals for a batch) and the API type they are
-// declared in. Resolving those ids into methods, ids and compiled functions is
-// the resolver's job (internal/compiler/resolver/apigen.go): it walks the API
-// type (tree.go, in this program or in the one `apiTsconfig` names), selects
-// each site's route plus the middleFns in its chain, and emits one module per
-// method and one per site shape under `<outDir>/api/`. The transform splices
-// an import of the site module into the call's empty trailing slot, the way
-// every marker lane splices its binding.
-//
-// Like requestbatch, the lane is modelled on internal/cachegen/purefunctions:
-// discovery by brand behind a cheap syntactic pre-filter, a per-Program
-// FileCache, wire-shaped Replacements. A site the build cannot read is a
-// diagnostic (MET001 API type, MET002 unknown id, MET003 / MET004 widened id)
-// and yields no injection.
+// Package apimeta extracts the dispatch points of a mion client built with `bundleApi`: calls whose
+// resolved signature carries the InjectApiMetadata<Api, Id> marker as trailing parameter. A site says
+// only WHAT to bundle; resolving the ids into modules is internal/compiler/resolver/apigen.go, and the
+// server half of the lane is internal/compiler/requestbatch.
 package apimeta
 
 import (
@@ -39,39 +20,30 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
-// RouterModule is the package that declares the router, whose `initRoutes`
-// call roots the API walk in a program named by `apiTsconfig`.
+// RouterModule is the package whose `initRoutes` call roots the API walk in the program `apiTsconfig` names.
 const RouterModule = "@mionjs/router"
 
-// InitRoutesName is the router method that registers the routes; its resolved
-// return type is the instantiated PublicApi the walk reads.
+// InitRoutesName is the router method whose resolved return type is the instantiated PublicApi the walk reads.
 const InitRoutesName = "initRoutes"
 
-// Site is one dispatch point (or the initClient anchor) the build injects into.
+// Site is one dispatch point the build injects into.
 type Site struct {
-	// FilePath / Start / End are the call expression's span (byte offsets).
+	// The call expression's span, in byte offsets.
 	FilePath string
 	Start    int
 	End      int
-	// InjectPos is the byte offset of the call's closing `)`; InjectPad the
-	// number of `undefined` the splice pads with (skipped optional slots);
-	// ArgsCount the arguments the author wrote (zero means no separator
-	// precedes the splice); TrailingComma whether that list already ends in a
-	// comma.
+	// InjectPos is the closing `)` offset; InjectPad the `undefined` one per skipped optional slot.
+	// ArgsCount is what the author wrote, zero meaning no separator precedes the splice.
 	InjectPos     int
 	InjectPad     int
 	ArgsCount     int
 	TrailingComma bool
-	// Ids are the route / middleFn ids the site calls, sorted and unique. One
-	// for a route or middleFn call, several for a batch. nil for the anchor.
+	// Route / middleFn ids the site calls, sorted and unique; several for a batch.
 	Ids []string
-	// ApiType is the API type the marker names, as resolved by Checker, the
-	// program's checker that materialized it. The resolver walks it (or the
-	// matching API in the `apiTsconfig` program) to find the ids' methods.
+	// ApiType comes from Checker, the program's checker that materialized it; the resolver walks it or its `apiTsconfig` twin.
 	ApiType *checker.Type
 	Checker *checker.Checker
-	// CalleeName is the dispatch method (`call`, `prefill`, `typeErrors`,
-	// `initClient`), for reports.
+	// CalleeName is the dispatch method (`call`, `prefill`, `typeErrors`), for reports.
 	CalleeName string
 
 	sourceFile *ast.SourceFile
@@ -83,9 +55,7 @@ func (site Site) DiagSite() diagnostics.Site {
 	return textpos.NodeSite(site.FilePath, site.sourceFile, site.callNode)
 }
 
-// ModuleBasename is the site module the injection imports, under
-// <outDir>/api: `s/<id>` for a single route or middleFn, `s/b_<hash>` for the
-// id set a batch runs. Two sites calling the same route share one module.
+// ModuleBasename is the site module the injection imports under <outDir>/api; two sites calling one route share it.
 func (site Site) ModuleBasename() string {
 	if len(site.Ids) == 1 {
 		return "s/" + EscapeId(site.Ids[0])
@@ -94,17 +64,12 @@ func (site Site) ModuleBasename() string {
 	return "s/b_" + base64.RawURLEncoding.EncodeToString(sum[:])[:14]
 }
 
-// MethodModuleBasename is the per-method module under <outDir>/api that a
-// site module imports: `m/<id>`, the id's segments escaped one by one so a
-// nested route keeps its folder structure on disk.
+// MethodModuleBasename is the per-method module under <outDir>/api that a site module imports.
 func MethodModuleBasename(id string) string {
 	return "m/" + EscapeId(id)
 }
 
-// EscapeId turns a route id into a module path: every `/` stays a folder
-// separator, and inside a segment [A-Za-z0-9_-] pass through while any other
-// byte is hex-escaped as `$XX`, the entrymodules convention, so arbitrary
-// route keys produce collision-free, URL-safe paths.
+// EscapeId turns a route id into a collision-free, URL-safe module path, the `$XX` entrymodules convention.
 func EscapeId(id string) string {
 	segments := strings.Split(id, "/")
 	for i, segment := range segments {
@@ -123,10 +88,8 @@ func EscapeId(id string) string {
 	return strings.Join(segments, "/")
 }
 
-// FileCache memoizes per-file extraction results for the lifetime of ONE
-// Program, mirroring requestbatch.FileCache: source files are immutable
-// within a Program, so a file's sites/diagnostics never change between
-// requests. Not safe for concurrent use.
+// FileCache memoizes extraction for ONE Program, where source files are immutable, mirroring requestbatch.FileCache.
+// Not safe for concurrent use.
 type FileCache struct {
 	sites map[string][]Site
 	diags map[string][]diagnostics.Diagnostic
@@ -156,12 +119,8 @@ func (cache *FileCache) put(filePath string, sites []Site, diags []diagnostics.D
 	cache.diags[filePath] = diags
 }
 
-// ExtractFromProgramCached walks every file in `files`, finds the branded
-// dispatch calls, and returns their sites plus the per-site diagnostics. Sites
-// keep file order then source order; diagnostics are sorted by site. The
-// per-Program FileCache is optional (nil degrades to an uncached walk). mode
-// decides the level a widened id reports at (MET003 under bundled, MET004
-// under mixed).
+// ExtractFromProgramCached returns the branded dispatch sites of `files` in file then source order, plus diagnostics.
+// The cache is optional (nil degrades to an uncached walk); mode decides the level a widened id reports at.
 func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *FileCache, mode constants.BundleApiMode) ([]Site, []diagnostics.Diagnostic) {
 	var sites []Site
 	var diags []diagnostics.Diagnostic
@@ -182,14 +141,12 @@ func ExtractFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Op
 	return sites, diags
 }
 
-// extractFromSourceFile is the per-file extraction core: walk every
-// CallExpression and dispatch to extractOne. Declaration files hold no calls.
+// extractFromSourceFile walks every CallExpression; declaration files hold no calls.
 func extractFromSourceFile(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile, mode constants.BundleApiMode) ([]Site, []diagnostics.Diagnostic) {
 	if sourceFile.IsDeclarationFile {
 		return nil, nil
 	}
-	// Text pre-filter: a file that spells none of the dispatch method names
-	// and never names the client package cannot hold a site.
+	// Text pre-filter: a file that spells none of the dispatch method names cannot hold a site.
 	if text := sourceFile.Text(); !mentionsDispatch(text) {
 		return nil, nil
 	}
@@ -224,7 +181,6 @@ func mentionsDispatch(text string) bool {
 	return false
 }
 
-// fileScope bundles the per-file handles the extractor needs.
 type fileScope struct {
 	typeChecker *checker.Checker
 	markerOpts  marker.Options
@@ -236,9 +192,7 @@ func (scope *fileScope) diag(code string, node *ast.Node, args ...string) diagno
 	return diagnostics.New(code, textpos.NodeSite(scope.sourceFile.FileName(), scope.sourceFile, node), args...)
 }
 
-// extractOne reads a single branded dispatch call into a Site. Returns (nil,
-// diags) when the call is not a dispatch point, is a pass-through (the slot
-// already written), or when the marker's Id cannot name a route.
+// extractOne reads a single branded dispatch call into a Site.
 func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnostic) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil {
@@ -252,8 +206,7 @@ func (scope *fileScope) extractOne(call *ast.Node) (*Site, []diagnostics.Diagnos
 	if callExpr.Arguments != nil {
 		args = callExpr.Arguments.Nodes
 	}
-	// The slot is already written (re-scanned rewritten source, or a wrapper
-	// forwarding its own payload): a pass-through, never a second splice.
+	// The slot is already written (re-scanned rewritten source, or a wrapper forwarding its own payload): never splice twice.
 	if len(args) > paramIndex {
 		return nil, nil
 	}
@@ -299,8 +252,7 @@ const (
 	idsWidened
 )
 
-// readIds classifies the marker's Id type argument: a string literal or a
-// union of them names the ids a site calls, `string` is a widened id.
+// readIds classifies the marker's Id type argument; a bare `string` is a widened id.
 func readIds(idType *checker.Type) ([]string, idsKind) {
 	if idType == nil {
 		return nil, idsUnreadable

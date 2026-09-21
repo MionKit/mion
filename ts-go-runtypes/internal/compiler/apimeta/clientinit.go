@@ -16,18 +16,14 @@ const ClientModule = "@mionjs/client"
 // InitClientName is the client factory a file must call to be put on the lane.
 const InitClientName = "initClient"
 
-// InitSite names a file that calls `initClient`, and where the lane import is
-// appended: End is the file's byte length, so the import lands after the last
-// statement. ESM hoists it, so it still runs before the module body calls
-// `initClient`. Twin of routerinit.Site, which does the same for the batch
-// table a server registers.
+// InitSite names a file that calls `initClient`; End is the file's byte length, so the lane import lands
+// after the last statement and ESM hoisting still runs it first. Twin of routerinit.Site.
 type InitSite struct {
 	FilePath string
 	End      int
 }
 
-// InitFileCache memoizes per-file detection for the lifetime of one Program.
-// Not safe for concurrent use.
+// InitFileCache memoizes per-file detection for one Program. Not safe for concurrent use.
 type InitFileCache struct {
 	sites map[string][]InitSite
 }
@@ -37,9 +33,8 @@ func NewInitFileCache() *InitFileCache {
 	return &InitFileCache{sites: map[string][]InitSite{}}
 }
 
-// InitSitesFromProgramCached returns one InitSite per file in `files` that
-// calls `initClient`, in file order. The cache is optional (nil degrades to an
-// uncached walk).
+// InitSitesFromProgramCached returns one InitSite per file of `files` that calls `initClient`, in file
+// order. The cache is optional (nil degrades to an uncached walk).
 func InitSitesFromProgramCached(typeChecker *checker.Checker, markerOpts marker.Options, lookup purefunctions.SourceFileLookup, files []string, cache *InitFileCache) []InitSite {
 	var sites []InitSite
 	for _, filePath := range files {
@@ -80,15 +75,13 @@ func InitFiles(sites []InitSite) []string {
 	return files
 }
 
-// callsInitClient reports whether the file holds at least one call that
-// resolves to the client factory. Declaration files never do.
+// callsInitClient reports whether the file calls the client factory; declaration files never do.
 func callsInitClient(typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) bool {
 	if sourceFile.IsDeclarationFile {
 		return false
 	}
-	// Text pre-filter, like the router twin: resolving a signature per call
-	// across the whole program is the cost, and a file reaching the factory
-	// through a barrel that RENAMES it is deliberately not detected.
+	// Text pre-filter, like the router twin: resolving a signature per call is the cost, and a file
+	// reaching the factory through a barrel that RENAMES it is deliberately not detected.
 	if text := sourceFile.Text(); !strings.Contains(text, InitClientName) && !strings.Contains(text, ClientModule) {
 		return false
 	}
@@ -109,9 +102,7 @@ func callsInitClient(typeChecker *checker.Checker, markerOpts marker.Options, so
 	return found
 }
 
-// isInitClientCall checks the callee's name and then that the resolved
-// signature is declared by the client package, so a same-named local function
-// never matches.
+// isInitClientCall requires the resolved signature to be declared by the client package, so a same-named local never matches.
 func isInitClientCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) bool {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || marker.CalleeIdentifierName(callExpr) != InitClientName {

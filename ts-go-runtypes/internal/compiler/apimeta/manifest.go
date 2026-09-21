@@ -8,42 +8,32 @@ import (
 	"strings"
 )
 
-// The API manifest: `<genDir>/api/manifest.json`, the id table BOTH builds
-// write so a split deployment can prove, before a release, that the client's
-// bundled validators are the server's. The server build writes it from the
-// program's `initRoutes(...)` call(s) (kind "server", every public method);
-// a client build under `bundleApi` writes it from the routes it bundled
-// (kind "client", those methods only). `mion api-check` compares the two:
-// a client row must exist on the server with the same type ids, families,
-// options and middleFn chain. Two JSON files, no network and no TypeScript,
-// so the check runs wherever both build outputs are.
+// `<genDir>/api/manifest.json`, the id table BOTH builds write: the server from its `initRoutes(...)`
+// calls, a client under `bundleApi` from the routes it bundled. `mion api-check` compares the two files,
+// so a split deployment can prove before a release that the client's bundled validators are the server's.
 
 const (
 	ManifestKindServer = "server"
 	ManifestKindClient = "client"
 )
 
-// ManifestMethod is one method's row: what decides whether the client's
-// compiled functions and metadata equal the server's.
+// ManifestMethod is one method's row: what decides whether the client's compiled functions equal the server's.
 type ManifestMethod struct {
 	Type      int    `json:"type"`
 	ParamsId  string `json:"paramsId"`
 	ReturnId  string `json:"returnId"`
 	HeadersId string `json:"headersId,omitempty"`
-	// Families are the compiled-function families demanded for the params and
-	// return types, in demand order (the server's marker slots).
+	// Families demanded for the params and return types, in demand order (the server's marker slots).
 	Families []string `json:"families"`
 	// Options is the resolved options literal the API type carries.
 	Options map[string]any `json:"options"`
-	// MiddleFnIds is a route's public middleFn chain in execution order.
+	// MiddleFnIds is the route's public middleFn chain in execution order.
 	MiddleFnIds []string `json:"middleFnIds,omitempty"`
 }
 
-// Manifest is the file's shape. Mode and ApiTsconfig are set on a client
-// manifest only. Ambiguous lists the ids a server program initializes more
-// than once with differing rows (several `initRoutes` calls, spec files in
-// the program): the row kept is the first in file order, and a client row
-// for such an id never passes the check.
+// Manifest is the file's shape; Mode and ApiTsconfig are set on a client manifest only. Ambiguous lists the
+// ids a server program initializes more than once with differing rows: the first in file order is kept, and
+// a client row for such an id never passes the check.
 type Manifest struct {
 	Kind        string                    `json:"kind"`
 	Mode        string                    `json:"mode,omitempty"`
@@ -52,9 +42,7 @@ type Manifest struct {
 	Ambiguous   []string                  `json:"ambiguous,omitempty"`
 }
 
-// Render is the file's text: indented JSON, keys sorted (encoding/json sorts
-// map keys), a trailing newline, so a rewrite with the same content is a
-// no-op on disk.
+// Render is the file's text, keys sorted and newline-terminated, so rewriting the same content is a no-op on disk.
 func (manifest *Manifest) Render() string {
 	if manifest.Methods == nil {
 		manifest.Methods = map[string]ManifestMethod{}
@@ -67,8 +55,7 @@ func (manifest *Manifest) Render() string {
 	return string(text) + "\n"
 }
 
-// ReadManifest reads and validates a manifest file: it must parse and carry
-// one of the two kinds.
+// ReadManifest reads a manifest file and rejects one that carries neither kind.
 func ReadManifest(path string) (*Manifest, error) {
 	text, err := os.ReadFile(path)
 	if err != nil {
@@ -87,8 +74,7 @@ func ReadManifest(path string) (*Manifest, error) {
 	return manifest, nil
 }
 
-// Mismatch is one difference api-check reports: the method, the field, and
-// the two values as the check saw them.
+// Mismatch is one difference api-check reports: the method, the field, and the two values.
 type Mismatch struct {
 	Id     string
 	Field  string
@@ -100,10 +86,8 @@ func (mismatch Mismatch) String() string {
 	return fmt.Sprintf("%s: %s differs: client %s, server %s", mismatch.Id, mismatch.Field, mismatch.Client, mismatch.Server)
 }
 
-// Compare checks every client row against the server manifest, in id order:
-// the id must exist on the server (and not be ambiguous there), and its type,
-// ids, families, options and chain must be equal. Nothing is said about
-// server methods the client never bundled.
+// Compare checks every client row against the server manifest, in id order; server methods the client
+// never bundled are not checked.
 func Compare(client, server *Manifest) []Mismatch {
 	ambiguous := map[string]bool{}
 	for _, id := range server.Ambiguous {
@@ -153,8 +137,7 @@ func compareRows(id string, clientRow, serverRow ManifestMethod) []Mismatch {
 	return out
 }
 
-// canonicalJSON renders a JSON-shaped value with sorted keys, the form two
-// options literals are compared in.
+// canonicalJSON is the sorted-key form two options literals are compared in.
 func canonicalJSON(value any) string {
 	text, err := json.Marshal(value)
 	if err != nil {

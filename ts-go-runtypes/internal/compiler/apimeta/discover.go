@@ -7,12 +7,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// dispatchCalleeNames are the well-known method names the walker uses as a
-// cheap pre-filter before resolving signatures: the three dispatch methods of
-// a subrequest, a batch builder's `call`, and the `initClient` anchor. They
-// are NOT the contract, the InjectApiMetadata brand is: a call under another
-// name is simply not looked at, which the client package never produces (its
-// dispatch methods are interface members and cannot be renamed).
+// dispatchCalleeNames is a cheap pre-filter before resolving signatures, not the contract: the brand is.
+// A call under another name is never looked at, which the client package cannot produce (its dispatch
+// methods are interface members and cannot be renamed).
 var dispatchCalleeNames = []string{"call", "prefill", "typeErrors", "initClient"}
 
 func isDispatchCalleeName(name string) bool {
@@ -24,10 +21,8 @@ func isDispatchCalleeName(name string) bool {
 	return false
 }
 
-// isApiMetadataCall reports whether call is a branded dispatch call, WHERE its
-// marker parameter sits, and that parameter's type (the instantiated
-// InjectApiMetadata alias the ids and the API are read from). Two layers: the
-// cheap name filter above, then the brand on the resolved signature.
+// isApiMetadataCall reports whether call is a branded dispatch call, where its marker parameter sits, and
+// that parameter's type: the instantiated InjectApiMetadata alias the ids and the API are read from.
 func isApiMetadataCall(typeChecker *checker.Checker, markerOpts marker.Options, call *ast.Node) (matched bool, paramIndex int, paramType *checker.Type) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || callExpr.Expression == nil {
