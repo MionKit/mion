@@ -5,18 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// @mionjs/drizzle-orm-sqlite-core — the slim sqlite authoring surface: tables
-// are written exactly as drizzle tables, every function records instead of
-// running drizzle, models derive flat and the real drizzle table materializes
-// on demand via toDrizzle on the './drizzle' subpath — the one module that
-// imports drizzle-orm (an optional peer).
-// Coverage is gated by manifests/sqlite.manifest.json; the mapping rules live
-// in the drizzle-slim-schemas skill.
+// @mionjs/drizzle-orm-sqlite-core — the slim sqlite authoring surface: tables are written exactly
+// as drizzle tables, every function records instead of running drizzle, and toDrizzle on the
+// './drizzle' subpath is the one module that imports drizzle-orm (an optional peer).
+// Coverage is gated by manifests/sqlite.manifest.json; the mapping rules live in the
+// drizzle-slim-schemas skill.
 
-// The sqlite column builders, their column types, and the kind interface.
+// The sqlite column builders, their column types, and the two kind interfaces.
 export * from './columns.ts';
 
-// The table factories.
 export {sqliteTable, sqliteTableCreator, tableFromType} from './table.ts';
 export type {
   CheckEntry,
@@ -33,10 +30,7 @@ export type {
   UniqueIndexEntry,
 } from './table.ts';
 
-// The pure-types road. A column type takes its modifier calls as props
-// (SqliteColMods lives beside the builders in ./columns.ts), so the only
-// shared pieces left here are the literal sql carrier and the table-entry
-// carrier.
+// The pure-types road: SqliteColMods lives in ./columns.ts, so only the sql and entry carriers are shared.
 export type {ColRef, Sql, TableEntry} from '@mionjs/drizzle-orm';
 
 // Indexes, constraints and checks.

@@ -5,10 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The pg authoring helpers beyond columns and tables: indexes, constraints,
-// checks, enums, sequences, policies and roles — drizzle-identical names and
-// call shapes, recorder returns. All of them replay 1:1 against the real
-// drizzle functions when the owning table (or the handle itself) materializes.
+// The pg authoring helpers beyond columns and tables: indexes, constraints, checks, enums,
+// sequences, policies and roles, with drizzle-identical names and call shapes and recorder returns.
+// All of them replay 1:1 against the real drizzle functions when the owning table materializes.
 
 import type {AnyRtColumn, AnyRtTable, RtIndexedColumn, RtSql} from '@mionjs/drizzle-orm';
 import {RtEntryRecorder, RtValueRecorder, rtColumnKey, rtValueKey} from '@mionjs/drizzle-orm';
@@ -76,8 +75,7 @@ export function check(name: string, value: RtSql): RtCheckEntry {
 /** Opaque handle for a recorded pg role; usable in policy `to` lists. */
 export interface PgRole {
   readonly name: string;
-  /** Mark a role that already exists in the database, so drizzle-kit leaves it
-   *  out of migrations instead of trying to CREATE it. */
+  /** Marks a role that already exists in the database, so drizzle-kit leaves it out of migrations. */
   existing(): PgRole;
 }
 export interface PgRoleConfig {
@@ -105,9 +103,8 @@ export interface PgPolicyConfig {
   using?: RtSql;
   withCheck?: RtSql;
 }
-/** A policy attached to a table declared elsewhere. It is NOT in any table's
- *  extraConfig, so nothing materializes it for you: export it from the
- *  drizzle-kit schema file and materialize it with toDrizzle(policy). */
+/** A policy attached to a table declared elsewhere: in no extraConfig, so nothing materializes it
+ *  for you. Export it from the drizzle-kit schema file and call toDrizzle(policy). */
 export interface RtLinkedPolicy {
   readonly [rtColumnKey]?: {rtLinkedPolicy: true};
 }
@@ -122,17 +119,15 @@ export function pgPolicy(name: string, config?: PgPolicyConfig): RtPolicyEntry {
 
 type Writable<T> = {-readonly [K in keyof T]: T[K]};
 
-/** A recorded pg enum: a factory producing slim enum columns (data typed as
- *  the literal union), plus the name/values drizzle-kit style consumers read.
- *  Materialize the enum itself with toDrizzle (needed for migrations). */
+/** A recorded pg enum: a factory producing slim enum columns, plus the name/values drizzle-kit
+ *  consumers read. Migrations need the enum itself, so materialize it with toDrizzle. */
 export interface PgEnum<T extends readonly [string, ...string[]]> {
   (columnName?: string): import('./columns.ts').RtPgColumn<T[number], false, false, false>;
   readonly enumName: string;
   readonly enumValues: T;
 }
 
-/** The object form of a pg enum (drizzle's second overload): a TypeScript enum
- *  object rather than a tuple. Data is the union of its VALUES. */
+/** The object form of a pg enum (drizzle's second overload); data is the union of its VALUES. */
 export interface PgEnumObject<E extends Record<string, string>> {
   (columnName?: string): import('./columns.ts').RtPgColumn<E[keyof E], false, false, false>;
   readonly enumName: string;
@@ -143,8 +138,8 @@ type NonArray<T> = T extends readonly unknown[] ? never : T;
 export function pgEnum<U extends string, T extends Readonly<[U, ...U[]]>>(enumName: string, values: T | Writable<T>): PgEnum<T>;
 export function pgEnum<E extends Record<string, string>>(enumName: string, enumObj: NonArray<E>): PgEnumObject<E>;
 export function pgEnum(enumName: string, values: readonly string[] | Record<string, string>) {
-  // The RECORDED arg stays exactly what the caller passed (drizzle reads the
-  // object form itself); only the exposed enumValues are normalized to values.
+  // The RECORDED arg stays what the caller passed, drizzle reads the object form itself; only the
+  // exposed enumValues are normalized.
   const enumValues = Array.isArray(values) ? (values as readonly string[]) : Object.values(values as Record<string, string>);
   return makeEnumFactory(new RtValueRecorder('pgEnum', [enumName, values]), enumName, enumValues);
 }

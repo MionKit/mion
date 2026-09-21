@@ -4,7 +4,7 @@ The boundary rule and the import map live in [@mionjs/drizzle-orm's CLAUDE.md](.
 
 - **The smallest surface of the three**: no row level security, no schemas, no sequences, no identity columns, and no enum function of its own.
 - **Enums still give you the literal union**: `text('role', {enum: ['admin', 'user']})` infers `'admin' | 'user'`, same as everywhere else. What sqlite lacks is a standalone enum handle like pg's `pgEnum`.
-- **One column kind interface**, not three or four: every sqlite column takes the same modifier set.
+- **Two column kind interfaces**, not three or four: every sqlite column takes the same modifier set, and the integer kind adds only what `integer primary key` (the rowid) needs.
 - `primaryKey()` takes sqlite's config form (`{autoIncrement: true}`) on a column.
 - Views are exported twice, as `sqliteView` and the `view` alias, matching drizzle.
 - `toDrizzle` is on the `./drizzle` subpath: `@mionjs/drizzle-orm-sqlite-core/drizzle`.

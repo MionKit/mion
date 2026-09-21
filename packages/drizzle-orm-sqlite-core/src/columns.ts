@@ -5,16 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The sqlite column builders of @mionjs/drizzle-orm-sqlite-core: drizzle
-// identical names and call params, slim recorder returns. ONE kind interface
-// (sqlite builders share a single method set; autoIncrement rides the
-// primaryKey config). Coverage is gated by manifests/sqlite.manifest.json;
-// the completeness spec diffs the chain methods against drizzle's builder
-// prototypes.
-//
-// Each builder also exports its COLUMN TYPE (Integer, Text, ...), the
-// pure-types vocabulary: a hand-written row using these names gets exactly the
-// types the builders infer, with zero table machinery.
+// The sqlite column builders of @mionjs/drizzle-orm-sqlite-core: drizzle-identical names and call
+// params, slim recorder returns. TWO kind interfaces sharing one method set (autoIncrement rides
+// the primaryKey config): the integer one only differs in what primaryKey() returns. Coverage is
+// gated by manifests/sqlite.manifest.json; the completeness spec diffs the chain methods against
+// drizzle's builder prototypes. Each builder also exports its COLUMN TYPE (Integer, Text, ...), the
+// pure-types vocabulary: a hand-written row using these names gets the types the builders infer.
 
 import type {BigInt as RTBigInt, Date as RTDate, Float, Integer as IntegerFormat, String as Str} from '@mionjs/run-types/formats';
 import type {AnyRtColumn, ColConfigArg, ColMods, ColNameArg, ColRef, RtColType, RtColumnBrand, RtSql} from '@mionjs/drizzle-orm';
@@ -29,7 +25,7 @@ export interface ReferenceActions {
   onUpdate?: UpdateDeleteAction;
 }
 
-// ── The kind interface ───────────────────────────────────────────────────────
+// ── The two kind interfaces ──────────────────────────────────────────────────
 
 export interface SQLitePrimaryKeyConfig {
   autoIncrement?: boolean;
@@ -59,11 +55,8 @@ export interface RtSqliteColumn<Data, N extends boolean, H extends boolean, X ex
   $type<T>(): RtSqliteColumn<T, N, H, X>;
 }
 
-/** The integer kind. sqlite's `integer primary key` IS the rowid, so drizzle
- *  gives it a database default with or without `autoIncrement` (its builder
- *  declares `primaryKeyHasDefault: true`, the only column in any dialect that
- *  does). Without this, `integer('id').primaryKey()` reads as required on
- *  insert and `db.insert(t).values({name: 'x'})` does not typecheck. */
+/** sqlite's `integer primary key` IS the rowid, so drizzle defaults it with or without
+ *  `autoIncrement`; without that, `integer('id').primaryKey()` reads as required on insert. */
 export interface RtSqliteIntColumn<Data, N extends boolean, H extends boolean, X extends boolean> extends RtColumnBrand<
   Data,
   N,
@@ -87,17 +80,15 @@ export interface RtSqliteIntColumn<Data, N extends boolean, H extends boolean, X
 }
 
 // ── The modifier bag ─────────────────────────────────────────────────────────
-// What a column type may spell in its props object, beside the builder's own
-// config keys. sqlite's two kinds share one chain, so there is one bag.
-// Derived from manifests/sqlite.manifest.json.
+// What a column type may spell in its props object, beside the builder's own config keys.
+// sqlite's two kinds share one chain, so there is one bag. Derived from manifests/sqlite.manifest.json.
 
 /** The modifier calls every sqlite column type accepts. */
 export interface SqliteColMods extends Pick<
   ColMods,
   'notNull' | 'default' | '$type' | '$default' | '$defaultFn' | '$onUpdate' | '$onUpdateFn'
 > {
-  /** `{primaryKey: true}` mirrors `.primaryKey()`; the config form mirrors
-   *  `.primaryKey({autoIncrement: true})`, which also gains a db default. */
+  /** `true` mirrors `.primaryKey()`; the config form mirrors `.primaryKey({autoIncrement: true})`, db default included. */
   primaryKey?: true | readonly [SQLitePrimaryKeyConfig];
   unique?: true | readonly [string];
   references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
@@ -162,15 +153,12 @@ export function integer(...args: unknown[]) {
   return sqliteColumn('integer', args);
 }
 
-/** Column type twin of `int(name?, config?)`. Its own type rather than an alias
- *  of Integer: the recorded builder name is what a converted table prints back
- *  as, so sharing Integer's would rewrite every `int()` column as `integer()`.
- *  drizzle's own sqlite suites declare 13 tables with it. */
+/** Column type twin of `int(name?, config?)`. Its own type rather than an alias of Integer: the
+ *  recorded name is what a converted table prints back as, so sharing would rewrite `int()` as `integer()`. */
 export type Int<
   A extends string | (Partial<IntegerConfig> & SqliteColMods) | undefined = undefined,
   C extends Partial<IntegerConfig> & SqliteColMods = Record<never, never>,
 > = RtColType<'int', ColNameArg<A>, ColConfigArg<A, C>, IntegerData<ColConfigArg<A, C>>, 'primaryKeyHasDefault'>;
-/** Alias of integer, drizzle's `int`. */
 export function int(): RtSqliteIntColumn<IntegerFormat, false, false, false>;
 export function int<TMode extends 'number' | 'timestamp' | 'timestamp_ms' | 'boolean' = 'number'>(
   config?: IntegerConfig<TMode>
@@ -224,8 +212,7 @@ export interface SQLiteTextConfig<
   enum?: T;
   length?: L;
 }
-/** Shared data computation of text, the anti-drift funnel of BOTH roads: json
- *  mode wins, else a narrow enum, else length caps the string, else plain Str. */
+/** The one text data computation BOTH roads go through: the builder overloads and TextData. */
 export type TextDataOf<TMode, T extends readonly string[], L> = TMode extends 'json'
   ? unknown
   : string extends T[number]
