@@ -14,70 +14,29 @@ import type {
   PureFunctionFactory as PureFunctionFactoryMarker,
 } from '../markers.ts';
 
-/**
- * A pure function's identity: the owning package plus a hash of the body that ships, so
- * `export const slugify = registerPureFn(v => …)` anywhere in `@acme/text` is `'@acme/text#pf_9Zt1bRm4cVaPqL'`.
- * A move or a rename keeps the id; a change to the body, or to the id of a helper it reaches, changes it.
- *
- * The brand means only a value a registrar returned type-checks where an id is
- * asked for, so a body reaches another pure fn by importing it:
- *
- * ```ts
- * import {slugify} from './slug';
- * export const titleOf = registerPureFnFactory((utl) => (v: string) => utl.getPureFn(slugify)(v));
- * ```
- */
+/** A pure function's identity: the owning package plus a hash of the body that ships, like `'@acme/text#pf_9Zt1bRm4cVaPqL'`. */
+// A move or a rename keeps the id; a change to the body, or to the id of a helper it reaches, changes it.
+// The brand means only a value a registrar returned type-checks where an id is asked for, so a body reaches another pure fn by importing it.
 export type PureFnId<ID extends string = string> = ID & {readonly __rtPureFnIdBrand: true};
 
-/**
- * The pure-fn surface is ONE lane, TWO forms (factory or direct). Every form
- * ends up as the same runtime `CompiledPureFunction` — the cache always stores a
- * factory `(utl) => fn` for lazy materialisation. The only difference is the
- * AUTHORING shape the marker declares:
- *
- *   - FACTORY (`PureFunctionFactory<F>` marker): the argument IS the factory,
- *     emitted as-is, so it can do one-time setup + `utl` composition.
- *   - DIRECT (`PureFunction<F>` marker): the argument IS the pure fn; the
- *     compiler wraps it into `() => fn`, so `inputFrom(t => t.id)` works.
- *
- * The wrap difference is a BUILD-TIME concern (the Go extractor synthesises the
- * factory for the direct form); at runtime the plugin has already rewritten the
- * argument to its entry-module tuple, so both registrars share the same core
- * below. `wrap` only matters on the dev-override path, where the argument is the
- * live function rather than a tuple.
- */
-
-/** Wrap a live function into the factory the cache stores: the direct form
- *  returns the pure fn from a zero-arg factory (`() => fn`); the factory form
- *  is already a factory and rides through unchanged. */
+/** TWO authoring forms, one runtime shape: the cache always stores a factory `(utl) => fn` for lazy materialisation. */
+// FACTORY: the argument IS the factory, emitted as-is, so it can do one-time setup + `utl` composition.
+// DIRECT: the argument IS the pure fn and the compiler wraps it into `() => fn`, so `inputFrom(t => t.id)` works.
+// That wrap is a BUILD-TIME concern (the Go extractor synthesises the factory), so both registrars share the core below.
+// `wrap` only matters on the dev-override path, where the argument is the live function rather than a tuple.
 function asFactory(fn: PureFn | PureFnFactory, wrap: boolean): PureFnFactory {
   return wrap ? () => fn as PureFn : (fn as PureFnFactory);
 }
 
-/**
- * Shared registration core for both registrars, and the one place the three
- * shapes of `arg` are told apart. `arg` is the build-rewritten entry-module
- * tuple in the normal case (calling this at module load IS the registration —
- * the tuple's dep closure loads and registers with it); a live function is the
- * dev-tool override path, where `wrap` decides whether it is the pure fn (wrap)
- * or the factory (no wrap); `null` is a hollowed registration whose body ships
- * elsewhere.
- *
- * A missing `id` is the one hard error: it means no build processed this file,
- * so there is no identity to register under and nothing else can be assumed.
- */
+/** Shared registration core, and the one place the three shapes of `arg` are told apart. */
+// Entry-module tuple: the normal, build-rewritten case, where calling this at module load IS the registration.
+// Live function: the dev-tool override path, where `wrap` says whether it is the pure fn or the factory. `null`: body ships elsewhere.
+// A missing `id` is the one hard error: no build processed this file, so there is no identity to register under.
 function registerCore(caller: string, arg: unknown, id: string | undefined, wrap: boolean): PureFnId {
-  // Hollowed registration: the body no longer ships in this file (a package build
-  // stripped it) and travels on demand through the pure-fn cache, registering via
-  // a fn entry's deps thunk instead. Nothing is cached — caching an empty entry
-  // here would mask the real tuple whenever this call wins the load order — and
-  // nothing ever invokes it, because a body only reaches a pure fn the build
-  // demanded, which is served and registered before it runs.
-  //
-  // The id is not needed either, which is why the hollow step drops it: a
-  // consumer's build lowers an imported id to a literal from the `.d.ts`, so no
-  // runtime value is ever read, and the generated id module tree-shakes out of
-  // the bundle.
+  // Hollowed registration: a package build stripped the body, which now travels on demand through the pure-fn cache.
+  // Nothing is cached here: an empty entry would mask the real tuple whenever this call wins the load order.
+  // Nothing ever invokes it either, because a body only reaches a pure fn the build demanded, served and registered before it runs.
+  // The id is not needed: a consumer's build lowers an imported id to a literal from the `.d.ts`, so the generated id module tree-shakes out.
   if (arg == null) return (id ?? '') as PureFnId;
   if (id === undefined) {
     throw new Error(
@@ -90,12 +49,10 @@ function registerCore(caller: string, arg: unknown, id: string | undefined, wrap
     initFromTuple(arg as EntryTuple);
     const registered = getRTUtils().getCompiledPureFnByKey(id);
     if (registered) return id as PureFnId;
-    // An entry tuple that doesn't register its own id is an emitter bug worth
-    // surfacing loudly rather than leaving as a lookup miss much later.
+    // An entry tuple that doesn't register its own id is an emitter bug, louder here than a lookup miss much later.
     throw new Error(`[mion] ${caller}: the entry tuple for "${id}" did not register it.`);
   }
-  // Untracked: `id` is whatever this function was called with, so there is no
-  // consumer reference for the build to track.
+  // Untracked: `id` is whatever this function was called with, so the build has no consumer reference to track.
   const existing = getRTUtils().getCompiledPureFnByKey(id);
   if (existing) {
     if (arg) {
@@ -106,10 +63,8 @@ function registerCore(caller: string, arg: unknown, id: string | undefined, wrap
     return id as PureFnId;
   }
   if (typeof arg === 'function') {
-    // No-transform fallback (a dev-tool override, or a file the build skipped):
-    // the function is right here, so register it directly. Build-time metadata
-    // (the id's hash, stripped code, static dep extraction) is build-only; runtime
-    // behaviour is identical because the function IS the body.
+    // No-transform fallback (a dev-tool override, or a file the build skipped): the function is right here.
+    // Build-time metadata (id hash, stripped code, static dep extraction) is build-only; behaviour is identical because the function IS the body.
     const compiled: CompiledPureFunction = {
       id,
       paramNames: [],
@@ -124,17 +79,9 @@ function registerCore(caller: string, arg: unknown, id: string | undefined, wrap
   return id as PureFnId;
 }
 
-/**
- * FACTORY registration. `createPureFn` is a factory `(utl) => fn` — emitted
- * as-is, so it can compile one-time setup and compose other pure fns through
- * `utl.usePureFn(otherId)`. Returns the id the build computed, which is the
- * value other pure fns import to reach this one.
- *
- * `null` registers a hollowed pure fn: the body ships elsewhere and arrives on
- * demand. The contract is encoded in the parameter brands
- * (`PureFunctionFactory` + `InjectPureFnId`), so the Go scanner discovers calls
- * by brand and a library can wrap this registrar by forwarding both.
- */
+/** FACTORY registration: `createPureFn` is emitted as-is, so it can compile one-time setup and compose other pure fns through `utl.usePureFn(otherId)`. */
+// Returns the id the build computed, the value other pure fns import to reach this one; `null` registers a hollowed pure fn.
+// The contract is encoded in the parameter brands, so the Go scanner discovers calls by brand and a library can wrap this registrar by forwarding both.
 export function registerPureFnFactory<F extends PureFnFactory, ID extends string = string>(
   createPureFn: PureFunctionFactoryMarker<F> | null,
   id?: InjectPureFnId<F> & ID
@@ -142,12 +89,8 @@ export function registerPureFnFactory<F extends PureFnFactory, ID extends string
   return registerCore('registerPureFnFactory', createPureFn, id, false) as PureFnId<ID>;
 }
 
-/**
- * DIRECT registration — the ergonomic twin of `registerPureFnFactory`. `fn` is
- * the pure function ITSELF (a single callback); the compiler wraps it into
- * `() => fn`. Use this when the pure fn needs no one-time setup or `utl`
- * composition; reach for `registerPureFnFactory` when it does.
- */
+/** DIRECT registration: `fn` is the pure function ITSELF and the compiler wraps it into `() => fn`. */
+// Use `registerPureFnFactory` instead when the pure fn needs one-time setup or `utl` composition.
 export function registerPureFn<F extends PureFn, ID extends string = string>(
   fn: PureFunctionMarker<F> | null,
   id?: InjectPureFnId<F> & ID

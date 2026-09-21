@@ -1,19 +1,9 @@
-// `FormatErrorsOf<T>` — the format errors a validator for `T` can report, as a
-// TYPED union: one `TypeFormatError<Name, Mode>` per format `T` contains, so
-// `switch (err.format?.name)` narrows `errorType` to that format's documented
-// modes. What `createGetValidationErrorsFn<T>()` and friends return.
-//
-// A bounded, depth-8 walk of `T` in the same shape as `DataOnly<T>`
-// (./dataOnly.ts): primitives contribute nothing, a format leaf contributes its
-// error type (read through `FormatNameOf` / `FormatParamsOf`), and arrays,
-// tuples, objects, Map and Set recurse into their members. The union is over the
-// WHOLE type, not per path — `format.name` is the discriminant.
-//
-// Modes come from the format's name AND its params, so the pattern-path `Email`
-// (one way to fail per param) contributes `errorType?: never` while
-// `EmailAddress` (the RFC engine) contributes the full `EmailErrorType`. That
-// keeps the wider unions honest: a mode is offered only where the emitter can
-// actually produce it.
+// `FormatErrorsOf<T>` — what `createGetValidationErrorsFn<T>()` and friends return: one `TypeFormatError<Name, Mode>` per format
+// `T` contains, so `switch (err.format?.name)` narrows `errorType` to that format's documented modes.
+// A bounded, depth-8 walk of `T` in the same shape as `DataOnly<T>` (./dataOnly.ts).
+// The union is over the WHOLE type, not per path: `format.name` is the discriminant.
+// Modes come from the format's name AND its params, so a mode is offered only where the emitter can actually produce it: the
+// pattern-path `Email` contributes `errorType?: never`, while `EmailAddress` (the RFC engine) contributes the full `EmailErrorType`.
 
 import type {TypeFormatError} from '../createRTFunctions.ts';
 import type {FormatNameOf, FormatParamsOf} from './typeFormat.ts';
@@ -24,12 +14,10 @@ import type {DomainErrorType, EmailErrorType, IpErrorType} from '../formats/stri
 /** Recursion budget decrement, same ladder `DataOnly` uses. */
 type _FormatErrorsDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** The modes a `domain` format with these params can set. IDNA and the
- *  names / tld decomposition set them; the plain pattern path sets none. */
+/** IDNA and the names / tld decomposition set domain modes; the plain pattern path sets none. */
 type DomainModes<Params> = 'idna' extends keyof Params ? DomainErrorType : 'names' extends keyof Params ? DomainErrorType : never;
 
-/** The modes an `email` format with these params can set: the RFC engine and
- *  the localPart / domain decomposition do; the plain pattern path does not. */
+/** The RFC engine and the localPart / domain decomposition set email modes; the plain pattern path does not. */
 type EmailModes<Params> = 'emailRfc' extends keyof Params
   ? EmailErrorType
   : 'localPart' extends keyof Params
@@ -41,8 +29,7 @@ type EmailModes<Params> = 'emailRfc' extends keyof Params
 /** The modes an `ip` format with these params can set: only with `allowPort`. */
 type IpModes<Params> = Params extends {allowPort: true} ? IpErrorType : never;
 
-/** The error(s) ONE format leaf contributes. An `email` with a `domain`
- *  sub-format also reports that half under the `domain` name, so both appear. */
+/** An `email` with a `domain` sub-format also reports that half under the `domain` name, so both appear. */
 type FormatLeafErrors<Name extends string, Params> = Name extends 'creditCard'
   ? TypeFormatError<'creditCard', CreditCardErrorType>
   : Name extends 'email'
@@ -55,15 +42,10 @@ type FormatLeafErrors<Name extends string, Params> = Name extends 'creditCard'
         ? TypeFormatError<'ip', IpModes<Params>>
         : TypeFormatError<Name, never>;
 
-/** The typed format errors for `T`: a union of `TypeFormatError<Name, Mode>`,
- *  one per format `T` carries anywhere in its shape. Falls back to the wide
- *  `TypeFormatError` when `T` carries no format (or is `any` / `unknown`), so a
- *  validator over a plain shape keeps today's type. */
+/** Falls back to the wide `TypeFormatError` when `T` carries no format (or is `any` / `unknown`), so a validator over a plain shape keeps today's type. */
 export type FormatErrorsOf<T> = [CollectFormatErrors<T, 8>] extends [never] ? TypeFormatError : CollectFormatErrors<T, 8>;
 
-// The outer `T extends unknown` forces distribution over a union BEFORE the
-// sentinel probe: `keyof (string | Email)` is the common keys and would hide
-// the format, while each member alone is probed correctly.
+// Distribute BEFORE the sentinel probe: `keyof (string | Email)` is the common keys and would hide the format.
 type CollectFormatErrors<T, Depth extends number> = T extends unknown ? CollectOne<T, Depth> : never;
 
 type CollectOne<T, Depth extends number> = Depth extends 0
