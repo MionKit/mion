@@ -64,7 +64,7 @@ const ROUTE_HANDLERS = {
 
 const ROUTER_DTS = `declare module '@mionjs/router' {
   type Handler = (...args: any[]) => any;
-  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+  type Opts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
   export type PublicApi<R> = {
     [K in keyof R]: R[K] extends {type: infer T; handler: infer H extends Handler}
       ? {type: T; handler: H; options: Opts; types?: {params: Parameters<H>; return: Awaited<ReturnType<H>>; headers: never; isAsync: false}}
@@ -118,7 +118,7 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
 /** The client's view of the API: what PublicApi<typeof routes> reads as from
  *  a declaration file, over the same handler types. **/
 const API_TS = `import type {Root} from './types.ts';
-type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; encoder: {params: 'clone'; return: 'clone'}; isMutation: undefined; strictTypes: undefined; sanitizeParams: undefined};
+type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 type H0 = ${ROUTE_HANDLERS.r0};
 type H1 = ${ROUTE_HANDLERS.r1};
 export type Api = {

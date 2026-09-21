@@ -117,12 +117,12 @@ export function useOnDemandMetadataCaller(executable: RemoteMethod): void {
 
 export const mionClientMiddleFns = {
   // Pins the built-in default on BOTH directions: declared at module level, so the build compiles it
-  // against the default whatever the router-wide serializer is. It never mutates the cached metadata.
+  // against the default whatever the router-wide parser is. It never mutates the cached metadata.
   // It sits in EVERY chain with an unbounded `string[]`, so maxBodySize pins a fixed contribution to each
   // chain's limit: room for the ids a client piggybacks on its first call, not the platform's number.
   [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {
     alwaysRun: true,
-    serializer: {params: 'clone', return: 'clone'},
+    parser: {params: 'clone', return: 'clone'},
     maxBodySize: 4096,
   }),
 } as const satisfies MiddleFnsCollection;
@@ -130,5 +130,5 @@ export const mionClientMiddleFns = {
 export const mionClientRoutes = {
   // Pins the built-in default on both wires: the bootstrap request arrives before the client knows
   // any strategy, so this route must not follow the router-wide one.
-  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {serializer: 'clone'}),
+  [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, {parser: 'clone'}),
 } as const satisfies Routes;

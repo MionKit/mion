@@ -25,25 +25,25 @@ type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 // ============ Compact routes ============
 
 const compactRoutes = {
-    echo: mion.route((_ctx, message: string): string => message, {serializer: 'compact'}),
-    addNumbers: mion.route((_ctx, a: number, b: number): number => a + b, {serializer: 'compact'}),
-    getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'compact'}),
-    greet: mion.route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {serializer: 'compact'}),
+    echo: mion.route((_ctx, message: string): string => message, {parser: 'compact'}),
+    addNumbers: mion.route((_ctx, a: number, b: number): number => a + b, {parser: 'compact'}),
+    getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {parser: 'compact'}),
+    greet: mion.route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'}, ${name}!`, {parser: 'compact'}),
     findUser: mion.route(
         (_ctx, id: string): SimpleUser | null => {
             if (id === 'not-found') return null;
             return {name: 'Found User', age: 30};
         },
-        {serializer: 'compact'}
+        {parser: 'compact'}
     ),
     mayFail: mion.route(
         (_ctx, shouldFail: boolean): string | RpcError<'intentional-error'> => {
             if (shouldFail) return new RpcError({publicMessage: 'Intentional failure', type: 'intentional-error'});
             return 'Success!';
         },
-        {serializer: 'compact'}
+        {parser: 'compact'}
     ),
-    // a PLAIN middleFn declaring no serializer of its own: its params and its return value must ride
+    // a PLAIN middleFn declaring no parser of its own: its params and its return value must ride
     // these routes' bodies like any other chain member
     session: mion.middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
         if (!token) return null;

@@ -72,7 +72,7 @@ describe('published mion packages under bun', () => {
         expect(error?.type).toBe('intentional-error');
     });
 
-    test('round-trips the compact serializer through the packaged client', async () => {
+    test('round-trips the compact parser through the packaged client', async () => {
         const client = initClient<BunServerApi>({baseURL});
         const [echoed, echoError] = await client.routes.compact.echo('Hello Compact Bun!').call();
         expect(echoError).toBeUndefined();

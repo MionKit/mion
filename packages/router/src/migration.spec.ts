@@ -38,7 +38,7 @@ describe('mion migration: basic route', () => {
     (ctx, user: User): User => {
       return user;
     },
-    {serializer: {return: 'mutate'}}
+    {parser: {return: 'mutate'}}
   );
 
   const asyncDouble = mion.route(async (ctx, val: number): Promise<number> => {

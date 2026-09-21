@@ -14,30 +14,30 @@ const register = hasBinary() ? it : it.skip;
 const FACTORY_SRC = `import type {CompTimeArgs, InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
 type Handler = (ctx: unknown, ...rest: any[]) => unknown;
-type SerializerStrategy = 'clone' | 'mutate' | 'compact';
-type SerializerOption = SerializerStrategy | {params?: SerializerStrategy; return?: SerializerStrategy};
-export type RouteOptions = PlainRouteOptions | RouteOptionsWithSerializer;
-export type RouterOptions = {serializer?: SerializerOption; basePath?: string};
+type ParserStrategy = 'clone' | 'mutate' | 'compact';
+type ParserOption = ParserStrategy | {params?: ParserStrategy; return?: ParserStrategy};
+export type RouteOptions = PlainRouteOptions | RouteOptionsWithParser;
+export type RouterOptions = {parser?: ParserOption; basePath?: string};
 
 type Direction = 'params' | 'return';
-type SerializerOf<X> = X extends {serializer: infer E} ? E : never;
+type ParserOf<X> = X extends {parser: infer E} ? E : never;
 type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
 type SingleLiteral<S> = [S] extends [string] ? (string extends S ? never : IsUnion<S> extends true ? never : S) : never;
 type DirectionStrategy<E, D extends Direction> = [E] extends [string] ? SingleLiteral<E> : [E] extends [Record<D, infer S extends string>] ? SingleLiteral<S> : never;
 type Resolve<RO, O, D extends Direction, Default extends string> =
-  [DirectionStrategy<SerializerOf<RO>, D>] extends [never]
-    ? [DirectionStrategy<SerializerOf<O>, D>] extends [never]
+  [DirectionStrategy<ParserOf<RO>, D>] extends [never]
+    ? [DirectionStrategy<ParserOf<O>, D>] extends [never]
       ? Default
-      : DirectionStrategy<SerializerOf<O>, D>
-    : DirectionStrategy<SerializerOf<RO>, D>;
+      : DirectionStrategy<ParserOf<O>, D>
+    : DirectionStrategy<ParserOf<RO>, D>;
 type EncodeFamily<S> = S extends 'clone' ? 'prepareForJsonClone' : S extends 'mutate' ? 'prepareForJsonMutate' : S extends 'compact' ? 'compactForJson' : never;
 type ServerDecodeFamily<S> = S extends 'compact' ? 'compactFromJson' : S extends 'mutate' ? 'restoreFromJsonMutate' : S extends string ? 'restoreFromJsonClone' : never;
 type ClientDecodeFamily<S> = S extends 'compact' ? 'compactFromJson' : S extends string ? 'restoreFromJsonClone' : never;
 type ParamsStrategy<RO, O> = Resolve<RO, O, 'params', 'mutate'>;
 type ReturnStrategy<RO, O> = Resolve<RO, O, 'return', 'mutate'>;
 
-export type PlainRouteOptions = {serializer?: never; description?: string};
-export type RouteOptionsWithSerializer = {serializer: SerializerOption; description?: string};
+export type PlainRouteOptions = {parser?: never; description?: string};
+export type RouteOptionsWithParser = {parser: ParserOption; description?: string};
 
 // The slots as a TUPLE, the way @mionjs/router's MarkerSlots does it: an alias wrapped directly
 // AROUND a marker hides it from the scanner, a tuple ELEMENT keeps the marker's own alias.
@@ -47,8 +47,8 @@ type Slots<H extends Handler, RO, O> = [
   paramsId: InjectRunTypeId<Parameters<H>>,
 ];
 
-// ONE call signature, like @mionjs/router: \`RO\` defaults to the no-serializer shape, so a call
-// without \`serializer\` takes its slots from the factory literal and a call with one from its own.
+// ONE call signature, like @mionjs/router: \`RO\` defaults to the no-parser shape, so a call
+// without \`parser\` takes its slots from the factory literal and a call with one from its own.
 export interface RouteHelper<O extends RouterOptions> {
   <H extends Handler, const RO extends RouteOptions = PlainRouteOptions>(
     handler: H,
@@ -65,8 +65,8 @@ export function createRouter<const O extends RouterOptions = {}>(opts?: O): {opt
 }
 `;
 
-const PRESET_SRC = `export const compactPreset = {serializer: 'compact', description: 'positional wire'} as const;
-export const widenedPreset = {serializer: 'compact'};
+const PRESET_SRC = `export const compactPreset = {parser: 'compact', description: 'positional wire'} as const;
+export const widenedPreset = {parser: 'compact'};
 `;
 
 // fn ids on the wire are the family fn hashes; map them back to the family key.
@@ -132,7 +132,7 @@ export const r = mion.route(${HANDLER});
     const response = await scan({
       'compact.ts': `import {createRouter} from './factory';
 const mion = createRouter({basePath: 'api'});
-export const r = mion.route(${HANDLER}, {serializer: 'compact'});
+export const r = mion.route(${HANDLER}, {parser: 'compact'});
 `,
     });
     expect(markerDiagsOf(response)).toEqual([]);
@@ -142,14 +142,14 @@ export const r = mion.route(${HANDLER}, {serializer: 'compact'});
   });
 
   // The router has no binary wire: no strategy resolves the tb/fb families, so a route never
-  // compiles the binary pair however its serializer is written.
+  // compiles the binary pair however its parser is written.
   register('no strategy compiles tb/fb', async () => {
     const response = await scan({
       'no-binary.ts': `import {createRouter} from './factory';
 const mion = createRouter();
-export const compact = mion.route(${HANDLER}, {serializer: 'compact'});
-export const mutated = mion.route(${HANDLER}, {serializer: 'mutate'});
-export const mixed = mion.route(${HANDLER}, {serializer: {params: 'clone', return: 'mutate'}});
+export const compact = mion.route(${HANDLER}, {parser: 'compact'});
+export const mutated = mion.route(${HANDLER}, {parser: 'mutate'});
+export const mixed = mion.route(${HANDLER}, {parser: {params: 'clone', return: 'mutate'}});
 `,
     });
     expect(markerDiagsOf(response)).toEqual([]);
@@ -162,9 +162,9 @@ export const mixed = mion.route(${HANDLER}, {serializer: {params: 'clone', retur
   register('the factory literal is the router-wide default; a route literal overrides one direction', async () => {
     const response = await scan({
       'factory-default.ts': `import {createRouter} from './factory';
-const mion = createRouter({serializer: {params: 'clone', return: 'mutate'}});
+const mion = createRouter({parser: {params: 'clone', return: 'mutate'}});
 export const inherited = mion.route(${HANDLER});
-export const overridden = mion.route(${HANDLER}, {serializer: {return: 'compact'}});
+export const overridden = mion.route(${HANDLER}, {parser: {return: 'compact'}});
 `,
     });
     expect(markerDiagsOf(response)).toEqual([]);
@@ -201,7 +201,7 @@ export const r = mion.route(${HANDLER}, widenedPreset);
 `,
     });
     expect(markerDiagsOf(response).map((d) => d.code)).toContain('CTA004');
-    // `{serializer: string}` is also a type error at the call, so RO falls back to the constraint and
+    // `{parser: string}` is also a type error at the call, so RO falls back to the constraint and
     // DirectionStrategy filters that widened union out: the defaults get compiled. The runtime value
     // still says 'compact', so the router refuses the route at init (pinned in @mionjs/router).
     const {params, ret} = routeSites(response.sites, 'widened.ts');
@@ -230,7 +230,7 @@ export const r = mion.route(${HANDLER}, getOpts());
 import {getRunTypeId} from '@mionjs/run-types';
 const mion = createRouter();
 const handler = ${HANDLER};
-export const r = mion.route(handler, {serializer: 'compact'});
+export const r = mion.route(handler, {parser: 'compact'});
 export const staticId = getRunTypeId<Parameters<typeof handler>>();
 const paramsValue: Parameters<typeof handler> = [undefined, {name: 'a', born: new Date(0)}];
 export const valueId = getRunTypeId(paramsValue);

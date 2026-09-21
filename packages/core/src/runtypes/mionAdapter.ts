@@ -20,8 +20,8 @@ import type {
   JitCompiledFunctions,
   JitFunctionsHashes,
   JsonEncodeFn,
-  SerializerStrategy,
-  SerializerDirection,
+  ParserStrategy,
+  ParserDirection,
   PureFnsDataCache,
 } from '../types/general.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
@@ -186,7 +186,7 @@ function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHa
 const ENCODE_FAMILIES = Object.keys(STRATEGY_BY_ENCODE_FAMILY) as (keyof typeof STRATEGY_BY_ENCODE_FAMILY)[];
 const DECODE_FAMILIES = ['restoreFromJsonMutate', 'restoreFromJsonClone', 'compactFromJson'] as const;
 type CompiledJsonFamilies = {
-  strategy: SerializerStrategy;
+  strategy: ParserStrategy;
   encodeFamily: (typeof ENCODE_FAMILIES)[number];
   decodeFamily: DecodeFamily;
 };
@@ -196,7 +196,7 @@ type CompiledJsonFamilies = {
 function strategyFromFamilies(
   fns: Partial<Record<FnHashKey, unknown>>,
   label: string,
-  direction: SerializerDirection
+  direction: ParserDirection
 ): CompiledJsonFamilies {
   const encodeFamilies = ENCODE_FAMILIES.filter((family) => fns[family] !== undefined);
   const decodeFamilies = DECODE_FAMILIES.filter((family) => fns[family] !== undefined);
@@ -222,7 +222,7 @@ export function buildJitFnsFromMarker(
   injected: unknown,
   typeId: string,
   label: string,
-  direction: SerializerDirection
+  direction: ParserDirection
 ): JitCompiledFunctions {
   if (!isInjectedFnsArray(injected))
     throw new Error(

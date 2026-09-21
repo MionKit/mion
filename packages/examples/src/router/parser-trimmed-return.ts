@@ -34,7 +34,7 @@ export const routes = {
       const row = db.users.byId(id);
       return {id: row.id, name: row.name, avatarUrl: row.avatarUrl};
     },
-    {serializer: 'mutate'}
+    {parser: 'mutate'}
   ),
   // end-mutate
 } satisfies Routes;

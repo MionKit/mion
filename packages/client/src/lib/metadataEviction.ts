@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_SERIALIZER, EMPTY_HASH, getJitFnHashes} from '@mionjs/core';
+import {DEFAULT_PARSER, EMPTY_HASH, getJitFnHashes} from '@mionjs/core';
 import type {CompiledFnData, MethodWithOptions, PureFunctionData} from '@mionjs/core';
 import type {MetadataRecordKey} from './storage.ts';
 
@@ -22,7 +22,7 @@ export interface CacheGraph {
 
 /** Every compiled function hash the method itself names, across both directions and both header sets. */
 function methodRootHashes(metadata: MethodWithOptions): string[] {
-  const serializer = metadata.options?.serializer ?? DEFAULT_SERIALIZER;
+  const parser = metadata.options?.parser ?? DEFAULT_PARSER;
   const roots: string[] = [];
   // a root is anything the method COULD reach, and a hash the method never uses is simply absent
   // from the store, which costs nothing here
@@ -37,8 +37,8 @@ function methodRootHashes(metadata: MethodWithOptions): string[] {
       if (typeof hash === 'string') roots.push(hash);
     }
   };
-  addSet(metadata.paramsJitHash, serializer.params, 'params');
-  addSet(metadata.returnJitHash, serializer.return, 'return');
+  addSet(metadata.paramsJitHash, parser.params, 'params');
+  addSet(metadata.returnJitHash, parser.return, 'return');
   if (metadata.headersParam) addSet(metadata.headersParam.jitHash, 'mutate', 'params');
   if (metadata.headersReturn) addSet(metadata.headersReturn.jitHash, 'mutate', 'return');
   return roots;

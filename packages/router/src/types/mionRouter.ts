@@ -6,7 +6,7 @@
  * ######## */
 
 import type {CompTimeArgs, InjectRunTypeId} from '@mionjs/run-types';
-import type {SerializerLiteralGuard, HeaderMarkerSlots, MarkerSlots} from './serializer.ts';
+import type {ParserLiteralGuard, HeaderMarkerSlots, MarkerSlots} from './parser.ts';
 import type {CallContext, ContextDataFactory} from './context.ts';
 import type {RouterOptions, Routes} from './general.ts';
 import type {
@@ -34,19 +34,19 @@ import type {PublicApi} from './publicMethods.ts';
 // ####### The typed router factory #######
 // `createMionRouter(opts)` is the ONE way to initialize the router and declare routes / middleFns.
 // The options literal rides BY TYPE (`O`) into every helper, so `ctx.shared` is typed from
-// `contextDataFactory` and the router-wide `serializer` reaches what the build compiles for a route.
+// `contextDataFactory` and the router-wide `parser` reaches what the build compiles for a route.
 // These interfaces are the ONE place a helper signature is written; lib/handlers.ts holds the bodies
 // and is TYPED BY them. `O` can only reach a declaration through a method of the object the factory
 // returns: TypeScript has no partial type application, so a plain exported function cannot capture it.
 //
-// ⚠️ The trailing marker parameters are written in MarkerSlots / HeaderMarkerSlots (serializer.ts).
+// ⚠️ The trailing marker parameters are written in MarkerSlots / HeaderMarkerSlots (parser.ts).
 // `opts` is CompTimeArgs so the build rejects a non-literal (CTA001 / CTA004), and it must stay
 // immediately before the first marker slot: the resolver reads the options argument at (first marker index - 1).
 
 /** The options accepted by `createMionRouter`: every router option is optional. */
 export type RouterOptionsInput = Partial<RouterOptions>;
-/** The factory's parameter type: the options literal, with a widened `serializer` rejected. */
-export type RouterOptionsArg<O extends RouterOptionsInput> = O & SerializerLiteralGuard<O>;
+/** The factory's parameter type: the options literal, with a widened `parser` rejected. */
+export type RouterOptionsArg<O extends RouterOptionsInput> = O & ParserLiteralGuard<O>;
 
 /** The shared call-context data type the factory's `contextDataFactory` produces, `any` when there is none. */
 export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextDataFactory: ContextDataFactory<infer ContextData>}
@@ -56,8 +56,8 @@ export type ContextDataOf<O extends RouterOptionsInput> = O extends {contextData
 /** The CallContext every handler declared through `createMionRouter(opts)` receives: `ctx.shared` is typed from the options. */
 export type RouterCallContext<O extends RouterOptionsInput> = CallContext<ContextDataOf<O>>;
 
-// `RO` is the route's own options literal, defaulting to the no-serializer shape so a route naming no
-// `serializer` resolves its slots from `O`, the factory literal. That is the only place the two levels
+// `RO` is the route's own options literal, defaulting to the no-parser shape so a route naming no
+// `parser` resolves its slots from `O`, the factory literal. That is the only place the two levels
 // meet: the slot types take both and fall back route, then router, then the built-in default.
 
 /** The four injection slots of a route / middleFn, read from the handler's params and return. */

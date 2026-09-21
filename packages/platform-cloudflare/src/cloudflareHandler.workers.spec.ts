@@ -24,7 +24,7 @@ interface WorkerResponse {
 /** Mirrors CloudflareSetupOptions in the fixture, which rejects an unknown key, so drift fails the setup. */
 interface CloudflareSetupOptions {
   basePath?: string;
-  serializer?: 'mutate' | 'clone';
+  parser?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
@@ -76,7 +76,7 @@ async function callHandler(mf: Miniflare, path: string, body: string, method = '
 }
 
 describe('cloudflare handler (workerd runtime)', () => {
-  describe('with the default clone serializer', () => {
+  describe('with the default clone parser', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
@@ -162,11 +162,11 @@ describe('cloudflare handler (workerd runtime)', () => {
     });
   });
 
-  describe('with the mutate serializer', () => {
+  describe('with the mutate parser', () => {
     let mf: Miniflare;
 
     beforeAll(async () => {
-      mf = createMiniflare(setupOptions({serializer: 'mutate'}));
+      mf = createMiniflare(setupOptions({parser: 'mutate'}));
     });
 
     afterAll(async () => {
@@ -175,7 +175,7 @@ describe('cloudflare handler (workerd runtime)', () => {
 
     // Only `mutate` keeps a key the type does not declare; every other strategy rebuilds the declared shape.
     // `getDate` hands its own argument back, so the extra key reaching the wire proves the option applied.
-    it('should keep an undeclared key the clone serializer would drop', async () => {
+    it('should keep an undeclared key the clone parser would drop', async () => {
       const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z'), extra: 'kept'}]};
       const result = await callHandler(mf, '/api/getDate', JSON.stringify(requestData));
       const parsedResponse = JSON.parse(result.body);

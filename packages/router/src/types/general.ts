@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreRouterOptions, SerializerOption} from '@mionjs/core';
+import {CoreRouterOptions, ParserOption} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
@@ -31,10 +31,10 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
   pathTransform?: (request: Req, path: string) => string;
   /** factory function to initialize shared call context data */
   contextDataFactory?: ContextDataFactory<ContextData>;
-  /** The router-wide serializer strategy: a string sets both directions, an object `params` and `return`.
-   *  A BUILD-TIME literal, so a widened value is a type error; a route's own `serializer` overrides it.
+  /** The router-wide parser strategy: a string sets both directions, an object `params` and `return`.
+   *  A BUILD-TIME literal, so a widened value is a type error; a route's own `parser` overrides it.
    *  @default {params: 'clone', return: 'clone'} */
-  serializer?: SerializerOption;
+  parser?: ParserOption;
   /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
   strictTypes?: boolean;
   /** Applies the rewrites the params types declare under a format's `transform` key, after decode and

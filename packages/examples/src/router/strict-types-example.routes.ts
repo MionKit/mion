@@ -14,7 +14,7 @@ const routes = {
   // this route rejects objects with extra properties: mutate hands the check what arrived
   createUser: mion.route((ctx, user: User): User => user, {
     strictTypes: true,
-    serializer: {params: 'mutate'},
+    parser: {params: 'mutate'},
   }),
   // this route accepts objects with extra properties
   updateUser: mion.route((ctx, user: Partial<User>): Partial<User> => user, {

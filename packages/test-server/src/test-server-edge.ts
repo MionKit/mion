@@ -27,7 +27,7 @@ const getSharedData = () => ({auth: {me: null as any}});
 // ############# Routes #############
 
 // setup() creates the router that initializes these, once per call (resetRouter clears the once-guard).
-// The serializer is a build-time literal, so the `mutate` variant is a second route set, not an option.
+// The parser is a build-time literal, so the `mutate` variant is a second route set, not an option.
 const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
@@ -49,11 +49,11 @@ const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 // `getDate` hands its own argument back, which is what carries those keys to the wire.
 const mutateRoutes = {
   changeUserName: mion.route((ctx: Context, user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname}), {
-    serializer: 'mutate',
+    parser: 'mutate',
   }),
   getDate: mion.route(
     (ctx: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')},
-    {serializer: 'mutate'}
+    {parser: 'mutate'}
   ),
   updateHeaders,
 } satisfies Routes;
@@ -62,12 +62,12 @@ const mutateRoutes = {
 
 // No `basePath`: `createVercelHandler` has no such option, vercel's routing hands it a stripped path.
 export interface EdgeSetupOptions {
-  /** Default is `clone`; `mutate` answers with the in-place serializer. */
-  serializer?: 'mutate' | 'clone';
+  /** Default is `clone`; `mutate` answers with the in-place parser. */
+  parser?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
-const EDGE_SETUP_KEYS = ['serializer', 'defaultResponseHeaders'] as const satisfies readonly (keyof EdgeSetupOptions)[];
+const EDGE_SETUP_KEYS = ['parser', 'defaultResponseHeaders'] as const satisfies readonly (keyof EdgeSetupOptions)[];
 
 /** Sets up the vercel handler inside the edge runtime. */
 export async function setup(options?: EdgeSetupOptions) {
@@ -78,7 +78,7 @@ export async function setup(options?: EdgeSetupOptions) {
     contextDataFactory: getSharedData,
     basePath: 'api/',
   });
-  router.initRoutes(options?.serializer === 'mutate' ? mutateRoutes : edgeRoutes);
+  router.initRoutes(options?.parser === 'mutate' ? mutateRoutes : edgeRoutes);
   const handler = createVercelHandler({
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
   });

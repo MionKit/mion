@@ -15,15 +15,15 @@ import {
   ROUTE_PATH_ROOT,
   EMPTY_HASH,
 } from './constants.ts';
-import {DEFAULT_SERIALIZER} from './serializer.ts';
+import {DEFAULT_PARSER} from './parser.ts';
 import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {
   CoreRouterOptions,
   MionTypeFn,
   JitCompiledFunctions,
   JitFunctionsHashes,
-  SerializerStrategy,
-  SerializerDirection,
+  ParserStrategy,
+  ParserDirection,
 } from './types/general.types.ts';
 import {getRTUtils} from '@mionjs/run-types/runtime';
 import {getOrCreateGlobal} from './utils.ts';
@@ -71,9 +71,9 @@ export const routesCache = {
     const metadata = this.getMetadata(id);
     if (!metadata) return undefined;
 
-    const serializer = metadata.options.serializer ?? DEFAULT_SERIALIZER;
-    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, serializer.params, 'params');
-    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, serializer.return, 'return');
+    const parser = metadata.options.parser ?? DEFAULT_PARSER;
+    const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash, parser.params, 'params');
+    const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash, parser.return, 'return');
     const headersParam = metadata.headersParam
       ? {...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash)}
       : undefined;
@@ -116,11 +116,7 @@ export function addRoutesToCache(newCache: MethodsCache) {
 }
 
 /** The direction picks the decoder: params are decoded by the server, a return by the client. */
-export function getJitFnHashes(
-  jitHash: string,
-  strategy: SerializerStrategy,
-  direction: SerializerDirection
-): JitFunctionsHashes {
+export function getJitFnHashes(jitHash: string, strategy: ParserStrategy, direction: ParserDirection): JitFunctionsHashes {
   const decodeFamily = DECODE_FAMILY_BY_STRATEGY[strategy][DECODE_SIDE_BY_DIRECTION[direction]];
   return {
     isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
@@ -139,8 +135,8 @@ export function getJitFnHashes(
  *  pair of the given strategy. Noop set for the empty hash, and results are cached per (strategy, hash). */
 export function getJitFunctionsFromHash(
   jitHash: string,
-  strategy: SerializerStrategy,
-  direction: SerializerDirection
+  strategy: ParserStrategy,
+  direction: ParserDirection
 ): JitCompiledFunctions {
   // no JIT functions were generated for this type (no params, or a void return)
   if (jitHash === EMPTY_HASH) return noopJitFns;
@@ -202,8 +198,8 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
  *  materializing no code, so a restore can refuse the method and refetch it. */
 export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   const utl = getRTUtils();
-  const serializer = metadata.options.serializer ?? DEFAULT_SERIALIZER;
-  const hasFullSet = (jitHash: string, strategy: SerializerStrategy, direction: SerializerDirection): boolean => {
+  const parser = metadata.options.parser ?? DEFAULT_PARSER;
+  const hasFullSet = (jitHash: string, strategy: ParserStrategy, direction: ParserDirection): boolean => {
     if (jitHash === EMPTY_HASH) return true;
     const hashes = getJitFnHashes(jitHash, strategy, direction);
     return (
@@ -212,8 +208,8 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   };
   // Exactly what getJitFunctionsFromHash refuses to build, no more: header sets are left out because
   // getHeaderJitFunctionsFromHash returns them empty instead of throwing.
-  if (!hasFullSet(metadata.paramsJitHash, serializer.params, 'params')) return false;
-  return hasFullSet(metadata.returnJitHash, serializer.return, 'return');
+  if (!hasFullSet(metadata.paramsJitHash, parser.params, 'params')) return false;
+  return hasFullSet(metadata.returnJitHash, parser.return, 'return');
 }
 
 /** The router id of a Route or MiddleFn: its pointer inside the Routes object, e.g. ['users', 'getUser']. */
