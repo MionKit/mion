@@ -24,8 +24,7 @@ export interface CacheGraph {
 function methodRootHashes(metadata: MethodWithOptions): string[] {
   const parser = metadata.options?.parser ?? DEFAULT_PARSER;
   const roots: string[] = [];
-  // a root is anything the method COULD reach, and a hash the method never uses is simply absent
-  // from the store, which costs nothing here
+  // a root is anything the method COULD reach; a hash it never uses is simply absent from the store
   const addSet = (jitHash: string, strategy: Parameters<typeof getJitFnHashes>[1]) => {
     if (!jitHash || jitHash === EMPTY_HASH) return;
     // the optional hashes are absent on the returned shape, so only the real strings become roots

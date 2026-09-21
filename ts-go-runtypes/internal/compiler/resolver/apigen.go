@@ -522,13 +522,10 @@ type parsingRow struct {
 	decode           string
 }
 
-// parseModes mirrors PARSE_MODES in core's constants.ts, and the marker slot types in
-// packages/router/src/types/parser.ts. All three must name the same families or strategyFromFamilies
-// matches no row on the bundled lane.
-//
-// The validator differs per strategy because the decoder does: `clone` and `compact` rebuild the declared
-// shape, so only a union can still hide a key. `mutateStrict` has a row like any other; the RETURN wire never
-// reaches it because ReturnParserStrategy leaves it out.
+// parseModes mirrors PARSE_MODES in core's constants.ts and the marker slots in packages/router/src/types/parser.ts.
+// All three must name the same families or strategyFromFamilies matches no row on the bundled lane.
+// The validator follows the decoder: `clone` and `compact` rebuild the declared shape, so only a union can hide a key.
+// `mutateStrict` has a row like any other; the RETURN wire never reaches it because ReturnParserStrategy leaves it out.
 var parseModes = map[string]parsingRow{
 	"clone":        {"validateUnionKeys", "validationErrorsUnionKeys", "prepareForJsonClone", "restoreFromJsonClone"},
 	"mutate":       {"validate", "validationErrors", "prepareForJsonMutate", "restoreFromJsonMutate"},
@@ -536,8 +533,7 @@ var parseModes = map[string]parsingRow{
 	"compact":      {"validateUnionKeys", "validationErrorsUnionKeys", "compactForJson", "compactFromJson"},
 }
 
-// parseMode returns the row a strategy compiles, falling back to `clone` for an unknown or widened strategy,
-// which is the same default parserStrategies applies.
+// parseMode returns the row a strategy compiles, falling back to `clone` like parserStrategies' own default.
 func parseMode(strategy string) parsingRow {
 	if row, ok := parseModes[strategy]; ok {
 		return row

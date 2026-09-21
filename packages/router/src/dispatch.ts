@@ -289,9 +289,7 @@ function nestingTooDeep(executable: RemoteMethod, originalError: Error): RpcErro
   });
 }
 
-/** Opt-in (`validateReturn`), so only a route that asked for it pays the walk. A handler's answer is a server
- *  bug when it does not match the declared type, so the error is thrown into the dispatch catch and travels as
- *  an undeclared fatal rather than a typed slot. */
+/** Opt-in via `validateReturn`; a bad return is the server's own bug, so it throws as an undeclared fatal. */
 function validateReturnOrThrow(result: any, executable: RemoteMethod): void {
   if (executable.returnJitFns.isType.isNoop) return;
   let isValid: boolean;
