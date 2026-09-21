@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-21
 ---
 
@@ -86,3 +86,71 @@ pnpm exec vitest run --project platform-cloudflare   # 31 passed
 
 Found while running the cloudflare suite for an unrelated test fix. It fails the same way on
 `origin/main`, so it predates that work.
+
+## Plan — pair every scriptPath with modulesRoot (approved 2026-09-21)
+
+### What settled
+
+Option 2. Miniflare names a modules worker `relative(modulesRoot, scriptPath)`, and `modulesRoot`
+defaults to `path.resolve('')`, which is `process.cwd()`:
+
+```js
+// node_modules/miniflare/dist/src/index.js
+const modulesRoot = path.resolve(('modulesRoot' in options ? options.modulesRoot : void 0) ?? '');
+function moduleName(modulesRoot, modulePath) { return path.relative(modulesRoot, modulePath); }
+```
+
+So the absolute `scriptPath` was never the problem; the missing `modulesRoot` was. Pinning the root
+to the bundle's own directory makes the module name `test-server-cloudflare-storage.js` from any cwd.
+
+The `script`-text swap the sibling spec uses was rejected. It needs `modulesRoot` anyway for the
+module specifiers, so it buys nothing and costs a `readFileSync` plus a synthetic script path.
+`container/drizzle-e2e/shared/runners/durable-worker.mjs` already pairs `scriptPath` with
+`modulesRoot`, so the fix matches the pattern the repo already had.
+
+### What shipped
+
+- `packages/platform-cloudflare/src/cloudflareStorage.workers.spec.ts` passes
+  `modulesRoot: dirname(STORAGE_BUNDLE_PATH)`.
+- `scripts/ci/check-tree.mjs` gained a fifth whole-tree sweep: every `new Miniflare(...)` carrying
+  `scriptPath:` must carry `modulesRoot:`. It reads the argument list paren-balanced with comments
+  and string bodies stripped, so a template-literal worker full of its own parens and a
+  commented-out `modulesRoot` both read correctly. The sweep runs from the one CI job nothing can
+  skip (`ci.yml`'s `lanes`, plain node, no install), so it fires on every commit including a
+  docs-only one, and it does not depend on the cwd it is run from.
+- `packages/devtools/test/repo-contracts.test.ts` unit-tests the rule and asserts the storage spec
+  itself is clean.
+- `ci.yml`'s step name no longer lists three of the sweeps by name; it points at `SWEEPS` instead.
+
+### The other call sites
+
+Checked all four in the repo. Only the storage spec was broken:
+
+| Call site | Shape |
+| --- | --- |
+| `packages/platform-cloudflare/src/cloudflareStorage.workers.spec.ts` | `scriptPath`, was missing `modulesRoot` |
+| `container/drizzle-e2e/shared/runners/durable-worker.mjs` | `scriptPath` + `modulesRoot`, already correct |
+| `container/drizzle-e2e/shared/runners/d1.test.ts` | inline `script` text |
+| `packages/platform-cloudflare/src/cloudflareHandler.bench.ts` | inline `script` text |
+
+### Evidence
+
+```
+$ pnpm --filter @mionjs/platform-cloudflare test
+ Test Files  4 passed (4)
+      Tests  29 passed (29)
+
+$ pnpm exec vitest run --project platform-cloudflare
+ Test Files  4 passed (4)
+      Tests  29 passed (29)
+```
+
+The sweep was checked against a deliberate regression: deleting the `modulesRoot` line makes
+`node scripts/ci/check-tree.mjs` report
+
+```
+==> no miniflare worker depends on the directory it was started from — 1 offender(s):
+  packages/platform-cloudflare/src/cloudflareStorage.workers.spec.ts
+```
+
+No website docs: nothing here is consumer facing. No Go change, so no Go suite.
