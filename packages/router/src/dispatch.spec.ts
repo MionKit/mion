@@ -688,9 +688,8 @@ describe('undeclared params keys, per parser strategy', () => {
   });
 });
 
-// The clone and compact rows validate with `validateUnionKeys`, and serializer.routes reads that validator to tell
-// a DECLARED error in the return union from an undeclared one. A key-count check on the error arm would flip a
-// declared error to undeclared and frame it as raw JSON, so pin both answers.
+// serializer.routes reads the `validateUnionKeys` validator (the clone and compact rows) to tell a DECLARED error
+// in the return union from an undeclared one: a key-count check on the error arm would frame it as raw JSON.
 describe('a declared error in the return union, on a key-checking row', () => {
   type Ok = {name: string};
   type Answer = Ok | TypedError<'nope'>;
@@ -725,8 +724,7 @@ describe('a declared error in the return union, on a key-checking row', () => {
 describe('validateReturn', () => {
   type Answer = {name: string};
 
-  // A handler that lies about its return type. `as Answer` is what a real bug looks like from the type checker's
-  // side: the value is built somewhere else and only asserted on the way out.
+  // `as Answer` is what a real bug looks like: a value built elsewhere and only asserted on the way out.
   const badHandler = (): Answer => ({name: 42}) as unknown as Answer;
 
   const unchecked = mion.route(badHandler);
