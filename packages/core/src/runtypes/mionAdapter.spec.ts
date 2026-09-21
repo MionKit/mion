@@ -11,6 +11,7 @@ import {getRTUtils, registerPureFnFactory} from '@mionjs/run-types/runtime';
 import {
   addSerializedJitCaches,
   buildJitFnsFromMarker,
+  getHeadersReflectionFromMarkers,
   getReflectionFromMarkers,
   getParamCountFromRunType,
   getParamsFromRunType,
@@ -20,6 +21,7 @@ import {
 } from './mionAdapter.ts';
 import {getJitFnHashes} from '../routerUtils.ts';
 import type {Email, Transform} from '@mionjs/run-types/formats';
+import {HeadersSubset} from '../headers.ts';
 
 // A mion-route-like wrapper so the plugin injects real payloads for the tests.
 type AnyHandler = (ctx: any, ...params: any[]) => any;
@@ -108,6 +110,41 @@ function fakeCloneRoute<H extends AnyHandler>(
   returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {
   return {handler, rtFns: {paramsFns, returnFns, paramsId, returnId}};
+}
+
+// A mion-headersFn-like wrapper: the handler's 2nd param is the HeadersSubset, so the public
+// params start at the 3rd, exactly as HeaderHandlerParams<H> spells it in @mionjs/router.
+type AnyHeaderHandler = (ctx: any, headers: any, ...params: any[]) => any;
+type HeaderHandlerParams<H extends AnyHeaderHandler> = Parameters<H> extends [any, any, ...infer P] ? P : [];
+type HeaderHandlerHeaders<H extends AnyHeaderHandler> = Parameters<H> extends [any, infer Headers, ...any[]] ? Headers : never;
+
+function fakeHeadersFn<H extends AnyHeaderHandler>(
+  handler: H,
+  headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'validate', 'validationErrors'>,
+  paramsFns?: InjectTypeFnArgs<
+    HeaderHandlerParams<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'formatTransform',
+    'prepareForJsonMutate',
+    'restoreFromJsonMutate'
+  >,
+  returnFns?: InjectTypeFnArgs<
+    HandlerReturn<H>,
+    'validate',
+    'validationErrors',
+    'hasUnknownKeys',
+    'unknownKeyErrors',
+    'prepareForJsonMutate',
+    'restoreFromJsonClone'
+  >,
+  headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
+  paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
+  returnId?: InjectRunTypeId<HandlerReturn<H>>
+): {handler: H; rtFns: RtMarkerPayload} {
+  return {handler, rtFns: {headersFns, paramsFns, returnFns, headersId, paramsId, returnId}};
 }
 
 interface Pet {
@@ -432,5 +469,37 @@ describe('mionAdapter: formatTransform (sanitizeParams) fn', () => {
     const clean = getReflectionFromMarkers(cleanRoute.rtFns, cleanRoute.handler, 'cleanRoute');
     const hashes = getJitFnHashes(clean.paramsJitHash, 'mutate', 'params');
     expect(hashes.formatTransform).toBe(clean.paramsJitFns.formatTransform!.rtFnHash);
+  });
+});
+
+describe('mionAdapter: headers middleFn reflection', () => {
+  const authAndSave = fakeHeadersFn(
+    (ctx: unknown, headers: HeadersSubset<'authorization', 'x-trace'>, pet: Pet, notes?: string): void => undefined
+  );
+  const authOnly = fakeHeadersFn((ctx: unknown, headers: HeadersSubset<'authorization'>): void => undefined);
+
+  // paramsCount rides the client methods-metadata payload, so its value for a headers middleFn is public behaviour
+  it('counts the body params only, never ctx or the HeadersSubset', () => {
+    const reflection = getHeadersReflectionFromMarkers(authAndSave.rtFns, authAndSave.handler, 'authAndSave');
+    expect(reflection.paramsCount).toBe(2);
+    expect(reflection.paramNames).toEqual(['pet', 'notes']);
+    const headersOnly = getHeadersReflectionFromMarkers(authOnly.rtFns, authOnly.handler, 'authOnly');
+    expect(headersOnly.paramsCount).toBe(0);
+    expect(headersOnly.paramNames).toEqual([]);
+  });
+
+  // `paramsId` is HeaderHandlerParams<H> on both paths, so there is no separate body arity
+  it('keeps the arity the shared reflection built, with no second walk of the params tuple', () => {
+    const shared = getReflectionFromMarkers(authAndSave.rtFns, authAndSave.handler, 'authAndSave');
+    const headers = getHeadersReflectionFromMarkers(authAndSave.rtFns, authAndSave.handler, 'authAndSave');
+    expect(headers.paramsCount).toBe(shared.paramsCount);
+    expect(headers.paramsCount).toBe(getParamCountFromRunType(resolveInjectedRunType(authAndSave.rtFns.paramsId)));
+  });
+
+  it('exposes the declared header names and a working validator on headersParam', () => {
+    const reflection = getHeadersReflectionFromMarkers(authAndSave.rtFns, authAndSave.handler, 'authAndSave');
+    expect(reflection.headersParam?.headerNames).toEqual(['authorization', 'x-trace']);
+    expect(reflection.headersParam!.jitFns.isType.fn!(new HeadersSubset({authorization: 'Bearer t'}))).toBe(true);
+    expect(reflection.headersParam!.jitFns.isType.fn!(new HeadersSubset({} as any))).toBe(false);
   });
 });
