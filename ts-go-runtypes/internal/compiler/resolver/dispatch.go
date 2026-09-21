@@ -28,19 +28,16 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// familyAddedFlag wires one family's per-scan added-flag: the pre-flight
-// Supports probe plus the Response setter. pureFns / runTypes are not here —
-// their flags come from the extractor / cache delta directly.
+// familyAddedFlag wires one family's per-scan added-flag: the Supports probe plus the Response setter.
+// pureFns / runTypes are absent because their flags come from the extractor / cache delta directly.
 type familyAddedFlag struct {
 	key          string
 	anySupported func(runTypes []*reflection.RunType) bool
 	setAdded     func(response *protocol.Response, added bool)
 }
 
-// familyAddedFlags enumerates the per-family added-flag wiring consumed by the
-// Vite plugin's scan-change signals (and hmr-signals tests). Probe order is
-// cosmetic — each row runs one shallow Supports pass over the scan's added
-// nodes.
+// familyAddedFlags is the per-family added-flag wiring the Vite plugin's scan-change signals consume.
+// Probe order is cosmetic: each row runs one shallow Supports pass over the scan's added nodes.
 var familyAddedFlags = []familyAddedFlag{
 	{key: "validationErrors",
 		anySupported: typefunctions.FamilyByKey("validationErrors").AnySupported,
@@ -75,9 +72,8 @@ var familyAddedFlags = []familyAddedFlag{
 	{key: "fromBinary",
 		anySupported: typefunctions.FamilyByKey("fromBinary").AnySupported,
 		setAdded:     func(response *protocol.Response, added bool) { response.AddedFromBinary = added }},
-	// NOT the registry generic: FormatTransformEmitter.Supports is true for
-	// everything (identity is a valid transform), so the added-flag gates on
-	// an actual value-transforming format instead.
+	// NOT the registry generic: FormatTransformEmitter.Supports is true for everything (identity is a valid
+	// transform), so the added-flag gates on an actual value-transforming format instead.
 	{key: "formatTransform",
 		anySupported: typefunctions.AnyFormatTransformSupported,
 		setAdded:     func(response *protocol.Response, added bool) { response.AddedFormatTransform = added }},
@@ -86,17 +82,11 @@ var familyAddedFlags = []familyAddedFlag{
 		setAdded:     func(response *protocol.Response, added bool) { response.AddedValidate = added }},
 }
 
-// Dispatch routes a request to the correct handler. When the request sets
-// IncludeMetrics, the response carries a Metrics block measured around the
-// dispatch: total wall time, Go memory deltas/snapshots, tsgo
-// extendedDiagnostics counters (read off the live Program), and the
-// per-phase times the inner handler recorded.
-// Every op returns through here, so this is also where the response's
-// diagnostics are deduped — the ONE choke point that covers the runtype,
-// marker, pure-fn and enrich lanes alike (they assemble their diagnostics on
-// different branches of dispatch, so deduping inside collectFamilies would
-// only cover the runtype fan-out). See diagnostics.Dedupe for why the
-// walker's own per-walk latch cannot catch these.
+// Dispatch routes a request to the correct handler, adding the Metrics block when the request asks for it.
+// Every op returns through here, which is why the response's diagnostics are deduped at this ONE choke point: the
+// runtype, marker, pure-fn and enrich lanes assemble theirs on different branches, so deduping inside
+// collectFamilies would cover only the runtype fan-out. See diagnostics.Dedupe for why the walker's own per-walk
+// latch cannot catch these.
 func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
 	if !request.IncludeMetrics {
 		response := sess.dispatch(request, nil)
@@ -120,10 +110,8 @@ func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
 	if sess.cache != nil {
 		metrics.CacheNodes = sess.cache.Size()
 	}
-	// extendedDiagnostics counters — tsgo checks lazily, so these are
-	// post-op absolutes reflecting every check forced so far in this
-	// Program's lifetime. The bench harness resets the Program per cycle,
-	// which makes per-case numbers directly comparable.
+	// tsgo checks lazily, so these counters are post-op absolutes covering every check forced so far in this
+	// Program's lifetime; the bench harness resets the Program per cycle to keep per-case numbers comparable.
 	if sess.Program != nil && sess.Program.TS != nil {
 		ts := sess.Program.TS
 		metrics.Files = len(ts.SourceFiles())
@@ -141,11 +129,8 @@ func elapsedMs(start time.Time) float64 {
 	return float64(time.Since(start).Microseconds()) / 1000.0
 }
 
-// collectEntryModules runs the full per-entry pipeline against dump: runtype
-// node entries for every dumped type, demand-driven family entries (parallel
-// fan-out preserved), JSON composites, pure fns, the cross-family fixpoint,
-// the global dangling-dep cascade, and missing stubs for demanded keys that
-// didn't survive. Returns the modules keyed by module BASENAME, plus the package's pure-fn artifact.
+// collectEntryModules runs the full per-entry pipeline against dump and returns the modules keyed by module
+// BASENAME, plus the package's pure-fn artifact.
 func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunctions.RenderOpts, pureFnGraph entrymodules.Graph, metrics *protocol.Metrics) (map[string]string, map[string]string, error) {
 	var graph entrymodules.Graph
 	if sess.opts.ModuleMode == constants.ModuleModeAllModules {
@@ -161,46 +146,34 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	for _, familyGraph := range familyGraphs {
 		graph.Merge(familyGraph)
 	}
-	// Composites collect AFTER the family merge so each one can read its
-	// primitives' rendered IsNoop flags and elide dead identity bindings.
+	// AFTER the family merge, so each composite can read its primitives' rendered IsNoop flags and elide
+	// dead identity bindings.
 	graph.Merge(typefunctions.CollectJsonCompositeEntries(dump, rtOpts, graph))
 	graph.Merge(pureFnGraph)
 
-	// The circular-reference guard is now a compile-time option: an armed
-	// (`{rejectCircularRefs: true}`) guarded entry inlines the guard with a baked
-	// skeleton and demands findCycle by body reference (served like any
-	// built-in), so there is no type-shape wiring or RunType-bundle linking left
-	// to do here — a plain (unarmed) cyclable type ships neither.
+	// No circular-guard wiring belongs here: an armed (`{rejectCircularRefs: true}`) entry inlines the guard with a
+	// baked skeleton and demands findCycle by body reference, and an unarmed cyclable type ships neither.
 
 	sess.resolveCrossFamilyEdges(graph, dump, rtOpts)
-	// Composite prologues bind primitives with an unguarded
-	// `utl.getRT(key).fn` — assert every referenced primitive actually
-	// rendered (post-fixpoint) so an invariant breach fails the build
-	// instead of crashing at runtime. ProvenanceSites anchors any breach at
-	// the demanding createJsonEncoderFn/Decoder call site.
+	// Composite prologues bind primitives with an unguarded `utl.getRT(key).fn`, so assert post-fixpoint that every
+	// referenced primitive rendered: an invariant breach must fail the build instead of crashing at runtime.
+	// ProvenanceSites anchors any breach at the demanding createJsonEncoderFn/Decoder call site.
 	typefunctions.AssertCompositeSoftDeps(graph, rtOpts.ProvenanceSites, rtOpts.DiagSink)
-	// Same invariant for cfn redirects: every override body a redirect forwards
-	// to must have its module in the graph or the build fails (OVR002) instead
-	// of throwing at runtime.
+	// Same invariant for cfn redirects: an override body a redirect forwards to without its module in the graph
+	// fails the build (OVR002) instead of throwing at runtime.
 	typefunctions.AssertOverrideCfn(graph, sess.overrideIDs(), rtOpts.DiagSink)
 
-	// Dropping an entry whose same-family dep never rendered mirrors the
-	// pre-migration dangling cascade; the demanded roots that fall out (or
-	// never rendered at all — unsupported kinds with no diag code) become
-	// KindMissing stubs so the imports the plugin injected still resolve, and
-	// the runtime degrades to the family identity fn exactly as before.
+	// Drops every entry whose same-family dep never rendered; the demanded roots that fall out become KindMissing
+	// stubs below, so the imports the plugin injected still resolve and the runtime degrades to the identity fn.
 	graph.Cascade()
-	// Deliver the pure-fn bodies the graph demands from installed packages (the
-	// marker package's own built-ins included), after Cascade (demand reflects
-	// only surviving entries) and before AddMissingStubs (a served body must be
-	// present so it never degrades to a KindMissing stub).
+	// Deliver the pure-fn bodies the graph demands from installed packages (the marker package's built-ins
+	// included), after Cascade (demand then reflects only surviving entries) and before AddMissingStubs (a served
+	// body must be present so it never degrades to a KindMissing stub).
 	sess.servePackagePureFns(graph, rtOpts.DiagSink, rtOpts.EmitMode)
 	demanded, demandTags := demandedEntryKeys(dump.Sites)
 	graph.AddMissingStubs(demanded)
-	// allSingle: a dropped demanded key must stay importable at the bundle
-	// the site's import points at (Site.Module) — tag its stub so the
-	// grouping routes it into that family bundle. Untagged stubs (soft-dep
-	// fallbacks no site demanded) keep their own per-entry module.
+	// allSingle: a dropped demanded key must stay importable at the bundle the site's import points at
+	// (Site.Module), so tag its stub. Untagged stubs, the soft-dep fallbacks no site demanded, keep their own module.
 	if sess.opts.ModuleMode == constants.ModuleModeAllSingle {
 		for key, entry := range graph {
 			if entry.Kind == entrymodules.KindMissing && entry.FamilyTag == "" {
@@ -222,14 +195,11 @@ func (sess *Session) collectEntryModules(dump protocol.Dump, rtOpts typefunction
 	return modules, artifact, err
 }
 
-// collectFamilies runs every type-walking family's per-entry collection.
-// Families fan out across goroutines by default (collects are checker-free
-// pure functions of (dump, RefTable, opts)); each goroutine gets a value copy
-// of rtOpts with the two dispatch-shared mutable fields sharded: its own
-// DiagSink slice and a fresh FactsTable. The join then, per family in
-// registry order: first error wins, RenderMs recorded (values overlap
-// wall-clock; their sum exceeds elapsed time), shard diagnostics appended
-// (== the sequential order), and Facts shards merged into the dispatch opts.
+// collectFamilies runs every type-walking family's per-entry collection. Families fan out across goroutines by
+// default, since a collect is a checker-free pure function of (dump, RefTable, opts); each goroutine gets a value
+// copy of rtOpts with the two dispatch-shared mutable fields sharded, its own DiagSink slice and a fresh FactsTable.
+// The join runs per family in registry order, so shard diagnostics land in the sequential order; first error wins.
+// The recorded RenderMs values overlap wall-clock, so their sum exceeds the elapsed time.
 func (sess *Session) collectFamilies(dump protocol.Dump, rtOpts typefunctions.RenderOpts, metrics *protocol.Metrics) ([]entrymodules.Graph, error) {
 	families := typefunctions.Families
 	graphs := make([]entrymodules.Graph, len(families))
@@ -267,9 +237,8 @@ func (sess *Session) collectFamilies(dump protocol.Dump, rtOpts typefunctions.Re
 			if rtOpts.DiagSink != nil {
 				shardOpts.DiagSink = &familyDiagnostics[familyIndex]
 			}
-			// Shard the pure-fn dep sink per goroutine (like DiagSink) so the
-			// concurrent family collects never append to a shared slice; the
-			// shards merge back in family order below, matching the serial path.
+			// Shard the pure-fn dep sink like DiagSink, so concurrent family collects never append to a shared
+			// slice; the shards merge back in family order below, matching the serial path.
 			if rtOpts.PureFnDepSink != nil {
 				shardOpts.PureFnDepSink = &familyPureFnDeps[familyIndex]
 			}
@@ -298,8 +267,7 @@ func (sess *Session) collectFamilies(dump protocol.Dump, rtOpts typefunctions.Re
 	return graphs, nil
 }
 
-// parallelRenderEnabled reports whether family collects may fan out.
-// Parallel is the default; SingleThreaded means "no concurrency at all",
+// parallelRenderEnabled reports whether family collects may fan out. SingleThreaded means no concurrency at all,
 // covering collects too even though they never touch a checker.
 func (sess *Session) parallelRenderEnabled() bool {
 	return !sess.opts.DisableParallelRender && !sess.opts.SingleThreaded
@@ -313,16 +281,10 @@ type crossFamilyTarget struct {
 	options       []string
 }
 
-// familyByFnHash maps a type-walking family's fnHash to its spec + variant — the
-// reverse lookup the cross-family fixpoint needs to route a missing
-// `<fnHash>_<id>` dep to the family that renders it.
-//
-// Most cross-family edges target the plain entry, but not all: the
-// validationErrors union arm delegates its verdict to the validate entry
-// compiled with the SAME ValidateOptions as the body referring to it, so an
-// option-carrying hash has to route too. Only the option axes are enumerated —
-// a json op's per-strategy hashes stay out, keeping this map's plain rows
-// byte-identical to what it held before variants were routable.
+// familyByFnHash maps a family's fnHash to its spec + variant, the reverse lookup the cross-family fixpoint routes
+// a missing `<fnHash>_<id>` dep through. Option-carrying hashes route too, because the validationErrors union arm
+// delegates its verdict to the validate entry compiled with the SAME ValidateOptions as the body referring to it.
+// Only the option axes are enumerated; a json op's per-strategy hashes stay out.
 var familyByFnHash = func() map[string]crossFamilyTarget {
 	out := make(map[string]crossFamilyTarget, len(typefunctions.Families))
 	allVariants := operations.AllFnVariants()
@@ -333,9 +295,8 @@ var familyByFnHash = func() map[string]crossFamilyTarget {
 		}
 		out[operations.PlainHash(op.Name)] = crossFamilyTarget{spec: spec}
 		for _, variant := range allVariants {
-			// The armed (rejectCircularRefs) fork is never named by a
-			// cross-family edge — emitters resolve their delegates under the
-			// plain fork on purpose (see CrossFamilyVariantHash).
+			// No cross-family edge ever names the armed (rejectCircularRefs) fork: emitters resolve their
+			// delegates under the plain fork on purpose (see CrossFamilyVariantHash).
 			if variant.Op.Name != op.Name || variant.RejectCircular || len(variant.Options) == 0 {
 				continue
 			}
@@ -349,8 +310,7 @@ var familyByFnHash = func() map[string]crossFamilyTarget {
 	return out
 }()
 
-// variantSuffixFor names the cache-key suffix an option-axis variant renders
-// under. Empty for any op whose axis carries no options (nothing to route).
+// variantSuffixFor names the cache-key suffix an option-axis variant renders under, empty when there is nothing to route.
 func variantSuffixFor(variant operations.FnVariant) string {
 	switch variant.Op.Axis {
 	case operations.AxisValidateOptions:
@@ -362,20 +322,13 @@ func variantSuffixFor(variant operations.FnVariant) string {
 	}
 }
 
-// resolveCrossFamilyEdges renders, to fixpoint, every foreign-family entry the
-// graph's deps reference but no family demanded directly — the
-// `<valHash>_<member>` lookups union decoders / validationErrors bodies reach at
-// runtime. This replaces the pre-migration CrossFamilyValRoots seeding pass:
-// instead of collecting edges into the validate render, each missing edge is
-// routed to its owning family AND variant (via the fnHash reverse map) and
-// collected as a root + same-family closure. Sites are stripped from the seed dump
-// so the sub-collect renders ONLY the requested roots (no demand re-render, no
-// duplicate diagnostics).
-//
-// Iteration is bounded: each pass only renders keys that were missing, and the
-// rendered set grows monotonically toward the (finite) session type set. The
-// guard cap is defensive — hitting it leaves the remaining edges to the stub
-// pass, which preserves the build (runtime degrades to identity fallback).
+// resolveCrossFamilyEdges renders, to fixpoint, every foreign-family entry the graph's deps reference but no family
+// demanded directly: the `<valHash>_<member>` lookups union decoders / validationErrors bodies reach at runtime.
+// Each missing edge is routed to its owning family AND variant through the fnHash reverse map, then collected as a
+// root plus same-family closure. Sites are stripped from the seed dump so the sub-collect renders ONLY the
+// requested roots, with no demand re-render and no duplicate diagnostics.
+// Iteration is bounded: each pass renders only keys that were missing, growing monotonically toward the finite
+// session type set. The guard cap is defensive; hitting it leaves the rest to the stub pass, which keeps the build.
 func (sess *Session) resolveCrossFamilyEdges(graph entrymodules.Graph, dump protocol.Dump, rtOpts typefunctions.RenderOpts) {
 	seedDump := protocol.Dump{RunTypes: dump.RunTypes}
 	for iteration := 0; iteration < 8; iteration++ {
@@ -384,8 +337,8 @@ func (sess *Session) resolveCrossFamilyEdges(graph entrymodules.Graph, dump prot
 			if entry.Kind != entrymodules.KindTypeFn {
 				continue
 			}
-			// Cross-family edges ride SoftDeps (hard Deps are same-family and
-			// always rendered by the family's own collect or cascaded away).
+			// Cross-family edges are always SoftDeps: a hard Dep is same-family, so its own collect
+			// rendered it or the cascade dropped it.
 			for _, dep := range entry.SoftDeps {
 				if dep == "" || dep == entry.Key {
 					continue
@@ -437,22 +390,18 @@ func (sess *Session) resolveCrossFamilyEdges(graph entrymodules.Graph, dump prot
 				progressed = true
 			}
 		}
-		// No progress means every remaining edge points at an unsupported
-		// type — the stub pass will cover them; looping again would spin.
+		// No progress means every remaining edge points at an unsupported type, which the stub pass covers.
 		if !progressed {
 			return
 		}
 	}
 }
 
-// demandedEntryKeys lists the entry keys user call sites import: the
-// `<fnHash>_<typeId>` key for every createX site (reflection sites import the
-// runtype entry, which always exists for interned types). The stub pass turns
-// any demanded key that didn't survive collection into a resolvable
-// KindMissing module. The second return maps each demanded key to its
-// family tag (the Demand entry whose FnHash keyed the site) — allSingle mode
-// uses it to place dropped-key stubs inside the family bundle the site's
-// import points at.
+// demandedEntryKeys lists the entry keys user call sites import: the `<fnHash>_<typeId>` key for every createX site
+// (a reflection site imports the runtype entry, which always exists for an interned type). A demanded key that did
+// not survive collection becomes a resolvable KindMissing module in the stub pass.
+// The second return maps each key to its family tag, which allSingle mode uses to place a dropped key's stub inside
+// the family bundle the site's import points at.
 func demandedEntryKeys(sites []protocol.Site) ([]string, map[string]string) {
 	var keys []string
 	seen := map[string]bool{}
@@ -461,9 +410,8 @@ func demandedEntryKeys(sites []protocol.Site) ([]string, map[string]string) {
 		if site.ID == "" {
 			continue
 		}
-		// A multi-function site (createStandardSchema's <T,'val','verr'>) injects
-		// SEVERAL entry bindings at one slot; each is a key the plugin imports
-		// directly, so every fnId is demanded — not just the scalar FnId mirror.
+		// A multi-function site (createStandardSchema's <T,'val','verr'>) injects SEVERAL entry bindings at one
+		// slot, each imported directly by the plugin, so every fnId is demanded, not just the scalar FnId mirror.
 		fnIds := site.FnIds
 		if len(fnIds) == 0 {
 			fnIds = []string{site.FnId}
@@ -487,14 +435,11 @@ func demandedEntryKeys(sites []protocol.Site) ([]string, map[string]string) {
 	return keys, tags
 }
 
-// uniqueSiteFiles lists the source files carrying at least one marker site OR an
-// extracted pure-fn registration (extraFiles), sorted and deduplicated.
-// OpGenerate returns it as Response.SiteFiles so the plugin can gate its per-file
-// transform on real scan results instead of textual import sniffing — wrapper
-// call sites (markers forwarded by another package, node_modules included) are
-// covered with zero configuration. A pure fn is a Replacement, not a Site, so its
-// file never appears in `sites`; extraFiles folds those in so every registration
-// — including calls behind a library wrapper — is transformed.
+// uniqueSiteFiles lists the source files carrying at least one marker site OR an extracted pure-fn registration
+// (extraFiles), sorted and deduplicated. OpGenerate returns it as Response.SiteFiles so the plugin gates its
+// per-file transform on real scan results instead of textual import sniffing, which covers wrapper call sites
+// (markers forwarded by another package, node_modules included) with zero configuration.
+// A pure fn is a Replacement, not a Site, so extraFiles is what puts its file in the set.
 func uniqueSiteFiles(sites []protocol.Site, extraFiles []string) []string {
 	seen := map[string]bool{}
 	var files []string
@@ -515,15 +460,10 @@ func uniqueSiteFiles(sites []protocol.Site, extraFiles []string) []string {
 	return files
 }
 
-// pureFnReplacementFiles returns the sorted unique source files that carry an
-// extracted pure-fn registration whose factory argument gets rewritten. These
-// files need the per-file transform even
-// though a pure fn is a Replacement and never a marker Site, so they never land
-// in the Site-derived file set — including WRAPPED registrations, whose consumer
-// files import neither the marker package by name nor call the primitive
-// textually. Folded into OpGenerate's SiteFiles so the plugin's transform gate
-// covers them with zero configuration. Extraction is memoised (pureFnFileCache),
-// so re-running it here is cheap.
+// pureFnReplacementFiles returns the source files carrying a pure-fn registration whose factory argument gets
+// rewritten. They need the per-file transform yet never land in the Site-derived file set, a WRAPPED registration
+// included, whose consumer file neither imports the marker package by name nor calls the primitive textually; so
+// OpGenerate folds them into SiteFiles. Extraction is memoised (pureFnFileCache), so re-running it here is cheap.
 func (sess *Session) pureFnReplacementFiles(metrics *protocol.Metrics) []string {
 	entries, _, _ := sess.extractProgramPureFns(metrics)
 	seen := map[string]bool{}
@@ -538,20 +478,13 @@ func (sess *Session) pureFnReplacementFiles(metrics *protocol.Metrics) []string 
 	return files
 }
 
-// pruneUnreachableTypeFnEntries drops every KindTypeFn entry nothing can
-// load: not a rewrite-injected binding (`demanded` — each site's own
-// `<FnId>_<ID>`, the only fn keys the plugin ever imports directly) and not
-// reachable from a live module through import edges (Deps + SoftDeps,
-// transitively). The noop-elision gate stopped REFERENCING identity entries;
-// this stops EMITTING them — the demand machinery still renders a short-form
-// for every primitive a composite site demands, but once the composite elides
-// its binding the orphan (and anything only it pulled in) cascades out of the
-// module set entirely.
-//
-// Non-typefn kinds are unconditional roots: the runtype bundle/facades load
-// via reflection-site bindings and pure-fn modules via their own injected
-// registration sites — neither rides the fn-site demand list, so reachability
-// over it would under-approximate their liveness.
+// pruneUnreachableTypeFnEntries drops every KindTypeFn entry nothing can load: not a rewrite-injected binding
+// (`demanded`, each site's own `<FnId>_<ID>`, the only fn keys the plugin imports directly) and not reachable from
+// a live module through Deps + SoftDeps. The demand machinery still renders a short-form for every primitive a
+// composite site demands, so once the composite elides its binding the orphan, and anything only it pulled in,
+// would otherwise stay emitted.
+// Non-typefn kinds are unconditional roots: the runtype bundle/facades load via reflection-site bindings and
+// pure-fn modules via their own injected registration sites, neither of which rides the fn-site demand list.
 func pruneUnreachableTypeFnEntries(graph entrymodules.Graph, demanded []string) {
 	live := make(map[string]bool, len(graph))
 	stack := make([]string, 0, len(graph))
@@ -590,13 +523,9 @@ func pruneUnreachableTypeFnEntries(graph entrymodules.Graph, demanded []string) 
 	}
 }
 
-// moduleGrouping returns the entrymodules.Grouping for the resolver's module
-// mode. Nil (everything per-entry, the runtype bundle shaping its own module
-// via CollectEntries) for default/allModules; the allSingle partition
-// otherwise: fn/composite entries ride `fns/<familyTag>` bundles, pure fns
-// the `pf` bundle, the reflection facades fold into the runtypes bundle, and
-// missing stubs follow their demanding site's family (per-entry when no site
-// demanded them — soft-dep stubs keep their own resolvable module).
+// moduleGrouping returns the entrymodules.Grouping for the resolver's module mode. Nil under default/allModules
+// leaves everything per-entry, the runtype bundle shaping its own module via CollectEntries.
+// A missing stub with no demanding site keeps its own resolvable module.
 func (sess *Session) moduleGrouping() entrymodules.Grouping {
 	if sess.opts.ModuleMode != constants.ModuleModeAllSingle {
 		return nil
@@ -619,12 +548,9 @@ func (sess *Session) moduleGrouping() entrymodules.Grouping {
 	}
 }
 
-// siteFamilyTag is the family tag one fnId of a site renders under: the Demand
-// entry that fnHash keys. "" when the site demands nothing under that fnId.
-// Shared by the two callers that must agree on the mapping — stampSiteModules
-// (which bundle the rewrite imports the binding FROM) and demandedEntryKeys
-// (which bundle a dropped key's stub is placed IN); a disagreement between them
-// is an unresolvable import.
+// siteFamilyTag is the family tag one fnId of a site renders under, "" when the site demands nothing under it.
+// Shared by the two callers that must agree on the mapping, stampSiteModules (which bundle the rewrite imports the
+// binding FROM) and demandedEntryKeys (which bundle a dropped key's stub goes IN): a disagreement is a broken import.
 func siteFamilyTag(site protocol.Site, fnId string) string {
 	for _, demand := range site.Demand {
 		if demand.FnHash == fnId {
@@ -634,18 +560,12 @@ func siteFamilyTag(site protocol.Site, fnId string) string {
 	return ""
 }
 
-// stampSiteModules annotates sites with the bundle basename their entry rides
-// in under allSingle mode (Site.Module, plus Site.Modules for a multi-function
-// site). The mapping is mode-static — reflection sites point at the runtypes
-// bundle, createX sites at their demand family's bundle — so the plain
-// transform scan (no entry-module collection) stamps identically to the dump
-// path. Returns a copy when stamping occurs; other modes pass sites through
-// untouched.
-//
-// A multi-fn site (createStandardSchema's <T,'val','verr','jsonSchema'>) spans
-// SEVERAL families, and allSingle gives each family its own bundle — so the
-// scalar Module cannot address them all. Every fnId gets its own basename in
-// Modules; Module keeps mirroring FnIds[0] so the single-fn wire is unchanged.
+// stampSiteModules annotates sites with the bundle basename their entry rides in under allSingle mode, and passes
+// them through untouched in other modes. The mapping is mode-static (reflection sites point at the runtypes
+// bundle, createX sites at their demand family's bundle), so a plain transform scan with no entry-module
+// collection stamps identically to the dump path. Stamping returns a copy.
+// A multi-fn site spans SEVERAL families, each with its own allSingle bundle, which the scalar Module cannot
+// address: every fnId gets a basename in Modules, and Module keeps mirroring FnIds[0] so the single-fn wire is unchanged.
 func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 	if sess.opts.ModuleMode != constants.ModuleModeAllSingle || len(sites) == 0 {
 		return sites
@@ -679,8 +599,7 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 	return out
 }
 
-// typeIDFromEntryKey splits a `<fnHash>_<typeId>` fn-entry key at the first
-// underscore, returning the type-id tail (empty when the key has no underscore).
+// typeIDFromEntryKey returns the type-id tail of a `<fnHash>_<typeId>` fn-entry key, empty when there is no underscore.
 func typeIDFromEntryKey(key string) string {
 	if idx := strings.IndexByte(key, '_'); idx >= 0 {
 		return key[idx+1:]
@@ -688,19 +607,11 @@ func typeIDFromEntryKey(key string) string {
 	return ""
 }
 
-// sameTransformPath matches a wire-tagged file path against a requested path,
-// tolerating the abs-vs-rel skew: scan Sites echo the REQUESTED (often
-// relative) path, but pure-fn Replacements carry the program's ABSOLUTE file
-// name (the extractor records positions against the tsgo program). Mirrors the
-// JS scan-batcher's projectFile/samePath rule so transform partitions edits to
-// the right file. Matching on a separator boundary keeps `a/user.ts` from
-// claiming `another-user.ts`.
-//
-// `requestedAbs` is the requested path resolved against the session's working
-// dir, and it is what makes a file OUTSIDE that dir work: such a file is
-// requested as `../sibling/src/entry.ts`, which no suffix of an absolute path
-// can ever end with, so every replacement carrying the program's own spelling
-// was silently dropped and the file came back transformed but incomplete.
+// sameTransformPath matches a wire-tagged file path against a requested one, tolerating the abs-vs-rel skew: scan
+// Sites echo the REQUESTED (often relative) path, but pure-fn Replacements carry the program's ABSOLUTE file name.
+// Mirrors the JS scan-batcher's projectFile/samePath rule; matching on a separator boundary keeps `a/user.ts` from
+// claiming `another-user.ts`. requestedAbs is what makes a file OUTSIDE the working dir work: it is requested as
+// `../sibling/src/entry.ts`, which no suffix of an absolute path ends with, so its replacements would all be dropped.
 func sameTransformPath(tagged, requested, requestedAbs string) bool {
 	if tagged == requested || tagged == requestedAbs {
 		return true
@@ -708,7 +619,6 @@ func sameTransformPath(tagged, requested, requestedAbs string) bool {
 	return strings.HasSuffix(tagged, "/"+requested) || strings.HasSuffix(tagged, "\\"+requested)
 }
 
-// containsString reports whether values contains target.
 func containsString(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {
@@ -738,47 +648,39 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if metrics != nil {
 			metrics.MarkerScanMs = elapsedMs(scanStart)
 		}
-		// Pure-fn extraction runs every scanFiles call: the request's
-		// files may add or modify registerPureFnFactory calls without
-		// producing any new RunTypes, AND every accepted entry yields
-		// one Replacement record the Vite plugin uses to swap the
-		// factory argument for the entry-module binding in the user's
-		// source. Diagnostics flow unconditionally so editor surfaces
-		// update as the user types.
+		// Pure-fn extraction runs on EVERY scanFiles call: a file may add or change a registerPureFnFactory call
+		// without producing any new RunType, and each accepted entry yields the Replacement that swaps the
+		// factory argument for the entry-module binding. Diagnostics flow unconditionally so editors update as
+		// the user types.
 		pureFnsStart := time.Now()
 		pureFnEntries, pureFnDiagnostics, pureFnReplacements, addedPureFns := sess.extractPureFnsForScan(request.Files)
 		if metrics != nil {
 			metrics.PureFnsMs = elapsedMs(pureFnsStart)
 		}
-		// Request-batch extraction rides every scan too: the batch id is spliced
-		// into the user's source exactly like a pure fn's id, and the
-		// BAT0xx diagnostics flow unconditionally.
+		// Batch extraction runs on every scan too: the batch id is spliced into the user's source exactly like a
+		// pure fn's id, and the BAT0xx diagnostics flow unconditionally.
 		batchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		sess.noteOwnBatches(batchSites)
-		// The bundled-API dispatch sites (a client built with bundleApi) splice
-		// their module binding the same way; MET0xx diagnostics flow with them.
+		// A bundled-API dispatch site (a client built with bundleApi) splices its module binding the same way;
+		// MET0xx diagnostics flow with them.
 		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
 		prepStart := time.Now()
 		added := sess.cache.Added(before)
-		// Per-cache "did this scan change anything?" signals consumed by
-		// the Vite plugin's handleHotUpdate.
+		// The per-cache "did this scan change anything?" signal the Vite plugin's handleHotUpdate consumes.
 		addedRunTypes := len(added) > 0
 		combinedDiagnostics := append(append(append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), batchDiagnostics...), apiDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
 		combinedDiagnostics = sess.appendLibSelectionDiagnostic(combinedDiagnostics, request.Files)
-		// Opt-in enrichment-health pass (tag hygiene + FriendlyText/MockData
-		// content + breadcrumb drift) for the lint surfaces. Runs AFTER
-		// cache.Added(before) so the types the content checks intern never
-		// leak into this response's added* HMR signals.
+		// Opt-in enrichment-health pass for the lint surfaces. Runs AFTER cache.Added(before) so the types its
+		// content checks intern never leak into this response's added* HMR signals.
 		if request.CheckEnrich {
 			combinedDiagnostics = append(combinedDiagnostics, sess.checkEnrichFiles(request.Files)...)
 		}
-		// Opt-in mion route rules, same placement and for the same reason: the
-		// pass reads types the scan may not otherwise have interned.
+		// Opt-in mion route rules, placed here for the same reason: the pass reads types the scan may not
+		// otherwise have interned.
 		if request.CheckRouterRules {
 			combinedDiagnostics = append(combinedDiagnostics, sess.checkRouterRuleFiles(request.Files)...)
 		}
-		// Override arg-nulling replacements (scoped to the requested files) ride
-		// the same Replacements channel as pure-fn factory nullings.
+		// Override arg-nulling replacements ride the same Replacements channel as pure-fn factory nullings.
 		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		response := protocol.Response{
 			Sites:         sess.stampSiteModules(sites),
@@ -787,20 +689,16 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			AddedPureFns:  addedPureFns,
 			Diagnostics:   combinedDiagnostics,
 		}
-		// Pure-fn build report (opt-in) — the DELTA for the rescanned files, so
-		// the plugin's update-lane callback fires with just the changed sites.
-		// nil when the report is off, so a normal HMR scan pays nothing.
+		// The opt-in build report carries the DELTA for the rescanned files, so the plugin's update-lane callback
+		// fires with just the changed sites. nil when the report is off, so a normal HMR scan pays nothing.
 		response.PureFnSites = sess.pureFnReportForEntries(pureFnEntries)
 		response.BatchSites = sess.batchReportForSites(batchSites)
-		// Per-family added flags, one shallow Supports pass each (the
-		// addedRunTypes short-circuit skips all passes on no-change scans).
+		// One shallow Supports pass per family; the addedRunTypes short-circuit skips them all on a no-change scan.
 		for _, family := range familyAddedFlags {
 			family.setAdded(&response, addedRunTypes && family.anySupported(added))
 		}
-		// The full added-node payload is attached only when the caller
-		// opted into type payloads — the Vite plugin and the bench client
-		// read just the added* booleans, so marshalling every new RunType
-		// graph on every scan was pure wire/encode waste.
+		// The full added-node payload is attached only on request: the Vite plugin and the bench client read
+		// just the added* booleans, so marshalling every new RunType graph on every scan is wire waste.
 		if request.IncludeRunTypes {
 			response.Added = added
 		}
@@ -812,11 +710,9 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// IncludeRtDiagnostics runs the SAME collection but drops the module payload (lint pass).
 		renderEntries := request.IncludeEntryModules || request.IncludeRtDiagnostics
 		var rtDiagnostics []diagnostics.Diagnostic
-		// rtPureFnDeps accumulates the pure-fn dependencies the family walkers
-		// record while rendering live bodies below (via rtOpts.PureFnDepSink);
-		// validated against the program registration set for PFE9012 once the
-		// collection finishes. Only wired when entries actually render, so a
-		// plain rewrite scan collects nothing and the validation short-circuits.
+		// rtPureFnDeps accumulates the pure-fn dependencies the family walkers record while rendering bodies
+		// below, validated against the program registration set for PFE9012 once the collection finishes.
+		// Only wired when entries render, so a plain rewrite scan collects nothing and the validation is a no-op.
 		var rtPureFnDeps []typefunctions.PureFnDepUse
 		var rtOpts typefunctions.RenderOpts
 		if renderEntries {
@@ -838,10 +734,9 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				response.RunTypes = scoped.RunTypes
 			}
 			if renderEntries {
-				// Override cfn entries (whole-program) ride the pure-fn collection
-				// so the type-fn redirects resolve their override dep modules. Kept
-				// out of the per-file pure-fn signals (replacements / addedPureFns)
-				// — those track registerPureFnFactory rewrites, not overrides.
+				// The whole-program override cfn entries ride the pure-fn collection so the type-fn redirects
+				// resolve their override dep modules. Kept out of the per-file pure-fn signals (replacements /
+				// addedPureFns), which track registerPureFnFactory rewrites, not overrides.
 				allPureFns := append(append([]purefunctions.Entry(nil), pureFnEntries...), sess.overrideEntries...)
 				modules, _, modulesErr := sess.collectEntryModules(scoped, rtOpts, purefunctions.CollectEntries(allPureFns, sess.opts.EmitMode), metrics)
 				if modulesErr != nil {
@@ -852,23 +747,16 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 				}
 			}
 		}
-		// Flush RT diagnostics into the unified response.Diagnostics slice
-		// so the Vite plugin's reception loop surfaces them via this.warn.
+		// Flush into the unified response.Diagnostics slice, the only one the Vite plugin's reception loop reads.
 		response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
-		// PFE9012: any pure-fn dep an emitted body reaches whose registration
-		// is absent from the program is an Error the lint surface / build must
-		// see. No-op when nothing rendered (deps empty).
+		// PFE9012: a pure-fn dep an emitted body reaches whose registration is absent from the program is an
+		// Error the lint surface and the build must see.
 		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
 		return response
 	case protocol.OpDump:
-		// Ensure every source file in the Program has been scanned for
-		// marker calls before the dump is serialized. Without this,
-		// the Vite plugin's virtual-module load — which fires on the
-		// first import of any entry module — may run BEFORE the user's
-		// marker-bearing source files have been transformed (and
-		// therefore scanned). The eager scan amortises any per-file scan
-		// that hasn't happened yet, so OpDump always returns the
-		// complete picture.
+		// Every source file must be scanned for marker calls BEFORE the dump is serialized: the Vite plugin's
+		// virtual-module load fires on the first import of any entry module, which can precede the transform
+		// (and so the scan) of the user's marker-bearing files.
 		scanStart := time.Now()
 		if sess.Program != nil {
 			sess.scanAllProgramFiles()
@@ -884,17 +772,15 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			RunTypes: fullDump.RunTypes,
 			Sites:    fullDump.Sites,
 		}
-		// rtDiagnostics mirrors the OpScanFiles branch — one sink shared
-		// across the whole collection, flushed into response.Diagnostics
-		// once the render completes.
+		// One sink shared across the whole collection, as in the OpScanFiles branch.
 		var rtDiagnostics []diagnostics.Diagnostic
 		var rtPureFnDeps []typefunctions.PureFnDepUse
 		rtRooted, rtReaching := sess.buildProvenanceSites()
 		rtOpts := sess.rtRenderOpts(&rtDiagnostics, rtRooted, rtReaching)
 		rtOpts.PureFnDepSink = &rtPureFnDeps
 		pureFnGraph, pureFnsDiagnostics := sess.collectProgramPureFns(metrics)
-		// Marker diagnostics from the eager whole-program scan — same
-		// surfacing as OpGenerate (batchcompile consumes this response).
+		// Marker diagnostics from the eager whole-program scan, surfaced as in OpGenerate: batchcompile
+		// consumes this response.
 		response.Diagnostics = append(response.Diagnostics, sess.programScanDiagnostics...)
 		response.Diagnostics = append(response.Diagnostics, pureFnsDiagnostics...)
 		dumpBatchSites, dumpBatchDiagnostics := sess.collectProgramBatches()
@@ -906,17 +792,14 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		response.EntryModules = modules
 		response.Diagnostics = append(response.Diagnostics, rtDiagnostics...)
-		// PFE9012: dangling pure-fn deps in the whole-program dump — the path
-		// batchcompile drives, so a missing registration fails the build.
+		// PFE9012 on the whole-program dump, the path batchcompile drives, so a missing registration fails the build.
 		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
 		return response
 	case protocol.OpGenerate:
-		// Filesystem-output sibling of OpDump: the same full-program entry
-		// collection, but the modules are WRITTEN under <outDir>/types/ (real
-		// files the bundler resolves natively) instead of returned on the wire.
-		// The root is session config (--gen-dir > tsconfig genDir > inferred
-		// <srcDir>/.mion); the resolved path is echoed back so the
-		// dependency-free plugin can adopt an inference it cannot compute.
+		// Filesystem-output sibling of OpDump: the same full-program collection, but the modules are WRITTEN
+		// under <outDir>/types/ as real files the bundler resolves natively. The root is session config
+		// (--gen-dir > tsconfig genDir > inferred <srcDir>/.mion) and is echoed back, so the dependency-free
+		// plugin can adopt an inference it cannot compute itself.
 		outDir := sess.resolveOutDir()
 		if outDir == "" {
 			return protocol.Response{Error: "generate: could not resolve an output dir (no --gen-dir, no tsconfig genDir, no inferable srcDir)"}
@@ -942,29 +825,23 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if genErr != nil {
 			return protocol.Response{Error: genErr.Error()}
 		}
-		// The bundled-API lane (a client built with bundleApi): every dispatch
-		// site of the program, resolved and written under <outDir>/api/. Their
-		// files join SiteFiles (a file whose only marker use is `.call()` still
-		// needs the transform). Off, the lane removes a stale api/ tree.
+		// The bundleApi lane resolves every dispatch site of the program and writes it under <outDir>/api/.
+		// Their files join SiteFiles: a file whose only marker use is `.call()` still needs the transform.
+		// With the lane off, a stale api/ tree is removed.
 		apiSites, apiSiteDiagnostics := sess.collectProgramApiSites()
 		apiGenDiagnostics, apiErr := sess.generateApiBundle(outDir, apiSites)
 		if apiErr != nil {
 			return protocol.Response{Error: "generate: " + apiErr.Error()}
 		}
-		// Whole-program batch sites: their files join SiteFiles (a file whose only
-		// marker use is `batch([...])` still needs the transform), and the
-		// cross-file BAT003 collisions are only visible from here.
+		// Whole-program batch sites: their files join SiteFiles (a file whose only marker use is `batch([...])`
+		// still needs the transform), and a cross-file BAT003 collision is visible only from here.
 		genBatchSites, genBatchDiagnostics := sess.collectProgramBatches()
-		// The batch transport: a program that is a server (it creates the
-		// router, or at least names `@mionjs/router`) reads the batch source —
-		// this program, or the clientTsconfig one — and writes <outDir>/rpc/.
-		// The router-init modules are the ones the transform appends the batch
-		// import to; they join SiteFiles too, since a module whose only marker
-		// use is `createMionRouter()` still needs the transform. A program that
-		// never names the router (a client) has nothing to serve the table to,
-		// so none is written and a stale one is removed. A server whose router
-		// is created behind a wrapper the detector cannot see gets the table and
-		// a BAT009 warning: the import is then the author's to write.
+		// The batch transport: a server program (it creates the router, or at least names `@mionjs/router`)
+		// reads the batch source, this program or the clientTsconfig one, and writes <outDir>/rpc/.
+		// Router-init modules are the ones the transform appends the batch import to, so they join SiteFiles too.
+		// A program that never names the router has nothing to serve the table to: none is written, a stale one
+		// is removed. A server whose router hides behind a wrapper the detector cannot see gets the table plus a
+		// BAT009 warning, and the import is then the author's to write.
 		routerInitFiles := sess.routerInitFiles()
 		var rpc rpcCollection
 		if len(routerInitFiles) > 0 || sess.importsRouter() {
@@ -988,13 +865,11 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		if batchesModule != "" && len(routerInitFiles) == 0 {
 			genResponse.Diagnostics = append(genResponse.Diagnostics, diagnostics.New(diagnostics.CodeBatchNoRouterInit, diagnostics.Site{}, batchesModule))
 		}
-		// Echo the tsconfig plugin's downgradeErrors (nil when unset) so the
-		// dependency-free host can adopt a tsconfig-only setting, same as OutDir.
+		// Echoed like OutDir, so the dependency-free host can adopt a tsconfig-only setting.
 		genResponse.DowngradeErrors = sess.opts.TsconfigDowngradeErrors
-		// Pure-fn build report (opt-in): populate the structured records for the
-		// in-process callback, and — when file output is enabled — write the JSON
-		// file alongside the generated modules so out-of-process consumers (a
-		// separate server build, the --compile lane) read it from disk.
+		// The opt-in build report feeds the in-process callback; with file output on it is also written beside
+		// the generated modules, which is how an out-of-process consumer (a separate server build, the
+		// --compile lane) reads it.
 		if report := sess.collectPureFnReport(metrics); report != nil {
 			genResponse.PureFnSites = report
 			if sess.opts.PureFnReportFile {
@@ -1017,9 +892,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genBatchDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiSiteDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, apiGenDiagnostics...)
-		// Marker diagnostics from the eager whole-program scan (MKR/CTA/TMP…)
-		// — persisted by scanAllProgramFiles; without this, buildStart (which
-		// consumes THIS response) never sees them.
+		// The marker diagnostics scanAllProgramFiles persisted; without this, buildStart, which consumes THIS
+		// response, never sees them.
 		genResponse.Diagnostics = append(genResponse.Diagnostics, sess.programScanDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genPureFnsDiagnostics...)
 		genResponse.Diagnostics = append(genResponse.Diagnostics, genDiagnostics...)
@@ -1047,12 +921,10 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		}
 		return protocol.Response{TsCompileMs: ms}
 	case protocol.OpTransform:
-		// The compiler-driven transform: scan the requested files exactly as
-		// OpScanFiles does (sites + pure-fn replacements), then apply the
-		// rewrite + source-map generation IN GO (internal/compiler/sourcerewrite)
-		// rather than handing offsets back to the JS plugin. Returns one
-		// TransformResult per file. The added* flags ride along so the thin
-		// Vite wrapper can still drive data-bundle HMR off this single call.
+		// The compiler-driven transform: scan the requested files exactly as OpScanFiles does, then do the
+		// rewrite and source-map generation IN GO (internal/compiler/sourcerewrite) instead of handing offsets
+		// back to the JS plugin. The added* flags ride along so the thin Vite wrapper can still drive
+		// data-bundle HMR off this single call.
 		if sess.Program == nil {
 			return protocol.Response{Error: "transform: no Program loaded — call setSources first"}
 		}
@@ -1075,21 +947,17 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		transformBatchSites, batchDiagnostics, batchReplacements := sess.extractBatchesForScan(request.Files)
 		sess.noteOwnBatches(transformBatchSites)
 		_, apiDiagnostics, apiReplacements := sess.extractApiSitesForScan(request.Files)
-		// Override arg-nulling replacements (scoped to the requested files) join
-		// the pure-fn factory nullings, the batch-id splices, the bundled-API
-		// bindings and the batch transport's import (appended to every
-		// router-init module); all are partitioned per file below.
+		// Override arg-nullings join the pure-fn factory nullings, the batch-id splices, the bundled-API
+		// bindings and the batch transport's import; all are partitioned per file below.
 		allReplacements := append(append(append(append([]protocol.Replacement(nil), pureFnReplacements...), batchReplacements...), apiReplacements...), sess.collectOverrideReplacements(request.Files)...)
 		allReplacements = append(allReplacements, sess.routerInitReplacements(request.Files)...)
 		sites = sess.stampSiteModules(sites)
 		added := sess.cache.Added(before)
 		addedRunTypes := len(added) > 0
-		// Apply the rewrite per file. Sites/replacements come back flat across
-		// all requested files, so partition them by File. Source text is read
-		// from the Program (the authoritative bytes Site.Pos byte-offsets index).
+		// Sites and replacements come back flat across all requested files, so partition them by File. Source
+		// text comes from the Program: those are the authoritative bytes Site.Pos offsets index.
 		transformed := make(map[string]protocol.TransformResult, len(request.Files))
-		// Files-mode relativization is a session posture (Options.TransformRelative),
-		// so the output root resolves ONCE for the whole request instead of per file.
+		// Relativization is a session posture (Options.TransformRelative), so the root resolves ONCE per request.
 		transformOutDir := ""
 		if sess.opts.TransformRelative {
 			transformOutDir = sess.resolveOutDir()
@@ -1114,17 +982,14 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			}
 			source := sourceFile.Text()
 			if request.EmitEdits {
-				// 'edits' mode: hand the FE the raw edit list instead of the
-				// rewritten file + map. ComputeEdits shares Apply's insertion /
-				// import-block machinery, so applying these edits with the FE's
-				// EditBuffer reproduces Apply's output byte-for-byte. The
-				// SourceHash lets the FE detect an upstream pre-plugin that
-				// edited the source out from under the resolver's byte offsets.
+				// 'edits' mode hands the FE the raw edit list instead of the rewritten file + map.
+				// ComputeEdits shares Apply's insertion / import-block machinery, so applying these edits
+				// with the FE's EditBuffer reproduces Apply's output byte for byte. SourceHash lets the FE
+				// detect an upstream pre-plugin that edited the source out from under our byte offsets.
 				importBlock, edits := sourcerewrite.ComputeEdits(source, fileSites, fileReplacements)
 				if importBlock != "" && transformOutDir != "" {
-					// Files-mode: relativize the injected block's rtmod:
-					// specifiers exactly as 'go' mode does to the whole file —
-					// the block is the only place those specifiers appear.
+					// The injected block is the only place rtmod: specifiers appear, so relativizing it
+					// matches what 'go' mode does to the whole file.
 					importBlock = relativizeUserImports(sess.absPath(file), transformOutDir, importBlock)
 				}
 				transformed[file] = protocol.TransformResult{
@@ -1137,24 +1002,19 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			}
 			code, sourceMap := sourcerewrite.Apply(file, source, fileSites, fileReplacements)
 			if transformOutDir != "" {
-				// Files-mode: rewrite the injected import block's rtmod:
-				// specifiers to paths relative to this file (the generated
-				// modules live on disk under <outDir>/types). Both bases are
-				// absolute so filepath.Rel always relates them. The block is one
-				// physical line, so this leaves the source map valid.
+				// Rewrite the injected block's rtmod: specifiers relative to this file, where the generated
+				// modules live on disk. Both bases are absolute, so filepath.Rel always relates them, and
+				// the block is one physical line, so the source map stays valid.
 				code = relativizeUserImports(sess.absPath(file), transformOutDir, code)
 			}
 			if sess.opts.OmitSourcesContent && sourceMap != nil {
-				// Drop the embedded original source — the bundler fills it from
-				// its own copy when composing the chained map. One nil slot per
-				// source keeps the array length aligned with Sources.
+				// The bundler fills the original source from its own copy when composing the chained map.
+				// One nil slot per source keeps the array length aligned with Sources.
 				sourceMap.SourcesContent = make([]*string, len(sourceMap.Sources))
 			}
-			// SourceHash rides go-mode too (8 bytes) so the plugin can DETECT an
-			// upstream pre-plugin that edited the source before us — 'go' rebuilds
-			// from the resolver's view and would otherwise clobber that edit
-			// silently. The plugin warns on mismatch; the transform itself is
-			// unaffected either way.
+			// SourceHash rides go-mode too (8 bytes) so the plugin can DETECT an upstream pre-plugin that
+			// edited the source before us: 'go' rebuilds from the resolver's view and would otherwise clobber
+			// that edit silently. The plugin warns on mismatch; the transform itself is unaffected either way.
 			transformed[file] = protocol.TransformResult{
 				Code:       code,
 				Map:        sourceMap,
@@ -1181,11 +1041,9 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 	}
 }
 
-// dispatchSetSources builds an inferred Program from the supplied overlay
-// and swaps it into the resolver. Relative file names are resolved against
-// the working directory the resolver's previous Program had (or, on first
-// call before any Program exists, against os.Getwd at start — but we don't
-// have that here; main passes an absCwd via Options for server mode).
+// dispatchSetSources builds an inferred Program from the supplied overlay and swaps it into the resolver.
+// Relative file names resolve against Options.Cwd (main passes an absolute one for server mode), falling back to
+// the previous Program's own working directory.
 func (sess *Session) dispatchSetSources(sources map[string]string) error {
 	if sources == nil {
 		sources = map[string]string{}
@@ -1199,14 +1057,10 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 	}
 	cwd = tspath.NormalizePath(cwd)
 
-	// Parse the project tsconfig ONCE per session (cwd + tsconfig path are fixed
-	// for the session lifetime) and adopt its options wholesale in every inferred
-	// Program, so daemon rebuilds type-check exactly like the build. Strict like
-	// tsc: a named config that is missing or broken fails the op — CFG001 tags the
-	// message so lint hosts can synthesize the catalog diagnostic — and the done
-	// flag stays unset, so the next setSources re-parses and a fixed config heals
-	// without a respawn. (nil, nil) means no config was named: the fixed inferred
-	// defaults apply.
+	// Parsed ONCE per session and adopted wholesale in every inferred Program, so daemon rebuilds type-check
+	// exactly like the build. Strict like tsc: a named config that is missing or broken fails the op, with
+	// CFG001 tagging the message so lint hosts can synthesize the catalog diagnostic, and the next setSources
+	// re-parses, so a fixed config heals without a respawn. (nil, nil) means no config was named.
 	if _, err := sess.ensureInferredConfig(cwd); err != nil {
 		return fmt.Errorf("setSources: %s %v", diagnostics.CodeTsconfigLoadFailed, err)
 	}
@@ -1216,22 +1070,18 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 	for relativePath, content := range sources {
 		absolutePath := tspath.ResolvePath(cwd, relativePath)
 		overlay[absolutePath] = content
-		// A source under node_modules/ is a virtual PACKAGE file (an in-memory
-		// dependency the overlay serves to module resolution) — never a program
-		// root. tsc does not root node_modules either, and rooting a package's
-		// whole declaration tree changes the checker's instantiation order
-		// against the build lane (observed: the DataOnly<T> alias-recovery
-		// path stops matching when the marker package's dist rides the roots).
+		// A source under node_modules/ is a virtual PACKAGE file the overlay serves to module resolution,
+		// never a program root, as in tsc. Rooting a package's whole declaration tree changes the checker's
+		// instantiation order against the build lane: the DataOnly<T> alias-recovery path stops matching
+		// when the marker package's dist rides the roots.
 		if !strings.Contains(relativePath, "node_modules/") {
 			fileNames = append(fileNames, absolutePath)
 		}
 	}
-	// Root the config's declaration files alongside the request's sources: a
-	// `.d.ts` in the include set is exactly what tsc sees without an import and
-	// a source-rooted program loses (globals silently check as `any`). Only the
-	// `.d.ts` subset — full-project rooting would widen the whole-program ops
-	// (OpDump / OpGenerate / OpEnrich walk non-declaration program files) and
-	// pay a per-request parse of every project file on the lint lane.
+	// A `.d.ts` in the include set is what tsc sees without an import and a source-rooted program loses, leaving
+	// globals to check silently as `any`. Only that subset: rooting the full project would widen the
+	// whole-program ops (OpDump / OpGenerate / OpEnrich walk non-declaration files) and pay a per-request parse
+	// of every project file on the lint lane.
 	fileNames = program.UnionRoots(fileNames, sess.configDeclarationRoots)
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            cwd,
@@ -1245,47 +1095,31 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 	return sess.SetProgram(prog)
 }
 
-// extractPureFnsForScan runs the pure-fn extractor once per scanFiles
-// request and returns everything downstream code needs: the entries
-// (so the entry-module collection doesn't extract a second time), the wire
-// diagnostics, the byte-range replacements for the user's source
-// (factory-arg-to-binding), and a `changed` flag indicating that at
-// least one entry's bodyHash differs from the session index.
-//
-// The session index (pureFnKeys) is mutated in place so subsequent
-// scans see the new state. Removals are not detected here — a file
-// that drops one of its pure-fn calls still leaves the session entry
-// behind (matches the runTypes cache's structural-dedup contract;
-// the orphan is harmless until the next process restart).
+// extractPureFnsForScan runs the pure-fn extractor once per scanFiles request and returns everything downstream
+// needs: the entries (so the entry-module collection does not extract a second time), the wire diagnostics, the
+// factory-arg-to-binding replacements, and whether any entry is new to the session index.
+// That index (pureFnKeys) is mutated in place. Removals are NOT detected: a file that drops a pure-fn call leaves
+// the session entry behind, matching the runTypes cache's structural-dedup contract, harmless until a restart.
 func (sess *Session) extractPureFnsForScan(files []string) (entries []purefunctions.Entry, diagnostics []diagnostics.Diagnostic, replacements []protocol.Replacement, changed bool) {
 	if sess.Program == nil || len(files) == 0 {
 		return nil, nil, nil, false
 	}
 	entries, diagnostics = purefunctions.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.pureFnFileCache)
-	// A changed body IS a new key, because an id is the hash of the body that
-	// ships. So "did anything change" is just "did a key appear".
+	// A changed body IS a new key, since an id hashes the body that ships, so a new key is the whole change signal.
 	for _, entry := range entries {
 		if key := entry.Key(); !sess.pureFnKeys[key] {
 			sess.pureFnKeys[key] = true
 			changed = true
 		}
 	}
-	// Replacements are per CALL SITE, not per deduped entry: every registration
-	// site is rewritten (factory → binding, plus the id splice), including two
-	// same-file calls that share a body. RawEntries keeps
-	// those duplicate sites the entry dedup drops. `entries` (deduped) still drives
-	// pureFnKeys + diagnostics above.
+	// Replacements are per CALL SITE, not per deduped entry: every registration site is rewritten, two same-file
+	// calls sharing a body included, and RawEntries is what keeps the duplicate sites the entry dedup drops.
 	rawEntries := purefunctions.RawEntries(sess.checker, sess.marker, sess.Program, files, sess.pureFnFileCache)
-	// Do NOT rewrite the package's OWN built-in registration call sites. The
-	// package index (purefnindex) is the SOLE producer of built-in pure-fn
-	// MODULES, extracted on demand only when a fn body reaches one. An in-repo
-	// build resolves the package via `src/`, so the extractor sees the built-in
-	// registrations in pure-fns-utils.ts / *-pure-fns.ts; rewriting those factory
-	// args to `import 'rtmod:/pf/rt/…'` would DANGLE whenever the module isn't
-	// demanded (e.g. a file that imports the marker but calls no createX). Leaving
-	// them as plain `registerPureFnFactory(key, factory)` calls keeps the harmless
-	// runtime fallback registration (idempotent with the served tuple; hollowed in
-	// dist).
+	// Do NOT rewrite the package's OWN built-in registration call sites: purefnindex is the SOLE producer of
+	// built-in pure-fn MODULES, extracted only on demand. An in-repo build resolves the package via `src/`, so
+	// the extractor sees those registrations, and rewriting their factory args to `import 'rtmod:/pf/rt/…'`
+	// would DANGLE whenever the module is not demanded (a file that imports the marker but calls no createX).
+	// Left alone, they stay a harmless runtime fallback registration, idempotent with the served tuple.
 	userRaw := rawEntries[:0]
 	for _, entry := range rawEntries {
 		if purefnids.Has(entry.Key()) {
@@ -1297,11 +1131,9 @@ func (sess *Session) extractPureFnsForScan(files []string) (entries []purefuncti
 	return entries, diagnostics, replacements, changed
 }
 
-// extractBatchesForScan runs the request-batch extractor over one scanFiles /
-// transform request's files and returns the sites, their diagnostics, and the
-// batch-id point insertions for the user's source. Memoised per file
-// (batchFileCache). Cross-file conflicts are a whole-program concern
-// (collectProgramBatches), so a single-file scan never reports them.
+// extractBatchesForScan runs the request-batch extractor over one request's files and returns the sites, their
+// diagnostics, and the batch-id point insertions for the user's source; memoised per file (batchFileCache).
+// Cross-file conflicts belong to collectProgramBatches, so a single-file scan never reports them.
 func (sess *Session) extractBatchesForScan(files []string) (sites []requestbatch.Site, diagnostics []diagnostics.Diagnostic, replacements []protocol.Replacement) {
 	if sess.Program == nil || len(files) == 0 {
 		return nil, nil, nil
@@ -1310,23 +1142,17 @@ func (sess *Session) extractBatchesForScan(files []string) (sites []requestbatch
 	return sites, diagnostics, requestbatch.Replacements(sites)
 }
 
-// dispatchTsCompile runs the embedded tsgo through a full bind +
-// typecheck + emit pass on the resolver's current Program. Returns the
-// wall time in milliseconds. The emit output bytes are discarded — we
-// only care about timing. Does NOT walk markers, does NOT collect any
-// mion entry modules — this is the pure-TypeScript baseline
-// measurement the bench orchestrators record alongside the existing
-// scanFiles latency.
+// dispatchTsCompile runs the embedded tsgo through a full bind + typecheck + emit pass on the current Program and
+// returns the wall time in milliseconds. No markers, no entry modules: this is the pure-TypeScript baseline the
+// bench orchestrators record alongside the scanFiles latency.
 func (sess *Session) dispatchTsCompile() (float64, error) {
 	if sess.Program == nil || sess.Program.TS == nil {
 		return 0, errors.New("tsCompile: no Program loaded; call setSources first")
 	}
 	start := time.Now()
-	// EmitOptions.WriteFile is the sink for emitted bytes. Discard
-	// everything — the test is the timing, not the output.
 	options := compiler.EmitOptions{
 		WriteFile: func(_ string, _ string, _ *compiler.WriteFileData) error {
-			// discard emit output — only the timing matters here
+			// Discard the emitted bytes: only the timing matters here.
 			return nil
 		},
 	}
