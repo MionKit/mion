@@ -27,10 +27,10 @@ const routes = {
         return 'Success!';
     }),
 
-    // Compact lane: proves the packed serializer travels to bun too, not just node.
+    // Compact lane: proves the packed parser travels to bun too, not just node.
     compact: {
-        echo: mion.route((_ctx, message: string): string => message, {serializer: 'compact'}),
-        getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {serializer: 'compact'}),
+        echo: mion.route((_ctx, message: string): string => message, {parser: 'compact'}),
+        getSimpleUser: mion.route((_ctx, name: string, age: number): SimpleUser => ({name, age}), {parser: 'compact'}),
     },
 } satisfies Routes;
 

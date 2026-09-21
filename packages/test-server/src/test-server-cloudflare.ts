@@ -27,7 +27,7 @@ const getSharedData = () => ({auth: {me: null as any}});
 // ############# Routes #############
 
 // setup() creates the router that initializes these, once per call (resetRouter clears the once-guard).
-// The serializer is a build-time literal, so the `mutate` variant is a second route set, not an option.
+// The parser is a build-time literal, so the `mutate` variant is a second route set, not an option.
 const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
 const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
@@ -49,11 +49,11 @@ const cloudflareRoutes = {changeUserName, getDate, updateHeaders} satisfies Rout
 // `getDate` hands its own argument back, which is what carries those keys to the wire.
 const mutateRoutes = {
   changeUserName: mion.route((ctx: Context, user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname}), {
-    serializer: 'mutate',
+    parser: 'mutate',
   }),
   getDate: mion.route(
     (ctx: Context, dataPoint?: DataPoint): DataPoint => dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')},
-    {serializer: 'mutate'}
+    {parser: 'mutate'}
   ),
   updateHeaders,
 } satisfies Routes;
@@ -63,14 +63,14 @@ const mutateRoutes = {
 export interface CloudflareSetupOptions {
   /** URL prefix the handler strips before routing. */
   basePath?: string;
-  /** Default is `clone`; `mutate` answers with the in-place serializer. */
-  serializer?: 'mutate' | 'clone';
+  /** Default is `clone`; `mutate` answers with the in-place parser. */
+  parser?: 'mutate' | 'clone';
   defaultResponseHeaders?: Record<string, string>;
 }
 
 const CLOUDFLARE_SETUP_KEYS = [
   'basePath',
-  'serializer',
+  'parser',
   'defaultResponseHeaders',
 ] as const satisfies readonly (keyof CloudflareSetupOptions)[];
 
@@ -83,7 +83,7 @@ export async function setup(options?: CloudflareSetupOptions) {
     contextDataFactory: getSharedData,
     basePath: 'api/',
   });
-  router.initRoutes(options?.serializer === 'mutate' ? mutateRoutes : cloudflareRoutes);
+  router.initRoutes(options?.parser === 'mutate' ? mutateRoutes : cloudflareRoutes);
   const handler = createCloudflareHandler({
     basePath: options?.basePath ?? '',
     defaultResponseHeaders: options?.defaultResponseHeaders ?? {},

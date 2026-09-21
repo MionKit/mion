@@ -327,8 +327,8 @@ The strategy now selects the encoder, the decoder **and** the validator, so `ser
 three jobs. Params are parsed by the server and returns are parsed by the client, so `parser` covers
 both directions of the inbound half.
 
-Rename the option and every identifier built on the word: `SerializerStrategy`, `SerializerOption`,
-`SerializerPair`, `ResolvedSerializer`, `SerializerDirection`, `SerializerOf`, `SerializerLiteralGuard`,
+Rename the option and every identifier built on the word: `ParserStrategy`, `ParserOption`,
+`ParserPair`, `ResolvedParser`, `ParserDirection`, `ParserOf`, `ParserLiteralGuard`,
 and the module files `core/src/serializer.ts`, `router/src/types/serializer.ts`,
 `router/src/serializer.spec.ts`.
 
@@ -353,7 +353,7 @@ degrading it to `mutate`. An error beats a silent downgrade.
 
 Runtime sites that enumerate the strategies:
 
-- `packages/core/src/serializer.ts:18` `SERIALIZER_STRATEGIES`, which drives `isSerializerStrategy`
+- `packages/core/src/serializer.ts:18` `PARSER_STRATEGIES`, which drives `isParserStrategy`
   and the error text in `directionOf`.
 - `packages/core/src/constants.ts:88` `ENCODE_FAMILY_BY_STRATEGY` — `mutateStrict` maps to
   `prepareForJsonMutate`.
@@ -362,7 +362,7 @@ Runtime sites that enumerate the strategies:
 - `packages/core/src/routerUtils.ts:118` `getJitFnHashes` — needs work, because `isType` / `typeErrors`
   are strategy-independent today and now must vary per strategy.
 - **Go mirror** `ts-go-runtypes/internal/compiler/resolver/apigen.go:517` `encodeFamily` /
-  `serverDecodeFamily` / `clientDecodeFamily`, plus `serializerStrategies` at `:503`. The resolver
+  `serverDecodeFamily` / `clientDecodeFamily`, plus `parserStrategies` at `:503`. The resolver
   binary must be rebuilt.
 
 Type-level twins in `packages/router/src/types/serializer.ts`: `EncodeFamily` (:32),
@@ -385,7 +385,7 @@ alias wrapped around an `InjectTypeFnArgs` marker hides it from the scanner (the
 
 `strategyFromFamilies` (`packages/core/src/runtypes/mionAdapter.ts:192`) infers the strategy purely
 from the injected encode family. `mutate` and `mutateStrict` share `prepareForJsonMutate`, so
-`STRATEGY_BY_ENCODE_FAMILY` stops being one-to-one and `assertCompiledSerializer`
+`STRATEGY_BY_ENCODE_FAMILY` stops being one-to-one and `assertCompiledParser`
 (`packages/router/src/lib/reflection.ts:126`) would throw on every `mutateStrict` route.
 
 **Chosen: the validate family breaks the tie.** Three lines at `mionAdapter.ts:209`:
@@ -435,7 +435,7 @@ Its example is literally this option, at `ts-go-runtypes/internal/diagnostics/me
 ```
 
 Replace with `sanitizeParams`, a boolean of the same shape that survives. Not `parser`, which has its
-own guard (`SerializerLiteralGuard`, CTA001/CTA004) so a widened one never reaches MET006. Then
+own guard (`ParserLiteralGuard`, CTA001/CTA004) so a widened one never reaches MET006. Then
 regenerate `packages/devtools/src/core/go-generated/diagnosticCatalog.generated.ts` and
 `container/website/app/components/content/go-generated/diagnostics-catalog.json`.
 
@@ -572,7 +572,7 @@ meows:true, zzz:9}`, a key belonging to nobody) is asserted as the case that mus
   assertions become which VALIDATE family each strategy compiles.
 - `mionRouter.spec.ts:188-282` — every `strictTypes` key leaves both the type literal and the runtime
   object.
-- `packages/core/src/serializer.spec.ts:9-15` asserts `SerializerStrategy extends JsonEncoderStrategy`.
+- `packages/core/src/serializer.spec.ts:9-15` asserts `ParserStrategy extends JsonEncoderStrategy`.
   **Adding `mutateStrict` breaks this at type level**, since run-types has no such encoder strategy.
   Reframe it to map `mutateStrict` onto `mutate` for the encoder.
 - `packages/core/src/runtypes/mionAdapter.spec.ts` needs a `mutateStrict` fixture, including a RETURN

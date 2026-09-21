@@ -14,24 +14,26 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 /** RunTypes also offers `direct`; mion does not, it costs 3x the memory of `clone` and 2x the time for identical bytes.
  *  Written out rather than `Exclude`d from the RunTypes union: a conditional here is paid once per route. */
-export type SerializerStrategy = 'clone' | 'mutate' | 'compact';
+export type ParserStrategy = 'clone' | 'mutate' | 'compact';
 /** One strategy per direction, either optional. An interface: cheaper in the type budget than a literal. */
-export interface SerializerPair {
-  params?: SerializerStrategy;
-  return?: SerializerStrategy;
+export interface ParserPair {
+  params?: ParserStrategy;
+  return?: ParserStrategy;
 }
-/** The `serializer` option on the router factory and on route / middleFn options: a string sets both directions. */
-export type SerializerOption = SerializerStrategy | SerializerPair;
+/** The `parser` option on the router factory and on route / middleFn options: a string sets both directions. */
+export type ParserOption = ParserStrategy | ParserPair;
 /** The resolved per-direction pair every executable carries and the methods metadata ships. */
-export interface ResolvedSerializer {
-  params: SerializerStrategy;
-  return: SerializerStrategy;
+export interface ResolvedParser {
+  params: ParserStrategy;
+  return: ParserStrategy;
 }
 /** The direction names the machine that decodes that wire. */
-export type SerializerDirection = keyof ResolvedSerializer;
+export type ParserDirection = keyof ResolvedParser;
 // A route response is always a JSON-safe value the adapter stringifies; `stringifyJson` covers the
 // REQUEST body and the client's own wire.
 
+// NOT the `parser` strategy: these three name how the BODY is framed on the wire. Same word, different concept,
+// which is why the strategy rename left them alone.
 export const SerializerModes = {
   /** the body is a JSON-safe value; the platform adapter runs JSON.stringify */
   json: 1,
@@ -126,7 +128,7 @@ export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Requi
 
 /** The JSON pair compiled for ONE strategy and ONE direction. */
 export interface JitJsonFunctions {
-  strategy: SerializerStrategy;
+  strategy: ParserStrategy;
   encode: MionTypeFn<JsonEncodeFn>;
   decode: MionTypeFn<JsonDecodeFn>;
 }

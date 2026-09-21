@@ -157,7 +157,7 @@ describe('Client Routes should', () => {
 
   const defaultRouteOpts: RouteOnlyOptions = {
     alwaysRun: false,
-    serializer: {params: 'clone', return: 'clone'},
+    parser: {params: 'clone', return: 'clone'},
     validateParams: true,
     validateReturn: false,
     description: undefined,
@@ -171,7 +171,7 @@ describe('Client Routes should', () => {
     validateParams: true,
     validateReturn: false,
     description: undefined,
-    serializer: {params: 'clone', return: 'clone'},
+    parser: {params: 'clone', return: 'clone'},
   };
 
   const methodsMetadata = {
@@ -443,7 +443,7 @@ describe('the methodsMetadata middleFn answers on the json framing every chain u
 
   it('reaches the client through the body alongside a mutate route answer', async () => {
     await expectMetadataInBody({
-      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: 'mutate'}),
+      sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {parser: 'mutate'}),
     } satisfies Routes);
   });
 

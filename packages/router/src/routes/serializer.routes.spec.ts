@@ -50,17 +50,17 @@ const routes = {
 // declared return value. Used below to pin what happens to an error it never declared.
 const compactRoutes = {
   auth: routes.auth,
-  getUser: mion.route((ctx, name: string): User => ({name, age: 1, lastActivity}), {serializer: 'compact'}),
+  getUser: mion.route((ctx, name: string): User => ({name, age: 1, lastActivity}), {parser: 'compact'}),
 } satisfies Routes;
 
-// The same routes answering with the `mutate` serializer: it rewrites in place, so the body still holds
+// The same routes answering with the `mutate` parser: it rewrites in place, so the body still holds
 // the objects the handlers returned (a Date stays a Date until the platform stringifies it).
 const mutateRoutes = {
   auth: routes.auth,
   users: {
-    updateUser: mion.route((ctx, user: User): User => ({...user, lastActivity}), {serializer: {return: 'mutate'}}),
+    updateUser: mion.route((ctx, user: User): User => ({...user, lastActivity}), {parser: {return: 'mutate'}}),
   },
-  sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {serializer: {return: 'mutate'}}),
+  sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {parser: {return: 'mutate'}}),
   logs: routes.logs,
 } satisfies Routes;
 

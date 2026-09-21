@@ -32,11 +32,11 @@ import {
   isTestEnv,
   resetRoutesCache,
   getOrCreateGlobal,
-  resolveSerializer,
+  resolveParser,
   DEFAULT_MAX_BODY_SIZE,
   SerializerModes,
 } from '@mionjs/core';
-import {getRawMethodReflection, getHandlerReflection, assertCompiledSerializer} from './lib/reflection.ts';
+import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
 import {callerForType} from './dispatch.ts';
 import {serializerMiddleFns} from './routes/serializer.routes.ts';
@@ -488,7 +488,7 @@ export function getExecutableFromMiddleFn(
 
   let executable: MixedMiddleFn;
   {
-    const serializer = resolveSerializer(middleFn.options?.serializer, routerOptions.serializer, middleFnId);
+    const parser = resolveParser(middleFn.options?.parser, routerOptions.parser, middleFnId);
     const reflectionData = getHandlerReflection(
       middleFn,
       middleFnId,
@@ -497,7 +497,7 @@ export function getExecutableFromMiddleFn(
       isHeader,
       middleFn.options?.strictTypes
     );
-    assertCompiledSerializer(middleFnId, serializer, reflectionData);
+    assertCompiledParser(middleFnId, parser, reflectionData);
     const middleFnType = isHeader ? HandlerType.headersMiddleFn : HandlerType.middleFn;
     executable = {
       id: middleFnId,
@@ -515,7 +515,7 @@ export function getExecutableFromMiddleFn(
         validateParams: middleFn.options?.validateParams ?? true,
         validateReturn: middleFn.options?.validateReturn ?? false,
         description: middleFn.options?.description,
-        serializer,
+        parser,
         strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: middleFn.options?.sanitizeParams ?? routerOptions.sanitizeParams,
       },
@@ -566,7 +566,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
 
   let executable: RouteMethod;
   {
-    const serializer = resolveSerializer(route.options?.serializer, routerOptions.serializer, routeId);
+    const parser = resolveParser(route.options?.parser, routerOptions.parser, routeId);
     const reflectionData = getHandlerReflection(
       route,
       routeId,
@@ -575,7 +575,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
       false,
       route.options?.strictTypes
     );
-    assertCompiledSerializer(routeId, serializer, reflectionData);
+    assertCompiledParser(routeId, parser, reflectionData);
     executable = {
       id: routeId,
       type: HandlerType.route,
@@ -591,7 +591,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         validateParams: route.options?.validateParams ?? true,
         validateReturn: route.options?.validateReturn ?? false,
         description: route.options?.description,
-        serializer,
+        parser,
         isMutation: route.options?.isMutation,
         strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
         sanitizeParams: route.options?.sanitizeParams ?? routerOptions.sanitizeParams,

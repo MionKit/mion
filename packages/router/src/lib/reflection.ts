@@ -6,7 +6,7 @@
  * ######## */
 
 import type {MethodWithJitFns} from '@mionjs/core';
-import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, type ResolvedSerializer} from '@mionjs/core';
+import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, type ResolvedParser} from '@mionjs/core';
 import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
@@ -126,7 +126,7 @@ export function getRawMethodReflection(
 
 /** Checks each direction's compiled strategy against the resolved one: they differ only when the
  *  build saw a different literal than the runtime value. */
-export function assertCompiledSerializer(methodId: string, encoder: ResolvedSerializer, reflection: MethodReflect): void {
+export function assertCompiledParser(methodId: string, encoder: ResolvedParser, reflection: MethodReflect): void {
   const sides = [
     ['params', reflection.paramsJitHash, reflection.paramsJitFns],
     ['return', reflection.returnJitHash, reflection.returnJitFns],

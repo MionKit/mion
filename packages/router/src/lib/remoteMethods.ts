@@ -15,7 +15,7 @@ import {
   getRouterItemId,
   MAX_STACK_DEPTH,
   getJitFnHashes,
-  DEFAULT_SERIALIZER,
+  DEFAULT_PARSER,
   resolveCompiledPureFn,
   EMPTY_HASH,
   getOrCreateGlobal,
@@ -145,15 +145,15 @@ export function serializeMethodDeps(
   const {paramsJitHash, returnJitHash} = method;
   // an empty hash means no params, or a void return
   const utl = getRTUtils();
-  const serializer = method.options.serializer ?? DEFAULT_SERIALIZER;
+  const parser = method.options.parser ?? DEFAULT_PARSER;
   if (paramsJitHash !== EMPTY_HASH) {
-    const paramsJitHashes = getJitFnHashes(paramsJitHash, serializer.params, 'params');
+    const paramsJitHashes = getJitFnHashes(paramsJitHash, parser.params, 'params');
     for (const k in paramsJitHashes) {
       if (utl.getRT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     }
   }
   if (returnJitHash !== EMPTY_HASH) {
-    const returnJitHashes = getJitFnHashes(returnJitHash, serializer.return, 'return');
+    const returnJitHashes = getJitFnHashes(returnJitHash, parser.return, 'return');
     let foundAny = false;
     for (const k in returnJitHashes) {
       if (utl.getRT(returnJitHashes[k])) {

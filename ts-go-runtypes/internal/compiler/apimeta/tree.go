@@ -21,7 +21,7 @@ type Method struct {
 	Pointer   []string
 	NestLevel int
 	Type      int
-	// Options is the resolved options literal the API type carries, JSON-shaped (`serializer` nests).
+	// Options is the resolved options literal the API type carries, JSON-shaped (`parser` nests).
 	// A key whose value is not a literal is absent here and listed in WidenedOptions.
 	Options        map[string]any
 	WidenedOptions []string
@@ -204,7 +204,7 @@ func (walker *treeWalker) compiledType(typesType *checker.Type, name string) *ch
 }
 
 // readOptions copies a resolved options literal type into JSON-shaped values: `undefined` becomes an absent
-// key (the runtime object drops it too) and the `serializer` pair a nested object. A value that is not a
+// key (the runtime object drops it too) and the `parser` pair a nested object. A value that is not a
 // single literal is left absent and its dotted name reported in widened.
 func readOptions(typeChecker *checker.Checker, optionsType *checker.Type, prefix string) (map[string]any, []string) {
 	out := map[string]any{}

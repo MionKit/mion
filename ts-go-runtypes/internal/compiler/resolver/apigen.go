@@ -30,7 +30,7 @@ import (
 // `initRoutes` call), selects each route plus the middleFns in its chain, assigns the params / return /
 // headers type ids under the checker that owns them (`AssignIDUnder`, so an API resolved in another
 // program still lands in this session's cache), demands per type exactly the families the server's marker
-// slots name (types/serializer.ts MarkerSlots), and renders a SELF-CONTAINED module tree under
+// slots name (types/parser.ts MarkerSlots), and renders a SELF-CONTAINED module tree under
 // <outDir>/api/ in `functions` emit mode whatever the program's own mode, a client never evaluating code
 // strings, plus the client manifest `mion api-check` reads. The transform needs none of that: a dispatch
 // site's injection is decided by its ids alone, so a client file rewrites before generate ever ran.
@@ -456,7 +456,7 @@ func (sess *Session) newApiMethodEntry(owner *checker.Checker, method *apimeta.M
 	entry := &apiMethodEntry{method: method}
 	entry.paramsId = sess.cache.AssignIDUnder(owner, method.Params)
 	entry.returnId = sess.cache.AssignIDUnder(owner, method.Return)
-	paramsStrategy, returnStrategy := serializerStrategies(method.Options)
+	paramsStrategy, returnStrategy := parserStrategies(method.Options)
 	paramsKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", "formatTransform", encodeFamily(paramsStrategy), serverDecodeFamily(paramsStrategy)}
 	returnKeys := []string{"validate", "validationErrors", "hasUnknownKeys", "unknownKeyErrors", encodeFamily(returnStrategy), clientDecodeFamily(returnStrategy)}
 	entry.paramsFns = apiFnSite(entry.paramsId, paramsKeys)
@@ -498,24 +498,24 @@ func apiFnSite(id string, fnKeys []string) protocol.Site {
 	return site
 }
 
-// serializerStrategies reads a method's `serializer` pair; a missing or widened direction falls back to `clone`.
-func serializerStrategies(options map[string]any) (params, ret string) {
+// parserStrategies reads a method's `parser` pair; a missing or widened direction falls back to `clone`.
+func parserStrategies(options map[string]any) (params, ret string) {
 	params, ret = "clone", "clone"
-	serializer, ok := options["serializer"].(map[string]any)
+	parser, ok := options["parser"].(map[string]any)
 	if !ok {
 		return params, ret
 	}
-	if value, ok := serializer["params"].(string); ok && value != "" {
+	if value, ok := parser["params"].(string); ok && value != "" {
 		params = value
 	}
-	if value, ok := serializer["return"].(string); ok && value != "" {
+	if value, ok := parser["return"].(string); ok && value != "" {
 		ret = value
 	}
 	return params, ret
 }
 
 // encodeFamily / serverDecodeFamily / clientDecodeFamily mirror the same names in
-// packages/router/src/types/serializer.ts and the maps in core's constants.ts; a disagreement makes
+// packages/router/src/types/parser.ts and the maps in core's constants.ts; a disagreement makes
 // strategyFromFamilies throw on the bundled lane.
 func encodeFamily(strategy string) string {
 	switch strategy {

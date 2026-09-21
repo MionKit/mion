@@ -1,7 +1,7 @@
 // ####### Executables #######
 
 import type {
-  SerializerOption,
+  ParserOption,
   HeadersMethodWithJitFns,
   MethodWithJitFns,
   RemoteMethodOpts,
@@ -47,7 +47,7 @@ export interface RawMethod<H extends RawMiddleFnHandler = any> extends RemoteMet
   };
 }
 
-// `serializer` is a BUILD-TIME literal: written inline or as an `as const` preset, or the build reports
+// `parser` is a BUILD-TIME literal: written inline or as an `as const` preset, or the build reports
 // CTA001 / CTA004. An unset direction falls back to the router-wide value, then to the built-in default.
 // Flat interfaces on purpose: a mapped or intersected shape costs measurably more in the
 // type-instantiation budget, paid on every route declaration.
@@ -80,22 +80,22 @@ interface MiddleFnOptionsBase {
 // parameter and MUST NOT gain one: a route overriding `{params: 'compact'}` would stop type-checking
 // against a router set to `clone`, and a parameterised `RouteOptions<RouterOpts>` would be a fresh
 // instantiation paid on EVERY route declaration, the exact cost the type budget tracks.
-// Inheritance lives in the two readers instead: the marker slot types (types/serializer.ts) and
-// `resolveSerializer` at runtime (router.ts).
+// Inheritance lives in the two readers instead: the marker slot types (types/parser.ts) and
+// `resolveParser` at runtime (router.ts).
 export interface PlainRouteOptions extends RouteOptionsBase {
-  serializer?: never;
+  parser?: never;
 }
-export interface RouteOptionsWithSerializer extends RouteOptionsBase {
-  serializer: SerializerOption;
+export interface RouteOptionsWithParser extends RouteOptionsBase {
+  parser: ParserOption;
 }
-export type RouteOptions = PlainRouteOptions | RouteOptionsWithSerializer;
+export type RouteOptions = PlainRouteOptions | RouteOptionsWithParser;
 export interface PlainMiddleFnOptions extends MiddleFnOptionsBase {
-  serializer?: never;
+  parser?: never;
 }
-export interface MiddleFnOptionsWithSerializer extends MiddleFnOptionsBase {
-  serializer: SerializerOption;
+export interface MiddleFnOptionsWithParser extends MiddleFnOptionsBase {
+  parser: ParserOption;
 }
-export type MiddleFnOptions = PlainMiddleFnOptions | MiddleFnOptionsWithSerializer;
+export type MiddleFnOptions = PlainMiddleFnOptions | MiddleFnOptionsWithParser;
 export type PlainHeadersMiddleFnOptions = PlainMiddleFnOptions;
 export type HeadersMiddleFnOptions = MiddleFnOptions;
 // RawMiddleFnOptions doesn't need encoding - raw middleFns handle their own serialization

@@ -7,7 +7,7 @@
 
 // ########################################## METHODS METADATA ##########################################
 
-import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, ResolvedSerializer} from './general.types.ts';
+import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, ResolvedParser} from './general.types.ts';
 
 /** Shared between client and server, with no dependency on the handler itself. */
 export interface MethodMetadata {
@@ -46,10 +46,10 @@ export interface RemoteMethodOpts {
   validateParams?: boolean;
   validateReturn?: boolean;
   description?: string;
-  /** The resolved serializer strategy per direction (route option, then router option, then the built-in
+  /** The resolved parser strategy per direction (route option, then router option, then the built-in
    *  default). Always resolved on an executable, and rides the methods metadata so the client picks the
    *  matching compiled functions. */
-  serializer?: ResolvedSerializer;
+  parser?: ResolvedParser;
   /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
   isMutation?: boolean | undefined;
   /** Per-route strictTypes, already resolved (route option ?? router option), so it also rides the methods
@@ -72,7 +72,7 @@ export interface RemoteMethodOpts {
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {
   alwaysRun: false;
-  serializer: ResolvedSerializer;
+  parser: ResolvedParser;
 }
 export interface MethodWithOptions extends MethodMetadata {
   options: RemoteMethodOpts;

@@ -54,7 +54,7 @@ describe('strictTypes on a param whose type is a union with a Record member', ()
         received = thing;
         return 'ok';
       },
-      {serializer: {params: 'mutate'}}
+      {parser: {params: 'mutate'}}
     );
     mion.initRoutes({echo});
 

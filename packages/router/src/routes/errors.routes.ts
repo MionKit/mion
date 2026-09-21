@@ -13,10 +13,10 @@ import {route, rawMiddleFn} from '../lib/handlers.ts';
 // mion's own routes, registered by initRouter for every app. Declared at module level rather than
 // through the router factory: a marker call site inside the generic `createMionRouter` would carry an
 // unresolved type parameter and `initRouter` takes the widened options type, so either way the build
-// compiles them against the built-in default serializer. So each one PINS that default: without the
-// pin the runtime resolves the router-wide `serializer`, it disagrees with what the build compiled,
+// compiles them against the built-in default parser. So each one PINS that default: without the
+// pin the runtime resolves the router-wide `parser`, it disagrees with what the build compiled,
 // and the router refuses to start.
-const DEFAULT_WIRE = {serializer: {params: 'clone', return: 'clone'}} as const;
+const DEFAULT_WIRE = {parser: {params: 'clone', return: 'clone'}} as const;
 
 export const mionErrorsRoutes = {
   /** A route only to reuse the router's (de)serialization: "@thrownErrors" is a response body field holding

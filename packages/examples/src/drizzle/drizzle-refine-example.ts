@@ -47,6 +47,6 @@ export const checks = [
   validateUser({...mockUser(), age: 17}), // false: refined min 18
 ];
 
-// The serializer pair keeps createdAt a REAL Date across the JSON wire:
+// The parser pair keeps createdAt a REAL Date across the JSON wire:
 const wire = encodeUser(mockUser())!; // a JSON string, the Date made wire-safe
 export const restored = decodeUser(wire); // restored.createdAt instanceof Date

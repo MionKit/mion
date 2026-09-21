@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CoreRouterOptions, SerializerStrategy} from './types/general.types.ts';
+import type {CoreRouterOptions, ParserStrategy} from './types/general.types.ts';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
   autoGenerateErrorId: false,
@@ -107,7 +107,7 @@ export const STRATEGY_BY_ENCODE_FAMILY = {
 export const DECODE_SIDE_BY_DIRECTION = {params: 'server', return: 'client'} as const;
 export type DecodeSide = (typeof DECODE_SIDE_BY_DIRECTION)[keyof typeof DECODE_SIDE_BY_DIRECTION];
 export type EncodeFamily = (typeof ENCODE_FAMILY_BY_STRATEGY)[keyof typeof ENCODE_FAMILY_BY_STRATEGY];
-export type DecodeFamily = (typeof DECODE_FAMILY_BY_STRATEGY)[SerializerStrategy][DecodeSide];
+export type DecodeFamily = (typeof DECODE_FAMILY_BY_STRATEGY)[ParserStrategy][DecodeSide];
 
 /** Used when no params exist or the return type is void: no JIT functions are generated. */
 export const EMPTY_HASH = '';
