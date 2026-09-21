@@ -71,15 +71,20 @@ export interface LintWorkerRequest {
   // Resolver binary, same one-shot rule as tsconfig: the first request's value
   // opens the connection and every later one rides it.
   binary?: string;
-  // Which packages may declare the marker types, mirroring the tsconfig
-  // `markers` key. The resolver reads the tsconfig itself, so this exists for
-  // ONE reason: the cheap text pre-filter that decides whether a file is worth
-  // a resolver round trip matches on import specifiers, and a project whose
-  // markers come from its own package would otherwise have those files skipped
-  // before the resolver ever sees them. Set it to whatever the tsconfig
-  // `markers` block says.
-  markers?: {packages?: string[]; checkPackage?: boolean};
 }
+
+// The exact field set roundTrip() posts. `satisfies` keeps it exhaustive against
+// LintWorkerRequest and session.test.ts asserts the posted message against it, so
+// a field added here without a writer fails rather than sitting dead on the wire.
+// LintSessionOptions.markers is deliberately absent: marker packages are spawn
+// config the resolver folds in when it builds the Program, read from the tsconfig
+// the request already carries, so the rule-thread pre-filter is their only JS use.
+const LINT_WORKER_REQUEST_KEY_TABLE = {seq: true, file: true, text: true, tsconfig: true, binary: true} satisfies Record<
+  keyof LintWorkerRequest,
+  true
+>;
+
+export const LINT_WORKER_REQUEST_KEYS = Object.keys(LINT_WORKER_REQUEST_KEY_TABLE) as (keyof LintWorkerRequest)[];
 
 export interface LintWorkerResponse {
   seq: number;
