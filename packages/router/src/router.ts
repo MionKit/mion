@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/** Lightweight path join for error messages (avoids Node's 'path' module for edge compatibility) */
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general.ts';
 import type {
   RemoteMethod,
@@ -76,9 +75,9 @@ type RoutesWithId = {
 
 const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
-/** mion's two not-found chains (an unknown path, an unknown batch id). They are NOT routes and not
- *  in the router above: there is nothing to run, so each is the global middleFns behind a first
- *  member that throws. Rebuilt on every registration, because the global middleFns are. */
+/** mion's two not-found chains (an unknown path, an unknown batch id) are NOT routes and not in the
+ *  router above: each is the global middleFns behind a first member that throws, and is rebuilt on
+ *  every registration because those middleFns are. */
 const notFoundChains = getOrCreateGlobal('mion.router.notFoundChains', () => new Map<string, MethodsExecutionChain>());
 const middleFnsById = getOrCreateGlobal(
   'mion.router.middleFnsById',
@@ -97,7 +96,7 @@ let platformConfig: Record<string, unknown> | undefined;
 /** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
 let platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
 
-/** Global middleFns to be run before and after any other middleFns or routes set through `mion.initRoutes` */
+/** Run before and after every middleFn or route set through `mion.initRoutes` */
 const defaultStartMiddleFns = {
   mionDeserializeRequest: serializerMiddleFns.mionDeserializeRequest,
 };
@@ -107,9 +106,8 @@ const defaultEndMiddleFns = {
 };
 /** True once any registered method answers with a promise. */
 let hasAsyncMethods = false;
-/** What the dispatcher reads per request. Both of its inputs are fixed once registration is done:
- *  the router options are frozen and no further method can be registered, so it is resolved here
- *  rather than recomputed on every call. */
+/** What the dispatcher reads per request: both inputs are fixed once registration is done (the options
+ *  are frozen, no further method can register), so it is resolved there rather than on every call. */
 let alwaysAwait = false;
 let startMiddleFnsDef: MiddleFnsCollection = {...defaultStartMiddleFns};
 let endMiddleFnsDef: MiddleFnsCollection = {...defaultEndMiddleFns};
@@ -127,17 +125,15 @@ export const getRouteExecutable = (id: string) => routesById.get(id);
 export const getMiddleFnExecutable = (id: string) => middleFnsById.get(id);
 export const geMiddleFnsSize = () => middleFnsById.size;
 export const getComplexity = () => complexity;
-/** Whether ANY registered method answers with a promise. False means the whole router is
- *  synchronous, so the dispatcher can skip its awaits without changing a single result. */
+/** False means the whole router is synchronous, so the dispatcher can skip its awaits. */
 export const getHasAsyncMethods = () => hasAsyncMethods;
-/** Whether the dispatcher must await every chain step. The `alwaysAwait` option asks for it, and it
- *  is only honoured when there is something async to wait for. */
+/** The `alwaysAwait` option asks for it, and it is only honoured when there is something async to wait for. */
 export const getAlwaysAwait = () => alwaysAwait;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
-/** Sets platform adapter config. Called automatically by platform adapters. The adapter's
- *  `maxBodySize` and `maxBodySizeCap` are settled here, once, so no request reads the config. */
+/** Called automatically by platform adapters: the adapter's `maxBodySize` and `maxBodySizeCap` are
+ *  settled here, once, so no request reads the config. */
 export function setPlatformConfig(config: Record<string, unknown>): void {
   platformConfig = config;
   const published = config.maxBodySize;
@@ -146,13 +142,11 @@ export function setPlatformConfig(config: Record<string, unknown>): void {
     readMaxBodySizeCap(config) ?? Infinity
   );
   if (isRouterInitialized) applyMaxBodySizeCap();
-  // Unconditional, and NOT inside applyMaxBodySizeCap: that returns early when the adapter
-  // published no cap, while platformMaxBodySize still changed under every chain that declared
-  // nothing of its own.
+  // Unconditional, and NOT inside applyMaxBodySizeCap: that returns early when the adapter published no
+  // cap, while platformMaxBodySize still changed under every chain that declared nothing of its own.
   refreshChainBodyLimits();
 }
 
-/** Returns the platform adapter config set by setPlatformConfig(). */
 export const getPlatformConfig = (): Readonly<Record<string, unknown>> | undefined => platformConfig;
 
 export const resetRouter = () => {
@@ -179,27 +173,16 @@ export const resetRouter = () => {
   resetRemoteMethodsMetadata();
   resetRoutesCache();
   clearBatches();
-  // Note: We intentionally do NOT call resetJitFnCaches() here because:
-  // 1. JIT function caches are global and should persist across router resets
-  // 2. The serializableClassRegistry (cleared by resetJitFnCaches) is needed for
-  //    serialization/deserialization of classes like RpcError
-  // resetJitFnCaches() should only be called in specific test scenarios that need
-  // to test AOT cache loading behavior
+  // resetJitFnCaches() is deliberately NOT called: the JIT caches are global, and the
+  // serializableClassRegistry it clears is needed to (de)serialize classes like RpcError.
+  // Only a test of AOT cache loading calls it.
 };
 
-/**
- * Creates the router: the ONE way to initialize it and to declare routes and middleFns.
- * The options are written once and carried BY TYPE into every helper the factory returns
- * (`mion.route`, `mion.query`, `mion.mutation`, `mion.middleFn`, `mion.headersFn`, `mion.rawMiddleFn`),
- * so a handler's `ctx.shared` is typed from `contextDataFactory` and a later feature can read
- * router-wide defaults at build time. `mion.initRoutes(routes)` then initializes the singleton
- * router with those options and registers the routes.
- *
- * The helpers are plain closures (no `this`), so destructuring them is fine:
- * `const {route, middleFn} = createMionRouter({...})`.
- *
- * Create the router once per app: a second call throws until `resetRouter()` (tests) clears it.
- */
+/** The ONE way to initialize the router and to declare routes and middleFns: the options are written once
+ *  and carried BY TYPE into every helper the factory returns, so a handler's `ctx.shared` is typed from
+ *  `contextDataFactory` and router-wide defaults can be read at build time. The helpers are plain closures
+ *  (no `this`), so destructuring them is fine. Create the router once per app: a second call throws until
+ *  `resetRouter()` (tests) clears it. */
 export function createMionRouter<const O extends RouterOptionsInput = RouterOptionsInput>(
   opts?: RouterOptionsArg<O>
 ): MionRouter<O> {
@@ -244,14 +227,14 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   if (!isRouterInitialized) throw new Error('the router must be initialized first');
   startMiddleFns = getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
   endMiddleFns = getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
-  // the metadata middleFn is in every chain: give it the caller that skips its params pipeline when
-  // no client asked for metadata, which is every request but the ones that did
+  // the metadata middleFn is in every chain: give it the caller that skips its params pipeline unless a
+  // client asked for metadata
   const metadataMiddleFn = middleFnsById.get(MION_ROUTES.methodsMetadata);
   if (metadataMiddleFn) useOnDemandMetadataCaller(metadataMiddleFn as RemoteMethod);
   recursiveFlatRoutes(routes, [], [], [], 0);
   buildNotFoundChains();
-  // every method this call could register is registered, and the options are frozen, so the
-  // dispatcher's await rule is settled here instead of on every request
+  // every method this call could register is registered and the options are frozen, so the await rule is
+  // settled here instead of on every request
   alwaysAwait = routerOptions.alwaysAwait && hasAsyncMethods;
   allExecutablesIds = undefined; // the memoized id list must see the routes registered by this call
   if (shouldFullGenerateSpec()) {
@@ -260,7 +243,7 @@ function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
   return {} as PublicApi<R>;
 }
 
-/** Add middleFns at the start af the ExecutionChain, adds them before any other existing start middleFns by default */
+/** Adds middleFns at the start of the ExecutionChain, before the existing start middleFns by default */
 export function addStartMiddleFns(middleFnsDef: MiddleFnsCollection, appendBeforeExisting = true) {
   if (isRouterInitialized) throw new Error('Can not add start middleFns after the router has been initialized');
   if (appendBeforeExisting) {
@@ -270,7 +253,7 @@ export function addStartMiddleFns(middleFnsDef: MiddleFnsCollection, appendBefor
   startMiddleFnsDef = {...startMiddleFnsDef, ...middleFnsDef};
 }
 
-/** Add middleFns at the end af the ExecutionChain, adds them after any other existing end middleFns by default */
+/** Adds middleFns at the end of the ExecutionChain, after the existing end middleFns by default */
 export function addEndMiddleFns(middleFnsDef: MiddleFnsCollection, prependAfterExisting = true) {
   if (isRouterInitialized) throw new Error('Can not add end middleFns after the router has been initialized');
   if (prependAfterExisting) {
@@ -293,11 +276,9 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
   }
 }
 
-/** Whether the client needs metadata for an executable, which is what the metadata route hands out.
- *  Every route answers (routes ARE the public API), and so does every middleFn that takes params or
- *  headers or returns data: the client has to know how to encode the call and decode the answer.
- *  A raw middleFn, and a middleFn with neither params nor return data, never touch the wire, so
- *  there is nothing to describe. This is not an access control: hidden routes are not a feature. */
+/** What the metadata route hands out: every route (routes ARE the public API) plus every middleFn taking
+ *  params or headers or returning data, since the client must encode the call and decode the answer. A raw
+ *  middleFn, or one with neither params nor return data, never touches the wire. NOT access control. */
 export function hasClientMetadata(executable: RemoteMethod): boolean {
   if (executable.type === HandlerType.rawMiddleFn) return false;
   if (executable.type === HandlerType.route) return true;
@@ -323,14 +304,9 @@ export function shouldFullGenerateSpec(): boolean {
 
 // ############# PRIVATE METHODS #############
 
-/**
- * Optimized algorithm to flatten the routes object into a list of Executable objects.
- * @param routes
- * @param currentPointer current pointer in the routes object i.e. ['users', 'get']
- * @param preMiddleFns middleFns one level up preceding current pointer
- * @param postMiddleFns middleFns one level up  following the current pointer
- * @param nestLevel
- */
+/** Flattens the routes object into a list of Executable objects. `currentPointer` is the position in that
+ *  object (i.e. ['users', 'get']); `preMiddleFns` / `postMiddleFns` are the middleFns one level up, before
+ *  and after that position. */
 function recursiveFlatRoutes(
   routes: Routes,
   currentPointer: string[] = [],
@@ -348,7 +324,6 @@ function recursiveFlatRoutes(
   let minus1Props: ReturnType<typeof getRouteEntryProperties> | null = null;
   for (let index = 0; index < entries.length; index++) {
     const [key, item] = entries[index];
-    // create the executable items
     const newPointer = [...currentPointer, key];
     let routeEntry: RemoteMethod | RoutesWithId;
     if (typeof key !== 'string' || !isNaN(key as any))
@@ -360,7 +335,6 @@ function recursiveFlatRoutes(
     if (key === MION_BATCH_KEY)
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${MION_BATCH_KEY}' is a reserved mion route name.`);
 
-    // generates a middleFn
     if (isAnyMiddleFnDef(item)) {
       routeEntry = getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
       if (middleFnNames.has(routeEntry.id))
@@ -368,7 +342,6 @@ function recursiveFlatRoutes(
       middleFnNames.add(routeEntry.id);
     }
 
-    // generates a route
     else if (isRoute(item)) {
       routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
       if (routeNames.has(routeEntry.id))
@@ -376,7 +349,6 @@ function recursiveFlatRoutes(
       routeNames.add(routeEntry.id);
     }
 
-    // generates structure required to go one level down
     else if (isRoutes(item)) {
       routeEntry = {
         pathPointer: newPointer,
@@ -384,13 +356,11 @@ function recursiveFlatRoutes(
       };
     }
 
-    // throws an error if the route is invalid
     else {
       const itemType = typeof item;
       throw new Error(`Invalid route: ${joinPath(...newPointer)}. Type <${itemType}> is not a valid route.`);
     }
 
-    // recurse into sublevels
     minus1Props = recursiveCreateExecutionChain(
       routeEntry,
       newPointer,
@@ -475,9 +445,8 @@ function recursiveCreateExecutionChain(
   return props;
 }
 
-/** Builds the two chains declared above. The thrower goes first, so the dispatcher's own rule skips
- *  every later member that does not declare `alwaysRun`. `maxBodySize` is left unset, so the request
- *  takes the platform adapter's number. */
+/** The thrower goes first, so the dispatcher's own rule skips every later member that does not declare
+ *  `alwaysRun`. Nothing is declared, so the request takes the platform adapter's number. */
 function buildNotFoundChains(): void {
   notFoundChains.clear();
   const throwers = [
@@ -643,7 +612,6 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
   return executable;
 }
 
-/** Returns IDs of public middleware methods from the execution chain, excluding internal mion routes. */
 function getPublicMiddleFnIds(methods: RemoteMethod[]): string[] {
   const ids = methods
     .filter((exec) => isPublicExecutable(exec))
@@ -696,11 +664,6 @@ function getExecutablesFromMiddleFnsCollection(
   return results;
 }
 
-/**
- * Validates that a contextDataFactory returns a valid context data object.
- * @param contextDataFactory The factory function to validate
- * @throws Error if the factory doesn't return a plain object with at least one property
- */
 function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
   if (!opts?.contextDataFactory) return;
   const testSharedData = opts.contextDataFactory();
@@ -714,24 +677,22 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
   }
 }
 
-/** Path replacement as is not available in edge runtime */
+/** Hand-rolled: Node's 'path' module is not available in edge runtimes. */
 function joinPath(...parts: string[]): string {
   return parts.filter(Boolean).join('/');
 }
 
 // ############# PLATFORM SIZE LIMITS #############
 
-/** The request limit a route takes when its own option is unset and its types cannot say: the
- *  platform adapter's `maxBodySize`, published with its config when the server starts, else the
- *  shared default (a router driven with no adapter, as in tests). */
+/** What a route takes when its own option is unset and its types cannot say: the adapter's `maxBodySize`,
+ *  published with its config at start, else the shared default (a router driven with no adapter, as in tests). */
 export const getPlatformMaxBodySize = (): number => platformMaxBodySize;
 
 /** The platform's own request ceiling, when the adapter published one. */
 export const getPlatformRequestCap = (): number | undefined => readMaxBodySizeCap(platformConfig);
 
-/** The largest request limit any registered route or batch resolves to: what a platform with ONE
- *  native, server-wide read limit (bun) sets that limit to at start, so it never refuses a body a
- *  route allows. */
+/** The largest limit any registered route or batch resolves to: what a platform with ONE native,
+ *  server-wide read limit (bun) starts with, so it never refuses a body a route allows. */
 export function getMaxRouteBodySize(): number {
   let largest = getPlatformMaxBodySize();
   for (const chain of flatRouter.values()) largest = Math.max(largest, chain.maxBodySize);
@@ -744,10 +705,9 @@ function readMaxBodySizeCap(config: Record<string, unknown> | undefined): number
   return typeof cap === 'number' ? cap : undefined;
 }
 
-/** Nothing mion resolves passes the platform's own request ceiling: a route (or batch) limit, or
- *  the adapter's number, above it would promise a size the platform refuses before mion runs, so
- *  it is brought down to the ceiling. Applied once, when the adapter has published its config AND
- *  the routes are registered, whichever comes last. */
+/** A limit above the platform's ceiling would promise a size the platform refuses before mion ever runs,
+ *  so it is brought down. Applied once, when the adapter has published its config AND the routes are
+ *  registered, whichever comes last. */
 function applyMaxBodySizeCap(): void {
   const cap = readMaxBodySizeCap(platformConfig);
   if (cap === undefined) return;
@@ -760,11 +720,9 @@ function applyMaxBodySizeCap(): void {
   capBatchBodySizes(cap);
 }
 
-/** Re-folds every chain's `maxBodySize` from what it declared and what the platform now allows.
- *  The folded number is a cache over two inputs that both move after a chain is built: the cap
- *  above lowers what a chain declared, and `setPlatformConfig` replaces the fallback the chains
- *  that declared nothing are read against. Missing a refresh would silently refuse bodies a route
- *  allows, or allow bodies past a ceiling the platform promised, so it runs after BOTH. */
+/** `maxBodySize` caches two inputs that both move after a chain is built: the cap above lowers what a
+ *  chain declared, and `setPlatformConfig` replaces the fallback the chains that declared nothing read.
+ *  Missing a refresh refuses bodies a route allows, or allows bodies past the platform's ceiling. */
 function refreshChainBodyLimits(): void {
   for (const chain of flatRouter.values()) chain.maxBodySize = chain.declaredBodySize ?? platformMaxBodySize;
   for (const chain of notFoundChains.values()) chain.maxBodySize = chain.declaredBodySize ?? platformMaxBodySize;

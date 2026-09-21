@@ -13,14 +13,10 @@ import {serveFetchHandler} from './nodeWebBridge.ts';
 import type {MionServerOptions} from './mionVitePlugin.ts';
 
 // ############# in-process (middleware) server mode #############
-// Runs the mion API INSIDE the vite dev server: the entry is loaded through vite's own SSR pipeline
-// (`ssrLoadModule`, so it shares the module graph with the app) and its request handler is mounted
-// as connect middleware. This is the idiomatic "backend of a frontend" setup for Nuxt/SSR — one
-// process, one port.
-//
-// The "don't open a port" half is an ordinary platform option (`asMiddleware`) the plugin sets on
-// the adapter before loading the entry, so an unchanged entry works as written:
-// `mion.initRoutes(routes); startNodeServer();`
+// Runs the mion API INSIDE the vite dev server: the entry is loaded through `ssrLoadModule`, so it shares the
+// module graph with the app, and its handler is mounted as connect middleware. One process, one port. The
+// "don't open a port" half is an ordinary platform option (`asMiddleware`) the plugin sets on the adapter
+// before loading the entry, so an unchanged `initRoutes(routes); startNodeServer();` entry works as written.
 
 /** Node-style handler, as exported by @mionjs/platform-node. */
 type NodeHandler = (req: IncomingMessage, res: ServerResponse) => void;
@@ -31,9 +27,8 @@ type FetchHandler = (req: Request) => Response | Promise<Response>;
 const NODE_HANDLER_EXPORTS = ['httpRequestHandler'];
 const FETCH_HANDLER_EXPORTS = ['requestHandler', 'bunRequestHandler', 'fetch'];
 
-/** Paths never sent to mion when the router has no basePath (mion serving at the root). Same shape
- *  as @hono/vite-dev-server's defaults: vite internals, HMR pings and static assets must reach
- *  vite's own middlewares. Override with `server.exclude`. */
+/** Paths never sent to mion when the router has no basePath, the same shape as @hono/vite-dev-server's
+ *  defaults: vite internals, HMR pings and static assets must reach vite's own middlewares. */
 export const DEFAULT_MIDDLEWARE_EXCLUDE: RegExp[] = [
   /^\/@/, // /@vite/client, /@fs/…, /@id/…
   /^\/__vite/,
@@ -48,9 +43,8 @@ export const DEFAULT_MIDDLEWARE_EXCLUDE: RegExp[] = [
 export interface MiddlewareReadySignals {
   onReady: () => void;
   onError: (err: Error) => void;
-  /** The batch table module the resolver last generated (`<genDir>/rpc/batches.generated.js`),
-   *  '' when there is none: its first appearance is the one file event the module graph cannot
-   *  see, so the API is marked stale on it. */
+  /** The batch table module the resolver last generated, '' when there is none: its first appearance is the
+   *  one file event the module graph cannot see, so the API is marked stale on it. */
   batchesModuleOf?: () => string;
 }
 
@@ -99,9 +93,8 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
   /** Re-loads the entry after a source change: mion's router is global state, so it is reset
    *  first — `initRoutes` throws "Router has already been initialized" otherwise. */
   async function reload(server: ViteDevServer): Promise<void> {
-    // ssrLoadModule runs in the ssr environment, so the invalidation must hit THAT graph:
-    // under vite 8 the legacy mixed-graph module node no longer reaches the ssr instance,
-    // leaving the next ssrLoadModule serving the cached (stale) entry.
+    // ssrLoadModule runs in the ssr environment, so the invalidation must hit THAT graph: under vite 8 the
+    // legacy mixed-graph module node leaves the next ssrLoadModule serving the cached, stale entry.
     const ssrGraph = (server as any).environments?.ssr?.moduleGraph;
     const graph = ssrGraph ?? server.moduleGraph;
     const entryModule = await graph.getModuleByUrl(startScript, true);
@@ -115,9 +108,8 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
     name: 'mion-middleware-server',
 
     config() {
-      // Single-instance state matters here in a way it does not in a plain build: the API and
-      // the app share one SSR module graph, and two @mionjs/core instances mean two registries
-      // (core's own dual-load warning is the signal).
+      // The API and the app share one SSR module graph here, and two @mionjs/core instances mean two route
+      // registries (core's own dual-load warning is the signal).
       return {ssr: {noExternal: [/@mionjs\//]}};
     },
 
@@ -148,15 +140,13 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
         }
       });
 
-      // Warm up so a broken API is reported at boot rather than at the first request. Skipped
-      // under vitest: its vite server also fires configureServer, and loading the API into the
-      // test process is neither wanted nor harmless (the mion router is global state).
+      // Warm up so a broken API is reported at boot rather than at the first request. Skipped under vitest:
+      // its vite server fires configureServer too, and the mion router is global state in that process.
       if (!process.env.VITEST) void init(server);
 
       if (options.hotReload === false) return;
-      // The batch table module the resolver generates (`<genDir>/rpc/batches.generated.js`) is
-      // imported by the router-init module, so a REWRITE of it is an ordinary change below. Its
-      // first APPEARANCE is not: the entry was loaded without it and nothing in the graph names it
+      // The batch table module is imported by the router-init module, so a REWRITE of it is an ordinary change
+      // below. Its first APPEARANCE is not: the entry was loaded without it and nothing in the graph names it
       // yet (the plugin re-transforms the router-init modules; this reload makes them re-run).
       server.watcher.on('add', (file) => {
         if (!initPromise || staleSince !== undefined) return;
@@ -168,10 +158,9 @@ export function mionMiddlewarePlugin(options: MionServerOptions, signals: Middle
       server.watcher.on('change', (file) => {
         if (!initPromise || staleSince !== undefined) return;
         if (!isOwnFile(server, file)) return;
-        // vite 8 keys its module graphs by real path while watcher events can carry the
-        // symlinked spelling (macOS /var vs /private/var), so look both up; and the mixed
-        // moduleGraph proxy no longer surfaces ssr-only modules (how this plugin loads the
-        // API entry), so ask every environment graph too.
+        // vite 8 keys its module graphs by real path while watcher events can carry the symlinked spelling
+        // (macOS /var vs /private/var), so look both up; and the mixed moduleGraph proxy no longer surfaces
+        // ssr-only modules, which is how this plugin loads the API entry, so ask every environment graph too.
         let realFile = file;
         try {
           realFile = fs.realpathSync(file);
@@ -264,10 +253,9 @@ function safeRealpath(p: string): string {
   }
 }
 
-/** A file the user owns — dependencies keep their module instances (and their warm caches) across a
- *  reload, which is what lets `resetRouter()` do its job instead of a whole fresh graph.
- *  Compared through realpath as well: vite 8 keys module files by real path, so a symlinked root
- *  (macOS /var vs /private/var) would otherwise disown every module. */
+/** A file the user owns: dependencies keep their module instances, and their warm caches, across a reload,
+ *  which is what lets `resetRouter()` do its job instead of a whole fresh graph. Compared through realpath
+ *  too, since vite 8 keys module files by real path and a symlinked root would disown every module. */
 function isOwnFile(server: ViteDevServer, file: string): boolean {
   if (file.includes('node_modules')) return false;
   const resolved = path.resolve(file);
@@ -275,9 +263,8 @@ function isOwnFile(server: ViteDevServer, file: string): boolean {
   return resolved.startsWith(root) || safeRealpath(resolved).startsWith(safeRealpath(root));
 }
 
-/** Invalidates the entry's own source subtree in the given graph so the next load re-evaluates it.
- *  The graph is the ssr environment's when it exists (vite 8) or the legacy mixed graph; their
- *  module nodes name the imported set differently (importedModules vs ssrImportedModules). */
+/** Invalidates the entry's own source subtree so the next load re-evaluates it. The ssr environment's graph
+ *  and the legacy mixed one name the imported set differently (ssrImportedModules vs importedModules). */
 function invalidateOwnModules(
   server: ViteDevServer,
   graph: {invalidateModule: (mod: any) => void},

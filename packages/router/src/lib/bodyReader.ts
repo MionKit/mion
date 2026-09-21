@@ -16,32 +16,25 @@ export function requestPayloadTooLarge(): RpcError<'request-payload-too-large'> 
   });
 }
 
-/**
- * How a fetch-style runtime reads a body fastest, a numeric code so the per-request check is one
- * integer compare. Measured on each runtime with a real server:
- * - `stream`: pull the body stream and decode once. Node's Request (undici, the vercel node
- *   runtime), where `text()` is slower than its own stream at every size.
- * - `text`: `text()` when a content-length is declared, the stream otherwise. Workerd, where both
- *   are native and only the stream can stop an upload mid-flight.
- * - `buffered`: `text()` or `arrayBuffer()`, never the stream reader. Bun buffers the body natively
- *   before the handler runs and its stream reader is over ten times slower than `text()`; the
- *   server-wide native limit is the one true mid-flight guard there.
- */
+/** How a fetch-style runtime reads a body fastest, a numeric code so the per-request check is one integer
+ *  compare. Measured on each runtime with a real server:
+ *  `stream` pulls the body stream and decodes once: node's Request (undici, the vercel node runtime), where
+ *  `text()` is slower than its own stream at every size.
+ *  `text` is `text()` when a content-length is declared, the stream otherwise: workerd, where both are
+ *  native and only the stream can stop an upload mid-flight.
+ *  `buffered` is `text()` or `arrayBuffer()`, never the stream reader: bun buffers the body natively and its
+ *  stream reader is over ten times slower, so its server-wide native limit is the one mid-flight guard. */
 export const BodyReadStrategy = {stream: 1, text: 2, buffered: 3} as const;
 export type BodyReadStrategy = (typeof BodyReadStrategy)[keyof typeof BodyReadStrategy];
 
-// One decoder for every request: a non-streaming `decode` call keeps no state between calls, so
-// sharing it is safe. A streaming decode (`{stream: true}`) would not be, which is why the stream
-// path collects bytes and decodes ONCE instead of decoding chunk by chunk.
+// One decoder for every request: a non-streaming `decode` keeps no state between calls, so sharing it is
+// safe. A streaming decode (`{stream: true}`) would not be, which is why the stream path decodes ONCE.
 const utf8 = new TextDecoder();
 
-/**
- * Reads a fetch-style request body as text against the route's request limit, the way the
- * runtime reads fastest (`strategy`). A declared `content-length` past the limit is refused
- * before a byte is read. Sizes are counted in bytes, never less than the character count the
- * router checks again before parsing, so the byte-exact refusal here always fires first. Resolves
- * undefined for a request without a body and throws the same 413 the router would.
- */
+/** Reads a fetch-style request body as text against the route's limit, the way the runtime reads fastest
+ *  (`strategy`). A declared `content-length` past the limit is refused before a byte is read. Sizes are
+ *  counted in bytes, never less than the character count the router checks again before parsing, so the
+ *  byte-exact refusal here always fires first. Undefined for a request with no body, else the router's 413. */
 export async function readRequestBody(
   req: Request,
   maxBodySize: number,

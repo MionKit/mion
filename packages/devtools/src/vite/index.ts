@@ -15,12 +15,10 @@ export type {
   MionServerOptions,
 } from './mionVitePlugin.ts';
 
-/** Paths middleware mode leaves to vite when the router has no basePath — extend it, don't replace
- *  it, unless you know every vite-internal URL you are taking over. */
+/** Paths middleware mode leaves to vite when the router has no basePath. Extend it, don't replace it, unless
+ *  you know every vite-internal URL you would take over. */
 export {DEFAULT_MIDDLEWARE_EXCLUDE} from './middlewareMode.ts';
 
-/** Vite plugin that writes {"type":"commonjs"} package.json in CJS output dirs */
 export {cjsPackageJsonPlugin} from './cjsPackageJsonPlugin.ts';
 
-/** Shared build-entry collection: the package's build tsconfig program IS the entry list */
 export {collectBuildEntries} from './buildEntries.ts';

@@ -5,23 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// What a streaming adapter pays per request to know the route's request limit BEFORE the body, and
-// to have a CallContext after it. Three shapes, same work done:
-//   split    - resolveExecutionChain() returns a small object, createContextFromChain() builds the
-//              context after the read (what ships)
-//   merged   - ONE object: the resolved shape IS the context, its request / response / shared
-//              slots filled in after the read
-//   relookup - the resolve returns only the number, and the context is built by a SECOND route
-//              lookup after the read (an extra Map lookup instead of the small object)
-// The server benchmark cannot answer this: its run-to-run drift is a hundred times the effect.
-// Run with:  pnpm exec vitest bench --project router resolveStrategy
-//
-// `control` is deliberately unrelated. A change that moves it moved the machine, not the code.
-//
-// EVERY arm goes through the same local helpers (transformPath, buildContextFromChain) and differs
-// ONLY in what it allocates. Letting one arm call the real exported API while another inlined the
-// same work measured a 12% difference that was the module boundary, not the shape, and it reversed
-// sign depending on which arm got the real call.
+// What a streaming adapter pays per request to know the route's request limit BEFORE the body, and to
+// have a CallContext after it. Four shapes, same work done: `zero` (what ships) resolves the registered
+// chain and allocates nothing before the read, `split` allocated a small resolved object first, `merged`
+// makes that object BE the context, `relookup` resolves only the number and looks the route up a SECOND
+// time after the read. The server benchmark cannot answer this: its run-to-run drift is a hundred times
+// the effect. Run with:  pnpm exec vitest bench --project router resolveStrategy
+// `control` is deliberately unrelated: a change that moves it moved the machine, not the code.
+// EVERY arm goes through the same local helpers and differs ONLY in what it allocates; letting one arm
+// call the real exported API measured a 12% difference that was the module boundary, not the shape.
 
 import {bench, describe} from 'vitest';
 import {createMionRouter, resetRouter, getRouteExecutionChain, getPlatformMaxBodySize, getRouterOptions} from './router.ts';
@@ -53,8 +45,8 @@ const BODY = JSON.stringify({echo: [{id: 'a1', name: 'John', tags: ['x', 'y'], s
 const rawRequest = {};
 const headers = headersFromRecord({});
 
-/** The steps every shape performs before it can look a route up: the path transform and the batch
- *  check resolveExecutionChain does. Factored out so the shapes differ ONLY in what they allocate. */
+/** The path transform and batch check resolveExecutionChain does, factored out so the shapes
+ *  differ ONLY in what they allocate. */
 function transformPath(path: string, rawReq: unknown): string {
   const opts = getRouterOptions();
   const transformed = opts.pathTransform?.(rawReq, path) || path;
@@ -63,8 +55,8 @@ function transformPath(path: string, rawReq: unknown): string {
   return transformed;
 }
 
-/** The number-only resolve of the `relookup` shape: one Map lookup, -1 for a path that names no
- *  route, so a streaming adapter can still stop the read at the route's own limit. */
+/** The `relookup` shape's resolve: -1 for a path that names no route, so a streaming adapter can
+ *  still stop the read at the route's own limit. */
 function getRouteMaxBody(path: string, rawReq: unknown): number {
   const chain = getRouteExecutionChain(transformPath(path, rawReq));
   if (!chain) return -1;
@@ -111,8 +103,7 @@ function fillContext(ctx: CallContext, reqHeaders: MionHeaders, respHeaders: Mio
   return ctx;
 }
 
-/** The `zero` shape's build step: everything constant rides on the chain, the request brings the
- *  rest. Written out here rather than called through callContext so every arm is directly readable. */
+/** The `zero` shape's build step, written out rather than called through callContext so every arm reads directly. */
 function buildContextFromChain(
   chain: MethodsExecutionChain,
   path: string,

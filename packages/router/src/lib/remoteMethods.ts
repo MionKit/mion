@@ -31,10 +31,7 @@ export function resetRemoteMethodsMetadata() {
   publicMethods.clear();
 }
 
-/**
- * Returns a data structure containing all public information and types of the routes.
- * This data and types can be used to generate router clients, etc...
- */
+/** All the public information and types of the routes, what a router client is generated from. */
 export function getPublicApi<R extends Routes>(routes: R): PublicApi<R> {
   return recursiveGetSerializableRoutes(routes) as PublicApi<R>;
 }
@@ -104,21 +101,17 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
 /** Serializes a pure function and everything it reaches into the wire cache, keyed by id. */
 export function serializePureDeps(id: string, purFnDeps: PureFnsDataCache, depth = 0) {
   if (depth >= MAX_STACK_DEPTH) throw new Error(`Max depth reached serializing pure function dependencies, for: ${id}`);
-  // Built-ins never ride the wire: the client already has them, and their bodies are hollowed
-  // server-side so there would be nothing to send. addSerializedJitCaches skipped them on restore
-  // anyway (hasPureFnByKey short-circuit) — skipping here just stops shipping the dead weight.
-  // Run-types' own pure fns never ride the wire: their bodies are hollowed in the dist build and
-  // served by the compiler, so every one is already registered wherever `@mionjs/run-types` is
-  // loaded, which on the client is guaranteed since @mionjs/core value-imports it.
+  // Run-types' own pure fns never ride the wire: their bodies are hollowed in the dist build and served by
+  // the compiler, so each is already registered wherever `@mionjs/run-types` is loaded, guaranteed on the
+  // client since @mionjs/core value-imports it. addSerializedJitCaches skipped them on restore anyway.
   if (id.startsWith(RUN_TYPES_PURE_FN_ID_PREFIX)) return;
-  // Already serialized (prevents infinite recursion on circular dependencies).
+  // prevents infinite recursion on circular dependencies
   if (purFnDeps[id]) return;
   const pureDep = resolveCompiledPureFn(id);
   if (!pureDep) throw new Error(`Pure function ${id} not found`);
-  // The client rebuilds a pure fn as `new Function(...paramNames, code)` — there is no other
-  // lane. An entry with no code is unrecoverable there, so fail here instead of shipping a
-  // payload that breaks on first use. With built-ins already filtered out above, this can only
-  // fire for a user/framework fn registered at runtime with no body: server-only by nature.
+  // The client rebuilds a pure fn as `new Function(...paramNames, code)` and nothing else, so an entry with
+  // no code is unrecoverable there: fail here instead of shipping a payload that breaks on first use. With
+  // built-ins filtered out above, only a fn registered at runtime with no body reaches this: server-only.
   if (!pureDep.code)
     throw new Error(
       `Pure function ${id} has no code payload and cannot be serialized to the client. ` +
@@ -150,7 +143,7 @@ export function serializeMethodDeps(
   purFnDeps: PureFnsDataCache
 ) {
   const {paramsJitHash, returnJitHash} = method;
-  // Skip serialization for empty hashes (no params or void return)
+  // an empty hash means no params, or a void return
   const utl = getRTUtils();
   const serializer = method.options.serializer ?? DEFAULT_SERIALIZER;
   if (paramsJitHash !== EMPTY_HASH) {

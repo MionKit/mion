@@ -5,12 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Throughput of the fetch-style body reader the bun / cloudflare / vercel adapters call per request,
-// under node's Request (undici). `baseline` is the reader as it first shipped (a TextDecoder per
-// request, a reader loop decoding chunk by chunk, a string join); the three strategies are the
-// current reader. Only `stream` is chosen for a node-backed runtime; `text` and `buffered` run here
-// for the comparison, their own numbers were taken on workerd and bun with a real server. Run with:
-//   pnpm exec vitest bench --project router bodyReader
+// Throughput of the fetch-style body reader the bun / cloudflare / vercel adapters call per request, under
+// node's Request (undici). `baseline` is the reader as it first shipped (a TextDecoder per request, a loop
+// decoding chunk by chunk, a string join). Only `stream` is chosen for a node-backed runtime; `text` and
+// `buffered` run here for comparison, their own numbers were taken on workerd and bun with a real server.
+// Run with:  pnpm exec vitest bench --project router bodyReader
 
 import {bench, describe} from 'vitest';
 import {readRequestBody, requestPayloadTooLarge, BodyReadStrategy} from './bodyReader.ts';

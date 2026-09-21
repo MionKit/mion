@@ -13,17 +13,13 @@ type HeadersRecord = Record<string, string>;
 
 const PROTO_KEY = '__proto__';
 
-/**
- * Reusable class for managing HTTP headers with case-insensitive access
- * Similar to the fetch Headers API but optimized for performance
- * https://developer.mozilla.org/en-US/docs/Web/API/Headers
- */
+/** Case-insensitive HTTP headers, like the fetch Headers API but optimized for performance.
+ *  https://developer.mozilla.org/en-US/docs/Web/API/Headers */
 class MionHeadersImpl implements MionHeaders {
-  // The record may be a plain object handed over by the platform (node's IncomingMessage.headers
-  // is one), where `constructor` or `toString` would otherwise be "found" on the prototype chain.
-  // A prototype hit is a function or an object, never a string, so a read checks the VALUE's type:
-  // cheaper than an own-key check on every read (measured 14 vs 23 ns). `__proto__` is never
-  // written, since on a plain object that assignment swaps the prototype instead of storing a header.
+  // The record may be a plain object handed over by the platform (node's IncomingMessage.headers is one),
+  // where `constructor` or `toString` would be "found" on the prototype chain. A prototype hit is never a
+  // string, so a read checks the VALUE's type: cheaper than an own-key check per read (14 vs 23 ns).
+  // `__proto__` is never written: on a plain object that assignment swaps the prototype.
   constructor(private headers: HeadersRecord) {}
 
   append(name: string, value: string): void {
@@ -69,22 +65,10 @@ class MionHeadersImpl implements MionHeaders {
   }
 }
 
-/**
- * Return a Headers Like object from a Headers Record structure (Record<string, string | string[]>)
- * Returned Headers object is similar to the fetch Headers object but not exactly the same
- * https://developer.mozilla.org/en-US/docs/Web/API/Headers
- *
- * This is optimized to avoid creating the Headers Map if it's not strictly needed.
- * ie. for incoming header that only use get method, the Headers object is never created and instead the HeadersRecord is used directly.
- *
- * This function can be used to create a Headers object from incoming request that has the headers in an object structure.
- * ie IncomingMessage.headers or ApiGatewayEvent.headers
- *
- * @param headersObj
- * @returns
- */
+/** A fetch-like (not identical) Headers object over a header record, for an incoming request carrying its
+ *  headers as an object: IncomingMessage.headers, ApiGatewayEvent.headers.
+ *  https://developer.mozilla.org/en-US/docs/Web/API/Headers */
 export function headersFromRecord(headersObj: Record<string, string>, skipToLower = false): MionHeaders {
-  // lazy load headers map
   const headers = parseHeaders(headersObj, skipToLower);
   return new MionHeadersImpl(headers);
 }
