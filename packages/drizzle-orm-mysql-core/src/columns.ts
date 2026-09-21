@@ -143,8 +143,7 @@ export interface MySqlColMods extends Pick<
   references?: readonly [ColRef] | readonly [ColRef, ReferenceActions];
   generatedAlwaysAs?: readonly [unknown] | readonly [unknown, {mode?: 'virtual' | 'stored'}];
 }
-/** + autoincrement(): every numeric kind, floats and decimal included, since
- *  mysql allows AUTO_INCREMENT on any numeric column. */
+/** Floats and decimal use this too: mysql allows AUTO_INCREMENT on any numeric column. */
 export interface MySqlIntColMods extends MySqlColMods {
   autoincrement?: true;
 }
