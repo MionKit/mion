@@ -1,18 +1,8 @@
-// The email format's validate lane and its error lane must pick the same rules.
-//
-// createValidateFn<T>() and createGetValidationErrorsFn<T>() must always agree —
-// for every value v, `validate(v) === (getValidationErrors(v).length === 0)`
-// (fuzz oracle O4). The email emitter has three roads (a baked pattern, the RFC
-// grammar under `emailRfc`, and the localPart/domain split) and it used to test
-// them in one order for validate and the opposite order for the error list. A
-// format carrying both `emailRfc` and a localPart therefore checked the split and
-// reported nothing: `EmailAddress<{localPart: {maxLength: 8}}>` fed
-// 'averyveryverylonglocalpart@example.com' gave validate=false and errors=[].
-//
-// That pair is now rejected, so this spec pins the two halves it can reach from
-// TypeScript: O4 on each of the three roads, and the pair no longer being
-// spellable. The emitted lanes are pinned in Go
-// (internal/cachegen/typefunctions/formats/string/email_lane_agreement_test.go).
+// validate and getValidationErrors must agree: `validate(v) === (getValidationErrors(v).length === 0)` for every v,
+// fuzz oracle O4. The email emitter tested its three roads (pattern, `emailRfc`, the localPart/domain split) in one
+// order for validate and the opposite for the error list, so `EmailAddress<{localPart: {maxLength: 8}}>` answered
+// validate=false with errors=[]. That pair is rejected now, so this spec covers O4 per road; the emitted lanes are
+// pinned in Go (internal/cachegen/typefunctions/formats/string/email_lane_agreement_test.go).
 
 import type * as TF from '@mionjs/run-types/formats';
 import {describe, expect, it} from 'vitest';
@@ -60,8 +50,7 @@ describe('the email lanes agree on every road (O4)', () => {
     expectAgreement(validate, errors, ['joe@example.com', LONG_LOCAL_PART, 'no-at-sign', 'joe@tld', '']);
   });
 
-  // Marker coverage: the value-inferred shape resolves to the same entry as the
-  // static one, and agrees the same way.
+  // Marker coverage: the value-inferred shape must resolve to the same entry as the static one.
   it('the value-inferred form agrees too, on the same entry', () => {
     const sample: TF.EmailAddress = 'joe@example.com';
     const validate = createValidateFn(sample);
@@ -73,9 +62,7 @@ describe('the email lanes agree on every road (O4)', () => {
   });
 });
 
-// The pair itself is unspellable now: the type-level rejection lives in
-// test/types/typesafety.test.ts (assertionsEmailPresetRoads), where a regression
-// shows up as an unused @ts-expect-error.
+// The type-level rejection of the pair lives in test/types/typesafety.test.ts (assertionsEmailPresetRoads).
 describe('the RFC presets keep their own bounds', () => {
   it('a retuned minLength still applies', () => {
     const validate = createValidateFn<TF.EmailAddress<{minLength: 10}>>();
