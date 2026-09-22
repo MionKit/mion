@@ -1,17 +1,25 @@
 {
+  // Check-only config, shared with the editor: non-composite, no emit and no `references`, so a
+  // cross-package import resolves through the `source` export condition instead of a sibling's
+  // built declarations, which a fresh checkout has not got. tsconfig.build.json carries the emit.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/esm",
-    "lib": ["es6", "ES2023", "DOM"],
-    "composite": true,
-    "rootDir": "."
+    "composite": false,
+    "noEmit": true,
+    "incremental": false,
+    "rootDir": "../..",
+    "lib": [
+      "es6",
+      "ES2023",
+      "DOM"
+    ]
   },
-  "references": [
-    {"path": "../core"},
-    {"path": "../platform-node"},
-    {"path": "../router"},
-    {"path": "../test-server"}
+  "include": [
+    "."
   ],
-  "include": ["."],
-  "exclude": ["node_modules", ".dist", "vite.config.ts"]
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "vite.config.ts"
+  ]
 }

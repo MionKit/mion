@@ -1,28 +1,45 @@
 {
+  // Check-only config, shared with the editor: non-composite, no emit and no `references`, so a
+  // cross-package import resolves through the `source` export condition instead of a sibling's
+  // built declarations, which a fresh checkout has not got. tsconfig.build.json carries the emit.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/esm",
-    "composite": true,
-    "rootDir": ".",
+    "composite": false,
+    "noEmit": true,
+    "incremental": false,
+    "rootDir": "../..",
     "module": "nodeNext",
     "moduleResolution": "nodeNext",
-    "types": ["@types/node"],
+    "types": [
+      "@types/node"
+    ],
     "paths": {
-      "@mionjs/core": ["../core/index.ts"],
-      "@mionjs/router": ["../router/index.ts"],
-      "@mionjs/platform-node": ["../platform-node/index.ts"],
-      "@mionjs/platform-cloudflare": ["../platform-cloudflare/index.ts"],
-      "@mionjs/platform-vercel": ["../platform-vercel/index.ts"]
+      "@mionjs/core": [
+        "../core/index.ts"
+      ],
+      "@mionjs/router": [
+        "../router/index.ts"
+      ],
+      "@mionjs/platform-node": [
+        "../platform-node/index.ts"
+      ],
+      "@mionjs/platform-cloudflare": [
+        "../platform-cloudflare/index.ts"
+      ],
+      "@mionjs/platform-vercel": [
+        "../platform-vercel/index.ts"
+      ]
     }
   },
-  "references": [
-    {"path": "../core"},
-    {"path": "../router"},
-    {"path": "../platform-node"},
-    {"path": "../platform-cloudflare"},
-    {"path": "../platform-vercel"}
-    
+  "include": [
+    "."
   ],
-  "include": ["."],
-  "exclude": ["node_modules", ".dist", "build", "vite.config.ts", "vite.edge.config.ts", "vite.cloudflare.config.ts"]
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "build",
+    "vite.config.ts",
+    "vite.edge.config.ts",
+    "vite.cloudflare.config.ts"
+  ]
 }

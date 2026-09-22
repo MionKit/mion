@@ -12,17 +12,17 @@
     "target": "ES2022"
   },
   "references": [
-    {"path": "../core"},
-    {"path": "../router"},
-    {"path": "../platform-node"},
-    {"path": "../platform-uws"},
-    {"path": "../client"},
-    {"path": "../platform-bun"},
-    {"path": "../platform-aws"},
-    {"path": "../platform-gcloud"},
-    {"path": "../drizzle-orm-mysql-core"},
+    {"path": "../core/tsconfig.build.json"},
+    {"path": "../router/tsconfig.build.json"},
+    {"path": "../platform-node/tsconfig.build.json"},
+    {"path": "../platform-uws/tsconfig.build.json"},
+    {"path": "../client/tsconfig.build.json"},
+    {"path": "../platform-bun/tsconfig.build.json"},
+    {"path": "../platform-aws/tsconfig.build.json"},
+    {"path": "../platform-gcloud/tsconfig.build.json"},
+    {"path": "../drizzle-orm-mysql-core/tsconfig.build.json"},
     {"path": "../drizzle-orm-pg-core/tsconfig.build.json"},
-    {"path": "../drizzle-orm-sqlite-core"}
+    {"path": "../drizzle-orm-sqlite-core/tsconfig.build.json"}
   ],
   "include": ["src", "vite.config.ts"],
   "exclude": [
