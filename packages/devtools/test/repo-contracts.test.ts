@@ -6,6 +6,8 @@ import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {isCompiledExecutable, miniflareCwdOffenders, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {referenceCycles, referenceGraph, tsconfigReferenceCycles} from '../../../scripts/ci/check-tree.mjs';
 import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, globSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join, posix} from 'node:path';
@@ -301,6 +303,46 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
   it('a bare directory mention is not a reference', () => {
     const text = 'specs live under docs/todos/ and move to docs/done/ when shipped';
     expect(specReferenceOffenders([{file: 'CLAUDE.md', text}])).toEqual([]);
+  });
+});
+
+describe('the tsconfig project-reference graph stays acyclic', () => {
+  // A fixture graph, not the real tree: `from` a config path, `to` the paths it references.
+  const graphOf = (tree: Record<string, string[]>) =>
+    referenceGraph((config: string) =>
+      tree[config] ? JSON.stringify({references: tree[config].map((path: string) => ({path}))}) : undefined
+    );
+
+  it('reports a two-project cycle once, whichever end it is found from', () => {
+    const graph = graphOf({
+      'tsconfig.json': ['./packages/a', './packages/b'],
+      'packages/a/tsconfig.json': ['../b'],
+      'packages/b/tsconfig.json': ['../a'],
+    });
+    expect(referenceCycles(graph)).toEqual(['packages/a/tsconfig.json -> packages/b/tsconfig.json -> packages/a/tsconfig.json']);
+  });
+
+  it('follows a reference that names a config file rather than a directory', () => {
+    const graph = graphOf({
+      'tsconfig.json': ['./packages/a/tsconfig.build.json'],
+      'packages/a/tsconfig.build.json': ['../b'],
+      'packages/b/tsconfig.json': ['../a/tsconfig.build.json'],
+    });
+    expect(referenceCycles(graph)).toHaveLength(1);
+  });
+
+  it('passes a diamond, where two projects share one dependency', () => {
+    const graph = graphOf({
+      'tsconfig.json': ['./packages/a', './packages/b'],
+      'packages/a/tsconfig.json': ['../core'],
+      'packages/b/tsconfig.json': ['../core'],
+      'packages/core/tsconfig.json': [],
+    });
+    expect(referenceCycles(graph)).toEqual([]);
+  });
+
+  it('the real repo graph has no cycle', () => {
+    expect(tsconfigReferenceCycles()).toEqual([]);
   });
 });
 

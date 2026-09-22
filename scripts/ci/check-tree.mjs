@@ -3,8 +3,8 @@
 // lanes skip by content (scripts/ci/lanes.mjs) and exclude the docs/, .claude/ and root prose
 // paths a sweep reads. repo-contracts.test.ts unit-tests the rules by importing these functions.
 // Usage: `pnpm run check:tree`, or `node scripts/ci/check-tree.mjs`.
-import {closeSync, openSync, readFileSync, readSync} from 'node:fs';
-import {join} from 'node:path';
+import {closeSync, existsSync, openSync, readFileSync, readSync} from 'node:fs';
+import {join, posix} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, note, reportCliError, success} from '../lib/proc.mjs';
 
@@ -161,11 +161,68 @@ export function miniflareCwdWorkers() {
   return miniflareCwdOffenders(candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')})));
 }
 
+// A `tsc --build` graph with a cycle in it is refused whole (TS6202), so no package builds. It got
+// here through a package referencing its own test fixture, which is invisible until someone runs
+// build mode.
+
+// The "path" entries of a tsconfig `references` array. Regex, not JSON.parse: these files carry comments.
+const referencePaths = (text) => {
+  const references = /"references"\s*:\s*\[([\s\S]*?)\]/.exec(text);
+  return references ? [...references[1].matchAll(/"path"\s*:\s*"([^"]+)"/g)].map((match) => match[1]) : [];
+};
+
+// The project graph as {config: [config]}, repo-root-relative. A reference names a config file or the
+// directory holding one. Pure over `readText` so the contract test can drive it with a fixture.
+export function referenceGraph(readText, root = 'tsconfig.json') {
+  const graph = {};
+  const pending = [root];
+  while (pending.length > 0) {
+    const config = pending.shift();
+    if (graph[config]) continue;
+    const text = readText(config);
+    graph[config] = referencePaths(text ?? '').map((path) => {
+      const target = posix.join(posix.dirname(config), path);
+      return target.endsWith('.json') ? target : posix.join(target, 'tsconfig.json');
+    });
+    pending.push(...graph[config]);
+  }
+  return graph;
+}
+
+// Every cycle in that graph, each reported once. Rotated to start at its alphabetically first project
+// so the same cycle found from two entry points collapses to one line.
+export function referenceCycles(graph) {
+  const cycles = new Set();
+  const walk = (config, stack) => {
+    const start = stack.indexOf(config);
+    if (start !== -1) {
+      const cycle = stack.slice(start);
+      const first = cycle.indexOf([...cycle].sort()[0]);
+      const rotated = [...cycle.slice(first), ...cycle.slice(0, first)];
+      return cycles.add(`${rotated.join(' -> ')} -> ${rotated[0]}`);
+    }
+    for (const next of graph[config] ?? []) walk(next, [...stack, config]);
+  };
+  for (const config of Object.keys(graph)) walk(config, []);
+  return [...cycles];
+}
+
+export function tsconfigReferenceCycles() {
+  const graph = referenceGraph((config) => {
+    const file = join(REPO_ROOT, config);
+    return existsSync(file) ? readFileSync(file, 'utf8') : undefined;
+  });
+  // A walk that found one node would pass forever; the root tsconfig always references the packages.
+  if (Object.keys(graph).length < 2) die('the root tsconfig references no project, so the graph walk stopped matching');
+  return referenceCycles(graph);
+}
+
 export const SWEEPS = [
   {name: 'no file outside docs/todos and docs/done names a spec', run: specReferences, fix: 'put the reasoning in the file that needs it; a spec gets deleted and the reference rots'},
   {name: 'no tracked file outside docs/ names the old repository', run: oldRepoReferences, fix: 'point it at MionKit/mion'},
   {name: 'no tracked source carries a literal NUL byte', run: nulBytes, fix: 'strip the NUL; git treats the file as binary and a rebase cannot merge it'},
   {name: 'no tracked file is a compiled executable', run: compiledExecutables, fix: 'git rm it and ignore the build output; a binary is rebuilt from source, never committed'},
+  {name: 'no tsconfig project reference cycle', run: tsconfigReferenceCycles, fix: 'tsc --build refuses the WHOLE graph with TS6202, so nothing builds; move the code needing the back-reference into the package it points at'},
   {name: 'no miniflare worker depends on the directory it was started from', run: miniflareCwdWorkers, fix: "pass modulesRoot beside scriptPath; without it miniflare names the module relative to process.cwd() and workerd refuses a `..` name"},
 ];
 
