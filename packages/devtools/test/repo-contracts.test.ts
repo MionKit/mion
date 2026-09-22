@@ -3,6 +3,7 @@
 // references, the twoslash VFS mounts, compiled executables), and each drifted before it existed.
 
 import {describe, it, expect} from 'vitest';
+import ts from 'typescript';
 import {spawnSync} from 'node:child_process';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {isCompiledExecutable, miniflareCwdOffenders, specReferenceOffenders} from '../../../scripts/ci/check-tree.mjs';
@@ -1033,9 +1034,24 @@ describe('run-types mocking subpath', () => {
 
 // Nothing under test/ may reach the client's tarball: those files import vitest and node:child_process.
 describe('client published surface', () => {
+  // The resolved file list rather than the raw `exclude`: tsconfigs here are JSONC, so JSON.parse breaks on
+  // a comment, and an exclude can be lost through `extends` while still reading right in the file.
   it('the build program excludes the test tree', () => {
-    const build = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/client/tsconfig.build.json'), 'utf8'));
-    expect(build.exclude).toContain('test');
+    const config = join(REPO_ROOT, 'packages/client/tsconfig.build.json');
+    const parsed = ts.getParsedCommandLineOfConfigFile(
+      config,
+      {},
+      {
+        ...ts.sys,
+        onUnRecoverableConfigFileDiagnostic: (diagnostic) =>
+          expect.fail(ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')),
+      }
+    );
+    const inTestTree = (parsed?.fileNames ?? []).filter((file) => file.includes('/packages/client/test/'));
+    expect(inTestTree).toEqual([]);
+    expect(parsed?.fileNames.length, 'the build program matched nothing, so the check stopped meaning anything').toBeGreaterThan(
+      10
+    );
   });
 
   it('no client source module is a test helper', () => {
