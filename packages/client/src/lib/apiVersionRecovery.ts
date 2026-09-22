@@ -8,86 +8,88 @@
 // Imported on demand through `#api-version-recovery`, so a client that never meets a mismatch ships none of this.
 // Its own imports entry, not `#metadata-from-server`: @mionjs/devtools stubs that one out under `bundleApi: 'bundled'`.
 
-// The formats registry a bundled build leaves out: the fetched rows compile their functions through it.
+// The formats registry a bundled build leaves out: the server's rows compile their functions through it.
 import '@mionjs/run-types/formats';
-import {RpcError, MION_ROUTES, getRoutePath, addRoutesToCache, addSerializedJitCaches, routesCache} from '@mionjs/core';
-import type {MethodIdCheck, SerializableMethodsData} from '@mionjs/core';
-import type {ClientOptions} from '../types.ts';
-import {settleApiVersionMismatch} from './apiBuildVersion.ts';
-import {bundledMethodIds, dropBundledMethods, getMethod, setFetchedMethods} from './methods.ts';
+import {RpcError, MION_ROUTES, addRoutesToCache, addSerializedJitCaches, routesCache} from '@mionjs/core';
+import type {AnyObject} from '@mionjs/core';
+import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
+import type {SubRequest} from '../types.ts';
+import {markApiVersionVerified, stashApiVersionError} from './apiBuildVersion.ts';
+import {dropBundledMethods, getMethod, setFetchedMethods} from './methods.ts';
 
-/** One recovery at a time: several requests in flight all see the same differing header, and each would
- *  otherwise start its own. Cleared when it settles, so a failed one can be tried again. */
-let inFlight: Promise<RpcError<'api-version-mismatch'> | undefined> | undefined;
-
-/** Replaces the rows the server no longer agrees with, or answers undefined when there is nothing to replace.
- *  Sends the client's own ids, so the server returns only the rows that really differ. */
-export function recoverFromApiVersionMismatch(
-  options: ClientOptions,
-  signal?: AbortSignal
-): Promise<RpcError<'api-version-mismatch'> | undefined> {
-  return (inFlight ??= runRecovery(options, signal).finally(() => {
-    inFlight = undefined;
-  }));
+/** Asks the server for these rows on a request the client was making anyway, so a mismatch costs no round trip.
+ *  The server answers with what it declares now, unfiltered; comparing is this side's job, since only this side
+ *  holds both rows. */
+export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
+  return {
+    pointer: [MION_ROUTES.methodsMetadata],
+    id: MION_ROUTES.methodsMetadata,
+    isResolved: false,
+    params: [methodIds],
+  } as SubRequest<any>;
 }
 
-async function runRecovery(options: ClientOptions, signal?: AbortSignal): Promise<RpcError<'api-version-mismatch'> | undefined> {
-  const ids = bundledMethodIds();
-  // A fetched client carries no build-compiled rows to correct, and its stored cache is another change's job.
-  if (!ids.length) {
-    settleApiVersionMismatch();
-    return undefined;
-  }
-  let replaced = 0;
-  try {
-    replaced = await replaceChangedMethods(ids, options, signal);
-  } catch (error: any) {
-    // Left unsettled on purpose: the next response tries again rather than calling stale routes in silence.
-    return mismatchError(`The client could not read them from the server: ${error?.message}`);
-  }
-  settleApiVersionMismatch();
-  return mismatchError(
-    replaced
-      ? `${replaced} of its routes were replaced with the ones the server declares now.`
-      : 'None of its routes changed, so nothing was replaced.'
+/** Installs the rows that really differ from the bundled ones and drops the stale ones. Every field the build
+ *  version hashes is compared here, `options` included, because a row is compared against its own twin rather
+ *  than against the handful of ids a request had room for. */
+export function verifyMethodRows(asked: string[], data: SerializableMethodsData): void {
+  markApiVersionVerified(asked);
+  // Only the ids this request asked about: the answer also carries their middleFns, which the client either
+  // already holds or fetches on its own, and comparing those would report a route this call never uses.
+  const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
+  if (!stale.length) return;
+  addSerializedJitCaches(data.deps, data.purFnDeps);
+  // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
+  dropBundledMethods(stale);
+  addRoutesToCache(data.methods);
+  setFetchedMethods(routesCache);
+  stashApiVersionError(staleRoutesError(stale));
+}
+
+/** A row missing on either end is a difference like any other: the bundle never had it, or the server
+ *  no longer declares it. */
+function rowsAgree(bundled: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
+  if (!bundled || !served) return false;
+  return (
+    bundled.type === served.type &&
+    bundled.isAsync === served.isAsync &&
+    bundled.hasReturnData === served.hasReturnData &&
+    bundled.paramsJitHash === served.paramsJitHash &&
+    bundled.returnJitHash === served.returnJitHash &&
+    bundled.paramsCount === served.paramsCount &&
+    bundled.headersParam?.jitHash === served.headersParam?.jitHash &&
+    bundled.headersReturn?.jitHash === served.headersReturn?.jitHash &&
+    same(bundled.paramNames, served.paramNames) &&
+    same(bundled.middleFnIds, served.middleFnIds) &&
+    optionsAgree(bundled.options, served.options)
   );
 }
 
-/** Returns how many rows the server sent back, which is how many really differed. */
-async function replaceChangedMethods(ids: string[], options: ClientOptions, signal?: AbortSignal): Promise<number> {
-  const knownIds: MethodIdCheck[] = [];
-  for (const id of ids) {
-    const method = getMethod(id);
-    if (method) knownIds.push({id, paramsJitHash: method.paramsJitHash, returnJitHash: method.returnJitHash});
-  }
-  const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
-  const response = await fetch(new URL(path, options.baseURL), {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    // The route parses its params as a clone, so the payload is plain JSON and needs no compiled encoder
-    body: JSON.stringify({[MION_ROUTES.methodsMetadataById]: [ids, false, knownIds]}),
-    signal,
-  });
-  const body = await response.json();
-  const answer = body?.[MION_ROUTES.methodsMetadataById];
-  const data = (Array.isArray(answer) ? answer[1] : answer) as SerializableMethodsData | undefined;
-  if (!data?.methods) throw new Error('the server sent no methods');
-  const changed = Object.keys(data.methods);
-  if (!changed.length) return 0;
-  addSerializedJitCaches(data.deps, data.purFnDeps);
-  // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
-  dropBundledMethods(changed);
-  addRoutesToCache(data.methods);
-  setFetchedMethods(routesCache);
-  return changed.length;
+/** Ordered lists on both ends, so a plain stringify compares them. */
+function same(bundled: unknown, served: unknown): boolean {
+  return bundled === served || JSON.stringify(bundled) === JSON.stringify(served);
 }
 
-function mismatchError(outcome: string): RpcError<'api-version-mismatch'> {
+/** The options a client acts on. The rest (`alwaysRun`, `maxBodySize`) only steer the server's own chain,
+ *  and a fetched row carries whatever the server added to them, so comparing them reports a false difference. */
+const COMPARED_OPTIONS = ['isMutation', 'parser', 'validateParams', 'validateReturn'] as const;
+
+function optionsAgree(bundled: AnyObject | undefined, served: AnyObject | undefined): boolean {
+  return COMPARED_OPTIONS.every((name) => same(parserShape(bundled?.[name]), parserShape(served?.[name])));
+}
+
+/** `parser` is written either as one name or as a name per direction, so both spellings compare alike. */
+function parserShape(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  return {params: value, return: value};
+}
+
+function staleRoutesError(stale: string[]): RpcError<'api-version-mismatch'> {
   return new RpcError({
     type: 'api-version-mismatch',
     publicMessage:
-      `This mion client carries routes compiled against an older version of the API: the server answers with ` +
-      `a different build version. ${outcome} Rebuild the client against the current API to stop paying for the ` +
-      `extra request.`,
+      `This mion client carries routes compiled against an older version of the API: the server answers with a ` +
+      `different build version, and ${stale.map((id) => `"${id}"`).join(', ')} no longer matches what it declares. ` +
+      `The client replaced them with the server's own. Rebuild the client against the current API.`,
   });
 }

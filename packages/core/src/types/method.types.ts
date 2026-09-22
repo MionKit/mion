@@ -89,10 +89,6 @@ export interface SerializableMethodsData {
   batches?: string[];
 }
 
-/** What a client already holds for one method: it sends these so the server answers only with the rows that differ.
- *  Derived rather than restated, so the two hashes cannot be swapped at either end without the compiler saying so. */
-export type MethodIdCheck = Pick<MethodMetadata, 'id' | 'paramsJitHash' | 'returnJitHash'>;
-
 export interface HeadersMethodWithJitFns extends HeadersMetaData {
   jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 }

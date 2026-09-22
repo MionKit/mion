@@ -537,36 +537,18 @@ describe('metadata is generated for everything the client can call', () => {
     expect(Object.keys(data.methods).sort()).toEqual(['takesParams', 'users/getUser', 'users/returnsData']);
   });
 
-  // The recovery a build-version mismatch triggers: the client sends what it holds, so the answer carries only what moved.
-  it('returns only the rows whose compiled ids differ from the ones the client sent', async () => {
+  // A build-version mismatch makes the client ask about the routes it is calling. The server answers with what
+  // it declares now and filters nothing: only the client holds both rows, so only the client can compare them.
+  it('answers with every row asked for, even one the client already holds unchanged', async () => {
     createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
-    const held = getRouteExecutable('users/getUser')!;
-    const knownIds = [
-      {id: 'users/getUser', paramsJitHash: held.paramsJitHash, returnJitHash: held.returnJitHash},
-      {id: 'takesParams', paramsJitHash: 'moved', returnJitHash: 'moved'},
-    ];
     const request: RawRequest = {
       headers: headersFromRecord({}),
-      body: JSON.stringify({takesParams: ['token'], [methodsId]: [['users/getUser', 'takesParams'], false, knownIds]}),
+      body: JSON.stringify({takesParams: ['token'], [methodsId]: [['users/getUser', 'takesParams'], false]}),
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
     const data = unwrap(response.body[methodsId]) as SerializableMethodsData;
-    expect(Object.keys(data.methods)).toEqual(['takesParams']);
-  });
-
-  it('still reports an id it no longer declares, whatever the client claims to hold', async () => {
-    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
-    const request: RawRequest = {
-      headers: headersFromRecord({}),
-      body: JSON.stringify({
-        takesParams: ['token'],
-        [methodsId]: [['users/gone'], false, [{id: 'users/gone', paramsJitHash: 'a', returnJitHash: 'b'}]],
-      }),
-    };
-    const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-    const result = unwrap(response.body[methodsId]) as RpcError<string>;
-    expect(result.type).toBe('rpc-metadata-not-found');
-    expect(result.errorData).toEqual({'users/gone': 'Remote Method users/gone not found'});
+    // users/returnsData rides along as a middleFn of users/getUser's chain: a stale chain is stale metadata too
+    expect(Object.keys(data.methods).sort()).toEqual(['takesParams', 'users/getUser', 'users/returnsData']);
   });
 
   it('answers a by-id request for a middleFn with params but reports a raw or silent one as not found', async () => {

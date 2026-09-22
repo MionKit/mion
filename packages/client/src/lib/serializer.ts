@@ -52,6 +52,12 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
     const subRequest = req.subRequestList[id];
     if (!subRequest) continue;
     let params = subRequest.params;
+    // The metadata route parses its params as a clone, so plain JSON IS its wire form. A bundled client asking
+    // it to confirm a row has no compiled functions for it and needs none.
+    if (id === MION_ROUTES.methodsMetadata) {
+      props.push(`${JSON.stringify(id)}:${JSON.stringify(params)}`);
+      continue;
+    }
     const method = useMethodFns(id);
     if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
       params = getParamsWithoutHeadersSubset(params);
@@ -120,12 +126,16 @@ export function wireFormReplacer(this: unknown, key: string, value: unknown): un
 
 // ################################## DE-SERIALIZE ##################################
 
-export async function deserializeResponseBody(response: Response, options: ClientOptions): Promise<ResponseBody> {
+export async function deserializeResponseBody(
+  response: Response,
+  options: ClientOptions,
+  liftMetadataRows = false
+): Promise<ResponseBody> {
   let parsedBody: any;
   const contentType = response.headers.get('content-type')?.toLowerCase();
   switch (true) {
     case !!contentType?.includes('application/json'):
-      parsedBody = await deserializeJsonResponseBody(response, options);
+      parsedBody = await deserializeJsonResponseBody(response, options, liftMetadataRows);
       break;
     default:
       throw new RpcError({
@@ -136,9 +146,17 @@ export async function deserializeResponseBody(response: Response, options: Clien
   return parsedBody;
 }
 
-async function deserializeJsonResponseBody(response: Response, options: ClientOptions) {
+async function deserializeJsonResponseBody(response: Response, options: ClientOptions, liftMetadataRows: boolean) {
   try {
     const parsedBody = await response.json();
+    // Rows asked for by the version check belong to this call, not to the store, so they come out before the
+    // cache hook below (which consumes the same slot). Raw: the loop further down would look for compiled
+    // functions under the metadata route's own id.
+    let askedRows: unknown;
+    if (liftMetadataRows) {
+      askedRows = parsedBody[MION_ROUTES.methodsMetadata];
+      if (askedRows !== undefined) delete parsedBody[MION_ROUTES.methodsMetadata];
+    }
     // Runs without jit functions, and deletes the entries it processed. No lane means nothing to do:
     // a response only carries metadata when the client asked, and asking awaits the lane first.
     const cache = metadataCacheHooks();
@@ -155,6 +173,7 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
       deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
     });
     if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
+    if (askedRows !== undefined) deserializedBody[MION_ROUTES.methodsMetadata] = askedRows as any;
     return deserializedBody;
   } catch (err: any) {
     throw new RpcError({
