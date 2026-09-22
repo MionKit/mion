@@ -15,10 +15,20 @@ import {
   PrefilledMiddleFnsCache,
 } from './types.ts';
 import type {RunTypeError} from '@mionjs/core';
-import {RpcError, isRpcError, MION_ROUTES, MION_BATCH_KEY, HandlerType, HeadersSubset, toBase64Url} from '@mionjs/core';
+import {
+  RpcError,
+  isRpcError,
+  MION_ROUTES,
+  MION_BATCH_KEY,
+  HandlerType,
+  HeadersSubset,
+  toBase64Url,
+  BUILD_VERSION_HEADER,
+} from '@mionjs/core';
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundleApiMode.ts';
+import {stashApiVersionError, takeApiVersionMismatch} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
@@ -147,6 +157,20 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     } catch (error: any) {
       this.onError(error, 'Error executing request', errors);
       return Promise.reject(errors);
+    }
+
+    // The server answers with the version of the API it was built from. A client carrying build-compiled
+    // routes replaces them when the two differ, then repeats the call; everything else reads no header,
+    // no version of its own, or the same one, and does nothing.
+    if (!this.signal?.aborted && takeApiVersionMismatch(this.response.headers.get(BUILD_VERSION_HEADER))) {
+      try {
+        const lane = await import('#api-version-recovery');
+        stashApiVersionError(await lane.recoverFromApiVersionMismatch(this.options, this.signal));
+        return this.retryWithProperSerialization(originalSerializer);
+      } catch (error: any) {
+        this.onError(error, 'Error replacing the stale bundled routes', errors);
+        return Promise.reject(errors);
+      }
     }
 
     try {

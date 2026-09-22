@@ -24,6 +24,10 @@ export const MAX_STACK_DEPTH = 50;
  *  A deliberate floor, not a platform ceiling: every hosted platform allows far more (Vercel 4.5 MB, AWS 6 MB). */
 export const DEFAULT_MAX_BODY_SIZE = 128_000;
 
+/** Carries the version of the API the server was built from; a client compares it with its own. Lives here
+ *  so the client reads the name without a value import of the router. */
+export const BUILD_VERSION_HEADER = 'x-build-version';
+
 /** Reserved route name of the batch endpoint: a batch request is `POST <basePath>/mion-batch?id=<batchId>` */
 export const MION_BATCH_KEY = 'mion-batch';
 export const MION_BATCH_PATH = `${PATH_SEPARATOR}${MION_BATCH_KEY}`;

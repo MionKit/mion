@@ -29,7 +29,7 @@ import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
 import {MionSubRequest} from './subRequest.ts';
 import {getBundleApiMode} from './lib/bundleApiMode.ts';
-import {setApiBuildVersion} from './lib/apiBuildVersion.ts';
+import {setApiBuildVersion, takeApiVersionError} from './lib/apiBuildVersion.ts';
 import {registerBundledApi, takeBundledApiError} from '#bundled-api';
 import {metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 
@@ -279,9 +279,11 @@ export class MionClient {
       }
     }
 
-    // Two framework errors the router never saw, taking the first free undeclared slot rather than rejecting
-    // (the call itself ran): a bundled payload the build did not write, and a refused metadata cache write.
+    // Framework errors the router never saw, taking the first free undeclared slot rather than rejecting
+    // (the call itself ran): a bundled payload the build did not write, an API version the server no longer
+    // answers with, and a refused metadata cache write.
     if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
+    if (undeclaredPart === undefined) undeclaredPart = takeApiVersionError();
     if (undeclaredPart === undefined) undeclaredPart = metadataCacheHooks()?.takeMetadataCacheError();
 
     return [routeResultPart, routeErrorPart, undeclaredPart, middleFnsResults, middleFnsErrors] as any;
