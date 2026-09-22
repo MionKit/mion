@@ -33,6 +33,27 @@ silently loses returned headers today.
 A CORS middleware mion ships, configured from what the routes already declare rather than from a
 hand-written header table. The implementer plans the details. The pieces to build on, all verified:
 
+**It is an ordinary middleware, added to an API or not.** Nothing about CORS becomes part of the
+router's own chain, and an API that does not add it behaves exactly as it does today. What the router
+MAY gain is the capability the middleware needs and cannot have otherwise, listed below. Keep that
+line: new router capability where there is no alternative, everything CORS-shaped in the middleware.
+
+**Stopping the chain without an error does not exist yet, and preflight needs it.** The only thing
+that ends a chain today is a failure:
+
+```ts
+// packages/router/src/dispatch.ts:99
+if (response.hasErrors && !executable.alwaysRun) continue;
+```
+
+`hasErrors` is set by `markResponseFailed` or `recordUndeclaredError`
+(`packages/router/src/lib/dispatchError.ts:40` and `:62`), both of which carry an error and a failure
+status code. A preflight answer is a success with no body, so it needs a new way to say "answer now,
+skip the rest, nothing went wrong". That is the router capability this middleware needs. Two things
+to settle when designing it: what the flag lives on (`MionResponse` or the context), and what happens
+to `alwaysRun` members, since the response serializer must still run to set `content-type` while the
+metadata middleFn must not.
+
 **Routes already declare their headers, in both directions.** A headers middleFn takes a
 `HeadersSubset` param and a route can return one, and the serializer puts those in HTTP headers
 instead of the body:
@@ -64,7 +85,7 @@ another origin, so the type probably needs a way to mark a name as not exposed. 
 before writing the middleware, since it changes a public type.
 
 **A raw middleFn can reach the underlying request.** It is handed the platform's own request and
-response objects, so it can answer a preflight outright:
+response objects, so it can read anything the router does not expose:
 
 ```ts
 // packages/router/src/types/handlers.ts:32
@@ -79,26 +100,27 @@ each platform shapes that differently. Putting the method on `MionRequest` once,
 adapter, is the cleaner answer and makes this a normal middleFn rather than a raw one. That decision
 comes first, because it widens a public type.
 
-**Preflight has no route.** A browser sends `OPTIONS` with no body, naming a path that may or may not
-be a route, and it must be answered before any route runs. Nothing in the repo handles `OPTIONS`
-today, so where that answer is produced (the not-found chain, a raw middleFn, or the adapter) is the
-other open question.
-
 ## Docs
 
+A new `middlewares` subdirectory under `container/website/content/01.rpc/`, sibling to `02.server/`,
+holding one page per middleware mion ships. CORS is the first; expect more. The `NN.` prefix only
+sets the sidebar order and never reaches the URL, so placing it after the server section means
+renumbering the dirs that follow.
+
 `container/website/content/01.rpc/02.server/09.security.md` currently lists CORS under *What Stays
-Your Job*; that line changes. The middleware itself needs a new section there, or its own page under
-`01.rpc/02.server/`, decided once the shape is settled.
+Your Job*; that line changes and points at the new page.
 
 Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagent) over every page and example this change touched, review its report against the code, and commit it as its own commit.
 
 ## Done when
 
-- An app turns CORS on through mion, stating its origin policy plus anything its raw middleFns set by
-  hand.
+- The middleware is added to an API like any other, and an API that does not add it behaves exactly
+  as it does today.
+- A middleware can end a chain with a successful answer and no error, which nothing can do today.
+- An app turns CORS on by stating its origin policy plus anything its raw middleFns set by hand.
 - The allowed and exposed header lists come from what the routes declare, so adding a header to a
   route needs no CORS edit, and hand-written names merge with them rather than replacing them.
-- A preflight request is answered without reaching a route.
+- A preflight request is answered without reaching a route and without an error.
 - A route returning a `HeadersSubset` works from a browser on another origin, which it does not today.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
