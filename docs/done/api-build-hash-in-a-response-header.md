@@ -1,0 +1,107 @@
+---
+type: feature
+spec: full-plan
+status: done
+created: 2026-09-22
+---
+
+# One API version, returned in a response header
+
+## Problem
+
+A client built with `bundleApi` carries compiled validators and serializers for the routes it calls.
+It never asks the server anything, so when the server moves on (a route renamed, a param added, a
+runtypes version bump) nothing notices. The client keeps calling with code compiled against an API
+that no longer exists.
+
+`mion api-check` catches this at build time, but only when both build outputs sit on the same
+machine. A client already deployed against a server that changed afterwards has no check at all.
+
+## What shipped
+
+### One version for the whole API, injected at the call site
+
+A new injection marker, `InjectBuildVersion<Api>`
+(`packages/run-types/src/markers.ts`), beside `InjectBatchId` and `InjectApiMetadata`. Both ends
+declare it as a trailing parameter over the same API type:
+
+```ts
+// packages/client/src/client.ts
+initClient<RM extends RemoteApi>(options: InitClientOptions, buildVersion?: InjectBuildVersion<RM>)
+
+// packages/router/src/types/mionRouter.ts
+initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R>
+```
+
+The build walks the API type with `apimeta.WalkApi`, renders each method's `manifestRow()` (the same
+fields `api-check` compares), sorts by id and hashes the lot into 12 base-62 characters
+(`apimeta.BuildVersion`). Every row field is a compiled type id, so the value is a pure function of the
+API's types: no build stamp, no timestamp, no counter. The discovery and injection live in
+`ts-go-runtypes/internal/compiler/resolver/apiversion.go`; the manifest carries the same value as
+`buildVersion`.
+
+**One guard, not a setting.** A client build with neither `api.tsConfig` nor a router import in its own
+program read the API under its own `lib` and strictness settings, so its ids can differ with nothing
+wrong. Its slot stays empty, which both runtimes read as "no version".
+
+Ambiguous ids never arise here. They only exist in `serverApiManifest`, which merges every
+`initRoutes(...)` call of a program into one manifest; the marker hashes one call site's own API type.
+
+### Server, on the wire
+
+Two new `RouterOptions`:
+
+- `globalResponseHeaders` (default `{}`), headers added to every response
+- `apiVersionCheck` (default `true`), whether to send `x-build-version`
+
+`initRouter` merges them once into a frozen record, read through `getGlobalResponseHeaders()`. All seven
+platform adapters fold that record into the default response headers they already build, lazily on the
+first request and cached, so nothing is rebuilt per response and no middleFn was added. The adapter's own
+`defaultResponseHeaders` wins on a clash. `BUILD_VERSION_HEADER` lives in `@mionjs/core` so the client
+reads the name without a value import of the router.
+
+### Client
+
+`initClient` stores the injected version. After each fetch the client reads `x-build-version`: a missing
+header, a missing build version, or an equal one all do nothing. A difference runs recovery once per
+process, through a new `#api-version-recovery` `imports` entry (its own entry, since `bundleApi: 'bundled'`
+stubs `#metadata-from-server` out).
+
+Recovery sends the client's own per-method ids, so `mionGetRemoteMethodsDataById` returns only the rows
+whose `paramsJitHash` / `returnJitHash` really differ. The client drops the stale bundled rows, installs
+the server's, and repeats the call. The mismatch is reported once as `api-version-mismatch` in the call's
+undeclared slot.
+
+## Deviations from the original plan
+
+- The server side does NOT ride `renderBatchesModule`: `generateRpc` removes `rpc/` and returns early when
+  the program has no batch call, so an app without batches would get no module. The marker replaced both
+  generated modules.
+- The value is 12 characters, not 7. It fingerprints a whole API, where a collision would hide a real
+  mismatch, so it is wider than the per-type ids it is built from.
+- There is no build option, no CLI flag and no devtools option. The version is always injected; one router
+  option decides whether the header goes out, and the client only checks what the server sent.
+
+## Tests
+
+- Go (`ts-go-runtypes/internal/compiler/resolver/apiversion_test.go`): an `initRoutes` site and an
+  `initClient` site over one API inject the same literal; a changed param type moves it; two builds of one
+  API agree; an untrusted client injects nothing; a filled slot is left alone; the manifest carries the
+  same value.
+- Router: `globalHeaders.spec.ts` (the merge, `apiVersionCheck: false`, the build filling the slot itself,
+  frozen, cleared by `resetRouter`) and two `client.routes.spec.ts` cases for the id filtering and the
+  not-found answer.
+- Platform: `mionHttp.spec.ts` asserts the headers ride a normal and a not-found response, and that the
+  adapter's own value wins on a clash.
+- Client, both lanes (`test/bundled/apiVersion.spec.ts`, `test/mixed/apiVersion.spec.ts`): the client and
+  the separately built test server agree on the same version; a match costs one request and leaves the
+  fetch lane unloaded; no header changes nothing; a difference makes exactly one extra request carrying the
+  client's ids, reports the mismatch, and does not repeat.
+
+## Out of scope
+
+- **The fetched client's cache.** A client with no `bundleApi` has no build-compiled rows to correct.
+  Storing the server's version beside its metadata cache and purging on change would replace today's
+  guess-after-a-serialization-error, and is worth doing, but is a different change.
+- **Making the header readable cross-origin.** Until mion can send `Access-Control-Expose-Headers`, the
+  check does nothing for a browser client on another origin. Failing silent is what keeps that harmless.

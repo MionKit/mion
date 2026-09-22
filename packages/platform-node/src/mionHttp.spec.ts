@@ -209,4 +209,47 @@ describe('node http router', () => {
       expect(headers['server']).toEqual('@mionjs');
     });
   });
+
+  // The router's globals reach the wire through the adapter's own default headers, merged once, with no
+  // middleFn writing them per response.
+  describe('with router global response headers', () => {
+    const globalsPort = port + 200;
+    let globalsServer: any;
+
+    beforeAll(async () => {
+      resetNodeHttpOpts();
+      resetRouter();
+      setNodeHttpOpts({port: globalsPort, defaultResponseHeaders: {'x-app-name': 'TheAdapter'}});
+      const globalsRouter = createMionRouter({
+        contextDataFactory: getSharedData,
+        basePath: 'api/',
+        globalResponseHeaders: {'x-team': 'mion', 'x-app-name': 'TheRouter'},
+      });
+      globalsRouter.initRoutes({changeUserName}, 'abc123');
+      globalsServer = await startNodeServer({port: globalsPort});
+    });
+
+    afterAll(async () => {
+      if (globalsServer) await closeServer(globalsServer);
+    });
+
+    it('rides every response, and the adapter still wins its own name', async () => {
+      const response = await fetch(`http://127.0.0.1:${globalsPort}/api/changeUserName`, {
+        method: 'POST',
+        body: JSON.stringify({changeUserName: [{name: 'John', surname: 'Doe'}]}),
+      });
+      const headers = Object.fromEntries(response.headers.entries());
+      expect(headers['x-team']).toEqual('mion');
+      expect(headers['x-build-version']).toEqual('abc123');
+      expect(headers['x-app-name']).toEqual('TheAdapter');
+    });
+
+    it('rides a not-found response too', async () => {
+      const response = await fetch(`http://127.0.0.1:${globalsPort}/api/nope`, {method: 'POST', body: '{}'});
+      const headers = Object.fromEntries(response.headers.entries());
+      expect(response.status).toEqual(404);
+      expect(headers['x-team']).toEqual('mion');
+      expect(headers['x-build-version']).toEqual('abc123');
+    });
+  });
 });
