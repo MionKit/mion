@@ -46,6 +46,7 @@
         "bun": ">=1.0.1"
     },
     "scripts": {
+        "typecheck:test": "tsc -p tsconfig.json --noEmit",
         "test": "bun test",
         "dev": "vite build --watch",
         "dev:test": "bun test --watch",

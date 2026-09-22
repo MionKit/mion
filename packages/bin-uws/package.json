@@ -35,6 +35,7 @@
     "access": "public"
   },
   "scripts": {
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev:test": "vitest watch",
     "clean": "rimraf .uws-cache .coverage"

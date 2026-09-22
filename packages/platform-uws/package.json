@@ -43,6 +43,7 @@
     "access": "public"
   },
   "scripts": {
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",

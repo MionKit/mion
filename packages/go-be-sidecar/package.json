@@ -5,6 +5,7 @@
   "description": "JS sidecar the Go resolver drives for regex jobs it cannot run itself. Bundled by vite and embedded into the mion binary via go:embed; never published.",
   "type": "module",
   "scripts": {
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
     "build": "vite build && vite build --config vite.hook.config.ts",
     "test": "vitest run",
     "clean": "node ../../scripts/lib/rmrf.mjs dist .coverage"

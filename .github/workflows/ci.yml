@@ -262,6 +262,12 @@ jobs:
       # whole projects (it once skipped all 5 runtypes ones, 309 test files).
       - name: Test-batch drift (test:ci must cover every vitest project)
         run: pnpm run check:test-batches
+      # And again for the type-check coverage: `pnpm -r run typecheck:test` skips a
+      # package with no such script and says nothing. Twelve packages had none, which
+      # is how a call with no import shipped in platform-uws. The root typecheck runs
+      # this too; a named step makes the failure read as the gap it is.
+      - name: Typecheck coverage (every package must run typecheck:test)
+        run: pnpm run check:typecheck-coverage
       - name: Lint + typecheck
         run: pnpm run lint
       # A dangling <code-import> path or comment marker does not fail the website
