@@ -1,29 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // (fixture handlers below take the parameters their types declare and ignore them, like the test server)
 //
-// sechttp: throw hostile requests at the mion router and check the rules that
-// must hold for EVERY request, whatever it carries.
-//
-// Two layers. The in-process layer drives `dispatchRoute` directly with seeded
-// attacks (random paths including prototype names, JSON bodies mutated from
-// valid ones, positional compact bodies mutated the same way, junk query
-// bodies, hostile batch ids, hostile headers). The
-// socket layer starts the node adapter on a free port and sends raw HTTP
-// (bad content-length, chunked overflow, junk `?data=`, prototype header
-// names, garbage), which is where the adapter rules live.
+// sechttp: seeded hostile requests at the mion router, in process through `dispatchRoute` and over raw
+// HTTP through the node adapter, checking the rules that must hold for EVERY request. The seeded loop,
+// crash guard and budget are imported from the RunTypes fuzz core, never copied.
 //
 // Oracles (every response, both layers):
 //   SH-ALIVE     the router (and the process) still answers a known-good request
-//   SH-ENVELOPE  a well-formed envelope: a 2xx/4xx status, every thrown error
-//                carries a string type and publicMessage and nothing internal,
-//                the x-rpc-error header is a plain token
+//   SH-ENVELOPE  2xx/4xx status, each thrown error a string type and publicMessage and nothing internal,
+//                x-rpc-error a plain token
 //   SH-NO5XX     malformed input never yields a 5xx
 //   SH-NOLEAK    no engine error text and no file path in any response
 //   SH-TIME      one request inside its time budget
 //   SH-PROTO     Object.prototype untouched after the run
-//
-// The seeded loop, crash guard and budget come from the RunTypes fuzz core
-// (real shipped helpers, imported, never copied).
 
 import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
