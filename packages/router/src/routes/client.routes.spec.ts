@@ -537,6 +537,39 @@ describe('metadata is generated for everything the client can call', () => {
     expect(Object.keys(data.methods).sort()).toEqual(['takesParams', 'users/getUser', 'users/returnsData']);
   });
 
+  // The recovery a build-version mismatch triggers: the client sends what it already holds, so the answer
+  // carries only what really moved.
+  it('returns only the rows whose compiled ids differ from the ones the client sent', async () => {
+    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
+    const held = getRouteExecutable('users/getUser')!;
+    const knownIds = [
+      {id: 'users/getUser', paramsId: held.paramsJitHash, returnId: held.returnJitHash},
+      {id: 'takesParams', paramsId: 'moved', returnId: 'moved'},
+    ];
+    const request: RawRequest = {
+      headers: headersFromRecord({}),
+      body: JSON.stringify({takesParams: ['token'], [methodsId]: [['users/getUser', 'takesParams'], false, knownIds]}),
+    };
+    const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+    const data = unwrap(response.body[methodsId]) as SerializableMethodsData;
+    expect(Object.keys(data.methods)).toEqual(['takesParams']);
+  });
+
+  it('still reports an id it no longer declares, whatever the client claims to hold', async () => {
+    createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
+    const request: RawRequest = {
+      headers: headersFromRecord({}),
+      body: JSON.stringify({
+        takesParams: ['token'],
+        [methodsId]: [['users/gone'], false, [{id: 'users/gone', paramsId: 'a', returnId: 'b'}]],
+      }),
+    };
+    const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+    const result = unwrap(response.body[methodsId]) as RpcError<string>;
+    expect(result.type).toBe('rpc-metadata-not-found');
+    expect(result.errorData).toEqual({'users/gone': 'Remote Method users/gone not found'});
+  });
+
   it('answers a by-id request for a middleFn with params but reports a raw or silent one as not found', async () => {
     createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
     const request: RawRequest = {
