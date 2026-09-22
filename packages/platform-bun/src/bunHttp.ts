@@ -32,13 +32,10 @@ import {Server} from 'bun';
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
 /** Merged lazily: the router's global headers only settle once initRoutes has run. */
-let defaultHeaders: [string, string][] | undefined;
-const getDefaultHeaders = (): [string, string][] =>
-  (defaultHeaders ??= [
-    ['server', '@mionjs'],
-    ...Object.entries(getGlobalResponseHeaders()),
-    ...Object.entries(httpOptions.defaultResponseHeaders),
-  ]);
+let defaultHeaders: Record<string, string> | undefined;
+// A record, not a list of pairs: `new Headers()` APPENDS a repeated name, so a list would join both values
+const getDefaultHeaders = (): Record<string, string> =>
+  (defaultHeaders ??= {server: '@mionjs', ...getGlobalResponseHeaders(), ...httpOptions.defaultResponseHeaders});
 
 export function resetBunHttpOpts() {
   httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
