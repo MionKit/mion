@@ -12,7 +12,7 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
-import {MION_ROUTES, StatusCodes} from '@mionjs/core';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from './uwsHttp.ts';
 
 const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
@@ -20,6 +20,7 @@ const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePat
 type SimpleUser = {name: string; surname: string};
 
 const port = 8291;
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
 
 const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
 const reflectHeader = mion.route((ctx: CallContext, value: string): string => {
@@ -44,7 +45,7 @@ describe('uws adapter hardening', () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/echo?data=!`);
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-rpc-error')).toBe('invalid-query-body');
-    const body = await response.json();
+    const body = (await response.json()) as RpcBody;
     expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('invalid-query-body');
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
@@ -75,7 +76,7 @@ describe('uws adapter hardening', () => {
 
   it('a malformed JSON body is a typed error with a fixed message', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/echo`, {method: 'POST', body: '{"echo": [}'});
-    const error = (await response.json())[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
+    const error = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
     expect(error).toMatchObject({type: 'parsing-json-request-error', publicMessage: 'Invalid json request body.'});
   });
 });
@@ -97,7 +98,7 @@ describe('uws adapter: an unknown path never reads the body', () => {
   it('answers 404 without parsing a body that is not JSON, and the connection serves the next request', async () => {
     const response = await fetch(`http://127.0.0.1:${notFoundPort}/api/nope`, {method: 'POST', body: '{not json'});
     expect(response.status).toBe(StatusCodes.NOT_FOUND);
-    const body = await response.json();
+    const body = (await response.json()) as RpcBody;
     expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.notFound].type).toBe('route-not-found');
     expect(body[MION_ROUTES.thrownErrors]['mionDeserializeRequest']).toBeUndefined();
 
@@ -162,7 +163,7 @@ describe('uws adapter: a refused request', () => {
         });
         expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
         expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
-        const body = await response.json();
+        const body = (await response.json()) as RpcBody;
         expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('request-payload-too-large');
         expect(seen).toEqual(['log:413']);
 

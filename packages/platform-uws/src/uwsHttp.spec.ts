@@ -8,7 +8,9 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
 import {setUwsHttpOpts, resetUwsHttpOpts, startUwsServer, type UwsServer} from './uwsHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
-import {StatusCodes, type PublicRpcError} from '@mionjs/core';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
+
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
 
 describe('uws http router', () => {
   type SimpleUser = {name: string; surname: string};
@@ -205,7 +207,9 @@ describe('uws http router', () => {
         body: tinyBody + ' '.repeat(41 - tinyBody.length),
       });
       expect(tinyOver.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
-      expect((await tinyOver.json())['@thrownErrors']['mion@platformError'].type).toBe('request-payload-too-large');
+      expect(((await tinyOver.json()) as RpcBody)[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe(
+        'request-payload-too-large'
+      );
 
       const post = async (tagCount: number) => {
         const body = JSON.stringify({countTags: [Array.from({length: tagCount}, (_, i) => `tag-number-${i}-padding-padding`)]});

@@ -11,6 +11,8 @@ import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandle
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
+
 describe('cloudflare handler', () => {
   type SimpleUser = {
     name: string;
@@ -67,7 +69,7 @@ describe('cloudflare handler', () => {
       const req = createRequest(JSON.stringify(requestData), '/api/getDate');
 
       const response = await handler.fetch(req);
-      const parsedResponse = await response.json();
+      const parsedResponse = (await response.json()) as RpcBody;
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
@@ -79,7 +81,7 @@ describe('cloudflare handler', () => {
       const req = createRequest(JSON.stringify(requestData), '/api/getDate');
 
       const response = await handler.fetch(req);
-      const parsedResponse = await response.json();
+      const parsedResponse = (await response.json()) as RpcBody;
 
       const expectedError: PublicRpcError<'validation-error'> = {
         'mion@isΣrrθr': true,
@@ -98,7 +100,7 @@ describe('cloudflare handler', () => {
       const req = createRequest(JSON.stringify(requestData), '/api/updateHeaders');
 
       const response = await handler.fetch(req);
-      const parsedResponse = await response.json();
+      const parsedResponse = (await response.json()) as RpcBody;
 
       expect(parsedResponse).toEqual({});
       expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
@@ -122,7 +124,7 @@ describe('cloudflare handler', () => {
       const req = createRequest(JSON.stringify(requestData), '/api/getDate');
 
       const response = await handler.fetch(req);
-      const parsedResponse = await response.json();
+      const parsedResponse = (await response.json()) as RpcBody;
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(response.headers.get('x-app-name')).toEqual('MyApp');
@@ -153,7 +155,7 @@ describe('cloudflare handler', () => {
       const req = createRequest(JSON.stringify(requestData), '/api/mion/api/getDate');
 
       const response = await handler.fetch(req);
-      const parsedResponse = await response.json();
+      const parsedResponse = (await response.json()) as RpcBody;
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       expect(response.status).toBe(200);
@@ -176,7 +178,7 @@ describe('cloudflare handler', () => {
       const req = createRequest(JSON.stringify(requestData), '/api/getDate');
 
       const response = await handler.fetch(req);
-      const parsedResponse = await response.json();
+      const parsedResponse = (await response.json()) as RpcBody;
 
       expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
       // Response.json() adds charset=utf-8 automatically
@@ -189,7 +191,7 @@ describe('cloudflare handler', () => {
       const req = createRequest(JSON.stringify(requestData), '/api/changeUserName');
 
       const response = await handler.fetch(req);
-      const parsedResponse = await response.json();
+      const parsedResponse = (await response.json()) as RpcBody;
 
       expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
       expect(response.headers.get('content-type')).toContain('application/json');
