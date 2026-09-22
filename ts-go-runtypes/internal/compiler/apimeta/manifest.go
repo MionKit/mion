@@ -6,6 +6,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/hashid"
 )
 
 // `<genDir>/api/manifest.json`, the id table BOTH builds write: the server from its `initRoutes(...)`
@@ -31,6 +33,35 @@ type ManifestMethod struct {
 	MiddleFnIds []string `json:"middleFnIds,omitempty"`
 }
 
+// BuildVersionLength is 12 base-62 characters, ~71 bits: a whole-API fingerprint, where a collision would
+// hide a real mismatch, so it is wider than the 7-character per-type ids it is built from.
+const BuildVersionLength = 12
+
+// BuildVersion hashes every method row, sorted by id, into the version both ends of one API compare. Derived
+// from the types alone (the rows are compiled ids), never from a build stamp, so two builds of one API agree.
+func BuildVersion(methods map[string]ManifestMethod) string {
+	if len(methods) == 0 {
+		return ""
+	}
+	ids := make([]string, 0, len(methods))
+	for id := range methods {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var input strings.Builder
+	for _, id := range ids {
+		row, err := json.Marshal(methods[id])
+		if err != nil {
+			panic("apimeta: hashing the manifest row of " + id + ": " + err.Error())
+		}
+		input.WriteString(id)
+		input.WriteByte('=')
+		input.Write(row)
+		input.WriteByte('\n')
+	}
+	return hashid.QuickHash(input.String(), BuildVersionLength)
+}
+
 // Manifest is the file's shape; Mode and ApiTsconfig are set on a client manifest only. Ambiguous lists the
 // ids a server program initializes more than once with differing rows: the first in file order is kept, and
 // a client row for such an id never passes the check.
@@ -39,7 +70,10 @@ type Manifest struct {
 	Mode        string                    `json:"mode,omitempty"`
 	ApiTsconfig string                    `json:"apiTsconfig,omitempty"`
 	Methods     map[string]ManifestMethod `json:"methods"`
-	Ambiguous   []string                  `json:"ambiguous,omitempty"`
+	// BuildVersion is the version this build injects at its `initRoutes` / `initClient` call, so a report
+	// can name the value the server answers with.
+	BuildVersion string   `json:"buildVersion,omitempty"`
+	Ambiguous    []string `json:"ambiguous,omitempty"`
 }
 
 // Render is the file's text, keys sorted and newline-terminated, so rewriting the same content is a no-op on disk.
