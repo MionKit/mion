@@ -31,7 +31,7 @@
         "test": "vitest run",
         "test:ci": "node scripts/miondevx.mjs core test-batches",
         "pretest:bun": "pnpm run check:builds",
-        "test:bun": "bun --cwd packages/platform-bun test",
+        "test:bun": "node scripts/miondevx.mjs core test-bun",
         "check:builds": "node scripts/miondevx.mjs core build --trust-stamp",
         "check:env": "node scripts/miondevx.mjs env",
         "check:test-batches": "node scripts/miondevx.mjs core test-batches --check",

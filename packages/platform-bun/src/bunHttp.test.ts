@@ -15,7 +15,6 @@ import {Server} from 'bun';
 setDefaultTimeout(30_000);
 
 describe('bun router should', () => {
-  resetBunHttpOpts();
   type SimpleUser = {name: string; surname: string};
   type DataPoint = {date: Date};
   type MySharedData = ReturnType<typeof getSharedData>;
@@ -31,26 +30,37 @@ describe('bun router should', () => {
     },
   };
   const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
-    return myApp.db.changeUserName(user);
-  }); // satisfies Route
+  // bun runs every test file in ONE process and evaluates every describe body before any hook, so
+  // this is called from beforeAll: called in the body it would set the once-guard the other file's
+  // body then hits, and that whole file would be skipped.
+  const buildApp = () => {
+    resetBunHttpOpts();
+    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
 
-  const getDate = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
-    return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
-  }); // satisfies Route
+    const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
+      return myApp.db.changeUserName(user);
+    }); // satisfies Route
 
-  const updateHeaders = mion.route((context: Context): void => {
-    context.response.headers.set('x-something', 'true');
-    context.response.headers.set('server', 'my-server');
-  }); // satisfies Route
+    const getDate = mion.route((context: Context, dataPoint?: DataPoint): DataPoint => {
+      return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
+    }); // satisfies Route
 
+    const updateHeaders = mion.route((context: Context): void => {
+      context.response.headers.set('x-something', 'true');
+      context.response.headers.set('server', 'my-server');
+    }); // satisfies Route
+
+    return {mion, routes: {changeUserName, getDate, updateHeaders}};
+  };
+
+  let app: ReturnType<typeof buildApp>;
   let server: Server<any>;
   const port = 8079;
 
   beforeAll(async () => {
-    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    app = buildApp();
+    app.mion.initRoutes(app.routes);
     setBunHttpOpts({port});
     server = await startBunServer();
   });
@@ -123,7 +133,7 @@ describe('bun router should', () => {
     };
     resetBunHttpOpts();
     setBunHttpOpts(bunOpts);
-    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    app.mion.initRoutes(app.routes);
     const smallServer = await startBunServer();
     // `changeUserName` takes a plain `SimpleUser` (unbounded strings), so it is the adapter's number
     // that applies; `getDate` derives its own limit from its types and would ignore a 10-byte adapter
@@ -168,7 +178,7 @@ describe('bun router should', () => {
 
     // Restore router state for the main server
     resetBunHttpOpts();
-    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    app.mion.initRoutes(app.routes);
     setBunHttpOpts({port});
   });
 
@@ -209,7 +219,7 @@ describe('bun router should', () => {
     const testPort = 8081;
     resetBunHttpOpts();
     const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    jsonRouter.initRoutes({changeUserName, getDate});
+    jsonRouter.initRoutes({changeUserName: app.routes.changeUserName, getDate: app.routes.getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 
@@ -231,7 +241,7 @@ describe('bun router should', () => {
 
     // Restart the main server
     resetBunHttpOpts();
-    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    app.mion.initRoutes(app.routes);
     setBunHttpOpts({port});
     server = await startBunServer();
   });
@@ -244,7 +254,7 @@ describe('bun router should', () => {
     const testPort = 8081;
     resetBunHttpOpts();
     const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-    jsonRouter.initRoutes({changeUserName, getDate});
+    jsonRouter.initRoutes({changeUserName: app.routes.changeUserName, getDate: app.routes.getDate});
     setBunHttpOpts({port: testPort});
     const testServer = await startBunServer();
 
@@ -266,7 +276,7 @@ describe('bun router should', () => {
 
     // Restart the main server
     resetBunHttpOpts();
-    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    app.mion.initRoutes(app.routes);
     setBunHttpOpts({port});
     server = await startBunServer();
   });
