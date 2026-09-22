@@ -5,7 +5,10 @@
     // re-enable it here so this package keeps its original strictness.
     "noImplicitAny": true,
     "composite": false,
-    "noEmit": true
+    "noEmit": true,
+    "incremental": false,
+    // The fuzz specs import the shared harness out of packages/run-types, which an inferred rootDir rejects.
+    "rootDir": "../.."
   },
   "include": ["src", "test", "vite.config.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "dist"]

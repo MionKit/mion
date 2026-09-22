@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  "references": [{"path": "../core"}, {"path": "../router"}],
+  "references": [{"path": "../core/tsconfig.build.json"}, {"path": "../router/tsconfig.build.json"}],
   "exclude": [
     "node_modules",
     ".dist",

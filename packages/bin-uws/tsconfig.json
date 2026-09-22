@@ -1,9 +1,17 @@
 {
+  // checkJs covers the shipped lib/index.js against its hand-written d.ts; the include used to name the
+  // declarations alone, so 136 lines of loader sat in no project at all.
+  // vitest runs with `globals: true`, so describe/it/expect are ambient here and nowhere else.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "composite": false,
     "noEmit": true,
-    "rootDir": "."
+    "incremental": false,
+    "rootDir": "../..",
+    "allowJs": true,
+    "checkJs": true,
+    "types": ["node", "vitest/globals"]
   },
-  "include": ["lib/index.d.ts", "test", "vitest.config.ts"],
+  "include": ["lib", "test", "vitest.config.ts"],
   "exclude": ["node_modules", ".uws-cache"]
 }

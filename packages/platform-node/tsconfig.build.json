@@ -1,5 +1,29 @@
 {
+  // The emit half, what vite-plugin-dts reads. It re-enables what tsconfig.json turns off for the
+  // check, and its `references` name sibling BUILD configs because a reference target must be composite.
   "extends": "./tsconfig.json",
-  "references": [{"path": "../core"}],
-  "exclude": ["node_modules", ".dist", "build", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "incremental": true,
+    "outDir": ".dist/esm",
+    "rootDir": "."
+  },
+  "references": [
+    {
+      "path": "../core/tsconfig.build.json"
+    }
+  ],
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "build",
+    "*.config.ts",
+    "globalSetup.ts",
+    "buildTestBundle.ts",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.bench.ts",
+    "**/*.stub.ts"
+  ]
 }
