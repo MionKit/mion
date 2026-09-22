@@ -89,8 +89,7 @@ export interface SerializableMethodsData {
   batches?: string[];
 }
 
-/** What a client already holds for one method. It sends these so the server answers with the rows that
- *  really differ, instead of the whole API, once the build version told it something moved. */
+/** What a client already holds for one method: it sends these so the server answers only with the rows that differ. */
 export interface MethodIdCheck {
   id: string;
   paramsId: string;

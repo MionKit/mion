@@ -210,8 +210,7 @@ describe('node http router', () => {
     });
   });
 
-  // The router's globals reach the wire through the adapter's own default headers, merged once, with no
-  // middleFn writing them per response.
+  // The router's globals reach the wire through the adapter's own default headers, with no middleFn writing them.
   describe('with router global response headers', () => {
     const globalsPort = port + 200;
     let globalsServer: any;

@@ -140,8 +140,7 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   readonly headersFn: HeadersFnHelper<O>;
   readonly rawMiddleFn: RawMiddleFnHelper<O>;
   /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here.
-   *  `buildVersion` is filled by the build, never by hand: it is what the server answers with so a client can tell
-   *  its bundled routes apart from the ones this API declares now. */
+   *  `buildVersion` is filled by the build, never by hand: the server answers with it so a client can spot stale routes. */
   initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R>;
 }
 // type-mion-router-end

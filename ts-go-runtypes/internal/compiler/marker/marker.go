@@ -64,9 +64,8 @@ const (
 	// arguments and fills the slot with an import of the generated metadata module. No scanCall case.
 	KindInjectApiMetadata
 	// KindInjectBuildVersion (InjectBuildVersion<Api>) rides the trailing parameter of `initRoutes` and
-	// `initClient`; the injected value hashes the compiled ids of every method the Api type declares, so
-	// both ends of one API agree and a changed route type disagrees. No scanCall case: the apiversion
-	// extractor splices it in.
+	// `initClient`: a hash over the compiled ids of every method the Api declares, so both ends of one API
+	// agree and a changed route type disagrees. No scanCall case, the apiversion extractor splices it in.
 	KindInjectBuildVersion
 	// KindPureFnId (PureFnId<ID>) brands the VALUE a pure-fn registrar returns, not an injection (no
 	// scanCall case): it is what lets a build recognise an id handed to a `CompTimeArgs<PureFnId>`

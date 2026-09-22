@@ -537,8 +537,7 @@ describe('metadata is generated for everything the client can call', () => {
     expect(Object.keys(data.methods).sort()).toEqual(['takesParams', 'users/getUser', 'users/returnsData']);
   });
 
-  // The recovery a build-version mismatch triggers: the client sends what it already holds, so the answer
-  // carries only what really moved.
+  // The recovery a build-version mismatch triggers: the client sends what it holds, so the answer carries only what moved.
   it('returns only the rows whose compiled ids differ from the ones the client sent', async () => {
     createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
     const held = getRouteExecutable('users/getUser')!;

@@ -84,8 +84,7 @@ function mionMethodsMetadata(
   return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods, knownIds);
 }
 
-/** The ids whose compiled types the client already holds. An id the server no longer declares is absent
- *  here, so it still reaches the not-found answer. */
+/** Ids the client already holds unchanged; one the server no longer declares is absent, so it still answers not-found. */
 function unchangedIds(knownIds: MethodIdCheck[] | undefined): Set<string> | undefined {
   if (!knownIds?.length) return undefined;
   const unchanged = new Set<string>();

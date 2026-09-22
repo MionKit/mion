@@ -279,9 +279,7 @@ export class MionClient {
       }
     }
 
-    // Framework errors the router never saw, taking the first free undeclared slot rather than rejecting
-    // (the call itself ran): a bundled payload the build did not write, an API version the server no longer
-    // answers with, and a refused metadata cache write.
+    // Framework errors the router never saw take the first free undeclared slot rather than rejecting: the call ran.
     if (undeclaredPart === undefined) undeclaredPart = takeBundledApiError();
     if (undeclaredPart === undefined) undeclaredPart = takeApiVersionError();
     if (undeclaredPart === undefined) undeclaredPart = metadataCacheHooks()?.takeMetadataCacheError();

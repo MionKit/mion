@@ -43,8 +43,7 @@ func (sess *Session) apiLaneOn() bool {
 // extractApiSitesForScan returns the requested files' dispatch sites, their diagnostics and the point
 // insertions for the user's source, memoised per file; nothing when the lane is off.
 func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []diagnostics.Diagnostic, []protocol.Replacement) {
-	// The version slot is filled whatever the bundleApi lane: a SERVER build never sets bundleApi, and its
-	// `initRoutes` call is the one that answers every client.
+	// Filled whatever the bundleApi lane: a server build never sets bundleApi, yet its `initRoutes` answers every client.
 	versions := sess.apiVersionReplacements(files)
 	if !sess.apiLaneOn() || sess.Program == nil || len(files) == 0 {
 		return nil, nil, versions
@@ -55,8 +54,7 @@ func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []d
 	return sites, diags, append(replacements, versions...)
 }
 
-// apiVersionFiles lists the files carrying a version slot, so a file whose only marker use is
-// `initRoutes(routes)` or `initClient({...})` is still transformed.
+// apiVersionFiles lists the version-slot files, so one whose only marker use is `initRoutes` / `initClient` is still transformed.
 func (sess *Session) apiVersionFiles(files []string) []string {
 	if sess.Program == nil || !sess.apiVersionTrusted() {
 		return nil

@@ -259,19 +259,14 @@ export type InjectApiMetadata<Api, Id extends string> = {
 };
 
 /**
- * API version injection marker, declared as the trailing parameter of `initRoutes(routes, buildVersion?)`
- * on the server and `initClient(options, buildVersion?)` on the client: the build walks the API type,
- * hashes its methods' compiled ids and fills the slot with the result. Both ends hash the same rows with
- * the same code, so one API gives one string and a changed route type gives another. Derived from the
- * types alone, never from a build stamp or a timestamp, so two builds of the same API agree.
+ * API version injection marker on the trailing parameter of `initRoutes(routes, buildVersion?)` and
+ * `initClient(options, buildVersion?)`: the build hashes the compiled ids of the API type's methods into the
+ * slot. Derived from the types alone, never from a build stamp, so two builds of one API agree.
  *
- * The slot stays empty for a client program that reads the API without `api.tsConfig` and without
- * importing the router: it resolved those types under its own compiler settings, so its ids may differ
- * from the server's with nothing wrong.
+ * The slot stays empty for a client reading the API without `api.tsConfig` and without importing the router:
+ * it resolved those types under its own compiler settings, so its ids may differ with nothing wrong.
  *
- * `Api` is phantom, linking the marker to the API the call declares; the runtime value is the injected
- * string. Same `string & {brand}` shape as `InjectRunTypeId` so the Go marker scanner resolves the alias
- * identically.
+ * `Api` is phantom; the `string & {brand}` shape matches `InjectRunTypeId` so the Go scanner resolves it identically.
  */
 export type InjectBuildVersion<Api> = string & {
   readonly __rtInjectBuildVersionBrand?: Api;
