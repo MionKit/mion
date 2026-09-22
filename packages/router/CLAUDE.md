@@ -18,6 +18,6 @@ This was NOT true under deepkit, whose runtime reflection was emitted from the i
 
 ## This package's test tree never imports a downstream consumer
 
-No `@mionjs/test-server`, no `@mionjs/platform-*`, and no relative path into another package's `src/`. Adding one means adding a tsconfig project reference back to a package that already references router, which makes the graph circular and stops `tsc --build` from building ANYTHING (TS6202). The `sechttp` HTTP fuzz suite lived here once and moved to `packages/test-server` for exactly that reason; a sweep in [scripts/ci/check-tree.mjs](../../scripts/ci/check-tree.mjs) fails if the cycle comes back.
+No `@mionjs/test-server`, no `@mionjs/platform-*`, and no relative path into another package's `src/`. Adding one means adding a tsconfig project reference back to a package that already references router, which makes the graph circular and stops `tsc --build` from building ANYTHING (TS6202). The `sechttp` HTTP fuzz suite lived here once and moved to `packages/test-router-fuzz` for exactly that reason; a sweep in [scripts/ci/check-tree.mjs](../../scripts/ci/check-tree.mjs) fails if the cycle comes back.
 
-A suite that needs the router plus an adapter plus fixture routes belongs in the package that already depends on all three.
+A suite that needs the router plus an adapter plus fixture routes belongs in a private package of its own, which nothing references.
