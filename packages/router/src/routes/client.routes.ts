@@ -90,7 +90,8 @@ function unchangedIds(knownIds: MethodIdCheck[] | undefined): Set<string> | unde
   const unchanged = new Set<string>();
   for (const known of knownIds) {
     const executable = getAnyExecutable(known.id) as RemoteMethod | undefined;
-    if (executable?.paramsJitHash === known.paramsId && executable?.returnJitHash === known.returnId) unchanged.add(known.id);
+    if (executable?.paramsJitHash === known.paramsJitHash && executable?.returnJitHash === known.returnJitHash)
+      unchanged.add(known.id);
   }
   return unchanged;
 }

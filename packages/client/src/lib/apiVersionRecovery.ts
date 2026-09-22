@@ -13,27 +13,52 @@ import '@mionjs/run-types/formats';
 import {RpcError, MION_ROUTES, getRoutePath, addRoutesToCache, addSerializedJitCaches, routesCache} from '@mionjs/core';
 import type {MethodIdCheck, SerializableMethodsData} from '@mionjs/core';
 import type {ClientOptions} from '../types.ts';
+import {settleApiVersionMismatch} from './apiBuildVersion.ts';
 import {bundledMethodIds, dropBundledMethods, getMethod, setFetchedMethods} from './methods.ts';
 
-/** Sends the client's own ids, so the server returns only the rows that really differ. */
-export async function recoverFromApiVersionMismatch(
+/** One recovery at a time: several requests in flight all see the same differing header, and each would
+ *  otherwise start its own. Cleared when it settles, so a failed one can be tried again. */
+let inFlight: Promise<RpcError<'api-version-mismatch'> | undefined> | undefined;
+
+/** Replaces the rows the server no longer agrees with, or answers undefined when there is nothing to replace.
+ *  Sends the client's own ids, so the server returns only the rows that really differ. */
+export function recoverFromApiVersionMismatch(
   options: ClientOptions,
   signal?: AbortSignal
-): Promise<RpcError<'api-version-mismatch'>> {
-  const ids = bundledMethodIds();
-  try {
-    if (ids.length) await replaceChangedMethods(ids, options, signal);
-  } catch (error: any) {
-    return mismatchError(`The client could not read them from the server: ${error?.message}`);
-  }
-  return mismatchError('Its routes were replaced with the ones the server declares now.');
+): Promise<RpcError<'api-version-mismatch'> | undefined> {
+  return (inFlight ??= runRecovery(options, signal).finally(() => {
+    inFlight = undefined;
+  }));
 }
 
-async function replaceChangedMethods(ids: string[], options: ClientOptions, signal?: AbortSignal): Promise<void> {
+async function runRecovery(options: ClientOptions, signal?: AbortSignal): Promise<RpcError<'api-version-mismatch'> | undefined> {
+  const ids = bundledMethodIds();
+  // A fetched client carries no build-compiled rows to correct, and its stored cache is another change's job.
+  if (!ids.length) {
+    settleApiVersionMismatch();
+    return undefined;
+  }
+  let replaced = 0;
+  try {
+    replaced = await replaceChangedMethods(ids, options, signal);
+  } catch (error: any) {
+    // Left unsettled on purpose: the next response tries again rather than calling stale routes in silence.
+    return mismatchError(`The client could not read them from the server: ${error?.message}`);
+  }
+  settleApiVersionMismatch();
+  return mismatchError(
+    replaced
+      ? `${replaced} of its routes were replaced with the ones the server declares now.`
+      : 'None of its routes changed, so nothing was replaced.'
+  );
+}
+
+/** Returns how many rows the server sent back, which is how many really differed. */
+async function replaceChangedMethods(ids: string[], options: ClientOptions, signal?: AbortSignal): Promise<number> {
   const knownIds: MethodIdCheck[] = [];
   for (const id of ids) {
     const method = getMethod(id);
-    if (method) knownIds.push({id, paramsId: method.paramsJitHash, returnId: method.returnJitHash});
+    if (method) knownIds.push({id, paramsJitHash: method.paramsJitHash, returnJitHash: method.returnJitHash});
   }
   const path = getRoutePath([MION_ROUTES.methodsMetadataById], options);
   const response = await fetch(new URL(path, options.baseURL), {
@@ -47,11 +72,14 @@ async function replaceChangedMethods(ids: string[], options: ClientOptions, sign
   const answer = body?.[MION_ROUTES.methodsMetadataById];
   const data = (Array.isArray(answer) ? answer[1] : answer) as SerializableMethodsData | undefined;
   if (!data?.methods) throw new Error('the server sent no methods');
+  const changed = Object.keys(data.methods);
+  if (!changed.length) return 0;
   addSerializedJitCaches(data.deps, data.purFnDeps);
   // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
-  dropBundledMethods(Object.keys(data.methods));
+  dropBundledMethods(changed);
   addRoutesToCache(data.methods);
   setFetchedMethods(routesCache);
+  return changed.length;
 }
 
 function mismatchError(outcome: string): RpcError<'api-version-mismatch'> {

@@ -117,7 +117,7 @@ describe('the api version a mixed client compares', () => {
       // the extra request carries the client's own compiled ids, so the server answers only with rows that moved (none here)
       const asked = JSON.parse(watch.metadataBody())[MION_ROUTES.methodsMetadataById];
       expect(asked[0]).toContain('sayHello');
-      expect(asked[2]).toContainEqual({id: 'sayHello', paramsId: expect.any(String), returnId: expect.any(String)});
+      expect(asked[2]).toContainEqual({id: 'sayHello', paramsJitHash: expect.any(String), returnJitHash: expect.any(String)});
 
       // a second call is back to one request: the two versions never change, so one mismatch is the news
       const before = watch.calls();
