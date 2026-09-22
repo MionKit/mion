@@ -11,6 +11,8 @@ import {CallContext} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
 import {Server} from 'bun';
 
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
+
 // Increase timeout for tests that involve type reflection (can be slow when running in parallel)
 setDefaultTimeout(30_000);
 
@@ -316,7 +318,7 @@ describe('bun: a refused body runs the alwaysRun middleFns', () => {
       body: JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}),
     });
     expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
-    const errors = (await response.json())[MION_ROUTES.thrownErrors];
+    const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
     expect(errors[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
     expect(errors['mionDeserializeRequest']).toBeUndefined();
     expect(seen).toEqual(['log:413']);

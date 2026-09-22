@@ -8,9 +8,8 @@
 import {describe, it, expect, beforeAll} from 'vitest';
 import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda.ts';
-import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionjs/router';
-import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
+import type {APIGatewayProxyEvent, APIGatewayProxyEventHeaders} from 'aws-lambda';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
 describe('serverless router', () => {
@@ -57,7 +56,7 @@ describe('serverless router', () => {
     isBase64Encoded = false
   ) => {
     const context = {} as any;
-    const event = createEvent('aws:apiGateway', {
+    const event: APIGatewayProxyEvent = {
       body,
       headers,
       multiValueHeaders: {},
@@ -71,7 +70,7 @@ describe('serverless router', () => {
       // do not use context during test
       requestContext: context,
       resource: 'aws:apiGateway',
-    });
+    };
     return {context, event};
   };
 

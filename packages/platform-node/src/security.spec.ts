@@ -13,7 +13,7 @@ import {createConnection} from 'net';
 import type {Server} from 'http';
 import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
-import {MION_ROUTES, StatusCodes} from '@mionjs/core';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from './mionHttp.ts';
 
 const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
@@ -22,6 +22,7 @@ type SimpleUser = {name: string; surname: string};
 
 const port = 8277;
 const MAX_BODY = 64;
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
 
 const echo = mion.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
 const hasHeader = mion.route((ctx: CallContext, name: string): boolean => ctx.request.headers.has(name));
@@ -73,7 +74,7 @@ describe('node adapter hardening', () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/echo?data=!`);
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
     expect(response.headers.get('x-rpc-error')).toBe('invalid-query-body');
-    const body = await response.json();
+    const body = (await response.json()) as RpcBody;
     expect(body[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toBe('invalid-query-body');
 
     const alive = await fetch(`http://127.0.0.1:${port}/api/echo`, {
@@ -86,7 +87,7 @@ describe('node adapter hardening', () => {
   it('a malformed JSON body is a typed error with a fixed message', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/echo`, {method: 'POST', body: '{"echo": [}'});
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
-    const error = (await response.json())[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
+    const error = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
     expect(error).toMatchObject({type: 'parsing-json-request-error', publicMessage: 'Invalid json request body.'});
   });
 
@@ -161,7 +162,7 @@ describe('node adapter hardening', () => {
 
   it('response headers can be listed from a handler', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/listHeaders`, {method: 'POST', body: '{"listHeaders":[]}'});
-    const body = await response.json();
+    const body = (await response.json()) as RpcBody;
     expect(body.listHeaders).toEqual(expect.arrayContaining(['x-one=1', 'server=@mionjs']));
   });
 });

@@ -12,8 +12,10 @@
 import {describe, it, expect, beforeAll} from 'vitest';
 import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
-import {MION_ROUTES, StatusCodes} from '@mionjs/core';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {createCloudflareHandler, resetCloudflareHandlerOpts, setCloudflareHandlerOpts} from './cloudflareHandler.ts';
+
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
 
 const mion = createMionRouter({contextDataFactory: () => ({user: null}), basePath: 'api/'});
 
@@ -37,7 +39,7 @@ describe('cloudflare adapter hardening', () => {
   it('a malformed JSON body is a mion error, not a runtime 500', async () => {
     const response = await post('/api/echo', '{"echo": [}');
     expect(response.status).toBe(StatusCodes.UNEXPECTED_ERROR);
-    const error = (await response.json())[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
+    const error = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors]['mionDeserializeRequest'];
     expect(error).toMatchObject({type: 'parsing-json-request-error', publicMessage: 'Invalid json request body.'});
   });
 
@@ -116,7 +118,7 @@ describe('cloudflare adapter: an unknown path never reads the body', () => {
     const response = await handler.fetch(request);
     expect(response.status).toBe(StatusCodes.NOT_FOUND);
     expect(response.headers.get('x-rpc-error')).toBe('route-not-found');
-    const errors = (await response.json())[MION_ROUTES.thrownErrors];
+    const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
     expect(errors[MION_ROUTES.notFound].type).toBe('route-not-found');
     expect(errors['mionDeserializeRequest']).toBeUndefined();
     // a ReadableStream pulls once on construction to fill its queue, reader or not: the body
@@ -163,7 +165,7 @@ describe('cloudflare adapter: a refused body runs the alwaysRun middleFns', () =
     const response = await send(JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}));
     expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);
     expect(response.headers.get('x-rpc-error')).toBe('request-payload-too-large');
-    const errors = (await response.json())[MION_ROUTES.thrownErrors];
+    const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
     expect(errors[MION_ROUTES.platformError].type).toBe('request-payload-too-large');
     expect(errors['mionDeserializeRequest']).toBeUndefined();
     expect(seen).toEqual(['log:413']);

@@ -16,6 +16,7 @@ if (process.platform !== 'win32' && typeof process.execve === 'function') {
 try {
   execFileSync(exe, process.argv.slice(2), {stdio: 'inherit'});
 } catch (err) {
-  if (err && typeof err.status === 'number') process.exitCode = err.status;
+  const status = typeof err === 'object' && err !== null && 'status' in err ? err.status : undefined;
+  if (typeof status === 'number') process.exitCode = status;
   else throw err;
 }

@@ -12,6 +12,8 @@ import {startVercelDevServer} from './devServer.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
+
 type SimpleUser = {
   name: string;
   surname: string;
@@ -104,7 +106,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
       body: JSON.stringify(requestData),
       headers: {'content-type': 'application/json'},
     });
-    const parsedResponse = await response.json();
+    const parsedResponse = (await response.json()) as RpcBody;
 
     expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
     expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
@@ -118,7 +120,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
       body: JSON.stringify(requestData),
       headers: {'content-type': 'application/json'},
     });
-    const parsedResponse = await response.json();
+    const parsedResponse = (await response.json()) as RpcBody;
 
     const expectedError: PublicRpcError<'validation-error'> = {
       'mion@isΣrrθr': true,
@@ -139,7 +141,7 @@ describe('vercel dev server (node) - stringifyJson', () => {
       body: JSON.stringify(requestData),
       headers: {'content-type': 'application/json'},
     });
-    const parsedResponse = await response.json();
+    const parsedResponse = (await response.json()) as RpcBody;
 
     expect(parsedResponse).toEqual({});
     expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
@@ -171,7 +173,7 @@ describe('vercel dev server (node) - default encoder', () => {
       body: JSON.stringify(requestData),
       headers: {'content-type': 'application/json'},
     });
-    const parsedResponse = await response.json();
+    const parsedResponse = (await response.json()) as RpcBody;
 
     expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
     expect(response.headers.get('content-type')).toContain('application/json');
@@ -185,7 +187,7 @@ describe('vercel dev server (node) - default encoder', () => {
       body: JSON.stringify(requestData),
       headers: {'content-type': 'application/json'},
     });
-    const parsedResponse = await response.json();
+    const parsedResponse = (await response.json()) as RpcBody;
 
     expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
     expect(response.headers.get('content-type')).toContain('application/json');

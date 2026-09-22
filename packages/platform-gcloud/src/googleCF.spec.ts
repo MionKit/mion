@@ -14,6 +14,8 @@ import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';
 
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
+
 describe('serverless router', () => {
   type SimpleUser = {
     name: string;
@@ -91,7 +93,7 @@ describe('serverless router', () => {
         body: JSON.stringify(requestData),
       });
 
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       const headers = Object.fromEntries(response.headers.entries());
 
       expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
@@ -140,7 +142,7 @@ describe('serverless router', () => {
         body: JSON.stringify(requestData),
       });
 
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       const headers = Object.fromEntries(response.headers.entries());
 
       expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
@@ -156,7 +158,7 @@ describe('serverless router', () => {
         method: 'POST',
         body: JSON.stringify(requestData),
       });
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       const headers = Object.fromEntries(response.headers.entries());
 
       const expectedError: PublicRpcError<'validation-error'> = {
@@ -178,7 +180,7 @@ describe('serverless router', () => {
         method: 'POST',
         body: '{}',
       });
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       const headers = Object.fromEntries(response.headers.entries());
 
       expect(reply).toEqual({});
@@ -265,7 +267,7 @@ describe('serverless router', () => {
         body: JSON.stringify(requestData),
       });
 
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       const headers = Object.fromEntries(response.headers.entries());
 
       expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
@@ -282,7 +284,7 @@ describe('serverless router', () => {
         body: JSON.stringify(requestData),
       });
 
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       const headers = Object.fromEntries(response.headers.entries());
 
       expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
@@ -320,7 +322,7 @@ describe('serverless router', () => {
       resetRouter();
     });
 
-    async function post(body: BodyInit, headers?: Record<string, string>) {
+    async function post(body: NonNullable<RequestInit['body']>, headers?: Record<string, string>) {
       return fetch(`http://127.0.0.1:${limitPort}/api/echoLimited`, {
         method: 'POST',
         body,
@@ -334,7 +336,7 @@ describe('serverless router', () => {
 
       expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
       expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
     });
 
@@ -343,7 +345,7 @@ describe('serverless router', () => {
 
       expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
       expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
-      const reply = await response.json();
+      const reply = (await response.json()) as RpcBody;
       expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
     });
 
@@ -419,7 +421,7 @@ describe('serverless router', () => {
         headers: {connection: 'close'},
       });
       expect(response.status).toEqual(StatusCodes.NOT_FOUND);
-      const errors = (await response.json())[MION_ROUTES.thrownErrors];
+      const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
       expect(errors[MION_ROUTES.notFound].type).toEqual('route-not-found');
       expect(errors['mionDeserializeRequest']).toBeUndefined();
       expect(seen).toEqual(['log:404']);
@@ -435,7 +437,7 @@ describe('serverless router', () => {
         headers: {'content-type': 'application/json', connection: 'close'},
       });
       expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
-      const errors = (await response.json())[MION_ROUTES.thrownErrors];
+      const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
       expect(errors[MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
       expect(errors['mionDeserializeRequest']).toBeUndefined();
       expect(seen).toEqual(['log:413']);

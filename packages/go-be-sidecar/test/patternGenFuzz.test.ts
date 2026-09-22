@@ -15,7 +15,8 @@
 //
 // Deterministic: seeded mulberry32 (replay with MION_FUZZ_SEED=<n>). Runs in
 // the normal suite (fast) and via `pnpm miondevx core fuzz patterngen`.
-import {spawn, type ChildProcessWithoutNullStreams} from 'node:child_process';
+import {spawn, type ChildProcessByStdio} from 'node:child_process';
+import type {Readable, Writable} from 'node:stream';
 import {createInterface} from 'node:readline';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -88,7 +89,9 @@ interface SidecarChild {
 }
 
 function spawnSidecar(): SidecarChild {
-  const child: ChildProcessWithoutNullStreams = spawn(process.execPath, [BUNDLE], {stdio: ['pipe', 'pipe', 'ignore']});
+  const child: ChildProcessByStdio<Writable, Readable, null> = spawn(process.execPath, [BUNDLE], {
+    stdio: ['pipe', 'pipe', 'ignore'],
+  });
   const lines = createInterface({input: child.stdout, terminal: false});
   const pending: Array<(line: string) => void> = [];
   lines.on('line', (line) => pending.shift()?.(line));
