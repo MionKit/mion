@@ -26,8 +26,7 @@ export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 
-/** The lane's own code, for asking WHICH chunk holds it: the store key is a plain constant every build
- *  reads for other reasons, so it says nothing about where the lane landed. */
+/** The lane's own code: unlike the store key, which every build carries, these say which chunk holds it. */
 const LANE_CODE_MARKERS = ['indexedDB', 'requestIdleCallback'];
 
 /** Names only the version-mismatch recovery puts in an artifact; the check itself is in every build. */
@@ -92,8 +91,8 @@ async function buildEagerApp(bundleApi?: 'bundled' | 'mixed'): Promise<string> {
   return [...eager].map((name) => byName.get(name)?.code ?? '').join('\n');
 }
 
-// Every build ships the lane, because every client can come up short: a route the build never saw, or a
-// server that moved on. What changes is when it is downloaded, and no build downloads it up front.
+// Every build ships the lane: any client can come up short, a route the build never saw or a server that moved on.
+// What changes is when it is downloaded, and no build downloads it up front.
 describe('the fetched metadata lane', () => {
   it('a client with no bundleApi loads it on the first call, not before', async () => {
     const [all, eager] = [await buildApp(), await buildEagerApp()];
@@ -138,8 +137,8 @@ describe('what a default client leaves out', () => {
   }, 120_000);
 });
 
-// The version check reads one header per response, so it cannot be loaded on demand. What a mismatch then
-// does can, and it rides the same chunk as the fetch, because both only run once the bundle comes up short.
+// The version check reads one header per response, so it cannot be loaded on demand; what a mismatch then
+// does rides the fetch's chunk, since both run only once the bundle comes up short.
 describe('the api version check', () => {
   it('keeps only the comparison in the first download, in every mode', async () => {
     for (const mode of [undefined, 'bundled', 'mixed'] as const) {

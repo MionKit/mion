@@ -437,8 +437,7 @@ export function createMetadataSubRequest(methodIds: string[]): SubRequest<any> {
   };
 }
 
-/** The in-memory half alone, for the version check: a row from a server this build disagrees with is
- *  deliberately not stored, since the store is keyed by route id and would hand it to the next page load. */
+/** In-memory only: the store is keyed by route id, so a row from a disagreeing server would outlive this page. */
 export function installMethodRows(serializableMethodsData: SerializableMethodsData): void {
   addToCaches(serializableMethodsData);
 }

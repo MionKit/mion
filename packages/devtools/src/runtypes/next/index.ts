@@ -14,9 +14,6 @@ export type {BrokerHandle, NextOptions};
 /** The loader specifier to put in `turbopack.rules`. */
 export const RUNTYPES_LOADER = '@mionjs/devtools/runtypes/next/loader';
 
-/** Under `bundleApi: 'bundled'` this subpath answers an empty module, as a resolve alias: Turbopack has no
- *  virtual modules. */
-
 // `condition: {not: 'foreign'}` below keeps the loader off node_modules and Next's own internals: a large
 // speed-up, and the documented way to scope a Turbopack rule.
 const RULE_GLOBS = ['*.ts', '*.tsx', '*.mts', '*.cts'];

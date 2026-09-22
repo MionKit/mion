@@ -78,8 +78,8 @@ export interface PluginOptions {
   // runtypes whatever this project's own `lib` or strictness. Unset when client and API share one program.
   // Same key as the tsconfig entry's `apiTsconfig` and the CLI's `--api-tsconfig`.
   apiTsconfig?: string;
-  // Bundle the metadata and compiled functions of every route this client calls, so it never asks the server:
-  //   - 'bundled': nothing is fetched at runtime; a route the build did not see is an error at the call.
+  // Bundle the metadata and compiled functions of every route this client calls, so it does not ask the server:
+  //   - 'bundled': a route the build did not see is reported; the call still falls back to fetching it.
   //   - 'mixed': the bundled routes are used as-is and the rest are fetched.
   // Unset (the default) keeps the fetched lane. Same key as the tsconfig `bundleApi` and the CLI's `--bundle-api`.
   bundleApi?: 'bundled' | 'mixed';
