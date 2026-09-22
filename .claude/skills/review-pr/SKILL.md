@@ -109,7 +109,9 @@ Why the list comes first: a review with no agreed scope reads as opinion, and no
 
 The bias throughout: **fewer committed lines**. A new type that could be derived, a new file that could be three lines in an existing one, an abstraction with one caller. Each of those is a finding.
 
-**Documentation and comments are out of your scope.** The `docs-simplifier` and `comments-simplifier` agents already went through them, before you, with their own rulebooks. Their edits are in the diff you read; do not re-judge the wording of a page, a doc block or a comment, and build no items for either. The one thing still yours is whether a user-visible change is documented at all, which is a PR-readiness gate rather than a matter of style, and it lives in group G.
+**Documentation and comments are out of your scope, completely.** The `docs-simplifier` and `comments-simplifier` agents own them and ran before you, so their edits are in the diff you read. Build no items for either, and report nothing about a page, a doc block or a comment: not its wording, and not its absence.
+
+Missing documentation is deliberately not a finding here. Documentation written beside a change comes out long and full of internals, so the simplify pass is built to cut rather than add, on purpose, against that bias. A reviewer asking for more pages pushes straight back the other way, and this repo would rather ship a feature undocumented than ship one over-documented by a reviewer who never has to read it again.
 
 ### The arc
 
@@ -170,7 +172,7 @@ Show the count per file so the coverage is visible:
 ```
 CLAUDE.md                        14 rules apply
 packages/router/CLAUDE.md         4 rules apply
-container/website/CLAUDE.md       9 rules apply   (docs changed)
+ts-go-runtypes/CLAUDE.md          2 rules apply   (Go files changed)
 ```
 
 **Then top up from the catalog.** [global-checks.md](global-checks.md) holds the
@@ -185,7 +187,7 @@ Merge both into one list, grouped:
 | Group | Covers |
 | --- | --- |
 | S | spec and description |
-| G | repo rules with no other home (dependencies, environment variables, commit and branch shape, build steps, docs existing at all) |
+| G | repo rules with no other home (dependencies, environment variables, commit and branch shape, build steps) |
 | T | types and reuse |
 | A | architecture and size |
 | B | behaviour and tests |
@@ -199,9 +201,9 @@ T1  [global]                                  MethodIdCheck is not derivable fro
 B6  [global]                                  Every changed behaviour has a test that would fail without it
 ```
 
-A repo rule about how documentation or a comment is WORDED is not an item at
-all: the two simplify agents own that, and re-checking it here produces findings
-the user has already been asked about once.
+A repo rule about documentation or comments is not an item at all, whatever it
+says: the two simplify agents own both, and a rule about a page belongs to
+whoever is allowed to edit that page.
 
 ### Step 4 - Hand the checklist back
 
@@ -284,9 +286,9 @@ own id and location.
 
 Severity:
 
-- **Blocking**: breaks a written rule, breaks behaviour, a fix or feature with no test, spec or docs contradicting the code, docs missing for a user-visible change.
-- **Worth fixing**: reuse, simplification, wordy or internals-heavy docs, a comment that no longer matches the code.
-- **Nit**: naming and phrasing where both readings are fine.
+- **Blocking**: breaks a written rule, breaks behaviour, a fix or feature with no test, a spec contradicting the code.
+- **Worth fixing**: reuse, simplification, a narrower type, a smaller shape.
+- **Nit**: naming where both readings are fine.
 
 Your final message is the report, nothing else. The caller decides what happens next.
 
@@ -309,9 +311,9 @@ Your final message is the report, nothing else. The caller decides what happens 
 - **The reviewer is always a subagent, even when the caller did not write the code.** A session that has been reading this repo all day is not a fresh context either, and the rule is worth more than the exception.
 - **`origin/main..HEAD` is not the change.** Use the merge-base range from the script, or upstream commits show up as the author's work.
 - **A spec that reads perfectly can still be stalled.** It was written before the code. Check it against the diff, not against itself.
-- **The checklist is the deliverable of the first half.** If it is vague ("check the docs are good"), the check will be vague too. Each item should be checkable against a line of the diff.
+- **The checklist is the deliverable of the first half.** If it is vague ("check the types are sensible"), the check will be vague too. Each item should be checkable against a line of the diff.
 - **A long report is not a failure mode; a short one hiding findings is.** The pressure to tidy peaks exactly when the groups did their job and came back with a lot. Twenty entries the user skims in a minute beat twelve they trust and act on, because the eight you cut are the ones nobody ever sees again. Every finding that survives verification is already worth a line: that is what surviving verification means.
 - **The second finding under one item is the one that goes missing.** An item that reports two things reads as one thing by the time it reaches the report. Count per FINDING, never per item.
 - **The middle groups are where fatigue shows.** One context runs all of them now, and the ones in the middle get the tired pass. If a group answers every item `pass` in a few lines, you skimmed it: go back.
-- **A wordy page is not your finding any more, a missing one still is.** The simplify agents rewrite what exists; nothing but you notices that a new option reached no page at all.
+- **"But this feature has no docs" is not a finding.** It is the most tempting one to write and it is the one this review deliberately does not make. Leave it.
 - **New file, low bar to question it.** Ask what it would cost to put the code in the file that already owns that job. Often nothing.
