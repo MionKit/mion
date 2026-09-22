@@ -15,6 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  getGlobalResponseHeaders,
   requestPayloadTooLarge,
 } from '@mionjs/router';
 import {STATUS_CODES} from 'http';
