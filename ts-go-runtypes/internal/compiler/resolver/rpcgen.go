@@ -383,7 +383,7 @@ func (sess *Session) routerInitSites(files []string) []routerinit.Site {
 	return routerinit.ExtractFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.routerInitFileCache)
 }
 
-// routerInitFiles is the generate echo a dev host re-transforms when the batch module first appears.
+// routerInitFiles rides the generate response so a dev host re-transforms them when the batch module first appears.
 func (sess *Session) routerInitFiles() []string {
 	return routerinit.Files(sess.routerInitSites(sess.programSourceFiles()))
 }

@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Shared by the bundled and mixed lanes, which meet a build-version mismatch the same way: their specs differ
-// only in what each lane bundles.
+// Shared by the bundled and mixed lanes, whose specs differ only in what each lane bundles.
 
 import {vi} from 'vitest';
 import {HeadersSubset, MION_ROUTES, BUILD_VERSION_HEADER} from '@mionjs/core';
@@ -30,12 +29,11 @@ export async function resetApiVersionState(): Promise<void> {
   await resetMetadataStore();
 }
 
-/** What a rewritten response does to the metadata rows the server sent, so a row can be made to disagree. */
+/** Rewrites the metadata rows a response carries, so a row can be made to disagree. */
 export type RowEdit = (methods: Record<string, MethodWithOptions>) => void;
 
-/** Answers every response with `version` in the build-version header, so the client meets the case under test
- *  whatever the two builds really agreed on. `null` strips the header. `editRows` rewrites the metadata rows
- *  a response carries, which is the only way to make the server's row differ from a bundle built against it. */
+/** Forces `version` into the build-version header of every response, or strips it when `null`.
+ *  `editRows` is the only way to make the server's row differ from a bundle built against it. */
 export function serveVersion(version: string | null, editRows?: RowEdit) {
   const realFetch = globalThis.fetch;
   const urls: string[] = [];

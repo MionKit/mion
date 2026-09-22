@@ -31,8 +31,7 @@ import {Server} from 'bun';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-/** Passed as a record, never a list of pairs: `new Headers()` APPENDS a repeated name, so a list of
- *  pairs would join both values instead of letting the later one win. */
+/** A record, not a list of pairs: `new Headers()` APPENDS a repeated name instead of letting the later one win. */
 const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetBunHttpOpts() {
