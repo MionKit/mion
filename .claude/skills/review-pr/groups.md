@@ -7,6 +7,11 @@ file's order, one at a time, finishing a group before you open the next.
 repo item names the file it came from so you read the current text. Rules
 change; anything copied in here would go stale silently.
 
+There is no documentation group and no comments group. The `docs-simplifier`
+and `comments-simplifier` agents own that wording and ran before this review, so
+re-judging it here would put the user through the same argument twice. Whether a
+user-visible change is documented AT ALL is a group G item, not a style one.
+
 ## Before every group
 
 Diff range (use exactly this, nothing else):  git diff <MERGE_BASE>..HEAD
@@ -51,25 +56,6 @@ the rule turns out narrower than the item suggests, say so and mark the item
 pass with a note. If it is wider and the diff breaks the wider version, that is
 a fail with the real quote.
 
-## Group D: documentation
-
-This is the group that finds the most, because documentation lands wordy and
-full of internals more often than anything else.
-
-Read first, in full: container/website/CLAUDE.md, including the pages it tells
-you to read before writing or restyling. Then check your items against every
-changed page and every changed paragraph.
-
-Run the mechanical items rather than eyeballing them: grep the changed pages for
-whatever the guidelines ban as punctuation, and measure anything they set a
-length bar for.
-
-For every sentence you flag as wordy or internals-heavy, write the shorter
-replacement in the fix field. The rewrite is the finding; "too complex" is not.
-
-Missing documentation is a fail, not a gap: if the diff changes user-visible
-behaviour that no page mentions, name the page it belongs on.
-
 ## Group T: types and reuse
 
 Work from the additions: list every type, interface, enum and exported function
@@ -103,22 +89,6 @@ For placement, read the CLAUDE.md of the packages involved and judge against
 what they state, not against what looks tidy.
 
 Do not propose refactoring code the diff does not touch.
-
-## Group C: comments
-
-Look only at comments the diff adds or changes, in code files.
-
-Read the code style rules in the root CLAUDE.md, plus any CLAUDE.md in the
-directories these files live in, and take the comment and doc-block rules from
-there before judging.
-
-For each fail give the replacement one-liner, or say "delete" outright. Be
-strict, but do not strip a comment carrying a real reason, constraint or
-invariant just because it runs to two lines. A comment describing behaviour the
-diff just changed is blocking: a wrong comment is worse than no comment.
-
-If you cannot tell whether a comment is load-bearing, mark confidence low and
-say what would settle it.
 
 ## Group B: behaviour and tests
 

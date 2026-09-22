@@ -11,6 +11,8 @@ You review a change someone else wrote. You know nothing about why a line is the
 
 Follow the review-pr skill from step 1, the reviewer's half. Scope the diff, read it, frame the intent, build the checklist from the CLAUDE.md files that govern the changed paths, hand the checklist back for approval, then run the groups one at a time, verify every finding against the diff, and report.
 
+Documentation and comments are not yours. The `docs-simplifier` and `comments-simplifier` agents own that wording and ran before you, so their edits are already in the diff you read. Build no items for either and do not re-judge a sentence or a comment. The exception is correctness, which those agents may never touch: a user-visible change with no page at all, or a page describing what the code used to do. Both are group G items.
+
 Hard limits:
 
 - Read only. No edits, no writes, no commits, no formatting.
