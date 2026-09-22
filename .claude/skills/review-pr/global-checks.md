@@ -8,8 +8,8 @@ read in full at review time, and they win wherever the two overlap.
 It is a **catalog to filter**, never a list to run whole, and never a substitute
 for reading those files.
 
-Each item has an id, so the review list, the pass briefs and the final report can
-all point at the same thing. Include an item only when its trigger is in the
+Each item has an id, so the review list and the final report point at the same
+thing. Include an item only when its trigger is in the
 diff, and say in the review list which groups you dropped and why.
 
 ## S - spec and description (include always)
@@ -19,17 +19,15 @@ diff, and say in the review list which groups you dropped and why.
 - S3 The PR description matches the diff in front of you.
 - S4 The change has a spec at all, or a stated reason it does not need one.
 
-## D - documentation (include when docs, public behaviour or public API changed)
+## G - documentation exists (include when public behaviour or a public option changed)
 
-- D1 A user-visible change is documented on the page a reader would look at.
-- D2 The docs describe what the code now does, not what it used to do.
-- D3 Examples in the docs would actually run and typecheck.
-- D4 Plain language: a reader learns what it does for them, not how it is built.
-- D5 Says it once. No sentence repeats the one above it in other words.
-- D6 Short sentences over long chained clauses.
-- D7 No internals a user cannot act on.
-- D8 The page still reads in order after the edit, no orphan paragraph or dead link.
-- D9 The simplify-docs pass ran: a `docs(simplify):` commit sits on the branch after the last edit to a page or example, or the branch touched neither.
+Whether a page is WORDED well is the docs-simplifier's call, not this review's.
+These two are correctness, which that agent is forbidden from touching: it may
+never add a fact or change what a sentence means, so a missing page and a stale
+page both survive it.
+
+- G1 A user-visible change is documented on the page a reader would look at.
+- G2 The docs describe what the code now does, not what it used to do.
 
 ## T - types and reuse (include when types or exported functions were added)
 
@@ -53,13 +51,6 @@ diff, and say in the review list which groups you dropped and why.
 - A6 Placement respects the package boundaries the packages themselves state.
 - A7 Nothing left dead: the code this change replaces is gone, not orphaned.
 - A8 The committed line count is close to the smallest that does the job.
-
-## C - comments (include when comments were added or changed)
-
-The comment rules live in the code style section of the root CLAUDE.md, so this
-group is sourced from that file; read the items out of it. One item is global:
-
-- C1 The simplify-comments pass ran: a `chore(comments):` commit sits on the branch after the last edit to a source file, or the branch touched none.
 
 ## B - behaviour and tests (include when code changed)
 

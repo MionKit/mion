@@ -5,15 +5,17 @@ description: Review a PR or branch against this repo's rules in a fresh reviewer
 
 # review-pr
 
-Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session spawns the reviewer, carries the checklist to the user, and afterwards decides what to fix.
+Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session runs the two simplify passes first, spawns the reviewer, carries the checklist to the user, and afterwards decides what to fix.
 
 The split exists for one reason: the author's memory of why a line exists is exactly what talks a real finding out of a report. A reviewer that never wrote the code cannot make that mistake. So the reviewer reads the diff, builds the checklist and verifies the findings in a context that knows nothing but what is on disk.
+
+**Documentation and comments are not the reviewer's job.** The `docs-simplifier` and `comments-simplifier` agents own them, each with its own rulebook and its own fresh context, and they run before the review so their edits are in the diff the reviewer reads. The reviewer skips both.
 
 The review produces a **findings report**, never edits.
 
 This document has two halves. Read the one you are:
 
-- **[Calling session](#calling-session)** - you were asked to review something. Three steps, and none of them is reviewing.
+- **[Calling session](#calling-session)** - you were asked to review something. Four steps, and none of them is reviewing.
 - **[Reviewer](#reviewer)** - you are the `pr-reviewer` agent. The whole method.
 
 ---
@@ -22,7 +24,28 @@ This document has two halves. Read the one you are:
 
 You do not review. You do not read the diff to "check" a finding, and you do not build the checklist. Doing any of it puts the context back that the split removed.
 
-### 1. Spawn the reviewer
+### 1. Run the two simplify passes first
+
+Documentation and comments are reviewed by their own agents, not by the reviewer, and they are reviewed by editing. Run them before the review so the reviewer reads the diff as it will be merged, not a draft of it.
+
+List what the branch touched:
+
+```bash
+git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- container/website/content packages/examples/src
+git diff --name-only $(git merge-base origin/main HEAD)..HEAD -- '*.ts' '*.go' '*.mjs' '*.js' '*.vue'
+```
+
+Spawn both agents in **one message** so they run at once, `subagent_type: docs-simplifier` and `subagent_type: comments-simplifier`, each with its own list of paths. They never touch the same files: `packages/examples/` belongs to the docs pass, everything else to the comments pass. An empty list means that pass is a no-op; say so and skip it.
+
+Then do what those skills require of a caller, because neither agent commits its own work:
+
+- Read each report and **check every rewrite against the code**. A simplification that dropped a condition, a code, a default or a limit is wrong, so restore the fact in plain words.
+- Re-run what the passes can break: `pnpm run typecheck` and `pnpm exec vitest run website-links` for the docs pass, `pnpm run lint` and `go -C ts-go-runtypes vet ./internal/... ./cmd/...` for the comments pass.
+- Commit each on its own: `docs(simplify): <page>` and `chore(comments): <area>`.
+
+Only then spawn the reviewer. Reviewing before this leaves the reviewer judging prose that is about to change.
+
+### 2. Spawn the reviewer
 
 One agent, `subagent_type: pr-reviewer`, with the target and nothing else:
 
@@ -35,7 +58,7 @@ Add anything the user said they are worried about, in their words. Do not add yo
 
 If the agent type is not found (agent definitions load at session start), spawn `general-purpose` with the body of `.claude/agents/pr-reviewer.md` as the prompt plus the instruction to read this skill first.
 
-### 2. Carry the checklist to the user
+### 3. Carry the checklist to the user
 
 The reviewer stops after the checklist and hands it back. Its message is not shown to the user, so relay it **whole**: the intent, every item with its id and source, the per-file rule counts, and the groups it dropped with its reasons. Do not trim it, and do not judge it.
 
@@ -49,7 +72,7 @@ Approved. Run the checklist.
 
 or the amendments in the user's words. A fresh Agent call would start over and rebuild the list.
 
-### 3. Triage the report
+### 4. Triage the report
 
 The reviewer reports everything that survived verification. **Relay all of it to the user.** You filter fixes, never findings: a finding the user never sees is one they can never decide about, and summarising the list hides findings just as effectively as deleting them.
 
@@ -65,7 +88,8 @@ Fixes are a separate step, after the user picks them. Reviewing and fixing in on
 
 ### What the calling session must NOT do
 
-- **Do not review.** Not before spawning, not to double-check a finding, not "just the diff stat".
+- **Do not skip the simplify passes**, and do not run either of them yourself. Each needs a context that did not write the prose, which is the same reason the review does.
+- **Do not review.** Not before spawning, not to double-check a finding, not "just the diff stat". Checking a simplifier's rewrite against the code is not reviewing: it is the caller's job, and it is about facts, not style.
 - **Do not build or edit the checklist yourself.** Amendments come from the user and go to the reviewer verbatim.
 - **Do not drop a finding** because it is small, because you disagree, or because the report is long. That is the user's call.
 - **Do not start a second reviewer** to continue after the checklist. SendMessage to the first one.
@@ -83,7 +107,9 @@ The review runs in two halves:
 
 Why the list comes first: a review with no agreed scope reads as opinion, and nobody can tell what it skipped. An approved list makes the review auditable, lets the user add or drop items before the work happens, and gives every finding a number to point at.
 
-The bias throughout: **fewer committed lines**. A new type that could be derived, a new file that could be three lines in an existing one, a comment that repeats the line under it. Each of those is a finding.
+The bias throughout: **fewer committed lines**. A new type that could be derived, a new file that could be three lines in an existing one, an abstraction with one caller. Each of those is a finding.
+
+**Documentation and comments are out of your scope.** The `docs-simplifier` and `comments-simplifier` agents already went through them, before you, with their own rulebooks. Their edits are in the diff you read; do not re-judge the wording of a page, a doc block or a comment, and build no items for either. The one thing still yours is whether a user-visible change is documented at all, which is a PR-readiness gate rather than a matter of style, and it lives in group G.
 
 ### The arc
 
@@ -159,24 +185,23 @@ Merge both into one list, grouped:
 | Group | Covers |
 | --- | --- |
 | S | spec and description |
-| G | repo rules with no other home (dependencies, environment variables, commit and branch shape, build steps) |
-| D | documentation |
+| G | repo rules with no other home (dependencies, environment variables, commit and branch shape, build steps, docs existing at all) |
 | T | types and reuse |
 | A | architecture and size |
-| C | comments |
 | B | behaviour and tests |
 
 Number every item inside its group and tag its source, so a finding can point at
 one line:
 
 ```
-D4  [global]                                  Plain language, what it does for the reader
-D9  [repo: container/website/CLAUDE.md]       Titles are Title Case and name the job
 G2  [repo: CLAUDE.md]                         Every new env var is registered and MION_ prefixed
+T1  [global]                                  MethodIdCheck is not derivable from an existing type
+B6  [global]                                  Every changed behaviour has a test that would fail without it
 ```
 
-A repo rule about documentation goes in group D, not G, so it is checked while
-the docs are the thing in front of you.
+A repo rule about how documentation or a comment is WORDED is not an item at
+all: the two simplify agents own that, and re-checking it here produces findings
+the user has already been asked about once.
 
 ### Step 4 - Hand the checklist back
 
@@ -200,7 +225,7 @@ One group at a time is the rule, not a suggestion. The groups used to run as sep
 Record each answer as you go, in this shape:
 
 ```
-- id:     D9
+- id:     A5
   result: pass | fail | not-applicable
   where:  path/to/file.ts:LINE        (for a fail, and for a pass you had to work for)
   evidence: the exact line(s) from the diff
@@ -246,7 +271,7 @@ own id and location.
 **List:** 34 items checked, 27 pass, 5 fail, 2 not applicable
 
 ### Blocking
-1. **<one line claim>**  `path/file.ts:42`  [D9]
+1. **<one line claim>**  `path/file.ts:42`  [A5]
    Rule: <quoted line, with the file it came from>
    Fix: <the concrete, small change>
 
@@ -288,6 +313,5 @@ Your final message is the report, nothing else. The caller decides what happens 
 - **A long report is not a failure mode; a short one hiding findings is.** The pressure to tidy peaks exactly when the groups did their job and came back with a lot. Twenty entries the user skims in a minute beat twelve they trust and act on, because the eight you cut are the ones nobody ever sees again. Every finding that survives verification is already worth a line: that is what surviving verification means.
 - **The second finding under one item is the one that goes missing.** An item that reports two things reads as one thing by the time it reaches the report. Count per FINDING, never per item.
 - **The middle groups are where fatigue shows.** One context runs all of them now, and the ones in the middle get the tired pass. If a group answers every item `pass` in a few lines, you skimmed it: go back.
-- **The docs group finds the most and gets argued with the most.** Quote the guideline and show the rewritten sentence. A concrete shorter sentence wins an argument that adjectives do not.
-- **The docs style rules are written down and they move.** Read `container/website/CLAUDE.md` during the review, including the pages it says to read first. It also says which tools may touch that tree, which decides what a valid fix looks like.
+- **A wordy page is not your finding any more, a missing one still is.** The simplify agents rewrite what exists; nothing but you notices that a new option reached no page at all.
 - **New file, low bar to question it.** Ask what it would cost to put the code in the file that already owns that job. Often nothing.
