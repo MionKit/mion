@@ -5,7 +5,7 @@
     "rootDir": ".",
     "types": ["@types/node"]
   },
-  "references": [{"path": "../core"}, {"path": "../test-server"}],
+  "references": [{"path": "../core"}],
   "include": ["."],
   "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
 }

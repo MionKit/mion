@@ -10,7 +10,7 @@
     {"path": "../core"},
     {"path": "../platform-node"},
     {"path": "../router"},
-    {"path": "../test-server"}
+    {"path": "../test-server/tsconfig.build.json"}
   ],
   "include": ["."],
   "exclude": ["node_modules", ".dist", "vite.config.ts"]

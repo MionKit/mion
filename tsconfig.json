@@ -44,7 +44,7 @@
     {"path": "./packages/drizzle-orm"},
     {"path": "./packages/drizzle-orm-pg-core/tsconfig.build.json"},
     {"path": "./packages/drizzle-orm-sqlite-core"},
-    {"path": "./packages/test-server"},
+    {"path": "./packages/test-server/tsconfig.build.json"},
     {"path": "./packages/type-budget"},
     {"path": "./packages/examples"},
     {"path": "./packages/run-types"}

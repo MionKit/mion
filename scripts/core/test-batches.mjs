@@ -43,7 +43,7 @@ export const BATCHES = [
   {name: 'runtypes', projects: ['runtypes']},
   {name: 'runtypes-devtools', projects: ['devtools-core']},
   {name: 'runtypes-satellites', projects: ['playground', '@mionjs/go-be-sidecar', 'mock-format-isolation']},
-  {name: 'mion-core', projects: ['core', 'router']},
+  {name: 'mion-core', projects: ['core', 'router', 'test-server']},
   {
     name: 'mion-drizzle',
     projects: ['drizzle-root', 'drizzle-pg', 'drizzle-mysql', 'drizzle-sqlite', 'devtools', 'platform-aws', 'platform-gcloud'],
