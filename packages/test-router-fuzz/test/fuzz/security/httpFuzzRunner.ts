@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// (fixture handlers below take the parameters their types declare and ignore them, like the test server)
+// fixture handlers below take the parameters their types declare and ignore them
 //
 // sechttp: seeded hostile requests at the mion router, in process through `dispatchRoute` and over raw
-// HTTP through the node adapter, checking the rules that must hold for EVERY request. The seeded loop,
-// crash guard and budget are imported from the RunTypes fuzz core, never copied.
+// HTTP through the node adapter. The seeded loop, crash guard and budget come from the RunTypes fuzz
+// core, never copied.
 //
 // Oracles (every response, both layers):
 //   SH-ALIVE     the router (and the process) still answers a known-good request
