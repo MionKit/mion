@@ -18,6 +18,9 @@
     "bin",
     "README.md"
   ],
+  "scripts": {
+    "typecheck:test": "tsc -p tsconfig.json --noEmit"
+  },
   "publishConfig": {
     "access": "public"
   },

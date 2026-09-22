@@ -95,6 +95,12 @@ export const AREAS = {
         summary: "platform-bun's bun:test suites, gated so a swallowed file cannot read as green (what test:bun runs)",
       },
       {
+        name: 'typecheck-coverage',
+        summary: 'gate: every package under packages/ runs a typecheck:test script',
+        flags: [['--check', 'gate only, no listing (what the root typecheck runs first)']],
+        ...noBuild,
+      },
+      {
         name: 'fuzz',
         args: '<suite…>',
         summary: 'run fuzz lanes: unit|value|types|nondata|roundtrip|size|jsonsize|cloning|elision|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|apiids|drizzletypes|all',

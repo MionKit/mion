@@ -37,6 +37,7 @@
     "access": "public"
   },
   "scripts": {
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
     "test": "echo 'No tests for test-server package'",
     "dev": "vite build --watch",
     "lint": "eslint src",

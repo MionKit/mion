@@ -20,6 +20,8 @@ import {REGISTRY} from '../../../scripts/lib/env.mjs';
 import {stripSourceCondition} from '../../../scripts/lib/publish-manifest.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {testsPerFile, swallowedFiles} from '../../../scripts/core/test-bun.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import * as coverage from '../../../scripts/core/typecheck-coverage.mjs';
 
 interface RegistryEntry {
   name: string;
@@ -1751,5 +1753,49 @@ describe('the bun lane fails when a test file contributes no tests', () => {
   it('names a file that reported zero tests', () => {
     const empty = '<testsuites tests="0"><testsuite name="src/b.test.ts" file="src/b.test.ts" tests="0" /></testsuites>';
     expect(swallowedFiles(['src/b.test.ts'], testsPerFile(empty))).toEqual(['src/b.test.ts']);
+describe('every package under packages/ runs a type check over everything it ships', () => {
+  // `pnpm -r` silently skips a package with no such script, which is how a call with no import shipped in platform-uws.
+  // Only the gate's rules are unit-tested here: a whole-tree sweep does not belong in a gated vitest lane.
+  it('no package is skipped, and no exemption is stale', () => {
+    expect(coverage.coverageDrift(coverage.readPackages(REPO_ROOT), coverage.EXEMPT)).toEqual({unchecked: [], staleExempt: []});
+  });
+
+  it('spots a package with no script, and an exemption for a package that has one', () => {
+    const packages = [
+      {dir: 'covered', scripts: {'typecheck:test': 'tsc'}},
+      {dir: 'bare', scripts: {}},
+    ];
+    expect(coverage.coverageDrift(packages, {})).toEqual({unchecked: ['bare'], staleExempt: []});
+    expect(coverage.coverageDrift(packages, {bare: 'no sources'})).toEqual({unchecked: [], staleExempt: []});
+    expect(coverage.coverageDrift(packages, {covered: 'stale'})).toEqual({unchecked: ['bare'], staleExempt: ['covered']});
+    expect(coverage.coverageDrift(packages, {gone: 'no such package'})).toEqual({unchecked: ['bare'], staleExempt: ['gone']});
+  });
+
+  // A package may need several programs (examples splits src/ across three module resolutions),
+  // and the root scripts name some of them rather than the package's own.
+  it('collects the projects from the package scripts and the root ones alike', () => {
+    const own = {'typecheck:test': 'tsc -p tsconfig.test.json --noEmit', 'check-types': 'tsc --noEmit -p tsconfig.check.json'};
+    const root = {
+      typecheck: 'pnpm run typecheck:test && tsc -p packages/examples/tsconfig.runtypes.json',
+      other: 'tsc -p packages/router/tsconfig.test.json',
+    };
+    expect(coverage.projectsOf('examples', own, root)).toEqual([
+      'tsconfig.test.json',
+      'tsconfig.check.json',
+      'tsconfig.runtypes.json',
+    ]);
+    expect(coverage.projectsOf('router', {}, root)).toEqual(['tsconfig.test.json']);
+    expect(coverage.projectsOf('router', {build: 'vite build'}, {})).toEqual([]);
+  });
+
+  it('every deliberate omission still names a file that exists', () => {
+    expect(coverage.staleOmissions(REPO_ROOT, coverage.NOT_CHECKED)).toEqual([]);
+    expect(coverage.staleOmissions(REPO_ROOT, {'core/src/no-such-file.ts': 'gone'})).toEqual(['core/src/no-such-file.ts']);
+  });
+
+  it('the two JavaScript packages are checked as JavaScript, not skipped for having no .ts', () => {
+    for (const config of ['packages/bin-compiler/tsconfig.json', 'packages/bin-uws/tsconfig.json']) {
+      expect(readFileSync(join(REPO_ROOT, config), 'utf8'), config).toMatch(/"checkJs":\s*true/);
+    }
   });
 });
