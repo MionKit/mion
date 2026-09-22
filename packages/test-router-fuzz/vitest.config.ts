@@ -2,8 +2,7 @@ import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
-// The plugin is required here, unlike the other test-only projects: the suite declares its own
-// fixture routes, and without the build-time type information every one fails with MissingRtFnsError.
+// The plugin is required: the suite's own fixture routes fail with MissingRtFnsError without build-time types.
 export default defineConfig({
   resolve: {conditions: ['source']},
   ssr: {resolve: {conditions: ['source']}},
