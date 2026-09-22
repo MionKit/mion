@@ -25,10 +25,10 @@ import {
   toBase64Url,
   BUILD_VERSION_HEADER,
 } from '@mionjs/core';
-import type {SerializerMode} from '@mionjs/core';
+import type {SerializerMode, SerializableMethodsData} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundleApiMode.ts';
-import {apiVersionDiffers, stashApiVersionError} from './lib/apiBuildVersion.ts';
+import {noteServerApiVersion, unverifiedIds} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
@@ -46,6 +46,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
   response: Response | undefined;
   /** bounds the stale-metadata relearn below to one attempt per request */
   private purgedStaleMetadata = false;
+  /** ids this request asked the server to confirm after a build-version mismatch */
+  private verifying: string[] | undefined;
 
   constructor(
     public readonly options: ClientOptions,
@@ -117,6 +119,12 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
       } else {
         (this.options as any).serializer = originalSerializer;
+        // After a version mismatch each route is confirmed once, on its first use, riding this request.
+        const unverified = unverifiedIds(subRequestIds);
+        if (unverified.length) {
+          this.verifying = unverified;
+          this.addSubRequest((await import('#api-version-recovery')).createVerifySubRequest(unverified));
+        }
         await this.loadMethodsMetadata(subRequestIds, bundled, this.signal);
         this.restorePrefilledMiddleFns(errors);
         if (errors.size) return Promise.reject(errors);
@@ -165,23 +173,20 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         this.onError(this.signal.reason, 'Request aborted', errors);
         return Promise.reject(errors);
       }
-      const deserialized = await deserializeResponseBody(this.response, this.options);
+      const deserialized = await deserializeResponseBody(this.response, this.options, !!this.verifying);
       if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
       const callFailed = this.shouldRetryWithProperSerialization(deserialized);
-      // A client carrying build-compiled routes replaces them when the server's version differs. The call
-      // already ran server-side, so only a FAILED one is repeated: repeating a successful mutation runs it twice.
-      if (!this.signal?.aborted && apiVersionDiffers(this.response.headers.get(BUILD_VERSION_HEADER))) {
-        try {
-          const lane = await import('#api-version-recovery');
-          const mismatch = await lane.recoverFromApiVersionMismatch(this.options, this.signal);
-          if (mismatch) stashApiVersionError(mismatch);
-          if (callFailed) return this.retryWithProperSerialization(originalSerializer);
-        } catch (error: any) {
-          this.onError(error, 'Error replacing the stale bundled routes', errors);
-          return Promise.reject(errors);
-        }
+      // A client carrying build-compiled routes replaces them when the server's version differs. The call already
+      // ran server-side, so only a FAILED one is repeated: repeating a successful mutation would run it twice.
+      const mismatch = noteServerApiVersion(this.response.headers.get(BUILD_VERSION_HEADER));
+      const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
+      if (rows?.methods) {
+        (await import('#api-version-recovery')).verifyMethodRows(this.verifying!, rows);
+        delete deserialized[MION_ROUTES.methodsMetadata];
       }
+      // The rows this request asked for arrive with it, so the first call after a mismatch pays no round trip.
+      if (mismatch && callFailed && !this.signal?.aborted) return this.retryWithProperSerialization(originalSerializer);
 
       if (!this.signal?.aborted && callFailed) {
         if (isOptimistic) return this.retryWithProperSerialization(originalSerializer);
@@ -586,4 +591,10 @@ function reconstructHeadersSubsetFromResponse(
   }
 
   return undefined;
+}
+
+/** The metadata middleFn declares a union, so its answer arrives as an `[index, value]` envelope. */
+function metadataRowsOf(slot: unknown): SerializableMethodsData | undefined {
+  const value = Array.isArray(slot) ? slot[1] : slot;
+  return value && typeof value === 'object' ? (value as SerializableMethodsData) : undefined;
 }

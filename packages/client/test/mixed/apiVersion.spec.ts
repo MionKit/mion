@@ -8,61 +8,22 @@
 // The mixed lane bundles build-compiled routes too, so a server that moved on leaves them stale the same way.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
-import {HeadersSubset, MION_ROUTES, BUILD_VERSION_HEADER} from '@mionjs/core';
+import {BUILD_VERSION_HEADER} from '@mionjs/core';
 import type {TestServerApi} from '@mionjs/test-server';
 import {initClient} from '../../src/client.ts';
-import {resetClientCaches} from '../lib/testUtils.ts';
-import {resetBundledApi} from '../../src/lib/bundledApi.ts';
-import {getApiBuildVersion, resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
+import {getApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
 import {isBundledMethod} from '../../src/lib/methods.ts';
-import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
+import {resetApiVersionState, serveVersion, withAuth} from '../lib/apiVersionUtils.ts';
 
 const baseURL = inject('laneServerBaseURL');
 const user = {name: 'John', surname: 'Doe'};
 
-function withAuth(middleFns: ReturnType<typeof initClient<TestServerApi>>['middleFns']) {
-  return {middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
-}
-
-/** Sets `version` in the build-version header of every response, `null` strips it, whatever the builds agreed on. */
-function serveVersion(version: string | null) {
-  const realFetch = globalThis.fetch;
-  const urls: string[] = [];
-  const bodies: string[] = [];
-  const spy = vi.fn(async (url: any, init?: any) => {
-    urls.push(String(url));
-    bodies.push(typeof init?.body === 'string' ? init.body : '');
-    const response = await realFetch(url, init);
-    const headers = new Headers(response.headers);
-    if (version === null) headers.delete(BUILD_VERSION_HEADER);
-    else headers.set(BUILD_VERSION_HEADER, version);
-    return new Response(await response.arrayBuffer(), {status: response.status, headers});
-  });
-  globalThis.fetch = spy as any;
-  return {
-    calls: () => spy.mock.calls.length,
-    metadataCalls: () => urls.filter((url) => url.includes(MION_ROUTES.methodsMetadataById)).length,
-    metadataBody: () => bodies[urls.findIndex((url) => url.includes(MION_ROUTES.methodsMetadataById))] ?? '',
-    restore: () => {
-      globalThis.fetch = realFetch;
-    },
-  };
-}
-
 describe('the api version a mixed client compares', () => {
-  beforeEach(async () => {
-    resetClientCaches();
-    resetBundledApi();
-    resetApiBuildVersion();
-    await resetMetadataStore();
-  });
+  beforeEach(resetApiVersionState);
 
   afterEach(async () => {
     vi.restoreAllMocks();
-    resetClientCaches();
-    resetBundledApi();
-    resetApiBuildVersion();
-    await resetMetadataStore();
+    await resetApiVersionState();
   });
 
   it('is the one the server was built from', async () => {
@@ -78,14 +39,14 @@ describe('the api version a mixed client compares', () => {
     expect(result).toBe('Hello John Doe');
   });
 
-  it('costs nothing when it matches: one request, and the fetch lane stays unloaded', async () => {
+  it('costs nothing when it matches: one request, and nothing is asked about', async () => {
     const {routes, middleFns} = initClient<TestServerApi>({baseURL});
     const watch = serveVersion(getApiBuildVersion()!);
     try {
       const [result] = await routes.sayHello(user).call(withAuth(middleFns));
       expect(result).toBe('Hello John Doe');
       expect(watch.calls()).toBe(1);
-      expect(watch.metadataCalls()).toBe(0);
+      expect(watch.verifyAsks()).toEqual([]);
     } finally {
       watch.restore();
     }
@@ -99,32 +60,60 @@ describe('the api version a mixed client compares', () => {
       expect(result).toBe('Hello John Doe');
       expect(undeclared).toBeUndefined();
       expect(watch.calls()).toBe(1);
+      expect(watch.verifyAsks()).toEqual([]);
     } finally {
       watch.restore();
     }
     expect(isBundledMethod('sayHello')).toBe(true);
   });
 
-  it('replaces the stale routes in one extra request and reports the mismatch once', async () => {
+  it('asks about a route once after a mismatch, riding a call it was making anyway', async () => {
     const {routes, middleFns} = initClient<TestServerApi>({baseURL});
     const watch = serveVersion('someOtherAp');
     try {
+      // first call: the mismatch is only visible in its response, so it asks nothing
+      const [first] = await routes.sayHello(user).call(withAuth(middleFns));
+      expect(first).toBe('Hello John Doe');
+
+      // second call: the question rides it, so there is still one request, not two
+      const before = watch.calls();
+      const [second, , undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
+      expect(second).toBe('Hello John Doe');
+      expect(watch.calls() - before).toBe(1);
+      expect(watch.verifyAsks()).toHaveLength(1);
+      expect(watch.verifyAsks()[0]).toContain('sayHello');
+      // the server's row for sayHello matches this build's, so nothing was replaced and nothing is reported
+      expect(undeclared).toBeUndefined();
+      expect(isBundledMethod('sayHello')).toBe(true);
+
+      // third call: sayHello is confirmed, so it is not asked about again
+      await routes.sayHello(user).call(withAuth(middleFns));
+      expect(watch.verifyAsks()).toHaveLength(1);
+    } finally {
+      watch.restore();
+    }
+  });
+
+  it('replaces a row the server no longer agrees with and reports it once', async () => {
+    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    // The lane server IS this build's server, so the only way to see a real difference is to move the row on the
+    // wire. `isMutation` moves the build version while both jit hashes stay put, which is the case the compiled
+    // ids alone cannot see.
+    const watch = serveVersion('someOtherAp', (methods) => {
+      if (methods.sayHello) methods.sayHello.options = {...methods.sayHello.options, isMutation: true};
+    });
+    try {
+      await routes.sayHello(user).call(withAuth(middleFns));
       const [result, , undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
-      // the call still answers: the replaced rows are the server's own
       expect(result).toBe('Hello John Doe');
       expect(undeclared?.type).toBe('api-version-mismatch');
-      expect(watch.metadataCalls()).toBe(1);
-      // the extra request carries the client's own compiled ids, so the server answers only with rows that moved (none here)
-      const asked = JSON.parse(watch.metadataBody())[MION_ROUTES.methodsMetadataById];
-      expect(asked[0]).toContain('sayHello');
-      expect(asked[2]).toContainEqual({id: 'sayHello', paramsJitHash: expect.any(String), returnJitHash: expect.any(String)});
+      expect(undeclared?.publicMessage).toContain('sayHello');
+      // the stale build-compiled row is gone, the server's took its place
+      expect(isBundledMethod('sayHello')).toBe(false);
 
-      // a second call is back to one request: the two versions never change, so one mismatch is the news
-      const before = watch.calls();
-      const [again, , stillUndeclared] = await routes.sayHello(user).call(withAuth(middleFns));
-      expect(again).toBe('Hello John Doe');
+      // reported once: a later call carries no second copy of the same news
+      const [, , stillUndeclared] = await routes.sayHello(user).call(withAuth(middleFns));
       expect(stillUndeclared).toBeUndefined();
-      expect(watch.calls() - before).toBe(1);
     } finally {
       watch.restore();
     }
