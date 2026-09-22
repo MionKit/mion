@@ -5,16 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Imported on demand through `#api-version-recovery`, so a client that never meets a mismatch ships none of this.
-// Its own imports entry, not `#metadata-from-server`: @mionjs/devtools stubs that one out under `bundleApi: 'bundled'`.
+// Part of the fetched lane, reached through `#metadata-from-server`: both halves run only when the bundle
+// comes up short, and both install the server's rows, so one chunk carries them.
 
-// The formats registry a bundled build leaves out: the server's rows compile their functions through it.
-import '@mionjs/run-types/formats';
-import {RpcError, MION_ROUTES, addRoutesToCache, addSerializedJitCaches, routesCache} from '@mionjs/core';
+import {RpcError, MION_ROUTES} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
 import type {SubRequest} from '../types.ts';
 import {stashApiVersionError} from './apiBuildVersion.ts';
-import {dropBundledMethods, getMethod, setFetchedMethods} from './methods.ts';
+import {dropBundledMethods, getMethod} from './methods.ts';
+import {installMethodRows} from './clientMethodsMetadata.ts';
 
 /** Ids the server has confirmed: each route is checked once, on its first use after the mismatch. */
 const verifiedIds = new Set<string>();
@@ -46,11 +45,9 @@ export function verifyMethodRows(asked: string[], data: SerializableMethodsData)
   // Only the ids asked for: their middleFns ride along, and comparing those would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
   if (!stale.length) return;
-  addSerializedJitCaches(data.deps, data.purFnDeps);
   // The bundled shelf wins over the fetched one, so the rows it replaces have to go first
   dropBundledMethods(stale);
-  addRoutesToCache(data.methods);
-  setFetchedMethods(routesCache);
+  installMethodRows(data);
   stashApiVersionError(staleRoutesError(stale));
 }
 

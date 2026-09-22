@@ -263,16 +263,8 @@ function markerImportProbes(markers: PluginOptions['markers']): string[] | null 
 // modules to real files under <genDir>/types/ at buildStart and the transform injects relative imports, so
 // every bundler resolves them natively, no virtual-module hooks. Vite-only hooks ride the `vite` escape hatch.
 
-/** The subpath @mionjs/client imports the fetched metadata lane through; answered with a real file
- *  rather than a `load` hook, which would change how esbuild and Bun read every other file too. */
-const METADATA_FROM_SERVER_ID = '#metadata-from-server';
-const metadataFromServerStubPath = (): string => {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const compiled = path.join(here, 'metadataFromServerStub.js');
-  return fs.existsSync(compiled) ? compiled : path.join(here, 'metadataFromServerStub.ts');
-};
-
-/** Mirror of the stub above: this lane exists only under `bundleApi`, so the stub answers when the option is absent. */
+/** The registration lane @mionjs/client imports through; answered with a real file rather than a `load`
+ *  hook, which would change how esbuild and Bun read every other file too. */
 const BUNDLED_API_ID = '#bundled-api';
 const bundledApiStubPath = (): string => {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -976,19 +968,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       return /\.[mc]?[jt]sx?$/.test(id);
     },
 
-    // Under `bundled` the whole API came with the build, so an empty `#metadata-from-server` keeps the
-    // fetch, the store, eviction and persistence out of the bundle; `mixed` still fetches what the build
-    // could not see. NEVER declared on bun: unplugin registers one `onResolve({filter: /.*/})` for the
-    // whole plugin as soon as any resolveId hook exists, and bun's loader then fails every module this
-    // plugin returns null for, entry point included. The stub is only a size win, so bun keeps the real modules.
-    ...(meta.framework !== 'bun' && (options.bundleApi === 'bundled' || options.bundleApi === undefined)
+    // NEVER declared on bun: unplugin registers one `onResolve({filter: /.*/})` for the whole plugin as soon
+    // as any resolveId hook exists, and bun's loader then fails every module this plugin returns null for,
+    // entry point included. The stub is only a size win, so bun keeps the real module.
+    ...(meta.framework !== 'bun' && options.bundleApi === undefined
       ? {
+          // No bundleApi means no injected metadata reaches a dispatch point, so stubbing the dead
+          // registration lane drops core's marker reflection with it.
           resolveId(id: string) {
-            if (options.bundleApi === 'bundled' && id === METADATA_FROM_SERVER_ID) return metadataFromServerStubPath();
-            // No bundleApi means no injected metadata reaches a dispatch point, so stubbing the dead
-            // registration lane drops core's marker reflection with it.
-            if (options.bundleApi === undefined && id === BUNDLED_API_ID) return bundledApiStubPath();
-            return null;
+            return id === BUNDLED_API_ID ? bundledApiStubPath() : null;
           },
         }
       : {}),

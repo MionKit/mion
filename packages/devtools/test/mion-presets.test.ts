@@ -210,7 +210,6 @@ describe('the published exports map', () => {
         './oxlint',
         './runtypes/bun',
         './runtypes/esbuild',
-        './metadata-from-server-stub',
         './runtypes/next',
         './runtypes/next/loader',
         './runtypes/rolldown',

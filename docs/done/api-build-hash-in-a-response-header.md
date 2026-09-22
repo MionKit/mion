@@ -70,14 +70,16 @@ the client reads the name without a value import of the router.
 
 `initClient` stores the injected version. After each fetch the client reads `x-build-version`: a missing
 header, a missing build version, or an equal one all do nothing. A difference switches on per-route
-verification, through a new `#api-version-recovery` `imports` entry (its own entry, since
-`bundleApi: 'bundled'` stubs `#metadata-from-server` out).
+verification, through the fetched lane behind `#metadata-from-server`. Both halves install the server's
+rows and both run only once the bundle comes up short, so one chunk carries them; making that true meant
+dropping the empty stub `bundleApi: 'bundled'` used to put in that lane's place, which had also left a
+bundled client with no way to recover at all.
 
 Only the comparison is in the first download. `lib/apiBuildVersion.ts` holds the injected value, the header
 comparison and the one error slot `initClient` reads; everything a mismatch then does (which routes are
 still unconfirmed, the sub request, the row comparison, the error text and the formats registry the
-server's rows compile through) is in the lazily imported recovery module. A client that never meets a
-mismatch never downloads it, and until one happens the request path does not even look. Pinned by
+server's rows compile through) is in the lazily imported lane. A client that never meets a mismatch never
+downloads it, and until one happens the request path does not even look. Pinned by
 `src/bundleSplit.spec.ts`, which walks the entry's static imports and fails if any of it turns eager.
 
 After a mismatch, each route is confirmed once on its first use. The question rides the request the client

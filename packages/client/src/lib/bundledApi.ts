@@ -17,7 +17,7 @@ import {
 import type {InjectedApiMetadata} from '../types.ts';
 import {isBundledMethod, resetBundledMethods, setBundledMethod} from './methods.ts';
 // Re-exported from the light half, which request.ts imports without the marker reflection this module needs.
-export {setBundleApiMode, getBundleApiMode, bundledMetadataMissingError} from './bundleApiMode.ts';
+export {setBundleApiMode, getBundleApiMode} from './bundleApiMode.ts';
 
 // The bundled-API lane (the build's `bundleApi` option): the build compiles the same validators and
 // serializers the server holds and injects, at each dispatch point, a module carrying the route plus its

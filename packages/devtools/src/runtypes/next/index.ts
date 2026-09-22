@@ -16,8 +16,6 @@ export const RUNTYPES_LOADER = '@mionjs/devtools/runtypes/next/loader';
 
 /** Under `bundleApi: 'bundled'` this subpath answers an empty module, as a resolve alias: Turbopack has no
  *  virtual modules. */
-const METADATA_FROM_SERVER_ID = '#metadata-from-server';
-const METADATA_FROM_SERVER_STUB = '@mionjs/devtools/metadata-from-server-stub';
 
 // `condition: {not: 'foreign'}` below keeps the loader off node_modules and Next's own internals: a large
 // speed-up, and the documented way to scope a Turbopack rule.
@@ -90,10 +88,6 @@ export async function withRunTypes(nextConfig: NextConfigLike = {}, options: Nex
         ...nextConfig.turbopack?.rules,
         ...runTypesTurbopackRules(socketPath),
       },
-      // `bundled` ships every route it calls, so it drops the lane; `mixed` keeps it to fetch what the build missed.
-      ...(options.bundleApi === 'bundled'
-        ? {resolveAlias: {...nextConfig.turbopack?.resolveAlias, [METADATA_FROM_SERVER_ID]: METADATA_FROM_SERVER_STUB}}
-        : {}),
     },
   };
 }

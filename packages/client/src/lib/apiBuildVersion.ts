@@ -6,7 +6,7 @@
  * ######## */
 
 // The whole version check, and nothing else: it rides every response, so it is the one part that cannot be
-// lazily loaded. What a mismatch then does lives in apiVersionRecovery.ts, behind `#api-version-recovery`.
+// lazily loaded. What a mismatch then does lives in apiVersionRecovery.ts, behind `#metadata-from-server`.
 // Split from client.ts like bundleApiMode.ts: request.ts reads the version per response and must not pull the
 // client in. Process-wide, like the rest of the client's caches: two initClient calls against two servers share
 // one set of rows, so they would share one version too.
