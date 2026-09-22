@@ -64,40 +64,59 @@ So the suite had to move.
 
 ## What shipped
 
-**The suite moved into `packages/test-server`.** `packages/router/test/` held nothing else, so the
-directory is gone and router's tsconfig reference and its `@mionjs/test-server` devDependency went
-with it. test-server already referenced core, router, platform-node, platform-cloudflare and
-platform-vercel, so every import in the suite is now a package name or a path inside test-server:
+**The suite moved into a NEW private package, `@mionjs/test-router-fuzz`.** `packages/router/test/` held
+nothing else, so the directory is gone and router's tsconfig reference and its `@mionjs/test-server`
+devDependency went with it.
+
+`test-server` was tried first and rejected. It works, but it forces that package into a two-tsconfig
+split (a typecheck-only `tsconfig.json` plus an emitting `tsconfig.build.json` that excludes `test/`),
+a shape only `drizzle-orm-pg-core` uses. Paying that in a package that actually ships is the wrong
+trade. `platform-node` is not a home either: it would need a reference to test-server, which recreates
+the cycle the other way round.
+
+A private package that NOTHING references has no back-edge to close, so the cycle cannot come back
+through it. Five files, modelled on `packages/type-budget`:
+
+```
+packages/test-router-fuzz/package.json
+packages/test-router-fuzz/tsconfig.json
+packages/test-router-fuzz/vitest.config.ts
+packages/test-router-fuzz/CLAUDE.md
+packages/test-router-fuzz/test/fuzz/security/{httpFuzz.integration.test.ts,httpFuzzRunner.ts}
+```
+
+The `test/fuzz/security/` path is kept so the `sechttp` dispatch pattern in `scripts/miondevx.mjs`
+(`patterns: ['security/httpFuzz.integration']`) keeps matching, and the directory sits at the same
+depth as its old home, so the relative `../../../../run-types/test/fuzz/core/*` imports are unchanged.
+Every cross-package import is a plain package name now:
 
 ```ts
 import {createMionRouter, resetRouter, getRouteExecutionChain, setPlatformConfig, dispatchRoute,
         headersFromRecord, decodeQueryBody, registerBatches, getRouterFatalErrorResponse} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '@mionjs/platform-node';
-// relative, not '@mionjs/test-server': this file lives inside that package
-import {compactTestRoutes} from '../../../src/test-server.ts';
+import {compactTestRoutes} from '@mionjs/test-server';
 ```
 
 Nine symbols, not the eight the original survey counted: a **dynamic** import of
 `getRouterFatalErrorResponse` sat inside a catch block and was missed by a grep of the import block.
 It failed at run time, not at type-check time, with `Cannot find module '/src/lib/dispatchError.ts'`.
-It is a static import from `@mionjs/router` now.
+It is a static import now.
 
-**test-server's tsconfigs took the shape `drizzle-orm-pg-core` already uses** for the identical
-problem (a fuzz spec that imports the run-types fuzz core by relative path). Excluding `test` from
-the one `tsconfig.json` was tried first and broke both eslint (`projectService` finds the nearest
-tsconfig, and the suite was in none) and the devtools resolver (it only injects type information for
-call sites its program can see, so every route failed with `MissingRtFnsError`). The split instead:
+**The package has ONE tsconfig and no `references`.** `composite: false`, `noEmit: true`,
+`rootDir: "../.."`, and it is deliberately absent from the root tsconfig's references, following
+`packages/go-be-sidecar`. Non-composite with a widened root is what makes the relative import of the
+run-types fuzz core legal (a composite project with `rootDir: "."` refuses a source file above its
+root, TS6059). Its `vitest.config.ts` DOES install `mionVitePlugin`, unlike the other test-only
+projects: the suite declares its own fixture routes, and without build-time type information every one
+fails at run time with `MissingRtFnsError`.
 
-- `tsconfig.json` is typecheck-only now: `composite: false`, `noEmit: true`, `rootDir: "../.."`.
-  It includes `test`, so eslint, the editor and the vitest plugin all see the suite.
-- `tsconfig.build.json` re-enables composite and emit, keeps the five references and excludes `test`.
-  The root `tsconfig.json` and `packages/client/tsconfig.json` point their references at it.
-
-**test-server got a vitest project and a typecheck script.** `packages/test-server/vitest.config.ts`
-declares the project `test-server` (`include: ['test/**/*.test.ts']`), the root `vitest.config.ts`
-lists it, and it joins the `mion-core` batch in `scripts/core/test-batches.mjs`, which is where the
-suite already ran as part of `router`. `package.json` gained `"typecheck:test": "tsc -p tsconfig.json
---noEmit"` and its `test` script is `vitest run` rather than an echo.
+**Registration.** `vitest.config.ts` lists the project, it joins the `mion-core` batch in
+`scripts/core/test-batches.mjs` (where the suite already ran as part of `router`), and
+`packages/devtools/test/test-batch-contracts.test.ts` classifies it `LIGHT` because its tests carry
+their own inline timeouts. The root `package.json` `lint:eslint` and `lint-staged` brace globs name it
+so the suite is linted exactly as it was before. Nothing else needed a hand-written entry: private
+packages are filtered out of every release script and of the thin-README and publishable-manifest
+contracts, and `scripts/ci/lanes.mjs` classifies by the `packages/` prefix.
 
 **A gate stops the cycle coming back.** `scripts/ci/check-tree.mjs` grew a sweep over the project
 graph: `referenceGraph` walks the `references` of every reachable tsconfig from the root, and
@@ -113,14 +132,18 @@ case over the real tree. Putting the old reference back makes it fail:
   packages/platform-vercel/tsconfig.json -> ...
 ```
 
+**The reasoning lives in the repo, not only here.** `packages/test-router-fuzz/CLAUDE.md` says why the
+package exists and why its tsconfig carries no references; `packages/router/CLAUDE.md` carries the rule
+that a package's test tree never imports a downstream consumer. Neither names this document.
+
 ## What was checked and left alone
 
 - **`client` has the same dependency and no cycle.** It imports `@mionjs/test-server` from 17 files,
   which is fine because nothing references `client`. Untouched.
 - **`devtools` / `run-types`** appear in pnpm's cyclic warning but have no tsconfig `references`
   between them, so they are a package.json cycle only. Still warned about, still out of scope.
-- **`platform-node` was not a viable home** for the suite: it would need a reference to test-server,
-  which recreates the cycle the other way round.
+- **`test-server` was left untouched.** It keeps its single composite tsconfig and its `echo` test
+  script; nothing about this fix reaches into it.
 
 ## Out of scope
 
