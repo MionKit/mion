@@ -47,7 +47,7 @@ export function isBundledMethod(id: string): boolean {
   return bundledMethods.has(id);
 }
 
-/** Every id the bundle carries. Tests only. */
+/** Every id the bundle carries: what the version-mismatch lane offers the server, and what tests read. */
 export function bundledMethodIds(): string[] {
   return [...bundledMethods.keys()];
 }
@@ -55,6 +55,11 @@ export function bundledMethodIds(): string[] {
 /** Hands the fetched lane's table over, once, as that lane loads. */
 export function setFetchedMethods(methods: FetchedMethods): void {
   fetchedMethods = methods;
+}
+
+/** Drops the build-compiled rows for these ids, so the fetched shelf answers for them instead. */
+export function dropBundledMethods(ids: string[]): void {
+  for (const id of ids) bundledMethods.delete(id);
 }
 
 /** Empties the bundled shelf. Tests only: the fetched shelf stays wired, the lane module evaluates once. */

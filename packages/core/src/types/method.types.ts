@@ -89,6 +89,14 @@ export interface SerializableMethodsData {
   batches?: string[];
 }
 
+/** What a client already holds for one method. It sends these so the server answers with the rows that
+ *  really differ, instead of the whole API, once the build version told it something moved. */
+export interface MethodIdCheck {
+  id: string;
+  paramsId: string;
+  returnId: string;
+}
+
 export interface HeadersMethodWithJitFns extends HeadersMetaData {
   jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 }

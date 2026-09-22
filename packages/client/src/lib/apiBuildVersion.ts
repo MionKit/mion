@@ -8,6 +8,8 @@
 // Split from client.ts the way bundleApiMode.ts is: request.ts reads the version on every response and
 // must not pull the client in.
 
+import type {RpcError} from '@mionjs/core';
+
 /** The API version this client was built against, injected at `initClient` by the build. */
 let apiBuildVersion: string | undefined;
 /** One mismatch is acted on per process: the two versions never change, so a second is the same news. */
@@ -30,8 +32,23 @@ export function takeApiVersionMismatch(serverVersion: string | undefined | null)
   return true;
 }
 
+let mismatchError: RpcError<'api-version-mismatch'> | undefined;
+
+/** Held for the next call's undeclared slot, beside the bundled-API error: the call itself ran. */
+export function stashApiVersionError(error: RpcError<'api-version-mismatch'>): void {
+  mismatchError = error;
+}
+
+/** The mismatch error, reported once. */
+export function takeApiVersionError(): RpcError<'api-version-mismatch'> | undefined {
+  const error = mismatchError;
+  mismatchError = undefined;
+  return error;
+}
+
 /** Tests only: forgets the injected version and the handled mismatch. */
 export function resetApiBuildVersion(): void {
   apiBuildVersion = undefined;
   mismatchHandled = false;
+  mismatchError = undefined;
 }

@@ -6,6 +6,7 @@
  * ######## */
 
 import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionjs/core';
+import type {MethodIdCheck} from '@mionjs/core';
 import {
   getMiddleFnExecutable,
   getRouteExecutable,
@@ -42,7 +43,8 @@ const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 function mionGetRemoteMethodsDataById(
   ctx,
   methodsIds: string[],
-  getAllRemoteMethods?: boolean
+  getAllRemoteMethods?: boolean,
+  knownIds?: MethodIdCheck[]
 ): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> {
   const resp: SerializableMethodsData = {
     methods: {},
@@ -58,7 +60,8 @@ function mionGetRemoteMethodsDataById(
         (id) => !mionInternalRoutes.includes(id) && hasClientMetadata(getAnyExecutable(id) as RemoteMethod)
       )
     : methodsIds;
-  idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
+  const unchanged = unchangedIds(knownIds);
+  idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData, unchanged));
   // A hand-written client can only send ids the build compiled in, so list them alongside the methods
   if (shouldReturnAll) resp.batches = getBatchIds();
 
@@ -74,16 +77,35 @@ function mionGetRemoteMethodsDataById(
 function mionMethodsMetadata(
   ctx: CallContext,
   methodsIds?: string[],
-  getAllRemoteMethods?: boolean
+  getAllRemoteMethods?: boolean,
+  knownIds?: MethodIdCheck[]
 ): SerializableMethodsData | RpcError<'rpc-metadata-not-found'> | void {
   if (!methodsIds || methodsIds.length === 0) return;
-  return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods);
+  return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods, knownIds);
 }
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethodsData, errorData: AnyObject): void {
+/** The ids whose compiled types the client already holds. An id the server no longer declares is absent
+ *  here, so it still reaches the not-found answer. */
+function unchangedIds(knownIds: MethodIdCheck[] | undefined): Set<string> | undefined {
+  if (!knownIds?.length) return undefined;
+  const unchanged = new Set<string>();
+  for (const known of knownIds) {
+    const executable = getAnyExecutable(known.id) as RemoteMethod | undefined;
+    if (executable?.paramsJitHash === known.paramsId && executable?.returnJitHash === known.returnId) unchanged.add(known.id);
+  }
+  return unchanged;
+}
+
+function addRequiredRemoteMethodsToResponse(
+  id: string,
+  resp: SerializableMethodsData,
+  errorData: AnyObject,
+  unchanged?: Set<string>
+): void {
   const {methods, deps, purFnDeps} = resp;
   if (methods[id]) return;
   if (mionInternalRoutes.includes(id)) return;
+  if (unchanged?.has(id)) return;
   const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
   if (!executable) {
     errorData[id] = `Remote Method ${id} not found`;
@@ -92,7 +114,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   if (!hasClientMetadata(executable)) return;
   const method = getSerializableMethod(executable as RemoteMethod);
   methods[id] = method;
-  method.middleFnIds?.forEach((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData));
+  method.middleFnIds?.forEach((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData, unchanged));
   serializeMethodDeps(method, deps, purFnDeps);
 }
 

@@ -17,7 +17,7 @@ import type {
 import type {PublicApi, PrivateDef, MiddleFnsCollection} from './types/publicMethods.ts';
 import type {InjectBuildVersion} from '@mionjs/run-types';
 import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef} from './types/definitions.ts';
-import {BUILD_VERSION_HEADER, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
 import {
   isRawMiddleFnDef,
   isHeadersMiddleFnDef,
@@ -36,6 +36,7 @@ import {
   resolveParser,
   DEFAULT_MAX_BODY_SIZE,
   SerializerModes,
+  BUILD_VERSION_HEADER,
 } from '@mionjs/core';
 import {getRawMethodReflection, getHandlerReflection, assertCompiledParser} from './lib/reflection.ts';
 import {resolveChainMaxBodySize} from './lib/bodyLimit.ts';
