@@ -185,10 +185,8 @@ describe('a client built with bundleApi: bundled', () => {
 
   it('reports a payload the build did not write in the undeclared slot, never by throwing', async () => {
     const {client, routes, middleFns} = initClient<TestServerApi>({baseURL});
-    // what a `<genDir>/api/` tree written by another @mionjs/devtools version would inject: the
-    // envelope is right and the method row is not, which the guard has to catch before it is read
-    // the cast stands in for the build: the slot's type says only the build fills it, and this
-    // is what a `<genDir>/api/` tree from another @mionjs/devtools version would hand it
+    // the cast stands in for the build, the only thing that fills this slot: the envelope is right and
+    // the method row is not, as a `<genDir>/api/` tree from another @mionjs/devtools version would write it
     const stale = {methods: [{id: 'sayHello'}]} as unknown as InjectedApiMetadata;
     expect(() => client.useBundledApi(stale)).not.toThrow();
 
