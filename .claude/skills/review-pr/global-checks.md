@@ -19,16 +19,6 @@ diff, and say in the review list which groups you dropped and why.
 - S3 The PR description matches the diff in front of you.
 - S4 The change has a spec at all, or a stated reason it does not need one.
 
-## G - documentation exists (include when public behaviour or a public option changed)
-
-Whether a page is WORDED well is the docs-simplifier's call, not this review's.
-These two are correctness, which that agent is forbidden from touching: it may
-never add a fact or change what a sentence means, so a missing page and a stale
-page both survive it.
-
-- G1 A user-visible change is documented on the page a reader would look at.
-- G2 The docs describe what the code now does, not what it used to do.
-
 ## T - types and reuse (include when types or exported functions were added)
 
 - T1 The new type does not already exist somewhere under another name.

@@ -7,10 +7,12 @@ file's order, one at a time, finishing a group before you open the next.
 repo item names the file it came from so you read the current text. Rules
 change; anything copied in here would go stale silently.
 
-There is no documentation group and no comments group. The `docs-simplifier`
-and `comments-simplifier` agents own that wording and ran before this review, so
-re-judging it here would put the user through the same argument twice. Whether a
-user-visible change is documented AT ALL is a group G item, not a style one.
+There is no documentation group and no comments group, and nothing about a page
+or a comment belongs in another group either. The `docs-simplifier` and
+`comments-simplifier` agents own both and ran before this review. Missing
+documentation is deliberately not a finding: the simplify pass is built to cut
+rather than add, against the bias of writing docs beside the code, and a
+reviewer asking for more pages undoes that.
 
 ## Before every group
 
