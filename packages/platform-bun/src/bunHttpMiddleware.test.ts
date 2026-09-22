@@ -20,16 +20,19 @@ describe('bun asMiddleware should', () => {
   type SimpleUser = {name: string; surname: string};
   type Context = CallContext<ReturnType<typeof getSharedData>>;
   const getSharedData = () => ({auth: {me: null as any}});
-  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-  const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
-    return {name: 'NewName', surname: user.surname};
-  });
 
   let host: Server<any> | undefined;
 
+  // bun runs every test file in ONE process and evaluates every describe body before any hook, so
+  // the router is built here, after the reset: built in the body it would hit the once-guard the
+  // other file's body already set, and this whole file would be skipped.
   beforeAll(async () => {
     resetBunHttpOpts();
     resetRouter();
+    const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    const changeUserName = mion.route((context: Context, user: SimpleUser): SimpleUser => {
+      return {name: 'NewName', surname: user.surname};
+    });
     mion.initRoutes({changeUserName});
   });
 

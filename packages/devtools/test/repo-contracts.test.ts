@@ -18,6 +18,8 @@ import {sampleKeys, sampleMirrorDrift} from '../../../scripts/env/check.mjs';
 import {REGISTRY} from '../../../scripts/lib/env.mjs';
 // @ts-expect-error — a plain .mjs repo script, no types.
 import {stripSourceCondition} from '../../../scripts/lib/publish-manifest.mjs';
+// @ts-expect-error — a plain .mjs repo script, no types.
+import {testsPerFile, swallowedFiles} from '../../../scripts/core/test-bun.mjs';
 
 interface RegistryEntry {
   name: string;
@@ -1687,5 +1689,69 @@ describe('Go build outputs under ts-go-runtypes are ignored', () => {
     ]) {
       expect(ignored(path), path).toBe(false);
     }
+  });
+});
+
+describe('bun test files never build the router at evaluation time', () => {
+  const BUN_PACKAGE = join(REPO_ROOT, 'packages/platform-bun');
+
+  // Bun runs a package's test files in ONE process and evaluates every describe body before any
+  // hook, so a `createMionRouter()` in a describe body (or at module level) hits the once-guard a
+  // sibling file's body already set. The throw skips that whole file and the summary still reads
+  // `0 fail`. Indentation is the test because it is the nesting: 0 is module level, 2 is a describe
+  // body, and anything deeper is inside a hook or a test, where the reset has already run.
+  const evaluationTimeCalls = (source: string): string[] =>
+    source
+      .split('\n')
+      .map((line, index) => ({line, number: index + 1}))
+      .filter(({line}) => /createMionRouter\s*\(/.test(line) && /^ {0,2}\S/.test(line) && !/^\s*(\/\/|\*)/.test(line))
+      .map(({line, number}) => `${number}: ${line.trim()}`);
+
+  const bunTestFiles = globSync('**/*.{test,spec}.ts', {cwd: BUN_PACKAGE, exclude: (name) => name === 'node_modules'});
+
+  it('finds the bun test files to check', () => {
+    expect(bunTestFiles.length).toBeGreaterThan(0);
+  });
+
+  it.each(bunTestFiles)('%s builds its router inside a hook or a test', (file) => {
+    expect(evaluationTimeCalls(readFileSync(join(BUN_PACKAGE, file), 'utf8'))).toEqual([]);
+  });
+
+  it('spots a router built in a describe body', () => {
+    const offending = "describe('x', () => {\n  const mion = createMionRouter();\n});";
+    expect(evaluationTimeCalls(offending)).toEqual(['2: const mion = createMionRouter();']);
+  });
+});
+
+describe('the bun lane fails when a test file contributes no tests', () => {
+  const healthy = `<testsuites tests="3">
+      <testsuite name="src/a.test.ts" file="src/a.test.ts" tests="2">
+        <testsuite name="a should" file="src/a.test.ts" tests="2" />
+      </testsuite>
+      <testsuite name="src/b.test.ts" file="src/b.test.ts" tests="1" />
+    </testsuites>`;
+  // What bun writes when a describe body threw: the file is absent from the report entirely.
+  const swallowedB = `<testsuites tests="2">
+      <testsuite name="src/a.test.ts" file="src/a.test.ts" tests="2" />
+    </testsuites>`;
+
+  it('counts the outermost suite of each file, not the nested ones', () => {
+    expect([...testsPerFile(healthy)]).toEqual([
+      ['src/a.test.ts', 2],
+      ['src/b.test.ts', 1],
+    ]);
+  });
+
+  it('passes when every expected file reported tests', () => {
+    expect(swallowedFiles(['src/a.test.ts', 'src/b.test.ts'], testsPerFile(healthy))).toEqual([]);
+  });
+
+  it('names the file bun never reported', () => {
+    expect(swallowedFiles(['src/a.test.ts', 'src/b.test.ts'], testsPerFile(swallowedB))).toEqual(['src/b.test.ts']);
+  });
+
+  it('names a file that reported zero tests', () => {
+    const empty = '<testsuites tests="0"><testsuite name="src/b.test.ts" file="src/b.test.ts" tests="0" /></testsuites>';
+    expect(swallowedFiles(['src/b.test.ts'], testsPerFile(empty))).toEqual(['src/b.test.ts']);
   });
 });
