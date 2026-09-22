@@ -1,32 +1,101 @@
 ---
 name: review-pr
-description: Review a PR or branch against this repo's rules with an approved checklist and parallel passes, reporting findings and never editing. Use when asked to review a PR, branch or diff.
+description: Review a PR or branch against this repo's rules in a fresh reviewer subagent, with an approved checklist, reporting findings and never editing. Use when asked to review a PR, branch or diff.
 ---
 
 # review-pr
 
-Judge a change the way this repo judges one. The review runs in two halves:
+Judge a change the way this repo judges one. **The review always runs in a `pr-reviewer` subagent**, never in the session that asked for it. That session spawns the reviewer, carries the checklist to the user, and afterwards decides what to fix.
 
-1. **Agree what to check.** Build one filtered list from the diff: the rules in the CLAUDE.md files that govern the changed files, plus the general engineering checks those files do not cover. Show it to the user and get it approved.
-2. **Check it.** Run the approved list as parallel passes, verify what they report, and answer against the list, item by item.
+The split exists for one reason: the author's memory of why a line exists is exactly what talks a real finding out of a report. A reviewer that never wrote the code cannot make that mistake. So the reviewer reads the diff, builds the checklist and verifies the findings in a context that knows nothing but what is on disk.
 
-You produce a **findings report**, never edits. The user decides afterwards what gets fixed, delegated, posted or dropped.
+The review produces a **findings report**, never edits.
+
+This document has two halves. Read the one you are:
+
+- **[Calling session](#calling-session)** - you were asked to review something. Three steps, and none of them is reviewing.
+- **[Reviewer](#reviewer)** - you are the `pr-reviewer` agent. The whole method.
+
+---
+
+## Calling session
+
+You do not review. You do not read the diff to "check" a finding, and you do not build the checklist. Doing any of it puts the context back that the split removed.
+
+### 1. Spawn the reviewer
+
+One agent, `subagent_type: pr-reviewer`, with the target and nothing else:
+
+```
+Review <the current branch against origin/main | branch <name> | PR #<n>>.
+Follow the review-pr skill, the reviewer's half, from step 1.
+```
+
+Add anything the user said they are worried about, in their words. Do not add your own summary of the change: the reviewer reads it from disk, and your summary is the context the split exists to keep out.
+
+If the agent type is not found (agent definitions load at session start), spawn `general-purpose` with the body of `.claude/agents/pr-reviewer.md` as the prompt plus the instruction to read this skill first.
+
+### 2. Carry the checklist to the user
+
+The reviewer stops after the checklist and hands it back. Its message is not shown to the user, so relay it **whole**: the intent, every item with its id and source, the per-file rule counts, and the groups it dropped with its reasons. Do not trim it, and do not judge it.
+
+Then ask with AskUserQuestion: run it as is, add items, or drop a group. This is the moment the user steers the review, and an item they add matters even when no rulebook mentions it, because their attention is a signal about where the change is risky.
+
+Send the answer back to the **same** agent with SendMessage, so it continues with its context intact:
+
+```
+Approved. Run the checklist.
+```
+
+or the amendments in the user's words. A fresh Agent call would start over and rebuild the list.
+
+### 3. Triage the report
+
+The reviewer reports everything that survived verification. **Relay all of it to the user.** You filter fixes, never findings: a finding the user never sees is one they can never decide about, and summarising the list hides findings just as effectively as deleting them.
+
+Then decide what to do with each, with the user. The root [CLAUDE.md](../../../CLAUDE.md) sets where a finding goes, and it is not a menu:
+
+- **Related to this change** - fix it here, in this PR, with its own commit and its own test.
+- **Unrelated** - hand it to a parallel background agent through the [delegate-finding skill](../delegate-finding/). Never a backlog note.
+- **You disagree** - say so to the user with the reason and let them settle it. Disagreeing is not the same as dropping.
+
+If the user wants the findings on GitHub, post them as inline review comments, and resolve a thread only once it is actually fixed.
+
+Fixes are a separate step, after the user picks them. Reviewing and fixing in one motion is how a review turns into a rewrite.
+
+### What the calling session must NOT do
+
+- **Do not review.** Not before spawning, not to double-check a finding, not "just the diff stat".
+- **Do not build or edit the checklist yourself.** Amendments come from the user and go to the reviewer verbatim.
+- **Do not drop a finding** because it is small, because you disagree, or because the report is long. That is the user's call.
+- **Do not start a second reviewer** to continue after the checklist. SendMessage to the first one.
+
+---
+
+## Reviewer
+
+You are the `pr-reviewer` agent. You read, you judge, you report. You never edit, commit, or run tests.
+
+The review runs in two halves:
+
+1. **Agree what to check.** Build one filtered list from the diff: the rules in the CLAUDE.md files that govern the changed files, plus the general engineering checks those files do not cover. Hand it back for approval.
+2. **Check it.** Work the approved list one group at a time, verify what you find, and answer against the list, item by item.
 
 Why the list comes first: a review with no agreed scope reads as opinion, and nobody can tell what it skipped. An approved list makes the review auditable, lets the user add or drop items before the work happens, and gives every finding a number to point at.
 
 The bias throughout: **fewer committed lines**. A new type that could be derived, a new file that could be three lines in an existing one, a comment that repeats the line under it. Each of those is a finding.
 
-## The arc
+### The arc
 
 1. **Scope** the change. One script does it.
 2. **Frame** it: read the spec and the PR description, write the intent.
 3. **Build** the review list, filtered to what this diff actually contains.
-4. **Approve** it with the user.
-5. **Fan out** one pass per group, in parallel.
-6. **Verify** every reported finding against the diff.
-7. **Report** against the list, then ask what to do.
+4. **Hand it back** and wait for approval.
+5. **Work the groups**, one at a time.
+6. **Verify** every finding against the diff.
+7. **Report** against the list.
 
-## Step 1 - Scope
+### Step 1 - Scope
 
 ```bash
 bash .claude/skills/review-pr/scope.sh [base-ref]
@@ -34,7 +103,7 @@ bash .claude/skills/review-pr/scope.sh [base-ref]
 
 It prints the base ref and merge-base sha, the commits, the diff stat, the biggest added files, renames, the CLAUDE.md files governing each changed path, any spec doc in the diff, the website pages touched, and which source areas changed with no test change.
 
-**Pin the merge-base sha it prints.** Every pass diffs `<merge-base>..HEAD` so all of them see one identical change set. Comparing against a moving `origin/main` makes upstream commits look like the author's work.
+**Pin the merge-base sha it prints.** Every group diffs `<merge-base>..HEAD` so the whole review sees one identical change set. Comparing against a moving `origin/main` makes upstream commits look like the author's work.
 
 Picking the target:
 
@@ -42,9 +111,9 @@ Picking the target:
 - A branch named: check it out or diff it, base still `origin/main`.
 - A PR number named: read it with `mcp__github__pull_request_read` for the description, the base branch, **the labels** and the open review threads, fetch the head branch, then diff locally against that PR's own base.
 
-Then **read the whole diff yourself**: `git diff <merge-base>..HEAD`. On a large change read it area by area. You cannot build a real list, or verify an agent's finding, about a change you have not seen.
+Then **read the whole diff**: `git diff <merge-base>..HEAD`. On a large change read it area by area. You cannot build a real list, or verify a finding, about a change you have not seen.
 
-## Step 2 - Frame: the spec and the description
+### Step 2 - Frame: the spec and the description
 
 Both are written before the code and often never updated. Treat them as claims to test, not as context to trust.
 
@@ -52,11 +121,11 @@ Both are written before the code and often never updated. Treat them as claims t
 
 **Read the PR description and the labels**, when there is a PR. Labels gate CI lanes here, so note which ones are on it: a rule in the root CLAUDE.md says which the diff needs, and the G group checks the two against each other. Reviewing a branch with no PR yet turns that into an item for when it opens.
 
-Write the **intent**: one short paragraph saying what this change is meant to do. Every pass agent gets it, because a reviewer who does not know the goal reports noise.
+Write the **intent**: one short paragraph saying what this change is meant to do. It heads the checklist and it heads the report, because a reviewer who loses the goal reports noise.
 
-Do not judge the spec yet. It becomes items `S1` to `S4` on the list, and you check those yourself in step 6, since you are the one who read it.
+Do not judge the spec yet. It becomes items `S1` to `S4` on the list, checked in step 5 like everything else.
 
-## Step 3 - Build the review list
+### Step 3 - Build the review list
 
 The list is built fresh every review, from the files in front of you. Nothing is
 carried over from a previous review or from memory.
@@ -85,17 +154,17 @@ substitutes for reading the CLAUDE.md files: where a catalog item and a repo rul
 say the same thing, keep the repo rule and drop the catalog item, because the
 repo rule is quotable and current.
 
-Merge both into one list, grouped by the pass that will check it:
+Merge both into one list, grouped:
 
-| Group | Covers | Pass owner |
-| --- | --- | --- |
-| S | spec and description | you, in step 6 |
-| G | repo rules with no other home (dependencies, environment variables, commit and branch shape, build steps) | guidelines agent |
-| D | documentation | docs agent |
-| T | types and reuse | reuse agent |
-| A | architecture and size | architecture agent |
-| C | comments | comments agent |
-| B | behaviour and tests | behaviour agent |
+| Group | Covers |
+| --- | --- |
+| S | spec and description |
+| G | repo rules with no other home (dependencies, environment variables, commit and branch shape, build steps) |
+| D | documentation |
+| T | types and reuse |
+| A | architecture and size |
+| C | comments |
+| B | behaviour and tests |
 
 Number every item inside its group and tag its source, so a finding can point at
 one line:
@@ -106,45 +175,64 @@ D9  [repo: container/website/CLAUDE.md]       Titles are Title Case and name the
 G2  [repo: CLAUDE.md]                         Every new env var is registered and MION_ prefixed
 ```
 
-A repo rule about documentation goes in group D, not G, so the agent who reads
-the docs is the one who checks it.
+A repo rule about documentation goes in group D, not G, so it is checked while
+the docs are the thing in front of you.
 
-## Step 4 - Get the list approved
+### Step 4 - Hand the checklist back
 
-Show the whole list with the intent above it, plus the groups you dropped and why ("no C group, the diff adds no comments"). Then ask, with AskUserQuestion: run it as is, add items, or drop a group. Fold in what they say and re-show only if they changed something structural.
+End your turn with the checklist as your whole message: the intent, every item with its id and source, the per-file rule counts, the groups you dropped and why ("no C group, the diff adds no comments"), and a closing line saying you are waiting for approval before you check anything.
 
-This is the moment the user steers the review. Take an added item seriously even when it is not in any rulebook: their attention is a signal about where this change is risky.
+The caller relays it to the user and sends back either an approval or amendments. Fold in what comes back and carry on from step 5. If the amendment is structural, re-show the changed part before you start.
 
-## Step 5 - Fan out
+Do not start checking while you wait. Steps 1 to 3 are reading and listing; step 4 is a full stop.
 
-One agent per group that survived, all spawned in **one message** so they run at once, `subagent_type: general-purpose`. Briefs are in [passes.md](passes.md): paste the brief and fill in the merge-base sha, the intent, that group's approved items, and the paths.
+### Step 5 - Work the groups, one at a time
 
-Each agent gets **its items and nothing else**, checks them in order, and answers per item: pass, fail, or not applicable. Tell it to read the source file named on any repo item so it quotes the current text rather than your paraphrase. Tell it plainly: read only, no edits, no commits.
+[groups.md](groups.md) holds the method for each group: what to read first, how to judge, and what a fail has to carry. Work the surviving groups in that file's order, and finish a group completely before opening the next one.
 
-## Step 6 - Verify before you report
+One group at a time is the rule, not a suggestion. The groups used to run as separate agents that could not see each other's work, and doing them in one context loses that. What replaces it is discipline:
 
-You check the `S` items yourself here, against the diff you read in step 1.
+- **Check a group's items in order, and nothing else.** An item from another group is that group's turn, not this one's.
+- **Answer every item before moving on**: pass, fail, or not applicable. An item you skipped to come back to is an item that goes missing.
+- **Never soften an earlier group's finding with a later group's context.** If group A called a new file unnecessary and group B then shows its tests are thorough, that is two facts, not a retraction.
+- **Re-read the rule per group.** For any item tagged `[repo: <file>]`, open that file and read the current wording before judging, then quote what you read. Your paraphrase on the checklist is a pointer, not the rule.
 
-For everything the agents send back, nothing reaches the user unverified:
+Record each answer as you go, in this shape:
+
+```
+- id:     D9
+  result: pass | fail | not-applicable
+  where:  path/to/file.ts:LINE        (for a fail, and for a pass you had to work for)
+  evidence: the exact line(s) from the diff
+  reason: the quoted rule, or why it costs the reader
+  fix:    the concrete smaller change, with the replacement text where short
+  severity: blocking | worth-fixing | nit
+  confidence: high | medium | low
+```
+
+Something serious that no item covers is welcome: record it as **off-list**, in the same shape. Do not pad it. Off-list is for real problems, not for things you would have written differently.
+
+### Step 6 - Verify before you report
+
+Nothing reaches the report unverified, including your own findings from an hour ago:
 
 - **The citation is real.** Open the file at the cited line and check the code says what the finding claims.
 - **The rule is real.** A repo-rule finding must quote the line it breaks, and you confirm that line exists. If it does not, drop it or relabel it as taste.
 - **The simpler option is really simpler.** Does it remove more lines than it adds, and keep the behaviour? If you cannot show that, drop it.
-- **It is in scope.** The change under review is the diff. A problem in untouched code is not this PR's finding; route it in step 7.
+- **It is in scope.** The change under review is the diff. A problem in untouched code is not this PR's finding; report it off-list and say so.
 - **Merge duplicates, and only duplicates.** The T and A groups overlap by design, so the SAME finding at the SAME place often arrives twice: one entry, best evidence. Two findings that merely sit in one file, or come from one item, are two findings and stay two.
 - **Count what survived.** Before writing the report, list every finding that passed verification, group by group, and count them. That count is what the report must contain. An item that reported several findings contributes several.
-- **An off-list finding is welcome but marked.** An agent that spots something serious outside its items reports it flagged as off-list; keep it, and say it was not on the approved list.
 
-## Step 7 - Report, then ask
+### Step 7 - Report
 
 Answer the list. Order by severity, not by group.
 
-**Report every finding that survived step 6. Filtering is the USER's job, never yours.** A verified
-finding is dropped only by them. You do not get to leave one out because it is small, because it is
-the second one from the same item, because another finding is in the same file, because the report
-is getting long, or because you privately disagree: disagreeing is what the severity levels and the
-push-back reply are for. If a finding is too small to write a line for, it was too small to verify,
-so it should have gone in step 6.
+**Report every finding that survived step 6. Filtering is not yours to do.** A verified finding is dropped
+only by the user, and the caller is the one who asks them. You do not get to leave one out because it is
+small, because it is the second one from the same item, because another finding is in the same file,
+because the report is getting long, or because you privately disagree: disagreeing is what the severity
+levels are for. If a finding is too small to write a line for, it was too small to verify, so it should
+have gone in step 6.
 
 Check the count before you send: the report's entries must equal the number you counted in step 6.
 If the report has fewer, you dropped something, so go back and find it. Grouping several findings
@@ -175,16 +263,15 @@ Severity:
 - **Worth fixing**: reuse, simplification, wordy or internals-heavy docs, a comment that no longer matches the code.
 - **Nit**: naming and phrasing where both readings are fine.
 
-Then ask what to do. The root CLAUDE.md sets where a finding goes: related ones are fixed in this change, unrelated ones go to a parallel background agent through the [delegate-finding skill](../delegate-finding/), and nothing is left as a note. Follow it rather than inventing a third lane. If the user wants the findings on GitHub, post them as inline review comments, and resolve a thread only once it is actually fixed.
+Your final message is the report, nothing else. The caller decides what happens next.
 
-## What NOT to do
+### What the reviewer must NOT do
 
-- **Do not start reviewing before the list is approved.** Steps 1 to 3 are reading and listing.
+- **Do not start checking before the checklist is approved.** Steps 1 to 3 are reading and listing.
 - **Do not edit code.** This skill reviews. Fixes happen after the user picks them, as their own step.
-- **Do not filter the findings.** Every finding that survives verification goes in the report, each with its own entry. Deciding which ones matter is the user's call, and they cannot make it about a finding they never saw. Summarising the list IS filtering it.
+- **Do not filter the findings.** Every finding that survives verification goes in the report, each with its own entry. Summarising the list IS filtering it.
 - **Do not run tests, builds or lint, and never report a test result you did not produce.** This review reads. The host is often not bootstrapped, and "tests pass" from an unbuilt host is a false claim. Reporting that a behaviour has no test is fine and expected.
 - **Do not build the list from the catalog alone.** The CLAUDE.md files are the guidelines; the catalog only covers what they do not.
-- **Do not skip re-reading a CLAUDE.md** because you read it earlier in this session or in a previous review. They change, and the list is only as current as the read behind it.
 - **Do not copy rules out of a CLAUDE.md into this skill.** They are read per review, quoted from the file, and cited by file name.
 - **Do not run a whole group the diff does not trigger.** An item that cannot apply produces noise and hides the ones that can.
 - **Do not report a rule you cannot quote.** Cite the line or call it taste.
@@ -194,12 +281,13 @@ Then ask what to do. The root CLAUDE.md sets where a finding goes: related ones 
 
 ## Gotchas
 
-- **Reviewing in the session that wrote the code? Compact or start fresh first.** Everything this skill needs is on disk: the diff, the spec, the CLAUDE.md files. Implementation context adds nothing and costs something, because the author's memory of why a line exists is exactly what talks a real finding out of the report in step 6. The passes run in clean subagents either way, so the bias lands on you, not them. A fresh session is better than a compact; a compact is better than neither.
+- **The reviewer is always a subagent, even when the caller did not write the code.** A session that has been reading this repo all day is not a fresh context either, and the rule is worth more than the exception.
 - **`origin/main..HEAD` is not the change.** Use the merge-base range from the script, or upstream commits show up as the author's work.
 - **A spec that reads perfectly can still be stalled.** It was written before the code. Check it against the diff, not against itself.
-- **The list is the deliverable of the first half.** If it is vague ("check the docs are good"), the pass will be vague too. Each item should be checkable against a line of the diff.
-- **A long report is not a failure mode; a short one hiding findings is.** The pressure to tidy peaks exactly when the passes did their job and came back with a lot. Twenty entries the user skims in a minute beat twelve they trust and act on, because the eight you cut are the ones nobody ever sees again. Every finding that survives verification is already worth a line: that is what surviving verification means.
+- **The checklist is the deliverable of the first half.** If it is vague ("check the docs are good"), the check will be vague too. Each item should be checkable against a line of the diff.
+- **A long report is not a failure mode; a short one hiding findings is.** The pressure to tidy peaks exactly when the groups did their job and came back with a lot. Twenty entries the user skims in a minute beat twelve they trust and act on, because the eight you cut are the ones nobody ever sees again. Every finding that survives verification is already worth a line: that is what surviving verification means.
 - **The second finding under one item is the one that goes missing.** An item that reports two things reads as one thing by the time it reaches the report. Count per FINDING, never per item.
+- **The middle groups are where fatigue shows.** One context runs all of them now, and the ones in the middle get the tired pass. If a group answers every item `pass` in a few lines, you skimmed it: go back.
 - **The docs group finds the most and gets argued with the most.** Quote the guideline and show the rewritten sentence. A concrete shorter sentence wins an argument that adjectives do not.
 - **The docs style rules are written down and they move.** Read `container/website/CLAUDE.md` during the review, including the pages it says to read first. It also says which tools may touch that tree, which decides what a valid fix looks like.
 - **New file, low bar to question it.** Ask what it would cost to put the code in the file that already owns that job. Often nothing.
