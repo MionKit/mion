@@ -177,15 +177,14 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
       const callFailed = this.shouldRetryWithProperSerialization(deserialized);
-      // A client carrying build-compiled routes replaces them when the server's version differs. The call already
-      // ran server-side, so only a FAILED one is repeated: repeating a successful mutation would run it twice.
+      // A client carrying build-compiled routes replaces them when the server's version differs.
       const mismatch = noteServerApiVersion(this.response.headers.get(BUILD_VERSION_HEADER));
       const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
       if (rows?.methods) {
         (await import('#api-version-recovery')).verifyMethodRows(this.verifying!, rows);
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
-      // The rows this request asked for arrive with it, so the first call after a mismatch pays no round trip.
+      // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.
       if (mismatch && callFailed && !this.signal?.aborted) return this.retryWithProperSerialization(originalSerializer);
 
       if (!this.signal?.aborted && callFailed) {

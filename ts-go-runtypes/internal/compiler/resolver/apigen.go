@@ -158,7 +158,7 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 		return diags, err
 	}
 	manifest := sess.serverApiManifest()
-	// The value this program's own calls carry, so a report names what shipped rather than a second hash of it
+	// The value this program's own calls carry, so a report names what shipped, not a second hash of it
 	buildVersion := routesVersion
 	if manifest == nil {
 		buildVersion = clientVersion

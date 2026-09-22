@@ -139,9 +139,7 @@ export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> =
 /** The headers every response starts with. Adapters read it through getResponseDefaults. */
 export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
 
-/** An adapter's own default headers over the router's globals, under `base` (the adapter's own built-in
- *  names, which a global may replace). Merged once per `own` object, so no request rebuilds it, and dropped
- *  whenever the router is initialized again, so a second `initRoutes` cannot be answered from a stale merge. */
+/** Merged once per `own`, so no request rebuilds it; `base` names are the adapter's own, a global may replace them. */
 export function getResponseDefaults(
   own: Record<string, string>,
   base?: Record<string, string>

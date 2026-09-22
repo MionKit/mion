@@ -16,9 +16,8 @@ import type {SubRequest} from '../types.ts';
 import {markApiVersionVerified, stashApiVersionError} from './apiBuildVersion.ts';
 import {dropBundledMethods, getMethod, setFetchedMethods} from './methods.ts';
 
-/** Asks the server for these rows on a request the client was making anyway, so a mismatch costs no round trip.
- *  The server answers with what it declares now, unfiltered; comparing is this side's job, since only this side
- *  holds both rows. */
+/** Rides a request the client was making anyway, so a mismatch costs no round trip.
+ *  The server answers unfiltered: only this side holds both rows, so only it can compare. */
 export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
   return {
     pointer: [MION_ROUTES.methodsMetadata],
@@ -28,13 +27,10 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
   } as SubRequest<any>;
 }
 
-/** Installs the rows that really differ from the bundled ones and drops the stale ones. Every field the build
- *  version hashes is compared here, `options` included, because a row is compared against its own twin rather
- *  than against the handful of ids a request had room for. */
+/** Compares every field the build version hashes, `options` included: this side holds both full rows. */
 export function verifyMethodRows(asked: string[], data: SerializableMethodsData): void {
   markApiVersionVerified(asked);
-  // Only the ids this request asked about: the answer also carries their middleFns, which the client either
-  // already holds or fetches on its own, and comparing those would report a route this call never uses.
+  // Only the ids asked for: their middleFns ride along, and comparing those would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
   if (!stale.length) return;
   addSerializedJitCaches(data.deps, data.purFnDeps);
@@ -45,8 +41,7 @@ export function verifyMethodRows(asked: string[], data: SerializableMethodsData)
   stashApiVersionError(staleRoutesError(stale));
 }
 
-/** A row missing on either end is a difference like any other: the bundle never had it, or the server
- *  no longer declares it. */
+/** A row missing on either end counts as a difference: the bundle never had it, or the server dropped it. */
 function rowsAgree(bundled: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
   if (!bundled || !served) return false;
   return (
@@ -69,8 +64,7 @@ function same(bundled: unknown, served: unknown): boolean {
   return bundled === served || JSON.stringify(bundled) === JSON.stringify(served);
 }
 
-/** The options a client acts on. The rest (`alwaysRun`, `maxBodySize`) only steer the server's own chain,
- *  and a fetched row carries whatever the server added to them, so comparing them reports a false difference. */
+/** The options a client acts on: the server fills in the rest, so comparing those reports a false difference. */
 const COMPARED_OPTIONS = ['isMutation', 'parser', 'validateParams', 'validateReturn'] as const;
 
 type ComparedOptions = Partial<Pick<MethodWithOptions['options'], (typeof COMPARED_OPTIONS)[number]>>;

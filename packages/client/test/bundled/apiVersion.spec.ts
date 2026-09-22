@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// A bundled client asks the server to confirm a route the first time it calls it after a version mismatch, and the
-// question rides a request it was making anyway, so a mismatch costs no round trip.
+// A bundled client asks about a route once after a mismatch, riding a request it was making anyway.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
 import {BUILD_VERSION_HEADER} from '@mionjs/core';
@@ -100,9 +99,8 @@ describe('the api version a bundled client compares', () => {
 
   it('replaces a row the server no longer agrees with and reports it once', async () => {
     const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    // The lane server IS this build's server, so the only way to see a real difference is to move the row on the
-    // wire. `isMutation` moves the build version while both jit hashes stay put, which is the case the compiled
-    // ids alone cannot see.
+    // The lane server IS this build's server, so a real difference has to be forged on the wire: `isMutation`
+    // moves the build version while both jit hashes stay put, the case the hashes alone cannot see.
     const watch = serveVersion('someOtherAp', (methods) => {
       if (methods.sayHello) methods.sayHello.options = {...methods.sayHello.options, isMutation: true};
     });

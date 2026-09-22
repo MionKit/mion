@@ -141,8 +141,7 @@ func (sess *Session) demandedExportedTypes(absPath string, demanded map[string]b
 	return out
 }
 
-// programSourceFiles is every file a whole-program pass walks; declaration files declare nothing such a pass
-// reads and are the largest ASTs, so they are skipped, as scanAllProgramFiles does.
+// programSourceFiles skips declaration files, as scanAllProgramFiles does: the largest ASTs, and nothing a pass reads.
 func (sess *Session) programSourceFiles() []string {
 	if sess.Program == nil || sess.Program.TS == nil {
 		return nil

@@ -56,8 +56,8 @@ func (sess *Session) apiVersionSites(files []string) []apiVersionSite {
 	return out
 }
 
-// apiVersions is what this program's own calls inject, and the error when its client and its server disagree.
-// The value a manifest records is read from here, never recomputed, so a report names what the calls carry.
+// apiVersions is what this program's own calls inject, plus the error when its client and its server disagree.
+// A manifest reads its value from here, never recomputes it.
 func (sess *Session) apiVersions(files []string) (routes, client string, diags []diagnostics.Diagnostic) {
 	var mismatched *apiVersionSite
 	for _, site := range sess.apiVersionSites(files) {

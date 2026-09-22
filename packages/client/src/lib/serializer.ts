@@ -52,8 +52,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
     const subRequest = req.subRequestList[id];
     if (!subRequest) continue;
     let params = subRequest.params;
-    // The metadata route parses its params as a clone, so plain JSON IS its wire form. A bundled client asking
-    // it to confirm a row has no compiled functions for it and needs none.
+    // Plain JSON IS the metadata route's wire form (it parses its params as a clone), and a bundled client compiles none.
     if (id === MION_ROUTES.methodsMetadata) {
       props.push(`${JSON.stringify(id)}:${JSON.stringify(params)}`);
       continue;
@@ -149,9 +148,8 @@ export async function deserializeResponseBody(
 async function deserializeJsonResponseBody(response: Response, options: ClientOptions, liftMetadataRows: boolean) {
   try {
     const parsedBody = await response.json();
-    // Rows asked for by the version check belong to this call, not to the store, so they come out before the
-    // cache hook below (which consumes the same slot). Raw: the loop further down would look for compiled
-    // functions under the metadata route's own id.
+    // Lifted before the cache hook below, which consumes the same slot: these rows belong to this call, not the store.
+    // Kept raw, or the loop further down would look for compiled functions under the metadata route's own id.
     let askedRows: unknown;
     if (liftMetadataRows) {
       askedRows = parsedBody[MION_ROUTES.methodsMetadata];
