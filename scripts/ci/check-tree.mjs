@@ -161,9 +161,8 @@ export function miniflareCwdWorkers() {
   return miniflareCwdOffenders(candidates.map((file) => ({file, text: readFileSync(join(REPO_ROOT, file), 'utf8')})));
 }
 
-// A `tsc --build` graph with a cycle in it is refused whole (TS6202), so no package builds. It got
-// here through a package referencing its own test fixture, which is invisible until someone runs
-// build mode.
+// A cycle makes `tsc --build` refuse the WHOLE graph (TS6202), so no package builds.
+// This one arrived through a package referencing its own test fixture, invisible outside build mode.
 
 // The "path" entries of a tsconfig `references` array. Regex, not JSON.parse: these files carry comments.
 const referencePaths = (text) => {
@@ -171,8 +170,7 @@ const referencePaths = (text) => {
   return references ? [...references[1].matchAll(/"path"\s*:\s*"([^"]+)"/g)].map((match) => match[1]) : [];
 };
 
-// The project graph as {config: [config]}, repo-root-relative. A reference names a config file or the
-// directory holding one. Pure over `readText` so the contract test can drive it with a fixture.
+// The project graph as {config: [config]}, repo-root-relative; pure over `readText` so the test can pass a fixture.
 export function referenceGraph(readText, root = 'tsconfig.json') {
   const graph = {};
   const pending = [root];
@@ -189,8 +187,7 @@ export function referenceGraph(readText, root = 'tsconfig.json') {
   return graph;
 }
 
-// Every cycle in that graph, each reported once. Rotated to start at its alphabetically first project
-// so the same cycle found from two entry points collapses to one line.
+// Each cycle once: rotated to its alphabetically first project, so the same cycle found from two entry points is one line.
 export function referenceCycles(graph) {
   const cycles = new Set();
   const walk = (config, stack) => {

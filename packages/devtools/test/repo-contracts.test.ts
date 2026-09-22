@@ -307,7 +307,7 @@ describe('no file outside docs/todos and docs/done names a todo or done spec', (
 });
 
 describe('the tsconfig project-reference graph stays acyclic', () => {
-  // A fixture graph, not the real tree: `from` a config path, `to` the paths it references.
+  // A fixture graph, not the real tree.
   const graphOf = (tree: Record<string, string[]>) =>
     referenceGraph((config: string) =>
       tree[config] ? JSON.stringify({references: tree[config].map((path: string) => ({path}))}) : undefined
