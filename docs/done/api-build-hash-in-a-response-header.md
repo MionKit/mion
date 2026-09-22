@@ -37,8 +37,8 @@ The build walks the API type with `apimeta.WalkApi`, renders each method's `mani
 fields `api-check` compares), sorts by id and hashes the lot into 12 base-62 characters
 (`apimeta.BuildVersion`). Every row field is a compiled type id, so the value is a pure function of the
 API's types: no build stamp, no timestamp, no counter. The discovery and injection live in
-`ts-go-runtypes/internal/compiler/resolver/apiversion.go`; the manifest carries the same value as
-`buildVersion`.
+`ts-go-runtypes/internal/compiler/resolver/apiversion.go`; the manifest records the value the call sites
+actually carry as `buildVersion`, read back from those sites rather than hashed a second time.
 
 **One guard, not a setting.** A client build with neither `api.tsConfig` nor a router import in its own
 program read the API under its own `lib` and strictness settings, so its ids can differ with nothing
@@ -47,6 +47,11 @@ wrong. Its slot stays empty, which both runtimes read as "no version".
 Ambiguous ids never arise here. They only exist in `serverApiManifest`, which merges every
 `initRoutes(...)` call of a program into one manifest; the marker hashes one call site's own API type.
 
+**Both ends are checked against each other.** The client's API type is the author's to write, so a program
+holding both an `initClient` and an `initRoutes` call is the one place the build can tell that what was
+written is not what the router registered. Two different versions there are `MET007`, a `LevelRuntimeError`:
+the code is written and runs, and reports a mismatch it should not.
+
 ### Server, on the wire
 
 Two new `RouterOptions`:
@@ -54,23 +59,27 @@ Two new `RouterOptions`:
 - `globalResponseHeaders` (default `{}`), headers added to every response
 - `apiVersionCheck` (default `true`), whether to send `x-build-version`
 
-`initRouter` merges them once into a frozen record, read through `getGlobalResponseHeaders()`. All seven
-platform adapters fold that record into the default response headers they already build, lazily on the
-first request and cached, so nothing is rebuilt per response and no middleFn was added. The adapter's own
-`defaultResponseHeaders` wins on a clash. `BUILD_VERSION_HEADER` lives in `@mionjs/core` so the client
-reads the name without a value import of the router.
+`initRouter` merges them once into a frozen record. All seven platform adapters read their own default
+response headers through `getResponseDefaults(own, base)`, which merges them over that record once per
+defaults object and drops every merge whenever the router is initialized again, so nothing is rebuilt per
+response, no middleFn was added, and a second `initRoutes` cannot be answered from a stale merge. The
+adapter's own `defaultResponseHeaders` wins on a clash. `BUILD_VERSION_HEADER` lives in `@mionjs/core` so
+the client reads the name without a value import of the router.
 
 ### Client
 
 `initClient` stores the injected version. After each fetch the client reads `x-build-version`: a missing
-header, a missing build version, or an equal one all do nothing. A difference runs recovery once per
-process, through a new `#api-version-recovery` `imports` entry (its own entry, since `bundleApi: 'bundled'`
-stubs `#metadata-from-server` out).
+header, a missing build version, or an equal one all do nothing. A difference switches on per-route
+verification, through a new `#api-version-recovery` `imports` entry (its own entry, since
+`bundleApi: 'bundled'` stubs `#metadata-from-server` out).
 
-Recovery sends the client's own per-method ids, so `mionGetRemoteMethodsDataById` returns only the rows
-whose `paramsJitHash` / `returnJitHash` really differ. The client drops the stale bundled rows, installs
-the server's, and repeats the call. The mismatch is reported once as `api-version-mismatch` in the call's
-undeclared slot.
+After a mismatch, each route is confirmed once on its first use. The question rides the request the client
+was making anyway, as a `mion@methodsMetadata` slot, so there is no extra round trip and no server-side
+filter. The server answers with what it declares now; the client compares its own row against that twin in
+full, every field the build version hashes included, since a row is compared against its own copy instead
+of the handful of ids a request had room for. A row that really differs is replaced with the server's, and
+the mismatch is reported once as `api-version-mismatch` in the call's undeclared slot. A call that already
+succeeded is never repeated; only a failed one is retried, so a mutation cannot run twice.
 
 ## Deviations from the original plan
 
@@ -88,15 +97,16 @@ undeclared slot.
   `initClient` site over one API inject the same literal; a changed param type moves it; two builds of one
   API agree; an untrusted client injects nothing; a filled slot is left alone; the manifest carries the
   same value.
+  Two more: a program whose client and server disagree is reported as `MET007`, and a server alone is not.
 - Router: `globalHeaders.spec.ts` (the merge, `apiVersionCheck: false`, the build filling the slot itself,
-  frozen, cleared by `resetRouter`) and two `client.routes.spec.ts` cases for the id filtering and the
-  not-found answer.
-- Platform: `mionHttp.spec.ts` asserts the headers ride a normal and a not-found response, and that the
-  adapter's own value wins on a clash.
+  frozen, cleared by `resetRouter`).
+- Platform: every adapter has a `globalHeaders` spec asserting the router's headers ride the wire and that
+  the adapter's own value wins on a clash; `mionHttp.spec.ts` also covers a not-found response.
 - Client, both lanes (`test/bundled/apiVersion.spec.ts`, `test/mixed/apiVersion.spec.ts`): the client and
   the separately built test server agree on the same version; a match costs one request and leaves the
-  fetch lane unloaded; no header changes nothing; a difference makes exactly one extra request carrying the
-  client's ids, reports the mismatch, and does not repeat.
+  fetch lane unloaded; no header changes nothing; after a mismatch a route is asked about once, on a
+  request the client was making anyway, and not again; a row the server no longer agrees with is replaced
+  and reported once.
 
 ## Out of scope
 

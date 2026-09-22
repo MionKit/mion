@@ -15,7 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getGlobalResponseHeaders,
+  getResponseDefaults,
   MionResponse,
   getMaxRouteBodySize,
   readRequestBody,
@@ -31,15 +31,12 @@ import {Server} from 'bun';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-/** Merged lazily: the router's global headers only settle once initRoutes has run. */
-let defaultHeaders: Record<string, string> | undefined;
-// A record, not a list of pairs: `new Headers()` APPENDS a repeated name, so a list would join both values
-const getDefaultHeaders = (): Record<string, string> =>
-  (defaultHeaders ??= {server: '@mionjs', ...getGlobalResponseHeaders(), ...httpOptions.defaultResponseHeaders});
+/** Passed as a record, never a list of pairs: `new Headers()` APPENDS a repeated name, so a list of
+ *  pairs would join both values instead of letting the later one win. */
+const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetBunHttpOpts() {
   httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
-  defaultHeaders = undefined;
   resetRouter();
 }
 
@@ -48,7 +45,6 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
     ...httpOptions,
     ...options,
   };
-  defaultHeaders = undefined;
   return httpOptions;
 }
 
@@ -59,7 +55,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   const queryStart = reqUrl.indexOf('?', pathStart);
   const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
-  const responseHeaders = new Headers(getDefaultHeaders());
+  const responseHeaders = new Headers(getResponseDefaults(httpOptions.defaultResponseHeaders, SERVER_HEADER));
 
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
@@ -95,7 +91,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
 function bunErrorHandler(errReq: Error): Response {
-  const responseHeaders = new Headers(getDefaultHeaders());
+  const responseHeaders = new Headers(getResponseDefaults(httpOptions.defaultResponseHeaders, SERVER_HEADER));
   const error =
     errReq instanceof RpcError
       ? errReq

@@ -72,7 +72,7 @@ func (sess *Session) dispatchEnrich(request protocol.Request) protocol.Response 
 	// with no marker call.
 	targetFiles := request.Files
 	if len(targetFiles) == 0 {
-		targetFiles = sess.enrichProgramSourceFiles()
+		targetFiles = sess.programSourceFiles()
 	}
 
 	var response protocol.Response
@@ -141,9 +141,9 @@ func (sess *Session) demandedExportedTypes(absPath string, demanded map[string]b
 	return out
 }
 
-// enrichProgramSourceFiles is the target set for the whole-program plugin-sync pass; declaration files
-// declare no enrichable project type and are the largest ASTs, so they are skipped, as scanAllProgramFiles does.
-func (sess *Session) enrichProgramSourceFiles() []string {
+// programSourceFiles is every file a whole-program pass walks; declaration files declare nothing such a pass
+// reads and are the largest ASTs, so they are skipped, as scanAllProgramFiles does.
+func (sess *Session) programSourceFiles() []string {
 	if sess.Program == nil || sess.Program.TS == nil {
 		return nil
 	}

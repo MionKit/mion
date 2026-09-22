@@ -11,7 +11,6 @@
 // The formats registry a bundled build leaves out: the server's rows compile their functions through it.
 import '@mionjs/run-types/formats';
 import {RpcError, MION_ROUTES, addRoutesToCache, addSerializedJitCaches, routesCache} from '@mionjs/core';
-import type {AnyObject} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
 import type {SubRequest} from '../types.ts';
 import {markApiVersionVerified, stashApiVersionError} from './apiBuildVersion.ts';
@@ -74,7 +73,9 @@ function same(bundled: unknown, served: unknown): boolean {
  *  and a fetched row carries whatever the server added to them, so comparing them reports a false difference. */
 const COMPARED_OPTIONS = ['isMutation', 'parser', 'validateParams', 'validateReturn'] as const;
 
-function optionsAgree(bundled: AnyObject | undefined, served: AnyObject | undefined): boolean {
+type ComparedOptions = Partial<Pick<MethodWithOptions['options'], (typeof COMPARED_OPTIONS)[number]>>;
+
+function optionsAgree(bundled: ComparedOptions | undefined, served: ComparedOptions | undefined): boolean {
   return COMPARED_OPTIONS.every((name) => same(parserShape(bundled?.[name]), parserShape(served?.[name])));
 }
 

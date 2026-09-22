@@ -8,7 +8,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/apimeta"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/textpos"
 )
 
 // Both ends inject one hash over the API type's method rows into the InjectBuildVersion slot of initRoutes / initClient.
@@ -18,15 +20,28 @@ type apiVersionSite struct {
 	filePath string
 	injectAt int
 	text     string
+	callee   string
+	version  string
+	diagSite diagnostics.Site
 }
 
 // apiVersionReplacements returns the splices for every marked call in files, or nothing when apiVersionTrusted is false.
 func (sess *Session) apiVersionReplacements(files []string) []protocol.Replacement {
+	sites := sess.apiVersionSites(files)
+	out := make([]protocol.Replacement, 0, len(sites))
+	for _, site := range sites {
+		out = append(out, protocol.Replacement{File: site.filePath, Start: site.injectAt, End: site.injectAt, Text: site.text})
+	}
+	return out
+}
+
+// apiVersionSites walks files for marked calls, or answers nothing when apiVersionTrusted is false.
+func (sess *Session) apiVersionSites(files []string) []apiVersionSite {
 	if sess.Program == nil || sess.Program.TS == nil || len(files) == 0 || !sess.apiVersionTrusted() {
 		return nil
 	}
 	versions := map[*checker.Type]string{}
-	var out []protocol.Replacement
+	var out []apiVersionSite
 	for _, filePath := range files {
 		sourceFile := sess.Program.SourceFile(filePath)
 		if sourceFile == nil || sourceFile.IsDeclarationFile {
@@ -36,11 +51,30 @@ func (sess *Session) apiVersionReplacements(files []string) []protocol.Replaceme
 		if text := sourceFile.Text(); !strings.Contains(text, apimeta.InitRoutesName) && !strings.Contains(text, apimeta.InitClientName) {
 			continue
 		}
-		for _, site := range sess.apiVersionSitesIn(sourceFile, versions) {
-			out = append(out, protocol.Replacement{File: site.filePath, Start: site.injectAt, End: site.injectAt, Text: site.text})
-		}
+		out = append(out, sess.apiVersionSitesIn(sourceFile, versions)...)
 	}
 	return out
+}
+
+// apiVersions is what this program's own calls inject, and the error when its client and its server disagree.
+// The value a manifest records is read from here, never recomputed, so a report names what the calls carry.
+func (sess *Session) apiVersions(files []string) (routes, client string, diags []diagnostics.Diagnostic) {
+	var mismatched *apiVersionSite
+	for _, site := range sess.apiVersionSites(files) {
+		switch site.callee {
+		case apimeta.InitRoutesName:
+			routes = site.version
+		case apimeta.InitClientName:
+			client = site.version
+		}
+		if routes != "" && client != "" && routes != client && mismatched == nil {
+			mismatched = &site
+		}
+	}
+	if mismatched != nil {
+		diags = append(diags, diagnostics.New(diagnostics.CodeApiMetaVersionMismatch, mismatched.diagSite, client, routes))
+	}
+	return routes, client, diags
 }
 
 // apiVersionTrusted reports whether ids match the server's: only with api.tsConfig, or when the program imports the router.
@@ -58,7 +92,7 @@ func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[
 			return false
 		}
 		if node.Kind == ast.KindCallExpression {
-			if site, ok := sess.apiVersionSite(sourceFile, node, versions); ok {
+			if site, ok := sess.apiVersionSiteOf(sourceFile, node, versions); ok {
 				sites = append(sites, site)
 			}
 		}
@@ -69,8 +103,8 @@ func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[
 	return sites
 }
 
-// apiVersionSite reads one call; a slot the caller already filled holds a forwarded value, never ours.
-func (sess *Session) apiVersionSite(sourceFile *ast.SourceFile, call *ast.Node, versions map[*checker.Type]string) (apiVersionSite, bool) {
+// apiVersionSiteOf reads one call; a slot the caller already filled holds a forwarded value, never ours.
+func (sess *Session) apiVersionSiteOf(sourceFile *ast.SourceFile, call *ast.Node, versions map[*checker.Type]string) (apiVersionSite, bool) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || callExpr.Arguments == nil {
 		return apiVersionSite{}, false
@@ -102,6 +136,9 @@ func (sess *Session) apiVersionSite(sourceFile *ast.SourceFile, call *ast.Node, 
 		return apiVersionSite{
 			filePath: sourceFile.FileName(),
 			injectAt: call.End() - 1,
+			callee:   marker.CalleeIdentifierName(callExpr),
+			version:  version,
+			diagSite: textpos.NodeSite(sourceFile.FileName(), sourceFile, call),
 			// TrailingArgText quotes the value and pads any slot the call left empty before it.
 			text: purefunctions.TrailingArgText(
 				version,
@@ -136,20 +173,4 @@ func (sess *Session) apiVersionOf(apiType *checker.Type) string {
 		rows[method.Id] = sess.newApiMethodEntry(tree.Checker, method).manifestRow()
 	}
 	return apimeta.BuildVersion(rows)
-}
-
-// programFilePaths is every non-declaration source file, the whole-program input the generate-side collectors walk.
-func programFilePaths(sess *Session) []string {
-	if sess.Program == nil || sess.Program.TS == nil {
-		return nil
-	}
-	sourceFiles := sess.Program.TS.SourceFiles()
-	files := make([]string, 0, len(sourceFiles))
-	for _, sourceFile := range sourceFiles {
-		if sourceFile == nil || sourceFile.IsDeclarationFile {
-			continue
-		}
-		files = append(files, sourceFile.FileName())
-	}
-	return files
 }

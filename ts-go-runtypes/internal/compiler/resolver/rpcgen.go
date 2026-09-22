@@ -385,18 +385,7 @@ func (sess *Session) routerInitSites(files []string) []routerinit.Site {
 
 // routerInitFiles is the generate echo a dev host re-transforms when the batch module first appears.
 func (sess *Session) routerInitFiles() []string {
-	if sess.Program == nil || sess.Program.TS == nil {
-		return nil
-	}
-	sourceFiles := sess.Program.TS.SourceFiles()
-	files := make([]string, 0, len(sourceFiles))
-	for _, sourceFile := range sourceFiles {
-		if sourceFile == nil || sourceFile.IsDeclarationFile {
-			continue
-		}
-		files = append(files, sourceFile.FileName())
-	}
-	return routerinit.Files(sess.routerInitSites(files))
+	return routerinit.Files(sess.routerInitSites(sess.programSourceFiles()))
 }
 
 // routerInitReplacements appends the batch import to each router-init module when the batch source holds

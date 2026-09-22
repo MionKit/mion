@@ -5,7 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Split from client.ts like bundleApiMode.ts: request.ts reads the version per response and must not pull the client in.
+// Split from client.ts like bundleApiMode.ts: request.ts reads the version per response and must not pull the
+// client in. Process-wide, like the rest of the client's caches: two initClient calls against two servers share
+// one set of rows, so they would share one version too.
 
 import type {RpcError} from '@mionjs/core';
 

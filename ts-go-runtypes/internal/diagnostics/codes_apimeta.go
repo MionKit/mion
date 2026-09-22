@@ -7,6 +7,7 @@ package diagnostics
 // MET001 / MET002 / MET003 / MET005 drop the site, so nothing is injected and the call throws
 // `route-metadata-not-found` under `bundled`: LevelError. MET004 is MET003's `mixed` twin, where
 // the fetched lane still answers, and MET006 only leaves one bundled option unset: LevelWarning.
+// MET007 injects both versions and the call still runs, reporting a mismatch it should not: LevelRuntimeError.
 const (
 	// CodeApiMetaUnreadable: the API type a dispatch site names cannot be read as a mion PublicApi.
 	// Args: [0] what could not be read.
@@ -25,6 +26,10 @@ const (
 	// CodeApiMetaOptionWidened: an option of a bundled method is not a literal on the API type, so
 	// the bundled metadata leaves it unset. Args: [0] the option name, [1] the method id.
 	CodeApiMetaOptionWidened = "MET006"
+	// CodeApiMetaVersionMismatch: this program's `initClient` and `initRoutes` calls inject different
+	// build versions, so the client reports a mismatch against its own server. Args: [0] the client's
+	// version, [1] the server's.
+	CodeApiMetaVersionMismatch = "MET007"
 )
 
 func init() {
@@ -35,6 +40,7 @@ func init() {
 		{Code: CodeApiMetaRouteWidenedMixed, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "The route id at a dispatch site was widened to `string`; the call falls back to the fetched metadata"},
 		{Code: CodeApiMetaSourceAmbiguous, Family: FamilyMarker, Level: LevelError, Scope: ScopeNotSource, Title: "The API program named by `apiTsconfig` has no single `initRoutes` call declaring the routes this client calls"},
 		{Code: CodeApiMetaOptionWidened, Family: FamilyMarker, Level: LevelWarning, Scope: ScopeNotSource, Title: "An option of a bundled method is not a literal on the API type, so the bundled metadata leaves it unset"},
+		{Code: CodeApiMetaVersionMismatch, Family: FamilyMarker, Level: LevelRuntimeError, Scope: ScopeNotSource, Title: "A client and the API it is built against inject different build versions"},
 	} {
 		register(definition)
 	}
