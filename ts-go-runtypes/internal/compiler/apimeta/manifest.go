@@ -33,12 +33,10 @@ type ManifestMethod struct {
 	MiddleFnIds []string `json:"middleFnIds,omitempty"`
 }
 
-// BuildVersionLength is 12 base-62 characters, ~71 bits: a whole-API fingerprint, where a collision would
-// hide a real mismatch, so it is wider than the 7-character per-type ids it is built from.
+// BuildVersionLength is wider than the 7-char per-type ids: a collision here would hide a real API mismatch.
 const BuildVersionLength = 12
 
-// BuildVersion hashes every method row, sorted by id, into the version both ends of one API compare. Derived
-// from the types alone (the rows are compiled ids), never from a build stamp, so two builds of one API agree.
+// BuildVersion hashes the method rows sorted by id: types alone, never a build stamp, so two builds of one API agree.
 func BuildVersion(methods map[string]ManifestMethod) string {
 	if len(methods) == 0 {
 		return ""
@@ -70,8 +68,7 @@ type Manifest struct {
 	Mode        string                    `json:"mode,omitempty"`
 	ApiTsconfig string                    `json:"apiTsconfig,omitempty"`
 	Methods     map[string]ManifestMethod `json:"methods"`
-	// BuildVersion is the version this build injects at its `initRoutes` / `initClient` call, so a report
-	// can name the value the server answers with.
+	// BuildVersion is what this build injects at its `initRoutes` / `initClient` call, so a report can name it.
 	BuildVersion string   `json:"buildVersion,omitempty"`
 	Ambiguous    []string `json:"ambiguous,omitempty"`
 }

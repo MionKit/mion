@@ -59,13 +59,13 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  reads `ctx.request.rawBody` after the route ran; with it on, that reads an empty string.
    *  @default true */
   releaseRawBody: boolean;
-  /** Headers added to every response, merged once when the router starts and then read, never rebuilt.
-   *  The adapter's own `defaultResponseHeaders` wins on a clash.
+  /** Headers added to every response, merged once when the router starts. The adapter's own
+   *  `defaultResponseHeaders` wins on a clash.
    *  @default {} */
   globalResponseHeaders: Record<string, string>;
   /** Answer with the `x-build-version` header, the version of the API this server was built from, so a
-   *  client carrying build-compiled routes can tell its own are stale. Off sends no header, which is
-   *  also what turns the client's check off.
+   *  client with build-compiled routes can tell its own are stale. Off sends no header, which also turns
+   *  the client's check off.
    *  @default true */
   apiVersionCheck: boolean;
 }

@@ -11,8 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The version slot is the InjectBuildVersion parameter of `initRoutes` and `initClient`. Both fixtures
-// below are the real markers over an ambient stand-in of the package surface.
+// The version slot is the InjectBuildVersion parameter of `initRoutes` / `initClient`; the fixtures stand in for both packages.
 
 const versionRouterDTS = `declare module '@mionjs/router' {
   import type {InjectBuildVersion} from '@mionjs/run-types';
@@ -36,8 +35,7 @@ const versionClientDTS = `declare module '@mionjs/client' {
 }
 `
 
-// versionClientTS names the SAME two routes the server project declares, with the boolean parameter the
-// server's getById carries, so the only thing that could separate the two versions is the build.
+// versionClientTS names the SAME routes the server declares, so only the build could separate the two versions.
 const versionClientTS = `import {initClient} from '@mionjs/client';
 type RouteOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: undefined; sanitizeParams: undefined};
 type Api = {
@@ -63,9 +61,8 @@ func transformedVersion(t *testing.T, session *resolver.Session, file string) st
 	return match[1]
 }
 
-// TestApiVersion_ServerAndClientOfOneApiAgree: the two ends inject the same literal, and the server edit
-// api-check exists to catch moves it. The client reads the API through api.tsConfig, which is what makes
-// its ids the server's.
+// TestApiVersion_ServerAndClientOfOneApiAgree: the client reads the API through api.tsConfig, which makes its
+// ids the server's. The edit at the end is the kind of change api-check exists to catch, so it must move the version.
 func TestApiVersion_ServerAndClientOfOneApiAgree(t *testing.T) {
 	serverTsconfig := writeApiServerProject(t, filepath.Join(t.TempDir(), "server"), 1)
 	server := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, t.TempDir(), "", "")
@@ -86,8 +83,7 @@ func TestApiVersion_ServerAndClientOfOneApiAgree(t *testing.T) {
 	}
 }
 
-// TestApiVersion_DerivedFromTheTypesAlone: two separate builds of one unchanged API answer with the same
-// version. Nothing about the build (a temp dir, a clock, a counter) may reach the value.
+// TestApiVersion_DerivedFromTheTypesAlone: nothing about the build (a temp dir, a clock, a counter) may reach the value.
 func TestApiVersion_DerivedFromTheTypesAlone(t *testing.T) {
 	sources := map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}
 	first := transformedVersion(t, setupApi(t, sources, t.TempDir(), "", ""), "routes.ts")
@@ -97,9 +93,8 @@ func TestApiVersion_DerivedFromTheTypesAlone(t *testing.T) {
 	}
 }
 
-// TestApiVersion_UntrustedClientGetsNone: a client that reads the API neither through api.tsConfig nor
-// through the router resolved those types under its own compiler settings, so its ids may differ with
-// nothing wrong. It injects nothing, and the runtime reads that as "no version".
+// TestApiVersion_UntrustedClientGetsNone: a client reading the API neither through api.tsConfig nor through the
+// router resolved those types under its own settings, so its ids may differ with nothing wrong; it injects nothing.
 func TestApiVersion_UntrustedClientGetsNone(t *testing.T) {
 	client := setupApi(t, map[string]string{"client.d.ts": versionClientDTS, "client.ts": versionClientTS}, t.TempDir(), constants.BundleApiBundled, "")
 	if version := transformedVersion(t, client, "client.ts"); version != "" {
@@ -116,8 +111,7 @@ func TestApiVersion_FilledSlotIsLeftAlone(t *testing.T) {
 	}
 }
 
-// TestApiVersion_ManifestCarriesTheSameValue: the manifest reports what the calls carry, so api-check can
-// name the value the server answers with.
+// TestApiVersion_ManifestCarriesTheSameValue: api-check must be able to name the value the server answers with.
 func TestApiVersion_ManifestCarriesTheSameValue(t *testing.T) {
 	genDir := t.TempDir()
 	server := setupApi(t, map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}, genDir, "", "")

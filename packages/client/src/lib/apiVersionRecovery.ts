@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Reached on demand through `#api-version-recovery`, a package.json `imports` entry of @mionjs/client, so
-// a client that never meets a mismatch ships none of this. Its own entry, not `#metadata-from-server`:
-// @mionjs/devtools stubs that one out under `bundleApi: 'bundled'`, and this lane must survive there.
+// Imported on demand through `#api-version-recovery`, so a client that never meets a mismatch ships none of this.
+// Its own imports entry, not `#metadata-from-server`: @mionjs/devtools stubs that one out under `bundleApi: 'bundled'`.
 
 // The formats registry a bundled build leaves out: the fetched rows compile their functions through it.
 import '@mionjs/run-types/formats';
@@ -16,8 +15,7 @@ import type {MethodIdCheck, SerializableMethodsData} from '@mionjs/core';
 import type {ClientOptions} from '../types.ts';
 import {bundledMethodIds, dropBundledMethods, getMethod, setFetchedMethods} from './methods.ts';
 
-/** Replaces the build-compiled rows the server no longer agrees with, and answers with the error the call
- *  reports once. Sends the client's own ids, so the server returns only the rows that really differ. */
+/** Sends the client's own ids, so the server returns only the rows that really differ. */
 export async function recoverFromApiVersionMismatch(
   options: ClientOptions,
   signal?: AbortSignal

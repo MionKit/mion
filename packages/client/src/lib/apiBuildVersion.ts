@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Split from client.ts the way bundleApiMode.ts is: request.ts reads the version on every response and
-// must not pull the client in.
+// Split from client.ts like bundleApiMode.ts: request.ts reads the version per response and must not pull the client in.
 
 import type {RpcError} from '@mionjs/core';
 
@@ -24,8 +23,7 @@ export function getApiBuildVersion(): string | undefined {
   return apiBuildVersion;
 }
 
-/** True the first time the server's version differs from this build's. A server that sends no version, and
- *  a client the build gave none, both answer false: neither end knows enough to call it a mismatch. */
+/** True the first time the two versions differ: an end with no version knows too little to call it a mismatch. */
 export function takeApiVersionMismatch(serverVersion: string | undefined | null): boolean {
   if (mismatchHandled || !serverVersion || !apiBuildVersion || serverVersion === apiBuildVersion) return false;
   mismatchHandled = true;

@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The router merges its global response headers once, when it starts, and the platform adapters fold that
-// record into the defaults they already build. No middleFn writes them, so a response costs nothing for them.
+// Merged once when the router starts and folded into each adapter's defaults; no middleFn writes them per response.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getGlobalResponseHeaders} from './router.ts';
@@ -36,8 +35,7 @@ describe('global response headers', () => {
     expect(getGlobalResponseHeaders()).toEqual({'x-app-name': 'MyApp'});
   });
 
-  // No literal is written here: the build fills the slot from this file's own routes, which is the whole
-  // pipeline (marker, walk, hash, splice) answering in the JS suite.
+  // No literal here: the build fills the slot from this file's own routes, so the whole pipeline answers in the JS suite.
   it('takes the version the build injects when the call leaves the slot empty', () => {
     const mion = createMionRouter();
     mion.initRoutes(routes(mion));

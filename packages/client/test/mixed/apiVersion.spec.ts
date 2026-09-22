@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The mixed lane runs the same check: the routes its dispatch points bundled are build-compiled too, so
-// a server that moved on leaves them stale in exactly the same way.
+// The mixed lane bundles build-compiled routes too, so a server that moved on leaves them stale the same way.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
 import {HeadersSubset, MION_ROUTES, BUILD_VERSION_HEADER} from '@mionjs/core';
@@ -25,8 +24,7 @@ function withAuth(middleFns: ReturnType<typeof initClient<TestServerApi>>['middl
   return {middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
 }
 
-/** Answers every response with `version` in the build-version header, so the client meets the case under
- *  test whatever the two builds really agreed on. `null` strips the header. */
+/** Sets `version` in the build-version header of every response, `null` strips it, whatever the builds agreed on. */
 function serveVersion(version: string | null) {
   const realFetch = globalThis.fetch;
   const urls: string[] = [];
@@ -116,8 +114,7 @@ describe('the api version a mixed client compares', () => {
       expect(result).toBe('Hello John Doe');
       expect(undeclared?.type).toBe('api-version-mismatch');
       expect(watch.metadataCalls()).toBe(1);
-      // the one extra request carries the client's own compiled ids, so the server answers with the rows
-      // that really differ instead of the whole API. Here nothing moved, so it sends none back.
+      // the extra request carries the client's own compiled ids, so the server answers only with rows that moved (none here)
       const asked = JSON.parse(watch.metadataBody())[MION_ROUTES.methodsMetadataById];
       expect(asked[0]).toContain('sayHello');
       expect(asked[2]).toContainEqual({id: 'sayHello', paramsId: expect.any(String), returnId: expect.any(String)});

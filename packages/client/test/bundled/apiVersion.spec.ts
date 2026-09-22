@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The server answers every response with the version of the API it was built from. A bundled client
-// compares it with its own and, only when they differ, replaces its build-compiled routes in one extra
-// request. Everything else costs nothing.
+// A bundled client replaces its build-compiled routes in one extra request, and only when the server's version differs.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
 import {HeadersSubset, MION_ROUTES, BUILD_VERSION_HEADER} from '@mionjs/core';
@@ -27,8 +25,7 @@ function withAuth(middleFns: ReturnType<typeof initClient<TestServerApi>>['middl
   return {middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
 }
 
-/** Answers every response with `version` in the build-version header, so the client meets the case under
- *  test whatever the two builds really agreed on. `null` strips the header. */
+/** Sets `version` in the build-version header of every response, `null` strips it, whatever the builds agreed on. */
 function serveVersion(version: string | null) {
   const realFetch = globalThis.fetch;
   const urls: string[] = [];
@@ -69,8 +66,7 @@ describe('the api version a bundled client compares', () => {
     await resetMetadataStore();
   });
 
-  // The client program and the test server's are built separately, so this passing means the marker, the
-  // walk and the hash agree across two builds of one API.
+  // The client and the test server are built separately, so this passing means two builds of one API hash alike.
   it('is the one the server was built from', async () => {
     const {routes, middleFns} = initClient<TestServerApi>({baseURL});
     const clientVersion = getApiBuildVersion();
@@ -121,8 +117,7 @@ describe('the api version a bundled client compares', () => {
       expect(result).toBe('Hello John Doe');
       expect(undeclared?.type).toBe('api-version-mismatch');
       expect(watch.metadataCalls()).toBe(1);
-      // the one extra request carries the client's own compiled ids, so the server answers with the rows
-      // that really differ instead of the whole API. Here nothing moved, so it sends none back.
+      // the extra request carries the client's own compiled ids, so the server answers only with rows that moved (none here)
       const asked = JSON.parse(watch.metadataBody())[MION_ROUTES.methodsMetadataById];
       expect(asked[0]).toContain('sayHello');
       expect(asked[2]).toContainEqual({id: 'sayHello', paramsId: expect.any(String), returnId: expect.any(String)});

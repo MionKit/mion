@@ -159,9 +159,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       return Promise.reject(errors);
     }
 
-    // The server answers with the version of the API it was built from. A client carrying build-compiled
-    // routes replaces them when the two differ, then repeats the call; everything else reads no header,
-    // no version of its own, or the same one, and does nothing.
+    // A client carrying build-compiled routes replaces them when the server's version differs, then repeats the call.
     if (!this.signal?.aborted && takeApiVersionMismatch(this.response.headers.get(BUILD_VERSION_HEADER))) {
       try {
         const lane = await import('#api-version-recovery');

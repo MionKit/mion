@@ -95,7 +95,7 @@ let isRouterInitialized = false;
 let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
-/** The API version the build injected at `initRoutes`; empty when the build did not inject one. */
+/** The API version the build injected at `initRoutes`. */
 let apiBuildVersion: string | undefined;
 /** Merged once by initRouter and then only read, so no request rebuilds it. */
 let globalResponseHeaders: Readonly<Record<string, string>> = Object.freeze({});

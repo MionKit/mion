@@ -11,9 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// The API version rides the InjectBuildVersion slot of `initRoutes` on the server and `initClient` on the
-// client: one hash over every method row of the API type the call names. Both ends run this code over the
-// same rows, so one API gives one string and a changed route type gives another.
+// Both ends inject one hash over the API type's method rows into the InjectBuildVersion slot of initRoutes / initClient.
 
 // apiVersionSite is one marked call and the value its empty slot takes.
 type apiVersionSite struct {
@@ -22,8 +20,7 @@ type apiVersionSite struct {
 	text     string
 }
 
-// apiVersionReplacements returns the splices for every marked call in files. Empty when the program cannot
-// produce a trustworthy version (see apiVersionTrusted).
+// apiVersionReplacements returns the splices for every marked call in files, or nothing when apiVersionTrusted is false.
 func (sess *Session) apiVersionReplacements(files []string) []protocol.Replacement {
 	if sess.Program == nil || sess.Program.TS == nil || len(files) == 0 || !sess.apiVersionTrusted() {
 		return nil
@@ -35,7 +32,7 @@ func (sess *Session) apiVersionReplacements(files []string) []protocol.Replaceme
 		if sourceFile == nil || sourceFile.IsDeclarationFile {
 			continue
 		}
-		// Text pre-filter: resolving a signature per call is the cost, and only these two names carry the slot.
+		// Resolving a signature per call is the cost, and only these two names carry the slot.
 		if text := sourceFile.Text(); !strings.Contains(text, apimeta.InitRoutesName) && !strings.Contains(text, apimeta.InitClientName) {
 			continue
 		}
@@ -46,16 +43,13 @@ func (sess *Session) apiVersionReplacements(files []string) []protocol.Replaceme
 	return out
 }
 
-// apiVersionTrusted reports whether this program's ids are the ones the server compiled. A client program
-// pointed at the API through `api.tsConfig` reads the routes in THAT program, and a program importing the
-// router IS the server. Any other program resolved the API types under its own `lib` and strictness
-// settings, so its ids can differ with nothing wrong and it must inject nothing rather than claim a version.
+// apiVersionTrusted reports whether ids match the server's: only with api.tsConfig, or when the program imports the router.
+// Any other program resolves the API under its own lib and strictness, so it injects nothing rather than a wrong version.
 func (sess *Session) apiVersionTrusted() bool {
 	return sess.opts.ApiTsconfig != "" || sess.importsRouter()
 }
 
-// apiVersionSitesIn walks one file's calls, memoising the version per API type: several calls in one file
-// usually name the same API, and each walk assigns ids for every method.
+// apiVersionSitesIn walks one file's calls; versions memoises per API type because each walk assigns ids for every method.
 func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[*checker.Type]string) []apiVersionSite {
 	var sites []apiVersionSite
 	var visit ast.Visitor
@@ -75,8 +69,7 @@ func (sess *Session) apiVersionSitesIn(sourceFile *ast.SourceFile, versions map[
 	return sites
 }
 
-// apiVersionSite reads one call: the resolved signature must carry an InjectBuildVersion parameter, and that
-// parameter's slot must still be empty. A slot the caller already filled is a forwarded value, never ours.
+// apiVersionSite reads one call; a slot the caller already filled holds a forwarded value, never ours.
 func (sess *Session) apiVersionSite(sourceFile *ast.SourceFile, call *ast.Node, versions map[*checker.Type]string) (apiVersionSite, bool) {
 	callExpr := call.AsCallExpression()
 	if callExpr == nil || callExpr.Arguments == nil {
@@ -120,9 +113,8 @@ func (sess *Session) apiVersionSite(sourceFile *ast.SourceFile, call *ast.Node, 
 	return apiVersionSite{}, false
 }
 
-// apiVersionOf hashes the API type's method rows. A client pointed at `api.tsConfig` hashes the peer
-// program's tree instead, the same source resolveApiBundle compiles its functions from, so the two ends
-// hash ids minted under one checker.
+// apiVersionOf hashes the API type's method rows; with api.tsConfig it hashes the peer program's tree instead,
+// the same source resolveApiBundle compiles from, so both ends hash ids minted under one checker.
 func (sess *Session) apiVersionOf(apiType *checker.Type) string {
 	tree, problem := apimeta.WalkApi(sess.checker, apiType)
 	if tree == nil || problem != "" {
@@ -146,8 +138,7 @@ func (sess *Session) apiVersionOf(apiType *checker.Type) string {
 	return apimeta.BuildVersion(rows)
 }
 
-// programFilePaths is every non-declaration source file of the program, the whole-program input the
-// generate-side collectors walk.
+// programFilePaths is every non-declaration source file, the whole-program input the generate-side collectors walk.
 func programFilePaths(sess *Session) []string {
 	if sess.Program == nil || sess.Program.TS == nil {
 		return nil
