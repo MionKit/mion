@@ -2,6 +2,8 @@ import {defineConfig} from 'vitest/config';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
+// The plugin is required here, unlike the other test-only projects: the suite declares its own
+// fixture routes, and without the build-time type information every one fails with MissingRtFnsError.
 export default defineConfig({
   resolve: {conditions: ['source']},
   ssr: {resolve: {conditions: ['source']}},
@@ -13,18 +15,12 @@ export default defineConfig({
     }),
   ],
   test: {
-    name: 'test-server',
+    name: 'test-router-fuzz',
     globals: true,
     environment: 'node',
-    // the package's own src is a fixture, not a suite: only test/ holds tests
     include: ['test/**/*.test.ts'],
     // teardown-only: removes the .mion genDir the runtypes transform writes during the run
     globalSetup: ['../../scripts/lib/vitest-clean-gendir.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html'],
-      include: ['src/**'],
-    },
-    // No MION_TEST_SERVER_AUTO_START here: the suite starts the node adapter itself.
+    // No MION_TEST_SERVER_AUTO_START: the suite starts the node adapter itself.
   },
 });

@@ -59,8 +59,9 @@ export default defineConfig({
       'packages/platform-uws/vitest.config.ts',
       'packages/bin-uws/vitest.config.ts',
       'packages/platform-cloudflare/vitest.config.ts',
-      // The sechttp fuzz suite needs the node adapter plus these fixture routes, so it lives here, not in router.
-      'packages/test-server/vitest.config.ts',
+      // The sechttp fuzz suite: its own package because it needs router, the node adapter and the
+      // test-server fixture at once, and hosting it in any of the three closes a reference cycle.
+      'packages/test-router-fuzz/vitest.config.ts',
       // Type-instantiation cost budgets for the model pipeline (private, never
       // published) — a pure in-process compile measurement, no plugins.
       'packages/type-budget/vitest.config.ts',

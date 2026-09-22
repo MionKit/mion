@@ -33,8 +33,7 @@ import type {MionResponse} from '@mionjs/router';
 import {HeadersSubset, MION_BATCH_PATH, MION_ROUTES, SerializerModes, toBase64Url} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '@mionjs/platform-node';
-// relative, not '@mionjs/test-server': this file lives inside that package
-import {compactTestRoutes} from '../../../src/test-server.ts';
+import {compactTestRoutes} from '@mionjs/test-server';
 
 // the test-server fixture module already created its own factory at import: clear the once-guard first
 resetRouter();

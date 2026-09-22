@@ -1,14 +1,9 @@
 {
-  // Typecheck-only config (typecheck:test + editor + eslint): non-composite and noEmit so the
-  // sechttp fuzz suite's relative import into packages/run-types/test/ stays legal (a composite
-  // project with rootDir "." refuses a source file above its root, TS6059). The shipping build
-  // uses tsconfig.build.json, which re-enables composite + emit and excludes the test files.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "composite": false,
-    "noEmit": true,
-    "incremental": false,
-    "rootDir": "../..",
+    "outDir": ".dist/esm",
+    "composite": true,
+    "rootDir": ".",
     "module": "nodeNext",
     "moduleResolution": "nodeNext",
     "types": ["@types/node"],
@@ -20,6 +15,14 @@
       "@mionjs/platform-vercel": ["../platform-vercel/index.ts"]
     }
   },
+  "references": [
+    {"path": "../core"},
+    {"path": "../router"},
+    {"path": "../platform-node"},
+    {"path": "../platform-cloudflare"},
+    {"path": "../platform-vercel"}
+    
+  ],
   "include": ["."],
   "exclude": ["node_modules", ".dist", "build", "vite.config.ts", "vite.edge.config.ts", "vite.cloudflare.config.ts"]
 }

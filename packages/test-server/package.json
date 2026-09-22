@@ -37,10 +37,9 @@
     "access": "public"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "echo 'No tests for test-server package'",
     "dev": "vite build --watch",
     "lint": "eslint src",
-    "typecheck:test": "tsc -p tsconfig.json --noEmit",
     "format": "prettier --write src/**/*.ts",
     "build": "pnpm run build:edge && pnpm run build:cloudflare",
     "build:lib": "vite build",

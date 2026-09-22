@@ -1,0 +1,31 @@
+{
+  "name": "@mionjs/test-router-fuzz",
+  "version": "0.12.2",
+  "private": true,
+  "type": "module",
+  "description": "Hostile-HTTP fuzz suite for the mion router and the node adapter (never published)",
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint test",
+    "clean": "rimraf .coverage .mion",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "dependencies": {
+    "@mionjs/core": "workspace:*",
+    "@mionjs/platform-node": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "@mionjs/test-server": "workspace:*"
+  }
+}
