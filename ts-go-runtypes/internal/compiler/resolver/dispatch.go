@@ -855,6 +855,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			return protocol.Response{Error: "generate: " + rpcGenErr.Error()}
 		}
 		siteFiles := append(append(append(sess.pureFnReplacementFiles(metrics), requestbatch.Files(genBatchSites)...), apimeta.Files(apiSites)...), routerInitFiles...)
+		// A file whose only marker use is the version slot on `initRoutes` / `initClient` still needs the transform.
+		siteFiles = append(siteFiles, sess.apiVersionFiles(programFilePaths(sess))...)
 		genResponse := protocol.Response{Generated: manifest, OutDir: outDir, SiteFiles: uniqueSiteFiles(genDump.Sites, siteFiles)}
 		genResponse.BatchesModule = batchesModule
 		genResponse.BatchSourceFiles = rpc.files
