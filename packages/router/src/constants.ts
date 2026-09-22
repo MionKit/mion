@@ -24,6 +24,11 @@ export const DEFAULT_ROUTE_OPTIONS = {
   /** A type-derived request limit is the JSON maximum times this factor */
   maxBodySizeFactor: 2,
   releaseRawBody: true,
+  globalResponseHeaders: {},
+  apiVersionCheck: true,
 } as Readonly<RouterOptions>;
+
+/** Carries the version of the API the server was built from; a client compares it with its own. */
+export const BUILD_VERSION_HEADER = 'x-build-version';
 
 export const MAX_ROUTE_NESTING = 10;

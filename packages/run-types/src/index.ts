@@ -5,6 +5,7 @@ export {
   type InjectPureFnId,
   type InjectBatchId,
   type InjectApiMetadata,
+  type InjectBuildVersion,
   type CompTimeArgs,
   type CompTimeFnArgs,
   type CompTimeHints,
