@@ -30,13 +30,10 @@ import {RpcError, FatalError} from '@mionjs/core';
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
 /** Merged lazily: the router's global headers only settle once initRoutes has run. */
-let defaultHeaders: [string, string][] | undefined;
-const getDefaultHeaders = (): [string, string][] =>
-  (defaultHeaders ??= [
-    ['server', '@mionjs'],
-    ...Object.entries(getGlobalResponseHeaders()),
-    ...Object.entries(cloudflareOptions.defaultResponseHeaders),
-  ]);
+let defaultHeaders: Record<string, string> | undefined;
+// A record, not a list of pairs: `new Headers()` APPENDS a repeated name, so a list would join both values
+const getDefaultHeaders = (): Record<string, string> =>
+  (defaultHeaders ??= {server: '@mionjs', ...getGlobalResponseHeaders(), ...cloudflareOptions.defaultResponseHeaders});
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
