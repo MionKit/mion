@@ -55,7 +55,9 @@ export function nulBytes() {
     .filter((file) => !file.startsWith('ts-go-runtypes/third_party/') && !file.includes('/testdata/'));
   // A sweep that silently matched nothing would pass forever; the floor catches it.
   if (files.length < 500) die(`the NUL sweep listed only ${files.length} files, so its pathspecs stopped matching`);
-  return files.filter((file) => readFileSync(join(REPO_ROOT, file)).includes(0));
+  // git lists the INDEX, so a tracked file deleted but not yet staged is listed and absent: reading it
+  // unguarded crashed the whole sweep mid-edit.
+  return files.filter((file) => existsSync(join(REPO_ROOT, file)) && readFileSync(join(REPO_ROOT, file)).includes(0));
 }
 
 // A committed `go build` output (3.2 MB) once cost every clone until history was rewritten.
@@ -90,6 +92,8 @@ export function compiledExecutables() {
   if (entries.length < 500) die(`the executable sweep listed only ${entries.length} files, so git ls-files stopped matching`);
   const header = Buffer.alloc(4);
   return entries
+    // Same reason as the NUL sweep: a staged-but-deleted path is listed and absent.
+    .filter(({file}) => existsSync(join(REPO_ROOT, file)))
     .filter(({mode, file}) => {
       const fd = openSync(join(REPO_ROOT, file), 'r');
       try {
