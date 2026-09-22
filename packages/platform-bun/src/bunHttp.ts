@@ -15,6 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  getGlobalResponseHeaders,
   MionResponse,
   getMaxRouteBodySize,
   readRequestBody,
@@ -30,11 +31,18 @@ import {Server} from 'bun';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-let defaultHeaders: [string, string][] = [['server', '@mionjs']];
+/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+let defaultHeaders: [string, string][] | undefined;
+const getDefaultHeaders = (): [string, string][] =>
+  (defaultHeaders ??= [
+    ['server', '@mionjs'],
+    ...Object.entries(getGlobalResponseHeaders()),
+    ...Object.entries(httpOptions.defaultResponseHeaders),
+  ]);
 
 export function resetBunHttpOpts() {
   httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
-  defaultHeaders = [['server', '@mionjs']];
+  defaultHeaders = undefined;
   resetRouter();
 }
 
@@ -43,7 +51,7 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
     ...httpOptions,
     ...options,
   };
-  defaultHeaders = [['server', '@mionjs'], ...Object.entries(httpOptions.defaultResponseHeaders)];
+  defaultHeaders = undefined;
   return httpOptions;
 }
 
@@ -54,7 +62,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
   const queryStart = reqUrl.indexOf('?', pathStart);
   const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
   const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
-  const responseHeaders = new Headers(defaultHeaders);
+  const responseHeaders = new Headers(getDefaultHeaders());
 
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {
@@ -90,10 +98,7 @@ export async function bunRequestHandler(req: Request): Promise<Response> {
 
 /** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
 function bunErrorHandler(errReq: Error): Response {
-  const responseHeaders = new Headers({
-    server: '@mionjs',
-    ...httpOptions.defaultResponseHeaders,
-  });
+  const responseHeaders = new Headers(getDefaultHeaders());
   const error =
     errReq instanceof RpcError
       ? errReq

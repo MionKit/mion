@@ -18,6 +18,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  getGlobalResponseHeaders,
 } from '@mionjs/router';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
 import {Request, Response} from 'express';
@@ -28,15 +29,21 @@ import {headersFromIncomingMessage, headersFromServerResponse} from './headers.t
 // ############# STATE #############
 
 let googleCFOptions: Readonly<GoogleCFOptions> = {...DEFAULT_GOOGLE_CF_OPTIONS};
+/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+let responseDefaults: Record<string, string> | undefined;
+const getResponseDefaults = (): Record<string, string> =>
+  (responseDefaults ??= {...getGlobalResponseHeaders(), ...googleCFOptions.defaultResponseHeaders});
 
 // ############# PUBLIC METHODS #############
 
 export function resetGoogleCFOpts() {
   googleCFOptions = {...DEFAULT_GOOGLE_CF_OPTIONS};
+  responseDefaults = undefined;
   resetRouter();
 }
 
 export function setGoogleCFOpts(routerOptions?: Partial<GoogleCFOptions>) {
+  responseDefaults = undefined;
   googleCFOptions = {
     ...googleCFOptions,
     ...routerOptions,
@@ -57,7 +64,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
   // TODO use its own express headers wrapper instead headers from record
   rawResponse.setHeader('server', '@mionjs');
   const reqHeaders = headersFromIncomingMessage(rawRequest);
-  const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
+  const respHeaders = headersFromServerResponse(rawResponse, getResponseDefaults());
   let rawBody = rawRequest.body;
   let reqBodyType: SerializerCode = typeof rawBody === 'string' ? SerializerModes.stringifyJson : SerializerModes.json;
   // everything after the FIRST `?`: a second one is legal inside a query, so splitting on it would drop parameters

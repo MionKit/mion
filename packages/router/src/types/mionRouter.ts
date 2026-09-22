@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CompTimeArgs, InjectRunTypeId} from '@mionjs/run-types';
+import type {CompTimeArgs, InjectBuildVersion, InjectRunTypeId} from '@mionjs/run-types';
 import type {ParserLiteralGuard, HeaderMarkerSlots, MarkerSlots} from './parser.ts';
 import type {CallContext, ContextDataFactory} from './context.ts';
 import type {RouterOptions, Routes} from './general.ts';
@@ -139,7 +139,9 @@ export interface MionRouter<O extends RouterOptionsInput = RouterOptionsInput> {
   readonly middleFn: MiddleFnHelper<O>;
   readonly headersFn: HeadersFnHelper<O>;
   readonly rawMiddleFn: RawMiddleFnHelper<O>;
-  /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here. */
-  initRoutes<R extends Routes>(routes: R): PublicApi<R>;
+  /** Once per app, and synchronous: the compiled type functions were injected at build time, so nothing loads here.
+   *  `buildVersion` is filled by the build, never by hand: it is what the server answers with so a client can tell
+   *  its bundled routes apart from the ones this API declares now. */
+  initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R>;
 }
 // type-mion-router-end

@@ -15,6 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  getGlobalResponseHeaders,
   MionResponse,
   readRequestBody,
   BodyReadStrategy,
@@ -28,11 +29,18 @@ import {RpcError, FatalError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let vercelOptions: Readonly<VercelHandlerOptions> = {...DEFAULT_VERCEL_OPTIONS};
-let defaultHeaders: [string, string][] = [['server', '@mionjs']];
+/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+let defaultHeaders: [string, string][] | undefined;
+const getDefaultHeaders = (): [string, string][] =>
+  (defaultHeaders ??= [
+    ['server', '@mionjs'],
+    ...Object.entries(getGlobalResponseHeaders()),
+    ...Object.entries(vercelOptions.defaultResponseHeaders),
+  ]);
 
 export function resetVercelHandlerOpts() {
   vercelOptions = {...DEFAULT_VERCEL_OPTIONS};
-  defaultHeaders = [['server', '@mionjs']];
+  defaultHeaders = undefined;
   resetRouter();
 }
 
@@ -41,7 +49,7 @@ export function setVercelHandlerOpts(options?: Partial<VercelHandlerOptions>) {
     ...vercelOptions,
     ...options,
   };
-  defaultHeaders = [['server', '@mionjs'], ...Object.entries(vercelOptions.defaultResponseHeaders)];
+  defaultHeaders = undefined;
   setPlatformConfig({...vercelOptions});
   return vercelOptions;
 }
@@ -51,7 +59,7 @@ async function handleRequest(req: Request): Promise<Response> {
   const urlObj = new URL(reqUrl);
   const path = urlObj.pathname;
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = new Headers(defaultHeaders);
+  const responseHeaders = new Headers(getDefaultHeaders());
 
   // read as TEXT: `req.json()` would throw a raw SyntaxError outside any mion envelope, and the limit needs the size first
   try {

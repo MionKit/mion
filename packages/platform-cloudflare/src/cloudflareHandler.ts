@@ -15,6 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
+  getGlobalResponseHeaders,
   MionResponse,
   readRequestBody,
   BodyReadStrategy,
@@ -28,11 +29,18 @@ import {RpcError, FatalError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
-let defaultHeaders: [string, string][] = [['server', '@mionjs']];
+/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+let defaultHeaders: [string, string][] | undefined;
+const getDefaultHeaders = (): [string, string][] =>
+  (defaultHeaders ??= [
+    ['server', '@mionjs'],
+    ...Object.entries(getGlobalResponseHeaders()),
+    ...Object.entries(cloudflareOptions.defaultResponseHeaders),
+  ]);
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
-  defaultHeaders = [['server', '@mionjs']];
+  defaultHeaders = undefined;
   resetRouter();
 }
 
@@ -41,7 +49,7 @@ export function setCloudflareHandlerOpts(options?: Partial<CloudflareHandlerOpti
     ...cloudflareOptions,
     ...options,
   };
-  defaultHeaders = [['server', '@mionjs'], ...Object.entries(cloudflareOptions.defaultResponseHeaders)];
+  defaultHeaders = undefined;
   setPlatformConfig({...cloudflareOptions});
   return cloudflareOptions;
 }
@@ -54,7 +62,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     path = path.slice(cloudflareOptions.basePath.length) || '/';
   }
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = new Headers(defaultHeaders);
+  const responseHeaders = new Headers(getDefaultHeaders());
 
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;

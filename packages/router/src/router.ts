@@ -15,8 +15,9 @@ import type {
   RouteMethod,
 } from './types/remoteMethods.ts';
 import type {PublicApi, PrivateDef, MiddleFnsCollection} from './types/publicMethods.ts';
+import type {InjectBuildVersion} from '@mionjs/run-types';
 import type {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef} from './types/definitions.ts';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
+import {BUILD_VERSION_HEADER, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants.ts';
 import {
   isRawMiddleFnDef,
   isHeadersMiddleFnDef,
@@ -93,6 +94,10 @@ let isRouterInitialized = false;
 let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
+/** The API version the build injected at `initRoutes`; empty when the build did not inject one. */
+let apiBuildVersion: string | undefined;
+/** Merged once by initRouter and then only read, so no request rebuilds it. */
+let globalResponseHeaders: Readonly<Record<string, string>> = Object.freeze({});
 /** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
 let platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
 
@@ -130,6 +135,8 @@ export const getHasAsyncMethods = () => hasAsyncMethods;
 /** The `alwaysAwait` option asks for it, and it is only honoured when there is something async to wait for. */
 export const getAlwaysAwait = () => alwaysAwait;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
+/** The headers every response starts with. Adapters read it once and merge it into their own defaults. */
+export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
 /** Called automatically by platform adapters: the adapter's `maxBodySize` and `maxBodySizeCap` are
@@ -169,6 +176,8 @@ export const resetRouter = () => {
   isRouterCreated = false;
   allExecutablesIds = undefined;
   platformConfig = undefined;
+  apiBuildVersion = undefined;
+  globalResponseHeaders = Object.freeze({});
   platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
   resetRemoteMethodsMetadata();
   resetRoutesCache();
@@ -200,8 +209,8 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
     middleFn: middleFn as MiddleFnHelper<O>,
     headersFn: headersFn as HeadersFnHelper<O>,
     rawMiddleFn: rawMiddleFn as RawMiddleFnHelper<O>,
-    initRoutes<R extends Routes>(routes: R): PublicApi<R> {
-      initRouter(options);
+    initRoutes<R extends Routes>(routes: R, buildVersion?: InjectBuildVersion<PublicApi<R>>): PublicApi<R> {
+      initRouter(options, buildVersion);
       const api = registerRoutes(routes);
       if (platformConfig) applyMaxBodySizeCap();
       refreshChainBodyLimits();
@@ -211,9 +220,14 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
 }
 
 /** Initializes the router options and the internal error / client routes. Once per app (`resetRouter()` clears it). */
-function initRouter(opts: RouterOptionsInput): void {
+function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
+  apiBuildVersion = buildVersion || undefined;
+  globalResponseHeaders = Object.freeze({
+    ...routerOptions.globalResponseHeaders,
+    ...(routerOptions.apiVersionCheck && apiBuildVersion ? {[BUILD_VERSION_HEADER]: apiBuildVersion} : {}),
+  });
   validateSharedDataFactory(routerOptions);
   Object.freeze(routerOptions);
   setErrorOptions(routerOptions);
