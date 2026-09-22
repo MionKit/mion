@@ -105,7 +105,7 @@ const LIGHT_PROJECTS = [
   'mock-format-isolation',
   'core',
   'router',
-  'test-server',
+  'test-router-fuzz',
   'client',
   'client-bundled',
   'client-mixed',

@@ -350,6 +350,24 @@ importers:
         specifier: workspace:*
         version: link:../devtools
 
+  packages/test-router-fuzz:
+    dependencies:
+      '@mionjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@mionjs/platform-node':
+        specifier: workspace:*
+        version: link:../platform-node
+      '@mionjs/router':
+        specifier: workspace:*
+        version: link:../router
+      '@mionjs/run-types':
+        specifier: workspace:*
+        version: link:../run-types
+      '@mionjs/test-server':
+        specifier: workspace:*
+        version: link:../test-server
+
   packages/test-server:
     dependencies:
       '@mionjs/core':

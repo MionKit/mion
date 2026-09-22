@@ -1,0 +1,19 @@
+{
+  // noEmit-only: this package ships nothing, it only hosts a fuzz suite. `rootDir` is the repo root
+  // because the suite imports the shared fuzz core from packages/run-types/test/, outside this
+  // directory. No `references` on purpose: nothing references this package and it never emits, so it
+  // cannot close a cycle in the project graph the way its previous home in packages/router did.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "rootDir": "../..",
+    "sourceMap": false,
+    "types": ["@types/node"]
+  },
+  "include": ["."],
+  "exclude": ["node_modules"]
+}

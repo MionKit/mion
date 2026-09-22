@@ -1,12 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "composite": true,
-    "noEmit": false,
-    "incremental": true,
-    "outDir": ".dist/esm",
-    "rootDir": "."
-  },
   "references": [
     {"path": "../core"},
     {"path": "../router"},
@@ -14,5 +7,5 @@
     {"path": "../platform-cloudflare"},
     {"path": "../platform-vercel"}
   ],
-  "exclude": ["node_modules", ".dist", "build", "test", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
+  "exclude": ["node_modules", ".dist", "build", "*.config.ts", "globalSetup.ts", "buildTestBundle.ts", "**/*.spec.ts", "**/*.test.ts", "**/*.bench.ts", "**/*.stub.ts"]
 }
