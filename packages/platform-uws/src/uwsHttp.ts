@@ -32,7 +32,7 @@ import {bufferedResponseHeaders, headersFromUwsRequest, forEachHeader} from './h
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<UwsHttpOptions> = {...DEFAULT_UWS_HTTP_OPTIONS};
-/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+/** Merged lazily: the router's global headers only settle once initRoutes has run. */
 let responseDefaults: Record<string, string> | undefined;
 const getResponseDefaults = (): Record<string, string> =>
   (responseDefaults ??= {...getGlobalResponseHeaders(), ...httpOptions.defaultResponseHeaders});
