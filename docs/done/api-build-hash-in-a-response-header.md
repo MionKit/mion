@@ -73,6 +73,13 @@ header, a missing build version, or an equal one all do nothing. A difference sw
 verification, through a new `#api-version-recovery` `imports` entry (its own entry, since
 `bundleApi: 'bundled'` stubs `#metadata-from-server` out).
 
+Only the comparison is in the first download. `lib/apiBuildVersion.ts` holds the injected value, the header
+comparison and the one error slot `initClient` reads; everything a mismatch then does (which routes are
+still unconfirmed, the sub request, the row comparison, the error text and the formats registry the
+server's rows compile through) is in the lazily imported recovery module. A client that never meets a
+mismatch never downloads it, and until one happens the request path does not even look. Pinned by
+`src/bundleSplit.spec.ts`, which walks the entry's static imports and fails if any of it turns eager.
+
 After a mismatch, each route is confirmed once on its first use. The question rides the request the client
 was making anyway, as a `mion@methodsMetadata` slot, so there is no extra round trip and no server-side
 filter. The server answers with what it declares now; the client compares its own row against that twin in

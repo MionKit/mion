@@ -28,7 +28,7 @@ import {
 import type {SerializerMode, SerializableMethodsData} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundleApiMode.ts';
-import {noteServerApiVersion, unverifiedIds} from './lib/apiBuildVersion.ts';
+import {hasApiVersionMismatch, noteServerApiVersion} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
@@ -120,10 +120,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       } else {
         (this.options as any).serializer = originalSerializer;
         // After a version mismatch each route is confirmed once, on its first use, riding this request.
-        const unverified = unverifiedIds(subRequestIds);
-        if (unverified.length) {
-          this.verifying = unverified;
-          this.addSubRequest((await import('#api-version-recovery')).createVerifySubRequest(unverified));
+        if (hasApiVersionMismatch()) {
+          const recovery = await import('#api-version-recovery');
+          const unverified = recovery.unverifiedIds(subRequestIds);
+          if (unverified.length) {
+            this.verifying = unverified;
+            this.addSubRequest(recovery.createVerifySubRequest(unverified));
+          }
         }
         await this.loadMethodsMetadata(subRequestIds, bundled, this.signal);
         this.restorePrefilledMiddleFns(errors);

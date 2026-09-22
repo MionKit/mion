@@ -15,6 +15,7 @@ import type {initClient} from '../../src/client.ts';
 import {resetClientCaches} from './testUtils.ts';
 import {resetBundledApi} from '../../src/lib/bundledApi.ts';
 import {resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
+import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 
 /** Every route of the test server runs behind the root-level `auth` headers middleFn. */
@@ -26,6 +27,7 @@ export async function resetApiVersionState(): Promise<void> {
   resetClientCaches();
   resetBundledApi();
   resetApiBuildVersion();
+  resetApiVersionRecovery();
   await resetMetadataStore();
 }
 
