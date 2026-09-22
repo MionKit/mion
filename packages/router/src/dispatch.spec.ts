@@ -885,6 +885,30 @@ describe('sanitizeParams', () => {
     expect(response.body.target).toBe(CLEAN);
   });
 
+  // `mutate` decodes IN PLACE, so params alias request.body[id] and the transform rewrites the body itself.
+  it('sanitizes a mutate request, where the params are the body', async () => {
+    const echoMutate = mion.route((ctx, email: CleanEmail): string => email, {parser: {params: 'mutate'}});
+    createMionRouter({sanitizeParams: true}).initRoutes({echoMutate});
+    const response = await dispatchJson('echoMutate', [RAW]);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.echoMutate).toBe(CLEAN);
+  });
+
+  // The transform runs BEFORE the validator, so on mutateStrict it has to survive the strict key check.
+  it('sanitizes a mutateStrict request and still rejects an undeclared key', async () => {
+    type Payload = {email: CleanEmail};
+    const echoStrict = mion.route((ctx, payload: Payload): string => payload.email, {
+      parser: {params: 'mutateStrict'},
+    });
+    createMionRouter({sanitizeParams: true}).initRoutes({echoStrict});
+    const clean = await dispatchJson('echoStrict', [{email: RAW}]);
+    expect(clean.hasErrors).toBeFalsy();
+    expect(clean.body.echoStrict).toBe(CLEAN);
+
+    const extra = await dispatchJson('echoStrict', [{email: RAW, evil: 'garbage'}]);
+    expect(extra.body[MION_ROUTES.thrownErrors]?.echoStrict).toMatchObject({type: 'validation-error'});
+  });
+
   it('never touches the return value', async () => {
     const shout = mion.route((ctx, email: CleanEmail): CleanEmail => 'UPPER@CASE.COM' as CleanEmail);
     createMionRouter({sanitizeParams: true}).initRoutes({shout});
