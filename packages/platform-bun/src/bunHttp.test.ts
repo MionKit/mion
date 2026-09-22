@@ -31,9 +31,8 @@ describe('bun router should', () => {
   };
   const getSharedData = () => ({auth: {me: null as any}});
 
-  // bun runs every test file in ONE process and evaluates every describe body before any hook, so
-  // this is called from beforeAll: called in the body it would set the once-guard the other file's
-  // body then hits, and that whole file would be skipped.
+  // Called from beforeAll, not the describe body: bun evaluates every body before any hook, in one process.
+  // A router built in the body sets the once-guard the other test file then hits, skipping that whole file.
   const buildApp = () => {
     resetBunHttpOpts();
     const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
@@ -176,7 +175,6 @@ describe('bun router should', () => {
 
     void smallServer.stop(true);
 
-    // Restore router state for the main server
     resetBunHttpOpts();
     app.mion.initRoutes(app.routes);
     setBunHttpOpts({port});
@@ -212,10 +210,8 @@ describe('bun router should', () => {
   });
 
   test('get an ok response from a route with Date objects with a router created in the test (default encoder)', async () => {
-    // Stop the main server
     void server.stop(true);
 
-    // Start a new server with a router created here (default encoder)
     const testPort = 8081;
     resetBunHttpOpts();
     const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
@@ -236,10 +232,8 @@ describe('bun router should', () => {
     expect(headers['content-type']).toEqual('application/json; charset=utf-8');
     expect(headers['server']).toEqual('@mionjs');
 
-    // Stop the test server
     void testServer.stop(true);
 
-    // Restart the main server
     resetBunHttpOpts();
     app.mion.initRoutes(app.routes);
     setBunHttpOpts({port});
@@ -247,10 +241,8 @@ describe('bun router should', () => {
   });
 
   test('get an ok response from a route with complex objects with a router created in the test (default encoder)', async () => {
-    // Stop the main server
     void server.stop(true);
 
-    // Start a new server with a router created here (default encoder)
     const testPort = 8081;
     resetBunHttpOpts();
     const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
@@ -271,10 +263,8 @@ describe('bun router should', () => {
     expect(headers['content-type']).toEqual('application/json; charset=utf-8');
     expect(headers['server']).toEqual('@mionjs');
 
-    // Stop the test server
     void testServer.stop(true);
 
-    // Restart the main server
     resetBunHttpOpts();
     app.mion.initRoutes(app.routes);
     setBunHttpOpts({port});

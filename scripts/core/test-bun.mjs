@@ -1,15 +1,8 @@
-// test-bun.mjs — `pnpm run test:bun`: platform-bun's bun:test suites, plus the gate that
-// every test file actually contributed tests.
-//
-// Why the gate: bun runs every file of a package in ONE process, and a file that throws while
-// its describe body is evaluated runs NONE of its tests. The summary then reads
-// `12 pass, 0 fail, 1 error` — healthy at a glance, with a whole file missing. It happened:
-// two files created the router singleton in their describe body, so whichever body ran second
-// hit the once-guard. The count is what nothing pinned, so it is what this pins: the junit
-// report must name every test file on disk, each with at least one test.
-//
-// Usage (via `pnpm miondevx core test-bun …`, or `node scripts/core/test-bun.mjs …`):
-//   test-bun                    run the suite and gate it (extra args pass to `bun test`)
+// test-bun.mjs — `pnpm run test:bun`: platform-bun's bun:test suites, plus the gate that every test
+// file contributed tests. Bun runs a package in ONE process, so a file that throws while its describe
+// body is evaluated runs none of its tests and the summary still reads `0 fail`. Nothing else pins the
+// count, so this does: the junit report must name every test file on disk, each with at least one test.
+// Run it with `pnpm miondevx core test-bun …`; extra args pass straight to `bun test`.
 import {readFileSync, mkdtempSync, rmSync, readdirSync} from 'node:fs';
 import {join, relative, sep} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -20,7 +13,7 @@ const PACKAGE_DIR = join(REPO_ROOT, 'packages/platform-bun');
 const SKIP_DIRS = new Set(['node_modules', '.dist', '.mion', '.mion-build', '.coverage']);
 const TEST_FILE = /\.(test|spec)\.ts$/;
 
-// Every test file bun will discover, as the posix paths the junit report names them by.
+// Posix paths: that is how the junit report names the files.
 function discoverTestFiles(dir = PACKAGE_DIR) {
   const found = [];
   for (const entry of readdirSync(dir, {withFileTypes: true})) {
@@ -33,9 +26,8 @@ function discoverTestFiles(dir = PACKAGE_DIR) {
   return found;
 }
 
-// Tests reported per file. Only the outermost <testsuite> of a file carries that file's total, and
-// the nested ones repeat the same `file`, so the largest count wins; a file bun never reported
-// stays absent from the map, which is the case this exists to catch.
+// Nested <testsuite> elements repeat the same `file`, so the largest count is that file's total.
+// A file bun never reported stays absent from the map, which is the case this exists to catch.
 export function testsPerFile(xml) {
   const perFile = new Map();
   for (const [, attrs] of xml.matchAll(/<testsuite\b([^>]*)>/g)) {

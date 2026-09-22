@@ -23,9 +23,8 @@ describe('bun asMiddleware should', () => {
 
   let host: Server<any> | undefined;
 
-  // bun runs every test file in ONE process and evaluates every describe body before any hook, so
-  // the router is built here, after the reset: built in the body it would hit the once-guard the
-  // other file's body already set, and this whole file would be skipped.
+  // Router built here, not in the describe body: bun evaluates every body before any hook, in one process.
+  // Built in the body it would hit the once-guard the other test file set, skipping this whole file.
   beforeAll(async () => {
     resetBunHttpOpts();
     resetRouter();
