@@ -29,18 +29,23 @@ import {createConnection} from 'node:net';
 import type {Server} from 'node:http';
 import {runFuzzLoop, type FuzzLoopResult} from '../../../../run-types/test/fuzz/core/runLoop.ts';
 import {mulberry32} from '../../../../run-types/test/fuzz/core/seededRng.ts';
-import {createMionRouter, resetRouter, getRouteExecutionChain, setPlatformConfig} from '../../../src/router.ts';
-import {dispatchRoute} from '../../../src/dispatch.ts';
-import {headersFromRecord} from '../../../src/lib/headers.ts';
-import {decodeQueryBody} from '../../../src/lib/queryBody.ts';
-import {MION_BATCH_PATH} from '@mionjs/core';
-import {registerBatches} from '../../../src/batches.ts';
-import type {MionResponse} from '../../../src/types/context.ts';
-import {HeadersSubset, MION_ROUTES, SerializerModes, toBase64Url} from '@mionjs/core';
+import {
+  createMionRouter,
+  resetRouter,
+  getRouteExecutionChain,
+  setPlatformConfig,
+  dispatchRoute,
+  headersFromRecord,
+  decodeQueryBody,
+  registerBatches,
+  getRouterFatalErrorResponse,
+} from '@mionjs/router';
+import type {MionResponse} from '@mionjs/router';
+import {HeadersSubset, MION_BATCH_PATH, MION_ROUTES, SerializerModes, toBase64Url} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
-import {compactTestRoutes} from '@mionjs/test-server';
-// relative on purpose: the router package does not depend on its own adapter, the lane does
-import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '../../../../platform-node/src/mionHttp.ts';
+import {setNodeHttpOpts, startNodeServer, resetNodeHttpOpts} from '@mionjs/platform-node';
+// relative, not '@mionjs/test-server': this file lives inside that package
+import {compactTestRoutes} from '../../../src/test-server.ts';
 
 // the test-server fixture module already created its own factory at import: clear the once-guard first
 resetRouter();
@@ -536,7 +541,6 @@ async function dispatchAttack(attack: Attack): Promise<MionResponse> {
     }
   } catch (err) {
     // an adapter turns this into the fatal envelope; the in-process layer treats it as answered
-    const {getRouterFatalErrorResponse} = await import('../../../src/lib/dispatchError.ts');
     return getRouterFatalErrorResponse(err as never, respHeaders);
   }
   return dispatchRoute(

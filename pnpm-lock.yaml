@@ -340,10 +340,6 @@ importers:
       '@mionjs/run-types':
         specifier: workspace:*
         version: link:../run-types
-    devDependencies:
-      '@mionjs/test-server':
-        specifier: workspace:*
-        version: link:../test-server
 
   packages/run-types:
     devDependencies:
