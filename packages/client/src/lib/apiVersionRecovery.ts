@@ -13,8 +13,21 @@ import '@mionjs/run-types/formats';
 import {RpcError, MION_ROUTES, addRoutesToCache, addSerializedJitCaches, routesCache} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';
 import type {SubRequest} from '../types.ts';
-import {markApiVersionVerified, stashApiVersionError} from './apiBuildVersion.ts';
+import {stashApiVersionError} from './apiBuildVersion.ts';
 import {dropBundledMethods, getMethod, setFetchedMethods} from './methods.ts';
+
+/** Ids the server has confirmed: each route is checked once, on its first use after the mismatch. */
+const verifiedIds = new Set<string>();
+
+/** The ids to ask the server to confirm, out of the ones this request calls. */
+export function unverifiedIds(ids: string[]): string[] {
+  return ids.filter((id) => !verifiedIds.has(id));
+}
+
+/** Tests only: forgets which routes were confirmed. */
+export function resetApiVersionRecovery(): void {
+  verifiedIds.clear();
+}
 
 /** Rides a request the client was making anyway, so a mismatch costs no round trip.
  *  The server answers unfiltered: only this side holds both rows, so only it can compare. */
@@ -29,7 +42,7 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
 
 /** Compares every field the build version hashes, `options` included: this side holds both full rows. */
 export function verifyMethodRows(asked: string[], data: SerializableMethodsData): void {
-  markApiVersionVerified(asked);
+  for (const id of asked) verifiedIds.add(id);
   // Only the ids asked for: their middleFns ride along, and comparing those would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
   if (!stale.length) return;
