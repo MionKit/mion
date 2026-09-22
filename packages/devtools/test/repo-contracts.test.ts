@@ -1695,11 +1695,9 @@ describe('Go build outputs under ts-go-runtypes are ignored', () => {
 describe('bun test files never build the router at evaluation time', () => {
   const BUN_PACKAGE = join(REPO_ROOT, 'packages/platform-bun');
 
-  // Bun runs a package's test files in ONE process and evaluates every describe body before any
-  // hook, so a `createMionRouter()` in a describe body (or at module level) hits the once-guard a
-  // sibling file's body already set. The throw skips that whole file and the summary still reads
-  // `0 fail`. Indentation is the test because it is the nesting: 0 is module level, 2 is a describe
-  // body, and anything deeper is inside a hook or a test, where the reset has already run.
+  // Bun evaluates all describe bodies before any hook in one process, so a router built there hits a sibling's once-guard.
+  // The throw skips that whole file and the summary still reads `0 fail`.
+  // Indentation is the nesting test: 0 is module level, 2 a describe body, deeper runs after the reset.
   const evaluationTimeCalls = (source: string): string[] =>
     source
       .split('\n')
@@ -1730,7 +1728,7 @@ describe('the bun lane fails when a test file contributes no tests', () => {
       </testsuite>
       <testsuite name="src/b.test.ts" file="src/b.test.ts" tests="1" />
     </testsuites>`;
-  // What bun writes when a describe body threw: the file is absent from the report entirely.
+  // What bun writes when a describe body threw: the file is absent from the report.
   const swallowedB = `<testsuites tests="2">
       <testsuite name="src/a.test.ts" file="src/a.test.ts" tests="2" />
     </testsuites>`;
