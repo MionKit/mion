@@ -1,52 +1,43 @@
-# The passes
+# The groups
 
-One brief per group of the approved review list. Paste the brief into the agent
-prompt and fill the placeholders. Spawn every surviving group in one message so
-they run at once.
+How to work each group of the approved checklist. You run them yourself, in this
+file's order, one at a time, finishing a group before you open the next.
 
-**A brief never restates a repo rule.** The items carry what to check, and a
-repo item names the file it came from so the agent reads the current text. Rules
+**A group never restates a repo rule.** The items carry what to check, and a
+repo item names the file it came from so you read the current text. Rules
 change; anything copied in here would go stale silently.
 
-## Shared header (prepend to every brief)
-
-```
-You are reviewing a change in the mion monorepo, against a checklist the author
-already approved. Read only: do not edit, write, format, commit or run tests.
+## Before every group
 
 Diff range (use exactly this, nothing else):  git diff <MERGE_BASE>..HEAD
-Intent of the change: <INTENT>
-Files for this pass: <PATHS>
 
-Your items:
-<the approved items for this group, with their ids and sources>
+Take only this group's items. Check them in order. Answer every one before you
+open the next group: pass, fail, or not applicable, in the shape step 5 of the
+skill gives.
 
-Method: check your items, in order, and nothing else. For any item tagged
-[repo: <file>], open that file and read the rule in its current wording before
-judging, then quote what you read.
-
-Answer every item:
-
-- id:     D9
-  result: pass | fail | not-applicable
-  where:  path/to/file.ts:LINE        (for a fail, and for a pass you had to work for)
-  evidence: the exact line(s) from the diff
-  reason: the quoted rule, or why it costs the reader
-  fix:    the concrete smaller change, with the replacement text where short
-  severity: blocking | worth-fixing | nit
-  confidence: high | medium | low
-
-Then, only if you saw something serious your items do not cover, add it under
-"off-list" in the same shape. Do not pad it: off-list is for real problems, not
-for things you would have written differently.
+For any item tagged `[repo: <file>]`, open that file and read the rule in its
+current wording before judging, then quote what you read. Your paraphrase on the
+checklist is a pointer, not the rule.
 
 Cite only lines that exist in this diff. Quote a rule only if you read it in a
 real file, naming that file.
-```
+
+## Group S: spec and description
+
+Read the spec and the PR description again, now against the diff rather than
+against themselves. Both were written before the code.
+
+Check what shipped against the spec's own `Done when`, item by item, and against
+its `Out of scope`: something listed out of scope that shipped anyway is a
+finding, and so is a `Done when` line nothing in the diff satisfies. A spec that
+shipped only part of what it promised must say so and leave the rest as a new
+`docs/todos/` spec, never as a half-done note.
+
+A spec still sitting in `docs/todos/` after its work shipped is a fail. So is a
+description that claims something the diff does not do.
 
 ## Group G: repo guidelines
 
-```
 These items come from the CLAUDE.md files that govern the changed paths:
 dependency shape, environment variables, file placement, build steps, commit and
 branch shape, and anything else with no other group.
@@ -59,11 +50,9 @@ Judge against the wording you read, not against what the item paraphrases. If
 the rule turns out narrower than the item suggests, say so and mark the item
 pass with a note. If it is wider and the diff breaks the wider version, that is
 a fail with the real quote.
-```
 
 ## Group D: documentation
 
-```
 This is the group that finds the most, because documentation lands wordy and
 full of internals more often than anything else.
 
@@ -80,11 +69,9 @@ replacement in the fix field. The rewrite is the finding; "too complex" is not.
 
 Missing documentation is a fail, not a gap: if the diff changes user-visible
 behaviour that no page mentions, name the page it belongs on.
-```
 
 ## Group T: types and reuse
 
-```
 Work from the additions: list every type, interface, enum and exported function
 the diff ADDS, then check your items against that list.
 
@@ -98,13 +85,11 @@ generic parameter, or extending it).
 Before flagging, check whether the import would cross a package boundary the
 repo does not allow. The package CLAUDE.md states its boundaries; read it rather
 than assuming. Deliberate duplication across such a boundary is correct.
-```
 
 ## Group A: architecture and size
 
-```
-Diff stat: <STAT>
-New files: <ADDED FILES with line counts>
+Work from the diff stat and the added files the scope script printed, so size is
+a number rather than an impression.
 
 Start by restating the intent in one sentence and describing the smallest change
 that would achieve it. Compare that to the diff, then check your items.
@@ -118,11 +103,9 @@ For placement, read the CLAUDE.md of the packages involved and judge against
 what they state, not against what looks tidy.
 
 Do not propose refactoring code the diff does not touch.
-```
 
 ## Group C: comments
 
-```
 Look only at comments the diff adds or changes, in code files.
 
 Read the code style rules in the root CLAUDE.md, plus any CLAUDE.md in the
@@ -136,11 +119,9 @@ diff just changed is blocking: a wrong comment is worse than no comment.
 
 If you cannot tell whether a comment is load-bearing, mark confidence low and
 say what would settle it.
-```
 
 ## Group B: behaviour and tests
 
-```
 Read the changed code closely enough to say what it does now versus before, then
 check your items.
 
@@ -154,4 +135,3 @@ check whether any test was weakened, skipped or deleted in this diff.
 
 Do not run anything. You are reading tests, not executing them, and reporting a
 result you did not produce would be a false claim.
-```
