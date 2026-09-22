@@ -15,7 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getGlobalResponseHeaders,
+  getResponseDefaults,
   MionResponse,
   readRequestBody,
   BodyReadStrategy,
@@ -29,15 +29,12 @@ import {RpcError, FatalError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let cloudflareOptions: Readonly<CloudflareHandlerOptions> = {...DEFAULT_CLOUDFLARE_OPTIONS};
-/** Merged lazily: the router's global headers only settle once initRoutes has run. */
-let defaultHeaders: Record<string, string> | undefined;
-// A record, not a list of pairs: `new Headers()` APPENDS a repeated name, so a list would join both values
-const getDefaultHeaders = (): Record<string, string> =>
-  (defaultHeaders ??= {server: '@mionjs', ...getGlobalResponseHeaders(), ...cloudflareOptions.defaultResponseHeaders});
+/** Passed as a record, never a list of pairs: `new Headers()` APPENDS a repeated name, so a list of
+ *  pairs would join both values instead of letting the later one win. */
+const SERVER_HEADER = {server: '@mionjs'};
 
 export function resetCloudflareHandlerOpts() {
   cloudflareOptions = {...DEFAULT_CLOUDFLARE_OPTIONS};
-  defaultHeaders = undefined;
   resetRouter();
 }
 
@@ -46,7 +43,6 @@ export function setCloudflareHandlerOpts(options?: Partial<CloudflareHandlerOpti
     ...cloudflareOptions,
     ...options,
   };
-  defaultHeaders = undefined;
   setPlatformConfig({...cloudflareOptions});
   return cloudflareOptions;
 }
@@ -59,7 +55,7 @@ async function handleRequest<Env = unknown>(req: Request, env?: Env, ctx?: Cloud
     path = path.slice(cloudflareOptions.basePath.length) || '/';
   }
   const urlQuery = urlObj.search ? urlObj.search.slice(1) : undefined;
-  const responseHeaders = new Headers(getDefaultHeaders());
+  const responseHeaders = new Headers(getResponseDefaults(cloudflareOptions.defaultResponseHeaders, SERVER_HEADER));
 
   const platformContext: CloudflarePlatformContext<Env> | undefined =
     env !== undefined || ctx !== undefined ? {env: env as Env, ctx: ctx as CloudflareExecutionContext} : undefined;

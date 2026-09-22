@@ -15,7 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getGlobalResponseHeaders,
+  getResponseDefaults,
   requestPayloadTooLarge,
 } from '@mionjs/router';
 import type {MethodsExecutionChain} from '@mionjs/router';
@@ -35,21 +35,15 @@ import {decodeBody} from './bodyDecode.ts';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<NodeHttpOptions> = {...DEFAULT_HTTP_OPTIONS};
-/** Merged lazily: the router's global headers only settle once initRoutes has run. */
-let responseDefaults: Record<string, string> | undefined;
-const getResponseDefaults = (): Record<string, string> =>
-  (responseDefaults ??= {...getGlobalResponseHeaders(), ...httpOptions.defaultResponseHeaders});
 
 // ############# PUBLIC METHODS #############
 
 export function resetNodeHttpOpts() {
   httpOptions = {...DEFAULT_HTTP_OPTIONS};
-  responseDefaults = undefined;
   resetRouter();
 }
 
 export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
-  responseDefaults = undefined;
   httpOptions = {
     ...httpOptions,
     ...options,
@@ -125,7 +119,7 @@ export function httpRequestHandler(httpReq: IncomingMessage, httpResponse: Serve
 
   httpResponse.setHeader('server', '@mionjs');
   const reqHeaders = headersFromIncomingMessage(httpReq);
-  const respHeaders = headersFromServerResponse(httpResponse, getResponseDefaults());
+  const respHeaders = headersFromServerResponse(httpResponse, getResponseDefaults(httpOptions.defaultResponseHeaders));
 
   // route resolved BEFORE the body: the read below stops at the chain's limit, and a late context stays GC-cheap.
   // A throw here (a throwing pathTransform) has no chain to run, so it is answered bare with the stream destroyed.

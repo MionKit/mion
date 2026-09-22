@@ -15,7 +15,7 @@ import {
   resetRouter,
   decodeQueryBody,
   setPlatformConfig,
-  getGlobalResponseHeaders,
+  getResponseDefaults,
 } from '@mionjs/router';
 import type {MionResponse, MionHeaders} from '@mionjs/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
@@ -25,21 +25,15 @@ import {AwsLambdaOptions} from '../index.ts';
 // ############# STATE #############
 
 let lambdaOptions: Readonly<AwsLambdaOptions> = {...DEFAULT_AWS_LAMBDA_OPTIONS};
-/** Merged lazily: the router's global headers only settle once initRoutes has run. */
-let responseDefaults: Record<string, string> | undefined;
-const getResponseDefaults = (): Record<string, string> =>
-  (responseDefaults ??= {...getGlobalResponseHeaders(), ...lambdaOptions.defaultResponseHeaders});
 
 // ############# PUBLIC METHODS #############
 
 export function resetAwsLambdaOpts() {
   lambdaOptions = {...DEFAULT_AWS_LAMBDA_OPTIONS};
-  responseDefaults = undefined;
   resetRouter();
 }
 
 export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
-  responseDefaults = undefined;
   lambdaOptions = {
     ...lambdaOptions,
     ...routerOptions,
@@ -56,7 +50,10 @@ export function createAwsLambdaHandler(options?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
   let rawBody: any = decodeEventBody(rawRequest);
   const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-  const rawRespHeaders: Record<string, string> = {server: '@mionjs', ...getResponseDefaults()};
+  const rawRespHeaders: Record<string, string> = {
+    server: '@mionjs',
+    ...getResponseDefaults(lambdaOptions.defaultResponseHeaders),
+  };
   const respHeaders = headersFromRecord(rawRespHeaders, true);
   // AWS Lambda always receives body as string (JSON)
   let reqBodyType: SerializerCode = SerializerModes.stringifyJson;

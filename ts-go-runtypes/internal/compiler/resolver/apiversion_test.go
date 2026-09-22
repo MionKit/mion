@@ -8,6 +8,7 @@ import (
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/diagnostics"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
@@ -122,4 +123,44 @@ func TestApiVersion_ManifestCarriesTheSameValue(t *testing.T) {
 	if manifest.BuildVersion == "" || manifest.BuildVersion != transformedVersion(t, server, "routes.ts") {
 		t.Fatalf("manifest version %q does not match the injected one", manifest.BuildVersion)
 	}
+}
+
+// TestApiVersion_OneProgramTwoEndsMustAgree: the client's API type is the author's to write, and a program
+// holding both ends is the one place the build can tell that what was written is not what the router registered.
+func TestApiVersion_OneProgramTwoEndsMustAgree(t *testing.T) {
+	sources := map[string]string{
+		"router.d.ts": versionRouterDTS,
+		"client.d.ts": versionClientDTS,
+		"routes.ts":   apiServerRoutesTS(1, true),
+		"client.ts":   versionClientTS,
+	}
+	session := setupApi(t, sources, t.TempDir(), constants.BundleApiBundled, "")
+	generated := session.Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if generated.Error != "" {
+		t.Fatalf("generate: %s", generated.Error)
+	}
+	if !hasDiagCode(generated.Diagnostics, diagnostics.CodeApiMetaVersionMismatch) {
+		t.Fatalf("a client typed against other routes must be reported, got %v", generated.Diagnostics)
+	}
+}
+
+// TestApiVersion_ServerAloneIsNeverMismatched: the check needs both ends, so a server build reports nothing.
+func TestApiVersion_ServerAloneIsNeverMismatched(t *testing.T) {
+	sources := map[string]string{"router.d.ts": versionRouterDTS, "routes.ts": apiServerRoutesTS(1, false)}
+	generated := setupApi(t, sources, t.TempDir(), "", "").Dispatch(protocol.Request{Op: protocol.OpGenerate})
+	if generated.Error != "" {
+		t.Fatalf("generate: %s", generated.Error)
+	}
+	if hasDiagCode(generated.Diagnostics, diagnostics.CodeApiMetaVersionMismatch) {
+		t.Fatalf("a server alone was reported as mismatched: %v", generated.Diagnostics)
+	}
+}
+
+func hasDiagCode(diags []diagnostics.Diagnostic, code string) bool {
+	for _, diag := range diags {
+		if diag.Code == code {
+			return true
+		}
+	}
+	return false
 }

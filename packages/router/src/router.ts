@@ -95,10 +95,10 @@ let isRouterInitialized = false;
 let isRouterCreated = false;
 let allExecutablesIds: string[] | undefined;
 let platformConfig: Record<string, unknown> | undefined;
-/** The API version the build injected at `initRoutes`. */
-let apiBuildVersion: string | undefined;
 /** Merged once by initRouter and then only read, so no request rebuilds it. */
 let globalResponseHeaders: Readonly<Record<string, string>> = Object.freeze({});
+/** One merge per adapter defaults object, emptied whenever globalResponseHeaders is replaced. */
+let mergedResponseHeaders = new WeakMap<object, Readonly<Record<string, string>>>();
 /** The adapter's `maxBodySize` under its `maxBodySizeCap`, settled by setPlatformConfig (the default with no adapter). */
 let platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
 
@@ -136,8 +136,23 @@ export const getHasAsyncMethods = () => hasAsyncMethods;
 /** The `alwaysAwait` option asks for it, and it is only honoured when there is something async to wait for. */
 export const getAlwaysAwait = () => alwaysAwait;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
-/** The headers every response starts with. Adapters read it once and merge it into their own defaults. */
+/** The headers every response starts with. Adapters read it through getResponseDefaults. */
 export const getGlobalResponseHeaders = (): Readonly<Record<string, string>> => globalResponseHeaders;
+
+/** An adapter's own default headers over the router's globals, under `base` (the adapter's own built-in
+ *  names, which a global may replace). Merged once per `own` object, so no request rebuilds it, and dropped
+ *  whenever the router is initialized again, so a second `initRoutes` cannot be answered from a stale merge. */
+export function getResponseDefaults(
+  own: Record<string, string>,
+  base?: Record<string, string>
+): Readonly<Record<string, string>> {
+  let merged = mergedResponseHeaders.get(own);
+  if (!merged) {
+    merged = Object.freeze({...base, ...globalResponseHeaders, ...own});
+    mergedResponseHeaders.set(own, merged);
+  }
+  return merged;
+}
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
 /** Called automatically by platform adapters: the adapter's `maxBodySize` and `maxBodySizeCap` are
@@ -177,8 +192,8 @@ export const resetRouter = () => {
   isRouterCreated = false;
   allExecutablesIds = undefined;
   platformConfig = undefined;
-  apiBuildVersion = undefined;
   globalResponseHeaders = Object.freeze({});
+  mergedResponseHeaders = new WeakMap();
   platformMaxBodySize = DEFAULT_MAX_BODY_SIZE;
   resetRemoteMethodsMetadata();
   resetRoutesCache();
@@ -224,11 +239,11 @@ export function createMionRouter<const O extends RouterOptionsInput = RouterOpti
 function initRouter(opts: RouterOptionsInput, buildVersion?: string): void {
   if (isRouterInitialized) throw new Error('Router has already been initialized');
   routerOptions = {...routerOptions, ...opts};
-  apiBuildVersion = buildVersion || undefined;
   globalResponseHeaders = Object.freeze({
     ...routerOptions.globalResponseHeaders,
-    ...(routerOptions.apiVersionCheck && apiBuildVersion ? {[BUILD_VERSION_HEADER]: apiBuildVersion} : {}),
+    ...(routerOptions.apiVersionCheck && buildVersion ? {[BUILD_VERSION_HEADER]: buildVersion} : {}),
   });
+  mergedResponseHeaders = new WeakMap();
   validateSharedDataFactory(routerOptions);
   Object.freeze(routerOptions);
   setErrorOptions(routerOptions);

@@ -1885,6 +1885,17 @@
       "example": null
     },
     {
+      "code": "MET007",
+      "subsystem": "bundled-api",
+      "level": "runtimeError",
+      "severity": "error",
+      "headline": "This client injects the build version {0} but the API in the same program injects {1}; the client reports a version mismatch against its own server.",
+      "detail": "Both `initClient` and `initRoutes` carry a build version derived from the routes\nthey are typed with. One program building both means one API, so the two values\nhave to agree; different values mean the type the client was given is not the\ntype the router registered.\n\nFix: type the client with the API the router returns:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "FT002",
       "subsystem": "enrichment",
       "level": "warning",

@@ -55,12 +55,12 @@ func (sess *Session) extractApiSitesForScan(files []string) ([]apimeta.Site, []d
 }
 
 // apiVersionFiles lists the version-slot files, so one whose only marker use is `initRoutes` / `initClient` is still transformed.
-func (sess *Session) apiVersionFiles(files []string) []string {
+func (sess *Session) apiVersionFiles(files, routerInitFiles []string) []string {
 	if sess.Program == nil || !sess.apiVersionTrusted() {
 		return nil
 	}
 	initClientFiles := apimeta.InitFiles(apimeta.InitSitesFromProgramCached(sess.checker, sess.marker, sess.Program, files, sess.apiInitFileCache))
-	return append(initClientFiles, sess.routerInitFiles()...)
+	return append(initClientFiles, routerInitFiles...)
 }
 
 // apiLaneImports appends `import '<genDir>/api/lane.js';` to every file calling `initClient`, the way the
@@ -150,12 +150,19 @@ func (bundle *apiBundle) syntheticSites() []protocol.Site {
 // generateApiBundle writes the bundled-API tree under <outDir>/api/ plus the manifest: the server's when
 // this program initializes an API, else the client's. The dir is removed when neither applies.
 func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]diagnostics.Diagnostic, error) {
+	routesVersion, clientVersion, diags := sess.apiVersions(sess.programSourceFiles())
 	apiDir := filepath.Join(outDir, constants.ApiModuleDir)
-	bundle, diags, err := sess.resolveApiBundle(sites)
+	bundle, bundleDiags, err := sess.resolveApiBundle(sites)
+	diags = append(diags, bundleDiags...)
 	if err != nil {
 		return diags, err
 	}
 	manifest := sess.serverApiManifest()
+	// The value this program's own calls carry, so a report names what shipped rather than a second hash of it
+	buildVersion := routesVersion
+	if manifest == nil {
+		buildVersion = clientVersion
+	}
 	if bundle.empty() && manifest == nil {
 		if err := os.RemoveAll(apiDir); err != nil {
 			return diags, unwritableOutDirError(apiDir, err)
@@ -183,8 +190,7 @@ func (sess *Session) generateApiBundle(outDir string, sites []apimeta.Site) ([]d
 	if err := pruneStaleModules(apiDir, files); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}
-	// The same rows the version slot hashes, so a report names the value this build's calls carry.
-	manifest.BuildVersion = apimeta.BuildVersion(manifest.Methods)
+	manifest.BuildVersion = buildVersion
 	if err := writeIfChanged(filepath.Join(apiDir, constants.ApiManifestFile), manifest.Render()); err != nil {
 		return diags, unwritableOutDirError(apiDir, err)
 	}

@@ -675,6 +675,15 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "The bundled metadata copies each method's options off the API type, where they\nare the literals the route and the router were declared with. A value computed\nat runtime (a variable, a call) has no literal to copy, and the client then runs\nthat method with the option unset, which can differ from the server.\n\nFix: write the option as a literal at the route or the router:\n-  mion.route(handler, {sanitizeParams: isProd})\n+  mion.route(handler, {sanitizeParams: true})",
   },
+  MET007: {
+    headline:
+      'This client injects the build version {0} but the API in the same program injects {1}; the client reports a version mismatch against its own server.',
+    level: 'runtimeError',
+    severity: 'error',
+    family: 'marker',
+    detail:
+      'Both `initClient` and `initRoutes` carry a build version derived from the routes\nthey are typed with. One program building both means one API, so the two values\nhave to agree; different values mean the type the client was given is not the\ntype the router registered.\n\nFix: type the client with the API the router returns:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});',
+  },
   MKR001: {
     headline:
       '`{0}()` is being called at runtime just so the marker can read its return type: side effects, throws, or async work run for nothing.',
