@@ -29,7 +29,7 @@ import {RpcError, FatalError} from '@mionjs/core';
 // ############# PRIVATE STATE #############
 
 let vercelOptions: Readonly<VercelHandlerOptions> = {...DEFAULT_VERCEL_OPTIONS};
-/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+/** Merged lazily: the router's global headers only settle once initRoutes has run. */
 let defaultHeaders: [string, string][] | undefined;
 const getDefaultHeaders = (): [string, string][] =>
   (defaultHeaders ??= [

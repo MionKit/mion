@@ -25,7 +25,7 @@ import {AwsLambdaOptions} from '../index.ts';
 // ############# STATE #############
 
 let lambdaOptions: Readonly<AwsLambdaOptions> = {...DEFAULT_AWS_LAMBDA_OPTIONS};
-/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+/** Merged lazily: the router's global headers only settle once initRoutes has run. */
 let responseDefaults: Record<string, string> | undefined;
 const getResponseDefaults = (): Record<string, string> =>
   (responseDefaults ??= {...getGlobalResponseHeaders(), ...lambdaOptions.defaultResponseHeaders});

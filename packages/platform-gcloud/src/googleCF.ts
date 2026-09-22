@@ -29,7 +29,7 @@ import {headersFromIncomingMessage, headersFromServerResponse} from './headers.t
 // ############# STATE #############
 
 let googleCFOptions: Readonly<GoogleCFOptions> = {...DEFAULT_GOOGLE_CF_OPTIONS};
-/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+/** Merged lazily: the router's global headers only settle once initRoutes has run. */
 let responseDefaults: Record<string, string> | undefined;
 const getResponseDefaults = (): Record<string, string> =>
   (responseDefaults ??= {...getGlobalResponseHeaders(), ...googleCFOptions.defaultResponseHeaders});

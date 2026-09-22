@@ -35,7 +35,7 @@ import {decodeBody} from './bodyDecode.ts';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<NodeHttpOptions> = {...DEFAULT_HTTP_OPTIONS};
-/** Merged on the first request, not in the setter: the router's globals only settle once initRoutes has run. */
+/** Merged lazily: the router's global headers only settle once initRoutes has run. */
 let responseDefaults: Record<string, string> | undefined;
 const getResponseDefaults = (): Record<string, string> =>
   (responseDefaults ??= {...getGlobalResponseHeaders(), ...httpOptions.defaultResponseHeaders});
