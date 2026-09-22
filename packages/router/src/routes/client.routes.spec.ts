@@ -542,8 +542,8 @@ describe('metadata is generated for everything the client can call', () => {
     createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
     const held = getRouteExecutable('users/getUser')!;
     const knownIds = [
-      {id: 'users/getUser', paramsId: held.paramsJitHash, returnId: held.returnJitHash},
-      {id: 'takesParams', paramsId: 'moved', returnId: 'moved'},
+      {id: 'users/getUser', paramsJitHash: held.paramsJitHash, returnJitHash: held.returnJitHash},
+      {id: 'takesParams', paramsJitHash: 'moved', returnJitHash: 'moved'},
     ];
     const request: RawRequest = {
       headers: headersFromRecord({}),
@@ -560,7 +560,7 @@ describe('metadata is generated for everything the client can call', () => {
       headers: headersFromRecord({}),
       body: JSON.stringify({
         takesParams: ['token'],
-        [methodsId]: [['users/gone'], false, [{id: 'users/gone', paramsId: 'a', returnId: 'b'}]],
+        [methodsId]: [['users/gone'], false, [{id: 'users/gone', paramsJitHash: 'a', returnJitHash: 'b'}]],
       }),
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});

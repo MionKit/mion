@@ -28,7 +28,7 @@ import {
 import type {SerializerMode} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
 import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundleApiMode.ts';
-import {stashApiVersionError, takeApiVersionMismatch} from './lib/apiBuildVersion.ts';
+import {apiVersionDiffers, stashApiVersionError} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 import {validateSubRequests} from './lib/validation.ts';
@@ -159,18 +159,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       return Promise.reject(errors);
     }
 
-    // A client carrying build-compiled routes replaces them when the server's version differs, then repeats the call.
-    if (!this.signal?.aborted && takeApiVersionMismatch(this.response.headers.get(BUILD_VERSION_HEADER))) {
-      try {
-        const lane = await import('#api-version-recovery');
-        stashApiVersionError(await lane.recoverFromApiVersionMismatch(this.options, this.signal));
-        return this.retryWithProperSerialization(originalSerializer);
-      } catch (error: any) {
-        this.onError(error, 'Error replacing the stale bundled routes', errors);
-        return Promise.reject(errors);
-      }
-    }
-
     try {
       // A body read after an in-flight abort may be truncated, so report the abort instead.
       if (this.signal?.aborted) {
@@ -180,7 +168,22 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       const deserialized = await deserializeResponseBody(this.response, this.options);
       if (this.handlePlatformError(deserialized, errors)) return Promise.reject(errors);
 
-      if (!this.signal?.aborted && this.shouldRetryWithProperSerialization(deserialized)) {
+      const callFailed = this.shouldRetryWithProperSerialization(deserialized);
+      // A client carrying build-compiled routes replaces them when the server's version differs. The call
+      // already ran server-side, so only a FAILED one is repeated: repeating a successful mutation runs it twice.
+      if (!this.signal?.aborted && apiVersionDiffers(this.response.headers.get(BUILD_VERSION_HEADER))) {
+        try {
+          const lane = await import('#api-version-recovery');
+          const mismatch = await lane.recoverFromApiVersionMismatch(this.options, this.signal);
+          if (mismatch) stashApiVersionError(mismatch);
+          if (callFailed) return this.retryWithProperSerialization(originalSerializer);
+        } catch (error: any) {
+          this.onError(error, 'Error replacing the stale bundled routes', errors);
+          return Promise.reject(errors);
+        }
+      }
+
+      if (!this.signal?.aborted && callFailed) {
         if (isOptimistic) return this.retryWithProperSerialization(originalSerializer);
         // Stored metadata can predate the server's current build and nothing else would correct it.
         const cache = metadataCacheHooks();
