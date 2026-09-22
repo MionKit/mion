@@ -33,11 +33,6 @@
             "require": "./.dist/cjs/src/lib/metadataFromServer.cjs",
             "default": "./.dist/esm/src/lib/metadataFromServer.js"
         },
-        "#api-version-recovery": {
-            "source": "./src/lib/apiVersionRecovery.ts",
-            "require": "./.dist/cjs/src/lib/apiVersionRecovery.cjs",
-            "default": "./.dist/esm/src/lib/apiVersionRecovery.js"
-        },
         "#bundled-api": {
             "source": "./src/lib/bundledApi.ts",
             "require": "./.dist/cjs/src/lib/bundledApi.cjs",

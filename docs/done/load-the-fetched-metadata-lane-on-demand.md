@@ -78,16 +78,12 @@ resolves against that package and no consumer alias can collide with it. `"sideE
 client is load-bearing: without it the `export *` lines in `index.ts` keep the lane in every bundle
 however lazy the request path is.
 
-Under `bundleApi: 'bundled'`, `@mionjs/devtools` resolves `#fetched-lane` to
-`src/core/fetchedLaneStub.ts`, so no chunk is emitted at all. Two things about that hook:
-
-- The stub is a REAL FILE, not a virtual module. A `load` hook on the shared unplugin changes how
-  esbuild and Bun read every other file too, and it broke the bun adapter's runtime-preload tests.
-- The `resolveId` hook is declared ONLY when the option is `'bundled'`. unplugin turns a `resolveId`
-  into an esbuild `onResolve` that sees every specifier, and merely declaring it broke the same tests.
-
-Turbopack has no plugin API, so `withMion` adds a `turbopack.resolveAlias` entry pointing at the same
-stub through the `@mionjs/devtools/fetched-lane-stub` export subpath.
+Under `bundleApi: 'bundled'`, `@mionjs/devtools` resolved `#fetched-lane` to an empty stub, so no chunk
+was emitted at all. That is no longer true: a bundled client can come up short (a route the build never
+saw, a server that moved on since), and a stub left it with no way to recover. The lane is emitted in
+every mode now and stays a dynamic import, so no build downloads it up front. The stub, the `resolveId`
+hook that answered with it and the Turbopack `resolveAlias` that mirrored it are gone; the only stub left
+is the registration lane's, which answers when `bundleApi` is absent.
 
 ### The related bug, fixed here
 
@@ -104,9 +100,10 @@ occupy a bundled id, and `purgeHydratedMetadata` can never delete a bundled entr
 
 ### Against the Done-when
 
-- **Not in the output bundle, proven by a build test.** `packages/client/src/bundleSplit.spec.ts`
-  runs a real `vite build` over the real client, with and without the option, and checks the artifact
-  for `indexedDB`, the store key and `requestIdleCallback`. It fails when the stub is disabled.
+- **Not in the first download, proven by a build test.** `packages/client/src/bundleSplit.spec.ts` runs a
+  real `vite build` over the real client and checks the artifact for `indexedDB`, the store key and
+  `requestIdleCallback`. It originally asserted a bundled build emitted none of them; it now walks the
+  entry's static imports and asserts none of them are downloaded up front, in every mode.
 - **No build step, and mixed, behave as before.** The existing fetched-lane and mixed suites pass
   unchanged, the refused-write error on the undeclared slot included.
 - **A call still never throws.** `src/laneLoadFailure.spec.ts` mocks `#fetched-lane` into a failing
@@ -119,4 +116,4 @@ occupy a bundled id, and `purgeHydratedMetadata` can never delete a bundled entr
 
 - `metadata-lane-load-error` on the undeclared slot, documented on the client's metadata cache page.
 - `@mionjs/client` gains a `#fetched-lane` internal import and `"sideEffects": false`.
-- `@mionjs/devtools` gains the `./fetched-lane-stub` export subpath.
+- `@mionjs/devtools` gained a `./fetched-lane-stub` export subpath, since removed with the stub.

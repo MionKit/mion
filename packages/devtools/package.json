@@ -80,11 +80,6 @@
     "./runtypes/next/loader": {
       "types": "./dist/runtypes/next/loader.d.ts",
       "default": "./dist/runtypes/next/loader.js"
-    },
-    "./metadata-from-server-stub": {
-      "source": "./src/core/metadataFromServerStub.ts",
-      "types": "./dist/core/metadataFromServerStub.d.ts",
-      "default": "./dist/core/metadataFromServerStub.js"
     }
   },
   "files": [

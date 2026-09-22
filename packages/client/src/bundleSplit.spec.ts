@@ -26,11 +26,15 @@ export const call = () => routes.sayHello({name: 'a', surname: 'b'}).call();
 /** Names only the fetched lane puts in an artifact. */
 const LANE_MARKERS = ['indexedDB', 'mion:client', 'requestIdleCallback'];
 
-/** Names only the bundled-API REGISTRATION puts in an artifact; the light half is in every build. */
-const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
+/** The lane's own code, for asking WHICH chunk holds it: the store key is a plain constant every build
+ *  reads for other reasons, so it says nothing about where the lane landed. */
+const LANE_CODE_MARKERS = ['indexedDB', 'requestIdleCallback'];
 
 /** Names only the version-mismatch recovery puts in an artifact; the check itself is in every build. */
 const RECOVERY_MARKERS = ['api-version-mismatch', 'rowsAgree', 'COMPARED_OPTIONS'];
+
+/** Names only the bundled-API REGISTRATION puts in an artifact; the light half is in every build. */
+const BUNDLED_API_MARKERS = ['bundle-api-invalid-payload', 'bundledMethodToCacheEntry'];
 
 /** Names only the mock generator and the built-in pattern table put in an artifact. */
 const MOCK_MARKERS = ['createMockDataFn', 'mockStringFormat', 'mockBoundedDateTime', 'registerMockingFunction'];
@@ -88,21 +92,26 @@ async function buildEagerApp(bundleApi?: 'bundled' | 'mixed'): Promise<string> {
   return [...eager].map((name) => byName.get(name)?.code ?? '').join('\n');
 }
 
-describe('the fetched metadata lane and the bundled API', () => {
-  it('a client with no bundleApi still carries the lane', async () => {
-    const code = await buildApp();
-    for (const marker of LANE_MARKERS) expect(code, marker).toContain(marker);
-  }, 120_000);
+// Every build ships the lane, because every client can come up short: a route the build never saw, or a
+// server that moved on. What changes is when it is downloaded, and no build downloads it up front.
+describe('the fetched metadata lane', () => {
+  it('a client with no bundleApi loads it on the first call, not before', async () => {
+    const [all, eager] = [await buildApp(), await buildEagerApp()];
+    for (const marker of LANE_MARKERS) expect(all, marker).toContain(marker);
+    for (const marker of LANE_CODE_MARKERS) expect(eager, marker).not.toContain(marker);
+  }, 240_000);
 
-  it('a client built with bundleApi: bundled carries none of it', async () => {
-    const code = await buildApp('bundled');
-    for (const marker of LANE_MARKERS) expect(code, marker).not.toContain(marker);
-  }, 120_000);
+  it('a bundled client still ships it, for the call its bundle cannot answer', async () => {
+    const [all, eager] = [await buildApp('bundled'), await buildEagerApp('bundled')];
+    for (const marker of LANE_MARKERS) expect(all, marker).toContain(marker);
+    for (const marker of LANE_CODE_MARKERS) expect(eager, marker).not.toContain(marker);
+  }, 240_000);
 
-  it('a mixed client keeps the lane, because it still fetches what the build could not see', async () => {
-    const code = await buildApp('mixed');
-    for (const marker of LANE_MARKERS) expect(code, marker).toContain(marker);
-  }, 120_000);
+  it('a mixed client splits it the same way', async () => {
+    const [all, eager] = [await buildApp('mixed'), await buildEagerApp('mixed')];
+    for (const marker of LANE_MARKERS) expect(all, marker).toContain(marker);
+    for (const marker of LANE_CODE_MARKERS) expect(eager, marker).not.toContain(marker);
+  }, 240_000);
 });
 
 // Mock generation and the pattern table used to reach every client through @mionjs/core's formats
@@ -129,18 +138,21 @@ describe('what a default client leaves out', () => {
   }, 120_000);
 });
 
-// The version check reads one header per response, so it cannot be loaded on demand. Everything a
-// mismatch then does can, and a client that never meets one must never download it.
-describe('what the api version check leaves out of the first download', () => {
-  it('a bundled client ships the recovery code, but not before the first call', async () => {
-    const [all, eager] = [await buildApp('bundled'), await buildEagerApp('bundled')];
-    for (const marker of RECOVERY_MARKERS) expect(all, marker).toContain(marker);
-    for (const marker of RECOVERY_MARKERS) expect(eager, marker).not.toContain(marker);
-  }, 240_000);
+// The version check reads one header per response, so it cannot be loaded on demand. What a mismatch then
+// does can, and it rides the same chunk as the fetch, because both only run once the bundle comes up short.
+describe('the api version check', () => {
+  it('keeps only the comparison in the first download, in every mode', async () => {
+    for (const mode of [undefined, 'bundled', 'mixed'] as const) {
+      const [all, eager] = [await buildApp(mode), await buildEagerApp(mode)];
+      for (const marker of RECOVERY_MARKERS) expect(all, `${mode}: ${marker}`).toContain(marker);
+      for (const marker of RECOVERY_MARKERS) expect(eager, `${mode}: ${marker}`).not.toContain(marker);
+    }
+  }, 360_000);
 
-  it('a mixed client splits it the same way', async () => {
-    const [all, eager] = [await buildApp('mixed'), await buildEagerApp('mixed')];
-    for (const marker of RECOVERY_MARKERS) expect(all, marker).toContain(marker);
-    for (const marker of RECOVERY_MARKERS) expect(eager, marker).not.toContain(marker);
+  it('ships the recovery in the same chunk as the fetch, so one download covers both', async () => {
+    const chunks = await buildChunks('bundled');
+    const withRecovery = chunks.filter((chunk) => (chunk.code ?? '').includes('api-version-mismatch'));
+    expect(withRecovery).toHaveLength(1);
+    for (const marker of LANE_CODE_MARKERS) expect(withRecovery[0].code ?? '', marker).toContain(marker);
   }, 240_000);
 });

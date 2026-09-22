@@ -113,16 +113,24 @@ describe('a client built with bundleApi: bundled', () => {
     expect(isMetadataFromServerLoaded()).toBe(false);
   });
 
-  it('refuses a route the bundle lacks without loading the lane, and does not throw', async () => {
-    const {client} = initClient<TestServerApi>({baseURL});
-    const [, , undeclared] = await client.execute({
-      pointer: ['flow', 'getOrgLabel'],
-      id: 'flow/getOrgLabel',
-      isResolved: false,
-      params: ['acme'],
-    } as never);
-    expect(undeclared?.type).toBe('route-metadata-not-found');
+  it('fetches a route the bundle lacks, loading the lane only then', async () => {
+    const {client, middleFns} = initClient<TestServerApi>({baseURL});
     expect(isMetadataFromServerLoaded()).toBe(false);
+    const [result, , undeclared] = await client.execute(
+      {
+        pointer: ['flow', 'getOrgLabel'],
+        id: 'flow/getOrgLabel',
+        isResolved: false,
+        params: ['acme'],
+      } as never,
+      undefined,
+      undefined,
+      withAuth(middleFns).middleFns
+    );
+    expect(undeclared).toBeUndefined();
+    expect(result).toBeDefined();
+    expect(isMetadataFromServerLoaded()).toBe(true);
+    expect(isBundledMethod('flow/getOrgLabel')).toBe(false);
   });
 
   it('runs with dynamic code disabled: the bundle carries live functions, never code strings', async () => {
@@ -195,17 +203,14 @@ describe('a client built with bundleApi: bundled', () => {
     expect(second).toBeUndefined();
   });
 
-  it('refuses a method the bundle does not carry, naming the option', async () => {
+  it('asks the server about a method the bundle does not carry, then validates against it', async () => {
     const {client, routes} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();
     try {
       // client.typeErrors(...) takes already-built subrequests, so the build saw no dispatch point
       // for flow/getTags, which nothing else in this program calls
-      await expect(client.typeErrors(routes.flow.getTags([1]))).rejects.toSatisfy((errors: Map<string, any>) => {
-        const error = errors.get('mion-client-request');
-        return error?.type === 'route-metadata-not-found' && String(error.publicMessage).includes("bundleApi: 'bundled'");
-      });
-      expect(watch.calls()).toBe(0);
+      expect(await client.typeErrors(routes.flow.getTags([1]))).toEqual([]);
+      expect(watch.askedForMetadata()).toBe(true);
     } finally {
       watch.restore();
     }

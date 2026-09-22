@@ -27,7 +27,6 @@ import {
 } from '@mionjs/core';
 import type {SerializerMode, SerializableMethodsData} from '@mionjs/core';
 import {getRoutePath} from '@mionjs/core';
-import {bundledMetadataMissingError, getBundleApiMode} from './lib/bundleApiMode.ts';
 import {hasApiVersionMismatch, noteServerApiVersion} from './lib/apiBuildVersion.ts';
 import {getMethod, hasMethod} from './lib/methods.ts';
 import {loadMetadataFromServer, metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
@@ -87,14 +86,12 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
     let allCached = subRequestIds.every((id) => hasMethod(id));
-    // a bundled client has everything at the call site; a method the bundle lacks is refused below
-    const bundled = getBundleApiMode() === 'bundled';
     let isOptimistic = false;
 
     try {
       // One indexed read settles an id this page never heard of; guessing wrong costs a round trip AND its retry.
       // Hydration runs once per baseURL and never rejects, so a missing or blocked store just leaves this false.
-      if (!allCached && !bundled) {
+      if (!allCached) {
         const lane = await loadMetadataFromServer();
         await lane.hydrateMetadataCache(this.options);
         if (this.signal?.aborted) {
@@ -108,7 +105,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         allCached = subRequestIds.every((id) => hasMethod(id));
       }
       // Optimistic sends plain wire forms; what a decoder cannot read errors, and the retry sends the real encoder.
-      isOptimistic = !allCached && !skipOptimistic && !bundled;
+      isOptimistic = !allCached && !skipOptimistic;
       if (isOptimistic) {
         (this.options as any).serializer = 'optimistic';
         // The chain is unknown until the metadata arrives, but a middleFn's scope is its pointer, so the
@@ -121,14 +118,14 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         (this.options as any).serializer = originalSerializer;
         // After a version mismatch each route is confirmed once, on its first use, riding this request.
         if (hasApiVersionMismatch()) {
-          const recovery = await import('#api-version-recovery');
-          const unverified = recovery.unverifiedIds(subRequestIds);
+          const lane = await loadMetadataFromServer();
+          const unverified = lane.unverifiedIds(subRequestIds);
           if (unverified.length) {
             this.verifying = unverified;
-            this.addSubRequest(recovery.createVerifySubRequest(unverified));
+            this.addSubRequest(lane.createVerifySubRequest(unverified));
           }
         }
-        await this.loadMethodsMetadata(subRequestIds, bundled, this.signal);
+        await this.loadMethodsMetadata(subRequestIds, this.signal);
         this.restorePrefilledMiddleFns(errors);
         if (errors.size) return Promise.reject(errors);
         sanitizeSubRequests(subRequestIds, this);
@@ -184,7 +181,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       const mismatch = noteServerApiVersion(this.response.headers.get(BUILD_VERSION_HEADER));
       const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
       if (rows?.methods) {
-        (await import('#api-version-recovery')).verifyMethodRows(this.verifying!, rows);
+        (await loadMetadataFromServer()).verifyMethodRows(this.verifying!, rows);
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
       // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.
@@ -210,13 +207,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
   }
 
-  /** Makes sure every id has metadata; a bundled client refuses what its build lacks, never reaching the lane. */
-  private async loadMethodsMetadata(methodIds: string[], bundled: boolean, signal?: AbortSignal): Promise<void> {
-    if (bundled) {
-      const missing = methodIds.filter((id) => !hasMethod(id));
-      if (missing.length) throw bundledMetadataMissingError(missing);
-      return;
-    }
+  /** The lane is what turns a missing row into a request, so a client holding every row never loads it. */
+  private async loadMethodsMetadata(methodIds: string[], signal?: AbortSignal): Promise<void> {
+    if (methodIds.every((id) => hasMethod(id))) return;
     const lane = await loadMetadataFromServer();
     await lane.fetchRemoteMethodsMetadata(methodIds, this.options, signal);
   }
@@ -245,7 +238,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     try {
       const subRequestIds = Object.keys(this.subRequestList);
-      await this.loadMethodsMetadata(subRequestIds, getBundleApiMode() === 'bundled');
+      await this.loadMethodsMetadata(subRequestIds);
       sanitizeSubRequests(subRequestIds, this);
       validateSubRequests(subRequestIds, this, errors, false);
       return Object.values(this.subRequestList)
@@ -262,7 +255,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     const errors: RequestErrors = new Map();
     try {
       const subRequestIds = Object.keys(this.subRequestList);
-      await this.loadMethodsMetadata(subRequestIds, getBundleApiMode() === 'bundled');
+      await this.loadMethodsMetadata(subRequestIds);
 
       sanitizeSubRequests(subRequestIds, this);
       validateSubRequests(subRequestIds, this, errors, false);

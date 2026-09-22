@@ -23,3 +23,4 @@ export {
   wasHydratedFromCache,
 } from './clientMethodsMetadata.ts';
 export {fetchRemoteMethodsMetadata} from './fetchRemoteMethodsMetadata.ts';
+export {createVerifySubRequest, unverifiedIds, verifyMethodRows} from './apiVersionRecovery.ts';
