@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Part of the fetched lane, reached through `#metadata-from-server`: both halves run only when the bundle
-// comes up short, and both install the server's rows, so one chunk carries them.
+// Rides the `#metadata-from-server` chunk: like the fetch, it runs only when the bundle comes up short.
 
 import {RpcError, MION_ROUTES} from '@mionjs/core';
 import type {MethodWithOptions, SerializableMethodsData} from '@mionjs/core';

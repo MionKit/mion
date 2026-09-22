@@ -81,7 +81,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return this.makeCall(this.options.serializer);
   }
 
-  /** Call flow that auto-detects missing metadata and uses optimistic serialization when needed */
   private async makeCall(originalSerializer: SerializerMode, skipOptimistic?: boolean): Promise<ResponseBody> {
     const errors: RequestErrors = new Map();
     const subRequestIds = Object.keys(this.subRequestList);
@@ -207,7 +206,6 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     }
   }
 
-  /** The lane is what turns a missing row into a request, so a client holding every row never loads it. */
   private async loadMethodsMetadata(methodIds: string[], signal?: AbortSignal): Promise<void> {
     if (methodIds.every((id) => hasMethod(id))) return;
     const lane = await loadMetadataFromServer();

@@ -4,10 +4,10 @@ package diagnostics
 // dispatch point is recognised by the InjectApiMetadata brand on its resolved signature, and the
 // lane injects the generated module carrying the route's metadata and compiled functions.
 //
-// MET001 / MET002 / MET005 drop the site, so nothing is injected for it: LevelError. MET003 and its
-// `mixed` twin MET004 leave the call to the fetched lane, which works but builds its functions at
-// runtime, so it breaks the strict-CSP promise `bundled` exists for: LevelRuntimeError under
-// `bundled`, LevelWarning under `mixed`. MET006 only leaves one bundled option unset: LevelWarning.
+// MET001 / MET002 / MET005 drop the site, so nothing is injected for it: LevelError. MET003 and its `mixed`
+// twin MET004 leave the call to the fetched lane, which builds its functions at runtime and so breaks the
+// strict-CSP promise of `bundled`: LevelRuntimeError under `bundled`, LevelWarning under `mixed`.
+// MET006 only leaves one bundled option unset: LevelWarning.
 // MET007 injects both versions and the call still runs, reporting a mismatch it should not: LevelRuntimeError.
 const (
 	// CodeApiMetaUnreadable: the API type a dispatch site names cannot be read as a mion PublicApi.

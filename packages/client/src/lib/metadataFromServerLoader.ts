@@ -8,9 +8,7 @@
 import {RpcError} from '@mionjs/core';
 import type {ClientOptions} from '../types.ts';
 
-// Reaches the fetched lane on demand through `#metadata-from-server`, a package.json `imports` entry of
-// @mionjs/client so no consumer alias can collide with it; @mionjs/devtools answers it with an
-// empty stub under `bundleApi: 'bundled'`, which is what keeps the lane out of that build.
+// Reaches the lane through `#metadata-from-server`, an @mionjs/client `imports` entry no consumer alias can collide with.
 
 type MetadataFromServer = typeof import('./metadataFromServer.ts');
 

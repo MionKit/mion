@@ -5,9 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The bundled lane: this project is built with `bundleApi: 'bundled'`, so every route these specs
-// call came in with its call site. A bundled client never asks the server for metadata, never
-// touches the store, and evaluates no code string.
+// The bundled lane: this project is built with `bundleApi: 'bundled'`, so every route these specs call came
+// in with its call site and evaluates no code string; only a route the build never saw reaches the server.
 
 import {describe, it, expect, beforeEach, afterEach, inject, vi} from 'vitest';
 import {HeadersSubset, MION_ROUTES, getRoutePath, type MethodWithOptions} from '@mionjs/core';
