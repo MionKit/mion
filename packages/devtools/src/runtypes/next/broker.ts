@@ -78,8 +78,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   const rootAbs = path.resolve(root);
   const socketPath = options.socketPath ?? socketPathFor(rootAbs);
 
-  // Adopted from the resolver after buildStart, never defaulted here: a local `.mion` would beat the tsconfig
-  // genDir and the inferred <srcDir>/.mion, so Next would read mirrors the enrich CLI never wrote.
+  // Set after buildStart, never defaulted: a default would beat the tsconfig or inferred genDir the enrich CLI uses.
   let genDirAbs = '';
   let stampPath = '';
 
