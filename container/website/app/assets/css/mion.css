@@ -1276,3 +1276,9 @@ section[data-slot='root']:not(.home-subsite-card)::before {
 .diag-badge--warning {
   color: var(--color-yellow-300);
 }
+
+/* A sidebar entry whose frontmatter sets `navigation.class: nav-subpage` sits indented
+   under the page before it, so a page can read as a subpage without its own folder. */
+.nav-subpage {
+  padding-inline-start: 1.75rem;
+}
