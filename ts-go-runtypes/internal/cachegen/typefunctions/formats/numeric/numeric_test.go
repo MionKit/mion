@@ -158,6 +158,35 @@ func TestNumberValidate_IntegerAndMultipleOf(t *testing.T) {
 	}
 }
 
+// TestNumberValidate_FractionalMultipleOf pins the tolerance check a fractional step emits: `v / 0.01` is not
+// exact (19.99 → 1998.9999999999998), so Number.isInteger would reject valid values. A whole step keeps `%`.
+func TestNumberValidate_FractionalMultipleOf(t *testing.T) {
+	emitter := numberFormatEmitter{}
+	cases := []struct {
+		name   string
+		params map[string]any
+		want   string
+	}{
+		{"default tolerance", map[string]any{"multipleOf": 0.01},
+			"(Math.abs(v / 0.01 - Math.round(v / 0.01)) <= Math.abs(v / 0.01) * 8.881784197001252e-16)"},
+		{"custom tolerance", map[string]any{"multipleOf": 0.01, "multipleOfTolerance": 1e-9},
+			"(Math.abs(v / 0.01 - Math.round(v / 0.01)) <= Math.abs(v / 0.01) * 1e-09)"},
+		{"whole step on a plain number", map[string]any{"multipleOf": 5.0}, "(v % 5 === 0)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			validate := emitter.EmitValidateCheck(annotation(numberFormatName, tc.params), "v", nil)
+			if validate != tc.want {
+				t.Errorf("validate = %q, want %q", validate, tc.want)
+			}
+			errs := emitter.EmitValidationErrorsCheck(annotation(numberFormatName, tc.params), "v", "pth", "er", nil)
+			if !strings.Contains(errs, "if (!"+tc.want+")") {
+				t.Errorf("validationErrors = %q, want the same check %q", errs, tc.want)
+			}
+		})
+	}
+}
+
 // TestValidateParams covers the spec-faithful invariants (including the
 // filter(Boolean) quirk where a 0 bound escapes the range checks).
 func TestValidateParams(t *testing.T) {
@@ -181,6 +210,28 @@ func TestValidateParams(t *testing.T) {
 	}
 	// A fractional multipleOf is ALLOWED (JSON Schema permits any positive
 	// number, e.g. 0.01 on a money field); only a non-positive one is an error.
+	// An integer format only takes a whole step.
+	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"integer": true, "multipleOf": 0.5})); len(errs) == 0 {
+		t.Error("expected integer+fractional multipleOf error")
+	}
+	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"integer": true, "multipleOf": 5.0})); len(errs) != 0 {
+		t.Errorf("expected integer+whole multipleOf to be accepted, got %v", errs)
+	}
+	// multipleOfTolerance only applies to a fractional step, and must sit in (0, 1).
+	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 0.01, "multipleOfTolerance": 1e-9})); len(errs) != 0 {
+		t.Errorf("expected tolerance with fractional multipleOf to be accepted, got %v", errs)
+	}
+	for _, params := range []map[string]any{
+		{"multipleOfTolerance": 1e-9},
+		{"multipleOf": 5.0, "multipleOfTolerance": 1e-9},
+		{"multipleOf": 0.01, "multipleOfTolerance": 0.0},
+		{"multipleOf": 0.01, "multipleOfTolerance": 1.0},
+		{"multipleOf": 0.01, "multipleOfTolerance": -1e-9},
+	} {
+		if errs := number.ValidateParams(annotation(numberFormatName, params)); len(errs) == 0 {
+			t.Errorf("expected multipleOfTolerance error for %v", params)
+		}
+	}
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 2.5})); len(errs) != 0 {
 		t.Errorf("expected fractional multipleOf to be accepted, got %v", errs)
 	}

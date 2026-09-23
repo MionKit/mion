@@ -308,6 +308,86 @@ export const NUMBER_FORMAT = {
       {name: 'numberFormat', val: 5, formatPathTail: 'multipleOf'},
     ],
   },
+  number_multipleOf_decimal: {
+    title: 'Decimal multiple of',
+    description: 'numberFormat with a decimal step (cents), where float rounding in value / step must not reject valid values.',
+    validateNotes: '19.99 / 0.01 is 1998.9999999999998 in floats, yet 19.99 and 0.3 pass; 19.995 and 0.001 fail on `multipleOf`.',
+    validate: () => createValidateFn<TF.Number<{multipleOf: 0.01}>>(),
+    standardSchema: () => createStandardSchema<TF.Number<{multipleOf: 0.01}>>(),
+    validateReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01}> = 19.99;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.Number<{multipleOf: 0.01}>>(),
+    deserializeValidateReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01}> = 19.99;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01}> = 19.99;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.Number<{multipleOf: 0.01}>>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01}> = 19.99;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01}> = 19.99;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.Number<{multipleOf: 0.01}>>>(),
+    validateSchema: () => createValidateFn(TF.number({multipleOf: 0.01})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.Number<{multipleOf: 0.01}>>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Number<{multipleOf: 0.01}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.number({multipleOf: 0.01})),
+    mockType: () => createMockDataFn<TF.Number<{multipleOf: 0.01}>>(),
+    getSamples: () => ({valid: [0, 19.99, 9.99, 0.3, -19.99], invalid: [19.995, 0.001]}),
+    expectedFormatErrors: () => [
+      {name: 'numberFormat', val: 0.01, formatPathTail: 'multipleOf'},
+      {name: 'numberFormat', val: 0.01, formatPathTail: 'multipleOf'},
+    ],
+  },
+  number_multipleOf_tolerance: {
+    title: 'Decimal multiple of with tolerance',
+    description: 'numberFormat with a decimal step and a looser multipleOfTolerance for values that carry extra float noise.',
+    validateNotes:
+      '19.99000001 sits within the 1e-9 relative tolerance and passes; 19.995 is half a step away and fails on `multipleOf`.',
+    validate: () => createValidateFn<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>(),
+    standardSchema: () => createStandardSchema<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>(),
+    validateReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}> = 19.99;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>(),
+    deserializeValidateReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}> = 19.99;
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}> = 19.99;
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () =>
+      deserializeGetValidationErrors<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}> = 19.99;
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}> = 19.99;
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>>(),
+    validateSchema: () => createValidateFn(TF.number({multipleOf: 0.01, multipleOfTolerance: 1e-9})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>(),
+    getValidationErrorsDataOnly: () =>
+      createGetValidationErrorsFn<DataOnly<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.number({multipleOf: 0.01, multipleOfTolerance: 1e-9})),
+    mockType: () => createMockDataFn<TF.Number<{multipleOf: 0.01; multipleOfTolerance: 1e-9}>>(),
+    getSamples: () => ({valid: [0, 19.99, 19.99000001], invalid: [19.995]}),
+    expectedFormatErrors: () => [{name: 'numberFormat', val: 0.01, formatPathTail: 'multipleOf'}],
+  },
   number_combined: {
     title: 'Combined constraints',
     description:

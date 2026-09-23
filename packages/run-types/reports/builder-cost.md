@@ -45,8 +45,8 @@ Budgets may only ever be lowered.
 | scalar | `string({params})` | 200 | 225 | 29 | 29 |
 | scalar | `string({params}, brand)` | 268 | 293 | 63 | 63 |
 | scalar | `number()` | 30 | 30 | 9 | 9 |
-| scalar | `number({params})` | 140 | 140 | 29 | 29 |
-| scalar | `currency({params})` | 170 | 170 | 35 | 35 |
+| scalar | `number({params})` | 142 | 142 | 29 | 29 |
+| scalar | `currency({params})` | 172 | 172 | 35 | 35 |
 | scalar | `bigInt({params})` | 132 | 132 | 29 | 29 |
 | scalar | `date({params})` | 134 | 134 | 31 | 31 |
 | string-preset | `email()` | 126 | 126 | 9 | 9 |

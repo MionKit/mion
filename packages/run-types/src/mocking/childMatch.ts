@@ -9,6 +9,7 @@ import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 import {RunTypeKind} from '../go-generated/runTypeKind.generated.ts';
 import {getRTUtils} from '../runtypes/rtUtils.ts';
 import {structuralFormatAccepts} from './structuralFormat.ts';
+import {isMultipleOf} from './isMultipleOf.ts';
 
 const MAX_MATCH_DEPTH = 16;
 
@@ -286,9 +287,17 @@ function numberParamsMatch(value: number, annotation: FormatAnnotation | undefin
       case 'integer':
         if (param === true && !Number.isInteger(value)) return false;
         break;
-      case 'multipleOf':
-        if (typeof param === 'number' && param !== 0 && value % param !== 0) return false;
+      case 'multipleOf': {
+        const tolerance = params.multipleOfTolerance;
+        if (
+          typeof param === 'number' &&
+          param !== 0 &&
+          !isMultipleOf(value, param, typeof tolerance === 'number' ? tolerance : undefined)
+        )
+          return false;
         break;
+      }
+      case 'multipleOfTolerance':
       case 'isCurrency':
       case 'mockSamples':
         break; // presentation / generation-only

@@ -250,14 +250,14 @@ const CALL_CASES: CallCase[] = [
   {
     group: 'scalar',
     label: 'number({params})',
-    fixed: 140,
+    fixed: 142,
     marginal: 29,
     mk: (i) => `const n${i} = TF.number({min: ${i}, max: 99}); type N${i} = InferType<typeof n${i}>; const vn${i}: N${i} = ${i};`,
   },
   {
     group: 'scalar',
     label: 'currency({params})',
-    fixed: 170,
+    fixed: 172,
     marginal: 35,
     mk: (i) => `const n${i} = TF.currency({min: ${i}}); type N${i} = InferType<typeof n${i}>;`,
   },

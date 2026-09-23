@@ -21,6 +21,9 @@ export interface NumberParams {
   lt?: number;
   gt?: number;
   multipleOf?: number;
+  /** How far `value / multipleOf` may sit from a whole number, relative to that quotient, for a FRACTIONAL
+   *  multipleOf (floats cannot hold 0.01 exactly). Default `4 * Number.EPSILON`; must be in (0, 1). */
+  multipleOfTolerance?: number;
   /** JSON Schema alias of `min` (inclusive lower bound). Normalised to `min`. */
   minimum?: number;
   /** JSON Schema alias of `max` (inclusive upper bound). Normalised to `max`. */

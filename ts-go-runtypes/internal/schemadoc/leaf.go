@@ -76,7 +76,7 @@ var GenericParamKeys = map[string]map[string]bool{
 	"stringFormat": setOf("maxLength", "minLength", "length", "pattern", "allowedChars", "disallowedChars",
 		"allowedValues", "disallowedValues", "mockSamples", "contentEncoding", "contentMediaType",
 		"transform"),
-	"numberFormat": setOf("integer", "float", "min", "max", "lt", "gt", "multipleOf",
+	"numberFormat": setOf("integer", "float", "min", "max", "lt", "gt", "multipleOf", "multipleOfTolerance",
 		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "isCurrency"),
 	"bigintFormat": setOf("min", "max", "lt", "gt", "multipleOf",
 		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"),
