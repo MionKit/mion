@@ -1,17 +1,7 @@
-// Type-safety regression tests for the marker package's public surface.
-//
-// The body of each `assertions...` function below is a type-only test.
-// The functions are referenced (so esbuild does not tree-shake them) but
-// never invoked, so the bodies have no runtime effect. Assertions are either
-// positive (must compile) or `@ts-expect-error` directives that pin a
-// type-level REJECTION — a regression that makes such a line compile again
-// surfaces as TS2578 "Unused '@ts-expect-error' directive".
-//
-// Why this shape: vitest's typecheck mode is global (would surface a
-// dozen unrelated preexisting type errors); we want focused regression
-// tests for the builder/marker types. The IDE catches regressions
-// immediately; CI catches them when anyone runs
-// `tsc -p packages/run-types/tsconfig.json --noEmit`.
+// Type-safety regression tests for the marker package's public surface. Each `assertions...` body is a
+// type-only test, referenced so esbuild keeps it but never invoked; `@ts-expect-error` pins a type-level
+// REJECTION, and a line that compiles again surfaces as TS2578. Not vitest's typecheck mode: that is global
+// and would surface a dozen unrelated preexisting errors. CI runs `tsc -p packages/run-types/tsconfig.json --noEmit`.
 
 // NOTE: imports use RELATIVE `../src/…` paths (not the `@mionjs/run-types/*` package
 // specifiers) so this file exercises the in-tree source directly. Import style

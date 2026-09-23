@@ -55,8 +55,7 @@ export function nulBytes() {
     .filter((file) => !file.startsWith('ts-go-runtypes/third_party/') && !file.includes('/testdata/'));
   // A sweep that silently matched nothing would pass forever; the floor catches it.
   if (files.length < 500) die(`the NUL sweep listed only ${files.length} files, so its pathspecs stopped matching`);
-  // git lists the INDEX, so a tracked file deleted but not yet staged is listed and absent: reading it
-  // unguarded crashed the whole sweep mid-edit.
+  // git ls-files lists the INDEX, so a deleted but unstaged file is listed and absent from disk.
   return files.filter((file) => existsSync(join(REPO_ROOT, file)) && readFileSync(join(REPO_ROOT, file)).includes(0));
 }
 

@@ -7,25 +7,11 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE);
 const REPO_ROOT = resolve(HERE, '../..');
 
-// Mirrors the run-types/vitest.config.ts shape: install the runtype
-// transformer as a Vite plugin so test source files (which import
-// `createValidateFn` and friends from `mion`) get
-// rewritten with the resolved runtype id at compile time, AND the
-// three cache modules under `caches/*.ts` get their bodies overlaid by
-// the plugin's `transform()` hook with the Go binary's rendered output.
-//
-// `resolve.conditions: ['source']` picks up the `"source"` exports
-// entry on `mion`'s package.json (pointing at
-// `src/index.ts`) — same condition `tsconfig.json` declares for
-// tsgo via `customConditions`. The two resolvers (vite at runtime,
-// tsgo for type-checking the marker scan) now both land on the same
-// in-tree source, with no alias plumbing required. SSR's resolver
-// honors the same conditions list.
-//
-// `cwd` is the package dir + `tsconfig.json` includes `test/**`, so the
-// Go resolver's Program covers every file vitest loads. The build config
-// extends it and narrows back to src, so `pnpm build` never compiles a
-// test file into dist.
+// Installs the runtype transformer as a Vite plugin so test files get their markers rewritten and the
+// `caches/*.ts` bodies overlaid with the Go binary's output. `resolve.conditions: ['source']` (and SSR's copy)
+// picks the `"source"` exports entry, the same condition tsconfig.json declares for tsgo, so vite and tsgo both
+// land on the in-tree source with no aliases. `cwd` is the package dir and tsconfig.json includes `test/**`, so
+// the Go resolver's Program covers every file vitest loads; the build config narrows back to src.
 export default defineConfig({
   resolve: {
     conditions: ['source'],
@@ -36,31 +22,14 @@ export default defineConfig({
       binary: resolve(REPO_ROOT, 'mion-bin/mion'),
       cwd: PACKAGE_ROOT,
       tsconfig: 'tsconfig.json',
-      // Force 'both' emit for the test run so suites cover BOTH
-      // materialisation paths on every case:
-      //   - createValidateFn<T>() / createXxx<T>() → reads entry.createRTFn
-      //     (the inline closure baked in by the Go renderer)
-      //   - deserializeValidate<T>() / deserializeXxx<T>() → ignores the
-      //     inline closure and rebuilds the factory from entry.code via
-      //     `new Function('utl', code)`.
-      // The production default is 'code' (code string only) so emitted modules
-      // are smaller; runtimes without `new Function` opt into 'functions' or
-      // 'both' on the plugin themselves.
+      // 'both' so the suites cover BOTH materialisation paths on every case: createXxx<T>() reads the inline
+      // entry.createRTFn, deserializeXxx<T>() rebuilds from entry.code. Production defaults to 'code' for size.
       emitMode: 'both',
-      // NO downgradeErrors here on purpose. This program DELIBERATELY contains
-      // Error-severity types (the alwaysThrow suites pin the runtime throw for
-      // root-position symbols, functions, …), and every one of those ~200 call
-      // sites says so in its own source: `@mion-downgrade-error` where the
-      // finding is true and worth reading, `@mion-expect-error` where it is
-      // noise. A wildcard here made a real finding indistinguishable from an
-      // expected one, which is how nine call sites silently compiled the
-      // default encoder strategy instead of the one they named.
-      // The on-disk RT artifact cache follows TypeScript's incremental switch,
-      // and `tsconfig.json` sets `incremental: false`, so these test runs
-      // are cache-off with no knob — they never pollute node_modules/.cache
-      // with thousands of artifact files. The disk-cache feature has its own
-      // dedicated end-to-end suite (devtools/test/cache-disk.test.ts,
-      // which forces the cache on at an os.tmpdir() path).
+      // NO downgradeErrors here on purpose: this program DELIBERATELY contains Error-severity types, and each of
+      // those ~200 call sites says so in its own source. A wildcard made a real finding indistinguishable from an
+      // expected one, which is how nine call sites silently compiled the default encoder strategy.
+      // The disk cache follows TypeScript's `incremental`, which tsconfig.json turns off, so these runs never
+      // write artifacts; devtools/test/cache-disk.test.ts covers that feature with the cache forced on.
     }),
   ],
   test: {

@@ -1,30 +1,10 @@
-// Test-only twins of the `createXxx` factories. Each `deserializeXxx<T>()`
-// rebuilds its per-id closure from the serialized `RTCompiledFnData.code`
-// string via `new Function('utl', code)(rtUtils)` on every call — the same
-// reconstruction path `materializeRTFn` (in src/runtypes/rtUtils.ts) runs
-// lazily on the first `getRT(hash)` lookup for a production caller.
-//
-// Lives under test/util/ rather than src/ because production code has no
-// reason to call these directly: cache modules auto-register entries on
-// import and `materializeRTFn` builds `entry.fn` on demand, so the
-// regular `createXxx` factories already return the deserialized closure
-// transparently. The wrappers exist purely so the test suites can assert
-// that each `entry.code` round-trips to an equivalent fn.
-//
-// Marker scanning works the same as for the production factories — the
-// Vite plugin walks every call site whose resolved signature has a
-// trailing `id?: InjectTypeFnArgs<T, Fn>` slot, regardless of where the
-// function is declared. The vitest config's `tsconfig.json` puts
-// `test/**` in the plugin's scan scope, so calls to `deserializeXxx<T>()`
-// from test files get the same compile-time `[typeId, fnHash]` tuple
-// injection that `createXxx<T>()` calls do.
-//
-// PER-ENTRY MODULE NOTE: the deserialize twins route through the SAME
-// `InjectTypeFnArgs<T, Fn>` marker as the production factories, so each call
-// site receives the ENTRY-MODULE TUPLE binding. The key comes off the tuple
-// (slot 3) after registering its dep closure — identical derivation to the
-// production `resolveEntryTupleFn`. The distinguishing behavior (rebuild from
-// `entry.code` instead of reading the materialized `entry.fn`) is unchanged.
+// Test-only twins of the `createXxx` factories: each `deserializeXxx<T>()` rebuilds its per-id closure from the
+// serialized `RTCompiledFnData.code` on every call, the same path `materializeRTFn` (src/runtypes/rtUtils.ts)
+// runs lazily for a production caller. They live under test/util/ rather than src/ because production never
+// needs them; they exist so the suites can assert each `entry.code` round-trips to an equivalent fn. They route
+// through the SAME `InjectTypeFnArgs<T, Fn>` marker as the production factories, so each call site gets the
+// entry-module tuple and the key comes off slot 3 exactly as `resolveEntryTupleFn` derives it; the vitest
+// config's tsconfig.json puts `test/**` in the scan scope, so these calls get the same tuple injection.
 
 import {
   type InjectTypeFnArgs,

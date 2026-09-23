@@ -19,8 +19,7 @@ import * as esbuild from 'esbuild';
 import runtypesEsbuild from '../src/runtypes/esbuild.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
-// Under the marker package's test tree so tsconfig.json puts the fixture in
-// the Go resolver's Program, exactly as build-rollup.test.ts does.
+// Fixture lives in the marker package's test tree so its tsconfig puts it in the Go resolver's Program.
 const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-esbuild-nonjs');
 const ENTRY = path.join(FIXTURE_DIR, 'entry.ts');
@@ -66,8 +65,7 @@ describe('esbuild build / @mionjs/devtools/runtypes/esbuild entry', () => {
               cwd: PACKAGE_ROOT,
               tsconfig: 'tsconfig.json',
               genDir: OUT_DIR,
-              // Same opt-out as build-rollup.test.ts: the marker package's test
-              // program deliberately contains Error-severity types.
+              // Same opt-out as build-rollup.test.ts: the marker test program deliberately holds Error-severity types.
               downgradeErrors: '*',
             }),
           ],

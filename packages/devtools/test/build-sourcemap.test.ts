@@ -16,8 +16,7 @@ import {BIN, hasBinary} from './helpers/inline.ts';
 import {decodeMappings, type MappingSegment} from './helpers/sourcemap.ts';
 
 const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
-// Lives under the marker package's test/ tree so tsconfig.json puts the
-// fixture in the Go resolver's Program (the plugin scans real program files).
+// Fixture lives in the marker package's test/ tree so its tsconfig puts it in the Go resolver's Program.
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-sourcemap');
 
 const FIXTURE = `import {getRunTypeId} from '@mionjs/run-types';
@@ -59,14 +58,9 @@ describe.each(['edits', 'go'] as const)('vite build / composite source map [tran
             // tsconfig.json is incremental:false → RT disk cache off.
             tsconfig: 'tsconfig.json',
             transformMode: mode,
-            // Isolated output root so this nested build never shares (and
-            // prunes) the marker package's own vitest `.mion/types` dir —
-            // the two programs differ (this one adds entry-map.ts), so a shared
-            // dir would race-delete the fixture's modules. Cleaned with FIXTURE_DIR.
+            // Isolated output root: sharing `.mion/types` with the package's own vitest would race-prune this fixture.
             genDir: path.join(FIXTURE_DIR, '.mion'),
-            // The marker package's test program deliberately contains
-            // Error-severity types (alwaysThrow suites) — same opt-out as its
-            // own vitest config.
+            // The marker test program deliberately holds Error-severity types, same opt-out as its own vitest config.
             downgradeErrors: '*',
           }) as never,
         ],

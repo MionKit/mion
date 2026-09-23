@@ -3,20 +3,13 @@ import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import runtypesPlugin from '@mionjs/devtools/runtypes/vite';
 
-// The CONVERTED-SUITES project: the same suite tree, rewritten into the value
-// forms by `mion convert`, running against the same assertions.
-//
-// It is deliberately NOT in the root config's `projects` list. The trees it
-// runs (test/converted-<target>/) are generated and gitignored, so a tracked
-// project entry would point at paths that usually do not exist. `pnpm miondevx core
-// converted-suites` generates them, runs vitest with THIS config, and deletes
-// them again — that command is the only thing that ever loads this file.
-//
-// Everything else mirrors the marker project (plugin, conditions, timeouts) so
-// a failure here means the CONVERSION changed behaviour, never that the two
-// projects were configured differently. The one difference is the tsconfig:
-// the converted trees are excluded from tsconfig.json (so the ordinary
-// lanes never see them) and named by tsconfig.converted.json instead.
+// The CONVERTED-SUITES project: the same suite tree rewritten into the value forms by `mion convert`, running
+// against the same assertions. Deliberately NOT in the root config's `projects` list, since the trees it runs
+// (test/converted-<target>/) are generated and gitignored; `pnpm miondevx core converted-suites` generates them,
+// runs vitest with THIS config and deletes them again, and is the only thing that ever loads this file.
+// Everything else mirrors the marker project so a failure here means the CONVERSION changed behaviour, not the
+// config. The one difference is the tsconfig: the converted trees are excluded from tsconfig.json so the
+// ordinary lanes never see them, and named by tsconfig.converted.json instead.
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE);
 const REPO_ROOT = resolve(HERE, '../..');

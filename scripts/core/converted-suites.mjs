@@ -1,27 +1,11 @@
-// converted-suites.mjs — run the WHOLE suite tree in the value-first forms.
-//
-// `mion convert` rewrites packages/run-types/test/suites/ into one tree
-// per target, vitest runs those trees against the same assertions, and the trees
-// are removed again. They are gitignored and exist only while this runs.
-//
-// The point is a corpus the fuzz lanes cannot produce: 205 hand-written files
-// covering every construct the engine reflects, run three times over. A failure
-// here means the CONVERSION changed behaviour — the assertions are identical, so
-// nothing else can have.
-//
-// WHY THE TREES SIT BESIDE suites/ rather than under a shared parent: the suite
-// files import `../../util/*.ts` and `../../../src/...`. Those resolve to the
-// same files only at that exact depth. One level deeper and every converted file
-// fails to find its helpers.
-//
-// Refusals are EXPECTED and listed, never silent: a declaration convert cannot
-// spell is left byte-identical and keeps working in type form, so the suite
-// still runs. The counts below are the contract — if a target starts refusing
-// MORE, something regressed; if it refuses FEWER, a limitation was fixed and the
-// number should come down with the commit that fixed it. The count alone cannot
-// tell a new limitation from an old one, so every refusal is ALSO matched
-// against the documented list: its message must carry the `says` fragment of a
-// row in unsupported-conversion.test.ts, or the run fails as undocumented.
+// converted-suites.mjs — runs packages/run-types/test/suites/ again in the value-first forms: `mion convert`
+// writes one tree per target, vitest runs it against the same assertions, then the tree is removed (gitignored,
+// it exists only during the run). The assertions are identical, so a failure here means the CONVERSION changed
+// behaviour. The trees sit BESIDE suites/, never under a shared parent: the suite files import `../../util/*.ts`
+// and `../../../src/...`, which resolve to the same files only at that exact depth. Refusals are expected and
+// never silent: a refused declaration is left byte-identical so the suite still runs, the counts below are the
+// contract, and every refusal's message must carry the `says` fragment of a row in unsupported-conversion.test.ts
+// or the run fails as undocumented.
 import {execFileSync, spawnSync} from 'node:child_process';
 import {existsSync, readFileSync, rmSync} from 'node:fs';
 import path from 'node:path';

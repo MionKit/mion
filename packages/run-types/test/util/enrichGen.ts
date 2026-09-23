@@ -16,9 +16,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../../..');
 const BIN = resolve(REPO_ROOT, 'mion-bin/mion');
 const TMP_ROOT = resolve(HERE, '../suites/enrich/.tmp');
-// The temp modules import `@mionjs/run-types/formats`; the binary no longer forces
-// the "source" condition, so point enrich at the package's tsconfig, which carries
-// customConditions:["source"] to resolve the package name to its in-tree src.
+// Enrich needs the package tsconfig's customConditions:["source"] to resolve `@mionjs/run-types/formats` to
+// in-tree src; the binary no longer forces that condition.
 const TSCONFIG = resolve(REPO_ROOT, 'packages/run-types/tsconfig.json');
 
 // The two test entries (`enrichGen`, `enrichCheck`) run in parallel and
@@ -76,9 +75,7 @@ export async function prettierNormalize(objLiteralText: string): Promise<string>
   return formatted.trim();
 }
 
-// runGenBatch writes one temp file per case and runs `gen --files … --type
-// Target`. Returns the parsed JSON keyed by temp-file basename. The temp file
-// names embed the case key so the JSON maps straight back.
+// The temp file names embed the case key, so the CLI's per-file JSON maps straight back to cases.
 function runGenBatch(fileBase: string, spans: Record<string, CaseSpans>): Record<string, GenSkeletons> {
   const dir = laneDir('gen');
   mkdirSync(dir, {recursive: true});
@@ -174,9 +171,7 @@ export function checkCategory(fileBase: string, constName: string): Record<strin
       maxBuffer: 32 * 1024 * 1024,
     });
     if (result.error) throw new Error(`check failed to launch: ${result.error.message}`);
-    // check exits 1 only when an Error-severity finding is present; for these
-    // valid maps it should exit 0 with `null` / `[]`. A non-(0|1) exit is a real
-    // failure (e.g. could not resolve the type) — surface it.
+    // check exits 1 only on an Error-severity finding, so any other non-zero exit is a real failure.
     if (result.status !== 0 && result.status !== 1) {
       throw new Error(`check exited ${result.status} for '${caseKey}': ${result.stderr}\n${result.stdout}`);
     }

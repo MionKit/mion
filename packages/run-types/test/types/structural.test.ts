@@ -1,23 +1,11 @@
-// Type-level contract for the STRUCTURAL formats' brand keys.
-//
-// `FormattedObject<User, P>` / `FormattedArray<T, P>` brand the CONSUMER'S own
-// type, so what the brand does to that type's keys is a user-facing contract,
-// not an implementation detail. The sentinels ride `unique symbol` keys
-// (src/runtypes/sentinelKeys.ts) precisely so branding leaves the string keys
-// alone; this file pins that from both ends — what must stay clean, and the one
-// residue that cannot be cleaned.
-//
-// Same shape as typesafety.test.ts: each `assertions…` function body is a
-// type-only test, referenced so esbuild keeps it but never invoked, so the
-// bodies have no runtime effect. `@ts-expect-error` pins a REJECTION — if the
-// rejected line ever compiles, TS2578 ("unused '@ts-expect-error'") reds the
-// file, which is the prompt to update the pin.
-//
-// Why pinned by test at all: every failure here is SILENT. A leaked sentinel
-// does not error anywhere, it just surfaces in consumer code as a phantom
-// optional field on a recovered type — in autocomplete, in `keyof`, in anything
-// that walks keys. Run via `tsc -p tsconfig.json --noEmit` (wired into
-// `pnpm run lint`).
+// Type-level contract for the STRUCTURAL formats' brand keys: `FormattedObject<User, P>` / `FormattedArray<T, P>`
+// brand the CONSUMER'S own type, so what the brand does to its keys is user-facing. The sentinels ride
+// `unique symbol` keys (src/runtypes/sentinelKeys.ts) so branding leaves the string keys alone, and this file
+// pins both what must stay clean and the one residue that cannot be. Every failure here is SILENT: a leaked
+// sentinel only surfaces as a phantom optional field in autocomplete, `keyof`, anything that walks keys.
+// Same shape as typesafety.test.ts, type-only bodies referenced but never invoked, with `@ts-expect-error`
+// pinning a REJECTION (TS2578 is the prompt to update the pin). Run by `tsc -p tsconfig.json --noEmit`,
+// which `pnpm run lint` runs.
 
 import {describe, expect, test} from 'vitest';
 import * as TF from '../../src/formats/index.ts';

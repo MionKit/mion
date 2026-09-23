@@ -1,11 +1,7 @@
-// Compile-time proof for the FormatNameOf<T> / FormatParamsOf<T> introspection
-// helpers: a format type yields its tag name and params, a bare primitive yields
-// `never`. These are the public replacement for matching the (nominal, unexported)
-// symbol sentinels downstream (any consumer branching on a format tag or params).
-//
-// The bodies are type-only and never invoked; the `test` references them so lint
-// doesn't flag them. The real check is tsc:
-//   pnpm exec tsc --noEmit -p packages/run-types/tsconfig.json
+// Compile-time proof for FormatNameOf<T> / FormatParamsOf<T>: a format type yields its tag name and params, a
+// bare primitive yields `never`. They are the public replacement for matching the nominal, unexported symbol
+// sentinels downstream. Type-only bodies, referenced by `test` so lint leaves them; the real check is
+// `pnpm exec tsc --noEmit -p packages/run-types/tsconfig.json`.
 
 import {expect, test} from 'vitest';
 import type {Email, UUIDv7} from '@mionjs/run-types/formats';

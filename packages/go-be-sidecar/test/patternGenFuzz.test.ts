@@ -1,20 +1,9 @@
-// Generation fuzz for the sidecar's `generate` op against the COMMITTED
-// bundle (the exact bytes go:embed ships) under the real node. Two halves:
-//
-//   1. Supported-subset patterns (compositional literals / classes /
-//      groups / bounded quantifiers — everything randexp handles) with two
-//      oracles: ROUND-TRIP (every returned value must match the real
-//      compiled regex and the declared bounds — re-verified independently
-//      in this process) and DETERMINISM (the same job twice, and in a
-//      second child process, yields the identical list).
-//   2. Adversarial constructs (lookarounds, backrefs, unicode escapes,
-//      broken syntax) asserting the response CONTRACT only: exactly one
-//      verdict shape per job, and any values that do come back still match
-//      their own pattern — the self-check guarantee that makes generation
-//      trustworthy (failures are honest generateErrors, never bad values).
-//
-// Deterministic: seeded mulberry32 (replay with MION_FUZZ_SEED=<n>). Runs in
-// the normal suite (fast) and via `pnpm miondevx core fuzz patterngen`.
+// Generation fuzz for the sidecar's `generate` op against the COMMITTED bundle, the exact bytes go:embed ships.
+// Supported-subset patterns get two oracles: ROUND-TRIP, every returned value re-checked here against the real
+// compiled regex and the declared bounds, and DETERMINISM, the same job twice and in a second child process.
+// Adversarial constructs (lookarounds, backrefs, broken syntax) assert the CONTRACT only: one verdict shape per
+// job, and any values that do come back still match their own pattern, so a failure is a generateError and
+// never a bad value. Seeded mulberry32: replay with MION_FUZZ_SEED=<n>, or `pnpm miondevx core fuzz patterngen`.
 import {spawn, type ChildProcessByStdio} from 'node:child_process';
 import type {Readable, Writable} from 'node:stream';
 import {createInterface} from 'node:readline';
