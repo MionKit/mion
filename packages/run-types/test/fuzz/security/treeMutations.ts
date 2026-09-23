@@ -1,10 +1,5 @@
-// JSON-tree attacks for the secjson lane: apply one dictionary entry at one
-// position, or one blind mutation (a random junk subtree, the value lane's
-// `randomJunk`) anywhere in the tree.
-//
-// Every attack yields the JSON TEXT the decoders read and its re-parsed tree,
-// built from one `JSON.stringify` so both see the same bytes (and an own
-// `__proto__` key survives as an own key on both).
+// JSON-tree attacks for the secjson lane: one dictionary entry at one position, or one blind `randomJunk` subtree.
+// The text comes from one `JSON.stringify`, so an own `__proto__` key stays own when it is parsed back.
 
 import {applyMutation} from '../value/invalidValue.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
@@ -20,8 +15,6 @@ export interface TreeAttack {
   path: Array<string | number>;
   /** JSON text as the decoders see it. **/
   text: string;
-  /** `JSON.parse(text)`, as `parse` sees it. **/
-  tree: unknown;
 }
 
 const bigintSafe = (_key: string, value: unknown): unknown => (typeof value === 'bigint' ? value.toString() : value);
@@ -36,7 +29,7 @@ export function spliceAttack(tree: unknown, position: Position, entry: AttackEnt
   const text = JSON.stringify(mutated, bigintSafe);
   if (text === undefined) return null;
   const expect: Expect = position.underCatchAll ? 'any' : entry.expect;
-  return {id: entry.id, class: entry.class, expect, path: position.path, text, tree: JSON.parse(text)};
+  return {id: entry.id, class: entry.class, expect, path: position.path, text};
 }
 
 /** Every dictionary attack for one position. **/
@@ -57,7 +50,7 @@ export function blindAttack(tree: unknown, positions: Position[], index: number)
   const mutated = applyMutation(tree, position.path, randomJunk(0));
   const text = JSON.stringify(mutated, bigintSafe);
   if (text === undefined) return null;
-  return {id: `blind.${index}`, class: 'blind', expect: 'any', path: position.path, text, tree: JSON.parse(text)};
+  return {id: `blind.${index}`, class: 'blind', expect: 'any', path: position.path, text};
 }
 
 function readPath(tree: unknown, path: Array<string | number>): unknown {

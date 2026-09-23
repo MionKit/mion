@@ -144,12 +144,12 @@ describe('collectPositions over the JSON wire', () => {
 describe('splicing dictionary attacks into the tree', () => {
   const positions = collectPositions(gen, tree);
 
-  it('produces JSON text plus the re-parsed tree, and downgrades expect under a catch-all', () => {
+  it('produces JSON text, and downgrades expect under a catch-all', () => {
     const number = positions.find((p) => p.path.join('.') === 'n')!;
     const entry = ATTACK_DICTIONARY.find((candidate) => candidate.id === 'number.string')!;
     const attack = spliceAttack(tree, number, entry, () => 0.5)!;
     expect(attack.expect).toBe('reject');
-    expect((attack.tree as {n: unknown}).n).toBe('42');
+    expect((JSON.parse(attack.text) as {n: unknown}).n).toBe('42');
     expect(attack.text).toContain('"n":"42"');
     const underUnion = positions.find((p) => p.path.join('.') === 'either.1')!;
     expect(spliceAttack(tree, underUnion, entry, () => 0.5)!.expect).toBe('any');
@@ -160,8 +160,9 @@ describe('splicing dictionary attacks into the tree', () => {
     const attacks = dictionaryAttacks(tree, root, () => 0.5);
     const proto = attacks.find((attack) => attack.id === 'object.proto-key')!;
     expect(proto.text).toContain('"__proto__":{"polluted":true}');
-    expect(Object.prototype.hasOwnProperty.call(proto.tree, '__proto__')).toBe(true);
-    expect((proto.tree as {polluted?: unknown}).polluted).toBeUndefined();
+    const reparsed = JSON.parse(proto.text) as {polluted?: unknown};
+    expect(Object.prototype.hasOwnProperty.call(reparsed, '__proto__')).toBe(true);
+    expect(reparsed.polluted).toBeUndefined();
   });
 
   it('never touches the original tree', () => {
