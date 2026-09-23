@@ -16,7 +16,6 @@ const mion = createMionRouter();
 // ========================================
 
 // start:strong-typed-valid-inline
-// 1. Direct inline handlers with proper types
 mion.route((ctx, name: string): string => `hello ${name}`);
 mion.middleFn((ctx, data: number): void => {
   console.log(data);
@@ -27,7 +26,6 @@ mion.headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
 // end:strong-typed-valid-inline
 
 // start:strong-typed-valid-function-refs
-// 2. Function references with proper types
 function validHandler(ctx, name: string): string {
   return `hello ${name}`;
 }
@@ -37,7 +35,6 @@ mion.route(validArrowHandler);
 // end:strong-typed-valid-function-refs
 
 // start:strong-typed-valid-type-annotations
-// 3. Type annotations
 const typedHandler: Handler = (ctx, name: string): string => `hello ${name}`;
 const typedHeaderHandler: HeaderHandler = (
   c: CallContext,
@@ -49,7 +46,6 @@ const typedHeaderHandler: HeaderHandler = (
 // end:strong-typed-valid-type-annotations
 
 // start:strong-typed-valid-satisfies
-// 4. Satisfies expressions
 const satisfiesHandler = ((ctx, name: string): string =>
   `hello ${name}`) satisfies Handler;
 const satisfiesHeaderHandler = ((
@@ -62,7 +58,6 @@ const satisfiesHeaderHandler = ((
 // end:strong-typed-valid-satisfies
 
 // start:strong-typed-valid-jsdoc
-// 5. JSDoc tags
 /**
  * @mion:route
  */
@@ -98,7 +93,6 @@ function headersFnWithJSDoc(
 // ========================================
 
 // start:strong-typed-invalid-inline
-// 1. Direct inline handlers missing types
 mion.route((ctx, name) => `hello ${name}`); // Missing both param type and return type
 mion.middleFn((ctx, data: number) => {
   console.log(data);
@@ -109,7 +103,6 @@ mion.headersFn((c: CallContext, [token]): void => {
 // end:strong-typed-invalid-inline
 
 // start:strong-typed-invalid-function-refs
-// 2. Function references missing types
 function invalidHandler(ctx, name) {
   return `hello ${name}`;
 }
@@ -259,8 +252,7 @@ mion.route((ctx, id: string): string | Error => new Error('no id'));
 class NotFoundError extends Error {}
 mion.route((ctx, id: string): string | NotFoundError => new NotFoundError());
 
-// 3. A TypedError is branded but has no public message and no status code,
-//    so the client has nothing to show
+// 3. TypedError is branded, but as the base class it has no public message or status code to show
 mion.route(
   (ctx, id: string): string | TypedError<'not-found'> =>
     new TypedError({type: 'not-found'})
