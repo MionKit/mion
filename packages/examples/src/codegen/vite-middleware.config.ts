@@ -2,23 +2,16 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite';
 
-// Fullstack dev (Nuxt / SSR / "backend of a frontend"): the mion API runs INSIDE this vite dev
-// server. One process, one port, one module graph — the frontend calls `/api/...` on the same
-// origin it is served from. Batches need nothing: client and API are one program, so the build
-// generates the batch table and the API imports it.
 export default defineConfig({
   plugins: [
     mionVitePlugin({
       runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
       server: {
-        // Loaded through vite's own SSR pipeline (`ssrLoadModule`), so it is transformed by
-        // the same plugin the app is. The entry needs no changes for this: mion tells the
-        // platform adapter to skip listen() before the entry runs.
+        // loaded through Vite's SSR pipeline (`ssrLoadModule`), so the same plugin transforms it
         startScript: resolve(__dirname, '../server/src/init.ts'),
-        // Optional. Defaults to the router's own `basePath`; with no basePath at all mion
-        // serves the root and `exclude` decides what still reaches vite.
+        // optional, defaults to the router's own `basePath`
         basePath: '/api',
-        // Optional: re-load the API when its sources change (default true).
+        // optional, reloads the API when its sources change (default true)
         hotReload: true,
       },
     }),
