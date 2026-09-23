@@ -48,3 +48,10 @@
 /benchmarks/runtypes/correctness   /benchmarks/runtypes/validation     301
 # middleFns were renamed to middleware (2026-09).
 /rpc/server/middle-fns  /rpc/server/middleware  301
+# The RunTypes guide split into sections (2026-09): Type Formats became its own
+# section with a page per family, and linting plus source conversion moved to Tooling.
+/runtypes/guide/type-formats              /runtypes/type-formats/overview      301
+/runtypes/guide/decoding-untrusted-input  /runtypes/guide/serialization        301
+/runtypes/guide/json-schema-generation    /runtypes/guide/json-schemas         301
+/runtypes/guide/linting                   /runtypes/tooling/linting            301
+/runtypes/guide/source-conversion         /runtypes/tooling/source-conversion  301
