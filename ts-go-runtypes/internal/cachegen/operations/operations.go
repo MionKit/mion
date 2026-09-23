@@ -49,6 +49,9 @@ type Operation struct {
 	// `{rejectCircularRefs: true}` folds circularCanonicalSuffix into the fnHash, so an armed and a plain factory for the same T
 	// compile to distinct entries. The suffix applies across every Axis uniformly, which is why this is a bool, not a fourth Axis.
 	CircularGuarded bool
+	// CallOptions is the compile-time options literal that selects this operation at its Factory, as the docs catalog shows the
+	// call; empty when the bare `createX<T>()` call does. AxisJsonStrategy rows leave it empty: the catalog spells their Strategies.
+	CallOptions string
 }
 
 // registry is the complete operation set: the createX-backed operations plus the JSON value-level primitives the composites and
@@ -63,15 +66,15 @@ var registry = []Operation{
 	// a variant is root-scoped (children dispatch to plain entries), is never disk-cached and skips overrides, while a family renders
 	// its own transitive subtree, caches under its own tag and honours overrides. The call site's marker still says 'val' / 'verr';
 	// the scanner swaps the operation when it reads `checkUnknowns` (resolver/scan.go computeSiteFn), so no marker type changes.
-	{Name: "validateStrict", Doc: "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.", Factory: "createValidateFn", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true},
-	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true},
+	{Name: "validateStrict", Doc: "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.", Factory: "createValidateFn", FamilyTag: "vst", Axis: AxisValidateOptions, Public: true, FnKey: "validateStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}"},
+	{Name: "validationErrorsStrict", Doc: "Returns the reasons a value does not match, including undeclared properties, in a single walk.", Factory: "createGetValidationErrorsFn", FamilyTag: "vest", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsStrict", CircularGuarded: true, CallOptions: "{checkUnknowns: true}"},
 
 	// The UNION-SCOPED validators (`{checkUnionUnknowns: true}`): narrower than the fused pair above on purpose, since a
 	// stripping decoder already removes a plain object's undeclared keys but cannot remove one a sibling union member
 	// declares, and removes nothing at all once a member carries an index signature. Families rather than variants for the
 	// same reason as the fused pair.
-	{Name: "validateUnionKeys", Doc: "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.", Factory: "createValidateFn", FamilyTag: "vuk", Axis: AxisValidateOptions, Public: true, FnKey: "validateUnionKeys", CircularGuarded: true},
-	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true},
+	{Name: "validateUnionKeys", Doc: "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.", Factory: "createValidateFn", FamilyTag: "vuk", Axis: AxisValidateOptions, Public: true, FnKey: "validateUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
+	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
 
 	// createParseFn: restore a JSON.parse output into the typed shape AND check it in ONE walk, throwing an RTParseError with the
 	// full report. One operation PER STRATEGY rather than a strategy axis: DemandFor's AxisJsonStrategy arm assumes a COMPOSITE and
@@ -82,8 +85,8 @@ var registry = []Operation{
 	//   - parseStrip: ukuw + rj + val. The ukuw pre-pass blanks undeclared keys before restore walks the declared shape.
 	//   - parseFail: rj + vst. The fused validate{checkUnknowns} rejects extras in ONE pass, so strict costs a single call too.
 	{Name: "parse", Doc: "Restores a JSON.parse output into the typed shape and checks it in one walk, throwing on a mismatch. Undeclared properties are kept.", Factory: "createParseFn", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "parse"},
-	{Name: "parseStrip", Doc: "Parse, with undeclared properties removed before the value is restored.", Factory: "createParseFn", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "parseStrip"},
-	{Name: "parseFail", Doc: "Parse, rejecting any value that carries an undeclared property.", Factory: "createParseFn", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "parseFail"},
+	{Name: "parseStrip", Doc: "Parse, with undeclared properties removed before the value is restored.", Factory: "createParseFn", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "parseStrip", CallOptions: "{strategy: 'strip'}"},
+	{Name: "parseFail", Doc: "Parse, rejecting any value that carries an undeclared property.", Factory: "createParseFn", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "parseFail", CallOptions: "{strategy: 'fail'}"},
 
 	// hasUnknownKeys: the standalone predicate, the right tool when the caller already holds a validated value.
 	{Name: "hasUnknownKeys", Doc: "Answers whether a value carries any property the type does not declare.", Factory: "createHasUnknownKeysFn", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "hasUnknownKeys"},
@@ -124,15 +127,15 @@ var registry = []Operation{
 	// Each FnKey equals its family tag, and there is no runtime hashing, so the resolver reads the plugin-injected plain fnHash.
 	//   - rjs (clone restore): mion's `clone` strategy decodes with it, no createJsonDecoderFn strategy composes it.
 	//   - sj: the `direct` encoder body. ukuw: the strip decoder's wire pre-pass.
-	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", Factory: "createPrepareForJsonFn", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate"},
+	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", Factory: "createPrepareForJsonFn", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate", CallOptions: "{strategy: 'mutate'}"},
 	{Name: "prepareForJsonClone", Doc: "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.", Factory: "createPrepareForJsonFn", FamilyTag: "pjs", Axis: AxisNone, Public: true, FnKey: "prepareForJsonClone"},
-	{Name: "restoreFromJsonMutate", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", Factory: "createRestoreFromJsonFn", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonMutate"},
+	{Name: "restoreFromJsonMutate", Doc: "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.", Factory: "createRestoreFromJsonFn", FamilyTag: "rj", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonMutate", CallOptions: "{strategy: 'mutate'}"},
 	{Name: "restoreFromJsonClone", Doc: "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.", Factory: "createRestoreFromJsonFn", FamilyTag: "rjs", Axis: AxisNone, Public: true, FnKey: "restoreFromJsonClone"},
 	{Name: "stringifyJson", Doc: "Writes a value straight to a JSON string in one pass, with no intermediate value.", Factory: "createStringifyJsonFn", FamilyTag: "sj", Axis: AxisNone, Public: true, FnKey: "stringifyJson"},
 	{Name: "stripUnknownKeysWire", Doc: "Blanks undeclared properties on incoming JSON before it is restored.", Factory: "createStripUnknownKeysFn", FamilyTag: "ukuw", Axis: AxisNone, Public: true, FnKey: "stripUnknownKeysWire"},
 	// compactForJson / compactFromJson are the positional-tuple round-trip pair the `compact` strategy composes.
-	{Name: "compactForJson", Doc: "Builds a value whose objects are positional arrays, so property names never reach the wire.", Factory: "createPrepareForJsonFn", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson"},
-	{Name: "compactFromJson", Doc: "Rebuilds a keyed object from the positional array the compact encoder wrote.", Factory: "createRestoreFromJsonFn", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson"},
+	{Name: "compactForJson", Doc: "Builds a value whose objects are positional arrays, so property names never reach the wire.", Factory: "createPrepareForJsonFn", FamilyTag: "cj", Axis: AxisNone, Public: true, FnKey: "compactForJson", CallOptions: "{strategy: 'compact'}"},
+	{Name: "compactFromJson", Doc: "Rebuilds a keyed object from the positional array the compact encoder wrote.", Factory: "createRestoreFromJsonFn", FamilyTag: "cjr", Axis: AxisNone, Public: true, FnKey: "compactFromJson", CallOptions: "{strategy: 'compact'}"},
 }
 
 var (

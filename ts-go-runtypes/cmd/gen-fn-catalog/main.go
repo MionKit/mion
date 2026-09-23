@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 )
@@ -24,6 +25,7 @@ import (
 // uses, Name the one a marker spells: separate vocabularies, so the page shows both.
 type fn struct {
 	Name     string   `json:"name"`
+	Call     string   `json:"call,omitempty"`
 	Tag      string   `json:"tag,omitempty"`
 	Doc      string   `json:"doc"`
 	Factory  string   `json:"factory,omitempty"`
@@ -47,6 +49,26 @@ func optionsLabel(op operations.Operation) string {
 	}
 }
 
+// callOf spells the factory call that compiles this operation, since one factory compiles a
+// different function per options literal.
+func callOf(op operations.Operation) string {
+	if op.Factory == "" {
+		return ""
+	}
+	switch {
+	case op.Axis == operations.AxisJsonStrategy:
+		quoted := make([]string, len(op.Strategies))
+		for i, strategy := range op.Strategies {
+			quoted[i] = "'" + strategy + "'"
+		}
+		return op.Factory + "<T>(undefined, {strategy: " + strings.Join(quoted, " | ") + "})"
+	case op.CallOptions != "":
+		return op.Factory + "<T>(undefined, " + op.CallOptions + ")"
+	default:
+		return op.Factory + "<T>()"
+	}
+}
+
 func main() {
 	all := operations.All()
 	out := make([]fn, 0, len(all))
@@ -57,6 +79,7 @@ func main() {
 		}
 		out = append(out, fn{
 			Name:     op.FnKey,
+			Call:     callOf(op),
 			Tag:      op.FamilyTag,
 			Doc:      op.Doc,
 			Factory:  op.Factory,
@@ -75,6 +98,8 @@ func main() {
 	}{Functions: out}
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
+	// Calls carry `<T>`; unescaped, the committed file reads as the page shows it.
+	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(payload); err != nil {
 		fmt.Fprintln(os.Stderr, "gen-fn-catalog:", err)
 		os.Exit(1)
