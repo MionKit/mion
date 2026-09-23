@@ -1,18 +1,16 @@
 // Pins that the JSON restore arms rebuild a value ONLY from its wire form.
 // `new Date(null)` is the epoch, `new Date(true)` is 1 ms past it,
 // `BigInt(true)` is 1n, `new Set(null)` is an empty set: the engine coerces,
-// (a WHOLE number for a bigint stays accepted: that lenient spelling is a
-// promise `parse` already made, see parse.test.ts)
-// so a body such as `{"expires": null}` used to come out of `parse` as a
-// valid Date and `{"tags": null}` as a valid empty Set. Every arm now
-// transforms the string (or array) the encoder writes and leaves anything
-// else untouched, so validate refuses it and `parse` throws.
+// so a body such as `{"expires": null}` used to decode as a valid Date and
+// `{"tags": null}` as a valid empty Set. Every arm now transforms the string
+// (or array) the encoder writes and leaves anything else untouched, so
+// validate refuses it. A WHOLE number for a bigint stays accepted.
 //
 // Found by the secjson fuzz lane (wrong-type matrix + `date.nan`); these are
 // its seed-free repros.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createParseFn, createValidateFn, RTParseError} from '@mionjs/run-types';
+import {createJsonDecoderFn, createValidateFn} from '@mionjs/run-types';
 
 interface Wire {
   when: Date;
@@ -31,7 +29,6 @@ const valid = {
 };
 
 describe('JSON restore arms rebuild only from the wire form', () => {
-  const parse = createParseFn<Wire>();
   const validate = createValidateFn<Wire>();
   const decoders = [
     createJsonDecoderFn<Wire>(undefined, {strategy: 'strip'}),
@@ -57,7 +54,6 @@ describe('JSON restore arms rebuild only from the wire form', () => {
   for (const [field, wrong] of cases) {
     it(`${String(field)} = ${JSON.stringify(wrong)} never becomes a valid value`, () => {
       const body = {...valid, [field]: wrong};
-      expect(() => parse(structuredClone(body))).toThrow(RTParseError);
       for (const decode of decoders) {
         let value: unknown;
         try {
@@ -95,7 +91,7 @@ describe('JSON restore arms rebuild only from the wire form', () => {
   });
 
   it('the wire form still restores', () => {
-    const value = parse(structuredClone(valid));
+    const value = decoders[1](JSON.stringify(valid));
     expect(value.when).toBeInstanceOf(Date);
     expect(value.big).toBe(12345678901234567890n);
     expect(value.tags).toEqual(new Set(['a']));

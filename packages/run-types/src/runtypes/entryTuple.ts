@@ -367,16 +367,6 @@ const errorDefaults = (): CompiledFnArgs => ({vλl: '', pλth: '[]', εrr: '[]'}
 
 const valueShaped = (fnID: string, noop: AnyFn): FamilyMeta => ({fnID, args: valueArgs, defaultParamValues: valueDefaults, noop});
 
-// Parse bodies take (v, st): the value plus the `{ok}` status holder they flip on a mismatch. The noop is
-// identity because an entry is noop only for an any/unknown root, where nothing can fail.
-const parseArgs = () => ({vλl: 'v', stαt: 'st'}) as CompiledFnArgs;
-const parseDefaults = (): CompiledFnArgs => ({vλl: '', stαt: '{ok:true}'});
-const parseShaped = (fnID: string): FamilyMeta => ({
-  fnID,
-  args: parseArgs,
-  defaultParamValues: parseDefaults,
-  noop: noopIdentity,
-});
 const errorShaped = (fnID: string): FamilyMeta => ({fnID, args: errorArgs, defaultParamValues: errorDefaults, noop: noopErrors});
 
 // Keyed by the tuple's slot-0 family tag. The seven JSON-composite tags borrow the metadata of their host family
@@ -410,9 +400,6 @@ export const familyMeta: Record<string, FamilyMeta> = {
     noop: noopFalse,
   },
   ces: valueShaped('ces', noopIdentity),
-  prs: parseShaped('prs'),
-  prsf: parseShaped('prsf'),
-  prss: parseShaped('prss'),
   uke: errorShaped('uke'),
   ukuw: valueShaped('ukuw', noopIdentity),
   // Name card: its typeName slot carries the build-time class name registerClassSerializer's name lane keys on.

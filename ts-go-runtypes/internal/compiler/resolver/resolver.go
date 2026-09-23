@@ -125,8 +125,6 @@ type Options struct {
 	// NOT a disk-fingerprint input: it forks each entry's fnHash like a per-site option, so distinct defaults key
 	// distinct cache entries on their own.
 	ValidateDefaults ValidateDefaults
-	// ParseDefaults is the project-wide default for createParseFn's strategy, merged per site the same way, site-wins.
-	ParseDefaults ParseDefaults
 	// Enrichment session config for OpEnrich: spawn-time only, the wire carries just the target Files.
 	// EnrichFriendly / EnrichMock select the families to maintain; both false means both (the CLI default).
 	// EnrichI18n syncs per-locale translation mirrors (scaffold and sync only, never translated content); serve seeds
@@ -143,13 +141,6 @@ type Options struct {
 type ValidateDefaults struct {
 	// NumberMode defaults ValidateOptions.numberMode ("" = unset → isFinite).
 	NumberMode string
-}
-
-// ParseDefaults is the project-wide default a build may set through the `parse` plugin / tsconfig object;
-// an empty field means unset, so the call site's value or the built-in default applies.
-type ParseDefaults struct {
-	// Strategy defaults ParseOptions.strategy ("" = unset → preserve).
-	Strategy string
 }
 
 // Session owns a Program and answers type queries against it; one shared serializer cache, which survives a

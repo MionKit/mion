@@ -33,7 +33,6 @@ type buildFlags struct {
 	binarySizingStringBytes int
 	binarySizingMaxBytes    int
 	numberMode              string
-	parseStrategy           string
 	patternSampleCount      int
 	patternSampleRetries    int
 	markerPackages          string
@@ -58,7 +57,6 @@ type buildOptions struct {
 	binarySizingStringBytes int
 	binarySizingMaxBytes    int
 	numberMode              string
-	parseStrategy           string
 	patternSampleCount      int
 	patternSampleRetries    int
 	markerPackages          []string
@@ -90,7 +88,6 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		binarySizingStringBytes: flags.binarySizingStringBytes,
 		binarySizingMaxBytes:    flags.binarySizingMaxBytes,
 		numberMode:              flags.numberMode,
-		parseStrategy:           flags.parseStrategy,
 		patternSampleCount:      flags.patternSampleCount,
 		patternSampleRetries:    flags.patternSampleRetries,
 	}
@@ -160,10 +157,6 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	// when --number-mode was not explicitly passed, tsc-style.
 	if !flags.set["number-mode"] && plugin.Validate != nil && strings.TrimSpace(plugin.Validate.NumberMode) != "" {
 		out.numberMode = strings.TrimSpace(plugin.Validate.NumberMode)
-	}
-	// parse strategy default (parse.strategy): same tsc-style fill-in.
-	if !flags.set["parse-strategy"] && plugin.Parse != nil && strings.TrimSpace(plugin.Parse.Strategy) != "" {
-		out.parseStrategy = strings.TrimSpace(plugin.Parse.Strategy)
 	}
 
 	// Pattern sample generation knobs: pointer keys so an explicit 0 (disable

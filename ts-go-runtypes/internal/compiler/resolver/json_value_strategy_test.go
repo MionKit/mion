@@ -3,11 +3,22 @@ package resolver_test
 import (
 	"testing"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
 // Resolver coverage for the value-level JSON factories: their `strategy` is AxisNone, so it
-// selects a whole FAMILY rather than a variant, the same road createParseFn takes.
+// selects a whole FAMILY rather than a variant.
+
+// wantPlainFnId is the plain (option-free) fnHash of a registered operation.
+func wantPlainFnId(t *testing.T, opName string) string {
+	t.Helper()
+	op, ok := operations.ByName(opName)
+	if !ok {
+		t.Fatalf("%s op not registered", opName)
+	}
+	return operations.FnHashFor(op, nil, "", false)
+}
 
 // jsonValueLooseDTS widens `strategy` to `string`: the only way a value the real union rejects
 // can reach the scanner.
@@ -90,8 +101,7 @@ export const strip = createStripUnknownKeysFn<User>();
 	}
 }
 
-// An unrecognised strategy takes the default rather than failing the build — the same
-// choice createParseFn makes, and the reason the TS union is the real guard.
+// An unrecognised strategy takes the default rather than failing the build, which is why the TS union is the real guard.
 func TestJsonValueFactories_UnrecognisedStrategyKeepsTheClone(t *testing.T) {
 	const code = `import {createPrepareForJsonFn, createRestoreFromJsonFn} from '@mionjs/run-types';
 createPrepareForJsonFn<{a: string}>(undefined, {strategy: 'nonsense'});
@@ -105,7 +115,7 @@ createRestoreFromJsonFn<{a: string}>(undefined, {strategy: 'nonsense'});
 	if len(resp.Sites) != 2 {
 		t.Fatalf("expected 2 Sites, got %d: %+v", len(resp.Sites), resp.Sites)
 	}
-	want := []string{wantParseFnId(t, "prepareForJsonClone"), wantParseFnId(t, "restoreFromJsonClone")}
+	want := []string{wantPlainFnId(t, "prepareForJsonClone"), wantPlainFnId(t, "restoreFromJsonClone")}
 	for i, site := range resp.Sites {
 		if site.FnId != want[i] {
 			t.Errorf("Site[%d].FnId = %q, want the clone family %q", i, site.FnId, want[i])

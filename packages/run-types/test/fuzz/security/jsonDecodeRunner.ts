@@ -1,7 +1,7 @@
 // The secjson lane driver: generate a random SERIALISABLE type, compile it,
 // encode one conforming value to its JSON wire, walk the parsed tree for every
 // attackable position, and run the dictionary (plus blind junk mutations)
-// through the three JSON decoders and `parse`, in process.
+// through the three JSON decoders, in process.
 
 import {mixSeed, withSeededRandom, mulberry32} from '../core/seededRng.ts';
 import {runFuzzLoop} from '../core/runLoop.ts';
@@ -128,7 +128,6 @@ async function fuzzOne(lane: Lane, seed: number): Promise<void> {
   const tree = JSON.parse(text) as unknown;
   const positions = collectPositions(generated, tree);
   const probe: JsonProbe = {
-    parse: compiled.parse,
     decoders: compiled.decoders,
     validate: compiled.validate,
     encoders: compiled.jsonEncoders,

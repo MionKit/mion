@@ -7,7 +7,7 @@
 // `undefined` rather than deleting it, so the checks read the value.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createParseFn} from '@mionjs/run-types';
+import {createJsonDecoderFn} from '@mionjs/run-types';
 
 interface Item {
   n: number;
@@ -38,13 +38,6 @@ describe('strip blanks undeclared keys inside Map values and Set members', () =>
     expect((out.lookup.get('k') as Loose).extra).toBeUndefined();
     expect(([...out.nested.get('k')!][0] as Loose).extra).toBeUndefined();
     expect(({} as {admin?: boolean}).admin).toBeUndefined();
-  });
-
-  it('parse with the strip strategy does the same', () => {
-    const parse = createParseFn<Holder>(undefined, {strategy: 'strip'});
-    const out = parse(JSON.parse(wire));
-    expect(([...out.items][0] as Loose).extra).toBeUndefined();
-    expect((out.lookup.get('k') as Loose).extra).toBeUndefined();
   });
 
   it('preserve keeps the extras, as documented', () => {

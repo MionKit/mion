@@ -13,7 +13,6 @@ const PLUGIN_OPTION_KEY_TABLE = {
   emitMode: true,
   binarySizing: true,
   validate: true,
-  parse: true,
   parallelScan: true,
   parallelRender: true,
   singleThreaded: true,

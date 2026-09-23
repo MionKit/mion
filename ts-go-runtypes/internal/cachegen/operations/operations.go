@@ -76,18 +76,6 @@ var registry = []Operation{
 	{Name: "validateUnionKeys", Doc: "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.", Factory: "createValidateFn", FamilyTag: "vuk", Axis: AxisValidateOptions, Public: true, FnKey: "validateUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
 	{Name: "validationErrorsUnionKeys", Doc: "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.", Factory: "createGetValidationErrorsFn", FamilyTag: "veuk", Axis: AxisValidateOptions, Public: true, FnKey: "validationErrorsUnionKeys", CircularGuarded: true, CallOptions: "{checkUnionUnknowns: true}"},
 
-	// createParseFn: restore a JSON.parse output into the typed shape AND check it in ONE walk, throwing an RTParseError with the
-	// full report. One operation PER STRATEGY rather than a strategy axis: DemandFor's AxisJsonStrategy arm assumes a COMPOSITE and
-	// variantKey keys entries off option NAMES with no strategy slot, so a type-walking family with a strategy axis would need new
-	// plumbing in both; the scanner instead reads `strategy` and picks an operation, the route checkUnknowns already uses.
-	// The three differ ONLY in what their body composes, and so in how undeclared keys are treated:
-	//   - parse (the DEFAULT): rj + val. Nothing rebuilt, extras kept, the cheapest shape.
-	//   - parseStrip: ukuw + rj + val. The ukuw pre-pass blanks undeclared keys before restore walks the declared shape.
-	//   - parseFail: rj + vst. The fused validate{checkUnknowns} rejects extras in ONE pass, so strict costs a single call too.
-	{Name: "parse", Doc: "Restores a JSON.parse output into the typed shape and checks it in one walk, throwing on a mismatch. Undeclared properties are kept.", Factory: "createParseFn", FamilyTag: "prs", Axis: AxisNone, Public: true, FnKey: "parse"},
-	{Name: "parseStrip", Doc: "Parse, with undeclared properties removed before the value is restored.", Factory: "createParseFn", FamilyTag: "prss", Axis: AxisNone, Public: true, FnKey: "parseStrip", CallOptions: "{strategy: 'strip'}"},
-	{Name: "parseFail", Doc: "Parse, rejecting any value that carries an undeclared property.", Factory: "createParseFn", FamilyTag: "prsf", Axis: AxisNone, Public: true, FnKey: "parseFail", CallOptions: "{strategy: 'fail'}"},
-
 	// hasUnknownKeys: the standalone predicate, the right tool when the caller already holds a validated value.
 	{Name: "hasUnknownKeys", Doc: "Answers whether a value carries any property the type does not declare.", Factory: "createHasUnknownKeysFn", FamilyTag: "huk", Axis: AxisHasUnknownKeysOptions, Public: true, FnKey: "hasUnknownKeys"},
 
@@ -122,7 +110,7 @@ var registry = []Operation{
 	},
 
 	// The JSON value-level primitives the composites wrap and createPrepareForJsonFn and its siblings compile. Three operations sit
-	// behind each prepare / restore factory, one per `strategy`, swapped the way createParseFn's are (jsonValueStrategyOperation in
+	// behind each prepare / restore factory, one per `strategy`, picked by the scanner (jsonValueStrategyOperation in
 	// resolver/scan.go); a framework threading its own marker reaches any of them by FnKey through getRTFunction.
 	// Each FnKey equals its family tag, and there is no runtime hashing, so the resolver reads the plugin-injected plain fnHash.
 	//   - rjs (clone restore): mion's `clone` strategy decodes with it, no createJsonDecoderFn strategy composes it.

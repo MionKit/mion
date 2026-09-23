@@ -7,23 +7,13 @@
 //     string) makes a plain decoder either return a value validate refuses or
 //     throw the engine's own error, and never returns a value validate
 //     accepts;
-//   - `parse` turns every such failure into `RTParseError` and nothing else;
 //   - a value nested deeper than the engine stack on a recursive type makes
-//     validate throw `RangeError`, and `parse` reports that as a
-//     serialization error instead of letting the `RangeError` out.
+//     validate throw `RangeError` promptly rather than hanging.
 //
-// The plain decoders deliberately carry no try/catch (the hot path); `parse`
-// is the typed entry point for untrusted input.
+// The plain decoders deliberately carry no try/catch (the hot path).
 
 import {describe, expect, it} from 'vitest';
-import {
-  createJsonDecoderFn,
-  createJsonEncoderFn,
-  createParseFn,
-  createValidateFn,
-  isSerializationError,
-  RTParseError,
-} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn, createValidateFn} from '@mionjs/run-types';
 
 interface Wire {
   big: bigint;
@@ -53,7 +43,6 @@ const valid = JSON.parse(
 const dateIndex = (valid.either as [number, string])[0];
 const otherIndex = dateIndex === 0 ? 1 : 0;
 
-const parse = createParseFn<Wire>();
 const validate = createValidateFn<Wire>();
 const decoders = {
   strip: createJsonDecoderFn<Wire>(undefined, {strategy: 'strip'}),
@@ -87,22 +76,11 @@ const cases: Array<[keyof Wire, unknown, 'throws' | 'validate-refuses']> = [
 
 describe('a well-shaped wire value with bad content', () => {
   it('the valid wire round-trips and validates', () => {
-    expect(validate(parse(structuredClone(valid)))).toBe(true);
     for (const decode of Object.values(decoders)) expect(validate(decode(JSON.stringify(valid)))).toBe(true);
   });
 
   for (const [field, bad, outcome] of cases) {
     const body = () => ({...structuredClone(valid), [field]: bad});
-
-    it(`${field} = ${JSON.stringify(bad)}: parse throws only RTParseError`, () => {
-      let caught: unknown;
-      try {
-        parse(body());
-      } catch (err) {
-        caught = err;
-      }
-      expect(caught).toBeInstanceOf(RTParseError);
-    });
 
     it(`${field} = ${JSON.stringify(bad)}: no plain decoder returns a value validate accepts`, () => {
       for (const [name, decode] of Object.entries(decoders)) {
@@ -129,7 +107,6 @@ describe('nesting deeper than the engine stack', () => {
     n: number;
     next?: Chain;
   }
-  const parseChain = createParseFn<Chain>();
   const validateChain = createValidateFn<Chain>();
 
   function deepChain(depth: number): Chain {
@@ -143,26 +120,13 @@ describe('nesting deeper than the engine stack', () => {
     return root;
   }
 
-  it('a shallow chain validates and parses', () => {
+  it('a shallow chain validates', () => {
     expect(validateChain(deepChain(100))).toBe(true);
-    expect(parseChain(deepChain(100))).toEqual(deepChain(100));
   });
 
   it('validate throws RangeError promptly rather than hanging', () => {
     const started = performance.now();
     expect(() => validateChain(deepChain(500_000))).toThrow(RangeError);
     expect(performance.now() - started).toBeLessThan(5_000);
-  });
-
-  it('parse reports the overflow as a serialization error, never a raw RangeError', () => {
-    let caught: unknown;
-    try {
-      parseChain(deepChain(500_000));
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(RTParseError);
-    const {issues} = caught as RTParseError;
-    expect(isSerializationError(issues) && issues.deserializeError).toMatch(/nested too deep/);
   });
 });

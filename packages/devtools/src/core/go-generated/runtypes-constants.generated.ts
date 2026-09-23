@@ -17,9 +17,6 @@ export const CACHE_MODULES = {
   fromBinary: {name: 'fromBinaryModule', varPrefix: 'g_fb_', tag: 'fb'},
   hasUnknownKeys: {name: 'hasUnknownKeysModule', varPrefix: 'g_huk_', tag: 'huk'},
   jsonSchema: {name: 'jsonSchemaModule', varPrefix: 'g_jsc_', tag: 'jsc'},
-  parse: {name: 'parseModule', varPrefix: 'g_prs_', tag: 'prs'},
-  parseFail: {name: 'parseFailModule', varPrefix: 'g_prsf_', tag: 'prsf'},
-  parseStrip: {name: 'parseStripModule', varPrefix: 'g_prss_', tag: 'prss'},
   prepareForJsonClone: {name: 'prepareForJsonCloneModule', varPrefix: 'g_pjs_', tag: 'pjs'},
   prepareForJsonMutate: {name: 'prepareForJsonMutateModule', varPrefix: 'g_pj_', tag: 'pj'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
@@ -62,15 +59,6 @@ export const HASUNKNOWNKEYS_TAG = 'huk';
 export const JSONSCHEMA_VAR_PREFIX = 'g_jsc_';
 export const JSONSCHEMA_MODULE_NAME = 'jsonSchemaModule';
 export const JSONSCHEMA_TAG = 'jsc';
-export const PARSE_VAR_PREFIX = 'g_prs_';
-export const PARSE_MODULE_NAME = 'parseModule';
-export const PARSE_TAG = 'prs';
-export const PARSEFAIL_VAR_PREFIX = 'g_prsf_';
-export const PARSEFAIL_MODULE_NAME = 'parseFailModule';
-export const PARSEFAIL_TAG = 'prsf';
-export const PARSESTRIP_VAR_PREFIX = 'g_prss_';
-export const PARSESTRIP_MODULE_NAME = 'parseStripModule';
-export const PARSESTRIP_TAG = 'prss';
 export const PREPAREFORJSONCLONE_VAR_PREFIX = 'g_pjs_';
 export const PREPAREFORJSONCLONE_MODULE_NAME = 'prepareForJsonCloneModule';
 export const PREPAREFORJSONCLONE_TAG = 'pjs';

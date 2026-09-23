@@ -8,13 +8,11 @@
 //     O1 valid-accepted     validate(mock)            === true
 //     O2 invalid-rejected   validate(corrupted-mock)  === false
 //     O5 json-stable        encode(decode(encode v))  === encode(v)
-//     O20 parse-roundtrip   parse(JSON.parse(encode v)) deep-equals v
 //     O6 binary-stable      same, over the binary wire
 //
 //   CONSISTENCY (two functions must agree)
 //     O4 errors-agree       validate(x)  ⇔  getValidationErrors(x).length === 0
 //     O18 fused-agree       validate{checkUnknowns}(x) ⇔ validate(x) && !hasUnknownKeys(x)
-//     O19 parse-agree       parse(x) throws  ⇔  !validate(restore(x))
 //
 //   ROBUSTNESS (totality — must never throw / hang on any input)
 //     O3 validate-total     validate(anything) returns a boolean, no throw
@@ -79,18 +77,8 @@ export interface FuzzTarget {
    *  any shape be assigned (parameters are contravariant); the oracle casts
    *  the value back at the one call site. **/
   clone?: (value: never) => unknown;
-  /** createParseFn for the same type, and the composition it fuses. `parse`
-   *  throws on a mismatch, so both oracles below run it inside a try.
-   *
-   *  `restoreFromJsonMutate` is the reference half, recovered through a marker wrapper
-   *  because the primitive has no createX factory. Without it O19 can only check
-   *  that parse's OWN output validates, which a parse that wrongly rejects
-   *  everything would still satisfy — supply it and the oracle becomes the
-   *  two-sided equality O18 is for the fused validator. **/
-  parse?: (value: unknown) => unknown;
-  restoreFromJsonMutate?: (value: unknown) => unknown;
-  /** The STRIPPING restore (`rjs`), mion's `clone` decoder. Recovered through a marker wrapper like
-   *  `restoreFromJsonMutate`, since the primitive has no createX factory. O26 holds it to the stronger
+  /** The STRIPPING restore (`rjs`), mion's `clone` decoder. Recovered through a marker wrapper, since
+   *  the primitive has no createX factory. O26 holds it to the stronger
    *  contract: an undeclared wire key comes back GONE, not blanked. **/
   restoreFromJsonClone?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
@@ -155,8 +143,6 @@ export type OracleId =
   | 'O16'
   | 'O17'
   | 'O18'
-  | 'O19'
-  | 'O20'
   | 'O21'
   | 'O22'
   | 'O23'
@@ -809,118 +795,6 @@ function droppedKeyPaths(before: unknown, after: unknown, path: RTValidationErro
     out.push(...droppedKeyPaths(beforeRecord[key], afterRecord[key], [...path, key]));
   }
   return out;
-}
-
-/** O20 — parse round-trips the encoder: whatever the JSON encoder wrote, parse
- *  must read back into the value it came from.
- *
- *  The strongest property parse has, and the cheapest: no reference
- *  implementation needed, just the pair. It is what catches a leaf whose restore
- *  and whose encode disagree on the wire form (a bigint written as a number but
- *  read as a string, say), which no hand-written case would think to try.
- *
- *  Only runs on the VALID phase — a corrupted or junk value has no encoding to
- *  round-trip. Skipped for a target without both fns. **/
-export function checkParseRoundTrip(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  if (!target.parse || !target.jsonEncode) return null;
-  let wire: string | undefined;
-  try {
-    wire = target.jsonEncode(value);
-  } catch {
-    return null; // O7 owns encode failures.
-  }
-  if (wire === undefined) return null; // no document to parse back (undefined root)
-  let parsed: unknown;
-  try {
-    parsed = target.parse(JSON.parse(wire));
-  } catch (err) {
-    return violation('O20', target, ctx, `parse rejected its own encoder's output: ${errMsg(err)}`, value);
-  }
-  // Compared through the encoder rather than by deep equality: re-encoding
-  // normalises the optional-undefined-key vs dropped-key difference the same way
-  // O5 does, and undeclared keys the default `strip` strategy removed were never
-  // on the wire to begin with.
-  let reWire: string | undefined;
-  try {
-    reWire = target.jsonEncode(parsed);
-  } catch (err) {
-    return violation('O20', target, ctx, `re-encoding a parsed value threw: ${errMsg(err)}`, value);
-  }
-  if (reWire !== wire) {
-    return violation(
-      'O20',
-      target,
-      ctx,
-      `parse round-trip is not stable:\n  enc1=${cut(wire)}\n  enc2=${cut(String(reWire))}`,
-      value
-    );
-  }
-  return null;
-}
-
-/** O19 — parse accepts exactly what `restoreFromJsonMutate` + `validate` accepts.
- *
- *  The mirror of O18: parse fuses restore and check into one walk, so the
- *  composition it replaces is the trusted source, and the comparison runs BOTH
- *  ways. One way alone is not enough — a parse that rejected everything would
- *  satisfy "whatever it accepted validates" without ever being caught.
- *
- *  The totality check rides along on every phase, junk included: parse may only
- *  ever fail by throwing RTParseError, never by letting a raw
- *  TypeError / SyntaxError out of a restoring leaf.
- *
- *  Every call gets its OWN copy. Restoring leaves rewrite in place (a wire
- *  string becomes a Date on the input object), so sharing one value between the
- *  two sides would compare parse against a reference that had already been
- *  half-restored — and would hand the mutated mock to the oracles that run
- *  after this one. **/
-export function checkParseAgree(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
-  const {parse, restoreFromJsonMutate} = target;
-  if (!parse) return null;
-
-  let parsed: unknown;
-  let threw = false;
-  let thrownName = '';
-  try {
-    parsed = parse(deepCloneForRoundTrip(value));
-  } catch (err) {
-    threw = true;
-    thrownName = err instanceof Error ? err.name : typeof err;
-  }
-  if (threw && thrownName !== 'RTParseError') {
-    return violation('O19', target, ctx, `parse failed with a raw ${thrownName} instead of RTParseError`, value);
-  }
-
-  if (restoreFromJsonMutate) {
-    let expected: boolean | undefined;
-    try {
-      expected = target.validate(restoreFromJsonMutate(deepCloneForRoundTrip(value)));
-    } catch {
-      // The reference side is undefined for this input: restoreFromJsonMutate assumes
-      // well-formed data and has no guards of its own (which is the whole reason
-      // parse needed them). O3 owns validate's totality.
-      expected = undefined;
-    }
-    if (expected !== undefined && expected === threw) {
-      const verb = threw ? 'rejected' : 'accepted';
-      const refVerb = expected ? 'accepts' : 'rejects';
-      return violation('O19', target, ctx, `parse ${verb} a value restoreFromJsonMutate + validate ${refVerb}`, value);
-    }
-  }
-
-  // parse's OWN output must validate too, not merely its accept/reject decision.
-  if (!threw) {
-    let ok: boolean;
-    try {
-      ok = target.validate(parsed);
-    } catch {
-      return null; // O3 owns validate's totality.
-    }
-    if (!ok) {
-      return violation('O19', target, ctx, 'parse accepted a value whose restored form fails validate', value);
-    }
-  }
-  return null;
 }
 
 /** O5 — JSON round-trip is stable on the wire: re-encoding a decode of the

@@ -220,11 +220,7 @@ describe('SJ oracles fire on broken JSON decoders (negative controls)', () => {
       out['__proto__'] = {polluted: true};
       return out;
     };
-    const result = checkJsonDecode(
-      {decoders: {bad: polluter}, validate: accepting},
-      {id: 'x', expect: 'any', text: '{}', tree: {}},
-      ctx
-    );
+    const result = checkJsonDecode({decoders: {bad: polluter}, validate: accepting}, {id: 'x', expect: 'any', text: '{}'}, ctx);
     expect(oracles(result.violations)).toEqual(['SJ-PROTO']);
   });
 
@@ -235,7 +231,7 @@ describe('SJ oracles fire on broken JSON decoders (negative controls)', () => {
         validate: accepting,
         encoders: {bad: () => '{"a":1,"nested":{"__proto__":{"polluted":true}}}'},
       },
-      {id: 'object.proto-key', expect: 'any', text: '{}', tree: {}},
+      {id: 'object.proto-key', expect: 'any', text: '{}'},
       ctx
     );
     expect(oracles(result.violations)).toEqual(['SJ-PROTO']);
@@ -250,7 +246,7 @@ describe('SJ oracles fire on broken JSON decoders (negative controls)', () => {
     };
     const result = checkJsonDecode(
       {decoders: {ok: () => ({a: 1})}, validate: accepting, clone: polluter},
-      {id: 'record.proto-key', expect: 'any', text: '{}', tree: {}},
+      {id: 'record.proto-key', expect: 'any', text: '{}'},
       ctx
     );
     expect(oracles(result.violations)).toEqual(['SJ-PROTO']);
@@ -268,31 +264,10 @@ describe('SJ oracles fire on broken JSON decoders (negative controls)', () => {
     expect(out).toEqual([]);
   });
 
-  it('SJ-PARSE fires when parse throws a raw engine error', () => {
-    const parse = (): unknown => {
-      throw new SyntaxError('Cannot convert 12x to a BigInt');
-    };
-    const result = checkJsonDecode(
-      {parse, decoders: {}, validate: accepting},
-      {id: 'x', expect: 'any', text: '"12x"', tree: '12x'},
-      ctx
-    );
-    expect(oracles(result.violations)).toEqual(['SJ-PARSE']);
-  });
-
-  it('SJ-REJECT fires when parse accepts a payload the type rules out', () => {
-    const result = checkJsonDecode(
-      {parse: (v) => v, decoders: {}, validate: accepting},
-      {id: 'x', expect: 'reject', text: '"wrong"', tree: 'wrong'},
-      ctx
-    );
-    expect(oracles(result.violations)).toEqual(['SJ-REJECT']);
-  });
-
   it('SJ-REJECT fires when a decoder turns a rejected payload into an accepted value', () => {
     const result = checkJsonDecode(
       {decoders: {lenient: identity}, validate: accepting},
-      {id: 'x', expect: 'reject', text: '"wrong"', tree: 'wrong'},
+      {id: 'x', expect: 'reject', text: '"wrong"'},
       ctx
     );
     expect(oracles(result.violations)).toEqual(['SJ-REJECT']);
@@ -302,11 +277,7 @@ describe('SJ oracles fire on broken JSON decoders (negative controls)', () => {
     const throwing = (): unknown => {
       throw new RangeError('nope');
     };
-    const result = checkJsonDecode(
-      {decoders: {t: throwing}, validate: accepting},
-      {id: 'x', expect: 'reject', text: '1', tree: 1},
-      ctx
-    );
+    const result = checkJsonDecode({decoders: {t: throwing}, validate: accepting}, {id: 'x', expect: 'reject', text: '1'}, ctx);
     expect(result.violations).toEqual([]);
     expect(result.throws).toEqual({'t:RangeError': 1});
   });

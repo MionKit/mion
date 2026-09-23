@@ -24,11 +24,8 @@ import {
   createCloneExactShapeFn,
   createJsonDecoderFn,
   createJsonEncoderFn,
-  createParseFn,
   createValidateFn,
-  isSerializationError,
   BinaryDecodeError,
-  RTParseError,
   type DataOnly,
 } from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
@@ -66,8 +63,6 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
     preserve: createJsonDecoderFn<Stamps>(undefined, {strategy: 'preserve'}),
     compact: createJsonDecoderFn<Stamps>(undefined, {strategy: 'compact'}),
   };
-  const parse = createParseFn<Stamps>();
-  const parseBag = createParseFn<Bag>();
   const decodeBag = createJsonDecoderFn<Bag>();
   const validateBag = createValidateFn<Bag>();
   const decodeBinary = createBinaryDecoderFn<Counts>();
@@ -79,18 +74,6 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
     }
   });
 
-  it('parse reports the key as a serialization error', () => {
-    let caught: unknown;
-    try {
-      parse(JSON.parse(wire));
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(RTParseError);
-    const {issues} = caught as RTParseError;
-    expect(isSerializationError(issues) && issues.deserializeError).toBe(message('__proto__'));
-  });
-
   it('a decoder whose values need no rebuild still throws, and validate refuses it too', () => {
     // Record<string, unknown> has nothing to rebuild, but the key loop with the
     // refusal ships anyway: the decoder is a real function, never the JSON.parse
@@ -99,7 +82,6 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
     const bagWire = '{"a":1,"__proto__":{"admin":true}}';
     expect(() => decodeBag(bagWire)).toThrow(message('__proto__'));
     expect(validateBag(JSON.parse(bagWire))).toBe(false);
-    expect(() => parseBag(JSON.parse(bagWire))).toThrow(RTParseError);
   });
 
   it('the binary decoder throws BinaryDecodeError on the key', () => {
@@ -111,7 +93,7 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
 
   it('the valid wires still decode', () => {
     expect(decoders.preserve('{"a":"2024-01-01T00:00:00.000Z"}')).toEqual({a: new Date('2024-01-01T00:00:00.000Z')});
-    expect(parseBag({a: 1})).toEqual({a: 1});
+    expect(decodeBag('{"a":1}')).toEqual({a: 1});
     expect(decodeBinary(createBinaryEncoderFn<Counts>()({a: 1}))).toEqual({a: 1});
   });
 });
@@ -159,10 +141,9 @@ describe('`prototype` and `constructor` are ordinary wire keys a record carries'
     expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
   });
 
-  it('validate accepts them, and parse and the exact-shape clone keep them', () => {
+  it('validate accepts them, and the exact-shape clone keeps them', () => {
     const value = JSON.parse(wire) as Fields;
     expect(createValidateFn<Fields>()(value)).toBe(true);
-    expect(createParseFn<Fields>()(value)).toEqual(expected);
     const cloned = createCloneExactShapeFn<Fields>()(value) as Record<string, unknown>;
     expect(cloned).toEqual(expected);
     expect(Object.getPrototypeOf(cloned)).toBe(Object.prototype);
@@ -366,7 +347,6 @@ describe('Map keys and Set members are values, never property names', () => {
       expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
       expect(createValidateFn<Bags>()(out)).toBe(true);
     }
-    expect(createParseFn<Bags>()(JSON.parse(createJsonEncoderFn<Bags>()(value()) as string))).toEqual(value());
   });
 
   it('round-trip through binary the same way', () => {

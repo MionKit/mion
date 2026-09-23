@@ -8,7 +8,7 @@
 // this is its seed-free repro.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createParseFn, createValidateFn, RTParseError} from '@mionjs/run-types';
+import {createJsonDecoderFn, createValidateFn} from '@mionjs/run-types';
 
 interface WithArrays {
   nums: number[];
@@ -35,7 +35,6 @@ describe('JSON decoders never loop over a non-array length', () => {
   const strip = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'strip'});
   const preserve = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'preserve'});
   const compact = createJsonDecoderFn<WithArrays>(undefined, {strategy: 'compact'});
-  const parse = createParseFn<WithArrays>();
   const validate = createValidateFn<WithArrays>();
 
   for (const field of ['nums', 'dates', 'rest', 'lookup', 'bag'] as const) {
@@ -53,9 +52,6 @@ describe('JSON decoders never loop over a non-array length', () => {
         expect(performance.now() - started).toBeLessThan(200);
         if (!threw) expect(validate(value)).toBe(false);
       }
-      const started = performance.now();
-      expect(() => parse(JSON.parse(text))).toThrow(RTParseError);
-      expect(performance.now() - started).toBeLessThan(200);
     });
   }
 

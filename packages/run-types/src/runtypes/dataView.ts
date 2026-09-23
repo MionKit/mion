@@ -22,8 +22,7 @@ const MAX_VARINT = 5;
 export const MAX_ZERO_BYTE_ITEMS = 1 << 20;
 
 /** Thrown by the deserializer on a malformed buffer: a varint, string or count that runs past the end, or a
- *  count the bytes left cannot hold. Compiled decoders throw it as-is (no wrapper on the hot path); `parse` is
- *  the typed entry point for untrusted input. **/
+ *  count the bytes left cannot hold. Compiled decoders throw it as-is (no wrapper on the hot path). **/
 export class BinaryDecodeError extends Error {
   constructor(message: string) {
     super(message);

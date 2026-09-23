@@ -104,10 +104,6 @@ export interface PluginOptions {
   //   - numberMode: the base `number` check — 'isFinite' (default; rejects NaN/Infinity), 'typeof' (accepts
   //     them), or 'notNaN' (rejects NaN, accepts Infinity). Eases migration from a looser library.
   validate?: {numberMode?: 'isFinite' | 'typeof' | 'notNaN'};
-  // Project-wide default for createParseFn's per-call-site strategy; a per-call `strategy` wins.
-  //   - strategy: what a parsed value does with undeclared properties — 'preserve' (default; keeps them),
-  //     'strip' (blanks them before the restore), or 'fail' (rejects the value).
-  parse?: {strategy?: 'preserve' | 'strip' | 'fail'};
   // NB: there is deliberately NO cacheDir option. The on-disk RT artifact cache (under node_modules/.cache/mion,
   // separate from `genDir`) follows the project's tsconfig `incremental` / `composite` switch.
   // (The internal MION_CACHE_DIR env var overrides it for tests / direct use.)
@@ -355,7 +351,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
       ...(options.binarySizing?.stringBytes !== undefined ? {binarySizingStringBytes: options.binarySizing.stringBytes} : {}),
       ...(options.binarySizing?.maxBytes !== undefined ? {binarySizingMaxBytes: options.binarySizing.maxBytes} : {}),
       ...(options.validate?.numberMode ? {numberMode: options.validate.numberMode} : {}),
-      ...(options.parse?.strategy ? {parseStrategy: options.parse.strategy} : {}),
       ...(options.inlineMode ? {inlineMode: options.inlineMode} : {}),
       ...(options.parallelScan !== undefined ? {parallelScan: options.parallelScan} : {}),
       ...(options.parallelRender !== undefined ? {parallelRender: options.parallelRender} : {}),

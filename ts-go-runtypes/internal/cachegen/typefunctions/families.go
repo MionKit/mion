@@ -67,11 +67,6 @@ var Families = []FamilySpec{
 	// The union-scoped validators (`{checkUnionUnknowns: true}`): plain bodies plus a key check on union member arms only.
 	family("validateUnionKeys", ValidateUnionKeysEmitter{}),
 	family("validationErrorsUnionKeys", ValidationErrorsUnionKeysEmitter{}),
-	// createParseFn, restore + check in one walk. One family per undeclared-key strategy; the emitter value
-	// carries the policy to every node (see parse.go).
-	family("parse", ParseEmitter{Extras: ExtrasPreserve}),
-	family("parseStrip", ParseEmitter{Extras: ExtrasStrip}),
-	family("parseFail", ParseEmitter{Extras: ExtrasFail}),
 	family("validate", ValidateEmitter{}),
 }
 

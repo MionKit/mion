@@ -2,9 +2,9 @@
 // position, or one blind mutation (a random junk subtree, the value lane's
 // `randomJunk`) anywhere in the tree.
 //
-// Every attack yields the JSON TEXT the decoders read and the re-parsed tree
-// `parse` reads, built from one `JSON.stringify` so both sides see the same
-// bytes (and an own `__proto__` key survives as an own key on both).
+// Every attack yields the JSON TEXT the decoders read and its re-parsed tree,
+// built from one `JSON.stringify` so both see the same bytes (and an own
+// `__proto__` key survives as an own key on both).
 
 import {applyMutation} from '../value/invalidValue.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';

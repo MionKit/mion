@@ -17,7 +17,6 @@ import {
   createJsonDecoderFn,
   createJsonEncoderFn,
   createJsonSchemaFn,
-  createParseFn,
   createValidateFn,
 } from '@mionjs/run-types';
 import {FAMILY_TAG_TO_FN_KEY, getRTFnCaches, registerClassSerializer} from '@mionjs/run-types/runtime';
@@ -103,7 +102,6 @@ const decoders = {
 const toBinary = createBinaryEncoderFn<Corpus>();
 const fromBinary = createBinaryDecoderFn<Corpus>();
 const clone = createCloneExactShapeFn<Corpus>();
-const parse = createParseFn<Corpus>();
 createHasUnknownKeysFn<Corpus>();
 createJsonSchemaFn<Corpus>();
 createMockDataFn<Corpus>();
@@ -174,7 +172,7 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
   // readable name reaching an emitted NAME is a real regression.
   //
   // Checked against the two shapes a family name is emitted in, rather than a
-  // bare substring scan: several readable names ('parse', 'validate') are also
+  // bare substring scan: some readable names ('validate') are also
   // ordinary JavaScript that legitimately appears in a body.
   it('no readable marker name reaches an emitted identifier or cache key', () => {
     const readableNames = Object.values(FAMILY_TAG_TO_FN_KEY).filter((fnKey) => fnKey.length > 4);
@@ -209,7 +207,6 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
       const text = encode(structuredClone(value())) as string;
       const decode = name === 'compact' ? decoders.compact : decoders.strip;
       expect(decode(text), name).toEqual(value());
-      if (name !== 'compact') expect(parse(JSON.parse(text))).toEqual(value());
     }
     expect(fromBinary(toBinary(value()))).toEqual(value());
     expect(clone(value())).toEqual(value());

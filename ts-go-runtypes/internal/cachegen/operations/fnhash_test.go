@@ -23,12 +23,8 @@ import (
 // +64: the union-scoped validators vuk / veuk (the `{checkUnionUnknowns: true}`
 // families), the same 32 keys apiece for the same reason.
 //
-// +3: the createParseFn families — parse / parseStrip / parseFail. AxisNone
-// and not CircularGuarded (a JSON.parse output cannot hold a cycle), so one key
-// each; the undeclared-key strategy is the operation, not an axis (see the
-// registry).
 // +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
-const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 64 + 3 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 + 64 + 64 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.
@@ -157,7 +153,7 @@ func TestByFnKey(t *testing.T) {
 	// The short family tags were RETIRED as marker tokens: a marker names the
 	// readable FnKey, never the tag it emits under. Keeping them unreachable is
 	// what makes a stale `'verr'` a build error (MKR014) instead of silence.
-	for _, retired := range []string{"val", "verr", "pj", "pjs", "rjs", "prs", "huk", "ukuw"} {
+	for _, retired := range []string{"val", "verr", "pj", "pjs", "rjs", "huk", "ukuw"} {
 		if _, ok := ByFnKey(retired); ok {
 			t.Errorf("retired family tag %q must not resolve as an FnKey", retired)
 		}
@@ -226,7 +222,6 @@ func TestSuggestFnKey(t *testing.T) {
 		"pjs":  "prepareForJsonClone",
 		"rjs":  "restoreFromJsonClone",
 		"ukuw": "stripUnknownKeysWire",
-		"prs":  "parse",
 	}
 	for tag, want := range retired {
 		if got := SuggestFnKey(tag); got != want {
