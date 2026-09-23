@@ -300,7 +300,7 @@ function numberParamsMatch(value: number, annotation: FormatAnnotation | undefin
       case 'multipleOfTolerance':
       case 'isCurrency':
       case 'mockSamples':
-        break; // presentation / generation-only
+        break; // no check of their own: presentation, generation, or read by multipleOf
       default:
         throw childMatchError(`no runtime test for number param '${key}'`);
     }

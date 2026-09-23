@@ -158,8 +158,7 @@ func TestNumberValidate_IntegerAndMultipleOf(t *testing.T) {
 	}
 }
 
-// TestNumberValidate_FractionalMultipleOf pins the tolerance check a fractional step emits: `v / 0.01` is not
-// exact (19.99 → 1998.9999999999998), so Number.isInteger would reject valid values. A whole step keeps `%`.
+// TestNumberValidate_FractionalMultipleOf: 19.99 / 0.01 is 1998.9999999999998, so Number.isInteger would reject it.
 func TestNumberValidate_FractionalMultipleOf(t *testing.T) {
 	emitter := numberFormatEmitter{}
 	cases := []struct {
@@ -208,9 +207,6 @@ func TestValidateParams(t *testing.T) {
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"gt": 5.0, "lt": 2.0})); len(errs) == 0 {
 		t.Error("expected gt>=lt ordering error")
 	}
-	// A fractional multipleOf is ALLOWED (JSON Schema permits any positive
-	// number, e.g. 0.01 on a money field); only a non-positive one is an error.
-	// An integer format only takes a whole step.
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"integer": true, "multipleOf": 0.5})); len(errs) == 0 {
 		t.Error("expected integer+fractional multipleOf error")
 	}
@@ -232,6 +228,7 @@ func TestValidateParams(t *testing.T) {
 			t.Errorf("expected multipleOfTolerance error for %v", params)
 		}
 	}
+	// A fractional multipleOf is allowed: JSON Schema permits any positive number (0.01 on a money field).
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 2.5})); len(errs) != 0 {
 		t.Errorf("expected fractional multipleOf to be accepted, got %v", errs)
 	}

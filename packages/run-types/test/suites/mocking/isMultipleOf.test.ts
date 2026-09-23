@@ -1,6 +1,4 @@
-// A fractional multipleOf is checked with a tolerance: `19.99 / 0.01` is 1998.9999999999998, so an exact
-// Number.isInteger check rejects valid prices. Pins the runtime twin, the child matcher using it, and the
-// generated validator over every cent value.
+// `19.99 / 0.01` is 1998.9999999999998, so a fractional step needs a tolerance; pins the JS twin, matcher and validator.
 import {describe, it, expect} from 'vitest';
 import type * as TF from '@mionjs/run-types/formats';
 import {createValidateFn} from '@mionjs/run-types';

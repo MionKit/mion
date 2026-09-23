@@ -9,7 +9,6 @@ import (
 )
 
 // numberFormatEmitter implements the format named "numberFormat", FormatNumber<P> in `@mionjs/run-types/formats`.
-// Surface: integer, min / max / lt / gt, multipleOf, multipleOfTolerance.
 // `float` is a generation and presentation tag like isCurrency, never a failable constraint: an IEEE float legally
 // holds whole values (2.0), so validation never rejects them. It steers mock generation toward fractional samples
 // and keeps binary packing on the float64 arm.
@@ -280,7 +279,7 @@ func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 		if multipleOf <= 0 {
 			errs = append(errs, label+": `multipleOf` must be greater than 0")
 		}
-		// An integer format only holds whole values, so a fractional step could only ever match its whole multiples.
+		// A fractional step on an integer format could only ever match its whole multiples.
 		if integer && !isWholeNumber(multipleOf) {
 			errs = append(errs, label+": `multipleOf` must be a whole number when `integer` is set")
 		}
@@ -296,12 +295,9 @@ func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 	return errs
 }
 
-// defaultMultipleOfTolerance is 4 × Number.EPSILON: `v / step` carries at most ~1.5 epsilon of rounding noise
-// relative to the quotient, so this accepts every decimal multiple (`19.99 / 0.01` is 1998.9999999999998) and
-// still rejects a real miss (`19.995 / 0.01` is half a step away).
+// defaultMultipleOfTolerance is 4 × Number.EPSILON, above the ~1.5 epsilon of noise in `v / step`, below a real miss.
 const defaultMultipleOfTolerance = 4 * 0x1p-52
 
-// multipleOfTolerance reads the relative tolerance a fractional multipleOf is checked with.
 func multipleOfTolerance(params map[string]any) float64 {
 	if tolerance, ok := formats.ReadNumberParam(params, "multipleOfTolerance"); ok {
 		return tolerance
@@ -309,11 +305,9 @@ func multipleOfTolerance(params map[string]any) float64 {
 	return defaultMultipleOfTolerance
 }
 
-// multipleOfCondition keeps the exact modulo for a WHOLE step (the only kind an integer format allows): cheaper,
-// and still right past 2^53 where every double is whole.
-// A FRACTIONAL step cannot use it (`0.0075 % 0.0001` is 9.99e-5, not 0) and accepts a quotient within `tolerance`
-// of a whole number, relative to the quotient. An overflowing quotient is Infinity, `Infinity - Infinity` is NaN,
-// and NaN fails the comparison, so the value is rejected instead of raising.
+// multipleOfCondition keeps the exact modulo for a WHOLE step: cheaper, and right past 2^53 where every double is whole.
+// A FRACTIONAL step cannot (`0.0075 % 0.0001` is 9.99e-5), so its tolerance is relative to the quotient.
+// An overflowing quotient ends in NaN, which fails the comparison, so the value is rejected instead of raising.
 // MIRROR of isMultipleOf in packages/run-types/src/mocking/isMultipleOf.ts.
 func multipleOfCondition(vλl string, step, tolerance float64) string {
 	literal := formats.FormatNumber(step)
