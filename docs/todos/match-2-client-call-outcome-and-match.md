@@ -29,16 +29,16 @@ Server and client see the same union. The lazy path stays one line:
 `if (isRpcError(outcome)) ...` narrows the rest to the value.
 
 `callRaw()` keeps the CURRENT 5-tuple, unchanged: `[result, error, undeclared,
-middleFnResults, middleFnErrors]`. The order is deliberate and documented in
+middlewareResults, middlewareErrors]`. The order is deliberate and documented in
 `packages/client/CLAUDE.md`; it stays the escape hatch for a call site that needs every
-outcome at once, middleware function slots included.
+outcome at once, middleware slots included.
 
 ## Direction
 
 The implementer plans the details. Decided shape and rules:
 
-- `call()` resolves to the outcome union. A middleware function's DECLARED fatal error (it
-  stopped the route) is part of that union, typed, since the middleware functions are known
+- `call()` resolves to the outcome union. A middleware's DECLARED fatal error (it
+  stopped the route) is part of that union, typed, since the middleware are known
   at the call. A middleware error that did NOT stop the route is not in the outcome: the
   value is, and the middleware's own `onError` / `onSuccess` listeners (prefill or per sub
   request) carry its outcome. `callRaw()` still exposes it in slot 4.
@@ -46,7 +46,7 @@ The implementer plans the details. Decided shape and rules:
   `callRaw()`; the outcome union is derived from the same dispatch, not a second one.
 - `batch([...]).call()` resolves to ONE outcome per route, in order, each with the same union
   its single call would have. A request-level failure (timeout, abort, network) fills every
-  slot with the same undeclared error; a middleware function stopping the batch fills every
+  slot with the same undeclared error; a middleware stopping the batch fills every
   slot with its typed error; a dependent route whose source failed already receives
   `batch-mapping-source-failed` from the router (`packages/router/src/batches.ts`), undeclared.
   `batch(...).callRaw()` keeps today's `BatchResult` 5-tuple.

@@ -10,12 +10,12 @@ import (
 
 // The handler type numbers @mionjs/core's HandlerType assigns; the API type carries them as number literals.
 const (
-	TypeRoute           = 1
-	TypeMiddleFn        = 2
-	TypeHeadersMiddleFn = 3
+	TypeRoute             = 1
+	TypeMiddleware        = 2
+	TypeHeadersMiddleware = 3
 )
 
-// Method is one public route or middleFn read off a PublicApi type, as the type carries it.
+// Method is one public route or middleware read off a PublicApi type, as the type carries it.
 type Method struct {
 	Id        string
 	Pointer   []string
@@ -26,13 +26,13 @@ type Method struct {
 	Options        map[string]any
 	WidenedOptions []string
 	// Params / Return are the types the server's markers were compiled from; Headers is a headers
-	// middleFn's HeadersSubset parameter type, nil for every other method.
+	// middleware's HeadersSubset parameter type, nil for every other method.
 	Params  *checker.Type
 	Return  *checker.Type
 	Headers *checker.Type
 	IsAsync bool
-	// MiddleFnIds is the route's public middleFn chain in execution order; nil for a middleFn.
-	MiddleFnIds []string
+	// MiddlewareIds is the route's public middleware chain in execution order; nil for a middleware.
+	MiddlewareIds []string
 }
 
 // Tree is a walked PublicApi type: every public method in checker order, and the checker their type ids must be assigned under.
@@ -81,7 +81,7 @@ type levelEntry struct {
 }
 
 // level mirrors the router's recursiveFlatRoutes + recursiveCreateExecutionChain: a route's chain is
-// `[...pre, ...preLevel, route, ...postLevel, ...post]`, minus the router's own start / end middleFns.
+// `[...pre, ...preLevel, route, ...postLevel, ...post]`, minus the router's own start / end middlewares.
 func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestLevel int, pre, post []string) string {
 	properties := walker.typeChecker.GetPropertiesOfType(levelType)
 	if len(properties) == 0 {
@@ -107,9 +107,9 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 			entries = append(entries, levelEntry{key: property.Name, subtree: propertyType})
 			continue
 		}
-		return "`" + id + "` is neither a route, a middleFn nor a group of routes (" + walker.typeChecker.TypeToString(propertyType) + ")"
+		return "`" + id + "` is neither a route, a middleware nor a group of routes (" + walker.typeChecker.TypeToString(propertyType) + ")"
 	}
-	levelMiddleFns := func(from, to int) []string {
+	levelMiddlewares := func(from, to int) []string {
 		var ids []string
 		for i := from; i < to; i++ {
 			if entries[i].method != nil && entries[i].method.Type != TypeRoute {
@@ -119,13 +119,13 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 		return ids
 	}
 	for index, entry := range entries {
-		preLevel := levelMiddleFns(0, index)
-		postLevel := levelMiddleFns(index+1, len(entries))
+		preLevel := levelMiddlewares(0, index)
+		postLevel := levelMiddlewares(index+1, len(entries))
 		if entry.method != nil {
 			if entry.method.Type == TypeRoute {
 				chain := make([]string, 0, len(pre)+len(preLevel)+len(postLevel)+len(post))
 				chain = append(append(append(append(chain, pre...), preLevel...), postLevel...), post...)
-				entry.method.MiddleFnIds = chain
+				entry.method.MiddlewareIds = chain
 			}
 			walker.tree.Methods = append(walker.tree.Methods, entry.method)
 			walker.tree.ById[entry.method.Id] = entry.method
@@ -140,7 +140,7 @@ func (walker *treeWalker) level(levelType *checker.Type, pointer []string, nestL
 	return ""
 }
 
-// isMethod reports whether a member type is a public method: every PublicRoute / PublicMiddleFn declares `type` and `handler`.
+// isMethod reports whether a member type is a public method: every PublicRoute / PublicMiddleware declares `type` and `handler`.
 func (walker *treeWalker) isMethod(memberType *checker.Type) bool {
 	if memberType == nil || checker.Type_flags(memberType)&checker.TypeFlagsObject == 0 {
 		return false
@@ -154,7 +154,7 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 	method := &Method{Id: id, Pointer: pointer, NestLevel: nestLevel}
 	typeValue := comptimeargs.TypeLiteralValue(typeChecker, typeChecker.GetTypeOfPropertyOfType(memberType, "type"), comptimeargs.TypeValueOptions{})
 	number, ok := typeValue.(float64)
-	if !ok || (number != TypeRoute && number != TypeMiddleFn && number != TypeHeadersMiddleFn) {
+	if !ok || (number != TypeRoute && number != TypeMiddleware && number != TypeHeadersMiddleware) {
 		return nil, "`" + id + "` has no literal handler type"
 	}
 	method.Type = int(number)
@@ -171,10 +171,10 @@ func (walker *treeWalker) method(memberType *checker.Type, id string, pointer []
 	if method.Params == nil || method.Return == nil {
 		return nil, "`" + id + "` has no compiled params or return type; bundleApi needs the API's PublicApi type"
 	}
-	if method.Type == TypeHeadersMiddleFn {
+	if method.Type == TypeHeadersMiddleware {
 		method.Headers = walker.compiledType(typesType, "headers")
 		if method.Headers == nil {
-			return nil, "`" + id + "` is a headers middleFn without a compiled HeadersSubset type"
+			return nil, "`" + id + "` is a headers middleware without a compiled HeadersSubset type"
 		}
 	}
 	isAsync := typeChecker.GetTypeOfPropertyOfType(typesType, "isAsync")
@@ -244,7 +244,7 @@ func readOptions(typeChecker *checker.Checker, optionsType *checker.Type, prefix
 	return out, widened
 }
 
-// Select returns the methods a site's ids resolve to plus each route's chain middleFns, in tree order.
+// Select returns the methods a site's ids resolve to plus each route's chain middlewares, in tree order.
 func (tree *Tree) Select(ids []string) (methods []*Method, missing []string) {
 	wanted := map[string]bool{}
 	for _, id := range ids {
@@ -254,8 +254,8 @@ func (tree *Tree) Select(ids []string) (methods []*Method, missing []string) {
 			continue
 		}
 		wanted[id] = true
-		for _, middleFnId := range method.MiddleFnIds {
-			wanted[middleFnId] = true
+		for _, middlewareId := range method.MiddlewareIds {
+			wanted[middlewareId] = true
 		}
 	}
 	for _, method := range tree.Methods {

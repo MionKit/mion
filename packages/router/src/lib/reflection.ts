@@ -10,11 +10,11 @@ import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal, type ResolvedParser} from 
 import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
-import {RouteOptions, MiddleFnOptions} from '../types/remoteMethods.ts';
-import {AnyHandlerDef, RawMiddleFnDef} from '../types/definitions.ts';
+import {RouteOptions, MiddlewareOptions} from '../types/remoteMethods.ts';
+import {AnyHandlerDef, RawMiddlewareDef} from '../types/definitions.ts';
 
 // ############ This file is the only one consuming type reflection within the router ########
-// All type information is injected AT BUILD TIME into the route()/middleFn() call sites (lib/handlers.ts)
+// All type information is injected AT BUILD TIME into the route()/middleware() call sites (lib/handlers.ts)
 // and this module only adapts those payloads into the MethodReflect shape the router consumes. No runtime
 // reflection, no JIT compilation, no AOT cache: the modules the mion vite plugin emits ARE the artifacts.
 
@@ -24,8 +24,8 @@ type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'point
 export class MissingRtFnsError extends Error {
   constructor(routeId: string, cause?: string) {
     super(
-      `Route/middleFn "${routeId}" has no build-time type information.\n` +
-        `Declare it through route()/middleFn() and make sure mionVitePlugin (@mionjs/devtools) is active in the build.` +
+      `Route/middleware "${routeId}" has no build-time type information.\n` +
+        `Declare it through route()/middleware() and make sure mionVitePlugin (@mionjs/devtools) is active in the build.` +
         (cause ? `\nCause: ${cause}` : '')
     );
     this.name = 'MissingRtFnsError';
@@ -37,7 +37,7 @@ export class MissingRtFnsError extends Error {
 export class RuntimeCodeGenBlockedError extends Error {
   constructor(routeId: string, cause?: string) {
     super(
-      `Route/middleFn "${routeId}" carries build-time type information, but this runtime forbids ` +
+      `Route/middleware "${routeId}" carries build-time type information, but this runtime forbids ` +
         `compiling functions from strings.\n` +
         `Build with \`mionVitePlugin({runTypes: {emitMode: 'both'}})\`: the default 'code' ships each ` +
         `compiled fn as a source string that is turned into a function on first use, which edge ` +
@@ -58,17 +58,17 @@ function isCodeGenBlocked(message?: string): boolean {
   return !!message && CODE_GEN_BLOCKED.test(message);
 }
 
-// ############ Raw MiddleFn Reflection ############
+// ############ Raw Middleware Reflection ############
 
-const rawMiddleFnReflectionCache = getOrCreateGlobal(
-  'mion.reflection.rawMiddleFnReflectionCache',
+const rawMiddlewareReflectionCache = getOrCreateGlobal(
+  'mion.reflection.rawMiddlewareReflectionCache',
   () => new Map<string, MethodReflect>()
 );
 
-/** Creates a MethodReflect for raw middleFns: no type info, NoopJitFns. */
-function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramsCount: number = 0): MethodReflect {
+/** Creates a MethodReflect for raw middlewares: no type info, NoopJitFns. */
+function createRawMiddlewareReflection(isAsync: boolean, hasReturnData: boolean = false, paramsCount: number = 0): MethodReflect {
   const cacheKey = `${isAsync}_${hasReturnData}_${paramsCount}`;
-  const cached = rawMiddleFnReflectionCache.get(cacheKey);
+  const cached = rawMiddlewareReflectionCache.get(cacheKey);
   if (cached) return cached;
 
   const reflection: MethodReflect = {
@@ -81,16 +81,16 @@ function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = 
     isAsync,
   };
 
-  rawMiddleFnReflectionCache.set(cacheKey, reflection);
+  rawMiddlewareReflectionCache.set(cacheKey, reflection);
   return reflection;
 }
 
 // ############ Main Reflection Functions ############
 
-/** Definitions that carry an injected `rtFns` payload. RawMiddleFnDef is excluded: a raw
- *  middleFn declares no extra params, so it has no reflection and goes through
+/** Definitions that carry an injected `rtFns` payload. RawMiddlewareDef is excluded: a raw
+ *  middleware declares no extra params, so it has no reflection and goes through
  *  getRawMethodReflection instead. */
-type ReflectableDef = Exclude<AnyHandlerDef, RawMiddleFnDef>;
+type ReflectableDef = Exclude<AnyHandlerDef, RawMiddlewareDef>;
 
 /** All data derives from the mion marker payload the factory stashed on the definition (`def.rtFns`);
  *  registration fails loudly when that payload is missing (plugin not active). */
@@ -99,11 +99,11 @@ export function getHandlerReflection(
   routeId: string,
   routerOptions: RouterOptions,
   // handlerOptions stays unused here: what a route compiles is decided at build time by its parser strategy.
-  handlerOptions: RouteOptions | MiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
-  isHeadersMiddleFn: boolean = false
+  handlerOptions: RouteOptions | MiddlewareOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
+  isHeadersMiddleware: boolean = false
 ): MethodReflect {
   try {
-    return isHeadersMiddleFn
+    return isHeadersMiddleware
       ? getHeadersReflectionFromMarkers(def.rtFns, def.handler, routeId)
       : getReflectionFromMarkers(def.rtFns, def.handler, routeId);
   } catch (error: any) {
@@ -112,14 +112,14 @@ export function getHandlerReflection(
   }
 }
 
-/** Raw middleFns receive the raw request / response and handle their own (de)serialization, so they
+/** Raw middlewares receive the raw request / response and handle their own (de)serialization, so they
  *  carry no type info at all. */
 export function getRawMethodReflection(
   handler: Handler,
   routeId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
   routerOptions: RouterOptions // eslint-disable-line @typescript-eslint/no-unused-vars
 ): MethodReflect {
-  return createRawMiddleFnReflection(isAsyncHandler(handler));
+  return createRawMiddlewareReflection(isAsyncHandler(handler));
 }
 
 /** Checks each direction's compiled strategy against the resolved one: they differ only when the

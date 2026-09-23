@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Handler, HeaderHandler, RawMiddleFnHandler} from './handlers.ts';
+import {Handler, HeaderHandler, RawMiddlewareHandler} from './handlers.ts';
 import {HandlerType, type RtMarkerPayload} from '@mionjs/core';
-import {HeadersMiddleFnOptions, MiddleFnOptions, RawMiddleFnOptions, RouteOptions} from './remoteMethods.ts';
+import {HeadersMiddlewareOptions, MiddlewareOptions, RawMiddlewareOptions, RouteOptions} from './remoteMethods.ts';
 import type {RouterOptions} from './general.ts';
 
 // #######  Routes Definitions #######
@@ -36,47 +36,47 @@ export interface RouteDef<
 }
 // type-route-def-end
 
-// type-middleFn-def-start
-/** MiddleFn definition: a step that runs in the ExecutionChain around the route. */
-export interface MiddleFnDef<
+// type-middleware-def-start
+/** Middleware definition: a step that runs in the ExecutionChain around the route. */
+export interface MiddlewareDef<
   H extends Handler = any,
-  RO extends MiddleFnOptions = MiddleFnOptions,
+  RO extends MiddlewareOptions = MiddlewareOptions,
   O extends DeclaredRouterOptions = DeclaredRouterOptions,
 > {
-  type: typeof HandlerType.middleFn;
+  type: typeof HandlerType.middleware;
   handler: H;
   options?: RO;
-  /** build-time injected mion payload (filled by the middleFn() factory) */
+  /** build-time injected mion payload (filled by the middleware() factory) */
   rtFns?: RtMarkerPayload;
-  /** type-only: the router options this middleFn was declared under, never set at runtime */
+  /** type-only: the router options this middleware was declared under, never set at runtime */
   readonly routerOptions?: O;
 }
-// type-middleFn-def-end
+// type-middleware-def-end
 
-// type-header-middleFn-def-start
-/** Headers MiddleFn definition, used to handle header params */
-export interface HeadersMiddleFnDef<
+// type-header-middleware-def-start
+/** Headers Middleware definition, used to handle header params */
+export interface HeadersMiddlewareDef<
   H extends HeaderHandler = any,
-  RO extends HeadersMiddleFnOptions = HeadersMiddleFnOptions,
+  RO extends HeadersMiddlewareOptions = HeadersMiddlewareOptions,
   O extends DeclaredRouterOptions = DeclaredRouterOptions,
 > {
-  type: typeof HandlerType.headersMiddleFn;
+  type: typeof HandlerType.headersMiddleware;
   handler: H;
   options?: RO;
   /** build-time injected mion payload (filled by the headersFn() factory) */
   rtFns?: RtMarkerPayload;
-  /** type-only: the router options this middleFn was declared under, never set at runtime */
+  /** type-only: the router options this middleware was declared under, never set at runtime */
   readonly routerOptions?: O;
 }
-// type-header-middleFn-def-end
+// type-header-middleware-def-end
 
-// type-raw-middleFn-def-start
-/** Raw middleFn: raw request/response access and call-context changes only, no extra parameters. */
-export interface RawMiddleFnDef<H extends RawMiddleFnHandler = any> {
-  type: typeof HandlerType.rawMiddleFn;
+// type-raw-middleware-def-start
+/** Raw middleware: raw request/response access and call-context changes only, no extra parameters. */
+export interface RawMiddlewareDef<H extends RawMiddlewareHandler = any> {
+  type: typeof HandlerType.rawMiddleware;
   handler: H;
-  options?: RawMiddleFnOptions;
+  options?: RawMiddlewareOptions;
 }
-// type-raw-middleFn-def-end
+// type-raw-middleware-def-end
 
-export type AnyHandlerDef = RouteDef | MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef;
+export type AnyHandlerDef = RouteDef | MiddlewareDef | HeadersMiddlewareDef | RawMiddlewareDef;

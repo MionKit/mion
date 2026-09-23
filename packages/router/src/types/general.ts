@@ -7,12 +7,12 @@
 
 import {CoreRouterOptions, ParserOption} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
-import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
+import {HeadersMiddlewareDef, MiddlewareDef, RawMiddlewareDef, RouteDef} from './definitions.ts';
 // #######  Router Object #######
 
 export type Route = RouteDef;
 
-export type RouterEntry = Routes | MiddleFnDef | RouteDef | RawMiddleFnDef | HeadersMiddleFnDef;
+export type RouterEntry = Routes | MiddlewareDef | RouteDef | RawMiddlewareDef | HeadersMiddlewareDef;
 
 /** Data structure to define all the routes */
 export interface Routes {
@@ -55,7 +55,7 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
    *  @default 2 */
   maxBodySizeFactor: number;
   /** Drop the raw request body once parsed: holding it keeps the whole body alive for the rest of the
-   *  request, times the requests in flight. Turn it off when an `alwaysRun` middleFn (an access log)
+   *  request, times the requests in flight. Turn it off when an `alwaysRun` middleware (an access log)
    *  reads `ctx.request.rawBody` after the route ran; with it on, that reads an empty string.
    *  @default true */
   releaseRawBody: boolean;

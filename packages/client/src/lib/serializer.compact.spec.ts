@@ -22,14 +22,14 @@ describe('Compact encoder E2E', () => {
   type MyApi = TestServerApi;
   const baseURL = TEST_SERVER_BASE_URL;
   const authHeaders = createAuthHeaders('XWYZ-TOKEN');
-  const {routes, middleFns} = initClient<MyApi>({baseURL});
+  const {routes, middlewares} = initClient<MyApi>({baseURL});
 
   beforeEach(() => {
-    middleFns.auth(authHeaders).prefill();
+    middlewares.auth(authHeaders).prefill();
   });
 
   afterEach(async () => {
-    await middleFns.auth(authHeaders).removePrefill();
+    await middlewares.auth(authHeaders).removePrefill();
   });
 
   it('scalars ride unchanged', async () => {
@@ -103,23 +103,23 @@ describe('Compact encoder E2E', () => {
     expect(user).toEqual({name: 'Ada', age: 36});
   });
 
-  it('a compact middleFn in the chain takes and returns data on the compact wire', async () => {
-    const [user, error, , middleFnResults] = await routes.compact.getSimpleUser('Ada', 36).call({
-      middleFns: {auth: middleFns.auth(authHeaders), stamp: middleFns.compact.stamp('release')},
+  it('a compact middleware in the chain takes and returns data on the compact wire', async () => {
+    const [user, error, , middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call({
+      middlewares: {auth: middlewares.auth(authHeaders), stamp: middlewares.compact.stamp('release')},
     });
     expect(error).toBeUndefined();
     expect(user).toEqual({name: 'Ada', age: 36});
-    expect(middleFnResults?.stamp?.tag).toBe('release');
-    expect(middleFnResults?.stamp?.when).toBeInstanceOf(Date);
+    expect(middlewareResults?.stamp?.tag).toBe('release');
+    expect(middlewareResults?.stamp?.when).toBeInstanceOf(Date);
   });
 
-  it('a plain middleFn with no encoder of its own still rides a compact route', async () => {
-    const [user, error, fatal, middleFnResults] = await routes.compact.getSimpleUser('Ada', 36).call({
-      middleFns: {auth: middleFns.auth(authHeaders), plainStamp: middleFns.compact.plainStamp('kept')},
+  it('a plain middleware with no encoder of its own still rides a compact route', async () => {
+    const [user, error, fatal, middlewareResults] = await routes.compact.getSimpleUser('Ada', 36).call({
+      middlewares: {auth: middlewares.auth(authHeaders), plainStamp: middlewares.compact.plainStamp('kept')},
     });
     expect(error).toBeUndefined();
     expect(fatal).toBeUndefined();
     expect(user).toEqual({name: 'Ada', age: 36});
-    expect(middleFnResults?.plainStamp).toEqual({note: 'kept'});
+    expect(middlewareResults?.plainStamp).toEqual({note: 'kept'});
   });
 });

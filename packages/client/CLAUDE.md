@@ -2,39 +2,39 @@
 
 ## The call result is a 5-tuple, and the order is deliberate
 
-`call()` resolves to `[result, error, undeclared, middleFnResults, middleFnErrors]`
+`call()` resolves to `[result, error, undeclared, middlewareResults, middlewareErrors]`
 ([src/types.ts](src/types.ts), `Result`; `batch()` returns the same layout with arrays in
 the first two slots, `BatchResult`). Do not "tidy" the shape or the order: it encodes WHO
 can produce each error, and that is what makes slots 1 and 4 closed, strongly typed unions.
 
-| slot | holds                                                        | who produced it                                                                                                                                                                 |
-| ---- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | the route's value                                            | the route handler, whenever it ran and succeeded                                                                                                                                |
-| 1    | the route's DECLARED errors + `ValidationError`              | the route (or its param validation), a CLOSED union                                                                                                                             |
-| 2    | `UndeclaredError`, an OPEN `RpcError<string>`                | anything outside the declared contract: transport (timeout, abort, network), platform, framework, an undeclared throw, an error for a middleFn that was not part of the request |
-| 3    | middleFn results, by name                                    | each middleFn sent with the request                                                                                                                                             |
-| 4    | each middleFn's DECLARED errors + `ValidationError`, by name | each middleFn, one slot per name so several failures are never collapsed into one                                                                                               |
+| slot | holds                                                          | who produced it                                                                                                                                                                   |
+| ---- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | the route's value                                              | the route handler, whenever it ran and succeeded                                                                                                                                  |
+| 1    | the route's DECLARED errors + `ValidationError`                | the route (or its param validation), a CLOSED union                                                                                                                               |
+| 2    | `UndeclaredError`, an OPEN `RpcError<string>`                  | anything outside the declared contract: transport (timeout, abort, network), platform, framework, an undeclared throw, an error for a middleware that was not part of the request |
+| 3    | middleware results, by name                                    | each middleware sent with the request                                                                                                                                             |
+| 4    | each middleware's DECLARED errors + `ValidationError`, by name | each middleware, one slot per name so several failures are never collapsed into one                                                                                               |
 
-Why `undeclared` sits BEFORE the middleFn slots, which looks odd at first:
+Why `undeclared` sits BEFORE the middleware slots, which looks odd at first:
 
-- Everything the ROUTER runs, the route and every middleFn, has a slot of its own, typed from
+- Everything the ROUTER runs, the route and every middleware, has a slot of its own, typed from
   what the handler declared. `undeclared` is the one slot for "anything else", and anything
   else can be a network error the router never saw. Reading order follows frequency: the
   route's own value and error first, then the catch-all a user MUST check before trusting
-  `result === undefined`, then the middleFn outcomes.
-- MiddleFn outcomes are meant to be handled by the middleFn's own callbacks
+  `result === undefined`, then the middleware outcomes.
+- Middleware outcomes are meant to be handled by the middleware's own callbacks
   (`prefill().onError()` / `.onSuccess()`, or `onError` / `onSuccess` registered on the
-  middleFn sub request). The two trailing slots exist so a call site CAN still read them;
+  middleware sub request). The two trailing slots exist so a call site CAN still read them;
   they are not the primary way. Prefer the callbacks and leave the tuple positions alone.
 
 The dispatch rules (which error lands where) are pinned by
 [src/errorDispatch.spec.ts](src/errorDispatch.spec.ts); the header of that file lists them.
 Two of them exist because of real bugs, keep them in mind when touching request handling:
 
-- A middleFn failing NEVER masks a route result that the server did produce (a returned,
-  non-fatal middleFn error does not abort the chain), so slot 0 keeps the value while slot 4
-  carries the middleFn error.
-- A middleFn error NEVER appears in slot 1. Slot 1 is the route's declared union and nothing
+- A middleware failing NEVER masks a route result that the server did produce (a returned,
+  non-fatal middleware error does not abort the chain), so slot 0 keeps the value while slot 4
+  carries the middleware error.
+- A middleware error NEVER appears in slot 1. Slot 1 is the route's declared union and nothing
   else, otherwise the typing of that slot would be a lie.
 
 One thing rides slot 2 that the router never saw: a metadata cache write the browser refused, after

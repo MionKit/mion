@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
@@ -375,8 +375,8 @@ describe('serverless router', () => {
     });
   });
 
-  // the answers above are the wire shape; this is which of YOUR middleFns saw them.
-  describe('a failed request still runs the alwaysRun middleFns', () => {
+  // the answers above are the wire shape; this is which of YOUR middlewares saw them.
+  describe('a failed request still runs the alwaysRun middlewares', () => {
     const seen: string[] = [];
     const failPort = 8100; // its own port: 8098 is smallPort and port2, 8099 the limit suite's
     let failServer: Server;
@@ -386,17 +386,17 @@ describe('serverless router', () => {
       resetRouter();
       const app = createMionRouter({basePath: 'api/'});
       const echo = app.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
-      const plainStart = app.rawMiddleFn((ctx: CallContext) => {
+      const plainStart = app.rawMiddleware((ctx: CallContext) => {
         seen.push(`start:${ctx.path}`);
       });
-      const accessLog = app.rawMiddleFn(
+      const accessLog = app.rawMiddleware(
         (ctx: CallContext) => {
           seen.push(`log:${ctx.response.statusCode}`);
         },
         {alwaysRun: true}
       );
-      addStartMiddleFns({plainStart});
-      addEndMiddleFns({accessLog});
+      addStartMiddlewares({plainStart});
+      addEndMiddlewares({accessLog});
       setGoogleCFOpts({maxBodySize: 50});
       app.initRoutes({echo});
       // its OWN registered function, like the json-encoder suite below: `initServer` re-registers
@@ -411,7 +411,7 @@ describe('serverless router', () => {
 
     afterAll(async () => closeServer(failServer));
 
-    it('an unknown path is a 404 that only the alwaysRun middleFn sees, with no body parsed', async () => {
+    it('an unknown path is a 404 that only the alwaysRun middleware sees, with no body parsed', async () => {
       seen.length = 0;
       // `connection: close`, like the node adapter's own 404-with-a-body test: mion answers this
       // one without consuming the body, and a pooled keep-alive socket then errors on reuse
@@ -429,7 +429,7 @@ describe('serverless router', () => {
 
     // this adapter measures the body itself and refuses before the chain, so the 413 lands under
     // platformError and only the alwaysRun member runs, exactly like node and uws
-    it('a body over the limit is a 413 that only the alwaysRun middleFn sees', async () => {
+    it('a body over the limit is a 413 that only the alwaysRun middleware sees', async () => {
       seen.length = 0;
       const response = await fetch(`http://127.0.0.1:${failPort}/api/echo`, {
         method: 'POST',

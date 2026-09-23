@@ -23,17 +23,17 @@ describe('Compact Serialization E2E', () => {
     const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
     let routes: ReturnType<typeof initClient<MyApi>>['routes'];
-    let middleFns: ReturnType<typeof initClient<MyApi>>['middleFns'];
+    let middlewares: ReturnType<typeof initClient<MyApi>>['middlewares'];
 
     beforeEach(() => {
         const client = initClient<MyApi>({baseURL});
         routes = client.routes;
-        middleFns = client.middleFns;
-        middleFns.auth(authHeaders).prefill();
+        middlewares = client.middlewares;
+        middlewares.auth(authHeaders).prefill();
     });
 
     afterEach(async () => {
-        await middleFns.auth(authHeaders).removePrefill();
+        await middlewares.auth(authHeaders).removePrefill();
     });
 
     it('should serialize and deserialize string echo', async () => {
@@ -92,17 +92,17 @@ describe('Compact Serialization E2E', () => {
         expect(error?.type).toBe('intentional-error');
     });
 
-    it('carries a plain middleFn (no parser of its own) on the compact wire', async () => {
-        const [result, error, fatal, middleFnsResults] = await routes.compact.echo('test').call({
-            middleFns: {
-                auth: middleFns.auth(authHeaders),
-                compactSession: middleFns.compact.session('valid-token'),
+    it('carries a plain middleware (no parser of its own) on the compact wire', async () => {
+        const [result, error, fatal, middlewaresResults] = await routes.compact.echo('test').call({
+            middlewares: {
+                auth: middlewares.auth(authHeaders),
+                compactSession: middlewares.compact.session('valid-token'),
             },
         });
 
         expect(error).toBeUndefined();
         expect(fatal).toBeUndefined();
         expect(result).toBe('test');
-        expect(middleFnsResults?.compactSession).toEqual({valid: true, userId: 'user-123'});
+        expect(middlewaresResults?.compactSession).toEqual({valid: true, userId: 'user-123'});
     });
 });

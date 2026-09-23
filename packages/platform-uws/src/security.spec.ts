@@ -10,7 +10,7 @@
 // by uWS, so the adapter has to refuse a CR or LF itself.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {resetUwsHttpOpts, setUwsHttpOpts, startUwsServer, type UwsServer} from './uwsHttp.ts';
@@ -136,16 +136,16 @@ describe('uws adapter: a refused request', () => {
     }
   };
 
-  it('a body past the limit answers 413 through the chain, running only the alwaysRun middleFns', async () => {
+  it('a body past the limit answers 413 through the chain, running only the alwaysRun middlewares', async () => {
     await withServer(
       () => {
-        addStartMiddleFns({
-          plainStart: mion.rawMiddleFn((ctx: CallContext) => {
+        addStartMiddlewares({
+          plainStart: mion.rawMiddleware((ctx: CallContext) => {
             seen.push(`start:${ctx.path}`);
           }),
         });
-        addEndMiddleFns({
-          accessLog: mion.rawMiddleFn(
+        addEndMiddlewares({
+          accessLog: mion.rawMiddleware(
             (ctx: CallContext) => {
               seen.push(`log:${ctx.response.statusCode}`);
             },

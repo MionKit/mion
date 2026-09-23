@@ -21,7 +21,7 @@ export const getPet = mion.route(
 // end:return-error
 
 // start:fatal-error
-// ends the request: the route behind this middleFn never runs
+// ends the request: the route behind this middleware never runs
 export const auth = mion.headersFn(
   (
     ctx,

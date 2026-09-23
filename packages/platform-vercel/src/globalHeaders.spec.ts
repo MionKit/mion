@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// The router's global headers reach the wire through the adapter's own defaults, with no middleFn writing them.
+// The router's global headers reach the wire through the adapter's own defaults, with no middleware writing them.
 
 import {describe, it, expect, beforeAll} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';

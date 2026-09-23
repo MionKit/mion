@@ -31,10 +31,10 @@ export interface MethodMetadata {
   returnJitHash: string;
   /** Information about headers used by the method, used by HeadersFn */
   headersParam?: HeadersMetaData;
-  /** Information about headers returned by the method, used by HeadersFn and when any other middleFn returns headers */
+  /** Information about headers returned by the method, used by HeadersFn and when any other middleware returns headers */
   headersReturn?: HeadersMetaData;
-  /** Array of middleFn IDs associated with this method, only available for route methods */
-  middleFnIds?: string[];
+  /** Array of middleware IDs associated with this method, only available for route methods */
+  middlewareIds?: string[];
   /** router pointer ie ['users', 'getUser' ]  */
   pointer: string[];
   /** router nest level */
@@ -50,7 +50,7 @@ export interface RemoteMethodOpts {
    *  default). Always resolved on an executable, and rides the methods metadata so the client picks the
    *  matching compiled functions. */
   parser?: ResolvedParser;
-  /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
+  /** Whether this route mutates data. Only set for route handlers, undefined for middlewares. */
   isMutation?: boolean | undefined;
   /** Per-route sanitizeParams, already resolved (route option ?? router option), so it also rides the methods
    *  metadata to the client. When true, the rewrites the params types declare under a format's `transform` key
@@ -60,7 +60,7 @@ export interface RemoteMethodOpts {
   sanitizeParams?: boolean;
   /** Largest request body this route accepts, in bytes. On a route the RESOLVED limit of the whole chain
    *  (route option, else every member's params types summed times the router's `maxBodySizeFactor`, else the
-   *  adapter's `maxBodySize`): where adapters stop the read and the router checks before parsing. On a middleFn
+   *  adapter's `maxBodySize`): where adapters stop the read and the router checks before parsing. On a middleware
    *  whose params type has no maximum, its own declared contribution to that sum. Rides the methods metadata so
    *  a client can refuse an oversize call before sending it. */
   maxBodySize?: number;

@@ -24,10 +24,10 @@ The implementer plans the details. What was checked:
   file, fanned out by `diagnosticRouting.ts`, with mion's own route rules living in
   `ts-go-runtypes/internal/compiler/routerrules`. A hand-written rule comparing literals was
   built and removed on purpose; the check belongs with the others, in Go, emitted at
-  `mion.route()` / `mion.middleFn()` call sites and at the adapter's `createXHandler` /
+  `mion.route()` / `mion.middleware()` call sites and at the adapter's `createXHandler` /
   `startXServer` call.
 - **Two findings, one family.** Request side: a literal `maxBodySize` above the ceiling (route,
-  middleFn or adapter option), and a derived limit above it when the walk can tell. Response side:
+  middleware or adapter option), and a derived limit above it when the walk can tell. Response side:
   the return type's `jsonMaxBytes` (the compiler already emits it on every bounded reflection root,
   return roots included) above the platform's response ceiling. Warnings, opt-in severity; an
   unbounded type is never reported (the unbounded-types lint is its own todo).

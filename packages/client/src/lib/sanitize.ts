@@ -30,7 +30,7 @@ export function sanitizeSubRequests(subRequestIds: string[], req: MionClientRequ
     const formatTransform = method.paramsJitFns.formatTransform;
     if (!method.options?.sanitizeParams || !method.paramsCount || !formatTransform || formatTransform.isNoop) continue;
     // a headersFn's first param is the HeadersSubset, never part of the body params type
-    const isHeadersFn = method.type === HandlerType.headersMiddleFn && !!method.headersParam;
+    const isHeadersFn = method.type === HandlerType.headersMiddleware && !!method.headersParam;
     const body = isHeadersFn ? params.slice(1) : params;
     try {
       const sanitized = formatTransform.fn(body) as any[];

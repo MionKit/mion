@@ -60,8 +60,8 @@ describe('fatal dispatch', () => {
   const fatal = () => new FatalError({publicMessage: 'Not Authorized', type: 'not-authorized', statusCode: 401});
 
   const routes = {
-    // mode picks how the FIRST middleFn answers: 'return' | 'fatal' | 'throw' | 'ok'
-    first: mion.middleFn((_ctx: CallContext, mode: string): void | RpcError<'declared-error' | 'not-authorized'> => {
+    // mode picks how the FIRST middleware answers: 'return' | 'fatal' | 'throw' | 'ok'
+    first: mion.middleware((_ctx: CallContext, mode: string): void | RpcError<'declared-error' | 'not-authorized'> => {
       ran.push('first');
       if (mode === 'return') return declared();
       if (mode === 'fatal') return fatal();
@@ -80,10 +80,10 @@ describe('fatal dispatch', () => {
       if (mode === 'fatal') return fatal();
       return 'ran';
     }),
-    after: mion.middleFn((_ctx: CallContext): void => {
+    after: mion.middleware((_ctx: CallContext): void => {
       ran.push('after');
     }),
-    always: mion.middleFn(
+    always: mion.middleware(
       (ctx: CallContext): void => {
         ran.push('always');
         seenFatal = ctx.response.fatalError;
@@ -100,7 +100,7 @@ describe('fatal dispatch', () => {
   });
 
   describe('a plain returned RpcError', () => {
-    it('from a middleFn keeps the chain running and halts nothing', async () => {
+    it('from a middleware keeps the chain running and halts nothing', async () => {
       const response = await dispatch('/target', request({first: ['return'], target: ['ok']}, {'X-Mode': 'ok'}));
       expect(ran).toEqual(['first', 'gate', 'target', 'after', 'always']);
       expect(response.hasErrors).toBe(false);
@@ -129,7 +129,7 @@ describe('fatal dispatch', () => {
   });
 
   describe('a returned FatalError', () => {
-    it('from a middleFn halts the chain and stays in its own typed slot', async () => {
+    it('from a middleware halts the chain and stays in its own typed slot', async () => {
       const response = await dispatch('/target', request({first: ['fatal'], target: ['ok']}, {'X-Mode': 'ok'}));
       expect(ran).toEqual(['first', 'always']);
       expect(response.hasErrors).toBe(true);
@@ -164,7 +164,9 @@ describe('fatal dispatch', () => {
     it('without a statusCode answers 400, a declared application error, never 422', async () => {
       resetRouter();
       mion.initRoutes({
-        gate: mion.middleFn((): void | RpcError<'gate-closed'> => new FatalError({publicMessage: 'closed', type: 'gate-closed'})),
+        gate: mion.middleware(
+          (): void | RpcError<'gate-closed'> => new FatalError({publicMessage: 'closed', type: 'gate-closed'})
+        ),
         target: routes.target,
       });
       const response = await dispatch('/target', request({gate: [], target: ['ok']}));
@@ -218,7 +220,7 @@ describe('fatal dispatch', () => {
       mion.initRoutes({
         first: routes.first,
         target: routes.target,
-        failingAlways: mion.middleFn(
+        failingAlways: mion.middleware(
           (_ctx: CallContext): void => {
             throw new Error('cleanup failed');
           },
@@ -240,7 +242,7 @@ describe('fatal dispatch', () => {
     it('halts and lands in @thrownErrors instead of being served as data', async () => {
       resetRouter();
       mion.initRoutes({
-        broken: mion.middleFn((): void => {
+        broken: mion.middleware((): void => {
           return new Error('not a mion error') as unknown as void;
         }),
         target: routes.target,
@@ -259,11 +261,11 @@ describe('fatal dispatch', () => {
     });
   });
 
-  describe('a raw middleFn', () => {
+  describe('a raw middleware', () => {
     it('cannot declare a return type, so a returned error halts as an undeclared one', async () => {
       resetRouter();
       mion.initRoutes({
-        raw: mion.rawMiddleFn((): RpcError<string> => new RpcError({publicMessage: 'raw', type: 'raw-error'})),
+        raw: mion.rawMiddleware((): RpcError<string> => new RpcError({publicMessage: 'raw', type: 'raw-error'})),
         target: routes.target,
         always: routes.always,
       });

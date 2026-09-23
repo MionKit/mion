@@ -15,7 +15,7 @@ export const MIN_CHAIN_BODY_SIZE = 64;
 /** A member's contribution: its own `maxBodySize` option, else the compact-JSON maximum of its params
  *  tuple the build computed, else unknown. One with no params and no option costs no slot at all. */
 function memberBodyBytes(method: RemoteMethod): number | undefined | null {
-  if (method.type === HandlerType.rawMiddleFn) return null;
+  if (method.type === HandlerType.rawMiddleware) return null;
   const declared = method.options.maxBodySize;
   if (declared !== undefined) return declared;
   if (!method.paramsCount) return null;

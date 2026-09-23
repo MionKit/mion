@@ -17,7 +17,7 @@ client's version recovery) catches a whole-API change, but only after a response
 When a route's params or return type changed on the server, the frontend code was written against the old types:
 nothing can make the call right, not a retry and not fresh metadata. The call must fail before any handler runs,
 with a clear error the app sees. Anything else that changed in the route's metadata (options, parser strategy,
-middleFn chain) must NOT stop the call: the router tries to run it, and its own validation and serialization
+middleware chain) must NOT stop the call: the router tries to run it, and its own validation and serialization
 report what does not fit.
 
 ## What to build (decided with the user)
@@ -25,7 +25,7 @@ report what does not fit.
 1. **Keep the API id feature exactly as it is**, server and client: `InjectBuildVersion` at `initRoutes` /
    `initClient`, `x-build-version`, `apiVersionCheck`, `MET007`, the client's version recovery.
 2. **Keep optimistic first calls.** Known limit: a call sent without a row cannot be checked; document it.
-3. **A new middleFn `mion@checkRouteHash`** (name open), registered right after `mionDeserializeRequest`, skipped
+3. **A new middleware `mion@checkRouteHash`** (name open), registered right after `mionDeserializeRequest`, skipped
    without running its params pipeline when its body slot is absent (the on-demand caller pattern of
    `mion@methodsMetadata`, `packages/router/src/routes/client.routes.ts`).
    - It compares ONLY what cannot be recovered from: the route's params and return type hashes
@@ -33,7 +33,7 @@ report what does not fit.
    - On a mismatch it RETURNS (never throws) a `FatalError<'route-types-mismatch', ...>` in its own typed slot,
      so the client reads it strongly typed like any mion error, and a returned `FatalError` ends the chain
      (`packages/router/src/dispatch.ts`). The client does not retry: it reports the error to the app.
-   - Any other difference: the middleFn lets the call run.
+   - Any other difference: the middleware lets the call run.
 4. **One definition of what a row means to the client, and tests that both ends agree** (see below).
 
 ## Open questions for the implementer / user
@@ -51,11 +51,11 @@ The client reads these, and only these, from a row (checked against `packages/cl
 
 | Field | What the client uses it for |
 | --- | --- |
-| `type` | recognising headers middleFns |
+| `type` | recognising headers middleware |
 | `paramsJitHash`, `returnJitHash` | which compiled functions encode, decode and validate |
 | `paramsCount`, `hasReturnData` | encoding and decoding |
 | `headersParam`, `headersReturn` (names + hash) | header extraction and checks |
-| `middleFnIds` | restoring prefilled middleFns, validating them |
+| `middlewareIds` | restoring prefilled middleware, validating them |
 | options `parser` | which compiled functions (normalise: a single name equals the `{params, return}` pair) |
 | options `isMutation` | GET or POST |
 
@@ -66,7 +66,7 @@ whether it joins the list or the client stops reading it.
 
 Only `paramsJitHash` and `returnJitHash` gate a call. The full list is what the parity tests below compare, so
 both ends are proven to agree on everything a client acts on. Keep the list in one place in `@mionjs/core`
-(normalise: `undefined` and `null` alike, empty `middleFnIds` as absent, a missing `paramsCount` as 0).
+(normalise: `undefined` and `null` alike, empty `middlewareIds` as absent, a missing `paramsCount` as 0).
 
 ## Parity tests: client and server compile the same metadata
 

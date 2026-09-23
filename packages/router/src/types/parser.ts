@@ -71,7 +71,7 @@ type LiteralParser<Parser> = Parser extends string ? SingleLiteral<Parser> : {[K
 // Fn keys are MION_FN_KEYS in @mionjs/core; the payload is projected by family tag, so order does not matter.
 // 'formatTransform' is PARAMS-only: a RETURN is written by the handler, never a caller.
 
-/** The four injection slots of a route / middleFn call, in declaration order. */
+/** The four injection slots of a route / middleware call, in declaration order. */
 export type MarkerSlots<Params, Return, RouteOpts, RouterOpts> = [
   paramsFns: InjectTypeFnArgs<
     Params,
@@ -92,7 +92,7 @@ export type MarkerSlots<Params, Return, RouteOpts, RouterOpts> = [
   returnId: InjectRunTypeId<Return>,
 ];
 
-/** The two extra slots a headers middleFn carries for its HeadersSubset parameter. */
+/** The two extra slots a headers middleware carries for its HeadersSubset parameter. */
 export type HeaderMarkerSlots<Headers> = [
   headersFns: InjectTypeFnArgs<Headers, 'validate', 'validationErrors'>,
   headersId: InjectRunTypeId<Headers>,

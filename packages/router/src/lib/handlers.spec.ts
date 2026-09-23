@@ -9,12 +9,12 @@ import {describe, it, expect} from 'vitest';
 import {Routes} from '../types/general.ts';
 import {createMionRouter} from '../router.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {route, headersFn, middleFn, rawMiddleFn, query, mutation} from './handlers.ts';
+import {route, headersFn, middleware, rawMiddleware, query, mutation} from './handlers.ts';
 import {MionHeaders} from '../types/context.ts';
 import {headersFromRecord} from './headers.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
 
-describe('route & middleFns init functions', () => {
+describe('route & middlewares init functions', () => {
   type RawRequest = {
     headers: MionHeaders;
     body: string;
@@ -24,8 +24,8 @@ describe('route & middleFns init functions', () => {
     auth: headersFn(
       (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
     ),
-    timestamp: middleFn((ctx, time: number): string => `time: ${time}`),
-    nothing: rawMiddleFn((ctx, req: unknown, resp: unknown): void => undefined),
+    timestamp: middleware((ctx, time: number): string => `time: ${time}`),
+    nothing: rawMiddleware((ctx, req: unknown, resp: unknown): void => undefined),
     print: route((ctx, name: string): string => `name: ${name}`),
   } satisfies Routes;
 
@@ -40,9 +40,9 @@ describe('route & middleFns init functions', () => {
     isAsyncId: expect.anything(),
   };
 
-  it('should initialize a Headers MiddleFn object', () => {
+  it('should initialize a Headers Middleware object', () => {
     expect(routes.auth).toEqual({
-      type: HandlerType.headersMiddleFn,
+      type: HandlerType.headersMiddleware,
       handler: expect.any(Function),
       rtFns: {
         ...expectedRtFns,
@@ -52,17 +52,17 @@ describe('route & middleFns init functions', () => {
     });
   });
 
-  it('should initialize a middleFn object', () => {
+  it('should initialize a middleware object', () => {
     expect(routes.timestamp).toEqual({
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
       handler: expect.any(Function),
       rtFns: expectedRtFns,
     });
   });
 
-  it('should initialize a rawMiddleFn object', () => {
+  it('should initialize a rawMiddleware object', () => {
     expect(routes.nothing).toEqual({
-      type: HandlerType.rawMiddleFn,
+      type: HandlerType.rawMiddleware,
       handler: expect.any(Function),
     });
   });

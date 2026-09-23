@@ -37,13 +37,13 @@ const routes = {
 
 const calls: string[] = [];
 const chain = {
-  firstSync: mion.middleFn((): void => {
+  firstSync: mion.middleware((): void => {
     calls.push('first');
   }),
-  secondAsync: mion.middleFn(async (): Promise<void> => {
+  secondAsync: mion.middleware(async (): Promise<void> => {
     calls.push('second');
   }),
-  thirdSync: mion.middleFn((): void => {
+  thirdSync: mion.middleware((): void => {
     calls.push('third');
   }),
   order: routes.order,

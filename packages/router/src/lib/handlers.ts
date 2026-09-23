@@ -8,14 +8,14 @@
 import {HandlerType} from '@mionjs/core';
 import type {
   HeadersFnHelper,
-  MiddleFnHelper,
+  MiddlewareHelper,
   PinnedMutation,
-  RawMiddleFnHelper,
+  RawMiddlewareHelper,
   RouteHelper,
   RouterOptionsInput,
 } from '../types/mionRouter.ts';
 
-// ############# Route & MiddleFns initialization (INTERNAL) #############
+// ############# Route & Middlewares initialization (INTERNAL) #############
 // These bodies initialize the definition objects AND are the mion injection points: the trailing marker
 // params are filled at BUILD TIME by @mionjs/devtools. Not exported from the package, consumers reach
 // them as the closures `createMionRouter()` returns; only the internal client / error / serializer routes
@@ -48,7 +48,7 @@ export const query = routeWithMutation(false);
 
 export const mutation = routeWithMutation(true);
 
-export const middleFn: MiddleFnHelper<RouterOptionsInput> = (
+export const middleware: MiddlewareHelper<RouterOptionsInput> = (
   handler,
   opts,
   paramsFns,
@@ -57,7 +57,7 @@ export const middleFn: MiddleFnHelper<RouterOptionsInput> = (
   returnId,
   isAsyncId
 ) => ({
-  type: HandlerType.middleFn,
+  type: HandlerType.middleware,
   handler,
   options: opts,
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId},
@@ -74,14 +74,14 @@ export const headersFn: HeadersFnHelper<RouterOptionsInput> = (
   returnId,
   isAsyncId
 ) => ({
-  type: HandlerType.headersMiddleFn,
+  type: HandlerType.headersMiddleware,
   handler,
   options: opts,
   rtFns: {paramsFns, returnFns, paramsId, returnId, isAsyncId, headersFns, headersId},
 });
 
-export const rawMiddleFn: RawMiddleFnHelper<RouterOptionsInput> = (handler, opts) => ({
-  type: HandlerType.rawMiddleFn,
+export const rawMiddleware: RawMiddlewareHelper<RouterOptionsInput> = (handler, opts) => ({
+  type: HandlerType.rawMiddleware,
   handler,
   options: opts,
 });

@@ -6,7 +6,7 @@
  * ######## */
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda.ts';
 import type {CallContext, Route} from '@mionjs/router';
 import type {APIGatewayProxyEvent, APIGatewayProxyEventHeaders} from 'aws-lambda';
@@ -288,7 +288,7 @@ describe('serverless router', () => {
   // aws hands the whole body over, so it never refused a request itself: both a 404 and a 413 have
   // always been answered by the chain. Pinned here so the failed-on-arrival rule stays the same on
   // a platform that has no early refusal of its own.
-  describe('a failed request still runs the alwaysRun middleFns', () => {
+  describe('a failed request still runs the alwaysRun middlewares', () => {
     const seen: string[] = [];
 
     beforeAll(() => {
@@ -296,17 +296,17 @@ describe('serverless router', () => {
       resetRouter();
       const app = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
       const echo = app.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
-      const plainStart = app.rawMiddleFn((ctx: CallContext) => {
+      const plainStart = app.rawMiddleware((ctx: CallContext) => {
         seen.push(`start:${ctx.path}`);
       });
-      const accessLog = app.rawMiddleFn(
+      const accessLog = app.rawMiddleware(
         (ctx: CallContext) => {
           seen.push(`log:${ctx.response.statusCode}`);
         },
         {alwaysRun: true}
       );
-      addStartMiddleFns({plainStart});
-      addEndMiddleFns({accessLog});
+      addStartMiddlewares({plainStart});
+      addEndMiddlewares({accessLog});
       setAwsLambdaOpts({maxBodySize: 50});
       app.initRoutes({echo});
     });
@@ -316,7 +316,7 @@ describe('serverless router', () => {
       return awsLambdaHandler(event, context);
     };
 
-    it('an unknown path is a 404 that only the alwaysRun middleFn sees', async () => {
+    it('an unknown path is a 404 that only the alwaysRun middleware sees', async () => {
       seen.length = 0;
       const response = await call('{not json', '/api/nope');
       expect(response.statusCode).toEqual(StatusCodes.NOT_FOUND);
@@ -326,7 +326,7 @@ describe('serverless router', () => {
       expect(seen).toEqual(['log:404']);
     });
 
-    it('a body over the limit is a 413 the alwaysRun middleFn sees, raised inside the chain', async () => {
+    it('a body over the limit is a 413 the alwaysRun middleware sees, raised inside the chain', async () => {
       seen.length = 0;
       const body = JSON.stringify({echo: [{name: 'x'.repeat(80), surname: 'y'}]});
       const response = await call(body, '/api/echo');

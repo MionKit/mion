@@ -127,29 +127,29 @@ describe('PublicMethods run type functionality', () => {
 const unwrap = (value: unknown): any => (Array.isArray(value) ? value[1] : value);
 
 describe('Client Routes should', () => {
-  const privateMiddleFn = mion.middleFn((ctx): void => undefined);
-  const publicMiddleFn = mion.middleFn((ctx): null => null);
-  const auth = mion.middleFn((ctx, token: string): void => undefined);
+  const privateMiddleware = mion.middleware((ctx): void => undefined);
+  const publicMiddleware = mion.middleware((ctx): null => null);
+  const auth = mion.middleware((ctx, token: string): void => undefined);
   const route1 = mion.route((ctx): string => 'route1');
   const route2 = mion.route((ctx): string => 'route2');
 
   const routes = {
     auth: auth, // is public as has params
-    parse: mion.rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+    parse: mion.rawMiddleware((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
     users: {
-      userBefore: privateMiddleFn, // private
+      userBefore: privateMiddleware, // private
       getUser: route1, // public
       setUser: route2, // public
       pets: {
         getUserPet: route2, // public
       },
-      userAfter: privateMiddleFn, // private
+      userAfter: privateMiddleware, // private
     },
     pets: {
       getPet: route1, // public
       setPet: route2, // public
     },
-    last: publicMiddleFn, // public MiddleFn
+    last: publicMiddleware, // public Middleware
   } satisfies Routes;
 
   const shared = {auth: {me: null as any}};
@@ -166,7 +166,7 @@ describe('Client Routes should', () => {
     // the platform's number (the shared default with no adapter)
     maxBodySize: DEFAULT_MAX_BODY_SIZE,
   };
-  const defaultMiddleFnOpts: RemoteMethodOpts = {
+  const defaultMiddlewareOpts: RemoteMethodOpts = {
     alwaysRun: false,
     validateParams: true,
     validateReturn: false,
@@ -185,7 +185,7 @@ describe('Client Routes should', () => {
       returnJitHash: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middleFnIds: ['auth', 'last'],
+      middlewareIds: ['auth', 'last'],
       pointer: ['users', 'getUser'],
       options: defaultRouteOpts,
     },
@@ -199,7 +199,7 @@ describe('Client Routes should', () => {
       returnJitHash: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middleFnIds: ['auth', 'last'],
+      middlewareIds: ['auth', 'last'],
       pointer: ['users', 'setUser'],
       options: defaultRouteOpts,
     },
@@ -213,7 +213,7 @@ describe('Client Routes should', () => {
       returnJitHash: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middleFnIds: ['auth', 'last'],
+      middlewareIds: ['auth', 'last'],
       pointer: ['users', 'pets', 'getUserPet'],
       options: defaultRouteOpts,
     },
@@ -227,7 +227,7 @@ describe('Client Routes should', () => {
       returnJitHash: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middleFnIds: ['auth', 'last'],
+      middlewareIds: ['auth', 'last'],
       pointer: ['pets', 'getPet'],
       options: defaultRouteOpts,
     },
@@ -241,12 +241,12 @@ describe('Client Routes should', () => {
       returnJitHash: expect.any(String),
       paramsCount: 0,
       paramNames: [],
-      middleFnIds: ['auth', 'last'],
+      middlewareIds: ['auth', 'last'],
       pointer: ['pets', 'setPet'],
       options: defaultRouteOpts,
     },
     auth: {
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
       id: 'auth',
       isAsync: false,
       hasReturnData: false,
@@ -256,10 +256,10 @@ describe('Client Routes should', () => {
       paramsCount: 1,
       paramNames: ['token'],
       pointer: ['auth'],
-      options: defaultMiddleFnOpts,
+      options: defaultMiddlewareOpts,
     },
     last: {
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
       id: 'last',
       isAsync: false,
       hasReturnData: true,
@@ -269,7 +269,7 @@ describe('Client Routes should', () => {
       paramsCount: 0,
       paramNames: [],
       pointer: ['last'],
-      options: {...defaultMiddleFnOpts},
+      options: {...defaultMiddlewareOpts},
     },
   } satisfies MethodsCache;
 
@@ -285,14 +285,14 @@ describe('Client Routes should', () => {
 
   afterEach(() => resetRouter());
 
-  it('get Remote MiddleFns Only info from id', async () => {
+  it('get Remote Middlewares Only info from id', async () => {
     createMionRouter({contextDataFactory: getSharedData}).initRoutes({...routes, ...mionClientRoutes});
 
-    const methodIdList = ['auth', 'last']; // all public middleFns
+    const methodIdList = ['auth', 'last']; // all public middlewares
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({
-        auth: ['token'], // middleFn is required
+        auth: ['token'], // middleware is required
         [methodsId]: [methodIdList],
       }),
     };
@@ -309,14 +309,14 @@ describe('Client Routes should', () => {
     });
   });
 
-  it('get Remote Route info from id, it should also return the middleFns from the ExecutionChain', async () => {
+  it('get Remote Route info from id, it should also return the middlewares from the ExecutionChain', async () => {
     createMionRouter({contextDataFactory: getSharedData}).initRoutes({...routes, ...mionClientRoutes});
 
     const methodIdList = ['users/getUser']; // all public methods
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({
-        auth: ['token'], // middleFn is required (request should be authenticated)
+        auth: ['token'], // middleware is required (request should be authenticated)
         [methodsId]: [methodIdList],
       }),
     };
@@ -343,7 +343,7 @@ describe('Client Routes should', () => {
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({
-        auth: ['token'], // middleFn is required
+        auth: ['token'], // middleware is required
         [methodsId]: [methodIdList, getAllRemoteMethods],
       }),
     };
@@ -365,7 +365,7 @@ describe('Client Routes should', () => {
     const request: RawRequest = {
       headers: headersFromRecord({}),
       body: JSON.stringify({
-        auth: ['token'], // middleFn is required
+        auth: ['token'], // middleware is required
         [methodsId]: [methodIdList],
       }),
     };
@@ -415,12 +415,12 @@ describe('Restore Client Routes jit functions', () => {
   });
 });
 
-describe('the methodsMetadata middleFn answers on the json framing every chain uses', () => {
+describe('the methodsMetadata middleware answers on the json framing every chain uses', () => {
   const metadataKey = MION_ROUTES.methodsMetadata;
 
   afterEach(() => resetRouter());
 
-  // The middleFn pins the built-in default on its own wires, so its encoder never follows the route's.
+  // The middleware pins the built-in default on its own wires, so its encoder never follows the route's.
   // Each route spells its serializer INLINE: a variable holding a build-time literal is a build error (CTA001).
   const expectMetadataInBody = async (routes: Routes) => {
     mion.initRoutes(routes);
@@ -447,7 +447,7 @@ describe('the methodsMetadata middleFn answers on the json framing every chain u
     } satisfies Routes);
   });
 
-  // The middleFn is in every chain, so it skips its params pipeline when no client asked for
+  // The middleware is in every chain, so it skips its params pipeline when no client asked for
   // metadata. Both halves matter: a request without the key must be untouched, and one WITH the key
   // must still be validated and answered.
   it('stays out of the way when no metadata was asked for', async () => {
@@ -505,13 +505,13 @@ describe('the methodsMetadata middleFn answers on the json framing every chain u
 });
 
 describe('metadata is generated for everything the client can call', () => {
-  // Not access control: routes are the public API, and a middleFn that takes params, takes headers or
+  // Not access control: routes are the public API, and a middleware that takes params, takes headers or
   // returns data has to be described so the client can encode the call and decode the answer. Only a
-  // raw middleFn and a middleFn with neither params nor return data have nothing to describe.
-  const silent = mion.middleFn((ctx): void => undefined);
-  const returnsData = mion.middleFn((ctx): null => null);
-  const takesParams = mion.middleFn((ctx, token: string): void => undefined);
-  const raw = mion.rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined);
+  // raw middleware and a middleware with neither params nor return data have nothing to describe.
+  const silent = mion.middleware((ctx): void => undefined);
+  const returnsData = mion.middleware((ctx): null => null);
+  const takesParams = mion.middleware((ctx, token: string): void => undefined);
+  const raw = mion.rawMiddleware((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined);
   const routes = {
     raw,
     takesParams,
@@ -532,7 +532,7 @@ describe('metadata is generated for everything the client can call', () => {
     return unwrap(response.body[methodsId]) as SerializableMethodsData;
   }
 
-  it('lists every route and every param-taking or data-returning middleFn, and nothing else', async () => {
+  it('lists every route and every param-taking or data-returning middleware, and nothing else', async () => {
     const data = await describeAll();
     expect(Object.keys(data.methods).sort()).toEqual(['takesParams', 'users/getUser', 'users/returnsData']);
   });
@@ -547,11 +547,11 @@ describe('metadata is generated for everything the client can call', () => {
     };
     const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
     const data = unwrap(response.body[methodsId]) as SerializableMethodsData;
-    // users/returnsData rides along as a middleFn of users/getUser's chain: a stale chain is stale metadata too
+    // users/returnsData rides along as a middleware of users/getUser's chain: a stale chain is stale metadata too
     expect(Object.keys(data.methods).sort()).toEqual(['takesParams', 'users/getUser', 'users/returnsData']);
   });
 
-  it('answers a by-id request for a middleFn with params but reports a raw or silent one as not found', async () => {
+  it('answers a by-id request for a middleware with params but reports a raw or silent one as not found', async () => {
     createMionRouter({contextDataFactory: () => ({user: null})}).initRoutes({...routes, ...mionClientRoutes});
     const request: RawRequest = {
       headers: headersFromRecord({}),

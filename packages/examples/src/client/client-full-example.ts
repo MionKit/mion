@@ -4,12 +4,12 @@ import type {MyApi} from './server.routes.ts';
 import {HeadersSubset} from '@mionjs/core';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, middleFns} = initClient<MyApi>({
+const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
 // prefills auth token for any future requests, value is stored in localStorage by default
-await middleFns
+await middlewares
   .auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
   .prefill();
 

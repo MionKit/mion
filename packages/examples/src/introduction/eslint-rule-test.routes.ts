@@ -17,7 +17,7 @@ const mion = createMionRouter();
 
 // start:strong-typed-valid-inline
 mion.route((ctx, name: string): string => `hello ${name}`);
-mion.middleFn((ctx, data: number): void => {
+mion.middleware((ctx, data: number): void => {
   console.log(data);
 });
 mion.headersFn((c: CallContext, {headers}: HeadersSubset<'auth'>): void => {
@@ -66,9 +66,9 @@ function routeWithJSDoc(ctx, name: string): string {
 }
 
 /**
- * @mion:middleFn
+ * @mion:middleware
  */
-const middleFnWithJSDoc = (ctx, data: number): void => {
+const middlewareWithJSDoc = (ctx, data: number): void => {
   console.log(data);
 };
 
@@ -94,7 +94,7 @@ function headersFnWithJSDoc(
 
 // start:strong-typed-invalid-inline
 mion.route((ctx, name) => `hello ${name}`); // Missing both param type and return type
-mion.middleFn((ctx, data: number) => {
+mion.middleware((ctx, data: number) => {
   console.log(data);
 }); // Missing return type
 mion.headersFn((c: CallContext, [token]): void => {
@@ -143,9 +143,9 @@ function invalidRouteJSDoc(ctx, name) {
 } // Missing both types
 
 /**
- * @mion:middleFn
+ * @mion:middleware
  */
-const invalidMiddleFnJSDoc = (ctx, data: number) => {
+const invalidMiddlewareJSDoc = (ctx, data: number) => {
   console.log(data);
 }; // Missing return type
 
@@ -231,7 +231,7 @@ mion.route((ctx, id: string): string | RpcError<'not-found'> => {
 });
 
 // 2. A FatalError is an RpcError subclass, so it is typed too, and it ends the request
-mion.middleFn((ctx, id: string): void | FatalError<'not-authorized'> => {
+mion.middleware((ctx, id: string): void | FatalError<'not-authorized'> => {
   if (!id)
     return new FatalError({
       type: 'not-authorized',

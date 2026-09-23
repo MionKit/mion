@@ -38,7 +38,7 @@ function directionOf(
   return value as ParserStrategy;
 }
 
-/** The parser pair of a route or middleFn: route option, then router option, then the default. */
+/** The parser pair of a route or middleware: route option, then router option, then the default. */
 export function resolveParser(
   routeOption: ParserOption | undefined,
   routerOption: ParserOption | undefined,

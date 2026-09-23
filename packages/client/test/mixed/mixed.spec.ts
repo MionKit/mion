@@ -23,9 +23,9 @@ import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} fro
 // this lane's own test server, started by test/lib/laneServer.ts
 const baseURL = inject('laneServerBaseURL');
 
-/** Every route of the test server runs behind the root-level `auth` headers middleFn. */
-function withAuth(middleFns: ReturnType<typeof initClient<TestServerApi>>['middleFns']) {
-  return {middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
+/** Every route of the test server runs behind the root-level `auth` headers middleware. */
+function withAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']) {
+  return {middlewares: {auth: middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
 }
 
 /** A helper typed with the wide subrequest: the build reports the widened id (MET004, a warning
@@ -74,10 +74,10 @@ describe('a client built with bundleApi: mixed', () => {
   });
 
   it('uses the bundle for a route called through its own dispatch point', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();
     try {
-      const [result] = await routes.utils.sumTwo(1).call(withAuth(middleFns));
+      const [result] = await routes.utils.sumTwo(1).call(withAuth(middlewares));
       expect(result).toBe(3);
       expect(watch.calls()).toBe(1);
       expect(watch.askedForMetadata()).toBe(false);
@@ -88,10 +88,10 @@ describe('a client built with bundleApi: mixed', () => {
   });
 
   it('fetches a route the bundle lacks, and stores only what it fetched', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();
     try {
-      const [result] = await callThroughWideHelper(routes.flow.getOrgLabel('acme'), withAuth(middleFns));
+      const [result] = await callThroughWideHelper(routes.flow.getOrgLabel('acme'), withAuth(middlewares));
       expect(result).toBe('[acme]');
       expect(watch.askedForMetadata()).toBe(true);
     } finally {
@@ -105,13 +105,13 @@ describe('a client built with bundleApi: mixed', () => {
     expect(stored).not.toContain('utils/sumTwo');
   });
 
-  it("keeps a bundled middleFn out of the store when it rides a fetched route's chain", async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    // a bundled dispatch point first, so the chain's auth middleFn comes from the build
-    await routes.utils.sumTwo(1).call(withAuth(middleFns));
+  it("keeps a bundled middleware out of the store when it rides a fetched route's chain", async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    // a bundled dispatch point first, so the chain's auth middleware comes from the build
+    await routes.utils.sumTwo(1).call(withAuth(middlewares));
     expect(isBundledMethod('auth')).toBe(true);
     // then a route the bundle lacks; the server answers for its WHOLE chain, auth included
-    await callThroughWideHelper(routes.flow.getOrgLabel('acme'), withAuth(middleFns));
+    await callThroughWideHelper(routes.flow.getOrgLabel('acme'), withAuth(middlewares));
     await flushMetadataCache();
     const stored = (await store.readAll(baseURL)).map((record) => record.id);
     expect(stored).toContain('flow/getOrgLabel');
@@ -121,8 +121,8 @@ describe('a client built with bundleApi: mixed', () => {
   });
 
   it('never lets a fetched answer replace a bundled entry', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    await routes.utils.sumTwo(1).call(withAuth(middleFns));
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    await routes.utils.sumTwo(1).call(withAuth(middlewares));
     const bundled = getMethod('utils/sumTwo');
     expect(bundled).toBeDefined();
     const options = {baseURL, basePath: '', suffix: '', storageEngine: 'memory'} as never;

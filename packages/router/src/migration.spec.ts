@@ -48,7 +48,7 @@ describe('mion migration: basic route', () => {
   const sideEffect = mion.route((ctx): void => undefined);
 
   const totals = {calls: 0};
-  const countCalls = mion.middleFn((ctx): void => {
+  const countCalls = mion.middleware((ctx): void => {
     totals.calls++;
   });
 
@@ -129,7 +129,7 @@ describe('mion migration: basic route', () => {
     expect(response.body.sideEffect).toBeUndefined();
   });
 
-  it('runs middleFns in the chain', async () => {
+  it('runs middlewares in the chain', async () => {
     totals.calls = 0;
     mion.initRoutes({countCalls, sayHello});
     const response = await dispatch('sayHello', [{name: 'Leo', surname: 'T', birth: new Date(0)}, 1]);

@@ -7,7 +7,7 @@
 
 import type {ParamsStrategy, ReturnStrategy} from './parser.ts';
 
-// The options of a route or middleFn AS THE ROUTER RESOLVES THEM, at type level: the route literal,
+// The options of a route or middleware AS THE ROUTER RESOLVES THEM, at type level: the route literal,
 // then the router literal, then the built-in default, the same three steps `getExecutableFromRoute`
 // takes at runtime (router.ts). `PublicApi` puts this view on every public method, which is what
 // `initRoutes` returns at runtime, so a client build reads the effective options off the API type.
@@ -40,14 +40,14 @@ export type ResolvedRouteOptions<RO, O> = {
   maxBodySize: Named<RO, 'maxBodySize'>;
 };
 
-/** A middleFn's effective options (headers middleFns included). */
-export type ResolvedMiddleFnOptions<RO, O> = {
+/** A middleware's effective options (headers middlewares included). */
+export type ResolvedMiddlewareOptions<RO, O> = {
   alwaysRun: [Named<RO, 'alwaysRun'>] extends [true] ? true : false;
   validateParams: Pick3<Named<RO, 'validateParams'>, undefined, true>;
   validateReturn: Pick3<Named<RO, 'validateReturn'>, undefined, false>;
   description: Named<RO, 'description'>;
   parser: {params: ParamsStrategy<RO, O>; return: ReturnStrategy<RO, O>};
   sanitizeParams: Pick3<Named<RO, 'sanitizeParams'>, Named<O, 'sanitizeParams'>, undefined>;
-  /** The middleFn's own contribution to the request limit of the chains it sits in, when declared. */
+  /** The middleware's own contribution to the request limit of the chains it sits in, when declared. */
   maxBodySize: Named<RO, 'maxBodySize'>;
 };

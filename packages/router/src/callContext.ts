@@ -21,7 +21,7 @@ import {getBatchExecutionChain} from './batches.ts';
  *  parsed body attached to it is promoted with it, which on a 4 MB body costs garbage-collector throughput.
  *  The chain is SHARED and long-lived: mutating what this returns damages the route for the whole process.
  *  An unknown path or batch id resolves to a not-found chain that never reads the body (`readsBody` false)
- *  and runs only the global middleFns that declare `alwaysRun`. */
+ *  and runs only the global middlewares that declare `alwaysRun`. */
 export function resolveExecutionChain(path: string, urlQuery: string | undefined, rawRequest: unknown): MethodsExecutionChain {
   const opts = getRouterOptions();
   const transformedPath = opts.pathTransform?.(rawRequest, path) || path;

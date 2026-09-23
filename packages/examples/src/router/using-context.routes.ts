@@ -8,7 +8,7 @@ interface ContextData {
 }
 const initContextData = (): ContextData => ({myUser: null});
 
-// the factory's return type becomes ctx.shared in every route and middleFn
+// the factory's return type becomes ctx.shared in every route and middleware
 const mion = createMionRouter({contextDataFactory: initContextData});
 
 const routes = {

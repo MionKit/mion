@@ -55,7 +55,7 @@ export const MIME_TYPES = {
 export const StatusCodes = {
   /** Any error in the server that is not related to the application, ie: server not ready, etc... */
   SERVER_ERROR: 500,
-  /** Any expected and strongly typed error returned by a route/middleFn. ie: entity not found, etc. */
+  /** Any expected and strongly typed error returned by a route/middleware. ie: entity not found, etc. */
   APPLICATION_ERROR: 400,
   /** Any thrown or unexpected error, typically irrecoverable and handled globally, ie redirect to login when auth fails. */
   UNEXPECTED_ERROR: 422,
@@ -67,9 +67,9 @@ export const StatusCodes = {
 
 export const HandlerType = {
   route: 1,
-  middleFn: 2,
-  headersMiddleFn: 3,
-  rawMiddleFn: 4,
+  middleware: 2,
+  headersMiddleware: 3,
+  rawMiddleware: 4,
 } as const;
 
 // A row IS the marker's slot list, named by the MARKER token InjectTypeFnArgs asks for, not the compiled tag.

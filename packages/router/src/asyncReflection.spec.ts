@@ -11,7 +11,7 @@
 // these pin. A wrong answer here is what would let dispatch skip an await it needed.
 
 import {describe, it, expect} from 'vitest';
-import {createMionRouter, resetRouter, getRouteExecutable, getMiddleFnExecutable} from './router.ts';
+import {createMionRouter, resetRouter, getRouteExecutable, getMiddlewareExecutable} from './router.ts';
 import {Routes} from './types/general.ts';
 import {HeadersSubset} from '@mionjs/core';
 
@@ -27,20 +27,20 @@ const routes = {
   // an object that merely has a `then` method is NOT a promise
   // oxlint-disable-next-line unicorn/no-thenable -- the point of this test: data with a `then` key must NOT be mistaken for a promise
   thenableReturn: mion.route((): {then: string} => ({then: 'not a method'})),
-  syncMiddleFn: mion.middleFn((): void => undefined),
-  asyncMiddleFn: mion.middleFn(async (): Promise<void> => undefined),
+  syncMiddleware: mion.middleware((): void => undefined),
+  asyncMiddleware: mion.middleware(async (): Promise<void> => undefined),
   promiseHeadersFn: mion.headersFn((_ctx, _h: HeadersSubset<'authorization'>): Promise<void> => Promise.resolve()),
 } satisfies Routes;
 
 resetRouter();
 mion.initRoutes(routes);
 
-const isAsyncOf = (id: string): boolean | undefined => (getRouteExecutable(id) ?? getMiddleFnExecutable(id))?.isAsync;
+const isAsyncOf = (id: string): boolean | undefined => (getRouteExecutable(id) ?? getMiddlewareExecutable(id))?.isAsync;
 
 describe('isAsync should', () => {
   it('be true for an async function', () => {
     expect(isAsyncOf('asyncRoute')).toBe(true);
-    expect(isAsyncOf('asyncMiddleFn')).toBe(true);
+    expect(isAsyncOf('asyncMiddleware')).toBe(true);
   });
 
   it('be true for a plain function that returns a promise', () => {
@@ -55,7 +55,7 @@ describe('isAsync should', () => {
 
   it('be false for a sync handler', () => {
     expect(isAsyncOf('syncRoute')).toBe(false);
-    expect(isAsyncOf('syncMiddleFn')).toBe(false);
+    expect(isAsyncOf('syncMiddleware')).toBe(false);
   });
 
   it('be false for a handler returning an object that merely has a then property', () => {

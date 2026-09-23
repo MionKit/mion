@@ -125,7 +125,7 @@ type Either = Date | bigint | {kind: 'a'; n: number} | string;
 
 const routes = {
   auth: mion.headersFn((ctx, h: HeadersSubset<'authorization'>): void => undefined),
-  session: mion.middleFn((ctx, token?: string): {ok: boolean} => ({ok: token === 'good'})),
+  session: mion.middleware((ctx, token?: string): {ok: boolean} => ({ok: token === 'good'})),
   echoUser: mion.route((ctx, user: User): User => user),
   sumAll: mion.route((ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
   withDate: mion.route((ctx, when: Date): number => when.getTime()),
@@ -449,7 +449,7 @@ interface Attack {
   headers: Record<string, string>;
 }
 
-/** The fixture router has a headers middleFn on every route, so a request that means to reach a
+/** The fixture router has a headers middleware on every route, so a request that means to reach a
  *  handler carries the header; hostile header sets sometimes drop it on purpose. */
 const AUTH_HEADERS = {authorization: 'Bearer ok'};
 

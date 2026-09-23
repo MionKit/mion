@@ -21,17 +21,17 @@ const getSharedData = (): SharedData => ({user: null, visits: 0});
 // The module-level factory: one per app, the shape every consumer file has.
 const mion = createMionRouter({basePath: 'api', contextDataFactory: getSharedData});
 // Plain closures: destructuring keeps the typed context and the build-time injection.
-const {route: destructuredRoute, middleFn: destructuredMiddleFn} = mion;
+const {route: destructuredRoute, middleware: destructuredMiddleware} = mion;
 
 const routes = {
   auth: mion.headersFn(
     (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
   ),
-  timestamp: mion.middleFn((ctx, time: number): string => `time: ${time}`),
-  nothing: mion.rawMiddleFn((ctx, req: unknown, resp: unknown): void => undefined),
+  timestamp: mion.middleware((ctx, time: number): string => `time: ${time}`),
+  nothing: mion.rawMiddleware((ctx, req: unknown, resp: unknown): void => undefined),
   print: mion.route((ctx, name: string): string => `name: ${name}`),
   visits: destructuredRoute((ctx): number => ctx.shared.visits),
-  greet: destructuredMiddleFn((ctx, greeting: string): string => `${greeting} ${ctx.shared.user ?? 'anonymous'}`),
+  greet: destructuredMiddleware((ctx, greeting: string): string => `${greeting} ${ctx.shared.user ?? 'anonymous'}`),
 } satisfies Routes;
 
 // The build-time injected payload: compiled fn tuples per side + the two type id handles.
@@ -63,22 +63,22 @@ describe('createMionRouter helpers', () => {
     });
   });
 
-  it('injects through mion.middleFn and mion.headersFn', () => {
-    expect(routes.timestamp).toEqual({type: HandlerType.middleFn, handler: expect.any(Function), rtFns: expectedRtFns});
+  it('injects through mion.middleware and mion.headersFn', () => {
+    expect(routes.timestamp).toEqual({type: HandlerType.middleware, handler: expect.any(Function), rtFns: expectedRtFns});
     expect(routes.auth).toEqual({
-      type: HandlerType.headersMiddleFn,
+      type: HandlerType.headersMiddleware,
       handler: expect.any(Function),
       rtFns: {...expectedRtFns, headersFns: expect.any(Array), headersId: expect.anything()},
     });
   });
 
-  it('a rawMiddleFn carries nothing compiled', () => {
-    expect(routes.nothing).toEqual({type: HandlerType.rawMiddleFn, handler: expect.any(Function)});
+  it('a rawMiddleware carries nothing compiled', () => {
+    expect(routes.nothing).toEqual({type: HandlerType.rawMiddleware, handler: expect.any(Function)});
   });
 
   it('injects through destructured helpers too', () => {
     expect(routes.visits).toEqual({type: HandlerType.route, handler: expect.any(Function), rtFns: expectedRtFns});
-    expect(routes.greet).toEqual({type: HandlerType.middleFn, handler: expect.any(Function), rtFns: expectedRtFns});
+    expect(routes.greet).toEqual({type: HandlerType.middleware, handler: expect.any(Function), rtFns: expectedRtFns});
   });
 
   it('keeps the options literal, frozen', () => {
@@ -117,8 +117,8 @@ describe('createMionRouter types', () => {
   // The only assertions that catch `ctx.shared` widening to `any`; every runtime test would keep passing.
   // They bite under `tsc -p tsconfig.json` (the package's typecheck:test), not vitest: the handlers never run.
 
-  it('types the handler context from contextDataFactory in middleFn', () => {
-    mion.middleFn((ctx, greeting: string): string => {
+  it('types the handler context from contextDataFactory in middleware', () => {
+    mion.middleware((ctx, greeting: string): string => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
       void ctx.shared.nope;
@@ -135,8 +135,8 @@ describe('createMionRouter types', () => {
     });
   });
 
-  it('types the handler context from contextDataFactory in rawMiddleFn', () => {
-    mion.rawMiddleFn((ctx, req: unknown, resp: unknown): void => {
+  it('types the handler context from contextDataFactory in rawMiddleware', () => {
+    mion.rawMiddleware((ctx, req: unknown, resp: unknown): void => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
       void ctx.shared.nope;
@@ -165,7 +165,7 @@ describe('createMionRouter types', () => {
       void ctx.shared.nope;
       return ctx.shared.visits;
     });
-    destructuredMiddleFn((ctx, greeting: string): string => {
+    destructuredMiddleware((ctx, greeting: string): string => {
       expectTypeOf(ctx.shared).toEqualTypeOf<SharedData>();
       // @ts-expect-error not a field of the shared data
       void ctx.shared.nope;
@@ -198,7 +198,7 @@ describe('PublicApi resolved options', () => {
         maxBodySize: 4096,
       }),
       r: compact.route((ctx): number => 1),
-      mf: compact.middleFn((ctx, s: string): string => s, {alwaysRun: true, validateReturn: true}),
+      mf: compact.middleware((ctx, s: string): string => s, {alwaysRun: true, validateReturn: true}),
     } satisfies Routes;
     type Api = PublicApi<typeof defs>;
 

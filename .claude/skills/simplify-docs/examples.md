@@ -31,7 +31,7 @@ YES  Compiler Lint Rules
 NO   Walk your type's structure                   (a slogan, not Title Case)
 YES  Walking a Type
 
-NO   Middleware function's Scope                  (possessive, mixed case)
+NO   Middleware's Scope                  (possessive, mixed case)
 YES  Middleware Scope
 
 NO   wrangler.toml Example                        (a file name as the title)

@@ -15,7 +15,7 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 import {BIN, hasBinary, writeMarkerPackage} from '../../test/helpers/inline.ts';
 
 // The bundled-API lane through a REAL vite build over a REAL program: with `bundleApi` on, the
-// resolver writes `<genDir>/api/` (one module per route or middleFn the program calls, the site
+// resolver writes `<genDir>/api/` (one module per route or middleware the program calls, the site
 // modules, the manifest), the transform imports the lane module into the file calling initClient
 // and injects each site's module at
 // its dispatch call, and rollup inlines it all into a self-contained artifact that carries live
@@ -41,16 +41,16 @@ const CLIENT_DTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
       : ClientRoutes<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export type ClientMiddleFns<RA, Prefix extends string = '', Root = RA> = {
+  export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
       ? (...params: Parameters<H>) => MiddlewareSubRequest<H, \`\${Prefix}\${K & string}\`, Root>
-      : ClientMiddleFns<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
+      : ClientMiddlewares<RA[K], \`\${Prefix}\${K & string}/\`, Root>;
   };
-  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
   export function setBundleApiMode(mode: 'bundled' | 'mixed'): void;
 }
 `;
-// The client's view of the API (PublicApi<typeof routes>): a headers middleFn, a called route and
+// The client's view of the API (PublicApi<typeof routes>): a headers middleware, a called route and
 // a route nothing calls.
 const API_TS = `type Headers = {headers: {authorization: string}};
 type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
@@ -65,9 +65,9 @@ export type Api = {
 `;
 const CLIENT = `import {initClient} from '@mionjs/client';
 import type {Api} from './api.ts';
-export const {routes, middleFns} = initClient<Api>({baseURL: 'http://x'});
+export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
 export const a = routes.users.getById(1).call();
-export const b = middleFns.auth({headers: {authorization: 'x'}}).prefill();
+export const b = middlewares.auth({headers: {authorization: 'x'}}).prefill();
 `;
 // Records the lane injected at initClient and the module injected at each dispatch point.
 const CLIENT_STUB = `export function setBundleApiMode(mode) {
@@ -83,7 +83,7 @@ export function initClient(options) {
     get: (_, key) => (typeof key === 'string' ? node(pathId ? pathId + '/' + key : key) : undefined),
     apply: () => make(pathId),
   });
-  return {routes: node(''), middleFns: node('')};
+  return {routes: node(''), middlewares: node('')};
 }
 `;
 const TSCONFIG = `{
@@ -95,7 +95,7 @@ const TSCONFIG = `{
 }
 `;
 
-type Bundle = {methods: {id: string; type: number; middleFnIds?: string[]; rtFns: Record<string, unknown>}[]};
+type Bundle = {methods: {id: string; type: number; middlewareIds?: string[]; rtFns: Record<string, unknown>}[]};
 type Globals = {__mode?: string; __bundles?: Record<string, Bundle>};
 
 const register = hasBinary() ? describe : describe.skip;
@@ -208,12 +208,12 @@ register('bundled API through a real vite build', () => {
     expect(globals.__mode).toBe('bundled');
     const bundles = globals.__bundles ?? {};
     expect(Object.keys(bundles).sort()).toEqual(['auth', 'users/getById']);
-    // the route's payload: the route plus the middleFn of its chain, in tree order
+    // the route's payload: the route plus the middleware of its chain, in tree order
     const getById = bundles['users/getById'];
     expect(getById.methods.map((method) => method.id)).toEqual(['auth', 'users/getById']);
     const route = getById.methods[1];
     expect(route.type).toBe(1);
-    expect(route.middleFnIds).toEqual(['auth']);
+    expect(route.middlewareIds).toEqual(['auth']);
     // the marker payload is made of entry tuples carrying live factories, never a code string
     const paramsFns = route.rtFns.paramsFns as unknown[][];
     expect(Array.isArray(paramsFns)).toBe(true);
@@ -222,7 +222,7 @@ register('bundled API through a real vite build', () => {
     for (const tuple of paramsFns)
       expect(tuple.filter((slot) => typeof slot === 'string' && slot.includes('return '))).toEqual([]);
     expect(Array.isArray(route.rtFns.paramsId)).toBe(true);
-    // the prefilled headers middleFn carries its headers type too
+    // the prefilled headers middleware carries its headers type too
     const auth = bundles['auth'].methods[0];
     expect(auth.type).toBe(3);
     expect(Array.isArray(auth.rtFns.headersFns)).toBe(true);

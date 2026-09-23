@@ -10,7 +10,7 @@
 // runs inside the guard, and the router's own body limit is the only limit this platform has.
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {createVercelHandler, resetVercelHandlerOpts, setVercelHandlerOpts} from './vercelHandler.ts';
@@ -129,7 +129,7 @@ describe('vercel adapter: an unknown path never reads the body', () => {
 
 // A body this adapter refuses is still a request the chain sees: it runs the members that declare
 // `alwaysRun` (an access log, a rate limiter) and nothing else, so a 413 is logged like any answer.
-describe('vercel adapter: a refused body runs the alwaysRun middleFns', () => {
+describe('vercel adapter: a refused body runs the alwaysRun middlewares', () => {
   let handler: ReturnType<typeof createVercelHandler>;
   let seen: string[] = [];
 
@@ -137,13 +137,13 @@ describe('vercel adapter: a refused body runs the alwaysRun middleFns', () => {
     resetVercelHandlerOpts();
     setVercelHandlerOpts({maxBodySize: 64});
     resetRouter();
-    addStartMiddleFns({
-      plainStart: mion.rawMiddleFn((ctx: CallContext) => {
+    addStartMiddlewares({
+      plainStart: mion.rawMiddleware((ctx: CallContext) => {
         seen.push(`start:${ctx.path}`);
       }),
     });
-    addEndMiddleFns({
-      accessLog: mion.rawMiddleFn(
+    addEndMiddlewares({
+      accessLog: mion.rawMiddleware(
         (ctx: CallContext) => {
           seen.push(`log:${ctx.response.statusCode}`);
         },
@@ -157,7 +157,7 @@ describe('vercel adapter: a refused body runs the alwaysRun middleFns', () => {
   const send = (body: string) =>
     handler.POST(new Request('http://localhost/api/echo', {method: 'POST', body, headers: {'content-type': 'application/json'}}));
 
-  it('a body over the limit answers 413 through the chain, running only the alwaysRun middleFns', async () => {
+  it('a body over the limit answers 413 through the chain, running only the alwaysRun middlewares', async () => {
     seen = [];
     const response = await send(JSON.stringify({echo: [{name: 'x'.repeat(120), surname: 'y'}]}));
     expect(response.status).toBe(StatusCodes.PAYLOAD_TOO_LARGE);

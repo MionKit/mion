@@ -8,7 +8,7 @@
 import type {Routes} from '../types/general.ts';
 import type {CallContext} from '../types/context.ts';
 import {RpcError, FatalError, MION_ROUTES, StatusCodes} from '@mionjs/core';
-import {route, rawMiddleFn} from '../lib/handlers.ts';
+import {route, rawMiddleware} from '../lib/handlers.ts';
 
 // mion's own routes, registered by initRouter for every app. Declared at module level rather than
 // through the router factory: a marker call site inside the generic `createMionRouter` would carry an
@@ -39,10 +39,10 @@ export const mionErrorsRoutes = {
 
 /** The first member of each of mion's two not-found chains. It throws, so the dispatcher skips every later
  *  member that does not declare `alwaysRun`: a failed request never reaches a session loader or an auth step.
- *  Raw middleFns rather than routes: nobody declared this request, so there is no params or return contract
+ *  Raw middlewares rather than routes: nobody declared this request, so there is no params or return contract
  *  to compile, and the error belongs in the undeclared `@thrownErrors` slot. The batch id is the only
  *  untrusted input and it is never echoed. */
-export const notFoundMiddleFn = rawMiddleFn((): void => {
+export const notFoundMiddleware = rawMiddleware((): void => {
   throw new FatalError({
     statusCode: StatusCodes.NOT_FOUND,
     publicMessage: `Route not found`,
@@ -50,7 +50,7 @@ export const notFoundMiddleFn = rawMiddleFn((): void => {
   });
 });
 
-export const batchNotFoundMiddleFn = rawMiddleFn((): void => {
+export const batchNotFoundMiddleware = rawMiddleware((): void => {
   throw new FatalError({
     statusCode: StatusCodes.NOT_FOUND,
     type: 'batch-unknown-id',

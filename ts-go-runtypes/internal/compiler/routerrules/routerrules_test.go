@@ -26,22 +26,22 @@ const routerDts = `declare module '@mionjs/router' {
   export type HeaderHandler = (ctx: CallContext, headers: HeadersSubset<any>, ...params: any[]) => any;
   export interface RouteDef<H> { handler: H }
   export interface RouteHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface MiddleFnHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
+  export interface MiddlewareHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
   export interface HeadersFnHelper { <H extends HeaderHandler>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface RawMiddleFnHelper { <H extends (...a: any[]) => any>(handler: H, opts?: unknown): RouteDef<H> }
+  export interface RawMiddlewareHelper { <H extends (...a: any[]) => any>(handler: H, opts?: unknown): RouteDef<H> }
   export interface MionRouter {
     readonly route: RouteHelper;
     readonly query: RouteHelper;
     readonly mutation: RouteHelper;
-    readonly middleFn: MiddleFnHelper;
+    readonly middleware: MiddlewareHelper;
     readonly headersFn: HeadersFnHelper;
-    readonly rawMiddleFn: RawMiddleFnHelper;
+    readonly rawMiddleware: RawMiddlewareHelper;
   }
   export function createMionRouter(opts?: unknown): MionRouter;
   // The package's OWN internal helper bodies (lib/handlers.ts), typed by the same
   // interfaces, which is how the framework declares its built-in routes.
   export const route: RouteHelper;
-  export const rawMiddleFn: RawMiddleFnHelper;
+  export const rawMiddleware: RawMiddlewareHelper;
 }
 `
 
@@ -178,9 +178,9 @@ func TestStrongTypedRoutes_ContextParamsAreExempt(t *testing.T) {
 		diagnostics.CodeRouteMissingParamType)
 }
 
-func TestStrongTypedRoutes_RawMiddleFnIsNotAHandler(t *testing.T) {
-	// A raw middleFn takes no typed params and declares no return type.
-	assertCodes(t, checkBody(t, "export const raw = mion.rawMiddleFn((ctx, req) => undefined);"))
+func TestStrongTypedRoutes_RawMiddlewareIsNotAHandler(t *testing.T) {
+	// A raw middleware takes no typed params and declares no return type.
+	assertCodes(t, checkBody(t, "export const raw = mion.rawMiddleware((ctx, req) => undefined);"))
 }
 
 // The four handler shapes the syntactic rules could not see.
@@ -274,9 +274,9 @@ export const builtIn = route((ctx, name: string) => name);
 `}), diagnostics.CodeRouteMissingReturnType)
 }
 
-func TestRouterShapes_RawMiddleFnFunctionIsNotAHandler(t *testing.T) {
-	assertCodes(t, check(t, map[string]string{"routes.ts": `import {rawMiddleFn} from '@mionjs/router';
-export const raw = rawMiddleFn((ctx, req) => undefined);
+func TestRouterShapes_RawMiddlewareFunctionIsNotAHandler(t *testing.T) {
+	assertCodes(t, check(t, map[string]string{"routes.ts": `import {rawMiddleware} from '@mionjs/router';
+export const raw = rawMiddleware((ctx, req) => undefined);
 `}))
 }
 
@@ -421,7 +421,7 @@ func TestReturnedErrorType_RpcErrorIsFine(t *testing.T) {
 import {RpcError, FatalError} from '@mionjs/core';
 const mion = createMionRouter();
 export const ok = mion.route((ctx, id: string): string | RpcError => 'x');
-export const alsoOk = mion.middleFn((ctx): void | FatalError => undefined);
+export const alsoOk = mion.middleware((ctx): void | FatalError => undefined);
 `}))
 }
 

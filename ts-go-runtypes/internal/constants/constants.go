@@ -431,10 +431,10 @@ const (
 	// the SERVER build from the batch source program (its own, or the `clientTsconfig` one), so the server owns
 	// every file it loads and never reads a client tree.
 	RpcModuleDir = "rpc"
-	// ApiModuleDir holds what a mion CLIENT build bundles under `bundleApi`: one module per route or middleFn the
+	// ApiModuleDir holds what a mion CLIENT build bundles under `bundleApi`: one module per route or middleware the
 	// program calls (`api/m/<id>.js`, its metadata plus the compiled function tuples it imports from the client
 	// mirror under `api/types/`), one module per dispatch-site shape (`api/s/<id>.js`, the route with its
-	// middleFn chain, or the union a batch runs) and `api/manifest.json`, the id table `mion api-check` compares
+	// middleware chain, or the union a batch runs) and `api/manifest.json`, the id table `mion api-check` compares
 	// against the server's.
 	ApiModuleDir = "api"
 	// ApiManifestFile is the id manifest's name under ApiModuleDir, written by BOTH builds: the server's from its

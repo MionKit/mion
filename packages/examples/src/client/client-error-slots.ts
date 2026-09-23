@@ -2,15 +2,15 @@ import {initClient} from '@mionjs/client';
 import type {UndeclaredError} from '@mionjs/client';
 import type {MyApi} from './server.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({
+const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// The result tuple is [result, error, undeclared, middleFnResults, middleFnErrors]:
+// The result tuple is [result, error, undeclared, middlewareResults, middlewareErrors]:
 // - slot 1 (error) is the route's DECLARED errors | ValidationError - a CLOSED, strongly typed union
 // - slot 2 (undeclared) is anything NOBODY declared - an OPEN RpcError<string>. A returned FatalError
 //   is declared, so it lands in slot 1 or 4, never here
-// - slot 4 (middleFnErrors) is each middleware function's DECLARED errors, strongly typed by name
+// - slot 4 (middlewareErrors) is each middleware's DECLARED errors, strongly typed by name
 const [user, error, undeclared] = await routes.users.getById('USER-123').call();
 
 // slot 2 is open: transport/framework codes narrow with NO cast
@@ -47,16 +47,16 @@ if (error?.type === 'user-not-found') console.log(error.errorData?.bogus);
 const lastFailure: UndeclaredError | undefined = undeclared;
 console.log(lastFailure?.publicMessage);
 
-// slot 4 is a typed record keyed by the names YOU passed - each middleware function's declared errors narrow
-const [, , , , middleFnErrors] = await routes.users.getById('USER-123').call({
-  middleFns: {
-    auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}, true),
+// slot 4 is a typed record keyed by the names YOU passed - each middleware's declared errors narrow
+const [, , , , middlewareErrors] = await routes.users.getById('USER-123').call({
+  middlewares: {
+    auth: middlewares.auth({headers: {Authorization: 'Bearer token'}}, true),
   },
 });
-if (middleFnErrors?.auth?.type === 'not-authorized') {
+if (middlewareErrors?.auth?.type === 'not-authorized') {
   // errorData is strongly typed as NotAuthorizedData
-  console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
+  console.log('auth failed:', middlewareErrors.auth.errorData?.reason);
 }
-// only the middleware function names you passed exist on the record
-// @ts-expect-error -- no middleware function named `bogus` was passed to this call
-console.log(middleFnErrors?.bogus);
+// only the middleware names you passed exist on the record
+// @ts-expect-error -- no middleware named `bogus` was passed to this call
+console.log(middlewareErrors?.bogus);

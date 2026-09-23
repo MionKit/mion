@@ -11,7 +11,7 @@
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {createConnection} from 'net';
 import type {Server} from 'http';
-import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import type {CallContext} from '@mionjs/router';
 import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
 import {resetNodeHttpOpts, setNodeHttpOpts, startNodeServer} from './mionHttp.ts';
@@ -246,7 +246,7 @@ describe('node adapter: an unknown path never reads the body', () => {
 
 // A body this adapter refuses is still a request the chain sees: it runs the members that declare
 // `alwaysRun` (an access log, a rate limiter) and nothing else, so a 413 is logged like any answer.
-describe('node adapter: a refused body runs the alwaysRun middleFns', () => {
+describe('node adapter: a refused body runs the alwaysRun middlewares', () => {
   const refusedPort = 8281;
   let server: Server;
   let seen: string[] = [];
@@ -254,13 +254,13 @@ describe('node adapter: a refused body runs the alwaysRun middleFns', () => {
   beforeAll(async () => {
     resetNodeHttpOpts();
     resetRouter();
-    addStartMiddleFns({
-      plainStart: mion.rawMiddleFn((ctx: CallContext) => {
+    addStartMiddlewares({
+      plainStart: mion.rawMiddleware((ctx: CallContext) => {
         seen.push(`start:${ctx.path}`);
       }),
     });
-    addEndMiddleFns({
-      accessLog: mion.rawMiddleFn(
+    addEndMiddlewares({
+      accessLog: mion.rawMiddleware(
         (ctx: CallContext) => {
           seen.push(`log:${ctx.response.statusCode}`);
         },

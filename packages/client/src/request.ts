@@ -12,7 +12,7 @@ import {
   SubRequest,
   RouteSubRequest,
   RequestErrors,
-  PrefilledMiddleFnsCache,
+  PrefilledMiddlewaresCache,
 } from './types.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {
@@ -36,7 +36,7 @@ import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts
 import {MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 import {headersToRecord, hasHeadersSubsetParam} from './lib/headers.ts';
 
-export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequestsList extends MiddlewareSubRequest<any>[]> {
+export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareRequestsList extends MiddlewareSubRequest<any>[]> {
   readonly path: string;
   readonly requestId: string;
   readonly subRequestList: {[key: string]: SubRequest<any>} = {};
@@ -50,9 +50,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
 
   constructor(
     public readonly options: ClientOptions,
-    private readonly prefilledMiddleFnsCache: PrefilledMiddleFnsCache,
+    private readonly prefilledMiddlewaresCache: PrefilledMiddlewaresCache,
     public readonly route?: RR,
-    public readonly middleFns?: MiddleFnRequestsList,
+    public readonly middlewares?: MiddlewareRequestsList,
     public readonly batchSubRequests?: RouteSubRequest<any>[],
     /** Build-injected id of the batch; the only thing the batch wire carries besides the body */
     public readonly batchId?: string,
@@ -69,7 +69,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       this.requestId = route ? route.id : 'no-route';
       if (route) this.addSubRequest(route);
     }
-    if (middleFns) middleFns.forEach((middleFn) => this.addSubRequest(middleFn));
+    if (middlewares) middlewares.forEach((middleware) => this.addSubRequest(middleware));
   }
 
   async call(): Promise<ResponseBody> {
@@ -107,9 +107,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
       isOptimistic = !allCached && !skipOptimistic;
       if (isOptimistic) {
         (this.options as any).serializer = 'optimistic';
-        // The chain is unknown until the metadata arrives, but a middleFn's scope is its pointer, so the
+        // The chain is unknown until the metadata arrives, but a middleware's scope is its pointer, so the
         // route pointer alone says which prefills belong; missing one costs the retry, an extra one is ignored.
-        this.restoreScopedPrefilledMiddleFns();
+        this.restoreScopedPrefilledMiddlewares();
         // Only ids the client lacks: storing the server's copy over a BUNDLED method lets a later purge drop it for good.
         const missingIds = Object.keys(this.subRequestList).filter((id) => !hasMethod(id));
         this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
@@ -125,7 +125,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
           }
         }
         await this.loadMethodsMetadata(subRequestIds, this.signal);
-        this.restorePrefilledMiddleFns(errors);
+        this.restorePrefilledMiddlewares(errors);
         if (errors.size) return Promise.reject(errors);
         sanitizeSubRequests(subRequestIds, this);
         validateSubRequests(subRequestIds, this, errors);
@@ -261,7 +261,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
 
       serializeRequestBody(this);
 
-      this.storePrefilledMiddleFns(errors);
+      this.storePrefilledMiddlewares(errors);
       if (errors.size) return Promise.reject(errors);
 
       return;
@@ -273,7 +273,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
 
   async removePrefill(subRequests?: SubRequest<any>[]): Promise<void> {
     if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
-    this.removePrefilledMiddleFns();
+    this.removePrefilledMiddlewares();
   }
 
   addSubRequest(subRequest: SubRequest<any>) {
@@ -384,8 +384,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return [this.requestId];
   }
 
-  /** Restores the prefilled middleFns the cached metadata lists in the route's chain (standard flow) */
-  private restorePrefilledMiddleFns(errors: RequestErrors): void {
+  /** Restores the prefilled middlewares the cached metadata lists in the route's chain (standard flow) */
+  private restorePrefilledMiddlewares(errors: RequestErrors): void {
     const routeIds = new Set(this.getRouteIds());
     for (const routeId of routeIds) {
       const methodMeta = getMethod(routeId);
@@ -400,8 +400,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         );
         continue;
       }
-      const missingIds = methodMeta.middleFnIds?.filter((id) => !!id && !routeIds.has(id)) || [];
-      missingIds.forEach((id) => this.restorePrefilledMiddleFn(id));
+      const missingIds = methodMeta.middlewareIds?.filter((id) => !!id && !routeIds.has(id)) || [];
+      missingIds.forEach((id) => this.restorePrefilledMiddleware(id));
     }
   }
 
@@ -411,22 +411,22 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return this.route ? [this.route.pointer] : [];
   }
 
-  /** Optimistic flow: the chain is not cached yet, but a middleFn's group is part of its pointer */
-  private restoreScopedPrefilledMiddleFns(): void {
+  /** Optimistic flow: the chain is not cached yet, but a middleware's group is part of its pointer */
+  private restoreScopedPrefilledMiddlewares(): void {
     const routeIds = new Set(this.getRouteIds());
     const routePointers = this.getRoutePointers();
-    for (const [cacheKey, cachedSubRequest] of this.prefilledMiddleFnsCache) {
+    for (const [cacheKey, cachedSubRequest] of this.prefilledMiddlewaresCache) {
       const id = cachedSubRequest.id;
       // the cache is keyed by baseURL too: only this client's own prefills ride along
-      if (routeIds.has(id) || cacheKey !== this.getPrefilledMiddleFnCacheKey(id)) continue;
-      if (!routePointers.some((routePointer) => isMiddleFnInScope(cachedSubRequest.pointer, routePointer))) continue;
-      this.restorePrefilledMiddleFn(id);
+      if (routeIds.has(id) || cacheKey !== this.getPrefilledMiddlewareCacheKey(id)) continue;
+      if (!routePointers.some((routePointer) => isMiddlewareInScope(cachedSubRequest.pointer, routePointer))) continue;
+      this.restorePrefilledMiddleware(id);
     }
   }
 
-  private restorePrefilledMiddleFn(id: string): void {
+  private restorePrefilledMiddleware(id: string): void {
     if (this.subRequestList[id]) return;
-    const cachedSubRequest = this.prefilledMiddleFnsCache.get(this.getPrefilledMiddleFnCacheKey(id));
+    const cachedSubRequest = this.prefilledMiddlewaresCache.get(this.getPrefilledMiddlewareCacheKey(id));
     if (!cachedSubRequest) return;
     const clonedSubRequest: SubRequest<any> = {
       ...cachedSubRequest,
@@ -437,7 +437,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     this.addSubRequest(clonedSubRequest);
   }
 
-  private storePrefilledMiddleFns(errors: RequestErrors): void {
+  private storePrefilledMiddlewares(errors: RequestErrors): void {
     Object.keys(this.subRequestList).forEach((id) => {
       const subRequest = this.subRequestList[id];
       const methodMeta = getMethod(id);
@@ -452,15 +452,15 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         );
         return;
       }
-      const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
-      this.prefilledMiddleFnsCache.set(cacheKey, subRequest);
+      const cacheKey = this.getPrefilledMiddlewareCacheKey(id);
+      this.prefilledMiddlewaresCache.set(cacheKey, subRequest);
     });
   }
 
-  private removePrefilledMiddleFns(): void {
+  private removePrefilledMiddlewares(): void {
     Object.keys(this.subRequestList).forEach((id) => {
-      const cacheKey = this.getPrefilledMiddleFnCacheKey(id);
-      this.prefilledMiddleFnsCache.delete(cacheKey);
+      const cacheKey = this.getPrefilledMiddlewareCacheKey(id);
+      this.prefilledMiddlewaresCache.delete(cacheKey);
     });
   }
 
@@ -471,16 +471,16 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
     return meta?.options?.isMutation === false;
   }
 
-  private getPrefilledMiddleFnCacheKey(id: string): string {
+  private getPrefilledMiddlewareCacheKey(id: string): string {
     return `${this.options.baseURL}:${id}`;
   }
 }
 
-/** A middleFn's scope is its pointer minus the last segment; a route is in scope when its pointer starts with it */
-export function isMiddleFnInScope(middleFnPointer: string[], routePointer: string[]): boolean {
-  const groupDepth = middleFnPointer.length - 1;
+/** A middleware's scope is its pointer minus the last segment; a route is in scope when its pointer starts with it */
+export function isMiddlewareInScope(middlewarePointer: string[], routePointer: string[]): boolean {
+  const groupDepth = middlewarePointer.length - 1;
   if (groupDepth >= routePointer.length) return false;
-  for (let i = 0; i < groupDepth; i++) if (middleFnPointer[i] !== routePointer[i]) return false;
+  for (let i = 0; i < groupDepth; i++) if (middlewarePointer[i] !== routePointer[i]) return false;
   return true;
 }
 
@@ -586,7 +586,7 @@ function reconstructHeadersSubsetFromResponse(
   return undefined;
 }
 
-/** The metadata middleFn declares a union, so its answer arrives as an `[index, value]` envelope. */
+/** The metadata middleware declares a union, so its answer arrives as an `[index, value]` envelope. */
 function metadataRowsOf(slot: unknown): SerializableMethodsData | undefined {
   const value = Array.isArray(slot) ? slot[1] : slot;
   return value && typeof value === 'object' ? (value as SerializableMethodsData) : undefined;

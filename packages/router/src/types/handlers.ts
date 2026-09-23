@@ -13,14 +13,14 @@ import {MayReturnError} from './publicMethods.ts';
 // #######  Route Handlers #######
 
 // type-handler-start
-/** Route or MiddleFn Handler  */
+/** Route or Middleware Handler  */
 export type Handler<Context extends CallContext = any, Params extends any[] = any[], Ret = any> = (
   context: Context,
   ...parameters: Params
 ) => Ret | Promise<Ret>;
 // type-handler-end
 
-/** Headers MiddleFn Handler, middleFn handler for when params are sent in the header  */
+/** Headers Middleware Handler, middleware handler for when params are sent in the header  */
 export type HeaderHandler<
   Context extends CallContext = any,
   ExpectedHeaders extends HeadersSubset<any> = any,
@@ -28,8 +28,8 @@ export type HeaderHandler<
   Ret = any,
 > = (context: Context, headers: ExpectedHeaders, ...parameters: Params) => Ret | Promise<Ret>;
 
-/** Handler to use with raw middleFns to get access to raw request and response */
-export type RawMiddleFnHandler<
+/** Handler to use with raw middlewares to get access to raw request and response */
+export type RawMiddlewareHandler<
   Context extends CallContext = any,
   RawReq = any,
   RawResp = any,
@@ -40,7 +40,7 @@ export type RawMiddleFnHandler<
 export type AnyHandler<Context extends CallContext = any, Params extends any[] = any, Ret = any> = Handler<Context, Params, Ret>;
 
 // #######  Type-level extraction for mion markers #######
-// These are instantiated by the type checker AT EACH route()/middleFn() CALL SITE;
+// These are instantiated by the type checker AT EACH route()/middleware() CALL SITE;
 // the RunTypes resolver then compiles validators/serializers for the result.
 
 /** The handler's public params tuple: everything after the leading CallContext param. Keeps tuple labels (= param names). */

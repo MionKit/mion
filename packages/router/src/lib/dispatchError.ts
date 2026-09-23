@@ -56,7 +56,7 @@ export function toRpcError(err: unknown): RpcError<string> {
 
 /** Records an undeclared error under `key` and ends the request: it lands in `@thrownErrors` untyped, sets
  *  the status and the error header, and stops every later member that does not declare `alwaysRun`.
- *  Undeclared means thrown, or returned by a raw middleFn, which cannot declare a return type; a declared
+ *  Undeclared means thrown, or returned by a raw middleware, which cannot declare a return type; a declared
  *  error is returned from a handler and goes straight into `response.body`. The key is normally the member
  *  that failed; an adapter passes its own (`mion@platformError`) for a request no member could run. */
 export function recordUndeclaredError(context: CallContext, key: string, err: any) {

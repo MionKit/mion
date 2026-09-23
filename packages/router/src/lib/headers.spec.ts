@@ -181,13 +181,13 @@ describe('Request and Response Headers', () => {
     });
   });
 
-  describe('Setting headers from middleFn return values', () => {
-    it('should set single header from middleFn return value', async () => {
+  describe('Setting headers from middleware return values', () => {
+    it('should set single header from middleware return value', async () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
       createMionRouter({contextDataFactory: getSharedData}).initRoutes({
-        setHeadersMiddleFn: mion.middleFn((ctx): HeadersSubset<'x-custom'> => {
+        setHeadersMiddleware: mion.middleware((ctx): HeadersSubset<'x-custom'> => {
           return new HeadersSubset({'x-custom': 'custom-value'});
         }),
         testRoute: mion.route((): string => 'ok'),
@@ -201,12 +201,12 @@ describe('Request and Response Headers', () => {
       expect(response.headers.get('x-custom')).toEqual('custom-value');
     });
 
-    it('should set multiple headers from middleFn return value', async () => {
+    it('should set multiple headers from middleware return value', async () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
       createMionRouter({contextDataFactory: getSharedData}).initRoutes({
-        setHeadersFn: mion.middleFn((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
+        setHeadersFn: mion.middleware((ctx): HeadersSubset<'x-custom' | 'x-token' | 'x-version'> => {
           return new HeadersSubset({
             'x-custom': 'custom-value',
             'x-token': 'token-value',
@@ -231,7 +231,7 @@ describe('Request and Response Headers', () => {
       const getSharedData = (): typeof shared => shared;
 
       createMionRouter({contextDataFactory: getSharedData}).initRoutes({
-        setHeadersMiddleFn: mion.middleFn((ctx): HeadersSubset<'X-Custom'> => {
+        setHeadersMiddleware: mion.middleware((ctx): HeadersSubset<'X-Custom'> => {
           return new HeadersSubset({'X-Custom': 'custom-value'});
         }),
         testRoute: mion.route((): string => 'ok'),
@@ -252,7 +252,7 @@ describe('Request and Response Headers', () => {
       const getSharedData = (): typeof shared => shared;
 
       createMionRouter({contextDataFactory: getSharedData}).initRoutes({
-        setHeadersFn: mion.middleFn((ctx): HeadersSubset<'x-custom', 'x-token'> => {
+        setHeadersFn: mion.middleware((ctx): HeadersSubset<'x-custom', 'x-token'> => {
           return new HeadersSubset({'x-custom': 'custom-value'});
         }),
         testRoute: mion.route((): string => 'ok'),
@@ -492,7 +492,7 @@ describe('Request and Response Headers', () => {
       const getSharedData = (): typeof shared => shared;
 
       createMionRouter({contextDataFactory: getSharedData}).initRoutes({
-        setHeadersFn: mion.middleFn((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
+        setHeadersFn: mion.middleware((ctx): HeadersSubset<'x-first' | 'x-second' | 'x-third'> => {
           return new HeadersSubset({
             'x-first': 'first-value',
             'x-second': 'second-value',
@@ -512,15 +512,15 @@ describe('Request and Response Headers', () => {
       expect(response.headers.get('x-third')).toEqual('third-value');
     });
 
-    it('should handle overwriting headers set by multiple middleFns', async () => {
+    it('should handle overwriting headers set by multiple middlewares', async () => {
       const shared = {data: 'test'};
       const getSharedData = (): typeof shared => shared;
 
       createMionRouter({contextDataFactory: getSharedData}).initRoutes({
-        firstMiddleFn: mion.middleFn((ctx): HeadersSubset<'X-Custom'> => {
+        firstMiddleware: mion.middleware((ctx): HeadersSubset<'X-Custom'> => {
           return new HeadersSubset({'X-Custom': 'first-value'});
         }),
-        secondMiddleFn: mion.middleFn((ctx): HeadersSubset<'X-Custom'> => {
+        secondMiddleware: mion.middleware((ctx): HeadersSubset<'X-Custom'> => {
           return new HeadersSubset({'X-Custom': 'second-value'});
         }),
         testRoute: mion.route((): string => 'ok'),
@@ -531,7 +531,7 @@ describe('Request and Response Headers', () => {
       const response = await dispatchRoute('/testRoute', request.body, request.headers, headersFromRecord({}), request, {});
 
       expect(response.hasErrors).toBeFalsy();
-      // The last middleFn to set the header should win
+      // The last middleware to set the header should win
       expect(response.headers.get('x-custom')).toEqual('second-value');
     });
 

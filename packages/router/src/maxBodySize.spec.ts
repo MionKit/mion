@@ -32,7 +32,7 @@ interface Item {
 const ITEM_BYTES = 1 + 5 + (2 + 6 * 36) + 1 + 6 + 24 + 1; // {"id":…,"qty":…}
 const PAGE_BYTES = 2 + 3 * ITEM_BYTES + 2; // [ 3 items ]
 const BOUNDED_PARAMS_BYTES = 2 + (2 + 6 * 36) + 1 + PAGE_BYTES; // [orderId, items]
-// the metadata middleFn sits in every chain and declares a fixed contribution
+// the metadata middleware sits in every chain and declares a fixed contribution
 const METADATA_SLOT = JSON.stringify(MION_ROUTES.methodsMetadata).length + 1 + 4096;
 
 /** The keyed body `{"<route>":<params>,"<metadata>":<ids>}` at its largest, times the factor. */
@@ -61,8 +61,8 @@ describe('per-route request limits', () => {
   );
   const loose = mion.route((ctx, text: string): string => text);
   const overridden = mion.route((ctx, text: string): string => text, {maxBodySize: 100});
-  const gate = mion.middleFn((ctx, tags: string[]): void => undefined);
-  const declaredGate = mion.middleFn((ctx, tags: string[]): void => undefined, {maxBodySize: 100});
+  const gate = mion.middleware((ctx, tags: string[]): void => undefined);
+  const declaredGate = mion.middleware((ctx, tags: string[]): void => undefined, {maxBodySize: 100});
 
   beforeEach(() => resetRouter());
 
@@ -132,7 +132,7 @@ describe('per-route request limits', () => {
     expect(resolvedMaxBodySize('/bounded')).toBe(limit);
   });
 
-  it('a middleFn with unbounded params sends the chain to the platform number unless it declares its contribution', () => {
+  it('a middleware with unbounded params sends the chain to the platform number unless it declares its contribution', () => {
     mion.initRoutes({gate, bounded});
     expect(getRouteExecutionChain('/bounded')!.declaredBodySize).toBeUndefined();
     expect(getRouteExecutionChain('/bounded')!.maxBodySize).toBe(DEFAULT_MAX_BODY_SIZE);

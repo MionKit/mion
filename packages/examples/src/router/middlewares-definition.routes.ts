@@ -4,7 +4,7 @@ import {myApp, getSharedData} from './full-example.app.ts';
 const mion = createMionRouter({contextDataFactory: getSharedData});
 
 const routes = {
-  logger: mion.middleFn(
+  logger: mion.middleware(
     async (ctx): Promise<void> => {
       // the error that ended the request, thrown or a returned FatalError
       const fatal = ctx.response.fatalError;
@@ -14,5 +14,5 @@ const routes = {
     // alwaysRun: the logger runs even after an error ended the request
     {alwaysRun: true}
   ),
-  // ... other routes and middleware functions
+  // ... other routes and middleware
 } satisfies Routes;

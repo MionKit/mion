@@ -15,8 +15,8 @@ const routerRulesDTS = `declare module '@mionjs/router' {
   export type Handler = (ctx: CallContext, ...params: any[]) => any;
   export interface RouteDef<H> { handler: H }
   export interface RouteHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface MiddleFnHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
-  export interface MionRouter { readonly route: RouteHelper; readonly middleFn: MiddleFnHelper }
+  export interface MiddlewareHelper { <H extends Handler>(handler: H, opts?: unknown): RouteDef<H> }
+  export interface MionRouter { readonly route: RouteHelper; readonly middleware: MiddlewareHelper }
   export function createMionRouter(opts?: unknown): MionRouter;
 }
 declare module '@mionjs/core' {

@@ -58,7 +58,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
       continue;
     }
     const method = useMethodFns(id);
-    if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
+    if (method.type === HandlerType.headersMiddleware && method.headersParam) {
       params = getParamsWithoutHeadersSubset(params);
     }
     try {
@@ -79,7 +79,7 @@ function serializeJsonBody(req: MionClientRequest<any, any>): string {
 }
 
 /** Serializes the body without compiled functions, on the plain wire forms every server decoder
- * accepts. A headers middleFn's HeadersSubset goes out as HTTP headers, never in the body. */
+ * accepts. A headers middleware's HeadersSubset goes out as HTTP headers, never in the body. */
 function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
   const body: Record<string, any> = {};
   const subRequestIds = Object.keys(req.subRequestList);
@@ -232,7 +232,7 @@ function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any)
   } catch (e: any) {
     return new RpcError({
       type: 'deserialization-error',
-      publicMessage: `Invalid response from Route or MiddleFn '${method.id}', can not deserialize return value: ${e.message}`,
+      publicMessage: `Invalid response from Route or Middleware '${method.id}', can not deserialize return value: ${e.message}`,
       errorData: e?.errors,
     });
   }

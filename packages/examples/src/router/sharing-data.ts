@@ -4,7 +4,7 @@ import {getAuthUser, isAuthorized} from './myAuth.ts';
 
 const mion = createMionRouter();
 
-const authorizationMiddleFn = mion.headersFn(
+const authorizationMiddleware = mion.headersFn(
   async (
     context,
     {headers}: HeadersSubset<'Authorization', 'User-id'>
@@ -19,7 +19,7 @@ const authorizationMiddleFn = mion.headersFn(
         type: 'not-authorized',
       });
     }
-    context.shared.myUser = me; // user is added to ctx to share with other routes and middleware functions
+    context.shared.myUser = me; // user is added to ctx to share with other routes and middleware
   }
 );
 
@@ -28,7 +28,7 @@ const sayMyName = mion.route((context): string => {
 });
 
 const routes = {
-  authorizationMiddleFn,
+  authorizationMiddleware,
   sayMyName,
 } satisfies Routes;
 

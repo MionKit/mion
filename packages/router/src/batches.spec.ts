@@ -87,8 +87,8 @@ describe('batches', () => {
     const routeX2 = mion.route((ctx, value: number): number => value * 2);
     const routeSum = mion.route((ctx, a: number, b: number): number => a + b);
 
-    const sharedMiddleFn = mion.middleFn((ctx): void => {
-      ctx.shared.middleFnCalled = (ctx.shared.middleFnCalled || 0) + 1;
+    const sharedMiddleware = mion.middleware((ctx): void => {
+      ctx.shared.middlewareCalled = (ctx.shared.middlewareCalled || 0) + 1;
     });
 
     const routes = {
@@ -97,8 +97,8 @@ describe('batches', () => {
       routeSum,
     } satisfies Routes;
 
-    const routesWithMiddleFn = {
-      sharedMiddleFn,
+    const routesWithMiddleware = {
+      sharedMiddleware,
       route1,
       routeX2,
     } satisfies Routes;
@@ -147,8 +147,8 @@ describe('batches', () => {
       expect(response.body.routeX2).toBe(10);
     });
 
-    it('should deduplicate shared middleFns', async () => {
-      createMionRouter({contextDataFactory: () => ({middleFnCalled: 0})}).initRoutes(routesWithMiddleFn);
+    it('should deduplicate shared middlewares', async () => {
+      createMionRouter({contextDataFactory: () => ({middlewareCalled: 0})}).initRoutes(routesWithMiddleware);
       registerBatches({two: {routes: ['route1', 'routeX2']}});
 
       const request = getDefaultRequest({
@@ -167,9 +167,9 @@ describe('batches', () => {
       // routeIndex is the actual route index from the first route's chain
       expect(chain!.routeIndex).toBeGreaterThanOrEqual(0);
 
-      // The sharedMiddleFn should only appear once in the merged methods
-      const middleFnCount = chain!.methods.filter((m) => m.id === 'sharedMiddleFn').length;
-      expect(middleFnCount).toBe(1);
+      // The sharedMiddleware should only appear once in the merged methods
+      const middlewareCount = chain!.methods.filter((m) => m.id === 'sharedMiddleware').length;
+      expect(middlewareCount).toBe(1);
 
       // Both route handlers should be present
       expect(chain!.methods.find((m) => m.id === 'route1')).toBeDefined();
@@ -243,7 +243,7 @@ describe('batches', () => {
     });
 
     // A batch runs its routes in order on ONE chain, so a FatalError ends the whole batch: every
-    // later route is skipped, the error stays in its own typed slot, and alwaysRun middleFns still run.
+    // later route is skipped, the error stays in its own typed slot, and alwaysRun middlewares still run.
     it('a returned FatalError from the first route skips every later route', async () => {
       const ran: string[] = [];
       const gate = mion.route((): string | RpcError<'not-authorized'> => {
@@ -258,7 +258,7 @@ describe('batches', () => {
         ran.push('route2');
         return 'result2';
       });
-      const always = mion.middleFn(
+      const always = mion.middleware(
         (): void => {
           ran.push('always');
         },
@@ -655,19 +655,19 @@ describe('batches', () => {
     });
   });
 
-  describe('scoped middleFns in batches', () => {
+  describe('scoped middlewares in batches', () => {
     const route1 = mion.route((ctx): string => 'result1');
     const route2 = mion.route((ctx): string => 'result2');
     const route3 = mion.route((ctx): string => 'result3');
 
-    const scopedMiddleFn = mion.middleFn((ctx): void => {
-      ctx.shared.scopedMiddleFnCalled = (ctx.shared.scopedMiddleFnCalled || 0) + 1;
+    const scopedMiddleware = mion.middleware((ctx): void => {
+      ctx.shared.scopedMiddlewareCalled = (ctx.shared.scopedMiddlewareCalled || 0) + 1;
     });
 
     const routes = {
       route1,
       other: {
-        scopedMiddleFn,
+        scopedMiddleware,
         route2,
       },
       route3,
@@ -676,11 +676,11 @@ describe('batches', () => {
     const chainMethodIds = (id: string) =>
       getBatch(id)!
         .chains.get('')!
-        .methods.filter((m) => ['route1', 'other/scopedMiddleFn', 'other/route2', 'route3'].includes(m.id))
+        .methods.filter((m) => ['route1', 'other/scopedMiddleware', 'other/route2', 'route3'].includes(m.id))
         .map((m) => m.id);
 
-    it('should include scoped middleFn when route from that scope is called', async () => {
-      createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
+    it('should include scoped middleware when route from that scope is called', async () => {
+      createMionRouter({contextDataFactory: () => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
       registerBatches({mixed: {routes: ['route1', 'other/route2', 'route3']}});
 
       const request = getDefaultRequest({
@@ -695,16 +695,16 @@ describe('batches', () => {
       expect(response.body['other/route2']).toBe('result2');
       expect(response.body.route3).toBe('result3');
 
-      // The scopedMiddleFn should appear in the merged methods (with path prefix)
+      // The scopedMiddleware should appear in the merged methods (with path prefix)
       const chain = getBatch('mixed')!.chains.get('')!;
-      expect(chain.methods.find((m) => m.id === 'other/scopedMiddleFn')).toBeDefined();
+      expect(chain.methods.find((m) => m.id === 'other/scopedMiddleware')).toBeDefined();
 
-      // Verify execution order: route1, other/scopedMiddleFn, other/route2, route3
-      expect(chainMethodIds('mixed')).toEqual(['route1', 'other/scopedMiddleFn', 'other/route2', 'route3']);
+      // Verify execution order: route1, other/scopedMiddleware, other/route2, route3
+      expect(chainMethodIds('mixed')).toEqual(['route1', 'other/scopedMiddleware', 'other/route2', 'route3']);
     });
 
     it('should maintain correct order when scoped route is called first', async () => {
-      createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
+      createMionRouter({contextDataFactory: () => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
       registerBatches({scopedFirst: {routes: ['other/route2', 'route1', 'route3']}});
 
       const request = getDefaultRequest({
@@ -719,12 +719,12 @@ describe('batches', () => {
       expect(response.body.route1).toBe('result1');
       expect(response.body.route3).toBe('result3');
 
-      // Verify execution order: other/scopedMiddleFn, other/route2, route1, route3
-      expect(chainMethodIds('scopedFirst')).toEqual(['other/scopedMiddleFn', 'other/route2', 'route1', 'route3']);
+      // Verify execution order: other/scopedMiddleware, other/route2, route1, route3
+      expect(chainMethodIds('scopedFirst')).toEqual(['other/scopedMiddleware', 'other/route2', 'route1', 'route3']);
     });
 
-    it('should not include scoped middleFn when no routes from that scope are called', async () => {
-      createMionRouter({contextDataFactory: () => ({scopedMiddleFnCalled: 0})}).initRoutes(routes);
+    it('should not include scoped middleware when no routes from that scope are called', async () => {
+      createMionRouter({contextDataFactory: () => ({scopedMiddlewareCalled: 0})}).initRoutes(routes);
       registerBatches({unscoped: {routes: ['route1', 'route3']}});
 
       const request = getDefaultRequest({
@@ -737,9 +737,9 @@ describe('batches', () => {
       expect(response.body.route1).toBe('result1');
       expect(response.body.route3).toBe('result3');
 
-      // The scopedMiddleFn should NOT appear in the merged methods (with path prefix)
+      // The scopedMiddleware should NOT appear in the merged methods (with path prefix)
       const chain = getBatch('unscoped')!.chains.get('')!;
-      expect(chain.methods.find((m) => m.id === 'other/scopedMiddleFn')).toBeUndefined();
+      expect(chain.methods.find((m) => m.id === 'other/scopedMiddleware')).toBeUndefined();
     });
   });
 

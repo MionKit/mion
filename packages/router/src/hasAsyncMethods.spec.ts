@@ -7,7 +7,7 @@
 
 // The dispatcher skips its awaits when the router has nothing async in it. That is decided by this
 // flag, so what counts as async has to be exactly right: a single async member anywhere, including a
-// middleFn or a plain function that returns a promise, must turn it on for the whole router.
+// middleware or a plain function that returns a promise, must turn it on for the whole router.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getHasAsyncMethods, getAlwaysAwait} from './router.ts';
@@ -19,7 +19,7 @@ const mion = createMionRouter({});
 
 const syncOnly = {
   hello: mion.route((): string => 'hello'),
-  plainMiddleFn: mion.middleFn((): void => undefined),
+  plainMiddleware: mion.middleware((): void => undefined),
 } satisfies Routes;
 
 const withAsyncRoute = {
@@ -27,9 +27,9 @@ const withAsyncRoute = {
   slow: mion.route(async (): Promise<string> => 'slow'),
 } satisfies Routes;
 
-const withAsyncMiddleFn = {
+const withAsyncMiddleware = {
   hello: syncOnly.hello,
-  gate: mion.middleFn(async (): Promise<void> => undefined),
+  gate: mion.middleware(async (): Promise<void> => undefined),
 } satisfies Routes;
 
 const withPromiseArrow = {
@@ -51,8 +51,8 @@ describe('the router should know whether anything in it is async', () => {
     expect(getHasAsyncMethods()).toBe(true);
   });
 
-  it('say yes for a single async middleFn', () => {
-    mion.initRoutes(withAsyncMiddleFn);
+  it('say yes for a single async middleware', () => {
+    mion.initRoutes(withAsyncMiddleware);
     expect(getHasAsyncMethods()).toBe(true);
   });
 

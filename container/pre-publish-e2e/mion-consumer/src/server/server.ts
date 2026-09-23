@@ -43,9 +43,9 @@ const compactRoutes = {
         },
         {parser: 'compact'}
     ),
-    // a PLAIN middleFn declaring no parser of its own: its params and its return value must ride
+    // a PLAIN middleware declaring no parser of its own: its params and its return value must ride
     // these routes' bodies like any other chain member
-    session: mion.middleFn((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
+    session: mion.middleware((_ctx, token?: string): {valid: boolean; userId?: string} | null => {
         if (!token) return null;
         if (token === 'invalid') return {valid: false};
         return {valid: true, userId: 'user-123'};
@@ -59,7 +59,7 @@ const routes = {
     auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
-    session: mion.middleFn((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
+    session: mion.middleware((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
         if (!sessionToken) return null;
         if (sessionToken === 'expired') {
             return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});

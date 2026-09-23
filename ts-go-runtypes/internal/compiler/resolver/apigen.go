@@ -27,7 +27,7 @@ import (
 
 // The bundled-API lane (mion's `bundleApi` client option). On generate it resolves every dispatch site's
 // routes out of the API type (walked in this program, or in the `apiTsconfig` program rooted at its
-// `initRoutes` call), selects each route plus the middleFns in its chain, assigns the params / return /
+// `initRoutes` call), selects each route plus the middlewares in its chain, assigns the params / return /
 // headers type ids under the checker that owns them (`AssignIDUnder`, so an API resolved in another
 // program still lands in this session's cache), demands per type exactly the families the server's marker
 // slots name (types/parser.ts MarkerSlots), and renders a SELF-CONTAINED module tree under
@@ -126,7 +126,7 @@ type apiMethodEntry struct {
 type apiBundle struct {
 	methods map[string]*apiMethodEntry
 	order   []string
-	// siteMethods lists a site module's ids in tree order: the routes it calls plus their middleFns.
+	// siteMethods lists a site module's ids in tree order: the routes it calls plus their middlewares.
 	siteMethods map[string][]string
 }
 
@@ -263,13 +263,13 @@ func (bundle *apiBundle) clientManifest(opts Options) *apimeta.Manifest {
 // manifestRow is the method's manifest row: what api-check compares.
 func (entry *apiMethodEntry) manifestRow() apimeta.ManifestMethod {
 	return apimeta.ManifestMethod{
-		Type:        entry.method.Type,
-		ParamsId:    entry.paramsId,
-		ReturnId:    entry.returnId,
-		HeadersId:   entry.headersId,
-		Families:    entry.families,
-		Options:     entry.method.Options,
-		MiddleFnIds: entry.method.MiddleFnIds,
+		Type:          entry.method.Type,
+		ParamsId:      entry.paramsId,
+		ReturnId:      entry.returnId,
+		HeadersId:     entry.headersId,
+		Families:      entry.families,
+		Options:       entry.method.Options,
+		MiddlewareIds: entry.method.MiddlewareIds,
 	}
 }
 
@@ -619,7 +619,7 @@ func renderApiMethodModule(basename string, entry *apiMethodEntry) string {
 		"options":   method.Options,
 	}
 	if method.Type == apimeta.TypeRoute {
-		row["middleFnIds"] = method.MiddleFnIds
+		row["middlewareIds"] = method.MiddlewareIds
 	}
 	rtFns := "{paramsFns: " + sourcerewrite.SlotBinding(entry.paramsFns) +
 		", returnFns: " + sourcerewrite.SlotBinding(entry.returnFns) +
