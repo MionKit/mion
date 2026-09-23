@@ -12,7 +12,7 @@ import (
 // Recognition goes through these packages' symbols, so an unresolved import would read as a clean, empty conversion.
 var recognizedPackages = []string{marker.DefaultModule, drizzleRootModule}
 
-// unresolvedImportDiags reports an error once per recognized package the file imports but the checker cannot resolve.
+// unresolvedImportDiags flags each recognized package the file imports but the checker cannot resolve.
 func unresolvedImportDiags(sourceFile *ast.SourceFile, typeChecker *checker.Checker, absPath string) []Diagnostic {
 	var diags []Diagnostic
 	seen := map[string]bool{}
