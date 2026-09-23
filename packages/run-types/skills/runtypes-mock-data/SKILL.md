@@ -50,17 +50,17 @@ the generator already mocks every shape mechanically (including `Date`, `Map`, `
 One recursive node, uniform at every depth, structure checked against `T` by the
 `MockData<T>` mapped type. Per-field shape depends on the field's kind:
 
-| Field kind         | Node shape                                                                    |
-| ------------------ | ----------------------------------------------------------------------------- |
-| string             | `{ pool: string[] }`                                                          |
-| number             | `{ pool: number[]; min?: number; max?: number }`                              |
-| `Date`             | `{ pool: Date[]; min?: Date; max?: Date }`                                    |
-| boolean / bigint   | `{ pool: boolean[] }` / `{ pool: bigint[] }`                                  |
-| array / rest tuple | `{ rt$items: <element node>; rt$length?: number \| [number, number] }`        |
-| fixed tuple        | `{ rt$slots: [<node per slot>] }` — positional, fixed length, no `rt$length`  |
-| `Map`              | `{ rt$keys, rt$values: <node>; rt$size?: number \| [number, number] }`        |
-| `Set`              | `{ rt$values: <node>; rt$size?: number \| [number, number] }`                 |
-| object             | `{ [K in keyof T]-?: <child node> } & { rt$optional?: number }`               |
+| Field kind         | Node shape                                                                   |
+| ------------------ | ---------------------------------------------------------------------------- |
+| string             | `{ pool: string[] }`                                                         |
+| number             | `{ pool: number[]; min?: number; max?: number }`                             |
+| `Date`             | `{ pool: Date[]; min?: Date; max?: Date }`                                   |
+| boolean / bigint   | `{ pool: boolean[] }` / `{ pool: bigint[] }`                                 |
+| array / rest tuple | `{ rt$items: <element node>; rt$length?: number \| [number, number] }`       |
+| fixed tuple        | `{ rt$slots: [<node per slot>] }` — positional, fixed length, no `rt$length` |
+| `Map`              | `{ rt$keys, rt$values: <node>; rt$size?: number \| [number, number] }`       |
+| `Set`              | `{ rt$values: <node>; rt$size?: number \| [number, number] }`                |
+| object             | `{ [K in keyof T]-?: <child node> } & { rt$optional?: number }`              |
 
 - **`pool`** — pick a value at random from this list. Leave it empty (`pool: []`) to draw from `min` / `max` instead.
 - **`min` / `max`** — inclusive bounds (numbers, `Date`s).
