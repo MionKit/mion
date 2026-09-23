@@ -221,7 +221,7 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
 - Sections use numbered prefix directories for ordering. The rpc tree:
   `01.introduction/`, `02.server/`, `03.client/`, `04.drizzle-orm/`, `05.platforms/`,
   `06.devtools/`, `09.articles/`. The runtypes tree: `01.introduction/`,
-  `02.guide/`, `03.ai-integration/`, `08.diagnostics/`. The benchmarks tree: `01.introduction/`,
+  `02.guide/`, `03.type-formats/`, `04.tooling/`, `05.ai-integration/`, `06.articles/`, `08.diagnostics/`. The benchmarks tree: `01.introduction/`,
   `02.rpc/` and `03.runtypes/`, one group per family.
 - Every root-relative link carries its subsite prefix (`/rpc/server/routes`,
   `/runtypes/guide/validation`, `/benchmarks/rpc/hello-world`); `website-links.test.ts`
