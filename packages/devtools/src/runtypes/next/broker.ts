@@ -78,12 +78,10 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   const rootAbs = path.resolve(root);
   const socketPath = options.socketPath ?? socketPathFor(rootAbs);
 
-  // The broker must KNOW the generated tree's path, the invalidation stamp living inside it, so the Next lane
-  // pins it instead of letting the resolver infer <srcDir>/.mion from the tsconfig and echo it back internally.
-  // The resolver gets the same value, so the two can never disagree.
-  const genDir = options.genDir ?? '.mion';
-  const genDirAbs = path.resolve(rootAbs, genDir);
-  const stampPath = path.join(genDirAbs, 'types', '.rt-stamp');
+  // Adopted from the resolver after buildStart, never defaulted here: a local `.mion` would beat the tsconfig
+  // genDir and the inferred <srcDir>/.mion, so Next would read mirrors the enrich CLI never wrote.
+  let genDirAbs = '';
+  let stampPath = '';
 
   const server = net.createServer();
   const listening = await new Promise<boolean>((resolve, reject) => {
@@ -107,7 +105,6 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     {
       ...pluginOptions,
       cwd: rootAbs,
-      genDir,
       // No bundler config here to read the lane from: under `next dev` a RuntimeError reports without halting
       // (see PluginOptions.devServer), under `next build` it halts.
       devServer: pluginOptions.devServer ?? isNextDev(),
@@ -126,6 +123,7 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     transform?: (this: unknown, code: string, id: string) => unknown;
     rtHotUpdate?: (ctx: unknown, updates: {file: string; content?: string}[]) => Promise<void>;
     rtWritePureFnArtifact?: (dir: string) => Promise<void>;
+    rtGenDir?: () => string;
   };
   const writeArtifact = async (): Promise<void> => {
     if (!options.artifactDir) return;
@@ -156,6 +154,10 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   let startupError: unknown;
   const ready = (async () => {
     await built.buildStart?.call(context);
+    genDirAbs = built.rtGenDir?.() ?? '';
+    if (!genDirAbs) throw new Error('@mionjs/devtools: the resolver did not report its output directory (genDir)');
+    stampPath = path.join(genDirAbs, 'types', '.rt-stamp');
+    debug(`genDir ${genDirAbs}`);
   })()
     .then(() => {
       debug(`buildStart done, ${countGenerated()} generated modules`);

@@ -175,6 +175,60 @@ export const slugify = registerPureFn((s: string): string => s.toLowerCase());
     120_000
   );
 
+  // The broker used to force `<root>/.mion`, beating the tsconfig genDir and the inferred <srcDir>/.mion that
+  // every other host and the enrich CLI use, so Next read enrichment mirrors the CLI never wrote.
+  async function generatedRootOf(root: string): Promise<{stamp: string; code: string}> {
+    const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json'});
+    try {
+      const entry = path.join(root, 'src/entry.ts');
+      const reply = await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'));
+      expect(reply.ok).toBe(true);
+      return {stamp: reply.stamp, code: reply.code};
+    } finally {
+      await handle.close();
+    }
+  }
+
+  register(
+    'with no genDir set, generates under the inferred source folder like every other host',
+    async () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-gendir-'));
+      writeProject(root);
+      try {
+        const {stamp, code} = await generatedRootOf(root);
+        expect(stamp).toBe(path.join(root, 'src/.mion/types/.rt-stamp'));
+        expect(fs.existsSync(stamp)).toBe(true);
+        expect(code).toContain('./.mion/types/');
+        expect(fs.existsSync(path.join(root, '.mion'))).toBe(false);
+      } finally {
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
+  register(
+    'honours the tsconfig genDir',
+    async () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-gendir-'));
+      writeProject(root);
+      const tsconfigPath = path.join(root, 'tsconfig.json');
+      const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8'));
+      tsconfig.compilerOptions.plugins = [{name: 'mion', genDir: 'gen'}];
+      fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfig));
+      try {
+        const {stamp, code} = await generatedRootOf(root);
+        expect(stamp).toBe(path.join(root, 'gen/types/.rt-stamp'));
+        expect(fs.existsSync(stamp)).toBe(true);
+        expect(code).toContain('../gen/types/');
+        expect(fs.existsSync(path.join(root, '.mion'))).toBe(false);
+      } finally {
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    60_000
+  );
+
   register(
     'moves the invalidation stamp when a type changes',
     async () => {
