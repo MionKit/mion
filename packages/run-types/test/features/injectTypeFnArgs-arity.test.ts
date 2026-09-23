@@ -1,14 +1,7 @@
-// Type-level regression guard for the InjectTypeFnArgs fn-key arity.
-//
-// markers.ts widened the marker from a fixed three keys to `F1`…`F12` (a TS type
-// alias cannot be variadic, so this generous fixed arity stands in for "any
-// list"). Every devtools / resolver / third-party test resolves an INDEPENDENT
-// overlay copy of the marker, so none of them would catch a narrowing of the
-// real `@mionjs/run-types` type. This file does: it resolves the marker from the
-// package's own `src/index.ts` via the `source` exports condition (the marker
-// package's `tsconfig.json` sets `customConditions: ["source"]`), so
-// narrowing `markers.ts` below the arity below fails `pnpm --filter
-// @mionjs/run-types typecheck:test` — which `pnpm run typecheck` and CI run.
+// Type-level guard for the InjectTypeFnArgs fn-key arity: markers.ts stands `F1`…`F12` in for "any list"
+// because a TS alias cannot be variadic. Every other test resolves an INDEPENDENT overlay copy of the marker,
+// so only this file catches a narrowing of the real `@mionjs/run-types` type: it reaches src/index.ts through
+// the `source` condition the package tsconfig declares, so a narrowing fails `typecheck:test` and CI.
 import {describe, expect, it} from 'vitest';
 import type {InjectTypeFnArgs} from '@mionjs/run-types';
 

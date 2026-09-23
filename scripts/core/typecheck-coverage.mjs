@@ -1,13 +1,9 @@
-// typecheck-coverage.mjs — the gate the root typecheck runs first: every package under packages/
-// declares a `typecheck:test` script (or names itself in EXEMPT with a reason), and every file it
-// ships sits inside one of the projects its scripts name. `pnpm -r` skips a package with no such
-// script WITHOUT saying so, and a script existing is not the same as it covering the code: twelve
-// packages had none, bin-uws had one that left its shipped lib/index.js in no project, and a call
-// with no import shipped in platform-uws/src/uwsHttp.ts with typecheck and lint both green.
-// Projects expand through TypeScript's own config parser, not 25 `tsc --showConfig` spawns
-// (~100 ms against ~17 s), so this needs the installed typescript and cannot be one of the
-// install-free tree sweeps in scripts/ci/check-tree.mjs.
-// Usage: `pnpm miondevx core typecheck-coverage` lists each package and its projects, --check gates only.
+// typecheck-coverage.mjs — gates that every package under packages/ has a `typecheck:test` script (or an
+// EXEMPT row with a reason), and that every file it ships sits in a project one of its scripts names.
+// `pnpm -r` skips a package with no such script WITHOUT saying so, and a script existing is not the same
+// as it covering the code. Projects expand through TypeScript's own config parser rather than a
+// `tsc --showConfig` spawn per package (~100 ms against ~17 s), so this needs the installed typescript and
+// cannot join the install-free tree sweeps in scripts/ci/check-tree.mjs.
 import {readdirSync, readFileSync, existsSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import ts from 'typescript';
@@ -16,8 +12,7 @@ import {capture, die, green, red, reportCliError} from '../lib/proc.mjs';
 
 const SCRIPT = 'typecheck:test';
 
-// Shipped code only, because two test trees sit outside their package's project on purpose
-// (run-types/test/playground, devtools/test-fixtures).
+// Shipped code only; run-types/test/playground and devtools/test-fixtures sit outside their project on purpose.
 const SOURCE_DIRS = ['src', 'lib', 'bin'];
 
 // Each entry needs its reason. Empty today and meant to stay so: a package with nothing to check has no source.

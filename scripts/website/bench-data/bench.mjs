@@ -376,9 +376,7 @@ function cmdFullbench(cfg) {
 // The in-container serialization run (native Temporal). Stays `sh -c`.
 const SERIALIZATION_SCRIPT = 'node gen-serialization.mjs --suite serialization && node gen-serialization.mjs --suite format-serialization';
 
-// The marker-package tsconfig the serialization run points the resolver at.
-// gen-serialization.mjs hands this exact name to the plugin; pinned by
-// repo-contracts.test.ts so the two can't drift.
+// gen-serialization.mjs hands this exact name to the plugin; pinned by repo-contracts.test.ts.
 export const SERIALIZATION_TSCONFIG = 'tsconfig.json';
 
 // The whole `run …` argv for the serialization stage. Pure and exported so

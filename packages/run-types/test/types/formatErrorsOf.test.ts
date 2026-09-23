@@ -1,11 +1,7 @@
-// Compile-time proof for `FormatErrorsOf<T>` — the typed format-error union a
-// validator for `T` reports — and for the narrowing it buys on
-// `createGetValidationErrorsFn<T>()`: `switch (err.format?.name)` narrows
-// `errorType` to that format's documented modes.
-//
-// The bodies are type-only and never invoked; the `test` references them so lint
-// doesn't flag them. The real check is tsc:
-//   pnpm exec tsc --noEmit -p packages/run-types/tsconfig.json
+// Compile-time proof for `FormatErrorsOf<T>`, the typed format-error union a validator for `T` reports, and
+// for the narrowing it buys on `createGetValidationErrorsFn<T>()`: `switch (err.format?.name)` narrows
+// `errorType` to that format's documented modes. Type-only bodies, referenced by `test` so lint leaves them;
+// the real check is `pnpm exec tsc --noEmit -p packages/run-types/tsconfig.json`.
 
 import {expect, test} from 'vitest';
 import type * as TF from '@mionjs/run-types/formats';

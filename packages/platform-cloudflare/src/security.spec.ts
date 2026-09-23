@@ -121,8 +121,7 @@ describe('cloudflare adapter: an unknown path never reads the body', () => {
     const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
     expect(errors[MION_ROUTES.notFound].type).toBe('route-not-found');
     expect(errors['mionDeserializeRequest']).toBeUndefined();
-    // a ReadableStream pulls once on construction to fill its queue, reader or not: the body
-    // being unused is the proof that nothing read it
+    // a ReadableStream pulls once on construction regardless, so the unused body is the proof nothing read it
     expect(pulled).toBeLessThanOrEqual(1);
     expect(request.bodyUsed).toBe(false);
   });

@@ -280,15 +280,8 @@ function distIsStale(distDir, srcDir, sentinels) {
 }
 
 function rebuildPkgDist(pkgDir, pkgName, outDirName) {
-  // Clean wipe: rm both the output dir and EVERY tsbuildinfo. We deliberately don't
-  // trust incremental tsc here — the entire reason this script exists is that
-  // tsc's incremental cache can memorize a half-emitted state and refuse to recover.
-  //
-  // Every one, not just `tsconfig.tsbuildinfo`: `tsc --build` names the file after the
-  // CONFIG it was given, so a package building from tsconfig.build.json writes
-  // tsconfig.build.tsbuildinfo. Wiping only the default name left the real cache in
-  // place, tsc skipped emit, and the check reported "still incomplete after rebuild" —
-  // pointing at the build script rather than at the stale file it failed to remove.
+  // Never trust incremental tsc here: its cache can memorize a half-emitted state and refuse to recover.
+  // EVERY tsbuildinfo, not just the default name: `tsc --build` names the file after the config it was given.
   rmSync(join(pkgDir, outDirName), {recursive: true, force: true});
   for (const entry of readdirSync(pkgDir)) {
     if (entry.endsWith('.tsbuildinfo')) rmSync(join(pkgDir, entry), {force: true});

@@ -82,12 +82,9 @@ const SSR_NOEXTERNAL = (process.env.MION_VALIDATION_BENCH_SSR_NOEXTERNAL ?? '')
   .map((s) => s.trim())
   .filter(Boolean);
 
-// Resolver disk cache: it follows TypeScript's incremental switch, and this
-// bench loads the suite through `tsconfig.json` (incremental:false), so it
-// is off by default. The in-container run also passes MION_VALIDATION_BENCH_CACHE_DIR=false
-// (the marker mount is read-only, so a write must never be attempted) — forward
-// it to the binary's internal MION_CACHE_DIR control: 'false' forces the cache
-// off, a path forces it on there. The plugin's resolver child inherits the env.
+// The resolver disk cache follows TypeScript's incremental switch, off here because tsconfig.json sets incremental:false.
+// In-container the marker mount is read-only, so nothing may write there; MION_CACHE_DIR='' forces the cache off.
+// The plugin's resolver child inherits the env.
 if (process.env.MION_VALIDATION_BENCH_CACHE_DIR === 'false') process.env.MION_CACHE_DIR = '';
 else if (process.env.MION_VALIDATION_BENCH_CACHE_DIR) process.env.MION_CACHE_DIR = process.env.MION_VALIDATION_BENCH_CACHE_DIR;
 
@@ -244,16 +241,10 @@ async function loadSuiteWithPlugin() {
     ssr: {resolve: {conditions: ['source']}, ...(SSR_NOEXTERNAL.length ? {noExternal: SSR_NOEXTERNAL.map((p) => new RegExp(p))} : {})},
     optimizeDeps: {noDiscovery: true},
     logLevel: 'error',
-    // In-container this config is read from a bind-mounted marker package whose
-    // `extends` chain walks OUT of it, so bench.mjs mounts that chain too
-    // (SERIALIZATION_TSCONFIG there must name this same file).
-    //
-    // downgradeErrors:'*' for the same reason packages/run-types/vitest.config.ts
-    // sets it — this is the marker package's OWN test program, and buildStart
-    // scans everything tsconfig.json includes, alwaysThrow suites included.
-    // Those deliberately hold Error-severity types (root-position symbols,
-    // functions, …), so the strict default refuses to boot the project and the
-    // bench dies before a single case is measured. Consumers keep the default.
+    // In-container this config's `extends` chain walks OUT of the bind-mounted marker package, so bench.mjs
+    // mounts that chain too, and its SERIALIZATION_TSCONFIG must name this same file.
+    // downgradeErrors:'*' as in packages/run-types/vitest.config.ts: buildStart scans everything this config
+    // includes, and the alwaysThrow suites hold Error-severity types the strict default refuses to boot.
     plugins: [runtypesPlugin({binary: BIN, cwd: PACKAGE_ROOT, tsconfig: 'tsconfig.json', downgradeErrors: '*', ...OUTDIR_OPT})],
   });
   try {

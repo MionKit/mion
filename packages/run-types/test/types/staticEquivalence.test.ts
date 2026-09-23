@@ -1,26 +1,11 @@
-// Compile-time proof that `InferType<typeof schema>` recovers EXACTLY the TS type a
-// value-first schema models — across the whole builder surface. Each case binds a
-// schema to a `const`, then asserts `InferType<typeof schema>` is mutually assignable
-// (both directions) with the hand-written type-first equivalent. This is the
-// type-level twin of the runtime convergence suite (test/suites/id-integrity/).
-//
-// `assertMutual<S, T>()` is the helper form of the cross-assignment:
-//     const _a: S = (x as T);   // T → S
-//     const _b: T = (x as S);   // S → T
-// It compiles ONLY when S and T are mutually assignable; otherwise the no-arg call
-// errors (the rest param becomes a required `[error: …]` tuple). Tuple-wrapping
-// (`[S] extends [T]`) stops unions from distributing so `string | number` compares
-// as a whole.
-//
-// WHY this passes: `InferType<RT>` is just `NonNullable<RT['__rtType']>['t']` — a
-// getter. The resolution (config → modeled type) is done EAGERLY by each builder's
-// return type (`ObjectType<C>`, `MapTuple<T>`, `LeafType<…>`, …) and stored in the
-// phantom `__rtType`; `InferType` reads it back. Drop those helpers and the SAME
-// `InferType` yields e.g. `{a: RunType<string>}` instead of `{a: string}`.
-//
-// The bodies are type-only and never invoked; the `test` references them so lint
-// doesn't flag them. The real check is tsc:
-//   pnpm exec tsc --noEmit -p packages/run-types/tsconfig.json
+// Compile-time proof that `InferType<typeof schema>` recovers EXACTLY the TS type a value-first schema models,
+// across the whole builder surface; the type-level twin of the runtime convergence suite (test/suites/id-integrity/).
+// `assertMutual<S, T>()` compiles ONLY when S and T are mutually assignable, and its tuple-wrapping
+// (`[S] extends [T]`) stops unions from distributing, so `string | number` compares as a whole.
+// It passes because `InferType<RT>` only reads the phantom `__rtType` that each builder's return type
+// (`ObjectType<C>`, `MapTuple<T>`, `LeafType<…>`, …) fills EAGERLY; drop those and it yields `{a: RunType<string>}`.
+// Type-only bodies, referenced by `test` so lint leaves them; the real check is
+// `pnpm exec tsc --noEmit -p packages/run-types/tsconfig.json`.
 
 import * as TF from '@mionjs/run-types/formats';
 import {expect, test} from 'vitest';

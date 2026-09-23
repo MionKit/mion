@@ -1034,8 +1034,7 @@ describe('run-types mocking subpath', () => {
 
 // Nothing under test/ may reach the client's tarball: those files import vitest and node:child_process.
 describe('client published surface', () => {
-  // The resolved file list rather than the raw `exclude`: tsconfigs here are JSONC, so JSON.parse breaks on
-  // a comment, and an exclude can be lost through `extends` while still reading right in the file.
+  // Checks the resolved file list, not `exclude`: these tsconfigs are JSONC, and `extends` can lose an exclude.
   it('the build program excludes the test tree', () => {
     const config = join(REPO_ROOT, 'packages/client/tsconfig.build.json');
     const parsed = ts.getParsedCommandLineOfConfigFile(
@@ -1773,8 +1772,8 @@ describe('the bun lane fails when a test file contributes no tests', () => {
 });
 
 describe('every package under packages/ runs a type check over everything it ships', () => {
-  // `pnpm -r` silently skips a package with no such script, which is how a call with no import shipped in platform-uws.
-  // Only the gate's rules are unit-tested here: a whole-tree sweep does not belong in a gated vitest lane.
+  // `pnpm -r` silently skips a package with no such script, which is how platform-uws shipped a call with no import.
+  // Only the gate's rules are unit-tested here; a whole-tree sweep does not belong in a gated vitest lane.
   it('no package is skipped, and no exemption is stale', () => {
     expect(coverage.coverageDrift(coverage.readPackages(REPO_ROOT), coverage.EXEMPT)).toEqual({unchecked: [], staleExempt: []});
   });
@@ -1790,8 +1789,7 @@ describe('every package under packages/ runs a type check over everything it shi
     expect(coverage.coverageDrift(packages, {gone: 'no such package'})).toEqual({unchecked: ['bare'], staleExempt: ['gone']});
   });
 
-  // A package may need several programs (examples splits src/ across three module resolutions),
-  // and the root scripts name some of them rather than the package's own.
+  // A package may need several programs (examples splits src/ three ways), and the root scripts name some of them.
   it('collects the projects from the package scripts and the root ones alike', () => {
     const own = {'typecheck:test': 'tsc -p tsconfig.json --noEmit', 'check-types': 'tsc --noEmit -p tsconfig.drizzle.json'};
     const root = {

@@ -114,10 +114,8 @@ describe('createMionRouter types', () => {
     expectTypeOf(def.handler).toEqualTypeOf(handler);
   });
 
-  // The remaining helpers type the context the same way `route` does, and every runtime test that
-  // reads `ctx.shared` would keep passing if it widened to `any`. These are the only assertions
-  // that would not. They bite under `tsc -p tsconfig.json` (the package's typecheck:test),
-  // not under vitest: the handlers below are never called.
+  // The only assertions that catch `ctx.shared` widening to `any`; every runtime test would keep passing.
+  // They bite under `tsc -p tsconfig.json` (the package's typecheck:test), not vitest: the handlers never run.
 
   it('types the handler context from contextDataFactory in middleFn', () => {
     mion.middleFn((ctx, greeting: string): string => {
