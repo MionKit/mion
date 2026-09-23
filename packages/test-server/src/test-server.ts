@@ -20,12 +20,12 @@ import {Number} from '@mionjs/run-types/formats';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
 // ============ Router ============
-// Every route / middleFn below comes from these helpers: plain closures, so destructuring keeps
+// Every route / middleware below comes from these helpers: plain closures, so destructuring keeps
 // them injected.
 type TestSharedData = {user: {name: string; surname: string} | null; httpMethod: string | null};
 const getSharedData = (): TestSharedData => ({user: null, httpMethod: null});
 const mion = createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false});
-const {route, headersFn, middleFn, query, mutation, rawMiddleFn} = mion;
+const {route, headersFn, middleware, query, mutation, rawMiddleware} = mion;
 
 // ============ Batch chain fixtures (flow/*) ============
 // A small graph the batch e2e tests chain with inputFrom: user -> org, user -> tags, order -> product
@@ -59,7 +59,7 @@ export type UserWithFormats = {
   email: Email;
 };
 
-// returned by the session middleFn
+// returned by the session middleware
 type SessionInfo = {userId: string; role: 'admin' | 'user'; expiresAt: number};
 
 // ============ Drizzle-derived models ============
@@ -175,16 +175,16 @@ export const compactTestRoutes = {
   }),
   // clone never mutates the handler's value
   cloned: route((_ctx, user: SimpleUser): SimpleUser => user, {parser: 'clone'}),
-  // a middleFn in the chain: its params and return ride the compact wire too
-  stamp: middleFn(
+  // a middleware in the chain: its params and return ride the compact wire too
+  stamp: middleware(
     (_ctx, tag?: string): {tag: string; when: Date} | null => (tag ? {tag, when: new Date('2024-02-02T02:02:02.000Z')} : null),
     {
       parser: 'compact',
     }
   ),
-  // a PLAIN middleFn declaring no encoder: it must still carry its params AND its return value on
+  // a PLAIN middleware declaring no encoder: it must still carry its params AND its return value on
   // a non-default wire, never be dropped from the body
-  plainStamp: middleFn((_ctx, note?: string): {note: string} | null => (note ? {note} : null)),
+  plainStamp: middleware((_ctx, note?: string): {note: string} | null => (note ? {note} : null)),
 } satisfies Routes;
 
 // Declared next to its base in a route signature: the client gets it back as a ScopedAuthError
@@ -209,7 +209,7 @@ const routes = {
     }
     ctx.shared.user = {name: 'John', surname: 'Doe'};
   }),
-  session: middleFn((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
+  session: middleware((ctx, sessionToken?: string): SessionInfo | RpcError<'session-expired'> | null => {
     if (!sessionToken) return null;
     if (sessionToken === 'expired') {
       return new RpcError({publicMessage: 'Session expired', type: 'session-expired'});
@@ -262,8 +262,8 @@ const routes = {
   },
 
   utils: {
-    // a SCOPED middleFn: runs for the utils.* routes only, never for a top-level route
-    scopeTag: middleFn((_ctx, tag?: string): string | null => tag ?? null),
+    // a SCOPED middleware: runs for the utils.* routes only, never for a top-level route
+    scopeTag: middleware((_ctx, tag?: string): string | null => tag ?? null),
     sumTwo: route((ctx, a: number): number => a + 2),
     multiply: route((ctx, a: number, b: number): number => a * b),
     processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
@@ -289,7 +289,7 @@ const routes = {
   validateName: route((_ctx, name: String<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`),
   validateAge: route((_ctx, age: Number<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
 
-  log: middleFn((ctx): void => undefined, {alwaysRun: true}),
+  log: middleware((ctx): void => undefined, {alwaysRun: true}),
 
   // Declared as RpcError but answers a FatalError: the client decodes it by the declared type
   fatalAsRpcError: route((_ctx, msg: string): string | RpcError<'gate-closed'> => {
@@ -318,8 +318,8 @@ const routes = {
     throw new RpcError({publicMessage: msg, type: 'db-connection-lost'});
   }),
 
-  // an alwaysRun middleFn that can fail: pins unexpected-slot precedence when several errors exist
-  audit: middleFn(
+  // an alwaysRun middleware that can fail: pins unexpected-slot precedence when several errors exist
+  audit: middleware(
     (_ctx, fail?: boolean): string | RpcError<'audit-failed'> => {
       if (fail) return new RpcError({publicMessage: 'Audit failed', type: 'audit-failed'});
       return 'audited';
@@ -405,7 +405,7 @@ const routes = {
     }),
   },
 
-  captureHttpMethod: rawMiddleFn((ctx, rawReq: any): void => {
+  captureHttpMethod: rawMiddleware((ctx, rawReq: any): void => {
     ctx.shared.httpMethod = rawReq?.method || 'UNKNOWN';
   }),
 

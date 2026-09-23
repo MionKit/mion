@@ -9,8 +9,8 @@ import {type RouterEntry, type Routes} from '../types/general.ts';
 import {type RemoteMethod} from '../types/remoteMethods.ts';
 import type {PublicApi} from '../types/publicMethods.ts';
 import type {AnyObject, CompiledTypeFn, CompiledFnData, MethodWithOptions, PureFnsDataCache} from '@mionjs/core';
-import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef} from '../types/guards.ts';
-import {getMiddleFnExecutable, getRouteExecutable, isPrivateDefinition, getPlatformMaxBodySize} from '../router.ts';
+import {isRoute, isHeadersMiddlewareDef, isMiddlewareDef} from '../types/guards.ts';
+import {getMiddlewareExecutable, getRouteExecutable, isPrivateDefinition, getPlatformMaxBodySize} from '../router.ts';
 import {
   getRouterItemId,
   MAX_STACK_DEPTH,
@@ -49,10 +49,11 @@ function recursiveGetSerializableRoutes<R extends Routes>(
     const id = getRouterItemId(itemPointer);
 
     if (isPrivateDefinition(item, id)) {
-      publicData[key] = null; // middleFns that don't receive or return data are not public
-    } else if (isMiddleFnDef(item) || isHeadersMiddleFnDef(item) || isRoute(item)) {
-      const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
-      if (!executable) throw new Error(`Route or MiddleFn ${id} not found. Please check you have called mion.initRoutes first.`);
+      publicData[key] = null; // middlewares that don't receive or return data are not public
+    } else if (isMiddlewareDef(item) || isHeadersMiddlewareDef(item) || isRoute(item)) {
+      const executable = getMiddlewareExecutable(id) || getRouteExecutable(id);
+      if (!executable)
+        throw new Error(`Route or Middleware ${id} not found. Please check you have called mion.initRoutes first.`);
       publicData[key] = getSerializableMethod(executable as RemoteMethod);
     } else {
       const subRoutes: Routes = routes[key] as Routes;
@@ -93,7 +94,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
       jitHash: executable.headersReturn.jitHash,
     };
   }
-  if (executable.middleFnIds) newRemoteMethod.middleFnIds = executable.middleFnIds;
+  if (executable.middlewareIds) newRemoteMethod.middlewareIds = executable.middlewareIds;
   publicMethods.set(executable.id, newRemoteMethod);
   return newRemoteMethod as MethodWithOptions;
 }

@@ -43,7 +43,7 @@ const routes = {
     updateUser: mion.route((ctx, user: User): User => ({...user, lastActivity})),
   },
   sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
-  logs: mion.middleFn((ctx): void => {}),
+  logs: mion.middleware((ctx): void => {}),
 } satisfies Routes;
 
 // A compact route: its wire is positional, so its encoder would re-shape anything that is not its
@@ -104,7 +104,7 @@ describe('deserialize json Request Body', () => {
     expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
   });
 
-  it('never parses the body of an unknown path (a middleFn is not a route)', async () => {
+  it('never parses the body of an unknown path (a middleware is not a route)', async () => {
     mion.initRoutes(routes);
     const body = {logs: 'John'};
     const context = getNewJsonContext('/logs', body);

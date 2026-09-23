@@ -7,7 +7,7 @@
 
 import {AnyObject, RpcError, MION_ROUTES, SerializableMethodsData} from '@mionjs/core';
 import {
-  getMiddleFnExecutable,
+  getMiddlewareExecutable,
   getRouteExecutable,
   hasClientMetadata,
   getRouterOptions,
@@ -15,12 +15,12 @@ import {
   getAllExecutablesIds,
   getAnyExecutable,
 } from '../router.ts';
-import {middleFn, route} from '../lib/handlers.ts';
+import {middleware, route} from '../lib/handlers.ts';
 import {callerForType} from '../dispatch.ts';
 import {HandlerType} from '@mionjs/core';
 import {getBatchIds} from '../batches.ts';
 import {RouterOptions, Routes} from '../types/general.ts';
-import {MiddleFnsCollection} from '../types/publicMethods.ts';
+import {MiddlewaresCollection} from '../types/publicMethods.ts';
 import {getSerializableMethod, serializeMethodDeps} from '../lib/remoteMethods.ts';
 import {RemoteMethod} from '../types/remoteMethods.ts';
 import {CallContext, MionRequest} from '../types/context.ts';
@@ -84,7 +84,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   const {methods, deps, purFnDeps} = resp;
   if (methods[id]) return;
   if (mionInternalRoutes.includes(id)) return;
-  const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
+  const executable = getMiddlewareExecutable(id) || getRouteExecutable(id);
   if (!executable) {
     errorData[id] = `Remote Method ${id} not found`;
     return;
@@ -92,14 +92,14 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: SerializableMethod
   if (!hasClientMetadata(executable)) return;
   const method = getSerializableMethod(executable as RemoteMethod);
   methods[id] = method;
-  method.middleFnIds?.forEach((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData));
+  method.middlewareIds?.forEach((middlewareId) => addRequiredRemoteMethodsToResponse(middlewareId, resp, errorData));
   serializeMethodDeps(method, deps, purFnDeps);
 }
 
-/** The metadata middleFn sits in EVERY chain, so an absent slot skips the whole params pipeline
+/** The metadata middleware sits in EVERY chain, so an absent slot skips the whole params pipeline
  *  (decode, sanitize, validate, call) instead of running it to return undefined. Identical answer:
  *  both params are optional. A slot that IS present takes the normal path, validation included. */
-const callMiddleFn = callerForType(HandlerType.middleFn);
+const callMiddleware = callerForType(HandlerType.middleware);
 function runMethodsMetadataOnDemand(
   context: CallContext,
   executable: RemoteMethod,
@@ -107,25 +107,25 @@ function runMethodsMetadataOnDemand(
   ...rest: unknown[]
 ): unknown {
   if (request.body[executable.id] === undefined) return undefined;
-  return callMiddleFn(context, executable, request, ...rest);
+  return callMiddleware(context, executable, request, ...rest);
 }
 
-/** Assigned once the metadata middleFn is registered, so the chain reads it like any other caller. */
+/** Assigned once the metadata middleware is registered, so the chain reads it like any other caller. */
 export function useOnDemandMetadataCaller(executable: RemoteMethod): void {
   executable.methodCaller = runMethodsMetadataOnDemand;
 }
 
-export const mionClientMiddleFns = {
+export const mionClientMiddlewares = {
   // Pins the built-in default on BOTH directions: declared at module level, so the build compiles it
   // against the default whatever the router-wide parser is. It never mutates the cached metadata.
   // It sits in EVERY chain with an unbounded `string[]`, so maxBodySize pins a fixed contribution to each
   // chain's limit: room for the ids a client piggybacks on its first call, not the platform's number.
-  [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, {
+  [MION_ROUTES.methodsMetadata]: middleware(mionMethodsMetadata, {
     alwaysRun: true,
     parser: {params: 'clone', return: 'clone'},
     maxBodySize: 4096,
   }),
-} as const satisfies MiddleFnsCollection;
+} as const satisfies MiddlewaresCollection;
 
 export const mionClientRoutes = {
   // Pins the built-in default on both wires: the bootstrap request arrives before the client knows

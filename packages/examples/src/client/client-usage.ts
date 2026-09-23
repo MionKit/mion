@@ -4,29 +4,29 @@ import {HeadersSubset} from '@mionjs/core';
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({
+const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// calls the sum route passing middleware function data to call()
-// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
-const [sumResult, sumError, undeclared, middleFnResults, middleFnErrors] =
+// calls the sum route passing middleware data to call()
+// Returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
+const [sumResult, sumError, undeclared, middlewareResults, middlewareErrors] =
   await routes.utils.sum(5, 2).call({
-    middleFns: {
-      auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    middlewares: {
+      auth: middlewares.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
     },
   });
 console.log(sumResult); // 7
 console.log(sumError); // undefined (the route's DECLARED errors | ValidationError)
 console.log(undeclared); // undefined (transport, platform, framework, or an undeclared throw)
-console.log(middleFnResults); // { auth: ... }
-console.log(middleFnErrors); // {} (each middleware function's DECLARED errors, by name)
+console.log(middlewareResults); // { auth: ... }
+console.log(middlewareErrors); // {} (each middleware's DECLARED errors, by name)
 
 // prefills the token for any future requests, value is stored in localStorage
-middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
+middlewares.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
 
 // calls sumTwo route in the server (auth is prefilled, so call() works)
-// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+// Returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
 const [sumTwoResponse, sumTwoError] = await routes.utils.sum(5, 2).call();
 if (!sumTwoError) {
   console.log(sumTwoResponse); // 7

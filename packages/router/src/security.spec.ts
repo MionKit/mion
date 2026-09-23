@@ -210,7 +210,7 @@ describe('security: error envelope', () => {
     expect(response.headers.get('x-rpc-error')).toBe('my-app:not.found');
   });
 
-  it('a headers middleFn only writes its own keys, never inherited ones', async () => {
+  it('a headers middleware only writes its own keys, never inherited ones', async () => {
     const poisoned = Object.create({'x-inherited': 'leak'}) as Record<string, string>;
     poisoned['x-own'] = 'ok';
     const setHeaders = mion.headersFn(
@@ -299,11 +299,11 @@ describe('security: batches', () => {
   });
 });
 
-describe('security: middleFn metadata is not access control', () => {
-  it('a middleFn with no params and no return is the only thing hidden from the client', async () => {
+describe('security: middleware metadata is not access control', () => {
+  it('a middleware with no params and no return is the only thing hidden from the client', async () => {
     resetRouter();
-    const silent = mion.middleFn((ctx): void => undefined);
-    const withParams = mion.middleFn((ctx, token: string): void => undefined);
+    const silent = mion.middleware((ctx): void => undefined);
+    const withParams = mion.middleware((ctx, token: string): void => undefined);
     mion.initRoutes({silent, withParams, open: mion.route((ctx): string => 'x')});
     expect(getAllExecutablesIds()).toEqual(expect.arrayContaining(['silent', 'withParams', 'open']));
   });

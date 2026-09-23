@@ -10,7 +10,7 @@ import {getPublicApi, serializeMethodDeps} from './remoteMethods.ts';
 import {createMionRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
-import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
+import {MiddlewareMethod, RouteMethod} from '../types/remoteMethods.ts';
 import {getJitFnHashes, HandlerType, HeadersSubset} from '@mionjs/core';
 import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
 import {getRTUtils} from '@mionjs/run-types/runtime';
@@ -21,29 +21,29 @@ const getSharedData = (): typeof shared => shared;
 const mion = createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
 
 describe('Public Methods should', () => {
-  const privateMiddleFn = mion.middleFn((ctx): void => undefined);
-  const publicMiddleFn = mion.middleFn((ctx): null => null);
-  const paramsMiddleFn = mion.middleFn((ctx, s: string): void => undefined);
+  const privateMiddleware = mion.middleware((ctx): void => undefined);
+  const publicMiddleware = mion.middleware((ctx): null => null);
+  const paramsMiddleware = mion.middleware((ctx, s: string): void => undefined);
   const route1 = mion.route((ctx): string => 'route1');
   const route2 = mion.route((ctx): string => 'route2');
 
   const routes = {
-    first: paramsMiddleFn, // is public as has params
-    parse: mion.rawMiddleFn((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+    first: paramsMiddleware, // is public as has params
+    parse: mion.rawMiddleware((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
     users: {
-      userBefore: privateMiddleFn, // private
+      userBefore: privateMiddleware, // private
       getUser: route1, // public
       setUser: route2, // public
       pets: {
         getUserPet: route2, // public
       },
-      userAfter: privateMiddleFn, // private
+      userAfter: privateMiddleware, // private
     },
     pets: {
       getPet: route1, // public
       setPet: route2, // public
     },
-    last: publicMiddleFn, // public MiddleFn
+    last: publicMiddleware, // public Middleware
   } satisfies Routes;
 
   beforeEach(() => resetRouter());
@@ -56,9 +56,9 @@ describe('Public Methods should', () => {
     expect(publicExecutables).toEqual({});
   });
 
-  it('generate all the required public fields for middleFn and route', async () => {
+  it('generate all the required public fields for middleware and route', async () => {
     const testR = {
-      auth: paramsMiddleFn,
+      auth: paramsMiddleware,
       routes: {
         route1,
       },
@@ -67,7 +67,7 @@ describe('Public Methods should', () => {
 
     expect(api.auth).toEqual(
       expect.objectContaining({
-        type: HandlerType.middleFn,
+        type: HandlerType.middleware,
         id: 'auth',
         paramsJitHash: expect.any(String),
         returnJitHash: expect.any(String),
@@ -75,7 +75,7 @@ describe('Public Methods should', () => {
         // name assertion, not just arity: reordering two same-arity params is invisible
         // to a count. Names come from the params tuple's member labels via reflection.
         paramNames: ['s'],
-      } as Partial<MiddleFnMethod>)
+      } as Partial<MiddlewareMethod>)
     );
 
     expect(api.routes.route1).toEqual(
@@ -90,7 +90,7 @@ describe('Public Methods should', () => {
   });
 
   it('name an optional parameter as a plain string, so the metadata wire carries no union', async () => {
-    const optional = mion.middleFn((ctx, token?: string): string => token ?? '');
+    const optional = mion.middleware((ctx, token?: string): string => token ?? '');
     const api = mion.initRoutes({optional, plain: route1});
     expect(api.optional.paramNames).toEqual(['token']);
     expect(JSON.parse(JSON.stringify(api.optional)).paramNames).toEqual(['token']);
@@ -199,7 +199,7 @@ describe('Public Methods should', () => {
 
   it('generate public data when suing prefix and suffix', async () => {
     const testR = {
-      auth: paramsMiddleFn,
+      auth: paramsMiddleware,
       route1,
     };
     const api = createMionRouter({
@@ -211,7 +211,7 @@ describe('Public Methods should', () => {
 
     expect(api).toEqual({
       auth: expect.objectContaining({
-        type: HandlerType.middleFn,
+        type: HandlerType.middleware,
         id: 'auth',
       }),
       route1: expect.objectContaining({
@@ -226,7 +226,7 @@ describe('Public Methods should', () => {
 
     expect(publicExecutables).toEqual({
       first: expect.objectContaining({
-        type: HandlerType.middleFn,
+        type: HandlerType.middleware,
         id: 'first',
       }),
       parse: null,
@@ -259,20 +259,20 @@ describe('Public Methods should', () => {
         }),
       },
       last: expect.objectContaining({
-        type: HandlerType.middleFn,
+        type: HandlerType.middleware,
         id: 'last',
       }),
     });
   });
 
-  it('should throw an error when route or middleFn is not already created in the router', () => {
+  it('should throw an error when route or middleware is not already created in the router', () => {
     const testR1 = {route1};
-    const testR2 = {middleFn1: paramsMiddleFn};
+    const testR2 = {middleware1: paramsMiddleware};
     expect(() => getPublicApi(testR1)).toThrow(
-      `Route or MiddleFn route1 not found. Please check you have called mion.initRoutes first.`
+      `Route or Middleware route1 not found. Please check you have called mion.initRoutes first.`
     );
     expect(() => getPublicApi(testR2)).toThrow(
-      `Route or MiddleFn middleFn1 not found. Please check you have called mion.initRoutes first.`
+      `Route or Middleware middleware1 not found. Please check you have called mion.initRoutes first.`
     );
   });
 

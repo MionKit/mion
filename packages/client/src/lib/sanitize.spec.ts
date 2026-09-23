@@ -24,7 +24,7 @@ describe('client sanitizeParams', () => {
   const CLEAN = 'john@example.com';
   // the test server's auth headersFn guards every route, so prefill it before a call()
   const withAuth = (client: ReturnType<typeof initClient<MyApi>>) => {
-    client.middleFns.auth(new HeadersSubset({Authorization: 'SANITIZE-TOKEN'})).prefill();
+    client.middlewares.auth(new HeadersSubset({Authorization: 'SANITIZE-TOKEN'})).prefill();
     return client;
   };
 

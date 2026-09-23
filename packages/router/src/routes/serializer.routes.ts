@@ -7,9 +7,9 @@
 
 import {MionResponse, MionRequest, CallContext, ResponseBody, RawRequestBody} from '../types/context.ts';
 import {RouterOptions} from '../types/general.ts';
-import {MiddleFnsCollection, MayReturnError} from '../types/publicMethods.ts';
+import {MiddlewaresCollection, MayReturnError} from '../types/publicMethods.ts';
 import {AnyObject, Mutable, MION_ROUTES, StatusCodes, SerializerModes} from '@mionjs/core';
-import {rawMiddleFn} from '../lib/handlers.ts';
+import {rawMiddleware} from '../lib/handlers.ts';
 import {getRouteExecutable, getRouterOptions} from '../router.ts';
 import {FatalError, isRpcError} from '@mionjs/core';
 import {RemoteMethod} from '../types/remoteMethods.ts';
@@ -17,9 +17,9 @@ import {recordUndeclaredError} from '../lib/dispatchError.ts';
 
 // ############# PUBLIC METHODS #############
 
-/** Runs before any other middleFn or route handler. Registered through `rawMiddleFn`: it runs before the
+/** Runs before any other middleware or route handler. Registered through `rawMiddleware`: it runs before the
  * response contract exists, so it throws rather than answering with a declared error.
- * @mion:rawMiddleFn
+ * @mion:rawMiddleware
  */
 export function deserializeRequestBody(context: CallContext): MayReturnError {
   // a request that already failed never parses: a not-found chain has no route to feed and the adapter
@@ -82,9 +82,9 @@ function rejectOversizedBody(rawBody: RawRequestBody, maxBodySize: number): void
   });
 }
 
-/** Runs after any other middleFn or route handler. Registered through `rawMiddleFn`: it IS the layer that
+/** Runs after any other middleware or route handler. Registered through `rawMiddleware`: it IS the layer that
  * writes the answer, so it has no declared error to return and throws instead.
- * @mion:rawMiddleFn
+ * @mion:rawMiddleware
  */
 export function serializeResponseBody(context: CallContext, opts: RouterOptions): MayReturnError {
   const response = context.response as Mutable<MionResponse>;
@@ -151,7 +151,7 @@ function prepareHandlerReturnValue(method: RemoteMethod, returnValue: any): any 
 
 const SERIALIZE_RESPONSE_ID = 'mionSerializeResponse';
 
-export const serializerMiddleFns = {
-  mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, {alwaysRun: true}),
-  [SERIALIZE_RESPONSE_ID]: rawMiddleFn(serializeResponseBody, {alwaysRun: true}),
-} satisfies MiddleFnsCollection;
+export const serializerMiddlewares = {
+  mionDeserializeRequest: rawMiddleware(deserializeRequestBody, {alwaysRun: true}),
+  [SERIALIZE_RESPONSE_ID]: rawMiddleware(serializeResponseBody, {alwaysRun: true}),
+} satisfies MiddlewaresCollection;

@@ -1,13 +1,13 @@
 import {HandlerType, RpcError} from '@mionjs/core';
-import {Route, MiddleFnDef} from '@mionjs/router';
+import {Route, MiddlewareDef} from '@mionjs/router';
 import {myApp} from './full-example.app.ts';
 
-// Route and MiddleFnDef are plain object types, so you can extend them with your own metadata
+// Route and MiddlewareDef are plain object types, so you can extend them with your own metadata
 // and still register them like any other definition.
 interface MyRoute extends Route {
   doNotFail: boolean;
 }
-interface MyMiddleFn extends MiddleFnDef {
+interface MyMiddleware extends MiddlewareDef {
   shouldLog: boolean;
 }
 
@@ -27,11 +27,11 @@ const someRoute: MyRoute = {
   },
 };
 
-const someMiddleFn: MyMiddleFn = {
+const someMiddleware: MyMiddleware = {
   shouldLog: false,
-  type: HandlerType.middleFn,
+  type: HandlerType.middleware,
   handler: (): void => {
-    if (someMiddleFn.shouldLog) {
+    if (someMiddleware.shouldLog) {
       myApp.cloudLogs.log('hello');
     } else {
       // do something else
@@ -39,4 +39,4 @@ const someMiddleFn: MyMiddleFn = {
   },
 };
 
-export const routes = {someRoute, someMiddleFn};
+export const routes = {someRoute, someMiddleware};

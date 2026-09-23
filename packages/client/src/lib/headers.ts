@@ -12,7 +12,7 @@ import {getMethod} from './methods.ts';
  *  cached metadata yet (a route's FIRST optimistic call) the value itself answers. */
 export function hasHeadersSubsetParam(id: string, params: any[] | undefined): boolean {
   const method = getMethod(id);
-  if (method) return method.type === HandlerType.headersMiddleFn && !!method.headersParam;
+  if (method) return method.type === HandlerType.headersMiddleware && !!method.headersParam;
   return params?.[0] instanceof HeadersSubset;
 }
 

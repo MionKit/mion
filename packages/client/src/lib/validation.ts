@@ -15,16 +15,16 @@ export function validateSubRequests(
   subRequestIds: string[],
   req: MionClientRequest<any, any>,
   errors: RequestErrors,
-  validateRouteMiddleFns = true
+  validateRouteMiddlewares = true
 ): void {
   if (!req.options.validateParams) return;
   subRequestIds.forEach((id) => {
     const subRequest = req.subRequestList[id];
     validateSubRequest(id, subRequest, errors);
     const methodMeta = getMethod(id);
-    if (validateRouteMiddleFns && methodMeta?.middleFnIds?.length) {
-      const validMiddleFnIds = methodMeta.middleFnIds.filter((middleFnId) => middleFnId != null);
-      validateSubRequests(validMiddleFnIds, req, errors, validateRouteMiddleFns);
+    if (validateRouteMiddlewares && methodMeta?.middlewareIds?.length) {
+      const validMiddlewareIds = methodMeta.middlewareIds.filter((middlewareId) => middlewareId != null);
+      validateSubRequests(validMiddlewareIds, req, errors, validateRouteMiddlewares);
     }
   });
   return;
@@ -60,14 +60,14 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
     if (errors?.length) {
       return new RpcError({
         type: 'validation-error',
-        publicMessage: `Invalid params for Route or MiddleFn '${method.id}', validation failed.`,
+        publicMessage: `Invalid params for Route or Middleware '${method.id}', validation failed.`,
         errorData: {typeErrors: errors},
       });
     }
   } catch (e: any) {
     return new RpcError({
       type: 'unexpected-validation-error',
-      publicMessage: `Could not validate params for Route or MiddleFn '${method.id}': ${e.message} `,
+      publicMessage: `Could not validate params for Route or Middleware '${method.id}': ${e.message} `,
     });
   }
 }

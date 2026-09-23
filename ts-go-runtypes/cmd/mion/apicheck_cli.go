@@ -18,7 +18,7 @@ Usage:
 
 Reads <dir>/api/manifest.json from both build outputs (each flag may also name
 the manifest file itself) and checks every method the client bundled against
-the server: same type ids, compiled-function families, options and middleFn
+the server: same type ids, compiled-function families, options and middleware
 chain. Two JSON files, no network, no TypeScript: run it in CI before a release
 of a split client / server deployment.
 

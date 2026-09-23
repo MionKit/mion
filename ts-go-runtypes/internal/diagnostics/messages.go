@@ -150,7 +150,7 @@ var messagesByCode = map[string]message{
 	},
 	"MET001": {
 		Headline: "The API type at this dispatch site cannot be read as a mion PublicApi ({0}); bundleApi needs `PublicApi<typeof routes>`.",
-		Detail:   "With `bundleApi` on, the build reads the route a call names out of the client's\nAPI type: its handler types, the options the router resolved and the middleFns in\nits chain. That only works on the `PublicApi<typeof routes>` type the router\nexports; a loose `RemoteApi`, an `any`, or a member without its compiled types\ncarries none of it, and the build does not guess.\n\nFix: type the client with the API's PublicApi:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});",
+		Detail:   "With `bundleApi` on, the build reads the route a call names out of the client's\nAPI type: its handler types, the options the router resolved and the middlewares in\nits chain. That only works on the `PublicApi<typeof routes>` type the router\nexports; a loose `RemoteApi`, an `any`, or a member without its compiled types\ncarries none of it, and the build does not guess.\n\nFix: type the client with the API's PublicApi:\n-  initClient<RemoteApi>({baseURL});\n+  initClient<PublicApi<typeof routes>>({baseURL});",
 	},
 	"MET002": {
 		Headline: "This call names the route `{0}`, which the API type does not declare; nothing is bundled for it.",

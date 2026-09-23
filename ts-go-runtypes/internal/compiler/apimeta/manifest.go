@@ -29,8 +29,8 @@ type ManifestMethod struct {
 	Families []string `json:"families"`
 	// Options is the resolved options literal the API type carries.
 	Options map[string]any `json:"options"`
-	// MiddleFnIds is the route's public middleFn chain in execution order.
-	MiddleFnIds []string `json:"middleFnIds,omitempty"`
+	// MiddlewareIds is the route's public middleware chain in execution order.
+	MiddlewareIds []string `json:"middlewareIds,omitempty"`
 }
 
 // BuildVersionLength is wider than the 7-char per-type ids: a collision here would hide a real API mismatch.
@@ -164,7 +164,7 @@ func compareRows(id string, clientRow, serverRow ManifestMethod) []Mismatch {
 	check("headersId", clientRow.HeadersId, serverRow.HeadersId)
 	check("families", strings.Join(clientRow.Families, ","), strings.Join(serverRow.Families, ","))
 	check("options", canonicalJSON(clientRow.Options), canonicalJSON(serverRow.Options))
-	check("middleFnIds", strings.Join(clientRow.MiddleFnIds, ","), strings.Join(serverRow.MiddleFnIds, ","))
+	check("middlewareIds", strings.Join(clientRow.MiddlewareIds, ","), strings.Join(serverRow.MiddlewareIds, ","))
 	return out
 }
 

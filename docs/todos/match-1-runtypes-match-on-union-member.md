@@ -48,7 +48,7 @@ match(outcome)                                       // outcome: User | NotFound
   run-types must not name them). The runtime check is one property read. The tag alone
   narrows the subject's union (`Extract<U, {type: Tag}>`), so the payload (`errorData` for
   an RpcError) is inferred and `E` is only spelled out on an `unknown` subject. A second
-  callback argument carries the source (`'route' | middleFnName`, or the batch slot) when
+  callback argument carries the source (`'route' | middlewareName`, or the batch slot) when
   the same tag can come from several places.
 - The chain returns the branch's return value, so state or JSX can come straight out of it.
 - First hit wins, exactly one branch runs, async branches pass their promise through

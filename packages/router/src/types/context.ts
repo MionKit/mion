@@ -12,18 +12,18 @@ import type {MethodsExecutionChain} from './remoteMethods.ts';
 // ####### Call Context #######
 
 // type-call-context-start
-/** The call Context object passed as first parameter to any middleFn or route */
+/** The call Context object passed as first parameter to any middleware or route */
 export interface CallContext<ContextData extends Record<string, any> = any> {
   /** Route's path after internal transformation */
   readonly path: string;
   readonly request: MionRequest;
   readonly response: MionResponse;
-  /** Data shared between handlers (route/middleFns), never returned in the response. */
+  /** Data shared between handlers (route/middlewares), never returned in the response. */
   shared: ContextData;
   readonly executionChain: MethodsExecutionChain;
   /** The request limit this request was read against: the chain's number capped by the platform's */
   readonly maxBodySize: number;
-  /** False on a not-found chain: the body is never read or parsed, `alwaysRun` middleFns still run */
+  /** False on a not-found chain: the body is never read or parsed, `alwaysRun` middlewares still run */
   readonly readsBody: boolean;
   /** Query string from URL, used by the batch endpoint (`id=<batchId>`) and by query routes */
   readonly urlQuery?: string;
@@ -50,7 +50,7 @@ export interface MionRequest {
   /** The parsed request body */
   readonly body: Readonly<AnyObject>;
   /** Errors outside the route's return type: validation, (de)serialization, thrown by user code, route not found.
-   *  Sent apart from the route response, in the thrownErrors middleFn slot, so the client decodes them
+   *  Sent apart from the route response, in the thrownErrors middleware slot, so the client decodes them
    *  without them being part of the route's type signature. */
   readonly thrownErrors?: Readonly<Record<string, RpcError<string>>>;
 }

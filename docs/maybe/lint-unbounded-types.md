@@ -35,7 +35,7 @@ The implementer plans the details. What was checked:
 - **Scope and level.** Fire per site (`ScopeGraph`, with the nested example the catalog rules in
   `ts-go-runtypes/CLAUDE.md` require); a warning by default, since nothing is broken, promoted to an
   error by the rule's severity. Decide whether it covers every marker (`createValidateFn<T>()`
-  included) or only mion route / middleFn params and return types, and whether a route with an
+  included) or only mion route / middleware params and return types, and whether a route with an
   explicit `maxBodySize` option is exempt.
 - **Docs:** the linter page (`container/website/content/01.rpc/06.devtools/01.linter.md`) and a
   pointer from the security page's request-limit section.

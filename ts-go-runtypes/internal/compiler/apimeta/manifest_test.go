@@ -9,12 +9,12 @@ import (
 
 func row(paramsId, returnId string) ManifestMethod {
 	return ManifestMethod{
-		Type:        1,
-		ParamsId:    paramsId,
-		ReturnId:    returnId,
-		Families:    []string{"val", "verr", "huk", "uke", "fmt", "pj", "rj"},
-		Options:     map[string]any{"parser": map[string]any{"params": "clone", "return": "clone"}, "validateParams": true},
-		MiddleFnIds: []string{"auth"},
+		Type:          1,
+		ParamsId:      paramsId,
+		ReturnId:      returnId,
+		Families:      []string{"val", "verr", "huk", "uke", "fmt", "pj", "rj"},
+		Options:       map[string]any{"parser": map[string]any{"params": "clone", "return": "clone"}, "validateParams": true},
+		MiddlewareIds: []string{"auth"},
 	}
 }
 
@@ -31,7 +31,7 @@ func TestManifest_CompareNamesEveryDifferingField(t *testing.T) {
 	changed := row("P9", "R1")
 	changed.Families = []string{"val"}
 	changed.Options = map[string]any{"validateParams": false}
-	changed.MiddleFnIds = nil
+	changed.MiddlewareIds = nil
 	client := &Manifest{Kind: ManifestKindClient, Methods: map[string]ManifestMethod{"sum": changed}}
 	mismatches := Compare(client, server)
 	var fields []string
@@ -41,7 +41,7 @@ func TestManifest_CompareNamesEveryDifferingField(t *testing.T) {
 			t.Errorf("mismatch names %q, want sum", mismatch.Id)
 		}
 	}
-	if got := strings.Join(fields, ","); got != "paramsId,families,options,middleFnIds" {
+	if got := strings.Join(fields, ","); got != "paramsId,families,options,middlewareIds" {
 		t.Fatalf("fields reported: %s\n%v", got, mismatches)
 	}
 	if line := mismatches[0].String(); !strings.Contains(line, "client P9") || !strings.Contains(line, "server P1") {

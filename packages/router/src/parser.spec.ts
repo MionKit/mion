@@ -13,7 +13,7 @@ import {
   getAnyExecutable,
   getRouteExecutable,
   getRouteExecutionChain,
-  getMiddleFnExecutable,
+  getMiddlewareExecutable,
 } from './router.ts';
 import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
@@ -84,17 +84,17 @@ describe('parser strategies at the router level', () => {
   describe('the factory literal is the router-wide default', () => {
     const inherited = compactMion.route((ctx, p: Pet): Pet => p);
     const overridden = compactMion.route((ctx, p: Pet): Pet => p, {parser: {return: 'mutate'}});
-    const guard = compactMion.middleFn((ctx, token: string): string => token);
+    const guard = compactMion.middleware((ctx, token: string): string => token);
     const anyRoute = mion.route((ctx): string => 'x');
 
-    it('routes and middleFns inherit it; a route literal overrides one direction', () => {
+    it('routes and middlewares inherit it; a route literal overrides one direction', () => {
       compactMion.initRoutes({guard, inherited, overridden});
       expect(getRouteExecutable('inherited')!.options.parser).toEqual({params: 'compact', return: 'compact'});
       expect(getRouteExecutable('inherited')!.paramsJitFns.json.strategy).toBe('compact');
       expect(getRouteExecutable('overridden')!.options.parser).toEqual({params: 'compact', return: 'mutate'});
       expect(getRouteExecutable('overridden')!.returnJitFns.json.strategy).toBe('mutate');
-      expect(getMiddleFnExecutable('guard')!.options.parser).toEqual({params: 'compact', return: 'compact'});
-      expect(getMiddleFnExecutable('guard')!.paramsJitFns.json.strategy).toBe('compact');
+      expect(getMiddlewareExecutable('guard')!.options.parser).toEqual({params: 'compact', return: 'compact'});
+      expect(getMiddlewareExecutable('guard')!.paramsJitFns.json.strategy).toBe('compact');
     });
 
     // these two build their own router, so the path from factory literal to compiled functions is one test
@@ -151,7 +151,7 @@ describe('parser strategies at the router level', () => {
     const compactRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'compact'});
     const mutateParamsOnly = mion.route((ctx, p: Pet): Pet => p, {parser: {params: 'mutate', return: 'compact'}});
     const cloneParamsOnly = mion.route((ctx, p: Pet): Pet => p, {parser: {params: 'clone', return: 'mutate'}});
-    const compactGuard = compactMion.middleFn((ctx, p: Pet): Pet => p);
+    const compactGuard = compactMion.middleware((ctx, p: Pet): Pet => p);
 
     const familyOf = (fns: {isType: {rtFnHash: string}}) => fns.isType.rtFnHash.split('_')[0];
 
@@ -175,9 +175,9 @@ describe('parser strategies at the router level', () => {
       expect(familyOf(getRouteExecutable('cloneParamsOnly')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validateUnionKeys);
     });
 
-    it('a middleFn follows its router-wide wire too', () => {
+    it('a middleware follows its router-wide wire too', () => {
       compactMion.initRoutes({compactGuard});
-      expect(familyOf(getMiddleFnExecutable('compactGuard')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validateUnionKeys);
+      expect(familyOf(getMiddlewareExecutable('compactGuard')!.paramsJitFns)).toBe(JIT_FUNCTION_IDS.validateUnionKeys);
     });
 
     it('the answer side compiles the row its own strategy names', () => {
@@ -202,7 +202,7 @@ describe('parser strategies at the router level', () => {
     const defaultRoute = mion.route((ctx, p: Pet): Pet => p);
     const mutateRoute = mion.route((ctx, p: Pet): Pet => p, {parser: {return: 'mutate'}});
     const compactRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'compact'});
-    const mutateMiddleFn = mion.middleFn((ctx): string => 'stamp', {parser: {return: 'mutate'}});
+    const mutateMiddleware = mion.middleware((ctx): string => 'stamp', {parser: {return: 'mutate'}});
 
     it('whatever the route strategy', () => {
       mion.initRoutes({defaultRoute, mutateRoute, compactRoute});
@@ -211,8 +211,8 @@ describe('parser strategies at the router level', () => {
       expect(getRouteExecutionChain('/compactRoute')!.serializer).toBe(SerializerModes.json);
     });
 
-    it('and whatever a middleFn in the chain returns', () => {
-      mion.initRoutes({mutateMiddleFn, defaultRoute});
+    it('and whatever a middleware in the chain returns', () => {
+      mion.initRoutes({mutateMiddleware, defaultRoute});
       expect(getRouteExecutionChain('/defaultRoute')!.serializer).toBe(SerializerModes.json);
     });
   });
@@ -438,17 +438,17 @@ describe('parser strategies at the router level', () => {
     });
   });
 
-  // A middleFn declaring no `parser` inherits the route's wire like any chain member. Its params and
+  // A middleware declaring no `parser` inherits the route's wire like any chain member. Its params and
   // its return value must BOTH survive the round trip; a member dropped from the body is silent data loss.
   describe('a chain member with no parser of its own', () => {
-    const stamp = compactMion.middleFn((ctx, tag?: string): {tag: string} | null => (tag ? {tag} : null));
+    const stamp = compactMion.middleware((ctx, tag?: string): {tag: string} | null => (tag ? {tag} : null));
     const compactRoute = compactMion.route((ctx, p: Pet): Pet => p);
 
-    it('a plain middleFn carries its params AND its return value on the compact wire', async () => {
+    it('a plain middleware carries its params AND its return value on the compact wire', async () => {
       compactMion.initRoutes({stamp, compactRoute});
-      const stampExec = getMiddleFnExecutable('stamp')!;
+      const stampExec = getMiddlewareExecutable('stamp')!;
       const routeExec = getRouteExecutable('compactRoute')!;
-      // the middleFn rides the router-wide wire, exactly like the route
+      // the middleware rides the router-wide wire, exactly like the route
       expect(stampExec.options.parser).toEqual({params: 'compact', return: 'compact'});
       expect(routeExec.options.parser).toEqual({params: 'compact', return: 'compact'});
 
@@ -461,14 +461,14 @@ describe('parser strategies at the router level', () => {
       const request = {headers: headersFromRecord({}), body: JSON.stringify(body)};
       const response = await dispatchRoute('/compactRoute', request.body, request.headers, headersFromRecord({}), request, {});
       expect(response.hasErrors).toBe(false);
-      // the middleFn read its params (so they reached the server) and its return value is on the wire
+      // the middleware read its params (so they reached the server) and its return value is on the wire
       const decodeStamp = stampExec.returnJitFns.json.decode.fn;
       expect(decodeStamp(response.body.stamp)).toEqual({tag: 'marked'});
       expect(response.body.compactRoute).toBeDefined();
     });
   });
 
-  // mion's built-ins (@thrownErrors, notFound, platformError, the metadata middleFn) are DECLARED at module level and
+  // mion's built-ins (@thrownErrors, notFound, platformError, the metadata middleware) are DECLARED at module level and
   // cannot inherit a router-wide `parser`: createMionRouter is generic, so a marker call site inside it carries an
   // unresolved type parameter. The build compiles them against the default, so each must PIN it or it refuses to start.
   describe("mion's own built-in methods", () => {
@@ -518,13 +518,13 @@ describe('parser strategies at the router level', () => {
 
   // `binary` is not a wire strategy. The generic strategy error names the ones that are.
   describe('an unknown strategy', () => {
-    it('rejects it on a route, on a middleFn and on the router option', () => {
+    it('rejects it on a route, on a middleware and on the router option', () => {
       const badRoute = mion.route((ctx, p: Pet): Pet => p, {parser: 'binary' as unknown as 'compact'});
       expect(() => mion.initRoutes({badRoute})).toThrow(/invalid parser strategy 'binary'/);
       resetRouter();
-      const badMiddleFn = mion.middleFn((ctx): string => 'x', {parser: 'binary' as unknown as 'compact'});
+      const badMiddleware = mion.middleware((ctx): string => 'x', {parser: 'binary' as unknown as 'compact'});
       const okRoute = mion.route((ctx, p: Pet): Pet => p);
-      expect(() => mion.initRoutes({badMiddleFn, okRoute})).toThrow(/invalid parser strategy 'binary'/);
+      expect(() => mion.initRoutes({badMiddleware, okRoute})).toThrow(/invalid parser strategy 'binary'/);
       resetRouter();
       const badRouter = createMionRouter({parser: 'binary' as unknown as 'compact'});
       const inherits = badRouter.route((ctx, p: Pet): Pet => p);

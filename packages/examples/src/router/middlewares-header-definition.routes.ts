@@ -20,12 +20,12 @@ const routes = {
           publicMessage: 'User is not authorized',
         });
       }
-      ctx.shared.auth = {me}; // user is added to ctx to share with other routes and middleware functions
+      ctx.shared.auth = {me}; // user is added to ctx to share with other routes and middleware
     }
   ),
   // set response headers
-  serverName: mion.middleFn((ctx): HeadersSubset<'Server'> => {
+  serverName: mion.middleware((ctx): HeadersSubset<'Server'> => {
     return new HeadersSubset({Server: 'my-server'});
   }),
-  // ... other routes and middleware functions
+  // ... other routes and middleware
 } satisfies Routes;

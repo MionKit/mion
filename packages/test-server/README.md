@@ -39,10 +39,10 @@ the entry as a program of its own do. `MION_TEST_PORT` picks the default port.
 
 ## Route Groups
 
-| Group     | What it covers                                                         |
-| --------- | ---------------------------------------------------------------------- |
-| default   | The JSON wires, errors, headers, batches, drizzle-backed routes        |
-| `compact` | The positional wire, including a middleFn with no `encoder` of its own |
+| Group     | What it covers                                                           |
+| --------- | ------------------------------------------------------------------------ |
+| default   | The JSON wires, errors, headers, batches, drizzle-backed routes          |
+| `compact` | The positional wire, including a middleware with no `encoder` of its own |
 
 ## Exported Types
 

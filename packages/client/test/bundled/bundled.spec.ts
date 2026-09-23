@@ -24,9 +24,9 @@ import {MemoryMetadataStore, resetMetadataStore, setMetadataStoreForTesting} fro
 const baseURL = inject('laneServerBaseURL');
 const user = {name: 'John', surname: 'Doe'};
 
-/** Every route of the test server runs behind the root-level `auth` headers middleFn. */
-function withAuth(middleFns: ReturnType<typeof initClient<TestServerApi>>['middleFns']) {
-  return {middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
+/** Every route of the test server runs behind the root-level `auth` headers middleware. */
+function withAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']) {
+  return {middlewares: {auth: middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
 }
 
 /** Records every request the client sends, and says which of them asked for metadata. */
@@ -76,12 +76,12 @@ describe('a client built with bundleApi: bundled', () => {
     expect(client.bundleApiMode).toBe('bundled');
   });
 
-  it('calls a route through its middleFn chain in ONE request, without asking for metadata', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+  it('calls a route through its middleware chain in ONE request, without asking for metadata', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();
     try {
-      const auth = middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
-      const [result, error, fatal] = await routes.sayHello(user).call({middleFns: {auth}});
+      const auth = middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
+      const [result, error, fatal] = await routes.sayHello(user).call({middlewares: {auth}});
       expect(fatal).toBeUndefined();
       expect(error).toBeUndefined();
       expect(result).toBe('Hello John Doe');
@@ -90,15 +90,15 @@ describe('a client built with bundleApi: bundled', () => {
     } finally {
       watch.restore();
     }
-    // the route, its chain and the middleFn the call named all came from the bundle
+    // the route, its chain and the middleware the call named all came from the bundle
     expect(isBundledMethod('sayHello')).toBe(true);
     expect(isBundledMethod('auth')).toBe(true);
-    expect(getMethod('sayHello')?.middleFnIds).toContain('auth');
+    expect(getMethod('sayHello')?.middlewareIds).toContain('auth');
   });
 
   it('neither reads nor writes the metadata store', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    const [result] = await routes.utils.sumTwo(40).call(withAuth(middleFns));
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    const [result] = await routes.utils.sumTwo(40).call(withAuth(middlewares));
     expect(result).toBe(42);
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(store.readAll).not.toHaveBeenCalled();
@@ -106,14 +106,14 @@ describe('a client built with bundleApi: bundled', () => {
   });
 
   it('never loads the code that asks the server how a route works', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    await routes.utils.sumTwo(40).call(withAuth(middleFns));
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    await routes.utils.sumTwo(40).call(withAuth(middlewares));
     await routes.compact.addNumbers(2, 3).typeErrors();
     expect(isMetadataFromServerLoaded()).toBe(false);
   });
 
   it('fetches a route the bundle lacks, loading the lane only then', async () => {
-    const {client, middleFns} = initClient<TestServerApi>({baseURL});
+    const {client, middlewares} = initClient<TestServerApi>({baseURL});
     expect(isMetadataFromServerLoaded()).toBe(false);
     const [result, , undeclared] = await client.execute(
       {
@@ -124,7 +124,7 @@ describe('a client built with bundleApi: bundled', () => {
       } as never,
       undefined,
       undefined,
-      withAuth(middleFns).middleFns
+      withAuth(middlewares).middlewares
     );
     expect(undeclared).toBeUndefined();
     expect(result).toBeDefined();
@@ -133,14 +133,14 @@ describe('a client built with bundleApi: bundled', () => {
   });
 
   it('runs with dynamic code disabled: the bundle carries live functions, never code strings', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const realFunction = globalThis.Function;
     const thrower = function () {
       throw new Error('new Function is disabled by the policy');
     } as unknown as FunctionConstructor;
     vi.stubGlobal('Function', thrower);
     try {
-      const [result, error] = await routes.compact.addNumbers(2, 3).call(withAuth(middleFns));
+      const [result, error] = await routes.compact.addNumbers(2, 3).call(withAuth(middlewares));
       expect(error).toBeUndefined();
       expect(result).toBe(5);
       // local validation runs the bundled validator too
@@ -151,13 +151,13 @@ describe('a client built with bundleApi: bundled', () => {
     }
   });
 
-  it('prefills a middleFn and runs a batch from the bundle', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+  it('prefills a middleware and runs a batch from the bundle', async () => {
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = watchFetch();
     try {
-      middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})).prefill();
+      middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})).prefill();
       const [results, errors, fatal] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
-      // the prefilled auth rode along: no middleFns were named on the call
+      // the prefilled auth rode along: no middlewares were named on the call
       expect(fatal).toBeUndefined();
       expect(errors).toEqual([undefined, undefined]);
       expect(results).toEqual(['Hello John Doe', 3]);
@@ -168,35 +168,35 @@ describe('a client built with bundleApi: bundled', () => {
   });
 
   it('sends a query route as GET, the bundled options say so', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    const [result, error] = await routes.getRequestInfo('hello').call(withAuth(middleFns));
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    const [result, error] = await routes.getRequestInfo('hello').call(withAuth(middlewares));
     expect(error).toBeUndefined();
     expect(result?.httpMethod).toBe('GET');
     expect(getMethod('getRequestInfo')?.options.isMutation).toBe(false);
   });
 
   it('gives a returned HeadersSubset back', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    const [result, error] = await routes.respondHeaders('bundled').call(withAuth(middleFns));
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    const [result, error] = await routes.respondHeaders('bundled').call(withAuth(middlewares));
     expect(error).toBeUndefined();
     expect(result).toBeInstanceOf(HeadersSubset);
     expect(result?.headers['x-mion-echo']).toBe('bundled');
   });
 
   it('reports a payload the build did not write in the undeclared slot, never by throwing', async () => {
-    const {client, routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {client, routes, middlewares} = initClient<TestServerApi>({baseURL});
     // the cast stands in for the build, the only thing that fills this slot: the envelope is right and
     // the method row is not, as a `<genDir>/api/` tree from another @mionjs/devtools version would write it
     const stale = {methods: [{id: 'sayHello'}]} as unknown as InjectedApiMetadata;
     expect(() => client.useBundledApi(stale)).not.toThrow();
 
-    const [result, error, undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
+    const [result, error, undeclared] = await routes.sayHello(user).call(withAuth(middlewares));
     expect(result).toBe('Hello John Doe');
     expect(error).toBeUndefined();
     expect(undeclared?.type).toBe('bundle-api-invalid-payload');
 
     // reported once, so it never displaces a real error on every later call
-    const [, , second] = await routes.sayHello(user).call(withAuth(middleFns));
+    const [, , second] = await routes.sayHello(user).call(withAuth(middlewares));
     expect(second).toBeUndefined();
   });
 
@@ -236,7 +236,7 @@ function serializable(method: MethodWithOptions | undefined): Record<string, unk
     out.headersParam = {headerNames: method.headersParam.headerNames, jitHash: method.headersParam.jitHash};
   if (method.headersReturn)
     out.headersReturn = {headerNames: method.headersReturn.headerNames, jitHash: method.headersReturn.jitHash};
-  if (method.middleFnIds) out.middleFnIds = method.middleFnIds;
+  if (method.middlewareIds) out.middlewareIds = method.middlewareIds;
   return JSON.parse(JSON.stringify(out));
 }
 
@@ -255,15 +255,15 @@ describe('parity: what the bundle registers equals what the server answers', () 
   it('method by method, jit hashes included', async () => {
     resetClientCaches();
     resetBundledApi();
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     // touch every dispatch point this file has, so their bundles are registered
-    const auth = middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
-    await routes.sayHello(user).call({middleFns: {auth}});
-    await routes.utils.sumTwo(1).call(withAuth(middleFns));
-    await routes.compact.addNumbers(1, 2).call(withAuth(middleFns));
-    await routes.getRequestInfo('x').call(withAuth(middleFns));
-    await routes.respondHeaders('x').call(withAuth(middleFns));
-    await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call(withAuth(middleFns));
+    const auth = middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}));
+    await routes.sayHello(user).call({middlewares: {auth}});
+    await routes.utils.sumTwo(1).call(withAuth(middlewares));
+    await routes.compact.addNumbers(1, 2).call(withAuth(middlewares));
+    await routes.getRequestInfo('x').call(withAuth(middlewares));
+    await routes.respondHeaders('x').call(withAuth(middlewares));
+    await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call(withAuth(middlewares));
 
     const url = new URL(getRoutePath([MION_ROUTES.methodsMetadataById], {basePath: '', suffix: ''} as never), baseURL);
     const response = await fetch(url, {

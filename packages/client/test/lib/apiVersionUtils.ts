@@ -18,9 +18,9 @@ import {resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
 import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
 
-/** Every route of the test server runs behind the root-level `auth` headers middleFn. */
-export function withAuth(middleFns: ReturnType<typeof initClient<TestServerApi>>['middleFns']) {
-  return {middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
+/** Every route of the test server runs behind the root-level `auth` headers middleware. */
+export function withAuth(middlewares: ReturnType<typeof initClient<TestServerApi>>['middlewares']) {
+  return {middlewares: {auth: middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'}))}};
 }
 
 export async function resetApiVersionState(): Promise<void> {
@@ -67,7 +67,7 @@ export function serveVersion(version: string | null, editRows?: RowEdit) {
 
 function rewriteRows(payload: string, editRows: RowEdit): string {
   const parsed = safeParse(payload);
-  // the metadata middleFn declares a union, so its slot rides as an `[index, value]` envelope
+  // the metadata middleware declares a union, so its slot rides as an `[index, value]` envelope
   const slot = parsed?.[MION_ROUTES.methodsMetadata];
   const data = (Array.isArray(slot) ? slot[1] : slot) as SerializableMethodsData | undefined;
   if (!data?.methods) return payload;

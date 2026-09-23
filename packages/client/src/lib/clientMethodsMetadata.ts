@@ -192,7 +192,7 @@ async function persistPayloads(options: ClientOptions, payloads: SerializableMet
         console.warn(`Refused to store metadata for method '${methodId}'`);
         continue;
       }
-      // The server answers for a route's whole chain, so a bundled middleFn rides a fetched route's
+      // The server answers for a route's whole chain, so a bundled middleware rides a fetched route's
       // answer; its row would only be read back to be ignored. Orphaned compiled functions are swept.
       if (isBundledMethod(methodId)) continue;
       add('m', methodId, methodData);

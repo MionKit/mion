@@ -16,8 +16,8 @@ import {HeadersSubset} from '@mionjs/core';
 import type {TestServerApi} from '../../src/server/server.ts';
 
 export async function runInlineMapperBatch(baseURL: string): Promise<{customer: unknown; prefs: unknown; errors: unknown[]}> {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-    middleFns.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})).prefill();
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+    middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})).prefill();
     const customer = routes.getCustomerById(7);
     const [[customerData, prefs], errors] = await batch([
         customer,

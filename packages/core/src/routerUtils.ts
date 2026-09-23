@@ -195,7 +195,7 @@ export function hasJitFnsForMethod(metadata: MethodWithOptions): boolean {
   return hasFullSet(metadata.returnJitHash, parser.return);
 }
 
-/** The router id of a Route or MiddleFn: its pointer inside the Routes object, e.g. ['users', 'getUser']. */
+/** The router id of a Route or Middleware: its pointer inside the Routes object, e.g. ['users', 'getUser']. */
 export function getRouterItemId(itemPointer: string[]) {
   return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
 }

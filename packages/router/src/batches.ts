@@ -19,7 +19,7 @@ import {
 } from '@mionjs/core';
 import {getInputMapper, hasInputMapper} from '@mionjs/core';
 import type {BatchDefinition, BatchMapping} from '@mionjs/core';
-import {getRouteExecutionChain, getPlatformRequestCap, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
+import {getRouteExecutionChain, getPlatformRequestCap, getRouterOptions, startMiddlewares, endMiddlewares} from './router.ts';
 import {getMethodCaller} from './dispatch.ts';
 import {findMionQueryParam} from './lib/urlQuery.ts';
 import {RouterOptions} from './types/general.ts';
@@ -205,15 +205,15 @@ export function getBatchExecutionChain(
 }
 
 /** Merges the member chains (paths already transformed) deduplicating by id, the router's start and end
- *  middleFns kept at the two ends and each mapping step inserted between its source and target route. */
+ *  middlewares kept at the two ends and each mapping step inserted between its source and target route. */
 function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]): MethodsExecutionChain {
   const seenIds = new Set<string>();
   const middleMethods: RemoteMethod[] = [];
   const memberChains: MethodsExecutionChain[] = [];
   let firstRouteIndex = -1;
 
-  const startMiddleFnIds = new Set(startMiddleFns.map((method) => method.id));
-  const endMiddleFnIds = new Set(endMiddleFns.map((method) => method.id));
+  const startMiddlewareIds = new Set(startMiddlewares.map((method) => method.id));
+  const endMiddlewareIds = new Set(endMiddlewares.map((method) => method.id));
 
   transformedPaths.forEach((transformedPath, index) => {
     const chain = getRouteExecutionChain(transformedPath);
@@ -229,11 +229,11 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
     memberChains.push(chain);
     if (firstRouteIndex < 0) firstRouteIndex = chain.routeIndex;
 
-    // start and end middleFns are added separately, so skip them here
+    // start and end middlewares are added separately, so skip them here
     for (const method of chain.methods) {
       if (seenIds.has(method.id)) continue;
-      if (startMiddleFnIds.has(method.id)) continue;
-      if (endMiddleFnIds.has(method.id)) continue;
+      if (startMiddlewareIds.has(method.id)) continue;
+      if (endMiddlewareIds.has(method.id)) continue;
       seenIds.add(method.id);
       middleMethods.push(method);
     }
@@ -241,7 +241,7 @@ function buildMergedExecutionChain(entry: BatchEntry, transformedPaths: string[]
 
   if (entry.mappings.length > 0) insertMappingMethods(entry, middleMethods);
 
-  const methods = [...startMiddleFns, ...middleMethods, ...endMiddleFns];
+  const methods = [...startMiddlewares, ...middleMethods, ...endMiddlewares];
   // The entry's own number IS the declared one for a batch: it is the sum its members resolved to.
   const declaredBodySize = resolveBatchMaxBodySize(entry, memberChains);
   return {
@@ -355,7 +355,7 @@ function createMappingMethod(mapping: BatchMapping): RemoteMethod {
 
   const noopJitFns = getNoopJitFns();
   const method = {
-    type: HandlerType.rawMiddleFn,
+    type: HandlerType.rawMiddleware,
     id,
     hasReturnData: false,
     paramsJitHash: '',

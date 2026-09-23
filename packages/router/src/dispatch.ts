@@ -99,7 +99,7 @@ async function runExecutionChain(
     if (response.hasErrors && !executable.alwaysRun) continue;
 
     try {
-      // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
+      // runRawMiddleware , runHeadersMiddleware & runRouteOrMiddleware must always accept the same parameters in the same order
       // methodCaller is resolved when the method is registered, so the loop never has to pick one
       // `isAsync` is decided by the type checker at the call site, not by inspecting the value, so a
       // plain function returning a promise still awaits and a proven-sync chain costs no promise frames.
@@ -130,7 +130,7 @@ async function runExecutionChain(
       // `null` is a valid answer and reading a property off it throws, so it is excluded first
       const isMionError = result !== null && result['mion@isΣrrθr'] === true;
       if (!executable.hasReturnData) {
-        // a raw middleFn has no declared return type, so a returned error is undeclared: it halts and
+        // a raw middleware has no declared return type, so a returned error is undeclared: it halts and
         // travels in @thrownErrors like a thrown one (its body slot is never serialized)
         if (isMionError || isNativeError(result)) recordUndeclaredError(context, executable.id, result);
         continue;
@@ -171,7 +171,7 @@ async function runExecutionChain(
 
 // The three callers below are NOT async: awaiting the handler only to return its value adds a promise
 // frame per chain member, and the loop's own await and try/catch cover the value and the promise alike.
-function runRawMiddleFn(
+function runRawMiddleware(
   context: CallContext,
   executable: RawMethod,
   req,
@@ -183,7 +183,7 @@ function runRawMiddleFn(
   return executable.handler(context, rawRequest, rawResponse, opts);
 }
 
-function runHeadersMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+function runHeadersMiddleware(context: CallContext, executable: HeadersMethod, request: MionRequest) {
   const headerNames = executable.headersParam.headerNames;
   const params = sanitizeParams(
     deserializeBodyParamsOrThrow(request, executable as RemoteMethod),
@@ -202,7 +202,7 @@ function runHeadersMiddleFn(context: CallContext, executable: HeadersMethod, req
   return executable.handler(context, headersSubset, ...params);
 }
 
-function runRouteOrMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+function runRouteOrMiddleware(context: CallContext, executable: HeadersMethod, request: MionRequest) {
   const params = sanitizeParams(
     deserializeBodyParamsOrThrow(request, executable as RemoteMethod),
     request,
@@ -232,9 +232,9 @@ function sanitizeParams(params: any[], request: MionRequest, executable: RemoteM
 /** The caller for a method kind. Read ONCE, when the method is registered, so the dispatch loop
  *  reads a field instead of branching on the method type on every request. */
 export function callerForType(type: RemoteMethod['type']): (...args: any[]) => any {
-  if (type === HandlerType.rawMiddleFn) return runRawMiddleFn;
-  if (type === HandlerType.headersMiddleFn) return runHeadersMiddleFn;
-  return runRouteOrMiddleFn;
+  if (type === HandlerType.rawMiddleware) return runRawMiddleware;
+  if (type === HandlerType.headersMiddleware) return runHeadersMiddleware;
+  return runRouteOrMiddleware;
 }
 
 /** The caller already stored on a registered method. */

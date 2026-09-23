@@ -78,7 +78,7 @@ describe('Dispatch routes', () => {
       expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
     });
 
-    it('read data from header & middleFn', async () => {
+    it('read data from header & middleware', async () => {
       mion.initRoutes({auth, changeUserName});
 
       const request: RawRequest = {
@@ -236,7 +236,7 @@ describe('Dispatch routes', () => {
       expect(error.type).toEqual('route-not-found');
     });
 
-    // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another middleFn it wil work
+    // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another middleware it wil work
     it('support async handlers and ensure execution in order', async () => {
       const id = 'sumTwo';
       const routes = {
@@ -247,7 +247,7 @@ describe('Dispatch routes', () => {
             }, 500);
           });
         }),
-        totals: mion.middleFn((ctx: CallContext): string => {
+        totals: mion.middleware((ctx: CallContext): string => {
           // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
           return `the total is ${ctx.response.body[id]}`;
         }),
@@ -776,9 +776,9 @@ describe('validateReturn', () => {
     expect(response.body.missing).toBeUndefined();
   });
 
-  // The carve-out: a middleFn declaring no return value contributes nothing, which is not a wrong answer.
-  it('leaves a middleFn that declares no return value alone', async () => {
-    const silent = mion.middleFn((): void => undefined, {validateReturn: true});
+  // The carve-out: a middleware declaring no return value contributes nothing, which is not a wrong answer.
+  it('leaves a middleware that declares no return value alone', async () => {
+    const silent = mion.middleware((): void => undefined, {validateReturn: true});
     mion.initRoutes({silent, goodChecked});
     const request = jsonRequest('goodChecked');
     const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
@@ -786,9 +786,9 @@ describe('validateReturn', () => {
     expect(response.body[MION_ROUTES.thrownErrors]?.silent).toBeUndefined();
   });
 
-  // A middleFn resolves the flag on its own and its failure takes its own slot, so it needs its own case.
-  it('checks a middleFn return, in the middleFn own slot', async () => {
-    const badMf = mion.middleFn((): Answer => ({name: 42}) as unknown as Answer, {validateReturn: true});
+  // A middleware resolves the flag on its own and its failure takes its own slot, so it needs its own case.
+  it('checks a middleware return, in the middleware own slot', async () => {
+    const badMf = mion.middleware((): Answer => ({name: 42}) as unknown as Answer, {validateReturn: true});
     mion.initRoutes({badMf, goodChecked});
     const request = jsonRequest('goodChecked');
     const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});

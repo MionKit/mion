@@ -1,8 +1,8 @@
 # @mionjs/router guidelines
 
-## `import type` is SAFE in routes and middleFns
+## `import type` is SAFE in routes and middleware
 
-RunTypes resolves types at BUILD TIME from the TypeScript program and injects the compiled functions at the `mion.route()` / `mion.middleFn()` call site (the helpers `createMionRouter()` returns; the scanner reads the resolved signature, so a destructured helper is the same), so an erased import changes nothing. Guarded by [src/typeOnlyImports.spec.ts](src/typeOnlyImports.spec.ts).
+RunTypes resolves types at BUILD TIME from the TypeScript program and injects the compiled functions at the `mion.route()` / `mion.middleware()` call site (the helpers `createMionRouter()` returns; the scanner reads the resolved signature, so a destructured helper is the same), so an erased import changes nothing. Guarded by [src/typeOnlyImports.spec.ts](src/typeOnlyImports.spec.ts).
 
 This was NOT true under deepkit, whose runtime reflection was emitted from the import statement — `import type` stripped the metadata and caused silent failures. That is why the repo guidelines used to carry a "TYPE IMPORTS !!CRITICAL!!" warning and why `@mionjs/no-type-imports` existed; both are gone. Do not reintroduce either.
 
@@ -12,7 +12,7 @@ This was NOT true under deepkit, whose runtime reflection was emitted from the i
 
 ## One router factory
 
-`createMionRouter(opts)` ([src/router.ts](src/router.ts), types in [src/types/mionRouter.ts](src/types/mionRouter.ts)) is the ONLY public way to initialize the router and to declare routes / middleFns: the options are written once and ride by type (`O`) into every helper, so `ctx.shared` is typed from `contextDataFactory` and the router-wide `parser` reaches what the build compiles for a route naming none. The runtime is still the module singleton: `mion.initRoutes(routes)` runs the private `initRouter` + `registerRoutes` in `src/router.ts`. The helper bodies in [src/lib/handlers.ts](src/lib/handlers.ts) are internal (the internal client / error / serializer routes use them directly) and are NOT exported from `index.ts`. Never re-add bare `route()` exports or a second init entry point.
+`createMionRouter(opts)` ([src/router.ts](src/router.ts), types in [src/types/mionRouter.ts](src/types/mionRouter.ts)) is the ONLY public way to initialize the router and to declare routes / middleware: the options are written once and ride by type (`O`) into every helper, so `ctx.shared` is typed from `contextDataFactory` and the router-wide `parser` reaches what the build compiles for a route naming none. The runtime is still the module singleton: `mion.initRoutes(routes)` runs the private `initRouter` + `registerRoutes` in `src/router.ts`. The helper bodies in [src/lib/handlers.ts](src/lib/handlers.ts) are internal (the internal client / error / serializer routes use them directly) and are NOT exported from `index.ts`. Never re-add bare `route()` exports or a second init entry point.
 
 A second `createMionRouter()` throws until `resetRouter()` clears it, which is the point: it catches a second app built on top of the first. In tests that means the call belongs in a `beforeEach` / `beforeAll` next to the reset, never where the file is evaluated. It matters most under bun, which runs a package's test files in ONE process: a router built in a describe body throws on a flag a sibling file already set, and that whole file is skipped with the run still reporting `0 fail`.
 

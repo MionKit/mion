@@ -15,7 +15,7 @@ const routes = {
     create: mion.route((ctx, user: User): User => user),
     delete: mion.route((ctx, id: string): string => id),
   },
-  log: mion.middleFn((ctx): void => undefined, {alwaysRun: true}),
+  log: mion.middleware((ctx): void => undefined, {alwaysRun: true}),
 } satisfies Routes;
 
 const myApi = mion.initRoutes(routes);

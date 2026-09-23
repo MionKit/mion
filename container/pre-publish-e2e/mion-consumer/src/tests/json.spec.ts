@@ -24,10 +24,10 @@ describe('JSON Serialization E2E', () => {
     type MyApi = TestServerApi;
 
     it('proxy should trap remote method calls and return SubRequest data', () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const authReq = middleFns.auth(authHeaders);
+        const authReq = middlewares.auth(authHeaders);
         expect(authReq.pointer).toEqual(['auth']);
         expect(authReq.id).toBe('auth');
         expect(authReq.isResolved).toBe(false);
@@ -41,27 +41,27 @@ describe('JSON Serialization E2E', () => {
         expect(sumReq.id).toBe('utils/sumTwo');
     });
 
-    it('call() with middleFns should return route data on success', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() with middlewares should return route data on success', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, fatal, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
-            middleFns: {auth: middleFns.auth(authHeaders)},
+        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call({
+            middlewares: {auth: middlewares.auth(authHeaders)},
         });
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
         expect(fatal).toBeUndefined();
-        expect(middleFnResults).toBeDefined();
-        expect(middleFnErrors).toBeDefined();
+        expect(middlewareResults).toBeDefined();
+        expect(middlewareErrors).toBeDefined();
     });
 
-    it('call() with middleFns should return error on route failure', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() with middlewares should return error on route failure', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const [result, routeError] = await routes.alwaysFails(someUser).call({
-            middleFns: {auth: middleFns.auth(authHeaders)},
+            middlewares: {auth: middlewares.auth(authHeaders)},
         });
 
         expect(result).toBeUndefined();
@@ -71,10 +71,10 @@ describe('JSON Serialization E2E', () => {
     });
 
     it('call() with prefilled auth should succeed', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
+        middlewares.auth(authHeaders).prefill();
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const [greeting, error] = await routes.sayHello(someUser).call();
@@ -82,52 +82,52 @@ describe('JSON Serialization E2E', () => {
         expect(greeting).toBe('Hello John Doe');
         expect(error).toBeUndefined();
 
-        middleFns.auth(authHeaders).removePrefill();
+        middlewares.auth(authHeaders).removePrefill();
     });
 
     it('call() should fail after removePrefill', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('ABYWZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
+        middlewares.auth(authHeaders).prefill();
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const [response, callError] = await routes.sayHello(someUser).call();
         expect(callError).toBeUndefined();
         expect(response).toBe('Hello John Doe');
 
-        middleFns.auth(authHeaders).removePrefill();
+        middlewares.auth(authHeaders).removePrefill();
 
-        // A missing prefilled middleFn fails request-scoped, so it lands in the fatal slot.
+        // A missing prefilled middleware fails request-scoped, so it lands in the fatal slot.
         const [, , fatal] = await routes.sayHello(someUser).call();
         expect(fatal).toBeDefined();
         expect(isRpcError(fatal)).toBe(true);
     });
 
-    it('call() with middleFns should return session middleFn data', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+    it('call() with middlewares should return session middleware data', async () => {
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, fatal, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
-            middleFns: {
-                auth: middleFns.auth(authHeaders),
-                session: middleFns.session('valid-token'),
+        const [greeting, routeError, fatal, middlewareResults, middlewareErrors] = await routes.sayHello(someUser).call({
+            middlewares: {
+                auth: middlewares.auth(authHeaders),
+                session: middlewares.session('valid-token'),
             },
         });
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
         expect(fatal).toBeUndefined();
-        expect(middleFnErrors?.auth).toBeUndefined();
-        expect(middleFnResults?.session).toBeDefined();
-        expect(middleFnResults?.session?.userId).toBe('user-123');
+        expect(middlewareErrors?.auth).toBeUndefined();
+        expect(middlewareResults?.session).toBeDefined();
+        expect(middlewareResults?.session?.userId).toBe('user-123');
     });
 
     it('batch should execute multiple routes', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
+        middlewares.auth(authHeaders).prefill();
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const [[greeting, age, sum], [greetingError, ageError, sumError]] = await batch([
@@ -143,14 +143,14 @@ describe('JSON Serialization E2E', () => {
         expect(ageError).toBeUndefined();
         expect(sumError).toBeUndefined();
 
-        middleFns.auth(authHeaders).removePrefill();
+        middlewares.auth(authHeaders).removePrefill();
     });
 
     it('inputFrom should run a client-authored mapper on the server, mid-batch', async () => {
-        const {routes, middleFns} = initClient<MyApi>({baseURL});
+        const {routes, middlewares} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        middleFns.auth(authHeaders).prefill();
+        middlewares.auth(authHeaders).prefill();
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         // The mapper body is authored HERE, in client flow code. The packaged mion vite plugin
@@ -169,6 +169,6 @@ describe('JSON Serialization E2E', () => {
         // 107 is odd -> 'light', userId = prefId - 100 = the original customer id
         expect(prefs).toEqual({id: 107, userId: 7, theme: 'light'});
 
-        middleFns.auth(authHeaders).removePrefill();
+        middlewares.auth(authHeaders).removePrefill();
     });
 });

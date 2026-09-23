@@ -27,7 +27,7 @@ const routes = {
       (ctx, user: User): string => `Hello ${user.name} ${user.surname}`
     ),
   },
-  log: mion.middleFn(
+  log: mion.middleware(
     (ctx): void => console.log(Date.now(), ctx.path, ctx.response.statusCode),
     {alwaysRun: true}
   ),

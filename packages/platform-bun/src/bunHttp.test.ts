@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe, setDefaultTimeout} from 'bun:test';
-import {createMionRouter, resetRouter, addStartMiddleFns, addEndMiddleFns} from '@mionjs/router';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp.ts';
 import {CallContext} from '@mionjs/router';
 import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
@@ -277,7 +277,7 @@ describe('bun router should', () => {
 // A body this adapter refuses is still a request the chain sees: it runs the members that declare
 // `alwaysRun` (an access log, a rate limiter) and nothing else. Bun.serve can also refuse the body
 // natively before mion is called, and then there is no chain to run and no mion envelope either.
-describe('bun: a refused body runs the alwaysRun middleFns', () => {
+describe('bun: a refused body runs the alwaysRun middlewares', () => {
   type User = {name: string; surname: string};
   const seen: string[] = [];
   const refusedPort = 8085;
@@ -289,10 +289,10 @@ describe('bun: a refused body runs the alwaysRun middleFns', () => {
     resetBunHttpOpts();
     const mion = createMionRouter({basePath: 'api/'});
     const echo = mion.route((ctx: CallContext, user: User): User => user);
-    const plainStart = mion.rawMiddleFn((ctx: CallContext) => {
+    const plainStart = mion.rawMiddleware((ctx: CallContext) => {
       seen.push(`start:${ctx.path}`);
     });
-    const accessLog = mion.rawMiddleFn(
+    const accessLog = mion.rawMiddleware(
       (ctx: CallContext) => {
         seen.push(`log:${ctx.response.statusCode}`);
       },
@@ -302,8 +302,8 @@ describe('bun: a refused body runs the alwaysRun middleFns', () => {
     // the test body. Without it every chain falls back to 64, Bun.serve refuses the body natively
     // and mion is never called, which is exactly what this suite has to rule out.
     const roomy = mion.route((ctx: CallContext, user: User): User => user, {maxBodySize: 1_000_000});
-    addStartMiddleFns({plainStart});
-    addEndMiddleFns({accessLog});
+    addStartMiddlewares({plainStart});
+    addEndMiddlewares({accessLog});
     mion.initRoutes({echo, roomy});
     setBunHttpOpts({port: refusedPort, maxBodySize: 64});
     server = await startBunServer();
@@ -311,7 +311,7 @@ describe('bun: a refused body runs the alwaysRun middleFns', () => {
 
   afterAll(() => void server.stop());
 
-  test('a body over the limit answers 413 through the chain, running only the alwaysRun middleFns', async () => {
+  test('a body over the limit answers 413 through the chain, running only the alwaysRun middlewares', async () => {
     seen.length = 0;
     const response = await fetch(`http://127.0.0.1:${refusedPort}/api/echo`, {
       method: 'POST',

@@ -286,7 +286,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'compiler',
     description:
-      'A mion route, query, mutation, middleFn or headersFn handler that does not declare its types: a missing return type, or a parameter with no type annotation. mion compiles the declared types into the validation and serialization the route runs, and the client reads the same declaration, so an inferred one leaves the build nothing to compile against',
+      'A mion route, query, mutation, middleware or headersFn handler that does not declare its types: a missing return type, or a parameter with no type annotation. mion compiles the declared types into the validation and serialization the route runs, and the client reads the same declaration, so an inferred one leaves the build nothing to compile against',
   },
   {
     name: 'no-throw-in-handlers',

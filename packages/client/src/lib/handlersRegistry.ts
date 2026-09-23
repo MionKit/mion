@@ -8,7 +8,7 @@
 import type {RpcError} from '@mionjs/core';
 import type {ErrorHandler, SuccessHandler} from '../types.ts';
 
-/** Central registry for persistent middleFn handlers (both success and error) */
+/** Central registry for persistent middleware handlers (both success and error) */
 export class HandlersRegistry {
   private errorHandlers: Map<string, Map<string, ErrorHandler<any>>> = new Map();
   private successHandlers: Map<string, SuccessHandler<any>> = new Map();

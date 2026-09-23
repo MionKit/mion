@@ -418,7 +418,7 @@ describe('mionAdapter: formatTransform (sanitizeParams) fn', () => {
   });
 });
 
-describe('mionAdapter: headers middleFn reflection', () => {
+describe('mionAdapter: headers middleware reflection', () => {
   const authAndSave = fakeHeadersFn(
     (ctx: unknown, headers: HeadersSubset<'authorization', 'x-trace'>, pet: Pet, notes?: string): void => undefined
   );

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// Merged once when the router starts and folded into each adapter's defaults; no middleFn writes them per response.
+// Merged once when the router starts and folded into each adapter's defaults; no middleware writes them per response.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {createMionRouter, resetRouter, getGlobalResponseHeaders} from './router.ts';

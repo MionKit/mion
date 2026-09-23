@@ -18,7 +18,7 @@ import (
 // clientDts is an ambient stand-in for the `@mionjs/client` surface the lane
 // reads: the subrequest interfaces carrying the route id and the API in their
 // type parameters, the dispatch methods with their trailing marker slot, the
-// routes / middleFns proxies threading the key path, the batch builder and
+// routes / middlewares proxies threading the key path, the batch builder and
 // `initClient`, which carries no marker: the lane rides a generated module.
 // The marker comes from the REAL
 // `@mionjs/run-types` package, so the brand checks run against the shipped
@@ -41,24 +41,24 @@ const clientDts = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, ` + "`${Prefix}${K & string}`" + `, Root>
       : ClientRoutes<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
   };
-  export type ClientMiddleFns<RA, Prefix extends string = '', Root = RA> = {
+  export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
       ? (...params: Parameters<H>) => MiddlewareSubRequest<H, ` + "`${Prefix}${K & string}`" + `, Root>
-      : ClientMiddleFns<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
+      : ClientMiddlewares<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
   };
   export type ApiOf<Routes extends {id: string}[]> = Routes[number] extends RouteSubRequest<any, any, infer RA> ? RA : never;
   export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>): Promise<unknown>;
   }
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R]): BatchBuilder<R>;
-  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
 }
 `
 
 // apiType is the shape PublicApi<typeof routes> takes: every public method
 // with its handler type number, the options the router resolved and the
-// compiled types, nested under sub-trees. A headers middleFn (auth), a plain
-// middleFn before the users group, one after it, and routes at two levels.
+// compiled types, nested under sub-trees. A headers middleware (auth), a plain
+// middleware before the users group, one after it, and routes at two levels.
 const apiType = `type Headers = {headers: {authorization: string}};
 type Opts<M> = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; isMutation: M};
 type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}};
@@ -77,7 +77,7 @@ export type Api = {
 
 // fixture prefixes a consumer body with the client import and the API type.
 func fixture(body string) string {
-	return "import {initClient, batch} from '@mionjs/client';\n" + apiType + "const {routes, middleFns} = initClient<Api>({baseURL: 'x'});\n" + body
+	return "import {initClient, batch} from '@mionjs/client';\n" + apiType + "const {routes, middlewares} = initClient<Api>({baseURL: 'x'});\n" + body
 }
 
 type overlayProgram struct {
@@ -143,8 +143,8 @@ func TestExtract_EveryDispatchKindNamesItsRouteAndTheApi(t *testing.T) {
 	sites, diags := extractBody(t, `
 export const a = routes.users.getById(1).call();
 export const b = routes.users.getById(1).typeErrors();
-export const c = middleFns.auth({headers: {authorization: 'x'}}).prefill();
-export const d = middleFns.users.audit('why').typeErrors();
+export const c = middlewares.auth({headers: {authorization: 'x'}}).prefill();
+export const d = middlewares.users.audit('why').typeErrors();
 export const e = routes.sum(1, 2).call({signal: undefined});
 `, constants.BundleApiBundled)
 	if len(diags) != 0 {
@@ -316,34 +316,34 @@ func TestWalkApi_ReadsEveryMethodInOrderWithItsChain(t *testing.T) {
 	if strings.Join(gotOrder, ",") != strings.Join(wantOrder, ",") {
 		t.Fatalf("method order %v, want %v", gotOrder, wantOrder)
 	}
-	// chains: the router runs the middleFns declared before a route at its
+	// chains: the router runs the middlewares declared before a route at its
 	// level before it, the ones after it after, nested inside the parent's
 	getById := tree.ById["users/getById"]
-	if strings.Join(getById.MiddleFnIds, ",") != "auth,log,users/audit,after" {
-		t.Errorf("users/getById chain %v", getById.MiddleFnIds)
+	if strings.Join(getById.MiddlewareIds, ",") != "auth,log,users/audit,after" {
+		t.Errorf("users/getById chain %v", getById.MiddlewareIds)
 	}
 	remove := tree.ById["users/remove"]
-	if strings.Join(remove.MiddleFnIds, ",") != "auth,log,users/audit,after" {
-		t.Errorf("users/remove chain %v", remove.MiddleFnIds)
+	if strings.Join(remove.MiddlewareIds, ",") != "auth,log,users/audit,after" {
+		t.Errorf("users/remove chain %v", remove.MiddlewareIds)
 	}
 	sum := tree.ById["sum"]
-	if strings.Join(sum.MiddleFnIds, ",") != "auth,log,after" {
-		t.Errorf("sum chain %v", sum.MiddleFnIds)
+	if strings.Join(sum.MiddlewareIds, ",") != "auth,log,after" {
+		t.Errorf("sum chain %v", sum.MiddlewareIds)
 	}
-	if tree.ById["log"].MiddleFnIds != nil {
-		t.Errorf("a middleFn has no chain of its own: %v", tree.ById["log"].MiddleFnIds)
+	if tree.ById["log"].MiddlewareIds != nil {
+		t.Errorf("a middleware has no chain of its own: %v", tree.ById["log"].MiddlewareIds)
 	}
 	if getById.NestLevel != 1 || sum.NestLevel != 0 || strings.Join(getById.Pointer, "/") != "users/getById" {
 		t.Errorf("nesting: getById nest %d pointer %v, sum nest %d", getById.NestLevel, getById.Pointer, sum.NestLevel)
 	}
-	if getById.Type != TypeRoute || tree.ById["auth"].Type != TypeHeadersMiddleFn || tree.ById["log"].Type != TypeMiddleFn {
+	if getById.Type != TypeRoute || tree.ById["auth"].Type != TypeHeadersMiddleware || tree.ById["log"].Type != TypeMiddleware {
 		t.Errorf("types: getById %d auth %d log %d", getById.Type, tree.ById["auth"].Type, tree.ById["log"].Type)
 	}
 	if !getById.IsAsync || remove.IsAsync {
 		t.Errorf("isAsync: getById %v remove %v", getById.IsAsync, remove.IsAsync)
 	}
 	if tree.ById["auth"].Headers == nil || getById.Headers != nil {
-		t.Errorf("only the headers middleFn carries a HeadersSubset type")
+		t.Errorf("only the headers middleware carries a HeadersSubset type")
 	}
 	if getById.Params == nil || getById.Return == nil {
 		t.Errorf("compiled types missing on getById")
@@ -433,7 +433,7 @@ func TestSelect_RoutePlusChainAndMissingIds(t *testing.T) {
 	}
 	only, _ := tree.Select([]string{"log"})
 	if len(only) != 1 || only[0].Id != "log" {
-		t.Errorf("a middleFn selects itself only: %v", only)
+		t.Errorf("a middleware selects itself only: %v", only)
 	}
 }
 

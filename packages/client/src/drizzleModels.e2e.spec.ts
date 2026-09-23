@@ -25,9 +25,9 @@ const baseURL = TEST_SERVER_BASE_URL;
 const authHeaders = new HeadersSubset({Authorization: 'XWYZ-TOKEN'});
 
 function client() {
-  const {routes, middleFns} = initClient<TestServerApi>({baseURL});
-  // a sub-request resolves once, so every call gets a FRESH auth middleFn
-  const callOpts = () => ({middleFns: {auth: middleFns.auth(authHeaders)}});
+  const {routes, middlewares} = initClient<TestServerApi>({baseURL});
+  // a sub-request resolves once, so every call gets a FRESH auth middleware
+  const callOpts = () => ({middlewares: {auth: middlewares.auth(authHeaders)}});
   return {routes, callOpts};
 }
 

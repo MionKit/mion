@@ -42,5 +42,5 @@ export const METADATA_CACHE_MAX_BYTES = 8 * 1024 * 1024;
 export const METADATA_CACHE_EVICTION_ROUNDS = 5;
 
 /** Key for request-scoped client errors (transport, platform, framework); deliberately NOT a route or
- * middleFn id, so they can never land in a subrequest's slot. */
+ * middleware id, so they can never land in a subrequest's slot. */
 export const CLIENT_REQUEST_ERROR_ID = 'mion-client-request';

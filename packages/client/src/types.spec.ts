@@ -17,10 +17,10 @@ import {HeadersSubset} from '@mionjs/core';
 // survives destructuring and aliasing, and a build reads which route of which API a dispatch point
 // calls. The proxy still mints the runtime id from the pointer: both must agree.
 
-const {routes, middleFns} = initClient<TestServerApi>({baseURL: 'http://localhost:0'});
+const {routes, middlewares} = initClient<TestServerApi>({baseURL: 'http://localhost:0'});
 
 describe('subrequest types carry the route id and the API', () => {
-  it('names a top-level route, a nested route and a middleFn by their key path', () => {
+  it('names a top-level route, a nested route and a middleware by their key path', () => {
     const hello = routes.sayHello({name: 'a', surname: 'b'});
     expectTypeOf(hello).toEqualTypeOf<RouteSubRequest<TestServerApi['sayHello']['handler'], 'sayHello', TestServerApi>>();
     expectTypeOf(hello.id).toEqualTypeOf<'sayHello'>();
@@ -30,7 +30,7 @@ describe('subrequest types carry the route id and the API', () => {
     expectTypeOf(sum.id).toEqualTypeOf<'utils/sumTwo'>();
     expect(sum.id).toBe('utils/sumTwo');
 
-    const auth = middleFns.auth(new HeadersSubset({Authorization: 'x'}));
+    const auth = middlewares.auth(new HeadersSubset({Authorization: 'x'}));
     expectTypeOf(auth).toEqualTypeOf<MiddlewareSubRequest<TestServerApi['auth']['handler'], 'auth', TestServerApi>>();
     expect(auth.id).toBe('auth');
   });
@@ -51,7 +51,7 @@ describe('subrequest types carry the route id and the API', () => {
     expectTypeOf<typeof hello.typeErrors>()
       .parameter(0)
       .toEqualTypeOf<InjectApiMetadata<TestServerApi, 'sayHello'> | undefined>();
-    const auth = middleFns.auth(new HeadersSubset({Authorization: 'x'}));
+    const auth = middlewares.auth(new HeadersSubset({Authorization: 'x'}));
     expect(auth.id).toBe('auth');
     expectTypeOf<typeof auth.prefill>().parameter(0).toEqualTypeOf<InjectApiMetadata<TestServerApi, 'auth'> | undefined>();
     // a batch names every route it runs, as a union of ids
@@ -74,8 +74,8 @@ describe('subrequest types carry the route id and the API', () => {
 
   it('existing wide uses still compile', () => {
     const anyRoute: RouteSubRequest<any> = routes.sayHello({name: 'a', surname: 'b'});
-    const anyMiddleFn: MiddlewareSubRequest<any> = middleFns.auth(new HeadersSubset({Authorization: 'x'}));
+    const anyMiddleware: MiddlewareSubRequest<any> = middlewares.auth(new HeadersSubset({Authorization: 'x'}));
     expectTypeOf(anyRoute.id).toEqualTypeOf<string>();
-    expectTypeOf(anyMiddleFn.id).toEqualTypeOf<string>();
+    expectTypeOf(anyMiddleware.id).toEqualTypeOf<string>();
   });
 });

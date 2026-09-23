@@ -5,16 +5,16 @@ import {HeadersSubset} from '@mionjs/core';
 import type {MyApi} from './server.routes.ts';
 
 const john = {id: '123', name: 'John', surname: 'Doe'};
-const {routes, middleFns} = initClient<MyApi>({
+const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// ========== Middleware function with Typed Success Return and Error Handling ==========
+// ========== Middleware with Typed Success Return and Error Handling ==========
 // prefills auth token for any future requests, value is stored in localStorage by default
 // Returns TypedEvent for registering persistent success and error handlers
-// The auth middleware function returns SessionInfo on success (when returnSession=true) or FatalError<'not-authorized', NotAuthorizedData>
+// The auth middleware returns SessionInfo on success (when returnSession=true) or FatalError<'not-authorized', NotAuthorizedData>
 const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
-middleFns
+middlewares
   .auth(authHeaders, true) // returnSession=true to get SessionInfo back
   .prefill()
   // onSuccess receives the strongly typed SessionInfo (or void when returnSession=false)
@@ -49,7 +49,7 @@ middleFns
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// call() returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+// call() returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
 const [user1, error1] = await routes.users.getById('USER-123').call();
 if (error1 && error1.type === 'user-not-found') {
   // error1.errorData is strongly typed as UserNotFoundData!
@@ -61,7 +61,7 @@ if (error1 && error1.type === 'user-not-found') {
     );
   }
 } else if (error1) {
-  // Catches any other errors (network errors, middleware function errors, etc.)
+  // Catches any other errors (network errors, middleware errors, etc.)
   console.log('Unexpected error:', error1.publicMessage);
 }
 // After error check, user is guaranteed to be User here
@@ -84,17 +84,17 @@ const [result, error3] = await routes.users.sayHello(john).call();
 // sayHello never has an error type, so we can use the result directly
 console.log(result); // Hello John Doe
 
-// ========== Example 5: Using call() to send per-request middleware function data ==========
-// Use call({middleFns: {...}}) when you need to pass middleware function data for a SINGLE request
-// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+// ========== Example 5: Using call() to send per-request middleware data ==========
+// Use call({middlewares: {...}}) when you need to pass middleware data for a SINGLE request
+// Returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
 
-// Create a middleware function call with temporary credentials for this specific request
+// Create a middleware call with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {
   headers: {Authorization: 'Bearer temp-token-ABC'},
 };
 
-// onError handlers register without prefilling (persistent, keyed by the middleware function id)
-const tempAuth = middleFns.auth(tempAuthHeaders, true);
+// onError handlers register without prefilling (persistent, keyed by the middleware id)
+const tempAuth = middlewares.auth(tempAuthHeaders, true);
 tempAuth.onError('not-authorized', (error) => {
   // error.errorData is strongly typed as NotAuthorizedData!
   if (error.errorData?.reason === 'expired-token') {
@@ -102,10 +102,10 @@ tempAuth.onError('not-authorized', (error) => {
   }
 });
 
-// call({middleFns: {...}}) takes a record of middleware functions and returns a typed 5-tuple
-const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] =
+// call({middlewares: {...}}) takes a record of middleware and returns a typed 5-tuple
+const [user4, routeError4, fatal4, middlewareResults4, middlewareErrors4] =
   await routes.users.getById('USER-123').call({
-    middleFns: {
+    middlewares: {
       auth: tempAuth,
     },
   });
@@ -113,9 +113,9 @@ const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] =
 if (routeError4?.type === 'user-not-found') {
   console.log('User not found:', routeError4.errorData?.requestedId);
 }
-// Each middleware function's DECLARED errors arrive by name, strongly typed - same data the handler above got
-if (middleFnErrors4?.auth?.type === 'not-authorized') {
-  console.log('Auth failed:', middleFnErrors4.auth.errorData?.reason);
+// Each middleware's DECLARED errors arrive by name, strongly typed - same data the handler above got
+if (middlewareErrors4?.auth?.type === 'not-authorized') {
+  console.log('Auth failed:', middlewareErrors4.auth.errorData?.reason);
 }
 // Anything NOBODY declared (transport, platform, an undeclared throw) lands here, untyped
 if (fatal4) {
@@ -123,29 +123,29 @@ if (fatal4) {
 }
 // Access success data
 if (user4) console.log('Found user:', user4.name);
-if (middleFnResults4?.auth)
-  console.log('Authenticated as:', middleFnResults4.auth.userId);
+if (middlewareResults4?.auth)
+  console.log('Authenticated as:', middlewareResults4.auth.userId);
 
-// ========== Example 6: Multiple middleware functions with call({middleFns: {...}}) ==========
-// Pass multiple middleware functions in the record - each gets its own typed result AND its own error slot
-const [user5, , , middleFnResults5, middleFnErrors5] = await routes.users
+// ========== Example 6: Multiple middleware with call({middlewares: {...}}) ==========
+// Pass multiple middleware in the record - each gets its own typed result AND its own error slot
+const [user5, , , middlewareResults5, middlewareErrors5] = await routes.users
   .getById('USER-123')
   .call({
-    middleFns: {
-      auth: middleFns.auth(tempAuthHeaders),
-      // session: middleFns.session('session-token'), // If you have a session middleware function
+    middlewares: {
+      auth: middlewares.auth(tempAuthHeaders),
+      // session: middlewares.session('session-token'), // If you have a session middleware
     },
   });
-// Handle each middleware function's errors independently - nothing is dropped when several fail
-if (middleFnErrors5?.auth) {
-  console.log('Auth failed:', middleFnErrors5.auth.publicMessage);
+// Handle each middleware's errors independently - nothing is dropped when several fail
+if (middlewareErrors5?.auth) {
+  console.log('Auth failed:', middlewareErrors5.auth.publicMessage);
 }
 // Access success data
 if (user5) console.log('User:', user5.name);
-console.log(middleFnResults5); // { auth: ... }
+console.log(middlewareResults5); // { auth: ... }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+// call() returns 5-tuple: [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
 // This is the standard pattern for all route calls
 // call() never throws - returns a 5-tuple
 // Partial destructuring still works for backward compatibility

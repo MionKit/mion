@@ -8,15 +8,15 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import {
   createMionRouter,
-  geMiddleFnsSize,
+  getMiddlewaresSize,
   geRoutesSize,
   getComplexity,
-  getMiddleFnExecutable,
+  getMiddlewareExecutable,
   getRouteExecutionChain,
   getRouteExecutable,
   resetRouter,
-  addStartMiddleFns,
-  addEndMiddleFns,
+  addStartMiddlewares,
+  addEndMiddlewares,
 } from './router.ts';
 import {type Routes} from './types/general.ts';
 import {HandlerType, HeadersSubset} from '@mionjs/core';
@@ -25,49 +25,49 @@ import {isPublicExecutable} from './types/guards.ts';
 const mion = createMionRouter();
 
 describe('Create routes should', () => {
-  const middleFn1 = mion.middleFn((): void => undefined);
+  const middleware1 = mion.middleware((): void => undefined);
   const route1 = mion.route((): string => 'route1');
   const route2 = mion.route((): string => 'route2');
 
   const routes = {
-    first: middleFn1,
+    first: middleware1,
     users: {
-      userBefore: middleFn1,
+      userBefore: middleware1,
       getUser: route1,
       setUser: route2,
       pets: {
         getUserPet: route2,
-        userPetsAfter: middleFn1,
+        userPetsAfter: middleware1,
       },
-      userAfter: middleFn1,
+      userAfter: middleware1,
     },
     pets: {
       getPet: route1,
       setPet: route2,
     },
-    last: middleFn1,
+    last: middleware1,
   } satisfies Routes;
 
-  const middleFnExecutables = {
+  const middlewareExecutables = {
     first: {
       id: 'first',
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
     },
     userBefore: {
       id: 'users/userBefore',
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
     },
     userAfter: {
       id: 'users/userAfter',
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
     },
     userPetsAfter: {
       id: 'users/pets/userPetsAfter',
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
     },
     last: {
       id: 'last',
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
     },
   };
 
@@ -89,15 +89,15 @@ describe('Create routes should', () => {
   const defaultExecutables = {
     mionDeserializeRequest: {
       id: 'mionDeserializeRequest',
-      type: HandlerType.rawMiddleFn,
+      type: HandlerType.rawMiddleware,
     },
     mionMethodsMetadata: {
       id: 'mion@methodsMetadata',
-      type: HandlerType.middleFn,
+      type: HandlerType.middleware,
     },
     mionSerializeResponse: {
       id: 'mionSerializeResponse',
-      type: HandlerType.rawMiddleFn,
+      type: HandlerType.rawMiddleware,
     },
   };
 
@@ -116,50 +116,50 @@ describe('Create routes should', () => {
     mion.initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
-    expect(geMiddleFnsSize()).toEqual(6);
+    expect(getMiddlewaresSize()).toEqual(6);
 
     expect(getRouteExecutionChain('/users/getUser')?.methods).toEqual(
       addDefaultExecutables([
-        expect.objectContaining({...middleFnExecutables.first}),
-        expect.objectContaining({...middleFnExecutables.userBefore}),
+        expect.objectContaining({...middlewareExecutables.first}),
+        expect.objectContaining({...middlewareExecutables.userBefore}),
         expect.objectContaining({...routeExecutables.usersGetUser}),
-        expect.objectContaining({...middleFnExecutables.userAfter}),
-        expect.objectContaining({...middleFnExecutables.last}),
+        expect.objectContaining({...middlewareExecutables.userAfter}),
+        expect.objectContaining({...middlewareExecutables.last}),
       ])
     );
     expect(getRouteExecutionChain('/users/setUser')).toBeTruthy();
     expect(getRouteExecutionChain('/users/pets/getUserPet')?.methods).toEqual(
       addDefaultExecutables([
-        expect.objectContaining({...middleFnExecutables.first}),
-        expect.objectContaining({...middleFnExecutables.userBefore}),
+        expect.objectContaining({...middlewareExecutables.first}),
+        expect.objectContaining({...middlewareExecutables.userBefore}),
         expect.objectContaining({...routeExecutables.usersPetsGetUserPet}),
-        expect.objectContaining({...middleFnExecutables.userPetsAfter}),
-        expect.objectContaining({...middleFnExecutables.userAfter}),
-        expect.objectContaining({...middleFnExecutables.last}),
+        expect.objectContaining({...middlewareExecutables.userPetsAfter}),
+        expect.objectContaining({...middlewareExecutables.userAfter}),
+        expect.objectContaining({...middlewareExecutables.last}),
       ])
     );
     expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(
       addDefaultExecutables([
-        expect.objectContaining({...middleFnExecutables.first}),
+        expect.objectContaining({...middlewareExecutables.first}),
         expect.objectContaining({...routeExecutables.petsGetPet}),
-        expect.objectContaining({...middleFnExecutables.last}),
+        expect.objectContaining({...middlewareExecutables.last}),
       ])
     );
     expect(getRouteExecutionChain('/pets/setPet')).toBeTruthy();
   });
 
-  it('add default values to middleFns', async () => {
-    const defaultMiddleFnValues = {
-      first: mion.middleFn((): void => undefined),
-      second: mion.middleFn((): null => null),
+  it('add default values to middlewares', async () => {
+    const defaultMiddlewareValues = {
+      first: mion.middleware((): void => undefined),
+      second: mion.middleware((): null => null),
     };
-    mion.initRoutes(defaultMiddleFnValues);
+    mion.initRoutes(defaultMiddlewareValues);
 
-    expect(getMiddleFnExecutable('first')).toEqual(
+    expect(getMiddlewareExecutable('first')).toEqual(
       expect.objectContaining({
         id: 'first',
         nestLevel: 0,
-        type: HandlerType.middleFn,
+        type: HandlerType.middleware,
         hasReturnData: false,
         options: expect.objectContaining({
           alwaysRun: false,
@@ -167,11 +167,11 @@ describe('Create routes should', () => {
       })
     );
 
-    expect(getMiddleFnExecutable('second')).toEqual(
+    expect(getMiddlewareExecutable('second')).toEqual(
       expect.objectContaining({
         id: 'second',
         nestLevel: 0,
-        type: HandlerType.middleFn,
+        type: HandlerType.middleware,
         hasReturnData: true,
         options: expect.objectContaining({
           alwaysRun: false,
@@ -225,7 +225,7 @@ describe('Create routes should', () => {
     createMionRouter({basePath: 'api/v1', suffix: '.json'}).initRoutes(routes);
 
     expect(geRoutesSize()).toEqual(7); // includes +2 mion Error routes (thrownErrors, platformError)
-    expect(geMiddleFnsSize()).toEqual(6);
+    expect(getMiddlewaresSize()).toEqual(6);
 
     expect(getRouteExecutionChain('/api/v1/users/getUser.json')).toBeTruthy();
     expect(getRouteExecutionChain('/api/v1/users/setUser.json')).toBeTruthy();
@@ -278,7 +278,7 @@ describe('Create routes should', () => {
 
   it('optimize parsing routes (complexity) when there are multiple routes in a row', async () => {
     const bestCase = {
-      first: middleFn1,
+      first: middleware1,
       route1: route1,
       route2: route2,
       route3: route1,
@@ -290,7 +290,7 @@ describe('Create routes should', () => {
       route9: route1,
       route10: route2,
       pets: {
-        petsFirst: middleFn1,
+        petsFirst: middleware1,
         route1: route1,
         route2: route2,
         route3: route1,
@@ -301,21 +301,21 @@ describe('Create routes should', () => {
         route8: route2,
         route9: route1,
         route10: route2,
-        petsLast: middleFn1,
+        petsLast: middleware1,
       },
-      last: middleFn1,
+      last: middleware1,
     };
     const worstCase = {
-      first: middleFn1,
+      first: middleware1,
       route1: route1,
       route12: route2,
       pets: {
-        petsFirst: middleFn1,
+        petsFirst: middleware1,
         route1: route1,
         route12: route2,
-        petsLast: middleFn1,
+        petsLast: middleware1,
       },
-      last: middleFn1,
+      last: middleware1,
     };
     const bestCaseTotalRoutes = 20;
     const worstCaseTotalRoutes = 4;
@@ -355,51 +355,53 @@ describe('Create routes should', () => {
     expect(getRouteExecutable('asyncNoReturnType')?.isAsync).toEqual(true);
   });
 
-  it('add start and end global middleFns', async () => {
-    const prependMiddleFns = {
-      p1: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
-      p2: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
+  it('add start and end global middlewares', async () => {
+    const prependMiddlewares = {
+      p1: mion.rawMiddleware((ctx, cb: () => void): void => cb()),
+      p2: mion.rawMiddleware((ctx, cb: () => void): void => cb()),
     };
 
-    const appendMiddleFns = {
-      a1: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
-      a2: mion.rawMiddleFn((ctx, cb: () => void): void => cb()),
+    const appendMiddlewares = {
+      a1: mion.rawMiddleware((ctx, cb: () => void): void => cb()),
+      a2: mion.rawMiddleware((ctx, cb: () => void): void => cb()),
     };
-    addStartMiddleFns(prependMiddleFns, false);
-    addEndMiddleFns(appendMiddleFns, false);
+    addStartMiddlewares(prependMiddlewares, false);
+    addEndMiddlewares(appendMiddlewares, false);
 
     mion.initRoutes(routes);
 
     const expectedExecutionChain = addDefaultExecutables([
-      expect.objectContaining({id: 'p1', type: HandlerType.rawMiddleFn}),
-      expect.objectContaining({id: 'p2', type: HandlerType.rawMiddleFn}),
-      expect.objectContaining({id: 'first', type: HandlerType.middleFn}),
+      expect.objectContaining({id: 'p1', type: HandlerType.rawMiddleware}),
+      expect.objectContaining({id: 'p2', type: HandlerType.rawMiddleware}),
+      expect.objectContaining({id: 'first', type: HandlerType.middleware}),
       expect.objectContaining({id: 'pets/getPet', type: HandlerType.route}),
-      expect.objectContaining({id: 'last', type: HandlerType.middleFn}),
-      expect.objectContaining({id: 'a1', type: HandlerType.rawMiddleFn}),
-      expect.objectContaining({id: 'a2', type: HandlerType.rawMiddleFn}),
+      expect.objectContaining({id: 'last', type: HandlerType.middleware}),
+      expect.objectContaining({id: 'a1', type: HandlerType.rawMiddleware}),
+      expect.objectContaining({id: 'a2', type: HandlerType.rawMiddleware}),
     ]);
 
     expect(getRouteExecutionChain('/pets/getPet')?.methods).toEqual(expectedExecutionChain);
-    expect(() => addStartMiddleFns(prependMiddleFns)).toThrow(
-      'Can not add start middleFns after the router has been initialized'
+    expect(() => addStartMiddlewares(prependMiddlewares)).toThrow(
+      'Can not add start middlewares after the router has been initialized'
     );
-    expect(() => addEndMiddleFns(appendMiddleFns)).toThrow('Can not add end middleFns after the router has been initialized');
+    expect(() => addEndMiddlewares(appendMiddlewares)).toThrow(
+      'Can not add end middlewares after the router has been initialized'
+    );
   });
 
   it('Headers Functions should be considered public (non-private)', async () => {
-    const routesWithHeadersMiddleFn = {
+    const routesWithHeadersMiddleware = {
       auth: mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void => {
-        // Headers MiddleFn with no return data and no body params
+        // Headers Middleware with no return data and no body params
       }),
       sayHello: mion.route((): string => 'hello'),
     } satisfies Routes;
-    mion.initRoutes(routesWithHeadersMiddleFn);
+    mion.initRoutes(routesWithHeadersMiddleware);
 
-    const authMiddleFn = getMiddleFnExecutable('auth');
-    expect(authMiddleFn).toBeDefined();
-    expect(authMiddleFn!.type).toEqual(HandlerType.headersMiddleFn);
+    const authMiddleware = getMiddlewareExecutable('auth');
+    expect(authMiddleware).toBeDefined();
+    expect(authMiddleware!.type).toEqual(HandlerType.headersMiddleware);
     // Headers Functions should be public because they have headerNames, even if they have no return data or body params
-    expect(isPublicExecutable(authMiddleFn!)).toBe(true);
+    expect(isPublicExecutable(authMiddleware!)).toBe(true);
   });
 });

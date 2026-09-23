@@ -38,7 +38,7 @@ type Site struct {
 	InjectPad     int
 	ArgsCount     int
 	TrailingComma bool
-	// Route / middleFn ids the site calls, sorted and unique; several for a batch.
+	// Route / middleware ids the site calls, sorted and unique; several for a batch.
 	Ids []string
 	// ApiType comes from Checker, the program's checker that materialized it; the resolver walks it or its `apiTsconfig` twin.
 	ApiType *checker.Type

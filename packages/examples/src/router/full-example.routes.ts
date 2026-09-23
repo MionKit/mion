@@ -68,12 +68,12 @@ const auth = mion.headersFn(
   }
 );
 
-const log = mion.rawMiddleFn((ctx): void =>
-  console.log('rawMiddleFn', ctx.path)
+const log = mion.rawMiddleware((ctx): void =>
+  console.log('rawMiddleware', ctx.path)
 );
 
 const routes = {
-  private: mion.middleFn((): null => null),
+  private: mion.middleware((): null => null),
   auth,
   users: {
     get: getUser, // api/v1/users/get

@@ -52,9 +52,9 @@ status code. A preflight answer is a success with no body, so it needs a new way
 skip the rest, nothing went wrong". That is the router capability this middleware needs. Two things
 to settle when designing it: what the flag lives on (`MionResponse` or the context), and what happens
 to `alwaysRun` members, since the response serializer must still run to set `content-type` while the
-metadata middleFn must not.
+metadata middleware must not.
 
-**Routes already declare their headers, in both directions.** A headers middleFn takes a
+**Routes already declare their headers, in both directions.** A headers middleware takes a
 `HeadersSubset` param and a route can return one, and the serializer puts those in HTTP headers
 instead of the body:
 
@@ -75,7 +75,7 @@ needs can be derived, not configured:
 | `Access-Control-Expose-Headers` | every `headersReturn.headerNames`, plus the headers mion sets itself |
 | `Access-Control-Allow-Methods` | `GET` for query routes, `POST` otherwise |
 
-**The derived lists are a starting point, never the closed set.** A raw middleFn gets the platform's
+**The derived lists are a starting point, never the closed set.** A raw middleware gets the platform's
 own request and response, so it can read and set any header it likes, untyped and invisible to the
 `HeadersSubset` types. The middleware has to take hand-written names and values too and merge them
 with the derived ones, so an app can mix both. The origin policy is always the app's to state.
@@ -84,20 +84,20 @@ with the derived ones, so an app can mix both. The origin policy is always the a
 another origin, so the type probably needs a way to mark a name as not exposed. Settle that shape
 before writing the middleware, since it changes a public type.
 
-**A raw middleFn can reach the underlying request.** It is handed the platform's own request and
+**A raw middleware can reach the underlying request.** It is handed the platform's own request and
 response objects, so it can read anything the router does not expose:
 
 ```ts
 // packages/router/src/types/handlers.ts:32
-export type RawMiddleFnHandler<Context extends CallContext = any, RawReq = any, RawResp = any, ...>
+export type RawMiddlewareHandler<Context extends CallContext = any, RawReq = any, RawResp = any, ...>
   = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => MayReturnError;
 ```
 
 **The HTTP method is missing from the context, and probably should be added.** `MionRequest`
 (`packages/router/src/types/context.ts:46`) carries headers, the raw body and the parsed body, but
-not the method and not the URL. A raw middleFn can dig the method out of the platform request, but
+not the method and not the URL. A raw middleware can dig the method out of the platform request, but
 each platform shapes that differently. Putting the method on `MionRequest` once, filled by each
-adapter, is the cleaner answer and makes this a normal middleFn rather than a raw one. That decision
+adapter, is the cleaner answer and makes this a normal middleware rather than a raw one. That decision
 comes first, because it widens a public type.
 
 ## Docs
@@ -117,7 +117,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The middleware is added to an API like any other, and an API that does not add it behaves exactly
   as it does today.
 - A middleware can end a chain with a successful answer and no error, which nothing can do today.
-- An app turns CORS on by stating its origin policy plus anything its raw middleFns set by hand.
+- An app turns CORS on by stating its origin policy plus anything its raw middleware set by hand.
 - The allowed and exposed header lists come from what the routes declare, so adding a header to a
   route needs no CORS edit, and hand-written names merge with them rather than replacing them.
 - A preflight request is answered without reaching a route and without an error.

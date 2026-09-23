@@ -21,19 +21,19 @@ export {setBundleApiMode, getBundleApiMode} from './bundleApiMode.ts';
 
 // The bundled-API lane (the build's `bundleApi` option): the build compiles the same validators and
 // serializers the server holds and injects, at each dispatch point, a module carrying the route plus its
-// chain's middleFns, as metadata rows and live marker payloads. Registering one goes through the same
+// chain's middlewares, as metadata rows and live marker payloads. Registering one goes through the same
 // reflection the router runs at initRoutes, so a bundled method looks exactly like a fetched one.
 
 /** One method of a bundled payload: the `MethodWithOptions` members the build can answer from the API type,
  *  plus the marker payload. The rest (jit hashes, arity, header names) comes from the reflection instead. */
 export interface BundledMethod extends Pick<
   MethodWithOptions,
-  'id' | 'pointer' | 'nestLevel' | 'type' | 'isAsync' | 'options' | 'middleFnIds'
+  'id' | 'pointer' | 'nestLevel' | 'type' | 'isAsync' | 'options' | 'middlewareIds'
 > {
   rtFns: RtMarkerPayload;
 }
 
-/** What the build injects at a dispatch point: the method called plus every middleFn in its chain. */
+/** What the build injects at a dispatch point: the method called plus every middleware in its chain. */
 export interface BundledApiPayload {
   methods: BundledMethod[];
 }
@@ -104,7 +104,7 @@ const noHandler = () => undefined;
 
 function bundledMethodToCacheEntry(method: BundledMethod): MethodWithOptsAndJitFns {
   const reflection =
-    method.type === HandlerType.headersMiddleFn
+    method.type === HandlerType.headersMiddleware
       ? getHeadersReflectionFromMarkers(method.rtFns, noHandler, method.id)
       : getReflectionFromMarkers(method.rtFns, noHandler, method.id);
   // spread, like `registerRoutes` does on the server, so a member added to the reflection reaches
@@ -125,6 +125,6 @@ function bundledMethodToCacheEntry(method: BundledMethod): MethodWithOptsAndJitF
   // the params byte ceiling is the SERVER's: it settles a chain's request limit once at
   // registration. The client enforces no limit, and the fetched lane is never sent it either
   delete entry.paramsJsonMaxBytes;
-  if (method.middleFnIds && method.middleFnIds.length) entry.middleFnIds = method.middleFnIds;
+  if (method.middlewareIds && method.middlewareIds.length) entry.middlewareIds = method.middlewareIds;
   return entry;
 }

@@ -37,22 +37,22 @@ const apiClientDTS = `declare module '@mionjs/client' {
       ? (...params: Parameters<H>) => RouteSubRequest<H, ` + "`${Prefix}${K & string}`" + `, Root>
       : ClientRoutes<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
   };
-  export type ClientMiddleFns<RA, Prefix extends string = '', Root = RA> = {
+  export type ClientMiddlewares<RA, Prefix extends string = '', Root = RA> = {
     [K in keyof RA as RA[K] extends {type: 2 | 3} ? K : RA[K] extends {type: number} ? never : K]: RA[K] extends {type: 2 | 3; handler: infer H extends Handler}
       ? (...params: Parameters<H>) => MiddlewareSubRequest<H, ` + "`${Prefix}${K & string}`" + `, Root>
-      : ClientMiddleFns<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
+      : ClientMiddlewares<RA[K], ` + "`${Prefix}${K & string}/`" + `, Root>;
   };
   export type ApiOf<Routes extends {id: string}[]> = Routes[number] extends RouteSubRequest<any, any, infer RA> ? RA : never;
   export interface BatchBuilder<Routes extends RouteSubRequest<any>[]> {
     call(setup?: unknown, apiMetadata?: InjectApiMetadata<ApiOf<Routes>, Routes[number]['id']>): Promise<unknown>;
   }
   export function batch<R extends RouteSubRequest<any>[]>(routes: [...R]): BatchBuilder<R>;
-  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middleFns: ClientMiddleFns<RA>};
+  export function initClient<RA>(o?: unknown): {routes: ClientRoutes<RA>; middlewares: ClientMiddlewares<RA>};
 }
 `
 
 // apiTypeTS is the client's view of the API, the shape PublicApi<typeof routes>
-// takes: a headers middleFn, a plain middleFn, two routes in a group and one
+// takes: a headers middleware, a plain middleware, two routes in a group and one
 // at the root.
 const apiTypeTS = `type Headers = {headers: {authorization: string}};
 type MfOpts = {alwaysRun: false; validateParams: true; validateReturn: false; description: undefined; parser: {params: 'clone'; return: 'clone'}; sanitizeParams: undefined};
@@ -72,9 +72,9 @@ export type Api = {
 // and a route (users/remove) the program never calls.
 const apiClientTS = `import {initClient, batch} from '@mionjs/client';
 import type {Api} from './api.ts';
-export const {routes, middleFns} = initClient<Api>({baseURL: 'http://x'});
+export const {routes, middlewares} = initClient<Api>({baseURL: 'http://x'});
 export const a = routes.users.getById(1).call();
-export const b = middleFns.auth({headers: {authorization: 'x'}}).prefill();
+export const b = middlewares.auth({headers: {authorization: 'x'}}).prefill();
 export const c = batch([routes.users.getById(2), routes.sum(1, 2)]).call();
 `
 
@@ -128,7 +128,7 @@ func listGenerated(t *testing.T, dir string) []string {
 }
 
 // TestApiGen_GenerateWritesUsedRoutesWithTheirChains: generate writes one
-// module per called route or middleFn plus its chain, one per site shape, the
+// module per called route or middleware plus its chain, one per site shape, the
 // entry mirror under api/types in factory form, and nothing for an uncalled
 // route.
 func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
@@ -153,7 +153,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 		t.Errorf("users/remove is never called and must not be bundled:\n%s", joined)
 	}
 	// the batch site module is hashed over both ids and lists both routes plus
-	// the chain middleFns
+	// the chain middlewares
 	var batchModule string
 	for _, file := range files {
 		if strings.HasPrefix(file, "s/b_") {
@@ -172,7 +172,7 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 	// a route module carries its row and the marker payload the server helper
 	// receives, with its entries imported from the mirror
 	getById := readGenerated(t, apiDir, "m/users/getById.js")
-	for _, want := range []string{`"id":"users/getById"`, `"pointer":["users","getById"]`, `"nestLevel":1`, `"type":1`, `"isAsync":true`, `"middleFnIds":["auth","users/audit"]`, `"parser":{"params":"clone","return":"clone"}`, `"rtFns": {paramsFns: [`, `returnFns: [`, `paramsId: __rt_`, `returnId: __rt_`, "from '../../types/"} {
+	for _, want := range []string{`"id":"users/getById"`, `"pointer":["users","getById"]`, `"nestLevel":1`, `"type":1`, `"isAsync":true`, `"middlewareIds":["auth","users/audit"]`, `"parser":{"params":"clone","return":"clone"}`, `"rtFns": {paramsFns: [`, `returnFns: [`, `paramsId: __rt_`, `returnId: __rt_`, "from '../../types/"} {
 		if !strings.Contains(getById, want) {
 			t.Errorf("m/users/getById.js lacks %s:\n%s", want, getById)
 		}
@@ -186,8 +186,8 @@ func TestApiGen_GenerateWritesUsedRoutesWithTheirChains(t *testing.T) {
 			t.Errorf("m/auth.js lacks %s:\n%s", want, auth)
 		}
 	}
-	if strings.Contains(auth, "middleFnIds") {
-		t.Errorf("a middleFn carries no chain:\n%s", auth)
+	if strings.Contains(auth, "middlewareIds") {
+		t.Errorf("a middleware carries no chain:\n%s", auth)
 	}
 	// the mirror renders factories, never code strings
 	sawFactory := false
@@ -542,7 +542,7 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	if getById.Type != 1 || getById.ParamsId == "" || getById.ReturnId == "" || getById.HeadersId != "" {
 		t.Errorf("getById row: %+v", getById)
 	}
-	if got := strings.Join(getById.MiddleFnIds, ","); got != "auth,users/audit" {
+	if got := strings.Join(getById.MiddlewareIds, ","); got != "auth,users/audit" {
 		t.Errorf("getById chain: %s", got)
 	}
 	// clone both ways: the prepare writes the declared shape and the restore rebuilds it, so both wires take the
@@ -553,7 +553,7 @@ func TestApiGen_ClientManifestListsTheBundledMethods(t *testing.T) {
 	if getById.Options["validateParams"] != true {
 		t.Errorf("getById options: %+v", getById.Options)
 	}
-	if auth := manifest.Methods["auth"]; auth.Type != 3 || auth.HeadersId == "" || len(auth.MiddleFnIds) != 0 {
+	if auth := manifest.Methods["auth"]; auth.Type != 3 || auth.HeadersId == "" || len(auth.MiddlewareIds) != 0 {
 		t.Errorf("auth row: %+v", auth)
 	}
 }

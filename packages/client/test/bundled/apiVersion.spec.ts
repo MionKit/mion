@@ -29,7 +29,7 @@ describe('the api version a bundled client compares', () => {
 
   // The client and the test server are built separately, so this passing means two builds of one API hash alike.
   it('is the one the server was built from', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const clientVersion = getApiBuildVersion();
     expect(clientVersion).toMatch(/^[A-Za-z0-9]{12}$/);
     const response = await fetch(new URL('/sayHello', baseURL), {
@@ -37,15 +37,15 @@ describe('the api version a bundled client compares', () => {
       body: JSON.stringify({sayHello: [user], auth: ['XWYZ-TOKEN']}),
     });
     expect(response.headers.get(BUILD_VERSION_HEADER)).toBe(clientVersion);
-    const [result] = await routes.sayHello(user).call(withAuth(middleFns));
+    const [result] = await routes.sayHello(user).call(withAuth(middlewares));
     expect(result).toBe('Hello John Doe');
   });
 
   it('costs nothing when it matches: one request, and nothing is asked about', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = serveVersion(getApiBuildVersion()!);
     try {
-      const [result] = await routes.sayHello(user).call(withAuth(middleFns));
+      const [result] = await routes.sayHello(user).call(withAuth(middlewares));
       expect(result).toBe('Hello John Doe');
       expect(watch.calls()).toBe(1);
       expect(watch.verifyAsks()).toEqual([]);
@@ -56,10 +56,10 @@ describe('the api version a bundled client compares', () => {
   });
 
   it('changes nothing when the server sends no version', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = serveVersion(null);
     try {
-      const [result, , undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
+      const [result, , undeclared] = await routes.sayHello(user).call(withAuth(middlewares));
       expect(result).toBe('Hello John Doe');
       expect(undeclared).toBeUndefined();
       expect(watch.calls()).toBe(1);
@@ -71,16 +71,16 @@ describe('the api version a bundled client compares', () => {
   });
 
   it('asks about a route once after a mismatch, riding a call it was making anyway', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     const watch = serveVersion('someOtherAp');
     try {
       // first call: the mismatch is only visible in its response, so it asks nothing
-      const [first] = await routes.sayHello(user).call(withAuth(middleFns));
+      const [first] = await routes.sayHello(user).call(withAuth(middlewares));
       expect(first).toBe('Hello John Doe');
 
       // second call: the question rides it, so there is still one request, not two
       const before = watch.calls();
-      const [second, , undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
+      const [second, , undeclared] = await routes.sayHello(user).call(withAuth(middlewares));
       expect(second).toBe('Hello John Doe');
       expect(watch.calls() - before).toBe(1);
       expect(watch.verifyAsks()).toHaveLength(1);
@@ -90,7 +90,7 @@ describe('the api version a bundled client compares', () => {
       expect(isBundledMethod('sayHello')).toBe(true);
 
       // third call: sayHello is confirmed, so it is not asked about again
-      await routes.sayHello(user).call(withAuth(middleFns));
+      await routes.sayHello(user).call(withAuth(middlewares));
       expect(watch.verifyAsks()).toHaveLength(1);
     } finally {
       watch.restore();
@@ -98,15 +98,15 @@ describe('the api version a bundled client compares', () => {
   });
 
   it('replaces a row the server no longer agrees with and reports it once', async () => {
-    const {routes, middleFns} = initClient<TestServerApi>({baseURL});
+    const {routes, middlewares} = initClient<TestServerApi>({baseURL});
     // The lane server IS this build's server, so a real difference has to be forged on the wire: `isMutation`
     // moves the build version while both jit hashes stay put, the case the hashes alone cannot see.
     const watch = serveVersion('someOtherAp', (methods) => {
       if (methods.sayHello) methods.sayHello.options = {...methods.sayHello.options, isMutation: true};
     });
     try {
-      await routes.sayHello(user).call(withAuth(middleFns));
-      const [result, , undeclared] = await routes.sayHello(user).call(withAuth(middleFns));
+      await routes.sayHello(user).call(withAuth(middlewares));
+      const [result, , undeclared] = await routes.sayHello(user).call(withAuth(middlewares));
       expect(result).toBe('Hello John Doe');
       expect(undeclared?.type).toBe('api-version-mismatch');
       expect(undeclared?.publicMessage).toContain('sayHello');
@@ -114,7 +114,7 @@ describe('the api version a bundled client compares', () => {
       expect(isBundledMethod('sayHello')).toBe(false);
 
       // reported once: a later call carries no second copy of the same news
-      const [, , stillUndeclared] = await routes.sayHello(user).call(withAuth(middleFns));
+      const [, , stillUndeclared] = await routes.sayHello(user).call(withAuth(middlewares));
       expect(stillUndeclared).toBeUndefined();
     } finally {
       watch.restore();

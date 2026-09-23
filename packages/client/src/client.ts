@@ -16,7 +16,7 @@ import {
   SubRequest,
   RequestErrors,
   ClientRoutes,
-  ClientMiddleFns,
+  ClientMiddlewares,
   Result,
   BatchResult,
 } from './types.ts';
@@ -38,7 +38,7 @@ import {metadataCacheHooks} from './lib/metadataFromServerLoader.ts';
 export function initClient<RM extends RemoteApi>(
   options: InitClientOptions,
   buildVersion?: InjectBuildVersion<RM>
-): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
+): {client: MionClient; routes: ClientRoutes<RM>; middlewares: ClientMiddlewares<RM>} {
   setApiBuildVersion(buildVersion);
   const clientOptions = {...DEFAULT_PREFILL_OPTIONS, ...options};
   const client = new MionClient(clientOptions);
@@ -46,15 +46,15 @@ export function initClient<RM extends RemoteApi>(
   return {
     client,
     routes: rootProxy.proxy as ClientRoutes<RM>,
-    middleFns: rootProxy.proxy as ClientMiddleFns<RM>,
+    middlewares: rootProxy.proxy as ClientMiddlewares<RM>,
   };
 }
 
 export class MionClient {
   readonly handlersRegistry = new HandlersRegistry();
 
-  /** prefilled middleFn subrequests, keyed `baseURL:middleFnId` */
-  readonly prefilledMiddleFnsCache = new Map<string, SubRequest<any>>();
+  /** prefilled middleware subrequests, keyed `baseURL:middlewareId` */
+  readonly prefilledMiddlewaresCache = new Map<string, SubRequest<any>>();
 
   /** in-flight prefills, awaited before a request executes */
   private pendingPrefills: Promise<void>[] = [];
@@ -94,18 +94,18 @@ export class MionClient {
     routeSubRequest?: RouteSubRequest<any>,
     batchSubRequests?: RouteSubRequest<any>[],
     batchId?: string,
-    middleFnsRecord?: Record<string, MiddlewareSubRequest<any>>,
+    middlewaresRecord?: Record<string, MiddlewareSubRequest<any>>,
     signal?: AbortSignal,
     timeout?: number
   ): Promise<any> {
-    return this.executeRequest(routeSubRequest, batchSubRequests, batchId, middleFnsRecord, signal, timeout);
+    return this.executeRequest(routeSubRequest, batchSubRequests, batchId, middlewaresRecord, signal, timeout);
   }
 
   private async executeRequest<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
     routeSubRequest: RouteSubRequest<any> | undefined,
     batchSubRequests: Routes | undefined,
     batchId: string | undefined,
-    middleFnsRecord: H | undefined,
+    middlewaresRecord: H | undefined,
     signal?: AbortSignal,
     timeout?: number
   ): Promise<any> {
@@ -114,12 +114,12 @@ export class MionClient {
 
     if (this.pendingPrefills.length > 0) await Promise.allSettled(this.pendingPrefills);
 
-    const middleFnSubRequests = middleFnsRecord ? Object.values(middleFnsRecord) : [];
+    const middlewareSubRequests = middlewaresRecord ? Object.values(middlewaresRecord) : [];
     const request = new MionClientRequest(
       this.clientOptions,
-      this.prefilledMiddleFnsCache,
+      this.prefilledMiddlewaresCache,
       routeSubRequest,
-      middleFnSubRequests,
+      middlewareSubRequests,
       batchSubRequests,
       batchId,
       composedSignal
@@ -128,23 +128,23 @@ export class MionClient {
     try {
       await request.call();
       const routeIds = this.getRouteIds(routeSubRequest, batchSubRequests);
-      const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
-      this.processMiddleFnsResponses(allMiddleFns, undefined, request.thrownErrorIds);
+      const allMiddlewares = this.getAllMiddlewaresFromRequest(request, routeIds);
+      this.processMiddlewaresResponses(allMiddlewares, undefined, request.thrownErrorIds);
       return this.buildResult(
         routeSubRequest,
         batchSubRequests,
-        this.mergeMiddleFns(middleFnsRecord, allMiddleFns),
+        this.mergeMiddlewares(middlewaresRecord, allMiddlewares),
         undefined,
         request.thrownErrorIds
       );
     } catch (errors: any) {
       const routeIds = this.getRouteIds(routeSubRequest, batchSubRequests);
-      const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
-      this.processMiddleFnsResponses(allMiddleFns, errors, request.thrownErrorIds);
+      const allMiddlewares = this.getAllMiddlewaresFromRequest(request, routeIds);
+      this.processMiddlewaresResponses(allMiddlewares, errors, request.thrownErrorIds);
       return this.buildResult(
         routeSubRequest,
         batchSubRequests,
-        this.mergeMiddleFns(middleFnsRecord, allMiddleFns),
+        this.mergeMiddlewares(middlewaresRecord, allMiddlewares),
         errors,
         request.thrownErrorIds
       );
@@ -152,14 +152,14 @@ export class MionClient {
   }
 
   /** A restored prefill is not in the record, so it is added under its id and its result is never dropped */
-  private mergeMiddleFns(
-    middleFnsRecord: Record<string, MiddlewareSubRequest<any>> | undefined,
-    allMiddleFns: MiddlewareSubRequest<any>[]
+  private mergeMiddlewares(
+    middlewaresRecord: Record<string, MiddlewareSubRequest<any>> | undefined,
+    allMiddlewares: MiddlewareSubRequest<any>[]
   ): Record<string, MiddlewareSubRequest<any>> | MiddlewareSubRequest<any>[] {
-    if (!middleFnsRecord) return allMiddleFns;
-    const recordIds = new Set(Object.values(middleFnsRecord).map((middleFn) => middleFn.id));
-    const merged: Record<string, MiddlewareSubRequest<any>> = {...middleFnsRecord};
-    for (const middleFn of allMiddleFns) if (!recordIds.has(middleFn.id)) merged[middleFn.id] = middleFn;
+    if (!middlewaresRecord) return allMiddlewares;
+    const recordIds = new Set(Object.values(middlewaresRecord).map((middleware) => middleware.id));
+    const merged: Record<string, MiddlewareSubRequest<any>> = {...middlewaresRecord};
+    for (const middleware of allMiddlewares) if (!recordIds.has(middleware.id)) merged[middleware.id] = middleware;
     return merged;
   }
 
@@ -173,7 +173,7 @@ export class MionClient {
     return routeIds;
   }
 
-  private getAllMiddleFnsFromRequest(
+  private getAllMiddlewaresFromRequest(
     request: MionClientRequest<any, any>,
     excludedIds: Set<string>
   ): MiddlewareSubRequest<any>[] {
@@ -182,37 +182,37 @@ export class MionClient {
       .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
   }
 
-  /** onError listeners are the typed channel: they fire only for a middleFn's declared (returned) errors,
+  /** onError listeners are the typed channel: they fire only for a middleware's declared (returned) errors,
    * never for thrown/undeclared ones, which reach the unexpected slot only */
-  private processMiddleFnsResponses(
-    middleFnSubRequests: MiddlewareSubRequest<any>[],
+  private processMiddlewaresResponses(
+    middlewareSubRequests: MiddlewareSubRequest<any>[],
     errors: RequestErrors | undefined,
     thrownErrorIds: ReadonlySet<string>
   ): void {
-    for (const middleFn of middleFnSubRequests) {
-      const middleFnError = errors?.get(middleFn.id);
-      if (middleFnError) {
-        if (!thrownErrorIds.has(middleFn.id)) this.handlersRegistry.executeHandler(middleFn.id, middleFnError);
-      } else if (middleFn.resolvedValue !== undefined) {
-        this.handlersRegistry.executeSuccessHandler(middleFn.id, middleFn.resolvedValue);
+    for (const middleware of middlewareSubRequests) {
+      const middlewareError = errors?.get(middleware.id);
+      if (middlewareError) {
+        if (!thrownErrorIds.has(middleware.id)) this.handlersRegistry.executeHandler(middleware.id, middlewareError);
+      } else if (middleware.resolvedValue !== undefined) {
+        this.handlersRegistry.executeSuccessHandler(middleware.id, middleware.resolvedValue);
       }
     }
   }
 
-  /** The dispatch contract of [result, error, undeclared, middleFnResults, middleFnErrors]:
+  /** The dispatch contract of [result, error, undeclared, middlewareResults, middlewareErrors]:
    * - slot 1: ONLY the route's own declared errors | ValidationError (a thrown route error does not qualify)
-   * - slot 4: each middleFn's DECLARED errors | ValidationError by name, one entry each, so several failures are kept
-   * - slot 2: what NOBODY declared (a thrown route or middleFn error, transport/platform/framework, an error for a
-   *   middleFn not part of this request); when several exist, the first in execution order (middleFns before the route)
+   * - slot 4: each middleware's DECLARED errors | ValidationError by name, one entry each, so several failures are kept
+   * - slot 2: what NOBODY declared (a thrown route or middleware error, transport/platform/framework, an error for a
+   *   middleware not part of this request); when several exist, the first in execution order (middlewares before the route)
    * - slot 0: the route result whatever else failed; no error ever crosses into another slot */
   private buildResult<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
     routeSubRequest: RouteSubRequest<any> | undefined,
     batchSubRequests: Routes | undefined,
-    middleFns: H | MiddlewareSubRequest<any>[],
+    middlewares: H | MiddlewareSubRequest<any>[],
     errors: RequestErrors | undefined,
     thrownErrorIds: ReadonlySet<string>
   ): BatchResult<Routes, H> | Result<any, any> {
-    const middleFnsResults = {} as Record<string, any>;
+    const middlewaresResults = {} as Record<string, any>;
     const processedIds = new Set<string>();
     const expectedErrorFor = (id: string): RpcError<string> | undefined => {
       const error = errors?.get(id);
@@ -240,22 +240,22 @@ export class MionClient {
     }
     routeIds.forEach((id) => processedIds.add(id));
 
-    // middleFns can be a named record (from call({middleFns}) / batch) or an array (from executeCall)
-    const middleFnsErrors = {} as Record<string, any>;
+    // middlewares can be a named record (from call({middlewares}) / batch) or an array (from executeCall)
+    const middlewaresErrors = {} as Record<string, any>;
     let undeclaredPart: RpcError<string> | undefined;
-    const middleFnEntries: [string, MiddlewareSubRequest<any>][] = Array.isArray(middleFns)
-      ? middleFns.map((middleFn) => [middleFn.id, middleFn])
-      : Object.entries(middleFns);
-    for (const [name, middleFn] of middleFnEntries) {
-      processedIds.add(middleFn.id);
-      if (middleFn.resolvedValue !== undefined) middleFnsResults[name] = middleFn.resolvedValue;
-      const middleFnError = errors?.get(middleFn.id);
-      if (!middleFnError) continue;
-      if (thrownErrorIds.has(middleFn.id)) {
-        // a middleFn's thrown error is undeclared, its typed record cannot carry it
-        if (undeclaredPart === undefined) undeclaredPart = middleFnError;
+    const middlewareEntries: [string, MiddlewareSubRequest<any>][] = Array.isArray(middlewares)
+      ? middlewares.map((middleware) => [middleware.id, middleware])
+      : Object.entries(middlewares);
+    for (const [name, middleware] of middlewareEntries) {
+      processedIds.add(middleware.id);
+      if (middleware.resolvedValue !== undefined) middlewaresResults[name] = middleware.resolvedValue;
+      const middlewareError = errors?.get(middleware.id);
+      if (!middlewareError) continue;
+      if (thrownErrorIds.has(middleware.id)) {
+        // a middleware's thrown error is undeclared, its typed record cannot carry it
+        if (undeclaredPart === undefined) undeclaredPart = middlewareError;
       } else {
-        middleFnsErrors[name] = middleFnError;
+        middlewaresErrors[name] = middlewareError;
       }
     }
 
@@ -284,16 +284,16 @@ export class MionClient {
     if (undeclaredPart === undefined) undeclaredPart = takeApiVersionError();
     if (undeclaredPart === undefined) undeclaredPart = metadataCacheHooks()?.takeMetadataCacheError();
 
-    return [routeResultPart, routeErrorPart, undeclaredPart, middleFnsResults, middleFnsErrors] as any;
+    return [routeResultPart, routeErrorPart, undeclaredPart, middlewaresResults, middlewaresErrors] as any;
   }
 
   typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
-    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
+    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddlewaresCache);
     return request.validateParams(subRequest);
   }
 
   prefill<List extends MiddlewareSubRequest<any>[]>(...subRequest: List): Promise<void> {
-    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
+    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddlewaresCache);
     const promise = request.prefill(subRequest);
     this.pendingPrefills.push(promise);
     void promise.finally(() => {
@@ -304,7 +304,7 @@ export class MionClient {
   }
 
   removePrefill<List extends MiddlewareSubRequest<any>[]>(...subRequest: List): Promise<void> {
-    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddleFnsCache);
+    const request = new MionClientRequest(this.clientOptions, this.prefilledMiddlewaresCache);
     return request.removePrefill(subRequest);
   }
 

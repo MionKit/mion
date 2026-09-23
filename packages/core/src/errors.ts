@@ -17,7 +17,7 @@ export interface ValidationErrorData {
   typeErrors: RunTypeError[];
 }
 
-/** Raised when route or middleFn parameters fail validation; included in the client error unions so it stays typed. */
+/** Raised when route or middleware parameters fail validation; included in the client error unions so it stays typed. */
 export type ValidationError = RpcError<'validation-error', ValidationErrorData>;
 
 let options: CoreRouterOptions = {...DEFAULT_CORE_OPTIONS};
@@ -132,7 +132,7 @@ export class RpcError<ErrType extends string, ErrData = any>
 // type-rpc-error-end
 
 // type-fatal-error-start
-/** A returned error that ENDS the request: the rest of the chain is skipped (only `alwaysRun` middleFns still run)
+/** A returned error that ENDS the request: the rest of the chain is skipped (only `alwaysRun` middlewares still run)
  *  and the error stays in the handler's own typed slot, so the client receives it strongly typed. Use it for gates
  *  such as auth. Same wire shape as `RpcError` (the brand never travels), so it decodes by its declared type. */
 export class FatalError<ErrType extends string, ErrData = any> extends RpcError<ErrType, ErrData> {

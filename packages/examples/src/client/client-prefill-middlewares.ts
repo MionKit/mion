@@ -2,14 +2,14 @@ import {HeadersSubset} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
 import type {MyApi} from './prefill.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({
+const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
 declare function redirectToLogin(): void;
 
 // prefill() returns a TypedEvent for persistent handlers, typed by error.type
-middleFns
+middlewares
   .auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
   .prefill()
   .onSuccess((session) => {
@@ -22,14 +22,14 @@ middleFns
     redirectToLogin();
   });
 
-// auth is prefilled, so call() sends it; its declared error reaches onError above AND middleFnErrors
-const [sum, error, undeclared, middleFnResults, middleFnErrors] =
+// auth is prefilled, so call() sends it; its declared error reaches onError above AND middlewareErrors
+const [sum, error, undeclared, middlewareResults, middlewareErrors] =
   await routes.utils.sum(5, 2).call();
 
-if (middleFnErrors?.auth)
-  console.log('Auth error from tuple:', middleFnErrors.auth.publicMessage);
-if (middleFnResults?.auth)
-  console.log('Session from tuple:', middleFnResults.auth);
+if (middlewareErrors?.auth)
+  console.log('Auth error from tuple:', middlewareErrors.auth.publicMessage);
+if (middlewareResults?.auth)
+  console.log('Session from tuple:', middlewareResults.auth);
 if (undeclared)
   console.log('Undeclared (nobody declared it):', undeclared.publicMessage);
 if (!error) console.log(sum); // 7

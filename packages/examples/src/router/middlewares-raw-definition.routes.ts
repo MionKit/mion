@@ -5,7 +5,7 @@ const mion = createMionRouter();
 type HttpRequest = IncomingMessage & {body: any};
 
 const routes = {
-  progress: mion.rawMiddleFn(
+  progress: mion.rawMiddleware(
     async (
       ctx,
       rawRequest: HttpRequest,
@@ -26,5 +26,5 @@ const routes = {
       });
     }
   ),
-  // ... other routes and middleware functions
+  // ... other routes and middleware
 } satisfies Routes;

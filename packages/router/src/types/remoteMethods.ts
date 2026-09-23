@@ -8,10 +8,10 @@ import type {
   RouteOnlyOptions,
   SerializerCode,
 } from '@mionjs/core'; // do not import type only
-import type {AnyHandler, Handler, HeaderHandler, RawMiddleFnHandler} from './handlers.ts'; // do not import type only
+import type {AnyHandler, Handler, HeaderHandler, RawMiddlewareHandler} from './handlers.ts'; // do not import type only
 import {HandlerType} from '@mionjs/core'; // do not import type only
 
-/** Contains the handlers for middleFns and routes */
+/** Contains the handlers for middlewares and routes */
 export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
   options: RemoteMethodOpts;
   handler: H;
@@ -32,15 +32,15 @@ export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
   type: typeof HandlerType.route;
   options: RouteOnlyOptions;
 }
-export interface MiddleFnMethod<H extends Handler = any> extends RemoteMethod<H> {
-  type: typeof HandlerType.middleFn;
+export interface MiddlewareMethod<H extends Handler = any> extends RemoteMethod<H> {
+  type: typeof HandlerType.middleware;
 }
 export interface HeadersMethod<H extends HeaderHandler = any> extends RemoteMethod<H> {
-  type: typeof HandlerType.headersMiddleFn;
+  type: typeof HandlerType.headersMiddleware;
   headersParam: HeadersMethodWithJitFns;
 }
-export interface RawMethod<H extends RawMiddleFnHandler = any> extends RemoteMethod<H> {
-  type: typeof HandlerType.rawMiddleFn;
+export interface RawMethod<H extends RawMiddlewareHandler = any> extends RemoteMethod<H> {
+  type: typeof HandlerType.rawMiddleware;
   options: RemoteMethodOpts & {
     validateParams: false;
     validateReturn?: false;
@@ -62,11 +62,11 @@ interface RouteOptionsBase {
    *  types and over the router option. */
   maxBodySize?: number;
 }
-interface MiddleFnOptionsBase {
+interface MiddlewareOptionsBase {
   description?: string;
   validateParams?: boolean;
-  /** This middleFn's contribution to the request limit of every chain it sits in, in bytes, for a
-   *  middleFn whose params type has no maximum (a plain `string[]`). Without it such a middleFn
+  /** This middleware's contribution to the request limit of every chain it sits in, in bytes, for a
+   *  middleware whose params type has no maximum (a plain `string[]`). Without it such a middleware
    *  sends every chain it sits in to the router default. */
   maxBodySize?: number;
   validateReturn?: boolean;
@@ -87,17 +87,17 @@ export interface RouteOptionsWithParser extends RouteOptionsBase {
   parser: ParserOption;
 }
 export type RouteOptions = PlainRouteOptions | RouteOptionsWithParser;
-export interface PlainMiddleFnOptions extends MiddleFnOptionsBase {
+export interface PlainMiddlewareOptions extends MiddlewareOptionsBase {
   parser?: never;
 }
-export interface MiddleFnOptionsWithParser extends MiddleFnOptionsBase {
+export interface MiddlewareOptionsWithParser extends MiddlewareOptionsBase {
   parser: ParserOption;
 }
-export type MiddleFnOptions = PlainMiddleFnOptions | MiddleFnOptionsWithParser;
-export type PlainHeadersMiddleFnOptions = PlainMiddleFnOptions;
-export type HeadersMiddleFnOptions = MiddleFnOptions;
-// RawMiddleFnOptions doesn't need encoding - raw middleFns handle their own serialization
-export type RawMiddleFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'alwaysRun'>>;
+export type MiddlewareOptions = PlainMiddlewareOptions | MiddlewareOptionsWithParser;
+export type PlainHeadersMiddlewareOptions = PlainMiddlewareOptions;
+export type HeadersMiddlewareOptions = MiddlewareOptions;
+// RawMiddlewareOptions doesn't need encoding - raw middlewares handle their own serialization
+export type RawMiddlewareOptions = Partial<Pick<RawMethod['options'], 'description' | 'alwaysRun'>>;
 
 export interface MethodsExecutionChain {
   /** Where the route sits in `methods`. -1 on mion's own not-found chains, which answer without a

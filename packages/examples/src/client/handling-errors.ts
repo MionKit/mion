@@ -2,21 +2,21 @@ import {HeadersSubset, isRpcError} from '@mionjs/core';
 import {initClient} from '@mionjs/client';
 import type {MyApi} from './auth-user.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({
+const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+// [routeResult, routeError, undeclared, middlewareResults, middlewareErrors]
 // - error: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)
 // - undeclared: anything NOBODY declared - transport, platform, framework,
-//   an undeclared throw, or an error for a middleware function that
+//   an undeclared throw, or an error for a middleware that
 //   was not part of the request (OPEN RpcError<string>)
-// - middleFnErrors: each middleware function's DECLARED errors, by name (strongly typed)
-const [user, error, undeclared, , middleFnErrors] = await routes.users
+// - middlewareErrors: each middleware's DECLARED errors, by name (strongly typed)
+const [user, error, undeclared, , middlewareErrors] = await routes.users
   .getById('USER-404')
   .call({
-    middleFns: {
-      auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+    middlewares: {
+      auth: middlewares.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
     },
   });
 
@@ -31,9 +31,9 @@ if (error) {
       console.log('type errors:', error.errorData?.typeErrors.length);
       break;
   }
-} else if (middleFnErrors?.auth?.type === 'not-authorized') {
-  // the middleware function's declared error, also strongly typed
-  console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
+} else if (middlewareErrors?.auth?.type === 'not-authorized') {
+  // the middleware's declared error, also strongly typed
+  console.log('auth failed:', middlewareErrors.auth.errorData?.reason);
 } else if (undeclared) {
   // transport, platform or any undeclared error lands here
   if (isRpcError(undeclared)) console.log('request failed:', undeclared.type);

@@ -21,7 +21,7 @@ export interface RunTypesLoaderOptions {
 }
 
 /**
- * Bun plugin that injects mion precompiled type functions into `route()`/`middleFn()` call
+ * Bun plugin that injects mion precompiled type functions into `route()`/`middleware()` call
  * sites at load time, so mion route registration finds its build-time metadata under Bun. This is
  * the Bun counterpart of `mionVitePlugin` (@mionjs/devtools): both wrap @mionjs/devtools.
  *

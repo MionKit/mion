@@ -7,17 +7,17 @@
 
 // A request can arrive already failed: an unknown path, an unknown batch id, or a body the platform
 // adapter refused after the route resolved. All three answer the same way, and it is the dispatcher's
-// own rule that does it: the error is recorded BEFORE the first global middleFn, so only the members
+// own rule that does it: the error is recorded BEFORE the first global middleware, so only the members
 // that declare `alwaysRun` run. The router never parses a body for any of them: a not-found one is
 // never read at all, a refused one is dropped by the adapter that refused it.
-// Route-level middleFns belong to registered routes and never ran on a 404.
+// Route-level middlewares belong to registered routes and never ran on a 404.
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {
   createMionRouter,
   resetRouter,
-  addStartMiddleFns,
-  addEndMiddleFns,
+  addStartMiddlewares,
+  addEndMiddlewares,
   getRouteExecutionChain,
   getNotFoundExecutionChain,
   getRouterOptions,
@@ -55,35 +55,35 @@ function dispatchRefused(path: string) {
 const thrown = (response: Awaited<ReturnType<typeof dispatch>>) =>
   response.body[MION_ROUTES.thrownErrors] as Record<string, RpcError<string>>;
 
-describe('a request that arrived failed runs only the alwaysRun middleFns', () => {
+describe('a request that arrived failed runs only the alwaysRun middlewares', () => {
   const hello = mion.route((): string => 'hello');
   let seen: string[];
-  const logStart = mion.rawMiddleFn((ctx: CallContext) => {
+  const logStart = mion.rawMiddleware((ctx: CallContext) => {
     seen.push(`start:${ctx.path}`);
   });
-  const alwaysStart = mion.rawMiddleFn(
+  const alwaysStart = mion.rawMiddleware(
     (ctx: CallContext) => {
       seen.push(`always-start:${ctx.path}`);
     },
     {alwaysRun: true}
   );
-  const logEnd = mion.rawMiddleFn((ctx: CallContext) => {
+  const logEnd = mion.rawMiddleware((ctx: CallContext) => {
     seen.push(`end:${ctx.response.statusCode}`);
   });
-  const alwaysEnd = mion.rawMiddleFn(
+  const alwaysEnd = mion.rawMiddleware(
     (ctx: CallContext) => {
       seen.push(`always-end:${ctx.response.statusCode}`);
     },
     {alwaysRun: true}
   );
-  const routeLevel = mion.middleFn((): void => {
+  const routeLevel = mion.middleware((): void => {
     seen.push('route-level');
   });
 
   /** the four globals in one go: two that must be skipped, two that must run */
   function withGlobals() {
-    addStartMiddleFns({logStart, alwaysStart});
-    addEndMiddleFns({logEnd, alwaysEnd});
+    addStartMiddlewares({logStart, alwaysStart});
+    addEndMiddlewares({logEnd, alwaysEnd});
   }
 
   beforeEach(() => {
@@ -177,11 +177,11 @@ describe('a request that arrived failed runs only the alwaysRun middleFns', () =
 
   // the same rule, reached from inside the chain: mionDeserializeRequest declares `alwaysRun`, so the
   // dispatcher never skips it and the guard that stops a failed request being parsed is its own
-  it('a global middleFn that threw stops the body being parsed', async () => {
-    const boom = mion.rawMiddleFn((): void => {
+  it('a global middleware that threw stops the body being parsed', async () => {
+    const boom = mion.rawMiddleware((): void => {
       throw new Error('nope');
     });
-    addStartMiddleFns({boom});
+    addStartMiddlewares({boom});
     mion.initRoutes({hello});
     const response = await dispatch(getRoutePath(['hello'], getRouterOptions()), '{not json');
     expect(response.hasErrors).toBe(true);

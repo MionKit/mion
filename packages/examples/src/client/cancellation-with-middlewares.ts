@@ -2,16 +2,16 @@ import {HeadersSubset} from '@mionjs/core';
 import {initClient, batch} from '@mionjs/client';
 import type {MyApi} from './hello-sum-auth.routes.ts';
 
-const {routes, middleFns} = initClient<MyApi>({
+const {routes, middlewares} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
 const controller = new AbortController();
 
-// cancellation works with middleware functions
+// cancellation works with middleware
 const [greeting, , undeclared] = await routes.sayHello('John').call({
-  middleFns: {
-    auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+  middlewares: {
+    auth: middlewares.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
   },
   timeout: 5000,
   signal: controller.signal,
@@ -23,8 +23,8 @@ const [[sum, greeting2], [sumError, greetingError]] = await batch([
   routes.utils.sum(5, 2),
   routes.sayHello('Jane'),
 ]).call({
-  middleFns: {
-    auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+  middlewares: {
+    auth: middlewares.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
   },
   timeout: 10_000,
 });

@@ -67,7 +67,7 @@ function byFnKey(injected: unknown[]): Partial<Record<FnHashKey, unknown>> {
   return out as Partial<Record<FnHashKey, unknown>>;
 }
 
-/** Injected marker payloads stashed on a route/middleFn definition by the factory helpers. */
+/** Injected marker payloads stashed on a route/middleware definition by the factory helpers. */
 export interface RtMarkerPayload {
   paramsFns?: unknown;
   returnFns?: unknown;
@@ -76,7 +76,7 @@ export interface RtMarkerPayload {
   /** Id of a build-time `true`/`false` literal: whether the handler answers with a promise.
    *  `returnId` is the AWAITED type, so it cannot answer this. */
   isAsyncId?: string;
-  /** headers middleFns only: fns + id for the handler's HeadersSubset param */
+  /** headers middlewares only: fns + id for the handler's HeadersSubset param */
   headersFns?: unknown;
   headersId?: string;
 }
@@ -304,7 +304,7 @@ function resolveIsAsync(isAsyncId: string | undefined, handler: AnyFn): boolean 
   return isAsyncHandler(handler);
 }
 
-/** Builds the full mion method reflection from the marker payload stashed on a route/middleFn definition. */
+/** Builds the full mion method reflection from the marker payload stashed on a route/middleware definition. */
 export function getReflectionFromMarkers(
   rtFns: RtMarkerPayload | undefined,
   handler: AnyFn,
@@ -312,8 +312,8 @@ export function getReflectionFromMarkers(
 ): RtMethodReflection {
   if (!rtFns)
     throw new Error(
-      `RunTypes: route/middleFn '${methodId}' has no injected type information. ` +
-        `Handlers must be declared through the helpers createMionRouter returns (mion.route() / mion.middleFn()) ` +
+      `RunTypes: route/middleware '${methodId}' has no injected type information. ` +
+        `Handlers must be declared through the helpers createMionRouter returns (mion.route() / mion.middleware()) ` +
         `and built with mionVitePlugin active.`
     );
   const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
@@ -349,7 +349,7 @@ export function getReflectionFromMarkers(
   return reflection;
 }
 
-// ############# headers middleFns #############
+// ############# headers middlewares #############
 
 /** Node shape used while walking the runtype graph for header names. */
 interface RtNodeLike {
@@ -406,7 +406,7 @@ export function buildHeaderJitFnsFromMarker(
   };
 }
 
-/** Headers middleFn reflection: the shared one plus headersParam; headersReturn already rides the shared call. */
+/** Headers middleware reflection: the shared one plus headersParam; headersReturn already rides the shared call. */
 export function getHeadersReflectionFromMarkers(
   rtFns: RtMarkerPayload | undefined,
   handler: AnyFn,
@@ -414,7 +414,7 @@ export function getHeadersReflectionFromMarkers(
 ): RtMethodReflection {
   if (!rtFns || rtFns.headersId === undefined)
     throw new Error(
-      `RunTypes: headers middleFn '${methodId}' has no injected header type information. ` +
+      `RunTypes: headers middleware '${methodId}' has no injected header type information. ` +
         `Handlers must be declared through the mion.headersFn() helper createMionRouter returns (2nd param a HeadersSubset) ` +
         `and built with mionVitePlugin active.`
     );
@@ -422,7 +422,9 @@ export function getHeadersReflectionFromMarkers(
   const headersRunType = resolveInjectedRunType(rtFns.headersId);
   const headerNames = getHeaderNamesFromRunType(headersRunType);
   if (!headerNames)
-    throw new Error(`RunTypes: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`);
+    throw new Error(
+      `RunTypes: headers middleware '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`
+    );
   // `paramsId` holds HeaderHandlerParams<H>, so the shared paramsCount is already the body arity
   const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
   reflection.headersParam = {

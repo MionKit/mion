@@ -49,11 +49,11 @@ const routes = {
   echoText: mion.route((_ctx, text: string): string => text),
 } satisfies Routes;
 
-// three middleFns in front of one route: the per-step costs multiply here
+// three middlewares in front of one route: the per-step costs multiply here
 const chainRoutes = {
-  first: mion.middleFn((): void => undefined),
-  second: mion.middleFn((): void => undefined),
-  third: mion.middleFn(async (): Promise<void> => undefined),
+  first: mion.middleware((): void => undefined),
+  second: mion.middleware((): void => undefined),
+  third: mion.middleware(async (): Promise<void> => undefined),
   chained: mion.route((_ctx, item: Item): Item => item),
 } satisfies Routes;
 
@@ -139,7 +139,7 @@ describe('dispatch chain', () => {
     await dispatch('/promiseArrow', bodies.promiseArrow);
   });
 
-  bench('route behind three middleFns', async () => {
+  bench('route behind three middlewares', async () => {
     await dispatch('/chained', bodies.chained);
   });
 

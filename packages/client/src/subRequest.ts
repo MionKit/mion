@@ -56,12 +56,12 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     return this.events();
   }
 
-  /** Returns the TypedEvent for this middleFn so typed handlers can be registered without prefilling */
+  /** Returns the TypedEvent for this middleware so typed handlers can be registered without prefilling */
   events(): TypedEvent<S, E> {
     return new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
   }
 
-  /** Registers a persistent typed error handler for this middleFn, no prefill required */
+  /** Registers a persistent typed error handler for this middleware, no prefill required */
   onError<T extends E['type']>(errorType: T, handler: (error: Extract<E, {type: T}>) => void): TypedEvent<S, E> {
     return this.events().onError(errorType, handler);
   }
@@ -70,7 +70,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
     return this.events().offError(errorType);
   }
 
-  /** Registers a persistent success handler for this middleFn, no prefill required */
+  /** Registers a persistent success handler for this middleware, no prefill required */
   onSuccess(handler: (result: S) => void): TypedEvent<S, E> {
     return this.events().onSuccess(handler);
   }
@@ -91,7 +91,7 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
       this as unknown as RouteSubRequest<any>,
       undefined,
       undefined,
-      setup?.middleFns,
+      setup?.middlewares,
       setup?.signal,
       setup?.timeout
     );
