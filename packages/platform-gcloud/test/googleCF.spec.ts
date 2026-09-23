@@ -1,0 +1,457 @@
+/* ########
+ * 2023 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, beforeAll, afterAll} from 'vitest';
+import {createMionRouter, resetRouter, addStartMiddlewares, addEndMiddlewares} from '@mionjs/router';
+import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from '../src/googleCF.ts';
+import type {CallContext, Route} from '@mionjs/router';
+import {MION_ROUTES, PublicRpcError, StatusCodes} from '@mionjs/core';
+import {Server} from 'http';
+import {getTestServer} from '@google-cloud/functions-framework/testing';
+import * as functions from '@google-cloud/functions-framework';
+
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
+
+describe('serverless router', () => {
+  type SimpleUser = {
+    name: string;
+    surname: string;
+  };
+  type DataPoint = {
+    date: Date;
+  };
+  type MySharedData = ReturnType<typeof getSharedData>;
+  type Context = CallContext<MySharedData>;
+
+  const myApp = {
+    cloudLogs: {
+      log: () => null,
+      error: () => null,
+    },
+    db: {
+      changeUserName: (user: SimpleUser) => ({name: 'NewName', surname: user.surname}),
+    },
+  };
+  const getSharedData = () => ({auth: {me: null as any}});
+  const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+
+  const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
+    return myApp.db.changeUserName(user);
+  });
+
+  const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+    return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
+  });
+
+  const updateHeaders: Route = mion.route((context: Context): void => {
+    context.response.headers.set('x-something', 'true');
+    context.response.headers.set('server', 'my-server');
+  });
+
+  const echoQuery: Route = mion.route((ctx: Context): string => ctx.urlQuery ?? '<undefined>');
+
+  const echoLimited: Route = mion.route((ctx: Context, text: string): string => text);
+
+  // fake express server passing the request and response to the google cloud function handler
+  const port = 8097;
+  let server: Server;
+  async function initServer(portToUse: number) {
+    return new Promise<Server>((resolve, reject) => {
+      functions.http('HelloTests', googleCFHandler);
+      const expressServer = getTestServer('HelloTests');
+      expressServer.listen(portToUse, () => resolve(expressServer));
+    });
+  }
+
+  const closeServer = (s: Server) => {
+    return new Promise<void>((resolve, reject) => {
+      s.close((err) => {
+        if (err) reject();
+        else resolve();
+      });
+    });
+  };
+
+  describe('with the default encoder', () => {
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      mion.initRoutes({changeUserName, getDate, updateHeaders, echoQuery});
+      server = await initServer(port);
+    });
+
+    afterAll(async () => closeServer(server));
+
+    it('get an ok response from a route', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+      const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
+        method: 'POST',
+        body: JSON.stringify(requestData),
+      });
+
+      const reply = (await response.json()) as RpcBody;
+      const headers = Object.fromEntries(response.headers.entries());
+
+      expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+      expect(headers['connection']).toEqual('keep-alive');
+      expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(headers['content-length']).toEqual('47');
+      expect(headers['server']).toEqual('@mionjs');
+    });
+
+    it('keeps the whole query string, including a second ? inside it', async () => {
+      // `?` is a legal character inside a query string, so everything after the FIRST one is the
+      // query: splitting on every `?` would silently drop the parameters that follow
+      const response = await fetch(`http://127.0.0.1:${port}/api/echoQuery?a=1?b=2&c=3`, {
+        method: 'POST',
+        body: JSON.stringify({echoQuery: []}),
+      });
+
+      expect(await response.json()).toEqual({echoQuery: 'a=1?b=2&c=3'});
+    });
+
+    it('accepts a base64url GET query body, which carries no body of its own', async () => {
+      // express parses a request with no body into an EMPTY object rather than leaving it unset,
+      // so the adapter has to treat that as no body or the `?data=` road is never taken
+      const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+      const encoded = Buffer.from(JSON.stringify(requestData), 'utf8').toString('base64url');
+      const response = await fetch(`http://127.0.0.1:${port}/api/getDate?data=${encoded}`);
+
+      expect(response.status).toEqual(StatusCodes.OK);
+      expect(await response.json()).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+    });
+
+    it('reports no query string as undefined', async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/echoQuery`, {
+        method: 'POST',
+        body: JSON.stringify({echoQuery: []}),
+      });
+
+      expect(await response.json()).toEqual({echoQuery: '<undefined>'});
+    });
+
+    it('get an ok response from a route when content type is json', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+      const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(requestData),
+      });
+
+      const reply = (await response.json()) as RpcBody;
+      const headers = Object.fromEntries(response.headers.entries());
+
+      expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+      expect(headers['connection']).toEqual('keep-alive');
+      expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(headers['content-length']).toEqual('47');
+      expect(headers['server']).toEqual('@mionjs');
+    });
+
+    it('get an error when sending invalid parameters', async () => {
+      const requestData = {getDate: ['NOT A DATE POINT']};
+      const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
+        method: 'POST',
+        body: JSON.stringify(requestData),
+      });
+      const reply = (await response.json()) as RpcBody;
+      const headers = Object.fromEntries(response.headers.entries());
+
+      const expectedError: PublicRpcError<'validation-error'> = {
+        'mion@isΣrrθr': true,
+        publicMessage: `Invalid params in 'getDate', validation failed.`,
+        type: 'validation-error',
+        errorData: {typeErrors: [{path: [0], expected: 'objectLiteral'}]},
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+      };
+      expect(reply[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
+      expect(headers['connection']).toEqual('keep-alive');
+      expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(headers['content-length']).toEqual(expect.any(String));
+      expect(headers['server']).toEqual('@mionjs');
+    });
+
+    it('set response headers from route response', async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
+        method: 'POST',
+        body: '{}',
+      });
+      const reply = (await response.json()) as RpcBody;
+      const headers = Object.fromEntries(response.headers.entries());
+
+      expect(reply).toEqual({});
+      expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(headers['content-length']).toEqual('2');
+      expect(headers['server']).toEqual('my-server');
+      expect(headers['x-something']).toEqual('true');
+    });
+
+    it('get default headers', async () => {
+      const smallPort = port + 1;
+      const httpOpts = {
+        abcd: 'hello',
+        defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
+      };
+      resetGoogleCFOpts();
+      resetRouter();
+      setGoogleCFOpts(httpOpts);
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
+      const smallServer = await initServer(smallPort);
+      const closeSmallServer = () => {
+        return new Promise<void>((resolve, reject) => {
+          smallServer.close((err) => {
+            if (err) reject();
+            else resolve();
+          });
+        });
+      };
+      let err;
+      try {
+        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+        const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
+          method: 'POST',
+          body: JSON.stringify(requestData),
+        });
+        const headers = Object.fromEntries(response.headers.entries());
+
+        expect(headers['x-app-name']).toEqual('MyApp');
+        expect(headers['x-instance-id']).toEqual('3089');
+        expect(headers['connection']).toEqual('keep-alive');
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        expect(headers['content-length']).toEqual('47');
+        expect(headers['server']).toEqual('@mionjs');
+      } catch (e) {
+        err = e;
+      }
+
+      await closeSmallServer();
+
+      // Restore router state for the main server
+      resetGoogleCFOpts();
+      resetRouter();
+      mion.initRoutes({changeUserName, getDate, updateHeaders});
+
+      if (err) throw err;
+    });
+  });
+
+  describe('with a router created in the block (default encoder)', () => {
+    const port2 = 8098;
+    let server2: Server;
+    async function initServer2(portToUse: number) {
+      return new Promise<Server>((resolve, reject) => {
+        functions.http('HelloTestsJson', googleCFHandler);
+        const expressServer = getTestServer('HelloTestsJson');
+        expressServer.listen(portToUse, () => resolve(expressServer));
+      });
+    }
+
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+      jsonRouter.initRoutes({changeUserName, getDate});
+      server2 = await initServer2(port2);
+    });
+
+    afterAll(async () => closeServer(server2));
+
+    it('get an ok response from a route with Date objects (body type O)', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+      const response = await fetch(`http://127.0.0.1:${port2}/api/getDate`, {
+        method: 'POST',
+        body: JSON.stringify(requestData),
+      });
+
+      const reply = (await response.json()) as RpcBody;
+      const headers = Object.fromEntries(response.headers.entries());
+
+      expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
+      expect(headers['connection']).toEqual('keep-alive');
+      expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(headers['content-length']).toEqual('47');
+      expect(headers['server']).toEqual('@mionjs');
+    });
+
+    it('get an ok response from a route with complex objects (body type O)', async () => {
+      const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
+      const response = await fetch(`http://127.0.0.1:${port2}/api/changeUserName`, {
+        method: 'POST',
+        body: JSON.stringify(requestData),
+      });
+
+      const reply = (await response.json()) as RpcBody;
+      const headers = Object.fromEntries(response.headers.entries());
+
+      expect(reply).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
+      expect(headers['connection']).toEqual('keep-alive');
+      expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(headers['server']).toEqual('@mionjs');
+    });
+  });
+
+  describe('the request limit, whatever shape express hands the body over in', () => {
+    // express parses a `application/json` request into an object, and an object has no wire size
+    // the router can measure, so every one of these shapes has to be refused by the adapter
+    const limitPort = 8099;
+    let limitServer: Server;
+    // 113 bytes on the wire against a 50 byte limit
+    const overLimitBody = JSON.stringify({echoLimited: ['x'.repeat(100)]});
+    const underLimitBody = JSON.stringify({echoLimited: ['x']});
+
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      setGoogleCFOpts({maxBodySize: 50});
+      const limitRouter = createMionRouter({basePath: 'api/'});
+      limitRouter.initRoutes({echoLimited});
+      limitServer = await new Promise<Server>((resolve) => {
+        functions.http('HelloTestsLimit', googleCFHandler);
+        const expressServer = getTestServer('HelloTestsLimit');
+        expressServer.listen(limitPort, () => resolve(expressServer));
+      });
+    });
+
+    afterAll(async () => {
+      await closeServer(limitServer);
+      resetGoogleCFOpts();
+      resetRouter();
+    });
+
+    async function post(body: NonNullable<RequestInit['body']>, headers?: Record<string, string>) {
+      return fetch(`http://127.0.0.1:${limitPort}/api/echoLimited`, {
+        method: 'POST',
+        body,
+        headers,
+        duplex: 'half',
+      } as RequestInit);
+    }
+
+    it('refuses an over-limit body express left as a string', async () => {
+      const response = await post(overLimitBody);
+
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
+      const reply = (await response.json()) as RpcBody;
+      expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
+    });
+
+    it('refuses an over-limit body express already parsed', async () => {
+      const response = await post(overLimitBody, {'content-type': 'application/json'});
+
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
+      const reply = (await response.json()) as RpcBody;
+      expect(reply[MION_ROUTES.thrownErrors][MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
+    });
+
+    it('refuses an over-limit parsed body sent chunked, which declares no content-length', async () => {
+      // a stream body makes node send `transfer-encoding: chunked`, so the declared length the
+      // other two are refused on is simply not there and the exact bytes have to be measured
+      const chunked = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(overLimitBody));
+          controller.close();
+        },
+      });
+      const response = await post(chunked, {'content-type': 'application/json'});
+
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      expect(response.headers.get('x-rpc-error')).toEqual('request-payload-too-large');
+    });
+
+    it('answers a body under the limit normally, parsed or not', async () => {
+      const asString = await post(underLimitBody);
+      const asObject = await post(underLimitBody, {'content-type': 'application/json'});
+
+      expect(asString.status).toEqual(StatusCodes.OK);
+      expect(await asString.json()).toEqual({echoLimited: 'x'});
+      expect(asObject.status).toEqual(StatusCodes.OK);
+      expect(await asObject.json()).toEqual({echoLimited: 'x'});
+    });
+  });
+
+  // the answers above are the wire shape; this is which of YOUR middlewares saw them.
+  describe('a failed request still runs the alwaysRun middlewares', () => {
+    const seen: string[] = [];
+    const failPort = 8100; // its own port: 8098 is smallPort and port2, 8099 the limit suite's
+    let failServer: Server;
+
+    beforeAll(async () => {
+      resetGoogleCFOpts();
+      resetRouter();
+      const app = createMionRouter({basePath: 'api/'});
+      const echo = app.route((ctx: CallContext, user: SimpleUser): SimpleUser => user);
+      const plainStart = app.rawMiddleware((ctx: CallContext) => {
+        seen.push(`start:${ctx.path}`);
+      });
+      const accessLog = app.rawMiddleware(
+        (ctx: CallContext) => {
+          seen.push(`log:${ctx.response.statusCode}`);
+        },
+        {alwaysRun: true}
+      );
+      addStartMiddlewares({plainStart});
+      addEndMiddlewares({accessLog});
+      setGoogleCFOpts({maxBodySize: 50});
+      app.initRoutes({echo});
+      // its OWN registered function, like the json-encoder suite below: `initServer` re-registers
+      // `HelloTests`, and getTestServer hands back the SAME express app for a name, so a third
+      // listener on it races the servers the other suites are still tearing down
+      failServer = await new Promise<Server>((resolve) => {
+        functions.http('FailedRequestTests', googleCFHandler);
+        const expressServer = getTestServer('FailedRequestTests');
+        expressServer.listen(failPort, () => resolve(expressServer));
+      });
+    });
+
+    afterAll(async () => closeServer(failServer));
+
+    it('an unknown path is a 404 that only the alwaysRun middleware sees, with no body parsed', async () => {
+      seen.length = 0;
+      // `connection: close`, like the node adapter's own 404-with-a-body test: mion answers this
+      // one without consuming the body, and a pooled keep-alive socket then errors on reuse
+      const response = await fetch(`http://127.0.0.1:${failPort}/api/nope`, {
+        method: 'POST',
+        body: '{not json',
+        headers: {connection: 'close'},
+      });
+      expect(response.status).toEqual(StatusCodes.NOT_FOUND);
+      const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
+      expect(errors[MION_ROUTES.notFound].type).toEqual('route-not-found');
+      expect(errors['mionDeserializeRequest']).toBeUndefined();
+      expect(seen).toEqual(['log:404']);
+    });
+
+    // this adapter measures the body itself and refuses before the chain, so the 413 lands under
+    // platformError and only the alwaysRun member runs, exactly like node and uws
+    it('a body over the limit is a 413 that only the alwaysRun middleware sees', async () => {
+      seen.length = 0;
+      const response = await fetch(`http://127.0.0.1:${failPort}/api/echo`, {
+        method: 'POST',
+        body: JSON.stringify({echo: [{name: 'x'.repeat(80), surname: 'y'}]}),
+        headers: {'content-type': 'application/json', connection: 'close'},
+      });
+      expect(response.status).toEqual(StatusCodes.PAYLOAD_TOO_LARGE);
+      const errors = ((await response.json()) as RpcBody)[MION_ROUTES.thrownErrors];
+      expect(errors[MION_ROUTES.platformError].type).toEqual('request-payload-too-large');
+      expect(errors['mionDeserializeRequest']).toBeUndefined();
+      expect(seen).toEqual(['log:413']);
+    });
+
+    it('a known path runs the whole chain', async () => {
+      seen.length = 0;
+      const response = await fetch(`http://127.0.0.1:${failPort}/api/echo`, {
+        method: 'POST',
+        body: '{"echo":[{"name":"a","surname":"b"}]}',
+        headers: {'content-type': 'application/json'},
+      });
+      expect(response.status).toEqual(StatusCodes.OK);
+      expect(seen).toEqual(['start:/api/echo', 'log:200']);
+    });
+  });
+});

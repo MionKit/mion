@@ -1,0 +1,139 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect} from 'vitest';
+import {Routes} from '../../src/types/general.ts';
+import {createMionRouter} from '../../src/router.ts';
+import {dispatchRoute} from '../../src/dispatch.ts';
+import {route, headersFn, middleware, rawMiddleware, query, mutation} from '../../src/lib/handlers.ts';
+import {MionHeaders} from '../../src/types/context.ts';
+import {headersFromRecord} from '../../src/lib/headers.ts';
+import {HandlerType, HeadersSubset} from '@mionjs/core';
+
+describe('route & middlewares init functions', () => {
+  type RawRequest = {
+    headers: MionHeaders;
+    body: string;
+  };
+
+  const routes = {
+    auth: headersFn(
+      (ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1234'})
+    ),
+    timestamp: middleware((ctx, time: number): string => `time: ${time}`),
+    nothing: rawMiddleware((ctx, req: unknown, resp: unknown): void => undefined),
+    print: route((ctx, name: string): string => `name: ${name}`),
+  } satisfies Routes;
+
+  // Since the mion migration, factory defs also carry the build-time-injected
+  // type functions payload (rtFns): compiled fn tuples per side + the two type id handles.
+  const expectedRtFns = {
+    paramsFns: expect.any(Array),
+    returnFns: expect.any(Array),
+    paramsId: expect.anything(),
+    returnId: expect.anything(),
+    // the build-time answer to "does this handler return a promise" (see HandlerIsAsync)
+    isAsyncId: expect.anything(),
+  };
+
+  it('should initialize a Headers Middleware object', () => {
+    expect(routes.auth).toEqual({
+      type: HandlerType.headersMiddleware,
+      handler: expect.any(Function),
+      rtFns: {
+        ...expectedRtFns,
+        headersFns: expect.any(Array),
+        headersId: expect.anything(),
+      },
+    });
+  });
+
+  it('should initialize a middleware object', () => {
+    expect(routes.timestamp).toEqual({
+      type: HandlerType.middleware,
+      handler: expect.any(Function),
+      rtFns: expectedRtFns,
+    });
+  });
+
+  it('should initialize a rawMiddleware object', () => {
+    expect(routes.nothing).toEqual({
+      type: HandlerType.rawMiddleware,
+      handler: expect.any(Function),
+    });
+  });
+
+  it('should initialize a route object', () => {
+    expect(routes.print).toEqual({
+      type: HandlerType.route,
+      handler: expect.any(Function),
+      rtFns: expectedRtFns,
+    });
+  });
+
+  it('should initialize a query object with isMutation: false', () => {
+    const q = query((ctx, id: number): string => `id: ${id}`);
+    expect(q).toEqual({
+      type: HandlerType.route,
+      handler: expect.any(Function),
+      options: {isMutation: false},
+      rtFns: expectedRtFns,
+    });
+  });
+
+  it('should initialize a mutation object with isMutation: true', () => {
+    const m = mutation((ctx, name: string): string => `name: ${name}`);
+    expect(m).toEqual({
+      type: HandlerType.route,
+      handler: expect.any(Function),
+      options: {isMutation: true},
+      rtFns: expectedRtFns,
+    });
+  });
+
+  it('route() should not set isMutation (undefined)', () => {
+    const r = route((ctx, name: string): string => `name: ${name}`);
+    expect(r.options).toBeUndefined();
+  });
+
+  it('should be able to still use reflection an validate param', async () => {
+    createMionRouter().initRoutes(routes);
+
+    // send all correct parameters
+    const request: RawRequest = {
+      headers: headersFromRecord({Authorization: 'Bearer 123'}),
+      body: JSON.stringify({
+        timestamp: [123],
+        print: ['John'],
+      }),
+    };
+
+    const response = await dispatchRoute('/print', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body).toEqual({timestamp: 'time: 123', print: 'name: John'});
+    expect(response.headers.get('x-user-id')).toEqual('user-1234');
+
+    // send all incorrect parameters and all of them should fail
+    const wrongRequest: RawRequest = {
+      headers: headersFromRecord({Authorization: null as any}),
+      body: JSON.stringify({
+        timestamp: ['hello'],
+        print: [123],
+      }),
+    };
+
+    const wrongResponse = await dispatchRoute(
+      '/print',
+      wrongRequest.body,
+      wrongRequest.headers,
+      headersFromRecord({}),
+      wrongRequest,
+      {}
+    );
+    expect(wrongResponse.body['@thrownErrors']?.auth).toEqual(expect.objectContaining({type: 'validation-error'}));
+    expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);
+  });
+});

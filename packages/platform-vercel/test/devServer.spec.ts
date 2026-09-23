@@ -1,0 +1,196 @@
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, beforeAll, afterAll} from 'vitest';
+import {createMionRouter} from '@mionjs/router';
+import {resetVercelHandlerOpts, setVercelHandlerOpts} from '../src/vercelHandler.ts';
+import {startVercelDevServer} from '../src/devServer.ts';
+import type {CallContext, Route} from '@mionjs/router';
+import {MION_ROUTES, StatusCodes, type PublicRpcError} from '@mionjs/core';
+
+type RpcBody = Record<string, unknown> & Record<typeof MION_ROUTES.thrownErrors, Record<string, PublicRpcError<string>>>;
+
+type SimpleUser = {
+  name: string;
+  surname: string;
+};
+type DataPoint = {
+  date: Date;
+};
+type MySharedData = ReturnType<typeof getSharedData>;
+type Context = CallContext<MySharedData>;
+
+const getSharedData = () => ({auth: {me: null as any}});
+const mion = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+
+const changeUserName: Route = mion.route((ctx: Context, user: SimpleUser): SimpleUser => {
+  return {name: 'NewName', surname: user.surname};
+});
+
+const getDate: Route = mion.route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
+  return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
+});
+
+const updateHeaders: Route = mion.route((context: Context): void => {
+  context.response.headers.set('x-something', 'true');
+  context.response.headers.set('server', 'my-server');
+});
+
+const closeServer = (server: any) =>
+  new Promise<void>((resolve) => {
+    if (server && typeof server.close === 'function') server.close(() => resolve());
+    else resolve();
+  });
+
+// The reader trusts a declared content-length and calls req.text(): the runtime must hand over
+// exactly that many bytes. On the dev server that runtime is node's HTTP parser.
+describe('vercel dev server: content-length bounds the body', () => {
+  const port = 8763;
+  let server: any;
+
+  beforeAll(async () => {
+    resetVercelHandlerOpts();
+    setVercelHandlerOpts();
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    server = await startVercelDevServer({port});
+  });
+
+  afterAll(async () => {
+    await closeServer(server);
+  });
+
+  it('trailing bytes after the declared length never reach the body', async () => {
+    const {createConnection} = await import('node:net');
+    const json = JSON.stringify({getDate: [{date: '2022-04-10T02:13:00.000Z'}]});
+    const head = `POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: ${json.length}\r\nContent-Type: application/json\r\n\r\n`;
+    // node's parser refuses junk after a body with a 400 for the whole socket, so the bytes that
+    // follow are a second, valid request: the first answer must still be the date alone
+    const second = `POST /api/getDate HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}`;
+    const first = await new Promise<string>((resolve, reject) => {
+      const socket = createConnection({host: '127.0.0.1', port}, () => socket.write(head + json + second));
+      let data = '';
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => (data += chunk));
+      socket.on('error', reject);
+      socket.on('close', () => resolve(data));
+      setTimeout(() => socket.destroy(), 2000);
+    });
+    expect(first.slice(0, 400)).toContain('HTTP/1.1 200');
+    expect(first).toContain('"date":"2022-04-10T02:13:00.000Z"');
+  });
+});
+
+describe('vercel dev server (node) - stringifyJson', () => {
+  const port = 8761;
+  let server: any;
+
+  beforeAll(async () => {
+    resetVercelHandlerOpts();
+    setVercelHandlerOpts();
+    mion.initRoutes({changeUserName, getDate, updateHeaders});
+    server = await startVercelDevServer({port});
+  });
+
+  afterAll(async () => {
+    await closeServer(server);
+  });
+
+  it('should get an ok response from a route', async () => {
+    const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+    const response = await fetch(`http://localhost:${port}/api/getDate`, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+      headers: {'content-type': 'application/json'},
+    });
+    const parsedResponse = (await response.json()) as RpcBody;
+
+    expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+    expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
+    expect(response.headers.get('server')).toEqual('@mionjs');
+  });
+
+  it('should get an error when sending invalid parameters', async () => {
+    const requestData = {getDate: ['NOT A DATE POINT']};
+    const response = await fetch(`http://localhost:${port}/api/getDate`, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+      headers: {'content-type': 'application/json'},
+    });
+    const parsedResponse = (await response.json()) as RpcBody;
+
+    const expectedError: PublicRpcError<'validation-error'> = {
+      'mion@isΣrrθr': true,
+      publicMessage: `Invalid params in 'getDate', validation failed.`,
+      type: 'validation-error',
+      errorData: {typeErrors: [{path: [0], expected: 'objectLiteral'}]},
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+    };
+    expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
+    expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
+    expect(response.headers.get('server')).toEqual('@mionjs');
+  });
+
+  it('should set response headers from route response', async () => {
+    const requestData = {};
+    const response = await fetch(`http://localhost:${port}/api/updateHeaders`, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+      headers: {'content-type': 'application/json'},
+    });
+    const parsedResponse = (await response.json()) as RpcBody;
+
+    expect(parsedResponse).toEqual({});
+    expect(response.headers.get('content-type')).toEqual('application/json; charset=utf-8');
+    expect(response.headers.get('server')).toEqual('my-server');
+    expect(response.headers.get('x-something')).toEqual('true');
+  });
+});
+
+describe('vercel dev server (node) - default encoder', () => {
+  const port = 8763;
+  let server: any;
+
+  beforeAll(async () => {
+    resetVercelHandlerOpts();
+    setVercelHandlerOpts();
+    const jsonRouter = createMionRouter({contextDataFactory: getSharedData, basePath: 'api/'});
+    jsonRouter.initRoutes({changeUserName, getDate});
+    server = await startVercelDevServer({port});
+  });
+
+  afterAll(async () => {
+    await closeServer(server);
+  });
+
+  it('should get an ok response from a route with Date objects', async () => {
+    const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+    const response = await fetch(`http://localhost:${port}/api/getDate`, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+      headers: {'content-type': 'application/json'},
+    });
+    const parsedResponse = (await response.json()) as RpcBody;
+
+    expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(response.headers.get('server')).toEqual('@mionjs');
+  });
+
+  it('should get an ok response from a route with complex objects', async () => {
+    const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
+    const response = await fetch(`http://localhost:${port}/api/changeUserName`, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+      headers: {'content-type': 'application/json'},
+    });
+    const parsedResponse = (await response.json()) as RpcBody;
+
+    expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(response.headers.get('server')).toEqual('@mionjs');
+  });
+});

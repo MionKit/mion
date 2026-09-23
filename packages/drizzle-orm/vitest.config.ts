@@ -10,7 +10,7 @@ export default defineConfig({
     name: 'drizzle-root',
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

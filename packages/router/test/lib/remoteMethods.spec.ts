@@ -1,0 +1,292 @@
+/* ########
+ * 2023 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, beforeEach} from 'vitest';
+import {getPublicApi, serializeMethodDeps} from '../../src/lib/remoteMethods.ts';
+import {createMionRouter, resetRouter} from '../../src/router.ts';
+import {CallContext} from '../../src/types/context.ts';
+import {Routes} from '../../src/types/general.ts';
+import {MiddlewareMethod, RouteMethod} from '../../src/types/remoteMethods.ts';
+import {getJitFnHashes, HandlerType, HeadersSubset} from '@mionjs/core';
+import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
+import {getRTUtils} from '@mionjs/run-types/runtime';
+import type {InitializedTypeFn} from '@mionjs/run-types';
+
+const shared = {auth: {me: null as any}};
+const getSharedData = (): typeof shared => shared;
+const mion = createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+
+describe('Public Methods should', () => {
+  const privateMiddleware = mion.middleware((ctx): void => undefined);
+  const publicMiddleware = mion.middleware((ctx): null => null);
+  const paramsMiddleware = mion.middleware((ctx, s: string): void => undefined);
+  const route1 = mion.route((ctx): string => 'route1');
+  const route2 = mion.route((ctx): string => 'route2');
+
+  const routes = {
+    first: paramsMiddleware, // is public as has params
+    parse: mion.rawMiddleware((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
+    users: {
+      userBefore: privateMiddleware, // private
+      getUser: route1, // public
+      setUser: route2, // public
+      pets: {
+        getUserPet: route2, // public
+      },
+      userAfter: privateMiddleware, // private
+    },
+    pets: {
+      getPet: route1, // public
+      setPet: route2, // public
+    },
+    last: publicMiddleware, // public Middleware
+  } satisfies Routes;
+
+  beforeEach(() => resetRouter());
+
+  it('not generate public data when  generateSpec = false', async () => {
+    const publicExecutables = createMionRouter({contextDataFactory: getSharedData, getPublicRoutesData: false}).initRoutes(
+      routes
+    );
+
+    expect(publicExecutables).toEqual({});
+  });
+
+  it('generate all the required public fields for middleware and route', async () => {
+    const testR = {
+      auth: paramsMiddleware,
+      routes: {
+        route1,
+      },
+    };
+    const api = mion.initRoutes(testR);
+
+    expect(api.auth).toEqual(
+      expect.objectContaining({
+        type: HandlerType.middleware,
+        id: 'auth',
+        paramsJitHash: expect.any(String),
+        returnJitHash: expect.any(String),
+        paramsCount: 1,
+        // name assertion, not just arity: reordering two same-arity params is invisible
+        // to a count. Names come from the params tuple's member labels via reflection.
+        paramNames: ['s'],
+      } as Partial<MiddlewareMethod>)
+    );
+
+    expect(api.routes.route1).toEqual(
+      expect.objectContaining({
+        type: HandlerType.route,
+        id: 'routes/route1',
+        paramsJitHash: expect.any(String),
+        returnJitHash: expect.any(String),
+        paramsCount: 0,
+      } as Partial<RouteMethod>)
+    );
+  });
+
+  it('name an optional parameter as a plain string, so the metadata wire carries no union', async () => {
+    const optional = mion.middleware((ctx, token?: string): string => token ?? '');
+    const api = mion.initRoutes({optional, plain: route1});
+    expect(api.optional.paramNames).toEqual(['token']);
+    expect(JSON.parse(JSON.stringify(api.optional)).paramNames).toEqual(['token']);
+  });
+
+  it('name an unlabelled parameter with an empty string, never a null on the wire', async () => {
+    const destructured = mion.route((ctx, [first, second]: [string, number]): string => `${first}${second}`);
+    const api = mion.initRoutes({destructured, plain: route1});
+    expect(api.destructured.paramNames).toEqual(['']);
+    // JSON turns an undefined member into null, which a client would then show as the parameter's name
+    expect(JSON.parse(JSON.stringify(api.destructured)).paramNames).toEqual(['']);
+  });
+
+  it('carry the returned header names so a client can rebuild a HeadersSubset the route returns', async () => {
+    const withHeaders = mion.route((ctx): HeadersSubset<'x-user-id'> => new HeadersSubset({'x-user-id': 'user-1'}));
+    const api = mion.initRoutes({withHeaders, plain: route1});
+
+    expect(api.withHeaders.headersReturn).toEqual({headerNames: ['x-user-id'], jitHash: expect.any(String)});
+    // functions never ride the metadata wire: the serializable copy holds names and hash only
+    expect(Object.keys(api.withHeaders.headersReturn as object).sort()).toEqual(['headerNames', 'jitHash']);
+    expect(JSON.parse(JSON.stringify(api.withHeaders)).headersReturn).toEqual(api.withHeaders.headersReturn);
+    expect(api.plain.headersReturn).toBeUndefined();
+  });
+
+  it('be able to convert serialized handler types to json, deserialize and use them for validation', async () => {
+    const testR = {
+      addMilliseconds: mion.route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
+    };
+    const api = mion.initRoutes(testR);
+
+    const utl = getRTUtils();
+    // the params direction defaults to `clone`: the encoder builds a JSON-safe value, the decoder restores
+    const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash, 'clone');
+    const compiledIsType = utl.getRT(hashes.isType)!;
+    const compiledRestoreFromJson = utl.getRT(hashes.decode)!;
+    const compiledEncodeJson = utl.getRT(hashes.encode)!;
+
+    // Rebuild each fn from its serialized code (the client metadata lane). Since the
+    // mion migration the closures take the mion utils, and noop entries
+    // (identity transforms) ship no code — their .fn is the native substitute.
+    const materialize = (compiled: InitializedTypeFn) =>
+      // Rebuilding a compiled fn from its emitted code IS the client metadata lane
+      // this test covers.
+      // oxlint-disable-next-line typescript/no-implied-eval
+      compiled.isNoop ? compiled.fn : new Function('utl', compiled.code!)(utl);
+
+    const isType = materialize(compiledIsType);
+    const restoreFromJsonMutate = materialize(compiledRestoreFromJson);
+    const encodeJson = materialize(compiledEncodeJson);
+
+    const date = new Date('2022-12-19T00:24:00.00');
+
+    // ###### Validation ######
+    expect(isType([123, date])).toEqual(true);
+    expect(isType([123, date])).toEqual(true);
+    expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
+    expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
+
+    // ###### Serialization ######
+    const deserialized = restoreFromJsonMutate([123, '2022-12-19T00:24:00.00']);
+    expect(deserialized).toEqual([123, date]);
+
+    // ###### Serialization ######
+    const serialized = encodeJson([123, date]);
+    expect(serialized).toEqual([123, date.toISOString()]);
+  });
+
+  it('ship every defaultParamValues slot intact through a JSON round trip', async () => {
+    const testR = {
+      addMilliseconds: mion.route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
+    };
+    const api = mion.initRoutes(testR);
+
+    const deps: Record<string, CompiledFnData> = {};
+    const purFnDeps: PureFnsDataCache = {};
+    serializeMethodDeps(api.addMilliseconds as unknown as MethodWithOptions, deps, purFnDeps);
+
+    // The metadata route ships these as JSON, so assert on what the client actually receives.
+    const overTheWire: Record<string, CompiledFnData> = JSON.parse(JSON.stringify(deps));
+    const entries = Object.values(overTheWire);
+    expect(entries.length).toBeGreaterThan(0);
+
+    for (const entry of entries) {
+      // `args` and `defaultParamValues` describe the same emitted signature — one slot per
+      // parameter — so any slot missing here is a slot dropped in transit. Compared as key
+      // SETS on purpose: `toEqual` treats a missing key and an undefined one as equal, and
+      // JSON.stringify drops undefined-valued keys, so a value-wise round-trip check passes
+      // even when slots have gone missing.
+      expect(Object.keys(entry.defaultParamValues).sort()).toEqual(Object.keys(entry.args).sort());
+      // Both tables hold JS SOURCE FRAGMENTS (identifiers in `args`, default expressions in
+      // `defaultParamValues`), spliced back into a signature when the client rebuilds the fn
+      // via `new Function(...)`. A non-string here means a runtime value leaked into a
+      // source-text slot.
+      for (const value of Object.values(entry.defaultParamValues)) expect(typeof value).toBe('string');
+    }
+
+    // The error-shaped families are the regression: they carry three slots, and the removed
+    // `toWireArgs` workaround collapsed them to one — `{vλl: 'v'}` — injecting an identifier
+    // where a default expression belongs.
+    const errorShaped = entries.filter((e) => e.familyTag === 'verr' || e.familyTag === 'veuk' || e.familyTag === 'uke');
+    expect(errorShaped.length).toBeGreaterThan(0);
+    errorShaped.forEach((entry) => {
+      expect(entry.defaultParamValues).toEqual({vλl: '', pλth: '[]', εrr: '[]'});
+    });
+  });
+
+  it('generate public data when suing prefix and suffix', async () => {
+    const testR = {
+      auth: paramsMiddleware,
+      route1,
+    };
+    const api = createMionRouter({
+      contextDataFactory: getSharedData,
+      getPublicRoutesData: true,
+      basePath: 'v1',
+      suffix: '.json',
+    }).initRoutes(testR);
+
+    expect(api).toEqual({
+      auth: expect.objectContaining({
+        type: HandlerType.middleware,
+        id: 'auth',
+      }),
+      route1: expect.objectContaining({
+        type: HandlerType.route,
+        id: 'route1',
+      }),
+    });
+  });
+
+  it('generate public data for public routes only', async () => {
+    const publicExecutables = mion.initRoutes(routes);
+
+    expect(publicExecutables).toEqual({
+      first: expect.objectContaining({
+        type: HandlerType.middleware,
+        id: 'first',
+      }),
+      parse: null,
+      users: {
+        userBefore: null,
+        getUser: expect.objectContaining({
+          type: HandlerType.route,
+          id: 'users/getUser',
+        }),
+        setUser: expect.objectContaining({
+          type: HandlerType.route,
+          id: 'users/setUser',
+        }),
+        pets: {
+          getUserPet: expect.objectContaining({
+            type: HandlerType.route,
+            id: 'users/pets/getUserPet',
+          }),
+        },
+        userAfter: null,
+      },
+      pets: {
+        getPet: expect.objectContaining({
+          type: HandlerType.route,
+          id: 'pets/getPet',
+        }),
+        setPet: expect.objectContaining({
+          type: HandlerType.route,
+          id: 'pets/setPet',
+        }),
+      },
+      last: expect.objectContaining({
+        type: HandlerType.middleware,
+        id: 'last',
+      }),
+    });
+  });
+
+  it('should throw an error when route or middleware is not already created in the router', () => {
+    const testR1 = {route1};
+    const testR2 = {middleware1: paramsMiddleware};
+    expect(() => getPublicApi(testR1)).toThrow(
+      `Route or Middleware route1 not found. Please check you have called mion.initRoutes first.`
+    );
+    expect(() => getPublicApi(testR2)).toThrow(
+      `Route or Middleware middleware1 not found. Please check you have called mion.initRoutes first.`
+    );
+  });
+
+  it('should serialize remote method type skipping the context parameter', async () => {
+    const routes = {
+      sayHello: mion.route((ctx: CallContext, name: string): string => `Hello ${name}`),
+    };
+    const api = mion.initRoutes(routes);
+    expect(api.sayHello).toEqual(
+      expect.objectContaining({
+        type: HandlerType.route,
+        id: 'sayHello',
+        paramsCount: 1,
+      } as Partial<RouteMethod>)
+    );
+  });
+});

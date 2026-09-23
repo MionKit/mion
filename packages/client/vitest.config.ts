@@ -25,7 +25,9 @@ export default defineConfig({
     name: 'client',
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts'],
+    // the bundleApi lanes run these under their own projects (vitest.bundled/mixed.config.ts)
+    exclude: ['test/bundled/**', 'test/mixed/**'],
     // First entry starts and stops the in-process test server; the second is teardown-only and
     // removes the .mion genDir after the run
     globalSetup: ['./globalSetup.ts', '../../scripts/lib/vitest-clean-gendir.ts'],

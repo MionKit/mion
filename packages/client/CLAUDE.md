@@ -28,7 +28,7 @@ Why `undeclared` sits BEFORE the middleware slots, which looks odd at first:
   they are not the primary way. Prefer the callbacks and leave the tuple positions alone.
 
 The dispatch rules (which error lands where) are pinned by
-[src/errorDispatch.spec.ts](src/errorDispatch.spec.ts); the header of that file lists them.
+[test/errorDispatch.spec.ts](test/errorDispatch.spec.ts); the header of that file lists them.
 Two of them exist because of real bugs, keep them in mind when touching request handling:
 
 - A middleware failing NEVER masks a route result that the server did produce (a returned,

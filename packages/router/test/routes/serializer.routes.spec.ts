@@ -1,0 +1,268 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, beforeEach} from 'vitest';
+import type {Mutable} from '@mionjs/core';
+import type {Routes} from '../../src/types/general.ts';
+import type {MionResponse, RawRequestBody} from '../../src/types/context.ts';
+import {HeadersSubset, RpcError, SerializerModes, StatusCodes, isRpcError} from '@mionjs/core';
+import {createMionRouter, getRouterOptions, getRouteExecutionChain, resetRouter} from '../../src/router.ts';
+import {createCallContext} from '../../src/callContext.ts';
+import {headersFromRecord} from '../../src/lib/headers.ts';
+import {deserializeRequestBody, serializeResponseBody} from '../../src/routes/serializer.routes.ts';
+
+const mion = createMionRouter();
+
+const lastActivity = new Date();
+interface User {
+  name: string;
+  age: number;
+  lastActivity: Date;
+  // stringify prop names seems to be the best scenario for JitStringify
+  extra?: {
+    a: number;
+    b: number;
+    c: number;
+    d: number;
+    e: number;
+    f: number;
+    g: number;
+    h: number;
+    i: number;
+    j: number;
+  };
+}
+
+const routes = {
+  auth: mion.headersFn((ctx, h: HeadersSubset<'auth'>): void => {}),
+  users: {
+    updateUser: mion.route((ctx, user: User): User => ({...user, lastActivity})),
+  },
+  sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`),
+  logs: mion.middleware((ctx): void => {}),
+} satisfies Routes;
+
+// A compact route: its wire is positional, so its encoder would re-shape anything that is not its
+// declared return value. Used below to pin what happens to an error it never declared.
+const compactRoutes = {
+  auth: routes.auth,
+  getUser: mion.route((ctx, name: string): User => ({name, age: 1, lastActivity}), {parser: 'compact'}),
+} satisfies Routes;
+
+// The same routes answering with the `mutate` parser: it rewrites in place, so the body still holds
+// the objects the handlers returned (a Date stays a Date until the platform stringifies it).
+const mutateRoutes = {
+  auth: routes.auth,
+  users: {
+    updateUser: mion.route((ctx, user: User): User => ({...user, lastActivity}), {parser: {return: 'mutate'}}),
+  },
+  sayHello: mion.route((ctx, name: string): string => `Hello, ${name}!`, {parser: {return: 'mutate'}}),
+  logs: routes.logs,
+} satisfies Routes;
+
+function getNewJsonContext(path: string, body: any) {
+  const rawBody: RawRequestBody = JSON.stringify(body);
+  const reqHeaders = headersFromRecord({auth: 'token'});
+  const respHeaders = headersFromRecord({});
+  const context = createCallContext(path, undefined, {}, reqHeaders, respHeaders, rawBody);
+  // Set bodyType from ExecutionChain (as done in runExecutionChain)
+  const executionChain = getRouteExecutionChain(path)!;
+  if (executionChain) {
+    (context.response as Mutable<MionResponse>).serializer = executionChain.serializer;
+  }
+  return context;
+}
+
+describe('deserialize json Request Body', () => {
+  beforeEach(() => resetRouter());
+
+  it('should return the parsed body for the ExecutionChain of "updateUser" route', async () => {
+    mion.initRoutes(routes);
+    const body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
+    const context = getNewJsonContext('/users/updateUser', body);
+    expect(context.request.body).toEqual({});
+    expect(typeof context.request.rawBody).toEqual('string');
+    void deserializeRequestBody(context);
+    // JSON body is only parsed, no restoreFromJsonMutate is applied until the handler is executed: a Date
+    // is still the string it arrived as, which is why this compares against the WIRE form
+    expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
+  });
+
+  it('should return the parsed body for the ExecutionChain of "sayHello" route', async () => {
+    mion.initRoutes(routes);
+    const body = {sayHello: 'John'};
+    const context = getNewJsonContext('/sayHello', body);
+    expect(context.request.body).toEqual({});
+    expect(typeof context.request.rawBody).toEqual('string');
+    void deserializeRequestBody(context);
+    // JSON body is only parsed, no restoreFromJsonMutate is applied until the handler is executed: a Date
+    // is still the string it arrived as, which is why this compares against the WIRE form
+    expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
+  });
+
+  it('never parses the body of an unknown path (a middleware is not a route)', async () => {
+    mion.initRoutes(routes);
+    const body = {logs: 'John'};
+    const context = getNewJsonContext('/logs', body);
+    expect(context.readsBody).toBe(false);
+    expect(typeof context.request.rawBody).toEqual('string');
+    void deserializeRequestBody(context);
+    // the not-found chain has no route to feed: the raw body is left alone
+    expect(context.request.body).toEqual({});
+  });
+
+  it('should return the parsed body for complex objects', async () => {
+    mion.initRoutes(routes);
+    const body = {
+      'users/updateUser': {
+        name: 'John',
+        age: 30,
+        lastActivity,
+        extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
+      },
+    };
+    const context = getNewJsonContext('/users/updateUser', body);
+    expect(context.request.body).toEqual({});
+    expect(typeof context.request.rawBody).toEqual('string');
+    void deserializeRequestBody(context);
+    // JSON body is only parsed, no restoreFromJsonMutate is applied until the handler is executed: a Date
+    // is still the string it arrived as, which is why this compares against the WIRE form
+    expect(context.request.body).toEqual(JSON.parse(JSON.stringify(body)));
+  });
+});
+
+describe('serialize Response Body with the mutate encoder (json framing)', () => {
+  beforeEach(() => resetRouter());
+
+  it('should prepare response.body for platform adapter JSON.stringify for "updateUser" route', async () => {
+    createMionRouter({}).initRoutes(mutateRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/users/updateUser', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {'users/updateUser': {name: 'John', age: 30, lastActivity}};
+    expect(context.response.serializer).toEqual(SerializerModes.json);
+    void serializeResponseBody(context, opts);
+    expect(response.body).toEqual({
+      'users/updateUser': {name: 'John', age: 30, lastActivity},
+    });
+    const jsonString = JSON.stringify(response.body);
+    expect(jsonString).toEqual(
+      '{"users/updateUser":{"name":"John","age":30,"lastActivity":"' + lastActivity.toISOString() + '"}}'
+    );
+    expect(response.rawBody).toEqual('');
+  });
+
+  it('should prepare response.body for platform adapter JSON.stringify for "sayHello" route', async () => {
+    createMionRouter({}).initRoutes(mutateRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/sayHello', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {sayHello: 'Hello, Jack!'};
+    expect(context.response.serializer).toEqual(SerializerModes.json);
+    void serializeResponseBody(context, opts);
+    expect(response.body).toEqual({sayHello: 'Hello, Jack!'});
+    const jsonString = JSON.stringify(response.body);
+    expect(jsonString).toEqual('{"sayHello":"Hello, Jack!"}');
+    expect(response.rawBody).toEqual('');
+  });
+
+  it('should correctly prepare complex objects for platform adapter JSON.stringify', async () => {
+    createMionRouter({}).initRoutes(mutateRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/users/updateUser', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {
+      'users/updateUser': {
+        name: 'John',
+        age: 30,
+        lastActivity,
+        extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
+      },
+    };
+    expect(context.response.serializer).toEqual(SerializerModes.json);
+    void serializeResponseBody(context, opts);
+    expect(response.body).toEqual({
+      'users/updateUser': {
+        name: 'John',
+        age: 30,
+        lastActivity,
+        extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
+      },
+    });
+    const jsonString = JSON.stringify(response.body);
+    const parsed = JSON.parse(jsonString);
+    expect(parsed).toEqual({
+      'users/updateUser': {
+        name: 'John',
+        age: 30,
+        lastActivity: lastActivity.toISOString(),
+        extra: {a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8, i: 9, j: 10},
+      },
+    });
+    expect(response.rawBody).toEqual('');
+  });
+
+  it('should handle routes with void return (no return data)', async () => {
+    createMionRouter({}).initRoutes(mutateRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/sayHello', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {auth: undefined, logs: undefined};
+    void serializeResponseBody(context, opts);
+    expect(response.body).toEqual({auth: undefined, logs: undefined});
+    // For serialize: 'json' (body type SerializerMode.json), rawBody remains empty - platform adapter does JSON.stringify
+    expect(response.rawBody).toEqual('');
+  });
+});
+
+// A batch mapping step answers the TARGET route's slot with a typed error of its own, so a slot can
+// hold an error the route never declared. The route's encoder is built for its success value, so it
+// must not touch such an error: the client reads the error brand off the raw value.
+describe('an error the route does not declare rides as native json, whatever the strategy', () => {
+  beforeEach(() => resetRouter());
+
+  const mappingError = () =>
+    new RpcError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      type: 'batch-mapping-source-failed',
+      publicMessage: `Route 'a' returned an error, so the input it feeds into 'getUser' could not be computed.`,
+    });
+
+  it('a compact route keeps it keyed and branded instead of encoding it positionally', () => {
+    createMionRouter({}).initRoutes(compactRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/getUser', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {getUser: mappingError()};
+    void serializeResponseBody(context, opts);
+    const encoded = response.body.getUser;
+    expect(Array.isArray(encoded)).toBe(false);
+    expect(isRpcError(encoded)).toBe(true);
+    expect(JSON.parse(JSON.stringify(encoded))).toMatchObject({
+      'mion@isΣrrθr': true,
+      type: 'batch-mapping-source-failed',
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+    });
+  });
+
+  it('a compact route keeps it keyed and branded instead of encoding it positionally', () => {
+    createMionRouter({}).initRoutes(compactRoutes);
+    const opts = getRouterOptions();
+    const context = getNewJsonContext('/getUser', {});
+    const response = context.response as Mutable<MionResponse>;
+    response.body = {getUser: mappingError()};
+    void serializeResponseBody(context, opts);
+    const encoded = response.body.getUser;
+    expect(Array.isArray(encoded)).toBe(false);
+    expect(isRpcError(encoded)).toBe(true);
+    expect(JSON.parse(JSON.stringify(encoded))).toMatchObject({
+      'mion@isΣrrθr': true,
+      type: 'batch-mapping-source-failed',
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+    });
+  });
+});

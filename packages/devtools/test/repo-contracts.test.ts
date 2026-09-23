@@ -1673,7 +1673,7 @@ describe('miniflare workers boot from any directory', () => {
   });
 
   it('the cloudflare storage spec, the one that regressed, pairs them', () => {
-    const file = 'packages/platform-cloudflare/src/cloudflareStorage.workers.spec.ts';
+    const file = 'packages/platform-cloudflare/test/cloudflareStorage.workers.spec.ts';
     const text = readFileSync(join(REPO_ROOT, file), 'utf8');
     expect(text).toContain('new Miniflare(');
     expect(miniflareCwdOffenders([{file, text}])).toEqual([]);

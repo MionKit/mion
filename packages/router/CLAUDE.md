@@ -2,7 +2,7 @@
 
 ## `import type` is SAFE in routes and middleware
 
-RunTypes resolves types at BUILD TIME from the TypeScript program and injects the compiled functions at the `mion.route()` / `mion.middleware()` call site (the helpers `createMionRouter()` returns; the scanner reads the resolved signature, so a destructured helper is the same), so an erased import changes nothing. Guarded by [src/typeOnlyImports.spec.ts](src/typeOnlyImports.spec.ts).
+RunTypes resolves types at BUILD TIME from the TypeScript program and injects the compiled functions at the `mion.route()` / `mion.middleware()` call site (the helpers `createMionRouter()` returns; the scanner reads the resolved signature, so a destructured helper is the same), so an erased import changes nothing. Guarded by [test/typeOnlyImports.spec.ts](test/typeOnlyImports.spec.ts).
 
 This was NOT true under deepkit, whose runtime reflection was emitted from the import statement — `import type` stripped the metadata and caused silent failures. That is why the repo guidelines used to carry a "TYPE IMPORTS !!CRITICAL!!" warning and why `@mionjs/no-type-imports` existed; both are gone. Do not reintroduce either.
 

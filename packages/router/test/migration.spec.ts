@@ -1,0 +1,139 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// mion migration acceptance spec: a basic route must register, validate its
+// params and serialize its response using the precompiled RunTypes functions
+// injected at the route() call sites (no deepkit, no runtime JIT, no AOT caches).
+
+import {describe, it, expect, beforeEach} from 'vitest';
+import {createMionRouter, resetRouter, getRouteExecutable} from '../src/router.ts';
+import {dispatchRoute} from '../src/dispatch.ts';
+import {MionHeaders} from '../src/types/context.ts';
+import {headersFromRecord} from '../src/lib/headers.ts';
+
+const mion = createMionRouter({skipClientRoutes: true});
+
+type RawRequest = {
+  headers: MionHeaders;
+  body: string;
+};
+
+describe('mion migration: basic route', () => {
+  interface User {
+    name: string;
+    surname: string;
+    birth: Date;
+  }
+
+  const sayHello = mion.route((ctx, user: User, times: number): string => {
+    return `hello ${user.name} ${user.surname} x${times}`;
+  });
+
+  // the `mutate` return encoder transforms in place; the adapter stringifies response.body
+  const getSameUser = mion.route(
+    (ctx, user: User): User => {
+      return user;
+    },
+    {parser: {return: 'mutate'}}
+  );
+
+  const asyncDouble = mion.route(async (ctx, val: number): Promise<number> => {
+    return val * 2;
+  });
+
+  const sideEffect = mion.route((ctx): void => undefined);
+
+  const totals = {calls: 0};
+  const countCalls = mion.middleware((ctx): void => {
+    totals.calls++;
+  });
+
+  const getDefaultRequest = (id: string, params?: unknown[]): RawRequest => ({
+    headers: headersFromRecord({}),
+    body: JSON.stringify({[id]: params}),
+  });
+
+  const dispatch = (id: string, params?: unknown[]) => {
+    const request = getDefaultRequest(id, params);
+    return dispatchRoute(`/${id}`, request.body, request.headers, headersFromRecord({}), request, {});
+  };
+
+  beforeEach(() => resetRouter());
+
+  it('registers a route with reflection data derived from injected markers', async () => {
+    mion.initRoutes({sayHello});
+    const executable = getRouteExecutable('sayHello');
+    expect(executable).toBeTruthy();
+    expect(executable?.paramsCount).toEqual(2);
+    expect(executable?.hasReturnData).toBe(true);
+    expect(executable?.isAsync).toBe(false);
+    expect(typeof executable?.paramsJitFns.isType.fn).toBe('function');
+    expect(typeof executable?.returnJitFns.json.encode.fn).toBe('function');
+  });
+
+  it('dispatches a route: validates params and returns serialized response', async () => {
+    mion.initRoutes({sayHello});
+
+    const response = await dispatch('sayHello', [{name: 'Leo', surname: 'Tungsten', birth: new Date(0)}, 2]);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.sayHello).toEqual('hello Leo Tungsten x2');
+  });
+
+  it('revives Date params from the JSON body and serializes Date returns', async () => {
+    mion.initRoutes({getSameUser});
+
+    const birthIso = '1990-05-04T00:00:00.000Z';
+    const request: RawRequest = {
+      headers: headersFromRecord({}),
+      body: JSON.stringify({getSameUser: [{name: 'Ann', surname: 'Beta', birth: birthIso}]}),
+    };
+    const response = await dispatchRoute('/getSameUser', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    // the router prepares a JSON-safe value and the platform adapter stringifies it
+    const parsed = JSON.parse(JSON.stringify(response.body));
+    expect(parsed.getSameUser).toEqual({name: 'Ann', surname: 'Beta', birth: birthIso});
+  });
+
+  it('rejects invalid params with a validation error', async () => {
+    mion.initRoutes({sayHello});
+
+    const response = await dispatch('sayHello', [{name: 42, surname: 'Tungsten', birth: new Date(0)}, 2]);
+    expect(response.hasErrors).toBe(true);
+    const bodyErrors = Object.values(response.body).filter(Boolean);
+    expect(JSON.stringify(bodyErrors)).toContain('validation');
+  });
+
+  it('rejects wrong param arity', async () => {
+    mion.initRoutes({sayHello});
+    const response = await dispatch('sayHello', []);
+    expect(response.hasErrors).toBe(true);
+  });
+
+  it('supports async handlers', async () => {
+    mion.initRoutes({asyncDouble});
+    expect(getRouteExecutable('asyncDouble')?.isAsync).toBe(true);
+    const response = await dispatch('asyncDouble', [21]);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.asyncDouble).toEqual(42);
+  });
+
+  it('handles void routes (no return data)', async () => {
+    mion.initRoutes({sideEffect});
+    expect(getRouteExecutable('sideEffect')?.hasReturnData).toBe(false);
+    const response = await dispatch('sideEffect', []);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.sideEffect).toBeUndefined();
+  });
+
+  it('runs middlewares in the chain', async () => {
+    totals.calls = 0;
+    mion.initRoutes({countCalls, sayHello});
+    const response = await dispatch('sayHello', [{name: 'Leo', surname: 'T', birth: new Date(0)}, 1]);
+    expect(response.hasErrors).toBeFalsy();
+    expect(totals.calls).toBe(1);
+  });
+});

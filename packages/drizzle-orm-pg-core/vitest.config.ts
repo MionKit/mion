@@ -16,7 +16,7 @@ export default defineConfig({
     name: 'drizzle-pg',
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts'],
     // Vitest's 10 s default is not enough: the convert round trip builds a consumer tree and runs the CLI, 6 s alone.
     testTimeout: 60000,
     hookTimeout: 60000,

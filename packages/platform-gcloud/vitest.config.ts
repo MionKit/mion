@@ -16,7 +16,7 @@ export default defineConfig({
     name: 'platform-gcloud',
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts'],
     // teardown-only: removes the .mion genDir the runtypes transform writes during the run
     globalSetup: ['../../scripts/lib/vitest-clean-gendir.ts'],
     coverage: {
