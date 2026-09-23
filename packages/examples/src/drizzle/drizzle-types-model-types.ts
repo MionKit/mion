@@ -1,5 +1,3 @@
-// The model payload types, derived from a table written as a pure type: this
-// file is types only, nothing runs and nothing is imported at runtime.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {
   InferInsertModel,
@@ -18,14 +16,12 @@ export type UsersTable = DZ.PgTable<
   }
 >;
 
-// What a select returns: every key present, bio comes back as value | null:
+// every key present, bio is value | null
 export type User = InferSelectModel<UsersTable>;
 
-// id and createdAt have DB defaults, so inserts may omit them:
+// id and createdAt have defaults, so inserts may omit them
 export type NewUser = InferInsertModel<UsersTable>;
 
-// Update payloads accept any subset of the insert payload:
 export type UserPatch = InferUpdateModel<UsersTable>;
 
-// A route input typed NewUser enforces the captured varchar lengths, and the
-// payload flows straight into db.insert(...).values(payload) with no casting.
+// a NewUser route input checks the varchar lengths and goes into db.insert(...).values() uncast
