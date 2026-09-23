@@ -31,7 +31,7 @@ const REPO_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '..
 const PACKAGE_ROOT = path.join(REPO_ROOT, 'packages/run-types');
 const SUITES = path.join(PACKAGE_ROOT, 'test/suites');
 const BINARY = path.join(REPO_ROOT, 'mion-bin/mion');
-const TSCONFIG = path.join(PACKAGE_ROOT, 'tsconfig.test.json');
+const TSCONFIG = path.join(PACKAGE_ROOT, 'tsconfig.json');
 const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 const UNSUPPORTED_LIST = path.join(PACKAGE_ROOT, 'test/features/unsupported-conversion.test.ts');
 

@@ -15,7 +15,7 @@ import runtypesPlugin from '@mionjs/devtools/runtypes/vite';
 // Everything else mirrors the marker project (plugin, conditions, timeouts) so
 // a failure here means the CONVERSION changed behaviour, never that the two
 // projects were configured differently. The one difference is the tsconfig:
-// the converted trees are excluded from tsconfig.test.json (so the ordinary
+// the converted trees are excluded from tsconfig.json (so the ordinary
 // lanes never see them) and named by tsconfig.converted.json instead.
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PACKAGE_ROOT = resolve(HERE);

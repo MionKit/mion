@@ -379,7 +379,7 @@ const SERIALIZATION_SCRIPT = 'node gen-serialization.mjs --suite serialization &
 // The marker-package tsconfig the serialization run points the resolver at.
 // gen-serialization.mjs hands this exact name to the plugin; pinned by
 // repo-contracts.test.ts so the two can't drift.
-export const SERIALIZATION_TSCONFIG = 'tsconfig.test.json';
+export const SERIALIZATION_TSCONFIG = 'tsconfig.json';
 
 // The whole `run …` argv for the serialization stage. Pure and exported so
 // repo-contracts.test.ts can assert the mount set without a container engine.

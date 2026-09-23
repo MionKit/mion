@@ -14,7 +14,7 @@
 // Marker scanning works the same as for the production factories — the
 // Vite plugin walks every call site whose resolved signature has a
 // trailing `id?: InjectTypeFnArgs<T, Fn>` slot, regardless of where the
-// function is declared. The vitest config's `tsconfig.test.json` puts
+// function is declared. The vitest config's `tsconfig.json` puts
 // `test/**` in the plugin's scan scope, so calls to `deserializeXxx<T>()`
 // from test files get the same compile-time `[typeId, fnHash]` tuple
 // injection that `createXxx<T>()` calls do.

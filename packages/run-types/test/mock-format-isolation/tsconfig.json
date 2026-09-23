@@ -4,6 +4,6 @@
   // Extends the package test config so customConditions / rootDir /
   // incremental all match; the narrow include keeps this extra resolver
   // instance's boot cheap instead of re-compiling the whole test tree.
-  "extends": "../../tsconfig.test.json",
+  "extends": "../../tsconfig.json",
   "include": ["./*.test.ts"]
 }

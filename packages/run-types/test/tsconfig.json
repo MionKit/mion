@@ -12,8 +12,8 @@
   //
   // It is intentionally NOT part of the `tsc --build` graph (the root
   // tsconfig.json references the package build config, not this one). The
-  // command-line test type-check still runs via ../tsconfig.test.json, which
+  // command-line test type-check still runs via ../tsconfig.json, which
   // this file extends so the two never drift.
-  "extends": "../tsconfig.test.json",
+  "extends": "../tsconfig.json",
   "include": ["**/*", "../src/**/*", "../vitest.config.ts"]
 }

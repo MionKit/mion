@@ -1,33 +1,35 @@
 {
-  "//": "mion examples program. The runtypes examples live in the same src/ tree but need a",
-  "//2": "different module resolution (bundler + paths to built dists), so they are excluded here",
-  "//3": "and type-checked by tsconfig.runtypes.json instead. The two trees share src/_homepage and",
-  "//4": "src/introduction, hence the explicit file excludes. TODO(step 4): reorganize the trees.",
+  // Check-only config, shared with the editor. This package emits nothing, so there is no
+  // tsconfig.build.json: `paths` is cleared so `@mionjs/*` resolve through the `source` export
+  // condition, which needs no built dists, and gives every package one module identity.
+  // A CI gate (pull-requests.yml runs `check-types`); it must stay at 0 errors.
+  // twoslash-test holds deliberate-error demos and comparison-typia needs uninstalled external
+  // deps, so both stay out. bun-types is in `types` because resolving @mionjs/* to source pulls
+  // platform-bun source into the program, and the root tsconfig only lists `node`.
+  // The runtypes examples share this src/ tree but need bundler resolution against the built
+  // dists, so they are excluded here and type-checked by tsconfig.runtypes.json instead. The two
+  // trees share src/_homepage and src/introduction, hence the explicit file excludes.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/esm",
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
     "skipLibCheck": true,
-    "composite": true,
     "module": "NodeNext",
-    "target": "ES2022"
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "bun-types"],
+    "paths": {}
   },
-  "references": [
-    {"path": "../core/tsconfig.build.json"},
-    {"path": "../router/tsconfig.build.json"},
-    {"path": "../platform-node/tsconfig.build.json"},
-    {"path": "../platform-uws/tsconfig.build.json"},
-    {"path": "../client/tsconfig.build.json"},
-    {"path": "../platform-bun/tsconfig.build.json"},
-    {"path": "../platform-aws/tsconfig.build.json"},
-    {"path": "../platform-gcloud/tsconfig.build.json"},
-    {"path": "../drizzle-orm-mysql-core/tsconfig.build.json"},
-    {"path": "../drizzle-orm-pg-core/tsconfig.build.json"},
-    {"path": "../drizzle-orm-sqlite-core/tsconfig.build.json"}
-  ],
   "include": ["src", "vite.config.ts"],
   "exclude": [
     "node_modules",
     ".dist",
+    "src/twoslash-test",
+    "src/run-types/comparison-typia.ts",
     "src/enrich",
     "src/guide",
     "src/suites",

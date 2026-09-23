@@ -16,16 +16,16 @@ const REPO_ROOT = resolve(HERE, '../..');
 //
 // `resolve.conditions: ['source']` picks up the `"source"` exports
 // entry on `mion`'s package.json (pointing at
-// `src/index.ts`) — same condition `tsconfig.test.json` declares for
+// `src/index.ts`) — same condition `tsconfig.json` declares for
 // tsgo via `customConditions`. The two resolvers (vite at runtime,
 // tsgo for type-checking the marker scan) now both land on the same
 // in-tree source, with no alias plumbing required. SSR's resolver
 // honors the same conditions list.
 //
-// `cwd` is the package dir + `tsconfig.test.json` extends the build
-// config to also include `test/**`, so the Go resolver's Program
-// covers every file vitest loads. The build tsconfig stays strict
-// (src-only) so `pnpm build` doesn't compile test files into dist.
+// `cwd` is the package dir + `tsconfig.json` includes `test/**`, so the
+// Go resolver's Program covers every file vitest loads. The build config
+// extends it and narrows back to src, so `pnpm build` never compiles a
+// test file into dist.
 export default defineConfig({
   resolve: {
     conditions: ['source'],
@@ -35,7 +35,7 @@ export default defineConfig({
     runtypesPlugin({
       binary: resolve(REPO_ROOT, 'mion-bin/mion'),
       cwd: PACKAGE_ROOT,
-      tsconfig: 'tsconfig.test.json',
+      tsconfig: 'tsconfig.json',
       // Force 'both' emit for the test run so suites cover BOTH
       // materialisation paths on every case:
       //   - createValidateFn<T>() / createXxx<T>() → reads entry.createRTFn
@@ -56,7 +56,7 @@ export default defineConfig({
       // expected one, which is how nine call sites silently compiled the
       // default encoder strategy instead of the one they named.
       // The on-disk RT artifact cache follows TypeScript's incremental switch,
-      // and `tsconfig.test.json` sets `incremental: false`, so these test runs
+      // and `tsconfig.json` sets `incremental: false`, so these test runs
       // are cache-off with no knob — they never pollute node_modules/.cache
       // with thousands of artifact files. The disk-cache feature has its own
       // dedicated end-to-end suite (devtools/test/cache-disk.test.ts,

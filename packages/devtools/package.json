@@ -107,11 +107,11 @@
     "directory": "packages/devtools"
   },
   "scripts": {
-    "build": "tsc --build tsconfig.dist.json",
-    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "build": "tsc --build tsconfig.build.json",
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev:test": "vitest watch",
-    "clean": "node ../../scripts/lib/rmrf.mjs dist .dist .coverage .mion tsconfig.dist.tsbuildinfo tsconfig.tsbuildinfo",
+    "clean": "node ../../scripts/lib/rmrf.mjs dist .dist .coverage .mion tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo",
     "fresh-start": "pnpm run clean && node ../../scripts/lib/rmrf.mjs node_modules"
   },
   "dependencies": {

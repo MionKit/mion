@@ -16,7 +16,7 @@ import {BIN, hasBinary} from './helpers/inline.ts';
 import {decodeMappings, type MappingSegment} from './helpers/sourcemap.ts';
 
 const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
-// Lives under the marker package's test/ tree so tsconfig.test.json puts the
+// Lives under the marker package's test/ tree so tsconfig.json puts the
 // fixture in the Go resolver's Program (the plugin scans real program files).
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-sourcemap');
 
@@ -56,8 +56,8 @@ describe.each(['edits', 'go'] as const)('vite build / composite source map [tran
           runtypes({
             binary: BIN,
             cwd: PACKAGE_ROOT,
-            // tsconfig.test.json is incremental:false → RT disk cache off.
-            tsconfig: 'tsconfig.test.json',
+            // tsconfig.json is incremental:false → RT disk cache off.
+            tsconfig: 'tsconfig.json',
             transformMode: mode,
             // Isolated output root so this nested build never shares (and
             // prunes) the marker package's own vitest `.mion/types` dir —

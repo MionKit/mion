@@ -6,7 +6,7 @@
 // overlay copy of the marker, so none of them would catch a narrowing of the
 // real `@mionjs/run-types` type. This file does: it resolves the marker from the
 // package's own `src/index.ts` via the `source` exports condition (the marker
-// package's `tsconfig.test.json` sets `customConditions: ["source"]`), so
+// package's `tsconfig.json` sets `customConditions: ["source"]`), so
 // narrowing `markers.ts` below the arity below fails `pnpm --filter
 // @mionjs/run-types typecheck:test` — which `pnpm run typecheck` and CI run.
 import {describe, expect, it} from 'vitest';

@@ -102,9 +102,12 @@ The root tsconfig references the build configs for the same reason. Every `typec
 `tsc` anyway: every package builds with `vite build`, and declarations come from `vite-plugin-dts` reading
 `tsconfig.build.json`.
 
-Two packages keep a `tsconfig.test.json`, both pre-existing and both left alone: `run-types`, whose
-`tsconfig.json` IS its ESM build config, and `devtools`, which builds with `tsc --build tsconfig.dist.json`
-rather than vite.
+No package keeps a second config for checking, `run-types` and `devtools` included. Both had their old
+`tsconfig.json` renamed to `tsconfig.build.json` and their `tsconfig.test.json` renamed to `tsconfig.json`:
+`run-types`'s build config is what `mion compile --tsconfig tsconfig.build.json` and the CJS pass read, and
+`devtools` builds with `tsc --build tsconfig.build.json` (its `tsconfig.dist.json` is gone, folded into that
+name). `examples` emits nothing, so it has no build config at all: its `tsconfig.check.json` became its
+`tsconfig.json` and the root tsconfig no longer references it.
 
 Two stale reference targets were fixed on the way. `devtools/tsconfig.build.json` named the check configs of
 core and router, and the root named `type-budget`, which is never built and not composite. Both would fail
@@ -116,7 +119,7 @@ Four packages needed more than the shared four options, each for a reason writte
 | package | what it needed |
 | --- | --- |
 | bin-uws | `"types": ["node", "vitest/globals"]`: its vitest runs `globals: true`, so `describe`, `it` and `expect` are ambient. All 22 of its reported errors were this one missing entry. Also `allowJs` + `checkJs` over `lib/`, see below |
-| platform-bun | `"paths": {}`: under `moduleResolution: bundler` the root `paths` entry reaches each package's built dist, so the program held both the `src` and the `dist` copy of every run-types type. Same fix, and the same reason, as `examples/tsconfig.check.json` |
+| platform-bun | `"paths": {}`: under `moduleResolution: bundler` the root `paths` entry reaches each package's built dist, so the program held both the `src` and the `dist` copy of every run-types type. Same fix, and the same reason, as `examples/tsconfig.json` |
 | platform-bun | its `tsconfig.json` set `"lib": []`, which left the program on es2020 and failed on `Object.hasOwn` in `core`. Dropped, so it inherits the `["ES2023"]` its `target` already declares |
 | go-be-sidecar | `rootDir: "../.."`: its fuzz specs import the shared harness out of `packages/run-types`, and six of its seven errors were TS6059 rootDir complaints |
 
