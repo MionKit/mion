@@ -138,7 +138,7 @@ func (emitter *closureEmitter) renderBody(self *reflection.RunType, friendly boo
 			}
 			return namedRefAction{kind: namedRefBroken}
 		}
-		if rt.TypeName == "" {
+		if !ownsConst(rt) {
 			return namedRefAction{kind: namedRefInline}
 		}
 		switch emitter.stateOf(rt.ID) {
@@ -191,7 +191,7 @@ func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkC
 		return
 	}
 	// A named node below the root owns its own const and @rtIds, and the caller already recorded its id at this path.
-	if !isSelfBody && rt.TypeName != "" {
+	if !isSelfBody && ownsConst(rt) {
 		return
 	}
 
@@ -237,6 +237,11 @@ func joinChildPath(path, segment string) string {
 		return segment
 	}
 	return path + "." + segment
+}
+
+// ownsConst reports whether a child gets its own shared const: a named type, but never a format alias, whose labels are per field.
+func ownsConst(rt *reflection.RunType) bool {
+	return rt.TypeName != "" && rt.FormatAnnotation == nil
 }
 
 // isSelf reports whether rt is the type whose body is being emitted: same pointer, or the same non-empty structural ID.
