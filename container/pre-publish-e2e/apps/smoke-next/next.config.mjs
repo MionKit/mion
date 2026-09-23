@@ -33,7 +33,7 @@ export default await withRunTypes(
   {
     ...(process.env.MION_E2E_BINARY ? {binary: process.env.MION_E2E_BINARY} : {}),
     cwd: import.meta.dirname,
-    // No genDir here on purpose: tsconfig.json sets it, and build-outputs.test.mjs checks Next honoured it.
+    // No genDir on purpose: tsconfig.json sets it, and build-outputs.test.mjs checks Next honours it.
     tsconfig: 'tsconfig.json',
   }
 );

@@ -905,7 +905,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     rtHotUpdate: applyHotUpdate,
     // Not an unplugin hook either: Turbopack has no post-bundle hook, so the Next broker writes the artifact itself.
     rtWritePureFnArtifact: writePureFnArtifact,
-    // Not an unplugin hook: the Next broker needs the resolved output root for its stamp and cannot infer it itself.
+    // Not an unplugin hook: the Next broker cannot infer the resolved genDir it keeps its stamp in.
     rtGenDir: (): string => genDirAbs,
     // Must run BEFORE vite/esbuild's built-in TypeScript transform: the resolver returns byte offsets into
     // the ORIGINAL source, so code with its type syntax already stripped puts every offset past the new EOF.
