@@ -1,14 +1,14 @@
 import type {MockData} from '@mionjs/run-types';
 import type {User} from './user';
 
-// scaffolded by `gen`: one entry per field, each blank marked @todo
+// @todo: generated skeleton — fill in real data, then delete this line
 export const mockUser: MockData<User> = {
-  name: {pool: []}, // @todo believable names
-  age: {pool: []}, // @todo realistic range (or min/max bounds)
-  isActive: {pool: []}, // @todo
-  tags: {rt$items: {pool: []}, rt$length: [0, 0]}, // @todo
+  name: {pool: []},
+  age: {pool: []},
+  isActive: {pool: []},
+  tags: {rt$items: {pool: []}, rt$length: [1, 3]},
   profile: {
-    email: {pool: []}, // @todo real-looking addresses
-    score: {pool: []}, // @todo realistic range (or min/max bounds)
+    email: {pool: []},
+    score: {pool: []},
   },
 };

@@ -209,7 +209,7 @@ type parsePluginConfig struct {
 //
 // sourceLocale names the language the source FriendlyText maps are authored in
 // (it selects the plural arms the scaffold emits). locales is the target set —
-// the source locale is NOT listed. strict turns `enrich --translate --no-emit` findings
+// the source locale is NOT listed. strict turns `enrich --i18n --no-emit` findings
 // into errors; the runtime is always lenient. The translation subtree location
 // is convention (<genDir>/enriched/i18n/<locale>/…), never configurable.
 type i18nPluginConfig struct {
@@ -324,7 +324,7 @@ func ensureFamilyReadme(config enrichConfig, family string) {
 		familyMock: {filepath.Join(config.EnrichDir, familyMock),
 			"# MockData mirrors\n\nRealistic sample pools and ranges for your types, one mirror file per source\nfile. Scaffolded and kept in sync by `mion enrich`; the values are yours\nto edit. Commit these files.\n"},
 		defaultI18nDirName: {config.I18nDir,
-			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `mion enrich --translate`. Commit these files.\n"},
+			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `mion enrich --i18n <locale>`. Commit these files.\n"},
 	}
 	entry, ok := texts[family]
 	if !ok {

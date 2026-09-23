@@ -5,7 +5,6 @@ interface Signup {
   name: TF.String<{minLength: 2; maxLength: 60}>;
 }
 
-// rt$default as the node's ONLY key: one message for every failure of the field.
 export const friendlySignup: FriendlyText<Signup> = {
   rt$label: 'Signup',
   rt$errors: {type: ''},

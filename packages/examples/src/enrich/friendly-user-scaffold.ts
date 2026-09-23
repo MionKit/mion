@@ -1,39 +1,39 @@
 import type {FriendlyText} from '@mionjs/run-types';
 import type {User} from './user';
 
-// scaffolded by `gen`: every field in place, each blank marked @todo
+// @todo: generated skeleton — fill in real data, then delete this line
 export const friendlyUser: FriendlyText<User> = {
-  rt$label: '', // @todo
-  rt$errors: {type: ''}, // @todo
+  rt$label: '',
+  rt$errors: {type: ''},
 
   name: {
-    rt$label: '', // @todo
+    rt$label: '',
     rt$errors: {
-      type: '', // @todo
-      minLength: {one: '', other: ''}, // @todo (plural forms, see the i18n page)
-      maxLength: {one: '', other: ''}, // @todo
+      type: '',
+      minLength: {one: '', other: ''},
+      maxLength: {one: '', other: ''},
     },
   },
   age: {
-    rt$label: '', // @todo
+    rt$label: '',
     rt$errors: {
-      type: '', // @todo
-      min: {one: '', other: ''}, // @todo
-      max: {one: '', other: ''}, // @todo
+      type: '',
+      min: {one: '', other: ''},
+      max: {one: '', other: ''},
     },
   },
-  isActive: {rt$label: '', rt$errors: {type: ''}}, // @todo
+  isActive: {rt$label: '', rt$errors: {type: ''}},
 
   tags: {
-    rt$label: '', // @todo
-    rt$errors: {type: ''}, // @todo
-    rt$items: {rt$label: '', rt$errors: {type: ''}}, // @todo element node
+    rt$label: '',
+    rt$errors: {type: ''},
+    rt$items: {rt$label: '', rt$errors: {type: ''}},
   },
 
   profile: {
     // nested object: same node shape
-    rt$label: '', // @todo
-    rt$errors: {type: ''}, // @todo
+    rt$label: '',
+    rt$errors: {type: ''},
     email: {
       rt$label: '',
       rt$errors: {
@@ -42,7 +42,7 @@ export const friendlyUser: FriendlyText<User> = {
         maxLength: {one: '', other: ''},
         pattern: '',
       },
-    }, // @todo
+    },
     score: {
       rt$label: '',
       rt$errors: {
@@ -50,6 +50,6 @@ export const friendlyUser: FriendlyText<User> = {
         min: {one: '', other: ''},
         max: {one: '', other: ''},
       },
-    }, // @todo
+    },
   },
 };

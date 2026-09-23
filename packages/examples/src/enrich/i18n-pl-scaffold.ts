@@ -1,36 +1,35 @@
 import type {FriendlyText} from '@mionjs/run-types';
 import type {User} from './user';
 
-// src/.mion/enriched/i18n/pl/models/user.ts: scaffolded by `enrich --i18n pl`:
-// the same tree as the source map, every leaf blank, plural arms in POLISH form.
+// @todo: generated skeleton — fill in real data, then delete this line
 export const pl_friendlyUser: FriendlyText<User> = {
-  rt$label: '', // @todo
-  rt$errors: {type: ''}, // @todo
+  rt$label: '',
+  rt$errors: {type: ''},
   name: {
-    rt$label: '', // @todo
+    rt$label: '',
     rt$errors: {
-      type: '', // @todo
-      minLength: {one: '', few: '', many: '', other: ''}, // @todo
-      maxLength: {one: '', few: '', many: '', other: ''}, // @todo
+      type: '',
+      minLength: {one: '', few: '', many: '', other: ''},
+      maxLength: {one: '', few: '', many: '', other: ''},
     },
   },
   age: {
-    rt$label: '', // @todo
+    rt$label: '',
     rt$errors: {
       type: '',
       min: {one: '', few: '', many: '', other: ''},
       max: {one: '', few: '', many: '', other: ''},
-    }, // @todo
+    },
   },
-  isActive: {rt$label: '', rt$errors: {type: ''}}, // @todo
+  isActive: {rt$label: '', rt$errors: {type: ''}},
   tags: {
     rt$label: '',
     rt$errors: {type: ''},
     rt$items: {rt$label: '', rt$errors: {type: ''}},
-  }, // @todo
+  },
   profile: {
-    rt$label: '', // @todo
-    rt$errors: {type: ''}, // @todo
+    rt$label: '',
+    rt$errors: {type: ''},
     email: {
       rt$label: '',
       rt$errors: {
@@ -39,7 +38,7 @@ export const pl_friendlyUser: FriendlyText<User> = {
         maxLength: {one: '', few: '', many: '', other: ''},
         pattern: '',
       },
-    }, // @todo
+    },
     score: {
       rt$label: '',
       rt$errors: {
@@ -47,6 +46,6 @@ export const pl_friendlyUser: FriendlyText<User> = {
         min: {one: '', few: '', many: '', other: ''},
         max: {one: '', few: '', many: '', other: ''},
       },
-    }, // @todo
+    },
   },
 };
