@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import runtypesRollup from '../src/runtypes/rollup.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
-// Lives under the marker package's test/ tree so tsconfig.test.json puts the
+// Lives under the marker package's test/ tree so tsconfig.json puts the
 // fixture in the Go resolver's Program (the plugin scans real program files).
 const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-rollup');
@@ -46,8 +46,8 @@ describe('rollup build / @mionjs/devtools/runtypes/rollup entry', () => {
       const plugin = runtypesRollup({
         binary: BIN,
         cwd: PACKAGE_ROOT,
-        // tsconfig.test.json is incremental:false → RT disk cache off.
-        tsconfig: 'tsconfig.test.json',
+        // tsconfig.json is incremental:false → RT disk cache off.
+        tsconfig: 'tsconfig.json',
         genDir: OUT_DIR,
         // The marker package's test program deliberately contains
         // Error-severity types (alwaysThrow suites), across many codes and many

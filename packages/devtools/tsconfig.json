@@ -1,11 +1,20 @@
 {
+  // Check-only config, shared with the editor: src and test in one program, non-composite and no emit.
+  // rootDir is the repo root so test helpers imported across a package boundary do not trip TS6059.
+  // noImplicitAny is re-enabled because the union root tsconfig turns it off for the mion packages.
+  // Declaration-emit checks (TS4023/4025/2527) are noise on test files, which are never emitted.
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/esm",
-    "composite": true,
-    "rootDir": "."
+    "noImplicitAny": true,
+    "composite": false,
+    "noEmit": true,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "rootDir": "../..",
+    "types": ["node"],
+    "customConditions": ["source"]
   },
-  "references": [],
-  "include": ["."],
-  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts", "test-fixtures"]
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }

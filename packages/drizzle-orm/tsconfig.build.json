@@ -11,7 +11,7 @@
   },
   "references": [
     {
-      "path": "../run-types"
+      "path": "../run-types/tsconfig.build.json"
     }
   ],
   "exclude": [

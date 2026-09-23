@@ -12,7 +12,7 @@
   //
   // The mion examples share this src/ tree but use NodeNext + workspace source
   // resolution, so they have their own programs (tsconfig.json /
-  // tsconfig.check.json). The include list below names only the runtypes
+  // tsconfig.drizzle.json). The include list below names only the runtypes
   // files; the two trees share src/_homepage and src/introduction, hence the
   // explicit per-file entries. TODO(step 4): reorganize the trees.
   "compilerOptions": {

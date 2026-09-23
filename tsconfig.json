@@ -36,7 +36,7 @@
     {"path": "./packages/platform-aws/tsconfig.build.json"},
     {"path": "./packages/platform-gcloud/tsconfig.build.json"},
     {"path": "./packages/platform-bun/tsconfig.build.json"},
-    {"path": "./packages/devtools"},
+    {"path": "./packages/devtools/tsconfig.build.json"},
     {"path": "./packages/platform-cloudflare/tsconfig.build.json"},
     {"path": "./packages/platform-vercel/tsconfig.build.json"},
     {"path": "./packages/platform-uws/tsconfig.build.json"},
@@ -45,8 +45,7 @@
     {"path": "./packages/drizzle-orm-pg-core/tsconfig.build.json"},
     {"path": "./packages/drizzle-orm-sqlite-core/tsconfig.build.json"},
     {"path": "./packages/test-server/tsconfig.build.json"},
-    {"path": "./packages/examples"},
-    {"path": "./packages/run-types"}
+    {"path": "./packages/run-types/tsconfig.build.json"}
   ],
   "files": [],
   "exclude": ["node_modules", "dist", ".dist", "ts-go-runtypes", "mion-bin"]

@@ -1769,6 +1769,9 @@ describe('the bun lane fails when a test file contributes no tests', () => {
   it('names a file that reported zero tests', () => {
     const empty = '<testsuites tests="0"><testsuite name="src/b.test.ts" file="src/b.test.ts" tests="0" /></testsuites>';
     expect(swallowedFiles(['src/b.test.ts'], testsPerFile(empty))).toEqual(['src/b.test.ts']);
+  });
+});
+
 describe('every package under packages/ runs a type check over everything it ships', () => {
   // `pnpm -r` silently skips a package with no such script, which is how a call with no import shipped in platform-uws.
   // Only the gate's rules are unit-tested here: a whole-tree sweep does not belong in a gated vitest lane.
@@ -1790,17 +1793,17 @@ describe('every package under packages/ runs a type check over everything it shi
   // A package may need several programs (examples splits src/ across three module resolutions),
   // and the root scripts name some of them rather than the package's own.
   it('collects the projects from the package scripts and the root ones alike', () => {
-    const own = {'typecheck:test': 'tsc -p tsconfig.test.json --noEmit', 'check-types': 'tsc --noEmit -p tsconfig.check.json'};
+    const own = {'typecheck:test': 'tsc -p tsconfig.json --noEmit', 'check-types': 'tsc --noEmit -p tsconfig.drizzle.json'};
     const root = {
       typecheck: 'pnpm run typecheck:test && tsc -p packages/examples/tsconfig.runtypes.json',
-      other: 'tsc -p packages/router/tsconfig.test.json',
+      other: 'tsc -p packages/router/tsconfig.json',
     };
     expect(coverage.projectsOf('examples', own, root)).toEqual([
-      'tsconfig.test.json',
-      'tsconfig.check.json',
+      'tsconfig.json',
+      'tsconfig.drizzle.json',
       'tsconfig.runtypes.json',
     ]);
-    expect(coverage.projectsOf('router', {}, root)).toEqual(['tsconfig.test.json']);
+    expect(coverage.projectsOf('router', {}, root)).toEqual(['tsconfig.json']);
     expect(coverage.projectsOf('router', {build: 'vite build'}, {})).toEqual([]);
   });
 

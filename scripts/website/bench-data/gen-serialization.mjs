@@ -83,7 +83,7 @@ const SSR_NOEXTERNAL = (process.env.MION_VALIDATION_BENCH_SSR_NOEXTERNAL ?? '')
   .filter(Boolean);
 
 // Resolver disk cache: it follows TypeScript's incremental switch, and this
-// bench loads the suite through `tsconfig.test.json` (incremental:false), so it
+// bench loads the suite through `tsconfig.json` (incremental:false), so it
 // is off by default. The in-container run also passes MION_VALIDATION_BENCH_CACHE_DIR=false
 // (the marker mount is read-only, so a write must never be attempted) — forward
 // it to the binary's internal MION_CACHE_DIR control: 'false' forces the cache
@@ -250,11 +250,11 @@ async function loadSuiteWithPlugin() {
     //
     // downgradeErrors:'*' for the same reason packages/run-types/vitest.config.ts
     // sets it — this is the marker package's OWN test program, and buildStart
-    // scans everything tsconfig.test.json includes, alwaysThrow suites included.
+    // scans everything tsconfig.json includes, alwaysThrow suites included.
     // Those deliberately hold Error-severity types (root-position symbols,
     // functions, …), so the strict default refuses to boot the project and the
     // bench dies before a single case is measured. Consumers keep the default.
-    plugins: [runtypesPlugin({binary: BIN, cwd: PACKAGE_ROOT, tsconfig: 'tsconfig.test.json', downgradeErrors: '*', ...OUTDIR_OPT})],
+    plugins: [runtypesPlugin({binary: BIN, cwd: PACKAGE_ROOT, tsconfig: 'tsconfig.json', downgradeErrors: '*', ...OUTDIR_OPT})],
   });
   try {
     const mod = await server.ssrLoadModule(SUITE_PATH);

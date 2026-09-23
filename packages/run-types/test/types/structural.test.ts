@@ -16,7 +16,7 @@
 // Why pinned by test at all: every failure here is SILENT. A leaked sentinel
 // does not error anywhere, it just surfaces in consumer code as a phantom
 // optional field on a recovered type — in autocomplete, in `keyof`, in anything
-// that walks keys. Run via `tsc -p tsconfig.test.json --noEmit` (wired into
+// that walks keys. Run via `tsc -p tsconfig.json --noEmit` (wired into
 // `pnpm run lint`).
 
 import {describe, expect, test} from 'vitest';

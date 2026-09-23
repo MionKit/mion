@@ -18,7 +18,7 @@ import runtypes from '../src/runtypes/vite.ts';
 import {BIN, hasBinary} from './helpers/inline.ts';
 
 const PACKAGE_ROOT = path.resolve(__dirname, '../../run-types');
-// Lives under the marker package's test/ tree so tsconfig.test.json puts the
+// Lives under the marker package's test/ tree so tsconfig.json puts the
 // fixtures in the Go resolver's Program (the plugin scans real program files).
 const FIXTURE_DIR = path.join(PACKAGE_ROOT, 'test', 'tmp-build-split');
 
@@ -65,10 +65,10 @@ describe('vite build / per-entry code splitting', () => {
             runtypes({
               binary: BIN,
               cwd: PACKAGE_ROOT,
-              // tsconfig.test.json sets incremental:false, so the RT disk cache
+              // tsconfig.json sets incremental:false, so the RT disk cache
               // is off (it follows TypeScript's incremental switch) — no
               // node_modules/.cache artifacts from this build.
-              tsconfig: 'tsconfig.test.json',
+              tsconfig: 'tsconfig.json',
               // Isolated output root: the marker package's own vitest writes to
               // <PACKAGE_ROOT>/.mion with a different program, so a shared dir
               // would race-prune these fixtures' modules. Cleaned with FIXTURE_DIR.

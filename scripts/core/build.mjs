@@ -285,8 +285,8 @@ function rebuildPkgDist(pkgDir, pkgName, outDirName) {
   // tsc's incremental cache can memorize a half-emitted state and refuse to recover.
   //
   // Every one, not just `tsconfig.tsbuildinfo`: `tsc --build` names the file after the
-  // CONFIG it was given, so a package building from tsconfig.dist.json writes
-  // tsconfig.dist.tsbuildinfo. Wiping only the default name left the real cache in
+  // CONFIG it was given, so a package building from tsconfig.build.json writes
+  // tsconfig.build.tsbuildinfo. Wiping only the default name left the real cache in
   // place, tsc skipped emit, and the check reported "still incomplete after rebuild" —
   // pointing at the build script rather than at the stale file it failed to remove.
   rmSync(join(pkgDir, outDirName), {recursive: true, force: true});
