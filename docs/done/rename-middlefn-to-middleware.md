@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-23
 ---
 
@@ -147,3 +147,17 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched
   source file, each committed on its own.
 - This spec is `git mv`d to `docs/done/` and updated to match what shipped.
+
+## What shipped
+
+- The script ran as planned: 2,446 matches in 179 files and 11 file renames, then `check` came back clean.
+  The skip list needed no `skipNames`. The three `overrides` and the exclude list were used as seeded.
+- The clash check runs per file: a new code name that the same file already used. It flagged 9 files, and
+  every one of them used "middleware" only in comments, so none was a real clash.
+- Casing fix found during review: the plural `s` keeps its own case (`addStartMiddlewares`, not
+  `addStartMiddlewareS`).
+- Markdown prose now treats "middleware" as a mass noun with a singular verb ("middleware runs"), set by
+  the docs pass. Code keeps `middlewares`.
+- The page moved to `/rpc/server/middleware`, with a 301 from `/rpc/server/middle-fns` in `_redirects`.
+- A stale TODO in `packages/router/src/dispatch.spec.ts` was deleted: the test below it already covers a
+  middleware that reads the route's output.
