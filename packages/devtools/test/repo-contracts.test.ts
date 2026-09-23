@@ -1738,6 +1738,16 @@ describe('bun test files never build the router at evaluation time', () => {
   });
 });
 
+describe('every package keeps its tests under test/', () => {
+  const TEST_FILE = /\.(spec|test|stub)\.tsx?$/;
+
+  it('no test file sits beside the package code', () => {
+    const tracked = spawnSync('git', ['ls-files', 'packages'], {cwd: REPO_ROOT, encoding: 'utf8'}).stdout.split('\n');
+    const offenders = tracked.filter((file) => TEST_FILE.test(file) && !/^packages\/[^/]+\/test\//.test(file));
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe('the bun lane fails when a test file contributes no tests', () => {
   const healthy = `<testsuites tests="3">
       <testsuite name="src/a.test.ts" file="src/a.test.ts" tests="2">

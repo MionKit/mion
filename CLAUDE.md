@@ -118,7 +118,7 @@ See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--
 
 ## Testing
 
-- JS uses **Vitest** (root [vitest.config.ts](vitest.config.ts)); test files use `.spec.ts` or `.test.ts`.
+- JS uses **Vitest** (root [vitest.config.ts](vitest.config.ts)); test files use `.spec.ts` or `.test.ts` and live in each package's `test/` dir, mirroring `src/`, never beside the code (pinned by `repo-contracts.test.ts`).
 - All JS: `pnpm test` (all 23 vitest projects). Single file: `pnpm exec vitest run <pattern>`. Single package: `pnpm --filter <name> test`.
 - If one full run OOMs, `pnpm run test:ci` runs the SAME 23 projects in 7 batches, one vitest process per batch (resolver processes are ~200 MB each). The batches live in [scripts/core/test-batches.mjs](scripts/core/test-batches.mjs) and only GROUP the names `vitest.config.ts` declares: `pnpm run check:test-batches` (a CI gate, and the run's own preflight) fails if a project sits in no batch or in two. Adding a project means adding it to a batch.
   `test:bun` runs platform-bun's bun:test suites, which vitest cannot host. Bun runs them all in ONE process and evaluates every describe body before any hook, so a test file must build its router inside a hook or a test, never in the describe body: a second `createMionRouter` at evaluation time throws on the once-guard and that whole file is skipped with the run still reading `0 fail`. [scripts/core/test-bun.mjs](scripts/core/test-bun.mjs) is what `test:bun` runs, and it fails when a test file reported no tests.
