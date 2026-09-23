@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-09-23
 ---
 
@@ -31,7 +31,7 @@ Land Go and JS together: the JS side passes `--parse-strategy` to the binary, an
 - Delete `internal/cachegen/typefunctions/parse.go` (whole file). It only chains `ukuw` / `rj` / `val` / `vst`; every helper it calls is shared and stays (`jsonWireSupports`, `isNoopForRestoreJson`, `ctx.registerRTLookup`).
 - `internal/cachegen/typefunctions/families.go:70-74`: delete the three `parse*` rows. `families_test.go:14-20`: count 25 → 22, drop the comment.
 - `internal/cachegen/operations/operations.go:79-89`: delete the `parse` / `parseStrip` / `parseFail` rows (`prs`, `prss`, `prsf`); fix the comment at `:125`. fnHashes are not positional (`QuickHash("op|"+name)`), so no other hash or typeID moves.
-- `operations/fnhash_test.go`: drop the `+3` at `:26-31`, delete `"prs": "parse"` at `:229`.
+- `operations/fnhash_test.go`: drop the `+3` at `:26-31`, delete `"prs": "parse"` at `:229` and `"prs"` from the retired-tag list.
 - `internal/compiler/resolver/scan.go`: delete the `op.Name == "parse"` block (`:981-993`) and `parseStrategyOperation` (`:1262-1285`); drop the `defaultParseStrategy` parameter of `computeSiteFn` (`:963`) and its two callers (`:776`, `:875`); fix comments at `:995` and `:1294`. KEEP `extractStrategyOption` (json strategy routing uses it).
 - `resolver.go:128-129, 148-153`: delete `Options.ParseDefaults` and the `ParseDefaults` type.
 - `internal/constants/constants.go:62-77`: delete the three `CacheModules` entries; `:246-256`: delete the `ParseStrategy*` consts.
@@ -58,14 +58,14 @@ Then `pnpm miondevx core codegen all --check` must be clean.
 - `runtypes/entryTuple.ts`: delete `parseArgs` / `parseDefaults` / `parseShaped` (`:370-379`) and the `familyMeta` rows `prs` / `prsf` / `prss` (`:413-415`), in the same commit as the regenerated `FAMILY_TAG_TO_FN_KEY` (`test/features/familyMetaCoverage.test.ts` checks they agree).
 - `runtypes/dataView.ts:25-26`: rewrite the `BinaryDecodeError` doc line.
 - `index.ts:153-157, 250-251`: delete the parse exports.
-- Check the stray wording in `createRTFunctions.ts:227, 267` and the `RTSerializationError` mention in `packages/router/src/dispatch.ts:265` (comment only).
+- Fix the stray wording in `createRTFunctions.ts:227, 267` and the `RTSerializationError` mention in `packages/router/src/dispatch.ts:265` (comment only).
 
 ### 4. `packages/devtools`
 
 - `src/core/unplugin.ts:107-110, 358`: delete the `parse` option and its forwarding.
 - `src/core/resolver-client.ts:48-50, 510`: delete `parseStrategy` and the `--parse-strategy` push.
 - `src/core/plugin-option-keys.ts:16`: delete `parse: true`.
-- Update `test/__snapshots__/cli-surface.test.ts.snap` (`--parse-strategy` help text) after the Go flag is gone; check `test/runtype-diagnostics.test.ts` for parse cases.
+- Update `test/__snapshots__/cli-surface.test.ts.snap` (`--parse-strategy` help text) after the Go flag is gone (`test/runtype-diagnostics.test.ts` had no parse case).
 - Rebuild the devtools dist after the edit (consumers and lint read it).
 
 ### 5. Examples
@@ -88,9 +88,8 @@ In the mixed files, drop the parse cases where the decoder cases in the same fil
 | `features/stripInsideMapSet.test.ts` | drop `:43-48`, fix import |
 | `features/transformIsolation.test.ts` | drop `:34, :38`; remove "parse" from header and titles |
 | `features/unionEnvelopeIndex.test.ts` | drop `:15, :35-45`, fix import |
-| `features/checkUnknowns*` | remove any parse case (verify on implement) |
 | `fuzz/security/securityHarness.ts`, `jsonDecodeRunner.ts` | remove the `parse` fixture, field and wiring (the `verr` compile only existed for parse) |
-| `fuzz/security/securityOracle.ts`, `securityOracle.unit.test.ts` | remove the SJ-PARSE oracle and its tests, and the parse arm of SJ-REJECT; SJ-REJECT / SJ-PROTO / SJ-TOTAL stay on the decoders |
+| `fuzz/security/securityOracle.ts`, `securityOracle.unit.test.ts` | remove the SJ-PARSE oracle and its tests, and the parse arm of SJ-REJECT; SJ-REJECT / SJ-PROTO / SJ-TOTAL stay on the decoders. `checkJsonDecode` no longer takes the re-parsed `tree` (only parse read it) |
 | `fuzz/value/fuzzOracle.ts`, `fuzzRunner.ts`, `fuzz.integration.test.ts` | remove oracles O19 and O20, the 12 `parse:` lines, and `restoreFromJsonMutate` (only O19 read it) with its pin test; keep the other ids unchanged, O5 still covers the JSON round trip |
 | `fuzz/security/jsonDecodeFuzz.integration.test.ts`, `attackDictionary.ts`, `treeMutations.ts` | comment and title wording only |
 
@@ -118,3 +117,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - The all-compiled-functions page renders with no parse rows.
 - PR labelled `pre-publish-e2e` (public API removal) and `website` (example and catalog changed).
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## What shipped
+
+Everything above, plus one related fix: `pnpm miondevx core codegen` used to run only the FIRST target it was given and silently skip the rest, so step 2's four-target command regenerated one file. It now runs every named target and refuses an unknown one, pinned in `packages/devtools/test/devx-registry.test.ts`.
