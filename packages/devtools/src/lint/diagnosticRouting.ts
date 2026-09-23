@@ -116,7 +116,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'compiler',
     description:
-      'A type that can never be validated. Validators check serializable data only (the data-only projection of the type), so a type like symbol or Map at a root position has nothing to check and the generated function will always fail',
+      'A type that can never be validated. Validators check serializable data only (the data-only projection of the type), so a type like symbol or WeakMap at a root position has nothing to check and the generated function will always fail',
   },
   {
     name: 'validate-skipped-member',
@@ -132,7 +132,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'compiler',
     description:
-      'A type that can never be encoded to or decoded from JSON (a function, symbol, never, or a non-serializable built-in like Map at a root position) — the generated function will always fail',
+      'A type that can never be encoded to or decoded from JSON (a function, symbol, never, or a non-serializable built-in like WeakMap at a root position) — the generated function will always fail',
   },
   {
     name: 'json-skipped-member',
@@ -148,7 +148,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'compiler',
     description:
-      'A type that can never be serialised to or deserialised from binary (a function, symbol, never, or a non-serializable built-in like Map at a root position) — the generated function will always fail',
+      'A type that can never be serialised to or deserialised from binary (a function, symbol, never, or a non-serializable built-in like WeakMap at a root position) — the generated function will always fail',
   },
   {
     name: 'binary-skipped-member',
