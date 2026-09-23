@@ -9,6 +9,7 @@
 //     to the SAME injected id before and after conversion — the id oracle at
 //     the binary level, both call shapes covered;
 //   - --out-dir converts a copy (assets carried along, sources untouched);
+//   - an unresolved runtypes import warns (CNV010) instead of a silent no-op;
 //   - flag validation exits non-zero.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
@@ -221,6 +222,39 @@ describe('mion convert (CLI e2e)', () => {
       expect(stderr).toContain('CNV008');
       expect(stderr).toContain('MissingThing');
       expect(fs.readFileSync(brokenPath, 'utf8')).toBe(before);
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  });
+
+  register('an import of a package that does not resolve warns with CNV010 naming it (exit 0, source untouched)', () => {
+    const dir = makeProject();
+    try {
+      const unresolvedPath = path.join(dir, 'src', 'unresolved.ts');
+      fs.writeFileSync(
+        unresolvedPath,
+        "import * as RT from '@mionjs/run-types/not-a-subpath';\nexport const userRT = RT.object({name: RT.string()});\n"
+      );
+      const before = fs.readFileSync(unresolvedPath, 'utf8');
+      const reportPath = path.join(dir, 'report.json');
+      const {status, stderr, report} = runConvert(dir, ['--to', 'type', unresolvedPath, '--report', reportPath]);
+      expect(status, report).toBe(0);
+      expect(stderr).toContain('CNV010');
+      expect(stderr).toContain('@mionjs/run-types/not-a-subpath');
+      expect(fs.readFileSync(unresolvedPath, 'utf8')).toBe(before);
+      const written = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+      expect(written.files[0].diags[0].code).toBe('CNV010');
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  });
+
+  register('a project whose imports resolve prints no CNV010', () => {
+    const dir = makeProject();
+    try {
+      const {status, stderr, report} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
+      expect(status, report).toBe(0);
+      expect(stderr).not.toContain('CNV010');
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
     }

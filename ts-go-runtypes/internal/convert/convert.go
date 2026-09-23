@@ -57,6 +57,8 @@ const (
 	// CodeDrizzleUnsupported: a drizzle table using constructs with no type spelling (interpolated
 	// sql, $type, non-literal args, out-of-file or backward references), see drizzle.go.
 	CodeDrizzleUnsupported = "CNV009"
+	// CodeUnresolvedImport: a runtypes or drizzle package import that resolves nowhere, see unresolvedimports.go.
+	CodeUnresolvedImport = "CNV010"
 )
 
 // Diagnostic is one per-declaration conversion finding.
@@ -102,6 +104,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	}
 	source := sourceFile.Text()
 	result := &FileResult{Path: absPath, Output: source}
+	result.Diags = append(result.Diags, unresolvedImportDiags(sourceFile, typeChecker, absPath)...)
 
 	decls := set.declsFor(sourceFile, absPath, typeChecker, markerOpts)
 	imports := scanImports(sourceFile)
