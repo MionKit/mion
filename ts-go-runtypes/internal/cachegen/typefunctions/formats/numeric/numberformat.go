@@ -1,6 +1,7 @@
 package numeric
 
 import (
+	"math"
 	"strings"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
@@ -8,7 +9,7 @@ import (
 )
 
 // numberFormatEmitter implements the format named "numberFormat", FormatNumber<P> in `@mionjs/run-types/formats`.
-// Surface: integer, min / max / lt / gt, multipleOf.
+// Surface: integer, min / max / lt / gt, multipleOf, multipleOfTolerance.
 // `float` is a generation and presentation tag like isCurrency, never a failable constraint: an IEEE float legally
 // holds whole values (2.0), so validation never rejects them. It steers mock generation toward fractional samples
 // and keeps binary packing on the float64 arm.
@@ -65,7 +66,7 @@ func numberConditions(params map[string]any, vλl string) []string {
 		conditions = append(conditions, vλl+" > "+formats.FormatNumber(value))
 	}
 	if value, ok := formats.ReadNumberParam(params, "multipleOf"); ok {
-		conditions = append(conditions, multipleOfCondition(vλl, value))
+		conditions = append(conditions, multipleOfCondition(vλl, value, multipleOfTolerance(params)))
 	}
 	return conditions
 }
@@ -104,7 +105,7 @@ func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 		statements = append(statements, "if ("+vλl+" <= "+formats.FormatNumber(value)+") "+errCall("gt", formats.FormatNumber(value)))
 	}
 	if value, ok := formats.ReadNumberParam(params, "multipleOf"); ok {
-		statements = append(statements, "if (!"+multipleOfCondition(vλl, value)+") "+errCall("multipleOf", formats.FormatNumber(value)))
+		statements = append(statements, "if (!"+multipleOfCondition(vλl, value, multipleOfTolerance(params))+") "+errCall("multipleOf", formats.FormatNumber(value)))
 	}
 	return strings.Join(statements, ";")
 }
@@ -274,28 +275,57 @@ func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotatio
 		errs = append(errs, label+": `gt` cannot be greater than or equal to `lt`")
 	}
 
-	if multipleOf, ok := formats.ReadNumberParam(params, "multipleOf"); ok {
+	multipleOf, hasMultipleOf := formats.ReadNumberParam(params, "multipleOf")
+	if hasMultipleOf {
 		if multipleOf <= 0 {
 			errs = append(errs, label+": `multipleOf` must be greater than 0")
 		}
-		// A fractional `multipleOf` is allowed: JSON Schema permits any positive number (`multipleOf: 0.01` on a
-		// money field), which is why multipleOfCondition emits a division rather than a modulo.
-		// `float` is never failable, so it composes freely with multipleOf; only integer+float is rejected.
+		// An integer format only holds whole values, so a fractional step could only ever match its whole multiples.
+		if integer && !isWholeNumber(multipleOf) {
+			errs = append(errs, label+": `multipleOf` must be a whole number when `integer` is set")
+		}
+	}
+	if tolerance, ok := formats.ReadNumberParam(params, "multipleOfTolerance"); ok {
+		if !hasMultipleOf || isWholeNumber(multipleOf) {
+			errs = append(errs, label+": `multipleOfTolerance` needs a fractional `multipleOf`")
+		}
+		if tolerance <= 0 || tolerance >= 1 {
+			errs = append(errs, label+": `multipleOfTolerance` must be greater than 0 and less than 1")
+		}
 	}
 	return errs
 }
 
-// multipleOfCondition keeps the modulo for an INTEGER divisor: exact on doubles, cheaper, and still right past
-// 2^53 where a quotient is integral only because every double that large is.
-// A FRACTIONAL divisor cannot use it (`0.0075 % 0.0001` is 9.99e-5, not 0) and takes JSON Schema's own wording,
-// "division by this value results in an integer", which also handles an overflowing divisor: `1e308 / 0.123456789`
-// is Infinity, not an integer, so the value is rejected instead of raising.
-func multipleOfCondition(vλl string, value float64) string {
-	literal := formats.FormatNumber(value)
-	if value == float64(int64(value)) {
+// defaultMultipleOfTolerance is 4 × Number.EPSILON: `v / step` carries at most ~1.5 epsilon of rounding noise
+// relative to the quotient, so this accepts every decimal multiple (`19.99 / 0.01` is 1998.9999999999998) and
+// still rejects a real miss (`19.995 / 0.01` is half a step away).
+const defaultMultipleOfTolerance = 4 * 0x1p-52
+
+// multipleOfTolerance reads the relative tolerance a fractional multipleOf is checked with.
+func multipleOfTolerance(params map[string]any) float64 {
+	if tolerance, ok := formats.ReadNumberParam(params, "multipleOfTolerance"); ok {
+		return tolerance
+	}
+	return defaultMultipleOfTolerance
+}
+
+// multipleOfCondition keeps the exact modulo for a WHOLE step (the only kind an integer format allows): cheaper,
+// and still right past 2^53 where every double is whole.
+// A FRACTIONAL step cannot use it (`0.0075 % 0.0001` is 9.99e-5, not 0) and accepts a quotient within `tolerance`
+// of a whole number, relative to the quotient. An overflowing quotient is Infinity, `Infinity - Infinity` is NaN,
+// and NaN fails the comparison, so the value is rejected instead of raising.
+// MIRROR of isMultipleOf in packages/run-types/src/mocking/isMultipleOf.ts.
+func multipleOfCondition(vλl string, step, tolerance float64) string {
+	literal := formats.FormatNumber(step)
+	if isWholeNumber(step) {
 		return "(" + vλl + " % " + literal + " === 0)"
 	}
-	return "Number.isInteger(" + vλl + " / " + literal + ")"
+	quotient := vλl + " / " + literal
+	return "(Math.abs(" + quotient + " - Math.round(" + quotient + ")) <= Math.abs(" + quotient + ") * " + formats.FormatNumber(tolerance) + ")"
+}
+
+func isWholeNumber(value float64) bool {
+	return value == math.Trunc(value)
 }
 
 // numberTruthy returns 1 when the param is present AND non-zero, matching the JS `filter(Boolean)` drop of 0.

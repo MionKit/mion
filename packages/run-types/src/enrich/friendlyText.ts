@@ -30,7 +30,7 @@ export type TemplateLeaf = FriendlyTemplate | PluralTemplate;
 
 /** Format params that can never FAIL; everything else in a field's format params becomes a REQUIRED
  *  `rt$errors` template key. MIRROR of Go's `nonFailingParams` (internal/enrichment/enrich.go). */
-type NonFailingParams = 'isCurrency' | 'mockSamples' | 'transform';
+type NonFailingParams = 'isCurrency' | 'mockSamples' | 'multipleOfTolerance' | 'transform';
 
 /** The count-bearing constraint keys — the only ones whose template may be a
  *  plural object. Mirror of Go's `CountBearing` (internal/enrichment/classify.go). */

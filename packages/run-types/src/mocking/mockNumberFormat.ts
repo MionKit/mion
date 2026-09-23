@@ -7,6 +7,7 @@ import {registerMockingFunction} from './mockRegistry.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
 import type {NumberParams} from '../formats/numberFormats.ts';
+import {isMultipleOf} from './isMultipleOf.ts';
 
 const mockNumberFormat = (annotation: FormatAnnotation, random: MockRandom = nativeMockRandom): unknown => {
   if (annotation.name !== 'numberFormat') return undefined;
@@ -40,21 +41,22 @@ function mockNumberParams(params: NumberParams, random: MockRandom): number {
   }
 
   if (params.multipleOf !== undefined) {
-    result = snapToMultiple(result, numVal(params.multipleOf));
+    const tolerance = params.multipleOfTolerance !== undefined ? numVal(params.multipleOfTolerance) : undefined;
+    result = snapToMultiple(result, numVal(params.multipleOf), tolerance);
   }
   return result;
 }
 
 // An integer divisor multiplies back exactly; a fractional one does not (`75 * 0.0001` is 0.007500000000000001,
-// quotient 75.00000000000001), and the mock would fail the validator it was generated for (~11% of draws).
-// Rounding to 15 significant digits clears that noise, the walk down covers the rare divisor where one rounding
-// is not enough, and 0 is the last resort: zero is a multiple of everything.
-function snapToMultiple(value: number, multipleOf: number): number {
+// quotient 75.00000000000001). Rounding to 15 significant digits clears that noise, isMultipleOf is the validator's
+// own rule, the walk down covers the rare divisor where one rounding is not enough, and 0 is the last resort: zero
+// is a multiple of everything.
+function snapToMultiple(value: number, multipleOf: number, tolerance: number | undefined): number {
   const quotient = Math.floor(value / multipleOf);
   if (Number.isInteger(multipleOf)) return quotient * multipleOf;
   for (let step = 0; step < 4; step++) {
     const candidate = Number(((quotient - step) * multipleOf).toPrecision(15));
-    if (Number.isInteger(candidate / multipleOf)) return candidate;
+    if (isMultipleOf(candidate, multipleOf, tolerance)) return candidate;
   }
   return 0;
 }

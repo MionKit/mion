@@ -100,16 +100,16 @@
     {
       "group": "scalar",
       "label": "number({params})",
-      "fixed": 140,
-      "fixedBudget": 140,
+      "fixed": 142,
+      "fixedBudget": 142,
       "marginal": 29,
       "marginalBudget": 29
     },
     {
       "group": "scalar",
       "label": "currency({params})",
-      "fixed": 170,
-      "fixedBudget": 170,
+      "fixed": 172,
+      "fixedBudget": 172,
       "marginal": 35,
       "marginalBudget": 35
     },

@@ -20,12 +20,12 @@ report, paid only in the files that run queries.
 
 | Step | Layer | slim | type-only | builder |
 | ---: | ----- | ---: | ---: | ---: |
-| 1 | declare the formatted row | 434 | 47 | 551 |
+| 1 | declare the formatted row | 434 | 47 | 553 |
 | 2 | refine two columns | 1139 | 393 | 384 |
 | 3 | select / insert / update models | 573 | 254 | 262 |
 | 4 | mion route api | 523 | 500 | 496 |
 | 5 | initClient | 3048 | 3102 | 3342 |
-| | **Total** | **5717** | **4296** | **5035** |
+| | **Total** | **5717** | **4296** | **5037** |
 
 ## Reading this
 
