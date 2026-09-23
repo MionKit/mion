@@ -1,5 +1,4 @@
-// multipleOf on number formats: validation, error list, tolerance, integer formats and mocks, over real types.
-// The oracle counts whole units of the step's last decimal, never dividing floats: `19.99 / 0.01` is 1998.9999999999998.
+// The oracle counts whole units of the step's last decimal, never divides floats: `19.99 / 0.01` is 1998.9999999999998.
 import {describe, it, expect} from 'vitest';
 import type * as TF from '@mionjs/run-types/formats';
 import * as TFB from '@mionjs/run-types/formats';
@@ -11,7 +10,7 @@ const DRAWS = 500;
 
 const decimalsOf = (step: number): number => (String(step).split('.')[1] ?? '').length;
 
-// True when `value` is written with at most the step's decimals and is a whole count of steps.
+// True when `value` has at most the step's decimals and is a whole count of steps.
 function isExactMultiple(value: unknown, step: number): boolean {
   if (typeof value !== 'number' || !Number.isFinite(value)) return false;
   const scale = 10 ** decimalsOf(step);
@@ -19,7 +18,7 @@ function isExactMultiple(value: unknown, step: number): boolean {
   return Number((units / scale).toFixed(decimalsOf(step))) === value && units % Math.round(step * scale) === 0;
 }
 
-// Every value with one more decimal than the step, from -limit to +limit: multiples and near misses.
+// One decimal more than the step, so the range holds both multiples and near misses.
 function candidates(step: number, limit: number): number[] {
   const digits = decimalsOf(step) + 1;
   const scale = 10 ** digits;
@@ -115,7 +114,7 @@ describe('validate a whole multipleOf', () => {
 });
 
 describe('invalid multipleOf params', () => {
-  // Each line is an FMT002 build error; the comment keeps it from halting this run, and an unused one prints DWN001.
+  // Each call is an FMT002 build error, downgraded; an unused downgrade prints DWN001.
   it('an integer format with a fractional step, and a misplaced multipleOfTolerance', () => {
     // @mion-downgrade-error FMT002
     const halfSteps = createValidateFn<TF.Number<{integer: true; multipleOf: 0.5}>>();
