@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { processCodeImports, processMarkdownImports, exampleWatcherPlugin } from './server/utils/code-import'
+import { processFunctionCatalog } from './server/utils/function-catalog'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -81,6 +82,7 @@ export default defineNuxtConfig({
       // <code-import> blocks, and those must still be processed.
       file.body = processMarkdownImports(file.body, isDev)
       file.body = processCodeImports(file.body, isDev)
+      file.body = processFunctionCatalog(file.body)
     }
   }
 })
