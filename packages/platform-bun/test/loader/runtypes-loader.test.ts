@@ -20,9 +20,7 @@ test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
   expect(typeof plugin.setup).toBe('function');
 });
 
-// End-to-end route registration under the transparent `bun test`/`bun run` preload WORKS and is
-// covered by test/bunHttp.test.ts, which boots a real server through createMionRouter() + mion.initRoutes()
-// and round-trips requests. This file stays a unit test of the plugin's shape.
+// Route registration under the bun preload is covered end to end by test/bunHttp.test.ts; this file tests the plugin shape.
 //
 // It was previously a test.todo claiming the lane was blocked on cross-package injection. That
 // diagnosis was wrong: the resolver's program follows imports, so router source was always

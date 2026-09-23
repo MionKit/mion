@@ -366,10 +366,8 @@ describe('inputFrom e2e in batch', () => {
     expect(prefs).toEqual({id: 107, userId: 7, theme: 'light', lang: 'en'});
   });
 
-  // A mapper the server does not know is rejected before anything runs. It cannot be
-  // written from here any more (the build gives every inline mapper an id and registers
-  // it), so that rejection is pinned against the router directly, in
-  // packages/router/test/batches.spec.ts.
+  // The build registers every inline mapper, so the unknown-mapper rejection cannot be written here.
+  // It is tested against the router in packages/router/test/batches.spec.ts.
 });
 
 // ############# END-TO-END: every route shape the build reads #############
