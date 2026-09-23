@@ -568,7 +568,8 @@ Enrichment is stored in a committed **mirror directory** whose tree shadows your
 source tree, **one subtree per artifact family**: a type defined in
 `<rootDir>/models/user.ts` gets its friendly map in
 `<genDir>/enriched/friendly/models/user.ts` and its mock data in
-`<genDir>/enriched/mock/models/user.ts`. Storage is anchored to the **type's definition**
+`<genDir>/enriched/mock/models/user.ts` (examples here assume `rootDir: "src"`; without
+`rootDir` the path is taken from the tsconfig folder, e.g. `friendly/src/models/user.ts`). Storage is anchored to the **type's definition**
 (not its call sites) — the committed analog of the cache's *one canonical entry per
 type* rule: **one enrichment home per type per family, at its definition**, however
 many files consume it. A mirror tree (rather than `.rt.ts` siblings interleaved
@@ -597,7 +598,7 @@ tsgo already looks:
     "plugins": [
       {
         "name": "mion",
-        // mirrors live by convention under <genDir>/enriched (genDir default: src/.mion)
+        // mirrors live under <genDir>/enriched (genDir default: .mion in the source folder)
         "moduleMode": "default",
         "emitMode": "code",
         "inlineMode": "default"
@@ -608,8 +609,9 @@ tsgo already looks:
 ```
 
 Precedence is **CLI flag > tsconfig entry > built-in default**. `genDir` defaults
-to `<genDir>/enriched`; the mirror path for a type is
-`<genDir>/enriched/<family>/<declFile relative to rootDir>` with `family` = `friendly` |
+to `.mion` in the source folder (`rootDir`, else the folder all program files share); the
+mirror path for a type is
+`<genDir>/enriched/<family>/<declFile relative to rootDir, else to the tsconfig folder>` with `family` = `friendly` |
 `mock`. The optional `i18n` object under the same entry configures the translation
 layer ([Translations (i18n)](#translations-i18n)) and is dormant when absent.
 
