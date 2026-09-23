@@ -34,6 +34,7 @@ export function processFunctionCatalog(body: string): string {
   const { functions } = JSON.parse(readFileSync(CATALOG, 'utf8')) as { functions: FunctionEntry[] }
   // Sorted by factory, so a factory's variants sit together.
   const rows = [...functions].sort((a, b) => a.factory.localeCompare(b.factory) || a.name.localeCompare(b.name))
-  const table = ['| Call | Compiled Fn | What it does |', '| --- | --- | --- |', ...rows.map(row)].join('\n')
+  // The wrapper class lets mion.css stretch each call to fill its cell.
+  const table = ['::div{class="fn-catalog"}', '| Call | Compiled Fn | What it does |', '| --- | --- | --- |', ...rows.map(row), '::'].join('\n')
   return body.replace(BLOCK, table)
 }
