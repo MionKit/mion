@@ -19,5 +19,4 @@ export const friendly = createFriendlyTextI18n<Order>(friendlyOrder, {
   currency: 'EUR',
 });
 
-// a violated max renders as "10.000,00 €" in German and "$10,000.00" in English:
-// symbol, separators and decimals all follow the locale and the currency
+// a broken max renders as "10.000,00 €" in German
