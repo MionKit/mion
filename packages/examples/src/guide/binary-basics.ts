@@ -17,7 +17,7 @@ const bytes = encodeReading({
 });
 bytes.byteLength; // 24
 
-// The decoder takes a Uint8Array, any other typed array view, or an ArrayBuffer.
+// also takes any typed array view or an ArrayBuffer
 const reading = decodeReading(bytes); // at is a Date, note is absent
 
 export {reading};

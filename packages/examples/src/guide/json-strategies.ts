@@ -5,7 +5,7 @@ interface Item {
   price: bigint;
 }
 
-// An extra property the type does not declare, as often happens with real data.
+// internalNote is not declared in Item
 const item = {name: 'pen', price: 5n, internalNote: 'do not send'} as Item;
 
 // start-encoders

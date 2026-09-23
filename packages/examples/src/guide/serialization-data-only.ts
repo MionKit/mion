@@ -3,7 +3,7 @@ import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 interface Account {
   id: string;
   balance: number;
-  describe(): string; // not data, so it is left out (the build shows a warning)
+  describe(): string; // a method, so it is left out
 }
 
 const encodeAccount = createJsonEncoderFn<Account>();

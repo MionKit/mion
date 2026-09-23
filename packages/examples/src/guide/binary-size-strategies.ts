@@ -8,23 +8,20 @@ interface Message {
 const message: Message = {from: 'ana', text: 'hello'};
 
 // start-strategies
-// 'dynamic' (default): the buffer grows when needed.
+// 'dynamic' is the default
 const encode = createBinaryEncoderFn<Message>();
 encode(message);
 
-// 'precalculate': measures the value first, then writes into a buffer of the exact size.
 const encodeExact = createBinaryEncoderFn<Message>(undefined, {
   sizeStrategy: 'precalculate',
 });
 encodeExact(message);
 
-// 'initialSize': you pass the buffer size on each call. Throws a RangeError if the value does not fit.
 const encodeSized = createBinaryEncoderFn<Message>(undefined, {
   sizeStrategy: 'initialSize',
 });
 encodeSized(message, 64);
 
-// 'intoBuffer': writes into your own ArrayBuffer. Throws a RangeError if the value does not fit.
 const encodeInto = createBinaryEncoderFn<Message>(undefined, {
   sizeStrategy: 'intoBuffer',
 });

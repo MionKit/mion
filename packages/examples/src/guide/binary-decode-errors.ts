@@ -17,7 +17,6 @@ export function readReading(bytes: Uint8Array) {
   try {
     reading = decodeReading(bytes);
   } catch (err) {
-    // Too short, cut off, or not valid UTF-8.
     if (err instanceof BinaryDecodeError)
       throw new Error(`Bad reading bytes: ${err.message}`);
     throw err;

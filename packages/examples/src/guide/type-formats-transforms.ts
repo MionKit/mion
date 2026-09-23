@@ -14,19 +14,18 @@ sanitize({email: ' Ada@Example.COM ', name: ' ada ', tags: ['News']});
 // {email: 'ada@example.com', name: 'Ada', tags: ['news']}
 // end-sanitize
 
-// The Transform wrapper is the same type as the `transform` key.
+// the Transform wrapper is the same type as the `transform` key
 type Email = TF.Email<{transform: {trim: true; lowercase: true}}>;
 type SameEmail = TF.Transform<TF.Email, {trim: true; lowercase: true}>;
 
-// Value-first builders have the same wrapper.
+// value-first builders have the same wrapper
 const emailRt = transform(email(), {trim: true, lowercase: true});
 
-// Validation never applies a transform: a value is accepted exactly as sent.
+// validation never applies a transform
 const isEmail = createValidateFn<Email>();
 isEmail('John@Example.COM'); // true, and not lowercased
 
-// Email, Domain, IP and Url do not lowercase unless asked. A URL path is
-// case-sensitive, and so is the local part of an email by the letter of the RFC.
+// Email, Domain, IP and Url keep their case unless asked: a URL path and, per the RFC, an email local part are case-sensitive
 const asIs = createFormatTransformFn<TF.Url>();
 asIs('https://Example.com/Path'); // 'https://Example.com/Path'
 

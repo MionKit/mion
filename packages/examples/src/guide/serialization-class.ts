@@ -11,7 +11,7 @@ class Money {
   }
 }
 
-// The constructor takes arguments, so you must say how to rebuild an instance.
+// the constructor takes arguments, so say how to rebuild it
 registerClassSerializer(Money, {
   deserialize: (data) => new Money(data.amount, data.currency),
 });
@@ -19,7 +19,7 @@ registerClassSerializer(Money, {
 const encodeMoney = createJsonEncoderFn<Money>();
 const decodeMoney = createJsonDecoderFn<Money>();
 
-// The decoder is typed as data only, so cast to get the methods back.
+// decoded as data only, so cast to get the methods back
 const price = decodeMoney(
   encodeMoney(new Money(4999, 'USD')) as string
 ) as Money;

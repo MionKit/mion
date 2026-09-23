@@ -18,7 +18,7 @@ const prepareCustomer = createPrepareForJsonFn<Customer>();
 const restoreInvoice = createRestoreFromJsonFn<Invoice>();
 const restoreCustomer = createRestoreFromJsonFn<Customer>();
 
-// One JSON.stringify for your own envelope, with typed values inside it.
+// your own envelope, one JSON.stringify
 const body = JSON.stringify({
   invoice: prepareInvoice({
     id: 7n,
@@ -30,7 +30,7 @@ const body = JSON.stringify({
   }),
 });
 
-// One JSON.parse on the other side, then restore each value.
+// one JSON.parse, then restore each value
 const envelope = JSON.parse(body);
 const invoice = restoreInvoice(envelope.invoice); // id is a bigint, dueAt is a Date
 const customer = restoreCustomer(envelope.customer); // since is a Date
