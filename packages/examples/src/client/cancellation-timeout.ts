@@ -8,8 +8,7 @@ const [greeting, error, undeclared] = await routes
   .sayHello('John')
   .call({timeout: 5000});
 
-// transport failures are never part of the route's typed error union: they land in the
-// undeclared slot, which is an open RpcError<string>
+// transport failures never join the route's typed errors; undeclared is an open RpcError<string>
 if (undeclared?.type === 'request-timeout')
   console.log('Request took too long');
 else if (!error) console.log(greeting);
