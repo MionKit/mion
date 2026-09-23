@@ -2,10 +2,9 @@ import * as TF from '@mionjs/run-types/formats';
 import {createValidateFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 
-// Mix both in one file: a pure type nested inside a run-type and back again.
 type Money = {amount: number; currency: 'USD' | 'EUR'};
 
-// A run-type that references the plain type via RT.* leaves.
+// the Money shape again, written with builders
 const invoice = RT.object({
   id: TF.string(),
   lines: RT.array(

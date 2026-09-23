@@ -3,25 +3,19 @@ import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 type Profile = {name: string; age: number};
 
 // start-strategies
-// 'clone' (default): builds a fresh value from the declared shape, so
-// undeclared keys are dropped for free. Never touches your input.
 const encodeClean = createJsonEncoderFn<Profile>(undefined, {
   strategy: 'clone',
 });
 
-// 'mutate': transforms leaves in place (no clone), and KEEPS undeclared keys
-// on the wire. Fastest, but it mutates the object you pass in.
 const encodeFast = createJsonEncoderFn<Profile>(undefined, {
   strategy: 'mutate',
 });
 
-// 'direct': single pass, no clone, always strips undeclared keys.
 const encodeDirect = createJsonEncoderFn<Profile>(undefined, {
   strategy: 'direct',
 });
 
-// 'compact': like clone, but drops the key names: {name, age} rides as ["Ada", 36].
-// Pair it with the 'compact' decoder, which rebuilds the object from the positions.
+// {name, age} is written as ["Ada", 36]; the 'compact' decoder reads it back
 const encodeCompact = createJsonEncoderFn<Profile>(undefined, {
   strategy: 'compact',
 });

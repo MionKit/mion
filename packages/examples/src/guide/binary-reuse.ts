@@ -7,9 +7,6 @@ import {
 type Tick = {symbol: string; price: number};
 
 // start-reuse
-// In a hot loop, allocate one buffer and reuse it. With sizeStrategy 'intoBuffer' the
-// encoder writes into YOUR buffer and returns a zero-copy view, so there is no
-// fresh allocation per call. createBinarySizerFn gives a safe size to allocate.
 const encode = createBinaryEncoderFn<Tick>(undefined, {
   sizeStrategy: 'intoBuffer',
 });

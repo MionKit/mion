@@ -7,9 +7,7 @@ import {
 type Address = {street: string; city: string};
 type User = {id: number; name: string; signedUp: Date; address: Address};
 
-// One function that restores the JSON shape into real values (a Date here, not
-// a string) and checks it at the same time. It takes the output of JSON.parse,
-// so it slots in wherever the body was already read.
+// takes the output of JSON.parse, not the string
 const parseUser = createParseFn<User>();
 
 const user = parseUser(
@@ -19,8 +17,7 @@ const user = parseUser(
 );
 user.signedUp.getFullYear(); // a real Date
 
-// Undeclared properties are kept by default. Ask for `strip` to drop them, at
-// every level.
+// drop undeclared properties
 const parseUserStripped = createParseFn<User>(undefined, {strategy: 'strip'});
 parseUserStripped(
   JSON.parse(
@@ -29,11 +26,8 @@ parseUserStripped(
 );
 // the stripped address has no `zip`
 
-// It throws RTParseError, and `issues` says which of the two things went wrong.
-// A value that failed the CHECK gives the same entries createGetValidationErrorsFn
-// reports, so an existing error renderer just works. A value that could not be
-// DESERIALIZED at all gives the underlying reason instead, because no check ever
-// ran on it.
+// a failed check gives the same issues createGetValidationErrorsFn returns
+// a value that could not be deserialized gives the reason instead
 function readUser(body: string): User | string {
   try {
     return parseUser(JSON.parse(body));
@@ -47,7 +41,7 @@ function readUser(body: string): User | string {
 
 readUser('{"id":"one"}'); // "id, name, signedUp, address"
 
-// Reject unexpected properties instead of dropping them.
+// reject undeclared properties
 const parseUserStrict = createParseFn<User>(undefined, {strategy: 'fail'});
 
 export {parseUser, parseUserStripped, parseUserStrict, readUser, user};

@@ -1,9 +1,7 @@
 import type * as TF from '@mionjs/run-types/formats';
 import {createValidateFn} from '@mionjs/run-types';
 
-// A bound can be RELATIVE: `now`, or `now` ± an ISO-8601 duration. The build
-// resolves it against the current time each time it validates a value.
-
+// `now` is the current time each time a value is validated
 // A birth date in the past, no more than 120 years ago.
 type BirthDate = TF.StringDate<{min: 'now-P120Y'; max: 'now'}>;
 

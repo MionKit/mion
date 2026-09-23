@@ -3,15 +3,9 @@ import {createHasUnknownKeysFn, createValidateFn} from '@mionjs/run-types';
 type Address = {street: string; city: string};
 type User = {id: number; name: string; address: Address};
 
-// The compile-time `runsAfterValidation` option declares a precondition: every
-// value passed to this predicate has already PASSED validate for the same
-// type. The emitter then swaps the key-array scan for a key-count compare on
-// all-required shapes (~3x on small objects, ~13x at 30 props) and drops the
-// per-object typeof guards. The precondition is about the value, so it holds
-// all the way down: `address` is checked the same fast way, whether it is
-// written inline or named as its own type. Calling it on non-validated input
-// is undefined behavior: keep it behind a validate like the strict guard below.
 const isUser = createValidateFn<User>();
+// only for values that already passed isUser; any other input is undefined behavior
+// all-required shapes, nested ones too, compare key counts: ~3x on small objects, ~13x at 30 props
 const hasExtraFast = createHasUnknownKeysFn<User>(undefined, {
   runsAfterValidation: true,
 });

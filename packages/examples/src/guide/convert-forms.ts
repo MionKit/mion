@@ -7,7 +7,7 @@ import {
 } from '@mionjs/run-types';
 
 // start-before
-// A file you might have today, written type-first.
+// before
 export type User = {
   id: number;
   name?: string;
@@ -16,32 +16,26 @@ export type User = {
 // end-before
 
 // start-after-builders
-// The same declaration after `mion convert --to builders`: the const
-// carries the shape, and the alias keeps the type name alive so nothing that
-// imported `User` breaks.
+// after mion convert --to builders
 export const userRT = RT.object({
   id: TF.number(),
   name: RT.optional(TF.string()),
   tags: RT.array(TF.string()),
 });
-export type UserAsBuilders = InferType<typeof userRT>;
+export type UserAsBuilders = InferType<typeof userRT>; // the real command keeps the name User
 // end-after-builders
 
 // start-identity
-// Conversion never moves a type's identity: both spellings resolve to
-// the same id, so they share one generated validator, codec and mock pool.
 getRunTypeId<User>() === getRunTypeId(userRT); // true
 // end-identity
 
 // start-call-sites
-// A type written straight into a factory call has no declaration to rewrite,
-// so the converter rewrites the call itself. Before:
+// before
 export const isOrder = createValidateFn<{id: string; total: number}>();
 // end-call-sites
 
 // start-call-sites-after
-// And after converting to type builders, the same call with the type as a
-// value. It reflects the same shape, so it is the same validator.
+// after: the same shape, so the same validator
 export const isOrderBuilt = createValidateFn(
   RT.object({id: TF.string(), total: TF.number()})
 );

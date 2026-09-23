@@ -5,10 +5,6 @@ import {
 } from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 
-// A class with a non-empty constructor. The data goes on the wire structurally
-// (just its declared properties), so you only have to teach mion how to
-// build a real instance back: pass the class itself and a `deserialize`.
-// `serialize` is optional here (the default structural encode is exactly right).
 class Money {
   constructor(
     public amount: number,
@@ -19,14 +15,11 @@ class Money {
   }
 }
 
+// a constructor with arguments needs a deserialize
 registerClassSerializer(Money, {
-  // `data` is the data-only projection (methods already gone) -> a real instance
   deserialize: (data: DataOnly<Money>) => new Money(data.amount, data.currency),
 });
 
-// A class with a zero-argument constructor. There is nothing else to supply:
-// the client just hands over the class. Decode rebuilds it with `new Settings()`
-// and copies the decoded properties over.
 class Settings {
   theme = 'light';
   fontSize = 12;
@@ -35,6 +28,7 @@ class Settings {
   }
 }
 
+// a zero-argument constructor needs only the class
 registerClassSerializer(Settings);
 
 type Account = {id: string; balance: Money; settings: Settings};

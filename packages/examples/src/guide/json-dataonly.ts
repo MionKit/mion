@@ -1,6 +1,5 @@
 import {createJsonDecoderFn} from '@mionjs/run-types';
 
-// A type with a method. Methods don't survive a JSON round-trip.
 type Cart = {
   items: string[];
   total: number;
@@ -10,8 +9,7 @@ type Cart = {
 // start-dataonly
 const decode = createJsonDecoderFn<Cart>();
 
-// The decoder returns DataOnly<Cart>, not Cart: the method is gone from the
-// type because it was never on the wire. TS now stops you from calling it.
+// DataOnly<Cart> has no checkout: it was never on the wire
 const cart = decode('{"items":["TS-7"],"total":42}');
 
 cart.items; // string[]  ✅

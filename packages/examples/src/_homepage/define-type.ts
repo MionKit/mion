@@ -1,7 +1,6 @@
 import type * as TF from '@mionjs/run-types/formats';
 import {createValidateFn} from '@mionjs/run-types';
 
-// Your TypeScript type is the single source of truth. Nothing else to write.
 type User = {
   id: number;
   name: string;
@@ -9,7 +8,7 @@ type User = {
   roles: ('admin' | 'user')[];
 };
 
-// A specialized validator, generated from the type at build time.
+// a specialized validator, generated at build time
 const isUser = createValidateFn<User>();
 
 isUser({id: 1, name: 'Ada', email: 'ada@example.com', roles: ['admin']}); // true

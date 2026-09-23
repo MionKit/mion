@@ -3,7 +3,7 @@ import {createValidateFn, type InferType} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 
 // start-type
-// Option A: a plain TypeScript type. Fastest path, nothing extra to write.
+// Option A: a plain TypeScript type, nothing extra to write.
 type Product = {
   id: number;
   name: string;
@@ -23,8 +23,7 @@ const productRunType = RT.object({
   status: RT.union([RT.literal('draft'), RT.literal('live')]),
 });
 
-// Recover the TypeScript type, then generate from the type. Used this way
-// the schema itself adds nothing to your bundle.
+// Recover the TypeScript type, then generate from the type.
 type ProductFromRunType = InferType<typeof productRunType>;
 
 const isProductB = createValidateFn<ProductFromRunType>();

@@ -1,22 +1,16 @@
 import type * as TF from '@mionjs/run-types/formats';
 import {createValidateFn, createFormatTransformFn} from '@mionjs/run-types';
 
-// A card number is 12 to 19 digits whose checksum holds. The checksum is what
-// catches a mistyped digit, which a length check on its own never would.
-// Spaces and dashes between digits are accepted by default, because that is how
-// a card number is printed and typed.
+// 12 to 19 digits with a valid checksum; spaces and dashes allowed by default
 type Card = TF.CreditCard;
 
-// Narrow it to the networks the field actually takes.
+// only the networks this field takes
 type Accepted = TF.CreditCard<{networks: ['visa', 'mastercard']}>;
 
-// For a field that must hold digits and nothing else, name an empty separator
-// set. Any other set replaces the default.
+// digits only; any other separator set replaces the default
 type DigitsOnly = TF.CreditCard<{separators: ''}>;
 
-// Accepting the grouping does NOT rewrite it. Ask for that under `transform`,
-// and only `createFormatTransformFn` (or a mion route with `sanitizeParams`)
-// applies it, never validate or decode.
+// accepting the grouping does not remove it; this transform does
 type Normalized = TF.CreditCard<{transform: {stripSeparators: true}}>;
 
 const isCard = createValidateFn<Card>();

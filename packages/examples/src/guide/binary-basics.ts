@@ -18,8 +18,8 @@ const sample: Telemetry = {
 const encode = createBinaryEncoderFn<Telemetry>();
 const decode = createBinaryDecoderFn<Telemetry>();
 
-const bytes = encode(sample); // a Uint8Array view of the encoded bytes: compact, no field names on the wire
-const back = decode(bytes); // decode reads the bytes directly; typed as DataOnly<Telemetry>
+const bytes = encode(sample); // no field names on the wire
+const back = decode(bytes); // typed as DataOnly<Telemetry>
 
 back.recordedAt instanceof Date; // true: Date round-trips, like JSON
 // end-roundtrip

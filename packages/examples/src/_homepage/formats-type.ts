@@ -1,8 +1,7 @@
 import type * as TF from '@mionjs/run-types/formats';
 import {createValidateFn} from '@mionjs/run-types';
 
-// A format brands a string or number. The validator checks its exact
-// shape, not just "is it a string".
+// a format brands a string or number
 type Account = {
   id: TF.UUIDv4;
   email: TF.Email;
