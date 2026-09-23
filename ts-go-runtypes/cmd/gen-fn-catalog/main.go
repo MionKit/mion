@@ -3,7 +3,7 @@
 // internal/cachegen/operations is the single source of truth for which functions the build
 // can compile for a type, so this program imports it and prints one {functions} object to
 // stdout. scripts/core/gen-fn-catalog.mjs writes that dump into the website's
-// components/content/go-generated/, where FunctionCatalog.vue renders the "All Compiled
+// components/content/go-generated/, where server/utils/function-catalog.ts renders the "All Compiled
 // Functions" page; generated is what stops the page drifting when a function is added.
 //
 // Run via the miondevx command:
