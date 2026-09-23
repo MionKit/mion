@@ -1,5 +1,4 @@
-// Family 5 — Binary codec. Mirrors guide/ser-binary-basics.ts + ser-binary-sizing.ts + ser-binary-reuse.ts.
-// Round-trip, the sizer, and buffer reuse via the 'intoBuffer' size strategy.
+// Family 5, binary codec. Mirrors guide/binary-basics.ts + binary-size-strategies.ts.
 import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 
