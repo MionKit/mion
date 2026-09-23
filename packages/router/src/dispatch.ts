@@ -99,7 +99,7 @@ async function runExecutionChain(
     if (response.hasErrors && !executable.alwaysRun) continue;
 
     try {
-      // runRawMiddleware , runHeadersMiddleware & runRouteOrMiddleware must always accept the same parameters in the same order
+      // runRawMiddleware, runHeadersMiddleware & runRouteOrMiddleware must always accept the same parameters in the same order
       // methodCaller is resolved when the method is registered, so the loop never has to pick one
       // `isAsync` is decided by the type checker at the call site, not by inspecting the value, so a
       // plain function returning a promise still awaits and a proven-sync chain costs no promise frames.

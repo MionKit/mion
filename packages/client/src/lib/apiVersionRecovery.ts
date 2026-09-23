@@ -41,7 +41,7 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
 /** Compares every field the build version hashes, `options` included: this side holds both full rows. */
 export function verifyMethodRows(asked: string[], data: SerializableMethodsData): void {
   for (const id of asked) verifiedIds.add(id);
-  // Only the ids asked for: their middlewares ride along, and comparing those would report a route this call never uses.
+  // Only the asked ids: comparing the middleware riding along would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
   if (!stale.length) return;
   // The bundled shelf wins over the fetched one, so the rows it replaces have to go first

@@ -167,7 +167,6 @@ describe('batches', () => {
       // routeIndex is the actual route index from the first route's chain
       expect(chain!.routeIndex).toBeGreaterThanOrEqual(0);
 
-      // The sharedMiddleware should only appear once in the merged methods
       const middlewareCount = chain!.methods.filter((m) => m.id === 'sharedMiddleware').length;
       expect(middlewareCount).toBe(1);
 
@@ -695,11 +694,9 @@ describe('batches', () => {
       expect(response.body['other/route2']).toBe('result2');
       expect(response.body.route3).toBe('result3');
 
-      // The scopedMiddleware should appear in the merged methods (with path prefix)
       const chain = getBatch('mixed')!.chains.get('')!;
       expect(chain.methods.find((m) => m.id === 'other/scopedMiddleware')).toBeDefined();
 
-      // Verify execution order: route1, other/scopedMiddleware, other/route2, route3
       expect(chainMethodIds('mixed')).toEqual(['route1', 'other/scopedMiddleware', 'other/route2', 'route3']);
     });
 
@@ -719,7 +716,6 @@ describe('batches', () => {
       expect(response.body.route1).toBe('result1');
       expect(response.body.route3).toBe('result3');
 
-      // Verify execution order: other/scopedMiddleware, other/route2, route1, route3
       expect(chainMethodIds('scopedFirst')).toEqual(['other/scopedMiddleware', 'other/route2', 'route1', 'route3']);
     });
 
@@ -737,7 +733,6 @@ describe('batches', () => {
       expect(response.body.route1).toBe('result1');
       expect(response.body.route3).toBe('result3');
 
-      // The scopedMiddleware should NOT appear in the merged methods (with path prefix)
       const chain = getBatch('unscoped')!.chains.get('')!;
       expect(chain.methods.find((m) => m.id === 'other/scopedMiddleware')).toBeUndefined();
     });

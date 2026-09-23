@@ -157,7 +157,7 @@ describe('a client built with bundleApi: bundled', () => {
     try {
       middlewares.auth(new HeadersSubset({Authorization: 'XWYZ-TOKEN'})).prefill();
       const [results, errors, fatal] = await batch([routes.sayHello(user), routes.utils.sumTwo(1)]).call();
-      // the prefilled auth rode along: no middlewares were named on the call
+      // the prefilled auth rode along, unnamed by the call
       expect(fatal).toBeUndefined();
       expect(errors).toEqual([undefined, undefined]);
       expect(results).toEqual(['Hello John Doe', 3]);

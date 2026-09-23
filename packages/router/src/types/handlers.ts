@@ -20,7 +20,7 @@ export type Handler<Context extends CallContext = any, Params extends any[] = an
 ) => Ret | Promise<Ret>;
 // type-handler-end
 
-/** Headers Middleware Handler, middleware handler for when params are sent in the header  */
+/** Headers Middleware Handler, for params sent in the header */
 export type HeaderHandler<
   Context extends CallContext = any,
   ExpectedHeaders extends HeadersSubset<any> = any,
@@ -28,7 +28,7 @@ export type HeaderHandler<
   Ret = any,
 > = (context: Context, headers: ExpectedHeaders, ...parameters: Params) => Ret | Promise<Ret>;
 
-/** Handler to use with raw middlewares to get access to raw request and response */
+/** Raw middleware handler: gets the raw request and response */
 export type RawMiddlewareHandler<
   Context extends CallContext = any,
   RawReq = any,
