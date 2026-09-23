@@ -179,7 +179,7 @@ export interface SerializationOptions {
   /** Sigma multiplier for headroom: `allocSize = mean + sizeMultiplier * stddev`. Default 2, which covers
    *  payloads up to two standard deviations above the mean in one shot; larger ones grow in place. **/
   sizeMultiplier: number;
-  /** Strings shorter than this bypass the bytes cache. Default 64. **/
+  /** Strings this long or longer bypass the bytes cache. Default 64. **/
   maxStrCacheLength: number;
   /** Half-LRU eviction triggers above this. Default 1000. **/
   maxCacheSize: number;
