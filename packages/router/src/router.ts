@@ -78,8 +78,8 @@ type RoutesWithId = {
 const mionInternalRoutes = Object.values(MION_ROUTES) as string[];
 const flatRouter = getOrCreateGlobal('mion.router.flatRouter', () => new Map<string, MethodsExecutionChain>()); // Main Router
 /** mion's two not-found chains (an unknown path, an unknown batch id) are NOT routes and not in the
- *  router above: each is the global middlewares behind a first member that throws, and is rebuilt on
- *  every registration because those middlewares are. */
+ *  router above: each is the global middleware behind a first member that throws, and is rebuilt on
+ *  every registration because that middleware is. */
 const notFoundChains = getOrCreateGlobal('mion.router.notFoundChains', () => new Map<string, MethodsExecutionChain>());
 const middlewaresById = getOrCreateGlobal(
   'mion.router.middlewaresById',

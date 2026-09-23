@@ -236,7 +236,6 @@ describe('Dispatch routes', () => {
       expect(error.type).toEqual('route-not-found');
     });
 
-    // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another middleware it wil work
     it('support async handlers and ensure execution in order', async () => {
       const id = 'sumTwo';
       const routes = {

@@ -18,7 +18,7 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
   readonly path: string;
   readonly request: MionRequest;
   readonly response: MionResponse;
-  /** Data shared between handlers (route/middlewares), never returned in the response. */
+  /** Shared by the chain's handlers, never sent back. */
   shared: ContextData;
   readonly executionChain: MethodsExecutionChain;
   /** The request limit this request was read against: the chain's number capped by the platform's */

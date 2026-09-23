@@ -41,7 +41,7 @@ export type PrivateDef = PrivateMiddlewareDef | RawMiddlewareDef;
 
 // ####### Remote Methods Metadata #######
 
-/** All public routes & middlewares; private middlewares and rawMiddlewares are dropped.
+/** Public routes & middleware; private and raw middleware are dropped.
  *  Each public method carries its EFFECTIVE options (route, then router, then default), the values
  *  `initRoutes` returns at runtime and a client build reads off this type. */
 // prettier-ignore

@@ -28,7 +28,7 @@ describe('client', () => {
 
   const baseURL = TEST_SERVER_BASE_URL;
 
-  // Note: prefilledMiddlewaresCache is now per-client instance, so each test with a fresh client starts with empty cache
+  // prefilledMiddlewaresCache is per client, so each test's fresh client starts with an empty cache
 
   it('proxy to trap remote methods calls and return MethodRequest data', () => {
     const {routes, middlewares} = initClient<MyApi>({baseURL});
@@ -194,7 +194,7 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       const [greeting, error] = await routes.sayHello(someUser).call();
@@ -210,7 +210,7 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       const [response, error] = await routes.alwaysFails(someUser).call();
@@ -228,7 +228,7 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       // This should NOT throw
@@ -250,7 +250,7 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       const [response, error] = await routes.alwaysFails(someUser).call();
@@ -275,7 +275,6 @@ describe('client', () => {
       let successCallCount = 0;
       let receivedSessionInfo: any = null;
 
-      // Prefill the session middleware and register onSuccess handler
       middlewares
         .session('valid-token')
         .prefill()
@@ -284,7 +283,7 @@ describe('client', () => {
           receivedSessionInfo = sessionInfo;
         });
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       // Make first request
@@ -321,7 +320,7 @@ describe('client', () => {
           errorCalled = true;
         });
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       // Make request - should fail with session-expired
@@ -349,7 +348,7 @@ describe('client', () => {
           successCallCount++;
         });
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       // First request - handler should be called
@@ -386,7 +385,7 @@ describe('client', () => {
           errorCalled = true;
         });
 
-      // Prefill auth middleware so call() works without explicit middlewares
+      // So call() works without passing middleware
       middlewares.auth(authHeaders).prefill();
 
       // Make successful request
@@ -433,7 +432,6 @@ describe('client', () => {
       let typedEventSuccessCalled = false;
       let typedEventReceivedSession: any = null;
 
-      // Prefill session middleware with TypedEvent handlers
       middlewares
         .session('valid-token')
         .prefill()
@@ -442,7 +440,6 @@ describe('client', () => {
           typedEventReceivedSession = sessionInfo;
         });
 
-      // Prefill auth middleware
       middlewares.auth(authHeaders).prefill();
 
       // call() should return both route result AND middleware results in the 4-tuple
@@ -453,7 +450,7 @@ describe('client', () => {
       expect(routeError).toBeUndefined();
       expect(fatal).toBeUndefined();
 
-      // Middleware results should be available in the 4-tuple (from prefilled middlewares)
+      // Filled by the prefilled middleware
       expect(middlewareResults).toBeDefined();
 
       // TypedEvent handler should ALSO have been called
@@ -473,7 +470,6 @@ describe('client', () => {
       let typedEventErrorCalled = false;
       let typedEventReceivedError: any = null;
 
-      // Prefill session middleware with expired token and TypedEvent error handler
       middlewares
         .session('expired')
         .prefill()
@@ -482,7 +478,6 @@ describe('client', () => {
           typedEventReceivedError = error;
         });
 
-      // Prefill auth middleware
       middlewares.auth(authHeaders).prefill();
 
       // a middleware's DECLARED error lands in the middlewareErrors record, never in the
@@ -510,7 +505,6 @@ describe('client', () => {
       let typedEventSuccessCalled = false;
       let typedEventReceivedSession: any = null;
 
-      // Prefill session middleware with TypedEvent success handler
       middlewares
         .session('valid-token')
         .prefill()
@@ -519,10 +513,9 @@ describe('client', () => {
           typedEventReceivedSession = sessionInfo;
         });
 
-      // Prefill auth middleware
       middlewares.auth(authHeaders).prefill();
 
-      // Call a route that always fails - middlewares still execute and succeed, but route returns error
+      // The route always fails; its middleware still runs and succeeds
       const [result, routeError, fatal, middlewareResults] = await routes.alwaysFails(someUser).call();
 
       // Route should fail with its DECLARED error in the typed slot; nothing is fatal
@@ -532,11 +525,10 @@ describe('client', () => {
       expect(routeError?.publicMessage).toBe('Something fails');
       expect(fatal).toBeUndefined();
 
-      // Middleware results should be available (middlewares succeeded even though route failed)
+      // Filled even though the route failed
       expect(middlewareResults).toBeDefined();
 
-      // TypedEvent success handler SHOULD be called for the middleware (middleware succeeded independently)
-      // This is the correct behavior - each middleware is processed individually, not based on route success
+      // Each middleware's handler fires on its own success, whatever the route's outcome
       expect(typedEventSuccessCalled).toBe(true);
       expect(typedEventReceivedSession).toBeDefined();
       expect(typedEventReceivedSession.userId).toBe('user-123');
@@ -663,7 +655,6 @@ describe('client', () => {
         },
       });
 
-      // Session middleware should have data
       expect(middlewareResults?.session).toBeDefined();
       expect(middlewareResults?.session?.userId).toBe('user-123');
     });
@@ -764,7 +755,6 @@ describe('client', () => {
       const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-      // Prefill auth middleware
       middlewares.auth(authHeaders).prefill();
 
       // Send wrong param type
