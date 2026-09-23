@@ -1,6 +1,4 @@
-// Family 4 — JSON codec. Mirrors guide/ser-json-basics.ts + ser-json-strategies.ts +
-// ser-data-only.ts. Round-trip through Date + Map, the three encoder
-// strategies, and the DataOnly decode projection.
+// Family 4, JSON codec. Mirrors guide/serialization-overview.ts + json-strategies.ts + serialization-data-only.ts.
 import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 

@@ -1,6 +1,4 @@
-// Family 6 — Serialization edge. Mirrors guide/ser-json-circular.ts +
-// ser-class.ts. A per-call circular guard throws, and a
-// registered class serializer rebuilds a real instance on decode.
+// Family 6, serialization edge. Mirrors guide/serialization-circular.ts + serialization-class.ts.
 import {createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, CircularReferenceError, type DataOnly} from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {type CheckResult, ok} from './check';
