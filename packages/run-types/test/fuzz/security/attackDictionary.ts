@@ -9,8 +9,8 @@
 //   binary  bytes spliced at a wire-map read of `read` (the secbinary lane),
 //           see wireMutations.ts for the splice mechanics.
 //
-// `expect: 'reject'` marks a payload the type system rules out: `parse` MUST
-// throw and a decoder must throw or hand back a value `validate` refuses. A
+// `expect: 'reject'` marks a payload the type system rules out: a decoder must
+// throw or hand back a value `validate` refuses. A
 // mis-accept there is a finding. `expect: 'any'` payloads only feed the
 // resource / prototype / totality oracles (a payload the type may legitimately
 // accept, or one whose outcome depends on the surrounding type).
@@ -561,7 +561,7 @@ export function expectWrongType(kind: AttackKind, sampleKind: string): Expect {
       return sampleKind === 'boolean' ? 'any' : 'reject';
     case 'bigint':
       // The wire form is a decimal string; a whole number is the one lenient
-      // spelling `parse` promises. Every other kind reaches validate untouched.
+      // spelling the decoder accepts. Every other kind reaches validate untouched.
       return sampleKind === 'bigintString' || sampleKind === 'number' ? 'any' : 'reject';
     case 'date':
       // The wire form is an ISO string; the restore arm transforms only

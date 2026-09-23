@@ -4,7 +4,7 @@
 // refused by the decoder itself, and the message names what arrived.
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoderFn, createJsonEncoderFn, createParseFn, isSerializationError, RTParseError} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 interface Holder {
   when: Date | bigint;
@@ -12,7 +12,6 @@ interface Holder {
 
 describe('union envelope index', () => {
   const decode = createJsonDecoderFn<Holder>();
-  const parse = createParseFn<Holder>();
 
   it('a valid index restores the member', () => {
     const encode = createJsonEncoderFn<Holder>();
@@ -32,17 +31,6 @@ describe('union envelope index', () => {
     it(`index ${JSON.stringify(index)} is refused by the decoder, naming it`, () => {
       const text = JSON.stringify({when: [index, '1']});
       expect(() => decode(text)).toThrow(`[mion] Can not json decode union: invalid union index ${rendered}`);
-      let caught: unknown;
-      try {
-        parse(JSON.parse(text));
-      } catch (err) {
-        caught = err;
-      }
-      expect(caught).toBeInstanceOf(RTParseError);
-      const {issues} = caught as RTParseError;
-      expect(isSerializationError(issues) && issues.deserializeError).toBe(
-        `[mion] Can not json decode union: invalid union index ${rendered}`
-      );
     });
   }
 });

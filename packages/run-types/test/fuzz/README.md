@@ -165,7 +165,7 @@ Holds a small set of concrete schemas and floods each with **five** value
 streams per seed: a conforming mock, that mock mutated to a provably-invalid
 value at exactly one position, the mock decorated with undeclared keys, the
 mock with ONE undeclared key planted at a walked position, and pure type-blind
-junk. Checks the value oracles **O1–O7**, **O18–O21** and **O22–O25** (see
+junk. Checks the value oracles **O1–O7**, **O18**, **O21** and **O22–O25** (see
 [the catalog](#oracle-catalog)).
 
 - `fuzzOracle.ts` — the property checks + the `Violation` shape.
@@ -384,8 +384,8 @@ vulnerability dictionary.
   with concrete payloads, each tagged with a vulnerability class (memory,
   truncation, type confusion, prototype pollution, ReDoS, stack, raw error,
   transform, unicode, numeric, envelope, time) and an `expect`: `'reject'`
-  means the type rules the payload out, so `parse` must throw and a decoder
-  must throw or hand back a value `validate` refuses; a mis-accept is a
+  means the type rules the payload out, so a decoder must throw or hand back
+  a value `validate` refuses; a mis-accept is a
   finding. The **wrong-type matrix** is generated on top: one sample of every
   other kind at every position (a string in a number slot, `true` in a string
   slot, an object where an array goes). Unions get the whole envelope treated
@@ -403,7 +403,7 @@ vulnerability dictionary.
 - `treeMutations.ts` — splices a dictionary payload at a position (a
   prototype key as an OWN key, the way `JSON.parse` yields it) or a random
   junk subtree (the blind layer), producing the JSON text the decoders read
-  and the re-parsed tree `parse` reads from one `JSON.stringify`.
+  and its re-parsed tree from one `JSON.stringify`.
 - `wireMap.ts` — decodes the valid BINARY wire once through an instrumented
   deserializer and records every read the compiled decoder makes (offset +
   reader). That is the wire as the decoder sees it: each read is a position
@@ -450,7 +450,7 @@ restore loops trusted a non-array's `.length`
 (`{"length": 1e9}` at an array position looped a billion times before validate
 ran; every element loop is now behind `Array.isArray`), the Date / bigint /
 Temporal / Map / Set restore arms coerced whatever the wire held (`null`
-became an epoch Date, `true` became `1n`, `null` an empty Set, so `parse`
+became an epoch Date, `true` became `1n`, `null` an empty Set, so validate
 accepted them; every arm now rebuilds only from its wire form and leaves
 anything else for the check), and the compact decoder rebuilt an object from a
 bare number (`{}` for a type whose props are all optional; the positional
@@ -459,9 +459,7 @@ rebuild is now behind `Array.isArray` too).
 Decoders deliberately throw whatever the failing arm throws (a
 `BinaryDecodeError` from the reader, a `SyntaxError` from `BigInt`, the
 engine's own `TypeError`): no wrapper on the hot path, a caller catches and
-rethrows. `parse` is the typed entry point and keeps its `RTParseError`
-promise on every hostile input (SJ-PARSE). A decoder throw is a histogram
-entry in the report, not a finding.
+rethrows. A decoder throw is a histogram entry in the report, not a finding.
 
 **`secgen` — the generated-code corpus scan.** The other three lanes attack a
 compiled decoder with input; this one reads the code the emitters produced.
@@ -679,7 +677,7 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 | `MION_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
 | `MION_FUZZ_SIZE_SOAK_MS`                                                       | binary-size fuzz soak duration (ms)                                     |
 | `MION_FUZZ_SECBINARY_SOAK_MS`                                                  | security fuzz, binary decoder bytes (ms)                                |
-| `MION_FUZZ_SECJSON_SOAK_MS`                                                    | security fuzz, JSON decoders + parse (ms)                               |
+| `MION_FUZZ_SECJSON_SOAK_MS`                                                    | security fuzz, JSON decoders (ms)                                       |
 | `MION_FUZZ_SECFORMAT_SOAK_MS`                                                  | security fuzz, format validators + patterns (ms)                        |
 | `MION_FUZZ_SECHTTP_SOAK_MS`                                                    | security fuzz, hostile requests at the mion router + node adapter (ms)  |
 | `MION_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
@@ -702,7 +700,7 @@ Grouped by mode.
 | cloning                   | **O15** clone-reference · **O16** clone-isolation · **O17** clone-consistency                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | security / binary         | **SB-THROWS** decode returns or throws an Error · **SB-BOUNDS** index never past the buffer on return · **SB-TOTAL** validate(decoded) is a boolean, an accepted value re-encodes · **SB-REJECT** ruled-out bytes never validate · **SB-TIME** decode inside its budget · **SB-ISOLATION** the valid wire still round-trips after every attack · **SB-OOM** heap cap or hang, as a crash record · **SB-PROTO** sane prototypes and no inherited keys on the decoded value                                                                                                                                                                                                                            |
 | security / generated code | **GC-PARSE** the body compiles as strict JS · **GC-TEXT** no raw control byte or line terminator · **GC-INJECT** a planted marker never escapes its literal · **GC-REBUILD** key-writing loops onto a fresh object carry the prototype-name guard, no Object.assign · **GC-COUNT** binary counts go through desCount / desCountU32 · **GC-REGEXP** every new RegExp( takes a build-time literal · **GC-ACCESS** no bare non-identifier property access · **GC-GUARD** a JSON decoder checks the wire shape before it converts a value · **GC-IDENTITY** `instanceof` only against a JavaScript built-in, a user class only by exact constructor against `cix_<id>.cls`, and never `constructor.name` |
-| security / JSON           | **SJ-PARSE** parse throws only RTParseError · **SJ-REJECT** ruled-out payloads never get through parse or validate · **SJ-PROTO** sane prototypes, no inherited enumerable keys, on every decoded value and its exact-shape clone, and no encoder writes a prototype-named key onto the wire · **SJ-GLOBAL** Object/Array/Function prototypes untouched · **SJ-TOTAL** validate(decoded) is a boolean · **SJ-TIME** every call inside its budget                                                                                                                                                                                                                                                     |
+| security / JSON           | **SJ-REJECT** ruled-out payloads never get through validate · **SJ-PROTO** sane prototypes, no inherited enumerable keys, on every decoded value and its exact-shape clone, and no encoder writes a prototype-named key onto the wire · **SJ-GLOBAL** Object/Array/Function prototypes untouched · **SJ-TOTAL** validate(decoded) is a boolean · **SJ-TIME** every call inside its budget                                                                                                                                                                                                                                                                                                            |
 | security / formats        | **SF-TOTAL** returns a boolean, never throws · **SF-TIME** one validator call under 250 ms · **SF-PATTERN-TIME** the same per registered pattern regex                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | security / http (router)  | **SH-ALIVE** the router and the process still answer after every attack · **SH-ENVELOPE** a well-formed envelope, a token x-rpc-error header, nothing internal on a thrown error · **SH-NO5XX** malformed input never yields a 5xx · **SH-NOLEAK** no engine text or file path in a response · **SH-TIME** one request inside its budget · **SH-PROTO** Object.prototype untouched                                                                                                                                                                                                                                                                                                                   |
 | enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |

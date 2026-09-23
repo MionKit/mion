@@ -5,7 +5,6 @@ import {
   createUnknownKeyErrorsFn,
   createCloneExactShapeFn,
   createFormatTransformFn,
-  createParseFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
   createPrepareForJsonFn,
@@ -42,11 +41,6 @@ const userHasExtras = createHasUnknownKeysFn<User>();
 const userExtraErrors = createUnknownKeyErrorsFn<User>();
 const cloneUser = createCloneExactShapeFn<User>();
 const cleanUser = createFormatTransformFn<User>();
-
-// untrusted input: restores and checks in one walk, throws on a mismatch
-const parseUser = createParseFn<User>();
-const parseUserStrip = createParseFn<User>(undefined, {strategy: 'strip'});
-const parseUserFail = createParseFn<User>(undefined, {strategy: 'fail'});
 
 // JSON as a string
 const encodeUser = createJsonEncoderFn<User>(undefined, {strategy: 'clone'});
@@ -90,8 +84,6 @@ export {
   userErrors,
   userErrorsStrict,
   userErrorsUnionKeys,
-  parseUserStrip,
-  parseUserFail,
   prepareUserMutate,
   restoreUserMutate,
   compactUser,
@@ -100,7 +92,6 @@ export {
   userExtraErrors,
   cloneUser,
   cleanUser,
-  parseUser,
   encodeUser,
   decodeUser,
   prepareUser,

@@ -1,4 +1,4 @@
-// secjson: attack the three JSON decoders and `parse` with the vulnerability
+// secjson: attack the three JSON decoders with the vulnerability
 // dictionary at every position of the parsed wire (plus blind junk
 // mutations). Needs the Go binary; skipped when it is missing.
 
@@ -11,7 +11,7 @@ import {renderCrashes} from '../core/crashGuard.ts';
 import {renderViolations} from './securityOracle.ts';
 import {renderCoverage} from './laneShared.ts';
 
-describe('fuzz / security / JSON decoders — hostile trees never pollute, hang, or slip past parse', () => {
+describe('fuzz / security / JSON decoders — hostile trees never pollute, hang, or slip past validate', () => {
   const register = hasBinary() ? it : it.skip;
 
   register(

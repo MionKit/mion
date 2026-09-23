@@ -150,11 +150,6 @@ export {
   type JsonDecoderFn,
   type JsonDecoderOptions,
   type JsonDecoderStrategy,
-  createParseFn,
-  type ParseFn,
-  type ParseOptions,
-  type ParseStrategy,
-  type ParseRestoreFn,
   // The value-level JSON transforms, no string step; several of them in ONE wrapper marker
   // resolve through `getRTFunction` instead.
   createPrepareForJsonFn,
@@ -247,8 +242,6 @@ export {
 // other compile flag. The encoders throw this error on a cycle; validate returns false and
 // getValidationErrors records a `{expected: 'circular'}` issue.
 export {CircularReferenceError, type CircularPath} from './runtypes/circular.ts';
-export {isSerializationError, ParseMismatch, RTParseError} from './runtypes/parseError.ts';
-export type {RTSerializationError} from './runtypes/parseError.ts';
 
 // DataView helpers — exposed so consumers can pre-build a serializer /
 // deserializer instance and pass it to the encoder / decoder for buffer reuse.

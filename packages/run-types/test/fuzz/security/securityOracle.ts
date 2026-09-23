@@ -20,10 +20,9 @@
 //                   position and no inherited enumerable keys (the class
 //                   deserializer's JSON frame is the binary road's own key path).
 //
-//   JSON decoders + parse (secjson lane)
-//     SJ-PARSE      `parse` throws only RTParseError.
-//     SJ-REJECT     an `expect: 'reject'` payload never gets through `parse`,
-//                   and never decodes into a value `validate` accepts.
+//   JSON decoders (secjson lane)
+//     SJ-REJECT     an `expect: 'reject'` payload never decodes into a value
+//                   `validate` accepts.
 //     SJ-PROTO      a returned value has a sane prototype at every object
 //                   position and no inherited enumerable keys; the same for the
 //                   exact-shape clone of a decoded value, and no encoder writes
@@ -50,7 +49,6 @@ export type SecurityOracleId =
   | 'SB-ISOLATION'
   | 'SB-OOM'
   | 'SB-PROTO'
-  | 'SJ-PARSE'
   | 'SJ-REJECT'
   | 'SJ-PROTO'
   | 'SJ-GLOBAL'
@@ -219,7 +217,6 @@ export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
 // ---- JSON side --------------------------------------------------------------
 
 export interface JsonProbe {
-  parse?: (value: unknown) => unknown;
   decoders: Record<string, (text: string) => unknown>;
   validate: (value: unknown) => boolean;
   /** The encoders that rebuild an object from its keys (safe / direct /
@@ -240,7 +237,7 @@ export interface JsonStepResult {
 /** Run every JSON oracle over one attack. **/
 export function checkJsonDecode(
   probe: JsonProbe,
-  attack: {id: string; expect: 'reject' | 'any'; text: string; tree: unknown},
+  attack: {id: string; expect: 'reject' | 'any'; text: string},
   ctx: Ctx
 ): JsonStepResult {
   const violations: SecurityViolation[] = [];
@@ -259,29 +256,6 @@ export function checkJsonDecode(
       if (elapsed > budget) push('SJ-TIME', `${label} took ${elapsed.toFixed(1)}ms (budget ${budget.toFixed(0)}ms)`);
     }
   };
-
-  if (probe.parse) {
-    let parsed: unknown;
-    let threw = false;
-    try {
-      parsed = timed('parse', () => probe.parse!(structuredClone(attack.tree)));
-    } catch (err) {
-      threw = true;
-      const name = err instanceof Error ? err.name : 'non-Error';
-      if (name !== 'RTParseError') push('SJ-PARSE', `parse threw ${errMsg(err)} instead of RTParseError`);
-    }
-    if (!threw) {
-      if (attack.expect === 'reject') push('SJ-REJECT', `parse accepted a payload the type rules out: ${renderValue(parsed)}`);
-      checkPrototypes(parsed, 'parse', attack.id, ctx, violations, input);
-      let accepted: boolean | undefined;
-      try {
-        accepted = probe.validate(parsed);
-      } catch (err) {
-        push('SJ-TOTAL', `validate threw on parse's output: ${errMsg(err)}`);
-      }
-      if (accepted === false) push('SJ-REJECT', `parse returned a value validate refuses: ${renderValue(parsed)}`);
-    }
-  }
 
   for (const [name, decode] of Object.entries(probe.decoders)) {
     let value: unknown;

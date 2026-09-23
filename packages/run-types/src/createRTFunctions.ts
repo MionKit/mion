@@ -4,8 +4,7 @@
 // injected at each call site (see runtypes/entryTuple.ts).
 
 import {isRunTypeValue} from './runtypes/rtUtils.ts';
-import {entryTupleAt, resolveEntryTupleFn} from './runtypes/entryTuple.ts';
-import {ParseMismatch, RTParseError} from './runtypes/parseError.ts';
+import {resolveEntryTupleFn} from './runtypes/entryTuple.ts';
 import type {AnyFn, RunType} from './runtypes/types.ts';
 import type {DataOnly} from './runtypes/dataOnly.ts';
 import type {JSONShape} from './runtypes/jsonShape.ts';
@@ -224,7 +223,7 @@ export type HasUnknownKeysFn = (value: unknown, options?: HasUnknownKeysOptions)
  *  KEPT on the clone, shared by reference, and the build says so (CES010/CES015);
  *  `overrideCloneExactShape<T>()` is the escape hatch for custom copying. Replaces the removed
  *  mutating `stripUnknownKeys` / `unknownKeysToUndefined` (measured 3–24x faster, no delete-induced
- *  dictionary-mode deopt). Intended use: stripping validated parse output, and any place a
+ *  dictionary-mode deopt). Intended use: stripping validated decoder output, and any place a
  *  schema-shaped deep clone is wanted. **/
 export type CloneExactShapeFn<T = unknown> = (value: T) => T;
 
@@ -264,7 +263,7 @@ export type FormatTransformValue<T> = T extends string
 /** Transform returned by `createFormatTransformFn<T>()`. Applies the rewrites declared under a
  *  format's `transform` key anywhere in `T` (trim / case / replace; creditCard `stripSeparators`);
  *  identity when `T` declares none. The direct-caller surface, and what mion applies to route params
- *  through `sanitizeParams`. Never a step inside validate / parse / encode / decode. **/
+ *  through `sanitizeParams`. Never a step inside validate / encode / decode. **/
 export type FormatTransformFn<T> = (value: FormatTransformValue<T>) => FormatTransformValue<T>;
 
 // `T` defaults to `unknown`, where `JSONShape` and `DataOnly` collapse to `unknown`, so the
@@ -279,36 +278,6 @@ export type JsonEncoderFn = (value: unknown) => string | undefined;
 
 /** Parse function returned by `createJsonDecoderFn<T>()`. **/
 export type JsonDecoderFn<T = unknown> = (serialized: string) => T;
-
-/** The compiled parse body: takes the output of `JSON.parse`, returns the typed value, and THROWS
- *  on a mismatch. Recovered through `getRTFunction<'parse'>()` by a framework threading its own
- *  marker; most callers want `createParseFn<T>()`, which turns the throw into an `RTParseError`.
- *  What it throws is a bare `ParseMismatch` carrying the restored value: building the report costs a
- *  second walk, and only the caller knows whether it wants one. **/
-export type ParseRestoreFn = (value: unknown) => unknown;
-
-/** Function returned by `createParseFn<T>()`. Takes the output of `JSON.parse`
- *  (NOT a JSON string) and returns the typed value, or throws `RTParseError`. **/
-export type ParseFn<T = unknown> = (value: unknown) => DataOnly<T>;
-
-/** Caller-controlled `strategy` for `createParseFn<T>()` — what to do with properties the type does
- *  not declare:
- *
- *  - `'preserve'` (default): keep them. The cheapest shape (no pre-pass, no key check), and what zod
- *    does, which strips only under `.strict()`.
- *  - `'strip'`: blank them before the restore walks the declared shape, so the returned value
- *    carries only what the type declares. Safer for an untrusted payload you will store or forward.
- *  - `'fail'`: reject a value carrying them, the same rule `createValidateFn`'s `checkUnknowns`
- *    applies.
- *
- *  The `parse.strategy` plugin / tsconfig option sets the project default; a per-call value
- *  overrides it, and an explicit `'preserve'` opts back out. Same shape as `validate.numberMode`.
- *
- *  COMPILE-TIME, like every option in this file: the plugin bakes the choice into the injected tuple
- *  and the runtime never reads it. Each value selects a different compiled family, so
- *  `getFnHash('parse')` is the loose one, `'parseStrip'` for strip and `'parseFail'` for fail. **/
-export type ParseStrategy = 'preserve' | 'strip' | 'fail';
-export type ParseOptions = {strategy?: ParseStrategy};
 
 /** Caller-controlled `strategy` for `createPrepareForJsonFn<T>()` and
  *  `createRestoreFromJsonFn<T>()`. A pair must name the SAME word on both sides.
@@ -489,8 +458,7 @@ export const createPrepareForJsonFn = createTypeFnArgsFunction<PrepareForJsonFn>
   ) => PrepareForJsonFn<T>);
 
 /** `JSON.parse` output in, typed value out (BigInt(...), Date revival, Map/Set rebuilt).
- *  It does NOT check the value; `createParseFn<T>()` does the restore and the check in one
- *  walk, for untrusted data. **/
+ *  It does NOT check the value; validate the result for untrusted data. **/
 export const createRestoreFromJsonFn = createTypeFnArgsFunction<RestoreFromJsonFn>(
   'createRestoreFromJsonFn',
   identityValueFn
@@ -601,100 +569,6 @@ export function createJsonDecoderFn<T>(
 }
 
 // =============================================================================
-// createParseFn — restore + check in ONE walk
-// =============================================================================
-
-/** Returns a parse function for `T`: it takes the output of `JSON.parse` and gives back the typed
- *  value, throwing `RTParseError` when the data does not match.
- *
- *  ```ts
- *  const parseUser = createParseFn<User>();
- *  const user = parseUser(JSON.parse(body)); // typed, or throws
- *  ```
- *
- *  Replaces the three-call glue this used to take:
- *
- *  ```ts
- *  const restored = restoreFromJsonMutate(data);
- *  if (!isUser(restored)) throw new Error(...getValidationErrors(restored));
- *  ```
- *
- *  The compiled body restores and checks in a SINGLE walk, so a matching value costs one pass
- *  instead of two. A failing one pays a second pass to build the report, which is built from the
- *  fully restored value, so the `issues` are exactly what `createGetValidationErrorsFn<T>()` returns.
- *
- *  Input is parsed JSON, not a string, so it composes with whatever produced the envelope rather
- *  than duplicating it. Use `createJsonDecoderFn<T>()` to have the string decoded for you with no
- *  validation. `strategy` decides what happens to undeclared properties — `'preserve'` by default; see
- *  `ParseStrategy`. **/
-export function createParseFn<T>(
-  runType: RunType<T>,
-  options?: CompTimeFnArgs<ParseOptions>,
-  ids?: InjectTypeFnArgs<T, 'parse', 'validationErrors'>
-): ParseFn<T>;
-export function createParseFn<T>(
-  val?: T,
-  options?: CompTimeFnArgs<ParseOptions>,
-  ids?: InjectTypeFnArgs<T, 'parse', 'validationErrors'>
-): ParseFn<T>;
-export function createParseFn<T>(
-  valOrSchema?: T | RunType<T>,
-  _options?: CompTimeFnArgs<ParseOptions>,
-  ids?: InjectTypeFnArgs<T, 'parse', 'validationErrors'>
-): ParseFn<T> {
-  // A value-first schema's runtime `.id` overrides the injected type id (correct
-  // even for recursive schemas), same as createStandardSchema.
-  const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
-  // TWO tuples in Fn-arg order 'parse','validationErrors'. The parse body is the hot path and the
-  // report is built only on failure, which is why the pair is injected here rather than composed by
-  // the caller. `strategy` is compile-time: the plugin already resolved it to one of the three parse
-  // families and baked that family's fnHash into the first tuple.
-  const parse = resolveEntryTupleFn<ParseRestoreFn>('createParseFn', parseNoPluginFallback, runTypeId, entryTupleAt(ids, 0));
-  const getErrors = resolveEntryTupleFn<GetValidationErrorsFn<FormatErrorsOf<T>>>(
-    'createParseFn',
-    getValidationErrorsIdentity,
-    runTypeId,
-    entryTupleAt(ids, 1)
-  );
-  return (value: unknown): DataOnly<T> => {
-    try {
-      return parse(value) as DataOnly<T>;
-    } catch (err) {
-      // Only OUR signal is turned into a report. Anything else is a genuine bug
-      // in a user hook or a class deserializer and must not be swallowed.
-      if (err instanceof ParseMismatch) {
-        // A throw from the restore is a DESERIALIZATION failure, reported as one rather than as type
-        // errors — the same split `@mionjs/router` makes. Only a value that deserialized and then
-        // failed the check gets the validation report.
-        if (err.cause !== undefined) throw new RTParseError({deserializeError: messageOf(err.cause)}, err.cause);
-        throw new RTParseError(getErrors(err.value));
-      }
-      // A value nested deeper than the engine stack on a recursive type overflows inside the check.
-      // The validators carry no depth counter (it would cost every recursive call), so parse, the one
-      // total entry point, maps the overflow to its typed error here; a bare validate still throws.
-      if (err instanceof RangeError) {
-        throw new RTParseError({deserializeError: `[mion] value nested too deep: ${err.message}`}, err);
-      }
-      throw err;
-    }
-  };
-}
-
-/** No-plugin fallback. Unlike every other family this must NOT degrade to
- *  identity: a parse that accepts anything is a hole where the caller asked for a
- *  gate. Throws with the same actionable hint the JSON Schema family uses. **/
-// The underlying message, for the serialization report. Anything can be thrown,
-// so a non-Error is stringified rather than trusted to have `.message`.
-function messageOf(cause: unknown): string {
-  if (cause instanceof Error) return cause.message;
-  return String(cause);
-}
-
-const parseNoPluginFallback: ParseRestoreFn = () => {
-  throw new Error('createParseFn(): no compiled parser. @mionjs/devtools must be active for the parse cache entry to exist.');
-};
-
-// =============================================================================
 // getRTFunction — recover ANY family's compiled fn from an injected marker tuple
 // =============================================================================
 
@@ -719,10 +593,6 @@ export interface RTFunctionByKey {
   unknownKeyErrors: UnknownKeyErrorsFn;
   // Format transform.
   formatTransform: FormatTransformFn<unknown>;
-  // Parse — restore + check in one walk (one key per undeclared-key strategy).
-  parse: ParseRestoreFn;
-  parseFail: ParseRestoreFn;
-  parseStrip: ParseRestoreFn;
   // JSON string I/O.
   jsonEncoder: JsonEncoderFn;
   jsonDecoder: JsonDecoderFn;

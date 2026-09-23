@@ -77,27 +77,6 @@
       "factory": "createJsonSchemaFn"
     },
     {
-      "name": "parse",
-      "call": "createParseFn<T>()",
-      "tag": "prs",
-      "doc": "Restores a JSON.parse output into the typed shape and checks it in one walk, throwing on a mismatch. Undeclared properties are kept.",
-      "factory": "createParseFn"
-    },
-    {
-      "name": "parseFail",
-      "call": "createParseFn<T>(undefined, {strategy: 'fail'})",
-      "tag": "prsf",
-      "doc": "Parse, rejecting any value that carries an undeclared property.",
-      "factory": "createParseFn"
-    },
-    {
-      "name": "parseStrip",
-      "call": "createParseFn<T>(undefined, {strategy: 'strip'})",
-      "tag": "prss",
-      "doc": "Parse, with undeclared properties removed before the value is restored.",
-      "factory": "createParseFn"
-    },
-    {
       "name": "prepareForJsonClone",
       "call": "createPrepareForJsonFn<T>()",
       "tag": "pjs",

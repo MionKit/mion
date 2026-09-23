@@ -5,13 +5,12 @@
 //
 // Reuses the roundtrip harness's compile path (resolver client, `SRC_OVERLAY`,
 // tuple classification by family tag) with its own fixture: validate, the
-// clone encoder, the three JSON decoder strategies, `parse`, and the binary
-// encoder + decoder.
+// clone encoder, the three JSON decoder strategies, and the binary encoder +
+// decoder.
 
 import {
   createValidateFn,
   createJsonEncoderFn,
-  createParseFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createCloneExactShapeFn,
@@ -48,7 +47,6 @@ export interface CompiledSecurity {
   jsonEncoders: Record<string, (value: unknown) => string | undefined>;
   /** The exact-shape clone, another key-driven rebuild. **/
   clone?: (value: unknown) => unknown;
-  parse?: (value: unknown) => unknown;
   /** strip / preserve / compact decoders that wired. **/
   decoders: Record<string, (text: string) => unknown>;
   binaryEncode?: (value: unknown) => Uint8Array;
@@ -62,7 +60,6 @@ export function renderSecurityFixture(gen: GeneratedType): string {
   createValidateFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createParseFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createCloneExactShapeFn,
@@ -77,7 +74,6 @@ createCloneExactShapeFn<T>();
 createJsonDecoderFn<T>(undefined, {strategy: 'strip'});
 createJsonDecoderFn<T>(undefined, {strategy: 'preserve'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
-createParseFn<T>();
 createBinaryEncoderFn<T>();
 createBinaryDecoderFn<T>();
 `;
@@ -170,13 +166,6 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     const decode = wireDecoder(byTag[tag]);
     if (decode) decoders[name] = decode as (text: string) => unknown;
   }
-  // The parse family tag depends on the strategy: 'prs' keeps undeclared keys (the
-  // default), 'prss' strips them, 'prsf' rejects them. The fixture uses the default,
-  // but accept any.
-  const prs = byTag.prs ?? byTag.prss ?? byTag.prsf;
-  const parse = attempt('parse', () =>
-    prs && byTag.verr ? (createParseFn(undefined, undefined, [prs, byTag.verr] as never) as (v: unknown) => unknown) : undefined
-  );
   const binaryEncode = attempt('binaryEncode', () =>
     byTag.tb ? (createBinaryEncoderFn(undefined, undefined, byTag.tb as never) as (v: unknown) => Uint8Array) : undefined
   );
@@ -190,7 +179,6 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     jsonEncode,
     jsonEncoders,
     clone,
-    parse,
     decoders,
     binaryEncode,
     binaryDecode,

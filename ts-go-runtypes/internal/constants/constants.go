@@ -59,23 +59,6 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_veuk_",
 		Tag:       "veuk",
 	},
-	// createParseFn — one family per undeclared-key strategy (see the operations
-	// registry for why strategies are operations here rather than an axis).
-	"parse": {
-		Name:      "parseModule",
-		VarPrefix: "g_prs_",
-		Tag:       "prs",
-	},
-	"parseFail": {
-		Name:      "parseFailModule",
-		VarPrefix: "g_prsf_",
-		Tag:       "prsf",
-	},
-	"parseStrip": {
-		Name:      "parseStripModule",
-		VarPrefix: "g_prss_",
-		Tag:       "prss",
-	},
 	"prepareForJsonMutate": {
 		Name:      "prepareForJsonMutateModule",
 		VarPrefix: "g_pj_",
@@ -241,18 +224,6 @@ const (
 	NumberModeIsFinite = "isFinite"   // default — Number.isFinite(v)
 	NumberModeTypeof   = "typeof"     // typeof v === 'number' (accepts NaN / Infinity)
 	NumberModeNotNaN   = "notNaN"     // typeof v === 'number' && !Number.isNaN(v)
-)
-
-// The createParseFn `strategy` values. Unlike numberMode these do NOT ride the
-// ValidateOptions variant machinery: parse is AxisNone, so the strategy IS the
-// operation and each value selects a different FAMILY (see
-// parseStrategyOperation in the resolver's scan). Named here so the CLI flag,
-// the tsconfig merge and the site resolution all validate against one list.
-const (
-	ParseStrategyOption   = "strategy" // the JS property name on ParseOptions
-	ParseStrategyPreserve = "preserve" // default — undeclared keys are kept
-	ParseStrategyStrip    = "strip"    // undeclared keys are blanked before the restore
-	ParseStrategyFail     = "fail"     // a value carrying one is rejected
 )
 
 // Internal canonical variant names for the two non-default numberMode values.

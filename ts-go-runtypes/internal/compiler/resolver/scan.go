@@ -773,7 +773,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	var fnIds []string
 	var demand []protocol.SiteDemand
 	for _, fnKey := range injectionFnKeys {
-		fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, options, state.sess.opts.ParseDefaults.Strategy, call, lastIndex, argsCount, file)
+		fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, options, call, lastIndex, argsCount, file)
 		fnIds = append(fnIds, fnId)
 		demand = append(demand, fnDemand...)
 		diags = append(diags, fnDiags...)
@@ -872,7 +872,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 		var fnIds []string
 		var demand []protocol.SiteDemand
 		for _, fnKey := range fnKeys {
-			fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, state.sess.opts.ParseDefaults.Strategy, call, m.paramIndex, argsCount, file)
+			fnId, fnDemand, fnDiags := computeSiteFn(state.scanChecker, fnKey, validateOptions{}, call, m.paramIndex, argsCount, file)
 			fnIds = append(fnIds, fnId)
 			demand = append(demand, fnDemand...)
 			diags = append(diags, fnDiags...)
@@ -960,7 +960,7 @@ func unresolvedFnNameDiagnostic(file string, call *ast.Node, fnKey string) diagn
 // Routed through operations.FnHashFor so the scanner and the emitter compute the SAME hash, and
 // operations.Canonical reads only the axis-relevant input, so one call covers every axis.
 // An empty fnKey, a reflection-only InjectRunTypeId site, yields ("", nil).
-func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, defaultParseStrategy string, call *ast.Node, lastIndex, argsCount int, file string) (string, []protocol.SiteDemand, []diagnostics.Diagnostic) {
+func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, call *ast.Node, lastIndex, argsCount int, file string) (string, []protocol.SiteDemand, []diagnostics.Diagnostic) {
 	if fnKey == "" {
 		return "", nil, nil
 	}
@@ -978,21 +978,8 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
 		op = selected
 	}
-	// createParseFn's `strategy` picks which parse family serves the site, by the same operation swap. Read here
-	// rather than in the axis switch below because parse is AxisNone: the strategy IS the operation.
-	// The site's own strategy wins over the project-wide default, the merge validate.numberMode uses and for
-	// the same reason: a project that wants every payload cleaned says so once rather than at every call.
-	if op.Name == "parse" {
-		siteStrategy := extractStrategyOption(typeChecker, call, lastIndex, argsCount)
-		if siteStrategy == "" {
-			siteStrategy = defaultParseStrategy
-		}
-		if selected, swapped := parseStrategyOperation(op, siteStrategy); swapped {
-			op = selected
-		}
-	}
 	// Same road for the value-level JSON families, whose strategy names the operation rather than a variant.
-	// They have no project-wide default, unlike parse, so only the site's own value is read.
+	// They have no project-wide default, so only the site's own value is read.
 	if selected, swapped := jsonValueStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
 		op = selected
 	}
@@ -1259,30 +1246,6 @@ func extractBoolValidateOption(typeChecker *checker.Checker, call *ast.Node, las
 	return enabled
 }
 
-// parseStrategyOperation maps the createParseFn `strategy` option to the family implementing it. A strategy is a
-// separate OPERATION rather than an axis, so this is a lookup and not a variant suffix.
-func parseStrategyOperation(op operations.Operation, strategy string) (operations.Operation, bool) {
-	if op.Name != "parse" {
-		return op, false
-	}
-	var name string
-	switch strategy {
-	case "fail":
-		name = "parseFail"
-	case "strip":
-		name = "parseStrip"
-	default:
-		// 'preserve' and anything unrecognised keep the default family: the cheapest shape (no pre-pass, no
-		// key check), and what zod does, which strips only under `.strict()`.
-		return op, false
-	}
-	resolved, ok := operations.ByName(name)
-	if !ok {
-		return op, false
-	}
-	return resolved, true
-}
-
 // jsonValueStrategyOperations maps a value-level JSON family's DEFAULT operation to the one each non-default
 // `strategy` selects; `clone` IS the default, so it is absent here.
 var jsonValueStrategyOperations = map[string]map[string]string{
@@ -1290,9 +1253,8 @@ var jsonValueStrategyOperations = map[string]map[string]string{
 	"restoreFromJsonClone": {"mutate": "restoreFromJsonMutate", "compact": "compactFromJson"},
 }
 
-// jsonValueStrategyOperation routes createPrepareForJsonFn / createRestoreFromJsonFn's `strategy` to its family,
-// the road parseStrategyOperation takes and for the same reason: these are AxisNone, so the strategy IS the
-// operation. An absent or unrecognised value takes 'clone'.
+// jsonValueStrategyOperation routes createPrepareForJsonFn / createRestoreFromJsonFn's `strategy` to its family.
+// These are AxisNone, so the strategy IS the operation. An absent or unrecognised value takes 'clone'.
 func jsonValueStrategyOperation(op operations.Operation, strategy string) (operations.Operation, bool) {
 	byStrategy, isValueFamily := jsonValueStrategyOperations[op.Name]
 	if !isValueFamily {
