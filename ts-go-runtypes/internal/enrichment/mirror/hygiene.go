@@ -5,6 +5,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/scanner"
+
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/srcscan"
 )
@@ -166,7 +169,7 @@ func ScanDirtyTags(text string) []TagFinding {
 var blankArrayPattern = regexp.MustCompile(`:\s*(\[\s*\])`)
 
 // BlankValues returns every empty string or empty array sitting right after a `key:`: a blank rt$label ships blank to
-// the UI and a `pool: []` mocks nothing, so the completeness gate treats them like a @todo.
+// the UI and a `pool: []` with no `min` / `max` beside it mocks nothing, so the completeness gate treats them like a @todo.
 // Detection is parse-guided, never a text grep: an empty string comes from the literal-token oracle and counts only when
 // the nearest non-space byte before it is a `:`, so an empty-string element inside a filled pool is not a blank slot.
 func (scan *Scan) BlankValues() []TagFinding {
@@ -184,12 +187,65 @@ func (scan *Scan) BlankValues() []TagFinding {
 	// The IMPORT mask keeps string literals intact: blanking them would turn a filled `['x']` into `[   ]` and read as
 	// empty, while a `[]` inside a string is still shielded by its quotes, the `:` being followed by one.
 	masked := scan.importMaskedText()
+	rangedPools := rangedEmptyPools(scan.sourceFile)
 	for _, match := range blankArrayPattern.FindAllStringSubmatchIndex(masked, -1) {
 		start, end := match[2], match[3] // group 1: the `[]`
+		if rangedPools[start] {
+			continue // `pool: []` beside a min / max is how MockData spells a range-only field
+		}
 		findings = append(findings, TagFinding{Kind: TagBlankValue, Start: start, End: end, BlockStart: start, BlockEnd: end})
 	}
 	sort.Slice(findings, func(left, right int) bool { return findings[left].Start < findings[right].Start })
 	return findings
+}
+
+// mockRangeKeys are the MockData knobs that make an empty pool a range: numbers and Dates take `min` / `max`.
+var mockRangeKeys = map[string]bool{"min": true, "max": true}
+
+// rangedEmptyPools returns the `[` offset of every `pool: []` whose own object literal also sets a range key.
+func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
+	offsets := map[int]bool{}
+	if sourceFile == nil {
+		return offsets
+	}
+	var visit func(node *ast.Node) bool
+	visit = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if ast.IsObjectLiteralExpression(node) {
+			var emptyPool *ast.Node
+			hasRange := false
+			for _, property := range node.AsObjectLiteralExpression().Properties.Nodes {
+				if property == nil || !ast.IsPropertyAssignment(property) || property.Name() == nil {
+					continue
+				}
+				key, value := property.Name().Text(), property.AsPropertyAssignment().Initializer
+				switch {
+				case mockRangeKeys[key]:
+					hasRange = true
+				case key == "pool" && isEmptyArrayLiteral(value):
+					emptyPool = value
+				}
+			}
+			if hasRange && emptyPool != nil {
+				offsets[scanner.GetTokenPosOfNode(emptyPool, sourceFile, false)] = true
+			}
+		}
+		node.ForEachChild(visit)
+		return false
+	}
+	sourceFile.AsNode().ForEachChild(visit)
+	return offsets
+}
+
+// isEmptyArrayLiteral reports whether node is a `[]` literal with no elements.
+func isEmptyArrayLiteral(node *ast.Node) bool {
+	if node == nil || !ast.IsArrayLiteralExpression(node) {
+		return false
+	}
+	elements := node.AsArrayLiteralExpression().Elements
+	return elements == nil || len(elements.Nodes) == 0
 }
 
 // precededByColon reports whether the token at offset is a property VALUE rather than an element or an argument.
