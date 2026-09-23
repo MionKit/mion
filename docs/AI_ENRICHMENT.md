@@ -681,6 +681,8 @@ emitted output mirrors the **named-type** structure:
   deferred. Within one file (e.g. a test fixture declaring several interfaces) the
   references are intra-file const references, no imports.
 - **Anonymous / inline shapes are inlined** into their parent const (no name → no const).
+- **Type-format aliases are inlined too** (`TF.String<…>`, `TF.Email`, a user alias of one): a format is a
+  per-field constraint, so two same-format fields get two nodes and two labels, never one shared const.
 - **Cycles break at the back-edge.** Emit named consts in dependency (topological)
   order; a back-edge to an already-in-progress named type becomes a **leaf node**
   (friendly `{rt$label:''}`, mock `{}`) so the const graph never hits a TDZ self-reference.

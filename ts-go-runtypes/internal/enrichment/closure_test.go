@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/enrichment"
+	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
 // resolveRawFixture mirrors resolveFixture (bridge_test.go) but returns the RAW
@@ -15,8 +16,17 @@ import (
 // so it can tell a named-type reference from an anonymous inline shape.
 func resolveRawFixture(t *testing.T, relPath, typeName string, sources map[string]string) *enrichment.Resolved {
 	t.Helper()
+	return resolveRawFixtureWith(t, relPath, typeName, sources, nil)
+}
+
+// resolveRawFixtureWith adds packages as overlay-only files, never program roots, e.g. the real marker install.
+func resolveRawFixtureWith(t *testing.T, relPath, typeName string, sources, packages map[string]string) *enrichment.Resolved {
+	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
-	overlay := make(map[string]string, len(sources))
+	overlay := make(map[string]string, len(sources)+len(packages))
+	for rel, code := range packages {
+		overlay[tspath.ResolvePath(cwd, rel)] = code
+	}
 	fileNames := make([]string, 0, len(sources))
 	var absTarget string
 	for rel, code := range sources {
@@ -319,5 +329,97 @@ func TestEmitClosure_BackwardCompat(t *testing.T) {
 	// The anonymous `profile` shape stays inlined (its email field is present).
 	if !strings.Contains(got.Friendly, "email:") {
 		t.Errorf("anonymous profile should be inlined; got:\n%s", got.Friendly)
+	}
+}
+
+// emitFormatClosure runs EmitClosure over sources that import the real `@mionjs/run-types/formats`.
+func emitFormatClosure(t *testing.T, relPath, typeName string, sources map[string]string) []enrichment.NamedConst {
+	t.Helper()
+	marker, err := testfixtures.RealMarkerPackage()
+	if err != nil {
+		t.Fatalf("real marker package unavailable: %v", err)
+	}
+	resolved := resolveRawFixtureWith(t, relPath, typeName, sources, marker)
+	return enrichment.EmitClosure(resolved.Node, enrichment.ClosureOptions{
+		TypeName:  typeName,
+		Resolve:   resolved.Resolve,
+		DeclFiles: resolved.DeclFiles,
+	})
+}
+
+const formatUserSource = "import type * as TF from '@mionjs/run-types/formats';\n" +
+	"export interface Address { street: TF.String<{minLength: 1}> }\n" +
+	"export interface User {\n" +
+	"  name: TF.String<{minLength: 1}>;\n" +
+	"  city: TF.String<{minLength: 1}>;\n" +
+	"  age: TF.Number<{min: 0; max: 120}>;\n" +
+	"  email: TF.Email;\n" +
+	"  home: Address;\n" +
+	"  work: Address;\n" +
+	"}\n"
+
+// TestEmitClosure_FormatFieldsInline: two fields with the same format params get two inline nodes, never one shared const.
+func TestEmitClosure_FormatFieldsInline(t *testing.T) {
+	closure := emitFormatClosure(t, "user.ts", "User", map[string]string{"user.ts": formatUserSource})
+	names := make([]string, 0, len(closure))
+	for _, named := range closure {
+		names = append(names, named.TypeName)
+	}
+	if len(closure) != 2 {
+		t.Fatalf("want 2 consts (Address + User), no format consts; got %v", names)
+	}
+	_, user := findConst(closure, "User")
+	if user.TypeName == "" {
+		t.Fatalf("missing User const; got %v", names)
+	}
+	for _, field := range []string{"name", "city"} {
+		want := field + ": {rt$label: '', rt$errors: {type: '', minLength: {one: '', other: ''}}}"
+		if !strings.Contains(user.Friendly, want) {
+			t.Errorf("friendlyUser.%s should be an inline format node %q; got:\n%s", field, want, user.Friendly)
+		}
+	}
+	for _, field := range []string{"age: {rt$label: ''", "email: {rt$label: ''"} {
+		if !strings.Contains(user.Friendly, field) {
+			t.Errorf("friendlyUser should inline %q; got:\n%s", field, user.Friendly)
+		}
+	}
+	for _, shared := range []string{"friendlyString", "friendlyNumber", "friendlyEmail"} {
+		if strings.Contains(user.Friendly, shared) {
+			t.Errorf("friendlyUser must not reference a shared format const %s; got:\n%s", shared, user.Friendly)
+		}
+	}
+	for _, shared := range []string{"mockString", "mockNumber", "mockEmail"} {
+		if strings.Contains(user.Mock, shared) {
+			t.Errorf("mockUser must not reference a shared format const %s; got:\n%s", shared, user.Mock)
+		}
+	}
+	if !strings.Contains(user.Mock, "name: {") || !strings.Contains(user.Mock, "city: {") {
+		t.Errorf("mockUser should inline name and city; got:\n%s", user.Mock)
+	}
+	if user.ChildIDs["name"] == "" || user.ChildIDs["name"] != user.ChildIDs["city"] {
+		t.Errorf("@rtIds should still record both same-format fields by the one format id; got %v", user.ChildIDs)
+	}
+}
+
+// TestEmitClosure_FormatFieldsNamedObjectShared: a named user object type is still one shared const, its format field inline.
+func TestEmitClosure_FormatFieldsNamedObjectShared(t *testing.T) {
+	closure := emitFormatClosure(t, "user.ts", "User", map[string]string{"user.ts": formatUserSource})
+	addrIdx, addr := findConst(closure, "Address")
+	userIdx, user := findConst(closure, "User")
+	if addrIdx < 0 || userIdx < 0 || addrIdx >= userIdx {
+		t.Fatalf("want Address before User; got Address=%d User=%d", addrIdx, userIdx)
+	}
+	for _, want := range []string{"home: friendlyAddress", "work: friendlyAddress"} {
+		if !strings.Contains(user.Friendly, want) {
+			t.Errorf("friendlyUser should share friendlyAddress (%q); got:\n%s", want, user.Friendly)
+		}
+	}
+	for _, want := range []string{"home: mockAddress", "work: mockAddress"} {
+		if !strings.Contains(user.Mock, want) {
+			t.Errorf("mockUser should share mockAddress (%q); got:\n%s", want, user.Mock)
+		}
+	}
+	if !strings.Contains(addr.Friendly, "street: {rt$label: '', rt$errors: {type: '', minLength:") {
+		t.Errorf("friendlyAddress.street should be an inline format node; got:\n%s", addr.Friendly)
 	}
 }
