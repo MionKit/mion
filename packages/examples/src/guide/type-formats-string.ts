@@ -45,16 +45,16 @@ isSku('abc-1234'); // false
 // end-pattern
 
 // start-mock-samples
-// no samples: the build generates valid values from the regex
+// no samples: generated from the regex
 type Code = TF.String<{pattern: {source: '^[A-Z]{2}[0-9]{3}$'}}>;
-// your own samples always win
+// your samples win
 type Slug = TF.String<{
   pattern: {source: '^[a-z-]+$'; mockSamples: ['my-post', 'hello-world']};
 }>;
 // end-mock-samples
 
 // start-unsafe-pattern
-// rejected by the build unless you mark it as checked
+// a nested repeat
 type Words = TF.String<{
   pattern: {source: '^(\\w+\\s?)*$'; unsafePattern: true};
 }>;
