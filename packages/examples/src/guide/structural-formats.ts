@@ -3,8 +3,6 @@ import * as TF from '@mionjs/run-types/formats';
 import {createValidateFn, getRunTypeId} from '@mionjs/run-types';
 
 // start-array
-// Everything you can say about an array beyond its element type rides one
-// options bag, whichever way you write it.
 type Tags = TF.FormattedArray<
   string[],
   {minItems: 1; maxItems: 5; uniqueItems: true}
@@ -27,8 +25,7 @@ getRunTypeId<Tags>() ===
 // end-array
 
 // start-contains
-// `contains` asks that at least one entry match a second type. The options bag
-// takes the element TYPE when you write the type, and a runtype when you build.
+// `contains` takes a type in a type, and a run-type in a builder
 type WithAdminId = TF.FormattedArray<
   string[],
   {contains: TF.UUID; minContains: 2}
@@ -73,9 +70,6 @@ isSettingsBuilt({theme: 'dark', locale: 'en'}); // true
 // end-object
 
 // start-keys
-// Key patterns and key formats are options too. `patternProperties` maps a
-// pattern to the type its matching keys carry; `propertyNames` constrains every
-// key at once.
 type Columns = TF.FormattedObject<
   Record<string, unknown>,
   {patternProperties: {'^col_': number}}
@@ -95,9 +89,7 @@ isLowercaseKeys({'theme-2': 'dark'}); // false, the key is not alphabetic
 // end-keys
 
 // start-collections
-// Sets and Maps take the same options an array does, because all three travel
-// as an array. A Map's entry is its [key, value] pair, so `contains` takes a
-// pair and `uniqueItems` compares pairs.
+// same options as an array; on a Map, `contains` and `uniqueItems` use [key, value] pairs
 type Labels = TF.FormattedSet<Set<string>, {minItems: 1; maxItems: 5}>;
 type Points = TF.FormattedSet<Set<{x: number; y: number}>, {uniqueItems: true}>;
 type Scores = TF.FormattedMap<Map<string, number>, {maxItems: 100}>;

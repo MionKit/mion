@@ -1,8 +1,6 @@
 import type * as TF from '@mionjs/run-types/formats';
 import {createValidateFn} from '@mionjs/run-types';
 
-// TF.String / TF.Number / TF.BigInt are the escape hatches: pass
-// your own params when no named format fits.
 type Username = TF.String<{
   minLength: 3;
   maxLength: 20;

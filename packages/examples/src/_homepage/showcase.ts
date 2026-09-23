@@ -9,7 +9,6 @@ import {
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 // start-type
-// One real-world type, the single source of truth for everything below.
 type Order = {
   id: TF.UUIDv4;
   customer: {name: string; email: TF.Email};
@@ -41,7 +40,7 @@ orderErrors({...order, total: 'free'}); // [{path: ['total'], expected: 'number'
 const toBytes = createBinaryEncoderFn<Order>();
 const fromBytes = createBinaryDecoderFn<Order>();
 
-const bytes = toBytes(order); // a Uint8Array: the compact wire, smaller than JSON
+const bytes = toBytes(order); // a Uint8Array, smaller than JSON
 const order2 = fromBytes(bytes); // back to a typed object
 // end-binary
 
@@ -53,7 +52,7 @@ const fake = mockOrder(); // a valid, randomized Order for your tests
 // start-standard
 const orderSchema = createStandardSchema<Order>();
 
-// a Standard Schema v1 object: hand it to any tool that speaks the spec
+// a Standard Schema v1 object for any tool that supports the spec
 orderSchema['~standard'].validate(order); // {value: order}
 orderSchema['~standard'].validate({}); // {issues: [{message, path}, …]}
 // end-standard

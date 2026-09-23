@@ -2,9 +2,6 @@ import type * as TF from '@mionjs/run-types/formats';
 import {transform, email} from '@mionjs/run-types/formats';
 import {createValidateFn, createFormatTransformFn} from '@mionjs/run-types';
 
-// A format checks a value. A transform REWRITES it. The two live apart so a
-// reader can tell at a glance which part of a type changes their data.
-
 // Spelling one: the `transform` key inside the format's params.
 type Email = TF.Email<{transform: {trim: true; lowercase: true}}>;
 type Name = TF.String<{

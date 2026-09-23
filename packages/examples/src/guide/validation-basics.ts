@@ -7,7 +7,6 @@ type User = {
 };
 
 // start-validate
-// createValidateFn -> a type guard. Fast yes/no.
 const isUser = createValidateFn<User>();
 
 isUser({id: 1, name: 'Ada', roles: ['admin']}); // true
@@ -20,7 +19,6 @@ function handle(data: unknown) {
 // end-validate
 
 // start-errors
-// createGetValidationErrorsFn -> the same checks, but it tells you what broke.
 const userErrors = createGetValidationErrorsFn<User>();
 
 userErrors({id: 1, name: 'Ada', roles: ['admin']}); // [], all good

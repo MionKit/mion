@@ -5,14 +5,11 @@ import {
   type InjectTypeFnArgs,
 } from '@mionjs/run-types';
 
-// A single marker can ask for SEVERAL generated functions at once. A route
-// wrapper wants to validate a request, decode it from JSON, and encode the
-// response, so it names all three families in one trailing marker. The build
-// injects an array of handles, one per family, in the order you listed them.
 type Handler = (...args: any[]) => unknown;
 
 function route<H extends Handler>(
   handler: H,
+  // the build injects one handle per family, in this order
   fns?: InjectTypeFnArgs<
     Parameters<H>,
     'validationErrors',
@@ -38,8 +35,7 @@ function route<H extends Handler>(
   return {handler, getErrors, decodeParams, encodeParams};
 }
 
-// route() runs at a concrete call site, so the build injects the three handles
-// for this handler's parameters here.
+// the build injects the three handles for this handler's parameters here
 const greet = route((name: string, times: number) => name.repeat(times));
 
 export {route, greet};

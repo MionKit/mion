@@ -1,7 +1,6 @@
 import type * as TF from '@mionjs/run-types/formats';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 
-// Type formats don't just validate: mocks respect them too.
 type Contact = {
   id: TF.UUIDv4;
   email: TF.Email;

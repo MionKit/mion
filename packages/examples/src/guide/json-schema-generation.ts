@@ -8,9 +8,6 @@ interface Order {
 }
 
 // start-docfn
-// createJsonSchemaFn -> a function that returns the JSON Schema document
-// describing T. The document is generated at build time; calling it costs
-// nothing at runtime.
 const orderSchemaDoc = createJsonSchemaFn<Order>();
 
 orderSchemaDoc();
@@ -27,28 +24,21 @@ orderSchemaDoc();
 // end-docfn
 
 // start-portable
-// {portable: true} strips the extension keywords, leaving plain draft
-// 2020-12 any tool can consume.
 orderSchemaDoc({libraryOptions: {portable: true}});
 // placed is now {type: 'string', format: 'date-time'} and total is
-// {type: 'string', pattern: '^-?[0-9]+$'}: only standard keywords survive.
+// {type: 'string', pattern: '^-?[0-9]+$'}
 // end-portable
 
 // start-closedness
-// Declaring the paired encoder strategy closes the document to the keys the
-// wire can actually carry: clone and direct never emit undeclared keys, so
-// every object with declared properties gains additionalProperties: false.
+// clone and direct send no extra keys, so every object with declared properties is closed
 orderSchemaDoc({libraryOptions: {encoderStrategy: 'clone'}});
 // {type: 'object', properties: {...}, required: [...], additionalProperties: false}
 
-// A mutate pairing preserves extra keys on the wire, so its document stays
-// open; records keep the index schema additionalProperties already carries.
+// mutate keeps extra keys, so it stays open; records keep the index schema in additionalProperties
 orderSchemaDoc({libraryOptions: {encoderStrategy: 'mutate'}}); // unchanged
 // end-closedness
 
 // start-standard
-// createStandardSchema returns ONE object implementing both standard
-// interfaces: validation (validate) and JSON Schema conversion (jsonSchema).
 const orderSchema = createStandardSchema<Order>();
 
 orderSchema['~standard'].validate({id: 'o1'}); // {issues: [...]}

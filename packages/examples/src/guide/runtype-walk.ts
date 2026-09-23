@@ -9,13 +9,9 @@ type Order = {
 };
 
 // start-walk
-// Render any node back to a TypeScript-like string. Every kind is one switch
-// arm, the same way createMockDataFn dispatches over the graph internally: leaves
-// return on the spot, single-child kinds recurse through `child`, containers
-// through `children`, and callables through `parameters` and `return`.
 function describe(rt: RunType): string {
   switch (rt.kind as number) {
-    // Atomic leaves: no inner types to walk into.
+    // leaves: no inner types
     case RunTypeKind.string:
       return 'string';
     case RunTypeKind.number:
@@ -51,7 +47,7 @@ function describe(rt: RunType): string {
         .map((value) => JSON.stringify(value))
         .join(' | ');
 
-    // Single-child kinds: recurse into `child`.
+    // single child: recurse into `child`
     case RunTypeKind.array:
       return `${describe(rt.child as RunType)}[]`;
     case RunTypeKind.promise:
@@ -61,7 +57,7 @@ function describe(rt: RunType): string {
     case RunTypeKind.tupleMember:
       return `${describe(rt.child as RunType)}${rt.optional ? '?' : ''}`;
 
-    // Multi-child containers: recurse over `children`.
+    // containers: recurse over `children`
     case RunTypeKind.tuple:
       return `[${(rt.children as RunType[]).map(describe).join(', ')}]`;
     case RunTypeKind.union:
@@ -71,31 +67,30 @@ function describe(rt: RunType): string {
     case RunTypeKind.objectLiteral:
       return `{ ${(rt.children as RunType[]).map(describe).join('; ')} }`;
 
-    // Named members: `name`, an `optional` flag, and the member's own `child`.
+    // members: `name`, `optional` and the member's own `child`
     case RunTypeKind.property:
     case RunTypeKind.propertySignature:
     case RunTypeKind.parameter:
       return `${rt.name as string}${rt.optional ? '?' : ''}: ${describe(rt.child as RunType)}`;
 
-    // An index signature pairs a key type with a value type.
+    // a key type and a value type
     case RunTypeKind.indexSignature:
       return `[key: ${describe(rt.index as RunType)}]: ${describe(rt.child as RunType)}`;
 
-    // Callables: recurse over `parameters` and `return`.
+    // callables: recurse over `parameters` and `return`
     case RunTypeKind.function:
     case RunTypeKind.method:
     case RunTypeKind.methodSignature:
     case RunTypeKind.callSignature:
       return `(${(rt.parameters as RunType[]).map(describe).join(', ')}) => ${describe(rt.return as RunType)}`;
 
-    // A class either lists members (a plain shape) or stops at its name
-    // (the builtins Date, Map, Set, Temporal, which carry a `subKind` instead).
+    // builtins (Date, Map, Set, Temporal) have no children: print the name
     case RunTypeKind.class:
       return rt.children
         ? `{ ${(rt.children as RunType[]).map(describe).join('; ')} }`
         : String(rt.typeName ?? 'object');
 
-    // typeParameter, infer, ref, enumMember: rare in plain data shapes.
+    // typeParameter, infer, ref, enumMember: rare in data shapes
     default:
       return `/* kind ${rt.kind} */`;
   }

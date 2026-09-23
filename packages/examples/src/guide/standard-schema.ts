@@ -7,8 +7,7 @@ type User = {
 };
 
 // start-standard
-// createStandardSchema -> a Standard Schema v1 object: a single `~standard`
-// property that tRPC, TanStack Form/Router, Hono and others accept directly.
+// a Standard Schema v1 object: a single `~standard` property
 const userSchema = createStandardSchema<User>();
 
 // Valid input comes back under `value`.
