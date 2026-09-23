@@ -1,7 +1,5 @@
-// A format transform is its own operation. It never runs inside validate,
-// the JSON decoder or the JSON encoder: those all leave a mixed-case
-// value exactly as given, and only createFormatTransformFn rewrites it. Both
-// marker call shapes are covered (Marker test coverage rule).
+// A format transform never runs inside validate or the JSON decoder / encoder; only createFormatTransformFn
+// rewrites a value. Both marker call shapes are covered (Marker test coverage rule).
 
 import {describe, it, expect} from 'vitest';
 import type * as TF from '@mionjs/run-types/formats';

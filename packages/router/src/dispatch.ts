@@ -261,9 +261,8 @@ function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMe
     return request.body[executable.id] as any[];
   } catch (e: any) {
     if (isStackOverflow(e)) throw nestingTooDeep(executable, e);
-    // Fixed text on the wire (the decoder's own message quotes internal detail); the original stays on
-    // `originalError`. mion's own constant for a refused key IS safe to pass on: it names a key the caller
-    // sent, which beats a generic "wrong type".
+    // Fixed wire text: the decoder's message quotes internal detail; the original stays on `originalError`.
+    // A refused-key message is safe to pass on: mion's own constant, naming a key the caller sent.
     const refusedKey = typeof e?.message === 'string' && e.message.startsWith(UNSAFE_PROPERTY_NAME_MESSAGE);
     const detail = refusedKey ? (e.message as string) : 'Parameters might be of the wrong type.';
     throw new FatalError({

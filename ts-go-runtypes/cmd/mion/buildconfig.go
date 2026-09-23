@@ -63,17 +63,10 @@ type buildOptions struct {
 	skipMarkerPackageCheck  bool
 }
 
-// mergeBuildOptions resolves the effective build configuration from the CLI
-// flags and the tsconfig plugin entry. Precedence (highest first): an
-// explicitly-set flag, then the tsconfig plugin entry, then the binary default
-// the flag already carries. absCwd anchors relative path values (genDir).
-// The RT disk cache is NOT resolved here — it follows the project's incremental
-// setting (see resolver.Options.CacheFollowsIncremental) with the internal
-// MION_CACHE_DIR env override applied in main.go.
+// mergeBuildOptions resolves the build config: an explicit flag, then the tsconfig plugin entry, then the default.
+// The RT disk cache is not resolved here: it follows incremental (CacheFollowsIncremental), MION_CACHE_DIR in main.go.
 func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string) buildOptions {
-	// emit / inline / module-mode flags are declared with the binary default
-	// as their flag default, so an unset flag already holds the default; a
-	// present tsconfig value overrides only when the flag was not passed.
+	// Each flag's default is the binary default, so an unset flag already holds it; tsconfig fills in only then.
 	out := buildOptions{
 		hashLength:              flags.hashLength,
 		singleThreaded:          flags.singleThreaded,
@@ -104,11 +97,7 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	if !flags.set["hash-length"] && plugin.HashLength != nil {
 		out.hashLength = *plugin.HashLength
 	}
-	// singleThreaded: an explicit --single-threaded / --no-single-threaded (either
-	// direction) wins over the tsconfig entry; the tsconfig fills in only when
-	// NEITHER was passed. The --no-single-threaded opt-out lets a host plugin force
-	// multi-threaded (its singleThreaded:false) over a tsconfig singleThreaded:true,
-	// matching the parallelScan / parallelRender override shape.
+	// --no-single-threaded lets a host plugin force multi-threaded over a tsconfig singleThreaded:true.
 	switch {
 	case flags.set["single-threaded"]:
 		out.singleThreaded = true
@@ -118,10 +107,7 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		out.singleThreaded = *plugin.SingleThreaded
 	}
 
-	// Pure-fn report: the tsconfig `pureFnReport` boolean fills in only when NO
-	// report flag was passed on the command line, tsc-style. `true` both emits
-	// the report data and writes the hardcoded-path JSON file; there is no
-	// path knob (like every location under genDir, it is convention, not config).
+	// `pureFnReport: true` turns on both report outputs; no path knob, a location under genDir is convention.
 	if !flags.set["pure-fn-report-wire"] && !flags.set["pure-fn-report-file"] && plugin.PureFnReport != nil && *plugin.PureFnReport {
 		out.pureFnReportWire = true
 		out.pureFnReportFile = true
@@ -130,14 +116,10 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	if out.pureFnReportFile {
 		out.pureFnReportWire = true
 	}
-	// jsonMaxBytes: the flag carries the binary default (on); the tsconfig value
-	// fills in only when the flag was not passed, tsc-style.
 	if !flags.set["json-max-bytes"] && plugin.JSONMaxBytes != nil {
 		out.jsonMaxBytes = *plugin.JSONMaxBytes
 	}
 
-	// Binary cold-start sizing knobs: a tsconfig value fills in only when the
-	// flag was not explicitly passed (the flag already carries the binary default).
 	if sizing := plugin.BinarySizing; sizing != nil {
 		if !flags.set["binary-sizing-bias"] && sizing.Bias != nil {
 			out.binarySizingBias = *sizing.Bias
@@ -153,14 +135,11 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		}
 	}
 
-	// numberMode default (validate.numberMode): a tsconfig value fills in only
-	// when --number-mode was not explicitly passed, tsc-style.
 	if !flags.set["number-mode"] && plugin.Validate != nil && strings.TrimSpace(plugin.Validate.NumberMode) != "" {
 		out.numberMode = strings.TrimSpace(plugin.Validate.NumberMode)
 	}
 
-	// Pattern sample generation knobs: pointer keys so an explicit 0 (disable
-	// generation) is distinguishable from an absent key.
+	// Pointer keys, so an explicit 0 (disable generation) differs from an absent key.
 	if !flags.set["pattern-sample-count"] && plugin.PatternSampleCount != nil {
 		out.patternSampleCount = *plugin.PatternSampleCount
 	}
@@ -168,8 +147,7 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		out.patternSampleRetries = *plugin.PatternSampleRetries
 	}
 
-	// parallelScan / parallelRender read true=on (matching the host plugin's
-	// PluginOptions); the flags are the inverted --no-parallel-* opt-outs.
+	// The tsconfig keys read true=on like PluginOptions; the flags are the inverted --no-parallel-* opt-outs.
 	out.disableParallelScan = flags.noParallelScan
 	if !flags.set["no-parallel-scan"] && plugin.ParallelScan != nil {
 		out.disableParallelScan = !*plugin.ParallelScan
@@ -179,12 +157,7 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		out.disableParallelRender = !*plugin.ParallelRender
 	}
 
-	// Marker package gate. `packages` is ADDITIVE in both directions: the flag
-	// and the tsconfig entry are unioned rather than one shadowing the other,
-	// because a host plugin naming its own marker package and a project naming
-	// another are both true at once — dropping either would break call sites the
-	// other owns. `checkPackage` is a plain override: the --no-marker-package-check
-	// flag wins, else the tsconfig value, else the default (gate on).
+	// Marker `packages` are unioned, never shadowed: a host plugin's marker package and the project's are both live.
 	out.markerPackages = mergeMarkerPackages(flags.markerPackages, plugin.Markers)
 	out.skipMarkerPackageCheck = flags.noMarkerPackageCheck
 	if !flags.set["no-marker-package-check"] && plugin.Markers != nil && plugin.Markers.CheckPackage != nil {

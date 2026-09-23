@@ -1,12 +1,6 @@
-// Security-lane compile harness: one random SERIALISABLE type → every factory
-// the attack lanes need, wired from the resolver's entry modules, plus the raw
-// entry-module text so the binary lane can rebuild the same factories inside
-// its heap-capped worker thread.
-//
-// Reuses the roundtrip harness's compile path (resolver client, `SRC_OVERLAY`,
-// tuple classification by family tag) with its own fixture: validate, the
-// clone encoder, the three JSON decoder strategies, and the binary encoder +
-// decoder.
+// Security-lane compile harness: one random SERIALISABLE type → the factories the attack lanes need, through the
+// roundtrip harness's compile path. It also returns the raw entry-module text, so the binary lane can rebuild the
+// same factories inside its heap-capped worker thread.
 
 import {
   createValidateFn,

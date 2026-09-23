@@ -955,31 +955,25 @@ func unresolvedFnNameDiagnostic(file string, call *ast.Node, fnKey string) diagn
 	return diagnostics.New(diagnostics.CodeMarkerUnresolvedFnName, textpos.NodeSite(file, sourceFile, call), fnKey, suggestion)
 }
 
-// computeSiteFn resolves both injection payloads for a createX call site in one registry pass: the opaque fnId
-// the transformer injects as the 2nd tuple element, and the structured cache-entry demand the emitter renders.
-// Routed through operations.FnHashFor so the scanner and the emitter compute the SAME hash, and
-// operations.Canonical reads only the axis-relevant input, so one call covers every axis.
-// An empty fnKey, a reflection-only InjectRunTypeId site, yields ("", nil).
+// computeSiteFn resolves a createX site's fnId (2nd tuple element) and its cache-entry demand in one registry pass.
+// FnHashFor keeps scanner and emitter on the SAME hash for every axis; an empty (reflection-only) fnKey yields ("", nil).
 func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, call *ast.Node, lastIndex, argsCount int, file string) (string, []protocol.SiteDemand, []diagnostics.Diagnostic) {
 	if fnKey == "" {
 		return "", nil, nil
 	}
 	op, known := operations.ByFnKey(fnKey)
 	if !known {
-		// Without this, an unknown family is silence: no fnId, no demand, and a wrapper holding an empty slot
-		// that fails only once it runs.
+		// Without this an unknown family is silent: no fnId, and the wrapper's empty slot fails only at runtime.
 		return "", nil, []diagnostics.Diagnostic{unresolvedFnNameDiagnostic(file, call, fnKey)}
 	}
-	// `{checkUnknowns: true}` selects the FUSED validator, `{checkUnionUnknowns: true}` the narrower union-arm one. Both
-	// swap the OPERATION rather than adding a variant, because a variant is root-scoped and would leave every named nested
-	// type unchecked; everything downstream is unchanged, so both inherit noLiterals / numberMode / rejectCircularRefs.
+	// Both options swap the OPERATION, not a variant: a variant is root-scoped and would miss named nested types.
+	// Downstream is unchanged, so both still take noLiterals / numberMode / rejectCircularRefs.
 	checkUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnknowns")
 	checkUnionUnknowns := extractBoolValidateOption(typeChecker, call, lastIndex, argsCount, "checkUnionUnknowns")
 	if selected, swapped := validatorFamilyOperation(op, checkUnknowns, checkUnionUnknowns); swapped {
 		op = selected
 	}
-	// Same road for the value-level JSON families, whose strategy names the operation rather than a variant.
-	// They have no project-wide default, so only the site's own value is read.
+	// Value-level JSON families: the strategy names the operation, and only the site's value counts (no project default).
 	if selected, swapped := jsonValueStrategyOperation(op, extractStrategyOption(typeChecker, call, lastIndex, argsCount)); swapped {
 		op = selected
 	}
@@ -991,14 +985,11 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 	case operations.AxisValidateOptions:
 		optionNames = options.Names()
 	case operations.AxisHasUnknownKeysOptions:
-		// Extracted here rather than threaded through the shared validateOptions bag, the in-place
-		// pattern the JSON strategy extraction above uses.
+		// Read in place rather than through the shared validateOptions bag, like the JSON strategy.
 		optionNames = extractHasUnknownKeysOptions(typeChecker, call, lastIndex, argsCount).Names()
 	}
-	// The circular-reference guard folds ORTHOGONALLY into the fnHash across every axis, so it is read here per
-	// family rather than through one axis's option bag. NOT normalised away for an acyclic type: circularity is
-	// unknown at fnHash time, only projected in commitPending, so an armed acyclic type gets a harmless
-	// duplicate entry, exactly like a no-op `noLiterals` variant.
+	// The circular guard folds into the fnHash on every axis, so it is read per family, not from one option bag.
+	// Circularity is unknown until commitPending, so an armed acyclic type gets a harmless duplicate entry.
 	rejectCircular := op.CircularGuarded && extractRejectCircularOption(typeChecker, call, lastIndex, argsCount)
 	fnId := operations.FnHashFor(op, optionNames, strategy, rejectCircular)
 	demands := operations.DemandForOp(op, optionNames, strategy, rejectCircular)
@@ -1253,8 +1244,7 @@ var jsonValueStrategyOperations = map[string]map[string]string{
 	"restoreFromJsonClone": {"mutate": "restoreFromJsonMutate", "compact": "compactFromJson"},
 }
 
-// jsonValueStrategyOperation routes createPrepareForJsonFn / createRestoreFromJsonFn's `strategy` to its family.
-// These are AxisNone, so the strategy IS the operation. An absent or unrecognised value takes 'clone'.
+// jsonValueStrategyOperation maps a value-level JSON `strategy` to its AxisNone operation; unknown or absent keeps 'clone'.
 func jsonValueStrategyOperation(op operations.Operation, strategy string) (operations.Operation, bool) {
 	byStrategy, isValueFamily := jsonValueStrategyOperations[op.Name]
 	if !isValueFamily {

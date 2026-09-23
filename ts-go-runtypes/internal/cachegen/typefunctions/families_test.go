@@ -6,15 +6,9 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// TestFamilies_RegistryRoundTrip — every registry row resolves a real
-// CacheModules entry, FamilyByKey round-trips it, and validate stays the
-// LAST row (the dispatcher renders families in registry order so the
-// CrossFamilyValRoots collection passes hit the per-dispatch entry memo).
+// TestFamilies_RegistryRoundTrip keeps validate LAST: families render in order, so CrossFamilyValRoots hit the entry memo.
 func TestFamilies_RegistryRoundTrip(t *testing.T) {
-	// 22 = 17 + the two fused validator families (validateStrict /
-	// validationErrorsStrict) behind `{checkUnknowns: true}` + the two union-scoped
-	// ones (validateUnionKeys / validationErrorsUnionKeys) behind
-	// `{checkUnionUnknowns: true}` + restoreFromJsonClone.
+	// 22 = 17 + the two checkUnknowns validators + the two checkUnionUnknowns validators + restoreFromJsonClone.
 	if len(Families) != 22 {
 		t.Fatalf("expected 22 type-walking families, got %d", len(Families))
 	}

@@ -21,8 +21,7 @@ const MAX_VARINT = 5;
  *  byte count can bound the allocation. Every other item kind is bounded by the bytes left in the buffer. **/
 export const MAX_ZERO_BYTE_ITEMS = 1 << 20;
 
-/** Thrown by the deserializer on a malformed buffer: a varint, string or count that runs past the end, or a
- *  count the bytes left cannot hold. Compiled decoders throw it as-is (no wrapper on the hot path). **/
+/** Thrown on a buffer read past its end or a count the bytes left cannot hold; decoders throw it unwrapped. **/
 export class BinaryDecodeError extends Error {
   constructor(message: string) {
     super(message);

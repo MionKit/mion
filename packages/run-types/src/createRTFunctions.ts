@@ -210,21 +210,9 @@ export interface HasUnknownKeysCompileOptions {
 /** Predicate returned by `createHasUnknownKeysFn<T>()`. **/
 export type HasUnknownKeysFn = (value: unknown, options?: HasUnknownKeysOptions) => boolean;
 
-/** Clone returned by `createCloneExactShapeFn<T>()`: a PROPER deep clone of the DECLARED shape.
- *  Undeclared keys are dropped by construction (the clone is built from the type, never `{...v}`),
- *  the input is never mutated (frozen inputs work), and `clone(x) !== x` holds for EVERY
- *  object-typed position: objects rebuild, class instances rebuild keeping their prototype
- *  (`instanceof` and methods hold), arrays/tuples/Map/Set are fresh containers, Dates re-wrap,
- *  RegExps are shared by reference (not data), Temporal instances re-materialize via their static
- *  `from()`. DECLARED members are never dropped. Two kinds of value pass through by reference:
- *  PRIMITIVES (compare by value, so a "fresh" one is meaningless) and OPAQUE values the emitter
- *  cannot rebuild (`any`/`unknown`/bare `object`, functions, symbols, promises, non-serializable
- *  natives — copying a resource handle would be wrong). A declared member holding such a value is
- *  KEPT on the clone, shared by reference, and the build says so (CES010/CES015);
- *  `overrideCloneExactShape<T>()` is the escape hatch for custom copying. Replaces the removed
- *  mutating `stripUnknownKeys` / `unknownKeysToUndefined` (measured 3–24x faster, no delete-induced
- *  dictionary-mode deopt). Intended use: stripping validated decoder output, and any place a
- *  schema-shaped deep clone is wanted. **/
+/** Deep clone of the DECLARED shape: undeclared keys drop, the input is untouched, every object is fresh (prototype kept).
+ *  Primitives, RegExps and values it cannot rebuild (`any`, functions) are shared; CES010/CES015 flag the latter.
+ *  `overrideCloneExactShape<T>()` is the escape hatch for custom copying. **/
 export type CloneExactShapeFn<T = unknown> = (value: T) => T;
 
 /** Validator returned by `createUnknownKeyErrorsFn<T>()`. Each unknown key produces one
@@ -260,10 +248,8 @@ export type FormatTransformValue<T> = T extends string
           ? {[K in keyof T]: FormatTransformValue<T[K]>}
           : T;
 
-/** Transform returned by `createFormatTransformFn<T>()`. Applies the rewrites declared under a
- *  format's `transform` key anywhere in `T` (trim / case / replace; creditCard `stripSeparators`);
- *  identity when `T` declares none. The direct-caller surface, and what mion applies to route params
- *  through `sanitizeParams`. Never a step inside validate / encode / decode. **/
+/** Applies `T`'s format `transform` rewrites (identity when it declares none); mion runs it on route params via `sanitizeParams`.
+ *  Never a step inside validate / encode / decode. **/
 export type FormatTransformFn<T> = (value: FormatTransformValue<T>) => FormatTransformValue<T>;
 
 // `T` defaults to `unknown`, where `JSONShape` and `DataOnly` collapse to `unknown`, so the
@@ -457,8 +443,7 @@ export const createPrepareForJsonFn = createTypeFnArgsFunction<PrepareForJsonFn>
     id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>
   ) => PrepareForJsonFn<T>);
 
-/** `JSON.parse` output in, typed value out (BigInt(...), Date revival, Map/Set rebuilt).
- *  It does NOT check the value; validate the result for untrusted data. **/
+/** `JSON.parse` output in, typed value out; it does NOT check the value, so validate untrusted data. **/
 export const createRestoreFromJsonFn = createTypeFnArgsFunction<RestoreFromJsonFn>(
   'createRestoreFromJsonFn',
   identityValueFn

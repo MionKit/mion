@@ -271,28 +271,20 @@ func resolveCwd(cwdFlag string) string {
 	return absCwd
 }
 
-// resolveSharedConfig runs the ONE config+options pipeline for a Program-building
-// subcommand: resolve cwd, resolve the ONE tsconfig (resolveConfigPath — the
-// single policy), read the build plugin when readBuildPlugin, merge flags over
-// the plugin over the binary defaults (tsc precedence), validate, and build
-// resolver.Options. genDirFlag is compile's --gen-dir (serve passes ""), and
-// readBuildPlugin is the old hasTsconfig gate: the overlay serve modes
-// (--sources stdin|ops) do not merge the tsconfig plugin block.
+// resolveSharedConfig is the ONE config pipeline of every Program-building subcommand (flag > plugin > default).
+// readBuildPlugin is false for the overlay serve modes (--sources stdin|ops), which skip the tsconfig plugin block.
 func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, readBuildPlugin bool) sessionConfig {
 	absCwd := resolveCwd(s.cwd)
 	tsconfigPath := resolveConfigPath(absCwd, s.tsconfig)
 
-	// Which flags the user actually passed, so the merge can tell an explicit
-	// value from an absent flag (tsc precedence — the plugin fills only gaps).
+	// Which flags were passed, so the plugin fills only the gaps.
 	setFlags := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { setFlags[f.Name] = true })
 
 	var plugin tsRuntypesPlugin
 	if readBuildPlugin {
 		plugin, _ = resolveBuildPlugin(absCwd, tsconfigPath)
-		// A misspelt key is otherwise silently ignored; warn on stderr. A key that
-		// was REMOVED gets its own message naming the replacement, since "unknown
-		// key" would leave the reader guessing.
+		// A misspelt key is otherwise silently ignored; a REMOVED key names its replacement rather than reading as unknown.
 		unknown := unknownPluginKeys(absCwd, tsconfigPath)
 		var stillUnknown []string
 		for _, key := range unknown {
@@ -331,8 +323,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		noMarkerPackageCheck:    s.noMarkerPackageCheck,
 	}, plugin, absCwd)
 
-	// Validate the MERGED values: a bad mode can arrive from tsconfig as
-	// readily as from a flag, so the check sits after the merge.
+	// Checked after the merge: a bad mode can come from tsconfig as readily as from a flag.
 	switch merged.moduleMode {
 	case constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules:
 	default:
@@ -362,23 +353,16 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		os.Exit(2)
 	}
 
-	// RT disk cache: the internal MION_CACHE_DIR env var is the only control.
-	// Unset → the cache follows the project's incremental/composite setting; set
-	// to a path → force on there; set to "" → force off.
+	// MION_CACHE_DIR is the only cache control: unset follows incremental/composite, a path forces on, "" forces off.
 	cacheDirOverride, cacheDirSet := envcompat.LookupEnv("MION_CACHE_DIR")
 
-	// tsconfig `genDir` (raw, pre-default) rides into the resolver so the build
-	// lane's resolveOutDir agrees with the CLI lanes; when unset the resolver
-	// keeps its <srcDir>/.mion inference.
+	// The raw tsconfig genDir keeps the build lane's resolveOutDir in step with the CLI lanes; unset keeps <srcDir>/.mion.
 	tsconfigGenDir := strings.TrimSpace(plugin.GenDir)
 	if tsconfigGenDir != "" && !filepath.IsAbs(tsconfigGenDir) {
 		tsconfigGenDir = filepath.Join(absCwd, tsconfigGenDir)
 	}
 
-	// The batch source: the --client-tsconfig flag (relative to cwd) over the
-	// tsconfig `clientTsconfig` plugin key (relative to that tsconfig's own
-	// directory, the way a path written inside a tsconfig reads). Empty means
-	// the program itself is the batch source.
+	// Batch source: the flag (relative to cwd) over `clientTsconfig` (relative to the tsconfig); empty = this program.
 	clientTsconfig := strings.TrimSpace(s.clientTsconfig)
 	if clientTsconfig != "" {
 		if !filepath.IsAbs(clientTsconfig) {
@@ -391,9 +375,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		}
 	}
 
-	// The API source, the mirror of the batch source above: --api-tsconfig
-	// (relative to cwd) over the tsconfig `apiTsconfig` plugin key (relative
-	// to the tsconfig's own directory). Empty means the API is in this program.
+	// API source, same shape as the batch source: empty means the API is in this program.
 	apiTsconfig := strings.TrimSpace(s.apiTsconfig)
 	if apiTsconfig != "" {
 		if !filepath.IsAbs(apiTsconfig) {
@@ -405,8 +387,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 			apiTsconfig = filepath.Join(filepath.Dir(tsconfigPath), apiTsconfig)
 		}
 	}
-	// bundleApi: the flag over the tsconfig key, validated after the merge like
-	// the other modes (a bad value arrives from either side).
+	// Validated after the merge, like the other modes.
 	bundleApi := constants.BundleApiMode(strings.TrimSpace(s.bundleApi))
 	if bundleApi == constants.BundleApiOff {
 		bundleApi = constants.BundleApiMode(strings.TrimSpace(plugin.BundleApi))
@@ -439,9 +420,7 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		EmitMode:                constants.EmitMode(merged.emitMode),
 		InlineMode:              constants.InlineMode(merged.inlineMode),
 		ModuleMode:              merged.moduleMode,
-		// The JS engine pattern checks run on: --js-runtime, else
-		// MION_JS_RUNTIME, else node/bun from PATH — resolved lazily on first
-		// use, so pattern-free projects never need a runtime.
+		// --js-runtime, else MION_JS_RUNTIME, else node/bun from PATH; lazy, so pattern-free projects need none.
 		JSEngine:             jsengine.NewSidecar(s.jsRuntime),
 		PureFnReportWire:     merged.pureFnReportWire,
 		PureFnReportFile:     merged.pureFnReportFile,

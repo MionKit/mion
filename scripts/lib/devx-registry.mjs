@@ -412,15 +412,15 @@ export const lookup = (area, sub) => (AREAS[area]?.commands ?? []).find((row) =>
 // The usage line for an area, built from the rows so it cannot disagree with them.
 export const usage = (area) => `usage: ${CLI} ${area} <${commandNames(area).join('|')}>  (run \`pnpm ${CLI} ${area} --help\` for the flags)`;
 
-// A bare area word (`miondevx website`, nothing after it) prints that area's help
-// when the area says so; bench and env keep their bare form as a real run.
-// Every positional word is a codegen target (none, or `all`, means every one); an unknown word is returned in `unknown`.
+// Every positional word is a codegen target, not just the first; none, or `all`, means every one.
 export const codegenTargets = (args, known) => {
   const words = args.filter((arg) => !arg.startsWith('-'));
   const names = words.length === 0 || words.includes('all') ? known : words;
   return {names, unknown: names.filter((name) => !known.includes(name))};
 };
 
+// A bare area word (`miondevx website`, nothing after it) prints that area's help
+// when the area says so; bench and env keep their bare form as a real run.
 export const bareShowsHelp = (verb, rest = []) => Boolean(AREAS[verb]?.bareHelp) && rest.length === 0;
 
 // Does this invocation need the engine built first? An unknown area or command

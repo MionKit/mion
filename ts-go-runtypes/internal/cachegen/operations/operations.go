@@ -109,10 +109,9 @@ var registry = []Operation{
 		Strategies:      []string{"strip", "preserve", "compact"},
 	},
 
-	// The JSON value-level primitives the composites wrap and createPrepareForJsonFn and its siblings compile. Three operations sit
-	// behind each prepare / restore factory, one per `strategy`, picked by the scanner (jsonValueStrategyOperation in
-	// resolver/scan.go); a framework threading its own marker reaches any of them by FnKey through getRTFunction.
-	// Each FnKey equals its family tag, and there is no runtime hashing, so the resolver reads the plugin-injected plain fnHash.
+	// JSON value-level primitives the composites wrap: one operation per prepare / restore `strategy`, picked by
+	// jsonValueStrategyOperation (resolver/scan.go); a framework's own marker reaches any by FnKey via getRTFunction.
+	// No runtime hashing: the resolver reads the plugin-injected plain fnHash.
 	//   - rjs (clone restore): mion's `clone` strategy decodes with it, no createJsonDecoderFn strategy composes it.
 	//   - sj: the `direct` encoder body. ukuw: the strip decoder's wire pre-pass.
 	{Name: "prepareForJsonMutate", Doc: "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.", Factory: "createPrepareForJsonFn", FamilyTag: "pj", Axis: AxisNone, Public: true, FnKey: "prepareForJsonMutate", CallOptions: "{strategy: 'mutate'}"},
