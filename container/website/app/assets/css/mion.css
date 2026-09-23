@@ -1005,7 +1005,6 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   border: 1px solid color-mix(in srgb, var(--color-brand-500) 35%, var(--ui-border));
   border-radius: 1.25rem;
   background: color-mix(in srgb, var(--color-brand-500) 4%, var(--ui-bg));
-  box-shadow: 0 24px 60px -32px color-mix(in srgb, var(--color-brand-500) 45%, transparent);
 }
 
 .home-subsite-card > [data-slot='container'] {
@@ -1121,27 +1120,10 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   }
 }
 
-/* Parallax, in CSS alone: each card rises into place as it enters the viewport, a
-   soft glow BEHIND the card (outside it: the wrapper is not clipped, the card is
-   opaque) drifts against the scroll while the card crosses it, and the content
-   inside the card lags the card a little, so three layers move at three speeds.
-   Scroll-driven animations (animation-timeline: view()) do the work, so a browser
-   without them, or a reader who asked for reduced motion, gets the static cards. */
+/* Parallax, in CSS alone: each card rises into place as it enters the viewport and its
+   content lags a little. Off without scroll-driven animations or under reduced motion. */
 .home-subsite {
   position: relative;
-}
-
-.home-subsite::before {
-  content: '';
-  position: absolute;
-  inset: 2% -2%;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 2rem;
-  filter: blur(80px);
-  background:
-    radial-gradient(45% 50% at 20% 30%, color-mix(in srgb, var(--color-brand-500) 22%, transparent), transparent 70%),
-    radial-gradient(40% 45% at 85% 75%, color-mix(in srgb, var(--site-gradient-mix) 12%, transparent), transparent 70%);
 }
 
 /* The same treatment on the about pages: every page section (UPageSection) outside the root
@@ -1172,15 +1154,8 @@ section[data-slot='root']:not(.home-subsite-card)::before {
       animation-range: entry 0% entry 70%;
     }
 
-    /* the halo behind it travels the other way, further than before */
-    .home-subsite::before {
-      animation: home-subsite-drift linear both;
-      animation-timeline: view();
-      animation-range: entry 0% exit 100%;
-    }
 
-    /* and the content inside the card lags the card itself: three layers moving at
-       three speeds (halo, card, content) is what reads as depth */
+    /* the content lags the card, so the two move at two speeds */
     .home-subsite-card > [data-slot='container'] {
       animation: home-subsite-inner linear both;
       animation-timeline: view();
