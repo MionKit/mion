@@ -6,14 +6,11 @@ interface Item {
   qty: number;
 }
 
-// The one router-wide knob: the slack applied to a limit derived from the types.
-// A route whose types cannot say takes the platform adapter's `maxBodySize`
-// (128 KB by default on every adapter).
+// the one router-wide knob: the slack applied to a limit derived from the types
 const mion = createMionRouter({maxBodySizeFactor: 2});
 
 const routes = {
-  // Every param has a maximum, so the request limit is derived from the types:
-  // a 36-char id and a list of at most 50 items, nothing bigger gets parsed.
+  // every param has a maximum, so the limit is derived from the types
   addItems: mion.route(
     (
       ctx,
@@ -22,10 +19,10 @@ const routes = {
     ): number => items.length
   ),
 
-  // A plain string has no maximum, so this route takes the adapter's number.
+  // a plain string has no maximum, so this route takes the adapter's number
   search: mion.route((ctx, text: string): number => text.length),
 
-  // The route option wins over both the derived number and the adapter's number.
+  // the route option wins over both
   upload: mion.route((ctx, payload: string): number => payload.length, {
     maxBodySize: 512_000,
   }),

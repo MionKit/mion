@@ -5,9 +5,8 @@ interface User {
   age: number;
 }
 
-// createGetValidationErrorsFn is synchronous — returns the compiled error collector.
+// synchronous: returns the compiled error collector
 const getUserErrors = createGetValidationErrorsFn<User>();
 
 const errors = getUserErrors({name: 123, age: 'invalid'});
-// Returns one RunTypeError per failed member:
-//   [ { path: ['name'], expected: 'string' }, { path: ['age'], expected: 'number' } ]
+// [{path: ['name'], expected: 'string'}, {path: ['age'], expected: 'number'}]
