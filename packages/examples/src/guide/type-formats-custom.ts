@@ -23,7 +23,7 @@ isProfile({handle: 'no', completion: 150, followers: -1n}); // false
 
 const isPrice = createValidateFn<Price>();
 
-isPrice(19.99); // true
+isPrice(19.99); // true, a decimal multipleOf allows tiny float rounding errors
 isPrice(19.995); // false
 
 export {isProfile, isPrice};
