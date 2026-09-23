@@ -6,7 +6,6 @@ const {routes, middleFns} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// the same call, reading all five slots
 const [user, error, undeclared, middleFnResults, middleFnErrors] =
   await routes.users.getById('USER-123').call({
     middleFns: {

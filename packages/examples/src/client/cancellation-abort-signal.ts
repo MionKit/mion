@@ -3,13 +3,11 @@ import type {MyApi} from './hello.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// create an AbortController for this request
 const controller = new AbortController();
 
-// pass the signal via call setup
 const resultPromise = routes.sayHello('John').call({signal: controller.signal});
 
-// cancel the request (e.g. on component unmount or user action)
+// e.g. on component unmount or a user action
 controller.abort();
 
 const [greeting, , undeclared] = await resultPromise;

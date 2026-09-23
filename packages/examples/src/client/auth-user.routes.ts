@@ -8,8 +8,7 @@ export type NotAuthorizedData = {reason: 'missing-token' | 'invalid-token'};
 export type UserNotFoundData = {requestedId: string};
 
 const routes = {
-  // a returned FatalError ends the request, and being declared it reaches the
-  // client strongly typed, errorData included
+  // a returned FatalError ends the request and reaches the client typed, errorData included
   auth: mion.headersFn(
     (
       ctx,

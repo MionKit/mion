@@ -8,8 +8,7 @@ const {routes, middleFns} = initClient<MyApi>({
 
 declare function redirectToLogin(): void;
 
-// prefill() returns a TypedEvent for registering persistent handlers
-// the handlers are STRONGLY TYPED by the error.type string
+// prefill() returns a TypedEvent for persistent handlers, typed by error.type
 middleFns
   .auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))
   .prefill()
@@ -23,9 +22,7 @@ middleFns
     redirectToLogin();
   });
 
-// auth is prefilled, so call() sends it without passing it again
-// A middleware function's declared error reaches BOTH channels: its typed onError
-// handler above, and its own slot in the middleFnErrors record
+// auth is prefilled, so call() sends it; its declared error reaches onError above AND middleFnErrors
 const [sum, error, undeclared, middleFnResults, middleFnErrors] =
   await routes.utils.sum(5, 2).call();
 

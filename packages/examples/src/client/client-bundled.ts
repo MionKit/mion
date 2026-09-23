@@ -1,7 +1,6 @@
 import {initClient, type RouteSubRequest} from '@mionjs/client';
 import type {MyApi} from './init.routes.ts';
 
-// Nothing changes in the code: the build knows the lane, and each call carries what it needs.
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // This route is bundled: the call names it, so its functions ship with the app.

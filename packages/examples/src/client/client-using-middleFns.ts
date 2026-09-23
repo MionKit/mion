@@ -6,8 +6,7 @@ const {routes, middleFns} = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
 });
 
-// calls a route passing data to the auth middleware function
-// Returns 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
+// returns a 5-tuple: [routeResult, routeError, undeclared, middleFnResults, middleFnErrors]
 const [user, routeError, undeclared, middleFnResults, middleFnErrors] =
   await routes.users.getById('USER-123').call({
     middleFns: {
@@ -15,8 +14,7 @@ const [user, routeError, undeclared, middleFnResults, middleFnErrors] =
     },
   });
 
-// routeError holds the route's DECLARED errors, each middleware
-// function's declared errors arrive by name
+// routeError holds the route's declared errors, middleFnErrors each middleware function's, by name
 if (routeError?.type === 'user-not-found')
   console.log('missing:', routeError.errorData?.requestedId);
 else if (middleFnErrors?.auth?.type === 'not-authorized')
