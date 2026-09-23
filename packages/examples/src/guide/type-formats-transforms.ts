@@ -2,16 +2,21 @@ import type * as TF from '@mionjs/run-types/formats';
 import {transform, email} from '@mionjs/run-types/formats';
 import {createValidateFn, createFormatTransformFn} from '@mionjs/run-types';
 
-// Spelling one: the `transform` key inside the format's params.
-type Email = TF.Email<{transform: {trim: true; lowercase: true}}>;
-type Name = TF.String<{
-  maxLength: 32;
-  transform: {trim: true; capitalize: true};
-}>;
+// start-sanitize
+type SignUp = {
+  email: TF.Email<{transform: {trim: true; lowercase: true}}>;
+  name: TF.String<{maxLength: 32; transform: {trim: true; capitalize: true}}>;
+  tags: TF.Transform<string, {lowercase: true}>[]; // the wrapper works on any string
+};
 
-// Spelling two: the Transform wrapper. Same type, same compiled functions.
+const sanitize = createFormatTransformFn<SignUp>();
+sanitize({email: ' Ada@Example.COM ', name: ' ada ', tags: ['News']});
+// {email: 'ada@example.com', name: 'Ada', tags: ['news']}
+// end-sanitize
+
+// The Transform wrapper is the same type as the `transform` key.
+type Email = TF.Email<{transform: {trim: true; lowercase: true}}>;
 type SameEmail = TF.Transform<TF.Email, {trim: true; lowercase: true}>;
-type Tag = TF.Transform<string, {lowercase: true}>; // a plain string can carry one too
 
 // Value-first builders have the same wrapper.
 const emailRt = transform(email(), {trim: true, lowercase: true});
@@ -20,16 +25,10 @@ const emailRt = transform(email(), {trim: true, lowercase: true});
 const isEmail = createValidateFn<Email>();
 isEmail('John@Example.COM'); // true, and not lowercased
 
-// Only the transform function rewrites. It walks the whole type, so nested
-// objects and arrays are covered.
-const clean = createFormatTransformFn<{email: Email; tags: Tag[]}>();
-clean({email: ' John@Example.COM ', tags: ['News', 'SPORT']});
-// {email: 'john@example.com', tags: ['news', 'sport']}
-
 // Email, Domain, IP and Url do not lowercase unless asked. A URL path is
 // case-sensitive, and so is the local part of an email by the letter of the RFC.
 const asIs = createFormatTransformFn<TF.Url>();
 asIs('https://Example.com/Path'); // 'https://Example.com/Path'
 
-export {isEmail, clean, asIs, emailRt};
-export type {Name, SameEmail};
+export {isEmail, sanitize, asIs, emailRt};
+export type {SignUp, SameEmail};
