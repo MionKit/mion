@@ -13,12 +13,9 @@ interface User {
 
 type NewUser = Omit<User, 'id'>;
 
-// mion automatically:
-// 1. Restores Date and Set from JSON
-// 2. Validates user parameter
 const routes = {
   createUser: mion.route((ctx, user: NewUser): User => {
-    // user is already validated and types are restored
+    // Date and Set were restored from JSON, then user was validated
     console.log(user.birthDate instanceof Date); // true
     console.log(user.tags instanceof Set); // true
     return {id: 'USER-123', ...user};

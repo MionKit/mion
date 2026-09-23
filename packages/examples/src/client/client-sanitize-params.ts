@@ -1,8 +1,7 @@
 import {initClient} from '@mionjs/client';
 import type {MyApi} from './sanitize.routes.ts';
 
-// on by default: the client runs the same transforms the route declares, before
-// its own validation and before sending, so both ends see the same value
+// sanitizeParams is on by default
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // ' John@Example.COM ' is trimmed and lowercased before it leaves the browser
@@ -11,8 +10,7 @@ const [loggedIn] = await routes
   .call();
 console.log(loggedIn); // true
 
-// set sanitizeParams to false to validate and send the value exactly as typed,
-// the server still sanitizes the route
+// false: validate and send the value as typed; the server still sanitizes
 const raw = initClient<MyApi>({
   baseURL: 'http://localhost:3000',
   sanitizeParams: false,
