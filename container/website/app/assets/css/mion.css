@@ -1282,3 +1282,10 @@ section[data-slot='root']:not(.home-subsite-card)::before {
 .nav-subpage {
   padding-inline-start: 1.75rem;
 }
+
+/* All Compiled Functions: each call fills its table cell, like a small code block. */
+.fn-catalog td:first-child code {
+  display: block;
+  width: 100%;
+  white-space: pre-wrap;
+}
