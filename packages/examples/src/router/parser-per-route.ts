@@ -38,7 +38,7 @@ export const routes = {
     compactRoute
   ),
 
-  // middlewares take the same option: their params and return use the same wires
+  // middleware takes the same option: its params and return use the same wires
   stamp: mion.middleware(
     (ctx, tag: string): {tag: string; at: Date} => ({tag, at: new Date()}),
     {parser: 'compact'}
