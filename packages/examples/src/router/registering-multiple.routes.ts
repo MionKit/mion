@@ -17,10 +17,9 @@ const routes = {
   sayHello: mion.route((ctx, name: string): string => 'hello ' + name),
 } satisfies Routes;
 
-// initRoutes runs once per app: compose several route objects with spread
+// routes split across files are spread into the one initRoutes call
 export const myApi = mion.initRoutes({...routes, ...authRoutes});
 
-// export api types to be consumed by the clients
 export type MyApi = typeof myApi;
 // a sub-api can be typed on its own from its routes object
 export type AuthApi = PublicApi<typeof authRoutes>;

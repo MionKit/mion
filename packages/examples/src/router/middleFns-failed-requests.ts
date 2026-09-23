@@ -6,9 +6,7 @@ import {
 
 const mion = createMionRouter();
 
-// a request that failed before its route could run (an unknown path, an unknown batch id, a body
-// the adapter refused) runs ONLY the middleFns that declare alwaysRun, so a rate limiter that must
-// see them declares it too
+// alwaysRun: a rate limiter must also see requests that already failed
 const rateLimit = mion.rawMiddleFn(
   (ctx): void => {
     console.log('incoming', ctx.path);
@@ -24,8 +22,7 @@ const accessLog = mion.rawMiddleFn(
   {alwaysRun: true}
 );
 
-// without alwaysRun a global middleFn is skipped for a request that already failed: no session is
-// loaded and no token is checked for a request that is going to be refused anyway
+// no alwaysRun: no session is loaded and no token checked for a request refused anyway
 const loadSession = mion.rawMiddleFn((ctx): void => {
   console.log('loading the session for', ctx.path);
 });
@@ -36,7 +33,7 @@ addEndMiddleFns({accessLog});
 
 const sayHello = mion.route((ctx, name: string): string => `Hello ${name}`);
 
-// a middleFn declared here belongs to the routes next to it and never runs on an unknown path
+// declared beside the routes, so it never runs on either 404
 const auth = mion.middleFn((ctx, token: string): void => {
   if (token !== 'secret') throw new Error('unauthorized');
 });

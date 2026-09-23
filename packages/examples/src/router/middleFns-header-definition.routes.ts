@@ -5,7 +5,7 @@ import {getAuthUser, isAuthorized} from './myAuth.ts';
 const mion = createMionRouter();
 
 const routes = {
-  // using mion.headersFn to declare request headers, headers param must be next after context
+  // the headers param must come right after ctx
   auth: mion.headersFn(
     async (
       ctx,
