@@ -13,7 +13,7 @@ import {spawnSync} from 'node:child_process';
 import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {main as coreBuild} from './core/build.mjs';
-import {AREAS, CLI, bareShowsHelp, hasFlag, isHelpFlag, lookup, needsEngine, renderHelp, stdoutHasColor, usage} from './lib/devx-registry.mjs';
+import {AREAS, CLI, bareShowsHelp, codegenTargets, hasFlag, isHelpFlag, lookup, needsEngine, renderHelp, stdoutHasColor, usage} from './lib/devx-registry.mjs';
 import {loadEnv, REPO_ROOT} from './lib/env.mjs';
 import {CliError, capture, reportCliError} from './lib/proc.mjs';
 
@@ -203,9 +203,8 @@ function runGen(name) {
 
 function runCodegen(args) {
   const check = hasFlag(args, '--check');
-  const which = args.find((a) => !a.startsWith('-')) ?? 'all';
-  const names = which === 'all' ? Object.keys(CODEGEN) : [which];
-  for (const name of names) if (!CODEGEN[name]) die(`unknown codegen target '${name}'. Try: all | ${Object.keys(CODEGEN).join(' | ')} [--check]`);
+  const {names, unknown} = codegenTargets(args, Object.keys(CODEGEN));
+  if (unknown.length) die(`unknown codegen target '${unknown[0]}'. Try: all | ${Object.keys(CODEGEN).join(' | ')} [--check]`);
   for (const name of names) {
     runGen(name);
     if (CODEGEN[name].fmt.length) proxy('pnpm', ['exec', 'oxfmt', '--write', ...CODEGEN[name].fmt]);
