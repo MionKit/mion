@@ -2,36 +2,42 @@
   "functions": [
     {
       "name": "cloneExactShape",
+      "call": "createCloneExactShapeFn<T>()",
       "tag": "ces",
       "doc": "Copies a value keeping only the properties the type declares.",
       "factory": "createCloneExactShapeFn"
     },
     {
       "name": "compactForJson",
+      "call": "createPrepareForJsonFn<T>(undefined, {strategy: 'compact'})",
       "tag": "cj",
       "doc": "Builds a value whose objects are positional arrays, so property names never reach the wire.",
       "factory": "createPrepareForJsonFn"
     },
     {
       "name": "compactFromJson",
+      "call": "createRestoreFromJsonFn<T>(undefined, {strategy: 'compact'})",
       "tag": "cjr",
       "doc": "Rebuilds a keyed object from the positional array the compact encoder wrote.",
       "factory": "createRestoreFromJsonFn"
     },
     {
       "name": "formatTransform",
+      "call": "createFormatTransformFn<T>()",
       "tag": "fmt",
       "doc": "Applies the type's format rules to a value, for example trimming a string or clamping a number.",
       "factory": "createFormatTransformFn"
     },
     {
       "name": "fromBinary",
+      "call": "createBinaryDecoderFn<T>()",
       "tag": "fb",
       "doc": "Reads a value back from the binary wire format.",
       "factory": "createBinaryDecoderFn"
     },
     {
       "name": "hasUnknownKeys",
+      "call": "createHasUnknownKeysFn<T>()",
       "tag": "huk",
       "doc": "Answers whether a value carries any property the type does not declare.",
       "factory": "createHasUnknownKeysFn",
@@ -39,6 +45,7 @@
     },
     {
       "name": "jsonDecoder",
+      "call": "createJsonDecoderFn<T>(undefined, {strategy: 'strip' | 'preserve' | 'compact'})",
       "doc": "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.",
       "factory": "createJsonDecoderFn",
       "options": "strategy",
@@ -50,6 +57,7 @@
     },
     {
       "name": "jsonEncoder",
+      "call": "createJsonEncoderFn<T>(undefined, {strategy: 'clone' | 'mutate' | 'direct' | 'compact'})",
       "doc": "Turns a value into a JSON string. The strategy picks how: build a new value, transform in place, write the string in one pass, or use the compact positional wire.",
       "factory": "createJsonEncoderFn",
       "options": "strategy",
@@ -63,66 +71,77 @@
     },
     {
       "name": "jsonSchema",
+      "call": "createJsonSchemaFn<T>()",
       "tag": "jsc",
       "doc": "Returns the JSON Schema document describing the type.",
       "factory": "createJsonSchemaFn"
     },
     {
       "name": "parse",
+      "call": "createParseFn<T>()",
       "tag": "prs",
       "doc": "Restores a JSON.parse output into the typed shape and checks it in one walk, throwing on a mismatch. Undeclared properties are kept.",
       "factory": "createParseFn"
     },
     {
       "name": "parseFail",
+      "call": "createParseFn<T>(undefined, {strategy: 'fail'})",
       "tag": "prsf",
       "doc": "Parse, rejecting any value that carries an undeclared property.",
       "factory": "createParseFn"
     },
     {
       "name": "parseStrip",
+      "call": "createParseFn<T>(undefined, {strategy: 'strip'})",
       "tag": "prss",
       "doc": "Parse, with undeclared properties removed before the value is restored.",
       "factory": "createParseFn"
     },
     {
       "name": "prepareForJsonClone",
+      "call": "createPrepareForJsonFn<T>()",
       "tag": "pjs",
       "doc": "Builds a new JSON-safe value from the declared shape, so undeclared properties are dropped.",
       "factory": "createPrepareForJsonFn"
     },
     {
       "name": "prepareForJsonMutate",
+      "call": "createPrepareForJsonFn<T>(undefined, {strategy: 'mutate'})",
       "tag": "pj",
       "doc": "Turns a value into a JSON-safe value in place. Nothing is allocated and undeclared properties are kept.",
       "factory": "createPrepareForJsonFn"
     },
     {
       "name": "restoreFromJsonClone",
+      "call": "createRestoreFromJsonFn<T>()",
       "tag": "rjs",
       "doc": "Rebuilds the typed shape from a JSON-safe value, so undeclared properties are dropped.",
       "factory": "createRestoreFromJsonFn"
     },
     {
       "name": "restoreFromJsonMutate",
+      "call": "createRestoreFromJsonFn<T>(undefined, {strategy: 'mutate'})",
       "tag": "rj",
       "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.",
       "factory": "createRestoreFromJsonFn"
     },
     {
       "name": "stringifyJson",
+      "call": "createStringifyJsonFn<T>()",
       "tag": "sj",
       "doc": "Writes a value straight to a JSON string in one pass, with no intermediate value.",
       "factory": "createStringifyJsonFn"
     },
     {
       "name": "stripUnknownKeysWire",
+      "call": "createStripUnknownKeysFn<T>()",
       "tag": "ukuw",
       "doc": "Blanks undeclared properties on incoming JSON before it is restored.",
       "factory": "createStripUnknownKeysFn"
     },
     {
       "name": "toBinary",
+      "call": "createBinaryEncoderFn<T>()",
       "tag": "tb",
       "doc": "Writes a value to the compact binary wire format.",
       "factory": "createBinaryEncoderFn",
@@ -130,12 +149,14 @@
     },
     {
       "name": "unknownKeyErrors",
+      "call": "createUnknownKeyErrorsFn<T>()",
       "tag": "uke",
       "doc": "Returns one error per undeclared property, with the path to each one.",
       "factory": "createUnknownKeyErrorsFn"
     },
     {
       "name": "validate",
+      "call": "createValidateFn<T>()",
       "tag": "val",
       "doc": "Answers whether a value matches the type. The cheapest check, and the one every other validator builds on.",
       "factory": "createValidateFn",
@@ -144,6 +165,7 @@
     },
     {
       "name": "validateStrict",
+      "call": "createValidateFn<T>(undefined, {checkUnknowns: true})",
       "tag": "vst",
       "doc": "Answers whether a value matches the type AND carries no undeclared properties, in a single walk.",
       "factory": "createValidateFn",
@@ -152,6 +174,7 @@
     },
     {
       "name": "validateUnionKeys",
+      "call": "createValidateFn<T>(undefined, {checkUnionUnknowns: true})",
       "tag": "vuk",
       "doc": "Answers whether a value matches the type AND carries no property the matched union member leaves undeclared.",
       "factory": "createValidateFn",
@@ -160,6 +183,7 @@
     },
     {
       "name": "validationErrors",
+      "call": "createGetValidationErrorsFn<T>()",
       "tag": "verr",
       "doc": "Returns the list of reasons a value does not match the type, with the path to each one.",
       "factory": "createGetValidationErrorsFn",
@@ -168,6 +192,7 @@
     },
     {
       "name": "validationErrorsStrict",
+      "call": "createGetValidationErrorsFn<T>(undefined, {checkUnknowns: true})",
       "tag": "vest",
       "doc": "Returns the reasons a value does not match, including undeclared properties, in a single walk.",
       "factory": "createGetValidationErrorsFn",
@@ -176,6 +201,7 @@
     },
     {
       "name": "validationErrorsUnionKeys",
+      "call": "createGetValidationErrorsFn<T>(undefined, {checkUnionUnknowns: true})",
       "tag": "veuk",
       "doc": "Returns the reasons a value does not match, counting a property the matched union member leaves undeclared.",
       "factory": "createGetValidationErrorsFn",

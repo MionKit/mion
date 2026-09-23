@@ -4,6 +4,8 @@ import catalog from './go-generated/functions-catalog.json';
 interface FunctionEntry {
   /** The name a marker calls this function by. */
   name: string;
+  /** The factory call, options included, that compiles this function. */
+  call?: string;
   /** The short name the emitted code uses. A separate vocabulary on purpose. */
   tag?: string;
   doc: string;
@@ -21,8 +23,7 @@ const functions = catalog.functions as FunctionEntry[];
 /** The extra facts a row carries, as one sentence per row rather than a second table. */
 function notes(entry: FunctionEntry): string[] {
   const out: string[] = [];
-  if (entry.variants?.length) out.push(`${entry.options ?? 'strategy'}: ${entry.variants.join(', ')}`);
-  else if (entry.options) out.push(`Takes ${entry.options}`);
+  if (entry.options && !entry.variants?.length) out.push(`Takes ${entry.options}`);
   if (entry.rejectCircularRefs) out.push('Accepts rejectCircularRefs');
   return out;
 }
@@ -35,14 +36,14 @@ const rows = [...functions].sort((a, b) => a.factory.localeCompare(b.factory) ||
   <table class="fns">
     <thead>
       <tr>
-        <th>Factory</th>
-        <th>Marker name</th>
+        <th>Call</th>
+        <th>Compiled Fn</th>
         <th>What it does</th>
       </tr>
     </thead>
     <tbody>
       <tr v-for="entry in rows" :id="entry.name" :key="entry.name">
-        <td><code>{{ entry.factory }}</code></td>
+        <td><code>{{ entry.call ?? entry.factory }}</code></td>
         <td><code>{{ entry.name }}</code></td>
         <td>
           {{ entry.doc }}
@@ -76,8 +77,11 @@ const rows = [...functions].sort((a, b) => a.factory.localeCompare(b.factory) ||
   white-space: nowrap;
 }
 
-/* The two name columns take only what they need, so the description gets the rest. */
-.fns td:first-child,
+/* A call carries its options literal, so it wraps; the compiled name stays on one line. */
+.fns td:first-child {
+  width: 40%;
+}
+
 .fns td:nth-child(2) {
   width: 1%;
   white-space: nowrap;
