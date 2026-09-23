@@ -21,7 +21,7 @@ Install, wiring, the full option list, and the linting setup live at
 
 - [Quick start](https://mion.pages.dev/runtypes/introduction/quick-start)
 - [Configuration](https://mion.pages.dev/runtypes/introduction/configuration)
-- [Linting](https://mion.pages.dev/runtypes/guide/linting)
+- [Linting](https://mion.pages.dev/runtypes/tooling/linting)
 - [Source and issues](https://github.com/MionKit/mion)
 
 ## Status
