@@ -7,8 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
 )
 
-// Resolver coverage for the value-level JSON factories: their `strategy` is AxisNone, so it
-// selects a whole FAMILY rather than a variant.
+// Resolver coverage for the value-level JSON factories: their AxisNone `strategy` selects a whole FAMILY, not a variant.
 
 // wantPlainFnId is the plain (option-free) fnHash of a registered operation.
 func wantPlainFnId(t *testing.T, opName string) string {
@@ -101,7 +100,7 @@ export const strip = createStripUnknownKeysFn<User>();
 	}
 }
 
-// An unrecognised strategy takes the default rather than failing the build, which is why the TS union is the real guard.
+// An unrecognised strategy takes the default instead of failing the build, so the TS union is the real guard.
 func TestJsonValueFactories_UnrecognisedStrategyKeepsTheClone(t *testing.T) {
 	const code = `import {createPrepareForJsonFn, createRestoreFromJsonFn} from '@mionjs/run-types';
 createPrepareForJsonFn<{a: string}>(undefined, {strategy: 'nonsense'});

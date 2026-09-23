@@ -75,10 +75,7 @@ describe('a `__proto__` wire key is refused by the decoders on both roads', () =
   });
 
   it('a decoder whose values need no rebuild still throws, and validate refuses it too', () => {
-    // Record<string, unknown> has nothing to rebuild, but the key loop with the
-    // refusal ships anyway: the decoder is a real function, never the JSON.parse
-    // identity, and validate refuses the same key on a value that never went
-    // through a decoder.
+    // Nothing to rebuild, yet the refusing key loop ships: the decoder is never bare JSON.parse, and validate refuses too.
     const bagWire = '{"a":1,"__proto__":{"admin":true}}';
     expect(() => decodeBag(bagWire)).toThrow(message('__proto__'));
     expect(validateBag(JSON.parse(bagWire))).toBe(false);

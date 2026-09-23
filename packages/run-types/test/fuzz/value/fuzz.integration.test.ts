@@ -32,10 +32,8 @@ import {renderCrashes} from '../core/crashGuard.ts';
 import {unreachedKeyedTargets, type FuzzTarget} from './fuzzOracle.ts';
 import type {RunType} from '../../../src/runtypes/types.ts';
 
-// The STRIPPING restore has no createX factory: it is reached by declaring its fnKey in a trailing
-// InjectTypeFnArgs marker, the same wrapper shape a framework writes. Schema-first like every factory
-// below, so the plugin resolves T from the concretely-typed `const schema` rather than injecting `unknown`.
-// mion's `clone` strategy decodes with it. O26's subject: it must DELETE an undeclared wire key, not blank it.
+// The STRIPPING restore (mion's `clone` decoder) has no createX factory; a trailing InjectTypeFnArgs marker reaches it.
+// Schema-first, so T resolves from `const schema`, not `unknown`. O26: it must DELETE an undeclared key, not blank it.
 function recoverRestoreSafe<T>(_schema: RunType<T>, id?: InjectTypeFnArgs<T, 'restoreFromJsonClone'>) {
   return getRTFunction<'restoreFromJsonClone'>(id);
 }

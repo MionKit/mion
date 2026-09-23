@@ -1,10 +1,8 @@
 // The security oracles: what must hold for EVERY input, hostile or not.
 //
 //   Binary decoder (secbinary lane)
-//     SB-THROWS     a decode either returns or throws an Error; never a bare
-//                   non-Error throw, never garbage. (The decoders deliberately
-//                   throw whatever the failing arm throws, no wrapper: a caller
-//                   catches and rethrows. `parse` is the typed entry point.)
+//     SB-THROWS     a decode returns or throws an Error, never a non-Error or
+//                   garbage. (No wrapper by design: the failing arm's error.)
 //     SB-BOUNDS     when a decode returns, the deserializer's index never sits
 //                   past the end of the buffer (a silent short read).
 //     SB-TOTAL      `validate(decoded)` returns a boolean without throwing, and
@@ -21,8 +19,7 @@
 //                   deserializer's JSON frame is the binary road's own key path).
 //
 //   JSON decoders (secjson lane)
-//     SJ-REJECT     an `expect: 'reject'` payload never decodes into a value
-//                   `validate` accepts.
+//     SJ-REJECT     an `expect: 'reject'` payload never decodes into a value `validate` accepts.
 //     SJ-PROTO      a returned value has a sane prototype at every object
 //                   position and no inherited enumerable keys; the same for the
 //                   exact-shape clone of a decoded value, and no encoder writes

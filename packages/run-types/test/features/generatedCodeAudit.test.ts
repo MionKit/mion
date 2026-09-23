@@ -166,14 +166,8 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     }
   });
 
-  // The MARKER vocabulary is readable ('prepareForJsonClone'); the vocabulary
-  // GENERATED CODE uses is the short family tag ('pjs'). Keeping them apart is
-  // what lets marker names be long at no cost to the emitted bundle, so a
-  // readable name reaching an emitted NAME is a real regression.
-  //
-  // Checked against the two shapes a family name is emitted in, rather than a
-  // bare substring scan: some readable names ('validate') are also
-  // ordinary JavaScript that legitimately appears in a body.
+  // Marker names are long ('prepareForJsonClone') only because emitted code uses the short tag ('pjs').
+  // Checked against the two emitted name shapes, not a substring scan: 'validate' is also ordinary JS in a body.
   it('no readable marker name reaches an emitted identifier or cache key', () => {
     const readableNames = Object.values(FAMILY_TAG_TO_FN_KEY).filter((fnKey) => fnKey.length > 4);
     const leaks: string[] = [];

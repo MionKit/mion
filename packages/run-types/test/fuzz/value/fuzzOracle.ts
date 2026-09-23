@@ -77,9 +77,8 @@ export interface FuzzTarget {
    *  any shape be assigned (parameters are contravariant); the oracle casts
    *  the value back at the one call site. **/
   clone?: (value: never) => unknown;
-  /** The STRIPPING restore (`rjs`), mion's `clone` decoder. Recovered through a marker wrapper, since
-   *  the primitive has no createX factory. O26 holds it to the stronger
-   *  contract: an undeclared wire key comes back GONE, not blanked. **/
+  /** The STRIPPING restore (`rjs`, mion's `clone` decoder), via a marker wrapper: it has no createX factory.
+   *  O26 holds it to an undeclared wire key coming back GONE, not blanked. **/
   restoreFromJsonClone?: (value: unknown) => unknown;
   jsonEncode?: (value: unknown) => string | undefined;
   jsonDecode?: (serialized: string) => unknown;

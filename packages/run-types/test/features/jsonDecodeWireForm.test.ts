@@ -1,13 +1,6 @@
-// Pins that the JSON restore arms rebuild a value ONLY from its wire form.
-// `new Date(null)` is the epoch, `new Date(true)` is 1 ms past it,
-// `BigInt(true)` is 1n, `new Set(null)` is an empty set: the engine coerces,
-// so a body such as `{"expires": null}` used to decode as a valid Date and
-// `{"tags": null}` as a valid empty Set. Every arm now transforms the string
-// (or array) the encoder writes and leaves anything else untouched, so
-// validate refuses it. A WHOLE number for a bigint stays accepted.
-//
-// Found by the secjson fuzz lane (wrong-type matrix + `date.nan`); these are
-// its seed-free repros.
+// Pins that the JSON restore arms rebuild a value ONLY from its wire form: the engine coerces (`new Date(null)` is
+// the epoch, `BigInt(true)` is 1n, `new Set(null)` an empty set), so anything else is left for validate to refuse.
+// A WHOLE number for a bigint stays accepted. Seed-free repros of the secjson fuzz lane (wrong-type matrix, `date.nan`).
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createValidateFn} from '@mionjs/run-types';

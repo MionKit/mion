@@ -1,6 +1,5 @@
-// secjson: attack the three JSON decoders with the vulnerability
-// dictionary at every position of the parsed wire (plus blind junk
-// mutations). Needs the Go binary; skipped when it is missing.
+// secjson: the vulnerability dictionary plus blind junk at every position of the parsed wire, against the three
+// JSON decoders. Needs the Go binary.
 
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './securityHarness.ts';

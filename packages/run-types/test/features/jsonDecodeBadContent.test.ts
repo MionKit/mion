@@ -1,16 +1,7 @@
-// Pins the decoder contract for a WELL-SHAPED wire value with bad content,
-// arm by arm, so no hole is left unproven:
-//
-//   - a wrong shape (a `null` where a Date string goes) is left in place and
-//     validate refuses it (jsonDecodeWireForm.test.ts pins the arms);
-//   - bad content in the right shape (`"12x"` for a bigint, a bad Temporal
-//     string) makes a plain decoder either return a value validate refuses or
-//     throw the engine's own error, and never returns a value validate
-//     accepts;
-//   - a value nested deeper than the engine stack on a recursive type makes
-//     validate throw `RangeError` promptly rather than hanging.
-//
-// The plain decoders deliberately carry no try/catch (the hot path).
+// Pins the decoder contract for a WELL-SHAPED wire value with bad content: a wrong shape is left for validate to
+// refuse (jsonDecodeWireForm.test.ts pins the arms), bad content (`"12x"` for a bigint) throws or yields a value
+// validate refuses, and nesting past the engine stack makes validate throw RangeError promptly. The plain decoders
+// carry no try/catch on purpose (the hot path).
 
 import {describe, expect, it} from 'vitest';
 import {createJsonDecoderFn, createJsonEncoderFn, createValidateFn} from '@mionjs/run-types';

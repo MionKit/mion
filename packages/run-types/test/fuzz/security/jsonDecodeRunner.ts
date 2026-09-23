@@ -1,7 +1,5 @@
-// The secjson lane driver: generate a random SERIALISABLE type, compile it,
-// encode one conforming value to its JSON wire, walk the parsed tree for every
-// attackable position, and run the dictionary (plus blind junk mutations)
-// through the three JSON decoders, in process.
+// The secjson lane driver: one random SERIALISABLE type, its JSON wire, and the dictionary plus blind junk at every
+// attackable position, run through the three JSON decoders in process.
 
 import {mixSeed, withSeededRandom, mulberry32} from '../core/seededRng.ts';
 import {runFuzzLoop} from '../core/runLoop.ts';

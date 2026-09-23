@@ -174,10 +174,7 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   }
 
   // --- extras pass (valid mock + undeclared keys) ---
-  // Without this the unknown-keys oracles never see an undeclared key, so they
-  // ran green on every input while proving nothing about their own subject. A
-  // value here is still `validate === true` by construction and
-  // `validateStrict === false`, which is exactly the gap between the two.
+  // Without this the unknown-keys oracles never see an undeclared key; these pass validate and fail validateStrict.
   const extras = mutateWithExtras(target.schema, valid, Math.random)?.value ?? injectRootExtra(valid);
   if (extras !== null) {
     const extrasCtx = {seed, phase: 'extras' as const};
@@ -186,20 +183,14 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   }
 
   // --- unknown-keys pass (one undeclared key at a walked position) ---
-  // The extras pass above compares the FUSED validator against its
-  // composition; this one holds the unknown-key families against each other,
-  // at every position that has its own arm. One key, not several, so a
-  // disagreement names the exact position that drifted.
+  // Holds the unknown-key families against each other; one key at a time, so a disagreement names the position.
   const positions = collectUnknownKeyPositions(target.schema, valid);
   const unknownCtx = {seed, phase: 'unknownkeys' as const};
-  // O27's tally: every oracle below is silent when the walker found nowhere to plant, so a hole
-  // reads as a clean run. unreachedKeyedTargets turns that silence into a failure at the end.
+  // O27: the oracles below are silent with nowhere to plant, so unreachedKeyedTargets fails that at the end.
   unknownKeys.positionsByTarget.set(target.title, (unknownKeys.positionsByTarget.get(target.title) ?? 0) + positions.length);
   push(out, checkUnknownKeysSelfAgree(target, valid, unknownCtx));
   push(out, checkUnknownKeysStripAgree(target, valid, unknownCtx));
-  // Both wire oracles plant blindly into every plain object of the wire and judge each survivor
-  // against the type afterwards, so they take no positions. O25 holds the blanking composite to
-  // "the value does not change"; O26 holds the stripping decoder to the stronger "the key is gone".
+  // The wire oracles plant blindly, so take no positions: O25 wants the value unchanged, O26 the key gone.
   if (target.jsonEncode && target.jsonDecode) unknownKeys.wire++;
   push(out, checkWireStripBlind(target, valid, unknownCtx));
   push(out, checkWireStripDeletes(target, valid, unknownCtx));
