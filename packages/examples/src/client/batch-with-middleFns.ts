@@ -8,7 +8,6 @@ const {routes, middleFns} = initClient<MyApi>({
 
 const authHeaders = new HeadersSubset({Authorization: 'my-token'});
 
-// Execute a batch with explicit middleware functions
 const [
   [sum, greeting],
   [sumError, greetingError],
@@ -19,12 +18,10 @@ const [
   middleFns: {auth: middleFns.auth(authHeaders)},
 });
 
-// Each middleware function's declared errors arrive by name,
-// anything undeclared surfaces once as undeclared
+// declared middleFn errors arrive by name, anything else once as undeclared
 if (middleFnErrors?.auth)
   console.log('Auth failed:', middleFnErrors.auth.publicMessage);
 if (undeclared) console.log('Request failed:', undeclared.publicMessage);
 
-// Handle route results
 if (!sumError) console.log('Sum:', sum);
 if (!greetingError) console.log(greeting);

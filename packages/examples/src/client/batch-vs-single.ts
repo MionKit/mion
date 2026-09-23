@@ -3,28 +3,19 @@ import type {MyApi} from './batch-orders.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// ============================================
-// SINGLE ROUTE CALL - call()
-// ============================================
-// Result and error are the direct types from the route
-// Returns: [result, error, undeclared, middleFnResults, middleFnErrors]
+// returns [result, error, undeclared, middleFnResults, middleFnErrors]
 const [user, error] = await routes.users.getById('USER-123').call();
 
 if (error?.type === 'user-not-found')
   console.log('User not found:', error.errorData?.requestedId);
 else console.log('User:', user?.name);
 
-// ============================================
-// BATCH - Multiple routes in one request
-// ============================================
-// Results and errors are ARRAYS in the same order as the routes
-// Returns: [[results...], [errors...], undeclared, middleFnResults, middleFnErrors]
+// returns [[results...], [errors...], undeclared, middleFnResults, middleFnErrors]; one undeclared per batch
 const [[user2, order], [userError, orderError]] = await batch([
   routes.users.getById('USER-123'),
   routes.orders.getById('ORDER-1'),
 ]).call();
 
-// Each result/error corresponds to its route by position
 if (userError) console.log('User error:', userError.publicMessage);
 else console.log('User:', user2?.name);
 

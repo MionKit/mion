@@ -1,7 +1,6 @@
 import {createMionRouter, Routes, PublicApi} from '@mionjs/router';
 
-// The route handler is mounted under `/api`, so the ROUTER carries that prefix: it is what every
-// route path is built from, and the client is given the same prefix so both agree.
+// the route handler is mounted under /api; the client uses the same prefix
 const mion = createMionRouter({basePath: '/api'});
 
 export interface User {

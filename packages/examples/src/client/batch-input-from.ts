@@ -3,11 +3,10 @@ import type {MyApi} from './batch-orders.routes.ts';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// Fetch an order
 const orderReq = routes.orders.getById('ORDER-123');
-// inputFrom maps order.userId -> getById input, (runs server-side)
+// feeds order.userId into the user route's input
 const mapping = inputFrom(orderReq, (order) => order!.userId);
-// asArg() is a typed placeholder for the value the server will map in
+// a typed placeholder for the value the server maps in
 const userReq = routes.users.getById(mapping.asArg());
 
 const [[orderData, userData]] = await batch([orderReq, userReq]).call();
