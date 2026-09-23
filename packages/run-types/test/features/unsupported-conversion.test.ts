@@ -1,30 +1,7 @@
-// THE OFFICIAL LIST of what `mion convert` cannot rewrite.
-//
-// Every entry below is a real declaration handed to the REAL binary over a real
-// temp project, asserting the exact diagnostic code and the message the user
-// sees. The website's conversion guide links here rather than restating the
-// list, so this file is the single source of truth: a refusal that is fixed
-// must be deleted here (the test fails the moment it starts converting), and a
-// new refusal has to be added here to be considered documented.
-//
-// The contract every entry shares, and what makes a refusal safe rather than
-// lossy: the converter NEVER writes a declaration it cannot spell exactly. It
-// reports the code, leaves that declaration byte-identical, converts everything
-// else in the file, and exits non-zero.
-//
-// Not listed, deliberately: internal conditions a user cannot author around
-// (a name the converter cannot derive, an unknown --to target).
-//
-// Also not listed, because they CONVERT: any shape whose only problem is that
-// the target form has no word for it rides the `getRunType<T>()` escape on
-// the builders target, carrying the type verbatim. Index signatures that
-// `record(...)`
-// cannot say (a number key, several signatures, an index beside named
-// members) go that way, as do functions, template literals and generic class
-// instantiations. An escape is only unavailable when the type CANNOT BE
-// SPELLED AT ALL in the escape's text: an unbound type parameter, or a
-// self-reference, since the escape is quoted text that cannot point back at
-// the declaration being defined.
+// The official list of what `mion convert` cannot rewrite, run against the real binary; the conversion guide's table
+// must match it. A refusal leaves that declaration byte-identical, converts the rest of the file and exits non-zero.
+// Shapes the target form cannot name still convert through the `getRunType<T>()` escape, except an unbound type
+// parameter or a self-reference, which the quoted escape cannot spell.
 import {describe, expect, it} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';

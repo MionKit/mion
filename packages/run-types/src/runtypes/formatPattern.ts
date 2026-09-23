@@ -2,8 +2,9 @@
 // survives `.d.ts` emission: the Go scanner recovers {source, flags, mockSamples, message} from the RESOLVED TYPE of the
 // `pattern` property, `typeof /x/` is plain `RegExp`, and a published `.d.ts` erases any runtime initializer, so only literals
 // captured via `const` type params reach a downstream consumer. Hence the `const A` generic over the WHOLE args object.
-// mockSamples are OPTIONAL: a pattern that declares none gets a deterministic pool generated from the regex at build time
-// (patternSampleCount of them; patterns the generator cannot handle fail the build with FMT005). Declared samples always win.
+// mockSamples are OPTIONAL: a pattern that declares none gets a pool generated from the regex at build time, fresh per build
+// unless a literal createMockDataFn seed pins it (patternSampleCount of them; patterns the generator cannot handle fail the
+// build with FMT005). Declared samples always win.
 
 import type {CompTimeArgs} from '../markers.ts';
 

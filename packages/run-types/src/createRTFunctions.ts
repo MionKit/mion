@@ -625,7 +625,7 @@ export function createJsonDecoderFn<T>(
  *
  *  Input is parsed JSON, not a string, so it composes with whatever produced the envelope rather
  *  than duplicating it. Use `createJsonDecoderFn<T>()` to have the string decoded for you with no
- *  validation. `strategy` decides what happens to undeclared properties — `'strip'` by default; see
+ *  validation. `strategy` decides what happens to undeclared properties — `'preserve'` by default; see
  *  `ParseStrategy`. **/
 export function createParseFn<T>(
   runType: RunType<T>,
