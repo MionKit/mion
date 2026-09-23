@@ -153,8 +153,7 @@ func enrichParityDaemon(t *testing.T, dir, tsconfigPath, genDir string, hashLeng
 	return out
 }
 
-// TestEnrichParity_DefaultGenDir pins that with no rootDir and no genDir the CLI and the daemon agree on
-// the inferred <srcDir>/.mion root: the daemon gets no GenDir, so it infers the root itself.
+// TestEnrichParity_DefaultGenDir: with no rootDir or genDir, the CLI and the daemon infer the same <srcDir>/.mion.
 func TestEnrichParity_DefaultGenDir(t *testing.T) {
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

@@ -66,7 +66,7 @@ export interface PluginOptions {
   binary?: string;
   // Project root (where tsconfig.json lives). Defaults to Vite's resolved root, else process.cwd().
   cwd?: string;
-  // Path to tsconfig.json, relative to cwd. Unset, it is searched upward from cwd like tsc.
+  // Relative to cwd; unset, searched upward from cwd like tsc.
   tsconfig?: string;
   // The SEPARATE mion client project this one serves batches to (relative to cwd, or absolute): the resolver
   // builds that program next to its own and generates the batch table + inline inputFrom mappers under `<genDir>/rpc/`.

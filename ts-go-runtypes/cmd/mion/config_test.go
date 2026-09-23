@@ -113,8 +113,7 @@ func TestResolveEnrichConfig_FlagWins(t *testing.T) {
 	}
 }
 
-// TestResolveEnrichConfig_DefaultGenDirLocation: with no genDir the root is <srcDir>/.mion, srcDir being
-// an explicit rootDir, else the common folder of the tsconfig's files; an explicit genDir still wins.
+// TestResolveEnrichConfig_DefaultGenDirLocation: no genDir means <rootDir, else the files' common folder>/.mion.
 func TestResolveEnrichConfig_DefaultGenDirLocation(t *testing.T) {
 	tests := []struct {
 		name     string

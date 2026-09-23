@@ -603,8 +603,7 @@ func PruneOrphanBlocks(text string) (string, int, []string, error) {
 	return dropUnusedEnrichmentImports(builder.String()), removed, skipped, nil
 }
 
-// dropUnusedEnrichmentImports removes the friendly*/mock* value imports that only the pruned carcasses referenced.
-// An import naming anything else, or aliased with `as`, is left alone; unparseable text comes back unchanged.
+// dropUnusedEnrichmentImports removes friendly*/mock* value imports only pruned carcasses used; mixed or aliased ones stay.
 func dropUnusedEnrichmentImports(text string) string {
 	index, err := ParseMirror(scanFileName, []byte(text))
 	if err != nil || len(index.valueImports) == 0 {

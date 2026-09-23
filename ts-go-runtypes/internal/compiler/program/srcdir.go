@@ -5,12 +5,10 @@ import (
 	"strings"
 )
 
-// InferSrcDir picks the project's source root, the base of the default <srcDir>/.mion output root.
-// The resolver and the enrich CLI both call it, so the generated tree and the enrichment mirrors agree.
+// InferSrcDir picks the base of the default <srcDir>/.mion; the resolver and the enrich CLI share it so their trees agree.
 // rootDir and baseUrl may be relative to cwd; fileNames are the program's root files.
 func InferSrcDir(cwd, rootDir, baseUrl string, fileNames []string) string {
-	// rootDir wins only at or below cwd: one set wide to type-check sibling packages is an emit-root signal,
-	// not a source-root one, and honoring it would drop the output outside the project.
+	// A rootDir above cwd is an emit root for type-checking siblings; honoring it would put the output outside the project.
 	if rootDir != "" {
 		if absRootDir := resolveAgainst(cwd, rootDir); isWithin(cwd, absRootDir) {
 			return absRootDir
@@ -62,8 +60,7 @@ func projectFiles(fileNames []string) []string {
 	return files
 }
 
-// commonDir returns the deepest directory containing every path's parent, or "" when they share no
-// meaningful root. It works on forward-slash segments, which is how tsgo paths already arrive.
+// commonDir is the deepest directory holding every path's parent; tsgo paths already arrive forward-slash.
 func commonDir(paths []string) string {
 	var segmented [][]string
 	for _, path := range paths {

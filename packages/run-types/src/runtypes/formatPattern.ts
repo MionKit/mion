@@ -1,10 +1,7 @@
-// FormatPattern — a pre-validated regex bundle for a format's `pattern` slot, authored as TYPE-LEVEL string literals so it
-// survives `.d.ts` emission: the Go scanner recovers {source, flags, mockSamples, message} from the RESOLVED TYPE of the
-// `pattern` property, `typeof /x/` is plain `RegExp`, and a published `.d.ts` erases any runtime initializer, so only literals
-// captured via `const` type params reach a downstream consumer. Hence the `const A` generic over the WHOLE args object.
-// mockSamples are OPTIONAL: a pattern that declares none gets a pool generated from the regex at build time, fresh per build
-// unless a literal createMockDataFn seed pins it (patternSampleCount of them; patterns the generator cannot handle fail the
-// build with FMT005). Declared samples always win.
+// FormatPattern is a pre-validated regex bundle written as TYPE-LEVEL string literals: the Go scanner reads it off the
+// `pattern` property's resolved type, `typeof /x/` is plain `RegExp` and a `.d.ts` erases initializers, hence the `const A`
+// generic over the WHOLE args object. Without mockSamples the build generates patternSampleCount from the regex, fresh
+// per build unless a literal createMockDataFn seed pins them; a regex it cannot handle fails with FMT005. Declared win.
 
 import type {CompTimeArgs} from '../markers.ts';
 

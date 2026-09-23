@@ -203,15 +203,9 @@ type parsePluginConfig struct {
 	Strategy string `json:"strategy"`
 }
 
-// i18nPluginConfig is the `i18n` object under the mion plugin entry:
-//
-//	{ "sourceLocale": "en", "locales": ["es", "pl"], "strict": false }
-//
-// sourceLocale names the language the source FriendlyText maps are authored in
-// (it selects the plural arms the scaffold emits). locales is the target set —
-// the source locale is NOT listed. strict turns `enrich --i18n --no-emit` findings
-// into errors; the runtime is always lenient. The translation subtree location
-// is convention (<genDir>/enriched/i18n/<locale>/…), never configurable.
+// i18nPluginConfig is the plugin's `i18n` object, e.g. { "sourceLocale": "en", "locales": ["es", "pl"], "strict": false }.
+// sourceLocale picks the scaffold's plural arms and is never in locales; strict fails `enrich --i18n --no-emit` findings.
+// The runtime is always lenient, and <genDir>/enriched/i18n/<locale>/ is convention, never configurable.
 type i18nPluginConfig struct {
 	SourceLocale string   `json:"sourceLocale"`
 	Locales      []string `json:"locales"`
