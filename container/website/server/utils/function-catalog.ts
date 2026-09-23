@@ -2,9 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// Expands `::function-catalog` into a markdown table before the page is parsed, so the calls are
-// highlighted at build time like any other inline code; a component could only highlight at runtime,
-// which a static site cannot serve.
+// Expands `::function-catalog` to a markdown table before parsing: a component could only highlight calls at runtime.
 const CATALOG = resolve(dirname(fileURLToPath(import.meta.url)), '../../app/components/content/go-generated/functions-catalog.json')
 const BLOCK = /^::function-catalog\s*\n::\s*$/m
 
@@ -18,7 +16,7 @@ interface FunctionEntry {
   rejectCircularRefs?: boolean
 }
 
-// A pipe inside a cell, code included, must be escaped or it splits the row.
+// An unescaped pipe splits the row, even inside code.
 const cell = (text: string) => text.replace(/\|/g, '\\|')
 
 function row(entry: FunctionEntry): string {
@@ -32,9 +30,9 @@ function row(entry: FunctionEntry): string {
 export function processFunctionCatalog(body: string): string {
   if (!BLOCK.test(body)) return body
   const { functions } = JSON.parse(readFileSync(CATALOG, 'utf8')) as { functions: FunctionEntry[] }
-  // Sorted by factory, so a factory's variants sit together.
+  // Keeps a factory's variants together.
   const rows = [...functions].sort((a, b) => a.factory.localeCompare(b.factory) || a.name.localeCompare(b.name))
-  // The wrapper class lets mion.css stretch each call to fill its cell.
+  // mion.css stretches each call to fill its cell through this class.
   const table = ['::div{class="fn-catalog"}', '| Call | Compiled Fn | What it does |', '| --- | --- | --- |', ...rows.map(row), '::'].join('\n')
   return body.replace(BLOCK, table)
 }

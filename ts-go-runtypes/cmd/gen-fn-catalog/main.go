@@ -1,14 +1,6 @@
-// gen-fn-catalog dumps the compiled-function catalog as JSON.
-//
-// internal/cachegen/operations is the single source of truth for which functions the build
-// can compile for a type, so this program imports it and prints one {functions} object to
-// stdout. scripts/core/gen-fn-catalog.mjs writes that dump into the website's
-// components/content/go-generated/, where server/utils/function-catalog.ts renders the "All Compiled
-// Functions" page; generated is what stops the page drifting when a function is added.
-//
-// Run via the miondevx command:
-//
-//	pnpm miondevx core codegen fncatalog
+// gen-fn-catalog prints internal/cachegen/operations as JSON so the "All Compiled Functions" page cannot drift.
+// Run it with `pnpm miondevx core codegen fncatalog`: scripts/core/gen-fn-catalog.mjs writes the dump under
+// components/content/go-generated/, and server/utils/function-catalog.ts renders it.
 package main
 
 import (
@@ -49,8 +41,7 @@ func optionsLabel(op operations.Operation) string {
 	}
 }
 
-// callOf spells the factory call that compiles this operation, since one factory compiles a
-// different function per options literal.
+// callOf spells the call with its options: one factory compiles a different function per options literal.
 func callOf(op operations.Operation) string {
 	if op.Factory == "" {
 		return ""
@@ -73,7 +64,7 @@ func main() {
 	all := operations.All()
 	out := make([]fn, 0, len(all))
 	for _, op := range all {
-		// Non-Public rows are plumbing with no factory a reader could call, so the page skips them.
+		// Non-Public rows are plumbing with no factory a reader could call.
 		if !op.Public {
 			continue
 		}
@@ -90,15 +81,13 @@ func main() {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 
-	// No timestamp and no version in the payload: the committed file is compared
-	// byte-for-byte by `codegen --check`, so anything that moves on its own would
-	// report drift on every run.
+	// No timestamp or version: `codegen --check` compares the committed file byte for byte.
 	payload := struct {
 		Functions []fn `json:"functions"`
 	}{Functions: out}
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
-	// Calls carry `<T>`; unescaped, the committed file reads as the page shows it.
+	// So the committed file shows `<T>`, not `\u003cT\u003e`.
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(payload); err != nil {
 		fmt.Fprintln(os.Stderr, "gen-fn-catalog:", err)
