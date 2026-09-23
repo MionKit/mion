@@ -1,13 +1,8 @@
-// Types-first workflow: the SAME users table as drizzle-proxy-pg-example.ts,
-// written as a pure type instead of builder calls. A column type takes the db
-// name and ONE object holding the builder's config and its modifier calls, so
-// Varchar<'name', {length: 100; notNull: true}> matches
-// varchar('name', {length: 100}).notNull().
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
-// The whole table is a type: nothing runs where it is declared.
+// nothing runs where the table is declared
 export type UsersTable = DZ.PgTable<
   'users',
   {
@@ -19,17 +14,13 @@ export type UsersTable = DZ.PgTable<
   }
 >;
 
-// The recorded table back from the type: the same object pgTable returns, so
-// toDrizzle, drizzle-kit and refineTableType work on it unchanged. The build
-// resolves the type argument, so nothing is repeated and nothing else is
-// imported.
+// the same object pgTable returns; the build resolves the type, nothing is repeated
 export const users = DZ.tableFromType<UsersTable>();
 
-// The inferred model is identical to the builder road, formats included, and
-// carries the exact same runtype id.
+// identical to the builders model, formats included
 export type User = InferSelectModel<UsersTable>;
 
-// The compiled validator enforces every captured param with no runtime guards
+// checks every captured param, with no extra runtime checks
 export const validateUser = createValidateFn<User>();
 
 export const checks = [

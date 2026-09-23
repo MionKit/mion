@@ -1,11 +1,8 @@
-// Tables-first workflow: the column builders come from @mionjs/drizzle-orm-pg-core
-// instead of drizzle-orm/pg-core. Same names, same params, same modifier chains.
 import * as DZ from '@mionjs/drizzle-orm-pg-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
-// A recorded table, NOT drizzle's PgTable type: DZ.pgTable records the calls,
-// and toDrizzle() builds the real drizzle table from them on demand.
+// a recorded table, not drizzle's PgTable: toDrizzle() builds that on demand
 export const users = DZ.pgTable('users', {
   id: DZ.uuid('id').primaryKey(),
   name: DZ.varchar('name', {length: 100}).notNull(),
@@ -14,11 +11,10 @@ export const users = DZ.pgTable('users', {
   createdAt: DZ.timestamp('created_at').defaultNow().notNull(),
 });
 
-// The inferred model carries format types, not plain string/number:
 // { id: UUID; name: String<{maxLength: 100}>; age: Int32; role: 'admin' | 'user'; createdAt: Date }
 export type User = InferSelectModel<typeof users>;
 
-// The compiled validator enforces every captured param with no runtime guards
+// checks every captured param, with no extra runtime checks
 export const validateUser = createValidateFn<User>();
 
 export const checks = [

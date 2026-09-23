@@ -1,8 +1,3 @@
-// The same routes as drizzle-mion-routes-example.ts, fed by the types-road
-// table: because both roads infer identical models with the same runtype id,
-// the routes file only changes its import. Payloads are validated before the
-// handler runs (refined bounds included), Dates survive the JSON wire in both
-// directions, and the client is fully typed.
 import {RpcError} from '@mionjs/core';
 import {createMionRouter} from '@mionjs/router';
 import type {NewUser, User, UserPatch} from './drizzle-types-refine-example.ts';
@@ -13,8 +8,7 @@ const usersStore = new Map<string, User>();
 
 export const usersApi = mion.initRoutes({
   users: {
-    // the NewUser payload is validated before this runs; id and createdAt are
-    // optional (the table declares defaults), so the handler fills them
+    // id and createdAt are optional (table defaults), so the handler fills them
     insert: mion.route((_ctx, user: NewUser): User => {
       const row: User = {
         id: user.id ?? crypto.randomUUID(),
@@ -26,8 +20,7 @@ export const usersApi = mion.initRoutes({
       return row;
     }),
 
-    // createdAt arrives on the client as a real Date, revived by the
-    // serializer generated from the User type
+    // createdAt arrives on the client as a real Date
     select: mion.route(
       (_ctx, id: string): User | RpcError<'user-not-found'> => {
         return (
@@ -40,8 +33,7 @@ export const usersApi = mion.initRoutes({
       }
     ),
 
-    // UserPatch is a real partial: any subset is accepted, and a present key
-    // still validates (a too-short name is rejected before the handler)
+    // any subset is accepted, but a too-short name is still rejected
     update: mion.route(
       (
         _ctx,
@@ -62,5 +54,5 @@ export const usersApi = mion.initRoutes({
   },
 });
 
-// The client initializes from this type and gets typed calls + revived Dates.
+// the client's types come from this
 export type UsersApi = typeof usersApi;

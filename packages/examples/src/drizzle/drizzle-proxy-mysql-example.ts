@@ -1,10 +1,8 @@
-// MySQL recorder builders: params drizzle's own types erase (varchar length,
-// unsigned) are captured at declaration time and reach the validators.
 import * as DZ from '@mionjs/drizzle-orm-mysql-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
 
-// A recorded table, NOT drizzle's MySqlTable type: toDrizzle() builds that on demand.
+// a recorded table, not drizzle's MySqlTable: toDrizzle() builds that on demand
 export const devices = DZ.mysqlTable('devices', {
   serialNo: DZ.varchar('serial_no', {length: 12}).notNull(),
   views: DZ.int('views', {unsigned: true}).notNull(), // UInt32: 0 to 4294967295

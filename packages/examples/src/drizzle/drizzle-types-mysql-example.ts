@@ -1,6 +1,3 @@
-// The MySQL devices table as a pure type: the twin of
-// drizzle-proxy-mysql-example.ts. Params drizzle's own types erase (varchar
-// length, unsigned) live in the type itself and reach the validators.
 import * as DZ from '@mionjs/drizzle-orm-mysql-core';
 import type {InferSelectModel} from '@mionjs/drizzle-orm';
 import {createValidateFn} from '@mionjs/run-types';
@@ -15,7 +12,7 @@ export type DevicesTable = DZ.MysqlTable<
   }
 >;
 
-// The recorded table back from the type: toDrizzle works on it unchanged.
+// the recorded table, ready for toDrizzle
 export const devices = DZ.tableFromType<DevicesTable>();
 
 export type Device = InferSelectModel<DevicesTable>;
