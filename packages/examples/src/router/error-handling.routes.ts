@@ -10,8 +10,6 @@ export const getPet = mion.route(
   async (ctx, id: string): Promise<Pet | RpcError<'pet-not-found'>> => {
     const pet = await myApp.db.getPet(id);
     if (!pet) {
-      // a returned error is part of the signature, so the client gets it
-      // strongly typed. The rest of the execution chain still runs
       return new RpcError({
         publicMessage: `Pet with id ${id} can't be found`,
         type: 'pet-not-found',
@@ -23,8 +21,7 @@ export const getPet = mion.route(
 // end:return-error
 
 // start:fatal-error
-// a gate: a FatalError is returned, so it is typed like any declared error,
-// AND it ends the request: nothing after this middleFn runs, the route included
+// ends the request: the route behind this middleFn never runs
 export const auth = mion.headersFn(
   (
     ctx,
@@ -44,10 +41,7 @@ export const updatePet = mion.route(async (ctx, pet: Pet): Promise<Pet> => {
   try {
     return await myApp.db.updatePet(pet);
   } catch (dbError) {
-    // a thrown error ends the request but is NOT part of the signature:
-    // the client gets only the publicMessage, untyped, in its undeclared slot.
-    // The full error (message, stack) stays on ctx.request.thrownErrors
-    // and ctx.response.fatalError, so a logger can still read it
+    // a logger still reads the full error on ctx.request.thrownErrors and ctx.response.fatalError
     throw new RpcError({
       publicMessage: `Cant update the pet.`,
       message: (dbError as Error).message,
@@ -58,6 +52,6 @@ export const updatePet = mion.route(async (ctx, pet: Pet): Promise<Pet> => {
 }) satisfies Route;
 
 export const alwaysError = mion.route((): void => {
-  throw new Error('will generate a 500 error with an "Unknown Error" message');
+  throw new Error('the client gets a 422 unknown-error, never this message');
 }) satisfies Route;
 // end:throw-error

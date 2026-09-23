@@ -5,7 +5,6 @@ const mion = createMionRouter();
 type HttpRequest = IncomingMessage & {body: any};
 
 const routes = {
-  // using mion.rawMiddleFn to define a raw middleware function
   progress: mion.rawMiddleFn(
     async (
       ctx,

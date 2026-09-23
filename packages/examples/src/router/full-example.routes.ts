@@ -4,8 +4,6 @@ import {NewUser, myApp, getSharedData} from './full-example.app.ts';
 import {User} from './full-example.app.ts';
 
 // start-create-router
-// one router per app: the options are written once and typed into every helper,
-// and the routes are initialized in this same file (see the bottom)
 const mion = createMionRouter({
   contextDataFactory: getSharedData,
   basePath: 'api/v1',

@@ -4,7 +4,6 @@ import {myApp, getSharedData} from './full-example.app.ts';
 const mion = createMionRouter({contextDataFactory: getSharedData});
 
 const routes = {
-  // using mion.middleFn to define a middleware function
   logger: mion.middleFn(
     async (ctx): Promise<void> => {
       // the error that ended the request, thrown or a returned FatalError
