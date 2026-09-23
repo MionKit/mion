@@ -1277,13 +1277,12 @@ section[data-slot='root']:not(.home-subsite-card)::before {
   color: var(--color-yellow-300);
 }
 
-/* A sidebar entry whose frontmatter sets `navigation.class: nav-subpage` sits indented
-   under the page before it, so a page can read as a subpage without its own folder. */
+/* Frontmatter `navigation.class: nav-subpage` indents a page under the one before it, no folder needed. */
 .nav-subpage {
   padding-inline-start: 1.75rem;
 }
 
-/* All Compiled Functions: each call fills its table cell, like a small code block. */
+/* All Compiled Functions page: each call fills its cell like a code block. */
 .fn-catalog td:first-child code {
   display: block;
   width: 100%;

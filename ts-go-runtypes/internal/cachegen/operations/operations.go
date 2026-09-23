@@ -49,8 +49,8 @@ type Operation struct {
 	// `{rejectCircularRefs: true}` folds circularCanonicalSuffix into the fnHash, so an armed and a plain factory for the same T
 	// compile to distinct entries. The suffix applies across every Axis uniformly, which is why this is a bool, not a fourth Axis.
 	CircularGuarded bool
-	// CallOptions is the compile-time options literal that selects this operation at its Factory, as the docs catalog shows the
-	// call; empty when the bare `createX<T>()` call does. AxisJsonStrategy rows leave it empty: the catalog spells their Strategies.
+	// CallOptions is the options literal selecting this operation at its Factory, for the docs catalog; empty for a bare call.
+	// AxisJsonStrategy rows leave it empty: the catalog spells their Strategies.
 	CallOptions string
 }
 

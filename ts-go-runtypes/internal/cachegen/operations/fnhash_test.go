@@ -274,8 +274,7 @@ func TestEveryPublicOperationNamesItsFactory(t *testing.T) {
 	}
 }
 
-// TestEveryPublicCallIsDistinct pins the catalog's call column: two public operations behind one
-// factory must differ in CallOptions, or the page would show one call for two compiled functions.
+// TestEveryPublicCallIsDistinct: operations sharing a factory need distinct CallOptions, or the catalog shows one call twice.
 func TestEveryPublicCallIsDistinct(t *testing.T) {
 	seen := map[string]string{}
 	for _, op := range All() {
