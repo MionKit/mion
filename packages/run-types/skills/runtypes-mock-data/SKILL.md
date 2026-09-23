@@ -1,6 +1,6 @@
 ---
 name: runtypes-mock-data
-description: Author and use a `MockData<T>` for a RunTypes type — the committed, type-keyed map of realistic sample-value POOLS / RANGES per field that feed `createMockDataFn<T>()`. Use when generating mock data, sample values, realistic test fixtures, or seed data for a type; when authoring or editing a `*.rt.ts` enrichment sibling's mock map; or when wiring per-field `{ pool }` / `{ min, max }` / `{ rt$items, rt$length }` / `{ rt$optional }` overrides into `createMockDataFn<T>({ data })`. Covers the per-field node shape, that pool/range values are validated against the field's type + format at build time (the MD003 rule), and where the map lives.
+description: Author and use a `MockData<T>` for a RunTypes type — the committed, type-keyed map of realistic sample-value POOLS / RANGES per field that feed `createMockDataFn<T>()`. Use when generating mock data, sample values, realistic test fixtures, or seed data for a type; when authoring or editing a `*.rt.ts` enrichment sibling's mock map; or when wiring per-field `{ pool }` / `{ min, max }` / `{ rt$items, rt$length }` / `{ rt$optional }` overrides into `createMockDataFn<T>(undefined, { data })`. Covers the per-field node shape, that pool/range values are validated against the field's type + format at build time (the MD003 rule), and where the map lives.
 ---
 
 # Authoring & using `MockData<T>`
@@ -17,7 +17,7 @@ element + length hints, optional-probability — that feeds the existing
 only supplies the realistic _values_ (a believable name, a plausible age, a valid
 email). The DSL type is
 [`mockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/mockData.ts), exported from
-`mion`.
+`@mionjs/run-types`.
 
 ## When to use it
 
@@ -36,8 +36,8 @@ the generator already mocks every shape mechanically (including `Date`, `Map`, `
   ([`mockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/mockData.ts)); the
   `{ data }` option on `createMockDataFn<T>()`
   ([`createMockData.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/mocking/createMockData.ts)) —
-  pass `createMockDataFn<T>({ data })` and generated values are drawn from the authored
-  pools / ranges (both exported from `mion`); and the `enrich` / `enrich --no-emit` CLI that
+  pass `createMockDataFn<T>(undefined, { data })` and generated values are drawn from the authored
+  pools / ranges (both exported from `@mionjs/run-types`); and the `enrich` / `enrich --no-emit` CLI that
   scaffolds the mock mirror file and cross-checks it against the live type (MD001) —
   see the `rt-enrich-types` skill for the CLI loop.
 - **Designed (not yet wired):** the MD003 pool-value validation (the build-time check
@@ -52,17 +52,17 @@ One recursive node, uniform at every depth, structure checked against `T` by the
 
 | Field kind         | Node shape                                                                    |
 | ------------------ | ----------------------------------------------------------------------------- |
-| string             | `{ pool?: string[] }`                                                         |
-| number             | `{ pool?: number[]; min?: number; max?: number }`                             |
-| `Date`             | `{ pool?: Date[]; min?: Date; max?: Date }`                                   |
-| boolean / bigint   | `{ pool?: boolean[] }` / `{ pool?: bigint[] }`                                |
-| array / rest tuple | `{ rt$items?: <element node>; rt$length?: number \| [number, number] }`       |
-| fixed tuple        | `{ rt$slots?: [<node per slot>] }` — positional, fixed length, no `rt$length` |
-| `Map`              | `{ rt$keys?, rt$values?: <node>; rt$size?: number \| [number, number] }`      |
-| `Set`              | `{ rt$values?: <node>; rt$size?: number \| [number, number] }`                |
-| object             | `{ [K in keyof T]?: <child node> } & { rt$optional?: number }`                |
+| string             | `{ pool: string[] }`                                                          |
+| number             | `{ pool: number[]; min?: number; max?: number }`                              |
+| `Date`             | `{ pool: Date[]; min?: Date; max?: Date }`                                    |
+| boolean / bigint   | `{ pool: boolean[] }` / `{ pool: bigint[] }`                                  |
+| array / rest tuple | `{ rt$items: <element node>; rt$length?: number \| [number, number] }`        |
+| fixed tuple        | `{ rt$slots: [<node per slot>] }` — positional, fixed length, no `rt$length`  |
+| `Map`              | `{ rt$keys, rt$values: <node>; rt$size?: number \| [number, number] }`        |
+| `Set`              | `{ rt$values: <node>; rt$size?: number \| [number, number] }`                 |
+| object             | `{ [K in keyof T]-?: <child node> } & { rt$optional?: number }`               |
 
-- **`pool`** — pick a value at random from this list.
+- **`pool`** — pick a value at random from this list. Leave it empty (`pool: []`) to draw from `min` / `max` instead.
 - **`min` / `max`** — inclusive bounds (numbers, `Date`s).
 - **`rt$items`** — the element node for array (and rest-tuple) members; **`rt$slots`** — one
   node per fixed-tuple position.
@@ -76,7 +76,7 @@ Because RunTypes can **validate**, the compiler can check that **every pool / ra
 value actually satisfies its field's type and format** — at build time, not test
 runtime. An
 LLM that hallucinates a malformed email into the `email` pool, or a `score` of `150`
-into a `FormatNumber<{max: 100}>` field, is caught at parse time (MD003, Error). No
+into a `TF.Number<{max: 100}>` field, is caught at parse time (MD003, Error). No
 other mock library can do this — it falls straight out of the existing validator.
 MD003 is designed but not wired into `enrich --no-emit` yet; shipped today is MD001 (key not a
 field of `T`, Error). Also designed: MD002 (structural mismatch — left to the
@@ -88,8 +88,9 @@ a configured floor, off by default).
 Like `FriendlyText<T>`, a `MockData<T>` map is committed in a **mirror directory** whose
 tree shadows your source, anchored at the file where the **type is defined**, not where
 it's consumed — and each enrichment family gets its own file: `src/models/user.ts` →
-`<genDir>/enriched/mock/models/user.ts` (by convention under `genDir`, so
-`src/.mion/enriched/mock/models/user.ts`), holding `mock<Name>` consts. `FriendlyText<T>`
+`<genDir>/enriched/mock/src/models/user.ts` (by default
+`src/.mion/enriched/mock/src/models/user.ts`; the path follows your file from the tsconfig
+folder, or from `rootDir` when set), holding `mock<Name>` consts. `FriendlyText<T>`
 consts live separately under `<genDir>/enriched/friendly/…` — the two families never share one
 file. One mirror file per source file, one `export` per enriched type defined there —
 **one enrichment home per type, at its definition**, however many files mock it. It's
@@ -98,9 +99,9 @@ hand-editable. `MockData<T>` is generated **demand-driven** — only for types a
 consumed by a `createMockDataFn` call.
 
 ```ts
-// src/.mion/enriched/mock/models/user.ts — committed, hand-editable
-import type {MockData} from 'mion';
-import type {User} from '../../../../src/models/user';
+// src/.mion/enriched/mock/src/models/user.ts — committed, hand-editable
+import type {User} from '../../../../../models/user';
+import type {MockData} from '@mionjs/run-types';
 
 export const mockUser: MockData<User> = {
   /* … */
@@ -114,14 +115,14 @@ The consumer imports the map from the sibling and passes it via the `data` optio
 
 ```ts
 import {createMockDataFn} from '@mionjs/run-types/mocking';
-import {mockUser} from 'src/.mion/enriched/mock/models/user';
+import {mockUser} from '../.mion/enriched/mock/src/models/user';
 import type {User} from '../models/user';
 
-const makeUser = createMockDataFn<User>({data: mockUser});
+const makeUser = createMockDataFn<User>(undefined, {data: mockUser});
 const sample = makeUser(); // realistic, type-valid User
 ```
 
-(`data` rides the same options bag as `{ mock }` — `createMockDataFn<T>({ data, mock })`.
+(`data` rides the same options bag as `{ mock }` — `createMockDataFn<T>(undefined, { data, mock })`.
 Supplying no `data` mocks mechanically, exactly as before. The map is type-checked
 against `T` regardless.)
 
@@ -129,34 +130,34 @@ against `T` regardless.)
 
 ```ts
 // src/models/user.ts — the DEFINITION
-import type {FormatNumber, FormatEmail} from 'mion';
+import type * as TF from '@mionjs/run-types/formats';
 
 export interface User {
   name: string;
-  age: FormatNumber<{min: 0; max: 120}>;
+  age: TF.Number<{min: 0; max: 120}>;
   tags: string[];
   profile: {
-    email: FormatEmail;
-    score: FormatNumber<{min: 0; max: 100}>;
+    email: TF.Email;
+    score: TF.Number<{min: 0; max: 100}>;
   };
 }
 ```
 
 ```ts
-// src/.mion/enriched/mock/models/user.ts — the committed mock mirror
-import type {MockData} from 'mion';
-import type {User} from '../../../../src/models/user';
+// src/.mion/enriched/mock/src/models/user.ts — the committed mock mirror
+import type {User} from '../../../../../models/user';
+import type {MockData} from '@mionjs/run-types';
 
 export const mockUser: MockData<User> = {
   name: {pool: ['Alice Martin', 'Liang Wei', 'Fatima Noor', 'Diego Ramirez']},
-  age: {min: 18, max: 95},
+  age: {pool: [], min: 18, max: 95}, // empty pool: draw from the range
   tags: {
     rt$items: {pool: ['urgent', 'beta', 'vip']}, // element node
     rt$length: [1, 4], // 1–4 tags
   },
   profile: {
     email: {pool: ['alice@example.com', 'liang@corp.io', 'fatima@mail.net']},
-    score: {min: 0, max: 100},
+    score: {pool: [], min: 0, max: 100},
   },
 };
 ```
@@ -164,10 +165,10 @@ export const mockUser: MockData<User> = {
 ```ts
 // src/test/fixtures.ts — the CONSUMER
 import {createMockDataFn} from '@mionjs/run-types/mocking';
-import {mockUser} from 'src/.mion/enriched/mock/models/user';
+import {mockUser} from '../.mion/enriched/mock/src/models/user';
 import type {User} from '../models/user';
 
-const makeUser = createMockDataFn<User>({data: mockUser});
+const makeUser = createMockDataFn<User>(undefined, {data: mockUser});
 
 const fixture = makeUser();
 // e.g. { name: 'Liang Wei', age: 41, tags: ['beta','vip'],
@@ -185,7 +186,7 @@ Every value above satisfies `User` — and once MD003 is wired into `enrich --no
 - Use `pool` for enumerable/realistic values (names, emails, tags); use `min`/`max` for
   numeric and `Date` ranges.
 - Keep every pool/range value **valid for the field's type + format** — MD003 will
-  reject `score: 150` against `FormatNumber<{max: 100}>`.
+  reject `score: 150` against `TF.Number<{max: 100}>`.
 - For arrays set `rt$items` (element values) and `rt$length` (count); fixed tuples take
   `rt$slots`, Map/Set take `rt$keys`/`rt$values` + `rt$size`; for objects use `rt$optional` to
   tune optional-member probability.

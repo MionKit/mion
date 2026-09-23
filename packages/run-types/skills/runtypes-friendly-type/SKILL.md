@@ -41,7 +41,7 @@ map involved.
   plural-aware `createFriendlyText<T>(map)` renderer plus `createFriendlyTextI18n`,
   and `resolveLocale`
   ([`createFriendlyText.ts`](https://github.com/mionkit/run-types/blob/main/packages/run-types/src/enrich/createFriendlyText.ts)) —
-  all exported from `mion`. The `enrich` / `enrich --no-emit` CLI (including `--i18n`)
+  all exported from `@mionjs/run-types`. The `enrich` / `enrich --no-emit` CLI (including `--i18n`)
   scaffolds and validates the committed maps — see the `rt-enrich-types` skill.
 - **Designed (not yet wired):** the `ShapeCheckedArgs<T>` compile-time axis and
   `rtUtils` registry accessors.
@@ -180,8 +180,9 @@ name: {
 
 Enrichment is committed to a **mirror directory** whose tree shadows your source, one
 file per family, anchored at the file where the **type is defined**, not where it's
-consumed: `src/models/user.ts` → `<genDir>/enriched/friendly/models/user.ts` (default
-`genDir`: `<genDir>/enriched`, so `src/.mion/enriched/friendly/models/user.ts`),
+consumed: `src/models/user.ts` → `<genDir>/enriched/friendly/src/models/user.ts` (by
+default `src/.mion/enriched/friendly/src/models/user.ts`; the path follows your file from
+the tsconfig folder, or from `rootDir` when set),
 holding `friendly<Name>` consts. `MockData<T>` consts live separately under
 `<genDir>/enriched/mock/…` — the two families never share a file. One mirror file per source
 file, one `export` per enriched type defined there. This mirrors the cache's "one
@@ -190,9 +191,9 @@ its definition**, however many files consume it. It is the first committed RunTy
 artifact (every other output is gitignored cache) and is hand-editable.
 
 ```ts
-// src/.mion/enriched/friendly/models/user.ts — committed, hand-editable
-import type {FriendlyText} from 'mion';
-import type {User} from '../../../../src/models/user';
+// src/.mion/enriched/friendly/src/models/user.ts — committed, hand-editable
+import type {User} from '../../../../../models/user';
+import type {FriendlyText} from '@mionjs/run-types';
 
 /** @rtType User#9f3a @rtIds {…} */
 export const friendlyUser: FriendlyText<User> = {
@@ -234,13 +235,15 @@ These catch drift: rename a field and `FT002` flags the now-stale entry.
 ## Rendering at runtime — `createFriendlyText<T>(map)`
 
 ```ts
-import {createGetValidationErrorsFn, createFriendlyText} from 'mion';
-import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
+// src/services/userForm.ts
+import {createGetValidationErrorsFn, createFriendlyText} from '@mionjs/run-types';
+import {friendlyUser} from '../.mion/enriched/friendly/src/models/user';
 import type {User} from '../models/user';
 
 const getUserErrors = createGetValidationErrorsFn<User>();
 const friendly = createFriendlyText<User>(friendlyUser);
 
+const badInput: unknown = {name: 'A', age: 200, profile: {email: 'nope'}};
 friendly.errors(getUserErrors(badInput));
 // → [{ path: 'profile.email', label: 'Email', message: 'Enter a valid email address' }, …]
 
@@ -266,7 +269,7 @@ feeds the generation of another). Translation is optional per leaf; anything unf
 falls back to the source at render time.
 
 - One committed file per locale per source mirror: `<i18nDir>/<locale>/<rel>.ts`
-  (default `i18nDir`: `<genDir>/enriched/i18n`, e.g. `src/.mion/enriched/i18n/pl/models/user.ts`;
+  (default `i18nDir`: `<genDir>/enriched/i18n`, e.g. `src/.mion/enriched/i18n/pl/src/models/user.ts`;
   the locale is a path segment, so `pt-BR` works verbatim).
 - The const per type is `<locale>_friendly<Name>` — BCP-47 `-` becomes `_`
   (`pt_BR_friendlyUser`) — annotated `FriendlyText<Name>`, carrying the SAME
@@ -289,9 +292,9 @@ reconciles (only the mandatory `other` is ever re-inserted). A `rt$default`-mode
 has exactly one string to translate and is never descended.
 
 ```ts
-// src/.mion/enriched/i18n/pl/models/user.ts — committed, filled by a translator/agent
-import type {FriendlyText} from 'mion';
-import type {User} from '../../../../../src/models/user';
+// src/.mion/enriched/i18n/pl/src/models/user.ts — committed, filled by a translator/agent
+import type {User} from '../../../../../../models/user';
+import type {FriendlyText} from '@mionjs/run-types';
 
 /** @rtType User#9f3a @rtIds {…} */
 export const pl_friendlyUser: FriendlyText<User> = {
@@ -305,10 +308,16 @@ export const pl_friendlyUser: FriendlyText<User> = {
 `createFriendlyText`:
 
 ```ts
-import {createFriendlyTextI18n} from 'mion';
-import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
-import {es_friendlyUser} from 'src/.mion/enriched/i18n/es/models/user';
-import {pl_friendlyUser} from 'src/.mion/enriched/i18n/pl/models/user';
+// src/services/userForm.ts
+import {createFriendlyTextI18n, createGetValidationErrorsFn} from '@mionjs/run-types';
+import {friendlyUser} from '../.mion/enriched/friendly/src/models/user';
+import {es_friendlyUser} from '../.mion/enriched/i18n/es/src/models/user';
+import {pl_friendlyUser} from '../.mion/enriched/i18n/pl/src/models/user';
+import type {User} from '../models/user';
+
+const getUserErrors = createGetValidationErrorsFn<User>();
+const currentLocale = navigator.language;
+const badInput: unknown = {name: 'A', age: 200};
 
 const friendly = createFriendlyTextI18n(friendlyUser, {
   locale: currentLocale, // string | {value: string} — a {value} ref (e.g. a Vue Ref)
@@ -348,24 +357,24 @@ true}>`; the pure-metadata param is echoed onto every error the field produces)
 
 ```ts
 // src/models/user.ts — the DEFINITION
-import type {FormatString, FormatNumber, FormatEmail} from 'mion';
+import type * as TF from '@mionjs/run-types/formats';
 
 export interface User {
-  name: FormatString<{minLength: 2; maxLength: 60}>;
-  age: FormatNumber<{min: 0; max: 120}>;
+  name: TF.String<{minLength: 2; maxLength: 60}>;
+  age: TF.Number<{min: 0; max: 120}>;
   isActive: boolean;
   tags: string[];
   profile: {
-    email: FormatEmail;
-    score: FormatNumber<{min: 0; max: 100}>;
+    email: TF.Email;
+    score: TF.Number<{min: 0; max: 100}>;
   };
 }
 ```
 
 ```ts
-// src/.mion/enriched/friendly/models/user.ts — the committed friendly mirror
-import type {FriendlyText} from 'mion';
-import type {User} from '../../../../src/models/user';
+// src/.mion/enriched/friendly/src/models/user.ts — the committed friendly mirror
+import type {User} from '../../../../../models/user';
+import type {FriendlyText} from '@mionjs/run-types';
 
 export const friendlyUser: FriendlyText<User> = {
   rt$label: 'User account',
@@ -399,7 +408,7 @@ export const friendlyUser: FriendlyText<User> = {
     // nested object — recurse
     rt$label: 'Profile',
     rt$errors: {type: ''},
-    email: {rt$label: 'Email', rt$errors: {type: '', pattern: 'Enter a valid email address'}},
+    email: {rt$label: 'Email', rt$errors: {type: '', minLength: '', maxLength: '', pattern: 'Enter a valid email address'}},
     score: {rt$label: 'Score', rt$errors: {rt$default: 'Score must be between 0 and 100'}}, // rt$default mode
   },
 };
@@ -407,8 +416,8 @@ export const friendlyUser: FriendlyText<User> = {
 
 ```ts
 // src/services/userForm.ts — the CONSUMER
-import {createGetValidationErrorsFn, createFriendlyText} from 'mion';
-import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
+import {createGetValidationErrorsFn, createFriendlyText} from '@mionjs/run-types';
+import {friendlyUser} from '../.mion/enriched/friendly/src/models/user';
 import type {User} from '../models/user';
 
 const getUserErrors = createGetValidationErrorsFn<User>();
