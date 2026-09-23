@@ -9,8 +9,8 @@
 
 import {describe, it, expect, beforeAll} from 'vitest';
 import {createMionRouter, resetRouter} from '@mionjs/router';
-import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionjs/router';
+import type {APIGatewayProxyEvent} from 'aws-lambda';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda.ts';
 
 describe('aws global response headers', () => {
@@ -30,7 +30,7 @@ describe('aws global response headers', () => {
 
   it('ride every response, and the adapter still wins its own name', async () => {
     const context = {} as any;
-    const event = createEvent('aws:apiGateway', {
+    const event: APIGatewayProxyEvent = {
       body: JSON.stringify({ping: []}),
       headers: {},
       multiValueHeaders: {},
@@ -41,9 +41,10 @@ describe('aws global response headers', () => {
       queryStringParameters: null,
       multiValueQueryStringParameters: null,
       stageVariables: null,
+      // do not use context during test
       requestContext: context,
       resource: 'aws:apiGateway',
-    });
+    };
     const headers = (await awsLambdaHandler(event, context)).headers || {};
     expect(headers['x-team']).toEqual('mion');
     expect(headers['x-build-version']).toEqual('abc123');

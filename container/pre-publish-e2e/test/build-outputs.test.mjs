@@ -96,29 +96,40 @@ test('mion-next: the app serves its own mion API, on both wires and in a batch',
   assert.equal(batch.sum, 3);
 });
 
-// Turbopack has no plugin API, so @mionjs/devtools drops the fetched metadata lane with a
-// `turbopack.resolveAlias` instead of the resolveId hook every other bundler gets.
-// Nothing but a REAL build says whether that alias was honoured.
-test('mion-next: a bundled Turbopack build ships no metadata fetch or browser cache', () => {
+// A bundled client still ships the fetched metadata lane, for a route the build never saw or a server
+// that moved on, and downloads it only then. Turbopack has no plugin API, so the lane reaches it as a
+// plain dynamic import; nothing but a REAL build says whether Turbopack kept that split.
+test('mion-next: a bundled Turbopack build keeps the metadata lane out of the page', () => {
   const dist = path.join(APPS, 'mion-next', 'dist/next-bundled');
   assert.ok(existsSync(dist), 'mion-next: dist/next-bundled is missing — did build-all.mjs run for it?');
-  const code = readAllJs(dist);
+  const files = readJsFiles(dist);
+  const code = files.map((file) => file.code).join('\n');
 
-  // Guard against a vacuous pass: the routes must be in there before an absence means anything.
+  // Guard against a vacuous pass: the routes must be in there before anything else means something.
   assert.match(code, /sayHello/, 'mion-next bundled: the build emitted no bundled route');
 
-  // The fetched lane alone: the store it opens, the key it opens it under, the idle callback its write rides.
-  for (const marker of ['indexedDB', 'mion:client', 'requestIdleCallback']) {
-    assert.ok(!code.includes(marker), `mion-next bundled: the output still carries '${marker}'`);
+  // The lane ships: a bundled client that comes up short has nowhere else to go.
+  for (const marker of ['indexedDB', 'requestIdleCallback']) {
+    assert.ok(code.includes(marker), `mion-next bundled: the output carries no '${marker}', so no lane at all`);
   }
+
+  // ...and never beside the registration the page runs on load, or it would be downloaded with it.
+  // Both markers are literals, so they survive the minifier a production Next build runs.
+  const together = files.filter(
+    (file) => file.code.includes('indexedDB') && file.code.includes('bundle-api-invalid-payload')
+  );
+  assert.equal(
+    together.length,
+    0,
+    `mion-next bundled: ${together.map((file) => file.name).join(', ')} carries the lane beside the bundled routes`
+  );
 });
 
-/** Every JavaScript file a build wrote, concatenated: a lane split into its own chunk still counts. */
-function readAllJs(dir) {
+/** Every JavaScript file a build wrote, with its name: which file holds what is the question here. */
+function readJsFiles(dir) {
   return readdirSync(dir, {recursive: true, withFileTypes: true})
     .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
-    .map((entry) => readFileSync(path.join(entry.parentPath, entry.name), 'utf8'))
-    .join('\n');
+    .map((entry) => ({name: entry.name, code: readFileSync(path.join(entry.parentPath, entry.name), 'utf8')}));
 }
 
 // React escapes the JSON it renders into the page; undo just enough to parse it.
