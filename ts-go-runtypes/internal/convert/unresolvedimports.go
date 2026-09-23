@@ -9,8 +9,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/marker"
 )
 
-// Recognition resolves builders and tables through these packages' symbols, so an import that resolves nowhere
-// hides every declaration using it and the run would otherwise report a clean, empty conversion.
+// Recognition goes through these packages' symbols, so an unresolved import would read as a clean, empty conversion.
 var recognizedPackages = []string{marker.DefaultModule, drizzleRootModule}
 
 // unresolvedImportDiags warns once per recognized package the file imports but the checker cannot resolve.
@@ -36,7 +35,7 @@ func unresolvedImportDiags(sourceFile *ast.SourceFile, typeChecker *checker.Chec
 	return diags
 }
 
-// isRecognizedPackage matches a package root, its subpaths, and the drizzle dialect packages (`@mionjs/drizzle-orm-pg-core`).
+// isRecognizedPackage: the `root-` prefix catches the drizzle dialect packages (`@mionjs/drizzle-orm-pg-core`).
 func isRecognizedPackage(module string) bool {
 	for _, root := range recognizedPackages {
 		if module == root || strings.HasPrefix(module, root+"/") || strings.HasPrefix(module, root+"-") {

@@ -7,8 +7,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
-// CNV010: a runtypes or drizzle import that resolves nowhere hides every declaration using it, so the run warns
-// instead of reporting a clean, empty conversion.
+// CNV010: an unresolved runtypes or drizzle import must warn, not read as a clean, empty conversion.
 
 func TestUnresolvedImport_WarnsPerPackage(t *testing.T) {
 	source := "import * as RT from '@mionjs/run-types/missing';\n" +
