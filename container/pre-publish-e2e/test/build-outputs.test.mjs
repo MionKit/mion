@@ -69,6 +69,13 @@ test('smoke-next: the shared subset passes after the Turbopack build', () => {
   );
 });
 
+// The genDir comes from the app's tsconfig, so Next reads the same folder the enrich CLI writes.
+test('smoke-next: generates into the tsconfig genDir', () => {
+  const stamp = path.join(APPS, 'smoke-next', '.rt/types/.rt-stamp');
+  assert.ok(existsSync(stamp), `smoke-next: no stamp at ${stamp}, the tsconfig genDir was not honoured`);
+  assert.ok(!existsSync(path.join(APPS, 'smoke-next', '.mion')), 'smoke-next: generated into .mion instead of the tsconfig genDir');
+});
+
 // mion-next is the framework half of the Next story: the app HOSTS the mion API through an App
 // Router catch-all handler. build-all.mjs builds it, serves it with `next start` and fetches the
 // app's own /selftest route, which does the calling; this reads what that reported.

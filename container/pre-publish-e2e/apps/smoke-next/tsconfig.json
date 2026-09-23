@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": {"jsx": "react-jsx"},
+  "compilerOptions": {"jsx": "react-jsx", "plugins": [{"name": "mion", "genDir": ".rt"}]},
   "include": ["app", "../shared/src"]
 }
