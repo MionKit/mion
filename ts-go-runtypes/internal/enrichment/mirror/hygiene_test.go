@@ -381,3 +381,37 @@ func TestScan_RegexLiteralNeverPhantomComment(t *testing.T) {
 		t.Errorf("prune must leave the regex + live code byte-identical; removed=%d skipped=%d\n%s", removed, len(skipped), pruned)
 	}
 }
+
+// TestBlankValues_RangedPool pins that `pool: []` beside a `min` or `max` is a range, not a blank slot, at any depth.
+func TestBlankValues_RangedPool(t *testing.T) {
+	text := "export const mockUser: MockData<User> = {\n" +
+		"  age: {pool: [], min: 18, max: 95},\n" + // range only → no hit
+		"  score: {max: 10, pool: []},\n" + // max only, pool after → no hit
+		"  born: {pool: [], min: new Date('1990-01-01')},\n" + // Date range → no hit
+		"  name: {pool: []},\n" + // bare pool → hit
+		"  tags: {pool: ['a', 'b'], min: 1},\n" + // filled pool → no hit
+		"  address: {\n" +
+		"    floor: {pool: [], min: 0, max: 40},\n" + // nested range → no hit
+		"    street: {pool: []},\n" + // nested bare pool → hit
+		"    items: {rt$items: {pool: [], min: 1}, rt$length: [1, 3]},\n" + // nested array element range → no hit
+		"  },\n" +
+		"  other: {pool: [], rt$min: 1},\n" + // not a range key → hit
+		"};\n"
+
+	findings := ScanBlankValues(text)
+	lines := NewLineIndex(text)
+	var gotLines []int
+	for _, finding := range findings {
+		line, _ := lines.At(finding.Start)
+		gotLines = append(gotLines, line)
+	}
+	want := []int{5, 9, 12}
+	if len(gotLines) != len(want) {
+		t.Fatalf("blank lines = %v, want %v", gotLines, want)
+	}
+	for i := range want {
+		if gotLines[i] != want[i] {
+			t.Fatalf("blank lines = %v, want %v", gotLines, want)
+		}
+	}
+}

@@ -19,8 +19,9 @@ import (
 // Scan is the per-file lexical view every probe reuses: the text, its comment spans and its literal-token ranges.
 // Build ONE per file; the same-named free functions in hygiene.go re-parse the text on each call.
 type Scan struct {
-	text  string
-	spans []commentSpan
+	text       string
+	sourceFile *ast.SourceFile
+	spans      []commentSpan
 	// literals are every string / template part / regex token range in text order, the opaque regions the scan skips.
 	literals [][2]int
 	// parseFailed records a syntax error; probes stay best-effort on the recovered tree, but PruneOrphanBlocks refuses to
@@ -59,6 +60,7 @@ func newScanOf(sourceFile *ast.SourceFile, text string) *Scan {
 		scan.spans = srcscan.Comments(text, nil)
 		return scan
 	}
+	scan.sourceFile = sourceFile
 	scan.parseFailed = len(sourceFile.Diagnostics()) > 0
 	scan.literals = srcscan.LiteralTokenRanges(sourceFile)
 	scan.spans = srcscan.Comments(text, scan.literals)
