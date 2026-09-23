@@ -259,16 +259,16 @@ drift fails CI instead of rotting.
 
 ```md
 <!-- Import full file -->
-<code-import path="packages/examples/src/guide/json-basics.ts" lang="ts" />
+<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts" />
 
 <!-- With tab title shown in code-group -->
-<code-import path="packages/examples/src/guide/json-basics.ts" lang="ts [json.ts]" />
+<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts [json.ts]" />
 
 <!-- Import specific line range (lines="start,end") -->
-<code-import path="packages/examples/src/guide/json-basics.ts" lang="ts" lines="1,10" />
+<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts" lines="1,10" />
 
 <!-- Import between comment markers (markers are stripped from output; preferred) -->
-<code-import path="packages/examples/src/guide/json-basics.ts" lang="ts" commentStart="// start-roundtrip" commentEnd="// end-roundtrip" />
+<code-import path="packages/examples/src/guide/ser-json-basics.ts" lang="ts" commentStart="// start-basics" commentEnd="// end-basics" />
 ```
 
 ## Twoslash Code component
