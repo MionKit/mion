@@ -21,7 +21,7 @@ export default defineConfig({
     name: 'devtools',
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    include: ['test/**/*.spec.ts'],
     // Vitest's 10 s default is not enough: hooks start real vite servers, sfcTransform's own guarded hook takes 10.4 s in a batch.
     testTimeout: 60000,
     hookTimeout: 60000,

@@ -40,7 +40,7 @@ Start with the harness, not the code. There is no way to demonstrate the problem
 
 - A **throttled reader** test: a raw socket that sends the request and then reads the response
   slowly, the download twin of the upload trickle in
-  [bodyDrain.spec.ts](../../packages/platform-uws/src/bodyDrain.spec.ts). It has to actually make
+  [bodyDrain.spec.ts](../../packages/platform-uws/test/bodyDrain.spec.ts). It has to actually make
   `tryEnd` report not-done, proven by instrumenting the branch, not assumed.
 - Then a measurement showing the native buffering it avoids, since peak RSS is where that memory
   lands.

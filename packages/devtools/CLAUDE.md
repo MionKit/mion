@@ -36,7 +36,7 @@ imply the Next preset depends on the vite one. It does not.
 
 ## Two vitest projects, one package
 
-`vitest.config.ts` (project `devtools`) installs `mionVitePlugin` over `src/**/*.spec.ts`.
+`vitest.config.ts` (project `devtools`) installs `mionVitePlugin` over `test/**/*.spec.ts`.
 `vitest.core.config.ts` (project `devtools-core`) runs `test/**/*.test.ts` with no plugin.
 
 Keep them separate. Running the core suite through the mion transform would change what it

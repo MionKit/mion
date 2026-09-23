@@ -154,11 +154,11 @@ primaryKey, check, policies, enums, schemas, sequences, table creators) wrap as:
 
 ## Tests (paired, per package)
 
-- The **equality matrix** in `src/index.spec.ts`: extend the slim and raw
+- The **equality matrix** in `test/index.spec.ts`: extend the slim and raw
   tables with the new column/modifier/helper and keep
   `project(toDrizzle(slim))` equal to `project(rawDrizzle)` (getTableConfig is
   the oracle).
-- **Type pins** in `src/type-pins.stub.ts`: builder-inferred data equals the
+- **Type pins** in `test/type-pins.stub.ts`: builder-inferred data equals the
   named type; model rules for any new flag behavior.
 - Validator specs already run the models through `createValidateFn`; extend
   them when the new column carries a format. Any test touching the marker API
@@ -194,7 +194,7 @@ the dialect looks finished while a gate or a lane silently skips it.
 | --- | --- |
 | `packages/drizzle-orm-<d>-core/` | `package.json`, `tsconfig.json`, `tsconfig.build.json`, `vite.config.ts`, `vitest.config.ts`, thin `README.md`, a `CLAUDE.md` carrying ONLY what is specific to this dialect |
 | `src/` | `columns.ts`, `table.ts`, `helpers.ts`, `views.ts`, `drizzle.ts`, `index.ts` |
-| `src/` tests | `index.spec.ts` (the equality matrix), `type-pins.stub.ts`, `typeTables.spec.ts`, `valueHelpers.spec.ts`, `manifest-coverage.spec.ts` |
+| `test/` | `index.spec.ts` (the equality matrix), `type-pins.stub.ts`, `typeTables.spec.ts`, `valueHelpers.spec.ts`, `manifest-coverage.spec.ts` |
 | repo root | a `drizzle-dialects.json` row, a `tsconfig.json` reference, the `lint:eslint` glob AND the lint-staged glob in `package.json`, the vitest project list |
 | e2e | its own lane and image, per "Adding an e2e image" below |
 

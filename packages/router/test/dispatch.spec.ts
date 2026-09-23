@@ -1,0 +1,973 @@
+/* ########
+ * 2022 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect, beforeEach} from 'vitest';
+import {createMionRouter, resetRouter, getRouteExecutable} from '../src/router.ts';
+import {dispatchRoute} from '../src/dispatch.ts';
+import type {Email, Transform} from '@mionjs/run-types/formats';
+import {CallContext, MionHeaders} from '../src/types/context.ts';
+import {Routes} from '../src/types/general.ts';
+import {HeadersSubset, RpcError, TypedError, MION_ROUTES, StatusCodes, toBase64Url} from '@mionjs/core';
+import {headersFromRecord} from '../src/lib/headers.ts';
+import {decodeQueryBody} from '../src/lib/queryBody.ts';
+import {findMionQueryParam} from '../src/lib/urlQuery.ts';
+
+const shared = {auth: {me: null as any}};
+const getSharedData = (): typeof shared => shared;
+const mion = createMionRouter({contextDataFactory: getSharedData});
+
+type RawRequest = {
+  headers: MionHeaders;
+  body: string;
+};
+
+describe('Dispatch routes', () => {
+  type SimpleUser = {
+    name: string;
+    surname: string;
+  };
+  type DataPoint = {
+    date: Date;
+  };
+  const myApp = {
+    cloudLogs: {
+      log: (): null => null,
+      error: (): null => null,
+    },
+    db: {
+      changeUserName: (user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}),
+    },
+  };
+
+  const changeUserName = mion.route((ctx, user: SimpleUser): SimpleUser => {
+    return myApp.db.changeUserName(user);
+  });
+
+  const getSameDate = mion.route((ctx, data: DataPoint): DataPoint => {
+    return data;
+  });
+
+  const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): void | RpcError<'not-authorized'> => {
+    const token = h.headers.Authorization;
+    if (token !== '1234')
+      return new RpcError({
+        publicMessage: 'Not Authorized',
+        type: 'not-authorized',
+      });
+  });
+
+  const getDefaultRequest = (path: string, params?): RawRequest => ({
+    headers: headersFromRecord({}),
+    body: JSON.stringify({[path]: params}),
+  });
+
+  beforeEach(() => resetRouter());
+
+  describe('success path should', () => {
+    it('read data from body & route', async () => {
+      mion.initRoutes({changeUserName});
+
+      const id = 'changeUserName';
+      const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+    });
+
+    it('read data from header & middleware', async () => {
+      mion.initRoutes({auth, changeUserName});
+
+      const request: RawRequest = {
+        headers: headersFromRecord({Authorization: '1234'}),
+        body: JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
+      };
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.hasErrors).toBeFalsy();
+      expect(response.body).toEqual({changeUserName: {name: 'LOREM', surname: 'Tungsten'}});
+    });
+
+    // when the body is an array we assume it's a single route call and we have to reconstruct the body
+    // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
+    it('read data from body & route, when the body is a single array we should reconstruct full body request', async () => {
+      mion.initRoutes({changeUserName});
+
+      const id = 'changeUserName';
+      const request = {
+        headers: headersFromRecord({}),
+        body: JSON.stringify([{name: 'Leo', surname: 'Tungsten'}]),
+      };
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+    });
+
+    it('request and response headers are case insensitive', async () => {
+      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>): HeadersSubset<'User-Id'> => {
+        const token = h.headers.Authorization;
+        return new HeadersSubset({'User-Id': token === '1234' ? 'MyUser-Id' : 'Unknown'});
+      });
+      mion.initRoutes({auth, changeUserName});
+
+      const request: RawRequest = {
+        headers: headersFromRecord({AuThoriZatioN: '1234'}),
+        body: JSON.stringify({changeUserName: [{name: 'Leo', surname: 'Tungsten'}]}),
+      };
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.hasErrors).toBeFalsy();
+      expect(response.headers.get('user-id')).toEqual('MyUser-Id');
+    });
+
+    it('should be able to accept request headers and regular rpc params', async () => {
+      const auth = mion.headersFn((ctx, h: HeadersSubset<'Authorization'>, userId: string): string => userId);
+      mion.initRoutes({auth, changeUserName});
+
+      const request: RawRequest = {
+        headers: headersFromRecord({AuThoriZatioN: 'bearer-token-1234'}),
+        body: JSON.stringify({
+          auth: ['user-1234'],
+          changeUserName: [{name: 'Leo', surname: 'Tungsten'}],
+        }),
+      };
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.hasErrors).toBeFalsy();
+      expect(response.body.auth).toEqual('user-1234');
+    });
+
+    it('if there are no params input field can be omitted', async () => {
+      mion.initRoutes({sayHello: mion.route((): string => 'hello')});
+
+      const path = '/sayHello';
+      const id = 'sayHello';
+      const request1: RawRequest = {headers: headersFromRecord({}), body: ''};
+      const request2: RawRequest = {headers: headersFromRecord({}), body: '{}'};
+      const request3: RawRequest = {headers: headersFromRecord({}), body: '{"sayHello": null}'};
+
+      const response1 = await dispatchRoute(path, request1.body, request1.headers, headersFromRecord({}), request1, {});
+      const response2 = await dispatchRoute(path, request2.body, request2.headers, headersFromRecord({}), request2, {});
+      const response3 = await dispatchRoute(path, request3.body, request3.headers, headersFromRecord({}), request3, {});
+
+      expect(response1.body[id]).toEqual('hello');
+      expect(response2.body[id]).toEqual('hello');
+      expect(response3.body[id]).toEqual('hello');
+    });
+
+    // Pins WHEN an absent params slot may skip validation: only when every declared param is
+    // optional. A required param missing from the body must still be rejected, never passed as
+    // undefined to the handler.
+    it('omitting the params of an all-optional handler is valid, a required one is not', async () => {
+      const allOptional = mion.route((ctx, page?: number, filter?: string): string => `${page ?? 0}:${filter ?? ''}`);
+      const oneRequired = mion.route((ctx, id: string, page?: number): string => `${id}:${page ?? 0}`);
+      mion.initRoutes({allOptional, oneRequired});
+
+      const noBody: RawRequest = {headers: headersFromRecord({}), body: '{}'};
+
+      const okResponse = await dispatchRoute('/allOptional', noBody.body, noBody.headers, headersFromRecord({}), noBody, {});
+      expect(okResponse.hasErrors).toBe(false);
+      expect(okResponse.body.allOptional).toEqual('0:');
+
+      const failResponse = await dispatchRoute('/oneRequired', noBody.body, noBody.headers, headersFromRecord({}), noBody, {});
+      expect(failResponse.hasErrors).toBe(true);
+      expect(failResponse.body[MION_ROUTES.thrownErrors]?.oneRequired).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'oneRequired', validation failed.`,
+        errorData: expect.anything(),
+      });
+    });
+
+    it('transform the path before finding a route', async () => {
+      const publicPath = '/api/v1/Hello';
+      const method = 'GET';
+      const routeId = 'getHello';
+      const request = {
+        method,
+        ...getDefaultRequest(routeId, []),
+      };
+      const options = {
+        contextDataFactory: getSharedData,
+        pathTransform: (req, path: string): string => {
+          const rPath = path.replace(`${options.basePath}/`, `${options.basePath}/${req.method.toLowerCase()}`);
+          return rPath;
+        },
+        basePath: 'api/v1',
+      };
+      createMionRouter(options).initRoutes({
+        getHello: mion.route((): string => 'hello'), // GET api/v1/Hello
+      });
+
+      const response = await dispatchRoute(publicPath, request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.body[routeId]).toEqual('hello');
+    });
+
+    it('dispatch routes with prefix', async () => {
+      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/v1'}).initRoutes({changeUserName});
+
+      const id = 'changeUserName';
+      const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
+
+      const response = await dispatchRoute(
+        '/api/v1/changeUserName',
+        request.body,
+        request.headers,
+        headersFromRecord({}),
+        request,
+        {}
+      );
+      expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+    });
+
+    it('return not-found for route without prefix when prefix is configured', async () => {
+      createMionRouter({contextDataFactory: getSharedData, basePath: 'api/v1'}).initRoutes({changeUserName});
+
+      const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      // Should hit not-found since the path doesn't include the prefix
+      const error = response.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound] as RpcError<string>;
+      expect(error).toBeDefined();
+      expect(error.type).toEqual('route-not-found');
+    });
+
+    it('support async handlers and ensure execution in order', async () => {
+      const id = 'sumTwo';
+      const routes = {
+        sumTwo: mion.route(async (ctx, val: number): Promise<number> => {
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(val + 2);
+            }, 500);
+          });
+        }),
+        totals: mion.middleware((ctx: CallContext): string => {
+          // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
+          return `the total is ${ctx.response.body[id]}`;
+        }),
+      } satisfies Routes;
+      mion.initRoutes(routes);
+
+      const request = getDefaultRequest(id, [2]);
+      const response = await dispatchRoute('/sumTwo', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.body[id]).toEqual(4);
+      expect(response.body['totals']).toEqual('the total is 4');
+    });
+  });
+
+  describe('fail path should', () => {
+    it('return an error if no route is found', async () => {
+      createMionRouter({contextDataFactory: getSharedData, skipClientRoutes: false}).initRoutes({changeUserName});
+
+      const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
+
+      const response = await dispatchRoute('/abcd', request.body, request.headers, headersFromRecord({}), request, {});
+      // Not-found errors are returned by the not-found route and stored in thrownErrors
+      const error = response.body[MION_ROUTES.thrownErrors]?.[MION_ROUTES.notFound];
+      // the serialized body holds the error's WIRE shape (the encoder's projection of the declared
+      // RpcError), never the live instance: `message` and the fatal brand never travel.
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.NOT_FOUND,
+        type: 'route-not-found',
+        publicMessage: 'Route not found',
+      });
+    });
+
+    it('return an error if data is missing from header', async () => {
+      mion.initRoutes({auth, changeUserName});
+
+      const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      // Validation errors are unexpected errors (not part of return type union)
+      const error = response.body[MION_ROUTES.thrownErrors]?.auth;
+      // the serialized body holds the error's WIRE shape (the encoder's projection of the declared
+      // RpcError), never the live instance: `message` and the fatal brand are non-enumerable and
+      // have never travelled.
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'auth', validation failed.`,
+        errorData: expect.anything(),
+      });
+    });
+
+    it('return an error if body is not the correct type', async () => {
+      mion.initRoutes({changeUserName});
+
+      const request: RawRequest = {
+        headers: headersFromRecord({}),
+        body: '1234',
+      };
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest'];
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'invalid-request-body',
+        publicMessage: 'Wrong request body. Expecting a body containing the route name and parameters.',
+      });
+
+      const request2: RawRequest = {
+        headers: headersFromRecord({}),
+        body: '{-12',
+      };
+
+      const response2 = await dispatchRoute(
+        '/changeUserName',
+        request2.body,
+        request2.headers,
+        headersFromRecord({}),
+        request2,
+        {}
+      );
+      const errorResp = response2.body[MION_ROUTES.thrownErrors]?.['mionDeserializeRequest'];
+      expect(errorResp).toMatchObject({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        'mion@isΣrrθr': true,
+        type: 'parsing-json-request-error',
+        publicMessage: 'Invalid json request body.', // fixed text: the engine's message names the input and stays server-side
+      });
+    });
+
+    it('return an error if data is missing from body', async () => {
+      mion.initRoutes({changeUserName});
+
+      const request = getDefaultRequest('changeUserName', []);
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      // Validation errors are unexpected errors (not part of return type union)
+      const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'changeUserName', validation failed.`,
+        errorData: {typeErrors: [{expected: 'objectLiteral', path: [0]}]},
+      });
+    });
+
+    it("return an error if can't deserialize method", async () => {
+      mion.initRoutes({getSameDate});
+
+      const request = getDefaultRequest('getSameDate', []);
+
+      const response = await dispatchRoute('/getSameDate', request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.['getSameDate'];
+      // The decoder converts only the wire form it was given and leaves anything else
+      // alone, so a missing param is refused by validation with its own path rather
+      // than by a raw throw out of the compiled function. Same status either way.
+      expect(error).toMatchObject({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        'mion@isΣrrθr': true,
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'getSameDate', validation failed.`,
+        errorData: {typeErrors: [{path: [0], expected: 'objectLiteral'}]},
+      });
+    });
+
+    it('refuse a body with no entry for the route by validation, never by decoding the frozen sentinel', async () => {
+      const getWhen = mion.route((ctx, when: Date): Date => when);
+      mion.initRoutes({getWhen});
+
+      // `{}` on the wire, so the params fall back to the shared frozen EMPTY_PARAMS; the Date restore
+      // writes into slot 0, so handing it the sentinel would throw a raw TypeError instead
+      const request = getDefaultRequest('getWhen');
+      const response = await dispatchRoute('/getWhen', request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.getWhen;
+      expect(error).toMatchObject({
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'getWhen', validation failed.`,
+      });
+    });
+
+    it('return an error if method validation fails, incorrect type', async () => {
+      mion.initRoutes({changeUserName});
+
+      const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
+      const request = getDefaultRequest('changeUserName', [wrongSimpleUser]);
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      // Validation errors are unexpected errors (not part of return type union)
+      const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'changeUserName', validation failed.`,
+        errorData: {typeErrors: [{expected: 'string', path: [0, 'name']}]},
+      });
+    });
+
+    it('return an error if method validation fails, empty type', async () => {
+      mion.initRoutes({changeUserName});
+
+      const request = getDefaultRequest('changeUserName', [{}]);
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      // Validation errors are unexpected errors (not part of return type union)
+      const error = response.body[MION_ROUTES.thrownErrors]?.changeUserName;
+      expect(error).toEqual({
+        'mion@isΣrrθr': true,
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: 'validation-error',
+        publicMessage: `Invalid params in 'changeUserName', validation failed.`,
+        errorData: {
+          typeErrors: [
+            {expected: 'string', path: [0, 'name']},
+            {expected: 'string', path: [0, 'surname']},
+          ],
+        },
+      });
+    });
+
+    it('return an unknown error if a route fails with a generic error', async () => {
+      const routeFail = mion.route((): void => {
+        throw new Error('this is a generic error');
+      });
+      mion.initRoutes({routeFail});
+
+      const request = getDefaultRequest('routeFail', []);
+
+      const response = await dispatchRoute('/routeFail', request.body, request.headers, headersFromRecord({}), request, {});
+      const error = response.body[MION_ROUTES.thrownErrors]?.['routeFail'];
+      expect(error).toMatchObject({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        'mion@isΣrrθr': true,
+        type: 'unknown-error',
+        publicMessage: 'Unknown error in handler "routeFail" of route ExecutionChain.',
+      });
+    });
+  });
+
+  describe('parsedBody (a js object already parsed from json) functionality should', () => {
+    it('use parsedBody when provided instead of parsing rawBody', async () => {
+      mion.initRoutes({changeUserName});
+
+      const id = 'changeUserName';
+      const jsBody = {[id]: [{name: 'Leo', surname: 'Tungsten'}]};
+      const rawBody = jsBody;
+
+      const response = await dispatchRoute(
+        '/changeUserName',
+        rawBody,
+        headersFromRecord({}),
+        headersFromRecord({}),
+        {headers: headersFromRecord({}), body: jsBody},
+        {}
+      );
+      expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+    });
+
+    it('handle parsedBody with Date objects correctly', async () => {
+      mion.initRoutes({getSameDate});
+
+      const id = 'getSameDate';
+      const testDate = new Date('2022-04-22T00:17:00.000Z');
+      const jsBody = {[id]: [{date: testDate}]};
+      const rawBody = jsBody;
+
+      const response = await dispatchRoute(
+        '/getSameDate',
+        rawBody,
+        headersFromRecord({}),
+        headersFromRecord({}),
+        {headers: headersFromRecord({}), body: jsBody},
+        {}
+      );
+      // the default `clone` encoder builds the JSON-ready value the platform stringifies, so the
+      // body holds the wire form of the Date rather than the instance the handler returned
+      expect(response.body[id]).toEqual({date: testDate.toISOString()});
+    });
+
+    it('fallback to parsing rawBody when parsedBody is not provided', async () => {
+      mion.initRoutes({changeUserName});
+
+      const id = 'changeUserName';
+      const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
+
+      const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+      expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+    });
+
+    it('handle empty rawBody and no parsedBody correctly', async () => {
+      mion.initRoutes({changeUserName});
+
+      const response = await dispatchRoute(
+        '/changeUserName',
+        '', // empty rawBody (falsy)
+        headersFromRecord({}),
+        headersFromRecord({}),
+        {headers: headersFromRecord({}), body: ''},
+        {}
+      );
+      // When rawBody is empty and parsedBody is undefined, parseRequestBody returns early
+      // leaving request.body as empty object, then route fails validation (correct behavior)
+      expect(response.hasErrors).toBeTruthy();
+      // Validation errors are unexpected errors (not part of return type union)
+      expect(response.body[MION_ROUTES.thrownErrors]?.changeUserName).toMatchObject({
+        'mion@isΣrrθr': true,
+        type: 'validation-error',
+      });
+    });
+  });
+});
+
+describe('Query body decoding (data in URL query)', () => {
+  type SimpleUser = {
+    name: string;
+    surname: string;
+  };
+
+  /** Simulates what platform adapters do: decode query body before dispatch */
+  function decodeAndDispatch(path: string, rawBody: any, urlQuery: string | undefined) {
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    const finalBody = queryBody ? queryBody.rawBody : rawBody;
+    const finalBodyType = queryBody ? queryBody.bodyType : undefined;
+    return dispatchRoute(
+      path,
+      finalBody,
+      headersFromRecord({}),
+      headersFromRecord({}),
+      {headers: headersFromRecord({})},
+      {},
+      finalBodyType,
+      urlQuery
+    );
+  }
+
+  beforeEach(() => resetRouter());
+
+  it('should dispatch a query route with base64url-encoded body in ?data= param', async () => {
+    const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    mion.initRoutes({getUser});
+
+    const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
+    const encoded = toBase64Url(body);
+
+    const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body['getUser']).toEqual('Leo Tungsten');
+  });
+
+  it('should dispatch a mutation route with base64url-encoded body in ?data= param', async () => {
+    const updateUser = mion.mutation(
+      (ctx, user: SimpleUser): SimpleUser => ({name: user.name.toUpperCase(), surname: user.surname})
+    );
+    mion.initRoutes({updateUser});
+
+    const body = JSON.stringify({updateUser: [{name: 'Leo', surname: 'Tungsten'}]});
+    const encoded = toBase64Url(body);
+
+    const response = await decodeAndDispatch('/updateUser', undefined, `data=${encoded}`);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body['updateUser']).toEqual({name: 'LEO', surname: 'Tungsten'});
+  });
+
+  it('should prefer rawBody over query data when both are present', async () => {
+    const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    mion.initRoutes({getUser});
+
+    const bodyFromPost = JSON.stringify({getUser: [{name: 'FromBody', surname: 'Post'}]});
+    const bodyFromQuery = JSON.stringify({getUser: [{name: 'FromQuery', surname: 'Get'}]});
+    const encoded = toBase64Url(bodyFromQuery);
+
+    const response = await decodeAndDispatch('/getUser', bodyFromPost, `data=${encoded}`);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body['getUser']).toEqual('FromBody Post');
+  });
+
+  it('should handle ?data= with other query params', async () => {
+    const getUser = mion.query((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    mion.initRoutes({getUser});
+
+    const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
+    const encoded = toBase64Url(body);
+
+    const response = await decodeAndDispatch('/getUser', undefined, `foo=bar&data=${encoded}&baz=qux`);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body['getUser']).toEqual('Leo Tungsten');
+  });
+
+  it('should work with route() handler (backward compat) using query body', async () => {
+    const getUser = mion.route((ctx, user: SimpleUser): string => `${user.name} ${user.surname}`);
+    mion.initRoutes({getUser});
+
+    const body = JSON.stringify({getUser: [{name: 'Leo', surname: 'Tungsten'}]});
+    const encoded = toBase64Url(body);
+
+    const response = await decodeAndDispatch('/getUser', undefined, `data=${encoded}`);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body['getUser']).toEqual('Leo Tungsten');
+  });
+});
+
+describe('undeclared params keys, per parser strategy', () => {
+  type SimpleUser = {
+    name: string;
+    surname: string;
+  };
+
+  const changeUserName = mion.route((ctx, user: SimpleUser): SimpleUser => {
+    return {name: 'LOREM', surname: user.surname};
+  });
+
+  // `mutate` hands the handler what arrived, undeclared keys included: the permissive strategy, by design.
+  const keepsExtras = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+    parser: {params: 'mutate'},
+  });
+  // `mutateStrict` keeps them too, and then rejects the request for carrying them.
+  const rejectsExtras = mion.route((ctx, user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}), {
+    parser: {params: 'mutateStrict'},
+  });
+
+  const getDefaultRequest = (path: string, params?): {headers: MionHeaders; body: string} => ({
+    headers: headersFromRecord({}),
+    body: JSON.stringify({[path]: params}),
+  });
+
+  beforeEach(() => resetRouter());
+
+  it('mutateStrict rejects a key the type does not declare', async () => {
+    mion.initRoutes({rejectsExtras});
+
+    const request = getDefaultRequest('rejectsExtras', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+    const response = await dispatchRoute('/rejectsExtras', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.rejectsExtras).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid params in 'rejectsExtras', validation failed.`,
+    });
+  });
+
+  it('mutate keeps the key and hands it to the handler', async () => {
+    mion.initRoutes({keepsExtras});
+
+    const request = getDefaultRequest('keepsExtras', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+    const response = await dispatchRoute('/keepsExtras', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.keepsExtras).toEqual({name: 'LOREM', surname: 'Tungsten'});
+  });
+
+  it('a stripping strategy drops the key while decoding, so nothing is left to reject', async () => {
+    mion.initRoutes({changeUserName});
+
+    const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten', extra: 'value'}]);
+    const response = await dispatchRoute('/changeUserName', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.changeUserName).toEqual({name: 'LOREM', surname: 'Tungsten'});
+  });
+
+  it('two routes on one router each keep their own strategy', async () => {
+    mion.initRoutes({keepsExtras, rejectsExtras});
+    const payload = [{name: 'Leo', surname: 'Tungsten', extra: 'value'}];
+
+    const strictReq = getDefaultRequest('rejectsExtras', payload);
+    const strictRes = await dispatchRoute(
+      '/rejectsExtras',
+      strictReq.body,
+      strictReq.headers,
+      headersFromRecord({}),
+      strictReq,
+      {}
+    );
+    expect(strictRes.body[MION_ROUTES.thrownErrors]?.rejectsExtras).toMatchObject({type: 'validation-error'});
+
+    const looseReq = getDefaultRequest('keepsExtras', payload);
+    const looseRes = await dispatchRoute('/keepsExtras', looseReq.body, looseReq.headers, headersFromRecord({}), looseReq, {});
+    expect(looseRes.hasErrors).toBeFalsy();
+    expect(looseRes.body.keepsExtras).toEqual({name: 'LOREM', surname: 'Tungsten'});
+  });
+});
+
+// serializer.routes reads the `validateUnionKeys` validator (the clone and compact rows) to tell a DECLARED error
+// in the return union from an undeclared one: a key-count check on the error arm would frame it as raw JSON.
+describe('a declared error in the return union, on a key-checking row', () => {
+  type Ok = {name: string};
+  type Answer = Ok | TypedError<'nope'>;
+
+  const declared = mion.route((): Answer => new TypedError({message: 'no', type: 'nope'}), {
+    parser: 'clone',
+  });
+  const ok = mion.route((): Answer => ({name: 'rex'}), {parser: 'clone'});
+
+  const jsonRequest = (path: string) => ({headers: headersFromRecord({}), body: JSON.stringify({[path]: []})});
+
+  beforeEach(() => resetRouter());
+
+  it('stays declared: it keeps its own slot rather than the thrown one', async () => {
+    mion.initRoutes({declared});
+    const request = jsonRequest('declared');
+    const response = await dispatchRoute('/declared', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.declared).toBeUndefined();
+    // a union rides as [memberIndex, value], so the payload is the second slot
+    expect(response.body.declared[1]).toMatchObject({type: 'nope'});
+  });
+
+  it('still answers the success member normally', async () => {
+    mion.initRoutes({ok});
+    const request = jsonRequest('ok');
+    const response = await dispatchRoute('/ok', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.ok[1]).toEqual({name: 'rex'});
+  });
+});
+
+describe('validateReturn', () => {
+  type Answer = {name: string};
+
+  // `as Answer` is what a real bug looks like: a value built elsewhere and only asserted on the way out.
+  const badHandler = (): Answer => ({name: 42}) as unknown as Answer;
+
+  const unchecked = mion.route(badHandler);
+  const checked = mion.route(badHandler, {validateReturn: true});
+  const goodChecked = mion.route((): Answer => ({name: 'rex'}), {validateReturn: true});
+
+  const jsonRequest = (path: string) => ({headers: headersFromRecord({}), body: JSON.stringify({[path]: []})});
+
+  beforeEach(() => resetRouter());
+
+  it('is off by default, so a wrong return still ships', async () => {
+    mion.initRoutes({unchecked});
+    const request = jsonRequest('unchecked');
+    const response = await dispatchRoute('/unchecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.unchecked).toEqual({name: 42});
+  });
+
+  // A bad return is the server's own bug, so it takes the thrown path rather than a typed slot.
+  it('rejects a return the type does not describe', async () => {
+    mion.initRoutes({checked});
+    const request = jsonRequest('checked');
+    const response = await dispatchRoute('/checked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.checked).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid return value in 'checked', validation failed.`,
+    });
+    expect(response.body.checked).toBeUndefined();
+  });
+
+  it('lets a correct return through', async () => {
+    mion.initRoutes({goodChecked});
+    const request = jsonRequest('goodChecked');
+    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.goodChecked).toEqual({name: 'rex'});
+  });
+
+  // `undefined` leaves the chain before the body write, so the check has to happen on that path too.
+  it('catches a handler that declares a value and answers undefined', async () => {
+    const missing = mion.route((): Answer => undefined as unknown as Answer, {validateReturn: true});
+    mion.initRoutes({missing});
+    const request = jsonRequest('missing');
+    const response = await dispatchRoute('/missing', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.missing).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid return value in 'missing', validation failed.`,
+    });
+    expect(response.body.missing).toBeUndefined();
+  });
+
+  // The carve-out: a middleware declaring no return value contributes nothing, which is not a wrong answer.
+  it('leaves a middleware that declares no return value alone', async () => {
+    const silent = mion.middleware((): void => undefined, {validateReturn: true});
+    mion.initRoutes({silent, goodChecked});
+    const request = jsonRequest('goodChecked');
+    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body[MION_ROUTES.thrownErrors]?.silent).toBeUndefined();
+  });
+
+  // A middleware resolves the flag on its own and its failure takes its own slot, so it needs its own case.
+  it('checks a middleware return, in the middleware own slot', async () => {
+    const badMf = mion.middleware((): Answer => ({name: 42}) as unknown as Answer, {validateReturn: true});
+    mion.initRoutes({badMf, goodChecked});
+    const request = jsonRequest('goodChecked');
+    const response = await dispatchRoute('/goodChecked', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.body[MION_ROUTES.thrownErrors]?.badMf).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid return value in 'badMf', validation failed.`,
+    });
+    expect(response.body.badMf).toBeUndefined();
+  });
+});
+
+describe('sanitizeParams', () => {
+  type CleanEmail = Transform<Email, {trim: true; lowercase: true}>;
+  const echoEmail = mion.route((ctx, email: CleanEmail): string => email);
+  // the same route on the compact wire: the positional pair is compiled from the route literal
+  const echoEmailCompact = mion.route((ctx, email: CleanEmail): string => email, {parser: 'compact'});
+  const RAW = ' John@Example.COM ';
+  const CLEAN = 'john@example.com';
+
+  const jsonRequest = (path: string, params: unknown[]) => ({
+    headers: headersFromRecord({}),
+    body: JSON.stringify({[path]: params}),
+  });
+  const dispatchJson = async (path: string, params: unknown[]) => {
+    const request = jsonRequest(path, params);
+    return dispatchRoute(`/${path}`, request.body, request.headers, headersFromRecord({}), request, {});
+  };
+
+  beforeEach(() => resetRouter());
+
+  it('applies the declared transform after decode and before validation when enabled globally', async () => {
+    createMionRouter({sanitizeParams: true}).initRoutes({echoEmail});
+    const response = await dispatchJson('echoEmail', [RAW]);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.echoEmail).toBe(CLEAN);
+  });
+
+  it('is off by default: the handler receives the value exactly as sent', async () => {
+    createMionRouter({}).initRoutes({echoEmail});
+    // the padded value fails the email pattern, so validation rejects it untouched
+    const padded = await dispatchJson('echoEmail', [RAW]);
+    expect(padded.body[MION_ROUTES.thrownErrors]?.echoEmail).toMatchObject({type: 'validation-error'});
+    // a well-formed mixed-case value passes validation and is NOT lowercased
+    const mixed = await dispatchJson('echoEmail', ['John@Example.COM']);
+    expect(mixed.hasErrors).toBeFalsy();
+    expect(mixed.body.echoEmail).toBe('John@Example.COM');
+  });
+
+  it('per-route sanitizeParams overrides the router option both ways', async () => {
+    const rawRoute = mion.route((ctx, email: CleanEmail): string => email, {sanitizeParams: false});
+    createMionRouter({sanitizeParams: true}).initRoutes({rawRoute});
+    const rawResponse = await dispatchJson('rawRoute', ['John@Example.COM']);
+    expect(rawResponse.body.rawRoute).toBe('John@Example.COM');
+
+    resetRouter();
+    const cleanRoute = mion.route((ctx, email: CleanEmail): string => email, {sanitizeParams: true});
+    createMionRouter({}).initRoutes({cleanRoute});
+    const cleanResponse = await dispatchJson('cleanRoute', [RAW]);
+    expect(cleanResponse.body.cleanRoute).toBe(CLEAN);
+  });
+
+  it('sanitizes a compact request body too (the transform runs after decode, whatever the wire)', async () => {
+    createMionRouter({sanitizeParams: true}).initRoutes({echoEmail: echoEmailCompact});
+    const encode = getRouteExecutable('echoEmail')!.paramsJitFns.json.encode.fn;
+    const wire = JSON.parse(JSON.stringify(encode([RAW])));
+    const response = await dispatchJson('echoEmail', wire);
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.echoEmail).toBe(CLEAN);
+  });
+
+  it('wrong-shaped input is a validation error, never a crash inside the transform', async () => {
+    createMionRouter({sanitizeParams: true}).initRoutes({echoEmail});
+    const response = await dispatchJson('echoEmail', [42]);
+    expect(response.body[MION_ROUTES.thrownErrors]?.echoEmail).toMatchObject({
+      type: 'validation-error',
+      publicMessage: `Invalid params in 'echoEmail', validation failed.`,
+    });
+  });
+
+  it('a headersFn sanitizes its body params and leaves the headers alone', async () => {
+    const withHeader = mion.headersFn(
+      (ctx, h: HeadersSubset<'x-tag'>, email: CleanEmail): string => `${h.headers['x-tag']}|${email}`,
+      {sanitizeParams: true}
+    );
+    const target = mion.route((ctx, email: CleanEmail): string => email);
+    createMionRouter({sanitizeParams: true}).initRoutes({withHeader, target});
+    const request = {
+      headers: headersFromRecord({'x-tag': 'MiXeD'}),
+      body: JSON.stringify({withHeader: [RAW], target: [RAW]}),
+    };
+    const response = await dispatchRoute('/target', request.body, request.headers, headersFromRecord({}), request, {});
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.withHeader).toBe(`MiXeD|${CLEAN}`);
+    expect(response.body.target).toBe(CLEAN);
+  });
+
+  // `mutate` decodes IN PLACE, so params alias request.body[id] and the transform rewrites the body itself.
+  it('sanitizes a mutate request, where the params are the body', async () => {
+    const echoMutate = mion.route((ctx, email: CleanEmail): string => email, {parser: {params: 'mutate'}});
+    createMionRouter({sanitizeParams: true}).initRoutes({echoMutate});
+    const response = await dispatchJson('echoMutate', [RAW]);
+    expect(response.hasErrors).toBeFalsy();
+    expect(response.body.echoMutate).toBe(CLEAN);
+  });
+
+  // The transform runs BEFORE the validator, so on mutateStrict it has to survive the strict key check.
+  it('sanitizes a mutateStrict request and still rejects an undeclared key', async () => {
+    type Payload = {email: CleanEmail};
+    const echoStrict = mion.route((ctx, payload: Payload): string => payload.email, {
+      parser: {params: 'mutateStrict'},
+    });
+    createMionRouter({sanitizeParams: true}).initRoutes({echoStrict});
+    const clean = await dispatchJson('echoStrict', [{email: RAW}]);
+    expect(clean.hasErrors).toBeFalsy();
+    expect(clean.body.echoStrict).toBe(CLEAN);
+
+    const extra = await dispatchJson('echoStrict', [{email: RAW, evil: 'garbage'}]);
+    expect(extra.body[MION_ROUTES.thrownErrors]?.echoStrict).toMatchObject({type: 'validation-error'});
+  });
+
+  it('never touches the return value', async () => {
+    const shout = mion.route((ctx, email: CleanEmail): CleanEmail => 'UPPER@CASE.COM' as CleanEmail);
+    createMionRouter({sanitizeParams: true}).initRoutes({shout});
+    const response = await dispatchJson('shout', [RAW]);
+    expect(response.body.shout).toBe('UPPER@CASE.COM');
+  });
+});
+
+// ############# the query reader, driven through a real dispatch #############
+describe('findMionQueryParam through a real dispatch', () => {
+  const pageOf = mion.route((ctx: CallContext): string => {
+    const page = findMionQueryParam(ctx.urlQuery, 'page');
+    return page === undefined ? 'no page' : `page:${page}`;
+  });
+
+  beforeEach(() => resetRouter());
+
+  const dispatchWithQuery = (urlQuery?: string) => {
+    const request = {headers: headersFromRecord({}), body: JSON.stringify({pageOf: []})};
+    return dispatchRoute('/pageOf', request.body, request.headers, headersFromRecord({}), request, {}, undefined, urlQuery);
+  };
+
+  it('reads a parameter off ctx.urlQuery mid-chain', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    expect((await dispatchWithQuery('page=2')).body.pageOf).toBe('page:2');
+    expect((await dispatchWithQuery('sort=asc&page=2&limit=10')).body.pageOf).toBe('page:2');
+  });
+
+  it('an absent parameter is undefined, and one with no value is empty', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    expect((await dispatchWithQuery()).body.pageOf).toBe('no page');
+    expect((await dispatchWithQuery('sort=asc')).body.pageOf).toBe('no page');
+    expect((await dispatchWithQuery('page')).body.pageOf).toBe('page:');
+  });
+
+  it('the value arrives raw, so the handler decides how to convert it', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    expect((await dispatchWithQuery('page=a%2Fb')).body.pageOf).toBe('page:a%2Fb');
+  });
+
+  it('a bare flag next to it changes nothing', async () => {
+    createMionRouter({}).initRoutes({pageOf});
+    const response = await dispatchWithQuery('page=2&flag');
+    expect(response.hasErrors).toBe(false);
+    expect(response.body.pageOf).toBe('page:2');
+  });
+});
+
+describe('Route errors should', () => {
+  const ping = mion.route((): string => 'pong');
+
+  it('automatically generate error ids when RouteOptions autoGenerateErrorId is set to true', async () => {
+    resetRouter();
+    createMionRouter({autoGenerateErrorId: true}).initRoutes({ping});
+    const error = new RpcError({publicMessage: 'error', type: 'test-error'});
+    expect(typeof error.id).toEqual('string');
+
+    resetRouter();
+    createMionRouter({autoGenerateErrorId: false}).initRoutes({ping});
+    const error2 = new RpcError({publicMessage: 'error', type: 'test-error'});
+    expect(error2.id).toEqual(undefined);
+  });
+});

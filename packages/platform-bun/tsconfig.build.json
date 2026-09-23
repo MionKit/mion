@@ -18,6 +18,7 @@
     "bun-preload.ts",
     "loader",
     "node_modules",
+    "test",
     ".dist",
     "build",
     "*.config.ts",
