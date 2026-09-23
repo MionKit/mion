@@ -78,6 +78,7 @@ type I18nSettings struct {
 
 // ResolveConfig computes the Config for a target file; genDirFlag, the --gen-dir value, wins over the tsconfig `genDir`.
 // With a tsconfig, ProjectRoot is its dir and RootDir is tsgo's parsed rootDir; with none, both are the target's dir.
+// The default genDir is <srcDir>/.mion, srcDir inferred by program.InferSrcDir exactly as the resolver does.
 // Pure: no disk I/O, no fatal.
 func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *program.InferredConfig, plugin PluginSettings) Config {
 	targetDir := filepath.Dir(absTargetFile)
@@ -90,11 +91,14 @@ func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *progr
 	}
 
 	genDir := ""
+	defaultGenDirBase := targetDir
 	if tsconfigPath != "" {
 		tsconfigDir := filepath.Dir(tsconfigPath)
 		config.TsconfigPath = tsconfigPath
 		config.ProjectRoot = tsconfigDir
 		config.RootDir = tsconfigDir
+		// The resolver's own inference, so the CLI writes mirrors where the bundler plugin reads them.
+		defaultGenDirBase = parsed.SrcDir(tsconfigDir)
 
 		// From the ONE tsgo parse the caller already did, never a second one; tsgo followed `extends`, so this is TypeScript's view.
 		if parsed != nil {
@@ -125,7 +129,7 @@ func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *progr
 	if genDir != "" {
 		genDir = resolveUnder(config.ProjectRoot, genDir)
 	} else {
-		genDir = filepath.Join(config.RootDir, DefaultGenDirName)
+		genDir = filepath.Join(defaultGenDirBase, DefaultGenDirName)
 	}
 	config.EnrichDir = filepath.Join(genDir, EnrichedSubdir)
 	config.I18nDir = filepath.Join(config.EnrichDir, DefaultI18nDirName)

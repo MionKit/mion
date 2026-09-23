@@ -152,3 +152,48 @@ func enrichParityDaemon(t *testing.T, dir, tsconfigPath, genDir string, hashLeng
 	}
 	return out
 }
+
+// TestEnrichParity_DefaultGenDir pins that with no rootDir and no genDir the CLI and the daemon agree on
+// the inferred <srcDir>/.mion root: the daemon gets no GenDir, so it infers the root itself.
+func TestEnrichParity_DefaultGenDir(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	srcDir := filepath.Join(dir, "src")
+	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{"compilerOptions":{"strict":true},"include":["src"]}`)
+	writeTestFile(t, filepath.Join(srcDir, "rt-overlay.d.ts"), parityMarkerOverlay)
+	writeTestFile(t, filepath.Join(srcDir, "models.ts"), "export interface User { id: number; name: string }\n")
+	writeTestFile(t, filepath.Join(srcDir, "main.ts"), parityMain)
+	absSrc := tspath.NormalizePath(filepath.Join(srcDir, "models.ts"))
+	absMain := tspath.NormalizePath(filepath.Join(srcDir, "main.ts"))
+
+	tsconfigPath := resolveConfigPath(dir, "")
+	parsed, err := program.ParseInferredConfig(dir, tsconfigPath)
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+	config := resolveEnrichConfig(absSrc, "", tsconfigPath, parsed)
+	if want := filepath.Join(srcDir, defaultGenDirName); config.GenDir() != want {
+		t.Fatalf("CLI genDir = %q, want the common source folder's %q", config.GenDir(), want)
+	}
+
+	cliFiles := enrichParityCLI(t, absSrc, "User", config)
+	daemonFiles := enrichParityDaemon(t, dir, tsconfigPath, "", config.HashLength, absSrc, absMain)
+	if len(cliFiles) == 0 || len(cliFiles) != len(daemonFiles) {
+		t.Fatalf("mirror count: CLI %d, daemon %d", len(cliFiles), len(daemonFiles))
+	}
+	for path := range cliFiles {
+		if _, ok := daemonFiles[path]; !ok {
+			t.Errorf("daemon has no mirror at the CLI path %s; daemon paths: %v", path, keysOf(daemonFiles))
+		}
+	}
+}
+
+func keysOf(files map[string]string) []string {
+	keys := make([]string, 0, len(files))
+	for key := range files {
+		keys = append(keys, key)
+	}
+	return keys
+}

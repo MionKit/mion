@@ -113,6 +113,39 @@ func TestResolveEnrichConfig_FlagWins(t *testing.T) {
 	}
 }
 
+// TestResolveEnrichConfig_DefaultGenDirLocation: with no genDir the root is <srcDir>/.mion, srcDir being
+// an explicit rootDir, else the common folder of the tsconfig's files; an explicit genDir still wins.
+func TestResolveEnrichConfig_DefaultGenDirLocation(t *testing.T) {
+	tests := []struct {
+		name     string
+		tsconfig string
+		wantGen  string
+		wantRoot string
+	}{
+		{"no rootDir uses the common source folder", `{"include":["src"]}`, "src/.mion", "."},
+		{"explicit rootDir wins", `{"compilerOptions":{"rootDir":"."},"include":["src"]}`, ".mion", "."},
+		{"explicit genDir wins", `{"compilerOptions":{"plugins":[{"name":"mion","genDir":"gen"}]},"include":["src"]}`, "gen", "."},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := canonicalTempDir(t)
+			t.Chdir(dir)
+			writeTestFile(t, filepath.Join(dir, "tsconfig.json"), test.tsconfig)
+			target := filepath.Join(dir, "src", "models", "user.ts")
+			writeTestFile(t, target, "export interface User { id: number }\n")
+			writeTestFile(t, filepath.Join(dir, "src", "main.ts"), "export const main = 1;\n")
+
+			config := resolveEnrichConfigTest(target, "")
+			if want := filepath.Join(dir, test.wantGen); config.GenDir() != want {
+				t.Errorf("GenDir = %q, want %q", config.GenDir(), want)
+			}
+			if want := filepath.Join(dir, test.wantRoot); config.RootDir != want {
+				t.Errorf("RootDir = %q, want %q", config.RootDir, want)
+			}
+		})
+	}
+}
+
 // TestResolveEnrichConfig_GarbageTsconfig: an unparseable DISCOVERED tsconfig is
 // fatal — strict like tsc, never a silent fall-back to defaults that could
 // resolve types differently. resolveEnrichConfig calls fatal() (os.Exit), so
