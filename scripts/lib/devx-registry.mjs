@@ -113,7 +113,7 @@ export const AREAS = {
       {
         name: 'codegen',
         args: '[all|constants|kind|fnhashes|fncatalog|typeformats|diag|builtinpurefns|pluginkeys|sidecar]',
-        summary: 'regenerate the Go→TS mirrors, the pure-fn ids and the sidecar bundle',
+        summary: 'regenerate the Go→TS mirrors, the pure-fn ids and the sidecar bundle (one or more targets)',
         flags: [['--check', 'regenerate, then fail if a committed output drifted']],
       },
       {
@@ -414,6 +414,13 @@ export const usage = (area) => `usage: ${CLI} ${area} <${commandNames(area).join
 
 // A bare area word (`miondevx website`, nothing after it) prints that area's help
 // when the area says so; bench and env keep their bare form as a real run.
+// Every positional word is a codegen target (none, or `all`, means every one); an unknown word is returned in `unknown`.
+export const codegenTargets = (args, known) => {
+  const words = args.filter((arg) => !arg.startsWith('-'));
+  const names = words.length === 0 || words.includes('all') ? known : words;
+  return {names, unknown: names.filter((name) => !known.includes(name))};
+};
+
 export const bareShowsHelp = (verb, rest = []) => Boolean(AREAS[verb]?.bareHelp) && rest.length === 0;
 
 // Does this invocation need the engine built first? An unknown area or command

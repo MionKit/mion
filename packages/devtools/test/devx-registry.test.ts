@@ -12,6 +12,8 @@ import {describe, expect, it} from 'vitest';
 import {AREAS, CLI, HELP_WIDTH, TOP, commandNames, needsEngine} from '../../../scripts/lib/devx-registry.mjs';
 // @ts-expect-error untyped .mjs
 import {bareShowsHelp, drizzleE2ePacksItself, e2ePacksItself, renderHelp, usage} from '../../../scripts/lib/devx-registry.mjs';
+// @ts-expect-error untyped .mjs
+import {codegenTargets} from '../../../scripts/lib/devx-registry.mjs';
 
 const REPO_ROOT = join(__dirname, '../../..');
 
@@ -306,5 +308,25 @@ describe('devx registry — the entry file dispatches exactly the registered com
         entry.includes(`${command}: ['`) || entry.includes(`'${command}': ['`) || entry.includes(`sub === '${command}'`);
       expect(reachable, `release ${command}`).toBe(true);
     }
+  });
+});
+
+describe('devx registry — codegen targets', () => {
+  const known = ['constants', 'fnhashes', 'pluginkeys'];
+
+  it('runs every named target, not just the first', () => {
+    expect(codegenTargets(['fnhashes', 'pluginkeys', '--check'], known)).toEqual({
+      names: ['fnhashes', 'pluginkeys'],
+      unknown: [],
+    });
+  });
+
+  it('runs every target for no name or `all`', () => {
+    expect(codegenTargets(['--check'], known).names).toEqual(known);
+    expect(codegenTargets(['all'], known).names).toEqual(known);
+  });
+
+  it('reports an unknown name even after a known one', () => {
+    expect(codegenTargets(['constants', 'nope'], known).unknown).toEqual(['nope']);
   });
 });
