@@ -3,10 +3,10 @@ import {createMionRouter, Routes} from '@mionjs/router';
 
 export type User = {id: string; name: string; surname: string};
 
-// create the router once, options included: every helper below carries them by type
+// every helper below gets these options by type
 const mion = createMionRouter({basePath: 'api/v1'});
 
-// all function parameters will be automatically validated before the function is called
+// parameters are validated before each function runs
 const routes = {
   auth: mion.headersFn(
     (
@@ -35,5 +35,5 @@ const routes = {
 
 export const myApi = mion.initRoutes(routes);
 
-// Export the type of the Api (used by the client)
+// the client imports only this type
 export type MyApi = typeof myApi;
