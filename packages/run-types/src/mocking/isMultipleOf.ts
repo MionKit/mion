@@ -1,7 +1,6 @@
-// MIRROR of the check multipleOfCondition emits (ts-go-runtypes numeric/numberformat.go), so mocks and the
-// constrained-child matcher accept exactly what the generated validator accepts.
+// MIRROR of multipleOfCondition (ts-go-runtypes numeric/numberformat.go): mocks must accept what the validator accepts.
 
-// 4 × Number.EPSILON: above the rounding noise of `value / step`, far below a real miss.
+// Above the rounding noise of `value / step`, far below a real miss.
 export const DEFAULT_MULTIPLE_OF_TOLERANCE = 4 * Number.EPSILON;
 
 export function isMultipleOf(value: number, step: number, tolerance: number = DEFAULT_MULTIPLE_OF_TOLERANCE): boolean {

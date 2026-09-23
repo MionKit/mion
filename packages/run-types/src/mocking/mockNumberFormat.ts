@@ -47,10 +47,8 @@ function mockNumberParams(params: NumberParams, random: MockRandom): number {
   return result;
 }
 
-// An integer divisor multiplies back exactly; a fractional one does not (`75 * 0.0001` is 0.007500000000000001,
-// quotient 75.00000000000001). Rounding to 15 significant digits clears that noise, isMultipleOf is the validator's
-// own rule, the walk down covers the rare divisor where one rounding is not enough, and 0 is the last resort: zero
-// is a multiple of everything.
+// A fractional divisor does not multiply back exactly (`75 * 0.0001` is 0.007500000000000001); 15 digits clear it.
+// isMultipleOf is the validator's rule, the walk down covers a divisor one rounding misses, 0 is a multiple of all.
 function snapToMultiple(value: number, multipleOf: number, tolerance: number | undefined): number {
   const quotient = Math.floor(value / multipleOf);
   if (Number.isInteger(multipleOf)) return quotient * multipleOf;
