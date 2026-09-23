@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/program"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 )
 
@@ -333,88 +334,21 @@ func (sess *Session) resolveOutDir() string {
 	return filepath.Join(sess.inferSrcDir(), outputDirName)
 }
 
-// inferSrcDir picks the project's source root, the base for the default output dir; the preference order
-// mirrors how a human reads a tsconfig.
+// inferSrcDir is program.InferSrcDir over this session's Program, the one inference the enrich CLI shares.
 func (sess *Session) inferSrcDir() string {
 	cwd := sess.workingDir()
 	if sess.Program == nil || sess.Program.TS == nil {
 		return cwd
 	}
-	options := sess.Program.TS.Options()
-	// rootDir wins only at or below the working dir: one set wide to type-check sibling packages is an
-	// emit-root signal, not a source-root one, and honoring it would drop the output outside the project.
-	if options != nil && options.RootDir != "" {
-		if rootDir := sess.absPath(options.RootDir); isWithin(cwd, rootDir) {
-			return rootDir
-		}
+	rootDir, baseUrl := "", ""
+	if options := sess.Program.TS.Options(); options != nil {
+		rootDir, baseUrl = options.RootDir, options.BaseUrl
 	}
-	if ancestor := commonDir(sess.projectRootFiles()); ancestor != "" {
-		return ancestor
+	var fileNames []string
+	if commandLine := sess.Program.TS.CommandLine(); commandLine != nil {
+		fileNames = commandLine.FileNames()
 	}
-	if options != nil && options.BaseUrl != "" {
-		return sess.absPath(options.BaseUrl)
-	}
-	return cwd
-}
-
-// isWithin compares as forward-slash paths, so the prefix test is separator-safe.
-func isWithin(base, target string) bool {
-	if base == "" {
-		return false
-	}
-	base = strings.TrimSuffix(filepath.ToSlash(base), "/")
-	target = strings.TrimSuffix(filepath.ToSlash(target), "/")
-	return target == base || strings.HasPrefix(target, base+"/")
-}
-
-// projectRootFiles is the program's own root file set, node_modules entries dropped so a dependency
-// .d.ts cannot drag the common ancestor up to a shared parent.
-func (sess *Session) projectRootFiles() []string {
-	if sess.Program == nil || sess.Program.TS == nil {
-		return nil
-	}
-	commandLine := sess.Program.TS.CommandLine()
-	if commandLine == nil {
-		return nil
-	}
-	files := make([]string, 0)
-	for _, name := range commandLine.FileNames() {
-		if name == "" || strings.Contains(filepath.ToSlash(name), "/node_modules/") {
-			continue
-		}
-		files = append(files, name)
-	}
-	return files
-}
-
-// commonDir returns the deepest directory containing every path's parent, or "" when they share no
-// meaningful root. It works on forward-slash segments, which is how tsgo paths already arrive.
-func commonDir(paths []string) string {
-	var segmented [][]string
-	for _, p := range paths {
-		if p == "" {
-			continue
-		}
-		dir := filepath.ToSlash(filepath.Dir(p))
-		segmented = append(segmented, strings.Split(dir, "/"))
-	}
-	if len(segmented) == 0 {
-		return ""
-	}
-	common := segmented[0]
-	for _, segments := range segmented[1:] {
-		limit := min(len(common), len(segments))
-		matched := 0
-		for matched < limit && common[matched] == segments[matched] {
-			matched++
-		}
-		common = common[:matched]
-	}
-	// A lone leading "" means the paths share only the filesystem root: let the caller fall through.
-	if len(common) <= 1 {
-		return ""
-	}
-	return strings.Join(common, "/")
+	return program.InferSrcDir(cwd, rootDir, baseUrl, fileNames)
 }
 
 // materializeModules writes each entry module to typesDir/<basename>.js, creating parent dirs for a
