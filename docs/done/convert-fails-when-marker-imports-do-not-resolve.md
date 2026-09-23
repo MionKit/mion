@@ -5,7 +5,7 @@ status: done
 created: 2026-09-23
 ---
 
-# mion convert warns when it finds nothing to convert because imports do not resolve
+# mion convert reports when it finds nothing to convert because imports do not resolve
 
 ## Intent
 
@@ -34,7 +34,7 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 
 Ran as a delegated background task, so the plan was recorded here instead of a live approval.
 
-- New warning `CNV010` (`internal/convert/unresolvedimports.go`), added to the result in `ConvertFile` before recognition. For every import declaration whose specifier is `@mionjs/run-types`, one of its subpaths, `@mionjs/drizzle-orm` or a `@mionjs/drizzle-orm-*` dialect package, and whose module symbol the checker cannot find, the file gets one warning per package, `Decl` set to the package name. Level is warning: the exit code rule is unchanged, and the warning shows on stderr and in the `--report` file entry.
+- New warning `CNV010` (`internal/convert/unresolvedimports.go`), added to the result in `ConvertFile` before recognition. For every import declaration whose specifier is `@mionjs/run-types`, one of its subpaths, `@mionjs/drizzle-orm` or a `@mionjs/drizzle-orm-*` dialect package, and whose module symbol the checker cannot find, the file gets one ERROR per package, `Decl` set to the package name. It shipped first as a warning; on review the maintainer made it an error, so the run exits 1 and the diagnostic lands in the `--report` refusals. The rest of the file still converts.
 - `mion drizzle-migrate` does NOT share the blind spot: it matches `drizzle-orm/*` imports by name through the import map, so an unresolved drizzle still migrates. Reproduced and left as is.
-- Tests: `internal/convert/unresolvedimports_test.go` (warns once per package on both targets, unrelated packages ignored, file untouched; silent when imports resolve) and two cases in `packages/devtools/test/convert-cli.test.ts` (binary warns naming the package, exit 0, report carries CNV010; a working project prints no CNV010).
+- Tests: `internal/convert/unresolvedimports_test.go` (one error per package on both targets, unrelated packages ignored, file untouched; silent when imports resolve) and two cases in `packages/devtools/test/convert-cli.test.ts` (binary fails naming the package, exit 1, report refusals carry CNV010; a working project prints no CNV010).
 - Docs: a tip in `13.source-conversion.md` under "Shapes That Do Not Convert". The CNV codes are CLI local and not in the generated catalog, so the tip is the only place it is listed.

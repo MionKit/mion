@@ -12,7 +12,7 @@ import (
 // Recognition goes through these packages' symbols, so an unresolved import would read as a clean, empty conversion.
 var recognizedPackages = []string{marker.DefaultModule, drizzleRootModule}
 
-// unresolvedImportDiags warns once per recognized package the file imports but the checker cannot resolve.
+// unresolvedImportDiags reports an error once per recognized package the file imports but the checker cannot resolve.
 func unresolvedImportDiags(sourceFile *ast.SourceFile, typeChecker *checker.Checker, absPath string) []Diagnostic {
 	var diags []Diagnostic
 	seen := map[string]bool{}
@@ -29,7 +29,7 @@ func unresolvedImportDiags(sourceFile *ast.SourceFile, typeChecker *checker.Chec
 			continue
 		}
 		seen[module] = true
-		diags = append(diags, Diagnostic{Code: CodeUnresolvedImport, Severity: SeverityWarning, File: absPath, Decl: module,
+		diags = append(diags, Diagnostic{Code: CodeUnresolvedImport, Severity: SeverityError, File: absPath, Decl: module,
 			Message: fmt.Sprintf("import %q does not resolve, so declarations using it are not recognized and stay as written; install or build the package, or check the tsconfig paths and customConditions", module)})
 	}
 	return diags

@@ -9,7 +9,7 @@
 //     to the SAME injected id before and after conversion — the id oracle at
 //     the binary level, both call shapes covered;
 //   - --out-dir converts a copy (assets carried along, sources untouched);
-//   - an unresolved runtypes import warns (CNV010) instead of a silent no-op;
+//   - an unresolved runtypes import fails with CNV010 instead of a silent no-op;
 //   - flag validation exits non-zero.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
@@ -227,7 +227,7 @@ describe('mion convert (CLI e2e)', () => {
     }
   });
 
-  register('an import of a package that does not resolve warns with CNV010 naming it (exit 0, source untouched)', () => {
+  register('an import of a package that does not resolve fails with CNV010 naming it (exit 1, source untouched)', () => {
     const dir = makeProject();
     try {
       const unresolvedPath = path.join(dir, 'src', 'unresolved.ts');
@@ -238,12 +238,12 @@ describe('mion convert (CLI e2e)', () => {
       const before = fs.readFileSync(unresolvedPath, 'utf8');
       const reportPath = path.join(dir, 'report.json');
       const {status, stderr, report} = runConvert(dir, ['--to', 'type', unresolvedPath, '--report', reportPath]);
-      expect(status, report).toBe(0);
+      expect(status, report).toBe(1);
       expect(stderr).toContain('CNV010');
       expect(stderr).toContain('@mionjs/run-types/not-a-subpath');
       expect(fs.readFileSync(unresolvedPath, 'utf8')).toBe(before);
       const written = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-      expect(written.files[0].diags[0].code).toBe('CNV010');
+      expect(written.refusals[0].code).toBe('CNV010');
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
     }
