@@ -582,11 +582,17 @@ func PruneOrphanBlocks(text string) (string, int, []string, error) {
 		for lineStart > 0 && (text[lineStart-1] == ' ' || text[lineStart-1] == '\t') {
 			lineStart--
 		}
-		if lineStart == 0 || text[lineStart-1] == '\n' {
-			start = lineStart // the block began the line, so drop the indentation too
-		}
-		// Swallow a single trailing newline so the line disappears entirely.
-		if end < len(text) && text[end] == '\n' {
+		beganLine := lineStart == 0 || text[lineStart-1] == '\n'
+		switch {
+		case beganLine && end < len(text) && text[end] == ' ' && end+1 < len(text) && text[end+1] != '\n':
+			end++ // a replaced field carcass shares its line with the live field, so keep the field's indentation
+		case beganLine:
+			start = lineStart
+			// Swallow a single trailing newline so the line disappears entirely.
+			if end < len(text) && text[end] == '\n' {
+				end++
+			}
+		case end < len(text) && text[end] == '\n':
 			end++
 		}
 		builder.WriteString(text[cursor:start])
@@ -594,7 +600,68 @@ func PruneOrphanBlocks(text string) (string, int, []string, error) {
 		removed++
 	}
 	builder.WriteString(text[cursor:])
-	return builder.String(), removed, skipped, nil
+	return dropUnusedEnrichmentImports(builder.String()), removed, skipped, nil
+}
+
+// dropUnusedEnrichmentImports removes the friendly*/mock* value imports that only the pruned carcasses referenced.
+// An import naming anything else, or aliased with `as`, is left alone; unparseable text comes back unchanged.
+func dropUnusedEnrichmentImports(text string) string {
+	index, err := ParseMirror(scanFileName, []byte(text))
+	if err != nil || len(index.valueImports) == 0 {
+		return text
+	}
+	var importRanges [][2]int
+	for _, entry := range index.valueImports {
+		importRanges = append(importRanges, [2]int{entry.tokenStart, entry.end})
+	}
+	rest := textOutsideRanges([]byte(text), importRanges)
+
+	type edit struct {
+		start, end int
+		text       string
+	}
+	var edits []edit
+	for _, entry := range index.valueImports {
+		clause := text[entry.clauseStart:entry.clauseEnd]
+		if len(entry.names) == 0 || strings.Contains(clause, " as ") {
+			continue
+		}
+		var kept []string
+		enrichmentOnly := true
+		for _, name := range entry.names {
+			if !isFriendlyVar(name) && !isMockVar(name) {
+				enrichmentOnly = false
+				break
+			}
+			if referencesIdentifier(rest, name) {
+				kept = append(kept, name)
+			}
+		}
+		if !enrichmentOnly || len(kept) == len(entry.names) {
+			continue
+		}
+		if len(kept) > 0 {
+			edits = append(edits, edit{start: entry.clauseStart, end: entry.clauseEnd, text: strings.Join(kept, ", ")})
+			continue
+		}
+		end := entry.end
+		if end < len(text) && text[end] == '\n' {
+			end++
+		}
+		edits = append(edits, edit{start: entry.tokenStart, end: end})
+	}
+	if len(edits) == 0 {
+		return text
+	}
+	var builder strings.Builder
+	cursor := 0
+	for _, change := range edits {
+		builder.WriteString(text[cursor:change.start])
+		builder.WriteString(change.text)
+		cursor = change.end
+	}
+	builder.WriteString(text[cursor:])
+	return builder.String()
 }
 
 // statementBoundaryPattern matches a newline-anchored `export` declaration, a top-level statement boundary.

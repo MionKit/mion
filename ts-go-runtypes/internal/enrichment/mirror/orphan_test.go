@@ -416,3 +416,49 @@ func TestCarcassCrossesStatement(t *testing.T) {
 		t.Errorf("a clean @rtOrphanChild field carcass must not be flagged")
 	}
 }
+
+// TestPruneOrphanBlocks_SameLineCarcassKeepsIndent: a replaced field's carcass shares its line with the live field, which keeps its indent.
+func TestPruneOrphanBlocks_SameLineCarcassKeepsIndent(t *testing.T) {
+	src := "export const friendlyUser = {\n" +
+		"  rt$label: '',\n" +
+		"  /* @rtOrphanChild name: friendlyString, */ name: {rt$label: ''},\n" +
+		"};\n"
+	pruned, removed, _, pruneErr := PruneOrphanBlocks(src)
+	if pruneErr != nil || removed != 1 {
+		t.Fatalf("removed=%d err=%v", removed, pruneErr)
+	}
+	if !strings.Contains(pruned, "\n  name: {rt$label: ''},\n") {
+		t.Errorf("the live field must keep its two-space indent:\n%q", pruned)
+	}
+}
+
+// TestPruneOrphanBlocks_DropsImportsOnlyCarcassesUsed: a friendly*/mock* value import only a pruned carcass named goes.
+func TestPruneOrphanBlocks_DropsImportsOnlyCarcassesUsed(t *testing.T) {
+	src := "import type { User } from '../models/user';\n" +
+		"import type { FriendlyText } from '@mionjs/run-types';\n" +
+		"import { friendlyNumber } from '../numberFormats';\n" +
+		"import { friendlyAddress, friendlyEmail } from '../address';\n" +
+		"import { helper } from '../helpers';\n" +
+		"\n" +
+		"export const friendlyUser: FriendlyText<User> = {\n" +
+		"  /* @rtOrphanChild age: friendlyNumber, */ age: {rt$label: ''},\n" +
+		"  /* @rtOrphanChild email: friendlyEmail, */ email: {rt$label: ''},\n" +
+		"  home: friendlyAddress,\n" +
+		"};\n"
+	pruned, removed, _, pruneErr := PruneOrphanBlocks(src)
+	if pruneErr != nil || removed != 2 {
+		t.Fatalf("removed=%d err=%v", removed, pruneErr)
+	}
+	if strings.Contains(pruned, "numberFormats") {
+		t.Errorf("an import only the carcass used must go:\n%s", pruned)
+	}
+	if !strings.Contains(pruned, "import { friendlyAddress } from '../address';\n") {
+		t.Errorf("a partly used import keeps only its live names:\n%s", pruned)
+	}
+	if !strings.Contains(pruned, "import { helper } from '../helpers';\n") {
+		t.Errorf("a non-enrichment import is never touched:\n%s", pruned)
+	}
+	if !strings.Contains(pruned, "import type { FriendlyText } from '@mionjs/run-types';\n") {
+		t.Errorf("type imports are never touched:\n%s", pruned)
+	}
+}
