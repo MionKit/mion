@@ -11,9 +11,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/testfixtures"
 )
 
-// resolveRawFixture mirrors resolveFixture (bridge_test.go) but returns the RAW
-// (non-inlined) projected node via ResolveTypeRaw — the shape EmitClosure walks
-// so it can tell a named-type reference from an anonymous inline shape.
+// resolveRawFixture is resolveFixture (bridge_test.go) but raw, so EmitClosure can tell a named ref from an inline shape.
 func resolveRawFixture(t *testing.T, relPath, typeName string, sources map[string]string) *enrichment.Resolved {
 	t.Helper()
 	return resolveRawFixtureWith(t, relPath, typeName, sources, nil)
@@ -358,7 +356,7 @@ const formatUserSource = "import type * as TF from '@mionjs/run-types/formats';\
 	"  work: Address;\n" +
 	"}\n"
 
-// TestEmitClosure_FormatFieldsInline: two fields with the same format params get two inline nodes, never one shared const.
+// TestEmitClosure_FormatFieldsInline: same-param format fields get one inline node each, never a shared const.
 func TestEmitClosure_FormatFieldsInline(t *testing.T) {
 	closure := emitFormatClosure(t, "user.ts", "User", map[string]string{"user.ts": formatUserSource})
 	names := make([]string, 0, len(closure))
@@ -401,7 +399,7 @@ func TestEmitClosure_FormatFieldsInline(t *testing.T) {
 	}
 }
 
-// TestEmitClosure_FormatFieldsNamedObjectShared: a named user object type is still one shared const, its format field inline.
+// TestEmitClosure_FormatFieldsNamedObjectShared: a named object type stays one shared const, its format field inline.
 func TestEmitClosure_FormatFieldsNamedObjectShared(t *testing.T) {
 	closure := emitFormatClosure(t, "user.ts", "User", map[string]string{"user.ts": formatUserSource})
 	addrIdx, addr := findConst(closure, "Address")

@@ -26,8 +26,7 @@ func TestCommonDir(t *testing.T) {
 	}
 }
 
-// TestIsWithin pins the rootDir-acceptance guard: a rootDir at or below cwd is
-// honored, one above (the tsconfig.test.json `../..` case) is rejected.
+// TestIsWithin: a rootDir at or below cwd is honored, one above (the tsconfig.test.json `../..` case) is rejected.
 func TestIsWithin(t *testing.T) {
 	cases := []struct {
 		base, target string

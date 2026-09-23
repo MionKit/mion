@@ -78,7 +78,7 @@ type I18nSettings struct {
 
 // ResolveConfig computes the Config for a target file; genDirFlag, the --gen-dir value, wins over the tsconfig `genDir`.
 // With a tsconfig, ProjectRoot is its dir and RootDir is tsgo's parsed rootDir; with none, both are the target's dir.
-// The default genDir is <srcDir>/.mion, srcDir inferred by program.InferSrcDir exactly as the resolver does.
+// The default genDir is <srcDir>/.mion, srcDir inferred as the resolver does.
 // Pure: no disk I/O, no fatal.
 func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *program.InferredConfig, plugin PluginSettings) Config {
 	targetDir := filepath.Dir(absTargetFile)

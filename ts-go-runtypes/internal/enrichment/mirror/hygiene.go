@@ -168,10 +168,9 @@ func ScanDirtyTags(text string) []TagFinding {
 // blankArrayPattern matches an empty array at a property-value position, a blank mock pool or items slot.
 var blankArrayPattern = regexp.MustCompile(`:\s*(\[\s*\])`)
 
-// BlankValues returns every empty string or empty array sitting right after a `key:`: a blank rt$label ships blank to
-// the UI and a `pool: []` with no `min` / `max` beside it mocks nothing, so the completeness gate treats them like a @todo.
-// Detection is parse-guided, never a text grep: an empty string comes from the literal-token oracle and counts only when
-// the nearest non-space byte before it is a `:`, so an empty-string element inside a filled pool is not a blank slot.
+// BlankValues returns every empty string or array right after a `key:`; the completeness gate treats them like a @todo.
+// A blank rt$label ships blank to the UI, and a `pool: []` mocks nothing unless a `min` / `max` sits beside it.
+// Empty strings come from the literal-token oracle, never a grep, so an empty element in a filled pool is no slot.
 func (scan *Scan) BlankValues() []TagFinding {
 	var findings []TagFinding
 	for _, literal := range scan.literals {
@@ -184,8 +183,7 @@ func (scan *Scan) BlankValues() []TagFinding {
 		}
 		findings = append(findings, TagFinding{Kind: TagBlankValue, Start: start, End: end, BlockStart: start, BlockEnd: end})
 	}
-	// The IMPORT mask keeps string literals intact: blanking them would turn a filled `['x']` into `[   ]` and read as
-	// empty, while a `[]` inside a string is still shielded by its quotes, the `:` being followed by one.
+	// The IMPORT mask keeps strings: blanked, a filled `['x']` reads as `[   ]`; a `[]` in a string is shielded by its quote.
 	masked := scan.importMaskedText()
 	rangedPools := rangedEmptyPools(scan.sourceFile)
 	for _, match := range blankArrayPattern.FindAllStringSubmatchIndex(masked, -1) {
@@ -239,7 +237,6 @@ func rangedEmptyPools(sourceFile *ast.SourceFile) map[int]bool {
 	return offsets
 }
 
-// isEmptyArrayLiteral reports whether node is a `[]` literal with no elements.
 func isEmptyArrayLiteral(node *ast.Node) bool {
 	if node == nil || !ast.IsArrayLiteralExpression(node) {
 		return false

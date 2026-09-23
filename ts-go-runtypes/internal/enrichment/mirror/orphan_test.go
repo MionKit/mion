@@ -417,7 +417,7 @@ func TestCarcassCrossesStatement(t *testing.T) {
 	}
 }
 
-// TestPruneOrphanBlocks_SameLineCarcassKeepsIndent: a replaced field's carcass shares its line with the live field, which keeps its indent.
+// TestPruneOrphanBlocks_SameLineCarcassKeepsIndent: a carcass on the live field's line goes, the field keeps its indent.
 func TestPruneOrphanBlocks_SameLineCarcassKeepsIndent(t *testing.T) {
 	src := "export const friendlyUser = {\n" +
 		"  rt$label: '',\n" +

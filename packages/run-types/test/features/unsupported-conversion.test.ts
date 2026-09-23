@@ -1,7 +1,8 @@
 // The official list of what `mion convert` cannot rewrite, run against the real binary; the conversion guide's table
 // must match it. A refusal leaves that declaration byte-identical, converts the rest of the file and exits non-zero.
 // Shapes the target form cannot name still convert through the `getRunType<T>()` escape, except an unbound type
-// parameter or a self-reference, which the quoted escape cannot spell.
+// parameter or a self-reference, which the quoted escape cannot spell. scripts/core/converted-suites.mjs reads each
+// row's `says` fragment, so every refusal message must carry one.
 import {describe, expect, it} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';

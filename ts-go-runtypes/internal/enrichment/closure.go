@@ -239,7 +239,7 @@ func joinChildPath(path, segment string) string {
 	return path + "." + segment
 }
 
-// ownsConst reports whether a child gets its own shared const: a named type, but never a format alias, whose labels are per field.
+// ownsConst: a named type gets its own shared const, but never a format alias, whose labels are per field.
 func ownsConst(rt *reflection.RunType) bool {
 	return rt.TypeName != "" && rt.FormatAnnotation == nil
 }
