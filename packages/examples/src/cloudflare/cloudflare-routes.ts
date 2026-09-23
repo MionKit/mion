@@ -8,6 +8,6 @@ const routes = {
   }),
 } satisfies Routes;
 
-// the router is created and its routes initialized here; the server entry just imports this file
+// the server entry only imports this file
 export const myApi = mion.initRoutes(routes);
 export type MyApi = typeof myApi;

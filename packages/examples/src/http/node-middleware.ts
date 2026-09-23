@@ -9,10 +9,10 @@ const routes = {
 } satisfies Routes;
 mion.initRoutes(routes);
 
-// registers the routes and applies the options, but opens NO port: the host owns the socket
+// registers routes and options but opens no port: the host owns the socket
 await startNodeServer({asMiddleware: true});
 
-// mount mion wherever the host wants it, here everything under /api
+// here mion handles everything under /api
 const host = createServer((req, res) => {
   if (req.url?.startsWith('/api')) return httpRequestHandler(req, res);
   res.statusCode = 404;

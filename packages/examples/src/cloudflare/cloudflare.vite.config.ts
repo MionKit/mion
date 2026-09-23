@@ -19,6 +19,7 @@ export default defineConfig({
       fileName: 'worker',
     },
     rollupOptions: {
+      // Workers do not support dynamic code splitting, so bundle everything into one file
       output: {inlineDynamicImports: true},
     },
   },
