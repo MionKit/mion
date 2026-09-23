@@ -8,6 +8,7 @@ type Username = TF.String<{
 }>;
 type Percentage = TF.Number<{min: 0; max: 100}>;
 type BigPositive = TF.BigInt<{min: 0n}>;
+type Price = TF.Number<{min: 0; multipleOf: 0.01}>;
 
 type Profile = {
   handle: Username;
@@ -20,5 +21,10 @@ const isProfile = createValidateFn<Profile>();
 isProfile({handle: 'ada_99', completion: 80, followers: 1200n}); // true
 isProfile({handle: 'no', completion: 150, followers: -1n}); // false
 
-export {isProfile};
-export type {Profile};
+const isPrice = createValidateFn<Price>();
+
+isPrice(19.99); // true
+isPrice(19.995); // false
+
+export {isProfile, isPrice};
+export type {Profile, Price};
