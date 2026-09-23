@@ -54,11 +54,13 @@ that produces a reviewable, committed diff.
 ## Where it lives — the mirror directory, one file per family
 
 Enrichment is committed to a **mirror directory** whose tree shadows your source, split
-**per family**: a type defined in `<rootDir>/models/user.ts` gets its `friendly<Name>`
-consts (`FriendlyText<Name>`) in `<genDir>/enriched/friendly/models/user.ts` and its
-`mock<Name>` consts (`MockData<Name>`) in `<genDir>/enriched/mock/models/user.ts` (default
-`genDir`: `<genDir>/enriched`, configurable via the `mion` entry under
-`compilerOptions.plugins` in `tsconfig.json`). One mirror file per family per source
+**per family**: a type defined in `src/models/user.ts` gets its `friendly<Name>`
+consts (`FriendlyText<Name>`) in `<genDir>/enriched/friendly/src/models/user.ts` and its
+`mock<Name>` consts (`MockData<Name>`) in `<genDir>/enriched/mock/src/models/user.ts`. The
+path follows the source file from the tsconfig folder, or from `rootDir` when set
+(`rootDir: "src"` gives `friendly/models/user.ts`). Default `genDir`: `.mion` in the
+source folder (`rootDir`, else the folder all program files share), configurable via the
+`mion` entry under `compilerOptions.plugins` in `tsconfig.json`. One mirror file per family per source
 file, anchored at the type's **definition** (not its call sites); the two families never
 share a file, and each family file imports only its own wrapper type.
 
@@ -73,11 +75,11 @@ Each family file holds a strict `import type` back to the source (the rename
 **breadcrumb**) and committed consts you import by name:
 
 ```ts
-// src/.mion/enriched/mock/models/user.ts — GENERATED, COMMITTED, hand-editable
-import type {User} from '../../../../models/user';
-import type {MockData} from 'mion';
+// src/.mion/enriched/mock/src/models/user.ts — GENERATED, COMMITTED, hand-editable
+import type {User} from '../../../../../models/user';
+import type {MockData} from '@mionjs/run-types';
 
-/** @rtType User#9f3a @rtIds {name: a1, age: b2} */
+/** @rtType User#9f3a @rtIds {age: b2, name: a1} */
 // @todo: generated skeleton — fill in real data, then delete this line
 export const mockUser: MockData<User> = {name: {pool: []}, age: {pool: []}};
 ```
@@ -86,9 +88,13 @@ Consumers use a **real, committed import** (never plugin-injected — enrichment
 committed, so its link is committed too):
 
 ```ts
-import {friendlyUser} from 'src/.mion/enriched/friendly/models/user';
-import {mockUser} from 'src/.mion/enriched/mock/models/user';
-createMockDataFn<User>({data: mockUser});
+// src/services/userForm.ts
+import {createMockDataFn} from '@mionjs/run-types/mocking';
+import {friendlyUser} from '../.mion/enriched/friendly/src/models/user';
+import {mockUser} from '../.mion/enriched/mock/src/models/user';
+import type {User} from '../models/user';
+
+createMockDataFn<User>(undefined, {data: mockUser});
 ```
 
 ## The JSDoc tags
@@ -188,7 +194,7 @@ type-driven `$[val]` rendering (Currency / date bounds) — is covered in the
 ## `MockData<T>` — realistic sample data
 
 Per-field value pools and ranges (`pool`, `min`/`max`, `rt$items`/`rt$length`, `rt$optional`)
-that feed `createMockDataFn<T>({ data })`: the mechanical generator keeps handling
+that feed `createMockDataFn<T>(undefined, { data })`: the mechanical generator keeps handling
 structure + format-correctness, you supply _believable_ values. The full authoring DSL
 — node shapes per field kind, the MD0xx checks, end-to-end wiring — is the
 **`runtypes-mock-data`** skill; use it whenever you author or fill a mock map.
