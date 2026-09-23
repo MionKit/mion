@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-23
 ---
 
@@ -34,3 +34,15 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - With no `genDir` set, Next and the enrich CLI read and write the same mirror folder; a tsconfig `genDir` is honoured by Next.
 - `next-broker.test.ts` and the smoke-next app cover it.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan (approved 2026-09-23, delegated session, built as below)
+
+- `packages/devtools/src/core/unplugin.ts`: the plugin exposes `rtGenDir()`, returning the output root the resolver echoed from generate (explicit option > tsconfig `genDir` > inferred `<srcDir>/.mion`).
+- `packages/devtools/src/runtypes/next/broker.ts`: no more `genDir ?? '.mion'`. An explicit `genDir` still rides through the plugin options; otherwise the broker adopts `rtGenDir()` right after `buildStart`, then derives the stamp path. Every reader of that path (stamp, generated listing, watcher filter, reply) already runs after the readiness promise, so nothing needs the path earlier. A resolver that reports no root fails startup loudly instead of guessing.
+- Tests: `next-broker.test.ts` gains two cases (no genDir → `src/.mion`, no `<root>/.mion`; tsconfig `genDir: 'gen'` → `gen/`). Both fail on the old broker.
+- smoke-next e2e: its `genDir: '.rt'` moved from `withRunTypes` into the app's tsconfig plugin entry, and `build-outputs.test.mjs` checks the stamp lands under `.rt/` and no `.mion/` appears.
+
+## What shipped vs the spec
+
+- Docs: on `main`, the configuration page's genDir row already says the default is `.mion` in your source folder with no Next exception, which is now true, so no page changed. The "Next.js uses the working directory" wording lives only on the branch that also moves the enrich CLI default; that branch must drop Next from its parenthetical when it rebases on this fix.
+- The no-genDir half of "Next and the CLI agree" also needs that branch's CLI change (the CLI default rooted at the inferred source folder). This fix makes Next agree with the resolver and every other bundler host; the tsconfig-genDir half agrees with the CLI already.
