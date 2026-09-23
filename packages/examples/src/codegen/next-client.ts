@@ -1,10 +1,9 @@
 import {initClient} from '@mionjs/client';
 
-// importing only the RemoteApi type from the routes module the route handler registers
+// type only, from the routes module the route handler registers
 import type {MyApi} from './routes-example.ts';
 
-// Same `/api` prefix the router carries: the client builds the paths it calls from it, so leave
-// baseURL at the app's own origin.
+// same /api prefix as the router, so baseURL stays at the app's own origin
 const {routes} = initClient<MyApi>({
   baseURL: 'https://my-app.example.com',
   basePath: '/api',

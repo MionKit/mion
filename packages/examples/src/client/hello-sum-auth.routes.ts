@@ -4,8 +4,7 @@ import {createMionRouter, Routes} from '@mionjs/router';
 const mion = createMionRouter();
 
 const routes = {
-  // reads the Authorization header, runs before every route below.
-  // A returned FatalError ends the request (the routes never run) and stays typed
+  // runs before every route; a returned FatalError ends the request and stays typed
   auth: mion.headersFn(
     (
       ctx,
