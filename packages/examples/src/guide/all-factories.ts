@@ -23,9 +23,21 @@ import {createMockDataFn} from '@mionjs/run-types/mocking';
 type User = {id: bigint; name: string; signedUpAt: Date};
 
 // start-factories
-// one call per type at module level; each function is compiled at build time
+// one call per type at module level; the options pick which function is compiled
 const isUser = createValidateFn<User>();
+const isUserStrict = createValidateFn<User>(undefined, {checkUnknowns: true});
+const isUserUnionKeys = createValidateFn<User>(undefined, {
+  checkUnionUnknowns: true,
+});
+
 const userErrors = createGetValidationErrorsFn<User>();
+const userErrorsStrict = createGetValidationErrorsFn<User>(undefined, {
+  checkUnknowns: true,
+});
+const userErrorsUnionKeys = createGetValidationErrorsFn<User>(undefined, {
+  checkUnionUnknowns: true,
+});
+
 const userHasExtras = createHasUnknownKeysFn<User>();
 const userExtraErrors = createUnknownKeyErrorsFn<User>();
 const cloneUser = createCloneExactShapeFn<User>();
@@ -33,14 +45,28 @@ const cleanUser = createFormatTransformFn<User>();
 
 // untrusted input: restores and checks in one walk, throws on a mismatch
 const parseUser = createParseFn<User>();
+const parseUserStrip = createParseFn<User>(undefined, {strategy: 'strip'});
+const parseUserFail = createParseFn<User>(undefined, {strategy: 'fail'});
 
-// JSON as a string
-const encodeUser = createJsonEncoderFn<User>();
-const decodeUser = createJsonDecoderFn<User>();
+// JSON as a string; each strategy is its own compiled function
+const encodeUser = createJsonEncoderFn<User>(undefined, {strategy: 'clone'});
+const decodeUser = createJsonDecoderFn<User>(undefined, {strategy: 'strip'});
 
 // JSON as a value when you own the envelope; pair the same strategy on both sides
 const prepareUser = createPrepareForJsonFn<User>();
 const restoreUser = createRestoreFromJsonFn<User>();
+const prepareUserMutate = createPrepareForJsonFn<User>(undefined, {
+  strategy: 'mutate',
+});
+const restoreUserMutate = createRestoreFromJsonFn<User>(undefined, {
+  strategy: 'mutate',
+});
+const compactUser = createPrepareForJsonFn<User>(undefined, {
+  strategy: 'compact',
+});
+const uncompactUser = createRestoreFromJsonFn<User>(undefined, {
+  strategy: 'compact',
+});
 
 // the same road, with no strategy to pick
 const stringifyUser = createStringifyJsonFn<User>();
@@ -59,7 +85,17 @@ const userStandardSchema = createStandardSchema<User>();
 
 export {
   isUser,
+  isUserStrict,
+  isUserUnionKeys,
   userErrors,
+  userErrorsStrict,
+  userErrorsUnionKeys,
+  parseUserStrip,
+  parseUserFail,
+  prepareUserMutate,
+  restoreUserMutate,
+  compactUser,
+  uncompactUser,
   userHasExtras,
   userExtraErrors,
   cloneUser,
