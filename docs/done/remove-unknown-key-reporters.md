@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -41,3 +41,13 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - `checkUnknowns` validators behave and perform as before; the fuzz oracles still run.
 - `pnpm test`, `go -C ts-go-runtypes test ./internal/... ./cmd/...` and `pnpm run typecheck` pass.
 - The simplify-docs pass ran on every touched page and the simplify-comments pass on every touched source file, each committed on its own.
+
+## Plan, as built (approved 2026-09-24)
+
+- **Go**: the `hasUnknownKeys` and `unknownKeyErrors` operations, families, emitters, fnHash rows, `AxisHasUnknownKeysOptions`, the `HasUnknownKeysOptions` table and suffix, the `added*` protocol flags and the `HUK010` / `UKE010` diagnostics are gone. The strict validators keep `emitParentUnknownKeyErrors`, the key scan (`callCheckUnknownPropertiesForHas`) and the key-count compare. Code only the removed families reached went too: the `VariantPropagator` hook (it existed for `runsAfterValidation`), the `CodeE` shape of the union emitter, the `trackPath` arm parameter, the `checkNonRTProps` branch and the `reportsPatternKey` noop knob. `unknownkeys_has_variant_test.go` is deleted; the guard and union emitter tests moved onto `stripUnknownKeysWire`.
+- **checkUnknowns unchanged**: generated code for a corpus of strict validators (flat, nested, optional, index signatures, unions, Map, Set, tuples, classes, recursion, function members) is byte-identical before and after, except that an unused `kA_<id>` key array is no longer emitted.
+- **TS**: factories, override functions, types, fnHash axis, entry-tuple rows and the devtools protocol flags removed; `checkUnknowns` JSDoc rewritten without the two-call comparison.
+- **Tests**: fuzz oracles (O17, O18, O22 to O24) and feature tests use the `checkUnknowns` validators, `createRemoveUnknownKeysFn`, the `strip` decoder or an in-test reference walk; none dropped.
+- **Benchmarks**: the strict lanes now run `{checkUnknowns: true}` (they used the two-call form); the engine-branch probe uses the strict validator.
+- **Docs**: the validation page keeps `checkUnknowns` and a single "Removing Unknown Keys" section; three examples deleted.
+- **Findings delegated** to their own sessions and specs: the strip decoder's noop predicate is never run, and the devtools `added*` flag names drift from Go.
