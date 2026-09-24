@@ -34,8 +34,6 @@ export const SerializerModes = {
   json: 1,
   /** the body is a JSON string: every request body, and what the client sends */
   stringifyJson: 3,
-  /** Client-only: sends plain JSON without compiled functions, fetches metadata in the same response */
-  optimistic: 4,
 } as const;
 
 export type SerializerMode = keyof typeof SerializerModes;

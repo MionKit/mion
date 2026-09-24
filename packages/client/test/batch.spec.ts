@@ -47,7 +47,7 @@ describe('batch', () => {
     });
 
     it('the first batch call with a prefilled auth headersFn is one round trip (no retry)', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
       // the metadata cache is process-wide: forgetting the routes makes this their first call again.

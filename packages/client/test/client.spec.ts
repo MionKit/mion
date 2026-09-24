@@ -961,7 +961,7 @@ describe('client', () => {
 
   describe('optimistic mode with prefilled middleware and headers', () => {
     it('call() with prefilled auth headersFn should succeed in optimistic mode', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
 
@@ -974,7 +974,7 @@ describe('client', () => {
     });
 
     it('call({middlewares}) with explicit auth headersFn should succeed in optimistic mode', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
       const [greeting, error] = await routes.sayHello(someUser).call({
@@ -986,7 +986,7 @@ describe('client', () => {
     });
 
     it('subsequent optimistic calls should use standard flow (metadata cached)', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
 
@@ -1004,7 +1004,7 @@ describe('client', () => {
     });
 
     it('call() without auth should fail in optimistic mode (auth required by server)', async () => {
-      const {routes} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes} = initClient<MyApi>({baseURL});
 
       // the missing auth middleware's error is not the route's declared error -> undeclared slot
       const [, routeError, fatal] = await routes.sayHello(someUser).call();
@@ -1014,7 +1014,7 @@ describe('client', () => {
     });
 
     it('removing prefill should cause subsequent optimistic calls to fail', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
 
@@ -1063,7 +1063,7 @@ describe('client', () => {
     }
 
     it('first optimistic call with a PREFILLED auth headersFn is one round trip (no retry)', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
       // a scalar param, the simplest case of the optimistic path
@@ -1088,7 +1088,7 @@ describe('client', () => {
     });
 
     it('first optimistic call with an EXPLICIT auth headersFn is one round trip (no retry)', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       await forgetMetadata('sayHello', 'auth');
 
@@ -1105,7 +1105,7 @@ describe('client', () => {
     });
 
     it('every prefilled middleware rides along on the first optimistic call, and the ones in the chain resolve', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
       middlewares.session('valid-token').prefill();
@@ -1127,7 +1127,7 @@ describe('client', () => {
     });
 
     it('a SCOPED prefill rides along only on the first optimistic call of a route in its group', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
       middlewares.utils.scopeTag('tagged').prefill();
@@ -1171,7 +1171,7 @@ describe('client', () => {
     });
 
     it('optimistic mode with simple types should work without retry (no auth required route)', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
 
@@ -1184,7 +1184,7 @@ describe('client', () => {
     });
 
     it('optimistic mode with nested routes and prefilled auth', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const authHeaders = createAuthHeaders('XWYZ-TOKEN');
       middlewares.auth(authHeaders).prefill();
 
@@ -1217,7 +1217,7 @@ describe('client', () => {
     });
 
     it('a scalar payload goes optimistic: ONE round trip carrying the metadata ask', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
         const [result, error] = await routes.calculateAge(1990).call({middlewares: {auth: middlewares.auth(authHeaders)}});
@@ -1238,7 +1238,7 @@ describe('client', () => {
     // A keyed object is not the compact wire form, yet the server's decoder reads it and validation
     // holds: the optimistic bet pays off on an entity sent to a route the client has never seen.
     it('an object payload goes optimistic on a compact route: ONE round trip, keyed on the wire', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
         const [text, error] = await routes.compact
@@ -1256,7 +1256,7 @@ describe('client', () => {
     });
 
     it('a Date rides as ISO text in ONE round trip', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const date = new Date('2024-02-02T02:02:02.000Z');
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
@@ -1272,7 +1272,7 @@ describe('client', () => {
     });
 
     it('a Map rides as an array of entries in ONE round trip', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const map = new Map<string, number>([
         ['a', 1],
         ['b', 2],
@@ -1296,7 +1296,7 @@ describe('client', () => {
     });
 
     it('a Set rides as an array in ONE round trip', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const set = new Set(['x', 'y']);
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
@@ -1312,7 +1312,7 @@ describe('client', () => {
     });
 
     it('a bigint rides as a whole-number string in ONE round trip', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
         const [value, error] = await routes
@@ -1332,7 +1332,7 @@ describe('client', () => {
     // JavaScript-only one needs the [index, value] envelope, whose index needs the metadata. The
     // server refuses the bare value rather than misreading it, so this is the retry case.
     it('a union needing the [index, value] envelope is refused and retried, never misread', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
         const [value, error] = await routes
@@ -1351,7 +1351,7 @@ describe('client', () => {
     });
 
     it('a compact route with scalar params still goes optimistic and decodes its positional answer', async () => {
-      const {routes, middlewares} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
+      const {routes, middlewares} = initClient<MyApi>({baseURL});
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       try {
         const [user, error] = await routes.compact

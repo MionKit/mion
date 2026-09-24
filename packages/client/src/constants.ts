@@ -22,8 +22,6 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
   suffix: '',
   validateParams: true,
   sanitizeParams: true,
-  /** Default first-call mode: fetch the metadata first, then encode with the route's own strategy */
-  serializer: 'stringifyJson',
   /** Where the client keeps what it learned about the remote methods */
   storageEngine: DEFAULT_STORAGE_ENGINE,
 };
