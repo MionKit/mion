@@ -7,7 +7,7 @@
 
 import type {MethodMetadata, MethodWithOptions} from '@mionjs/core';
 
-/** Every row field a client acts on, normalised so the parity tests compare a bundled row with the server's alike. */
+/** Every row field a client acts on, normalised so parity tests compare a bundled row with the server's. */
 export function clientRowView(row: MethodWithOptions) {
   const parser = row.options?.parser as unknown;
   return {

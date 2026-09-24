@@ -81,13 +81,11 @@ export interface MethodTypes {
   /** a headers middleware's HeadersSubset parameter, `never` for every other method */
   headers: unknown;
   isAsync: boolean;
-  /** the type the build's sync id is made from: the syncId slot of MarkerSlots, written the same way */
+  /** the sync id's type: written like the syncId slot of MarkerSlots */
   sync: unknown;
 }
 
-/** The MethodTypes of a route or plain middleware handler. An interface over `H` on purpose: its
- *  members resolve only when read, so an API type carrying it costs a client nothing until a build
- *  reads the compiled types off it. */
+/** An interface on purpose: its members resolve only when read, so an API type carrying it costs a client nothing. */
 export interface HandlerMethodTypes<H extends Handler, RO = unknown, O = unknown> {
   params: HandlerParams<H>;
   return: HandlerReturn<H>;

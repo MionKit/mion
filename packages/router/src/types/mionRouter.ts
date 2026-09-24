@@ -59,9 +59,9 @@ export type RouterCallContext<O extends RouterOptionsInput> = CallContext<Contex
 // `RO` is the route's own options literal, defaulting to the no-parser shape, so a route naming no `parser` takes its
 // slots from `O`, the factory literal; the slot types fall back route, then router, then the built-in default.
 
-/** The four injection slots of a route / middleware, read from the handler's params and return. */
+/** The injection slots of a route / middleware, read from the handler's params and return. */
 type RouteSlots<O, H extends Handler, RO> = MarkerSlots<HandlerParams<H>, HandlerReturn<H>, RO, O>;
-/** The same four slots for a headers middleware, whose public params start after the HeadersSubset. */
+/** The same slots for a headers middleware, whose public params start after the HeadersSubset. */
 type HeadersRouteSlots<O, H extends HeaderHandler, RO> = MarkerSlots<HeaderHandlerParams<H>, HandlerReturn<H>, RO, O>;
 /** The two extra slots a headers middleware carries for its HeadersSubset parameter. */
 type HeaderSlots<H extends HeaderHandler> = HeaderMarkerSlots<HeaderHandlerHeaders<H>>;

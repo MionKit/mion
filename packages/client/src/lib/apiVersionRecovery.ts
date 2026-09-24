@@ -58,8 +58,7 @@ export function verifyMethodRows(baseURL: string, asked: string[], data: Seriali
   stashApiVersionError(staleRoutesError(stale));
 }
 
-/** The sync id alone decides: it covers the types and the wire format, all a safe call depends on.
- *  A row or id missing on either end counts as a difference: the bundle never had it, or the server dropped it. */
+/** Sync id only: it covers the types and wire formats; a row or id missing on either end never agrees. */
 export function rowsAgree(held: MethodWithOptions | undefined, served: MethodWithOptions | undefined): boolean {
   return !!held?.syncId && held.syncId === served?.syncId;
 }
