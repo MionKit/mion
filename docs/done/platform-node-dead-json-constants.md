@@ -50,4 +50,4 @@ against the whole repo found these with no user:
   they stay.
 
 Tests: `isUnsafePropertyName` had none, and after the list goes it is the only home of the three names, so
-`packages/core/test/utils.spec.ts` pins it. A barrel test in each package pins that the removed names stay gone.
+`packages/core/test/utils.spec.ts` pins it.

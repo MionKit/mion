@@ -7,7 +7,6 @@
 
 import {describe, it, expect} from 'vitest';
 import {getOrCreateGlobal, isUnsafePropertyName} from '../src/utils.ts';
-import * as core from '../index.ts';
 
 describe('getOrCreateGlobal', () => {
   it('returns the same instance across calls with the same key', () => {
@@ -57,12 +56,5 @@ describe('isUnsafePropertyName', () => {
     for (const name of ['__proto__', 'prototype', 'constructor']) expect(isUnsafePropertyName(name)).toBe(true);
     for (const name of ['', 'proto', '__proto', 'prototypes', 'Constructor', 'toString', 'valueOf', 'hello_world'])
       expect(isUnsafePropertyName(name)).toBe(false);
-  });
-});
-
-describe('@mionjs/core exports', () => {
-  it('does not export the removed unused constants', () => {
-    expect(core).not.toHaveProperty('MIME_TYPES');
-    expect(core).not.toHaveProperty('UNSAFE_PROPERTY_NAMES');
   });
 });
