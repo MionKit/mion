@@ -22,3 +22,6 @@ packages/type-budget/reports
 # Same, for the builder/format call-site budgets
 # (packages/run-types/test/types/builderCostReport.ts).
 packages/run-types/reports
+
+# Code cards: the code block is laid out by hand and IS the image; reformatting it moves the highlighted lines.
+packages/code-card/cards
