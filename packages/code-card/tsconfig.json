@@ -1,0 +1,17 @@
+{
+  // noEmit-only: this package ships nothing, Node runs its .ts sources directly.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "rootDir": ".",
+    "sourceMap": false,
+    "erasableSyntaxOnly": true,
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["."],
+  "exclude": ["node_modules", "tmp"]
+}

@@ -514,6 +514,18 @@ async function runContainer(args) {
   main(args);
 }
 
+// ── card: shareable code images (packages/code-card/) ────────────────────────
+// A child process, never an import: the app has its own dependencies (shiki, playwright-cli),
+// and Node runs its .ts sources directly.
+function runCard(args) {
+  const [sub, ...rest] = args;
+  if (!lookup('card', sub)) die(usage('card'), 2);
+  if (sub === 'new') return proxy('node', ['packages/code-card/src/new.ts', ...rest]);
+  if (sub === 'shot') return proxy('node', ['packages/code-card/src/shoot.ts', ...rest]);
+  if (sub === 'serve') return proxy('node', ['packages/code-card/src/server.ts', ...rest]);
+  die(usage('card'), 2);
+}
+
 // ── dispatch ────────────────────────────────────────────────────────────────
 // Coloured on a colour terminal, plain when piped or under NO_COLOR.
 const printHelp = (area) => void process.stdout.write(renderHelp(area, {color: stdoutHasColor()}));
@@ -541,6 +553,7 @@ async function dispatch(argv) {
     case 'release': return runRelease(rest);
     case 'container': return runContainer(rest);
     case 'env': return runEnv(rest);
+    case 'card': return runCard(rest);
     case 'verify': return steps([['pnpm', ['run', 'lint']], ['pnpm', ['run', 'check-format']]]);
     // The typecheck slice of `verify` on its own. Bare form is the root script `lint`
     // runs: every package carrying a typecheck:test script, plus the Go testfixtures and

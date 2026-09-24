@@ -666,7 +666,7 @@ describe('miondevx release — help and typos never reach the publish umbrella',
   });
 
   it('every area prints its help and exits 0', () => {
-    for (const area of ['core', 'website', 'bench', 'release', 'container', 'env']) {
+    for (const area of ['core', 'website', 'bench', 'release', 'container', 'env', 'card']) {
       const {status, stdout} = miondevx([area, '--help']);
       expect(status, area).toBe(0);
       expect(stdout.split('\n')[0].startsWith(area), area).toBe(true);

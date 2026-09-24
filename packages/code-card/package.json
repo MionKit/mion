@@ -1,0 +1,27 @@
+{
+  "name": "@mionjs/code-card",
+  "version": "0.12.2",
+  "private": true,
+  "type": "module",
+  "description": "Shareable code images: a snippet in an editor window, rendered to PNG (never published)",
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck:test": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf .coverage tmp",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "dependencies": {
+    "@playwright/cli": "0.1.13",
+    "shiki": "4.4.3"
+  }
+}
