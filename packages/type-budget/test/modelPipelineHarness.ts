@@ -170,7 +170,8 @@ export const selectedUser: User = {name: 'a-long-name', age: 21, createdAt: new 
     // (RouteDef<H, RO, O>), and PublicApi resolves the effective options per method
     // and names the types the server compiled it from (an interface over the
     // handler, resolved only when read).
-    budget: 525,
+    // 525 -> 547: initRoutes returns the router options under a symbol key (ApiWithOptions).
+    budget: 547,
     body: `
 const store = new Map<string, User>();
 const mion = createMionRouter({});
@@ -207,7 +208,8 @@ type UsersApi = typeof usersApi;
     // the client reads the richer public methods of step 4. Its mapping now keys on
     // the `type` discriminant instead of comparing each method structurally, which
     // measured 475 cheaper than the structural check over the new methods.
-    budget: 3048,
+    // 3048 -> 3076: initClient's router options slot, and the client maps string keys only.
+    budget: 3076,
     body: `
 const {routes} = initClient<UsersApi>({baseURL: 'http://localhost:3000'});
 const [inserted, insertError] = await routes.users.insert({name: 'a-long-name', age: 21}).call();
@@ -456,8 +458,10 @@ export function measureConsumerLane(): ConsumerLaneResult {
  *  strategies (steps 4 and 5 above).
  *
  *  12883 -> 13560: the API type carries the resolved options and the compiled
- *  types, and every subrequest its route id and API (steps 4 and 5 above). **/
-export const PIPELINE_TOTAL_BUDGET = 13560;
+ *  types, and every subrequest its route id and API (steps 4 and 5 above).
+ *
+ *  13560 -> 13597: the router options on the API type and initClient's options slot (steps 4 and 5). **/
+export const PIPELINE_TOTAL_BUDGET = 13597;
 
 /** What a downstream consumer may pay to read the model types out of the
  *  emitted `.d.ts`. ONE-WAY DOWNWARD, same rule as the step budgets. The first
