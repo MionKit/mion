@@ -510,6 +510,7 @@ func apiFnSite(id string, fnKeys []string) protocol.Site {
 				Options:        demand.Options,
 				FnHash:         demand.FnHash,
 				RejectCircular: demand.RejectCircular,
+				ComposedBy:     demand.ComposedBy,
 			})
 		}
 	}

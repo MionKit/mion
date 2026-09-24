@@ -1004,6 +1004,7 @@ func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateO
 			Options:        demand.Options,
 			FnHash:         demand.FnHash,
 			RejectCircular: demand.RejectCircular,
+			ComposedBy:     demand.ComposedBy,
 		}
 	}
 	return fnId, out, nil

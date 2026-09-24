@@ -12,6 +12,8 @@ type Demand struct {
 	// RejectCircular marks a CircularGuarded family's armed variant (`{rejectCircularRefs: true}`), the entries the emitter renders the
 	// inline guard for. It rides on the root / composite demand only, never on the JSON primitives a composite wraps.
 	RejectCircular bool
+	// ComposedBy names the JSON composite operation a primitive demand exists for; empty for a direct demand.
+	ComposedBy string
 }
 
 // DemandFor returns the cache-entry demands for a createX call site's InjectTypeFnArgs Fn token; a reflection-only site (unknown
@@ -66,8 +68,9 @@ func DemandForOp(op Operation, optionNames []string, strategy string, rejectCirc
 				continue
 			}
 			demands = append(demands, Demand{
-				FamilyTag: tag,
-				FnHash:    FnHashFor(primitive, nil, "", false),
+				FamilyTag:  tag,
+				FnHash:     FnHashFor(primitive, nil, "", false),
+				ComposedBy: op.Name,
 			})
 		}
 		return demands

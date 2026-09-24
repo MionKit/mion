@@ -391,3 +391,75 @@ getRunTypeId<string>();
 		t.Fatalf("un-overridden string carries Overrides: %+v", node.Overrides)
 	}
 }
+
+// overrideJsonValueDTS adds the value-level prepare factory and the encoder strategy option to overrideDTS.
+const overrideJsonValueDTS = `declare module '@mionjs/run-types' {
+  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
+  export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
+  export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
+  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
+  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate' | 'direct' | 'compact'};
+  export function createJsonEncoderFn<T>(val?: T, options?: CompTimeFnArgs<JsonEncoderOptions>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (v: unknown) => string | undefined;
+  export function createPrepareForJsonFn<T>(val?: T, options?: CompTimeFnArgs<{strategy?: 'clone' | 'mutate' | 'compact'}>, id?: InjectTypeFnArgs<T, 'prepareForJsonClone'>): (v: unknown) => unknown;
+  export function overrideJsonEncoder<T>(fn: PureFunction<(v: unknown) => string>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): void;
+}
+`
+
+func scanOverrideJsonValue(t *testing.T, code string) protocol.Response {
+	t.Helper()
+	r := setupInline(t, map[string]string{"runtypes.d.ts": overrideJsonValueDTS, "call.ts": code})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}, IncludeEntryModules: true})
+	if resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	return resp
+}
+
+// An encoder override must not prune a JSON primitive a caller asks for by name, in either call shape.
+func TestOverride_JsonEncoderKeepsDirectlyDemandedPrimitive(t *testing.T) {
+	for name, call := range map[string]string{
+		"static":      "createPrepareForJsonFn<Target>()",
+		"value-first": "createPrepareForJsonFn(target)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			resp := scanOverrideJsonValue(t, `import {createJsonEncoderFn, createPrepareForJsonFn, overrideJsonEncoder} from '@mionjs/run-types';
+type Target = {id: bigint};
+const target: Target = {id: 1n};
+overrideJsonEncoder<Target>((v) => 'OVR');
+export const enc = createJsonEncoderFn<Target>();
+export const prepare = `+call+`;
+`)
+			if !overrideRedirectRE.MatchString(allEntrySources(resp)) {
+				t.Fatalf("json encoder composite missing cfn redirect:\n%s", allEntrySources(resp))
+			}
+			if pjs := familyEntrySources(resp, "prepareForJsonClone"); !strings.Contains(pjs, "toString") {
+				t.Fatalf("a directly demanded pjs entry lost its body to the encoder override:\n%s", pjs)
+			}
+		})
+	}
+}
+
+// A nested overridden type still needs its structural primitive: the parent's body calls it.
+func TestOverride_JsonEncoderKeepsNestedPrimitive(t *testing.T) {
+	resp := scanOverrideJsonValue(t, `import {createJsonEncoderFn, overrideJsonEncoder} from '@mionjs/run-types';
+type Target = {id: bigint};
+overrideJsonEncoder<Target>((v) => 'OVR');
+export const enc = createJsonEncoderFn<Target>();
+export const parent = createJsonEncoderFn<{inner: Target}>();
+`)
+	if pjs := familyEntrySources(resp, "prepareForJsonClone"); !strings.Contains(pjs, "toString") {
+		t.Fatalf("the nested overridden type lost its pjs body:\n%s", pjs)
+	}
+}
+
+// The compact encoder's primitive is pruned like the other strategies' when only the overridden composite asks.
+func TestOverride_JsonEncoderCompactPrunesPrimitive(t *testing.T) {
+	resp := scanOverrideJsonValue(t, `import {createJsonEncoderFn, overrideJsonEncoder} from '@mionjs/run-types';
+type Target = {id: bigint};
+overrideJsonEncoder<Target>((v) => 'OVR');
+export const enc = createJsonEncoderFn<Target>(undefined, {strategy: 'compact'});
+`)
+	if cj := familyEntrySources(resp, "compactForJson"); strings.Contains(cj, "toString") {
+		t.Fatalf("overridden compact encoder must prune cj, got:\n%s", cj)
+	}
+}
