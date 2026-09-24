@@ -7,12 +7,12 @@ import (
 )
 
 // expectedCanonicalKeyCount is a canary: when it trips, an operation changed, so re-confirm the collision guard holds.
-// 24: 11 AxisNone ops, val + verr 3 each (3 numberModes), jsonEncoder 4 + jsonDecoder 3.
-// +11: each CircularGuarded op adds one armed key per plain variant (val 3, verr 3, tb 1, jsonEncoder 4).
+// 21: 9 AxisNone ops, val + verr 3 each (3 numberModes), jsonEncoder 3 + jsonDecoder 3.
+// +10: each CircularGuarded op adds one armed key per plain variant (val 3, verr 3, tb 1, jsonEncoder 3).
 // +12 each: vst / vest (`checkUnknowns`) and vuk / veuk (`checkUnionUnknowns`), 6 keys apiece like val / verr.
 // vst / vest are what forced FnHashLen 3 → 4 (see fnhash.go).
 // +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
-const expectedCanonicalKeyCount = 24 + 11 + 1 + 1 + 12 + 12 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+const expectedCanonicalKeyCount = 21 + 10 + 1 + 1 + 12 + 12 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.
