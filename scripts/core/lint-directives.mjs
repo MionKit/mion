@@ -1,6 +1,5 @@
-// lint-directives.mjs — fails when a `@mion-downgrade-error` / `@mion-expect-error` comment in packages/ is
-// stale or wrong. The main oxlint config ignores test/ and examples/, where nearly all of them live, and a
-// whole-tree pass takes minutes, so this lints only the files that carry one.
+// Fails on a stale or wrong `@mion-downgrade-error` / `@mion-expect-error` in packages/. The main oxlint config
+// ignores test/ and examples/, where nearly all live, and a whole-tree pass takes minutes.
 import {join} from 'node:path';
 import {REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, green, reportCliError, run} from '../lib/proc.mjs';
