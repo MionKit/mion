@@ -94,7 +94,7 @@ describe('compact strategy: union members holding nested objects', () => {
           for (const lane of ALL_LANES) {
             const codec = compiled.codecs[lane];
             expect(codec, `${lane} codec wired`).toBeDefined();
-            const back = codec!.decode(codec!.encode(value));
+            const back = codec!.decode(codec!.encode(value) as string);
             expect(back, `${lane} round-trip`).toEqual(value);
             expect(compiled.validate!(back), `${lane} decoded value validates`).toBe(true);
             // Cross-lane agreement: re-encoding the decoded value on the clone

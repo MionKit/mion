@@ -23,8 +23,8 @@ export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebu
 
 /** A wired codec: encode returns a JSON string, or undefined for an undefined root. **/
 export interface WiredCodec {
-  encode: (value: unknown) => unknown;
-  decode: (wire: unknown) => unknown;
+  encode: (value: unknown) => string | undefined;
+  decode: (wire: string) => unknown;
 }
 
 export interface CompiledCodecs {
@@ -172,9 +172,11 @@ function wireLane(
   byTag: Record<string, readonly unknown[]>
 ): void {
   const codec = wire(wireErrors, lane, () => ({
-    encode: createJsonEncoderFn(undefined, undefined, tupleOrThrow(byTag, LANE_TAGS[lane].encode) as never) as (
-      value: unknown
-    ) => unknown,
+    encode: createJsonEncoderFn(
+      undefined,
+      undefined,
+      tupleOrThrow(byTag, LANE_TAGS[lane].encode) as never
+    ) as WiredCodec['encode'],
     decode: buildDecoder(lane, tupleOrThrow(byTag, LANE_TAGS[lane].decode)),
   }));
   if (codec) codecs[lane] = codec;
@@ -187,12 +189,12 @@ function tupleOrThrow(byTag: Record<string, readonly unknown[]>, tag: string): r
 }
 
 // The composites parse the string themselves; the rjs primitive takes an already-parsed value.
-function buildDecoder(lane: LaneId, tuple: readonly unknown[]): (wire: unknown) => unknown {
+function buildDecoder(lane: LaneId, tuple: readonly unknown[]): WiredCodec['decode'] {
   if (lane === 'rebuild') {
     const restore = getRTFunction<'restoreFromJsonClone'>(tuple);
-    return (wire: unknown) => restore(JSON.parse(wire as string));
+    return (wire: string) => restore(JSON.parse(wire));
   }
-  return createJsonDecoderFn(undefined, undefined, tuple as never) as (wire: unknown) => unknown;
+  return createJsonDecoderFn(undefined, undefined, tuple as never) as WiredCodec['decode'];
 }
 
 // Build a factory, recording a throw as a wire error rather than aborting.
