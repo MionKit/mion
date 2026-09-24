@@ -43,6 +43,11 @@ func (ClassSerializerRegEmitter) EmitDependencyCall(rt *reflection.RunType, chil
 	panic("typefns: the classSerializerReg emitter never dep-calls (the name card renders whole at the root)")
 }
 
+// IsNoopType — never a noop, the root always returns the rendered document.
+func (ClassSerializerRegEmitter) IsNoopType(_ *reflection.RunType, _ *EmitContext) bool {
+	return false
+}
+
 // Finalize — the body is always the single return statement; never a noop.
 func (ClassSerializerRegEmitter) Finalize(rawCode string) (string, bool) {
 	return rawCode, false

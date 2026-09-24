@@ -14,22 +14,9 @@ func (UnknownKeysToUndefinedEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-func (UnknownKeysToUndefinedEmitter) Supports(rt *reflection.RunType) bool {
-	return unknownKeysSupports(rt)
-}
-
 func (UnknownKeysToUndefinedEmitter) IsRTInlined(ctx *InlineContext) bool {
 	return DefaultIsRTInlined(ctx)
 }
-
-// IsNoopType: see isNoopForUnknownKeys, the shared five-family mirror.
-func (UnknownKeysToUndefinedEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
-	return isNoopForUnknownKeys(rt, ctx, unknownKeysToUndefinedNoopSpec)
-}
-
-// NoopChildComposesAround — a child with nothing to undefine mutates
-// nothing; empty code composes correctly.
-func (UnknownKeysToUndefinedEmitter) NoopChildComposesAround() {}
 
 func (UnknownKeysToUndefinedEmitter) ReturnName() string {
 	return "v"

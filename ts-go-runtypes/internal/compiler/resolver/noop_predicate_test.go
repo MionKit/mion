@@ -39,6 +39,8 @@ type Stamped = {at: Date; name: string};
 type WithBig = {n: bigint};
 type WithMap = {m: Map<string, number>};
 type WithSet = {s: Set<string>};
+type MapOfObj = Map<string, Compat>;
+type SetOfObj = Set<Compat>;
 type WithFn = {name: string; onClick: () => void};
 type WithTmpl = {route: ` + "`/api/${string}`" + `};
 type Tup = [string, number, boolean?];
@@ -94,6 +96,8 @@ getRunTypeId<Stamped>();
 getRunTypeId<WithBig>();
 getRunTypeId<WithMap>();
 getRunTypeId<WithSet>();
+getRunTypeId<MapOfObj>();
+getRunTypeId<SetOfObj>();
 getRunTypeId<WithFn>();
 getRunTypeId<WithTmpl>();
 getRunTypeId<Tup>();
@@ -168,24 +172,10 @@ func TestNoopPredicate_SoundAgainstEmitters(t *testing.T) {
 			refTable[rt.ID] = rt
 		}
 	}
-	emitters := map[string]typefunctions.Emitter{
-		"prepareForJsonMutate":   typefunctions.PrepareForJsonEmitter{},
-		"restoreFromJsonMutate":  typefunctions.RestoreFromJsonEmitter{},
-		"restoreFromJsonClone":   typefunctions.RestoreFromJsonCloneEmitter{},
-		"prepareForJsonClone":    typefunctions.PrepareForJsonCloneEmitter{},
-		"formatTransform":        typefunctions.FormatTransformEmitter{},
-		"validate":               typefunctions.ValidateEmitter{},
-		"validationErrors":       typefunctions.ValidationErrorsEmitter{},
-		"stringifyJson":          typefunctions.StringifyJsonEmitter{},
-		"compactForJson":         typefunctions.CompactForJsonEmitter{},
-		"compactFromJson":        typefunctions.CompactFromJsonEmitter{},
-		"toBinary":               typefunctions.ToBinaryEmitter{},
-		"fromBinary":             typefunctions.FromBinaryEmitter{},
-		"hasUnknownKeys":         typefunctions.HasUnknownKeysEmitter{},
-		"removeUnknownKeys":      typefunctions.RemoveUnknownKeysEmitter{},
-		"unknownKeyErrors":       typefunctions.UnknownKeyErrorsEmitter{},
-		"unknownKeysToUndefined": typefunctions.UnknownKeysToUndefinedEmitter{},
-		"stripUnknownKeysWire":   typefunctions.StripUnknownKeysWireEmitter{},
+	// Every registered family, so a newly added or newly wired predicate joins the corpus without a list to update.
+	emitters := make(map[string]typefunctions.Emitter, len(typefunctions.Families))
+	for _, spec := range typefunctions.Families {
+		emitters[spec.Key] = spec.Emitter
 	}
 	facts := typefunctions.NewFactsTable()
 	checked, skippedCyclic, conservativeMisses := 0, 0, 0

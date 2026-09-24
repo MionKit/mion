@@ -1003,23 +1003,19 @@ func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visite
 }
 
 // unknownKeysNoopSpec parameterises the shared unknown-keys predicate across the family variants, which
-// differ in what they DO at a node and, in these two spots, in WHETHER a node emits at all.
+// differ in what they DO at a node and, in one spot, in WHETHER a node emits at all.
 type unknownKeysNoopSpec struct {
 	// fact is the family's own memo lane (verdicts differ per family).
 	fact factKind
 	// reportsPatternKey marks the reporting families, which sweep a pattern key whatever the value type (a key
-	// matching no pattern is reported); the to-undefined families sweep by value type like a plain key.
+	// matching no pattern is reported); the wire strip family sweeps by value type like a plain key.
 	reportsPatternKey bool
-	// mapSetAlwaysNoop: ukuw keeps the Map/Set arm noop on the wire side, the instanceof check being unable to
-	// match the still-parsed array; the others recurse into the iterable's inner types.
-	mapSetAlwaysNoop bool
 }
 
 var (
-	hasUnknownKeysNoopSpec         = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys, reportsPatternKey: true}
-	unknownKeyErrorsNoopSpec       = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors, reportsPatternKey: true}
-	unknownKeysToUndefinedNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeysToUndefined}
-	stripUnknownKeysWireSpec       = unknownKeysNoopSpec{fact: factNoopStripUnknownKeysWire, mapSetAlwaysNoop: true}
+	hasUnknownKeysNoopSpec   = unknownKeysNoopSpec{fact: factNoopHasUnknownKeys, reportsPatternKey: true}
+	unknownKeyErrorsNoopSpec = unknownKeysNoopSpec{fact: factNoopUnknownKeyErrors, reportsPatternKey: true}
+	stripUnknownKeysWireSpec = unknownKeysNoopSpec{fact: factNoopStripUnknownKeysWire}
 )
 
 /** isNoopForUnknownKeys reports whether an unknown-keys family entry for rt
@@ -1069,9 +1065,6 @@ func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unk
 		case reflection.SubKindNone:
 			return unknownKeysNoopObject(rt, ctx, spec, visited)
 		case reflection.SubKindMap, reflection.SubKindSet:
-			if spec.mapSetAlwaysNoop {
-				return true
-			}
 			for _, innerType := range iterableInnerTypes(rt, ctx) {
 				if innerType == nil {
 					continue
