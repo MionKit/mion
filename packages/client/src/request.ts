@@ -113,9 +113,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
         this.addSubRequest((await loadMetadataFromServer()).createMetadataSubRequest(missingIds));
       } else {
         // After a version mismatch each route is confirmed once, on its first use, riding this request.
-        if (hasApiVersionMismatch()) {
+        if (hasApiVersionMismatch(this.options.baseURL)) {
           const lane = await loadMetadataFromServer();
-          const unverified = lane.unverifiedIds(subRequestIds);
+          const unverified = lane.unverifiedIds(this.options.baseURL, subRequestIds);
           if (unverified.length) {
             this.verifying = unverified;
             this.addSubRequest(lane.createVerifySubRequest(unverified));
@@ -174,10 +174,10 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
 
       const callFailed = this.shouldRetryWithProperSerialization(deserialized);
       // A client carrying build-compiled routes replaces them when the server's version differs.
-      const mismatch = noteServerApiVersion(this.response.headers.get(BUILD_VERSION_HEADER));
+      const mismatch = noteServerApiVersion(this.options.baseURL, this.response.headers.get(BUILD_VERSION_HEADER));
       const rows = this.verifying && metadataRowsOf(deserialized[MION_ROUTES.methodsMetadata]);
       if (rows?.methods) {
-        (await loadMetadataFromServer()).verifyMethodRows(this.verifying!, rows);
+        (await loadMetadataFromServer()).verifyMethodRows(this.options.baseURL, this.verifying!, rows);
         delete deserialized[MION_ROUTES.methodsMetadata];
       }
       // Only a FAILED call is repeated: it already ran server-side, and repeating a successful mutation would run it twice.

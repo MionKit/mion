@@ -14,12 +14,19 @@ import {stashApiVersionError} from './apiBuildVersion.ts';
 import {dropBundledMethods, getMethod} from './methods.ts';
 import {installMethodRows} from './clientMethodsMetadata.ts';
 
-/** Ids the server has confirmed: each route is checked once, on its first use after the mismatch. */
-const verifiedIds = new Set<string>();
+/** Ids each server (baseURL) has confirmed: each route is checked once per server, on its first use after the mismatch. */
+const verifiedIds = new Map<string, Set<string>>();
+
+function verifiedBy(baseURL: string): Set<string> {
+  let ids = verifiedIds.get(baseURL);
+  if (!ids) verifiedIds.set(baseURL, (ids = new Set()));
+  return ids;
+}
 
 /** The ids to ask the server to confirm, out of the ones this request calls. */
-export function unverifiedIds(ids: string[]): string[] {
-  return ids.filter((id) => !verifiedIds.has(id));
+export function unverifiedIds(baseURL: string, ids: string[]): string[] {
+  const verified = verifiedBy(baseURL);
+  return ids.filter((id) => !verified.has(id));
 }
 
 /** Tests only: forgets which routes were confirmed. */
@@ -39,8 +46,9 @@ export function createVerifySubRequest(methodIds: string[]): SubRequest<any> {
 }
 
 /** Compares every field the build version hashes, `options` included: this side holds both full rows. */
-export function verifyMethodRows(asked: string[], data: SerializableMethodsData): void {
-  for (const id of asked) verifiedIds.add(id);
+export function verifyMethodRows(baseURL: string, asked: string[], data: SerializableMethodsData): void {
+  const verified = verifiedBy(baseURL);
+  for (const id of asked) verified.add(id);
   // Only the asked ids: comparing the middleware riding along would report a route this call never uses.
   const stale = asked.filter((id) => !rowsAgree(getMethod(id), data.methods[id] as MethodWithOptions | undefined));
   if (!stale.length) return;
