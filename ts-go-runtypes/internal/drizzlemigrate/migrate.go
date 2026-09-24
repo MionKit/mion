@@ -329,16 +329,6 @@ func (file *fileRun) collectSplits() {
 	})
 }
 
-// enclosingSplit returns the split declaration whose initializer contains pos.
-func (file *fileRun) enclosingSplit(pos int) *splitDecl {
-	for _, split := range file.splits {
-		if pos >= split.initStart && pos < split.initEnd {
-			return split
-		}
-	}
-	return nil
-}
-
 // inRecorderRegion reports whether pos sits in a split declaration's initializer or a table factory's.
 func (file *fileRun) inRecorderRegion(pos int) bool {
 	for _, region := range file.regions {

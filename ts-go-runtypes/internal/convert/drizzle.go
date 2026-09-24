@@ -708,21 +708,6 @@ func skipTrivia(source string, pos int) int {
 
 // ── builders AST → spec ──────────────────────────────────────────────────────
 
-// namespaceQualifier returns the namespace identifier of `NS.member`, or nil when the reference is
-// not namespace-qualified.
-func namespaceQualifier(expr *ast.Node) (nsIdent *ast.Node, member string) {
-	if expr == nil {
-		return nil, ""
-	}
-	if ast.IsPropertyAccessExpression(expr) {
-		access := expr.AsPropertyAccessExpression()
-		if access.Expression != nil && ast.IsIdentifier(access.Expression) {
-			return access.Expression, access.Name().Text()
-		}
-	}
-	return nil, ""
-}
-
 // sqlTemplateText returns the raw text of the slim `sql` tagged template with NO substitutions,
 // verified by package import rather than by name. An interpolated template has no type spelling.
 func sqlTemplateText(node *ast.Node, typeChecker *checker.Checker) (string, bool) {

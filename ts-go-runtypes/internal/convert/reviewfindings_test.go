@@ -12,32 +12,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/convert"
 )
 
-// expectSingleRefusal asserts the conversion produced exactly one Error diag
-// with the given code and message fragment, and left the source byte-identical.
-func expectSingleRefusal(t *testing.T, source string, target convert.Target, code, says string) {
-	t.Helper()
-	output, diags := convertOne(t, source, convert.Options{Target: target})
-	errors := 0
-	for _, diagnostic := range diags {
-		if diagnostic.Severity != convert.SeverityError {
-			continue
-		}
-		errors++
-		if diagnostic.Code != code {
-			t.Errorf("--to %s: expected %s, got %s: %s", target, code, diagnostic.Code, diagnostic.Message)
-		}
-		if !strings.Contains(diagnostic.Message, says) {
-			t.Errorf("--to %s: message %q does not mention %q", target, diagnostic.Message, says)
-		}
-	}
-	if errors != 1 {
-		t.Errorf("--to %s: expected exactly one refusal, got %d: %+v", target, errors, diags)
-	}
-	if output != source {
-		t.Errorf("--to %s: a refused declaration must stay byte-identical:\n%s", target, output)
-	}
-}
-
 func TestTemplateLiteral_CarriageReturnEscapes(t *testing.T) {
 	source := "export type Weird = `a\\r${string}b`;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)

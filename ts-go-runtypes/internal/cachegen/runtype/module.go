@@ -349,15 +349,6 @@ func writeExpressionSpecials(buffer *strings.Builder, name string, runType *refl
 	}
 }
 
-// joinQuoted renders a string slice as the inside of a JS array literal.
-func joinQuoted(values []string) string {
-	quoted := make([]string, 0, len(values))
-	for _, value := range values {
-		quoted = append(quoted, quoteJS(value))
-	}
-	return strings.Join(quoted, ", ")
-}
-
 // writeContains emits the `<ref>.contains = [{child, min, max}, …];` line, read by the mock walker and by the
 // negation matcher's occurrence counting.
 func writeContains(buffer *strings.Builder, name string, runType *reflection.RunType) {

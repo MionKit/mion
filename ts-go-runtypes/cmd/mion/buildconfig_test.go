@@ -7,11 +7,10 @@ import (
 	"testing"
 )
 
-// intPtr / boolPtr / strPtr build the pointer fields of a tsRuntypesPlugin —
+// intPtr / boolPtr build the pointer fields of a tsRuntypesPlugin —
 // a present key vs the nil "absent" the merge must leave alone.
-func intPtr(v int) *int       { return &v }
-func boolPtr(v bool) *bool    { return &v }
-func strPtr(v string) *string { return &v }
+func intPtr(v int) *int    { return &v }
+func boolPtr(v bool) *bool { return &v }
 
 // baseFlags returns build flags as the binary declares them with nothing set —
 // the flag defaults that double as the binary defaults.

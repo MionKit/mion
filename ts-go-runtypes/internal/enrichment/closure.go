@@ -54,14 +54,13 @@ const (
 
 // closureEmitter emits every named type reachable from the root in dependency order, each named child a const-var reference.
 type closureEmitter struct {
-	resolve        func(id string) *reflection.RunType
-	declFiles      map[string]string    // ID → absolute declaration source file (optional)
-	state          map[string]emitState // keyed by named type's RunType.ID
-	consts         []NamedConst         // accumulated in topological order
-	names          map[string]string    // ID → sanitized base name (e.g. "User"), unique
-	usedVar        map[string]bool      // taken sanitized base names, for disambiguation
-	sourceLocale   string
-	friendlyErrors string // never set nor read; the plural-arm locale is sourceLocale
+	resolve      func(id string) *reflection.RunType
+	declFiles    map[string]string    // ID → absolute declaration source file (optional)
+	state        map[string]emitState // keyed by named type's RunType.ID
+	consts       []NamedConst         // accumulated in topological order
+	names        map[string]string    // ID → sanitized base name (e.g. "User"), unique
+	usedVar      map[string]bool      // taken sanitized base names, for disambiguation
+	sourceLocale string
 }
 
 // EmitClosure emits one NamedConst per named type reachable from root, in dependency order, anonymous shapes inlined.

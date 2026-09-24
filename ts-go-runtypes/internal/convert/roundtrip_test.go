@@ -29,11 +29,6 @@ func declIDsIn(t testing.TB, sources map[string]string) map[string]string {
 	return ids
 }
 
-// declGraphs is declIDs for the C6 oracle: name → canonical reflection graph.
-func declGraphs(t testing.TB, source string) map[string]string {
-	return declGraphsIn(t, map[string]string{"main.ts": source})
-}
-
 func declGraphsIn(t testing.TB, sources map[string]string) map[string]string {
 	t.Helper()
 	prog, session, cwd := setupConvert(t, sources)

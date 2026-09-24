@@ -542,14 +542,6 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 	return out
 }
 
-// typeIDFromEntryKey returns the type-id tail of a `<fnHash>_<typeId>` fn-entry key, empty when there is no underscore.
-func typeIDFromEntryKey(key string) string {
-	if idx := strings.IndexByte(key, '_'); idx >= 0 {
-		return key[idx+1:]
-	}
-	return ""
-}
-
 // sameTransformPath matches a wire-tagged file path against a requested one, tolerating the abs-vs-rel skew: scan
 // Sites echo the REQUESTED (often relative) path, but pure-fn Replacements carry the program's ABSOLUTE file name.
 // Mirrors the JS scan-batcher's projectFile/samePath rule; matching on a separator boundary keeps `a/user.ts` from
@@ -560,15 +552,6 @@ func sameTransformPath(tagged, requested, requestedAbs string) bool {
 		return true
 	}
 	return strings.HasSuffix(tagged, "/"+requested) || strings.HasSuffix(tagged, "\\"+requested)
-}
-
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
 }
 
 // dispatch is the un-instrumented op switch. metrics may be nil (the

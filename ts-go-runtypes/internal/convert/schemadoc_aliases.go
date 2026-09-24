@@ -11,8 +11,6 @@ import (
 
 type formatFamily = schemadoc.FormatFamily
 
-var formatFamilies = schemadoc.FormatFamilies
-
 func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[string]any, bool) {
 	return schemadoc.LeafFormat(annotation)
 }
@@ -46,8 +44,6 @@ func literalValueText(node *reflection.RunType) (string, bool) {
 }
 
 func formatNumberLiteral(value float64) (string, bool) { return schemadoc.FormatNumberLiteral(value) }
-
-func isBigIntLiteral(node *reflection.RunType) bool { return schemadoc.IsBigIntLiteral(node) }
 
 func quoteSingle(value string) string { return schemadoc.QuoteSingle(value) }
 
