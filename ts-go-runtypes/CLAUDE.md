@@ -35,7 +35,6 @@ Validation runs on the RESTORED value, after decode, so the decoder is the one c
 
 - The table of kinds that convert is [reflection/must_validate_json.go](internal/reflection/must_validate_json.go) (`MustValidateJson`). Adding a kind whose decoder calls a constructor on a wire value means adding it there AND guarding the arm on every JSON road (`json_restore.go`, `json_compact_restore.go`, `json_restore_safe.go`).
 - Two checks fail otherwise: `must_validate_json_test.go` in [cachegen/typefunctions](internal/cachegen/typefunctions/) (per kind, and the inverse: a transform under an unflagged kind) and the `GC-GUARD` generated-code oracle on the JS side (`packages/run-types/test/fuzz/security/generatedCodeOracle.ts`, run over the nasty corpus in `pnpm test` and by the `secgen` fuzz lane).
-- The binary road has no shape to check (the layout is fixed by the type) and is bounded instead: every count goes through `desCount` / `desCountU32` (the `GC-COUNT` oracle).
 
 ## ⚠️ A rule that holds for a whole type is implemented as a walk, never as a look at the root
 

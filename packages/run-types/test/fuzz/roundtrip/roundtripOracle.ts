@@ -11,7 +11,7 @@
 
 import {normalizeForComparison, deepCloneForRoundTrip} from '../../util/equalsHelpers.ts';
 import type {Decl, GeneratedType, PropShape, TypeShape} from '../core/typeGen.ts';
-import {JSON_LANES, ALL_LANES, type CompiledCodecs, type LaneId, type WiredCodec} from './roundtripHarness.ts';
+import {ALL_LANES, type CompiledCodecs, type LaneId, type WiredCodec} from './roundtripHarness.ts';
 
 export type RoundtripOracleId = 'RT-VALIDATE' | 'RT-AGREE' | 'RT-STABLE' | 'RT-FAILAGREE' | 'RT-NATIVE' | 'RT-THROW';
 
@@ -89,7 +89,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     const codec = compiled.codecs[id]!;
     try {
       const wire = codec.encode(deepCloneForRoundTrip(value));
-      const undefinedRoot = isJsonLane(id) && wire === undefined;
+      const undefinedRoot = wire === undefined;
       runs.push({id, codec, wire, refused: false, undefinedRoot});
     } catch (err) {
       const message = errMsg(err);
@@ -155,7 +155,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     // positive on them. RT-AGREE (below) ties each lane's round-trip to the
     // canonical clone encoding of the ORIGINAL value, and RT-NATIVE pins true
     // value identity on the JSON-safe subset where it IS sound. This mirrors the
-    // existing serialization oracles (O5/O6/O12), which are all wire-based.
+    // existing serialization oracles (O5/O12), which are all wire-based.
 
     // RT-AGREE: re-encode through the clone reference and compare wires — every
     // lane must land on the same DataOnly value (and the clone wire encodes the
@@ -164,9 +164,8 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
       try {
         const viaClone = cloneCodec.encode(deepCloneForRoundTrip(decoded)) as string | undefined;
         // Compare STRUCTURALLY, not as raw strings: the clone wire is always
-        // valid JSON, and object key order legitimately differs between lanes
-        // (binary reconstructs required-before-optional, clone keeps declaration
-        // order) — that is not a data disagreement. deepEq on the parsed wires is
+        // valid JSON, and object key order legitimately differs between lanes,
+        // which is not a data disagreement. deepEq on the parsed wires is
         // order-insensitive for objects and order-sensitive for arrays.
         if (viaClone === undefined || !cloneWiresAgree(viaClone, refWire)) {
           record(
@@ -195,7 +194,7 @@ export function checkRoundtrip(compiled: CompiledCodecs, value: unknown, seed: n
     // RT-STABLE: the lane's own wire is stable under re-encode of its decode.
     try {
       const wire2 = codec.encode(deepCloneForRoundTrip(decoded));
-      if (!wireEqual(id, wire2, wire)) {
+      if (wire2 !== wire) {
         record(out, 'RT-STABLE', id, ctx, `${id} round-trip wire is not stable`, decoded);
       }
     } catch (err) {
@@ -214,22 +213,6 @@ function runValidate(validate: (v: unknown) => boolean, value: unknown): Validat
   } catch (err) {
     return {ok: false, threw: errMsg(err)};
   }
-}
-
-function isJsonLane(id: LaneId): boolean {
-  return (JSON_LANES as readonly LaneId[]).includes(id);
-}
-
-// JSON lanes compare wires as strings; binary as bytes.
-function wireEqual(id: LaneId, a: unknown, b: unknown): boolean {
-  if (id === 'binary') {
-    const x = a as Uint8Array;
-    const y = b as Uint8Array;
-    if (!(x instanceof Uint8Array) || !(y instanceof Uint8Array) || x.length !== y.length) return false;
-    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
-    return true;
-  }
-  return a === b;
 }
 
 // =============================================================================

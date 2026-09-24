@@ -13,7 +13,7 @@ import {typecheckSource} from './tsValidate.ts';
 // which constrains numeric-keyed props only. That is the valid form of the
 // "named prop mixed with an index of a different value type" shape.
 const VALID_REPROS: Record<string, string> = {
-  'F1 binary index-sig + named prop': 'type T = { p0?: Record<string, number>; [k: number]: string };',
+  'F1 index-sig + named prop': 'type T = { p0?: Record<string, number>; [k: number]: string };',
   'K2 union object member with a symbol prop': 'type T = Date | { b: symbol };',
   'F2/F2b callable interface (root + propagating)':
     'interface N0 { (a0: DataView): 1; p0?: string }\ntype T = N0;\ntype U = Array<N0>;',

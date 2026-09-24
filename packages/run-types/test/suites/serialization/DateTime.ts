@@ -1,8 +1,7 @@
 // serialization / DateTime — the date/time family grouped together: JS `Date`
 // (also kept in Atomic) plus all 8 TC39 `Temporal` types, each through every
-// JSON encoder × decoder pairing and the binary round-trip. All serialize via
-// the type's own `toJSON()` (string on the wire) and restore via `.from()`;
-// binary uses numeric packing where available and a string fallback otherwise.
+// JSON encoder × decoder pairing. All serialize via the type's own `toJSON()`
+// (string on the wire) and restore via `.from()`.
 //
 // Temporal is the polyfill global in tests (see test/support/setup.ts); types resolve
 // via test/support/temporal-ambient.d.ts. Each thunk spells out the concrete `<T>` at
@@ -12,7 +11,7 @@
 
 import * as TF from '@mionjs/run-types/formats';
 import * as TFT from '@mionjs/run-types/formats/temporal';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import '@mionjs/run-types/formats';
 import type {SerializationCase} from './types.ts';
 
@@ -22,21 +21,16 @@ export const DATETIME = {
   // Duplicated from Atomic.ts so the date/time family reads as one group here too.
   date: {
     title: 'date',
-    description: 'Root `Date` round-trips across JSON and binary, returning a real Date instance on decode.',
-    serializeNotes:
-      'JSON serializes Date to an ISO string and revives it with `new Date(...)`; binary stores the epoch as a fixed 8-byte float64 of `getTime()`.',
+    description: 'Root `Date` round-trips through JSON, returning a real Date instance on decode.',
+    serializeNotes: 'JSON serializes Date to an ISO string and revives it with `new Date(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<Date>(),
     mutateDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Date>(),
-    binaryDecoder: () => createBinaryDecoderFn<Date>(),
     schemaEncoder: () => createJsonEncoderFn(TF.date()),
     schemaDecoder: () => createJsonDecoderFn(TF.date()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.date()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.date()),
     // Span whole-second, sub-second ms precision, the Unix epoch (getTime 0),
     // and a pre-1970 (negative epoch) date.
     getTestData: () => ({
@@ -47,14 +41,12 @@ export const DATETIME = {
         new Date('1969-12-31T23:59:59.500Z'),
       ],
     }),
-    // Binary stores every Date as a fixed 8-byte float64 of getTime().
-    getBinaryByteSizes: () => [8, 8, 8, 8],
   },
 
   instant: {
     title: 'Temporal.Instant',
     description:
-      'Root `Temporal.Instant`, an exact point on the timeline, round-trips across JSON and binary, returning a real Instant on decode.',
+      'Root `Temporal.Instant`, an exact point on the timeline, round-trips through JSON, returning a real Instant on decode.',
     serializeNotes:
       'JSON serializes via `Instant.toJSON()` (UTC instant string) and revives with `Temporal.Instant.from(...)`; equality is canonical-string compare since Instants have no enumerable own keys.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.Instant>(undefined, {strategy: 'mutate'}),
@@ -63,19 +55,15 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.Instant>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.Instant>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.Instant>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.Instant>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.Instant>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.instant()),
     schemaDecoder: () => createJsonDecoderFn(TFT.instant()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.instant()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.instant()),
     getTestData: () => ({values: [T.Instant.from('2020-01-15T10:30:00Z'), T.Instant.fromEpochMilliseconds(0)]}),
   },
 
   zonedDateTime: {
     title: 'Temporal.ZonedDateTime',
     description:
-      'Root `Temporal.ZonedDateTime`, an instant plus time zone and calendar, round-trips across JSON and binary, returning a real ZonedDateTime on decode.',
+      'Root `Temporal.ZonedDateTime`, an instant plus time zone and calendar, round-trips through JSON, returning a real ZonedDateTime on decode.',
     serializeNotes:
       'JSON serializes via `toJSON()` (a `...[TimeZone]` string carrying the zone) and revives with `Temporal.ZonedDateTime.from(...)`; the time-zone annotation is preserved through the round-trip.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.ZonedDateTime>(undefined, {strategy: 'mutate'}),
@@ -84,19 +72,15 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.ZonedDateTime>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.ZonedDateTime>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.ZonedDateTime>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.ZonedDateTime>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.ZonedDateTime>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.zonedDateTime()),
     schemaDecoder: () => createJsonDecoderFn(TFT.zonedDateTime()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.zonedDateTime()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.zonedDateTime()),
     getTestData: () => ({values: [T.ZonedDateTime.from('2020-01-15T10:30:00[UTC]')]}),
   },
 
   plainDate: {
     title: 'Temporal.PlainDate',
     description:
-      'Root `Temporal.PlainDate`, a calendar date with no time or zone, round-trips across JSON and binary, returning a real PlainDate on decode.',
+      'Root `Temporal.PlainDate`, a calendar date with no time or zone, round-trips through JSON, returning a real PlainDate on decode.',
     serializeNotes: 'JSON serializes via `toJSON()` (a `YYYY-MM-DD` string) and revives with `Temporal.PlainDate.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainDate>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainDate>(undefined, {strategy: 'clone'}),
@@ -104,19 +88,15 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.PlainDate>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.PlainDate>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.PlainDate>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.PlainDate>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.PlainDate>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.plainDate()),
     schemaDecoder: () => createJsonDecoderFn(TFT.plainDate()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainDate()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainDate()),
     getTestData: () => ({values: [T.PlainDate.from('2020-08-24'), T.PlainDate.from('1999-01-01')]}),
   },
 
   plainTime: {
     title: 'Temporal.PlainTime',
     description:
-      'Root `Temporal.PlainTime`, a wall-clock time with no date or zone, round-trips across JSON and binary, returning a real PlainTime on decode.',
+      'Root `Temporal.PlainTime`, a wall-clock time with no date or zone, round-trips through JSON, returning a real PlainTime on decode.',
     serializeNotes: 'JSON serializes via `toJSON()` (an `HH:MM:SS` string) and revives with `Temporal.PlainTime.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainTime>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainTime>(undefined, {strategy: 'clone'}),
@@ -124,19 +104,15 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.PlainTime>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.PlainTime>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.PlainTime>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.PlainTime>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.PlainTime>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.plainTime()),
     schemaDecoder: () => createJsonDecoderFn(TFT.plainTime()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainTime()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainTime()),
     getTestData: () => ({values: [T.PlainTime.from('19:39:09'), T.PlainTime.from('00:00:00')]}),
   },
 
   plainDateTime: {
     title: 'Temporal.PlainDateTime',
     description:
-      'Root `Temporal.PlainDateTime`, a date and time with no zone, round-trips across JSON and binary, returning a real PlainDateTime on decode.',
+      'Root `Temporal.PlainDateTime`, a date and time with no zone, round-trips through JSON, returning a real PlainDateTime on decode.',
     serializeNotes:
       'JSON serializes via `toJSON()` (a `YYYY-MM-DDTHH:MM:SS` string) and revives with `Temporal.PlainDateTime.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainDateTime>(undefined, {strategy: 'mutate'}),
@@ -145,19 +121,15 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.PlainDateTime>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.PlainDateTime>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.PlainDateTime>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.PlainDateTime>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.PlainDateTime>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.plainDateTime()),
     schemaDecoder: () => createJsonDecoderFn(TFT.plainDateTime()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainDateTime()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainDateTime()),
     getTestData: () => ({values: [T.PlainDateTime.from('1995-12-07T15:00:00')]}),
   },
 
   plainYearMonth: {
     title: 'Temporal.PlainYearMonth',
     description:
-      'Root `Temporal.PlainYearMonth`, a year and month with no day, round-trips across JSON and binary, returning a real PlainYearMonth on decode.',
+      'Root `Temporal.PlainYearMonth`, a year and month with no day, round-trips through JSON, returning a real PlainYearMonth on decode.',
     serializeNotes: 'JSON serializes via `toJSON()` (a `YYYY-MM` string) and revives with `Temporal.PlainYearMonth.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainYearMonth>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainYearMonth>(undefined, {strategy: 'clone'}),
@@ -165,19 +137,15 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.PlainYearMonth>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.PlainYearMonth>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.PlainYearMonth>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.PlainYearMonth>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.PlainYearMonth>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.plainYearMonth()),
     schemaDecoder: () => createJsonDecoderFn(TFT.plainYearMonth()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainYearMonth()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainYearMonth()),
     getTestData: () => ({values: [T.PlainYearMonth.from('2020-10')]}),
   },
 
   plainMonthDay: {
     title: 'Temporal.PlainMonthDay',
     description:
-      'Root `Temporal.PlainMonthDay`, a month and day with no year, round-trips across JSON and binary, returning a real PlainMonthDay on decode.',
+      'Root `Temporal.PlainMonthDay`, a month and day with no year, round-trips through JSON, returning a real PlainMonthDay on decode.',
     serializeNotes: 'JSON serializes via `toJSON()` (an `MM-DD` string) and revives with `Temporal.PlainMonthDay.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainMonthDay>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainMonthDay>(undefined, {strategy: 'clone'}),
@@ -185,19 +153,15 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.PlainMonthDay>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.PlainMonthDay>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.PlainMonthDay>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.PlainMonthDay>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.PlainMonthDay>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.plainMonthDay()),
     schemaDecoder: () => createJsonDecoderFn(TFT.plainMonthDay()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainMonthDay()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainMonthDay()),
     getTestData: () => ({values: [T.PlainMonthDay.from('07-14')]}),
   },
 
   duration: {
     title: 'Temporal.Duration',
     description:
-      'Root `Temporal.Duration`, a length of time rather than a point, round-trips across JSON and binary, returning a real Duration on decode.',
+      'Root `Temporal.Duration`, a length of time rather than a point, round-trips through JSON, returning a real Duration on decode.',
     serializeNotes:
       'JSON serializes via `toJSON()` (an ISO-8601 `P...` duration string) and revives with `Temporal.Duration.from(...)`; the zero-duration `PT0S` sample confirms the empty case survives.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.Duration>(undefined, {strategy: 'mutate'}),
@@ -206,12 +170,8 @@ export const DATETIME = {
     cloneDecoder: () => createJsonDecoderFn<Temporal.Duration>(),
     mutateDecoder: () => createJsonDecoderFn<Temporal.Duration>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Temporal.Duration>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Temporal.Duration>(),
-    binaryDecoder: () => createBinaryDecoderFn<Temporal.Duration>(),
     schemaEncoder: () => createJsonEncoderFn(TFT.duration()),
     schemaDecoder: () => createJsonDecoderFn(TFT.duration()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.duration()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.duration()),
     getTestData: () => ({values: [T.Duration.from('P1Y2M10DT2H30M'), T.Duration.from('PT0S')]}),
   },
 } as const satisfies Record<string, SerializationCase>;

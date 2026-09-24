@@ -18,8 +18,6 @@ import {
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
 } from '@mionjs/run-types';
 import {getRTFunction, registerClassSerializer} from '@mionjs/run-types/runtime';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
@@ -79,8 +77,6 @@ const targets: FuzzTarget[] = [];
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -99,8 +95,6 @@ const targets: FuzzTarget[] = [];
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -119,8 +113,6 @@ const targets: FuzzTarget[] = [];
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -139,8 +131,6 @@ const targets: FuzzTarget[] = [];
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -159,8 +149,6 @@ const targets: FuzzTarget[] = [];
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -179,8 +167,6 @@ const targets: FuzzTarget[] = [];
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -218,8 +204,6 @@ const targets: FuzzTarget[] = [];
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -428,8 +412,6 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 
@@ -447,8 +429,6 @@ registerClassSerializer(AuthErr, {deserialize: (d) => new AuthErr(d.type, d.scop
     restoreFromJsonClone: recoverRestoreSafe(schema),
     jsonEncode: createJsonEncoderFn(schema),
     jsonDecode: createJsonDecoderFn(schema),
-    binaryEncode: createBinaryEncoderFn(schema),
-    binaryDecode: createBinaryDecoderFn(schema),
   });
 }
 

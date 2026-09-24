@@ -5,14 +5,14 @@ express their cases as `SerializationCase` records (the type lives in
 [`types.ts`](./types.ts); format-serialization re-exports it). Each `*.ts` file exports a
 group of cases; the sibling `*.test.ts` runs every case through the shared round-trip
 adapters in [`../../util/serializationAsserts.ts`](../../util/serializationAsserts.ts)
-(mutate / clone on both sides, compact × compact, plus binary + the value-first
-`schema` variants).
+(mutate / clone on both sides, compact × compact, plus the value-first `schema`
+variants).
 
 ## ⚠️ Every thunk is self-contained — define ALL types INLINE
 
 A `SerializationCase` is a bag of THUNKS: `mutateEncoder` / `cloneEncoder` /
 `compactEncoder` / `cloneDecoder` / `mutateDecoder` /
-`compactDecoder` / `binaryEncoder` / `binaryDecoder` / the `schema*` variants / and
+`compactDecoder` / the `schema*` variants / and
 `getTestData`. **Every type a thunk needs (interfaces, classes, `TF.*` format types,
 type aliases) MUST be declared INSIDE that thunk — never at module scope.** The
 duplication across thunks is deliberate and required.
@@ -45,7 +45,7 @@ mutateEncoder: () => {
   (`normalizeForComparison`), so a reconstructed instance compares structurally to the
   `getTestData` instance regardless of which thunk's class object produced it.
 - A class is not expressible as a value-first `RT.*` model, so set
-  `schemaEncoder` / `schemaDecoder` / `schemaBinaryEncoder` / `schemaBinaryDecoder` to
+  `schemaEncoder` / `schemaDecoder` to
   `'not-supported'` — the id-integrity driver then skips the schema-vs-type comparison for
   that case. (`Classes.ts` and `format-serialization/ClassWithFormats.ts` are worked
   examples.)

@@ -2,8 +2,7 @@
 // That test fixed the skip set for a prop whose VALUE is DataOnly-stripped
 // (`p0?: ArrayBuffer`), but FUNCTION-typed props were still excluded from the
 // set, so their key stayed in the index signature's for-in sweep and the index
-// signature's own value encoder ran over the function: binary reached
-// serString(undefined) and threw an uncontrolled TypeError, while JSON silently
+// signature's own value encoder ran over the function: JSON silently
 // serialized the function as its source text. Found by the nondata fuzz soak
 // (`{p0: (…) => number; p1: Date; p2: DataView; [k: number]: RegExp}`, back when a RegExp was data).
 // The skip set is now every declared name, so every family drops `p0`.
@@ -35,24 +34,18 @@ const gen: GeneratedType = {
 };
 
 describe('index signature mixed with a function-typed named prop', () => {
-  (hasBinary() ? it : it.skip)('every wire drops the function prop and agrees', () => {
+  (hasBinary() ? it : it.skip)('the JSON wire drops the function prop', () => {
     expect(typecheckGeneratedType(gen), 'must be valid TypeScript').toEqual([]);
     const client = openClient();
     return compileType(client, gen)
       .then((compiled) => {
         expect(compiled.resolverError, compiled.resolverError).toBeUndefined();
         expect(compiled.evalError, compiled.evalError).toBeUndefined();
-        const {jsonEncode, jsonDecode, binaryEncode, binaryDecode} = compiled.wired;
+        const {jsonEncode, jsonDecode} = compiled.wired;
         const value = {p0: () => 1, p1: true, 0: new Date(1000), 5: new Date(2000)};
         const expected = {p1: true, '0': new Date(1000), '5': new Date(2000)};
-        // binaryEncode used to throw `Cannot read properties of undefined
-        // (reading 'length')` here — the index sig's Date value encoder
-        // running over the function.
-        expect(binaryDecode!(binaryEncode!(value))).toEqual(expected);
         // JSON used to emit the function's source text under "p0".
         expect(jsonDecode!(jsonEncode!(value)!)).toEqual(expected);
-        // Cross-wire agreement — the O14 oracle that flagged it.
-        expect(jsonEncode!(binaryDecode!(binaryEncode!(value)))).toBe(jsonEncode!(value));
       })
       .finally(() => client.close());
   });

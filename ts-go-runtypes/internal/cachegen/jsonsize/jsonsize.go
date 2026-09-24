@@ -4,9 +4,7 @@
 // carries a `length` / `maxLength`, every array a `length` / `maxItems`, every Map / Set a
 // `maxItems`, every scalar has a fixed longest spelling) gets a limit derived from its types, while
 // a type with any unbounded part reports Bounded=false and the route falls back to the router
-// default. A sibling of the binary cold-start estimator
-// (cachegen/typefunctions/binary_size_estimate.go), but asking the maximum rather than the typical
-// size. The body it bounds is the one the compiled encoder writes, not `JSON.stringify` of a raw JS
+// default. The body it bounds is the one the compiled encoder writes, not `JSON.stringify` of a raw JS
 // value: the two part ways wherever DataOnly drops a member. So every arm is a worst case: 6 bytes
 // per UTF-16 unit for a string (the `\uXXXX` escape form), 24 for a number (the longest
 // `JSON.stringify` double), every optional member present, the largest union member. The `compact`

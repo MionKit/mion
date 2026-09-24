@@ -41,8 +41,6 @@ All under [`packages/run-types/test/fuzz/`](../packages/run-types/test/fuzz/):
 | `type/*.smoke.test.ts`, `type/bugReprosValidTs.test.ts` | Pinned minimal repros for findings already fixed. |
 | `convert/convertRoundtrip.ts` + `convertFuzz.integration.test.ts` | The convert roundtrip lane — the FE, real-CLI twin of the Go atom sweep, run over the FULL generated type space (`CONVERT_GEN_OPTIONS` = the wild space + `structuralFormats`). Each iteration renders a declarations file with `getRunTypeId` probes (both call shapes for the root, asserted id-equal every draw), spawns the real `mion convert` binary over a real temp project (the shipped dist package on disk), walks TWO independently randomized form chains (builders middles closed by the type form), asserts every declaration's id after EVERY leg via the resolver's serve ops, requires the two chains' final type forms to be BYTE-EQUAL, and re-converts that fixpoint once more asserting a byte no-op (C5 at the CLI level) — the canonical-fixpoint oracle that caught the path-dependent union order, dropped user import bindings, preset-vs-params id splits, and the RT.circular payload loss. Designed loud refusals reroll or count against a ceiling (`EXPECTED_REFUSALS`) so the allowlist can never swallow the lane. |
 | `roundtrip/roundtripOracle.ts` + `roundtripRunner.ts` | The all-strategy round-trip lane (`RT-*` oracles): every codec strategy for one generated serialisable type. |
-| `binary/sizeOracle.ts` + `sizeFuzzRunner.ts` | The binary size-estimate lane (`O-SIZE-*`): in-bounds values must not resize the cold buffer, oversized ones must. |
-| `binary/binaryEncoderResize.test.ts` | Pinned regression for the first finding. |
 | `cloning/referenceClone.ts` | The clone ORACLE MODEL — a naive reference interpreter of `createRemoveUnknownKeysFn<T>` over the reflected RunType graph; what the compiled clone is compared against (O15). |
 | `cloning/extrasValue.ts` | The extras mutator — injects undeclared `__fz_extra_<n>` keys at provably-sound plain-object positions (validate stays true, a correct clone must strip them). Same one-directional soundness contract as `invalidValue.ts`. |
 | `cloning/cloneOracle.ts` | The cloning oracle layer: `CloneFuzzTarget` + the O15–O17 checks, a local Temporal-aware `deepEqual`, and the shared-mutable-reference walker. |
@@ -98,11 +96,10 @@ library must uphold, never from hand-written expected outputs:
 | **O3** | robustness  | `validate(anything)` returns a boolean, never throws          |
 | **O4** | consistency | `validate(x)` ⇔ `getValidationErrors(x).length === 0`         |
 | **O5** | strong      | JSON wire is stable: `encode(decode(encode v)) === encode(v)` |
-| **O6** | strong      | binary wire is byte-stable through `decode∘encode`            |
 | **O7** | robustness  | `encode(valid)` does not throw and yields a wire value        |
 | **O10** | consistency | a type whose encoders ALL `alwaysThrow` carries an Error-severity diagnostic (fail ⇒ error) |
-| **O12** | consistency | the two wires agree on the value: `jsonEncode(binaryDecode(binaryEncode v))` equals `jsonEncode(v)` |
-| **O14** | consistency | JSON and binary agree on serialize-vs-`alwaysThrow` — the rule is the same for every serialization family |
+| **O12** | consistency | the clone and compact wires agree on the value: `jsonEncode(compactDecode(compactEncode v))` equals `jsonEncode(v)` |
+| **O14** | consistency | the clone and compact encoders agree on serialize-vs-`alwaysThrow` — the rule is the same for every strategy |
 | **O15** | strong      | `clone(v)` deep-equals `referenceClone(schema, v)`           |
 | **O16** | strong      | clone never mutates its input, shares no mutable reference with it, and keeps the root prototype |
 | **O17** | consistency | `validate(clone(v))` is true, `clone∘clone` is stable, and extras-injected inputs come out `hasUnknownKeys`-clean |
@@ -112,19 +109,18 @@ O10 / O12 / O14 are the non-data lane's additions
 where values come from the REAL `createMockDataFn` and the serialize-vs-fail
 tier is read off the ACTUAL encoder behaviour.
 
-Four more lanes carry their own catalogues, on the same principle:
+Three more lanes carry their own catalogues, on the same principle:
 
 | Ids | Lane | Where |
 | --- | --- | --- |
 | **RT-VALIDATE / RT-AGREE / RT-STABLE / RT-FAILAGREE / RT-NATIVE / RT-THROW** | all-strategy round-trip: every codec strategy for one generated type agrees | [`roundtrip/roundtripOracle.ts`](../packages/run-types/test/fuzz/roundtrip/roundtripOracle.ts) |
-| **O-SIZE-ROUNDTRIP / O-SIZE-GREW** | binary size estimate: an in-bounds value must not resize the cold buffer, an oversized one must | [`binary/sizeOracle.ts`](../packages/run-types/test/fuzz/binary/sizeOracle.ts) |
 | **R1 R2 R3 R5 R6 R7a R8 R10** | enrichment sync: idempotence, preservation, convergence, orphan carcasses, prune, totality | [`enrich/enrichModel.ts`](../packages/run-types/test/fuzz/enrich/enrichModel.ts) |
 | **T1–T7, T10** / **NL RC CB P** | i18n reconcile / type-modification: never-copy, arms-owned, kind-stable, todo discipline / nothing-lost, rename-carry, content-blindness, parse-safety | [`enrich/i18nModel.ts`](../packages/run-types/test/fuzz/enrich/i18nModel.ts), [`enrich/typeModFuzzRunner.ts`](../packages/run-types/test/fuzz/enrich/typeModFuzzRunner.ts) |
 
-Those four ride a `rule:` field rather than `oracle:`, so grepping for `oracle:`
+Those three ride a `rule:` field rather than `oracle:`, so grepping for `oracle:`
 alone will not find them.
 
-O5/O6 compare the **wire image** (`encode∘decode∘encode === encode`) rather than
+O5 compares the **wire image** (`encode∘decode∘encode === encode`) rather than
 value equality, which sidesteps the optional-`undefined`-key vs dropped-key
 mismatch the mock produces. O4 is a cheap, powerful cross-check: the two
 validation functions disagreeing is almost always a bug.
@@ -168,7 +164,7 @@ All suites run through the internal CLI: `pnpm miondevx core fuzz <lane…>
 `MION_FUZZ_*` env for you from the `FUZZ` registry in
 [scripts/miondevx.mjs](../scripts/miondevx.mjs), which is the single source of truth for the
 lane list and every budget. Lanes: `unit | value | types | nondata | roundtrip |
-size | cloning | enrich | i18n | typemod | race | sidecar | patterngen | convert
+cloning | enrich | i18n | typemod | race | sidecar | patterngen | convert
 | convertcli | all`.
 
 Name several lanes in one invocation (`pnpm miondevx core fuzz types value --quick`)
@@ -194,7 +190,7 @@ workflows pick the lane up automatically (they derive their matrices from
 The two budget shapes CANNOT be scheduled the same way:
 
 - **Time-boxed** lanes (`MION_FUZZ_*_SOAK_MS`: value, types, nondata, roundtrip,
-  size, cloning, elision, jsonsize and the `sec*` lanes) fuzz until a wall clock runs out. Under CPU contention they
+  cloning, elision, jsonsize and the `sec*` lanes) fuzz until a wall clock runs out. Under CPU contention they
   silently buy LESS coverage in the same wall clock, so they must never run
   concurrently with each other.
 - **Count-based** lanes (sequences / iterations: enrich, i18n, typemod, race,
@@ -280,7 +276,7 @@ pnpm miondevx core fuzz unit
 pnpm miondevx core fuzz all
 
 # what CI runs per PR: the time-boxed lanes, one sequential batch
-pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secbinary secformat secgen sechttp secjson size types value --quick
+pnpm miondevx core fuzz cloning elision jsonsize nondata roundtrip secformat secgen sechttp secjson types value --quick
 
 # autonomous soak: fuzz for 60s, log every finding (set MION_FUZZ_SEED to replay)
 pnpm miondevx core fuzz value --soak
@@ -307,14 +303,6 @@ all and is the more common form now.
 
 ## Findings
 
-- **Binary encoder buffer overflow on valid data** (fixed). `createBinaryEncoderFn`
-  owns its serializer and sizes it from adaptive history (`predictBufferSize`).
-  After many small encodes the prediction converged down toward the running
-  mean, so an above-average string overflowed the buffer and threw
-  `RangeError: buffer too small … Call resize() and retry.` instead of growing.
-  Fixed in two steps: the serializer's writers now GROW IN PLACE (no throw, no
-  re-encode) and the size predictor moved from a mean-EMA to Welford
-  mean + k·σ. Pinned by `binaryEncoderResize.test.ts`.
 - **Negated pattern-formats mocked unsoundly** (fixed). The mock walker's
   negation rejection sampling tested `url` / `domain` with a loose stand-in
   instead of their params, so `new URL()` rejected the relative references
@@ -370,7 +358,7 @@ checks, per generated type:
 | **A** | **TR2** | every type       | every `createX<T>()` resolved to a site (6 fn + 1 reflection)                                                             |
 | **A** | **TR3** | every type       | every emitted module is valid JS (evaluates) + the reflection graph knots (no dangling ref)                               |
 | **A** | **TR4** | every type       | each factory either wires OR throws a **controlled** `[CODE]` alwaysThrow (an _uncontrolled_ wire failure is the bug)     |
-| **B** | O1–O7   | serialisable     | the Phase-1 value oracles hold (valid accepted, corruption rejected, JSON/binary wire-stable, junk total)                 |
+| **B** | O1–O7   | serialisable     | the Phase-1 value oracles hold (valid accepted, corruption rejected, JSON wire-stable, junk total)                        |
 | **B** | O3/O4'  | non-serialisable | robustness probe: `validate` / `getValidationErrors` return sanely or throw an **Error** — never a non-Error, never crash |
 | **B** | O7/O10/O12/O14 | non-data lane | the DataOnly serialize-or-fail contract (see below) |
 

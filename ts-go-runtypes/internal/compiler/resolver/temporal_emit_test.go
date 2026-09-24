@@ -10,23 +10,22 @@ import (
 
 // temporal_emit_test.go asserts each RT-fn family emits the right code for a
 // Temporal type: validate (instanceof), restore (Temporal.X.from), stringify
-// (toJSON), binary (serString/desString + from). One representative type per
+// (toJSON). One representative type per
 // assertion keeps it fast; the scan test already covers all 8 detect.
 
 // emitSourcesFor scans createValidateFn<Temporal.<typeName>>() requesting entry
 // modules, and returns the response. Use this for families seeded by the
-// always-emit `it` path (validate / JSON / runType); binary families are now
-// demand-driven, so they must be seeded via emitSourcesForFn with the matching
-// createBinaryEncoderFn/Decoder call.
+// always-emit `it` path (validate / JSON / runType); demand-driven families
+// must be seeded via emitSourcesForFn with the matching createX call.
 func emitSourcesFor(t *testing.T, typeName string) *protocol.Response {
 	t.Helper()
 	return emitSourcesForFn(t, "createValidateFn", typeName)
 }
 
 // emitSourcesForFn scans `<fnName><Temporal.<typeName>>()` requesting entry
-// modules. Demand-driven families (tb/fb/ruk/…) only emit when the call
+// modules. Demand-driven families (rjs/ruk/…) only emit when the call
 // site demands them, so the caller picks the createX whose fnId maps to the
-// family under assertion (binary→createBinaryEncoderFn/createBinaryDecoderFn).
+// family under assertion.
 func emitSourcesForFn(t *testing.T, fnName, typeName string) *protocol.Response {
 	t.Helper()
 	code := `import {` + fnName + `} from '@mionjs/run-types';
@@ -62,31 +61,6 @@ func TestTemporal_EmitRestoreFromJson(t *testing.T) {
 	resp := emitSourcesForFn(t, "createJsonDecoderFn", "PlainDate")
 	if !strings.Contains(familyEntrySources(*resp, "restoreFromJsonClone"), "Temporal.PlainDate.from(") {
 		t.Fatalf("restoreFromJsonClone missing Temporal.PlainDate.from:\n%s", familyEntrySources(*resp, "restoreFromJsonClone"))
-	}
-}
-
-func TestTemporal_EmitBinaryRoundTripShape(t *testing.T) {
-	// Numeric-packed type: the emitter dispatches to the serializer's
-	// serTemporal*/desTemporal* methods — the byte layout lives in the runtime
-	// dataView.ts, asserted end-to-end in JS (test/adapters/temporal.test.ts).
-	// tb/fb are demand-driven now: seed each via the matching binary createX.
-	to := emitSourcesForFn(t, "createBinaryEncoderFn", "PlainDateTime")
-	if !strings.Contains(familyEntrySources(*to, "toBinary"), ".serTemporalPlainDateTime(") {
-		t.Fatalf("toBinary missing serTemporalPlainDateTime():\n%s", familyEntrySources(*to, "toBinary"))
-	}
-	from := emitSourcesForFn(t, "createBinaryDecoderFn", "PlainDateTime")
-	if !strings.Contains(familyEntrySources(*from, "fromBinary"), ".desTemporalPlainDateTime()") {
-		t.Fatalf("fromBinary missing desTemporalPlainDateTime():\n%s", familyEntrySources(*from, "fromBinary"))
-	}
-
-	// String-fallback type (Duration): keeps serString(toJSON()) / from(desString()).
-	durTo := emitSourcesForFn(t, "createBinaryEncoderFn", "Duration")
-	if !strings.Contains(familyEntrySources(*durTo, "toBinary"), ".serString(") || !strings.Contains(familyEntrySources(*durTo, "toBinary"), ".toJSON()") {
-		t.Fatalf("Duration toBinary missing serString(toJSON()):\n%s", familyEntrySources(*durTo, "toBinary"))
-	}
-	durFrom := emitSourcesForFn(t, "createBinaryDecoderFn", "Duration")
-	if !strings.Contains(familyEntrySources(*durFrom, "fromBinary"), "Temporal.Duration.from(") || !strings.Contains(familyEntrySources(*durFrom, "fromBinary"), ".desString()") {
-		t.Fatalf("Duration fromBinary missing from(desString()):\n%s", familyEntrySources(*durFrom, "fromBinary"))
 	}
 }
 

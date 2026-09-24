@@ -1,9 +1,4 @@
-import {
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 interface Order {
   id: string;
@@ -30,12 +25,4 @@ const fromJsonOrder = fromJson(json);
 // total is a bigint, placedAt is a Date, tags is a Set
 // end-json
 
-// start-binary
-const toBinary = createBinaryEncoderFn<Order>();
-const fromBinary = createBinaryDecoderFn<Order>();
-
-const bytes = toBinary(order); // Uint8Array
-const fromBinaryOrder = fromBinary(bytes);
-// end-binary
-
-export {fromJsonOrder, fromBinaryOrder};
+export {fromJsonOrder};

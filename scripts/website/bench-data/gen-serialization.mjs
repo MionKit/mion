@@ -70,24 +70,7 @@ const pluginSpec =
   PLUGIN_ENTRY.startsWith('.') || path.isAbsolute(PLUGIN_ENTRY) ? url.pathToFileURL(path.resolve(PLUGIN_ENTRY)).href : PLUGIN_ENTRY;
 const runtypesPlugin = (await import(pluginSpec)).default;
 
-// Suite selection — `--suite serialization` (default) or `--suite format-serialization`.
-// Both use the SerializationCase shape; each maps to its own bench slug + label.
-const SUITE_CONFIGS = {
-  serialization: {dir: 'serialization', exportConst: 'SERIALIZATION_SPEC', bench: 'serialization', label: 'Serialization'},
-  'format-serialization': {
-    dir: 'format-serialization',
-    exportConst: 'FORMAT_SERIALIZATION_SUITE',
-    bench: 'serialization-formats',
-    label: 'Serialization Formats',
-  },
-};
-const suiteArgIndex = process.argv.indexOf('--suite');
-const SUITE = suiteArgIndex >= 0 ? process.argv[suiteArgIndex + 1] : 'serialization';
-const SUITE_CFG = SUITE_CONFIGS[SUITE];
-if (!SUITE_CFG) {
-  process.stderr.write(`unknown --suite '${SUITE}' (known: ${Object.keys(SUITE_CONFIGS).join(', ')})\n`);
-  process.exit(1);
-}
+const SUITE_CFG = {dir: 'serialization', exportConst: 'SERIALIZATION_SPEC', bench: 'serialization', label: 'Serialization'};
 
 const SUITE_DIR = path.join(PACKAGE_ROOT, 'test/suites', SUITE_CFG.dir);
 // Repo-relative home of the same suite, for the chart's "cases on GitHub" link. It is
@@ -124,13 +107,6 @@ const ROUNDTRIPS = [
     kind: 'json',
     note: 'Positional arrays instead of named keys, so no field names travel on the wire.',
   },
-  {
-    key: 'binary',
-    enc: 'binaryEncoder',
-    dec: 'binaryDecoder',
-    kind: 'binary',
-    note: 'Raw bytes rather than text. Best for numeric payloads.',
-  },
   // No JSON-Schema-authored round-trip: the suite cases define no jsonSchema* thunks
   // (only the builder-authored schema* ones), so the two columns that once named them
   // shipped n-a all the way down. A column here must be a thunk every case carries.
@@ -159,11 +135,9 @@ const SOURCE_FIELDS = [
   'cloneEncoder',
   'mutateEncoder',
   'compactEncoder',
-  'binaryEncoder',
   'cloneDecoder',
   'mutateDecoder',
   'compactDecoder',
-  'binaryDecoder',
 ];
 
 // Bandwidth options for the page's round-trip selector (Mbps). Default mid-tier.
@@ -174,7 +148,7 @@ const DEFAULT_BANDWIDTH_MBPS = 100;
 // far fewer cycles + iterations, so numbers are noisy but every panel still renders.
 const QUICK = process.env.MION_VALIDATION_BENCH_QUICK === '1';
 
-// Workload knobs. Modest vs the suite exporter — every case runs 5 round-trips ×
+// Workload knobs. Modest vs the suite exporter — every case runs 4 round-trips ×
 // (encode + decode), so keep each measurement cheap but stable.
 const OPS_CYCLES = QUICK ? 2 : 8;
 const OPS_ITERS = QUICK ? 100 : 800;
@@ -340,7 +314,6 @@ function isJsonSafe(samples) {
 function byteLengthOf(encoded) {
   if (encoded == null) return null;
   if (typeof encoded === 'string') return Buffer.byteLength(encoded, 'utf8');
-  if (typeof encoded.getLength === 'function') return encoded.getLength(); // DataViewSerializer (binaryEncoder return)
   if (encoded.byteLength != null) return encoded.byteLength; // ArrayBuffer / TypedArray / Buffer
   if (encoded.length != null) return encoded.length;
   return null;
@@ -357,12 +330,9 @@ function pickIters(sample) {
 }
 
 // Fresh sample list for a case (each call rebuilds the values so encode-in-place
-// mutation never leaks across pool entries). Binary may diverge from JSON.
+// mutation never leaks across pool entries).
 function jsonValues(caseObj) {
   return (caseObj.getTestDataForStringify ?? caseObj.getTestData)().values;
-}
-function binaryValues(caseObj) {
-  return (caseObj.getBinaryTestData ?? caseObj.getTestDataForStringify ?? caseObj.getTestData)().values;
 }
 
 // Build a pool of `count` fresh values rotating through `indices` of a freshly
@@ -380,9 +350,8 @@ function buildPool(selectValues, count, indices) {
 // Measure one round-trip for one case. Returns {encOps, decOps, bytes} or null
 // when the round-trip can't run (factory throws, no sample survives, etc.).
 function measureRoundTrip(caseObj, rt) {
-  const isBinary = rt.kind === 'binary';
   const isNative = rt.kind === 'native';
-  const selectValues = isBinary ? () => binaryValues(caseObj) : () => jsonValues(caseObj);
+  const selectValues = () => jsonValues(caseObj);
 
   // Build the encode/decode pair.
   let encode;
@@ -574,7 +543,7 @@ async function main() {
         metricLabel: 'bytes on the wire — lower is better',
         unit: 'bytes',
         lowerBetter: true,
-        cellHint: 'bytes on the wire (the JSON string / binary buffer)',
+        cellHint: 'bytes on the wire (the JSON string)',
       },
     ],
     sections,

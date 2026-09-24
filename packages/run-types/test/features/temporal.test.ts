@@ -3,20 +3,11 @@
 // native on Node 26+). Types resolve via test/support/temporal-ambient.d.ts.
 //
 // Covers: validate (instanceof), getValidationErrors, JSON round-trip
-// (encode→decode equality via the type's own equals()), binary round-trip,
-// and mock validity. One block per Temporal type for the core matrix, plus
-// targeted edge cases.
+// (encode→decode equality via the type's own equals()), and mock validity.
+// One block per Temporal type for the core matrix, plus targeted edge cases.
 
 import {describe, expect, it} from 'vitest';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  type BinaryDecoderFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 
 // Temporal is the polyfill global in tests (see test/support/setup.ts).
@@ -126,104 +117,6 @@ describe('Temporal JSON round-trip (encode → decode → equals)', () => {
       createJsonDecoderFn<Temporal.Duration>(),
       samples.Duration()
     ));
-});
-
-describe('Temporal binary round-trip', () => {
-  const brt = (bytes: Uint8Array, decode: BinaryDecoderFn<unknown>, original: unknown): void =>
-    expect(asStr(decode(bytes))).toBe(asStr(original));
-
-  it('Instant', () =>
-    brt(
-      createBinaryEncoderFn<Temporal.Instant>()(samples.Instant() as never),
-      createBinaryDecoderFn<Temporal.Instant>(),
-      samples.Instant()
-    ));
-  it('PlainDate', () =>
-    brt(
-      createBinaryEncoderFn<Temporal.PlainDate>()(samples.PlainDate() as never),
-      createBinaryDecoderFn<Temporal.PlainDate>(),
-      samples.PlainDate()
-    ));
-  it('PlainDateTime', () =>
-    brt(
-      createBinaryEncoderFn<Temporal.PlainDateTime>()(samples.PlainDateTime() as never),
-      createBinaryDecoderFn<Temporal.PlainDateTime>(),
-      samples.PlainDateTime()
-    ));
-  it('Duration', () =>
-    brt(
-      createBinaryEncoderFn<Temporal.Duration>()(samples.Duration() as never),
-      createBinaryDecoderFn<Temporal.Duration>(),
-      samples.Duration()
-    ));
-});
-
-// The numeric packing (dataView.ts serTemporal*/desTemporal*) must be
-// lossless across the full value range — nanosecond precision, pre-epoch
-// (negative) instants, far-past ISO years — and must fall back to the
-// lossless toJSON() string for non-ISO calendars. A fresh encoder per call
-// allocates its own serializer/buffer, so inline each round-trip.
-describe('Temporal binary round-trip — numeric precision & calendar fallback', () => {
-  it('Instant — nanosecond precision survives', () => {
-    const v = T.Instant.fromEpochNanoseconds(1_579_084_200_123_456_789n);
-    const decoded = createBinaryDecoderFn<Temporal.Instant>()(createBinaryEncoderFn<Temporal.Instant>()(v as never));
-    // epochNanoseconds is authoritative (some polyfill equals() are flaky on
-    // reconstructed instances).
-    expect(decoded.epochNanoseconds).toBe(v.epochNanoseconds);
-  });
-  it('Instant — pre-epoch (negative, sub-second) survives', () => {
-    const v = T.Instant.fromEpochNanoseconds(-6_857_222_999_999_999n);
-    const decoded = createBinaryDecoderFn<Temporal.Instant>()(createBinaryEncoderFn<Temporal.Instant>()(v as never));
-    expect(decoded.epochNanoseconds).toBe(v.epochNanoseconds);
-  });
-  it('Instant — epoch zero survives', () => {
-    const v = T.Instant.fromEpochNanoseconds(0n);
-    const decoded = createBinaryDecoderFn<Temporal.Instant>()(createBinaryEncoderFn<Temporal.Instant>()(v as never));
-    expect(decoded.epochNanoseconds).toBe(v.epochNanoseconds);
-  });
-
-  it('PlainTime — full nanosecond precision', () => {
-    const v = T.PlainTime.from('23:59:59.999999999');
-    const decoded = createBinaryDecoderFn<Temporal.PlainTime>()(createBinaryEncoderFn<Temporal.PlainTime>()(v as never));
-    expect(decoded.toString()).toBe(v.toString());
-  });
-  it('PlainTime — midnight', () => {
-    const v = T.PlainTime.from('00:00:00');
-    const decoded = createBinaryDecoderFn<Temporal.PlainTime>()(createBinaryEncoderFn<Temporal.PlainTime>()(v as never));
-    expect(decoded.toString()).toBe(v.toString());
-  });
-
-  it('PlainDate — far-past ISO year', () => {
-    const v = T.PlainDate.from('-001000-06-15');
-    const decoded = createBinaryDecoderFn<Temporal.PlainDate>()(createBinaryEncoderFn<Temporal.PlainDate>()(v as never));
-    expect(decoded.toString()).toBe(v.toString());
-  });
-  it('PlainDate — non-ISO calendar falls back to string (lossless)', () => {
-    const v = T.PlainDate.from('2024-03-20[u-ca=hebrew]');
-    const decoded = createBinaryDecoderFn<Temporal.PlainDate>()(createBinaryEncoderFn<Temporal.PlainDate>()(v as never));
-    expect(decoded.calendarId).toBe('hebrew');
-    expect(decoded.toString()).toBe(v.toString());
-  });
-
-  it('PlainDateTime — nanosecond precision (ISO)', () => {
-    const v = T.PlainDateTime.from('2020-01-15T10:30:00.123456789');
-    const decoded = createBinaryDecoderFn<Temporal.PlainDateTime>()(createBinaryEncoderFn<Temporal.PlainDateTime>()(v as never));
-    expect(decoded.toString()).toBe(v.toString());
-  });
-  it('PlainDateTime — non-ISO calendar falls back to string', () => {
-    const v = T.PlainDateTime.from('2024-03-20T08:15:30[u-ca=hebrew]');
-    const decoded = createBinaryDecoderFn<Temporal.PlainDateTime>()(createBinaryEncoderFn<Temporal.PlainDateTime>()(v as never));
-    expect(decoded.calendarId).toBe('hebrew');
-    expect(decoded.toString()).toBe(v.toString());
-  });
-
-  it('PlainYearMonth — ISO round-trips', () => {
-    const v = T.PlainYearMonth.from('2020-07');
-    const decoded = createBinaryDecoderFn<Temporal.PlainYearMonth>()(
-      createBinaryEncoderFn<Temporal.PlainYearMonth>()(v as never)
-    );
-    expect(decoded.toString()).toBe(v.toString());
-  });
 });
 
 describe('Temporal mock — every generated value passes validate', () => {

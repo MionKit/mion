@@ -7,10 +7,6 @@ import {
   overrideJsonEncoder,
   createJsonDecoderFn,
   overrideJsonDecoder,
-  createBinaryEncoderFn,
-  overrideBinaryEncoder,
-  createBinaryDecoderFn,
-  overrideBinaryDecoder,
 } from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
@@ -25,11 +21,6 @@ overrideGetValidationErrors<UnionTarget>((value, path, errors) => {
 });
 overrideJsonEncoder<UnionTarget>((v) => 'OVR' + JSON.stringify(v));
 overrideJsonDecoder<UnionTarget>((serialized) => JSON.parse((serialized as string).slice(3)) as never);
-overrideBinaryEncoder<UnionTarget>((value, Ser) => {
-  Ser.serString(JSON.stringify(value));
-  return Ser;
-});
-overrideBinaryDecoder<UnionTarget>((ret, Des) => JSON.parse(Des.desString()) as never);
 
 export const UNION_OVERRIDE: OverrideCase = {
   title: 'Unions',
@@ -41,7 +32,4 @@ export const UNION_OVERRIDE: OverrideCase = {
   jsonDecoder: () => createJsonDecoderFn<UnionTarget>(),
   jsonValue: {tag: 'unionOverrideA', x: 1},
   jsonString: 'OVR' + JSON.stringify({tag: 'unionOverrideA', x: 1}),
-  binaryEncoder: () => createBinaryEncoderFn<UnionTarget>(),
-  binaryDecoder: () => createBinaryDecoderFn<UnionTarget>(),
-  binaryValue: {tag: 'unionOverrideB', y: 'y'},
 };

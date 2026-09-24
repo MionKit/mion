@@ -12,7 +12,7 @@ import (
 // type reached only through getRunTypeId (reflection) or through
 // createValidateFn leaves no verr entry.
 //
-// `it` (validate) is demand-scoped too. Because the JSON/binary union decoders
+// `it` (validate) is demand-scoped too. Because the JSON union codecs
 // + validationErrors discriminate members via `val_<member>` cross-family
 // edges, those edges ride each entry's module deps and the resolver's
 // cross-family fixpoint renders the referenced val_ entries. So a
@@ -108,24 +108,24 @@ export const _ = createValidateFn<{a: string}>();
 }
 
 // TestDemandScope_ItSeededByCrossFamilyUnion — the cross-family proof: a
-// file that ONLY serializes a NON-merging union (conflicting shared prop, so
-// the binary union decoder discriminates members via the per-member validate
-// validators) and NEVER calls createValidateFn MUST still emit val_ entries — the
-// union members — because the toBinary entry's cross-family module deps name
-// them and the resolver's fixpoint renders them. Without that the union
-// round-trip silently corrupts (missing val_<member> ⇒ `?? true` ⇒ first
-// member always matches).
+// file that ONLY serializes a NON-merging union (conflicting shared prop whose
+// bigint member needs a transform, so the JSON union encoder discriminates
+// members via the per-member validate validators) and NEVER calls
+// createValidateFn MUST still emit val_ entries — the union members — because
+// the prepareForJsonClone entry's cross-family module deps name them and the
+// resolver's fixpoint renders them. Without that the union round-trip silently
+// corrupts (missing val_<member> ⇒ `?? true` ⇒ first member always matches).
 func TestDemandScope_ItSeededByCrossFamilyUnion(t *testing.T) {
-	resp := scopeScan(t, `import {createBinaryEncoderFn} from '@mionjs/run-types';
-export const _ = createBinaryEncoderFn<{a: {n: number}} | {a: {s: string}}>();
+	resp := scopeScan(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
+export const _ = createJsonEncoderFn<{a: {n: bigint}} | {a: {s: string}}>();
 `)
-	// Sanity: the binary family IS demanded by createBinaryEncoderFn.
-	if !hasFamilyEntry(resp, "toBinary") {
-		t.Fatalf("createBinaryEncoderFn must emit tb entries, got none")
+	// Sanity: the clone family IS demanded by createJsonEncoderFn.
+	if !hasFamilyEntry(resp, "prepareForJsonClone") {
+		t.Fatalf("createJsonEncoderFn must emit pjs entries, got none")
 	}
 	// The proof: no createValidateFn site, yet the union's per-member val entries
-	// are rendered from the toBinary entry's cross-family edges.
+	// are rendered from the prepareForJsonClone entry's cross-family edges.
 	if !hasFamilyEntry(resp, "validate") {
-		t.Fatalf("cross-family fixpoint broken: a createBinaryEncoderFn-only union file must still emit val member entries, got keys: %v", familyEntryKeys(resp, "toBinary"))
+		t.Fatalf("cross-family fixpoint broken: a createJsonEncoderFn-only union file must still emit val member entries, got keys: %v", familyEntryKeys(resp, "prepareForJsonClone"))
 	}
 }

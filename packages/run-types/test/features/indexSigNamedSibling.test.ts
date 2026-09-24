@@ -1,7 +1,7 @@
 // A key declared by name carries its own transform, so no walk may apply the index signature's to it.
 // G1 is the shared repro id for this shape, also used by the fuzz repro list and the Go codegen tests.
 import {describe, it, expect} from 'vitest';
-import {createJsonEncoderFn, createJsonDecoderFn, createBinaryEncoderFn, createBinaryDecoderFn} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 
 describe('G1 index signature does not corrupt a named sibling property', () => {
   it('{p0: number; [k: number]: bigint} keeps p0 a number across every wire', () => {
@@ -27,16 +27,9 @@ describe('G1 index signature does not corrupt a named sibling property', () => {
       expect(out[9], `[json/${enc}] index value 9`).toBe(11n);
     }
 
-    // Binary round-trips identically.
-    const bout = createBinaryDecoderFn<A>()(createBinaryEncoderFn<A>()(make()));
-    expect(typeof bout.p0).toBe('number');
-    expect(bout.p0).toBe(1);
-    expect(bout[5]).toBe(7n);
-
-    // Cross-wire agreement: the JSON and binary decodes match.
+    // The default strategy decodes to the original value.
     const viaJson = createJsonDecoderFn<A>()(createJsonEncoderFn<A>()(make())!);
-    const viaBinary = createBinaryDecoderFn<A>()(createBinaryEncoderFn<A>()(make()));
-    expect(viaBinary).toEqual(viaJson);
+    expect(viaJson).toEqual(make());
   });
 
   it('{name: string; [id: number]: Date} keeps the string prop and revives Dates', () => {

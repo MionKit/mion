@@ -6,11 +6,8 @@
 // broader "no member needs special encoding" rule for pure-object and
 // mixed atomic/object unions. When ANY member DOES need a transform (e.g.
 // a `Record<string, Date>` member) the envelope is correctly retained.
-//
-// Binary is unaffected: it always keeps the compact per-member discriminant
-// (JSON-only collapse), so binary round-trips are asserted separately.
 import {describe, expect, it} from 'vitest';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 
 // A TOP-LEVEL union that round-trips raw serialises as the bare value, so its
 // wire never starts with the `[-1,` / `[<digit>,` envelope array. A nested
@@ -45,13 +42,6 @@ describe('serialization / record-union JSON encoding (regression)', () => {
     expect(dec(enc({type: 'oops', isTypeError: true})!)).toEqual({type: 'oops', isTypeError: true});
     expect(dec(enc({a: 1, b: 2})!)).toEqual({a: 1, b: 2});
     expect(dec(enc({})!)).toEqual({});
-  });
-
-  it('record-union binary keeps its discriminant and round-trips', () => {
-    const enc = createBinaryEncoderFn<RecordUnion>();
-    const dec = createBinaryDecoderFn<RecordUnion>();
-    expect(dec(enc({type: 'oops', isTypeError: true}))).toEqual({type: 'oops', isTypeError: true});
-    expect(dec(enc({a: 1, b: 2}))).toEqual({a: 1, b: 2});
   });
 
   it('pure object union {a: string} | {b: number} → bare object, no envelope', () => {

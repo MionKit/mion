@@ -123,9 +123,6 @@ type Walker struct {
 	// prefix. A flat per-prefix counter is enough because each Emit allocates a
 	// fixed number of names once.
 	localVarCounters map[string]int
-	// suppressInlineReserve drops the toBinary scalar arms' own reserve: a fixed-width array reserves the block once.
-	// Never a ContextItems value: every value there is emitted verbatim as a prologue line.
-	suppressInlineReserve bool
 	// Code is the assembled function body, the most recent root-level emitted code;
 	// Finalize normalises it on exit.
 	Code string
@@ -205,7 +202,6 @@ const (
 	factNoopRestoreJsonSafe
 	factNoopFormatTransform
 	factNoopCompactFromJson
-	factNoopToBinary
 	factNoopRemoveUnknownKeys
 	factRestoreKeyGuard
 	factCount
@@ -477,9 +473,8 @@ func (w *Walker) Compile() (innerFnDecl string, isNoop bool, isUnsupported bool)
 }
 
 // CircularGuardReactor is implemented by the walker-path CircularGuarded emitters (validate /
-// validationErrors / toBinary). EmitCircularGuard returns the guard statement prepended to the body: on a
-// detected cycle it applies the family's policy, `return false`, a recorded `{expected:'circular'}` error,
-// or a thrown CircularReferenceError. The JSON composites don't use the walker and inline their own guard
+// validationErrors). EmitCircularGuard returns the guard statement prepended to the body: on a
+// detected cycle it applies the family's policy, `return false` or a recorded `{expected:'circular'}` error. The JSON composites don't use the walker and inline their own guard
 // in json_composite.go.
 type CircularGuardReactor interface {
 	EmitCircularGuard(fcpAlias, skeletonConst string) string
@@ -594,7 +589,7 @@ func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode
 			return RTCode{Code: "", Type: expectedCType}
 		}
 		// A child proven to be the family identity composes as empty code, which also folds circular identity bodies.
-		// Gated on NoopComposeAround, not NoopTypePredicate: fromBinary needs its byte reads.
+		// Gated on NoopComposeAround, not NoopTypePredicate: only an opted-in family may skip a noop child.
 		// An override child skips the gate: its body is the user's contract, not the structural identity.
 		if !overrideChild && !w.disableNoopElision {
 			if predicate, ok := w.Emitter.(NoopComposeAround); ok {

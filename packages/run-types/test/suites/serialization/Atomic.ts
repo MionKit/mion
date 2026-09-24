@@ -1,5 +1,5 @@
 import * as TF from '@mionjs/run-types/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
@@ -7,39 +7,29 @@ export const ATOMIC = {
   string: {
     title: 'string',
     description:
-      'Root `string` round-trips identically across JSON and binary; samples cover empty strings and multi-byte UTF-8 (CJK, Arabic, Cyrillic, emoji) to exercise byte-offset handling.',
-    serializeNotes: 'Binary encodes UTF-8 with a length prefix, so byte size is variable (no fixed-size assertion).',
+      'Root `string` round-trips identically through JSON; samples cover empty strings and multi-byte UTF-8 (CJK, Arabic, Cyrillic, emoji) to exercise byte-offset handling.',
     mutateEncoder: () => createJsonEncoderFn<string>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<string>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<string>(),
     mutateDecoder: () => createJsonDecoderFn<string>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<string>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<string>(),
-    binaryDecoder: () => createBinaryDecoderFn<string>(),
     schemaEncoder: () => createJsonEncoderFn(TF.string()),
     schemaDecoder: () => createJsonDecoderFn(TF.string()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.string()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.string()),
     getTestData: () => ({values: ['hello', '', 'world', '', '你好', 'مرحبا', 'Здравствуйте', '🌍🚀✨']}),
   },
   number: {
     title: 'number',
     description:
-      'Root `number` round-trips across JSON and binary; samples span integers, negatives, fractions, the 2**31 boundary, and the JS safe-integer / min / max extremes.',
-    serializeNotes: 'Binary writes every number as float64, so all values encode to a fixed 8 bytes regardless of magnitude.',
+      'Root `number` round-trips through JSON; samples span integers, negatives, fractions, the 2**31 boundary, and the JS safe-integer / min / max extremes.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<number>(),
     mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number>(),
-    binaryDecoder: () => createBinaryDecoderFn<number>(),
     schemaEncoder: () => createJsonEncoderFn(TF.number()),
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
     getTestData: () => ({
       values: [
         0,
@@ -56,144 +46,92 @@ export const ATOMIC = {
         Number.MAX_VALUE,
       ],
     }),
-    // Locks the "fixed 8 bytes regardless of magnitude" claim: every number
-    // encodes as float64, so all 12 samples must be exactly 8 bytes.
-    getBinaryByteSizes: () => [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
   },
   // Magnitude-split number cases: the base `number` case above mixes every
-  // magnitude into one row, so the page can't show where binary overtakes JSON
-  // on the wire. Binary always writes a fixed 8-byte float64; JSON's size is the
-  // decimal-string length. These single-value cases isolate each magnitude so the
-  // JSON-vs-binary payload crossover is visible per case (small/short = JSON wins,
-  // large/high-precision = binary wins).
+  // magnitude into one row. JSON's size is the decimal-string length, so these
+  // single-value cases isolate each magnitude.
   number_small: {
     title: 'number (small)',
-    description:
-      'A small single-digit integer. Its JSON text is far shorter than a binary float64, so JSON is smaller on the wire here.',
-    serializeNotes: 'JSON writes "7" as 1 byte; binary writes a fixed 8-byte float64. Small numbers favour JSON on payload.',
+    description: 'A small single-digit integer.',
+    serializeNotes: 'JSON writes "7" as 1 byte.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<number>(),
     mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number>(),
-    binaryDecoder: () => createBinaryDecoderFn<number>(),
     schemaEncoder: () => createJsonEncoderFn(TF.number()),
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
     getTestData: () => ({values: [7]}),
-    getBinaryByteSizes: () => [8],
   },
   number_medium: {
     title: 'number (medium)',
-    description: 'A mid-size six-digit integer, near the point where JSON text and a binary float64 cost about the same.',
-    serializeNotes:
-      'JSON writes "123456" as 6 bytes; binary writes a fixed 8-byte float64. Around six to eight digits the two are about even.',
+    description: 'A mid-size six-digit integer.',
+    serializeNotes: 'JSON writes "123456" as 6 bytes.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<number>(),
     mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number>(),
-    binaryDecoder: () => createBinaryDecoderFn<number>(),
     schemaEncoder: () => createJsonEncoderFn(TF.number()),
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
     getTestData: () => ({values: [123456]}),
-    getBinaryByteSizes: () => [8],
   },
   number_large: {
     title: 'number (large)',
-    description:
-      'The largest safe integer (16 digits). Its JSON text needs 16 bytes against a fixed 8-byte binary float64, so binary is smaller on the wire.',
-    serializeNotes:
-      'JSON writes Number.MAX_SAFE_INTEGER as 16 bytes; binary writes a fixed 8-byte float64. Large numbers favour binary on payload.',
+    description: 'The largest safe integer (16 digits).',
+    serializeNotes: 'JSON writes Number.MAX_SAFE_INTEGER as 16 bytes.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<number>(),
     mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number>(),
-    binaryDecoder: () => createBinaryDecoderFn<number>(),
     schemaEncoder: () => createJsonEncoderFn(TF.number()),
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
     getTestData: () => ({values: [Number.MAX_SAFE_INTEGER]}),
-    getBinaryByteSizes: () => [8],
   },
   number_float_short: {
     title: 'number (low-precision float)',
-    description:
-      'A short decimal with few significant digits. Its JSON text is shorter than a binary float64, so JSON is smaller on the wire.',
-    serializeNotes:
-      'JSON writes "3.14" as 4 bytes; binary writes a fixed 8-byte float64. Low-precision floats favour JSON on payload.',
+    description: 'A short decimal with few significant digits.',
+    serializeNotes: 'JSON writes "3.14" as 4 bytes.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<number>(),
     mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number>(),
-    binaryDecoder: () => createBinaryDecoderFn<number>(),
     schemaEncoder: () => createJsonEncoderFn(TF.number()),
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
     getTestData: () => ({values: [3.14]}),
-    getBinaryByteSizes: () => [8],
   },
   number_float_precise: {
     title: 'number (high-precision float)',
-    description:
-      'A full-precision double with 17 significant digits (pi). Its JSON text needs 17 bytes against a fixed 8-byte binary float64, so binary is smaller on the wire.',
-    serializeNotes:
-      'JSON writes the 17-digit decimal as 17 bytes; binary writes a fixed 8-byte float64. High-precision floats favour binary on payload.',
+    description: 'A full-precision double with 17 significant digits (pi).',
+    serializeNotes: 'JSON writes the 17-digit decimal as 17 bytes.',
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<number>(),
     mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number>(),
-    binaryDecoder: () => createBinaryDecoderFn<number>(),
     schemaEncoder: () => createJsonEncoderFn(TF.number()),
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
     getTestData: () => ({values: [3.141592653589793]}),
-    getBinaryByteSizes: () => [8],
   },
   number_not_supported: {
     title: 'number edge cases',
     description: 'Infinity / NaN are not supported by all protocols and do not survive JSON encoding, becoming null on restore.',
-    serializeNotes: [
-      'JSON.stringify maps Infinity / -Infinity / NaN to null, so the clone / mutate paths restore null.',
-      'Binary writes float64, which preserves Infinity / -Infinity / NaN natively, so binary uses a separate test-data override.',
-    ],
+    serializeNotes: ['JSON.stringify maps Infinity / -Infinity / NaN to null, so the clone / mutate paths restore null.'],
     mutateEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<number>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<number>(),
     mutateDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<number>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<number>(),
-    binaryDecoder: () => createBinaryDecoderFn<number>(),
     schemaEncoder: () => createJsonEncoderFn(TF.number()),
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    // Binary writes float64, which preserves Infinity/NaN natively —
-    // no conversion to null like JSON.stringify does.
-    getBinaryTestData: () => ({
-      values: [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN],
-      deserializedValues: [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN],
-    }),
     getTestData: () => ({
       values: [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN],
       // After JSON.stringify(Infinity) === 'null', restore yields null.
@@ -218,60 +156,40 @@ export const ATOMIC = {
     mutateDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ002
     compactDecoder: () => createJsonDecoderFn<RegExp>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error TB002
-    binaryEncoder: () => createBinaryEncoderFn<RegExp>(),
-    // @mion-downgrade-error FB002
-    binaryDecoder: () => createBinaryDecoderFn<RegExp>(),
     // @mion-downgrade-error PJS002
     schemaEncoder: () => createJsonEncoderFn(RT.regexp()),
     // @mion-downgrade-error RJ002
     schemaDecoder: () => createJsonDecoderFn(RT.regexp()),
-    // @mion-downgrade-error TB002
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.regexp()),
-    // @mion-downgrade-error FB002
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.regexp()),
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
   bigint: {
     title: 'bigint',
-    description:
-      'Root `bigint` round-trips across JSON and binary; bigint is not natively JSON-encodable so a transform applies.',
-    serializeNotes: [
-      'JSON encodes bigint to a decimal string and rebuilds it with `BigInt(...)` on decode.',
-      'Plain `bigint` takes the binary string-fallback path (variable length), so no fixed byte size is asserted; only a 64-bit-fitting bigint format brand would encode to a fixed 8 bytes.',
-    ],
+    description: 'Root `bigint` round-trips through JSON; bigint is not natively JSON-encodable so a transform applies.',
+    serializeNotes: ['JSON encodes bigint to a decimal string and rebuilds it with `BigInt(...)` on decode.'],
     mutateEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<bigint>(),
     mutateDecoder: () => createJsonDecoderFn<bigint>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<bigint>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<bigint>(),
-    binaryDecoder: () => createBinaryDecoderFn<bigint>(),
     schemaEncoder: () => createJsonEncoderFn(TF.bigInt()),
     schemaDecoder: () => createJsonDecoderFn(TF.bigInt()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.bigInt()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.bigInt()),
     // Span zero, negative, and a value beyond 64 bits / Number.MAX_SAFE_INTEGER
     // to exercise the decimal-string transform across magnitudes and signs.
     getTestData: () => ({values: [1n, 0n, -1n, -123456789012345678901234567890n, 18446744073709551616n]}),
   },
   boolean: {
     title: 'boolean',
-    description: 'Root `boolean` round-trips identically across JSON and binary; no transform is needed.',
+    description: 'Root `boolean` round-trips identically through JSON; no transform is needed.',
     mutateEncoder: () => createJsonEncoderFn<boolean>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<boolean>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<boolean>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<boolean>(),
     mutateDecoder: () => createJsonDecoderFn<boolean>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<boolean>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<boolean>(),
-    binaryDecoder: () => createBinaryDecoderFn<boolean>(),
     schemaEncoder: () => createJsonEncoderFn(RT.boolean()),
     schemaDecoder: () => createJsonDecoderFn(RT.boolean()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.boolean()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.boolean()),
     getTestData: () => ({values: [true, false]}),
   },
   any: {
@@ -286,12 +204,8 @@ export const ATOMIC = {
     cloneDecoder: () => createJsonDecoderFn<any>(),
     mutateDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<any>(),
-    binaryDecoder: () => createBinaryDecoderFn<any>(),
     schemaEncoder: () => createJsonEncoderFn(RT.any()),
     schemaDecoder: () => createJsonDecoderFn(RT.any()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.any()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.any()),
     roundTripBestEffort: true,
     getTestData: () => ({values: [42, 'hello', true, null, 0, -1, 1.1, {a: 1, b: 2}, [1, 2, 3, null]]}),
   },
@@ -307,70 +221,53 @@ export const ATOMIC = {
     cloneDecoder: () => createJsonDecoderFn<any>(),
     mutateDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<any>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<any>(),
-    binaryDecoder: () => createBinaryDecoderFn<any>(),
     schemaEncoder: () => createJsonEncoderFn(RT.any()),
     schemaDecoder: () => createJsonDecoderFn(RT.any()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.any()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.any()),
     roundTripBestEffort: true,
     getTestData: () => ({values: [undefined, [undefined, 123, null], new Date('2000-08-06T02:13:00.000Z'), BigInt(1)]}),
   },
   null: {
     title: 'null',
-    description: 'Root `null` literal round-trips identically across JSON and binary.',
+    description: 'Root `null` literal round-trips identically through JSON.',
     mutateEncoder: () => createJsonEncoderFn<null>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<null>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<null>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<null>(),
     mutateDecoder: () => createJsonDecoderFn<null>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<null>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<null>(),
-    binaryDecoder: () => createBinaryDecoderFn<null>(),
     schemaEncoder: () => createJsonEncoderFn(RT.literal(null)),
     schemaDecoder: () => createJsonDecoderFn(RT.literal(null)),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(null)),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(null)),
     getTestData: () => ({values: [null]}),
   },
   undefined: {
     title: 'undefined',
-    description: 'Root `undefined` literal round-trips across JSON and binary.',
+    description: 'Root `undefined` literal round-trips through JSON.',
     serializeNotes:
-      'JSON has no undefined, so the parsed value may arrive as null or missing; decode force-rebinds it back to undefined. Binary writes a marker byte and reconstructs undefined directly.',
+      'JSON has no undefined, so the parsed value may arrive as null or missing; decode force-rebinds it back to undefined.',
     mutateEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<undefined>(),
     mutateDecoder: () => createJsonDecoderFn<undefined>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<undefined>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<undefined>(),
-    binaryDecoder: () => createBinaryDecoderFn<undefined>(),
     schemaEncoder: () => createJsonEncoderFn(RT.literal(undefined)),
     schemaDecoder: () => createJsonDecoderFn(RT.literal(undefined)),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(undefined)),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(undefined)),
     getTestData: () => ({values: [undefined]}),
   },
   date: {
     title: 'date',
-    description: 'Root `Date` round-trips across JSON and binary, returning a real Date instance on decode.',
-    serializeNotes:
-      'JSON serializes Date to an ISO string and revives it with `new Date(...)`; binary stores the epoch as a fixed 8-byte float64 of `getTime()`.',
+    description: 'Root `Date` round-trips through JSON, returning a real Date instance on decode.',
+    serializeNotes: 'JSON serializes Date to an ISO string and revives it with `new Date(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<Date>(),
     mutateDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Date>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Date>(),
-    binaryDecoder: () => createBinaryDecoderFn<Date>(),
     schemaEncoder: () => createJsonEncoderFn(TF.date()),
     schemaDecoder: () => createJsonDecoderFn(TF.date()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.date()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.date()),
     // Span whole-second, sub-second ms precision, the Unix epoch (getTime 0),
-    // and a pre-1970 (negative epoch) date — all must survive the ISO/float64
+    // and a pre-1970 (negative epoch) date — all must survive the ISO
     // round-trip without precision loss.
     getTestData: () => ({
       values: [
@@ -380,13 +277,11 @@ export const ATOMIC = {
         new Date('1969-12-31T23:59:59.500Z'),
       ],
     }),
-    // Binary stores every Date as a fixed 8-byte float64 of getTime().
-    getBinaryByteSizes: () => [8, 8, 8, 8],
   },
   enum_color: {
     title: 'enum',
     description:
-      'String enum `Color` round-trips across JSON and binary as its underlying string values; samples encode the `red` / `green` members.',
+      'String enum `Color` round-trips through JSON as its underlying string values; samples encode the `red` / `green` members.',
     serializeNotes:
       'Wire form is the plain enum value (a string), so no enum-specific transform is applied; encode and decode treat it as the value-union of its members.',
     // Value-first `RT.enum(...)` carries the enum's value-UNION; the type-first
@@ -441,28 +336,10 @@ export const ATOMIC = {
       }
       return createJsonDecoderFn<Color>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      enum Color {
-        Red = 'red',
-        Green = 'green',
-        Blue = 'blue',
-      }
-      return createBinaryEncoderFn<Color>();
-    },
-    binaryDecoder: () => {
-      enum Color {
-        Red = 'red',
-        Green = 'green',
-        Blue = 'blue',
-      }
-      return createBinaryDecoderFn<Color>();
-    },
     // Value-first enum via the enum-like RECORD form (self-contained per thunk):
     // `RT.enum({...})` carries the value-union, same as the string-literal union.
     schemaEncoder: () => createJsonEncoderFn(RT.enum({Red: 'red', Green: 'green', Blue: 'blue'})),
     schemaDecoder: () => createJsonDecoderFn(RT.enum({Red: 'red', Green: 'green', Blue: 'blue'})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.enum({Red: 'red', Green: 'green', Blue: 'blue'})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.enum({Red: 'red', Green: 'green', Blue: 'blue'})),
     getTestData: () => {
       enum Color {
         Red = 'red',
@@ -475,7 +352,7 @@ export const ATOMIC = {
   symbol: {
     title: 'symbol',
     description:
-      'symbol at root is unsupported because identity does not survive JSON or binary round-trips, so the factory is rendered as alwaysThrow.',
+      'symbol at root is unsupported because identity does not survive a JSON round-trip, so the factory is rendered as alwaysThrow.',
     // @mion-downgrade-error PJ005
     mutateEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error PJS005
@@ -488,20 +365,12 @@ export const ATOMIC = {
     mutateDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ005
     compactDecoder: () => createJsonDecoderFn<symbol>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error TB006
-    binaryEncoder: () => createBinaryEncoderFn<symbol>(),
-    // @mion-downgrade-error FB006
-    binaryDecoder: () => createBinaryDecoderFn<symbol>(),
     // Bare symbol resolves the same alwaysThrow factory via the value-first path,
     // so each schema thunk throws like the type-first form (factoryThrows below).
     // @mion-downgrade-error PJS005
     schemaEncoder: () => createJsonEncoderFn(RT.symbol()),
     // @mion-downgrade-error RJ005
     schemaDecoder: () => createJsonDecoderFn(RT.symbol()),
-    // @mion-downgrade-error TB006
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.symbol()),
-    // @mion-downgrade-error FB006
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.symbol()),
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -519,34 +388,26 @@ export const ATOMIC = {
     cloneDecoder: () => createJsonDecoderFn<object>(),
     mutateDecoder: () => createJsonDecoderFn<object>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<object>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<object>(),
-    binaryDecoder: () => createBinaryDecoderFn<object>(),
     // No value-first builder for the TS `object` primitive (any non-null
     // non-primitive) — `RT.object(...)` is the shape composer, a different kind.
     schemaEncoder: 'not-supported',
     schemaDecoder: 'not-supported',
-    schemaBinaryEncoder: 'not-supported',
-    schemaBinaryDecoder: 'not-supported',
     roundTripBestEffort: true,
     getTestData: () => ({values: [{a: 42, b: 'hello'}, null]}),
   },
   void: {
     title: 'void',
-    description: 'Root `void` round-trips across JSON and binary with an undefined sample, decoding back to undefined.',
+    description: 'Root `void` round-trips through JSON with an undefined sample, decoding back to undefined.',
     serializeNotes:
-      'JSON has no undefined, so the parsed value may arrive as null or missing and decode force-rebinds it to undefined; binary writes a marker byte and reconstructs undefined.',
+      'JSON has no undefined, so the parsed value may arrive as null or missing and decode force-rebinds it to undefined.',
     mutateEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<void>(),
     mutateDecoder: () => createJsonDecoderFn<void>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<void>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<void>(),
-    binaryDecoder: () => createBinaryDecoderFn<void>(),
     schemaEncoder: () => createJsonEncoderFn(RT.void()),
     schemaDecoder: () => createJsonDecoderFn(RT.void()),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.void()),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.void()),
     getTestData: () => ({values: [undefined]}),
   },
   never: {
@@ -564,55 +425,39 @@ export const ATOMIC = {
     mutateDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ001
     compactDecoder: () => createJsonDecoderFn<never>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error TB001
-    binaryEncoder: () => createBinaryEncoderFn<never>(),
-    // @mion-downgrade-error FB001
-    binaryDecoder: () => createBinaryDecoderFn<never>(),
     // never resolves the same alwaysThrow factory via the value-first path.
     // @mion-downgrade-error PJS001
     schemaEncoder: () => createJsonEncoderFn(RT.never()),
     // @mion-downgrade-error RJ001
     schemaDecoder: () => createJsonDecoderFn(RT.never()),
-    // @mion-downgrade-error TB001
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.never()),
-    // @mion-downgrade-error FB001
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.never()),
     // The 2020-12 boolean `false` schema denotes never — same alwaysThrow factory.
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
   literal_string: {
     title: 'string literal',
-    description: 'A string-literal type round-trips identically across JSON and binary as a plain string.',
+    description: 'A string-literal type round-trips identically through JSON as a plain string.',
     mutateEncoder: () => createJsonEncoderFn<'hello'>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<'hello'>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<'hello'>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<'hello'>(),
     mutateDecoder: () => createJsonDecoderFn<'hello'>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<'hello'>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<'hello'>(),
-    binaryDecoder: () => createBinaryDecoderFn<'hello'>(),
     schemaEncoder: () => createJsonEncoderFn(RT.literal('hello')),
     schemaDecoder: () => createJsonDecoderFn(RT.literal('hello')),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal('hello')),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal('hello')),
     getTestData: () => ({values: ['hello']}),
   },
   literal_number: {
     title: 'number literal',
-    description: 'A number-literal type round-trips identically across JSON and binary as a plain number.',
+    description: 'A number-literal type round-trips identically through JSON as a plain number.',
     mutateEncoder: () => createJsonEncoderFn<42>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<42>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<42>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<42>(),
     mutateDecoder: () => createJsonDecoderFn<42>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<42>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<42>(),
-    binaryDecoder: () => createBinaryDecoderFn<42>(),
     schemaEncoder: () => createJsonEncoderFn(RT.literal(42)),
     schemaDecoder: () => createJsonDecoderFn(RT.literal(42)),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(42)),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(42)),
     getTestData: () => ({values: [42]}),
   },
   literal_bigint: {
@@ -627,29 +472,21 @@ export const ATOMIC = {
     cloneDecoder: () => createJsonDecoderFn<1n>(),
     mutateDecoder: () => createJsonDecoderFn<1n>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<1n>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<1n>(),
-    binaryDecoder: () => createBinaryDecoderFn<1n>(),
     schemaEncoder: () => createJsonEncoderFn(RT.literal(1n)),
     schemaDecoder: () => createJsonDecoderFn(RT.literal(1n)),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(1n)),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(1n)),
     getTestData: () => ({values: [1n]}),
   },
   literal_boolean: {
     title: 'boolean literal',
-    description: 'A boolean-literal type round-trips identically across JSON and binary as a plain boolean.',
+    description: 'A boolean-literal type round-trips identically through JSON as a plain boolean.',
     mutateEncoder: () => createJsonEncoderFn<true>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<true>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<true>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<true>(),
     mutateDecoder: () => createJsonDecoderFn<true>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<true>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<true>(),
-    binaryDecoder: () => createBinaryDecoderFn<true>(),
     schemaEncoder: () => createJsonEncoderFn(RT.literal(true)),
     schemaDecoder: () => createJsonDecoderFn(RT.literal(true)),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(true)),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(true)),
     getTestData: () => ({values: [true]}),
   },
   literal_symbol: {
@@ -688,21 +525,9 @@ export const ATOMIC = {
       // @mion-downgrade-error RJ005
       return createJsonDecoderFn<typeof sym>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      const sym = Symbol('hello');
-      // @mion-downgrade-error TB006
-      return createBinaryEncoderFn<typeof sym>();
-    },
-    binaryDecoder: () => {
-      const sym = Symbol('hello');
-      // @mion-downgrade-error FB006
-      return createBinaryDecoderFn<typeof sym>();
-    },
     // No value-first builder names a unique symbol; `RT.symbol()` is the bare kind.
     schemaEncoder: 'not-supported',
     schemaDecoder: 'not-supported',
-    schemaBinaryEncoder: 'not-supported',
-    schemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },

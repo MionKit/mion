@@ -10,13 +10,7 @@
 // asserted to converge for equivalent T.
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  getRunTypeId,
-} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn, getRunTypeId} from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {
   clearClassSerializers,
@@ -91,17 +85,6 @@ describe('classSerializer / generic classes — one registration covers every in
     const decoded = decode(encode(new WireError('nf', 'missing', {id: 7})) as string) as WireError<'nf', {id: number}>;
     expect(decoded).toBeInstanceOf(WireError);
     expect(decoded.data).toEqual({id: 7});
-  });
-
-  it('a NON-registered instantiation reconstructs through BINARY', () => {
-    registerWireError();
-    const encode = createBinaryEncoderFn<WireError<'bin', {bytes: number}>>();
-    const decode = createBinaryDecoderFn<WireError<'bin', {bytes: number}>>();
-
-    const decoded = decode(encode(new WireError('bin', 'wire', {bytes: 3}))) as WireError<'bin', {bytes: number}>;
-    expect(decoded).toBeInstanceOf(WireError);
-    expect(decoded.code).toBe('bin');
-    expect(decoded.data).toEqual({bytes: 3});
   });
 
   it('a union containing a non-registered instantiation discriminates AND reconstructs', () => {

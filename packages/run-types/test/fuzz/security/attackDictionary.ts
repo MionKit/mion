@@ -1,13 +1,10 @@
 // The vulnerability dictionary: for every kind of data a decoder rebuilds, the
 // known and possible attacks with concrete payloads.
 //
-// Two payload families per entry:
-//   json    a value spliced into the PARSED JSON tree at a position of `kind`
-//           (the secjson lane). A prototype-key payload is built with
-//           `defineOwn`, so `JSON.stringify` emits it as an OWN key and the
-//           re-parsed tree carries it the way an attacker's body would.
-//   binary  bytes spliced at a wire-map read of `read` (the secbinary lane),
-//           see wireMutations.ts for the splice mechanics.
+// Each entry's `json` payload is a value spliced into the PARSED JSON tree at a
+// position of `kind` (the secjson lane). A prototype-key payload is built with
+// `defineOwn`, so `JSON.stringify` emits it as an OWN key and the re-parsed
+// tree carries it the way an attacker's body would.
 //
 // `expect: 'reject'`: the type rules it out, so a decoder must throw or return a value `validate` refuses.
 // `expect: 'any'` (the type may accept it) only feeds the resource / prototype / totality oracles.
@@ -18,12 +15,8 @@
 // are always tried. `expectWrongType` says which pairings the type system
 // rules out, conservatively: when a decoder legitimately coerces (a number into
 // `new Date(n)`), the pairing is 'any'.
-//
-// Erasable TypeScript only (no enums, no parameter properties): the worker
-// thread loads this file through Node's native type stripping.
 
-/** The decoded data kinds a position can have (the shape-model vocabulary,
- *  see core/typeGen.ts, plus the wire-level reads the binary lane sees). **/
+/** The decoded data kinds a position can have (the shape-model vocabulary, see core/typeGen.ts). **/
 export type AttackKind =
   | 'string'
   | 'number'
@@ -92,8 +85,7 @@ export const NESTING_CEILING = 256;
 // Fuzz-sized, not attacker-sized: a lane runs thousands of attacks per type
 // through four decoders, so the memory class is probed with payloads big
 // enough to expose super-linear work (the time oracle) without the harness
-// itself exhausting the heap. The count bombs on the binary wire are the
-// real allocation attacks; they cost bytes, not payload size.
+// itself exhausting the heap.
 const BIG_STRING = 'A'.repeat(1 << 16);
 const LONG_ARRAY_LENGTH = 10_000;
 

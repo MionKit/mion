@@ -6,7 +6,7 @@
  * ######## */
 
 // Custom (de)serializer registry for user-defined classes (KindClass + SubKindNone): the JSON (pj / pjs / rj /
-// sj) and binary (tb / fb) families look an entry up by the class's structural type id plus its build-time class
+// sj) families look an entry up by the class's structural type id plus its build-time class
 // name and route reconstruction, and optionally serialization, through it; with nothing registered they fall
 // back to the structural shape, which is the right answer for a class that is pure data. The registry exists
 // because a class instance is NOT pure data — its prototype is behaviour and its constructor runs arbitrary

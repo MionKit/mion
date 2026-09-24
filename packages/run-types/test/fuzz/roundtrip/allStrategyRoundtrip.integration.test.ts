@@ -1,4 +1,4 @@
-// Random serialisable types round-tripped through every JSON strategy plus binary, checked by roundtripOracle.
+// Random serialisable types round-tripped through every JSON strategy, checked by roundtripOracle.
 // Skipped when the Go binary is not built; the runner restarts the resolver if a pathological type wedges it.
 
 import {describe, it, expect} from 'vitest';

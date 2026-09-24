@@ -160,58 +160,6 @@ func (RestoreFromJsonCloneEmitter) DiagCodeForLeaf(leaf *reflection.RunType) str
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
-var toBinaryCodes = map[DiagSlot]string{
-	SlotNeverRoot:                  diagnostics.CodeTBNeverRoot,
-	SlotNonSerializableRoot:        diagnostics.CodeTBNonSerializableRoot,
-	SlotFunctionRoot:               diagnostics.CodeTBFunctionRoot,
-	SlotFunctionPropDropped:        diagnostics.CodeTBFunctionPropDropped,
-	SlotMethodDropped:              diagnostics.CodeTBMethodDropped,
-	SlotStaticDropped:              diagnostics.CodeTBStaticDropped,
-	SlotSymbolKeyedDropped:         diagnostics.CodeTBSymbolKeyedDropped,
-	SlotUnionMemberDropped:         diagnostics.CodeTBUnionMemberDropped,
-	SlotNonSerializablePropDropped: diagnostics.CodeTBNonSerializablePropDrop,
-	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
-}
-
-func (ToBinaryEmitter) DiagCodeFor(slot DiagSlot) string { return toBinaryCodes[slot] }
-
-var toBinaryRootCodes = rootCodeMap{
-	never:           diagnostics.CodeTBNeverRoot,
-	nonSerializable: diagnostics.CodeTBNonSerializableRoot,
-	function:        diagnostics.CodeTBFunctionRoot,
-	symbol:          diagnostics.CodeTBSymbolRoot,
-}
-
-func (ToBinaryEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return toBinaryRootCodes.codeFor(leaf)
-}
-
-var fromBinaryCodes = map[DiagSlot]string{
-	SlotNeverRoot:                  diagnostics.CodeFBNeverRoot,
-	SlotNonSerializableRoot:        diagnostics.CodeFBNonSerializableRoot,
-	SlotFunctionRoot:               diagnostics.CodeFBFunctionRoot,
-	SlotFunctionPropDropped:        diagnostics.CodeFBFunctionPropDropped,
-	SlotMethodDropped:              diagnostics.CodeFBMethodDropped,
-	SlotStaticDropped:              diagnostics.CodeFBStaticDropped,
-	SlotSymbolKeyedDropped:         diagnostics.CodeFBSymbolKeyedDropped,
-	SlotUnionMemberDropped:         diagnostics.CodeFBUnionMemberDropped,
-	SlotNonSerializablePropDropped: diagnostics.CodeFBNonSerializablePropDrop,
-	SlotUnsafeNamePropDropped:      diagnostics.CodeUnsafePropertyName,
-}
-
-func (FromBinaryEmitter) DiagCodeFor(slot DiagSlot) string { return fromBinaryCodes[slot] }
-
-var fromBinaryRootCodes = rootCodeMap{
-	never:           diagnostics.CodeFBNeverRoot,
-	nonSerializable: diagnostics.CodeFBNonSerializableRoot,
-	function:        diagnostics.CodeFBFunctionRoot,
-	symbol:          diagnostics.CodeFBSymbolRoot,
-}
-
-func (FromBinaryEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
-	return fromBinaryRootCodes.codeFor(leaf)
-}
-
 var validateCodes = map[DiagSlot]string{
 	SlotNonSerializableRoot:        diagnostics.CodeVLNonSerializableRoot,
 	SlotFunctionPropDropped:        diagnostics.CodeVLFunctionPropDropped,

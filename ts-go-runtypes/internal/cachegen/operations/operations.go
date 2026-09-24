@@ -77,8 +77,6 @@ var registry = []Operation{
 	// Option-less leaf families.
 	{Name: "removeUnknownKeys", Doc: "Copies a value keeping only the properties the type declares.", Factory: "createRemoveUnknownKeysFn", FamilyTag: "ruk", Axis: AxisNone, Public: true, FnKey: "removeUnknownKeys"},
 	{Name: "formatTransform", Doc: "Applies the type's format rules to a value, for example trimming a string or clamping a number.", Factory: "createFormatTransformFn", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "formatTransform"},
-	{Name: "toBinary", Doc: "Writes a value to the compact binary wire format.", Factory: "createBinaryEncoderFn", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "toBinary", CircularGuarded: true},
-	{Name: "fromBinary", Doc: "Reads a value back from the binary wire format.", Factory: "createBinaryDecoderFn", FamilyTag: "fb", Axis: AxisNone, Public: true, FnKey: "fromBinary"},
 	// jsonSchema renders the document at build time (schemadoc.RenderDocument); the entry's fn just returns it.
 	{Name: "jsonSchema", Doc: "Returns the JSON Schema document describing the type.", Factory: "createJsonSchemaFn", FamilyTag: "jsc", Axis: AxisNone, Public: true, FnKey: "jsonSchema"},
 	// classSerializerReg backs registerClassSerializer's trailing marker: the entry is a name card carrying the source class name,

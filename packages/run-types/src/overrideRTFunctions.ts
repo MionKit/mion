@@ -25,7 +25,6 @@ import type {
   JsonEncoderFn,
   JsonDecoderFn,
 } from './createRTFunctions.ts';
-import type {ToBinaryFn, FromBinaryFn} from './createRTFBinary.ts';
 
 /** Shared runtime body for every overrideX twin. The override is a compile-time declaration: the
  *  plugin injects the cfn-redirect entry tuple at the trailing slot, so registering it (and its cfn
@@ -67,18 +66,6 @@ export const overrideRemoveUnknownKeys = overrideImpl as unknown as <T>(
 export const overrideFormatTransform = overrideImpl as unknown as <T>(
   fn: PureFunction<FormatTransformFn<T>>,
   id?: InjectTypeFnArgs<T, 'formatTransform'>
-) => void;
-
-// Binary overrides target the internal toBinary / fromBinary entries (the
-// serializer-threading shape the emitter uses), not the public wrapper.
-export const overrideBinaryEncoder = overrideImpl as unknown as <T>(
-  fn: PureFunction<ToBinaryFn>,
-  id?: InjectTypeFnArgs<T, 'toBinary'>
-) => void;
-
-export const overrideBinaryDecoder = overrideImpl as unknown as <T>(
-  fn: PureFunction<FromBinaryFn<DataOnly<T>>>,
-  id?: InjectTypeFnArgs<T, 'fromBinary'>
 ) => void;
 
 export const overrideJsonEncoder = overrideImpl as unknown as <T>(

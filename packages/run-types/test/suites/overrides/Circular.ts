@@ -7,10 +7,6 @@ import {
   overrideJsonEncoder,
   createJsonDecoderFn,
   overrideJsonDecoder,
-  createBinaryEncoderFn,
-  overrideBinaryEncoder,
-  createBinaryDecoderFn,
-  overrideBinaryDecoder,
 } from '@mionjs/run-types';
 import type {OverrideCase} from './types.ts';
 
@@ -26,11 +22,6 @@ overrideGetValidationErrors<CircularTarget>((value, path, errors) => {
 });
 overrideJsonEncoder<CircularTarget>((v) => 'OVR' + JSON.stringify(v));
 overrideJsonDecoder<CircularTarget>((serialized) => JSON.parse((serialized as string).slice(3)) as never);
-overrideBinaryEncoder<CircularTarget>((value, Ser) => {
-  Ser.serString(JSON.stringify(value));
-  return Ser;
-});
-overrideBinaryDecoder<CircularTarget>((ret, Des) => JSON.parse(Des.desString()) as never);
 
 export const CIRCULAR_OVERRIDE: OverrideCase = {
   title: 'Circular',
@@ -42,7 +33,4 @@ export const CIRCULAR_OVERRIDE: OverrideCase = {
   jsonDecoder: () => createJsonDecoderFn<CircularTarget>(),
   jsonValue: {label: 'x', next: null},
   jsonString: 'OVR' + JSON.stringify({label: 'x', next: null}),
-  binaryEncoder: () => createBinaryEncoderFn<CircularTarget>(),
-  binaryDecoder: () => createBinaryDecoderFn<CircularTarget>(),
-  binaryValue: {label: 'L', next: {label: 'M', next: null}},
 };

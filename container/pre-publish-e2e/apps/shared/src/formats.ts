@@ -1,4 +1,4 @@
-// Family 8 — Type formats. Mirrors guide/type-formats-*.ts +
+// Family 7 — Type formats. Mirrors guide/type-formats-*.ts +
 // custom-format-pattern.ts. Named formats, the custom-param escape hatch, a
 // registered reusable pattern, and the format builders.
 //

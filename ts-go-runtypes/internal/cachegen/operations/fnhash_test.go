@@ -7,12 +7,12 @@ import (
 )
 
 // expectedCanonicalKeyCount is a canary: when it trips, an operation changed, so re-confirm the collision guard holds.
-// 21: 9 AxisNone ops, val + verr 3 each (3 numberModes), jsonEncoder 3 + jsonDecoder 3.
-// +10: each CircularGuarded op adds one armed key per plain variant (val 3, verr 3, tb 1, jsonEncoder 3).
+// 19: 7 AxisNone ops, val + verr 3 each (3 numberModes), jsonEncoder 3 + jsonDecoder 3.
+// +9: each CircularGuarded op adds one armed key per plain variant (val 3, verr 3, jsonEncoder 3).
 // +12 each: vst / vest (`checkUnknowns`) and vuk / veuk (`checkUnionUnknowns`), 6 keys apiece like val / verr.
 // vst / vest are what forced FnHashLen 3 → 4 (see fnhash.go).
 // +1: restoreFromJsonClone (rjs), the stripping decode mirror of prepareForJsonClone.
-const expectedCanonicalKeyCount = 21 + 10 + 1 + 1 + 12 + 12 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
+const expectedCanonicalKeyCount = 19 + 9 + 1 + 1 + 12 + 12 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.
@@ -75,9 +75,8 @@ func TestCanonicalDistinguishesOptionSets(t *testing.T) {
 func TestRejectCircularForksHash(t *testing.T) {
 	validate, _ := ByName("validate")
 	verr, _ := ByName("validationErrors")
-	toBinary, _ := ByName("toBinary")
 	jsonEncoder, _ := ByName("jsonEncoder")
-	fromBinary, _ := ByName("fromBinary") // not CircularGuarded
+	formatTransform, _ := ByName("formatTransform") // not CircularGuarded
 
 	forks := func(name string, op Operation, options []string, strategy string) {
 		plain := FnHashFor(op, options, strategy, false)
@@ -89,13 +88,12 @@ func TestRejectCircularForksHash(t *testing.T) {
 	forks("validate", validate, nil, "")
 	forks("validate|NT", validate, []string{"numberTypeof"}, "")
 	forks("validationErrors", verr, nil, "")
-	forks("toBinary", toBinary, nil, "")
 	forks("jsonEncoder|clone", jsonEncoder, nil, "clone")
 	forks("jsonEncoder|mutate", jsonEncoder, nil, "mutate")
 
 	// A non-guarded op ignores rejectCircular entirely.
-	if FnHashFor(fromBinary, nil, "", false) != FnHashFor(fromBinary, nil, "", true) {
-		t.Fatal("fromBinary is not CircularGuarded; rejectCircular must be a no-op")
+	if FnHashFor(formatTransform, nil, "", false) != FnHashFor(formatTransform, nil, "", true) {
+		t.Fatal("formatTransform is not CircularGuarded; rejectCircular must be a no-op")
 	}
 }
 
@@ -126,7 +124,7 @@ func TestByFnKey(t *testing.T) {
 		"validationErrors":    "validationErrors",
 		"jsonEncoder":         "jsonEncoder",
 		"jsonDecoder":         "jsonDecoder",
-		"toBinary":            "toBinary",
+		"removeUnknownKeys":   "removeUnknownKeys",
 		"prepareForJsonClone": "prepareForJsonClone",
 	}
 	for fnKey, wantName := range cases {

@@ -285,13 +285,13 @@ func TestBuildFlatLayout_ClassWithSubKindFallsBackToAtomic(t *testing.T) {
 	}
 }
 
-// TestBuildFlatLayout_MethodMemberMarksStrippedCandidate — the binary
-// union arm-desync repro (`{kind:'t1', f0?: string} | {kind:'t2', f0: () =>
+// TestBuildFlatLayout_MethodMemberMarksStrippedCandidate — the union
+// arm repro (`{kind:'t1', f0?: string} | {kind:'t2', f0: () =>
 // number}`): a method-like MEMBER kind is a DataOnly-dropped slot exactly
 // like a property whose value is function-typed, so a surviving same-name
 // candidate from a sibling member must get the value guard
 // (HasStrippedCandidate) — a value from the method member still carries the
-// key holding a function, and the surviving serString codec must not run on
+// key holding a function, and the surviving string codec must not run on
 // it. Covers both spellings: the method-signature member AND the
 // property-with-function-child twin.
 func TestBuildFlatLayout_MethodMemberMarksStrippedCandidate(t *testing.T) {

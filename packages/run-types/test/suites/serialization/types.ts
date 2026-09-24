@@ -1,4 +1,4 @@
-import type {BinaryDecoderFn, BinaryEncoderFn, JsonDecoderFn, JsonEncoderFn} from '@mionjs/run-types';
+import type {JsonDecoderFn, JsonEncoderFn} from '@mionjs/run-types';
 
 /** A value-first schema thunk: either builds the function from an `RT.*` model
  *  or is `'not-supported'` (no value-first builder can express the case's type).
@@ -13,8 +13,8 @@ export interface SerializationCase {
 
   /** User-facing notes about this case's serialization behavior — the
    *  serialization counterpart of the validation suite's `validateNotes`.
-   *  Use it to explain a deliberate `'not-supported'` opt-out (e.g. a binary
-   *  or value-first-schema variant a case can't express) or any non-obvious
+   *  Use it to explain a deliberate `'not-supported'` opt-out (e.g. a
+   *  value-first-schema variant a case can't express) or any non-obvious
    *  round-trip behavior. Single point → string; several → array. */
   serializeNotes?: string | string[];
 
@@ -90,44 +90,9 @@ export interface SerializationCase {
    *  time instead of attempting a round-trip. **/
   jsonStringifyThrows?: boolean;
 
-  /** Binary encoder thunk for this case. Mirrors the structure of the
-   *  JSON encoder thunks (full type setup inline so the marker plugin
-   *  can inject the runtype hash at the call site). The adapter pairs
-   *  it with `binaryDecoder` for a deep-equal round-trip assertion.
-   *  REQUIRED on every case: supply a thunk, or the `'not-supported'`
-   *  sentinel to mark binary as a deliberate opt-out for this case
-   *  (explain the reason in `serializeNotes`). **/
-  binaryEncoder: SchemaThunk<BinaryEncoderFn>;
-
-  /** Binary decoder thunk. Paired with `binaryEncoder`. Same REQUIRED +
-   *  `'not-supported'` contract as `binaryEncoder`. **/
-  binaryDecoder: SchemaThunk<BinaryDecoderFn>;
-
-  /** Override `factoryThrows` for binary alone. Use only when binary
-   *  has a different unsupported-kind contract than JSON (e.g. a kind
-   *  binary refuses but JSON accepts, or vice versa). Falls back to
-   *  `factoryThrows` when unset. **/
-  binaryFactoryThrows?: boolean;
-
-  /** Override `getTestData` for binary alone. Use only when binary's
-   *  round-trip diverges from JSON — e.g. bigint extras that
-   *  JSON.stringify rejects but binary encodes natively. Falls back
-   *  to `getTestData` when unset. **/
-  getBinaryTestData?: () => {values: unknown[]; deserializedValues?: unknown[]};
-
-  /** Optional expected encoded byte length per value, index-parallel to
-   *  the resolved binary test-data `values`. When present, the binary
-   *  adapter asserts `encode(value).byteLength === size[i]` — this is what
-   *  locks in the format binary optimization (number int8→1, int16→2,
-   *  …float64→8; bigint 64-bit→8). Omit for variable-length encodings
-   *  (string-fallback bigint, objects, arrays). **/
-  getBinaryByteSizes?: () => number[];
-
   /** Value-first variants (`createJsonEncoderFn(rt)`), the JSON pair on the default clone strategy. Each thunk builds
    *  its `RT.*` model inline BY DESIGN, staying self-contained for benchmarks, code extraction and doc-gen.
    *  REQUIRED: a thunk, or `'not-supported'` when no `RT.*` builder can express it (say why in `serializeNotes`). **/
   schemaEncoder: SchemaThunk<JsonEncoderFn>;
   schemaDecoder: SchemaThunk<JsonDecoderFn>;
-  schemaBinaryEncoder: SchemaThunk<BinaryEncoderFn>;
-  schemaBinaryDecoder: SchemaThunk<BinaryDecoderFn>;
 }

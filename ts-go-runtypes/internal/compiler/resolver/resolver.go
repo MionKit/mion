@@ -93,13 +93,6 @@ type Options struct {
 	// ModuleMode selects how cache entries group into virtual modules; validated at the CLI boundary, unknown values
 	// behave as default.
 	ModuleMode string
-	// SizeBias / SizeItems / SizeStringBytes / SizeMaxBytes seed the binary buffer-size estimate baked into every `tb`
-	// entry, which the runtime `dynamic` strategy uses as its cold-start buffer size. Zero falls back to
-	// constants.DefaultSize*, except SizeBias whose 0 is a valid "tightest" setting; all four fold into the fingerprint.
-	SizeBias        float64
-	SizeItems       int
-	SizeStringBytes int
-	SizeMaxBytes    int
 	// JSEngine runs the format-pattern checks (the sidecar under node/bun, the host itself under WASM) and is the
 	// validation authority for pattern mockSamples; nil or failing fails closed with FMT004.
 	// Not a disk-fingerprint input: it changes which diagnostics surface, never the emitted artifacts.
@@ -286,10 +279,6 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 		HashLength:           opts.HashLength,
 		EmitMode:             string(opts.EmitMode),
 		InlineMode:           string(opts.InlineMode),
-		SizeBias:             opts.SizeBias,
-		SizeItems:            opts.SizeItems,
-		SizeStringBytes:      opts.SizeStringBytes,
-		SizeMaxBytes:         opts.SizeMaxBytes,
 		PatternSampleCount:   opts.PatternSampleCount,
 		PatternSampleRetries: opts.PatternSampleRetries,
 		JSONMaxBytes:         opts.JSONMaxBytes,

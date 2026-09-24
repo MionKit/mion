@@ -1,7 +1,7 @@
 // Autonomous fuzz driver. Feeds three streams of data into every target's
 // validation/serialization functions and collects oracle violations:
 //
-//   valid    createMockDataFn<T>()        → O1, O3, O4, O5, O6, O7, O18
+//   valid    createMockDataFn<T>()        → O1, O3, O4, O5, O7, O18
 //   invalid  mutateToInvalid(valid)     → O2, O3, O4, O18
 //   extras   mutateWithExtras(valid)    → O18, O21
 //   unknown  plantUnknownKey(valid)     → O22, O23, O24, O25, O26
@@ -22,7 +22,6 @@ import {mutateToInvalid} from './invalidValue.ts';
 import {mutateWithExtras, deepCopyValue} from '../cloning/extrasValue.ts';
 import {collectUnknownKeyPositions, plantUnknownKey} from './unknownKeyPositions.ts';
 import {
-  checkBinaryStable,
   checkErrorsAgree,
   checkFusedAgree,
   checkStrictSelfAgree,
@@ -160,7 +159,6 @@ function fuzzOneIteration(target: FuzzTarget, seed: number, out: Violation[], un
   push(out, checkFusedAgree(target, valid, validCtx));
   push(out, checkStrictSelfAgree(target, valid, validCtx));
   push(out, checkJsonStable(target, valid, validCtx));
-  push(out, checkBinaryStable(target, valid, validCtx));
 
   // --- invalid pass (metamorphic corruption of the valid mock) ---
   const mutated = mutateToInvalid(target.schema, valid, Math.random);

@@ -1,15 +1,9 @@
-// Like the type/ harness, but the fixture emits every JSON strategy plus binary, so one random type drives every lane.
+// Like the type/ harness, but the fixture emits every JSON strategy, so one random type drives every lane.
 // Fn sites are classified BY TUPLE TAG, since the strategy lives in the tag. The type/ harness's fixed 6-site fixture
 // cannot emit the variants, so this forks its fixture and classifier but reuses openClient and the eval helpers.
 
 import path from 'node:path';
-import {
-  createValidateFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {getRTFunction} from '@mionjs/run-types/runtime';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
@@ -23,13 +17,11 @@ const FIXTURE = 'g.ts';
 
 /** Each JSON lane decodes with its encoder's strategy; `rebuild` reads the clone wire with the rjs primitive
  *  recovered through a marker, the route a framework wrapper takes. **/
-export type LaneId = 'clone' | 'mutate' | 'compact' | 'rebuild' | 'binary';
+export type LaneId = 'clone' | 'mutate' | 'compact' | 'rebuild';
 
-export const JSON_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebuild'];
-export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebuild', 'binary'];
+export const ALL_LANES: readonly LaneId[] = ['clone', 'mutate', 'compact', 'rebuild'];
 
-/** A wired codec: encode returns a JSON string (or undefined for an undefined
- *  root) on the JSON lanes, a Uint8Array on the binary lane. **/
+/** A wired codec: encode returns a JSON string, or undefined for an undefined root. **/
 export interface WiredCodec {
   encode: (value: unknown) => unknown;
   decode: (wire: unknown) => unknown;
@@ -64,8 +56,6 @@ export function renderFixture(gen: GeneratedType): string {
   createValidateFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
   type InjectTypeFnArgs,
 } from '@mionjs/run-types';
 ${decls}
@@ -81,8 +71,6 @@ createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
 // marker, which is exactly what mion's route helper does for the clone strategy.
 declare function recoverRebuild<R>(id?: InjectTypeFnArgs<R, 'restoreFromJsonClone'>): (wire: unknown) => unknown;
 recoverRebuild<T>();
-createBinaryEncoderFn<T>();
-createBinaryDecoderFn<T>();
 `;
 }
 
@@ -152,7 +140,6 @@ const LANE_TAGS: Record<LaneId, {encode: string; decode: string}> = {
   mutate: {encode: 'jeMU', decode: 'jdMU'},
   compact: {encode: 'jeCO', decode: 'jdCO'},
   rebuild: {encode: 'jeCL', decode: 'rjs'},
-  binary: {encode: 'tb', decode: 'fb'},
 };
 
 // Each slot-0 tag appears at most once in this fixture.
@@ -185,7 +172,9 @@ function wireLane(
   byTag: Record<string, readonly unknown[]>
 ): void {
   const codec = wire(wireErrors, lane, () => ({
-    encode: buildEncoder(lane, tupleOrThrow(byTag, LANE_TAGS[lane].encode)),
+    encode: createJsonEncoderFn(undefined, undefined, tupleOrThrow(byTag, LANE_TAGS[lane].encode) as never) as (
+      value: unknown
+    ) => unknown,
     decode: buildDecoder(lane, tupleOrThrow(byTag, LANE_TAGS[lane].decode)),
   }));
   if (codec) codecs[lane] = codec;
@@ -197,14 +186,8 @@ function tupleOrThrow(byTag: Record<string, readonly unknown[]>, tag: string): r
   return tuple;
 }
 
-function buildEncoder(lane: LaneId, tuple: readonly unknown[]): (value: unknown) => unknown {
-  if (lane === 'binary') return createBinaryEncoderFn(undefined, undefined, tuple as never) as (value: unknown) => unknown;
-  return createJsonEncoderFn(undefined, undefined, tuple as never) as (value: unknown) => unknown;
-}
-
 // The composites parse the string themselves; the rjs primitive takes an already-parsed value.
 function buildDecoder(lane: LaneId, tuple: readonly unknown[]): (wire: unknown) => unknown {
-  if (lane === 'binary') return createBinaryDecoderFn(undefined, undefined, tuple as never) as (wire: unknown) => unknown;
   if (lane === 'rebuild') {
     const restore = getRTFunction<'restoreFromJsonClone'>(tuple);
     return (wire: unknown) => restore(JSON.parse(wire as string));

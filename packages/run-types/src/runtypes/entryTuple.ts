@@ -154,9 +154,6 @@ export interface FnTypeRecord extends Pick<
   deps: EntryDepsThunk | undefined;
   ini: undefined;
   code: CompiledFnData['code'] | undefined;
-  // `tb` (binary-encoder) entries only: the cold-start buffer-size estimate in bytes, absent on every other
-  // family. Trailing slot; read by createBinaryEncoderFn's `dynamic` strategy (see binarySizeEstimateFromTuple).
-  binarySizeEstimate?: number;
 }
 
 /** A pure-fn entry tuple; `key` is the pure fn's id, which is the cache key verbatim. **/
@@ -199,18 +196,8 @@ export const RUN_TYPE_BUNDLE_TUPLE_KEYS = [...ENTRY_HEAD_KEYS, 'key', 'rows', 'r
 export const RUN_TYPE_FACADE_TUPLE_KEYS = [...ENTRY_HEAD_KEYS, 'key'] as const;
 
 const FN_TYPE_REQUIRED_KEYS = ['familyTag', 'deps', 'ini', 'rtFnHash', 'typeName', 'code'] as const;
-const FN_TYPE_TRIMMED_KEYS = [
-  'isNoop',
-  'rtDependencies',
-  'pureFnDependencies',
-  'createRTFn',
-  'alwaysThrowMessage',
-  'binarySizeEstimate',
-] as const;
+const FN_TYPE_TRIMMED_KEYS = ['isNoop', 'rtDependencies', 'pureFnDependencies', 'createRTFn', 'alwaysThrowMessage'] as const;
 export const FN_TYPE_TUPLE_KEYS = [...FN_TYPE_REQUIRED_KEYS, ...FN_TYPE_TRIMMED_KEYS] as const;
-
-/** Slot index of the `tb` cold-start estimate, derived from the keys array so it tracks any layout edit. **/
-const FN_TYPE_ESTIMATE_SLOT = FN_TYPE_TUPLE_KEYS.indexOf('binarySizeEstimate');
 
 const PURE_FN_REQUIRED_KEYS = [...ENTRY_HEAD_KEYS, 'key', 'paramNames', 'code', 'pureFnDependencies'] as const;
 // Dropped in `code` mode (rebuilt at runtime from code + paramNames), present in `functions`/`both`.
@@ -326,14 +313,6 @@ export function entryTupleKey(tuple: EntryTuple): string {
   return tuple[SLOT_KEY] as string;
 }
 
-/** The cold-start size estimate (bytes) a `tb` (binary-encoder) tuple carries at its trailing slot, undefined
- *  for every other family. createBinaryEncoderFn's `dynamic` strategy seeds the buffer with it. **/
-export function binarySizeEstimateFromTuple(injected: unknown): number | undefined {
-  if (!isEntryTuple(injected)) return undefined;
-  const slot = (injected as readonly unknown[])[FN_TYPE_ESTIMATE_SLOT];
-  return typeof slot === 'number' ? slot : undefined;
-}
-
 /** True for the KindMissing stub the Go side emits for dropped entries; stubs register nothing and consumers
  *  degrade to their family identity fallback. **/
 export function isMissingTuple(value: unknown): boolean {
@@ -356,8 +335,6 @@ const noopIdentity = (v: unknown) => v;
 const noopErrors = (_v: unknown, _pth: unknown, er: unknown) => er || [];
 const noopStringify = (v: unknown) => JSON.stringify(v);
 const noopParse = (s: unknown) => JSON.parse(s as string);
-const noopToBinary = (_v: unknown, Ser: unknown) => Ser;
-const noopFromBinary = (ret: unknown) => ret;
 
 const valueArgs = () => ({vλl: 'v'}) as CompiledFnArgs;
 const valueDefaults = (): CompiledFnArgs => ({vλl: ''});
@@ -394,18 +371,6 @@ export const familyMeta: Record<string, FamilyMeta> = {
   ruk: valueShaped('ruk', noopIdentity),
   // Name card: its typeName slot carries the build-time class name registerClassSerializer's name lane keys on.
   csr: valueShaped('csr', noopIdentity),
-  tb: {
-    fnID: 'tb',
-    args: () => ({vλl: 'v', sεr: 'Ser'}) as CompiledFnArgs,
-    defaultParamValues: (): CompiledFnArgs => ({vλl: '', sεr: ''}),
-    noop: noopToBinary,
-  },
-  fb: {
-    fnID: 'fb',
-    args: () => ({vλl: 'ret', dεs: 'Des'}) as CompiledFnArgs,
-    defaultParamValues: (): CompiledFnArgs => ({vλl: '', dεs: ''}),
-    noop: noopFromBinary,
-  },
   fmt: valueShaped('fmt', noopIdentity),
   // jsonSchema documents: the fn RETURNS the document (its `v` arg is unused); a noop would say "any value".
   jsc: valueShaped('jsc', () => ({})),
@@ -584,9 +549,6 @@ function registerTypeFnTuple(utils: RTUtils, tuple: FnTypeTuple): boolean {
         : record.createRTFn,
     fn: isNoop ? (meta.noop as CompiledTypeFn['fn']) : undefined,
     alwaysThrowMessage: record.alwaysThrowMessage,
-    // `tb` entries only; carried onto the entry so it is reachable through getRT(rtFnHash) like every other
-    // field the tuple ships, not only from createBinaryEncoderFn's closure.
-    binarySizeEstimate: record.binarySizeEstimate,
   };
   utils.addToRTCache(entry);
   return true;

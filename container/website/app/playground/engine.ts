@@ -56,8 +56,6 @@ export type RunResult =
   | {op: Operation; kind: 'errors'; value: unknown[]; diagnostics: Diagnostic[]}
   | {op: Operation; kind: 'encode'; value: unknown; diagnostics: Diagnostic[]}
   | {op: Operation; kind: 'jsonRoundtrip'; encoded: unknown; decoded: unknown; diagnostics: Diagnostic[]}
-  | {op: Operation; kind: 'binaryEncode'; byteLength: number; hex: string; diagnostics: Diagnostic[]}
-  | {op: Operation; kind: 'binaryRoundtrip'; byteLength: number; hex: string; decoded: unknown; diagnostics: Diagnostic[]}
   | {
       op: Operation;
       kind: 'graph';
@@ -320,7 +318,7 @@ export interface CacheModule {
 
 // generatedCache returns the generated cache modules for this factory + type,
 // one entry per family module the resolver emits (ModuleMode allSingle = one per
-// family tag). A single-function type is one module; a JSON/binary codec is a few
+// family tag). A single-function type is one module; a JSON codec is a few
 // (the composite + the primitives it looks up at runtime), which import each
 // other: the UI labels each with its module name and keeps the imports so the
 // cross-module structure is visible. For reflection (getRunType) it is the single
@@ -437,15 +435,6 @@ function projectValue(value: unknown, path: Set<unknown>, budget: {left: number}
   return value;
 }
 
-function toHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function asBytes(value: unknown): Uint8Array {
-  if (value instanceof Uint8Array) return value; // createBinaryEncoderFn returns a Uint8Array view
-  return new Uint8Array(value as ArrayBuffer);
-}
-
 // run executes the chosen operation. `input` is the parsed JS value (may be
 // undefined for ops that take no input). `mode` selects the TS-type vs builder form.
 export async function run(
@@ -503,18 +492,6 @@ export async function run(
       const encoded = enc.fn(input);
       const decoded = dec.fn(encoded);
       return {op, kind: 'jsonRoundtrip', encoded, decoded, diagnostics: dec.diagnostics};
-    }
-    case 'binaryEncode': {
-      const {fn, diagnostics} = materialize(dispatch, op.factory, userCode, mode);
-      const bytes = asBytes(fn(input));
-      return {op, kind: 'binaryEncode', byteLength: bytes.length, hex: toHex(bytes), diagnostics};
-    }
-    case 'binaryRoundtrip': {
-      const enc = materialize(dispatch, 'createBinaryEncoderFn', userCode, mode);
-      const dec = materialize(dispatch, 'createBinaryDecoderFn', userCode, mode);
-      const bytes = asBytes(enc.fn(input));
-      const decoded = dec.fn(bytes);
-      return {op, kind: 'binaryRoundtrip', byteLength: bytes.length, hex: toHex(bytes), decoded, diagnostics: dec.diagnostics};
     }
     default:
       throw new Error(`unknown operation kind: ${String(op.kind)}`);

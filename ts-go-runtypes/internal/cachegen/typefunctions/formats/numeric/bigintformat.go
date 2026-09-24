@@ -10,9 +10,6 @@ import (
 
 // bigintFormatEmitter implements the format named "bigintFormat", FormatBigInt<P> in `@mionjs/run-types/formats`.
 // Surface: min / max / lt / gt, multipleOf, emitted with bigint literals (`100n`).
-// Its BinaryEncoder / BinaryDecoder pack the value into 8 bytes when min AND max both fit signed or unsigned
-// 64-bit, and fall back to the base string serialization otherwise.
-// There is deliberately NO float64 path and NO sub-8-byte path.
 type bigintFormatEmitter struct{}
 
 // bigintFormatName is the canonical FormatAnnotation.name the JS-side FormatBigInt alias brands under.
@@ -91,61 +88,6 @@ func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 			"if (("+vλl+" % "+literal+" !== 0n)) "+formats.FormatErrCall(pathExpr, errorsArr, "bigint", bigintFormatName, "multipleOf", literal))
 	}
 	return strings.Join(statements, ";")
-}
-
-// EmitToBinary implements formats.BinaryEncoder; UInt64 takes precedence over Int64 when both fit.
-func (bigintFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
-	if annotation == nil {
-		return ""
-	}
-	isInt64, isUint64 := bigIntType(annotation.Params)
-	if isUint64 {
-		return ser + ".view.setBigUint64(" + ser + ".index, " + vλl + ", 1, " + ser + ".index += 8)"
-	}
-	if isInt64 {
-		return ser + ".view.setBigInt64(" + ser + ".index, " + vλl + ", 1, " + ser + ".index += 8)"
-	}
-	return ""
-}
-
-// EmitFromBinary implements formats.BinaryDecoder, byte-symmetric with EmitToBinary.
-func (bigintFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotation, des string, _ formats.EmitContext) string {
-	if annotation == nil {
-		return ""
-	}
-	isInt64, isUint64 := bigIntType(annotation.Params)
-	if isUint64 {
-		return des + ".view.getBigUint64(" + des + ".index, 1, " + des + ".index += 8)"
-	}
-	if isInt64 {
-		return des + ".view.getBigInt64(" + des + ".index, 1, " + des + ".index += 8)"
-	}
-	return ""
-}
-
-// BinarySize implements formats.BinarySizer off the SAME bigIntType check EmitToBinary uses.
-// The base string arm's width is value-dependent, so it gets no fixed hint.
-func (bigintFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) formats.BinarySizeHint {
-	if annotation == nil {
-		return formats.BinarySizeHint{}
-	}
-	isInt64, isUint64 := bigIntType(annotation.Params)
-	if isInt64 || isUint64 {
-		return formats.BinarySizeHint{Fixed: 8}
-	}
-	return formats.BinarySizeHint{}
-}
-
-// bigIntType reports whether the bounds fit 64-bit; both min AND max must be set for either flag to be true.
-func bigIntType(params map[string]any) (isBigInt64, isBigUint64 bool) {
-	min, hasMin := readBigIntParam(params, "min")
-	max, hasMax := readBigIntParam(params, "max")
-	if !hasMin || !hasMax {
-		return false, false
-	}
-	isBigInt64 = min.Cmp(bigInt64Min) >= 0 && max.Cmp(bigInt64Max) <= 0
-	isBigUint64 = min.Cmp(bigUint64Min) >= 0 && max.Cmp(bigUint64Max) <= 0
-	return isBigInt64, isBigUint64
 }
 
 // ValidateParams enforces that {min,gt} and {max,lt} are mutually exclusive, min<=max, gt<lt and multipleOf>0.

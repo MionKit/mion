@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/operations"
+	// Registers the format emitters the format-backed noop cases below resolve through.
+	_ "github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/constants"
 	"github.com/mionkit/mion/ts-go-runtypes/internal/protocol"
@@ -70,10 +72,10 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	circDat := &reflection.RunType{ID: "circDat", Kind: reflection.KindObjectLiteral, TypeName: "CircWithDate", IsCircular: true, Children: []*reflection.RunType{makeRef("pdat"), makeRef("circDD")}}
 
 	// Arms for the universal-predicate tables: any/unknown (validate /
-	// validationErrors), a primitive literal (toBinary), a
+	// validationErrors), a primitive literal, a
 	// never-valued property (the DataOnly dropped-slot rule), an atomic-value
-	// record (unknown-keys index arm), a literal-only object + tuple
-	// (toBinary's write-nothing compositions), and an object-carrying tuple
+	// record (unknown-keys index arm), a literal-only object + tuple,
+	// and an object-carrying tuple
 	// (every unknown-keys family recurses into its slots).
 	anyT := &reflection.RunType{ID: "anyT", Kind: reflection.KindAny}
 	unkT := &reflection.RunType{ID: "unkT", Kind: reflection.KindUnknown}
@@ -93,10 +95,10 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunT
 	tmObj := &reflection.RunType{ID: "tmObj", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("objCompat")}
 	tupObj := &reflection.RunType{ID: "tupObj", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmObj")}}
 
-	// Named-class registry-branch rule (the tb tripwire repro): a NAMED plain
-	// user class always compiles wrapToBinaryWithClassSerializer's runtime
-	// registry branch, so it can never claim identity — even when every
-	// member is a dropped (`p0: never`) or write-nothing (literal) slot.
+	// Named-class registry-branch rule: a NAMED plain user class always
+	// compiles the class-serializer runtime registry branch, so it can never
+	// claim identity — even when every member is a dropped (`p0: never`) or
+	// literal slot.
 	// Anonymous classes and interface twins stay structural/noop.
 	clsNever := &reflection.RunType{ID: "clsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C0", Children: []*reflection.RunType{makeRef("pnev")}}
 	aclsNever := &reflection.RunType{ID: "aclsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pnev")}}
@@ -507,44 +509,6 @@ func TestNoopType_RestoreFromJsonClone(t *testing.T) {
 	}
 }
 
-// TestNoopType_ToBinary pins the tb arm: literal-only graphs write nothing;
-// everything else writes bytes (even undefined writes its sentinel).
-func TestNoopType_ToBinary(t *testing.T) {
-	ctx, types := noopPredicateTypes(t)
-	cases := []struct {
-		id   string
-		want bool
-	}{
-		{"lit", true},
-		{"objLit", true}, // {k: 'a'} — required literal props write nothing
-		{"tupLit", true}, // ['x'] — required literal slots write nothing
-		{"str", false},
-		{"und", false}, // 1-byte sentinel
-		{"objCompat", false},
-		{"arrStr", false}, // varint length prefix
-		{"uAt", false},    // discriminant byte
-		// Named-class registry-branch rule: the emitted body always carries
-		// the class-serializer registry check, so a named class never claims
-		// identity — the tb tripwire repro (`declare class C0 {p0: never}`).
-		{"clsNever", false},
-		{"clsLit", false},
-		// Anonymous class + interface twins skip the wrapper and stay
-		// structural: all-dropped / write-nothing members = identity.
-		{"aclsNever", true},
-		{"objNeverOnly", true},
-	}
-	for _, c := range cases {
-		t.Run(c.id, func(t *testing.T) {
-			if got := isNoopForToBinary(types[c.id], ctx); got != c.want {
-				t.Errorf("isNoopForToBinary(%s) = %v, want %v", c.id, got, c.want)
-			}
-		})
-	}
-	if isNoopForFromBinary := (FromBinaryEmitter{}).IsNoopType(types["lit"], ctx); isNoopForFromBinary {
-		t.Error("fromBinary must never claim noop — even literal roots assign ret")
-	}
-}
-
 // TestNoopType_RemoveUnknownKeys: any mutable position forces a live clone body, or input and clone share state.
 func TestNoopType_RemoveUnknownKeys(t *testing.T) {
 	ctx, types := noopPredicateTypes(t)
@@ -628,8 +592,7 @@ func TestNoopVerdict_TripwireDemotesLyingPredicate(t *testing.T) {
 
 // formatPredicateTypes extends the shared corpus with format-carrying and
 // fmt-overridden shapes for the fmt predicate table. Formats registry is
-// populated by the package-wide formats/all blank import
-// (binary_size_estimate_test.go).
+// populated by the formats/all blank import at the top of this file.
 func formatPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunType) {
 	t.Helper()
 	ctx, types := noopPredicateTypes(t)

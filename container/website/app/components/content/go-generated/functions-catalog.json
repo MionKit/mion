@@ -22,13 +22,6 @@
       "factory": "createFormatTransformFn"
     },
     {
-      "name": "fromBinary",
-      "call": "createBinaryDecoderFn<T>()",
-      "tag": "fb",
-      "doc": "Reads a value back from the binary wire format.",
-      "factory": "createBinaryDecoderFn"
-    },
-    {
       "name": "jsonDecoder",
       "call": "createJsonDecoderFn<T>(undefined, {strategy: 'clone' | 'mutate' | 'compact'})",
       "doc": "Turns a JSON string back into a typed value. The strategy decides whether undeclared properties survive.",
@@ -94,14 +87,6 @@
       "tag": "rj",
       "doc": "Turns a JSON-safe value back into the typed shape in place, keeping undeclared properties.",
       "factory": "createRestoreFromJsonFn"
-    },
-    {
-      "name": "toBinary",
-      "call": "createBinaryEncoderFn<T>()",
-      "tag": "tb",
-      "doc": "Writes a value to the compact binary wire format.",
-      "factory": "createBinaryEncoderFn",
-      "rejectCircularRefs": true
     },
     {
       "name": "validate",

@@ -1,14 +1,7 @@
 // Security-lane compile harness: one random SERIALISABLE type → the factories the attack lanes need, through the
-// roundtrip harness's compile path. It also returns the raw entry-module text, so the binary lane can rebuild the
-// same factories inside its heap-capped worker thread.
+// roundtrip harness's compile path. It also returns the raw entry-module text for the generated-code lane.
 
-import {
-  createValidateFn,
-  createJsonEncoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  createRemoveUnknownKeysFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createJsonEncoderFn, createRemoveUnknownKeysFn} from '@mionjs/run-types';
 import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {MARKER_PACKAGE_OVERLAY, evalEntryModules, instantiateRunTypes} from '../../../../devtools/test/helpers/inline.ts';
 import {Severity, type Diagnostic} from '../../../../devtools/src/core/protocol.ts';
@@ -28,12 +21,8 @@ export interface CompiledSecurity {
   errorDiagnostics: Diagnostic[];
   resolverError?: string;
   evalError?: string;
-  /** The rendered entry modules, verbatim, for the worker thread. **/
+  /** The rendered entry modules, verbatim. **/
   entryModules: Record<string, string>;
-  /** Family tag → entry-module basename of the ROOT call site's tuple. The
-   *  modules also carry one tuple per nested type (its own `fb`, `tb`, …), so
-   *  a consumer must not pick a family by tag alone. **/
-  rootKeys: Record<string, string>;
   validate?: (value: unknown) => boolean;
   jsonEncode?: (value: unknown) => string | undefined;
   /** The encoders that rebuild an object from its keys (clone / compact), for the prototype oracle over decoded values. **/
@@ -42,8 +31,6 @@ export interface CompiledSecurity {
   clone?: (value: unknown) => unknown;
   /** clone / mutate / compact decoders that wired. **/
   decoders: Record<string, (text: string) => unknown>;
-  binaryEncode?: (value: unknown) => Uint8Array;
-  binaryDecode?: (input: unknown) => unknown;
   wireErrors: Record<string, string>;
 }
 
@@ -53,8 +40,6 @@ export function renderSecurityFixture(gen: GeneratedType): string {
   createValidateFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
   createRemoveUnknownKeysFn,
 } from '@mionjs/run-types';
 ${decls}
@@ -66,8 +51,6 @@ createRemoveUnknownKeysFn<T>();
 createJsonDecoderFn<T>(undefined, {strategy: 'clone'});
 createJsonDecoderFn<T>(undefined, {strategy: 'mutate'});
 createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
-createBinaryEncoderFn<T>();
-createBinaryDecoderFn<T>();
 `;
 }
 
@@ -81,7 +64,6 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     diagnostics: [],
     errorDiagnostics: [],
     entryModules: {},
-    rootKeys: {},
     jsonEncoders: {},
     decoders: {},
     wireErrors: {},
@@ -110,12 +92,6 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     return {...partial, evalError: errMsg(err)};
   }
   const byTag = classifyByTag(sites, tuples);
-  const rootKeys: Record<string, string> = {};
-  for (const site of sites) {
-    const key = `${site.fnId}_${site.id}`;
-    const tag = tuples[key]?.[0];
-    if (typeof tag === 'string') rootKeys[tag] = key;
-  }
   const wireErrors: Record<string, string> = {};
   const attempt = <R>(key: string, build: () => R | undefined): R | undefined => {
     try {
@@ -157,22 +133,13 @@ export async function compileSecurity(client: ResolverClient, gen: GeneratedType
     const decode = wireDecoder(byTag[tag]);
     if (decode) decoders[name] = decode as (text: string) => unknown;
   }
-  const binaryEncode = attempt('binaryEncode', () =>
-    byTag.tb ? (createBinaryEncoderFn(undefined, undefined, byTag.tb as never) as (v: unknown) => Uint8Array) : undefined
-  );
-  const binaryDecode = attempt('binaryDecode', () =>
-    byTag.fb ? (createBinaryDecoderFn(undefined, undefined, byTag.fb as never) as (input: unknown) => unknown) : undefined
-  );
   return {
     ...partial,
-    rootKeys,
     validate,
     jsonEncode,
     jsonEncoders,
     clone,
     decoders,
-    binaryEncode,
-    binaryDecode,
     wireErrors,
   };
 }

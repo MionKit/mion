@@ -1338,7 +1338,6 @@ describe('mion server benchmarks stay wired end to end', () => {
       serialization.indexOf('];', serialization.indexOf('const ROUNDTRIPS'))
     );
     expect([...block.matchAll(/key: '([^']+)'/g)].map((match) => match[1])).toEqual(BENCH_COLUMNS.serialization);
-    expect(BENCH_COLUMNS['serialization-formats']).toEqual(BENCH_COLUMNS.serialization);
   });
 
   it('the bars shell ServerBenchBars renders is the one check-static greps for', () => {

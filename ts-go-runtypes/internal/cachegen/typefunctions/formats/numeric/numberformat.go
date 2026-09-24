@@ -10,19 +10,11 @@ import (
 
 // numberFormatEmitter implements the format named "numberFormat", FormatNumber<P> in `@mionjs/run-types/formats`.
 // `float` is a generation and presentation tag like isCurrency, never a failable constraint: an IEEE float legally
-// holds whole values (2.0), so validation never rejects them. It steers mock generation toward fractional samples
-// and keeps binary packing on the float64 arm.
-// Its BinaryEncoder / BinaryDecoder pack an integer into the narrowest of int8/16/32 its min/max allows.
+// holds whole values (2.0), so validation never rejects them. It steers mock generation toward fractional samples.
 type numberFormatEmitter struct{}
 
 // numberFormatName is the canonical FormatAnnotation.name the JS-side FormatNumber alias brands under.
 const numberFormatName = "numberFormat"
-
-// Safe-integer bounds, the integerType defaults when min/max are unset (JS Number.MIN/MAX_SAFE_INTEGER).
-const (
-	minSafeInteger = -9007199254740991
-	maxSafeInteger = 9007199254740991
-)
 
 func init() {
 	formats.Register(numberFormatEmitter{})
@@ -107,135 +99,6 @@ func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.Form
 		statements = append(statements, "if (!"+multipleOfCondition(vλl, value, multipleOfTolerance(params))+") "+errCall("multipleOf", formats.FormatNumber(value)))
 	}
 	return strings.Join(statements, ";")
-}
-
-// EmitToBinary implements formats.BinaryEncoder: the narrowest setUint8/16/32 / setInt8/16/32 the range fits, or
-// "" for floats, unconstrained integers and ranges wider than int32, which take the base float64 arm.
-func (numberFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
-	if annotation == nil {
-		return ""
-	}
-	params := annotation.Params
-	if isFloat, ok := formats.ReadBoolParam(params, "float"); ok && isFloat {
-		return "" // float → base float64 arm
-	}
-	if isInt, ok := formats.ReadBoolParam(params, "integer"); !ok || !isInt {
-		return "" // not an integer brand → base float64 arm
-	}
-	switch integerType(params) {
-	case intUint8:
-		return ser + ".view.setUint8(" + ser + ".index++, " + vλl + ")"
-	case intUint16:
-		return ser + ".view.setUint16(" + ser + ".index, " + vλl + ", 1, " + ser + ".index += 2)"
-	case intUint32:
-		return ser + ".view.setUint32(" + ser + ".index, " + vλl + ", 1, " + ser + ".index += 4)"
-	case intInt8:
-		return ser + ".view.setInt8(" + ser + ".index++, " + vλl + ")"
-	case intInt16:
-		return ser + ".view.setInt16(" + ser + ".index, " + vλl + ", 1, " + ser + ".index += 2)"
-	case intInt32:
-		return ser + ".view.setInt32(" + ser + ".index, " + vλl + ", 1, " + ser + ".index += 4)"
-	default:
-		return "" // wider than int32 → base float64 arm
-	}
-}
-
-// EmitFromBinary implements formats.BinaryDecoder, byte-symmetric with EmitToBinary: the RHS expression the host
-// assigns to `ret`, or "" for the float64 fallback cases.
-func (numberFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotation, des string, _ formats.EmitContext) string {
-	if annotation == nil {
-		return ""
-	}
-	params := annotation.Params
-	if isFloat, ok := formats.ReadBoolParam(params, "float"); ok && isFloat {
-		return ""
-	}
-	if isInt, ok := formats.ReadBoolParam(params, "integer"); !ok || !isInt {
-		return ""
-	}
-	switch integerType(params) {
-	case intUint8:
-		return des + ".view.getUint8(" + des + ".index++)"
-	case intUint16:
-		return des + ".view.getUint16(" + des + ".index, 1, " + des + ".index += 2)"
-	case intUint32:
-		return des + ".view.getUint32(" + des + ".index, 1, " + des + ".index += 4)"
-	case intInt8:
-		return des + ".view.getInt8(" + des + ".index++)"
-	case intInt16:
-		return des + ".view.getInt16(" + des + ".index, 1, " + des + ".index += 2)"
-	case intInt32:
-		return des + ".view.getInt32(" + des + ".index, 1, " + des + ".index += 4)"
-	default:
-		return ""
-	}
-}
-
-// BinarySize implements formats.BinarySizer off the SAME integerType ladder EmitToBinary uses; everything that
-// takes the base float64 arm is 8 bytes.
-func (numberFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) formats.BinarySizeHint {
-	if annotation == nil {
-		return formats.BinarySizeHint{Fixed: 8}
-	}
-	params := annotation.Params
-	if isFloat, ok := formats.ReadBoolParam(params, "float"); ok && isFloat {
-		return formats.BinarySizeHint{Fixed: 8}
-	}
-	if isInt, ok := formats.ReadBoolParam(params, "integer"); !ok || !isInt {
-		return formats.BinarySizeHint{Fixed: 8}
-	}
-	switch integerType(params) {
-	case intUint8, intInt8:
-		return formats.BinarySizeHint{Fixed: 1}
-	case intUint16, intInt16:
-		return formats.BinarySizeHint{Fixed: 2}
-	case intUint32, intInt32:
-		return formats.BinarySizeHint{Fixed: 4}
-	default:
-		return formats.BinarySizeHint{Fixed: 8}
-	}
-}
-
-// integerKind enumerates the packed integer encodings in precedence order: unsigned first, narrowest first.
-type integerKind int
-
-const (
-	intFloat64 integerKind = iota
-	intUint8
-	intUint16
-	intUint32
-	intInt8
-	intInt16
-	intInt32
-)
-
-// integerType returns the FIRST matching encoding in unsigned-then-signed, narrowest-first order.
-// min/max default to the safe-integer bounds, so an unbounded integer lands on float64.
-func integerType(params map[string]any) integerKind {
-	min := float64(minSafeInteger)
-	if value, ok := formats.ReadNumberParam(params, "min"); ok {
-		min = value
-	}
-	max := float64(maxSafeInteger)
-	if value, ok := formats.ReadNumberParam(params, "max"); ok {
-		max = value
-	}
-	switch {
-	case min >= 0 && max <= 255:
-		return intUint8
-	case min >= 0 && max <= 65535:
-		return intUint16
-	case min >= 0 && max <= 4294967295:
-		return intUint32
-	case min >= -128 && max <= 127:
-		return intInt8
-	case min >= -32768 && max <= 32767:
-		return intInt16
-	case min >= -2147483648 && max <= 2147483647:
-		return intInt32
-	default:
-		return intFloat64
-	}
 }
 
 // ValidateParams returns one message per violation, surfaced as CodeFMTInvalidParams.

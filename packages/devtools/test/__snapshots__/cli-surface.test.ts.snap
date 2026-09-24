@@ -16,14 +16,6 @@ the tsconfig outDir; requires a tsconfig; no stdio protocol.
 Flags:
   --api-tsconfig PATH
     	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
-  --binary-sizing-bias dynamic
-    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
-  --binary-sizing-items int
-    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
-  --binary-sizing-max-bytes int
-    	per-type cap on the binary cold-start estimate (default 65536)
-  --binary-sizing-string-bytes int
-    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
   --bundle-api string
     	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) (default: the tsconfig bundleApi plugin key, else off)
   --client-tsconfig PATH
@@ -139,14 +131,6 @@ default), stdin (a {"sources":{…}} handshake line, one inferred Program), or o
 Flags:
   --api-tsconfig PATH
     	tsconfig PATH of the SEPARATE project declaring the mion API this client calls: under --bundle-api the routes' types resolve in that program, so the client emits the server's exact runtypes (default: the tsconfig apiTsconfig plugin key, else this program)
-  --binary-sizing-bias dynamic
-    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
-  --binary-sizing-items int
-    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
-  --binary-sizing-max-bytes int
-    	per-type cap on the binary cold-start estimate (default 65536)
-  --binary-sizing-string-bytes int
-    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
   --bundle-api string
     	bundle the metadata + compiled functions of every route this client calls: bundled (nothing fetched at runtime) | mixed (unbundled routes still fetched) (default: the tsconfig bundleApi plugin key, else off)
   --client-tsconfig PATH
@@ -245,7 +229,6 @@ Shared options (same meaning under every command):
     --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
-    --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
     --js-runtime PATH   JS runtime the pattern checks run on (default: MION_JS_RUNTIME, then node, then bun from PATH)
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)

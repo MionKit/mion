@@ -17,8 +17,7 @@ import (
 // The merge collapses `f2` to its single surviving candidate (Date), but a
 // value belonging to the t2 member still carries `f2` (a symbol at runtime).
 // Without a guard the surviving Date codec is mis-applied to that foreign
-// value (`f2.toISOString()` crashes — G4); the binary side sets the bitmap
-// bit while writing nothing, desyncing the decoder (G3). The emit must guard
+// value (`f2.toISOString()` crashes — G4). The emit must guard
 // the surviving codec and DROP the key for a non-matching value.
 func buildStrippedMergedPropUnionFixture(strippedKind reflection.ReflectionKind) []*reflection.RunType {
 	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
@@ -72,20 +71,6 @@ func TestPrepareForJsonCloneModule_StrippedMergedPropGuardsPresence(t *testing.T
 
 	if !strings.Contains(out, "v.f2 !== undefined && (") {
 		t.Errorf("expected `v.f2 !== undefined && (` presence guard for the stripped sibling; got:\n%s", out)
-	}
-}
-
-// TestToBinaryModule_StrippedMergedPropDropsForeignValue — the binary
-// encoder MUST guard the optional-prop bit so a value from the stripped
-// member leaves the bit UNSET (decode skips it), instead of setting the bit
-// while the codec writes nothing and desyncs the decoder. (G3) Binary lane
-// gates on the binary build; the emit is rendered unconditionally here.
-func TestToBinaryModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindPromise)}
-	out := renderModule(t, dump, "toBinary")
-
-	if !strings.Contains(out, "v.f2 !== undefined && (") {
-		t.Errorf("expected `v.f2 !== undefined && (` guard on the binary optional-prop bit; got:\n%s", out)
 	}
 }
 

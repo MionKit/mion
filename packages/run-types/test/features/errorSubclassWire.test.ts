@@ -12,15 +12,7 @@
 // (Marker coverage rule: both getRunTypeId call shapes, converging + hash-equal.)
 
 import {describe, expect, it} from 'vitest';
-import {
-  createValidateFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  getRunTypeId,
-  type RunType,
-} from '@mionjs/run-types';
+import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, getRunTypeId, type RunType} from '@mionjs/run-types';
 import {getRunType} from '@mionjs/run-types';
 
 class WireError extends Error {
@@ -72,15 +64,6 @@ describe('Error subclass wire projection — enumerability guard', () => {
     const parsed = JSON.parse(encode(err) as string);
     expect(parsed.stack).toBe('FRAME');
     expect(parsed.message).toBe('missing thing');
-  });
-
-  it('binary round-trip carries the envelope, never stack', () => {
-    const encode = createBinaryEncoderFn<WireError>();
-    const decode = createBinaryDecoderFn<WireError>();
-    const decoded = decode(encode(wire())) as Record<string, unknown>;
-    expect(decoded.code).toBe('not-found');
-    expect(decoded.message).toBe('missing thing');
-    expect(decoded.stack).toBeUndefined();
   });
 
   it('inside a union, the error member still ships without stack', () => {

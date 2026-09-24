@@ -5,8 +5,8 @@
 // serialization contract:
 //
 //   • a type the resolver accepts (no Error diagnostic) SERIALIZES — the stripped
-//     members are dropped and the JSON + binary round-trips are wire-stable and
-//     agree with each other (O1/O3/O4/O5/O6/O12);
+//     members are dropped and the clone + compact JSON round-trips are
+//     wire-stable and agree with each other (O1/O3/O4/O5/O12/O14);
 //   • a type the resolver rejects (Error diagnostic) COLLAPSES — every encoder
 //     refuses (controlled `[CODE]` at wire or call), never silently serializing
 //     (O10).

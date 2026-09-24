@@ -10,7 +10,7 @@ import (
 
 // patternPropsDump builds `{name: string} & patternProperties {'^d_': bigint}`:
 // a declared member next to a pattern-keyed value that needs a transform on
-// every road (bigint has no JSON form and a distinct binary layout).
+// every road (bigint has no JSON form).
 func patternPropsDump() protocol.Dump {
 	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
@@ -28,15 +28,9 @@ func patternPropsDump() protocol.Dump {
 func TestPatternProps_EveryCodecWalksTheMatchingKeys(t *testing.T) {
 	dump := patternPropsDump()
 	regex := `new RegExp("^d_")`
-	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone", "compactForJson", "compactFromJson", "removeUnknownKeys", "toBinary", "fromBinary"} {
+	for _, fam := range []string{"prepareForJsonMutate", "prepareForJsonClone", "restoreFromJsonMutate", "restoreFromJsonClone", "compactForJson", "compactFromJson", "removeUnknownKeys"} {
 		out := renderModule(t, dump, fam)
-		// The binary decoder reads the count the encoder wrote, so it filters
-		// nothing itself: its evidence is the key read of the pattern block.
-		if fam == "fromBinary" {
-			if !strings.Contains(out, "desSafePropName()") {
-				t.Errorf("[fromBinary] the pattern block must read its keys back; got:\n%s", out)
-			}
-		} else if !strings.Contains(out, regex) {
+		if !strings.Contains(out, regex) {
 			t.Errorf("[%s] the pattern-keyed sweep must hoist its key regex; got:\n%s", fam, out)
 		}
 		if strings.Contains(out, "_outer','objectLiteral',,true") {

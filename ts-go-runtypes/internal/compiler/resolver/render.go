@@ -44,12 +44,6 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, rooted, proven
 		PatternSampleCount: sess.opts.PatternSampleCount,
 		PatternGenFailures: sess.patternGenFailures,
 		RefTable:           sess.fullRefTable(),
-		SizeEstimate: typefunctions.SizeEstimateConfig{
-			Bias:        sess.opts.SizeBias,
-			Items:       sess.opts.SizeItems,
-			StringBytes: sess.opts.SizeStringBytes,
-			MaxBytes:    sess.opts.SizeMaxBytes,
-		},
 		// One predicate memo per dispatch, shared by every family collect: the predicates are emitter-independent.
 		Facts: typefunctions.NewFactsTable(),
 	}

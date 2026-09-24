@@ -39,7 +39,7 @@ export const NUMBER_FORMAT = {
     // `float` is a generation/presentation tag, NEVER a failable constraint: a float
     // legally holds whole values like 2.0 (packages/run-types/src/formats/numberFormats.ts).
     // So every finite number is valid here and only non-numbers are rejected — the tag
-    // steers mock generation and keeps binary packing on the float64 arm, nothing else.
+    // steers mock generation, nothing else.
     title: 'FormatFloat — float-tagged number (whole values legal)',
     getSamples: () => ({valid: [1.5, -0.5, 3.14, 1, 0, -2], invalid: ['1.5', null, true]}),
     expectedFormatErrors: () => [null, null, null],

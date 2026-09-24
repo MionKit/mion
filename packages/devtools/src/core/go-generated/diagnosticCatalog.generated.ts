@@ -230,89 +230,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'A code that is not in the catalog can never match a finding, so the comment\nwould silence nothing while looking like it works. Codes are the uppercase\nidentifier in a message, for example the `VL002` in\n`error VL002: Type ... can never be validated`.\n\nFix: copy the code out of the message you are silencing:\n-  // @mion-expect-error VL2\n+  // @mion-expect-error VL002',
   },
-  FB001: {
-    headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
-  },
-  FB002: {
-    headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
-  },
-  FB003: {
-    headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-  },
-  FB006: {
-    headline: 'Type `{0}` can never be deserialised from binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-  },
-  FB010: {
-    headline:
-      'Property `{0}` is a function: `fromBinary` does not handle function values, so this property is silently not deserialised.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`fromBinary` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
-  },
-  FB011: {
-    headline: "Method `{0}` is silently not deserialised by `fromBinary`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "Class and object methods aren't part of the serialisable shape, so\n`fromBinary` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-  },
-  FB012: {
-    headline: "Static member `{0}` is silently not deserialised by `fromBinary`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      'Class static members live on the class, not on individual instances.\n`fromBinary` operates on instance shape, so statics are excluded.',
-  },
-  FB013: {
-    headline: "Symbol-keyed property `{0}` is silently not deserialised by `fromBinary`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `fromBinary` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-  },
-  FB014: {
-    headline:
-      "Union member(s) of type `{0}` can't be represented as data: `fromBinary` drops them, so the union is deserialised as its remaining members.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `fromBinary` deserialised only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `fromBinary` throws at build time instead.',
-  },
-  FB015: {
-    headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `fromBinary` drops it, so this property is silently not deserialised.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`fromBinary` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `fromBinary` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
-  },
   FMT001: {
     headline: 'TypeFormat mockSample "{0}" does not match its pattern /{1}/; fix the sample or the pattern.',
     level: 'runtimeError',
@@ -801,12 +718,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
       "An override redirect body loads its compiled function from the cache\n(`usePureFn('<the override's id>')`), but that module never rendered into the entry\ngraph. Calling the override would throw at runtime, so the build surfaces\nthe miss now. This is an internal emitter tripwire and should never fire\nin normal operation.\n\nFix: re-run with a clean cache first (delete the .runtypes cache dir /\nrestart the dev server). If it persists, the emitter dropped a module it\nshould have rendered: please open an issue with the type + override that\ntriggers it.",
   },
   OVR010: {
-    headline: 'Overriding `validate` for this type also changes how JSON and binary decoders narrow unions containing it.',
+    headline: 'Overriding `validate` for this type also changes how JSON decoders narrow unions containing it.',
     level: 'warning',
     severity: 'warning',
     family: 'marker',
     detail:
-      "`validate` is a shared dependency across function families: JSON and\nbinary union decoders call the member validators to pick the matching\nbranch. An `overrideValidate<T>()` therefore reaches past\n`createValidateFn<T>()`: decoders of any union containing T now narrow\nwith YOUR function.\n\nThis is informational; the build proceeds. If the override should only\naffect direct validation, give the union members a discriminant so\ndecoders never fall back to member validation:\n  type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
+      "`validate` is a shared dependency across function families: JSON union\ndecoders call the member validators to pick the matching branch. An `overrideValidate<T>()` therefore reaches past\n`createValidateFn<T>()`: decoders of any union containing T now narrow\nwith YOUR function.\n\nThis is informational; the build proceeds. If the override should only\naffect direct validation, give the union members a discriminant so\ndecoders never fall back to member validation:\n  type Event = {kind: 'click'; x: number} | {kind: 'key'; code: string};",
   },
   PFE9005: {
     headline: 'Pure-fn factory `{0}` uses destructured parameters; only simple identifier params are supported.',
@@ -950,7 +867,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   PJ003: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
@@ -958,7 +875,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
+      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
   PJ005: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
@@ -1033,7 +950,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   PJS003: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
@@ -1041,7 +958,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
+      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
   PJS005: {
     headline: 'Type `{0}` can never be encoded to JSON: the generated function will always fail.',
@@ -1117,7 +1034,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   RJ003: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
@@ -1125,7 +1042,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
+      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
   },
   RJ005: {
     headline: 'Type `{0}` can never be decoded from JSON: the generated function will always fail.',
@@ -1237,89 +1154,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "Declared members are never dropped (only UNDECLARED keys are; that is the\nstrip guarantee). A value the emitter cannot rebuild passes through by\nreference instead: the clone's property points at the SAME handle as the\ninput's, so mutations through it are visible on both sides. Register\n`overrideRemoveUnknownKeys<T>()` if this type needs custom copying.",
   },
-  TB001: {
-    headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "`never` is the empty type: no value can ever inhabit it. A field\ntyped `never` cannot carry a runtime value, so there is nothing to\nencode/decode/validate.\n\nFix: use `unknown` if you really want to accept any value:\n  interface User {\n-   tag: never;\n+   tag: unknown;  // narrow before use\n  }\n\nFix: pick a concrete type matching your real data:\n  interface User {\n-   tag: never;\n+   tag: 'pending' | 'active' | 'done';\n  }",
-  },
-  TB002: {
-    headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
-  },
-  TB003: {
-    headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Functions have no value form to serialise: their closure, prototype,\nand bound state aren't representable in JSON or binary.\n\nFix: drop the function from your type, or replace it with the data the\nfunction would produce:\n  interface User {\n-   getName: () => string;\n+   name: string;\n  }",
-  },
-  TB006: {
-    headline: 'Type `{0}` can never be serialised to binary: the generated function will always fail.',
-    level: 'runtimeError',
-    severity: 'error',
-    family: 'runtype',
-    detail:
-      "Every `symbol` value carries a unique runtime identity (`Symbol() !==\nSymbol()` even with the same description). That identity disappears the\nmoment it's serialised, and two symbols can't be compared across realms,\nworkers, or process boundaries. A validator that asserts \"this is a\nsymbol\" gives a false sense of safety: the value can't actually\nround-trip.\n\nFix: use a stable string key (often a literal union):\n  -  type Status = symbol;\n+  type Status = 'pending' | 'active' | 'done';",
-  },
-  TB010: {
-    headline:
-      'Property `{0}` is a function: `toBinary` does not handle function values, so this property is silently not serialised.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`toBinary` works on JSON-shaped data; functions don\'t survive JSON, so\nthe emitter drops them. The rest of the object\'s behaviour is unaffected.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.',
-  },
-  TB011: {
-    headline: "Method `{0}` is silently not serialised by `toBinary`: methods aren't data.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "Class and object methods aren't part of the serialisable shape, so\n`toBinary` excludes them. The rest of the type still works.\n\nIf you wanted the method's return value validated/serialised, expose it\nas a data property instead.",
-  },
-  TB012: {
-    headline: "Static member `{0}` is silently not serialised by `toBinary`: statics aren't part of instance data.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      'Class static members live on the class, not on individual instances.\n`toBinary` operates on instance shape, so statics are excluded.',
-  },
-  TB013: {
-    headline: "Symbol-keyed property `{0}` is silently not serialised by `toBinary`: symbol keys aren't JSON-representable.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      "JSON only supports string keys; symbol-keyed properties are dropped\nfrom the serialised form. `toBinary` follows the same rule.\n\nFix: use a string key:\n  -  [Symbol.for('id')]: string;\n+  id: string;",
-  },
-  TB014: {
-    headline:
-      "Union member(s) of type `{0}` can't be represented as data: `toBinary` drops them, so the union is serialised as its remaining members.",
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      'A union projects to its serialisable members only: `DataOnly<Date | symbol>`\nis `Date`. The dropped member(s) ({0}) carry no JSON-shaped value (symbol,\nfunction, Promise, or a non-serialisable built-in like `Map` / `Set` /\ntyped arrays), so `toBinary` serialised only the members that remain.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md. If EVERY member of the union is non-serialisable the\nprojection is `never`, and `toBinary` throws at build time instead.',
-  },
-  TB015: {
-    headline:
-      'Property `{0}` has a non-serialisable value type (symbol, Promise, or a non-serialisable built-in): `toBinary` drops it, so this property is silently not serialised.',
-    level: 'warning',
-    severity: 'warning',
-    family: 'runtype',
-    detail:
-      '`toBinary` works on JSON-shaped data. A property whose value is a symbol,\na Promise, or a non-serialisable built-in (a typed array, `ArrayBuffer`, or any other\nstandard-library class such as `URL` or `Intl.DateTimeFormat`) carries\nno JSON-shaped value, so it is dropped: `DataOnly<{ {0}: symbol }>` is `{}`.\nThe rest of the object\'s behaviour is unaffected.\n\nNote the difference from a property that is only STRUCTURALLY unserialisable\n(`{0}: symbol[]` or `{0}: Map<string, symbol>`), which CANNOT be safely\ndropped (DataOnly keeps it as `never[]`): there `toBinary` throws at build\ntime instead.\n\nThis is by design, see the "one contract: serializable data only"\nsection in CLAUDE.md.',
-  },
   TMP001: {
     headline:
       "Temporal type `{0}` resolved to `any`: the Temporal lib isn't in your tsconfig `lib`, so the generated validator would accept any value.",
@@ -1343,7 +1177,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   VE002: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',
@@ -1409,7 +1243,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     severity: 'error',
     family: 'runtype',
     detail:
-      'A standard-library class carries runtime state that does not survive a JSON\nor binary round-trip: its instance identity is lost the moment it is\nserialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
+      'A standard-library class carries runtime state that does not survive a JSON\nround-trip: its instance identity is lost the moment it is serialised, so at a root position there is nothing left to work with.\n\nA few have an agreed data form and ARE supported: `Date`, `Map`,\n`Set` and the Temporal types. Everything else the standard library declares\n(`URL`, `Intl.DateTimeFormat`, `WeakMap`, `Promise`, the typed arrays and\n`Buffer`) has none, and is refused here rather than guessed at.\n\nFix: describe the data form yourself and convert at the boundary:\n  // for URL:\n  const data = yourUrl.href;             // string\n  // for typed arrays:\n  const data = Array.from(yourBuffer);   // number[]\n\nFix: change the field type to a shape made of data:\n  interface User {\n-   home: URL;\n+   home: string;\n  }',
   },
   VL002: {
     headline: 'Type `{0}` can never be validated: the generated function will always fail.',

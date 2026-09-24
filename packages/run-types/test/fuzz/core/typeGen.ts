@@ -140,7 +140,7 @@ export const SCRATCH_FORMAT_LEAVES: readonly FormatLeafName[] = [
 /** Structural constraint params the generator can attach to an array / Set /
  *  Map / record shape. Rendered through the SHIPPED `TF.FormattedArray` /
  *  `TF.FormattedSet` / `TF.FormattedMap` / `TF.FormattedObject` wrappers;
- *  generated ONLY under `GenOptions.structuralFormats` so the value / binary /
+ *  generated ONLY under `GenOptions.structuralFormats` so the value /
  *  roundtrip lanes never see them (their value generators don't enforce the
  *  constraints — id convergence is the only oracle here).
  *
@@ -1057,7 +1057,7 @@ function genDecl(ctx: Ctx): void {
   // generation, however, surfaces a SEPARATE emit-pipeline bug: a complex
   // callable interface (a call signature whose params/returns pull in `any` /
   // methods / non-serializable intersections) wires its now-alwaysThrow factory
-  // with an UNCONTROLLED error (`reading 'fn'`) and leaves a binary site
+  // with an UNCONTROLLED error (`reading 'fn'`) and leaves a site
   // unresolved. That dependency-linking bug is tracked as a follow-up; the
   // `calls` plumbing stays so it can be re-enabled once it lands.
   ctx.decls.push({

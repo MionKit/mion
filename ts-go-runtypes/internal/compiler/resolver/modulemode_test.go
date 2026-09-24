@@ -195,25 +195,25 @@ func TestModuleMode_Default_NoSiteModuleStamping(t *testing.T) {
 func TestModuleMode_AllSingle_CrossFamilyBundleImport(t *testing.T) {
 	// A non-merging union encoder discriminates members via val_<member>
 	// cross-family edges (the TestDemandScope_ItSeededByCrossFamilyUnion
-	// fixture) — in allSingle the tb bundle must import those entries as
+	// fixture) — in allSingle the pjs bundle must import those entries as
 	// NAMED exports of the val bundle.
-	source := `import {createBinaryEncoderFn} from '@mionjs/run-types';
-export const _ = createBinaryEncoderFn<{a: {n: number}} | {a: {s: string}}>();
+	source := `import {createJsonEncoderFn} from '@mionjs/run-types';
+export const _ = createJsonEncoderFn<{a: {n: bigint}} | {a: {s: string}}>();
 `
 	r := setupInlineMode(t, map[string]string{"a.ts": source}, constants.ModuleModeAllSingle)
 	resp := scanWithModules(t, r, []string{"a.ts"})
-	tbBundle, ok := resp.EntryModules[constants.FnsBundleDir+"/tb"]
+	pjsBundle, ok := resp.EntryModules[constants.FnsBundleDir+"/pjs"]
 	if !ok {
-		t.Fatalf("missing %s/tb bundle; modules: %v", constants.FnsBundleDir, moduleNames(resp))
+		t.Fatalf("missing %s/pjs bundle; modules: %v", constants.FnsBundleDir, moduleNames(resp))
 	}
 	valSpecifier := constants.EntryModulePrefix + constants.FnsBundleDir + "/val" + constants.EntryModuleSuffix
-	if !strings.Contains(tbBundle, "from '"+valSpecifier+"'") {
-		t.Fatalf("tb bundle missing named import from %s:\n%s", valSpecifier, tbBundle)
+	if !strings.Contains(pjsBundle, "from '"+valSpecifier+"'") {
+		t.Fatalf("pjs bundle missing named import from %s:\n%s", valSpecifier, pjsBundle)
 	}
 	// Imports never rename — the export name IS the binding, everywhere.
-	for _, line := range strings.Split(tbBundle, "\n") {
+	for _, line := range strings.Split(pjsBundle, "\n") {
 		if strings.HasPrefix(line, "import {") && strings.Contains(line, " as ") {
-			t.Fatalf("tb bundle must not rename imports:\n%s", line)
+			t.Fatalf("pjs bundle must not rename imports:\n%s", line)
 		}
 	}
 	if _, ok := resp.EntryModules[constants.FnsBundleDir+"/val"]; !ok {

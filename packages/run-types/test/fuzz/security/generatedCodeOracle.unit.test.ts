@@ -43,27 +43,6 @@ describe('generated-code oracles fire on broken bodies (negative controls)', () 
     expect(oracles('function f(v){for (const k0 in v) {v[k0] = undefined;}return v}')).toEqual([]);
   });
 
-  it('GC-COUNT fires on a raw length allocation or loop in a binary decoder', () => {
-    expect(oracles('function f(v, Des){const n = Des.desLength();v = new Array(n);return v}', 'fb')).toEqual([
-      'GC-COUNT',
-      'GC-COUNT',
-    ]);
-    expect(
-      oracles(
-        'function f(v, Des){const n = Des.desCount(1);v = new Array(n);for (let i = 0; i < n; i++) {v[i] = Des.desString()}return v}',
-        'fb'
-      )
-    ).toEqual([]);
-    expect(
-      oracles(
-        'function f(v, Des){const n = Des.view.getUint32(Des.index, 1);for (let i = 0; i < n; i++) {v[i] = 1}return v}',
-        'fb'
-      )
-    ).toEqual(['GC-COUNT']);
-    // The same text is not a binary decoder's problem in another family.
-    expect(oracles('function f(v){const n = v.length;v = new Array(n);return v}', 'ruk')).toEqual([]);
-  });
-
   it('GC-REGEXP fires when a RegExp is built from anything but a double-quoted literal', () => {
     expect(oracles("function f(v){return new RegExp(v.source, 'g')}")).toEqual(['GC-REGEXP']);
     expect(oracles('const re = new RegExp("^a$"); function f(v){return re.test(v)}')).toEqual([]);

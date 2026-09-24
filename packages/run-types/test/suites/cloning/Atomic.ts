@@ -54,9 +54,9 @@ export const ATOMIC = {
     passThrough: true,
   },
   // Magnitude-split number cases: in the serialization suite these isolate
-  // where binary overtakes JSON on the wire. A value-level clone has no wire,
-  // so every magnitude behaves identically — keys and values are mirrored
-  // anyway to keep the two suites row-for-row comparable.
+  // each magnitude's JSON size. A value-level clone has no wire, so every
+  // magnitude behaves identically — keys and values are mirrored anyway to keep
+  // the two suites row-for-row comparable.
   number_small: {
     title: 'number (small)',
     description: 'A small single-digit integer passes through by value — magnitude is irrelevant to a clone.',

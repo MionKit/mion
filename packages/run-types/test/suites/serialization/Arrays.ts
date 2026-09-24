@@ -1,5 +1,5 @@
 import * as TF from '@mionjs/run-types/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
@@ -7,25 +7,20 @@ export const ARRAYS = {
   array: {
     title: 'Array',
     description:
-      'Root `string[]` round-trips identically across JSON and binary, with samples covering a populated array and the empty case.',
+      'Root `string[]` round-trips identically through JSON, with samples covering a populated array and the empty case.',
     mutateEncoder: () => createJsonEncoderFn<string[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string[]>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<string[]>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<string[]>(),
     mutateDecoder: () => createJsonDecoderFn<string[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<string[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<string[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<string[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(TF.string())),
     schemaDecoder: () => createJsonDecoderFn(RT.array(TF.string())),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(TF.string())),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(TF.string())),
     getTestData: () => ({values: [['hello', 'world'], []]}),
   },
   array_date: {
     title: 'Date array',
-    description:
-      '`Date[]` encodes each element to an ISO string on the JSON wire and restores to a Date, while binary packs each as a fixed 8-byte epoch.',
+    description: '`Date[]` encodes each element to an ISO string on the JSON wire and restores to a Date.',
     serializeNotes:
       'Per-element Date transform applies recursively over the array; the empty-array sample confirms no element work happens when there are no items.',
     mutateEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'mutate'}),
@@ -34,12 +29,8 @@ export const ARRAYS = {
     cloneDecoder: () => createJsonDecoderFn<Date[]>(),
     mutateDecoder: () => createJsonDecoderFn<Date[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<Date[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<Date[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<Date[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(TF.date())),
     schemaDecoder: () => createJsonDecoderFn(RT.array(TF.date())),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(TF.date())),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(TF.date())),
     getTestData: () => ({
       values: [[new Date('2000-08-06T02:13:00.000Z'), new Date('2001-09-07T03:14:00.000Z')], []],
     }),
@@ -55,12 +46,8 @@ export const ARRAYS = {
     cloneDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(),
     mutateDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<(1n | 2n)[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<(1n | 2n)[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<(1n | 2n)[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.union([RT.literal(1n), RT.literal(2n)]))),
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.union([RT.literal(1n), RT.literal(2n)]))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.union([RT.literal(1n), RT.literal(2n)]))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.union([RT.literal(1n), RT.literal(2n)]))),
     getTestData: () => ({values: [[1n, 2n], [1n], []]}),
   },
   undefined_in_array: {
@@ -74,12 +61,8 @@ export const ARRAYS = {
     cloneDecoder: () => createJsonDecoderFn<undefined[]>(),
     mutateDecoder: () => createJsonDecoderFn<undefined[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<undefined[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<undefined[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<undefined[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.literal(undefined))),
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.literal(undefined))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.literal(undefined))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.literal(undefined))),
     getTestData: () => ({values: [[undefined, undefined]]}),
   },
   null_in_array: {
@@ -92,12 +75,8 @@ export const ARRAYS = {
     cloneDecoder: () => createJsonDecoderFn<null[]>(),
     mutateDecoder: () => createJsonDecoderFn<null[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<null[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<null[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<null[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.literal(null))),
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.literal(null))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.literal(null))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.literal(null))),
     getTestData: () => ({values: [[null, null], []]}),
   },
   nullable_number_array: {
@@ -110,12 +89,8 @@ export const ARRAYS = {
     cloneDecoder: () => createJsonDecoderFn<(number | null)[]>(),
     mutateDecoder: () => createJsonDecoderFn<(number | null)[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<(number | null)[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<(number | null)[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<(number | null)[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.union([TF.number(), RT.literal(null)]))),
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.union([TF.number(), RT.literal(null)]))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.union([TF.number(), RT.literal(null)]))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.union([TF.number(), RT.literal(null)]))),
     getTestData: () => ({values: [[1, null, 2], [null], []]}),
   },
   void_in_array: {
@@ -129,30 +104,22 @@ export const ARRAYS = {
     cloneDecoder: () => createJsonDecoderFn<void[]>(),
     mutateDecoder: () => createJsonDecoderFn<void[]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<void[]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<void[]>(),
-    binaryDecoder: () => createBinaryDecoderFn<void[]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.void())),
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.void())),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.void())),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.void())),
     getTestData: () => ({values: [[undefined, undefined]]}),
   },
   multi_dimensional: {
     title: 'Multi-dimensional array',
     description:
-      'Nested `string[][]` round-trips identically across JSON and binary, with samples mixing ragged inner arrays alongside empty inner and outer arrays.',
+      'Nested `string[][]` round-trips identically through JSON, with samples mixing ragged inner arrays alongside empty inner and outer arrays.',
     mutateEncoder: () => createJsonEncoderFn<string[][]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string[][]>(undefined, {strategy: 'clone'}),
     compactEncoder: () => createJsonEncoderFn<string[][]>(undefined, {strategy: 'compact'}),
     cloneDecoder: () => createJsonDecoderFn<string[][]>(),
     mutateDecoder: () => createJsonDecoderFn<string[][]>(undefined, {strategy: 'mutate'}),
     compactDecoder: () => createJsonDecoderFn<string[][]>(undefined, {strategy: 'compact'}),
-    binaryEncoder: () => createBinaryEncoderFn<string[][]>(),
-    binaryDecoder: () => createBinaryDecoderFn<string[][]>(),
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.array(TF.string()))),
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.array(TF.string()))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.array(TF.string()))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.array(TF.string()))),
     getTestData: () => ({values: [[['hello', 'world'], ['a', 'b'], []], []]}),
   },
   non_serializable_in_array: {
@@ -171,20 +138,12 @@ export const ARRAYS = {
     mutateDecoder: () => createJsonDecoderFn<symbol[]>(undefined, {strategy: 'mutate'}),
     // @mion-downgrade-error RJ005
     compactDecoder: () => createJsonDecoderFn<symbol[]>(undefined, {strategy: 'compact'}),
-    // @mion-downgrade-error TB006
-    binaryEncoder: () => createBinaryEncoderFn<symbol[]>(),
-    // @mion-downgrade-error FB006
-    binaryDecoder: () => createBinaryDecoderFn<symbol[]>(),
     // Non-serializable array element (symbol) propagates to the root → alwaysThrow.
     // `RT.array(RT.symbol())` resolves the same factory, so each schema thunk throws.
     // @mion-downgrade-error PJS005
     schemaEncoder: () => createJsonEncoderFn(RT.array(RT.symbol())),
     // @mion-downgrade-error RJ005
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.symbol())),
-    // @mion-downgrade-error TB006
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.symbol())),
-    // @mion-downgrade-error FB006
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.symbol())),
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -216,14 +175,6 @@ export const ARRAYS = {
       type CircularArray = CircularArray[];
       return createJsonDecoderFn<CircularArray>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      type CircularArray = CircularArray[];
-      return createBinaryEncoderFn<CircularArray>();
-    },
-    binaryDecoder: () => {
-      type CircularArray = CircularArray[];
-      return createBinaryDecoderFn<CircularArray>();
-    },
     schemaEncoder: () => {
       const ca = RT.circular(RT.array(RT.self()));
       return createJsonEncoderFn(ca);
@@ -231,14 +182,6 @@ export const ARRAYS = {
     schemaDecoder: () => {
       const ca = RT.circular(RT.array(RT.self()));
       return createJsonDecoderFn(ca);
-    },
-    schemaBinaryEncoder: () => {
-      const ca = RT.circular(RT.array(RT.self()));
-      return createBinaryEncoderFn(ca);
-    },
-    schemaBinaryDecoder: () => {
-      const ca = RT.circular(RT.array(RT.self()));
-      return createBinaryDecoderFn(ca);
     },
     getTestData: () => {
       type CircularArray = CircularArray[];

@@ -156,32 +156,13 @@ export {
   type JsonValueStrategy,
 } from './createRTFunctions.ts';
 
-// Binary I/O re-exported from a dedicated module so bundlers can drop the
-// binary subtree when consumers never reference either factory.
-export {
-  createBinaryEncoderFn,
-  type BinaryEncoderFn,
-  type BinaryEncoderSizeFn,
-  type BinaryEncoderIntoFn,
-  type BinaryEncoderOptions,
-  createBinarySizerFn,
-  type BinarySizerFn,
-  createBinaryDecoderFn,
-  type BinaryDecoderFn,
-  type BinaryDecoderOptions,
-  type ToBinaryFn,
-  type FromBinaryFn,
-} from './createRTFBinary.ts';
-
 // Per-type custom function overrides — the WRITE side of the createX routing. Declared after
-// createRTFunctions / createRTFBinary so the Fn aliases they export are initialized first.
+// createRTFunctions so the Fn aliases it exports are initialized first.
 export {
   overrideValidate,
   overrideGetValidationErrors,
   overrideRemoveUnknownKeys,
   overrideFormatTransform,
-  overrideBinaryEncoder,
-  overrideBinaryDecoder,
   overrideJsonEncoder,
   overrideJsonDecoder,
 } from './overrideRTFunctions.ts';
@@ -227,25 +208,11 @@ export {
 } from './standard/jsonSchemaDoc.ts';
 
 // Circular-reference guard for the live-object families (validate / getValidationErrors /
-// jsonEncode / binaryEncode). Armed per call with the COMPILE-TIME option
+// jsonEncode). Armed per call with the COMPILE-TIME option
 // `{rejectCircularRefs: true}`; there is no global toggle, it forks the factory's fnHash like any
 // other compile flag. The encoders throw this error on a cycle; validate returns false and
 // getValidationErrors records a `{expected: 'circular'}` issue.
 export {CircularReferenceError, type CircularPath} from './runtypes/circular.ts';
 
-// DataView helpers — exposed so consumers can pre-build a serializer /
-// deserializer instance and pass it to the encoder / decoder for buffer reuse.
-export {
-  createDataViewSerializer,
-  createDataViewDeserializer,
-  BinaryDecodeError,
-  UNSAFE_PROPERTY_NAME_MESSAGE,
-  MAX_ZERO_BYTE_ITEMS,
-  setSerializationOptions,
-  type CreateSerializerOptions,
-  type SerializationOptions,
-  type DataViewSerializer,
-  type DataViewDeserializer,
-  type StrictArrayBuffer,
-  type BinaryInput,
-} from './runtypes/dataView.ts';
+// Prefix of the error every decoder throws for a prototype-named key; the router matches on it.
+export {UNSAFE_PROPERTY_NAME_MESSAGE} from './runtypes/unsafeKeys.ts';

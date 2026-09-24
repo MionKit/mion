@@ -765,18 +765,18 @@ function buildCompiletimeBench() {
   return cases.length;
 }
 
-// The serialization + serialization-formats datasets are produced separately by
+// The serialization dataset is produced separately by
 // gen-serialization-bench.mjs (inside the Node 26 container, where results/env.json
-// is not mounted), so unlike the benches built here they ship without the run-
-// environment meta - and their pages render no "measured on ..." banner. Stamp the
-// SAME metaBlock onto their already-written index.json so EVERY benchmark page is
+// is not mounted), so unlike the benches built here it ships without the run-
+// environment meta - and its page renders no "measured on ..." banner. Stamp the
+// SAME metaBlock onto its already-written index.json so EVERY benchmark page is
 // consistent. cmd_website_bench runs the serialization stage before this script, so
-// the files exist by now; no-op when a dataset (or env.json) is absent.
+// the file exists by now; no-op when the dataset (or env.json) is absent.
 function stampSerializationMeta() {
   const meta = metaBlock();
   if (!meta) return 0;
   let stamped = 0;
-  for (const bench of ['serialization', 'serialization-formats']) {
+  for (const bench of ['serialization']) {
     const indexFile = path.join(OUT_ROOT, bench, 'index.json');
     if (!fs.existsSync(indexFile)) continue;
     const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
@@ -797,5 +797,5 @@ if (process.argv[1] && process.argv[1].endsWith('gen-docs.mjs')) {
   const a = buildAlignmentBench();
   process.stdout.write(`alignment bench: ${a} cases → container/website/public/bench-data/alignment/\n`);
   const sm = stampSerializationMeta();
-  process.stdout.write(`serialization meta: stamped ${sm} index(es) → container/website/public/bench-data/{serialization,serialization-formats}/\n`);
+  process.stdout.write(`serialization meta: stamped ${sm} index(es) → container/website/public/bench-data/serialization/\n`);
 }

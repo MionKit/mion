@@ -4,13 +4,10 @@
 // line terminator, unicode, a leading digit, a space) plus a marker planted so
 // that any text escaping its quotes is visible in the program text. Every
 // family is compiled, every emitted body in this file's cache is run through
-// the generated-code oracles, and the nasty values still round-trip on both
-// roads. The secgen fuzz lane runs the same oracles over generated types.
+// the generated-code oracles, and the nasty values still round-trip. The secgen fuzz lane runs the same oracles over generated types.
 
 import {describe, expect, it} from 'vitest';
 import {
-  createBinaryDecoderFn,
-  createBinaryEncoderFn,
   createRemoveUnknownKeysFn,
   createGetValidationErrorsFn,
   createJsonDecoderFn,
@@ -97,8 +94,6 @@ const decoders = {
   mutate: createJsonDecoderFn<Corpus>(undefined, {strategy: 'mutate'}),
   compact: createJsonDecoderFn<Corpus>(undefined, {strategy: 'compact'}),
 };
-const toBinary = createBinaryEncoderFn<Corpus>();
-const fromBinary = createBinaryDecoderFn<Corpus>();
 const clone = createRemoveUnknownKeysFn<Corpus>();
 createValidateFn<Corpus>(undefined, {checkUnknowns: true});
 createGetValidationErrorsFn<Corpus>(undefined, {checkUnknowns: true});
@@ -107,16 +102,12 @@ createMockDataFn<Corpus>();
 createValidateFn<Keyed>();
 createJsonEncoderFn<Keyed>();
 createJsonDecoderFn<Keyed>();
-createBinaryEncoderFn<Keyed>();
-createBinaryDecoderFn<Keyed>();
 const errUnion = {
   encode: createJsonEncoderFn<ErrUnion>(),
   decode: createJsonDecoderFn<ErrUnion>(),
 };
 createJsonEncoderFn<ErrUnion>(undefined, {strategy: 'mutate'});
 createJsonEncoderFn<ErrUnion>(undefined, {strategy: 'compact'});
-createBinaryEncoderFn<ErrUnion>();
-createBinaryDecoderFn<ErrUnion>();
 createValidateFn<ErrUnion>();
 
 function emittedBodies(): EmittedBody[] {
@@ -160,7 +151,7 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     const bodies = emittedBodies();
     const families = new Set(bodies.map((b) => b.family));
     expect(bodies.length).toBeGreaterThan(20);
-    for (const family of ['val', 'verr', 'pjs', 'rjs', 'cj', 'jdCL', 'jdMU', 'jdCO', 'tb', 'fb', 'ruk', 'vst', 'vest']) {
+    for (const family of ['val', 'verr', 'pjs', 'rjs', 'cj', 'jdCL', 'jdMU', 'jdCO', 'ruk', 'vst', 'vest']) {
       expect(families, `family ${family} must be in the corpus`).toContain(family);
     }
   });
@@ -194,14 +185,13 @@ describe('generated-code corpus scan (hand-written nasty corpus)', () => {
     expect(violations, renderGeneratedCodeViolations(violations)).toEqual([]);
   });
 
-  it('the nasty values validate and round-trip on both roads', () => {
+  it('the nasty values validate and round-trip', () => {
     expect(validate(value())).toBe(true);
     for (const [name, encode] of Object.entries(encoders)) {
       const text = encode(structuredClone(value())) as string;
       const decode = name === 'compact' ? decoders.compact : decoders.clone;
       expect(decode(text), name).toEqual(value());
     }
-    expect(fromBinary(toBinary(value()))).toEqual(value());
     expect(clone(value())).toEqual(value());
   });
 

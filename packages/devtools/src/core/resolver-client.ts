@@ -35,13 +35,6 @@ export interface ResolverClientOptions {
   // Forwarded as --emit-mode: what each RT entry ships in its code/factory slots. 'code' (default) is the body
   // string alone, with the factory rebuilt via `new Function`; 'functions' the live factory alone; 'both' is both.
   emitMode?: 'code' | 'functions' | 'both';
-  // Forwarded as --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
-  // (field names mirror the flags, for greppability): the binary `dynamic` cold-start buffer estimate.
-  // Omitted values fall through to the binary defaults (0.8 / 100 / 32 / 65536).
-  binarySizingBias?: number;
-  binarySizingItems?: number;
-  binarySizingStringBytes?: number;
-  binarySizingMaxBytes?: number;
   // Forwarded as --number-mode: the project-wide default for validate's `numberMode`, 'isFinite' (default) /
   // 'typeof' / 'notNaN'. A per-call-site numberMode overrides it.
   numberMode?: string;
@@ -473,10 +466,6 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   else if (opts.inlineSources) args.push('--sources', 'stdin');
   // cacheDir is NOT a CLI arg: it rides the child's MION_CACHE_DIR env var, set by ResolverClient's spawn.
   if (opts.emitMode) args.push('--emit-mode', opts.emitMode);
-  if (opts.binarySizingBias !== undefined) args.push('--binary-sizing-bias', String(opts.binarySizingBias));
-  if (opts.binarySizingItems !== undefined) args.push('--binary-sizing-items', String(opts.binarySizingItems));
-  if (opts.binarySizingStringBytes !== undefined) args.push('--binary-sizing-string-bytes', String(opts.binarySizingStringBytes));
-  if (opts.binarySizingMaxBytes !== undefined) args.push('--binary-sizing-max-bytes', String(opts.binarySizingMaxBytes));
   if (opts.numberMode) args.push('--number-mode', opts.numberMode);
   if (opts.parallelScan === false) args.push('--no-parallel-scan');
   if (opts.parallelRender === false) args.push('--no-parallel-render');

@@ -25,7 +25,7 @@ func mkSymLit() *reflection.RunType {
 
 var symLitSerdeFamilies = []string{
 	"prepareForJsonMutate", "prepareForJsonClone",
-	"restoreFromJsonMutate", "restoreFromJsonClone", "toBinary", "fromBinary",
+	"restoreFromJsonMutate", "restoreFromJsonClone",
 }
 
 func TestSymbolLiteral_RootFailsEverySerializationFamily(t *testing.T) {
@@ -87,7 +87,6 @@ func TestSymbolLiteral_UnionMemberDrops(t *testing.T) {
 	dump := protocol.Dump{RunTypes: []*reflection.RunType{mkDate(), mkSymLit(), union}}
 	for fam, code := range map[string]string{
 		"prepareForJsonMutate": diagnostics.CodePJUnionMemberDropped,
-		"toBinary":             diagnostics.CodeTBUnionMemberDropped,
 	} {
 		out, sink := renderWithDiag(t, dump, fam, "uni")
 		if strings.Contains(out, "_uni','union',,,,,,'") {

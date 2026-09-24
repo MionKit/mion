@@ -582,10 +582,6 @@ async function renderResult(result: RunResult): Promise<string> {
       return `${label('Encoded (JSON-safe)')}${await jsonBlock(result.value)}${diag}`;
     case 'jsonRoundtrip':
       return `${label('Encoded (input → encode)')}${await jsonBlock(result.encoded)}${label('Decoded')}${await block(result.decoded)}${diag}`;
-    case 'binaryEncode':
-      return `${label(`Binary (${result.byteLength} bytes)`)}<pre class="rtpg-code rtpg-hex">${escapeHtml(result.hex)}</pre>${diag}`;
-    case 'binaryRoundtrip':
-      return `${label(`Encoded (${result.byteLength} bytes)`)}<pre class="rtpg-code rtpg-hex">${escapeHtml(result.hex)}</pre>${label('Decoded')}${await block(result.decoded)}${diag}`;
     case 'graph':
       // The live graph, descending from the root: children are the actual child
       // nodes, so the output reads as the type's structure. Only a cycle shows
@@ -1386,9 +1382,6 @@ onBeforeUnmount(() => {
 }
 .rt-playground .rtpg-result > .rtpg-block-label:first-child {
   margin-top: 0;
-}
-.rt-playground .rtpg-hex {
-  word-break: break-all;
 }
 .rt-playground .rtpg-badge {
   display: inline-block;

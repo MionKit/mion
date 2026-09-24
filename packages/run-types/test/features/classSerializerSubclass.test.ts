@@ -18,14 +18,7 @@
 // createXxx(value) (reflect).
 
 import {afterEach, describe, expect, it} from 'vitest';
-import {
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  createValidateFn,
-  createGetValidationErrorsFn,
-} from '@mionjs/run-types';
+import {createJsonEncoderFn, createJsonDecoderFn, createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 import {registerClassSerializer} from '@mionjs/run-types/runtime';
 import {clearClassSerializers} from '../../src/runtypes/classSerializerRegistry.ts';
 
@@ -75,16 +68,16 @@ describe('classSerializer / a base class and its subclass declared in one union'
     }
   });
 
-  it('reflect (binary) — the same through the value-first form', () => {
+  it('reflect (JSON) — the same through the value-first form', () => {
     registerBase();
     registerSub();
     const sample: BaseFirst = new BaseErr('x');
-    const encode = createBinaryEncoderFn(sample);
-    const decode = createBinaryDecoderFn(sample);
-    const sub = decode(encode(auth())) as AuthErr;
+    const encode = createJsonEncoderFn(sample);
+    const decode = createJsonDecoderFn(sample);
+    const sub = decode(encode(auth()) as string) as AuthErr;
     expect(sub).toBeInstanceOf(AuthErr);
     expect(sub.scope).toBe('admin');
-    expect(decode(encode(new BaseErr('soft')))).toBeInstanceOf(BaseErr);
+    expect(decode(encode(new BaseErr('soft')) as string)).toBeInstanceOf(BaseErr);
   });
 
   it('static (JSON) — an unregistered subclass takes the structural road: its own arm, a plain object back', () => {

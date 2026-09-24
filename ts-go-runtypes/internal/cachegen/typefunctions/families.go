@@ -41,9 +41,6 @@ var Families = []FamilySpec{
 	// A deep clone of the DECLARED shape: unknown keys dropped by construction, nothing mutable shared with
 	// the input (only immutables and opaque handles pass through).
 	family("removeUnknownKeys", RemoveUnknownKeysEmitter{}),
-	// DataViewSerializer (little-endian) round-trip pair; unions emit the flat-prop wire shape (union_flat_binary.go).
-	family("toBinary", ToBinaryEmitter{}),
-	family("fromBinary", FromBinaryEmitter{}),
 	// The value-transform family behind createFormatTransformFn<T>.
 	family("formatTransform", FormatTransformEmitter{}),
 	// The per-type JSON Schema document (json_schema_doc.go): renders inline at the root, no cross-entry deps.

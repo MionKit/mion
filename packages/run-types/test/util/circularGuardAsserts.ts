@@ -15,7 +15,6 @@ import {CircularReferenceError, type GetValidationErrorsFn} from '@mionjs/run-ty
 
 type AnyValidateFn = (value: unknown) => boolean;
 type AnyJsonEncoderFn = (value: unknown) => string | undefined;
-type AnyBinaryEncoderFn = (value: unknown) => unknown;
 
 /** One circular-guard case for the validate / getValidationErrors families. */
 export interface CircularGuardValidationCase {
@@ -55,18 +54,16 @@ export function assertCircularGetValidationErrors(testCase: CircularGuardValidat
   }
 }
 
-/** One circular-guard case for the jsonEncode / binaryEncode families. */
+/** One circular-guard case for the jsonEncode family. */
 export interface CircularGuardSerializationCase {
   title: string;
   description?: string;
   /** `createJsonEncoderFn<T>(undefined, {rejectCircularRefs: true})`. */
   jsonEncoder: () => AnyJsonEncoderFn;
-  /** `createBinaryEncoderFn<T>(undefined, {rejectCircularRefs: true})`. */
-  binaryEncoder: () => AnyBinaryEncoderFn;
   /** Builds the runtime value under test — cyclic, or an acyclic control. */
   getValue: () => unknown;
-  /** `true` when the value cycles (encoders throw `CircularReferenceError`);
-   *  `false` for an acyclic control (encoders succeed). */
+  /** `true` when the value cycles (the encoder throws `CircularReferenceError`);
+   *  `false` for an acyclic control (the encoder succeeds). */
   expectThrows: boolean;
 }
 
@@ -74,16 +71,6 @@ export interface CircularGuardSerializationCase {
  *  control encodes without throwing. */
 export function assertCircularJsonEncode(testCase: CircularGuardSerializationCase): void {
   const encode = testCase.jsonEncoder();
-  if (testCase.expectThrows) {
-    expect(() => encode(testCase.getValue())).toThrow(CircularReferenceError);
-  } else {
-    expect(() => encode(testCase.getValue())).not.toThrow();
-  }
-}
-
-/** Runs the binary encoder with the same cycle/acyclic contract. */
-export function assertCircularBinaryEncode(testCase: CircularGuardSerializationCase): void {
-  const encode = testCase.binaryEncoder();
   if (testCase.expectThrows) {
     expect(() => encode(testCase.getValue())).toThrow(CircularReferenceError);
   } else {

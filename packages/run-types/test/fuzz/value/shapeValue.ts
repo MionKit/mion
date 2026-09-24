@@ -165,8 +165,7 @@ function objectValue(
   }
   if (index) {
     // Each index key must MATCH the declared key kind, or the value doesn't
-    // conform: a non-numeric key under a `[k: number]` index is corrupted by the
-    // binary number-index codec (it encodes numeric keys as numbers). A union
+    // conform (a non-numeric key under a `[k: number]` index). A union
     // key picks a kind per entry. Symbol keys are dropped by JSON and by the
     // serializers, so they add no round-trip coverage — skip them (a symbol-only
     // index yields no entries). createMockDataFn keys on the resolved RunType's

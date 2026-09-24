@@ -4,7 +4,7 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/reflection"
 )
 
-// Custom class-serializer plumbing shared by the JSON + binary emitter families, for a plain user class
+// Custom class-serializer plumbing shared by the JSON emitter families, for a plain user class
 // (KindClass + SubKindNone) only: builtins (Date / Map / Set / RegExp / nonSerializable) are dispatched on
 // SubKind before the SubKindNone arm. The factory looks the entry up through
 // `utl.getClassSerializer(<rt.ID>, <rt.TypeName>)`, exact instantiation id first, class name as fallback;
@@ -140,58 +140,6 @@ func wrapRestoreWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v 
 		structuralThenRebuild += ";"
 	}
 	structuralThenRebuild += "if (" + csVar + ") " + custom
-	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + custom + "} else {" + structuralThenRebuild + "}"
-	return RTCode{Code: branch, Type: CodeS}
-}
-
-// wrapToBinaryWithClassSerializer wraps the structural toBinary body (`tb`, writes bytes to `ser`) in a
-// runtime registry branch:
-//
-//	if (cs_<id> && cs_<id>.serialize) { Ser.serString(JSON.stringify(cs_<id>.serialize(v))) }
-//	else { <structural> }
-//
-// That string wire shape (length prefix + utf8 bytes) is exactly what the `fb` side decodes. Anonymous
-// classes return structural unchanged. CodeNS propagates.
-func wrapToBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v, ser string, structural RTCode) RTCode {
-	if structural.Type == CodeNS {
-		return structural
-	}
-	className := userClassName(rt)
-	if className == "" {
-		return structural
-	}
-	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
-	registered := ser + ".serString(JSON.stringify(" + csVar + ".serialize(" + v + ")))"
-	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + registered + "}"
-	if structural.Code != "" {
-		branch += " else {" + structural.Code + "}"
-	}
-	return RTCode{Code: branch, Type: CodeS}
-}
-
-// wrapFromBinaryWithClassSerializer wraps the structural fromBinary body (`fb`, assigns to `ret`) in a
-// runtime registry branch, byte-symmetric with wrapToBinaryWithClassSerializer:
-//
-//	if (cs_<id> && cs_<id>.serialize) { ret = utl.deserializeClass(cs_<id>, JSON.parse(Des.desString()), k_<id>) }
-//	else { <structural>; if (cs_<id>) ret = utl.deserializeClass(cs_<id>, ret, k_<id>) }
-//
-// Anonymous classes return structural unchanged. CodeNS propagates.
-func wrapFromBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, ret, des string, structural RTCode) RTCode {
-	if structural.Type == CodeNS {
-		return structural
-	}
-	className := userClassName(rt)
-	if className == "" {
-		return structural
-	}
-	csVar, decl := classSerializerLookup(ctx, rt.ID, className)
-	keys := addObjectPropsToContext(rt, ctx).keysName
-	custom := ret + " = utl.deserializeClass(" + csVar + ", JSON.parse(" + des + ".desString()), " + keys + ")"
-	structuralThenRebuild := structural.Code
-	if structuralThenRebuild != "" {
-		structuralThenRebuild += ";"
-	}
-	structuralThenRebuild += "if (" + csVar + ") " + ret + " = utl.deserializeClass(" + csVar + ", " + ret + ", " + keys + ")"
 	branch := decl + ";if (" + csVar + " && " + csVar + ".serialize) {" + custom + "} else {" + structuralThenRebuild + "}"
 	return RTCode{Code: branch, Type: CodeS}
 }

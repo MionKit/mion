@@ -129,11 +129,9 @@ export const isNode = createValidateFn<Node>();
 }
 
 func TestInlineGuard_ArmedEncodersThrow(t *testing.T) {
-	// toBinary (tb|C) and jsonEncoder (jeCL|C) armed entries throw a
-	// CircularReferenceError via utl.circularError.
-	modules := scanEntryModules(t, `import {createBinaryEncoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+	// The armed jsonEncoder (jeCL|C) entry throws a CircularReferenceError via utl.circularError.
+	modules := scanEntryModules(t, `import {createJsonEncoderFn} from '@mionjs/run-types';
 interface Node {name: string; next?: Node}
-export const tb = createBinaryEncoderFn<Node>(undefined, {rejectCircularRefs: true});
 export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true});
 `)
 	throwers := 0
@@ -142,8 +140,8 @@ export const je = createJsonEncoderFn<Node>(undefined, {rejectCircularRefs: true
 			throwers++
 		}
 	}
-	if throwers < 2 {
-		t.Errorf("expected both armed encoders (tb + je) to throw via utl.circularError, found %d\nmodules: %v", throwers, keys(modules))
+	if throwers < 1 {
+		t.Errorf("expected the armed jsonEncoder to throw via utl.circularError, found %d\nmodules: %v", throwers, keys(modules))
 	}
 	if _, ok := modules[entrymodules.ModuleName(purefnids.FindCycle, entrymodules.KindPureFn)]; !ok {
 		t.Errorf(purefnids.FindCycle+" not served for armed encoders\nmodules: %v", keys(modules))

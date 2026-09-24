@@ -7,7 +7,7 @@
 // hash (never read at runtime), so each strategy resolves to its own cache entry,
 // exactly as it does in the serialization benchmarks.
 
-export type OperationKind = 'predicate' | 'errors' | 'encode' | 'jsonRoundtrip' | 'binaryEncode' | 'binaryRoundtrip' | 'graph';
+export type OperationKind = 'predicate' | 'errors' | 'encode' | 'jsonRoundtrip' | 'graph';
 
 export interface Operation {
   key: string;
@@ -133,32 +133,6 @@ export const OPERATIONS: readonly Operation[] = [
     varName: 'fromJson',
     options: "{strategy: 'mutate'}",
     encodeOptions: "{strategy: 'mutate'}",
-  },
-  {
-    key: 'binaryEncoder',
-    factory: 'createBinaryEncoderFn',
-    kind: 'binaryEncode',
-    group: 'Binary',
-    menuLabel: 'binary enc',
-    label: 'createBinaryEncoderFn',
-    blurb: 'Encode to a compact binary buffer.',
-    detail:
-      'Serialises the value into a tightly packed binary buffer, shown here as hex. Much smaller than JSON for the same data.',
-    needsInput: true,
-    varName: 'toBinary',
-  },
-  {
-    key: 'binaryDecoder',
-    factory: 'createBinaryDecoderFn',
-    kind: 'binaryRoundtrip',
-    group: 'Binary',
-    menuLabel: 'binary dec',
-    label: 'createBinaryDecoderFn',
-    blurb: 'Decode a binary buffer back to data.',
-    detail:
-      'Reads the packed binary buffer back into the data type. Your input is encoded first and then decoded, so the full round trip is visible.',
-    needsInput: true,
-    varName: 'fromBinary',
   },
   {
     key: 'graph',

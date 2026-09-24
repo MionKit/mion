@@ -4,8 +4,6 @@ import {
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
 } from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
 
@@ -58,15 +56,8 @@ const fromJson = createJsonDecoderFn<Order>();
 const wire = toJson(order)!; // Date -> string, ready for the network
 const back = fromJson(wire); // string -> Date again
 
-// Binary: the same type, a compact buffer instead of JSON.
-const toBytes = createBinaryEncoderFn<Order>();
-const fromBytes = createBinaryDecoderFn<Order>();
-
-const bytes = toBytes(order); // a Uint8Array; smaller than JSON
-const order2 = fromBytes(bytes); // back to a typed object
-
 // Mock: believable, valid, randomized data for your tests and fixtures.
 const mockOrder = createMockDataFn<Order>();
 const fake = mockOrder(); // a valid, randomized Order
 
-export {order, back, order2, fake};
+export {order, back, fake};

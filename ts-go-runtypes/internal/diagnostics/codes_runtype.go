@@ -74,34 +74,6 @@ const (
 	CodeRJNonSerializablePropDrop = "RJ015"
 )
 
-// toBinary family.
-const (
-	CodeTBNeverRoot               = "TB001"
-	CodeTBNonSerializableRoot     = "TB002"
-	CodeTBFunctionRoot            = "TB003"
-	CodeTBSymbolRoot              = "TB006"
-	CodeTBFunctionPropDropped     = "TB010"
-	CodeTBMethodDropped           = "TB011"
-	CodeTBStaticDropped           = "TB012"
-	CodeTBSymbolKeyedDropped      = "TB013"
-	CodeTBUnionMemberDropped      = "TB014"
-	CodeTBNonSerializablePropDrop = "TB015"
-)
-
-// fromBinary family.
-const (
-	CodeFBNeverRoot               = "FB001"
-	CodeFBNonSerializableRoot     = "FB002"
-	CodeFBFunctionRoot            = "FB003"
-	CodeFBSymbolRoot              = "FB006"
-	CodeFBFunctionPropDropped     = "FB010"
-	CodeFBMethodDropped           = "FB011"
-	CodeFBStaticDropped           = "FB012"
-	CodeFBSymbolKeyedDropped      = "FB013"
-	CodeFBUnionMemberDropped      = "FB014"
-	CodeFBNonSerializablePropDrop = "FB015"
-)
-
 // Format family: TypeFormat (pattern / mockSample) build-time checks. Every one is
 // LevelRuntimeError, because EmitDiagnostic does not change what the emitter writes and the entry
 // always renders: what ships is a validator that was never verified (FMT004, FMT007), built from
@@ -189,8 +161,6 @@ func init() {
 		CodePJNeverRoot, CodePJNonSerializableRoot, CodePJFunctionRoot, CodePJSymbolRoot,
 		CodePJSNeverRoot, CodePJSNonSerializableRoot, CodePJSFunctionRoot, CodePJSSymbolRoot,
 		CodeRJNeverRoot, CodeRJNonSerializableRoot, CodeRJFunctionRoot, CodeRJSymbolRoot,
-		CodeTBNeverRoot, CodeTBNonSerializableRoot, CodeTBFunctionRoot, CodeTBSymbolRoot,
-		CodeFBNeverRoot, CodeFBNonSerializableRoot, CodeFBFunctionRoot, CodeFBSymbolRoot,
 		CodeRUKUnionRoot, CodeRUKFunctionRoot,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelRuntimeError, Scope: ScopeRoot, Title: "RunType root-position error"})
@@ -213,8 +183,6 @@ func init() {
 		CodePJFunctionPropDropped, CodePJMethodDropped, CodePJStaticDropped, CodePJSymbolKeyedDropped, CodePJUnionMemberDropped, CodePJNonSerializablePropDrop,
 		CodePJSFunctionPropDropped, CodePJSMethodDropped, CodePJSStaticDropped, CodePJSSymbolKeyedDropped, CodePJSUnionMemberDropped, CodePJSNonSerializablePropDrop,
 		CodeRJFunctionPropDropped, CodeRJMethodDropped, CodeRJStaticDropped, CodeRJSymbolKeyedDropped, CodeRJUnionMemberDropped, CodeRJNonSerializablePropDrop,
-		CodeTBFunctionPropDropped, CodeTBMethodDropped, CodeTBStaticDropped, CodeTBSymbolKeyedDropped, CodeTBUnionMemberDropped, CodeTBNonSerializablePropDrop,
-		CodeFBFunctionPropDropped, CodeFBMethodDropped, CodeFBStaticDropped, CodeFBSymbolKeyedDropped, CodeFBUnionMemberDropped, CodeFBNonSerializablePropDrop,
 		CodeRUKFunctionPropDropped, CodeRUKMethodDropped, CodeRUKStaticDropped, CodeRUKNonSerializablePropDrop,
 	} {
 		register(Definition{Code: code, Family: FamilyRunType, Level: LevelWarning, Scope: ScopeGraph, Title: "RunType child-position member dropped"})

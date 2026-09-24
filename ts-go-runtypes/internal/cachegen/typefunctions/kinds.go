@@ -48,7 +48,7 @@ func objectHasCallSignature(rt *reflection.RunType, ctx *EmitContext) bool {
 // a callable interface (objectLiteral with a KindCallSignature child) answers that call signature, so
 // DiagCodeForLeaf emits the family's FUNCTION code and an alwaysThrow entry instead of "", which would
 // silently skip the entry and leave a dangling same-family dependency (a KindMissing stub a JSON composite
-// binds with an unguarded `utl.getRT(key).fn`, and a binary site cannot resolve). A nil refTable or an
+// binds with an unguarded `utl.getRT(key).fn`). A nil refTable or an
 // unresolvable ref falls back to the leaf, keeping the silent skip as the unknown-future-kind safety net.
 func callableLeafSubstitute(leaf *reflection.RunType, refTable map[string]*reflection.RunType) *reflection.RunType {
 	if leaf == nil || leaf.Kind != reflection.KindObjectLiteral {
@@ -136,16 +136,6 @@ func objectMembers(rt *reflection.RunType) []*reflection.RunType {
 		return rt.Children
 	}
 	return append(append(make([]*reflection.RunType, 0, len(rt.Children)+len(synthetic)), rt.Children...), synthetic...)
-}
-
-// hasPatternKeyFlag reports whether rt is a synthetic patternProperties member rather than a declared index signature.
-func hasPatternKeyFlag(rt *reflection.RunType) bool {
-	for _, flag := range rt.Flags {
-		if strings.HasPrefix(flag, patternKeyFlag) {
-			return true
-		}
-	}
-	return false
 }
 
 // indexSignatureKeyRegex returns the regex source a dynamic-key sweep over rt filters its keys with: a

@@ -35,8 +35,7 @@ export type BigInt<P extends BigIntParams = {}, BrandName extends string = never
   BrandName
 >;
 
-// BigInt64 / BigUInt64 SET the min/max that select the 8-byte binary packing; the others fall back
-// to decimal-string serialization.
+// BigInt64 / BigUInt64 SET the min/max of a signed / unsigned 64-bit integer.
 export type BigPositive = BigInt<{min: 0n}>;
 export type BigNegative = BigInt<{max: 0n}>;
 export type BigPositiveInt = BigInt<{min: 0n; multipleOf: 1n}>;

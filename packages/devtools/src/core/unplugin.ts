@@ -92,14 +92,6 @@ export interface PluginOptions {
   //   - 'functions': live factory only, for runtimes that disallow `new Function` (WorkerD, CSP without `unsafe-eval`).
   //   - 'both': code string AND factory; test setups use it so suites cover both materialisation paths.
   emitMode?: 'code' | 'functions' | 'both';
-  // Cold-start buffer-size estimate baked into each binary-encoder entry, which
-  // `createBinaryEncoderFn({sizeStrategy: 'dynamic'})` uses instead of a 16 MiB default until per-key history warms up.
-  // Same shape and name as the tsconfig `binarySizing` key; all four fold into the disk cache fingerprint.
-  //   - bias (0..1, default 0.8): 0 = tightest (more grows), 1 = most generous.
-  //   - items (default 100): assumed element count for an unbounded collection.
-  //   - stringBytes (default 32): assumed byte length of an unbounded string.
-  //   - maxBytes (default 65536): per-type cap so a huge declared bound never seeds a multi-MB cold buffer.
-  binarySizing?: {bias?: number; items?: number; stringBytes?: number; maxBytes?: number};
   // Project-wide defaults for the per-call-site ValidateOptions bag, merged per field (a per-call option wins).
   //   - numberMode: the base `number` check — 'isFinite' (default; rejects NaN/Infinity), 'typeof' (accepts
   //     them), or 'notNaN' (rejects NaN, accepts Infinity). Eases migration from a looser library.
@@ -346,10 +338,6 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions, m
     // and when unset it resolves the config exactly as tsc does, searching upward from cwd.
     resolver = new ResolverClient(binaryPath, cwdAbs, options.tsconfig ?? '', {
       ...(options.emitMode ? {emitMode: options.emitMode} : {}),
-      ...(options.binarySizing?.bias !== undefined ? {binarySizingBias: options.binarySizing.bias} : {}),
-      ...(options.binarySizing?.items !== undefined ? {binarySizingItems: options.binarySizing.items} : {}),
-      ...(options.binarySizing?.stringBytes !== undefined ? {binarySizingStringBytes: options.binarySizing.stringBytes} : {}),
-      ...(options.binarySizing?.maxBytes !== undefined ? {binarySizingMaxBytes: options.binarySizing.maxBytes} : {}),
       ...(options.validate?.numberMode ? {numberMode: options.validate.numberMode} : {}),
       ...(options.inlineMode ? {inlineMode: options.inlineMode} : {}),
       ...(options.parallelScan !== undefined ? {parallelScan: options.parallelScan} : {}),

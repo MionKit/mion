@@ -202,20 +202,6 @@ func (ctx *EmitContext) SetChildAccessor(accessor string) {
 	ctx.walker.setChildAccessor(accessor)
 }
 
-// SuppressInlineReserve reports whether the current frame emits raw inline scalar writes WITHOUT their own
-// `Ser.ensureCapacity?.(n)` reserve, set by a fixed-width array that reserves its element block once.
-func (ctx *EmitContext) SuppressInlineReserve() bool {
-	return ctx.walker != nil && ctx.walker.suppressInlineReserve
-}
-
-// SetSuppressInlineReserve toggles the raw-inline-write mode (see SuppressInlineReserve). Callers must
-// restore the prior value after the scoped CompileChild so siblings and parents are unaffected.
-func (ctx *EmitContext) SetSuppressInlineReserve(suppress bool) {
-	if ctx.walker != nil {
-		ctx.walker.suppressInlineReserve = suppress
-	}
-}
-
 // SetChildPathLiteral records the path-literal the next pushStack frame inherits. Symmetric with
 // SetChildAccessor: collection emitters call it before each CompileChild so the child's PathLiteral names
 // the property, tuple index or loop counter it sits at. validationErrors-style emitters build access-path

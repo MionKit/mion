@@ -9,8 +9,8 @@ import (
 )
 
 // UnsafeKeyMessage prefixes the one message every decoder throws for a wire
-// key named in reflection.UnsafePropertyNames, on both roads (the binary
-// reader's desSafePropName carries the same text).
+// key named in reflection.UnsafePropertyNames (the runtime's
+// UNSAFE_PROPERTY_NAME_MESSAGE carries the same text).
 const UnsafeKeyMessage = "[mion] Unsafe property name: "
 
 // unsafeKeyCheck renders the JS condition true for a wire key no decoder, validator or rebuilding encoder
@@ -43,7 +43,7 @@ func unsafeKeyThrow(keyVar string) string {
 }
 
 // unsafeKeySkip: the rebuild rule, an encoder or clone writing wire keys onto a fresh object leaves it out.
-// The in-place encoders (mutate, stringify, binary) carry no guard on purpose: they never write a key onto an
+// The in-place encoders (mutate, stringify) carry no guard on purpose: they never write a key onto an
 // object, and the receiving decoder refuses it, so a compare per key would buy nothing.
 func unsafeKeySkip(keyVar string) string {
 	return "if (" + unsafeKeyCheck(keyVar) + ") continue;"

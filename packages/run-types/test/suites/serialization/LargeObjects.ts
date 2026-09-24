@@ -1,5 +1,5 @@
 import * as TF from '@mionjs/run-types/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
@@ -9,7 +9,7 @@ export const LARGE_OBJECTS = {
     description:
       'Single interface with 30+ properties spanning scalars, Date, bigint, and a nested object, exercising the per-field walk cost without any union dispatch.',
     serializeNotes:
-      'The Date fields (`createdAt`/`updatedAt` and nested `meta.lastSeen`) JSON-encode to ISO strings and revive to Dates; the `big1`/`big2` bigints encode to decimal strings (rebuilt via `BigInt(...)`) on the JSON wire and take the binary string-fallback path.',
+      'The Date fields (`createdAt`/`updatedAt` and nested `meta.lastSeen`) JSON-encode to ISO strings and revive to Dates; the `big1`/`big2` bigints encode to decimal strings (rebuilt via `BigInt(...)`) on the JSON wire.',
     mutateEncoder: () => {
       interface WideRecord {
         id: number;
@@ -220,76 +220,6 @@ export const LARGE_OBJECTS = {
       }
       return createJsonDecoderFn<WideRecord>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface WideRecord {
-        id: number;
-        name: string;
-        description: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isActive: boolean;
-        score: number;
-        rank: number;
-        tag1: string;
-        tag2: string;
-        tag3: string;
-        tag4: string;
-        tag5: string;
-        count1: number;
-        count2: number;
-        count3: number;
-        flag1: boolean;
-        flag2: boolean;
-        flag3: boolean;
-        big1: bigint;
-        big2: bigint;
-        alias: string;
-        email: string;
-        city: string;
-        country: string;
-        postal: string;
-        width: number;
-        height: number;
-        weight: number;
-        meta: {category: string; priority: number; lastSeen: Date};
-      }
-      return createBinaryEncoderFn<WideRecord>();
-    },
-    binaryDecoder: () => {
-      interface WideRecord {
-        id: number;
-        name: string;
-        description: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isActive: boolean;
-        score: number;
-        rank: number;
-        tag1: string;
-        tag2: string;
-        tag3: string;
-        tag4: string;
-        tag5: string;
-        count1: number;
-        count2: number;
-        count3: number;
-        flag1: boolean;
-        flag2: boolean;
-        flag3: boolean;
-        big1: bigint;
-        big2: bigint;
-        alias: string;
-        email: string;
-        city: string;
-        country: string;
-        postal: string;
-        width: number;
-        height: number;
-        weight: number;
-        meta: {category: string; priority: number; lastSeen: Date};
-      }
-      return createBinaryDecoderFn<WideRecord>();
-    },
     // WideRecord — 30 mixed-type props incl. Date, bigint, and a nested meta object.
     schemaEncoder: () =>
       createJsonEncoderFn(
@@ -328,76 +258,6 @@ export const LARGE_OBJECTS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.object({
-          id: TF.number(),
-          name: TF.string(),
-          description: TF.string(),
-          createdAt: TF.date(),
-          updatedAt: TF.date(),
-          isActive: RT.boolean(),
-          score: TF.number(),
-          rank: TF.number(),
-          tag1: TF.string(),
-          tag2: TF.string(),
-          tag3: TF.string(),
-          tag4: TF.string(),
-          tag5: TF.string(),
-          count1: TF.number(),
-          count2: TF.number(),
-          count3: TF.number(),
-          flag1: RT.boolean(),
-          flag2: RT.boolean(),
-          flag3: RT.boolean(),
-          big1: TF.bigInt(),
-          big2: TF.bigInt(),
-          alias: TF.string(),
-          email: TF.string(),
-          city: TF.string(),
-          country: TF.string(),
-          postal: TF.string(),
-          width: TF.number(),
-          height: TF.number(),
-          weight: TF.number(),
-          meta: RT.object({category: TF.string(), priority: TF.number(), lastSeen: TF.date()}),
-        })
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.object({
-          id: TF.number(),
-          name: TF.string(),
-          description: TF.string(),
-          createdAt: TF.date(),
-          updatedAt: TF.date(),
-          isActive: RT.boolean(),
-          score: TF.number(),
-          rank: TF.number(),
-          tag1: TF.string(),
-          tag2: TF.string(),
-          tag3: TF.string(),
-          tag4: TF.string(),
-          tag5: TF.string(),
-          count1: TF.number(),
-          count2: TF.number(),
-          count3: TF.number(),
-          flag1: RT.boolean(),
-          flag2: RT.boolean(),
-          flag3: RT.boolean(),
-          big1: TF.bigInt(),
-          big2: TF.bigInt(),
-          alias: TF.string(),
-          email: TF.string(),
-          city: TF.string(),
-          country: TF.string(),
-          postal: TF.string(),
-          width: TF.number(),
-          height: TF.number(),
-          weight: TF.number(),
-          meta: RT.object({category: TF.string(), priority: TF.number(), lastSeen: TF.date()}),
-        })
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.object({
           id: TF.number(),
           name: TF.string(),
@@ -798,104 +658,6 @@ export const LARGE_OBJECTS = {
       type LargeObjectUnion = ProductEvent | UserEvent | OrderEvent | PaymentEvent | SessionEvent;
       return createJsonDecoderFn<LargeObjectUnion>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface ProductEvent {
-        kind: 'product';
-        id: string;
-        sku: string;
-        price: number;
-        available: boolean;
-        releasedAt: Date;
-        stock: number;
-      }
-      interface UserEvent {
-        kind: 'user';
-        id: string;
-        username: string;
-        email: string;
-        signedUpAt: Date;
-        loginCount: number;
-        isPremium: boolean;
-      }
-      interface OrderEvent {
-        kind: 'order';
-        id: string;
-        total: number;
-        itemCount: number;
-        placedAt: Date;
-        shipped: boolean;
-        customerId: string;
-      }
-      interface PaymentEvent {
-        kind: 'payment';
-        id: string;
-        amount: number;
-        currency: string;
-        processedAt: Date;
-        refunded: boolean;
-        txId: string;
-      }
-      interface SessionEvent {
-        kind: 'session';
-        id: string;
-        userId: string;
-        startedAt: Date;
-        durationMs: number;
-        ipHash: string;
-        device: string;
-      }
-      type LargeObjectUnion = ProductEvent | UserEvent | OrderEvent | PaymentEvent | SessionEvent;
-      return createBinaryEncoderFn<LargeObjectUnion>();
-    },
-    binaryDecoder: () => {
-      interface ProductEvent {
-        kind: 'product';
-        id: string;
-        sku: string;
-        price: number;
-        available: boolean;
-        releasedAt: Date;
-        stock: number;
-      }
-      interface UserEvent {
-        kind: 'user';
-        id: string;
-        username: string;
-        email: string;
-        signedUpAt: Date;
-        loginCount: number;
-        isPremium: boolean;
-      }
-      interface OrderEvent {
-        kind: 'order';
-        id: string;
-        total: number;
-        itemCount: number;
-        placedAt: Date;
-        shipped: boolean;
-        customerId: string;
-      }
-      interface PaymentEvent {
-        kind: 'payment';
-        id: string;
-        amount: number;
-        currency: string;
-        processedAt: Date;
-        refunded: boolean;
-        txId: string;
-      }
-      interface SessionEvent {
-        kind: 'session';
-        id: string;
-        userId: string;
-        startedAt: Date;
-        durationMs: number;
-        ipHash: string;
-        device: string;
-      }
-      type LargeObjectUnion = ProductEvent | UserEvent | OrderEvent | PaymentEvent | SessionEvent;
-      return createBinaryDecoderFn<LargeObjectUnion>();
-    },
     // Five-member discriminated union, each arm keyed by its `kind` literal.
     schemaEncoder: () =>
       createJsonEncoderFn(
@@ -949,106 +711,6 @@ export const LARGE_OBJECTS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({
-            kind: RT.literal('product'),
-            id: TF.string(),
-            sku: TF.string(),
-            price: TF.number(),
-            available: RT.boolean(),
-            releasedAt: TF.date(),
-            stock: TF.number(),
-          }),
-          RT.object({
-            kind: RT.literal('user'),
-            id: TF.string(),
-            username: TF.string(),
-            email: TF.string(),
-            signedUpAt: TF.date(),
-            loginCount: TF.number(),
-            isPremium: RT.boolean(),
-          }),
-          RT.object({
-            kind: RT.literal('order'),
-            id: TF.string(),
-            total: TF.number(),
-            itemCount: TF.number(),
-            placedAt: TF.date(),
-            shipped: RT.boolean(),
-            customerId: TF.string(),
-          }),
-          RT.object({
-            kind: RT.literal('payment'),
-            id: TF.string(),
-            amount: TF.number(),
-            currency: TF.string(),
-            processedAt: TF.date(),
-            refunded: RT.boolean(),
-            txId: TF.string(),
-          }),
-          RT.object({
-            kind: RT.literal('session'),
-            id: TF.string(),
-            userId: TF.string(),
-            startedAt: TF.date(),
-            durationMs: TF.number(),
-            ipHash: TF.string(),
-            device: TF.string(),
-          }),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({
-            kind: RT.literal('product'),
-            id: TF.string(),
-            sku: TF.string(),
-            price: TF.number(),
-            available: RT.boolean(),
-            releasedAt: TF.date(),
-            stock: TF.number(),
-          }),
-          RT.object({
-            kind: RT.literal('user'),
-            id: TF.string(),
-            username: TF.string(),
-            email: TF.string(),
-            signedUpAt: TF.date(),
-            loginCount: TF.number(),
-            isPremium: RT.boolean(),
-          }),
-          RT.object({
-            kind: RT.literal('order'),
-            id: TF.string(),
-            total: TF.number(),
-            itemCount: TF.number(),
-            placedAt: TF.date(),
-            shipped: RT.boolean(),
-            customerId: TF.string(),
-          }),
-          RT.object({
-            kind: RT.literal('payment'),
-            id: TF.string(),
-            amount: TF.number(),
-            currency: TF.string(),
-            processedAt: TF.date(),
-            refunded: RT.boolean(),
-            txId: TF.string(),
-          }),
-          RT.object({
-            kind: RT.literal('session'),
-            id: TF.string(),
-            userId: TF.string(),
-            startedAt: TF.date(),
-            durationMs: TF.number(),
-            ipHash: TF.string(),
-            device: TF.string(),
-          }),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({
             kind: RT.literal('product'),
@@ -1330,50 +992,6 @@ export const LARGE_OBJECTS = {
       type MixedLargeUnion = string | number | ProductEvent | UserEvent;
       return createJsonDecoderFn<MixedLargeUnion>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface ProductEvent {
-        kind: 'product';
-        id: string;
-        sku: string;
-        price: number;
-        available: boolean;
-        releasedAt: Date;
-        stock: number;
-      }
-      interface UserEvent {
-        kind: 'user';
-        id: string;
-        username: string;
-        email: string;
-        signedUpAt: Date;
-        loginCount: number;
-        isPremium: boolean;
-      }
-      type MixedLargeUnion = string | number | ProductEvent | UserEvent;
-      return createBinaryEncoderFn<MixedLargeUnion>();
-    },
-    binaryDecoder: () => {
-      interface ProductEvent {
-        kind: 'product';
-        id: string;
-        sku: string;
-        price: number;
-        available: boolean;
-        releasedAt: Date;
-        stock: number;
-      }
-      interface UserEvent {
-        kind: 'user';
-        id: string;
-        username: string;
-        email: string;
-        signedUpAt: Date;
-        loginCount: number;
-        isPremium: boolean;
-      }
-      type MixedLargeUnion = string | number | ProductEvent | UserEvent;
-      return createBinaryDecoderFn<MixedLargeUnion>();
-    },
     // Mixed union — two atomic members alongside two large object arms.
     schemaEncoder: () =>
       createJsonEncoderFn(
@@ -1402,56 +1020,6 @@ export const LARGE_OBJECTS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          TF.string(),
-          TF.number(),
-          RT.object({
-            kind: RT.literal('product'),
-            id: TF.string(),
-            sku: TF.string(),
-            price: TF.number(),
-            available: RT.boolean(),
-            releasedAt: TF.date(),
-            stock: TF.number(),
-          }),
-          RT.object({
-            kind: RT.literal('user'),
-            id: TF.string(),
-            username: TF.string(),
-            email: TF.string(),
-            signedUpAt: TF.date(),
-            loginCount: TF.number(),
-            isPremium: RT.boolean(),
-          }),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          TF.string(),
-          TF.number(),
-          RT.object({
-            kind: RT.literal('product'),
-            id: TF.string(),
-            sku: TF.string(),
-            price: TF.number(),
-            available: RT.boolean(),
-            releasedAt: TF.date(),
-            stock: TF.number(),
-          }),
-          RT.object({
-            kind: RT.literal('user'),
-            id: TF.string(),
-            username: TF.string(),
-            email: TF.string(),
-            signedUpAt: TF.date(),
-            loginCount: TF.number(),
-            isPremium: RT.boolean(),
-          }),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           TF.string(),
           TF.number(),
@@ -1692,62 +1260,6 @@ export const LARGE_OBJECTS = {
       }
       return createJsonDecoderFn<DeepNestedLevel1>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface DeepNestedLeaf {
-        id: number;
-        value: string;
-        when: Date;
-      }
-      interface DeepNestedLevel5 {
-        name: string;
-        leaves: DeepNestedLeaf[];
-      }
-      interface DeepNestedLevel4 {
-        label: string;
-        children: DeepNestedLevel5[];
-      }
-      interface DeepNestedLevel3 {
-        group: string;
-        branches: DeepNestedLevel4[];
-      }
-      interface DeepNestedLevel2 {
-        category: string;
-        groups: DeepNestedLevel3[];
-      }
-      interface DeepNestedLevel1 {
-        root: string;
-        categories: DeepNestedLevel2[];
-      }
-      return createBinaryEncoderFn<DeepNestedLevel1>();
-    },
-    binaryDecoder: () => {
-      interface DeepNestedLeaf {
-        id: number;
-        value: string;
-        when: Date;
-      }
-      interface DeepNestedLevel5 {
-        name: string;
-        leaves: DeepNestedLeaf[];
-      }
-      interface DeepNestedLevel4 {
-        label: string;
-        children: DeepNestedLevel5[];
-      }
-      interface DeepNestedLevel3 {
-        group: string;
-        branches: DeepNestedLevel4[];
-      }
-      interface DeepNestedLevel2 {
-        category: string;
-        groups: DeepNestedLevel3[];
-      }
-      interface DeepNestedLevel1 {
-        root: string;
-        categories: DeepNestedLevel2[];
-      }
-      return createBinaryDecoderFn<DeepNestedLevel1>();
-    },
     // Five levels of nested objects, each level holding an array of the next.
     schemaEncoder: () =>
       createJsonEncoderFn(
@@ -1778,60 +1290,6 @@ export const LARGE_OBJECTS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.object({
-          root: TF.string(),
-          categories: RT.array(
-            RT.object({
-              category: TF.string(),
-              groups: RT.array(
-                RT.object({
-                  group: TF.string(),
-                  branches: RT.array(
-                    RT.object({
-                      label: TF.string(),
-                      children: RT.array(
-                        RT.object({
-                          name: TF.string(),
-                          leaves: RT.array(RT.object({id: TF.number(), value: TF.string(), when: TF.date()})),
-                        })
-                      ),
-                    })
-                  ),
-                })
-              ),
-            })
-          ),
-        })
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.object({
-          root: TF.string(),
-          categories: RT.array(
-            RT.object({
-              category: TF.string(),
-              groups: RT.array(
-                RT.object({
-                  group: TF.string(),
-                  branches: RT.array(
-                    RT.object({
-                      label: TF.string(),
-                      children: RT.array(
-                        RT.object({
-                          name: TF.string(),
-                          leaves: RT.array(RT.object({id: TF.number(), value: TF.string(), when: TF.date()})),
-                        })
-                      ),
-                    })
-                  ),
-                })
-              ),
-            })
-          ),
-        })
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.object({
           root: TF.string(),
           categories: RT.array(
@@ -1903,7 +1361,7 @@ export const LARGE_OBJECTS = {
     // side is a CLASS union that now routes per-member for potential
     // reconstruction. The two therefore diverge on the wire by design — the
     // schema surface cannot express a class — so skip the schema-equivalence
-    // driver (round-trip + binary coverage still run).
+    // driver (the type-first round-trips still run).
     idDivergent: true,
     mutateEncoder: () => {
       class LargeClassA {
@@ -2091,68 +1549,6 @@ export const LARGE_OBJECTS = {
       type LargeClassUnion = LargeClassA | LargeClassB | LargeClassC;
       return createJsonDecoderFn<LargeClassUnion>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      class LargeClassA {
-        kind!: 'classA';
-        alpha!: string;
-        count!: number;
-        flag!: boolean;
-        when!: Date;
-        total!: bigint;
-        tags!: string[];
-      }
-      class LargeClassB {
-        kind!: 'classB';
-        beta!: string;
-        ratio!: number;
-        enabled!: boolean;
-        releasedAt!: Date;
-        score!: bigint;
-        metadata!: {label: string; weight: number};
-      }
-      class LargeClassC {
-        kind!: 'classC';
-        gamma!: string;
-        amount!: number;
-        paid!: boolean;
-        processedAt!: Date;
-        txId!: string;
-        steps!: number[];
-      }
-      type LargeClassUnion = LargeClassA | LargeClassB | LargeClassC;
-      return createBinaryEncoderFn<LargeClassUnion>();
-    },
-    binaryDecoder: () => {
-      class LargeClassA {
-        kind!: 'classA';
-        alpha!: string;
-        count!: number;
-        flag!: boolean;
-        when!: Date;
-        total!: bigint;
-        tags!: string[];
-      }
-      class LargeClassB {
-        kind!: 'classB';
-        beta!: string;
-        ratio!: number;
-        enabled!: boolean;
-        releasedAt!: Date;
-        score!: bigint;
-        metadata!: {label: string; weight: number};
-      }
-      class LargeClassC {
-        kind!: 'classC';
-        gamma!: string;
-        amount!: number;
-        paid!: boolean;
-        processedAt!: Date;
-        txId!: string;
-        steps!: number[];
-      }
-      type LargeClassUnion = LargeClassA | LargeClassB | LargeClassC;
-      return createBinaryDecoderFn<LargeClassUnion>();
-    },
     // Three-member class union modelled by its serialisable data shape
     // (class instances decode to plain objects), keyed by the `kind` literal.
     schemaEncoder: () =>
@@ -2189,70 +1585,6 @@ export const LARGE_OBJECTS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.union([
-          RT.object({
-            kind: RT.literal('classA'),
-            alpha: TF.string(),
-            count: TF.number(),
-            flag: RT.boolean(),
-            when: TF.date(),
-            total: TF.bigInt(),
-            tags: RT.array(TF.string()),
-          }),
-          RT.object({
-            kind: RT.literal('classB'),
-            beta: TF.string(),
-            ratio: TF.number(),
-            enabled: RT.boolean(),
-            releasedAt: TF.date(),
-            score: TF.bigInt(),
-            metadata: RT.object({label: TF.string(), weight: TF.number()}),
-          }),
-          RT.object({
-            kind: RT.literal('classC'),
-            gamma: TF.string(),
-            amount: TF.number(),
-            paid: RT.boolean(),
-            processedAt: TF.date(),
-            txId: TF.string(),
-            steps: RT.array(TF.number()),
-          }),
-        ])
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.union([
-          RT.object({
-            kind: RT.literal('classA'),
-            alpha: TF.string(),
-            count: TF.number(),
-            flag: RT.boolean(),
-            when: TF.date(),
-            total: TF.bigInt(),
-            tags: RT.array(TF.string()),
-          }),
-          RT.object({
-            kind: RT.literal('classB'),
-            beta: TF.string(),
-            ratio: TF.number(),
-            enabled: RT.boolean(),
-            releasedAt: TF.date(),
-            score: TF.bigInt(),
-            metadata: RT.object({label: TF.string(), weight: TF.number()}),
-          }),
-          RT.object({
-            kind: RT.literal('classC'),
-            gamma: TF.string(),
-            amount: TF.number(),
-            paid: RT.boolean(),
-            processedAt: TF.date(),
-            txId: TF.string(),
-            steps: RT.array(TF.number()),
-          }),
-        ])
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.union([
           RT.object({
             kind: RT.literal('classA'),

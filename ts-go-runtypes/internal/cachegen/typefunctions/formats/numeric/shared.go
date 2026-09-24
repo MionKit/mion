@@ -11,19 +11,6 @@ import (
 	"github.com/mionkit/mion/ts-go-runtypes/internal/cachegen/typefunctions/formats"
 )
 
-// 64-bit range bounds for the bigint binary optimization, parsed once.
-var (
-	bigInt64Min  = mustBigInt("-9223372036854775808")
-	bigInt64Max  = mustBigInt("9223372036854775807")
-	bigUint64Min = mustBigInt("0")
-	bigUint64Max = mustBigInt("18446744073709551615")
-)
-
-func mustBigInt(decimal string) *big.Int {
-	value, _ := new(big.Int).SetString(decimal, 10)
-	return value
-}
-
 // bigIntRawString returns a bigint param's raw decimal digits, unwrapping the `{val, …}` meta object.
 // A param arrives as a string from tsgo's TypeToString, usually with a trailing `n`; the strip is defensive so
 // both "123n" and "123" work. Full precision is preserved, never through float64.
@@ -47,7 +34,7 @@ func bigIntRawString(params map[string]any, key string) (string, bool) {
 	return "", false
 }
 
-// readBigIntParam parses a bigint param into a *big.Int, used ONLY for the 64-bit range decision (bigIntType).
+// readBigIntParam parses a bigint param into a *big.Int for the ValidateParams range checks.
 func readBigIntParam(params map[string]any, key string) (*big.Int, bool) {
 	rawString, ok := bigIntRawString(params, key)
 	if !ok {

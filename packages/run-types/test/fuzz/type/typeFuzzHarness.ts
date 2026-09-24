@@ -19,19 +19,9 @@
 // lets the runner pick the right oracle tier from them.
 
 import path from 'node:path';
-import {
-  createValidateFn,
-  createGetValidationErrorsFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  createBinarySizerFn,
-} from '@mionjs/run-types';
+import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@mionjs/run-types';
 import {createMockDataFn} from '@mionjs/run-types/mocking';
-import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
-import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
-import {ResolverClient, type ResolverClientOptions} from '../../../../devtools/src/core/resolver-client.ts';
+import {ResolverClient} from '../../../../devtools/src/core/resolver-client.ts';
 import {
   MARKER_PACKAGE_OVERLAY,
   evalEntryModules,
@@ -85,8 +75,8 @@ export type WiredFns = {
   getValidationErrors?: (v: unknown) => unknown[];
   jsonEncode?: (v: unknown) => string | undefined;
   jsonDecode?: (s: string) => unknown;
-  binaryEncode?: (v: unknown) => Uint8Array;
-  binaryDecode?: (b: Uint8Array) => unknown;
+  compactEncode?: (v: unknown) => string | undefined;
+  compactDecode?: (s: string) => unknown;
   /** The REAL product mock for this type, with nonDataTypes on so a value
    *  carries the stripped members. Not part of FN_KEYS — it's the value source
    *  for the behaviour tier, not a serialization factory the oracles police. **/
@@ -112,30 +102,11 @@ export interface CompiledType {
   wired: WiredFns;
   /** Per-family controlled wire failures (alwaysThrow factories may throw). **/
   wireErrors: Partial<Record<keyof WiredFns, string>>;
-  // --- binary size-estimate surface (used by the binary/ size lane) ---
-  /** The cold-start buffer estimate baked into the `tb` entry, or undefined when
-   *  the type produced no estimate slot. **/
-  seed?: number;
-  /** The exact-wire-size sizer (`createBinarySizerFn`), reusing the `tb` entry. **/
-  binarySizer?: (value: unknown) => number;
-  /** The reflection entry tuple — the size lane drives its own `createMockDataFn`
-   *  off it (e.g. with `respectBinarySize`). **/
-  reflectionTuple?: readonly unknown[];
 }
 
-/** Open a resolver client. `sizing` forwards the `--binary-sizing-*` estimator
- *  config so the baked cold-start estimate matches a size-lane run's value
- *  bounds. Takes the RUNTIME `BinarySizingOptions` shape (the same object the
- *  size lane hands createMockDataFn) and maps it onto the build-side flag
- *  names, so one config literal still drives both ends of the oracle. **/
-export function openClient(sizing?: BinarySizingOptions): ResolverClient {
+export function openClient(): ResolverClient {
   if (!hasBinary()) throw new Error(`mion binary not built: ${BIN}`);
-  const sizingArgs: Partial<ResolverClientOptions> = {};
-  if (sizing?.sizeBias !== undefined) sizingArgs.binarySizingBias = sizing.sizeBias;
-  if (sizing?.sizeItems !== undefined) sizingArgs.binarySizingItems = sizing.sizeItems;
-  if (sizing?.sizeStringBytes !== undefined) sizingArgs.binarySizingStringBytes = sizing.sizeStringBytes;
-  if (sizing?.sizeMaxBytes !== undefined) sizingArgs.binarySizingMaxBytes = sizing.sizeMaxBytes;
-  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both', ...sizingArgs});
+  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both'});
 }
 
 /** Render the full fixture: import block, named decls, `type T = root`, and one
@@ -147,8 +118,6 @@ export function renderFixture(gen: GeneratedType): string {
   createGetValidationErrorsFn,
   createJsonEncoderFn,
   createJsonDecoderFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
   getRunTypeId,
 } from '@mionjs/run-types';
 ${decls}
@@ -157,8 +126,8 @@ createValidateFn<T>();
 createGetValidationErrorsFn<T>();
 createJsonEncoderFn<T>();
 createJsonDecoderFn<T>();
-createBinaryEncoderFn<T>();
-createBinaryDecoderFn<T>();
+createJsonEncoderFn<T>(undefined, {strategy: 'compact'});
+createJsonDecoderFn<T>(undefined, {strategy: 'compact'});
 getRunTypeId<T>();
 `;
 }
@@ -254,14 +223,14 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
   wire(
     wired,
     wireErrors,
-    'binaryEncode',
-    () => createBinaryEncoderFn(undefined, undefined, byFamily.tb as never) as WiredFns['binaryEncode']
+    'compactEncode',
+    () => createJsonEncoderFn(undefined, undefined, byFamily.jencCO as never) as WiredFns['compactEncode']
   );
   wire(
     wired,
     wireErrors,
-    'binaryDecode',
-    () => createBinaryDecoderFn(undefined, undefined, byFamily.fb as never) as WiredFns['binaryDecode']
+    'compactDecode',
+    () => createJsonDecoderFn(undefined, undefined, byFamily.jdecCO as never) as WiredFns['compactDecode']
   );
 
   // Mock value source — the REAL createMockDataFn driven off the reflection ENTRY
@@ -281,21 +250,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     });
   }
 
-  // Binary size-estimate surface: the cold-start seed baked into the `tb` entry
-  // and the exact-size sizer (which reuses that same entry). Undefined when the
-  // type produced no `tb` entry (non-serialisable root). The reflection tuple is
-  // exposed so a size-lane run can drive its own `respectBinarySize` mocks.
-  const seed = byFamily.tb ? binarySizeEstimateFromTuple(byFamily.tb) : undefined;
-  let binarySizer: CompiledType['binarySizer'];
-  if (byFamily.tb) {
-    try {
-      binarySizer = createBinarySizerFn(undefined, byFamily.tb as never) as CompiledType['binarySizer'];
-    } catch {
-      binarySizer = undefined;
-    }
-  }
-
-  return {...partial, wired, wireErrors, seed, binarySizer, reflectionTuple};
+  return {...partial, wired, wireErrors};
 }
 
 function wire<K extends keyof WiredFns>(
@@ -316,8 +271,8 @@ interface FamilyTuples {
   verr?: readonly unknown[];
   jenc?: readonly unknown[];
   jdec?: readonly unknown[];
-  tb?: readonly unknown[];
-  fb?: readonly unknown[];
+  jencCO?: readonly unknown[];
+  jdecCO?: readonly unknown[];
 }
 
 function classifyFnSites(fnSites: Site[], tuples: Record<string, readonly unknown[]>): FamilyTuples {
@@ -328,8 +283,8 @@ function classifyFnSites(fnSites: Site[], tuples: Record<string, readonly unknow
     const tag = tuple[0];
     if (tag === 'val') out.val = tuple;
     else if (tag === 'verr') out.verr = tuple;
-    else if (tag === 'tb') out.tb = tuple;
-    else if (tag === 'fb') out.fb = tuple;
+    else if (tag === 'jeCO') out.jencCO = tuple;
+    else if (tag === 'jdCO') out.jdecCO = tuple;
     else if (typeof tag === 'string' && ENCODER_TAGS.has(tag)) out.jenc = tuple;
     else if (typeof tag === 'string' && DECODER_TAGS.has(tag)) out.jdec = tuple;
   }

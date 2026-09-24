@@ -1,5 +1,5 @@
 import * as TF from '@mionjs/run-types/formats';
-import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@mionjs/run-types';
 import * as RT from '@mionjs/run-types/builders';
 import type {SerializationCase} from './types.ts';
 
@@ -32,18 +32,8 @@ export const CIRCULAR_REFS = {
       type CircularObject = {name: string; child?: CircularObject};
       return createJsonDecoderFn<CircularObject>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      type CircularObject = {name: string; child?: CircularObject};
-      return createBinaryEncoderFn<CircularObject>();
-    },
-    binaryDecoder: () => {
-      type CircularObject = {name: string; child?: CircularObject};
-      return createBinaryDecoderFn<CircularObject>();
-    },
     schemaEncoder: () => createJsonEncoderFn(RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}))),
     schemaDecoder: () => createJsonDecoderFn(RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}))),
     getTestData: () => ({values: [{name: 'hello', child: {name: 'world'}}]}),
   },
   circular_union_array: {
@@ -76,20 +66,8 @@ export const CIRCULAR_REFS = {
       type CuArray = (CuArray | Date | number | string)[];
       return createJsonDecoderFn<CuArray>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      type CuArray = (CuArray | Date | number | string)[];
-      return createBinaryEncoderFn<CuArray>();
-    },
-    binaryDecoder: () => {
-      type CuArray = (CuArray | Date | number | string)[];
-      return createBinaryDecoderFn<CuArray>();
-    },
     schemaEncoder: () => createJsonEncoderFn(RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])))),
     schemaDecoder: () => createJsonDecoderFn(RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])))),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])))),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])))),
     getTestData: () => {
       const date = new Date('2000-08-06T02:13:00.000Z');
       return {
@@ -143,26 +121,10 @@ export const CIRCULAR_REFS = {
       }
       return createJsonDecoderFn<CircularTuple>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface CircularTuple {
-        list: [bigint, CircularTuple?];
-      }
-      return createBinaryEncoderFn<CircularTuple>();
-    },
-    binaryDecoder: () => {
-      interface CircularTuple {
-        list: [bigint, CircularTuple?];
-      }
-      return createBinaryDecoderFn<CircularTuple>();
-    },
     schemaEncoder: () =>
       createJsonEncoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
     schemaDecoder: () =>
       createJsonDecoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
     getTestData: () => ({
       values: [{list: [1n, {list: [2n, {list: [3n, {list: [4n]}]}]}]}, {list: [1n, {list: [2n]}]}, {list: [1n]}],
     }),
@@ -207,22 +169,8 @@ export const CIRCULAR_REFS = {
       }
       return createJsonDecoderFn<CircularIndex>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface CircularIndex {
-        index: {[key: string]: CircularIndex};
-      }
-      return createBinaryEncoderFn<CircularIndex>();
-    },
-    binaryDecoder: () => {
-      interface CircularIndex {
-        index: {[key: string]: CircularIndex};
-      }
-      return createBinaryDecoderFn<CircularIndex>();
-    },
     schemaEncoder: () => createJsonEncoderFn(RT.circular(RT.object({index: RT.record(RT.self())}))),
     schemaDecoder: () => createJsonDecoderFn(RT.circular(RT.object({index: RT.record(RT.self())}))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.circular(RT.object({index: RT.record(RT.self())}))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.circular(RT.object({index: RT.record(RT.self())}))),
     getTestData: () => ({
       values: [{index: {a: {index: {b: {index: {}}}}}}, {index: {a: {index: {}}}}, {index: {}}],
     }),
@@ -267,32 +215,12 @@ export const CIRCULAR_REFS = {
       }
       return createJsonDecoderFn<CircularDeep>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      interface CircularDeep {
-        deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
-      }
-      return createBinaryEncoderFn<CircularDeep>();
-    },
-    binaryDecoder: () => {
-      interface CircularDeep {
-        deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
-      }
-      return createBinaryDecoderFn<CircularDeep>();
-    },
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.circular(RT.object({deep1: RT.object({deep2: RT.object({deep3: RT.object({deep4: RT.optional(RT.self())})})})}))
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.circular(RT.object({deep1: RT.object({deep2: RT.object({deep3: RT.object({deep4: RT.optional(RT.self())})})})}))
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.circular(RT.object({deep1: RT.object({deep2: RT.object({deep3: RT.object({deep4: RT.optional(RT.self())})})})}))
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.circular(RT.object({deep1: RT.object({deep2: RT.object({deep3: RT.object({deep4: RT.optional(RT.self())})})})}))
       ),
     getTestData: () => ({
@@ -329,22 +257,12 @@ export const CIRCULAR_REFS = {
       type CircularTupleComplex = [bigint, CircularTupleComplex?];
       return createJsonDecoderFn<CircularTupleComplex>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      type CircularTupleComplex = [bigint, CircularTupleComplex?];
-      return createBinaryEncoderFn<CircularTupleComplex>();
-    },
-    binaryDecoder: () => {
-      type CircularTupleComplex = [bigint, CircularTupleComplex?];
-      return createBinaryDecoderFn<CircularTupleComplex>();
-    },
     // A ROOT-level recursive tuple can't be authored value-first — `circular(self =>
     // tuple({required: [bigint()], optional: [self]}))` hits TS2589 (TS can't build a recursive tuple type
     // via the mapping). Covered type-first here; the object→tuple cycle is covered
     // value-first by circular_tuple. Mirrors validation TUPLE.tuple_circular.
     schemaEncoder: 'not-supported',
     schemaDecoder: 'not-supported',
-    schemaBinaryEncoder: 'not-supported',
-    schemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [[1n, [2n, [3n, [4n]]]], [1n, [2n]], [1n]]}),
   },
   object_with_circular_array: {
@@ -399,22 +317,6 @@ export const CIRCULAR_REFS = {
       };
       return createJsonDecoderFn<ObjCircularArr>(undefined, {strategy: 'compact'});
     },
-    binaryEncoder: () => {
-      type ObjCircularArr = {
-        a: string;
-        deep?: {b: string; c: number};
-        d?: ObjCircularArr[];
-      };
-      return createBinaryEncoderFn<ObjCircularArr>();
-    },
-    binaryDecoder: () => {
-      type ObjCircularArr = {
-        a: string;
-        deep?: {b: string; c: number};
-        d?: ObjCircularArr[];
-      };
-      return createBinaryDecoderFn<ObjCircularArr>();
-    },
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.circular(
@@ -427,26 +329,6 @@ export const CIRCULAR_REFS = {
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
-        RT.circular(
-          RT.object({
-            a: TF.string(),
-            deep: RT.optional(RT.object({b: TF.string(), c: TF.number()})),
-            d: RT.optional(RT.array(RT.self())),
-          })
-        )
-      ),
-    schemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        RT.circular(
-          RT.object({
-            a: TF.string(),
-            deep: RT.optional(RT.object({b: TF.string(), c: TF.number()})),
-            d: RT.optional(RT.array(RT.self())),
-          })
-        )
-      ),
-    schemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
         RT.circular(
           RT.object({
             a: TF.string(),

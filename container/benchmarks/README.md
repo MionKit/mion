@@ -146,7 +146,7 @@ pnpm miondevx bench prep            # build the Go binaries (host + Linux cross)
 pnpm miondevx bench                 # build + validate + throughput for EVERY competitor + aggregate
 pnpm miondevx bench --one zod         # the same for a SINGLE competitor (fastest verification loop)
 pnpm miondevx bench typecost        # compile-time: per-competitor TS type-instantiation cost
-pnpm miondevx bench serialization   # mion round-trip serialization bench (+ formats), IN-CONTAINER
+pnpm miondevx bench serialization   # mion round-trip serialization bench, IN-CONTAINER
 pnpm miondevx bench --website         # ONE command: ALL website benchmark data (validation + typecost + serialization)
 pnpm miondevx bench smoke           # quick: build every competitor's dist (no run)
 pnpm miondevx bench typecheck       # quickest: compile every competitor project (the totality gate; also what CI runs)
@@ -173,8 +173,8 @@ timing runs on native Temporal, the same runtime the published library targets, 
 polyfilled Temporal). It reuses the mion competitor context (baked vite +
 the bind-mounted marker package, plugin and Go binary) plus a bind-mounted Linux
 build of the source-body extractor (`mion-bin/extract-fn-bodies-linux-<arch>`, so no Go
-toolchain is needed in-container), and writes `serialization` +
-`serialization-formats` straight into `container/website/public/bench-data`.
+toolchain is needed in-container), and writes `serialization` straight into
+`container/website/public/bench-data`.
 
 Two things this stage needs that the other lanes don't, because it loads the
 **marker package's own test program** rather than a competitor project:
@@ -197,7 +197,7 @@ each broke a website deploy after landing green in every other lane.
 
 **`bench:website`** is the single command that regenerates **all** benchmark data
 the docs site renders — runtime validation + typecost + `capture-env` +
-serialization (+ formats), every measurement taken inside the Node 26 container,
+serialization, every measurement taken inside the Node 26 container,
 then the `gen-bench-docs` host transform. (Suite-doc panels — schema / generated
 code — are a separate `pnpm miondevx website build`.)
 
@@ -329,17 +329,6 @@ with the `typecost` type-checking table).
 > full build (one resolver spawn + generate + bundle) and typia's `ttsc` are directly
 > comparable, both on tsgo. mion needs `@typescript/native-preview` (tsgo) in its
 > competitor deps for the strip/typecheck tiers; typia already ships it.
-
-## Format-serialization (`serialization-formats`)
-
-`bench:serialization` writes **two** datasets: the regular `serialization` round-trip
-suite, and `serialization-formats` (the `format-serialization` suite). The format
-dataset is the one that shows how a format constraint shrinks the **binary** payload:
-an unconstrained `number` / `bigint` rides the wire as a fixed 8 bytes, but a
-fixed-width (`int8`/`uint16`/…) or a `min`/`max`-bounded twin packs into the narrowest
-width that fits (1, 2, 4 bytes). The bytes tier of the verdict table reads the delta
-off directly. The suite already pairs each unconstrained number against its
-constrained twin, so no new cases are needed.
 
 ## Layout
 

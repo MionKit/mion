@@ -1,4 +1,4 @@
-// Family 7, unknown keys. Mirrors guide/unknown-keys-check-unknowns.ts and guide/remove-unknown-keys.ts.
+// Family 6, unknown keys. Mirrors guide/unknown-keys-check-unknowns.ts and guide/remove-unknown-keys.ts.
 import {createRemoveUnknownKeysFn, createValidateFn, createGetValidationErrorsFn} from '@mionjs/run-types';
 import {type CheckResult, ok} from './check';
 

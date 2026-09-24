@@ -7,9 +7,6 @@ import {
   createJsonDecoderFn,
   createPrepareForJsonFn,
   createRestoreFromJsonFn,
-  createBinaryEncoderFn,
-  createBinaryDecoderFn,
-  createBinarySizerFn,
   createJsonSchemaFn,
   createStandardSchema,
 } from '@mionjs/run-types';
@@ -56,11 +53,6 @@ const uncompactUser = createRestoreFromJsonFn<User>(undefined, {
   strategy: 'compact',
 });
 
-// binary
-const toBinary = createBinaryEncoderFn<User>();
-const fromBinary = createBinaryDecoderFn<User>();
-const binarySize = createBinarySizerFn<User>();
-
 // everything else
 const userSchema = createJsonSchemaFn<User>();
 const mockUser = createMockDataFn<User>();
@@ -84,9 +76,6 @@ export {
   decodeUser,
   prepareUser,
   restoreUser,
-  toBinary,
-  fromBinary,
-  binarySize,
   userSchema,
   mockUser,
   userStandardSchema,
