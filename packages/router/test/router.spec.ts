@@ -404,4 +404,14 @@ describe('Create routes should', () => {
     // headerNames alone make it public
     expect(isPublicExecutable(authMiddleware!)).toBe(true);
   });
+
+  // a global start/end middleware is not in the API type, so a built client could never list it and its rows would differ
+  it('lists route-level middlewares only in a route middlewareIds, never a global one', async () => {
+    addStartMiddlewares({globalStart: mion.middleware((ctx, id: string): void => undefined)}, false);
+    addEndMiddlewares({globalEnd: mion.middleware((ctx): string => 'end')});
+    const auth = mion.middleware((ctx, token: string): void => undefined);
+    const hello = mion.route((ctx, name: string): string => name);
+    mion.initRoutes({auth, hello});
+    expect(getRouteExecutable('hello')?.middlewareIds).toEqual(['auth']);
+  });
 });
