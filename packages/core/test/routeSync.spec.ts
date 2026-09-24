@@ -6,7 +6,8 @@
  * ######## */
 
 import {describe, it, expect} from 'vitest';
-import {routeSyncId, clientRowView, type RouteSyncFields} from '../src/routeSync.ts';
+import {routeSyncId, type RouteSyncFields} from '../src/routeSync.ts';
+import {clientRowView} from '../src/clientRowView.ts';
 import type {MethodWithOptions} from '../src/types/method.types.ts';
 
 const auth: RouteSyncFields = {id: 'auth', paramsJitHash: 'aaaaaaa', returnJitHash: 'bbbbbbb'};
