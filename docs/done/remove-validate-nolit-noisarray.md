@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-09-24
 ---
 
@@ -49,3 +49,12 @@ Before opening the PR, run the simplify-docs pass (the `docs-simplifier` subagen
 - Tests: delete cases that only exist for the two options; where one served as a generic "some variant option", switch it to `numberMode`.
 - Benchmarks: drop the 7 cases from the shared case lists and every competitor; the pre-publish e2e app's build-time options check now uses `checkUnknowns`.
 - Docs: drop both rows from the options table on the validation page; examples switch to `numberMode` / `checkUnknowns`.
+
+## What shipped
+
+As planned, plus:
+
+- The pre-publish e2e app's build-time options check (`container/pre-publish-e2e/apps/shared/src/validation.ts`) used `noLiterals`; it now checks a `checkUnknowns` variant instead, so the path stays covered.
+- Go tests that used either option as a generic variant (fnHash forks, spread options, cross-family routing, circular fork, union error variants) now use `numberMode` or `rejectCircularRefs`. `TestOptionSubsetsDropOnlyImpossibleCombinations` expects 3 validate subsets, the fnHash key-count canary 65.
+- `SerializeAtomicKind` lost its only production caller (the `noLiterals` symbol path) and stays as the checker-free seam the version tests use.
+- Kept variant keys (`NT`, `NM`, `C` forks) keep their hashes; the validate variant table went from 24 entries to 6.
