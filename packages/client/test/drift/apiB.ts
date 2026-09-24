@@ -30,6 +30,10 @@ const routes = {
     return value - 1;
   }),
   added: mion.route((): string => 'new'),
+  fetchedChanged: mion.route((ctx, value: number): string => {
+    count('fetchedChanged');
+    return `B${value}`;
+  }),
   secured: {
     token: mion.middleware((ctx, token: string): void => undefined),
     data: mion.route((): string => {

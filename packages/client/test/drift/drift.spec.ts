@@ -17,6 +17,7 @@ import {resetSyncRoutes} from '../../src/lib/syncRoutes.ts';
 import {resetApiBuildVersion} from '../../src/lib/apiBuildVersion.ts';
 import {resetApiVersionRecovery} from '../../src/lib/apiVersionRecovery.ts';
 import {resetMetadataStore} from '../../src/lib/metadataStore.ts';
+import {flushMetadataCache} from '../../src/lib/clientMethodsMetadata.ts';
 import {resetClientCaches} from '../lib/testUtils.ts';
 import {freePort, startDriftServer, type DriftServerName} from './driftServer.ts';
 
@@ -50,7 +51,10 @@ async function counted<T>(run: () => Promise<T>): Promise<{value: T; fetches: nu
 
 type Expect = 'runs' | 'refused';
 
-async function phase(server: DriftServerName, expected: {changed: Expect; secured: Expect}) {
+/** A fetched route whose return type changes: A answers a number, B and C a string. */
+const fetchedChangedAnswer: Record<DriftServerName, unknown> = {a: 13, b: 'B3', c: 'B3'};
+
+async function phase(server: DriftServerName, expected: {changed: Expect; secured: Expect; fetchedChangedRequests: number}) {
   await stopServer?.();
   stopServer = await startDriftServer(server, port);
   const {routes, middlewares} = reloadClient();
@@ -66,6 +70,12 @@ async function phase(server: DriftServerName, expected: {changed: Expect; secure
 
   const fetched = await callWide(routes.fetched(3));
   expect(fetched[0]).toBe(2);
+
+  // its row is restored from the store; when it predates the server the saved row is dropped and relearned
+  const fetchedChanged = await counted(() => callWide(routes.fetchedChanged(3)));
+  expect(fetchedChanged.value[0]).toBe(fetchedChangedAnswer[server]);
+  expect(fetchedChanged.value[2]?.type).not.toBe('route-types-mismatch');
+  expect(fetchedChanged.fetches).toBe(expected.fetchedChangedRequests);
 
   const changed = await counted(() => routes.changed('Ana').call());
   const secured = await routes.secured.data().call({middlewares: {token: middlewares.secured.token('t')}});
@@ -91,6 +101,8 @@ async function phase(server: DriftServerName, expected: {changed: Expect; secure
   expect(calls?.same).toBe(1);
   expect(calls?.optionsOnly).toBe(1);
   expect(calls?.fetched).toBe(1);
+  expect(calls?.fetchedChanged).toBe(1);
+  await flushMetadataCache();
 }
 
 describe('a client built against server A while the server behind its address changes', () => {
@@ -112,20 +124,21 @@ describe('a client built against server A while the server behind its address ch
     await stopServer?.();
   });
 
-  it('A: everything runs; a fetched route is refused once, learned from the refusal, and resent', async () => {
-    await phase('a', {changed: 'runs', secured: 'runs'});
+  // first visit: no saved row, so the fetched route is refused once for its ids and resent
+  it('A: everything runs', async () => {
+    await phase('a', {changed: 'runs', secured: 'runs', fetchedChangedRequests: 2});
   });
 
   it('B: a route whose params changed is refused, an added route and an options change are not', async () => {
-    await phase('b', {changed: 'refused', secured: 'runs'});
+    await phase('b', {changed: 'refused', secured: 'runs', fetchedChangedRequests: 3});
   });
 
   it('C: a changed return type and a changed middleware in a route chain are refused', async () => {
-    await phase('c', {changed: 'refused', secured: 'refused'});
+    await phase('c', {changed: 'refused', secured: 'refused', fetchedChangedRequests: 1});
   });
 
   it('A again: everything runs', async () => {
-    await phase('a', {changed: 'runs', secured: 'runs'});
+    await phase('a', {changed: 'runs', secured: 'runs', fetchedChangedRequests: 3});
   });
 
   it('the fetched route of a first visit costs one refused request, then runs', async () => {

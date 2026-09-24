@@ -245,12 +245,22 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
     refusal: RouteSyncRefusal,
     errors: RequestErrors
   ): Promise<ResponseBody> {
-    if (refusal.type === 'route-sync-required' && !this.resentWithSyncIds && !this.signal?.aborted) {
-      this.resentWithSyncIds = true;
-      learnSyncRoutes(this.options.baseURL);
-      const rows = refusal.errorData?.metadata;
-      if (rows?.methods) (await loadMetadataFromServer()).installMethodRows(rows);
-      return this.retryWithProperSerialization();
+    if (!this.signal?.aborted) {
+      // a row restored from the store can predate the server: relearning it is the one thing a resend can fix
+      const refusedIds = refusal.errorData?.routeIds ?? this.getRouteIds();
+      const cache = metadataCacheHooks();
+      if (cache && !this.purgedStaleMetadata && refusedIds.some((id) => cache.wasHydratedFromCache(id, this.options))) {
+        this.purgedStaleMetadata = true;
+        await cache.purgeHydratedMetadata(refusedIds, this.options);
+        return this.retryWithProperSerialization();
+      }
+      if (refusal.type === 'route-sync-required' && !this.resentWithSyncIds) {
+        this.resentWithSyncIds = true;
+        learnSyncRoutes(this.options.baseURL);
+        const rows = refusal.errorData?.metadata;
+        if (rows?.methods) (await loadMetadataFromServer()).installMethodRows(rows, Object.keys(rows.methods));
+        return this.retryWithProperSerialization();
+      }
     }
     Object.values(this.subRequestList).forEach((subRequest) => (subRequest.isResolved = true));
     this.setUndeclaredError(MION_ROUTES.syncRoutes, refusal, errors);
@@ -260,6 +270,8 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddlewareReques
   private async retryWithProperSerialization(): Promise<ResponseBody> {
     delete this.subRequestList[MION_ROUTES.methodsMetadata];
     delete this.subRequestList[MION_ROUTES.syncRoutes];
+    // each attempt asks again: a stale flag would set the next answer's rows aside instead of caching them
+    this.verifying = undefined;
     this.thrownErrorIds.clear();
     Object.values(this.subRequestList).forEach((sr) => {
       sr.isResolved = false;
